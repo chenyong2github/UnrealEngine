@@ -255,6 +255,90 @@ struct FUsdStageActorImpl
 
 		return UsdPrimPath;
 	};
+
+	static bool ObjectNeedsMultiUserTag( UObject* Object, AUsdStageActor* StageActor )
+	{
+		// Don't need to tag non-transient stuff
+		if ( !Object->HasAnyFlags( RF_Transient ) )
+		{
+			return false;
+		}
+
+		// Object already has tag
+		if ( AActor* Actor = Cast<AActor>( Object ) )
+		{
+			if ( Actor->Tags.Contains( UE::UsdTransactor::ConcertSyncEnableTag ) )
+			{
+				return false;
+			}
+		}
+		else if ( USceneComponent* Component = Cast<USceneComponent>( Object ) )
+		{
+			if ( Component->ComponentTags.Contains( UE::UsdTransactor::ConcertSyncEnableTag ) )
+			{
+				return false;
+			}
+		}
+
+		// Only care about objects that the same actor spawned
+		bool bOwnedByStageActor = false;
+		if ( StageActor->ObjectsToWatch.Contains( Object ) )
+		{
+			bOwnedByStageActor = true;
+		}
+		if ( AActor* Actor = Cast<AActor>( Object ) )
+		{
+			if ( StageActor->ObjectsToWatch.Contains( Actor->GetRootComponent() ) )
+			{
+				bOwnedByStageActor = true;
+			}
+		}
+		else if ( AActor* Outer = Object->GetTypedOuter<AActor>() )
+		{
+			if ( StageActor->ObjectsToWatch.Contains( Outer->GetRootComponent() ) )
+			{
+				bOwnedByStageActor = true;
+			}
+		}
+		if ( !bOwnedByStageActor )
+		{
+			return false;
+		}
+
+		return bOwnedByStageActor;
+	}
+
+	static void WhitelistComponentHierarchy( USceneComponent* Component, TSet<UObject*>& VisitedObjects )
+	{
+		if ( !Component || VisitedObjects.Contains( Component ) )
+		{
+			return;
+		}
+
+		VisitedObjects.Add( Component );
+
+		if ( Component->HasAnyFlags( RF_Transient ) )
+		{
+			Component->ComponentTags.AddUnique( UE::UsdTransactor::ConcertSyncEnableTag );
+		}
+
+		if ( AActor* Owner = Component->GetOwner() )
+		{
+			if ( !VisitedObjects.Contains( Owner ) && Owner->HasAnyFlags( RF_Transient ) )
+			{
+				Owner->Tags.AddUnique( UE::UsdTransactor::ConcertSyncEnableTag );
+			}
+
+			VisitedObjects.Add( Owner );
+		}
+
+		// Iterate the attachment hierarchy directly because maybe some of those actors have additional components that aren't being
+		// tracked by a prim twin
+		for ( USceneComponent* Child : Component->GetAttachChildren() )
+		{
+			WhitelistComponentHierarchy( Child, VisitedObjects );
+		}
+	}
 };
 
 /**
@@ -377,11 +461,15 @@ AUsdStageActor::AUsdStageActor()
 		FUsdDelegates::OnPostUsdImport.AddUObject( this, &AUsdStageActor::OnPostUsdImport );
 		FUsdDelegates::OnPreUsdImport.AddUObject( this, &AUsdStageActor::OnPreUsdImport );
 
+		GEngine->OnLevelActorDeleted().AddUObject( this, &AUsdStageActor::OnLevelActorDeleted );
+
 		// When another client of a multi-user session modifies their version of this actor, the transaction will be replicated here.
 		// The multi-user system uses "redo" to apply those transactions, so this is our best chance to respond to events as e.g. neither
 		// PostTransacted nor Destroyed get called when the other user deletes the actor
 		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
 		{
+			TransBuffer->OnTransactionStateChanged().AddUObject( this, &AUsdStageActor::HandleTransactionStateChanged );
+
 			// We can't use AddUObject here as we may specifically want to respond *after* we're marked as pending kill
 			OnRedoHandle = TransBuffer->OnRedo().AddLambda(
 				[ this ]( const FTransactionContext& TransactionContext, bool bSucceeded )
@@ -424,16 +512,6 @@ AUsdStageActor::AUsdStageActor()
 
 		UsdListener.GetOnObjectsChanged().AddUObject( this, &AUsdStageActor::OnUsdObjectsChanged );
 
-		UsdListener.GetOnObjectsChanged().AddLambda(
-			[&]( const UsdUtils::FObjectChangesByPath& InfoChanges, const UsdUtils::FObjectChangesByPath& ResyncChanges )
-			{
-				if ( Transactor )
-				{
-					Transactor->Update( InfoChanges, ResyncChanges );
-				}
-			}
-		);
-
 		UsdListener.GetOnLayersChanged().AddLambda(
 			[&]( const TArray< FString >& ChangeVec )
 			{
@@ -468,6 +546,15 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 		return;
 	}
 
+	// Only update the transactor if we're listening to USD notices. Within OnObjectPropertyChanged we will stop listening when writing stage changes
+	// from our component changes, and this will also make sure we're not duplicating the events we store and replicate via multi-user: If a modification
+	// can be described purely via UObject changes, then those changes will be responsible for the whole modification and we won't record the corresponding
+	// stage changes. The intent is that when undo/redo/replicating that UObject change, it will automatically generate the corresponding stage changes
+	if ( Transactor )
+	{
+		Transactor->Update( InfoChanges, ResyncChanges );
+	}
+
 	// If the stage was closed in a big transaction (e.g. undo open) a random UObject may be transacting before us and triggering USD changes,
 	// and the UE::FUsdStage will still be opened and valid (even though we intend on closing/changing it when we transact). It could be problematic/wasteful if we
 	// responded to those notices, so just early out here
@@ -476,7 +563,6 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	{
 		return;
 	}
-
 
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
 	TArray< TPair< FString, bool > > SortedPrimsChangedList;
@@ -637,8 +723,11 @@ AUsdStageActor::~AUsdStageActor()
 		FUsdDelegates::OnPreUsdImport.RemoveAll(this);
 		if ( UTransBuffer* TransBuffer = GUnrealEd ? Cast<UTransBuffer>( GUnrealEd->Trans ) : nullptr )
 		{
+			TransBuffer->OnTransactionStateChanged().RemoveAll( this );
 			TransBuffer->OnRedo().Remove( OnRedoHandle );
 		}
+
+		GEngine->OnLevelActorDeleted().AddUObject( this, &AUsdStageActor::OnLevelActorDeleted );
 
 		// This clears the SUSDStage window whenever the level we're currently in gets destroyed.
 		// Note that this is not called when deleting from the Editor, as the actor goes into the undo buffer.
@@ -1139,6 +1228,18 @@ void AUsdStageActor::OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectRe
 	}
 }
 
+void AUsdStageActor::OnLevelActorDeleted( AActor* DeletedActor )
+{
+	// Check for this here because it could be that we tried to delete this actor before changing any of its
+	// properties, in which case our similar check within OnObjectPropertyChange hasn't had the chance to tag this actor
+	if ( RootLayer.FilePath == OldRootLayer.FilePath && FUsdStageActorImpl::ObjectNeedsMultiUserTag( DeletedActor, this ) )
+	{
+		// DeletedActor is already detached from our hierarchy, so we must tag it directly
+		TSet<UObject*> VisitedObjects;
+		FUsdStageActorImpl::WhitelistComponentHierarchy( DeletedActor->GetRootComponent(), VisitedObjects );
+	}
+}
+
 #endif // WITH_EDITOR
 
 void AUsdStageActor::LoadUsdStage()
@@ -1432,6 +1533,17 @@ void AUsdStageActor::PreEditUndo()
 
 	Super::PreEditUndo();
 }
+
+void AUsdStageActor::HandleTransactionStateChanged( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState )
+{
+	if ( InTransactionState == ETransactionStateEventType::TransactionFinalized ||
+		 InTransactionState == ETransactionStateEventType::UndoRedoFinalized ||
+		 InTransactionState == ETransactionStateEventType::TransactionCanceled )
+	{
+		OldRootLayer = RootLayer;
+	}
+}
+
 #endif // WITH_EDITOR
 
 void AUsdStageActor::PostDuplicate( bool bDuplicateForPIE )
@@ -1653,6 +1765,16 @@ void AUsdStageActor::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPro
 	if ( !HasAuthorityOverStage() )
 	{
 		return;
+	}
+
+	// This transient object is owned by us but it doesn't have the multi user tag. If we're not in a transaction
+	// where we're spawning objects and components, traverse our hierarchy and tag everything that needs it.
+	// We avoid the RootLayer change transaction because if we tagged our spawns then the actual spawning would be
+	// replicated, and we want other clients to spawn their own actors and components instead
+	if ( RootLayer.FilePath == OldRootLayer.FilePath && FUsdStageActorImpl::ObjectNeedsMultiUserTag( ObjectBeingModified, this ) )
+	{
+		TSet<UObject*> VisitedObjects;
+		FUsdStageActorImpl::WhitelistComponentHierarchy( GetRootComponent(), VisitedObjects );
 	}
 
 	UObject* PrimObject = ObjectBeingModified;

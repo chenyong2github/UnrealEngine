@@ -145,6 +145,7 @@ public:
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 	virtual void PreEditChange( FProperty* PropertyThatWillChange ) override;
 	virtual void PreEditUndo() override;
+	void HandleTransactionStateChanged( const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState );
 #endif // WITH_EDITOR
 	virtual void PostDuplicate( bool bDuplicateForPIE ) override;
 	virtual void Serialize(FArchive& Ar) override;
@@ -170,6 +171,7 @@ private:
 	void OnBeginPIE(bool bIsSimulating);
 	void OnPostPIEStarted(bool bIsSimulating);
 	void OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectReplacementMap );
+	void OnLevelActorDeleted(AActor* DeletedActor);
 #endif // WITH_EDITOR
 
 	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
@@ -258,6 +260,14 @@ private:
 
 	FDelegateHandle OnRedoHandle;
 	FThreadSafeCounter IsBlockedFromUsdNotices;
+
+	/**
+	 * Helps us know whether a transaction changed our RootLayer or not. We need this because we can only tag spawned
+	 * transient actors and components after the initial actor/component spawning transaction has completed. Otherwise,
+	 * the spawns will be replicated on each client in addition to the actors/components that they will spawn by themselves
+	 * for opening the stage
+	 */
+	FFilePath OldRootLayer;
 };
 
 class USDSTAGE_API FScopedBlockNoticeListening final

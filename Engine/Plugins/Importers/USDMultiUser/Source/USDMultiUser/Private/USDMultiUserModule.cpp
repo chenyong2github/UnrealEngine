@@ -5,6 +5,8 @@
 #include "Modules/ModuleInterface.h"
 
 #include "ConcertSyncSettings.h"
+#include "IConcertClientTransactionBridge.h"
+#include "IConcertSyncClientModule.h"
 
 #include "USDLog.h"
 #include "USDStageActor.h"
@@ -16,64 +18,53 @@ namespace UE
 	{
 		namespace Private
 		{
-			void EnableTransactorFilters()
+			ETransactionFilterResult TransactionFilterFunction( UObject* ObjectToFilter, UPackage* ObjectsPackage )
 			{
-				UConcertSyncConfig* SyncConfig = GetMutableDefault<UConcertSyncConfig>();
-				if ( !SyncConfig )
+				if ( UUsdTransactor* Transactor = Cast<UUsdTransactor>( ObjectToFilter ) )
 				{
-					return;
+					if ( Transactor->IsInA( AUsdStageActor::StaticClass() ) )
+					{
+						return ETransactionFilterResult::IncludeObject;
+					}
 				}
 
-				FSoftClassPath StageActorClass = AUsdStageActor::StaticClass();
-				FSoftClassPath TransactorClass = UUsdTransactor::StaticClass();
-
-				for ( const FTransactionClassFilter& Filter : SyncConfig->IncludeObjectClassFilters )
+				// Allow transient objects only if they have the enable tag
+				// Having this tag means they are attached to and owned by an AUsdStageActor's hierarchy
+				if ( ObjectToFilter->HasAnyFlags( RF_Transient ) )
 				{
-					if ( Filter.ObjectOuterClass == StageActorClass )
+					if ( AActor* Actor = Cast<AActor>( ObjectToFilter ) )
 					{
-						if ( Filter.ObjectClasses.Contains( TransactorClass ) )
+						if ( Actor->Tags.Contains( UE::UsdTransactor::ConcertSyncEnableTag ) )
 						{
-							UE_LOG( LogUsd, Log, TEXT( "Found existing ConcertSync object class filters for UUsdTransactor" ) );
-							return;
+							return ETransactionFilterResult::IncludeObject;
+						}
+					}
+					else if ( UActorComponent* Component = Cast<UActorComponent>( ObjectToFilter ) )
+					{
+						if ( Component->ComponentTags.Contains( UE::UsdTransactor::ConcertSyncEnableTag ) )
+						{
+							return ETransactionFilterResult::IncludeObject;
 						}
 					}
 				}
 
-				FTransactionClassFilter NewFilter;
-				NewFilter.ObjectOuterClass = StageActorClass;
-				NewFilter.ObjectClasses = { TransactorClass };
+				return ETransactionFilterResult::UseDefault;
+			}
 
-				SyncConfig->IncludeObjectClassFilters.Add( NewFilter );
+			void EnableTransactorFilters()
+			{
+				IConcertClientTransactionBridge& TransactionBridge = IConcertSyncClientModule::Get().GetTransactionBridge();
+				TransactionBridge.RegisterTransactionFilter( TEXT( "USD-Main-Filters" ), FTransactionFilterDelegate::CreateStatic( &TransactionFilterFunction ) );
 
-				UE_LOG( LogUsd, Log, TEXT( "Added ConcertSync object class filters for UUsdTransactor" ) );
+				UE_LOG( LogUsd, Log, TEXT( "Added ConcertSync filters for UUsdTransactor" ) );
 			}
 
 			void DisableTransactorFilters()
 			{
-				UConcertSyncConfig* SyncConfig = GetMutableDefault<UConcertSyncConfig>();
-				if ( !SyncConfig )
-				{
-					return;
-				}
+				IConcertClientTransactionBridge& TransactionBridge = IConcertSyncClientModule::Get().GetTransactionBridge();
+				TransactionBridge.UnregisterTransactionFilter( TEXT( "USD-Main-Filters" ) );
 
-				FSoftClassPath StageActorClass = AUsdStageActor::StaticClass();
-				FSoftClassPath TransactorClass = UUsdTransactor::StaticClass();
-
-				for ( TArray<FTransactionClassFilter>::TIterator It( SyncConfig->IncludeObjectClassFilters ); It; ++It )
-				{
-					if ( It->ObjectOuterClass == StageActorClass )
-					{
-						It->ObjectClasses.Remove( TransactorClass );
-
-						UE_LOG( LogUsd, Log, TEXT( "Removed ConcertSync object class filters for UUsdTransactor" ) );
-					}
-
-					// Don't assume it's fully our filter
-					if ( It->ObjectClasses.Num() == 0 )
-					{
-						It.RemoveCurrent();
-					}
-				}
+				UE_LOG( LogUsd, Log, TEXT( "Removed ConcertSync filters for UUsdTransactor" ) );
 			}
 		}
 	}

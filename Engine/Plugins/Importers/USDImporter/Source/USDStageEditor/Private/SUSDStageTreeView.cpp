@@ -227,17 +227,17 @@ public:
 		}
 
 		TSharedRef< SWidget > Item = SNew( SButton )
-										.ContentPadding(0)
-										.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
-										.OnClicked( this, &FUsdStageVisibilityColumn::OnToggleVisibility, TreeItem )
-										.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "GeomImageable", "Toggle the visibility of this prim" ) ) )
-										.HAlign( HAlign_Center )
-										.VAlign( VAlign_Center )
-										.Content()
-										[
-											SNew( SImage )
-											.Image( this, &FUsdStageVisibilityColumn::GetBrush, TreeItem )
-										];
+			.ContentPadding( 0 )
+			.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+			.OnClicked( this, &FUsdStageVisibilityColumn::OnToggleVisibility, TreeItem )
+			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "GeomImageable", "Toggle the visibility of this prim" ) ) )
+			.HAlign( HAlign_Center )
+			.VAlign( VAlign_Center )
+			.Content()
+			[
+				SNew( SImage )
+				.Image( this, &FUsdStageVisibilityColumn::GetBrush, TreeItem )
+			];
 
 		return Item;
 	}
@@ -919,7 +919,7 @@ void SUsdStageTreeView::OnPrimNameCommitted( const FUsdPrimViewModelRef& ViewMod
 		// e.g. "NewPrim"
 		FString NewNameStr = InPrimName.ToString();
 
-		const bool bDidRename = ViewModel->RenamePrim( *NewNameStr );
+		const bool bDidRename = UsdUtils::RenamePrim( ViewModel->UsdPrim, *NewNameStr );
 
 		// Preserve the expansion states before our ChangeBlock's destructor triggers
 		// notices that will refresh the tree view

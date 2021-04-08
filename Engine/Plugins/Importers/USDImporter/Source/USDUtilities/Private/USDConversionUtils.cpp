@@ -9,7 +9,9 @@
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
+#include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Algo/Copy.h"
 #include "Animation/AnimSequence.h"
@@ -807,6 +809,103 @@ void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
 	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
 
 	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
+#endif // #if USE_USD_SDK
+}
+
+bool UsdUtils::RenamePrim( UE::FUsdPrim& Prim, const TCHAR* NewPrimName )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( !Prim || !NewPrimName )
+	{
+		return false;
+	}
+
+	if ( Prim.GetName() == FName( NewPrimName ) )
+	{
+		return false;
+	}
+
+	pxr::UsdPrim PxrUsdPrim{ Prim };
+	pxr::UsdStageRefPtr PxrUsdStage{ Prim.GetStage() };
+	if ( !PxrUsdStage )
+	{
+		return false;
+	}
+
+	const bool bIncludeSessionLayers = true;
+	pxr::SdfLayerHandleVector AllLayers = PxrUsdStage->GetLayerStack( bIncludeSessionLayers );
+
+	pxr::SdfBatchNamespaceEdit BatchEdit;
+	BatchEdit.Add( pxr::SdfNamespaceEdit::Rename( PxrUsdPrim.GetPath(), UnrealToUsd::ConvertToken( NewPrimName ).Get() ) );
+
+	// Check if we can apply this rename, and collect error messages if we can't
+	TArray<FString> ErrorMessages;
+	pxr::SdfNamespaceEditDetailVector Details;
+	int32 LastDetailsSize = 0;
+	bool bCanApply = true;
+	for ( const pxr::SdfLayerHandle& Layer : AllLayers )
+	{
+		// Manually ignore layers that don't have a spec for the prim we want to rename or else USD will
+		// claim it can't rename, which will break our plan here
+		if ( !Layer->HasSpec( PxrUsdPrim.GetPath() ) )
+		{
+			continue;
+		}
+
+		int32 CurrentNumDetails = Details.size();
+		if ( Layer->CanApply( BatchEdit, &Details ) != pxr::SdfNamespaceEditDetail::Result::Okay )
+		{
+			FString LayerName = UsdToUnreal::ConvertString( Layer->GetIdentifier() );
+
+			// This error pushed something new into the Details vector. Get it as an error message
+			FString ErrorMessage;
+			if ( CurrentNumDetails != LastDetailsSize )
+			{
+				ErrorMessage = UsdToUnreal::ConvertString( Details[ CurrentNumDetails - 1 ].reason );
+			}
+
+			ErrorMessages.Add( FString::Printf( TEXT( "\t%s: %s" ), *LayerName, *ErrorMessage ) );
+			bCanApply = false;
+		}
+
+		LastDetailsSize = CurrentNumDetails;
+	}
+
+	if ( !bCanApply )
+	{
+		UE_LOG( LogUsd, Error, TEXT( "Failed to rename prim with path '%s' to name '%s'. Errors:\n%s" ),
+			*Prim.GetPrimPath().GetString(),
+			NewPrimName,
+			*FString::Join( ErrorMessages, TEXT( "\n" ) )
+		);
+
+		return false;
+	}
+
+	for ( const pxr::SdfLayerHandle& Layer : AllLayers )
+	{
+		if ( !Layer->HasSpec( PxrUsdPrim.GetPath() ) )
+		{
+			continue;
+		}
+
+		if ( !Layer->Apply( BatchEdit ) )
+		{
+			// This should not be happening since CanApply was true, so stop doing whatever it is we're doing
+			UE_LOG( LogUsd, Error, TEXT( "Failed to rename prim with path '%s' to name '%s'" ),
+				*Prim.GetPrimPath().GetString(),
+				NewPrimName
+			);
+
+			return false;
+		}
+	}
+
+	return true;
+#else
+	return false;
 #endif // #if USE_USD_SDK
 }
 
