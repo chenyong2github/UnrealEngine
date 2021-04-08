@@ -7,6 +7,7 @@ All common code shared between the editor side debugger and debugger clients run
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/NotifyHook.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.generated.h"
@@ -360,7 +361,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bActorFilterEnabled"))
 	FString ActorFilter;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (InlineEditConditionToggle))
 	bool bComponentFilterEnabled = false;
 
 	/**
@@ -370,7 +371,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bComponentFilterEnabled"))
 	FString ComponentFilter;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (InlineEditConditionToggle))
 	bool bSystemFilterEnabled = false;
 
 	/**
@@ -380,7 +381,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
 	FString SystemFilter;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (InlineEditConditionToggle))
 	bool bEmitterFilterEnabled = false;
 
 	/**
@@ -390,7 +391,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bEmitterFilterEnabled"))
 	FString EmitterFilter;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (InlineEditConditionToggle))
 	bool bActorFilterEnabled = false;
 
 	/** Modifies the in world system display information level. */
@@ -477,7 +478,7 @@ struct NIAGARA_API FNiagaraRequestSimpleClientInfoMessage
 };
 
 UCLASS(config = EditorPerProjectUserSettings, defaultconfig)
-class NIAGARA_API UNiagaraDebugHUDSettings : public UObject
+class NIAGARA_API UNiagaraDebugHUDSettings : public UObject, public FNotifyHook
 {
 	GENERATED_BODY()
 
@@ -488,10 +489,11 @@ public:
 	UPROPERTY(Config, EditAnywhere, Category = "Settings", meta=(ShowOnlyInnerProperties))
 	FNiagaraDebugHUDSettingsData Data;
 
-#if WITH_EDITOR
 	void PostEditChangeProperty();
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
+	virtual void NotifyPreChange(FProperty* PropertyAboutToChange) {}
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) { PostEditChangeProperty(); }
+	virtual void NotifyPreChange(class FEditPropertyChain* PropertyAboutToChange) {}
+	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, class FEditPropertyChain* PropertyThatChanged) { PostEditChangeProperty(); }
 };
 
 

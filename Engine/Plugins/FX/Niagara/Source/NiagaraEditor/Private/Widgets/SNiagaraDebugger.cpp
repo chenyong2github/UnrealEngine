@@ -54,12 +54,20 @@ namespace NiagaraDebugHudTab
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-		FDetailsViewArgs DetailsArgs;
-		DetailsArgs.bHideSelectionTip = true;
-		TSharedPtr<IDetailsView> DebuggerSettingsDetails = PropertyModule.CreateDetailView(DetailsArgs);
+		UNiagaraDebugHUDSettings* DebugHudSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
 
-		UNiagaraDebugHUDSettings* DebugHUDSettings = GetMutableDefault<UNiagaraDebugHUDSettings>();
-		DebuggerSettingsDetails->SetObject(DebugHUDSettings);
+		FDetailsViewArgs DetailsViewArgs;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.NotifyHook = DebugHudSettings;
+
+		FStructureDetailsViewArgs StructureViewArgs;
+		StructureViewArgs.bShowObjects = true;
+		StructureViewArgs.bShowAssets = true;
+		StructureViewArgs.bShowClasses = true;
+		StructureViewArgs.bShowInterfaces = true;
+
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShared<FStructOnScope>(FNiagaraDebugHUDSettingsData::StaticStruct(), reinterpret_cast<uint8*>(&DebugHudSettings->Data));
+		TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, StructOnScope);
 
 		TabManager->RegisterTabSpawner(
 			TabName,
@@ -70,7 +78,7 @@ namespace NiagaraDebugHudTab
 						.TabRole(ETabRole::PanelTab)
 						.Label(LOCTEXT("DebugHudTitle", "Debug Hud"))
 						[
-							DebuggerSettingsDetails.ToSharedRef()
+							StructureDetailsView->GetWidget().ToSharedRef()
 						];
 				}
 			)
@@ -643,7 +651,7 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 	TSharedPtr<ISessionManager> SessionManager = SessionServicesModule.GetSessionManager();
 	NiagaraSessionBrowserTab::RegisterTabSpawner(TabManager, SessionManager);
 
-	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.1")
+	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.11")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -659,24 +667,11 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 					->SetSizeCoefficient(.8f)
 					->SetHideTabWell(true)
 					->AddTab(NiagaraDebugHudTab::TabName, ETabState::OpenedTab)
+					->AddTab(NiagaraOutlinerTab::TabName, ETabState::OpenedTab)
 					->AddTab(NiagaraPerformanceTab::TabName, ETabState::OpenedTab)
+					->AddTab(NiagaraSessionBrowserTab::TabName, ETabState::OpenedTab)
 					->SetForegroundTab(NiagaraDebugHudTab::TabName)
 				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetHideTabWell(true)
-					->SetSizeCoefficient(0.2f)
-					->AddTab(NiagaraSessionBrowserTab::TabName, ETabState::OpenedTab)
-					->SetForegroundTab(NiagaraSessionBrowserTab::TabName)
-				)
-			)
-			->Split
-			(
-				FTabManager::NewStack()
-				->SetSizeCoefficient(.7f)
-				->AddTab(NiagaraOutlinerTab::TabName, ETabState::OpenedTab)
-				->SetForegroundTab(NiagaraOutlinerTab::TabName)
 			)
 		);
 

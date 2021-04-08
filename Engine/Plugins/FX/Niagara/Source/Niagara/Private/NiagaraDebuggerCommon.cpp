@@ -14,19 +14,11 @@ FNiagaraDebugHUDSettingsData::FNiagaraDebugHUDSettingsData()
 
 //////////////////////////////////////////////////////////////////////////
 
-#if WITH_EDITOR
-
 void UNiagaraDebugHUDSettings::PostEditChangeProperty()
 {
 	OnChangedDelegate.Broadcast();
 	SaveConfig();
 }
-
-void UNiagaraDebugHUDSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	PostEditChangeProperty();
-}
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 
