@@ -25,7 +25,14 @@ struct AUDIOCAPTURE_API FAudioInputDeviceInfo
 {
 	GENERATED_USTRUCT_BODY()
 
-	FAudioInputDeviceInfo() {};
+	FAudioInputDeviceInfo() :
+		DeviceName(""),
+		DeviceId(""),
+		InputChannels(0),
+		PreferredSampleRate(0),
+		bSupportsHardwareAEC(true) 
+	{};
+
 	FAudioInputDeviceInfo(const Audio::FCaptureDeviceInfo& InDeviceInfo);
 
 	/** The name of the audio device */
