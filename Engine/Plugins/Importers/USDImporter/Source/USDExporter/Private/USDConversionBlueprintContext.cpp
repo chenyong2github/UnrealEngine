@@ -7,7 +7,7 @@
 #include "USDLightConversion.h"
 #include "USDLog.h"
 #include "USDPrimConversion.h"
-#include "UsdShadeConversion.h"
+#include "USDShadeConversion.h"
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
