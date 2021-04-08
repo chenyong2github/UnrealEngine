@@ -317,6 +317,9 @@ public:
 	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
 
 #endif
+
+	virtual void* RHIGetNativeCommandBuffer() { return nullptr; }
+	virtual void RHIPostExternalCommandsReset() { }
 };
 
 enum class EAccelerationStructureBuildMode

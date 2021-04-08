@@ -1831,6 +1831,11 @@ struct FRHICommandSubmitCommandsHint final : public FRHICommand<FRHICommandSubmi
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandPostExternalCommandsReset)
+{
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 FRHICOMMAND_MACRO(FRHICommandPollOcclusionQueries)
 {
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -2875,6 +2880,16 @@ public:
 		}
 	}
 #endif
+
+	FORCEINLINE_DEBUGGABLE void PostExternalCommandsReset()
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIPostExternalCommandsReset();
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandPostExternalCommandsReset)();
+	}
 };
 
 class RHI_API FRHICommandList : public FRHIComputeCommandList
@@ -4720,12 +4735,41 @@ public:
 		return GDynamicRHI->RHIGetNativeDevice();
 	}
 	
+	FORCEINLINE void* GetNativePhysicalDevice()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativePhysicalDevice_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativePhysicalDevice();
+	}
+	
+	FORCEINLINE void* GetNativeGraphicsQueue()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeGraphicsQueue_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativeGraphicsQueue();
+	}
+	
+	FORCEINLINE void* GetNativeComputeQueue()
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeComputeQueue_Flush);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
+		 
+		return GDynamicRHI->RHIGetNativeComputeQueue();
+	}
+	
 	FORCEINLINE void* GetNativeInstance()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_GetNativeInstance_Flush);
 		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 
 		return GDynamicRHI->RHIGetNativeInstance();
+	}
+	
+	FORCEINLINE void* GetNativeCommandBuffer()
+	{
+		return GDynamicRHI->RHIGetNativeCommandBuffer();
 	}
 
 	FORCEINLINE class IRHICommandContext* GetDefaultContext()
@@ -5554,11 +5598,30 @@ FORCEINLINE void* RHIGetNativeDevice()
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeDevice();
 }
 
+FORCEINLINE void* RHIGetNativePhysicalDevice()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativePhysicalDevice();
+}
+
+FORCEINLINE void* RHIGetNativeGraphicsQueue()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeGraphicsQueue();
+}
+
+FORCEINLINE void* RHIGetNativeComputeQueue()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeComputeQueue();
+}
+
 FORCEINLINE void* RHIGetNativeInstance()
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeInstance();
 }
 
+FORCEINLINE void* RHIGetNativeCommandBuffer()
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().GetNativeCommandBuffer();
+}
 
 FORCEINLINE FRHIShaderLibraryRef RHICreateShaderLibrary(EShaderPlatform Platform, FString const& FilePath, FString const& Name)
 {

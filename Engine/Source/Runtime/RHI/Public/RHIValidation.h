@@ -1379,6 +1379,34 @@ public:
 	{
 		return RHI->RHIGetNativeDevice();
 	}
+
+	/**
+	* Provides access to the native physical device. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativePhysicalDevice() override final
+	{
+		return RHI->RHIGetNativePhysicalDevice();
+	}
+
+	/**
+	* Provides access to the native graphics command queue. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeGraphicsQueue() override final
+	{
+		return RHI->RHIGetNativeGraphicsQueue();
+	}
+
+	/**
+	* Provides access to the native compute command queue. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Flush RHI Thread
+	virtual void* RHIGetNativeComputeQueue() override final
+	{
+		return RHI->RHIGetNativeComputeQueue();
+	}
+
 	/**
 	* Provides access to the native instance. Generally this should be avoided but is useful for third party plugins.
 	*/
@@ -1388,6 +1416,14 @@ public:
 		return RHI->RHIGetNativeInstance();
 	}
 
+	/**
+	* Provides access to the native device's command buffer. Generally this should be avoided but is useful for third party plugins.
+	*/
+	// FlushType: Not Thread Safe!!
+	virtual void* RHIGetNativeCommandBuffer() override final
+	{
+		return RHI->RHIGetNativeCommandBuffer();
+	}
 
 	// FlushType: Thread safe
 	virtual IRHICommandContext* RHIGetDefaultContext() override final;
