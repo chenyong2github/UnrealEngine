@@ -13,6 +13,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/Runnable.h"
 
+THIRD_PARTY_INCLUDES_START
 // Disable macro redefinition warning
 #pragma warning(push)
 #pragma warning(disable:4005)
@@ -21,6 +22,7 @@
 #include "VRPN/vrpn_Button.h"
 #include "VRPN/vrpn_Tracker.h"
 #pragma warning(pop)
+THIRD_PARTY_INCLUDES_END
 
 struct ULiveLinkVRPNSettings;
 
