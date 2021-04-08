@@ -164,13 +164,41 @@ bool FSlateAttributeMetaData::UnregisterAttributeImpl(const FSlateAttributeBase&
 }
 
 
-EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationReason(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
+TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWidget) const
+{
+	TArray<FName> Names;
+	Names.Reserve(Attributes.Num());
+	for (const FGetterItem& Getter : Attributes)
+	{
+		const FName Name = Getter.GetAttributeName(OwningWidget);
+		if (Name.IsValid())
+		{
+			Names.Add(Name);
+		}
+	}
+	return Names;
+}
+
+
+FSlateAttributeMetaData::FGetterItem::FInvalidationDetail FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
 {
 	if (CachedAttributeDescriptorIndex != INDEX_NONE)
 	{
-		return OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex).InvalidationReason.Get(OwningWidget);
+		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
+		return FInvalidationDetail{&DescriptorAttribute.OnInvalidation, DescriptorAttribute.InvalidationReason.Get(OwningWidget)};
 	}
-	return Reason;
+	return FInvalidationDetail{nullptr, Reason};
+}
+
+
+FName FSlateAttributeMetaData::FGetterItem::GetAttributeName(const SWidget& OwningWidget) const
+{
+	if (CachedAttributeDescriptorIndex != INDEX_NONE)
+	{
+		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
+		return DescriptorAttribute.Name;
+	}
+	return FName();
 }
 
 
@@ -186,13 +214,19 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		return;
 	}
 
+	const FSlateAttributeDescriptor::FInvalidationDelegate* OnInvalidationCallback = nullptr;
+
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		const int32 FoundIndex = AttributeMetaData->IndexOfAttribute(Attribute);
 		if (FoundIndex != INDEX_NONE)
 		{
 			FGetterItem& GetterItem = AttributeMetaData->Attributes[FoundIndex];
-			Reason = GetterItem.GetInvalidationReason(OwningWidget, Reason);
+			{
+				const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Reason);
+				OnInvalidationCallback = Detail.Get<0>();
+				Reason = Detail.Get<1>();
+			}
 
 			// The dependency attribute need to be updated in the update loop (note that it may not be registered yet)
 			if (GetterItem.bIsADependencyForSomeoneElse)
@@ -209,6 +243,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 			if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = AttributeDescriptor.FindMemberAttribute(Offset))
 			{
 				Reason = FoundAttribute->InvalidationReason.Get(OwningWidget);
+				OnInvalidationCallback = &FoundAttribute->OnInvalidation;
 
 				if (FoundAttribute->bIsADependencyForSomeoneElse)
 				{
@@ -235,10 +270,15 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset))
 		{
 			Reason = FoundAttribute->InvalidationReason.Get(OwningWidget);
+			OnInvalidationCallback = &FoundAttribute->OnInvalidation;
 		}
 	}
 
 	OwningWidget.Invalidate(Reason);
+	if (OnInvalidationCallback)
+	{
+		OnInvalidationCallback->ExecuteIfBound(OwningWidget);
+	}
 }
 
 
@@ -258,7 +298,7 @@ void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bAllo
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributes(OwningWidget, false, bAllowInvalidation);
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, false, bAllowInvalidation);
 	}
 }
 
@@ -270,14 +310,17 @@ void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget, b
 		// Does it have any collapsed attributes
 		if (AttributeMetaData->CollaspedAttributeCounter > 0)
 		{
-			AttributeMetaData->UpdateAttributes(OwningWidget, true, bAllowInvalidation);
+			AttributeMetaData->UpdateAttributesImpl(OwningWidget, true, bAllowInvalidation);
 		}
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation)
+void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation)
 {
+	// List of all the callback we need to execute after the invalidation
+	TArray<const FSlateAttributeDescriptor::FInvalidationDelegate*, TInlineAllocator<8>> AllInvalidationDelegates;
+
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
 	for (int32 Index = 0; Index < Attributes.Num(); ++Index)
 	{
@@ -320,7 +363,12 @@ void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnly
 		GetterItem.bUpdatedThisFrame = Result.bInvalidationRequested;
 		if (Result.bInvalidationRequested && bAllowInvalidation)
 		{
-			InvalidationReason |= GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason);
+			const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+			if (Detail.Get<0>())
+			{
+				AllInvalidationDelegates.Add(Detail.Get<0>());
+			}
+			InvalidationReason |= Detail.Get<1>();
 		}
 	}
 
@@ -336,6 +384,10 @@ void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bOnly
 	if (bAllowInvalidation)
 	{
 		OwningWidget.Invalidate(InvalidationReason);
+		for (const FSlateAttributeDescriptor::FInvalidationDelegate* OnInvalidation : AllInvalidationDelegates)
+		{
+			OnInvalidation->ExecuteIfBound(OwningWidget);
+		}
 	}
 }
 
@@ -355,7 +407,12 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			{
 				if (OwningWidget.IsConstructionCompleted())
 				{
-					OwningWidget.Invalidate(GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason));
+					const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+					OwningWidget.Invalidate(Detail.Get<1>());
+					if (Detail.Get<0>())
+					{
+						Detail.Get<0>()->ExecuteIfBound(OwningWidget);
+					}
 				}
 
 				// The dependency attribute need to be updated in the update loop (note that it may not be registered yet)

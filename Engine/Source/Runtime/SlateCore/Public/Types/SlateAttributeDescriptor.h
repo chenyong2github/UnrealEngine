@@ -66,6 +66,20 @@ public:
 		FGetter Getter;
 	};
 
+	/** */
+	DECLARE_DELEGATE_OneParam(FInvalidationDelegate, SWidget& /*Widget*/);
+
+	/** */
+	enum class EInvalidationDelegateOverrideType
+	{
+		/** Replace the callback that the base class defined. */
+		ReplacePrevious,
+		/** Execute the callback that the base class defined, then execute the new callback. */
+		ExecuteAfterPrevious,
+		/** Execute the new callback, then execute the callback that the base class defined. */
+		ExecuteBeforePrevious,
+	};
+
 public:
 	using OffsetType = uint32;
 
@@ -80,6 +94,7 @@ public:
 		FName Prerequisite;
 		uint32 SortOrder = 0;
 		FInvalidateWidgetReasonAttribute InvalidationReason = FInvalidateWidgetReasonAttribute(EInvalidateWidgetReason::None);
+		FInvalidationDelegate OnInvalidation;
 		bool bIsMemberAttribute = false;
 		bool bIsPrerequisiteAlsoADependency = false;
 		bool bIsADependencyForSomeoneElse = false;
@@ -123,6 +138,13 @@ public:
 			 */
 			FAttributeEntry& UpdateWhenCollapsed();
 
+			/**
+			 * Be notified when the attribute value changed and the invalidation occurs.
+			 * It will not be called when the SWidget is in his construction phase.
+			 * @see SWidget::IsConstructionCompleted
+			 */
+			FAttributeEntry& OnInvalidation(FInvalidationDelegate Callback);
+
 		private:
 			FSlateAttributeDescriptor& Descriptor;
 			int32 AttributeIndex;
@@ -131,9 +153,15 @@ public:
 		FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& ReasonGetter);
 		FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& ReasonGetter);
 
+		/** Change the InvalidationReason of an attribute defined in a base class. */
 		void OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason);
+		/** Change the InvalidationReason of an attribute defined in a base class. */
 		void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
 
+		/** Change the FInvalidationDelegate of an attribute defined in a base class. */
+		void OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback);
+
+		/** Change the update type of an attribute defined in a base class. */
 		void SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed);
 
 
@@ -176,6 +204,7 @@ private:
 
 	FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
+	void OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback);
 	void SetPrerequisite(FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency);
 	void SetUpdateWhenCollapsed(FAttribute& Attribute, bool bUpdate);
 

@@ -4,7 +4,10 @@
 #include "Types/SlateAttribute.h"
 #include "Containers/ArrayView.h"
 
+#include <limits>
 
+
+/** */
 FSlateAttributeDescriptor::FInitializer::FAttributeEntry::FAttributeEntry(FSlateAttributeDescriptor& InDescriptor, int32 InAttributeIndex)
 	: Descriptor(InDescriptor)
 	, AttributeIndex(InAttributeIndex)
@@ -41,6 +44,17 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescrip
 }
 
 
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::OnInvalidation(FInvalidationDelegate InCallback)
+{
+	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
+	{
+		Descriptor.Attributes[AttributeIndex].OnInvalidation = MoveTemp(InCallback);
+	}
+	return *this;
+}
+
+
+/** */
 FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor& InDescriptor)
 	: Descriptor(InDescriptor)
 {
@@ -55,6 +69,8 @@ FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor&
 
 FSlateAttributeDescriptor::FInitializer::~FInitializer()
 {
+	checkf(Descriptor.Attributes.Num() < std::numeric_limits<int16>::max(), TEXT("There is too many attributes. The index is saved as an int16 in FSlateAttributeMetaData."));
+
 	// Update the sort order for the item that have prerequisite.
 	//Because adding the attribute is not required at the moment
 	//try to not change the order in which they were added
@@ -177,6 +193,18 @@ void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName A
 }
 
 
+void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason)
+{
+	Descriptor.OverrideInvalidationReason(AttributeName, MoveTemp(Reason));
+}
+
+
+void FSlateAttributeDescriptor::FInitializer::OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback)
+{
+	Descriptor.OverrideOnInvalidation(AttributeName, OverrideType, MoveTemp(Callback));
+}
+
+
 void FSlateAttributeDescriptor::FInitializer::SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed)
 {
 	FAttribute* Attribute = Descriptor.FindAttribute(AttributeName);
@@ -187,12 +215,7 @@ void FSlateAttributeDescriptor::FInitializer::SetUpdateWhenCollapsed(FName Attri
 }
 
 
-void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason)
-{
-	Descriptor.OverrideInvalidationReason(AttributeName, MoveTemp(Reason));
-}
-
-
+/** */
 FSlateAttributeDescriptor::FAttribute const& FSlateAttributeDescriptor::GetAttributeAtIndex(int32 Index) const
 {
 	check(Attributes.IsValidIndex(Index));
@@ -267,6 +290,48 @@ void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, 
 	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
 	{
 		FoundAttribute->InvalidationReason = MoveTemp(Reason);
+	}
+}
+
+
+void FSlateAttributeDescriptor::OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback)
+{
+	check(!AttributeName.IsNone());
+
+	FAttribute* FoundAttribute = FindAttribute(AttributeName);
+	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
+	{
+		switch(OverrideType)
+		{
+		case EInvalidationDelegateOverrideType::ReplacePrevious:
+			FoundAttribute->OnInvalidation = MoveTemp(Callback);
+			break;
+		case EInvalidationDelegateOverrideType::ExecuteAfterPrevious:
+		case EInvalidationDelegateOverrideType::ExecuteBeforePrevious:
+			if (FoundAttribute->OnInvalidation.IsBound() && Callback.IsBound())
+			{
+				FInvalidationDelegate Previous = FoundAttribute->OnInvalidation;
+				FoundAttribute->OnInvalidation = FInvalidationDelegate::CreateLambda([Previous{MoveTemp(Previous)}, Callback{MoveTemp(Callback)}, OverrideType](SWidget& Widget)
+					{
+						if (OverrideType == EInvalidationDelegateOverrideType::ExecuteBeforePrevious)
+						{
+							Previous.ExecuteIfBound(Widget);
+						}
+						Callback.ExecuteIfBound(Widget);
+						if (OverrideType == EInvalidationDelegateOverrideType::ExecuteAfterPrevious)
+						{
+							Previous.ExecuteIfBound(Widget);
+						}
+					});
+			}
+			else if (Callback.IsBound())
+			{
+				FoundAttribute->OnInvalidation = MoveTemp(Callback);
+			}
+			break;
+		default:
+			check(false);
+		}
 	}
 }
 

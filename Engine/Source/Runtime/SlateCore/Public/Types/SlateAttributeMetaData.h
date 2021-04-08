@@ -6,6 +6,7 @@
 #include "Algo/BinarySearch.h"
 #include "Types/ISlateMetaData.h"
 #include "Types/SlateAttribute.h"
+#include "Types/SlateAttributeDescriptor.h"
 #include "Widgets/InvalidateWidgetReason.h"
 
 
@@ -57,6 +58,9 @@ public:
 
 	int32 RegisteredCollaspedAttributeCount() const { return CollaspedAttributeCounter; }
 
+	/** Get the name of all the atrributes, if available. */
+	TArray<FName> GetAttributeNames(const SWidget& OwningWidget) const;
+
 private:
 	using ESlateAttributeType = SlateAttributePrivate::ESlateAttributeType;
 	using ISlateAttributeGetter = SlateAttributePrivate::ISlateAttributeGetter;
@@ -72,7 +76,7 @@ private:
 private:
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void UpdateAttributes(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation);
+	void UpdateAttributesImpl(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const
@@ -128,7 +132,11 @@ private:
 			return SortOrder < Other.SortOrder;
 		}
 
-		EInvalidateWidgetReason GetInvalidationReason(const SWidget&, EInvalidateWidgetReason Reason) const;
+		using FInvalidationDetail = TTuple<const FSlateAttributeDescriptor::FInvalidationDelegate*, EInvalidateWidgetReason>;
+		FInvalidationDetail GetInvalidationDetail(const SWidget&, EInvalidateWidgetReason Reason) const;
+
+		/** If available, return the name of the attribute. */
+		FName GetAttributeName(const SWidget& OwningWidget) const;
 	};
 
 	TArray<FGetterItem, TInlineAllocator<4>> Attributes;
