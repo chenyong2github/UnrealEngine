@@ -3049,7 +3049,9 @@ UAnimMontage* UAnimMontage::CreateSlotAnimationAsDynamicMontage(UAnimSequenceBas
 	NewSegment.AnimPlayRate = 1.f;
 	NewSegment.StartPos = 0.f;
 	NewSegment.LoopingCount = LoopCount;
-	NewMontage->SetCompositeLength(NewSegment.GetLength());
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    NewMontage->SequenceLength = NewSegment.GetLength();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NewTrack.AnimTrack.AnimSegments.Add(NewSegment);
 
 	FCompositeSection NewSection;
