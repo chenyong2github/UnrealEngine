@@ -31,6 +31,7 @@ public class FunctionalTestingEditor : ModuleRules
                 "PlacementMode",
                 "WorkspaceMenuStructure",
                 "ScreenShotComparisonTools",
+                "ToolMenus",
 				"AssetTools"
             }
          );

@@ -24,7 +24,7 @@ void FVPUtilitiesEditorStyle::Register()
 	VPUtilitiesEditorStyle::StyleInstance = MakeUnique<FSlateStyleSet>(VPUtilitiesEditorStyle::NAME_StyleName);
 	VPUtilitiesEditorStyle::StyleInstance->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Experimental/VirtualProductionUtilities/Content/Editor/Icons/"));
 
-	VPUtilitiesEditorStyle::StyleInstance->Set("TabIcons.Genlock.Small", new IMAGE_BRUSH("Icon_GenlockTab_16x", Icon16x16));
+	VPUtilitiesEditorStyle::StyleInstance->Set("TabIcons.Genlock.Small", new IMAGE_BRUSH_SVG("Genlock", Icon16x16));
 
 	VPUtilitiesEditorStyle::StyleInstance->Set("PlacementBrowser.Icons.VirtualProduction", new IMAGE_BRUSH_SVG("VirtualProduction", Icon16x16));
 

@@ -6,6 +6,10 @@
 #include "Interfaces/IPluginManager.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateStyleMacros.h"
+
+// This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
+#define RootToContentDir VirtualCameraStyle::StyleInstance->RootToContentDir
 
 namespace VirtualCameraStyle
 {
@@ -17,8 +21,6 @@ namespace VirtualCameraStyle
 	static TUniquePtr<FSlateStyleSet> StyleInstance;
 }
 
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(VirtualCameraStyle::StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-
 void FVirtualCameraEditorStyle::Register()
 {
 	VirtualCameraStyle::StyleInstance = MakeUnique<FSlateStyleSet>(VirtualCameraStyle::NAME_StyleName);
@@ -26,7 +28,7 @@ void FVirtualCameraEditorStyle::Register()
 	const FString ContentRoot = ProjectBaseDir / TEXT("Content/Editor/Icons/");
 	VirtualCameraStyle::StyleInstance->SetContentRoot(ContentRoot);
 
-	VirtualCameraStyle::StyleInstance->Set("TabIcons.VirtualCamera.Small", new IMAGE_BRUSH("VirtualCamera_Stream_16x", VirtualCameraStyle::Icon16x16));
+	VirtualCameraStyle::StyleInstance->Set("TabIcons.VirtualCamera.Small", new IMAGE_BRUSH_SVG("VirtualCamera", VirtualCameraStyle::Icon16x16));
 	VirtualCameraStyle::StyleInstance->Set("VirtualCamera.Stream", new IMAGE_BRUSH("VirtualCamera_Stream_40x", VirtualCameraStyle::Icon40x40));
 	VirtualCameraStyle::StyleInstance->Set("VirtualCamera.Stop", new IMAGE_BRUSH("VirtualCamera_Stop_40x", VirtualCameraStyle::Icon40x40));
 

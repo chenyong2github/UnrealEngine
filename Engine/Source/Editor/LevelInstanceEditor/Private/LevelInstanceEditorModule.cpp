@@ -794,7 +794,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 			}));
 
 		FToolMenuEntry& Entry = Section.AddMenuEntry(NAME_None, LOCTEXT("PackLevelInstancesTitle", "Pack Level Instances"),
-			LOCTEXT("PackLevelInstancesTooltip", "Update packed level instances and blueprints"), FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.LevelInstance"), PackAction, EUserInterfaceActionType::Button);
+			LOCTEXT("PackLevelInstancesTooltip", "Update packed level instances and blueprints"), FSlateIcon(), PackAction, EUserInterfaceActionType::Button);
 	}
 
 	if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu"))

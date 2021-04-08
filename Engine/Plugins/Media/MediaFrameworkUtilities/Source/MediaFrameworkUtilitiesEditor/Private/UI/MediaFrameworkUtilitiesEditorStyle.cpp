@@ -5,6 +5,10 @@
 #include "Brushes/SlateImageBrush.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateStyleMacros.h"
+
+// This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
+#define RootToContentDir MediaFrameworkUtilitiesStyle::StyleInstance->RootToContentDir
 
 namespace MediaFrameworkUtilitiesStyle
 {
@@ -18,8 +22,6 @@ namespace MediaFrameworkUtilitiesStyle
 
 	static TUniquePtr<FSlateStyleSet> StyleInstance;
 }
-
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(MediaFrameworkUtilitiesStyle::StyleInstance->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 
 void FMediaFrameworkUtilitiesEditorStyle::Register()
 {
@@ -38,12 +40,12 @@ void FMediaFrameworkUtilitiesEditorStyle::Register()
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("ToolbarIcon.MediaProfile", new IMAGE_BRUSH("MediaProfile_Color_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("ToolbarIcon.Apply", new IMAGE_BRUSH("Apply_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 
-	MediaFrameworkUtilitiesStyle::StyleInstance->Set("TabIcons.MediaCapture.Small", new IMAGE_BRUSH("CaptureCameraViewport_Capture_16x", MediaFrameworkUtilitiesStyle::Icon16x16));
+	MediaFrameworkUtilitiesStyle::StyleInstance->Set("TabIcons.MediaCapture.Small", new IMAGE_BRUSH_SVG("MediaCapture", MediaFrameworkUtilitiesStyle::Icon16x16));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Capture", new IMAGE_BRUSH("CaptureCameraViewport_Capture_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Stop", new IMAGE_BRUSH("CaptureCameraViewport_Stop_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("MediaCapture.Settings", new IMAGE_BRUSH("Settings_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 
-	MediaFrameworkUtilitiesStyle::StyleInstance->Set("TabIcons.VideoInput.Small", new IMAGE_BRUSH("Icon_VideoInputTab_16x", MediaFrameworkUtilitiesStyle::Icon16x16));
+	MediaFrameworkUtilitiesStyle::StyleInstance->Set("TabIcons.VideoInput.Small", new IMAGE_BRUSH_SVG("MediaPlayback", MediaFrameworkUtilitiesStyle::Icon16x16));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("VideoInput.Play", new IMAGE_BRUSH("MediaSource_Play_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("VideoInput.Stop", new IMAGE_BRUSH("CaptureCameraViewport_Stop_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
 	MediaFrameworkUtilitiesStyle::StyleInstance->Set("VideoInput.Settings", new IMAGE_BRUSH("Settings_40x", MediaFrameworkUtilitiesStyle::Icon40x40));
