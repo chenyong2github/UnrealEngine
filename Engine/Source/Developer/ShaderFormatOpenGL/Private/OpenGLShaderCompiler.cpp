@@ -8,6 +8,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "ShaderFormatOpenGL.h"
 #include "HlslccHeaderWriter.h"
+#include "SpirvReflectCommon.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -1372,13 +1373,8 @@ static bool CompileToGlslWithShaderConductor(
 		check(Reflection.GetResult() == SPV_REFLECT_RESULT_SUCCESS);
 
 		SpvReflectResult SPVRResult = SPV_REFLECT_RESULT_NOT_READY;
-		uint32 Count = 0;
-		TArray<SpvReflectDescriptorBinding*> Bindings;
-		TSet<SpvReflectDescriptorBinding*> Counters;
-		TArray<SpvReflectInterfaceVariable*> InputVars;
-		TArray<SpvReflectInterfaceVariable*> OutputVars;
 		TArray<SpvReflectBlockVariable*> ConstantBindings;
-		uint32 GlobalSetId = 32;
+		const uint32 GlobalSetId = 32;
 
 		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 		TArray<FString> Textures;
@@ -1390,254 +1386,137 @@ static bool CompileToGlslWithShaderConductor(
 		uint32 SamplerIndices = 0xffffffff;
 
 		std::map<std::string, std::string> UniformVarNames;
-		Count = 0;
-		SPVRResult = Reflection.EnumerateDescriptorBindings(&Count, nullptr);
-		check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-		Bindings.SetNum(Count);
-		SPVRResult = Reflection.EnumerateDescriptorBindings(&Count, Bindings.GetData());
-		check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-		if (Count > 0)
+
+		FSpirvReflectBindings ReflectionBindings;
+		ReflectionBindings.GatherDescriptorBindings(Reflection);
+
+		for (auto const& Binding : ReflectionBindings.TBufferUAVs)
 		{
-			TArray<SpvReflectDescriptorBinding*> UniformBindings;
-			TArray<SpvReflectDescriptorBinding*> SamplerBindings;
-			TArray<SpvReflectDescriptorBinding*> TextureSRVBindings;
-			TArray<SpvReflectDescriptorBinding*> TextureUAVBindings;
-			TArray<SpvReflectDescriptorBinding*> TBufferSRVBindings;
-			TArray<SpvReflectDescriptorBinding*> TBufferUAVBindings;
-			TArray<SpvReflectDescriptorBinding*> SBufferSRVBindings;
-			TArray<SpvReflectDescriptorBinding*> SBufferUAVBindings;
+			check(UAVIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
 
-			// Extract all the bindings first so that we process them in order - this lets us assign UAVs before other resources
-			// Which is necessary to match the D3D binding scheme.
-			for (auto const& Binding : Bindings)
+			// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
+			BufferIndices &= ~(1 << Index);
+			TextureIndices &= ~(1llu << uint64(Index));
+			UAVIndices &= ~(1 << Index);
+
+			CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
+
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
+
+		for (auto const& Binding : ReflectionBindings.SBufferUAVs)
+		{
+			check(UAVIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
+
+			// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
+			BufferIndices &= ~(1 << Index);
+			TextureIndices &= ~(1llu << uint64(Index));
+			UAVIndices &= ~(1 << Index);
+
+			CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
+
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
+
+		for (auto const& Binding : ReflectionBindings.TextureUAVs)
+		{
+			check(UAVIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
+
+			// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
+			// For texture2d this allows us to emulate atomics with buffers
+			BufferIndices &= ~(1 << Index);
+			TextureIndices &= ~(1llu << uint64(Index));
+			UAVIndices &= ~(1 << Index);
+
+			CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
+
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
+
+		for (auto const& Binding : ReflectionBindings.TBufferSRVs)
+		{
+			check(TextureIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(TextureIndices);
+
+			// No support for 3-component types in dxc/SPIRV/MSL - need to expose my workarounds there too
+			BufferIndices &= ~(1 << Index);
+			TextureIndices &= ~(1llu << uint64(Index));
+
+			Textures.Add(UTF8_TO_TCHAR(Binding->name));
+
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
+
+		for (auto const& Binding : ReflectionBindings.SBufferSRVs)
+		{
+			check(BufferIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(BufferIndices);
+
+			BufferIndices &= ~(1 << Index);
+
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
+
+		for (auto const& Binding : ReflectionBindings.UniformBuffers)
+		{
+			check(UBOIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
+			UBOIndices &= ~(1 << Index);
+
+			// Global uniform buffer - handled specially as we care about the internal layout
+			if (strstr(Binding->name, "$Globals"))
 			{
-				switch (Binding->resource_type)
+				for (uint32 i = 0; i < Binding->block.member_count; i++)
 				{
-				case SPV_REFLECT_RESOURCE_FLAG_CBV:
-				{
-					check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-					if (Binding->accessed)
-					{
-						UniformBindings.Add(Binding);
-					}
-					break;
-				}
-				case SPV_REFLECT_RESOURCE_FLAG_SAMPLER:
-				{
-					check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER);
-					if (Binding->accessed)
-					{
-						SamplerBindings.Add(Binding);
-					}
-					break;
-				}
-				case SPV_REFLECT_RESOURCE_FLAG_SRV:
-				{
-					switch (Binding->descriptor_type)
-					{
-					case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-					{
-						if (Binding->accessed)
-						{
-							TextureSRVBindings.Add(Binding);
-						}
-						break;
-					}
-					case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-					{
-						if (Binding->accessed)
-						{
-							TBufferSRVBindings.Add(Binding);
-						}
-						break;
-					}
-					case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-					{
-						if (Binding->accessed)
-						{
-							SBufferSRVBindings.Add(Binding);
-						}
-						break;
-					}
-					default:
-					{
-						// check(false);
-						break;
-					}
-					}
-					break;
-				}
-				case SPV_REFLECT_RESOURCE_FLAG_UAV:
-				{
-					if (Binding->uav_counter_binding)
-					{
-						Counters.Add(Binding->uav_counter_binding);
-					}
-
-					switch (Binding->descriptor_type)
-					{
-					case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-					{
-						TextureUAVBindings.Add(Binding);
-						break;
-					}
-					case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-					{
-						TBufferUAVBindings.Add(Binding);
-						break;
-					}
-					case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-					{
-						if (!Counters.Contains(Binding) || Binding->accessed)
-						{
-							SBufferUAVBindings.Add(Binding);
-						}
-						break;
-					}
-					default:
-					{
-						// check(false);
-						break;
-					}
-					}
-					break;
-				}
-				default:
-				{
-					// check(false);
-					break;
-				}
+					CCHeaderWriter.WritePackedGlobal(Binding->block.members[i]);
 				}
 			}
-
-			for (auto const& Binding : TBufferUAVBindings)
+			else
 			{
-				check(UAVIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
-
-				// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
-				BufferIndices &= ~(1 << Index);
-				TextureIndices &= ~(1llu << uint64(Index));
-				UAVIndices &= ~(1 << Index);
-
-				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+				std::string OldName = "type_";
+				OldName += Binding->name;
+				std::string NewName = FrequencyPrefix;
+				NewName += "b";
+				NewName += std::to_string(Index);
+				UniformVarNames[OldName] = NewName;
+				// Regular uniform buffer - we only care about the binding index
+				CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
 			}
 
-			for (auto const& Binding : SBufferUAVBindings)
-			{
-				check(UAVIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
 
-				// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
-				BufferIndices &= ~(1 << Index);
-				TextureIndices &= ~(1llu << uint64(Index));
-				UAVIndices &= ~(1 << Index);
+		for (auto const& Binding : ReflectionBindings.TextureSRVs)
+		{
+			check(TextureIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros64(TextureIndices);
+			TextureIndices &= ~(1llu << uint64(Index));
 
-				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
+			Textures.Add(UTF8_TO_TCHAR(Binding->name));
 
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+		}
 
-			for (auto const& Binding : TextureUAVBindings)
-			{
-				check(UAVIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
+		for (auto const& Binding : ReflectionBindings.Samplers)
+		{
+			check(SamplerIndices);
+			uint32 Index = FPlatformMath::CountTrailingZeros(SamplerIndices);
+			SamplerIndices &= ~(1 << Index);
 
-				// UAVs always claim all slots so we don't have conflicts as D3D expects 0-7
-				// For texture2d this allows us to emulate atomics with buffers
-				BufferIndices &= ~(1 << Index);
-				TextureIndices &= ~(1llu << uint64(Index));
-				UAVIndices &= ~(1 << Index);
+			Samplers.Add(UTF8_TO_TCHAR(Binding->name));
 
-				CCHeaderWriter.WriteUAV(UTF8_TO_TCHAR(Binding->name), Index);
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
-
-			for (auto const& Binding : TBufferSRVBindings)
-			{
-				check(TextureIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(TextureIndices);
-
-				// No support for 3-component types in dxc/SPIRV/MSL - need to expose my workarounds there too
-				BufferIndices &= ~(1 << Index);
-				TextureIndices &= ~(1llu << uint64(Index));
-
-				Textures.Add(UTF8_TO_TCHAR(Binding->name));
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
-
-			for (auto const& Binding : SBufferSRVBindings)
-			{
-				check(BufferIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(BufferIndices);
-
-				BufferIndices &= ~(1 << Index);
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
-
-			for (auto const& Binding : UniformBindings)
-			{
-				check(UBOIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
-				UBOIndices &= ~(1 << Index);
-
-				// Global uniform buffer - handled specially as we care about the internal layout
-				if (strstr(Binding->name, "$Globals"))
-				{
-					for (uint32 i = 0; i < Binding->block.member_count; i++)
-					{
-						CCHeaderWriter.WritePackedGlobal(Binding->block.members[i]);
-					}
-				}
-				else
-				{
-					std::string OldName = "type_";
-					OldName += Binding->name;
-					std::string NewName = FrequencyPrefix;
-					NewName += "b";
-					NewName += std::to_string(Index);
-					UniformVarNames[OldName] = NewName;
-					// Regular uniform buffer - we only care about the binding index
-					CCHeaderWriter.WriteUniformBlock(UTF8_TO_TCHAR(Binding->name), Index);
-				}
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
-
-			for (auto const& Binding : TextureSRVBindings)
-			{
-				check(TextureIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros64(TextureIndices);
-				TextureIndices &= ~(1llu << uint64(Index));
-
-				Textures.Add(UTF8_TO_TCHAR(Binding->name));
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
-
-			for (auto const& Binding : SamplerBindings)
-			{
-				check(SamplerIndices);
-				uint32 Index = FPlatformMath::CountTrailingZeros(SamplerIndices);
-				SamplerIndices &= ~(1 << Index);
-
-				Samplers.Add(UTF8_TO_TCHAR(Binding->name));
-
-				SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			}
+			SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Index, GlobalSetId);
+			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 		}
 
 		TArray<std::string> GlobalRemap;
@@ -1645,7 +1524,7 @@ static bool CompileToGlslWithShaderConductor(
 		TMap<FString, uint32> GlobalOffsets;
 
 		{
-			Count = 0;
+			uint32 Count = 0;
 			SPVRResult = Reflection.EnumeratePushConstantBlocks(&Count, nullptr);
 			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 			ConstantBindings.SetNum(Count);
@@ -1777,144 +1656,46 @@ static bool CompileToGlslWithShaderConductor(
 		TArray<FString> OutputVarNames;
 
 		{
-			Count = 0;
-			SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
-			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			OutputVars.SetNum(Count);
-			SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
-			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			if (Count > 0)
+			uint32 AssignedInputs = 0;
+
+			ReflectionBindings.GatherOutputAttributes(Reflection);
+			for (SpvReflectInterfaceVariable* Var : ReflectionBindings.OutputAttributes)
 			{
-				uint32 AssignedInputs = 0;
-
-				for (auto const& Var : OutputVars)
+				if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
 				{
-					if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
+					if (Frequency == HSF_PixelShader && strstr(Var->name, "SV_Target"))
 					{
-						if (Frequency == HSF_PixelShader && strstr(Var->name, "SV_Target"))
+						FString TypeQualifier;
+
+						auto const type = *Var->type_description;
+						uint32_t masked_type = type.type_flags & 0xF;
+
+						switch (masked_type) {
+						default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+						case SPV_REFLECT_TYPE_FLAG_BOOL: TypeQualifier = TEXT("b"); break;
+						case SPV_REFLECT_TYPE_FLAG_INT: TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
+						case SPV_REFLECT_TYPE_FLAG_FLOAT: TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
+						}
+
+						if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
 						{
-							FString TypeQualifier;
-
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-
-							switch (masked_type) {
-							default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-							case SPV_REFLECT_TYPE_FLAG_BOOL: TypeQualifier = TEXT("b"); break;
-							case SPV_REFLECT_TYPE_FLAG_INT: TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
-							case SPV_REFLECT_TYPE_FLAG_FLOAT: TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
-							}
-
-							if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
-							}
-							else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
-							}
-							else
-							{
-								TypeQualifier += TEXT("1");
-							}
-
-							FString Name = ANSI_TO_TCHAR(Var->name);
-							Name.ReplaceInline(TEXT("."), TEXT("_"));
-							OutputVarNames.Add(Name);
-							CCHeaderWriter.WriteOutputAttribute(TEXT("out_Target"), *TypeQualifier, Var->location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ true);
+							TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
+						}
+						else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+						{
+							TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
 						}
 						else
 						{
-							unsigned Location = Var->location;
-							unsigned SemanticIndex = Location;
-							check(Var->semantic);
-							unsigned i = (unsigned)strlen(Var->semantic);
-							check(i);
-							while (isdigit((unsigned char)(Var->semantic[i - 1])))
-							{
-								i--;
-							}
-							if (i < strlen(Var->semantic))
-							{
-								SemanticIndex = (unsigned)atoi(Var->semantic + i);
-								if (Location != SemanticIndex)
-								{
-									Location = SemanticIndex;
-								}
-							}
-
-							while ((1 << Location) & AssignedInputs)
-							{
-								Location++;
-							}
-
-							if (Location != Var->location)
-							{
-								SPVRResult = Reflection.ChangeOutputVariableLocation(Var, Location);
-								check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-							}
-
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-
-							FString TypeQualifier;
-
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
-
-							switch (masked_type) {
-							default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-							case SPV_REFLECT_TYPE_FLAG_BOOL: TypeQualifier = TEXT("b"); break;
-							case SPV_REFLECT_TYPE_FLAG_INT: TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
-							case SPV_REFLECT_TYPE_FLAG_FLOAT: TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
-							}
-
-							if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
-							}
-							else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
-							}
-							else
-							{
-								TypeQualifier += TEXT("1");
-							}
-
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								AssignedInputs |= (1 << (Location + j));
-							}
-
-							FString Name = ANSI_TO_TCHAR(Var->name);
-							Name.ReplaceInline(TEXT("."), TEXT("_"));
-							CCHeaderWriter.WriteOutputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
+							TypeQualifier += TEXT("1");
 						}
+
+						FString Name = ANSI_TO_TCHAR(Var->name);
+						Name.ReplaceInline(TEXT("."), TEXT("_"));
+						OutputVarNames.Add(Name);
+						CCHeaderWriter.WriteOutputAttribute(TEXT("out_Target"), *TypeQualifier, Var->location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ true);
 					}
-				}
-			}
-		}
-
-		TArray<FString> InputVarNames;
-
-		{
-			Count = 0;
-			SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
-			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			InputVars.SetNum(Count);
-			SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
-			check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-			if (Count > 0)
-			{
-				uint32 AssignedInputs = 0;
-
-				for (auto const& Var : InputVars)
-				{
-					if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
+					else
 					{
 						unsigned Location = Var->location;
 						unsigned SemanticIndex = Location;
@@ -1941,7 +1722,7 @@ static bool CompileToGlslWithShaderConductor(
 
 						if (Location != Var->location)
 						{
-							SPVRResult = Reflection.ChangeInputVariableLocation(Var, Location);
+							SPVRResult = Reflection.ChangeOutputVariableLocation(Var, Location);
 							check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 						}
 
@@ -1983,9 +1764,91 @@ static bool CompileToGlslWithShaderConductor(
 
 						FString Name = ANSI_TO_TCHAR(Var->name);
 						Name.ReplaceInline(TEXT("."), TEXT("_"));
-						InputVarNames.Add(Name);
-						CCHeaderWriter.WriteInputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
+						CCHeaderWriter.WriteOutputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
 					}
+				}
+			}
+		}
+
+		TArray<FString> InputVarNames;
+
+		{
+			uint32 AssignedInputs = 0;
+
+			ReflectionBindings.GatherInputAttributes(Reflection);
+			for (SpvReflectInterfaceVariable* Var : ReflectionBindings.InputAttributes)
+			{
+				if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
+				{
+					unsigned Location = Var->location;
+					unsigned SemanticIndex = Location;
+					check(Var->semantic);
+					unsigned i = (unsigned)strlen(Var->semantic);
+					check(i);
+					while (isdigit((unsigned char)(Var->semantic[i - 1])))
+					{
+						i--;
+					}
+					if (i < strlen(Var->semantic))
+					{
+						SemanticIndex = (unsigned)atoi(Var->semantic + i);
+						if (Location != SemanticIndex)
+						{
+							Location = SemanticIndex;
+						}
+					}
+
+					while ((1 << Location) & AssignedInputs)
+					{
+						Location++;
+					}
+
+					if (Location != Var->location)
+					{
+						SPVRResult = Reflection.ChangeInputVariableLocation(Var, Location);
+						check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+					}
+
+					uint32 ArrayCount = 1;
+					for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
+					{
+						ArrayCount *= Var->array.dims[Dim];
+					}
+
+					FString TypeQualifier;
+
+					auto const type = *Var->type_description;
+					uint32_t masked_type = type.type_flags & 0xF;
+
+					switch (masked_type) {
+					default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+					case SPV_REFLECT_TYPE_FLAG_BOOL: TypeQualifier = TEXT("b"); break;
+					case SPV_REFLECT_TYPE_FLAG_INT: TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
+					case SPV_REFLECT_TYPE_FLAG_FLOAT: TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
+					}
+
+					if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+					{
+						TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
+					}
+					else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+					{
+						TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
+					}
+					else
+					{
+						TypeQualifier += TEXT("1");
+					}
+
+					for (uint32 j = 0; j < ArrayCount; j++)
+					{
+						AssignedInputs |= (1 << (Location + j));
+					}
+
+					FString Name = ANSI_TO_TCHAR(Var->name);
+					Name.ReplaceInline(TEXT("."), TEXT("_"));
+					InputVarNames.Add(Name);
+					CCHeaderWriter.WriteInputAttribute(*Name, *TypeQualifier, Location, /*bLocationPrefix:*/ true, /*bLocationSuffix:*/ false);
 				}
 			}
 		}

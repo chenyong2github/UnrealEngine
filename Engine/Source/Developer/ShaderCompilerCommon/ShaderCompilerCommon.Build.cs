@@ -16,6 +16,7 @@ public class ShaderCompilerCommon : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "ShaderConductor");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "SPIRVReflect");
 		}
 
 		// We only need a header containing definitions

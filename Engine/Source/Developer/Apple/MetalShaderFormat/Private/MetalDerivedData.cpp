@@ -13,12 +13,7 @@
 #include "HlslccHeaderWriter.h"
 
 #include "MetalShaderFormat.h"
-
-#if PLATFORM_MAC || PLATFORM_WINDOWS
-THIRD_PARTY_INCLUDES_START
-#include "spirv_reflect.h"
-THIRD_PARTY_INCLUDES_END
-#endif
+#include "SpirvReflectCommon.h"
 
 extern void BuildMetalShaderOutput(
 	FShaderCompilerOutput& ShaderOutput,
@@ -454,10 +449,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			
 			SpvReflectResult SPVRResult = SPV_REFLECT_RESULT_NOT_READY;
 			uint32 Count = 0;
+			FSpirvReflectBindings ReflectionBindings;
 			TArray<SpvReflectDescriptorBinding*> Bindings;
-			TSet<SpvReflectDescriptorBinding*> Counters;
-			TArray<SpvReflectInterfaceVariable*> InputVars;
-			TArray<SpvReflectInterfaceVariable*> OutputVars;
 			TArray<SpvReflectBlockVariable*> ConstantBindings;
 			TArray<SpvReflectExecutionMode*> ExecutionModes;
 			
@@ -572,19 +565,11 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			{
 				TArray<SpvReflectDescriptorBinding*> ResourceBindings;
 				TArray<SpvReflectDescriptorBinding*> ArgumentBindings;
-				TArray<SpvReflectDescriptorBinding*> UniformBindings;
-				TArray<SpvReflectDescriptorBinding*> SamplerBindings;
-				TArray<SpvReflectDescriptorBinding*> TextureSRVBindings;
-				TArray<SpvReflectDescriptorBinding*> TextureUAVBindings;
-				TArray<SpvReflectDescriptorBinding*> TBufferSRVBindings;
-				TArray<SpvReflectDescriptorBinding*> TBufferUAVBindings;
-				TArray<SpvReflectDescriptorBinding*> SBufferSRVBindings;
-				TArray<SpvReflectDescriptorBinding*> SBufferUAVBindings;
 				TSet<FString> UsedSets;
 				
 				// Extract all the bindings first so that we process them in order - this lets us assign UAVs before other resources
 				// Which is necessary to match the D3D binding scheme.
-				for (auto const& Binding : Bindings)
+				for (SpvReflectDescriptorBinding* Binding : Bindings)
 				{
 					if (Binding->resource_type != SPV_REFLECT_RESOURCE_FLAG_CBV && ResourceTable.Contains(UTF8_TO_TCHAR(Binding->name)))
 					{
@@ -595,110 +580,16 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 						
 						continue;
 					}
-					
-					switch(Binding->resource_type)
+
+					// Add descriptor binding to argument bindings if it's a constant buffer with a name from 'TableNames'. Otherwise, add to common binding container.
+					if (Binding->resource_type == SPV_REFLECT_RESOURCE_FLAG_CBV && Binding->accessed && TableNames.Contains(UTF8_TO_TCHAR(Binding->name)))
 					{
-						case SPV_REFLECT_RESOURCE_FLAG_CBV:
-						{
-							check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-							if (Binding->accessed)
-							{
-								if (TableNames.Contains(UTF8_TO_TCHAR(Binding->name)))
-								{
-									ArgumentBindings.Add(Binding);
-								}
-								else
-								{
-									UniformBindings.Add(Binding);
-								}
-							}
-							break;
-						}
-						case SPV_REFLECT_RESOURCE_FLAG_SAMPLER:
-						{
-							check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER);
-							if (Binding->accessed)
-							{
-								SamplerBindings.Add(Binding);
-							}
-							break;
-						}
-						case SPV_REFLECT_RESOURCE_FLAG_SRV:
-						{
-							switch(Binding->descriptor_type)
-							{
-								case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-								{
-									if (Binding->accessed)
-									{
-										TextureSRVBindings.Add(Binding);
-									}
-									break;
-								}
-								case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-								{
-									if (Binding->accessed)
-									{
-										TBufferSRVBindings.Add(Binding);
-									}
-									break;
-								}
-								case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-								{
-									if (Binding->accessed)
-									{
-										SBufferSRVBindings.Add(Binding);
-									}
-									break;
-								}
-								default:
-								{
-									// check(false);
-									break;
-								}
-							}
-							break;
-						}
-						case SPV_REFLECT_RESOURCE_FLAG_UAV:
-						{
-							if (Binding->uav_counter_binding)
-							{
-								Counters.Add(Binding->uav_counter_binding);
-							}
-							
-							switch(Binding->descriptor_type)
-							{
-								case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-								{
-									TextureUAVBindings.Add(Binding);
-									break;
-								}
-								case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-								{
-									TBufferUAVBindings.Add(Binding);
-									break;
-								}
-								case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-								{
-									if (!Counters.Contains(Binding) || Binding->accessed)
-									{
-										SBufferUAVBindings.Add(Binding);
-									}
-									break;
-								}
-								default:
-								{
-									// check(false);
-									break;
-								}
-							}
-							break;
-						}
-						default:
-						{
-							// check(false);
-							break;
-						}
+						check(Binding->descriptor_type == SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+						ArgumentBindings.Add(Binding);
+					}
+					else
+					{
+						ReflectionBindings.AddDescriptorBinding(Binding);
 					}
 				}
 				
@@ -750,14 +641,14 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					}
 					else
 					{
-						UniformBindings.Add(ArgumentBindings[i]);
+						ReflectionBindings.UniformBuffers.Add(ArgumentBindings[i]);
 						ArgumentBindings.RemoveAt(i);
 					}
 				}
 				
-				uint32 GlobalSetId = 32;
+				const uint32 GlobalSetId = 32;
 				
-				for (auto const& Binding : TBufferUAVBindings)
+				for (auto const& Binding : ReflectionBindings.TBufferUAVs)
 				{
 					check(UAVIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
@@ -776,7 +667,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : SBufferUAVBindings)
+				for (auto const& Binding : ReflectionBindings.SBufferUAVs)
 				{
 					check(UAVIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
@@ -794,7 +685,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : TextureUAVBindings)
+				for (auto const& Binding : ReflectionBindings.TextureUAVs)
 				{
 					check(UAVIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros(UAVIndices);
@@ -925,7 +816,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					CCHeaderWriter.WriteUniformBlock(*Name, SetIndex);
 				}
 				
-				for (auto const& Binding : TBufferSRVBindings)
+				for (auto const& Binding : ReflectionBindings.TBufferSRVs)
 				{
 					check(TextureIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros(TextureIndices);
@@ -942,7 +833,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : SBufferSRVBindings)
+				for (auto const& Binding : ReflectionBindings.SBufferSRVs)
 				{
 					check(BufferIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros64(BufferIndices);
@@ -957,7 +848,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : UniformBindings)
+				for (auto const& Binding : ReflectionBindings.UniformBuffers)
 				{
 					check(BufferIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros64(BufferIndices);
@@ -1008,7 +899,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : TextureSRVBindings)
+				for (auto const& Binding : ReflectionBindings.TextureSRVs)
 				{
 					check(TextureIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros64(TextureIndices);
@@ -1020,7 +911,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
-				for (auto const& Binding : SamplerBindings)
+				for (auto const& Binding : ReflectionBindings.Samplers)
 				{
 					check(SamplerIndices);
 					uint32 Index = FPlatformMath::CountTrailingZeros64(SamplerIndices);
@@ -1035,131 +926,115 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			
 			if (Frequency == HSF_PixelShader)
 			{
-				Count = 0;
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				OutputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateOutputVariables(&Count, OutputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
+				ReflectionBindings.GatherOutputAttributes(Reflection);
+				for (auto const& Var : ReflectionBindings.OutputAttributes)
 				{
-					for (auto const& Var : OutputVars)
+					if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && strstr(Var->name, "SV_Target"))
 					{
-						if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && strstr(Var->name, "SV_Target"))
-						{
-							FString TypeQualifier;
+						FString TypeQualifier;
 							
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
+						auto const type = *Var->type_description;
+						uint32_t masked_type = type.type_flags & 0xF;
 							
-							switch (masked_type) {
-								default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-								case SPV_REFLECT_TYPE_FLAG_BOOL  : TypeQualifier = TEXT("b"); break;
-								case SPV_REFLECT_TYPE_FLAG_INT   : TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
-								case SPV_REFLECT_TYPE_FLAG_FLOAT : TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
-							}
-							
-							if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
-							}
-							else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
-							}
-							else
-							{
-								TypeQualifier += TEXT("1");
-							}
-							
-							CCHeaderWriter.WriteOutputAttribute(TEXT("SV_Target"), *TypeQualifier, Var->location, /*bLocationPrefix:*/ false, /*bLocationSuffix:*/ true);
+						switch (masked_type) {
+							default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+							case SPV_REFLECT_TYPE_FLAG_BOOL  : TypeQualifier = TEXT("b"); break;
+							case SPV_REFLECT_TYPE_FLAG_INT   : TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
+							case SPV_REFLECT_TYPE_FLAG_FLOAT : TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
 						}
+							
+						if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+						{
+							TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
+						}
+						else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+						{
+							TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
+						}
+						else
+						{
+							TypeQualifier += TEXT("1");
+						}
+							
+						CCHeaderWriter.WriteOutputAttribute(TEXT("SV_Target"), *TypeQualifier, Var->location, /*bLocationPrefix:*/ false, /*bLocationSuffix:*/ true);
 					}
 				}
 			}
 			
 			if (Frequency == HSF_VertexShader)
 			{
-				Count = 0;
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, nullptr);
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				InputVars.SetNum(Count);
-				SPVRResult = Reflection.EnumerateInputVariables(&Count, InputVars.GetData());
-				check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-				if (Count > 0)
-				{
-					uint32 AssignedInputs = 0;
-					
-					for (auto const& Var : InputVars)
-					{
-						if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
-						{
-							unsigned Location = Var->location;
-							unsigned SemanticIndex = Location;
-							check(Var->semantic);
-							unsigned i = (unsigned)strlen(Var->semantic);
-							check(i);
-							while (isdigit((unsigned char)(Var->semantic[i-1])))
-							{
-								i--;
-							}
-							if (i < strlen(Var->semantic))
-							{
-								SemanticIndex = (unsigned)atoi(Var->semantic + i);
-								if (Location != SemanticIndex)
-								{
-									Location = SemanticIndex;
-								}
-							}
-							
-							while ((1 << Location) & AssignedInputs)
-							{
-								Location++;
-							}
-							
-							if (Location != Var->location)
-							{
-								SPVRResult = Reflection.ChangeInputVariableLocation(Var, Location);
-								check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
-							}
-							
-							uint32 ArrayCount = 1;
-							for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
-							{
-								ArrayCount *= Var->array.dims[Dim];
-							}
-							
-							FString TypeQualifier;
+				uint32 AssignedInputs = 0;
 
-							auto const type = *Var->type_description;
-							uint32_t masked_type = type.type_flags & 0xF;
+				ReflectionBindings.GatherInputAttributes(Reflection);
+				for (auto const& Var : ReflectionBindings.InputAttributes)
+				{
+					if (Var->storage_class == SpvStorageClassInput && Var->built_in == -1)
+					{
+						unsigned Location = Var->location;
+						unsigned SemanticIndex = Location;
+						check(Var->semantic);
+						unsigned i = (unsigned)strlen(Var->semantic);
+						check(i);
+						while (isdigit((unsigned char)(Var->semantic[i-1])))
+						{
+							i--;
+						}
+						if (i < strlen(Var->semantic))
+						{
+							SemanticIndex = (unsigned)atoi(Var->semantic + i);
+							if (Location != SemanticIndex)
+							{
+								Location = SemanticIndex;
+							}
+						}
 							
-							switch (masked_type) {
-								default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
-								case SPV_REFLECT_TYPE_FLAG_BOOL  : TypeQualifier = TEXT("b"); break;
-								case SPV_REFLECT_TYPE_FLAG_INT   : TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
-								case SPV_REFLECT_TYPE_FLAG_FLOAT : TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
-							}
+						while ((1 << Location) & AssignedInputs)
+						{
+							Location++;
+						}
 							
-							if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
-							}
-							else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
-							{
-								TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
-							}
-							else
-							{
-								TypeQualifier += TEXT("1");
-							}
+						if (Location != Var->location)
+						{
+							SPVRResult = Reflection.ChangeInputVariableLocation(Var, Location);
+							check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
+						}
 							
-							for (uint32 j = 0; j < ArrayCount; j++)
-							{
-								AssignedInputs |= (1 << (Location + j));
+						uint32 ArrayCount = 1;
+						for (uint32 Dim = 0; Dim < Var->array.dims_count; Dim++)
+						{
+							ArrayCount *= Var->array.dims[Dim];
+						}
+							
+						FString TypeQualifier;
+
+						auto const type = *Var->type_description;
+						uint32_t masked_type = type.type_flags & 0xF;
+							
+						switch (masked_type) {
+							default: checkf(false, TEXT("unsupported component type %d"), masked_type); break;
+							case SPV_REFLECT_TYPE_FLAG_BOOL  : TypeQualifier = TEXT("b"); break;
+							case SPV_REFLECT_TYPE_FLAG_INT   : TypeQualifier = (type.traits.numeric.scalar.signedness ? TEXT("i") : TEXT("u")); break;
+							case SPV_REFLECT_TYPE_FLAG_FLOAT : TypeQualifier = (type.traits.numeric.scalar.width == 32 ? TEXT("f") : TEXT("h")); break;
+						}
+							
+						if (type.type_flags & SPV_REFLECT_TYPE_FLAG_MATRIX)
+						{
+							TypeQualifier += FString::Printf(TEXT("%d%d"), type.traits.numeric.matrix.row_count, type.traits.numeric.matrix.column_count);
+						}
+						else if (type.type_flags & SPV_REFLECT_TYPE_FLAG_VECTOR)
+						{
+							TypeQualifier += FString::Printf(TEXT("%d"), type.traits.numeric.vector.component_count);
+						}
+						else
+						{
+							TypeQualifier += TEXT("1");
+						}
+							
+						for (uint32 j = 0; j < ArrayCount; j++)
+						{
+							AssignedInputs |= (1 << (Location + j));
 								
-								CCHeaderWriter.WriteInputAttribute(TEXT("in_ATTRIBUTE"), *TypeQualifier, (Location + j), /*bLocationPrefix:*/ false, /*bLocationSuffix:*/ true);
-							}
+							CCHeaderWriter.WriteInputAttribute(TEXT("in_ATTRIBUTE"), *TypeQualifier, (Location + j), /*bLocationPrefix:*/ false, /*bLocationSuffix:*/ true);
 						}
 					}
 				}

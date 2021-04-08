@@ -166,7 +166,7 @@ static EShLanguage GetStage(EHlslShaderFrequency Frequency)
 	return EShLangCount;
 }
 
-static void ComputeMovableWordIndices(FSpirv& Spirv)
+static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 {
 	// SPIRV Header
 	const uint32* PtrStart = Spirv.Data.GetData();
@@ -311,7 +311,7 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 				const FString* FoundTypeName = Names.Find(TypePointer);
 				if (FoundTypeName && FoundTypeName->Len() > 0)
 				{
-					FSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundTypeName);
+					FVulkanSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundTypeName);
 					checkf(FoundEntry, TEXT("cannot find variable entry in SPIR-V module: %s"), **FoundTypeName);
 					FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
 					FoundEntry->Binding = FoundDecorations.BindingIndex;
@@ -323,7 +323,7 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 			else
 			{
 				// Standalone global var
-				FSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundVariableName);
+				FVulkanSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundVariableName);
 				checkf(FoundEntry, TEXT("Entry name not found in SPIR-V module: %s"), *(*FoundVariableName));
 				FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
 				FoundEntry->Binding = FoundDecorations.BindingIndex;
@@ -335,14 +335,14 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 	}
 }
 
-static void PatchSpirvEntryPoint(FSpirv& OutSpirv, uint32 OffsetToName)
+static void PatchSpirvEntryPoint(FVulkanSpirv& OutSpirv, uint32 OffsetToName)
 {
 	char* EntryPointName = (char*)(OutSpirv.Data.GetData() + OffsetToName);
 	check(!FCStringAnsi::Strcmp(EntryPointName, "main_00000000_00000000"));
 	FCStringAnsi::Sprintf(EntryPointName, "main_%0.8x_%0.8x", OutSpirv.Data.Num() * sizeof(uint32), OutSpirv.CRC);
 };
 
-bool PatchSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv)
+bool PatchSpirvReflectionEntriesAndEntryPoint(FVulkanSpirv& OutSpirv)
 {
 	// Re-compute movable word indices and update CRC code
 	ComputeMovableWordIndices(OutSpirv);
@@ -354,7 +354,7 @@ bool PatchSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv)
 	return true;
 }
 
-bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FSpirv& OutSpirv)
+bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString& OutErrors, const FString& DumpDebugInfoPath, FVulkanSpirv& OutSpirv)
 {
 	glslang::TProgram* Program = new glslang::TProgram;
 
@@ -422,7 +422,7 @@ bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString&
 			{
 				Binding = Program->getUniformBinding(Index);
 			}
-			FSpirv::FEntry Entry(Name, Binding);
+			FVulkanSpirv::FEntry Entry(Name, Binding);
 			OutSpirv.ReflectionInfo.Add(Entry);
 		}
 
@@ -440,7 +440,7 @@ bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString&
 			{
 				Binding = Program->getUniformBinding(Index);
 			}
-			FSpirv::FEntry Entry(Name, Binding);
+			FVulkanSpirv::FEntry Entry(Name, Binding);
 			OutSpirv.ReflectionInfo.Add(Entry);
 		}
 
