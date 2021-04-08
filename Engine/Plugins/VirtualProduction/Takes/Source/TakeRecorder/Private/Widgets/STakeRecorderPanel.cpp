@@ -523,37 +523,7 @@ void STakeRecorderPanel::ClearPendingTake()
 
 UTakePreset* STakeRecorderPanel::AllocateTransientPreset()
 {
-	static const TCHAR* PackageName = TEXT("/Temp/TakeRecorder/PendingTake");
-
-	UTakePreset* ExistingPreset = FindObject<UTakePreset>(nullptr, TEXT("/Temp/TakeRecorder/PendingTake.PendingTake"));
-	if (ExistingPreset)
-	{
-		return ExistingPreset;
-	}
-
-	UTakePreset* TemplatePreset = GetDefault<UTakeRecorderUserSettings>()->LastOpenedPreset.Get();
-
-	static FName DesiredName = "PendingTake";
-
-	UPackage* NewPackage = CreatePackage(PackageName);
-	NewPackage->SetFlags(RF_Transient);
-	NewPackage->AddToRoot();
-
-	UTakePreset* NewPreset = nullptr;
-
-	if (TemplatePreset)
-	{
-		NewPreset = DuplicateObject<UTakePreset>(TemplatePreset, NewPackage, DesiredName);
-		NewPreset->SetFlags(RF_Transient | RF_Transactional | RF_Standalone);
-	}
-	else
-	{
-		NewPreset = NewObject<UTakePreset>(NewPackage, DesiredName, RF_Transient | RF_Transactional | RF_Standalone);
-	}
-
-	NewPreset->GetOrCreateLevelSequence();
-
-	return NewPreset;
+	return UTakePreset::AllocateTransientPreset(GetDefault<UTakeRecorderUserSettings>()->LastOpenedPreset.Get());
 }
 
 
