@@ -427,6 +427,36 @@ enum class EPointerMemberBehavior
 };
 
 /////////////////////////////////////////////////////
+// UHTConfig
+
+struct FUHTConfig
+{
+	FUHTConfig();
+
+	static const FUHTConfig& Get();
+
+	// Types that have been renamed, treat the old deprecated name as the new name for code generation
+	TMap<FString, FString> TypeRedirectMap;
+
+	// Special parsed struct names that do not require a prefix
+	TArray<FString> StructsWithNoPrefix;
+
+	// Special parsed struct names that have a 'T' prefix
+	TArray<FString> StructsWithTPrefix;
+
+	// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
+	// Index 0 is 1 parameter, Index 1 is 2, etc...
+	TArray<FString> DelegateParameterCountStrings;
+
+	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
+	EGeneratedCodeVersion DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
+
+	EPointerMemberBehavior NativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+
+	EPointerMemberBehavior ObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
+};
+
+/////////////////////////////////////////////////////
 // FHeaderParser
 
 //
@@ -436,12 +466,6 @@ enum class EPointerMemberBehavior
 class FHeaderParser : public FBaseParser, public FContextSupplier
 {
 public:
-	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
-	static EGeneratedCodeVersion DefaultGeneratedCodeVersion;
-
-	static EPointerMemberBehavior NativePointerMemberBehavior;
-	static EPointerMemberBehavior ObjectPtrMemberBehavior;
-
 	// Compute the function parameter size and save the return offset
 	static void ComputeFunctionParametersSize(UClass* InClass);
 
@@ -670,18 +694,8 @@ protected:
 
 	////////////////////////////////////////////////////
 
-	// Special parsed struct names that do not require a prefix
-	static TArray<FString> StructsWithNoPrefix;
-	
-	// Special parsed struct names that have a 'T' prefix
-	static TArray<FString> StructsWithTPrefix;
-
-	// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
-	// Index 0 is 1 parameter, Index 1 is 2, etc...
-	static TArray<FString> DelegateParameterCountStrings;
-
-	// Types that have been renamed, treat the old deprecated name as the new name for code generation
-	static TMap<FString, FString> TypeRedirectMap;
+	// UHTConfig data
+	const FUHTConfig& UHTConfig;
 
 	// List of all used identifiers for net service function declarations (every function must be unique)
 	TMap<int32, FString> UsedRPCIds;

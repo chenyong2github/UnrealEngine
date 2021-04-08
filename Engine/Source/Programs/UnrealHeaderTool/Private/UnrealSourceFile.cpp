@@ -116,7 +116,7 @@ EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(UStruc
 		return *Version;
 	}
 
-	return FHeaderParser::DefaultGeneratedCodeVersion;
+	return FUHTConfig::Get().DefaultGeneratedCodeVersion;
 }
 
 void FUnrealSourceFile::MarkDependenciesResolved()
