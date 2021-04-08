@@ -852,10 +852,11 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 				if ( !SequencesID.Contains( AttributeSequence ) )
 				{
 					UE::FSdfLayer PrimLayer = UsdUtils::FindLayerForPrim( UsdPrim );
-					ULevelSequence* PrimSequence = FindSequenceForIdentifier( PrimLayer.GetIdentifier() );
-
-					// Create new subsequence section for this referencing prim
-					CreateSubSequenceSection( *PrimSequence, *AttributeSequence );
+					if ( ULevelSequence* PrimSequence = FindSequenceForIdentifier( PrimLayer.GetIdentifier() ) )
+					{
+						// Create new subsequence section for this referencing prim
+						CreateSubSequenceSection( *PrimSequence, *AttributeSequence );
+					}
 				}
 			}
 		}

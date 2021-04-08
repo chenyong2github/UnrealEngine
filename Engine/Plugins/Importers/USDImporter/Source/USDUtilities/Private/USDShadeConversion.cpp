@@ -404,7 +404,7 @@ namespace UE
 				int32 UVIndex;
 				int32 OutputIndex = 0;
 			};
-			using FParameterValue = TVariant<float, FVector, FTextureParameterValue>;
+			using FParameterValue = TVariant<float, FVector, FTextureParameterValue, bool>;
 
 			bool GetTextureParameterValue( pxr::UsdShadeInput& ShadeInput, TextureGroup LODGroup, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr )
 			{
@@ -420,10 +420,21 @@ namespace UE
 				OutValue.Set<float>(0.0f);
 				if ( ShadeInput.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 				{
-					pxr::UsdShadeInput FileInput = Source.GetInput( UnrealIdentifiers::File );
-
-					if ( FileInput )
-					{
+					pxr::UsdShadeInput FileInput;
+			
+				    // UsdUVTexture: Get its file input
+				    if ( AttributeType == pxr::UsdShadeAttributeType::Output )
+				    {
+					    FileInput = Source.GetInput( UnrealIdentifiers::File );
+				    }
+				    // Check if we are being directly passed an asset
+				    else
+				    {
+					    FileInput = Source.GetInput( SourceName );
+				    }
+    
+				    if ( FileInput && FileInput.GetTypeName() == pxr::SdfValueTypeNames->Asset ) // Check that FileInput is of type Asset
+				    {
 						const FString TexturePath = UsdUtils::GetResolvedTexturePath( FileInput.GetAttr() );
 						// We will assume the texture is valid, and show a warning if we fail to parse this later.
 						// Note that we don't even check that the file exists: If we have a texture bound to opacity then we
@@ -620,6 +631,38 @@ namespace UE
 				return true;
 			}
 
+			bool GetBoolParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, bool DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
+	        {
+		        FScopedUsdAllocs Allocs;
+        
+		        pxr::UsdShadeInput Input = Connectable.GetInput( InputName );
+		        if ( !Input )
+		        {
+			        return false;
+		        }
+        
+		        // If we have another shader/node connected
+		        pxr::UsdShadeConnectableAPI Source;
+		        pxr::TfToken SourceName;
+		        pxr::UsdShadeAttributeType AttributeType;
+		        if ( Input.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
+		        {
+			        // Recurse because the attribute may just be pointing at some other attribute that has the data
+			        // (e.g. when shader input is just "hoisted" and connected to the parent material input)
+			        return GetBoolParameterValue( Source, SourceName, DefaultValue, OutValue, Material, TexturesCache, PrimvarToUVIndex );
+		        }
+		        // No other node connected, so we must have some value
+		        else
+		        {
+			        bool InputValue = DefaultValue;
+			        Input.Get< bool >( &InputValue );
+        
+			        OutValue.Set< bool >( InputValue );
+		        }
+        
+		        return true;
+	        }
+
 #if WITH_EDITOR
 			/**
 			 * Intended to be used with Visit(), this will create a UMaterialExpression in InMaterial, set it with the
@@ -722,13 +765,58 @@ namespace UE
 #endif // WITH_EDITOR
 			}
 
+			void SetBoolParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, bool bParameterValue )
+			{
+				bool bFound = false;
+
+#if WITH_EDITOR
+				// Try the static parameters first
+				if ( UMaterialInstanceConstant* Constant = Cast<UMaterialInstanceConstant>( &Material ) )
+				{
+					bool bNeedsUpdatePermutations = false;
+
+					FStaticParameterSet StaticParameters;
+					Constant->GetStaticParameterValues( StaticParameters );
+
+					for ( FStaticSwitchParameter& StaticSwitchParameter : StaticParameters.StaticSwitchParameters )
+					{
+						if ( StaticSwitchParameter.ParameterInfo.Name == ParameterName )
+						{
+							bFound = true;
+
+							if ( StaticSwitchParameter.Value != bParameterValue )
+							{
+								StaticSwitchParameter.Value = bParameterValue;
+								StaticSwitchParameter.bOverride = true;
+								bNeedsUpdatePermutations = true;
+							}
+
+							break;
+						}
+					}
+
+					if ( bNeedsUpdatePermutations )
+					{
+						FlushRenderingCommands();
+						Constant->UpdateStaticPermutation( StaticParameters );
+					}
+				}
+#endif // WITH_EDITOR
+
+				// Try it as a scalar parameter
+				if ( !bFound )
+				{
+					SetScalarParameterValue( Material, ParameterName, bParameterValue ? 1.0f : 0.0f );
+				}
+			}
+
 			/**
 			 * Intended to be used with Visit(), this will set an FParameterValue into InMaterial using InParameterName,
 			 * depending on the variant active in FParameterValue
 			 */
 			struct FSetParameterValueVisitor
 			{
-				FSetParameterValueVisitor( UMaterialInstance& InMaterial, const TCHAR* InParameterName )
+				explicit FSetParameterValueVisitor( UMaterialInstance& InMaterial, const TCHAR* InParameterName )
 					: Material(InMaterial)
 					, ParameterName(InParameterName)
 				{}
@@ -736,30 +824,66 @@ namespace UE
 				void operator()( const float FloatValue ) const
 				{
 					SetScalarParameterValue( Material, ParameterName, FloatValue );
-					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
 				}
 
 				void operator()( const FVector& VectorValue ) const
 				{
 					SetVectorParameterValue( Material, ParameterName, VectorValue );
-					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
 				}
 
+				void operator()( const FTextureParameterValue& TextureValue ) const
+				{
+					SetTextureParameterValue( Material, ParameterName, TextureValue.Texture );
+				}
+
+				void operator()( const bool BoolValue ) const
+				{
+					SetBoolParameterValue( Material, ParameterName, BoolValue );
+				}
+
+			protected:
+				UMaterialInstance& Material;
+				const TCHAR* ParameterName;
+			};
+
+			/**
+			 * Specialized version of FSetParameterValueVisitor for UE's UsdPreviewSurface master materials.
+			 */
+			struct FSetPreviewSurfaceParameterValueVisitor : private FSetParameterValueVisitor
+			{
+				using FSetParameterValueVisitor::FSetParameterValueVisitor;
+        
+				void operator()( const float FloatValue ) const
+				{
+					FSetParameterValueVisitor::operator()( FloatValue );
+					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
+				}
+        
+				void operator()( const FVector& VectorValue ) const
+				{
+					FSetParameterValueVisitor::operator()( VectorValue );
+					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
+				}
+        
 				void operator()( const FTextureParameterValue& TextureValue ) const
 				{
 					SetTextureParameterValue( Material, *FString::Printf( TEXT( "%sTexture" ), ParameterName ), TextureValue.Texture );
 					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 1.0f );
 				}
-
-			private:
-				UMaterialInstance& Material;
-				const TCHAR* ParameterName;
 			};
 
-			void SetParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, const FParameterValue& ParameterValue )
+			void SetParameterValue( UMaterialInstance& Material, const TCHAR* ParameterName, const FParameterValue& ParameterValue, bool bForUsdPreviewSurface )
 			{
-				FSetParameterValueVisitor Visitor{ Material, ParameterName };
-				Visit( Visitor, ParameterValue );
+				if ( bForUsdPreviewSurface )
+				{
+					FSetPreviewSurfaceParameterValueVisitor Visitor{ Material, ParameterName };
+					Visit( Visitor, ParameterValue );
+				}
+				else
+				{
+					FSetParameterValueVisitor Visitor{ Material, ParameterName };
+					Visit( Visitor, ParameterValue );
+				}
 			}
 
 			UTexture* CreateTextureWithEditor( const pxr::UsdAttribute& TextureAssetPathAttr, const FString& PrimPath, TextureGroup LODGroup, UObject* Outer )
@@ -1361,6 +1485,8 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& Material, UUsdAssetCache* TexturesCache, TMap< FString, int32 >& PrimvarToUVIndex )
 {
+	FScopedUsdAllocs UsdAllocs;
+
 	bool bHasMaterialInfo = false;
 
 	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource();
@@ -1398,12 +1524,14 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		}
 	};
 
+	const bool bForUsdPreviewSurface = true;
+
 	// Base color
 	{
 		const bool bIsNormalMap = false;
 		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::DiffuseColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "BaseColor" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "BaseColor" ), ParameterValue, bForUsdPreviewSurface );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1413,7 +1541,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		const bool bIsNormalMap = false;
 		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::EmissiveColor, FLinearColor( 0, 0, 0 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "EmissiveColor" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "EmissiveColor" ), ParameterValue, bForUsdPreviewSurface );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1422,7 +1550,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Metallic, 0.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Metallic" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Metallic" ), ParameterValue, bForUsdPreviewSurface );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "MetallicTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
@@ -1432,7 +1560,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Roughness, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Roughness" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Roughness" ), ParameterValue, bForUsdPreviewSurface );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "RoughnessTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
@@ -1442,7 +1570,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 	{
 		if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, UnrealIdentifiers::Opacity, 1.f, ParameterValue, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Opacity" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Opacity" ), ParameterValue, bForUsdPreviewSurface );
 			SetTextureComponentParamForScalarInput( ParameterValue, TEXT( "OpacityTextureComponent" ) );
 			bHasMaterialInfo = true;
 		}
@@ -1453,7 +1581,7 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		const bool bIsNormalMap = true;
 		if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, UnrealIdentifiers::Normal, FLinearColor( 0, 0, 1 ), ParameterValue, bIsNormalMap, &Material, TexturesCache, &PrimvarToUVIndex ) )
 		{
-			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Normal" ), ParameterValue );
+			UsdShadeConversionImpl::SetParameterValue( Material, TEXT( "Normal" ), ParameterValue, bForUsdPreviewSurface );
 			bHasMaterialInfo = true;
 		}
 	}
@@ -1595,6 +1723,81 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 
 #endif // WITH_EDITOR
 	return bHasMaterialInfo;
+}
+
+bool UsdToUnreal::ConvertShadeInputsToParameters( const pxr::UsdShadeMaterial& UsdShadeMaterial, UMaterialInstance& MaterialInstance, UUsdAssetCache* TexturesCache, const TCHAR* RenderContext )
+{
+	FScopedUsdAllocs UsdAllocs;
+
+	bool bHasMaterialInfo = false;
+
+	pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
+	if ( RenderContext )
+	{
+		RenderContextToken = UnrealToUsd::ConvertToken( RenderContext ).Get();
+	}
+
+	pxr::UsdShadeShader SurfaceShader = UsdShadeMaterial.ComputeSurfaceSource( RenderContextToken );
+	if ( !SurfaceShader )
+	{
+		return false;
+	}
+
+	pxr::UsdShadeConnectableAPI Connectable{ SurfaceShader };
+
+	for ( pxr::UsdShadeInput& ShadeInput : SurfaceShader.GetInputs() )
+	{
+		FString InputName = UsdToUnreal::ConvertToken( ShadeInput.GetBaseName() );
+
+		pxr::UsdShadeInput ConnectInput = ShadeInput;
+		if ( ShadeInput.HasConnectedSource() )
+		{
+			pxr::UsdShadeConnectableAPI Source;
+			pxr::TfToken SourceName;
+			pxr::UsdShadeAttributeType SourceType;
+			ShadeInput.GetConnectedSource( &Source, &SourceName, &SourceType );
+
+			ConnectInput = Source.GetInput(SourceName);
+		}
+
+		FString DisplayName = UsdToUnreal::ConvertString( ConnectInput.GetAttr().GetDisplayName() );
+
+		if ( DisplayName.IsEmpty() )
+		{
+			DisplayName = InputName;
+		}
+
+		UsdShadeConversionImpl::FParameterValue ParameterValue;
+
+		const bool bForUsdPreviewSurface = false;
+		const bool bIsNormalMap = DisplayName.Contains( TEXT("normal") );
+
+		if ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Bool )
+		{
+			if ( UsdShadeConversionImpl::GetBoolParameterValue( Connectable, ShadeInput.GetBaseName(), false, ParameterValue, &MaterialInstance, TexturesCache) )
+			{
+				UsdShadeConversionImpl::SetParameterValue( MaterialInstance, *DisplayName, ParameterValue, bForUsdPreviewSurface );
+				bHasMaterialInfo = true;
+			}
+		}
+		else if ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Float ||
+			ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Double || 
+			ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Half )
+		{
+			if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, ShadeInput.GetBaseName(), 1.f, ParameterValue, &MaterialInstance, TexturesCache ) )
+			{
+				UsdShadeConversionImpl::SetParameterValue( MaterialInstance, *DisplayName, ParameterValue, bForUsdPreviewSurface );
+				bHasMaterialInfo = true;
+			}
+		}
+		else if ( UsdShadeConversionImpl::GetVec3ParameterValue( Connectable, ShadeInput.GetBaseName(), FLinearColor( 0.f, 0.f, 0.f ), ParameterValue, bIsNormalMap, &MaterialInstance, TexturesCache ) )
+		{
+			UsdShadeConversionImpl::SetParameterValue( MaterialInstance, *DisplayName, ParameterValue, bForUsdPreviewSurface );
+			bHasMaterialInfo = true;
+		}
+	}
+
+	return true;
 }
 
 #if WITH_EDITOR

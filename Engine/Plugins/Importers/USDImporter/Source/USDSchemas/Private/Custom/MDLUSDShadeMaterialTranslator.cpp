@@ -114,11 +114,11 @@ void FMdlUsdShadeMaterialTranslator::CreateAssets()
 
 			if ( MdlMaterial )
 			{
-				Context->AssetCache->CacheAsset( MdlFullname, MdlMaterial );
-
 				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MdlMaterial, TEXT( "USDAssetImportData" ) );
 				ImportData->PrimPath = PrimPath.GetString();
 				MdlMaterial->AssetImportData = ImportData;
+
+				Context->AssetCache->CacheAsset( MdlFullname, MdlMaterial );
 			}
 			else
 			{
@@ -128,10 +128,31 @@ void FMdlUsdShadeMaterialTranslator::CreateAssets()
 			}
 		}
 
+		UMaterialInstanceConstant* MdlMaterialInstance = nullptr;
 		if ( MdlMaterial )
 		{
-			Context->AssetCache->LinkAssetToPrim( GetPrim().GetPrimPath().GetString(), MdlMaterial );
+			MdlMaterialInstance = NewObject< UMaterialInstanceConstant >( GetTransientPackage() );
+
+			if ( MdlMaterialInstance )
+			{
+				UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( MdlMaterialInstance, TEXT( "USDAssetImportData" ) );
+				ImportData->PrimPath = PrimPath.GetString();
+				MdlMaterialInstance->AssetImportData = ImportData;
+
+				MdlMaterialInstance->SetParentEditorOnly( MdlMaterial );
+
+				UsdToUnreal::ConvertShadeInputsToParameters( ShadeMaterial, *MdlMaterialInstance, Context->AssetCache.Get(), *Context->RenderContext.ToString() );
+
+				FMaterialUpdateContext UpdateContext( FMaterialUpdateContext::EOptions::Default, GMaxRHIShaderPlatform );
+				UpdateContext.AddMaterialInstance( MdlMaterialInstance );
+				MdlMaterialInstance->PreEditChange( nullptr );
+				MdlMaterialInstance->PostEditChange();
+			}
 		}
+
+		const FString PrimPathString = PrimPath.GetString();
+		Context->AssetCache->CacheAsset( PrimPathString, MdlMaterialInstance );
+		Context->AssetCache->LinkAssetToPrim( PrimPathString, MdlMaterialInstance );
 	}
 	else
 	{
