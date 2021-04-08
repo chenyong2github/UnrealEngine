@@ -264,6 +264,8 @@ protected:
 
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
 
+	void SetClusteredParticleKinematicTarget(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& WorldTransform);
+
 private:
 
 	FSimulationParameters Parameters;

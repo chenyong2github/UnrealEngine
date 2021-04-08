@@ -1341,7 +1341,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 {
 	Chaos::FPBDRigidsEvolutionGBF* Evolution = RBDSolver->GetEvolution();
 
-	TSet< FClusterHandle* > ClustersToReuild;
+	TSet< FClusterHandle* > ClustersToRebuild;
 	for (int i = 0; i < SolverParticleHandles.Num(); i++)
 	{
 		if (FClusterHandle* Handle = SolverParticleHandles[i])
@@ -1350,7 +1350,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 			{
 				if (ParentCluster->InternalCluster())
 				{
-					ClustersToReuild.Add(ParentCluster);
+					ClustersToRebuild.Add(ParentCluster);
 				}
 			}
 		}
@@ -1364,7 +1364,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 		}
 	}
 
-	for (FClusterHandle* Cluster : ClustersToReuild)
+	for (FClusterHandle* Cluster : ClustersToRebuild)
 	{
 		ensure(Cluster->InternalCluster());
 		if (ensure(Evolution->GetRigidClustering().GetChildrenMap().Contains(Cluster)))
@@ -1465,28 +1465,56 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 	{
 		const FTransform& ActorToWorld = Parameters.WorldTransform;
 
+		// used to avoid doing the work twice if we have a internalCluster parent 
+		bool InternalClusterParentUpdated = false;
+
 		int32 NumTransformGroupElements = PhysicsThreadCollection.NumElements(FGeometryCollection::TransformGroup);
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransformGroupElements; ++TransformGroupIndex)
 		{
 			Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex];
-			if (!Handle || Handle->Disabled())
+			if (Handle)
 			{
-				continue;
-			}
-			const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
-			if (ObjectState == Chaos::EObjectStateType::Kinematic)
-			{
-				FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
+				if (Handle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+				{
+					// in the case of cluster union we need to find our Internal Cluster parent and update it
+					if (!InternalClusterParentUpdated)
+					{
+						FClusterHandle* ParentHandle = Handle->Parent();
+						if (ParentHandle && ParentHandle->InternalCluster() && !ParentHandle->Disabled() && ParentHandle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+						{
+							FTransform NewChildWorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
+							Chaos::FRigidTransform3 ParentToChildTransform = Handle->ChildToParent().Inverse();
+							FTransform NewParentWorldTRansform = ParentToChildTransform * NewChildWorldTransform;
+							SetClusteredParticleKinematicTarget(ParentHandle, NewParentWorldTRansform);
 
-				Chaos::TKinematicTarget<Chaos::FReal, 3> newKinematicTarget;
-				Chaos::FRigidTransform3 PreviousWorldTransform(Handle->X(), Handle->R());
-				newKinematicTarget.SetTargetMode(WorldTransform, PreviousWorldTransform);
-				Handle->SetKinematicTarget(newKinematicTarget);
+							InternalClusterParentUpdated = true;
+						}
+					}
+
+					if (!Handle->Disabled())
+					{
+						FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
+						SetClusteredParticleKinematicTarget(Handle, WorldTransform);
+					}
+				}
 			}
 		}
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::SetClusteredParticleKinematicTarget(Chaos::FPBDRigidClusteredParticleHandle* Handle, const FTransform& NewWorldTransform)
+{
+	// CONTEXT: PHYSICSTHREAD
+	// this should be called only on teh physics thread
+	const Chaos::EObjectStateType ObjectState = Handle->ObjectState();
+	if (ensure(ObjectState == Chaos::EObjectStateType::Kinematic))
+	{
+		Chaos::TKinematicTarget<Chaos::FReal, 3> NewKinematicTarget;
+		Chaos::FRigidTransform3 CurrentWorldTransform(Handle->X(), Handle->R());
+		NewKinematicTarget.SetTargetMode(NewWorldTransform, CurrentWorldTransform);
+		Handle->SetKinematicTarget(NewKinematicTarget);
+	}
+}
 void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
 {
 	/**

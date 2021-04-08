@@ -2045,7 +2045,7 @@ namespace Chaos
 		// disconnect from the parents
 		if (ClusteredParticle->ClusterIds().Id)
 		{
-			ParentParticle = ClusteredParticle->ClusterIds().Id->CastToClustered();
+			ParentParticle = ClusteredParticle->Parent();
 
 			ClusteredParticle->ClusterIds() = ClusterId();
 			ClusteredParticle->ClusterGroupIndex() = 0;

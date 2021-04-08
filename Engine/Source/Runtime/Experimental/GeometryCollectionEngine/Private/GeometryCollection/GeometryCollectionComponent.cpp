@@ -949,7 +949,7 @@ void ActivateClusters(Chaos::FPBDRigidsEvolution::FRigidClustering& Clustering, 
 
 	if(Cluster->ClusterIds().Id)
 	{
-		ActivateClusters(Clustering, Cluster->ClusterIds().Id->CastToClustered());
+		ActivateClusters(Clustering, Cluster->Parent());
 	}
 
 	Clustering.DeactivateClusterParticle(Cluster);
@@ -1002,7 +1002,7 @@ void UGeometryCollectionComponent::OnRep_RepData(const FGeometryCollectionRepDat
 				if(Particle->ClusterIds().Id)
 				{
 					// This particle is clustered but the remote authority has it activated. Fracture the parent cluster
-					ActivateClusters(Clustering, Particle->ClusterIds().Id->CastToClustered());
+					ActivateClusters(Clustering, Particle->Parent());
 				}
 				else if(Particle->Disabled())
 				{
