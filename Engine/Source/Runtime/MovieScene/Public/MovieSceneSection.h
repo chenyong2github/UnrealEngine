@@ -219,8 +219,14 @@ public:
 	 */
 	MOVIESCENE_API virtual void SetRange(const TRange<FFrameNumber>& NewRange)
 	{
-		// Do not modify for objects that still need initialization (i.e. we're in the object's constructor)
-		bool bCanSetRange = HasAnyFlags(RF_NeedInitialization) || TryModify();
+		
+		// Skip TryModify for objects that still need initialization (i.e. we're in the object's constructor), because modifying objects in their constructor can lead to non-deterministic cook issues.
+		bool bCanSetRange = true;
+		if (!HasAnyFlags(RF_NeedInitialization))
+		{
+			bCanSetRange = TryModify();
+		}
+
 		if (bCanSetRange)
 		{
 			check(NewRange.GetLowerBound().IsOpen() || NewRange.GetUpperBound().IsOpen() || NewRange.GetLowerBoundValue() <= NewRange.GetUpperBoundValue());
