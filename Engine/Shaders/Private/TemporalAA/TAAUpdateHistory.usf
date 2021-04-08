@@ -83,10 +83,11 @@ void MainCS(
 
 	float4 Debug = 0.0;
 
-	taa_short2 HistoryPixelPos = (
-		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
-		Map8x8Tile2x2Lane(GroupThreadIndex));
+	uint2 DispatchThreadId = (
+		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		GroupId * uint2(TILE_SIZE, TILE_SIZE));
 
+	uint2 HistoryPixelPos = DispatchThreadId;
 	float2 ViewportUV = (float2(HistoryPixelPos) + 0.5f) * HistoryInfo_ViewportSizeInverse;
 	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
 	
@@ -96,27 +97,24 @@ void MainCS(
 	// Pixel coordinate of the center of the nearest input pixel K.
 	float2 PPCk = floor(PPCo) + 0.5;
 	
-	taa_short2 InputPixelPos = ClampPixelOffset(
-		taa_short2(InputPixelPosMin) + taa_short2(PPCo),
-		InputPixelPosMin, InputPixelPosMax);
+	uint2 InputPixelPos = InputInfo_ViewportMin + uint2(PPCk);
 
 	// Fetch reprojections related informations.
 	float2 PrevScreenPos = ScreenPos;
 	taa_half ParallaxRejectionMask = taa_half(1.0);
-	taa_half LowFrequencyRejection = taa_half(1.0);
-	taa_half OutputPixelVelocity = taa_half(0.0);
+	taa_half LowFrequencyRejection;
 	#if 1
 	{
+		float2 RejectionBilinearBufferUV = clamp(
+			PPCo * InputInfo_ExtentInverse,
+			RejectionInfo_UVViewportBilinearMin,
+			RejectionInfo_UVViewportBilinearMax);
+		
 		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
+		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 
-		float2 ScreenVelocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
-
-		PrevScreenPos = ScreenPos - ScreenVelocity;
-		OutputPixelVelocity = taa_half(length(ScreenVelocity * HistoryInfo_ViewportSize));
-
-		taa_ushort2 RejectionPixelPos = (taa_ushort2(InputPixelPos) - taa_short2(InputPixelPosMin)) / 2;
-		LowFrequencyRejection = HistoryRejectionTexture[RejectionPixelPos];
+		LowFrequencyRejection = HistoryRejectionTexture.SampleLevel(GlobalBilinearClampedSampler, RejectionBilinearBufferUV, 0);
 		
 		#if !CONFIG_CLAMP
 		{
@@ -127,6 +125,9 @@ void MainCS(
 	}
 	#endif
 
+	float2 ScreenVelocity = ScreenPos - PrevScreenPos;
+	taa_half OutputPixelVelocity = taa_half(length(ScreenVelocity * HistoryInfo_ViewportSize));
+	
 	// Fetch wehther the pixel is responsive AA or not.
 	bool bIsResponsiveAAPixel = false;
 	#if CONFIG_RESPONSIVE_STENCIL
@@ -176,50 +177,31 @@ void MainCS(
 		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		{
-			taa_short2 SampleInputPixelPos;
 			taa_half2 PixelOffset;
 			
 			#if CONFIG_SAMPLES == 9
 			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
-				PixelOffset = taa_half2(iPixelOffset);
-				
-				SampleInputPixelPos = AddAndClampPixelOffset(
-					InputPixelPos,
-					iPixelOffset, iPixelOffset,
-					InputPixelPosMin, InputPixelPosMax);
+				PixelOffset = taa_half2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
 			}
 			#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
 			{
 				if (SampleId == 5)
 				{
-					taa_short2 iPixelOffset;
-					#if CONFIG_COMPILE_FP16
-						iPixelOffset = int16_t2(1, 1) - int16_t((asuint16(dKO) & uint16_t(0x8000)) >> uint16_t(14));
-						PixelOffset = asfloat16(asuint16(half(1.0)).xx | (asuint16(dKO) & uint16_t(0x8000)));
-					#else
-						iPixelOffset = SignFastInt(dKO);
-						PixelOffset = asfloat(asuint(1.0).xx | (asuint(dKO) & uint(0x80000000)));
-					#endif
-						
-					SampleInputPixelPos = ClampPixelOffset(InputPixelPos, InputPixelPosMin, InputPixelPosMax);
+					PixelOffset = taa_half2(SignFastInt(float2(dKO))); // TODO: taa_half
 				}
 				else
 				{
-					taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
-					PixelOffset = taa_half2(iPixelOffset);
-					
-					SampleInputPixelPos = AddAndClampPixelOffset(
-						InputPixelPos,
-						iPixelOffset, iPixelOffset,
-						InputPixelPosMin, InputPixelPosMax);
+					PixelOffset = taa_half2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
 				}
 			}
 			#else
 				#error Unknown sample count
 			#endif
 
-			taa_half3 InputColor = InputSceneColorTexture[SampleInputPixelPos];
+			float2 SampleInputBufferUV = (InputInfo_ViewportMin + PPCk + PixelOffset) * InputInfo_ExtentInverse;
+			SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+
+			taa_half3 InputColor = InputSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
 
 			taa_half2 dPP = PixelOffset - dKO;
 			taa_half SampleSpatialWeight = ComputeSampleWeigth(FinalInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
@@ -229,20 +211,16 @@ void MainCS(
 			FilteredInputColor       += (SampleSpatialWeight * ToneWeight) * InputColor;
 			FilteredInputColorWeight += (SampleSpatialWeight * ToneWeight);
 
+			InputMinColor = min(InputMinColor, TransformColorForClampingBox(InputColor));
+			InputMaxColor = max(InputMaxColor, TransformColorForClampingBox(InputColor));
+
 			if (SampleId == 0)
 			{
 				ClosestInputLuma4 = Luma4(InputColor);
-				InputMinColor = TransformColorForClampingBox(InputColor);
-				InputMaxColor = TransformColorForClampingBox(InputColor);
-			}
-			else
-			{
-				InputMinColor = min(InputMinColor, TransformColorForClampingBox(InputColor));
-				InputMaxColor = max(InputMaxColor, TransformColorForClampingBox(InputColor));
 			}
 		}
 		
-		FilteredInputColor *= rcp(FilteredInputColorWeight);
+		FilteredInputColor *= SafeRcp(FilteredInputColorWeight);
 
 		InputPixelAlignement = ComputeSampleWeigth(InputToHistoryFactor, dKO, /* MinimalContribution = */ float(0.0));
 	}
@@ -290,7 +268,6 @@ void MainCS(
 			{
 				FCatmullRomSamples Samples = GetBicubic2DCatmullRomSamples(PrevHistoryBufferUV, PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
 
-				UNROLL
 				for (uint i = 0; i < Samples.Count; i++)
 				{
 					float2 SampleUV = clamp(Samples.UV[i], PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
@@ -299,8 +276,8 @@ void MainCS(
 					taa_half3 Sample1 = PrevHistory_Textures_1.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 					taa_half2 Sample2 = PrevHistory_Textures_2.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 
-					RawHistory1Min = min(RawHistory1Min, Sample1 * SafeRcp(Sample2.g));
-					RawHistory1Max = max(RawHistory1Max, Sample1 * SafeRcp(Sample2.g));
+					RawHistory1Min = min(RawHistory1Min, TransformColorForClampingBox(Sample1 * SafeRcp(Sample2.g)));
+					RawHistory1Max = max(RawHistory1Max, TransformColorForClampingBox(Sample1 * SafeRcp(Sample2.g)));
 
 					RawHistory0 += Sample0 * taa_half(Samples.Weight[i]);
 					RawHistory1 += Sample1 * taa_half(Samples.Weight[i]);
@@ -379,7 +356,7 @@ void MainCS(
 	{
 		taa_half3 PrevHighFrequencyYCoCg = TransformColorForClampingBox(PrevHistoryMoment1 * SafeRcp(PrevHistoryValidity));
 		taa_half3 PrevYCoCg = TransformColorForClampingBox(PrevFallbackColor);
-		taa_half3 ClampedPrevYCoCg = TransformColorForClampingBox(clamp(PrevFallbackColor, PrevHistoryMommentMin, PrevHistoryMommentMax));
+		taa_half3 ClampedPrevYCoCg = clamp(PrevYCoCg, PrevHistoryMommentMin, PrevHistoryMommentMax);
 
 		taa_half HighFrequencyRejection = MeasureRejectionFactor(
 			PrevYCoCg, ClampedPrevYCoCg,
@@ -730,16 +707,16 @@ void MainCS(
 		uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex, GroupWaveIndex);
 
 		#if 1
-			taa_short2 LocalHistoryPixelPos = (
-				taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
-				Map8x8Tile2x2Lane(LocalGroupThreadIndex));
+			uint2 LocalHistoryPixelPos = (
+				ZOrder2D(LocalGroupThreadIndex, log2(TILE_SIZE)) +
+				GroupId * uint2(TILE_SIZE, TILE_SIZE));
 		#else
-			taa_short2 LocalHistoryPixelPos = HistoryPixelPos;
+			uint2 LocalHistoryPixelPos = HistoryPixelPos;
 		#endif
 			
-		LocalHistoryPixelPos = InvalidateOutputPixelPos(LocalHistoryPixelPos, HistoryInfo_ViewportMax);
-
 		// Output final history.
+		bool bIsValidhistoryPixel = all(LocalHistoryPixelPos < HistoryInfo_ViewportMax);
+		if (bIsValidhistoryPixel)
 		{
 			// Stocastically round up or down using the hardware RWTexture2D truncation unit to take into precision
 			// loss due to pixel format encoding.
@@ -789,7 +766,10 @@ void MainCS(
 			OutputColor = -min(-OutputColor, taa_half(0.0));
 			OutputColor = min(OutputColor, taa_half(Max10BitsFloat));
 
-			SceneColorOutput[LocalHistoryPixelPos] = OutputColor;
+			if (bIsValidhistoryPixel)
+			{
+				SceneColorOutput[LocalHistoryPixelPos] = OutputColor;
+			}
 		}
 	}
 }
