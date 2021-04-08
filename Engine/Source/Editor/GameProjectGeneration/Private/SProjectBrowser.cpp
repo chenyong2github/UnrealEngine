@@ -149,13 +149,14 @@ public:
 						.HeightOverride(102)
 						[
 							SNew(SBorder)
-							.Padding(0)
 							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.ThumbnailAreaBackground"))
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
+							.HAlign(ProjectItem->ProjectThumbnail ? HAlign_Center : HAlign_Fill)
+							.VAlign(ProjectItem->ProjectThumbnail ? VAlign_Center : VAlign_Fill)
+							.Padding(ProjectItem->ProjectThumbnail ? FMargin(0) : FMargin(12.0f) )
 							[
 								SNew(SImage)
-								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("GameProjectDialog.DefaultGameThumbnail"))
+								.Image(ProjectItem->ProjectThumbnail ? ProjectItem->ProjectThumbnail.Get() : FAppStyle::Get().GetBrush("UnrealCircle.Thin"))
+								.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
 							]
 						]
 					]
@@ -179,7 +180,7 @@ public:
 							]
 							+SVerticalBox::Slot()
 							.AutoHeight()
-							.Padding(0.0f, 4.0f, 0.0f, 4.0f)
+							.Padding(0.0f, 4.0f, 0.0f, 0.0f)
 							.VAlign(VAlign_Bottom)
 							[
 								SNew(STextBlock)

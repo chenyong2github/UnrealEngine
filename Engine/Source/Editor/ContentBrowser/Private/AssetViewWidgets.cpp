@@ -1732,7 +1732,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 						[
 							SNew(SVerticalBox)
 							+ SVerticalBox::Slot()
-							.Padding(2.0f,0.0f,0.0f,0.0f)
+							.Padding(2.0f,2.0f,0.0f,0.0f)
 							.VAlign(VAlign_Top)
 							[
 								SNew(SBox)

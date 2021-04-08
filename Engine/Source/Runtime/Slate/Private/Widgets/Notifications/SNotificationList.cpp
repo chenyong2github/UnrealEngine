@@ -719,7 +719,7 @@ TSharedRef<SNotificationItem> SNotificationList::AddNotification(const FNotifica
 		}
 		else
 		{
-			static const FSlateBrush* CachedImage = FAppStyle::Get().GetBrush("AppIconFlat");
+			static const FSlateBrush* CachedImage = FAppStyle::Get().GetBrush("UnrealCircle.Thick");
 
 			// Create notification.
 			NewItem = SNew(SNotificationItemImpl)

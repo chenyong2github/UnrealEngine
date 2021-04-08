@@ -258,7 +258,7 @@ private:
 		{
 			return ItemPtr->Thumbnail.Get();
 		}
-		return FEditorStyle::GetBrush("GameProjectDialog.DefaultGameThumbnail");
+		return FEditorStyle::GetBrush("UnrealCircle.Thin");
 	}
 	
 };
