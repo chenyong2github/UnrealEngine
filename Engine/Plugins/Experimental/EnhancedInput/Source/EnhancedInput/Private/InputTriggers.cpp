@@ -118,6 +118,38 @@ ETriggerState UInputTriggerTap::UpdateState_Implementation(const UEnhancedPlayer
 	return State;
 }
 
+ETriggerState UInputTriggerPulse::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
+{
+	// Update HeldDuration and derive base state
+	ETriggerState State = Super::UpdateState_Implementation(PlayerInput, ModifiedValue, DeltaTime);
+
+	if (State == ETriggerState::Ongoing)
+	{
+		// If the repeat count limit has not been reached
+		if (TriggerLimit == 0 || TriggerCount < TriggerLimit)
+		{
+			// Trigger when HeldDuration exceeds the interval threshold, optionally trigger on initial actuation
+			if (HeldDuration > (Interval * (bTriggerOnStart ? TriggerCount : TriggerCount + 1)))
+			{
+				++TriggerCount;
+				State = ETriggerState::Triggered;
+			}
+		}
+		else
+		{
+			State = ETriggerState::None;
+		}
+	}
+	else
+	{
+		// Reset repeat count
+		TriggerCount = 0;
+	}
+
+	return State;
+}
+
+
 ETriggerState UInputTriggerChordAction::UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime)
 {
 	// Inherit state from the chorded action
