@@ -58,6 +58,8 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 		AActor* Actor = FindObject<AActor>(nullptr, *PackageObjectMapping.LoadedPath.ToString());
 		if (ensure(Actor))
 		{
+			UPackage* ActorPackage = Actor->GetPackage();
+
 			const bool bSameOuter = (InLevel == Actor->GetOuter());
 			Actor->SetPackageExternal(false, false);
 			Actor->Rename(nullptr, InLevel, REN_ForceNoResetLoaders);
@@ -65,6 +67,17 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 			if (bSameOuter && !InLevel->Actors.Contains(Actor))
 			{
 				InLevel->AddLoadedActor(Actor);
+			}
+
+			// Include objects found in the source actor package in the destination level package
+			TArray<UObject*> Objects;
+			GetObjectsWithOuter(ActorPackage, Objects);
+			for (UObject* Object : Objects)
+			{
+				if (Object->GetFName() != NAME_PackageMetaData)
+				{
+					Object->Rename(nullptr, LevelPackage, REN_ForceNoResetLoaders);
+				}
 			}
 		}
 		else
