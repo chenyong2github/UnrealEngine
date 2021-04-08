@@ -25,7 +25,9 @@
         //Config setup
         //**********************;
 		this.cfg = parOptions.peerConnectionOptions || {};
-		this.cfg.sdpSemantics = 'unified-plan';
+        this.cfg.sdpSemantics = 'unified-plan';
+        //If this is true in Chrome 89+ SDP is sent that is incompatible with UE WebRTC and breaks.
+        this.cfg.offerExtmapAllowMixed = false;
         this.pcClient = null;
         this.dcClient = null;
         this.tnClient = null;
@@ -116,6 +118,7 @@
 
         handleCreateOffer = function (pc) {
             pc.createOffer(self.sdpConstraints).then(function (offer) {
+                offer.sdp = offer.sdp.replace("useinbandfec=1", "useinbandfec=1;stereo=1;maxaveragebitrate=128000");
             	pc.setLocalDescription(offer);
             	if (self.onWebRtcOffer) {
             		// (andriy): increase start bitrate from 300 kbps to 20 mbps and max bitrate from 2.5 mbps to 100 mbps
