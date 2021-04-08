@@ -3168,6 +3168,7 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 		
 		// these are not actually displayed as white, see PropertyEditorConstants::GetRowBackgroundColor
 		Set( "DetailsView.CategoryMiddle",            new FSlateColorBrush(FStyleColors::White));
+		Set( "DetailsView.Highlight",				  new FSlateRoundedBoxBrush(FStyleColors::Transparent, 0.0f, FStyleColors::AccentBlue, 1.0f));
 
 		Set( "DetailsView.PropertyIsFavorite", new IMAGE_BRUSH("PropertyView/Favorites_Enabled", Icon12x12));
 		Set( "DetailsView.PropertyIsNotFavorite", new IMAGE_BRUSH("PropertyView/Favorites_Disabled", Icon12x12));
