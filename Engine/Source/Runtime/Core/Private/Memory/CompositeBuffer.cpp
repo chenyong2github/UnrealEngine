@@ -57,6 +57,9 @@ FSharedBuffer FCompositeBuffer::Flatten() &&
 
 FCompositeBuffer FCompositeBuffer::Mid(uint64 Offset, uint64 Size) const
 {
+	const uint64 BufferSize = GetSize();
+	Offset = FMath::Min(Offset, BufferSize);
+	Size = FMath::Min(Size, BufferSize - Offset);
 	FCompositeBuffer Buffer;
 	IterateRange(Offset, Size, [&Buffer](FMemoryView View, const FSharedBuffer& ViewOuter)
 		{
@@ -82,7 +85,7 @@ FMemoryView FCompositeBuffer::ViewOrCopyRange(uint64 Offset, uint64 Size, FUniqu
 					{
 						CopyBuffer = FUniqueBuffer::Alloc(Size);
 					}
-					View = WriteView = CopyBuffer;
+					View = WriteView = CopyBuffer.GetView().Left(Size);
 				}
 				WriteView = WriteView.CopyFrom(Segment);
 			}
@@ -110,20 +113,23 @@ void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size,
 		TEXT(" of a composite buffer containing %" UINT64_FMT " bytes."), Size, Offset, GetSize());
 	for (const FSharedBuffer& Segment : Segments)
 	{
-		if (Size == 0)
+		if (const uint64 SegmentSize = Segment.GetSize(); Offset <= SegmentSize)
 		{
-			break;
-		}
-		const FMemoryView View = Segment.GetView().Mid(Offset, Size);
-		if (const uint64 ViewSize = View.GetSize())
-		{
-			Visitor(View, Segment);
+			const FMemoryView View = Segment.GetView().Mid(Offset, Size);
 			Offset = 0;
-			Size -= ViewSize;
+			if (Size == 0 || !View.IsEmpty())
+			{
+				Visitor(View, Segment);
+			}
+			Size -= View.GetSize();
+			if (Size == 0)
+			{
+				break;
+			}
 		}
 		else
 		{
-			Offset -= Segment.GetSize();
+			Offset -= SegmentSize;
 		}
 	}
 }

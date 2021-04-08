@@ -278,7 +278,8 @@ FCompositeBuffer FMethodBlock::Decompress(const FHeader& Header, const FComposit
 	}
 
 	// The raw data cannot reference the compressed data unless it is owned.
-	if (!CompressedData.IsOwned())
+	// An empty raw buffer requires an empty segment, which this path creates.
+	if (!CompressedData.IsOwned() || Header.TotalRawSize == 0)
 	{
 		FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Header.TotalRawSize);
 		return TryDecompressTo(Header, CompressedData, Buffer) ? FCompositeBuffer(Buffer.MoveToShared()) : FCompositeBuffer();
