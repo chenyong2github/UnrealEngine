@@ -5,7 +5,6 @@
 #include "OpenXRHMD_RenderBridge.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
-#include "OpenXRPlatformRHI.h"
 #include "IOpenXRExtensionPlugin.h"
 #include "IOpenXRARModule.h"
 

@@ -4,7 +4,6 @@
 #include "OpenXRHMD.h"
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
-#include "OpenXRPlatformRHI.h"
 
 bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 {

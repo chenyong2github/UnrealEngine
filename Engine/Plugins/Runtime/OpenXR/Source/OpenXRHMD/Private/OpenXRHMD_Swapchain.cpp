@@ -2,7 +2,6 @@
 
 #include "OpenXRHMD_Swapchain.h"
 #include "OpenXRCore.h"
-#include "OpenXRPlatformRHI.h"
 #include "XRThreadUtils.h"
 
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
