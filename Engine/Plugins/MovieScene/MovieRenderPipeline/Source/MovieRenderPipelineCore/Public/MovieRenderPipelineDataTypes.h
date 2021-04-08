@@ -780,13 +780,13 @@ struct FMoviePipelineFilenameResolveParams
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
 	int32 FrameNumberShotRel;
 	
-	/** Name used by the {camera_name} format tag. */
+	/** Name used by the {camera_name} format tag. If specified, this will override the camera name (which is normally pulled from the ShotOverride object). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FString CameraName;
+	FString CameraNameOverride;
 	
-	/** Name used by the {shot_name} format tag. */
+	/** Name used by the {shot_name} format tag. If specified, this will override the shot name (which is normally pulled from the ShotOverride object) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")
-	FString ShotName;
+	FString ShotNameOverride;
 
 	/** When converitng frame numbers to strings, how many digits should we pad them up to? ie: 5 => 0005 with a count of 4. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Render Pipeline")

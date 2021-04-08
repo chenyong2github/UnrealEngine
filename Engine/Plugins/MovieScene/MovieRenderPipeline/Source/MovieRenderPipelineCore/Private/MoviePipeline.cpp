@@ -1361,9 +1361,8 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		Params.FrameNumberShot = InOutputState->CurrentShotSourceFrameNumber;
 		Params.FrameNumberRel = InOutputState->OutputFrameNumber;
 		Params.FrameNumberShotRel = InOutputState->ShotOutputFrameNumber;
-		Params.ShotName = InOutputState->ShotName;
-		Params.CameraName = InOutputState->CameraName;
 		Params.FileMetadata = InOutputState->FileMetadata;
+		Params.ShotOverride = ActiveShotList[InOutputState->ShotIndex];
 	}
 
 	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
@@ -1384,11 +1383,6 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	Params.InitializationTime = InitializationTime;
 	Params.InitializationVersion = InitializationVersion;
 	Params.Job = GetCurrentJob();
-	if (CurrentShotIndex < ActiveShotList.Num())
-	{
-		Params.ShotOverride = ActiveShotList[CurrentShotIndex];
-	}
-
 	Params.AdditionalFrameNumberOffset = InFrameNumberOffset;
 
 	UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(InFormatString, Params, OutFinalPath, OutFinalFormatArgs);

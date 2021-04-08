@@ -733,9 +733,17 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 		}
 		FString CameraName = InParams.ShotOverride ? InParams.ShotOverride->InnerName : FString();
 		CameraName = CameraName.Len() > 0 ? CameraName : TEXT("NoCamera");
+		if(InParams.CameraNameOverride.Len() > 0)
+		{
+			CameraName = InParams.CameraNameOverride;
+		}
 
 		FString ShotName = InParams.ShotOverride ? InParams.ShotOverride->OuterName : FString();
 		ShotName = ShotName.Len() > 0 ? ShotName : TEXT("NoShot");
+		if(InParams.ShotNameOverride.Len() > 0)
+		{
+			ShotName = InParams.ShotNameOverride;
+		}
 
 		MoviePipeline::GetOutputStateFormatArgs(OutMergedFormatArgs, FrameNumber, FrameNumberShot, FrameNumberRel, FrameNumberShotRel, CameraName, ShotName);
 	}
