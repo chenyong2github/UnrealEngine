@@ -181,6 +181,12 @@ FReply FNiagaraParameterGraphDragOperation::DroppedOnPanel(const TSharedRef<SWid
 			UNiagaraGraph* NiagaraGraph = Cast<UNiagaraGraph>(&Graph);
 			UNiagaraScriptVariable* ScriptVariable = NiagaraGraph->GetScriptVariable(ParameterAction->GetParameter());
 
+			// if the ScriptVariable is a nullptr, it is likely that the action was dropped on a panel different than the original
+			if(ScriptVariable == nullptr)
+			{
+				return FReply::Handled();
+			}
+			
 			FNiagaraParameterNodeConstructionParams NewNodeParams;
 			NewNodeParams.Graph = &Graph;
 			NewNodeParams.GraphPosition = GraphPosition;
