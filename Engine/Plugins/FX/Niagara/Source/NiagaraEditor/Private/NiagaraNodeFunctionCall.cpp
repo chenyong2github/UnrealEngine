@@ -449,6 +449,7 @@ bool UNiagaraNodeFunctionCall::FixupPinNames()
 				if (Node != this && Node->IsA<UNiagaraNodeFunctionCall>())
 				{
 					UNiagaraNodeFunctionCall* FunctionNode = CastChecked<UNiagaraNodeFunctionCall>(Node);
+					FunctionNode->ConditionalPostLoad();
 					UNiagaraGraph* CalledGraph = FunctionNode->GetCalledGraph();
 					if (!CalledGraph)
 					{
