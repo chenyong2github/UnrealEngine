@@ -6,6 +6,8 @@
 #include "ConcertMessages.h"
 #include "Delegates/IDelegateInstance.h"
 
+#include "ConcertSyncClient/Public/IConcertClientTransactionBridge.h"
+
 #include "ConcertTakeRecorderClientSessionCustomization.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogConcertTakeRecorder, Log, All);
@@ -83,6 +85,7 @@ private:
 	void DisconnectFromSession();
 	void ConnectToSession(IConcertClientSession&);
 
+	ETransactionFilterResult ShouldObjectBeTransacted(UObject* InObject, UPackage* InPackage);
 private:
 	void ReportRecordingError(FText &);
 	bool CanRecord() const;
