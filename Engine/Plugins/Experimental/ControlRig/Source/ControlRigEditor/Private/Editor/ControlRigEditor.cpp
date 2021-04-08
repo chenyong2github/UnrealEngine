@@ -746,15 +746,18 @@ void FControlRigEditor::ToggleSetupMode()
 		}
 
 		RigBlueprint->Validator->SetControlRig(ControlRig);
-
+		
+		// need to clear selection before remove transient control
+		// because active selection will trigger transient control recreation after removal	
+		PreviousSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
+		RigBlueprint->HierarchyController->ClearSelection();
+		
 		// need to copy here since the removal changes the iterator
 		if (ControlRig)
 		{
 			RigBlueprint->ClearTransientControls();
 		}
 
-		PreviousSelection = RigBlueprint->Hierarchy->GetSelectedKeys();
-		RigBlueprint->HierarchyController->ClearSelection();
 	}
 
 	if (ControlRig)
@@ -1324,6 +1327,16 @@ void FControlRigEditor::Compile()
 			bSetupModeEnabled = false;
 		}
 
+		// clear transient controls such that we don't leave
+		// a phantom gizmo in the viewport
+		// have to do this before compile() because during compile
+		// a new control rig instance is created without the transient controls
+		// so clear is never called for old transient controls
+		RigBlueprint->ClearTransientControls();
+
+		// default to always reset all bone modifications 
+		ResetAllBoneModification(); 
+		
 		{
 			FBlueprintEditor::Compile();
 		}
@@ -1375,11 +1388,6 @@ void FControlRigEditor::Compile()
 					break;
 				}
 			}
-		}
-
-		if (PreviewInstance)
-		{
-			PreviewInstance->ResetModifiedBone();
 		}
 
 		if (UControlRigSettings::Get()->bResetControlTransformsOnCompile)
@@ -3728,6 +3736,72 @@ void FControlRigEditor::SynchronizeViewportBoneSelection()
 	}
 }
 
+void FControlRigEditor::UpdateBoneModification(FName BoneName, const FTransform& LocalTransform)
+{
+	if (ControlRig)
+	{ 
+		if (PreviewInstance)
+		{ 
+			if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(BoneName))
+			{
+				Modify->Translation = LocalTransform.GetTranslation();
+				Modify->Rotation = LocalTransform.GetRotation().Rotator();
+				Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
+				Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace; 
+			}
+		}
+		
+		TMap<FName, FTransform>* TransformOverrideMap = &ControlRig->TransformOverrideForUserCreatedBones;
+		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			TransformOverrideMap = &DebuggedControlRig->TransformOverrideForUserCreatedBones;
+		}
+
+		if (FTransform* Transform = TransformOverrideMap->Find(BoneName))
+		{
+			*Transform = LocalTransform;
+		}
+	}
+}
+
+void FControlRigEditor::RemoveBoneModification(FName BoneName)
+{
+	if (ControlRig)
+	{
+		if (PreviewInstance)
+		{
+			PreviewInstance->RemoveBoneModification(BoneName);
+		}
+
+		TMap<FName, FTransform>* TransformOverrideMap = &ControlRig->TransformOverrideForUserCreatedBones;
+		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			TransformOverrideMap = &DebuggedControlRig->TransformOverrideForUserCreatedBones;
+		}
+
+		TransformOverrideMap->Remove(BoneName);
+	}
+}
+
+void FControlRigEditor::ResetAllBoneModification()
+{
+	if (ControlRig)
+	{
+		if (PreviewInstance)
+		{
+			PreviewInstance->ResetModifiedBone();
+		}
+
+		TMap<FName, FTransform>* TransformOverrideMap = &ControlRig->TransformOverrideForUserCreatedBones;
+		if (UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			TransformOverrideMap = &DebuggedControlRig->TransformOverrideForUserCreatedBones;
+		}
+
+		TransformOverrideMap->Reset();
+	}
+}
+
 FControlRigEditorEditMode* FControlRigEditor::GetEditMode() const
 {
 	return static_cast<FControlRigEditorEditMode*>(GetEditorModeManager().GetActiveMode(FControlRigEditorEditMode::ModeName));
@@ -4365,16 +4439,9 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 					Blueprint->Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
 					Hierarchy->SetInitialLocalTransform(ElementKey, Transform);
 				}
-
-				if (PreviewInstance)
-				{
-					if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(ElementKey.Name))
-					{
-						Modify->Translation = Transform.GetTranslation();
-						Modify->Rotation = Transform.GetRotation().Rotator();
-						Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
-						Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
-					}
+				else
+				{ 
+					UpdateBoneModification(ElementKey.Name, Transform);
 				}
 			}
 			else if (ElementKey.Type == ERigElementType::Null)

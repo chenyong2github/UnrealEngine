@@ -500,7 +500,16 @@ private:
 
 	UAnimPreviewInstance* PreviewInstance;
 
+	// this is needed because PreviewInstance->ModifyBone(...) cannot modify user created bones,
+	TMap<FName, FTransform> TransformOverrideForUserCreatedBones;
+	
+public:
+	
+	void ApplyTransformOverrideForUserCreatedBones();
+	
 #endif
+
+private: 
 
 	void HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEventContext& InEvent);
 	FRigEventDelegate RigEventDelegate;

@@ -118,6 +118,11 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 
 			ControlRig->GetHierarchy()->SetGlobalTransform(Key, ComponentTransform, false);
 		}
+
+		
+#if WITH_EDITOR
+		ControlRig->ApplyTransformOverrideForUserCreatedBones();
+#endif
 	}
 
 	if (InputSettings.bUpdateCurves)

@@ -180,6 +180,15 @@ protected:
 	void OnControlsSettingsChanged();
 
 	void SynchronizeViewportBoneSelection();
+	
+	// update the cached modification value
+	void UpdateBoneModification(FName BoneName, const FTransform& Transform);
+
+	// remove a single bone modification across all instance
+	void RemoveBoneModification(FName BoneName);
+
+	// reset all bone modification across all instance
+	void ResetAllBoneModification();
 
 	// FBlueprintEditor Interface
 	virtual void CreateDefaultCommands() override;

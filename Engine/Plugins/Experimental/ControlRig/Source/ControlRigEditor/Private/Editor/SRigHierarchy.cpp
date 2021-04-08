@@ -2372,6 +2372,9 @@ void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 				if (!bSelectionOnly)
 				{
 					KeysToReset = DebuggedHierarchy->GetAllKeys(true, ERigElementType::Control);
+
+					// Bone Transforms can also be modified, support reset for them as well
+					KeysToReset.Append(DebuggedHierarchy->GetAllKeys(true, ERigElementType::Bone));
 				}
 
 				for (FRigElementKey Key : KeysToReset)
@@ -2379,6 +2382,12 @@ void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 					const FTransform InitialTransform = GetHierarchy()->GetInitialLocalTransform(Key);
 					GetHierarchy()->SetLocalTransform(Key, InitialTransform, false, true, true);
 					DebuggedHierarchy->SetLocalTransform(Key, InitialTransform, false, true, true);
+
+					if (Key.Type == ERigElementType::Bone)
+					{
+						Blueprint->RemoveTransientControl(Key);
+						ControlRigEditor.Pin()->RemoveBoneModification(Key.Name); 
+					}
 				}
 			}
 		}
@@ -2482,11 +2491,6 @@ void SRigHierarchy::HandleControlBoneOrSpaceTransform()
 
 	UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
 	if(DebuggedControlRig == nullptr)
-	{
-		return;
-	}
-
-	if(!DebuggedControlRig->IsSetupModeEnabled())
 	{
 		return;
 	}
@@ -2679,15 +2683,6 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
                         SelectedKey.Type == ERigElementType::Bone)
 					{
 						FTransform InitialTransform = LocalTransform;
-						if (ControlRigEditor.Pin()->PreviewInstance)
-						{
-							if (FAnimNode_ModifyBone* ModifyBone = ControlRigEditor.Pin()->PreviewInstance->FindModifiedBone(SelectedKey.Name))
-							{
-								InitialTransform.SetTranslation(ModifyBone->Translation);
-								InitialTransform.SetRotation(FQuat(ModifyBone->Rotation));
-								InitialTransform.SetScale3D(ModifyBone->Scale);
-							}
-						}
 
 						if(FRigTransformElement* TransformElement = GetHierarchy()->Find<FRigTransformElement>(SelectedKey))
 						{

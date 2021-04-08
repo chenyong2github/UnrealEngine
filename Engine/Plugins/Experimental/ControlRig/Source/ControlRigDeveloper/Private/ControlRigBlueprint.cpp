@@ -1481,20 +1481,45 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 		ValueScope = MakeUnique<FControlValueScope>(this);
 	}
 
-	// for now we only allow one pin control at the same time
-	ClearTransientControls();
-
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
 	FName ReturnName = NAME_None;
 	TArray<UObject*> ArchetypeInstances;
 	CDO->GetArchetypeInstances(ArchetypeInstances);
+
+	// hierarchy transforms will be reset when ClearTransientControls() is called,
+	// so to retain any bone transform modifications we have to save them
+	TMap<UObject*, FTransform> SavedElementLocalTransforms;
 	for (UObject* ArchetypeInstance : ArchetypeInstances)
 	{
 		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
 		if (InstancedControlRig)
 		{
+			if (InstancedControlRig->DynamicHierarchy)
+			{ 
+				SavedElementLocalTransforms.FindOrAdd(InstancedControlRig) = InstancedControlRig->DynamicHierarchy->GetLocalTransform(InElement);
+			}
+		}
+	}
+
+	// for now we only allow one pin control at the same time
+	ClearTransientControls();
+	
+	for (UObject* ArchetypeInstance : ArchetypeInstances)
+	{
+		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
+		if (InstancedControlRig)
+		{
+			// restore the element transforms so that transient controls are created at the right place
+			if (const FTransform* SavedTransform = SavedElementLocalTransforms.Find(InstancedControlRig))
+			{
+				if (InstancedControlRig->DynamicHierarchy)
+				{ 
+					InstancedControlRig->DynamicHierarchy->SetLocalTransform(InElement, *SavedTransform);
+				}
+			}
+			
 			FName ControlName = InstancedControlRig->AddTransientControl(InElement);
 			if (ReturnName == NAME_None)
 			{

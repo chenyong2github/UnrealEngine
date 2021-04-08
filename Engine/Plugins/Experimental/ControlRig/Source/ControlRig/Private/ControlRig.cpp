@@ -1471,7 +1471,7 @@ FName UControlRig::RemoveTransientControl(URigVMPin* InPin)
 	const FName ControlName = GetNameForTransientControl(InPin);
 	if(FRigControlElement* ControlElement = FindControl(ControlName))
 	{
-		//Hierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
+		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
 		if(Controller->RemoveElement(ControlElement))
 		{
 			return ControlName;
@@ -1554,11 +1554,27 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 
 	if (InElement.Type == ERigElementType::Bone)
 	{
-		if(FRigBoneElement* BoneElement = DynamicHierarchy->Find<FRigBoneElement>(InElement))
+		// don't allow transient control to modify forward mode poses when we
+		// already switched to the setup mode
+		if (!IsSetupModeEnabled())
 		{
-			if (PreviewInstance && BoneElement->BoneType == ERigBoneType::Imported)
+			if(FRigBoneElement* BoneElement = DynamicHierarchy->Find<FRigBoneElement>(InElement))
 			{
-				PreviewInstance->ModifyBone(InElement.Name);
+				// add a modify bone AnimNode internally that the transient control controls for imported bones only
+				// for user created bones, refer to UControlRig::TransformOverrideForUserCreatedBones 
+				if (BoneElement->BoneType == ERigBoneType::Imported)
+				{ 
+					if (PreviewInstance)
+					{
+						PreviewInstance->ModifyBone(InElement.Name);
+					}
+				}
+				else if (BoneElement->BoneType == ERigBoneType::User)
+				{
+					// add an empty entry, which will be given the correct value in
+					// SetTransientControlValue(InElement);
+					TransformOverrideForUserCreatedBones.FindOrAdd(InElement.Name);
+				}
 			}
 		}
 	}
@@ -1590,18 +1606,43 @@ bool UControlRig::SetTransientControlValue(const FRigElementKey& InElement)
 	{
 		if (InElement.Type == ERigElementType::Bone)
 		{
-			const FTransform LocalTransform = DynamicHierarchy->GetLocalTransform(InElement);
-			DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, false);
-			DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, false);
-
-			if (PreviewInstance)
+			if (IsSetupModeEnabled())
 			{
-				if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(InElement.Name))
+				// need to get initial because that is what setup mode uses
+				// specifically, when user change the initial from the details panel
+				// this will allow the transient control to react to that change
+				const FTransform InitialLocalTransform = DynamicHierarchy->GetInitialLocalTransform(InElement);
+				DynamicHierarchy->SetTransform(ControlElement, InitialLocalTransform, ERigTransformType::InitialLocal, true, false);
+				DynamicHierarchy->SetTransform(ControlElement, InitialLocalTransform, ERigTransformType::CurrentLocal, true, false);
+			}
+			else
+			{
+				const FTransform LocalTransform = DynamicHierarchy->GetLocalTransform(InElement);
+				DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, false);
+				DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, false);
+
+				if (FRigBoneElement* BoneElement = DynamicHierarchy->Find<FRigBoneElement>(InElement))
 				{
-					Modify->Translation = LocalTransform.GetTranslation();
-					Modify->Rotation = LocalTransform.GetRotation().Rotator();
-					Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
-					Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
+					if (BoneElement->BoneType == ERigBoneType::Imported)
+					{
+						if (PreviewInstance)
+						{
+							if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(InElement.Name))
+							{
+								Modify->Translation = LocalTransform.GetTranslation();
+								Modify->Rotation = LocalTransform.GetRotation().Rotator();
+								Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
+								Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
+							}
+						}	
+					}
+					else if (BoneElement->BoneType == ERigBoneType::User)
+					{
+						if (FTransform* TransformOverride = TransformOverrideForUserCreatedBones.Find(InElement.Name))
+						{
+							*TransformOverride = LocalTransform;
+						}	
+					}
 				}
 			}
 		}
@@ -1638,7 +1679,7 @@ FName UControlRig::RemoveTransientControl(const FRigElementKey& InElement)
 	const FName ControlName = GetNameForTransientControl(InElement);
 	if(FRigControlElement* ControlElement = FindControl(ControlName))
 	{
-		//Hierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
+		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
 		if(Controller->RemoveElement(ControlElement))
 		{
 			return ControlName;
@@ -1729,6 +1770,19 @@ void UControlRig::ClearTransientControls()
 	{
 		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlToRemove);
 		Controller->RemoveElement(ControlToRemove);
+	}
+}
+
+void UControlRig::ApplyTransformOverrideForUserCreatedBones()
+{
+	if(DynamicHierarchy == nullptr)
+	{
+		return;
+	}
+	
+	for (const auto& Entry : TransformOverrideForUserCreatedBones)
+	{
+		DynamicHierarchy->SetLocalTransform(FRigElementKey(Entry.Key, ERigElementType::Bone), Entry.Value, false);
 	}
 }
 
