@@ -991,18 +991,29 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 		if (PinA->PinType.PinCategory == PinCategoryMisc ||
 			PinB->PinType.PinCategory == PinCategoryMisc)
 		{
+			UNiagaraNodeWithDynamicPins* NodeA = Cast<UNiagaraNodeWithDynamicPins>(PinA->GetOwningNode());
+			UNiagaraNodeWithDynamicPins* NodeB = Cast<UNiagaraNodeWithDynamicPins>(PinB->GetOwningNode());
+			
 			// TODO: This shouldn't be handled explicitly here.
-			bool PinAIsConvertAddAndPinBIsNonGenericType =
+			bool bPinAIsAddAndAcceptsPinB =
 				PinA->PinType.PinCategory == PinCategoryMisc && PinA->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
-				PinB->PinType.PinCategory == PinCategoryType && PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetGenericNumericDef() &&
-				PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetParameterMapDef();
+				(
+					PinB->PinType.PinCategory == PinCategoryType &&
+					NodeA ?
+					NodeA->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinB)) : PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetGenericNumericDef()
+				)
+				&& PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetParameterMapDef();
 
-			bool PinBIsConvertAddAndPinAIsNonGenericType =
+			bool bPinBIsAddAndAcceptsPinA =
 				PinB->PinType.PinCategory == PinCategoryMisc && PinB->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
-				PinA->PinType.PinCategory == PinCategoryType && PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetGenericNumericDef() &&
-				PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetParameterMapDef();
+				(
+                    PinA->PinType.PinCategory == PinCategoryType &&
+                    NodeB ?
+                    NodeB->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinA)) : PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetGenericNumericDef()
+                )
+				&& PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetParameterMapDef();
 
-			if (PinAIsConvertAddAndPinBIsNonGenericType == false && PinBIsConvertAddAndPinAIsNonGenericType == false)
+			if (bPinAIsAddAndAcceptsPinB == false && bPinBIsAddAndAcceptsPinA == false)
 			{
 				return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Types are not compatible"));
 			}
