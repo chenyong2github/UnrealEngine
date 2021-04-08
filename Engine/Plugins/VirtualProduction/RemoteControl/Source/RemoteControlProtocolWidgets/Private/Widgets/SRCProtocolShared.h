@@ -20,6 +20,8 @@ namespace RemoteControlProtocolWidgetUtils
             SLATE_ATTRIBUTE(TOptional<float>, MaxWidth)
         SLATE_END_ARGS()
 
+		virtual ~SConstrainedBox() = default;
+
         void Construct(const FArguments& InArgs);
 		virtual FVector2D ComputeDesiredSize(float InLayoutScaleMultiplier) const override;
 		
@@ -46,6 +48,8 @@ namespace RemoteControlProtocolWidgetUtils
 			SLATE_ARGUMENT(TSharedPtr<SWidget>, RightWidget)
 			SLATE_ARGUMENT(TSharedPtr<FPropertyViewColumnSizeData>, ColumnSizeData)
 		SLATE_END_ARGS();
+
+		virtual ~SCustomSplitter() = default;
 
 		void Construct(const FArguments& InArgs);
 

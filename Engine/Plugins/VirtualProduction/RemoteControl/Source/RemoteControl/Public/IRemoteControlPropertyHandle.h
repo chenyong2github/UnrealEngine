@@ -38,7 +38,7 @@ public:
 	REMOTECONTROL_API static TSharedPtr<IRemoteControlPropertyHandle> GetPropertyHandle(FName PresetName, FName PropertyLabel);
 
 public: 
-	virtual ~IRemoteControlPropertyHandle(){}
+	virtual ~IRemoteControlPropertyHandle() = default;
 
 	/**
 	 * Gets the typed value of a property.
@@ -212,7 +212,7 @@ public:
 class IRemoteControlPropertyHandleSet
 {
 public:
-	virtual ~IRemoteControlPropertyHandleSet() {}
+	virtual ~IRemoteControlPropertyHandleSet() = default;
 
 	/**
 	 * @return The number of elements in the set
@@ -231,7 +231,7 @@ public:
 class IRemoteControlPropertyHandleMap
 {
 public:
-	virtual ~IRemoteControlPropertyHandleMap() {}
+	virtual ~IRemoteControlPropertyHandleMap() = default;
 
 	/**
 	 * @return The number of elements in the map
