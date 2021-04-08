@@ -1995,11 +1995,11 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 		{
 			if (bMultipleTransformTracks)
 			{
-				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because there are multiple transform tracks/sections. Keys will be baked."), *BoundObject->GetPathName());
+				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because there are multiple transform tracks/sections. Keys will be baked."), BoundObject ? *BoundObject->GetPathName() : TEXT(""));
 			}
 			else if (bIsAttached)
 			{
-				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because it is attached. Keys will be baked."), *BoundObject->GetPathName());
+				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because it is attached. Keys will be baked."), BoundObject ? *BoundObject->GetPathName() : TEXT(""));
 			}
 
 			ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
