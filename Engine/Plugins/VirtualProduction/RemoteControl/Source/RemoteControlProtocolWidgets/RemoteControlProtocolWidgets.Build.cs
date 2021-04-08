@@ -7,13 +7,6 @@ public class RemoteControlProtocolWidgets : ModuleRules
 {
 	public RemoteControlProtocolWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateIncludePaths.AddRange(
-            new string[] {
-				Path.Combine(ModuleDirectory, "Private"),
-				Path.Combine(ModuleDirectory, "Private", "DetailCustomizations"),
-			}
-        );
-
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"Core",
 			"CoreUObject",
