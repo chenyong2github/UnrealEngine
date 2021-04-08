@@ -1547,14 +1547,14 @@ void FPoseDataContainer::DeleteTrack(int32 TrackIndex)
 		{
 			Pose.LocalSpacePose.RemoveAt(*BufferIndex);
 			Pose.TrackToBufferIndex.Remove(TrackIndex);
-		}
 
-		// Update indices according to the new buffer order
-		for (TPair<int32, int32>& TrackToBufferIndex : Pose.TrackToBufferIndex)
-		{
-			if (*BufferIndex <= TrackToBufferIndex.Value)
+			// Update indices according to the new buffer order
+			for (TPair<int32, int32>& TrackToBufferIndex : Pose.TrackToBufferIndex)
 			{
-				TrackToBufferIndex.Value--;
+				if (*BufferIndex <= TrackToBufferIndex.Value)
+				{
+					TrackToBufferIndex.Value--;
+				}
 			}
 		}
 #if WITH_EDITOR
