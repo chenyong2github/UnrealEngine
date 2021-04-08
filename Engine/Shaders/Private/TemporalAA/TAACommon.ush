@@ -327,6 +327,64 @@ taa_short2 ClampPixelOffset(
 	return ClampedOffset;
 }
 
+taa_short2 ClampPixelOffset(
+	taa_short2 SamplePixelPos,
+	int2 MinPixelPos, int2 MaxPixelPos)
+{
+	SamplePixelPos.x = min(SamplePixelPos.x, taa_short(MaxPixelPos.x));
+	SamplePixelPos.x = max(SamplePixelPos.x, taa_short(MinPixelPos.x));
+		
+	SamplePixelPos.y = min(SamplePixelPos.y, taa_short(MaxPixelPos.y));
+	SamplePixelPos.y = max(SamplePixelPos.y, taa_short(MinPixelPos.y));
+
+	return SamplePixelPos;
+}
+
+taa_short2 AddAndClampPixelOffset(
+	taa_short2 KernelCenterPixelPos,
+	taa_short2 Offset,
+	const taa_short2 OffsetDirection,
+	int2 MinPixelPos, int2 MaxPixelPos)
+{
+	taa_short2 SamplePixelPos = KernelCenterPixelPos + Offset;
+
+	// Only do clamp based on the compile time known direction of the offset.
+	// This turns only 1 v_pk_max_i16 and v_pk_min_i16 for a 3x3 kernel.
+	if (OffsetDirection.x > 0)
+		SamplePixelPos.x = min(SamplePixelPos.x, taa_short(MaxPixelPos.x));
+	else if (OffsetDirection.x < 0)
+		SamplePixelPos.x = max(SamplePixelPos.x, taa_short(MinPixelPos.x));
+		
+	if (OffsetDirection.y > 0)
+		SamplePixelPos.y = min(SamplePixelPos.y, taa_short(MaxPixelPos.y));
+	else if (OffsetDirection.y < 0)
+		SamplePixelPos.y = max(SamplePixelPos.y, taa_short(MinPixelPos.y));
+
+	return SamplePixelPos;
+}
+
+taa_short2 InvalidateOutputPixelPos(taa_short2 PixelPos, uint2 ViewportMax)
+#if 1
+{
+	taa_short2 Subtract = taa_short2(ViewportMax - 1) - PixelPos;
+	taa_ushort Override = taa_ushort(Subtract.x | Subtract.y);
+
+	#if CONFIG_COMPILE_FP16
+		PixelPos.x |= -taa_short((Override & uint16_t(0x8000)) >> 15);
+	#else
+		PixelPos.x |= -taa_short((Override & uint(0x80000000)) >> 31);
+	#endif
+
+	return PixelPos;
+}
+#else
+{
+	bool bIsValidPixel = all(PixelPos < ViewportMax);
+	PixelPos.x = bIsValidPixel ? PixelPos.x : ~taa_short(0);
+	return PixelPos;
+}
+#endif
+
 taa_ushort2 Map8x8Tile2x2Lane(uint GroupThreadIndex)
 {
 	taa_ushort T = taa_ushort(GroupThreadIndex);
@@ -443,7 +501,8 @@ taa_half ComputeSampleWeigth(taa_half UpscaleFactor, taa_half2 PixelDelta, const
 
 	// 1 - 1.9 * x^2 + 0.9 * x^4
 	taa_half x2 = saturate(u2 * dot(PixelDelta, PixelDelta));
-	return taa_half(((float(0.9) + MinimalContribution) * x2 - float(1.9)) * x2 + float(1.0));
+	//return taa_half(((float(0.9) + MinimalContribution) * x2 - float(1.9)) * x2 + float(1.0));
+	return saturate((taa_half(0.9) * x2 - taa_half(1.9)) * x2 + taa_half(1.0 + MinimalContribution));
 }
 
 taa_half2 WeightedLerpFactors(taa_half WeightA, taa_half WeightB, taa_half Blend)
