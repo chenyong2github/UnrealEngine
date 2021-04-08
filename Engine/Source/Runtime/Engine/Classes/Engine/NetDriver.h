@@ -1131,7 +1131,7 @@ public:
 	void UpdateStandbyCheatStatus(void);
 
 	/** Sets the analytics provider */
-	virtual void ENGINE_API SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
+	ENGINE_API virtual void SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider);
 
 #if DO_ENABLE_NET_TEST
 	FPacketSimulationSettings	PacketSimulationSettings;
@@ -1283,7 +1283,7 @@ public:
 	ENGINE_API virtual void ProcessRemoteFunction(class AActor* Actor, class UFunction* Function, void* Parameters, struct FOutParmRec* OutParms, struct FFrame* Stack, class UObject* SubObject = nullptr );
 
 
-	enum ENGINE_API ERemoteFunctionSendPolicy
+	enum ERemoteFunctionSendPolicy
 	{		
 		/** Unreliable multicast are queued. Everything else is send immediately */
 		Default, 
@@ -1475,7 +1475,7 @@ public:
 	/**
 	 * Get the socket subsytem appropriate for this net driver
 	 */
-	virtual class ISocketSubsystem* GetSocketSubsystem() PURE_VIRTUAL(UNetDriver::GetSocketSubsystem, return NULL;);
+	ENGINE_API virtual class ISocketSubsystem* GetSocketSubsystem() PURE_VIRTUAL(UNetDriver::GetSocketSubsystem, return NULL;);
 
 	/**
 	 * Associate a world with this net driver. 
@@ -1488,7 +1488,7 @@ public:
 	/**
 	 * Get the world associated with this net driver
 	 */
-	virtual class UWorld* GetWorld() const override final { return World; }
+	ENGINE_API virtual class UWorld* GetWorld() const override final { return World; }
 
 	class UPackage* GetWorldPackage() const { return WorldPackage; }
 
@@ -1496,7 +1496,7 @@ public:
 	ENGINE_API virtual void ResetGameWorldState();
 
 	/** @return true if the net resource is valid or false if it should not be used */
-	virtual bool IsNetResourceValid(void) PURE_VIRTUAL(UNetDriver::IsNetResourceValid, return false;);
+	ENGINE_API virtual bool IsNetResourceValid(void) PURE_VIRTUAL(UNetDriver::IsNetResourceValid, return false;);
 
 	bool NetObjectIsDynamic(const UObject *Object) const;
 
@@ -1510,25 +1510,25 @@ public:
 	TSharedPtr<FRepChangedPropertyTracker> FindOrCreateRepChangedPropertyTracker(UObject *Obj);
 
 	/** Returns true if the client should destroy immediately any actor that becomes torn-off */
-	virtual bool ShouldClientDestroyTearOffActors() const { return false; }
+	ENGINE_API virtual bool ShouldClientDestroyTearOffActors() const { return false; }
 
 	/** Returns whether or not properties that are replicating using this driver should not call RepNotify functions. */
 	ENGINE_API virtual bool ShouldSkipRepNotifies() const;
 
 	/** Returns true if actor channels with InGUID should queue up bunches, even if they wouldn't otherwise be queued. */
-	virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const { return false; }
+	ENGINE_API virtual bool ShouldQueueBunchesForActorGUID(FNetworkGUID InGUID) const { return false; }
 
 	/** Returns whether or not RPCs processed by this driver should be ignored. */
-	virtual bool ShouldIgnoreRPCs() const { return false; }
+	ENGINE_API virtual bool ShouldIgnoreRPCs() const { return false; }
 
 	/** Returns the existing FNetworkGUID of InActor, if it has one. */
-	virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const { return FNetworkGUID(); }
+	ENGINE_API virtual FNetworkGUID GetGUIDForActor(const AActor* InActor) const { return FNetworkGUID(); }
 
 	/** Returns the actor that corresponds to InGUID, if one can be found. */
-	virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const { return nullptr; }
+	ENGINE_API virtual AActor* GetActorForGUID(FNetworkGUID InGUID) const { return nullptr; }
 
 	/** Returns true if RepNotifies should be checked and generated when receiving properties for the given object. */
-	virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const { return true; }
+	ENGINE_API virtual bool ShouldReceiveRepNotifiesForObject(UObject* Object) const { return true; }
 
 	/** Returns the object that manages the list of replicated UObjects. */
 	ENGINE_API FNetworkObjectList& GetNetworkObjectList() { return *NetworkObjects; }

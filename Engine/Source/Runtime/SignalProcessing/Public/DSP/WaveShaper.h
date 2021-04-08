@@ -6,7 +6,7 @@
 
 namespace Audio
 {
-	enum class SIGNALPROCESSING_API EWaveShaperType : int32
+	enum class EWaveShaperType : int32
 	{
 		Sin,
 		ATan,

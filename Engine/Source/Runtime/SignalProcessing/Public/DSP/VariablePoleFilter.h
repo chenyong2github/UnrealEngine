@@ -7,7 +7,7 @@
 
 namespace Audio
 {
-	enum class SIGNALPROCESSING_API EFilterOrder : uint32
+	enum class EFilterOrder : uint32
 	{
 		TwoPole = 1,
 		FourPole,

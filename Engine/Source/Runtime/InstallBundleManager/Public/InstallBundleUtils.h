@@ -183,7 +183,7 @@ namespace InstallBundleUtil
 		//_FG stats account for time while the app is active
 		//_BG stats are an estimate of time while the app is inactive (backgrounded, closed, etc.)
 		//		*_BG stats are an estimate as we can not account for unexpected crashes, etc.
-		enum class INSTALLBUNDLEMANAGER_API ETimingStatNames : uint8
+		enum class ETimingStatNames : uint8
 		{
 			  TotalTime_Real
 			, TotalTime_FG
@@ -201,7 +201,7 @@ namespace InstallBundleUtil
 		};
 
 		//Stats used to store count information in an int format
-		enum class INSTALLBUNDLEMANAGER_API ECountStatNames : uint8
+		enum class ECountStatNames : uint8
 		{
 			  NumResumedFromBackground
 			, NumResumedFromLaunch

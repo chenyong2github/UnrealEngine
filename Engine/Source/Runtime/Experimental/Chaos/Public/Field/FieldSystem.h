@@ -55,7 +55,7 @@ struct CHAOS_API FFieldContextIndex
 class CHAOS_API FFieldSystemMetaData {
 public:
 
-	enum CHAOS_API EMetaType
+	enum EMetaType
 	{
 		ECommandData_None = 0,
 		ECommandData_ProcessingResolution,

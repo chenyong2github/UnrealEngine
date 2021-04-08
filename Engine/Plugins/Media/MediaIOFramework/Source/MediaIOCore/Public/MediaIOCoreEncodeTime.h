@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IMediaTextureSample.h"
 
-enum class MEDIAIOCORE_API EMediaIOCoreEncodePixelFormat
+enum class EMediaIOCoreEncodePixelFormat
 {
 	A2B10G10R10,
 	CharBGRA,
