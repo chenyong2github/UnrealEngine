@@ -1099,8 +1099,6 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
 		}
 #endif
-
-		return;
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// End of cloud ray marching
