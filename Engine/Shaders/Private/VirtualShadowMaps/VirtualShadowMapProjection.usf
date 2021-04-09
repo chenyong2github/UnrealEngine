@@ -279,6 +279,7 @@ FProjectLightResult ProjectLight(
 				SMRTSamplesPerRay,
 				SMRTCotMaxRayAngleFromLight,
 				Noise,
+				/*bCullBackface*/ !bIsHair,
 				/* out */ HitDistance);
 		#endif // DIRECTIONAL_LIGHT
 		}
