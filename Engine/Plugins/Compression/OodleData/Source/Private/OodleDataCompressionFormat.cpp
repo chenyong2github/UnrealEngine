@@ -75,19 +75,24 @@ DEFINE_LOG_CATEGORY_STATIC(OodleDataCompression, Log, All);
 
 #define OODLE_DERIVEDDATA_VER TEXT("BA7AA26CD1C3498787A3F3AA53895042")
 
-enum 
-{
-	// Pre-allocates this many decode temporary buffers. 
-	// More means less dynamic allocation, but more static memory overhead. 
-	// optimal number may vary depending on Platform,OS,etc...
-	NUM_OODLE_DECODE_BUFFERS = 2,
-};
+// Pre-allocates this many decode temporary buffers. 
+// More means less dynamic allocation, but more static memory overhead. 
+// optimal number may vary depending on Platform,OS,etc...
+#define NUM_OODLE_DECODE_BUFFERS 2
+
+// if the Decoder object is <= this size, just put it on the stack
+// MAX_OODLE_DECODER_SIZE_ON_STACK needs to be at least 64k to ever be used
+// the benefit of this could be more parallel decodes if the 2 pre-allocated buffers are in use
+//	without resorting to a heap alloc
+#define MAX_OODLE_DECODER_SIZE_ON_STACK  0
+// if you can guarantee this much stack available :
+//#define MAX_OODLE_DECODER_SIZE_ON_STACK	 100000
+
 
 #if STATS
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
 DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Total oodle encode time"), STAT_Compression_Oodle_Encode, STATGROUP_Compression);
 DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Total oodle decode time"), STAT_Compression_Oodle_Decode, STATGROUP_Compression);
-DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Total oodle decodes w/ malloc"), STAT_Compression_Oodle_Decode_Slow, STATGROUP_Compression);
 #endif
 
 
@@ -184,51 +189,70 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 
 	virtual FName GetCompressionFormatName() override
 	{
-		return TEXT("Oodle");
+		static FName OodleName( TEXT("Oodle") );
+		return OodleName;
 	}
 
 	virtual uint32 GetVersion() override
 	{
 		return 20000 + OODLE2_VERSION_MAJOR*100 + OODLE2_VERSION_MINOR;
 	}
-
+	
 	int32 OodleDecode(const void * InCompBuf, int32 InCompBufSize, void * OutRawBuf, int32 InRawLen) 
 	{
-
-		// try to take a mutex for one of the pre-allocated decode buffers
-		for (int i = 0; i < NUM_OODLE_DECODE_BUFFERS; ++i) 
-		{
-			if (OodleDecoderMutex[i].TryLock()) 
-			{
-				if (OodleDecoderMemory[i])
-				{
-					int Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen,
-						OodleLZ_FuzzSafe_Yes, OodleLZ_CheckCRC_Yes, OodleLZ_Verbosity_None,
-						NULL, 0, NULL, NULL,
-						OodleDecoderMemory[i], OodleDecoderMemorySize);
-
-					OodleDecoderMutex[i].Unlock();
-
-					return Result;
-				}
-
-				OodleDecoderMutex[i].Unlock();
-			}
-		}
-
-#if STATS
-		SCOPE_SECONDS_ACCUMULATOR(STAT_Compression_Oodle_Decode_Slow);
-#endif
-	
-		// allocate memory for the decoder so that Oodle doesn't allocate anything internally
-		// here we try to find the minimum size needed for this decode, OodleDecoderMemorySize may be larger
+		// find the minimum size needed for this decode, OodleDecoderMemorySize may be larger
 		OodleLZ_Compressor CurCompressor = OodleLZ_GetChunkCompressor(InCompBuf, InCompBufSize, NULL);
 		SSIZE_T DecoderMemorySize = OodleLZDecoder_MemorySizeNeeded(CurCompressor, InRawLen);
-		void * DecoderMemory = FMemory::Malloc(DecoderMemorySize);
-		if (DecoderMemory == NULL) 
+		void * DecoderMemory = NULL;
+		bool DoFreeDecoderMemory = false;
+
+		#if MAX_OODLE_DECODER_SIZE_ON_STACK > 0 
+		if ( DecoderMemorySize <= MAX_OODLE_DECODER_SIZE_ON_STACK )
 		{
-			UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
-			return 0;
+			// InRawLen is small
+			//  just use the stack for our needed decoded memory scrtach
+
+			DecoderMemory = alloca(DecoderMemorySize);
+			
+			//UE_LOG(OodleDataCompression, Display, TEXT("Decode on stack : %d -> %d"),InCompBufSize,InRawLen );
+		}
+		else
+		#endif
+		{
+
+			// try to take a mutex for one of the pre-allocated decode buffers
+			for (int i = 0; i < NUM_OODLE_DECODE_BUFFERS; ++i) 
+			{
+				if (OodleDecoderMutex[i].TryLock()) 
+				{
+					if (OodleDecoderMemory[i])
+					{
+						//UE_LOG(OodleDataCompression, Display, TEXT("Decode with lock : %d -> %d"),InCompBufSize,InRawLen );
+
+						int Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen,
+							OodleLZ_FuzzSafe_Yes, OodleLZ_CheckCRC_Yes, OodleLZ_Verbosity_None,
+							NULL, 0, NULL, NULL,
+							OodleDecoderMemory[i], OodleDecoderMemorySize);
+
+						OodleDecoderMutex[i].Unlock();
+
+						return Result;
+					}
+
+					OodleDecoderMutex[i].Unlock();
+				}
+			}
+			
+			//UE_LOG(OodleDataCompression, Display, TEXT("Decode with malloc : %d -> %d"),InCompBufSize,InRawLen );
+
+			// allocate memory for the decoder so that Oodle doesn't allocate anything internally
+			DecoderMemory = FMemory::Malloc(DecoderMemorySize);
+			if (DecoderMemory == NULL) 
+			{
+				UE_LOG(OodleDataCompression, Error, TEXT("FOodleDataCompressionFormat::OodleDecode - Failed to allocate %d!"), DecoderMemorySize);
+				return 0;
+			}
+			DoFreeDecoderMemory = true;
 		}
 
 		int Result = OodleLZ_Decompress(InCompBuf, InCompBufSize, OutRawBuf, InRawLen, 
@@ -236,7 +260,10 @@ struct FOodleDataCompressionFormat : ICompressionFormat
 			NULL, 0, NULL, NULL,
 			DecoderMemory, DecoderMemorySize);
 
-		FMemory::Free(DecoderMemory);
+		if ( DoFreeDecoderMemory )
+		{
+			FMemory::Free(DecoderMemory);
+		}
 
 		return Result;
 	}
