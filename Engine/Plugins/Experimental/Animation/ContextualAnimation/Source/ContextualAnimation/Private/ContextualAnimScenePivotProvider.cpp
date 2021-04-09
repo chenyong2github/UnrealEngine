@@ -12,9 +12,9 @@ UContextualAnimScenePivotProvider::UContextualAnimScenePivotProvider(const FObje
 {
 }
 
-const UContextualAnimSceneAssetBase* UContextualAnimScenePivotProvider::GetSceneAsset() const
+const UContextualAnimSceneAsset* UContextualAnimScenePivotProvider::GetSceneAsset() const
 {
-	return CastChecked<UContextualAnimSceneAssetBase>(GetOuter());
+	return CastChecked<UContextualAnimSceneAsset>(GetOuter());
 }
 
 // UContextualAnimScenePivotProvider_Default

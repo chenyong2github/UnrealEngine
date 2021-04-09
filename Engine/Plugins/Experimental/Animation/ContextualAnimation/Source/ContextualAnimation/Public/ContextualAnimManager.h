@@ -9,7 +9,7 @@
 #include "ContextualAnimManager.generated.h"
 
 class UContextualAnimSceneActorComponent;
-class UContextualAnimSceneAssetBase;
+class UContextualAnimSceneAsset;
 class UContextualAnimSceneInstance;
 class AActor;
 class UWorld;
@@ -40,10 +40,10 @@ public:
 	void UnregisterSceneActorComponent(UContextualAnimSceneActorComponent* SceneActorComp);
 
 	/** Attempt to start an scene instance with the supplied bindings for each role */
-	bool TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, const FContextualAnimSceneBindings& Bindings);
+	bool TryStartScene(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimSceneBindings& Bindings);
 
 	/** Attempt to start an scene instance with PrimaryActor bound to the primary role and the first component valid for each of the other roles */
-	bool TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, AActor* PrimaryActor, const TSet<UContextualAnimSceneActorComponent*>& SceneActorComps);
+	bool TryStartScene(const UContextualAnimSceneAsset* SceneAsset, AActor* PrimaryActor, const TSet<UContextualAnimSceneActorComponent*>& SceneActorComps);
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Manager")
 	UContextualAnimSceneActorComponent* FindClosestSceneActorCompToActor(const AActor* Actor) const;
@@ -63,7 +63,7 @@ public:
 	FORCEINLINE const TSet<UContextualAnimSceneActorComponent*>& GetSceneActorCompContainer() const { return SceneActorCompContainer; };
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Manager", meta = (DisplayName = "TryStartSceneWithBindings"))
-	bool BP_TryStartSceneWithBindings(const UContextualAnimSceneAssetBase* SceneAsset, const FContextualAnimSceneBindings& Bindings) { return TryStartScene(SceneAsset, Bindings); }
+	bool BP_TryStartSceneWithBindings(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimSceneBindings& Bindings) { return TryStartScene(SceneAsset, Bindings); }
 
 protected:
 

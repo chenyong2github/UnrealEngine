@@ -7,7 +7,7 @@
 #include "ContextualAnimSceneInstance.h"
 #include "ContextualAnimScenePivotProvider.generated.h"
 
-class UContextualAnimSceneAssetBase;
+class UContextualAnimSceneAsset;
 
 UCLASS(Abstract, BlueprintType, EditInlineNew)
 class CONTEXTUALANIMATION_API UContextualAnimScenePivotProvider : public UObject
@@ -21,7 +21,7 @@ public:
 	virtual FTransform CalculateScenePivot_Source(int32 AnimDataIndex) const { return FTransform::Identity; }
 	virtual FTransform CalculateScenePivot_Runtime(const TMap<FName, FContextualAnimSceneActorData>& SceneActorMap) const { return FTransform::Identity; }
 
-	const UContextualAnimSceneAssetBase* GetSceneAsset() const;
+	const UContextualAnimSceneAsset* GetSceneAsset() const;
 };
 
 UCLASS()

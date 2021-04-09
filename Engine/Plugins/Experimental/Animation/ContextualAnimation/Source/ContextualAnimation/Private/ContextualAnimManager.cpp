@@ -5,7 +5,6 @@
 #include "ContextualAnimSceneInstance.h"
 #include "DrawDebugHelpers.h"
 #include "ContextualAnimSceneAsset.h"
-#include "ContextualAnimCompositeSceneAsset.h"
 #include "ContextualAnimation.h"
 #include "ContextualAnimSceneActorComponent.h"
 #include "Engine/World.h"
@@ -131,7 +130,7 @@ UContextualAnimSceneInstance* UContextualAnimManager::GetSceneWithActor(AActor* 
 	return nullptr;
 }
 
-bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, const FContextualAnimSceneBindings& Bindings)
+bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimSceneBindings& Bindings)
 {
 	if (SceneAsset == nullptr)
 	{
@@ -232,7 +231,7 @@ bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* 
 	return true;
 }
 
-bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAssetBase* SceneAsset, AActor* PrimaryActor, const TSet<UContextualAnimSceneActorComponent*>& SceneActorComps)
+bool UContextualAnimManager::TryStartScene(const UContextualAnimSceneAsset* SceneAsset, AActor* PrimaryActor, const TSet<UContextualAnimSceneActorComponent*>& SceneActorComps)
 {
 	if (SceneAsset == nullptr)
 	{

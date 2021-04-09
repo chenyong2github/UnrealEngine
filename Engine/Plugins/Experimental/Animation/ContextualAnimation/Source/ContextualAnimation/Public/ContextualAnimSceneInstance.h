@@ -14,7 +14,7 @@ struct FContextualAnimData;
 struct FContextualAnimTrackSettings;
 class UContextualAnimSceneInstance;
 class UContextualAnimSceneActorComponent;
-class UContextualAnimSceneAssetBase;
+class UContextualAnimSceneAsset;
 class UAnimInstance;
 class USkeletalMeshComponent;
 class UAnimMontage;
@@ -103,7 +103,7 @@ public:
 
 	/** Scene asset this instance was created from */
 	UPROPERTY()
-	TObjectPtr<const UContextualAnimSceneAssetBase> SceneAsset;
+	TObjectPtr<const UContextualAnimSceneAsset> SceneAsset;
 
 	/** Map of roles to scene actor */
 	UPROPERTY()

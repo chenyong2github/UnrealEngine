@@ -10,7 +10,6 @@
 #include "ContextualAnimEdModeSettings.h"
 #include "DrawDebugHelpers.h"
 #include "ContextualAnimSceneAsset.h"
-#include "ContextualAnimCompositeSceneAsset.h"
 #include "ContextualAnimUtilities.h"
 #include "ContextualAnimManager.h"
 #include "ContextualAnimPreviewManager.h"

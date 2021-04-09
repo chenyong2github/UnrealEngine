@@ -36,7 +36,7 @@ public:
 
 	UContextualAnimMetadata(const FObjectInitializer& ObjectInitializer);
 
-	class UContextualAnimSceneAssetBase* GetSceneAssetOwner() const;
+	class UContextualAnimSceneAsset* GetSceneAssetOwner() const;
 
 	bool DoesQuerierPassConditions(const FContextualAnimQuerier& Querier, const FContextualAnimQueryContext& Context, const FTransform& EntryTransform) const;
 

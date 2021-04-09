@@ -26,9 +26,9 @@ UContextualAnimMetadata::UContextualAnimMetadata(const FObjectInitializer& Objec
 {
 }
 
-UContextualAnimSceneAssetBase* UContextualAnimMetadata::GetSceneAssetOwner() const
+UContextualAnimSceneAsset* UContextualAnimMetadata::GetSceneAssetOwner() const
 {
-	return Cast<UContextualAnimSceneAssetBase>(GetOuter());
+	return Cast<UContextualAnimSceneAsset>(GetOuter());
 }
 
 bool UContextualAnimMetadata::DoesQuerierPassConditions(const FContextualAnimQuerier& Querier, const FContextualAnimQueryContext& Context, const FTransform& EntryTransform) const

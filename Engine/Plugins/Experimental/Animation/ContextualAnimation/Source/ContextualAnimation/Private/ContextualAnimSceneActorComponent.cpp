@@ -8,7 +8,6 @@
 #include "DrawDebugHelpers.h"
 #include "ContextualAnimManager.h"
 #include "ContextualAnimSceneInstance.h"
-#include "ContextualAnimCompositeSceneAsset.h"
 #include "ContextualAnimSceneAsset.h"
 #include "ContextualAnimUtilities.h"
 
@@ -201,7 +200,7 @@ FPrimitiveSceneProxy* UContextualAnimSceneActorComponent::CreateSceneProxy()
 
 		virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 		{
-			const UContextualAnimSceneAssetBase* Asset = SceneAssetPtr.Get();
+			const UContextualAnimSceneAsset* Asset = SceneAssetPtr.Get();
 			if (Asset == nullptr)
 			{
 				return;
@@ -346,7 +345,7 @@ FPrimitiveSceneProxy* UContextualAnimSceneActorComponent::CreateSceneProxy()
 		}
 
 	private:
-		TWeakObjectPtr<const UContextualAnimSceneAssetBase> SceneAssetPtr;
+		TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAssetPtr;
 		FContextualAnimDebugParams Params;
 	};
 
