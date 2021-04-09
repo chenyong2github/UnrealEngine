@@ -29,7 +29,7 @@ public:
 
 	/** OSC range input property template, used for binding. */
 	UPROPERTY(Transient, meta = (ClampMin = 0.0, ClampMax = 1.0))
-	float RangeInputTemplate;
+	float RangeInputTemplate = 0.0f;
 };
 
 /**

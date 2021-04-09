@@ -51,7 +51,7 @@ public:
 
 	/** DMX range input property template, used for binding. */
 	UPROPERTY(Transient)
-	uint32 RangeInputTemplate;
+	uint32 RangeInputTemplate = 0;
 
 private:
 	/** DMX entity cache buffer. From 1 up to 4 channels, based on DataType */
