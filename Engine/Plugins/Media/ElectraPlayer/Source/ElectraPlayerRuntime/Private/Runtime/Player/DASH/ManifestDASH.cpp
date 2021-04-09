@@ -70,6 +70,10 @@ namespace DashUtils
 			}
 			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
 		}
+		virtual EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override
+		{
+			return IParserISO14496_12::IBoxCallback::EParseContinuation::Continue;
+		}
 		bool bHaveSIDX = false;
 	};
 
@@ -2407,7 +2411,7 @@ void FManifestDASHInternal::FRepresentation::SegmentIndexDownloadComplete(TShare
 			DashUtils::FMP4SidxBoxReader BoxReader;
 			BoxReader.SetParseData(LoadRequest->Request->GetResponseBuffer());
 			TSharedPtrTS<IParserISO14496_12> Index = IParserISO14496_12::CreateParser();
-			UEMediaError parseError = Index->ParseHeader(&BoxReader, &BoxReader, LoadRequest->PlayerSessionServices);
+			UEMediaError parseError = Index->ParseHeader(&BoxReader, &BoxReader, LoadRequest->PlayerSessionServices, nullptr);
 			if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 			{
 				if (Index->PrepareTracks(nullptr) == UEMEDIA_ERROR_OK && Index->GetNumberOfSegmentIndices() > 0)

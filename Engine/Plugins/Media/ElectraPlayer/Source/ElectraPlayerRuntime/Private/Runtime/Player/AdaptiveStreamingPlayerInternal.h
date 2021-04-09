@@ -12,6 +12,7 @@
 
 #include "Demuxer/ParserISO14496-12.h"
 
+#include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/PlayerStreamReader.h"
 #include "Player/PlaylistReader.h"
 #include "Player/PlayerStreamFilter.h"
@@ -1244,8 +1245,10 @@ private:
 
 
 	void InternalLoadManifest(const FString& URL, const FString& MimeType);
+	void InternalCancelLoadManifest();
 	bool SelectManifest();
 	void UpdateManifest();
+	void OnManifestGetMimeTypeComplete(TSharedPtrTS<FHTTPResourceRequest> InRequest);
 
 	void VideoDecoderInputNeeded(const IAccessUnitBufferListener::FBufferStats& currentInputBufferStats);
 	void VideoDecoderOutputReady(const IDecoderOutputBufferListener::FDecodeReadyStats& currentReadyStats);
@@ -1341,8 +1344,10 @@ private:
 
 	TMediaQueueDynamic<TSharedPtrTS<FErrorDetail>>						ErrorQueue;
 
+	FString																ManifestURL;
 	TSharedPtrTS<IManifest>												Manifest;
 	TSharedPtrTS<IPlaylistReader>										ManifestReader;
+	TSharedPtrTS<FHTTPResourceRequest>									ManifestMimeTypeRequest;
 
 	IStreamReader*														StreamReaderHandler;
 	TMediaOptionalValue<bool> 											bHaveVideoReader;

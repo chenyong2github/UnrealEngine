@@ -112,7 +112,7 @@ namespace Electra
 			};
 
 			/**
-			 * Notifies the caller of the start of a new box.
+			 * Notifies the caller of the start/end of a new box.
 			 *
 			 * The caller may continue to parse this box or ask to stop parsing.
 			 *
@@ -123,6 +123,7 @@ namespace Electra
 			 * @return Whether or not to continue parsing thix box.
 			 */
 			virtual EParseContinuation OnFoundBox(FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) = 0;
+			virtual EParseContinuation OnEndOfBox(FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) = 0;
 		};
 
 
@@ -131,7 +132,7 @@ namespace Electra
 		/**
 		 * Parses the header boxes (all non-MDAT boxes).
 		 */
-		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession) = 0;
+		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession, const IParserISO14496_12* OptionalInitSegment) = 0;
 
 
 		/** A brand is a 32 bit value in an mp4 file. */

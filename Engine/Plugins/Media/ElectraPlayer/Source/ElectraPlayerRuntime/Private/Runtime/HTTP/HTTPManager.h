@@ -386,6 +386,7 @@ namespace Electra
 				int64			DocumentSize = -1;
 			};
 			FString								URL;							//!< URL
+			FString								Verb;							//!< GET (default if not set), HEAD, OPTIONS,....
 			FRange								Range;							//!< Optional request range
 			int32								SubRangeRequestSize = 0;		//!< If not 0 the size to break the request into smaller range requests into.
 			TArray<HTTP::FHTTPHeader>			RequestHeaders;					//!< Request headers
