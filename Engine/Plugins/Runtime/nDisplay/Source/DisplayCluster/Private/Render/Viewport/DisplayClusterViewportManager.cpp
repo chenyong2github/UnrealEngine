@@ -290,19 +290,18 @@ static TAutoConsoleVariable<int32> CVarCrossGPUTransfersEnabled(
 	ECVF_RenderThreadSafe
 );
 
+#include "RHIContext.h"
+
 void FDisplayClusterViewportManager::DoCrossGPUTransfers_RenderThread(class FViewport* InViewport, FRHICommandListImmediate& RHICmdList) const
 {
 	check(IsInRenderingThread());
 
-	bool bIsCrossGPUTransfersEnabled = (CVarCrossGPUTransfersEnabled.GetValueOnRenderThread() != 0);
-	if (!bIsCrossGPUTransfersEnabled)
+	if ((CVarCrossGPUTransfersEnabled.GetValueOnRenderThread() == 0))
 	{
 		return;
 	}
 
-	// The GPUs on which all views must be resolved to.
-	const FRHIGPUMask ViewportGPUMask = InViewport->GetGPUMask(RHICmdList);
-
+#if WITH_MGPU
 	// Copy the view render results to all GPUs that are native to the viewport.
 	TArray<FTransferTextureParams> TransferResources;
 
@@ -310,37 +309,39 @@ void FDisplayClusterViewportManager::DoCrossGPUTransfers_RenderThread(class FVie
 	{
 		for (FDisplayClusterViewport_Context& ViewportContext : ViewportProxy->Contexts)
 		{
-			if (ViewportContext.GPUIndex >= 0)
+			if (ViewportContext.bAllowGPUTransferOptimization && ViewportContext.GPUIndex >= 0)
 			{
-				for (uint32 ViewportGPUIndex : ViewportGPUMask)
+				// Use optimized cross GPU transfer for this context
+
+				FRenderTarget* RenderTarget = ViewportProxy->RenderTargets[ViewportContext.ContextNum];
+				FRHITexture2D* TextureRHI = ViewportProxy->RenderTargets[ViewportContext.ContextNum]->GetRenderTargetTexture();
+
+				FRHIGPUMask RenderTargetGPUMask = (GNumExplicitGPUsForRendering > 1 && RenderTarget) ? RenderTarget->GetGPUMask(RHICmdList) : FRHIGPUMask::GPU0();
 				{
-					if (ViewportGPUIndex != ViewportContext.GPUIndex)
+					static auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.GPUCount"));
+					if (CVar && CVar->GetInt() > 1)
 					{
-						FTransferTextureParams Params;
-						
-						// The texture which must be must be allocated on both GPUs 
-						Params.Texture = ViewportProxy->RenderTargets[ViewportContext.ContextNum]->GetRenderTargetTexture();
-						
-						// The min rect of the texture region to copy
-						Params.Min = FIntVector(ViewportContext.RenderTargetRect.Min.X, ViewportContext.RenderTargetRect.Min.Y, 0);
-						
-						// The max rect of the texture region to copy
-						Params.Max = FIntVector(ViewportContext.RenderTargetRect.Max.X, ViewportContext.RenderTargetRect.Max.Y, 0);
-						
-						// The GPU index where the data will be read from.
-						Params.SrcGPUIndex = ViewportContext.GPUIndex;
-						
-						// The GPU index where the data will be written to.
-						Params.DestGPUIndex = ViewportGPUIndex;
+						RenderTargetGPUMask = FRHIGPUMask::All(); // Broadcast to all GPUs 
+					}
+				}
 
-						// Whether the data is read by the dest GPU, or written by the src GPU (not allowed if the texture is a backbuffer)
-						Params.bPullData = true;
+				FRHIGPUMask ContextGPUMask = FRHIGPUMask::FromIndex(ViewportContext.GPUIndex);
 
-						// Whether the GPUs must handshake before and after the transfer. Required if the texture rect is being written to in several render passes.
-						// Otherwise, minimal synchronization will be used.
-						Params.bLockStepGPUs = false; //@todo marmot value, double check
+				if (ContextGPUMask != RenderTargetGPUMask)
+				{
+					// Clamp the view rect by the rendertarget rect to prevent issues when resizing the viewport.
+					const FIntRect TransferRect = ViewportContext.RenderTargetRect;
 
-						TransferResources.Add(Params);
+					if (TransferRect.Width() > 0 && TransferRect.Height() > 0)
+					{
+						for (uint32 RenderTargetGPUIndex : RenderTargetGPUMask)
+						{
+							if (!ContextGPUMask.Contains(RenderTargetGPUIndex))
+							{
+								FTransferTextureParams ResourceParams(TextureRHI, TransferRect, ContextGPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, ViewportContext.bEnabledGPUTransferLockSteps);
+								TransferResources.Add(ResourceParams);
+							}
+						}
 					}
 				}
 			}
@@ -351,6 +352,8 @@ void FDisplayClusterViewportManager::DoCrossGPUTransfers_RenderThread(class FVie
 	{
 		RHICmdList.TransferTextures(TransferResources);
 	}
+
+#endif // WITH_MGPU
 }
 
 bool FDisplayClusterViewportManager::GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources) const

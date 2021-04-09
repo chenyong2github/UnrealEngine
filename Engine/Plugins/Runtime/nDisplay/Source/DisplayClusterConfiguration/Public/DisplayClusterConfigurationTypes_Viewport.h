@@ -161,6 +161,10 @@ public:
 	{};
 
 public:
+	// Performance: Allow change global MGPU settings
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
+	EDisplayClusterConfigurationRenderMGPUMode MultiGPUMode = EDisplayClusterConfigurationRenderMGPUMode::Enabled;
+
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Render")
 	bool bAllowRenderTargetAtlasing = false;

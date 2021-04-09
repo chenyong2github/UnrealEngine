@@ -12,6 +12,9 @@ struct FDisplayClusterRenderFrameSettings
 	// customize mono\stereo render modes
 	EDisplayClusterRenderFrameMode RenderMode = EDisplayClusterRenderFrameMode::Mono;
 
+	// Control mGPU for whole cluster
+	EDisplayClusterMultiGPUMode MultiGPUMode = EDisplayClusterMultiGPUMode::Enabled;
+
 	// Some frame postprocess require additional render targetable resources
 	bool bShouldUseAdditionalFrameTargetableResource = false;
 

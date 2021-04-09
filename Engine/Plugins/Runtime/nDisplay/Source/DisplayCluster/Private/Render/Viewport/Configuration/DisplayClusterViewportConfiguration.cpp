@@ -131,6 +131,24 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 		break;
 	}
 
+	// Performance: Allow change global MGPU settings
+	switch (InRenderFrameConfiguration.MultiGPUMode)
+	{
+	case EDisplayClusterConfigurationRenderMGPUMode::None:
+		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::None;
+		break;
+	case EDisplayClusterConfigurationRenderMGPUMode::Optimized_DisabledLockSteps:
+		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps;
+		break;
+	case EDisplayClusterConfigurationRenderMGPUMode::Optimized_EnabledLockSteps:
+		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps;
+		break;
+	case EDisplayClusterConfigurationRenderMGPUMode::Enabled:
+	default:
+		RenderFrameSettings.MultiGPUMode = EDisplayClusterMultiGPUMode::Enabled;
+		break;
+	};
+
 	// Performance: Allow to use parent ViewFamily from parent viewport 
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)
 	// [not implemented yet] Experimental

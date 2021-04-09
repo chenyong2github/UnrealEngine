@@ -178,10 +178,8 @@ void FDisplayClusterViewport::SetupSceneView(uint32 ContextNum, class UWorld* Wo
 	{
 		InOutView.bOverrideGPUMask = true;
 		InOutView.GPUMask = FRHIGPUMask::FromIndex(Contexts[ContextNum].GPUIndex);
+		InOutView.bAllowCrossGPUTransfer = (Contexts[ContextNum].bAllowGPUTransferOptimization == false);
 	}
-
-	// always use ndisplay mgpu transfer settings
-	InOutView.bAllowCrossGPUTransfer = false;
 
 	// Apply visibility settigns to view
 	VisibilitySettings.SetupSceneView(World, InOutView);
@@ -331,6 +329,29 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 				Context.GPUIndex = ContextGPUIndex;
 
 				Context.bDisableRender = bDisableRender;
+
+				// Control mGPU:
+				switch (InFrameSettings.MultiGPUMode)
+				{
+				case EDisplayClusterMultiGPUMode::None:
+					Context.bAllowGPUTransferOptimization = false;
+					Context.GPUIndex = INDEX_NONE;
+					break;
+
+				case EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps:
+					Context.bAllowGPUTransferOptimization = true;
+					Context.bEnabledGPUTransferLockSteps = true;
+					break;
+
+				case EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps:
+					Context.bAllowGPUTransferOptimization = true;
+					Context.bEnabledGPUTransferLockSteps = false;
+					break;
+
+				default:
+					Context.bAllowGPUTransferOptimization = false;
+					break;
+				}
 
 				Contexts.Add(Context);
 			}

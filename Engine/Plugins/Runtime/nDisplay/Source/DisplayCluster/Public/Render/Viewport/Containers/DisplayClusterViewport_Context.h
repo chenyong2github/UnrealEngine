@@ -39,6 +39,9 @@ public:
 	// GPU index for this context render target
 	int GPUIndex = -1;
 
+	bool bAllowGPUTransferOptimization = false;
+	bool bEnabledGPUTransferLockSteps = true;
+
 	// Location and size on a render target texture
 	FIntRect RenderTargetRect;
 
