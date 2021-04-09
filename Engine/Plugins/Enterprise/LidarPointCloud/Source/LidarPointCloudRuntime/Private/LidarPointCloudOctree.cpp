@@ -292,6 +292,26 @@ uint8 FLidarPointCloudOctreeNode::GetChildrenBitmask() const
 
 void FLidarPointCloudOctreeNode::InsertPoints(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
+	InsertPoints_Internal(Points, Count, DuplicateHandling, Translation);
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(const FLidarPointCloudPoint* Points, const int64& Count, const FVector& Translation)
+{
+	if (Translation.IsNearlyZero())
+	{
+		Data.Append(Points, Count);
+	}
+	else
+	{
+		for (const FLidarPointCloudPoint* PointsPtr = Points, *DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			Data.Emplace(PointsPtr->Location + Translation, PointsPtr->Color, !!PointsPtr->bVisible, PointsPtr->ClassificationID, PointsPtr->Normal);
+		}
+	}
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Static(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
 	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
 	// Local 
@@ -475,12 +495,36 @@ void FLidarPointCloudOctreeNode::InsertPoints(const FLidarPointCloudPoint* Point
 	{
 		if (PointBuckets[i].Num() > 0)
 		{
-			GetChildNodeAtLocation(i)->InsertPoints(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
+			GetChildNodeAtLocation(i)->InsertPoints_Static(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
 		}
 	}
 }
 
 void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
+	InsertPoints_Internal(Points, Count, DuplicateHandling, Translation);
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Dynamic(FLidarPointCloudPoint** Points, const int64& Count, const FVector& Translation)
+{
+	if (Translation.IsNearlyZero())
+	{
+		for (FLidarPointCloudPoint** PointsPtr = Points, **DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			Data.Add(**PointsPtr);
+		}
+	}
+	else
+	{
+		for (FLidarPointCloudPoint** PointsPtr = Points, **DataEnd = PointsPtr + Count; PointsPtr != DataEnd; ++PointsPtr)
+		{
+			const FLidarPointCloudPoint* PointData = *PointsPtr;
+			Data.Emplace(PointData->Location + Translation, PointData->Color, !!PointData->bVisible, PointData->ClassificationID, PointData->Normal);
+		}
+	}
+}
+
+void FLidarPointCloudOctreeNode::InsertPoints_Static(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
 {
 	const FLidarPointCloudOctree::FSharedLODData& LODData = Tree->SharedData[Depth];
 
@@ -665,8 +709,30 @@ void FLidarPointCloudOctreeNode::InsertPoints(FLidarPointCloudPoint** Points, co
 	{
 		if (PointBuckets[i].Num() > 0)
 		{
-			GetChildNodeAtLocation(i)->InsertPoints(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
+			GetChildNodeAtLocation(i)->InsertPoints_Static(PointBuckets[i].GetData(), PointBuckets[i].Num(), DuplicateHandling, FVector::ZeroVector);
 		}
+	}
+}
+
+template <typename T>
+void FLidarPointCloudOctreeNode::InsertPoints_Internal(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation)
+{
+	if (Tree->IsOptimizedForDynamicData())
+	{
+		Data.Reserve(NumPoints + Count);
+
+		InsertPoints_Dynamic(Points, Count, Translation);
+
+		NumPoints = Data.Num();
+		bCanReleaseData = false;
+		bRenderDataDirty = true;
+		bHasData = true;
+
+		AddPointCount(Count);
+	}
+	else
+	{
+		InsertPoints_Static(Points, Count, DuplicateHandling, Translation);
 	}
 }
 
@@ -677,6 +743,7 @@ void FLidarPointCloudOctreeNode::Empty(bool bRecursive)
 		bHasData = false;
 		bInUse = false;
 		NumPoints = 0;
+		NumVisiblePoints = 0;
 		Data.Empty();
 	}
 
@@ -1986,8 +2053,6 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 
 		QueuedNodes.Empty();
 		NodesInUse.Reset();
-
-		MarkTraversalOctreesForInvalidation();
 	}
 	else
 	{
@@ -1999,6 +2064,8 @@ void FLidarPointCloudOctree::Empty(bool bDestroyNodes)
 	{
 		Count.Reset();
 	}
+
+	MarkTraversalOctreesForInvalidation();
 }
 
 void FLidarPointCloudOctree::UnregisterTraversalOctree(FLidarPointCloudTraversalOctree* TraversalOctree)
@@ -2122,6 +2189,52 @@ void FLidarPointCloudOctree::ReleaseAllNodes(bool bIncludePersistent)
 	if (bIncludePersistent)
 	{
 		bIsFullyLoaded = false;
+	}
+}
+
+bool FLidarPointCloudOctree::IsOptimizedForDynamicData() const
+{
+	return Owner && Owner->IsOptimizedForDynamicData();
+}
+
+void FLidarPointCloudOctree::OptimizeForDynamicData()
+{
+	if (!IsOptimizedForDynamicData())
+	{
+		// Move all data from the nodes
+		TArray<FLidarPointCloudPoint> SourceData;
+		SourceData.Reserve(GetNumPoints());
+		
+		ITERATE_NODES(
+		{
+			SourceData.Append(CurrentNode->Data);
+			CurrentNode->Data.Empty();
+		}, true);
+
+		// Destroy current tree structure
+		Empty(true);
+
+		bIsFullyLoaded = true;
+
+		// Insert data back into the tree
+		InsertPoints_Internal(SourceData.GetData(), SourceData.Num(), ELidarPointCloudDuplicateHandling::Ignore, false, FVector::ZeroVector);
+	}
+}
+
+void FLidarPointCloudOctree::OptimizeForStaticData()
+{
+	if (IsOptimizedForDynamicData())
+	{
+		// Move data out of the root node
+		TArray<FLidarPointCloudPoint> SourceData = MoveTemp(Root.Data);
+		
+		// Destroy current tree structure
+		Empty(true);
+
+		bIsFullyLoaded = true;
+
+		// Insert data back into the tree
+		InsertPoints_Internal(SourceData.GetData(), SourceData.Num(), ELidarPointCloudDuplicateHandling::Ignore, false, FVector::ZeroVector);
 	}
 }
 

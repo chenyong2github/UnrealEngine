@@ -90,6 +90,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Normals", meta = (ClampMin = "0.0", DisplayName = "Noise Tolerance"))
 	float NormalsNoiseTolerance;
 
+private:
+	/**
+	 * Disables the LOD pipeline, allowing for much faster data operations (insert/remove/set)
+	 * at a potential expense of runtime performance. The whole asset will be treated as a single,
+	 * large asset with no granular density control, nor occlusion culling.
+	 * 
+	 * Recommended for assets, which have their data updated per-frame (such as live streaming).
+	 */
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (AllowPrivateAccess = "true"))
+	bool bOptimizedForDynamicData;
+
+public:
 	/** Holds pointer to the Import Settings used for the import. */
 	TSharedPtr<struct FLidarPointCloudImportSettings> ImportSettings;
 
@@ -188,6 +200,9 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	FString GetSourcePath() const { return SourcePath.FilePath; }
+
+	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
+	bool IsOptimizedForDynamicData() const { return bOptimizedForDynamicData; }
 
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	FBox GetBounds() const { return Octree.GetBounds().ShiftBy(LocationOffset.ToVector()); }
@@ -398,6 +413,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void SetSourcePath(const FString& NewSourcePath);
+
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	void SetOptimizedForDynamicData(bool bNewOptimizedForDynamicData);
 
 	/**
 	 * Re-initializes the asset with new bounds.

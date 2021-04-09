@@ -184,6 +184,13 @@ public:
 	void SortVisiblePoints();
 
 private:
+	template <typename T>
+	void InsertPoints_Internal(T Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints_Dynamic(const FLidarPointCloudPoint* Points, const int64& Count, const FVector& Translation);
+	void InsertPoints_Static(const FLidarPointCloudPoint* Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+	void InsertPoints_Dynamic(FLidarPointCloudPoint** Points, const int64& Count, const FVector& Translation);
+	void InsertPoints_Static(FLidarPointCloudPoint** Points, const int64& Count, ELidarPointCloudDuplicateHandling DuplicateHandling, const FVector& Translation);
+
 	friend FLidarPointCloudOctree;
 	friend FLidarPointCloudTraversalOctree;
 	friend FLidarPointCloudTraversalOctreeNode;
@@ -538,6 +545,12 @@ public:
 	 * Optionally, releases persistent nodes too.
 	 */
 	void ReleaseAllNodes(bool bIncludePersistent);
+
+	FORCEINLINE bool IsOptimizedForDynamicData() const;
+
+	void OptimizeForDynamicData();
+
+	void OptimizeForStaticData();
 
 	//~ Begin Deprecated
 	UE_DEPRECATED(4.27, "Use GetPointsInConvexVolume instead.")

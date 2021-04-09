@@ -584,7 +584,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 				UpdateData.VDMultiplier = RegisteredProxy.TraversalOctree->ReversedVirtualDepthMultiplier;
 				UpdateData.RootCellSize = RegisteredProxy.Octree->GetRootCellSize();
 				UpdateData.ClippingVolumes = ClippingVolumes;
-				UpdateData.bUseStaticBuffers = bUseStaticBuffers;
+				UpdateData.bUseStaticBuffers = bUseStaticBuffers && !RegisteredProxy.Octree->IsOptimizedForDynamicData();
 				UpdateData.RenderParams = RegisteredProxy.ComponentRenderParams;
 
 #if !(UE_BUILD_SHIPPING)
