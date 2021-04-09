@@ -44,6 +44,10 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings", meta = ( EditCondition = "bBakeMaterials" ) )
 	bool bRemoveUnrealMaterials;
 
+	/** If true, the actual static/skeletal mesh data is exported in "payload" files, and referenced via the payload composition arc */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
+	bool bUsePayload;
+
 	/** Whether to use UE actor folders as empty prims */
     UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "Export settings" )
     bool bExportActorFolders;

@@ -20,4 +20,8 @@ class USDEXPORTER_API UStaticMeshExporterUSDOptions : public UObject
 public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings, meta = ( ShowOnlyInnerProperties ) )
 	FUsdStageOptions StageOptions;
+
+	/** If true, the mesh data is exported to yet another "payload" file, and referenced via a payload composition arc */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = USDSettings )
+	bool bUsePayload;
 };

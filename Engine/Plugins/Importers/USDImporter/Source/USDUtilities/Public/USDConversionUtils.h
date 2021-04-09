@@ -149,6 +149,9 @@ namespace UsdUtils
 	/** Adds a reference on Prim to the layer at AbsoluteFilePath */
 	USDUTILITIES_API void AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath );
 
+	/** Adds a payload on Prim pointing at the default prim of the layer at AbsoluteFilePath */
+	USDUTILITIES_API void AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath );
+
 	/**
 	 * Renames a single prim to a new name
 	 * @param Prim - Prim to rename

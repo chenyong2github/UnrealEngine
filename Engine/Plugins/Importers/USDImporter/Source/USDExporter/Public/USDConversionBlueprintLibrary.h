@@ -19,4 +19,7 @@ public:
 
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static void InsertSubLayer( const FString& ParentLayerPath, const FString& SubLayerPath, int32 Index = -1 );
+
+	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
+	static void AddPayload( const FString& ReferencingStagePath, const FString& ReferencingPrimPath, const FString& TargetStagePath );
 };

@@ -45,6 +45,7 @@
 	#include "pxr/usd/usd/attribute.h"
 	#include "pxr/usd/usd/editContext.h"
 	#include "pxr/usd/usd/modelAPI.h"
+	#include "pxr/usd/usd/payloads.h"
 	#include "pxr/usd/usd/primRange.h"
 	#include "pxr/usd/usd/stage.h"
 	#include "pxr/usd/usd/variantSets.h"
@@ -61,9 +62,9 @@
 	#include "pxr/usd/usdLux/rectLight.h"
 	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
-	#include "pxr/usd/usdSkel/root.h"
 	#include "pxr/usd/usdSkel/binding.h"
 	#include "pxr/usd/usdSkel/cache.h"
+	#include "pxr/usd/usdSkel/root.h"
 	#include "pxr/usd/usdSkel/skeletonQuery.h"
 #include "USDIncludesEnd.h"
 
@@ -809,6 +810,25 @@ void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
 	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
 
 	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
+#endif // #if USE_USD_SDK
+}
+
+void UsdUtils::AddPayload( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	pxr::UsdPrim UsdPrim( Prim );
+
+	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
+
+	FString RelativePath = AbsoluteFilePath;
+	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
+
+	pxr::UsdPayloads Payloads = UsdPrim.GetPayloads();
+	Payloads.AddPayload(
+		UnrealToUsd::ConvertString( *RelativePath ).Get()
+	);
 #endif // #if USE_USD_SDK
 }
 

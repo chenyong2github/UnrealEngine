@@ -31,6 +31,10 @@ namespace UsdUtils
 	struct FDisplayColorMaterial;
 	struct FUsdPrimMaterialAssignmentInfo;
 }
+namespace UE
+{
+	class FUsdStage;
+}
 
 namespace UsdToUnreal
 {
@@ -64,8 +68,13 @@ namespace UnrealToUsd
 	 * Extracts mesh data from StaticMesh and places the results in UsdPrim, as children UsdGeomMeshes.
 	 * This function receives the parent UsdPrim as it may create a variant set named 'LOD', and create a separate
 	 * UsdGeomMeshes for each LOD, as a variant of 'LOD'
+	 * @param StaticMesh - StaticMesh to convert
+	 * @param UsdPrim - Prim to receive the mesh data or LOD variant set
+	 * @param TimeCode - TimeCode to author the attributes with
+	 * @param StageForMaterialAssignments - Stage to use when authoring material assignments (we use this when we want to export the mesh to a payload layer, but the material assignments to an asset layer)
+	 * @return Whether the conversion was successful or not.
 	 */
-	USDUTILITIES_API bool ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default() );
+	USDUTILITIES_API bool ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, pxr::UsdTimeCode TimeCode = pxr::UsdTimeCode::Default(), UE::FUsdStage* StageForMaterialAssignments = nullptr );
 
 	/**
 	 * Converts an array of mesh descriptions into mesh data, and places that data within the UsdGeomMesh UsdPrim.

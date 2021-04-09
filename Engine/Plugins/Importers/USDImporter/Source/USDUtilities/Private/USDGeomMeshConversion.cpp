@@ -12,6 +12,9 @@
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #include "AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstanceConstant.h"
@@ -98,7 +101,14 @@ namespace UE
 				return std::strtol( Name.c_str() + LODString.size(), EndPtr, Base );
 			}
 
-			void ConvertStaticMeshLOD( int32 LODIndex, const FStaticMeshLODResources& LODRenderMesh, pxr::UsdGeomMesh& UsdMesh, const pxr::VtArray< std::string >& MaterialAssignments, const pxr::UsdTimeCode TimeCode )
+			void ConvertStaticMeshLOD(
+				int32 LODIndex,
+				const FStaticMeshLODResources& LODRenderMesh,
+				pxr::UsdGeomMesh& UsdMesh,
+				const pxr::VtArray< std::string >& MaterialAssignments,
+				const pxr::UsdTimeCode TimeCode,
+				pxr::UsdPrim MaterialPrim
+			)
 			{
 				pxr::UsdPrim MeshPrim = UsdMesh.GetPrim();
 				pxr::UsdStageRefPtr Stage = MeshPrim.GetStage();
@@ -270,17 +280,17 @@ namespace UE
 					// This LOD has a single material assignment, just add an unrealMaterials attribute to the mesh prim
 					if ( bHasUEMaterialAssignements && UnrealMaterialsForLOD.size() == 1 )
 					{
-						const bool bHasMaterialAttribute = MeshPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
+						const bool bHasMaterialAttribute = MaterialPrim.HasAttribute( UnrealIdentifiers::MaterialAssignments );
 						if ( bHasUEMaterialAssignements )
 						{
-							if ( pxr::UsdAttribute UEMaterialsAttribute = MeshPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
 							{
 								UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ 0 ] );
 							}
 						}
 						else if ( bHasMaterialAttribute )
 						{
-							MeshPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
+							MaterialPrim.GetAttribute( UnrealIdentifiers::MaterialAssignments ).Clear();
 						}
 					}
 					// Multiple material assignments to the same LOD (and so the same mesh prim). Need to create a GeomSubset for each UE mesh section
@@ -302,6 +312,15 @@ namespace UE
 								MeshPrim.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) ),
 								UnrealToUsd::ConvertToken( TEXT( "GeomSubset" ) ).Get()
 							);
+
+							// MaterialPrim may be in another stage, so we may need another GeomSubset there
+							pxr::UsdPrim MaterialGeomSubsetPrim = GeomSubsetPrim;
+							if ( MaterialPrim.GetStage() != MeshPrim.GetStage() )
+							{
+								MaterialGeomSubsetPrim = MaterialPrim.GetStage()->OverridePrim(
+									MaterialPrim.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) )
+								);
+							}
 
 							pxr::UsdGeomSubset GeomSubsetSchema{ GeomSubsetPrim };
 
@@ -331,8 +350,8 @@ namespace UE
 							// Family type
 							pxr::UsdGeomSubset::SetFamilyType( UsdMesh, pxr::UsdShadeTokens->materialBind, pxr::UsdGeomTokens->partition );
 
-							// unrealMaterials attribute
-							if ( pxr::UsdAttribute UEMaterialsAttribute = GeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+							// unrealMaterial attribute
+							if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialGeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
 							{
 								UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ SectionIndex ] );
 							}
@@ -1288,7 +1307,7 @@ UsdUtils::FUsdPrimMaterialAssignmentInfo UsdUtils::GetPrimMaterialAssignments( c
 	return Result;
 }
 
-bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode )
+bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim& UsdPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
 {
 	FScopedUsdAllocs UsdAllocs;
 
@@ -1382,20 +1401,33 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 		}
 
 		pxr::UsdGeomMesh TargetMesh;
+		pxr::UsdPrim MaterialPrim = UsdPrim;
 		if ( bExportMultipleLODs )
 		{
 			// Add the mesh data to a child prim with the Mesh schema
 			pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdLODPrim };
+
+			if ( StageForMaterialAssignments )
+			{
+				pxr::UsdStageRefPtr MaterialStage{ *StageForMaterialAssignments };
+				MaterialPrim = MaterialStage->OverridePrim( LODPrimPath );
+			}
 		}
 		else
 		{
 			// Make sure the parent prim has the Mesh schema and add the mesh data directly to it
 			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
+
+			if ( StageForMaterialAssignments )
+			{
+				pxr::UsdStageRefPtr MaterialStage{ *StageForMaterialAssignments };
+				MaterialPrim = MaterialStage->OverridePrim( UsdPrim.GetPath() );
+			}
 		}
 
-		UsdGeomMeshImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode );
+		UsdGeomMeshImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode, MaterialPrim );
 	}
 
 	// Reset variant set to start with the lowest lod selected

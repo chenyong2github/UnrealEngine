@@ -11,6 +11,8 @@
 #include "USDMemory.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdStage.h"
+
 #include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
@@ -661,7 +663,7 @@ namespace UsdToUnrealImpl
 
 namespace UnrealToUsdImpl
 {
-	void ConvertSkeletalMeshLOD( const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode )
+	void ConvertSkeletalMeshLOD( const FSkeletalMeshLODModel& LODModel, pxr::UsdGeomMesh& UsdLODPrimGeomMesh, bool bHasVertexColors, pxr::VtArray< std::string >& MaterialAssignments, const TArray<int32>& LODMaterialMap, const pxr::UsdTimeCode TimeCode, pxr::UsdPrim MaterialPrim )
 	{
 		FScopedUsdAllocs UsdAllocs;
 
@@ -887,7 +889,7 @@ namespace UnrealToUsdImpl
 			// This LOD has a single material assignment, just add an unrealMaterials attribute to the mesh prim
 			if ( bHasUEMaterialAssignements && UnrealMaterialsForLOD.size() == 1 )
 			{
-				if ( pxr::UsdAttribute UEMaterialsAttribute = MeshPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+				if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
 				{
 					UEMaterialsAttribute.Set( UnrealMaterialsForLOD[0] );
 				}
@@ -907,6 +909,14 @@ namespace UnrealToUsdImpl
 						UsdLODPrimGeomMesh.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) ),
 						UnrealToUsd::ConvertToken( TEXT( "GeomSubset" ) ).Get()
 					);
+
+					pxr::UsdPrim MaterialGeomSubsetPrim = GeomSubsetPrim;
+					if ( MaterialPrim.GetStage() != MeshPrim.GetStage() )
+					{
+						MaterialGeomSubsetPrim = MaterialPrim.GetStage()->OverridePrim(
+							MaterialPrim.GetPath().AppendPath( pxr::SdfPath( "Section" + std::to_string( SectionIndex ) ) )
+						);
+					}
 
 					pxr::UsdGeomSubset GeomSubsetSchema{ GeomSubsetPrim };
 
@@ -936,7 +946,7 @@ namespace UnrealToUsdImpl
 					pxr::UsdGeomSubset::SetFamilyType( UsdLODPrimGeomMesh, pxr::UsdShadeTokens->materialBind, pxr::UsdGeomTokens->partition );
 
 					// unrealMaterials attribute
-					if ( pxr::UsdAttribute UEMaterialsAttribute = GeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
+					if ( pxr::UsdAttribute UEMaterialsAttribute = MaterialGeomSubsetPrim.CreateAttribute( UnrealIdentifiers::MaterialAssignment, pxr::SdfValueTypeNames->String ) )
 					{
 						UEMaterialsAttribute.Set( UnrealMaterialsForLOD[ SectionIndex ] );
 					}
@@ -2325,7 +2335,7 @@ bool UnrealToUsd::ConvertSkeleton( const USkeleton* Skeleton, pxr::UsdSkelSkelet
 	return true;
 }
 
-bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode )
+bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::UsdPrim& SkelRootPrim, const pxr::UsdTimeCode TimeCode, UE::FUsdStage* StageForMaterialAssignments )
 {
 	pxr::UsdSkelRoot SkelRoot{ SkelRootPrim };
 	if ( !SkeletalMesh || !SkeletalMesh->GetSkeleton() || !SkelRoot )
@@ -2435,13 +2445,20 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 		pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( MeshPrimPath, UnrealToUsd::ConvertToken( TEXT( "Mesh" ) ).Get() );
 		pxr::UsdGeomMesh UsdLODPrimGeomMesh{ UsdLODPrim };
 
+		pxr::UsdPrim MaterialPrim = UsdLODPrim;
+		if ( StageForMaterialAssignments )
+		{
+			pxr::UsdStageRefPtr MaterialStage{ *StageForMaterialAssignments };
+			MaterialPrim = MaterialStage->OverridePrim( MeshPrimPath );
+		}
+
 		TArray<int32> LODMaterialMap;
 		if ( const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo( LODIndex ) )
 		{
 			LODMaterialMap = LODInfo->LODMaterialMap;
 		}
 
-		UnrealToUsdImpl::ConvertSkeletalMeshLOD( LODModel, UsdLODPrimGeomMesh, SkeletalMesh->GetHasVertexColors(), MaterialAssignments, LODMaterialMap, TimeCode );
+		UnrealToUsdImpl::ConvertSkeletalMeshLOD( LODModel, UsdLODPrimGeomMesh, SkeletalMesh->GetHasVertexColors(), MaterialAssignments, LODMaterialMap, TimeCode, MaterialPrim );
 
 		// Relationships can't target prims inside variants, so if we have BlendShapes to export we have to disable the edit target
 		// so that the blend shapes end up outside the variants and the Meshes can have their blendShapeTargets relationships pointing at them
@@ -2680,7 +2697,7 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 			ScalesAttr.Set( Scales, pxr::UsdTimeCode( TimeCode ) );
 		}
 	}
-	
+
 	const int32 StageEndTimeCode = SkelAnimPrim.GetStage()->GetEndTimeCode();
 
 	if ( NumTimeCodes > StageEndTimeCode )
