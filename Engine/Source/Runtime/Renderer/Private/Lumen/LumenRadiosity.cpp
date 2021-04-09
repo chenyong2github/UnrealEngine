@@ -247,9 +247,9 @@ bool IsRadiosityEnabled()
 	return GLumenFastCameraMode ? false : bool(GLumenRadiosity);
 }
 
-FIntPoint GetRadiosityAtlasSize(FIntPoint MaxAtlasSize)
+FIntPoint GetRadiosityAtlasSize(FIntPoint PhysicalAtlasSize)
 {
-	return FIntPoint::DivideAndRoundDown(MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+	return FIntPoint::DivideAndRoundDown(PhysicalAtlasSize, GLumenRadiosityDownsampleFactor);
 }
 
 FHemisphereDirectionSampleGenerator RadiosityDirections;
@@ -299,6 +299,7 @@ class FSetupCardTraceBlocksCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -360,6 +361,7 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
@@ -390,6 +392,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
+	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
 	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [MaxRadiosityConeDirections])
 	SHADER_PARAMETER(uint32, NumCones)
 	SHADER_PARAMETER(float, SampleWeight)
@@ -419,6 +422,7 @@ void SetupTraceFromTexelParameters(
 	TraceFromTexelParameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 
 	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
+	TraceFromTexelParameters.CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
 	
 	int32 NumSampleDirections = 0;
 	const FVector4* SampleDirections = nullptr;
@@ -433,7 +437,7 @@ void SetupTraceFromTexelParameters(
 		TraceFromTexelParameters.RadiosityConeDirections[i] = SampleDirections[i];
 	}
 
-	TraceFromTexelParameters.RadiosityAtlasSize = FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+	TraceFromTexelParameters.RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
 }
 
 class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
@@ -536,8 +540,8 @@ void RenderRadiosityComputeScatter(
 	const int32 TraceBlockMaxSize = 2;
 	extern int32 GLumenSceneCardLightingForceFullUpdate;
 	const int32 Divisor = TraceBlockMaxSize * GLumenRadiosityDownsampleFactor * (GLumenSceneCardLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
-	const int32 NumTraceBlocksToAllocate = (LumenSceneData.MaxAtlasSize.X / Divisor) 
-		* (LumenSceneData.MaxAtlasSize.Y / Divisor);
+	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
+	const FIntPoint RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
 
 	FRDGBufferRef CardTraceBlockAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CardTraceBlockAllocator"));
 	FRDGBufferRef CardTraceBlockData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntVector4), NumTraceBlocksToAllocate), TEXT("CardTraceBlockData"));
@@ -553,7 +557,8 @@ void RenderRadiosityComputeScatter(
 		PassParameters->QuadAllocator = CardScatterParameters.QuadAllocator;
 		PassParameters->QuadData = CardScatterParameters.QuadData;
 		PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
-		PassParameters->RadiosityAtlasSize = FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+		PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+		PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
 		PassParameters->IndirectArgs = SetupCardTraceBlocksIndirectArgsBuffer;
 
 		auto ComputeShader = GlobalShaderMap->GetShader<FSetupCardTraceBlocksCS>();
@@ -602,7 +607,8 @@ void RenderRadiosityComputeScatter(
 		MarkUsedProbesData.Parameters.CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 		MarkUsedProbesData.Parameters.CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
 		MarkUsedProbesData.Parameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
-		MarkUsedProbesData.Parameters.RadiosityAtlasSize = FIntPoint::DivideAndRoundDown(LumenSceneData.MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+		MarkUsedProbesData.Parameters.CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+		MarkUsedProbesData.Parameters.RadiosityAtlasSize = RadiosityAtlasSize;
 		MarkUsedProbesData.Parameters.IndirectArgs = TraceBlocksIndirectArgsBuffer;
 
 		RenderRadianceCache(
@@ -701,9 +707,9 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			MainView,
 			LumenSceneData,
 			LumenCardRenderer,
-			ECullCardsMode::OperateOnSceneForceUpdateForCardsToRender);
+			ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender);
 
-		VisibleCardScatterContext.CullCardsToShape(
+		VisibleCardScatterContext.CullCardPagesToShape(
 			GraphBuilder,
 			MainView,
 			LumenSceneData,
@@ -759,21 +765,21 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 			FScene* LocalScene = Scene;
 			const int32 RadiosityDownsampleArea = GLumenRadiosityDownsampleFactor * GLumenRadiosityDownsampleFactor;
+			const FIntPoint RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("TraceFromAtlasTexels: %u Cones", RadiosityDirections.SampleDirections.Num()),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[LocalScene, PixelShader, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+				[LocalScene, PixelShader, PassParameters, GlobalShaderMap, RadiosityAtlasSize](FRHICommandListImmediate& RHICmdList)
 			{
-				FIntPoint ViewRect = FIntPoint::DivideAndRoundDown(LocalScene->LumenSceneData->MaxAtlasSize, GLumenRadiosityDownsampleFactor);
+				FIntPoint ViewRect = RadiosityAtlasSize;
 				DrawQuadsToAtlas(ViewRect, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 			});
 		}
 	}
 	else
 	{
-		ClearAtlasRDG(GraphBuilder, RadiosityAtlas);
+		AddClearRenderTargetPass(GraphBuilder, RadiosityAtlas);
 	}
 }
-

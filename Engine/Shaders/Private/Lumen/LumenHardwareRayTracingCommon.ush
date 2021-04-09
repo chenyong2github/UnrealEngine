@@ -47,7 +47,28 @@ struct FRayTracedLightingContext
 	uint2 TraceCoord;
 	uint LinearCoord;
 	int TranslucentSkipCountMax;
+
+	// Whether to sample high res surface cache data or low res always resident pages
+	bool bHiResSurface;
 };
+
+FRayTracedLightingContext CreateRayTracedLightingContext(
+	in RaytracingAccelerationStructure TLAS,
+	in FRayCone RayCone,
+	in uint2 TraceCoord,
+	in uint LinearCoord,
+	in int TranslucentSkipCountMax,
+	in bool bHiResSurface
+)
+{
+	FRayTracedLightingContext Context;
+	Context.TLAS = TLAS;
+	Context.RayCone = RayCone;
+	Context.TraceCoord = TraceCoord;
+	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
+	Context.bHiResSurface = bHiResSurface;
+	return Context;
+}
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
 	in RaytracingAccelerationStructure TLAS,
@@ -57,12 +78,8 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	in int TranslucentSkipCountMax
 )
 {
-	FRayTracedLightingContext Context;
-	Context.TLAS = TLAS;
-	Context.RayCone = RayCone;
-	Context.TraceCoord = TraceCoord;
-	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
-	return Context;
+	bool bHiResSurface = false;
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax, bHiResSurface);
 }
 
 FRayTracedLightingContext CreateRayTracedLightingContext(
@@ -73,7 +90,8 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 )
 {
 	int TranslucentSkipCountMax = 0;
-	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax);
+	bool bHiResSurface = false;
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax, bHiResSurface);
 }
 
 bool TraceDeferredMaterialRay(
@@ -130,12 +148,14 @@ float3 CalculateSurfaceCacheLighting(
 	uint AtlasId = GetAtlasId(LightingMode);
 
 	float3 ResidualLighting = SampleLumenMeshCards(
+		Context.TraceCoord,
 		DFObjectIndex,
 		RayHitWorldPosition,
 		RayHitWorldNormal,
 		InterpolateRadius,
 		bAccurateHit,
 		CardInterpolateDepthVisibilityRadius,
+		Context.bHiResSurface,
 		AtlasId);
 
 	// Apply shading when evaluating the material

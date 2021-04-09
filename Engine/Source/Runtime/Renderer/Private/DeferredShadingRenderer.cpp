@@ -2555,6 +2555,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderLighting);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
+		BeginGatheringLumenSurfaceCacheFeedback(GraphBuilder);
+
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
 		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LightingChannelsTexture, /* bIsVisualizePass = */ false);
 
@@ -2861,6 +2863,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	RenderLumenSceneVisualization(GraphBuilder, SceneTextures);
+	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder);
 	RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)

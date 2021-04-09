@@ -29,6 +29,7 @@ void PlaceProbeIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 }
 
 StructuredBuffer<float4> CardBuffer;
+StructuredBuffer<float4> CardPageBuffer;
 Buffer<uint> QuadData;
 
 float StepFactor;
@@ -70,12 +71,11 @@ void SetupCardTraceBlocksCS(
 
 	if (DispatchThreadId.x < QuadAllocator[0])
 	{
-		uint CardId = QuadData[DispatchThreadId.x];
+		uint CardPageId = QuadData[DispatchThreadId.x];
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageId, CardPageBuffer);
 
-		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
-
-		uint2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
 		uint NumBlocks = NumBlocksXY.x * NumBlocksXY.y;
 		NumBlocksShared[GroupThreadId.x] = NumBlocks;
 
@@ -96,11 +96,11 @@ void SetupCardTraceBlocksCS(
 		uint NumBlocks = NumBlocksShared[GroupQuadIndex];
 		uint BlockStartOffset = GlobalBlockStartOffset[GroupQuadIndex];
 		uint QuadIndex = GroupQuadIndex + DispatchThreadId.x - GroupThreadId.x;
-		uint CardId = QuadData[QuadIndex];
+		uint CardPageId = QuadData[QuadIndex];
 
 		for (uint BlockIndex = GroupThreadId.x; BlockIndex < NumBlocks; BlockIndex += THREADGROUP_SIZE)
 		{
-			uint4 BlockData = uint4(CardId, QuadIndex, BlockIndex, 0);
+			uint4 BlockData = uint4(CardPageId, QuadIndex, BlockIndex, 0);
 			RWCardTraceBlockData[BlockStartOffset + BlockIndex] = BlockData;
 		}
 	}
@@ -111,12 +111,11 @@ void SetupCardTraceBlocksCS(
 
 	if (QuadIndex < QuadAllocator[0])
 	{
-		uint CardId = QuadData[QuadIndex];
+		uint CardPageId = QuadData[QuadIndex];
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageId, CardPageBuffer);
 
-		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
-
-		uint2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
-		uint2 NumBlocksXY = (CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
 		uint NumBlocks = NumBlocksXY.x * NumBlocksXY.y;
 
 		uint BlockStartOffset;
@@ -124,7 +123,7 @@ void SetupCardTraceBlocksCS(
 
 		for (uint BlockIndex = 0; BlockIndex < NumBlocks; BlockIndex++)
 		{
-			uint4 BlockData = uint4(CardId, QuadIndex, BlockIndex, 0);
+			uint4 BlockData = uint4(CardPageId, QuadIndex, BlockIndex, 0);
 			RWCardTraceBlockData[BlockStartOffset + BlockIndex] = BlockData;
 		}
 	}
@@ -160,23 +159,23 @@ void MarkRadianceProbesUsedByRadiosityCS(
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
 		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardId = TraceBlockData.x;
+		uint CardPageIndex = TraceBlockData.x;
 		uint ProbeIndex = TraceBlockData.y;
 		uint BlockIndex = TraceBlockData.z;
 
-		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
+		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
 
-		float2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
-		uint2 NumBlocksXY = ((uint2)CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
 		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
 		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
 
-		if (all(TexelCoord < CardSizeTexels))
+		if (all(TexelCoord < (float2)CardPageSizeInTexels))
 		{
-			float2 CardUV = (TexelCoord + .5f) / (float2)CardSizeTexels;
-			float2 CardUVToAtlasScale = GetCardUVToAtlasScale(CardData.LocalPositionToAtlasUVScale, CardData.LocalExtent);
-			float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, CardData.LocalPositionToAtlasUVBias);
-			float2 AtlasUV = CardUV * CardUVToAtlasScale + CardUVToAtlasBias;
+			float2 CardPageUV = (TexelCoord + 0.5f) / (float2)CardPageSizeInTexels;
+			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
+			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
 
 			float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
@@ -186,11 +185,7 @@ void MarkRadianceProbesUsedByRadiosityCS(
 			{
 				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
-				float3 LocalPosition;
-				LocalPosition.xy = (AtlasUV - CardData.LocalPositionToAtlasUVBias) / CardData.LocalPositionToAtlasUVScale;
-				LocalPosition.z = -CardData.LocalExtent.z + Depth * 2 * CardData.LocalExtent.z;
-
-				float3 WorldPosition = mul(CardData.WorldToLocalRotation, LocalPosition) + CardData.Origin;
+				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 
 				uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 
@@ -209,7 +204,7 @@ float4 RadiosityConeDirections[32];
 
 Texture2D NormalAtlas;
 
-float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex, FLumenCardData LumenCardData, uint ConeStartIndex, uint ConeEndIndex)
+float3 RadiosityTraceFromTexel(float2 AtlasUV, float2 CardUV, FLumenCardData Card, uint ConeStartIndex, uint ConeEndIndex)
 {
 	float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
@@ -219,11 +214,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 	{
 		float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
-		float3 LocalPosition;
-		LocalPosition.xy = (AtlasUV - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
-		LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
-
-		float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 		float3 WorldNormal = normalize(Texture2DSampleLevel(NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz * 2 - 1);
 
 		//@todo - derive bias from texel world size
@@ -241,6 +232,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 				float3 LocalConeDirection = RadiosityConeDirections[ConeIndex].xyz;
 				float3 WorldConeDirection = mul(LocalConeDirection, TangentBasis);
 			#else
+				uint2 AtlasCoord = AtlasUV * RadiosityAtlasSize;
 				uint2 Seed0 = Rand3DPCG16(int3(AtlasCoord + 17, 0)).xy;
 				float2 E = Hammersley16(ConeIndex, NumCones, Seed0);
 				float2 DiskE = UniformSampleDiskConcentric(E.xy);
@@ -293,23 +285,23 @@ void LumenCardRadiosityTraceBlocksCS(
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
 		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardId = TraceBlockData.x;
+		uint CardPageIndex = TraceBlockData.x;
 		uint ProbeIndex = TraceBlockData.y;
 		uint BlockIndex = TraceBlockData.z;
 
-		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
+		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
 
-		float2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
-		uint2 NumBlocksXY = ((uint2)CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
 		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
 		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
 
-		if (all(TexelCoord < CardSizeTexels))
+		if (all(TexelCoord < (float2)CardPageSizeInTexels))
 		{
-			float2 CardUV = (TexelCoord + .5f) / (float2)CardSizeTexels;
-			float2 CardUVToAtlasScale = GetCardUVToAtlasScale(CardData.LocalPositionToAtlasUVScale, CardData.LocalExtent);
-			float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, CardData.LocalPositionToAtlasUVBias);
-			float2 AtlasUV = CardUV * CardUVToAtlasScale + CardUVToAtlasBias;
+			float2 CardPageUV = (TexelCoord + 0.5f) / (float2)CardPageSizeInTexels;
+			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
+			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
 
 			float Opacity = Texture2DSampleLevel(CurrentOpacityAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
@@ -319,11 +311,7 @@ void LumenCardRadiosityTraceBlocksCS(
 			{
 				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
-				float3 LocalPosition;
-				LocalPosition.xy = (AtlasUV - CardData.LocalPositionToAtlasUVBias) / CardData.LocalPositionToAtlasUVScale;
-				LocalPosition.z = -CardData.LocalExtent.z + Depth * 2 * CardData.LocalExtent.z;
-
-				float3 WorldPosition = mul(CardData.WorldToLocalRotation, LocalPosition) + CardData.Origin;
+				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
 				float3 WorldNormal = normalize(Texture2DSampleLevel(NormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz * 2 - 1);
 				uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 
@@ -338,8 +326,8 @@ void LumenCardRadiosityTraceBlocksCS(
 				}
 			}
 
-			uint2 AtlasCoord = uint2(AtlasUV * RadiosityAtlasSize);
-			RWRadiosityAtlas[AtlasCoord] = float4(DiffuseLighting * PI, 0);
+			uint2 AtlasWriteCoord = uint2(AtlasUV * RadiosityAtlasSize);
+			RWRadiosityAtlas[AtlasWriteCoord] = float4(DiffuseLighting * PI, 0);
 		}
 	}
 #else
@@ -347,7 +335,7 @@ void LumenCardRadiosityTraceBlocksCS(
 
 	uint ThreadIndex = DispatchThreadId.x;
 	uint GlobalBlockIndex = ThreadIndex / (CARD_TRACE_BLOCK_SIZE * CARD_TRACE_BLOCK_SIZE * THREADS_PER_RADIOSITY_TEXEL);
-	int2 AtlasCoord = -1;
+	int2 AtlasWriteCoord = -1;
 
 	if (GlobalBlockIndex < CardTraceBlockAllocator[0])
 	{
@@ -355,30 +343,30 @@ void LumenCardRadiosityTraceBlocksCS(
 		uint2 TexelOffsetInBlock = uint2(TexelIndexInBlock % CARD_TRACE_BLOCK_SIZE, TexelIndexInBlock / CARD_TRACE_BLOCK_SIZE);
 
 		uint4 TraceBlockData = CardTraceBlockData[GlobalBlockIndex];
-		uint CardId = TraceBlockData.x;
+		uint CardPageIndex = TraceBlockData.x;
 		uint ProbeIndex = TraceBlockData.y;
 		uint BlockIndex = TraceBlockData.z;
 
-		FLumenCardData CardData = GetLumenCardData(CardId, CardBuffer);
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardPageIndex, CardPageBuffer);
+		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
 
-		float2 CardSizeTexels = abs(CardData.LocalExtent.xy * 2 * CardData.LocalPositionToAtlasUVScale * RadiosityAtlasSize);
-		uint2 NumBlocksXY = ((uint2)CardSizeTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
+		uint2 CardPageSizeInTexels = GetCardPageSizeInTexels(CardPage, RadiosityAtlasSize);
+		uint2 NumBlocksXY = (CardPageSizeInTexels + CARD_TRACE_BLOCK_SIZE - 1) / CARD_TRACE_BLOCK_SIZE;
 		uint2 BlockOffset = uint2(BlockIndex % NumBlocksXY.x, BlockIndex / NumBlocksXY.x);
 		float2 TexelCoord = BlockOffset * CARD_TRACE_BLOCK_SIZE + TexelOffsetInBlock;
 
-		if (all(TexelCoord < CardSizeTexels))
+		if (all(TexelCoord < (float2)CardPageSizeInTexels))
 		{
 			uint TraceThreadIndex = ThreadIndex % THREADS_PER_RADIOSITY_TEXEL;
 
-			float2 CardUV = (TexelCoord + .5f) / (float2)CardSizeTexels;
-			float2 CardUVToAtlasScale = GetCardUVToAtlasScale(CardData.LocalPositionToAtlasUVScale, CardData.LocalExtent);
-			float2 CardUVToAtlasBias = GetCardUVToAtlasBias(CardUVToAtlasScale, CardData.LocalPositionToAtlasUVBias);
-			float2 AtlasUV = CardUV * CardUVToAtlasScale + CardUVToAtlasBias;
+			float2 CardPageUV = (TexelCoord + .5f) / (float2)CardPageSizeInTexels;
+			float2 CardUV = CardPageUVToCardUV(CardPage, CardPageUV);
+			float2 AtlasUV = CardPageUVToAtlasUV(CardPage, CardPageUV);
+			AtlasWriteCoord = int2(AtlasUV * RadiosityAtlasSize);
 
 			uint NumTracesPerThread = NumCones / THREADS_PER_RADIOSITY_TEXEL;
 			uint ConeStartIndex = TraceThreadIndex * NumTracesPerThread;
-			AtlasCoord = int2(AtlasUV * RadiosityAtlasSize);
-			float3 Lighting = RadiosityTraceFromTexel(AtlasUV, AtlasCoord, ProbeIndex, CardData, ConeStartIndex, ConeStartIndex + NumTracesPerThread);
+			float3 Lighting = RadiosityTraceFromTexel(AtlasUV, CardUV, Card, ConeStartIndex, ConeStartIndex + NumTracesPerThread);
 			ThreadLighting[GroupThreadId.x] = Lighting;
 		}
 	}
@@ -387,7 +375,7 @@ void LumenCardRadiosityTraceBlocksCS(
 
 	uint TraceThreadIndex = ThreadIndex % THREADS_PER_RADIOSITY_TEXEL;
 
-	if (TraceThreadIndex == 0 && all(AtlasCoord >= 0))
+	if (TraceThreadIndex == 0 && all(AtlasWriteCoord >= 0))
 	{
 		float3 Lighting = 0;
 
@@ -396,7 +384,7 @@ void LumenCardRadiosityTraceBlocksCS(
 			Lighting += ThreadLighting[OtherThreadIndex];
 		}
 
-		RWRadiosityAtlas[AtlasCoord] = float4(Lighting, 0);
+		RWRadiosityAtlas[AtlasWriteCoord] = float4(Lighting, 0);
 	}
 #endif
 }
@@ -407,10 +395,10 @@ void LumenCardRadiosityPS(
 	FCardVSToPS CardInterpolants,
 	out float4 OutColor : SV_Target0)
 {
-	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId, CardBuffer);
+	FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex, CardPageBuffer);
+	FLumenCardData Card = GetLumenCardData(CardPage.CardIndex, CardBuffer);
 
-	int2 AtlasCoord = int2(CardInterpolants.AtlasCoord * RadiosityAtlasSize);
-	float3 Lighting = RadiosityTraceFromTexel(CardInterpolants.AtlasCoord, AtlasCoord, CardInterpolants.QuadIndex, LumenCardData, 0, NumCones);
+	float3 Lighting = RadiosityTraceFromTexel(CardInterpolants.AtlasUV, CardInterpolants.CardUV, Card, 0, NumCones);
 
 	OutColor = float4(Lighting, 0);
 }

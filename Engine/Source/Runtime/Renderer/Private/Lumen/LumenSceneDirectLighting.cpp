@@ -627,7 +627,7 @@ void RenderDirectLightIntoLumenCards(
 		RDG_EVENT_NAME("%s %s", *LightName, bDynamicallyShadowed ? TEXT("Shadowmap") : TEXT("")),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = LumenSceneData.MaxAtlasSize, PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, CardIndirectArgOffset](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, LightSceneInfo, VertexShader, PixelShader, GlobalShaderMap = View.ShaderMap, LightFunctionMaterialProxy, &Material, &View, CardIndirectArgOffset](FRHICommandListImmediate& RHICmdList)
 		{
 			DrawQuadsToAtlas(
 				MaxAtlasSize,
@@ -731,7 +731,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 					MainView,
 					LumenSceneData,
 					LumenCardRenderer,
-					ECullCardsMode::OperateOnSceneForceUpdateForCardsToRender,
+					ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 					LightBatchSize);
 
 				for (int32 LightIndex = FirstLightIndex; LightIndex < LastLightIndex; ++LightIndex)
@@ -768,7 +768,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 					ShapeParameters.CosConeAngle = FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle());
 					ShapeParameters.SinConeAngle = FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle());
 
-					CardScatterContext.CullCardsToShape(
+					CardScatterContext.CullCardPagesToShape(
 						GraphBuilder,
 						MainView,
 						LumenSceneData,

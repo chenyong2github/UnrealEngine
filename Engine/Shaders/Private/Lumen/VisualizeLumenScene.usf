@@ -28,6 +28,7 @@ float MaxMeshSDFTraceDistanceForVoxelTracing;
 float MaxMeshSDFTraceDistance;
 int VisualizeClipmapIndex;
 int VisualizeVoxelFaceIndex;
+int VisualizeHiResSurface;
 float CardInterpolateInfluenceRadius;
 
 RWTexture2D<float4> RWSceneColor;
@@ -62,6 +63,8 @@ void VisualizeQuadsCS(
 	TraceInput.Setup(View.WorldCameraOrigin, CameraVector, PreviewConeAngle, .01f, MinTraceDistance, TraceDistance, VisualizeStepFactor);
 	TraceInput.VoxelStepFactor = VoxelStepFactor;
 	TraceInput.SDFStepFactor = lerp(.8f, 1.0f, Noise);
+	TraceInput.ScreenCoord = PixelPos;
+	TraceInput.bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
 
 	float3 Debug = -1;
 

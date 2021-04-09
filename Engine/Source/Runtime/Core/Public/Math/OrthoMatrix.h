@@ -27,8 +27,8 @@ class FReversedZOrthoMatrix : public FMatrix
 {
 public:
 	FReversedZOrthoMatrix(float Width,float Height,float ZScale,float ZOffset);
+	FReversedZOrthoMatrix(float Left, float Right, float Bottom, float Top, float ZScale, float ZOffset);
 };
-
 
 FORCEINLINE FOrthoMatrix::FOrthoMatrix(float Width,float Height,float ZScale,float ZOffset)
 	: FMatrix(
@@ -46,5 +46,14 @@ FORCEINLINE FReversedZOrthoMatrix::FReversedZOrthoMatrix(float Width,float Heigh
 		FPlane(0.0f, (Height != 0.0f) ? (1.0f / Height) : 1.f, 0.0f, 0.0f),
 		FPlane(0.0f, 0.0f, -ZScale, 0.0f),
 		FPlane(0.0f, 0.0f, 1.0f - ZOffset * ZScale, 1.0f)
+	)
+{ }
+
+FORCEINLINE FReversedZOrthoMatrix::FReversedZOrthoMatrix(float Left, float Right, float Bottom, float Top, float ZScale, float ZOffset)
+	: FMatrix(
+		FPlane(1.0f / (Right - Left), 0.0f, 0.0f, 0.0f),
+		FPlane(0.0f, 1.0f / (Top - Bottom), 0.0f, 0.0f),
+		FPlane(0.0f, 0.0f, -ZScale, 0.0f),
+		FPlane((Left + Right) / (Left - Right), (Top + Bottom) / (Bottom - Top), 1.0f - ZOffset * ZScale, 1.0f)
 	)
 { }

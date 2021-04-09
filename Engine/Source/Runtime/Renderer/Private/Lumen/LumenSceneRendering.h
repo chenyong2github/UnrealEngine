@@ -20,17 +20,18 @@ inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 	return FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform);
 }
 
-class FCardRenderData
+class FCardPageRenderData
 {
 public:
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
 	int32 PrimitiveInstanceIndexOrMergedFlag = -1;
 
 	// CardData
-	int32 CardIndex = -1.0f;
+	const int32 CardIndex = -1;
+	const int32 PageTableIndex = -1;
 	bool bDistantScene = false;
-	FIntPoint DesiredResolution;
-	FIntRect AtlasAllocation;
+	FVector4 CardUVRect;
+	FIntRect PhysicalAtlasViewRect;
 	FVector Origin;
 	FVector LocalExtent;
 	FVector LocalToWorldRotationX;
@@ -47,11 +48,14 @@ public:
 	TArray<FNaniteCommandInfo, SceneRenderingAllocator> NaniteCommandInfos;
 	float NaniteLODScaleFactor = 1.0f;
 
-	FCardRenderData(FLumenCard& InCardData, 
+	FCardPageRenderData(const FViewInfo& InMainView,
+		FLumenCard& InCardData,
+		FVector4 InCardUVRect,
+		FIntRect InPhysicalAtlasViewRect,
 		FPrimitiveSceneInfo* InPrimitiveSceneInfo,
 		int32 InPrimitiveInstanceIndex,
-		ERHIFeatureLevel::Type InFeatureLevel,
-		int32 InCardIndex);
+		int32 InCardIndex,
+		int32 CardPageIndex);
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 

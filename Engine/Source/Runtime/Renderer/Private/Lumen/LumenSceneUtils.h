@@ -32,9 +32,9 @@ END_SHADER_PARAMETER_STRUCT()
 
 enum class ECullCardsMode
 {
-	OperateOnCardsToRender,
+	OperateOnCardPagesToRender,
 	OperateOnScene,
-	OperateOnSceneForceUpdateForCardsToRender,
+	OperateOnSceneForceUpdateForCardPagesToRender,
 };
 
 enum class ECullCardsShapeType
@@ -51,7 +51,7 @@ public:
 	int32 MaxQuadCount = 0;
 	int32 MaxScatterInstanceCount = 0;
 	int32 MaxQuadsPerScatterInstance = 0;
-	int32 NumCardsToOperateOn = 0;
+	int32 NumCardPagesToOperateOn = 0;
 	ECullCardsMode CardsCullMode;
 
 	FLumenCardScatterParameters Parameters;
@@ -67,7 +67,7 @@ public:
 		ECullCardsMode InCardsCullMode,
 		int32 InMaxScatterInstanceCount = 1);
 
-	void CullCardsToShape(
+	void CullCardPagesToShape(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FLumenSceneData& LumenSceneData,
@@ -85,10 +85,10 @@ public:
 	uint32 GetIndirectArgOffset(int32 ScatterInstanceIndex) const;
 };
 
-class FCullCardsToShapeCS : public FGlobalShader
+class FCullCardPagesToShapeCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FCullCardsToShapeCS);
-	SHADER_USE_PARAMETER_STRUCT(FCullCardsToShapeCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FCullCardPagesToShapeCS);
+	SHADER_USE_PARAMETER_STRUCT(FCullCardPagesToShapeCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadAllocator)
@@ -97,20 +97,18 @@ class FCullCardsToShapeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)
 		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
-		SHADER_PARAMETER(uint32, NumVisibleCardsIndices)
-		SHADER_PARAMETER(uint32, NumCardsToRenderIndices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, VisibleCardsIndices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardsToRenderIndices)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardsToRenderHashMap)
+		SHADER_PARAMETER(uint32, NumCardPagesToRenderIndices)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardPagesToRenderIndices)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardPagesToRenderHashMap)
 		SHADER_PARAMETER(uint32, FrameId)
 		SHADER_PARAMETER(float, CardLightingUpdateFrequencyScale)
 		SHADER_PARAMETER(uint32, CardLightingUpdateMinFrequency)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCullCardsShapeParameters, ShapeParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FOperateOnCardsMode : SHADER_PERMUTATION_INT("OPERATE_ON_CARDS_MODE", 3);
+	class FOperateOnCardPagesMode : SHADER_PERMUTATION_INT("OPERATE_ON_CARD_TILES_MODE", 3);
 	class FShapeType : SHADER_PERMUTATION_INT("SHAPE_TYPE", 4);
-	using FPermutationDomain = TShaderPermutationDomain<FOperateOnCardsMode, FShapeType>;
+	using FPermutationDomain = TShaderPermutationDomain<FOperateOnCardPagesMode, FShapeType>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -290,6 +288,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWFeedbackBufferAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, RWFeedbackBuffer)
+	SHADER_PARAMETER(uint32, FeedbackBufferSize)
+	SHADER_PARAMETER(uint32, FeedbackBufferTileWrapMask)
+	SHADER_PARAMETER(FIntPoint, FeedbackBufferTileJitter)
+	SHADER_PARAMETER(float, FeedbackResLevelBias)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
@@ -312,6 +316,11 @@ public:
 	FRDGTextureRef OpacityAtlas;
 	FRDGTextureRef DepthAtlas;
 	FRDGTextureRef VoxelLighting;
+	FRDGBufferUAVRef FeedbackBufferAllocatorUAV;
+	FRDGBufferUAVRef FeedbackBufferUAV;
+	uint32 FeedbackBufferSize;
+	uint32 FeedbackBufferTileWrapMask;
+	FIntPoint FeedbackBufferTileJitter;
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
@@ -459,11 +468,10 @@ extern void CullForCardTracing(
 
 extern void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
-extern void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture);
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-extern FIntPoint GetRadiosityAtlasSize(FIntPoint MaxAtlasSize);
+extern FIntPoint GetRadiosityAtlasSize(FIntPoint PhysicalAtlasSize);
 extern float ComputeMaxCardUpdateDistanceFromCamera();
 
 extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(

@@ -17,6 +17,7 @@
 #include "ShaderPrintParameters.h"
 #include "LumenScreenProbeGather.h"
 #include "DistanceFieldAtlas.h"
+#include "LumenSurfaceCacheFeedback.h"
 
 int32 GVisualizeLumenSceneGridPixelSize = 32;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
@@ -55,6 +56,22 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneCardMaxTraceDistance(
 	TEXT("r.Lumen.Visualize.MaxMeshSDFTraceDistance"),
 	GVisualizeLumenSceneMaxMeshSDFTraceDistance,
 	TEXT("Max trace distance for Lumen scene visualization rays. Values below 0 will automatically derrive this from cone angle."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GVisualizeLumenSceneHiResSurface = 1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneHiResSurface(
+	TEXT("r.Lumen.Visualize.HiResSurface"),
+	GVisualizeLumenSceneHiResSurface,
+	TEXT("Whether visualization should sample highest available surface data or use lowest res always resident pages."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GVisualizeLumenSceneFeedback = 1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneFeedback(
+	TEXT("r.Lumen.Visualize.Feedback"),
+	GVisualizeLumenSceneFeedback,
+	TEXT("Whether visualization should write feedback requests into the feedback buffer."),
 	ECVF_RenderThreadSafe
 );
 
@@ -183,6 +200,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLumenSceneParameters, )
 	SHADER_PARAMETER(float, CardInterpolateInfluenceRadius)
 	SHADER_PARAMETER(int, VisualizeClipmapIndex)
 	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
+	SHADER_PARAMETER(int, VisualizeHiResSurface)
 END_SHADER_PARAMETER_STRUCT()
 
 class FVisualizeLumenSceneCS : public FGlobalShader
@@ -202,12 +220,18 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 
 	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
+	class FSurfaceCacheFeedback : SHADER_PERMUTATION_BOOL("SURFACE_CACHE_FEEDBACK");
 
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDFs, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDFs, FRadianceCache, FSurfaceCacheFeedback>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
+		if (!PermutationVector.Get<FTraceMeshSDFs>())
+		{
+			PermutationVector.Set<FSurfaceCacheFeedback>(false);
+		}
+
 		return PermutationVector;
 	}
 
@@ -335,16 +359,23 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 
+		/* Texture Level-of-Detail Strategies for Real-Time Ray Tracing https://developer.nvidia.com/raytracinggems Equation 20 */
+		const float RadFOV = (PI / 180.0f) * View.FOV;
+		const float PreviewConeAngle = FMath::Max(
+			FMath::Clamp(GVisualizeLumenSceneConeAngle, 0.0f, 45.0f) * (float)PI / 180.0f, 
+			(2.0f * FPlatformMath::Tan(RadFOV * 0.5f)) / View.ViewRect.Height());
+
 		FVisualizeLumenSceneParameters VisualizeParameters;
 		VisualizeParameters.VoxelLightingGridResolution = TracingInputs.VoxelGridResolution;
-		VisualizeParameters.PreviewConeAngle = FMath::Clamp(GVisualizeLumenSceneConeAngle, 0.0f, 45.0f) * (float)PI / 180.0f;
-		VisualizeParameters.TanPreviewConeAngle = FMath::Tan(VisualizeParameters.PreviewConeAngle);
+		VisualizeParameters.PreviewConeAngle = PreviewConeAngle;
+		VisualizeParameters.TanPreviewConeAngle = FMath::Tan(PreviewConeAngle);
 		VisualizeParameters.VisualizeStepFactor = FMath::Clamp(GVisualizeLumenSceneConeStepFactor, .1f, 10.0f);
 		VisualizeParameters.VoxelStepFactor = FMath::Clamp(GVisualizeLumenSceneVoxelStepFactor, .1f, 10.0f);
 		VisualizeParameters.MinTraceDistance = FMath::Clamp(GVisualizeLumenSceneMinTraceDistance, .01f, 1000.0f);
 		VisualizeParameters.MaxTraceDistance = FMath::Clamp(GVisualizeLumenSceneMaxTraceDistance, .01f, (float)HALF_WORLD_MAX);
 		VisualizeParameters.VisualizeClipmapIndex = FMath::Clamp(GVisualizeLumenSceneClipmapIndex, -1, TracingInputs.NumClipmapLevels - 1);
 		VisualizeParameters.VisualizeVoxelFaceIndex = FMath::Clamp(GVisualizeLumenSceneVoxelFaceIndex, -1, 5);
+		VisualizeParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 		VisualizeParameters.CardInterpolateInfluenceRadius = GVisualizeLumenSceneCardInterpolateInfluenceRadius;
 
 		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance;
@@ -424,6 +455,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
+				PermutationVector.Set<FVisualizeLumenSceneCS::FSurfaceCacheFeedback>(TracingInputs.FeedbackBufferUAV != nullptr && GVisualizeLumenSceneFeedback != 0);
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);
@@ -505,78 +537,8 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 	if (GLumenSceneDumpStats)
 	{
-		int32 NumCards = 0;
-		int32 NumVisibleCards = 0;
-		int32 NumVisibleTexels = 0;
+		LumenSceneData.DumpStats(DistanceFieldSceneData);
 
-		for (const FLumenCard& Card : LumenSceneData.Cards)
-		{
-			++NumCards;
-
-			if (Card.bVisible)
-			{
-				++NumVisibleCards;
-				NumVisibleTexels += Card.GetNumTexels();
-			}
-		}
-
-		int32 NumLumenPrimitives = 0;
-		int32 NumLumenPrimitiveInstances = 0;
-		int32 NumInstancesMerged = 0;
-		int32 NumMeshCards = 0;
-		SIZE_T LumenPrimitiveInstanceAllocatedMemory = 0;
-
-		for (const FLumenPrimitive& LumenPrimitive : LumenSceneData.LumenPrimitives)
-		{
-			++NumLumenPrimitives;
-			LumenPrimitiveInstanceAllocatedMemory += LumenPrimitive.Instances.GetAllocatedSize();
-
-			if (LumenPrimitive.bMergedInstances)
-			{
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
-				if (PrimitiveInstances)
-				{
-					NumInstancesMerged += PrimitiveInstances->Num();
-				}
-			}
-
-			for (const FLumenPrimitiveInstance& LumenPrimitiveInstance : LumenPrimitive.Instances)
-			{
-				++NumLumenPrimitiveInstances;
-
-				if (LumenPrimitiveInstance.MeshCardsIndex >= 0)
-				{
-					++NumMeshCards;
-				}
-			}
-		}
-
-		UE_LOG(LogRenderer, Log, TEXT("LumenScene Stats"));
-		UE_LOG(LogRenderer, Log, TEXT("  Mesh SDF Objects: %d"), DistanceFieldSceneData.NumObjectsInBuffer);
-		UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitives: %d"), NumLumenPrimitives);
-		UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitive Instances: %d"), NumLumenPrimitiveInstances);
-		UE_LOG(LogRenderer, Log, TEXT("  Merged instances: %d"), NumInstancesMerged);
-		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumMeshCards);
-		UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumCards);
-		UE_LOG(LogRenderer, Log, TEXT("  Visible cards: %d"), NumVisibleCards);
-		UE_LOG(LogRenderer, Log, TEXT("  Visible cards texels: %.3fM"), NumVisibleTexels / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards to add to the surface cache: %d"), LumenSceneData.NumMeshCardsToAddToSurfaceCache);
-		UE_LOG(LogRenderer, Log, TEXT("CPU Memory:"));
-		UE_LOG(LogRenderer, Log, TEXT("  Primitives allocated memory: %.3fMb"), LumenSceneData.LumenPrimitives.GetAllocatedSize() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  Instances allocated memory: %.3fMb"), LumenPrimitiveInstanceAllocatedMemory / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), LumenSceneData.Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), LumenSceneData.MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
-
-		UE_LOG(LogRenderer, Log, TEXT("GPU Memory:"));
-		UE_LOG(LogRenderer, Log, TEXT("  CardBuffer: %.3fMb"), LumenSceneData.CardBuffer.NumBytes / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), LumenSceneData.MeshCardsBuffer.NumBytes / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  DFObjectToMeshCardsIndexBuffer: %.3fMb"), LumenSceneData.DFObjectToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  LumenDFInstanceToDFObjectIndexBuffer: %.3fMb"), LumenSceneData.LumenDFInstanceToDFObjectIndexBuffer.NumBytes / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  CardUploadBuffer: %.3fMb"), LumenSceneData.CardUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  UploadMeshCardsBuffer: %.3fMb"), LumenSceneData.UploadMeshCardsBuffer.GetNumBytes() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), LumenSceneData.ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  UploadPrimitiveBuffer: %.3fMb"), LumenSceneData.UploadPrimitiveBuffer.GetNumBytes() / (1024.0f * 1024.0f));
-		
 		if (GLumenSceneDumpStats >= 2)
 		{
 			DistanceFieldSceneData.ListMeshDistanceFields(true);

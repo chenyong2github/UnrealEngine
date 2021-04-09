@@ -50,15 +50,14 @@ struct FTranslucencyLightingVolumeTextures;
 class FLumenCardRenderer
 {
 public:
-	TArray<FCardRenderData, SceneRenderingAllocator> CardsToRender;
+	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
 
-	TArray<uint32, SceneRenderingAllocator> CardIdsToRender;
-	TRefCountPtr<FRDGPooledBuffer> CardsToRenderIndexBuffer;
+	FRDGBufferRef CardPagesToRenderIndexBuffer;
 
-	static const uint32 NumCardsToRenderHashMapBucketUInt32 = 4 * 1024;
-	// Indexed with CardId % NumCardsToRenderHashMapBuckets. Returns 1 bit if card is on the to render list or not.
-	TBitArray<TInlineAllocator<NumCardsToRenderHashMapBucketUInt32 * 32>> CardsToRenderHashMap;
-	TRefCountPtr<FRDGPooledBuffer> CardsToRenderHashMapBuffer;
+	static const uint32 NumCardPagesToRenderHashMapBucketUInt32 = 4 * 1024;
+	// Indexed with CardPageId % NumCardPagesToRenderHashMapBuckets. Returns 1 bit if card tile is on the to render list
+	TBitArray<TInlineAllocator<NumCardPagesToRenderHashMapBucketUInt32 * 32>> CardPagesToRenderHashMap;
+	FRDGBufferRef CardPagesToRenderHashMapBuffer;
 
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;
@@ -66,10 +65,12 @@ public:
 
 	void Reset()
 	{
-		CardsToRender.Reset();
+		CardPagesToRenderIndexBuffer = nullptr;
+		CardPagesToRenderHashMapBuffer = nullptr;
+		CardPagesToRender.Reset();
 		MeshDrawCommands.Reset();
 		MeshDrawPrimitiveIds.Reset();
-		CardsToRenderHashMap.Reset();
+		CardPagesToRenderHashMap.Reset();
 		NumCardTexelsToCapture = 0;
 	}
 };
@@ -377,7 +378,6 @@ private:
 	bool InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 
 	void InitViewsPossiblyAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
-	void UpdateLumenCardAtlasAllocation(FRDGBuilder& GraphBuilder, const FViewInfo& MainView, bool bReallocateAtlas, bool bRecaptureLumenSceneOnce);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
 	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FViewInfo& View);
@@ -396,19 +396,11 @@ private:
 		FGlobalShaderMap* GlobalShaderMap,
 		FRDGTextureRef RadiosityAtlas);
 
-	void PrefilterLumenSceneDepth(
+	void CopyLumenSceneDepth(
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FRDGTextureRef DepthBufferAtlas,
-		const TArray<uint32, SceneRenderingAllocator>& CardIdsToRender,
 		const FViewInfo& View);
-
-	void PrefilterLumenSceneLighting(
-		FRDGBuilder& GraphBuilder, 
-		const FViewInfo& View,
-		FLumenCardTracingInputs& TracingInputs,
-		FGlobalShaderMap* GlobalShaderMap,
-		const FLumenCardScatterContext& VisibleCardScatterContext);
 
 	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
 
@@ -547,6 +539,10 @@ private:
 	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
+
+	/** Mark time line for gathering Lumen virtual surface cache feedback. */
+	void BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder);
+	void FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder);
 	 
 	/** Whether tiled deferred is supported and can be used at all. */
 	bool CanUseTiledDeferred() const;

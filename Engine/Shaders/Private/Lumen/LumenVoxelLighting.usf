@@ -502,12 +502,20 @@ void VisBufferShadingCS(
 				//@todo - compute based on SDF voxel size, or card texel size
 				float CardInterpolateDepthVisibilityRadius = 10.0f;
 				float InterpolateRadius = VoxelExtent.x;
-
-				// #lumen_todo: TEMP hack, remove after atlas mip-map out of bounds bug is fixed
-				InterpolateRadius = 0.0f;
-
+				uint2 ScreenCoord = uint2(0, 0);
+				bool bHiResSurface = false;
 				uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-				float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(TraceMeshSDFResult.HitObject, InterpolatePosition, -RayDirection, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
+
+				float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(
+					ScreenCoord,
+					TraceMeshSDFResult.HitObject,
+					InterpolatePosition,
+					-RayDirection,
+					InterpolateRadius,
+					TraceSDFData.bAccurateHit,
+					CardInterpolateDepthVisibilityRadius,
+					bHiResSurface,
+					AtlasId);
 
 				uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
 				RWVoxelLighting[WriteCoord] = LightingAndWeight;

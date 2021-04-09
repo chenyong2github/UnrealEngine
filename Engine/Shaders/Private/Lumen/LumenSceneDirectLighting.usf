@@ -139,7 +139,7 @@ void LumenCardDirectLightingPS(
 	FCardVSToPS CardInterpolants,
 	out float4 OutColor : SV_Target0)
 {
-	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
 	float3 Irradiance = 0;
 
 	if (Opacity > 0)
@@ -171,15 +171,11 @@ void LumenCardDirectLightingPS(
 			LightData.bRectLight = LIGHT_TYPE == LIGHT_TYPE_RECT;
 		}
 
-		FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).x;
 
-		float Depth = 1.0f - Texture2DSampleLevel(LumenCardScene.DepthAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
-
-		float3 LocalPosition;
-		LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
-		LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
-
-		float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+		FLumenCardPageData CardPage = GetLumenCardPageData(CardInterpolants.CardPageIndex);
+		FLumenCardData Card = GetLumenCardData(CardPage.CardIndex);
+		float3 WorldPosition = GetCardWorldPosition(Card, CardInterpolants.CardUV, Depth);
 
 		float3 LightColor = DeferredLightUniforms.Color;
 		float3 L = LightData.Direction;
@@ -214,7 +210,7 @@ void LumenCardDirectLightingPS(
 
 		if (CombinedAttenuation > 0)
 		{
-			float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz * 2 - 1;
+			float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz * 2 - 1;
 
 			if (dot(WorldNormal, L) > 0)
 			{
@@ -224,8 +220,7 @@ void LumenCardDirectLightingPS(
 				{
 					#if HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE
 					{
-						float2 AtlasTextureSize = LumenCardScene.AtlasSize;
-						uint2 Pos2D = CardInterpolants.AtlasCoord * AtlasTextureSize.xy - float2(0.5, 0.5) / AtlasTextureSize.xy;
+						uint2 Pos2D = CardInterpolants.AtlasUV * LumenCardScene.PhysicalAtlasSize - float2(0.5, 0.5) / LumenCardScene.InvPhysicalAtlasSize;
 						ShadowFactor = ShadowMaskAtlas.Load(uint3(Pos2D, 0));
 					}
 					#else

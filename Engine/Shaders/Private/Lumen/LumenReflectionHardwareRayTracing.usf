@@ -78,12 +78,16 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
 
+	// Always use highest available mip maps for reflections
+	const bool bHiResSurface = true;
+
 	FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 		TLAS,
 		RayCone,
 		ReflectionTracingCoord,
 		LinearCoord,
-		MaxTranslucentSkipCount);
+		MaxTranslucentSkipCount,
+		bHiResSurface);
 
 	bool bTraceRay = true;
 	if (DIM_DEFERRED_MATERIAL_MODE)

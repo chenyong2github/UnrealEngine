@@ -2487,7 +2487,7 @@ protected:
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;
 	friend class FProjectedShadowInfo;
-	friend class FCardRenderData;
+	friend class FCardPageRenderData;
 };
 
 #if RHI_RAYTRACING

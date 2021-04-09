@@ -112,6 +112,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
+		SHADER_PARAMETER(int, VisualizeHiResSurface)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -254,7 +255,9 @@ void VisualizeHardwareRayTracing(
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 
 		// Constants!
+		extern int32 GVisualizeLumenSceneHiResSurface;
 		PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
+		PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
 
 		// Output..
 		PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);

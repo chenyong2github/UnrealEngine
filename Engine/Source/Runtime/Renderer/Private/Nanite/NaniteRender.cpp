@@ -4782,7 +4782,7 @@ void DrawLumenMeshCapturePass(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	FViewInfo* SharedView,
-	const TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender,
+	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	FLumenCardPassUniformParameters* PassUniformParameters,
@@ -4930,7 +4930,7 @@ void DrawLumenMeshCapturePass(
 			RDG_EVENT_NAME("Lumen Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, NaniteVertexShader, SharedView, &CardsToRender, ViewportSize](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, NaniteVertexShader, SharedView, &CardPagesToRender, ViewportSize](FRHICommandListImmediate& RHICmdList)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
 
@@ -4938,9 +4938,9 @@ void DrawLumenMeshCapturePass(
 
 			const FVector2D ViewportSizeF = FVector2D(float(ViewportSize.X), float(ViewportSize.Y));
 
-			for (const FCardRenderData& CardRenderData : CardsToRender)
+			for (const FCardPageRenderData& CardPageRenderData : CardPagesToRender)
 			{
-				CardRenderData.PatchView(RHICmdList, &Scene, SharedView);
+				CardPageRenderData.PatchView(RHICmdList, &Scene, SharedView);
 
 				const FVector2D CardViewportSize = FVector2D(float(SharedView->ViewRect.Width()), float(SharedView->ViewRect.Height()));
 				const FVector2D RectOffset = FVector2D(float(SharedView->ViewRect.Min.X), float(SharedView->ViewRect.Min.Y)) / ViewportSizeF;
@@ -4978,7 +4978,7 @@ void DrawLumenMeshCapturePass(
 
 				const uint32 InstanceFactor = 1; // Rendering a single rect per Lumen card, unlike main GBuffer export path that may render 32 if tiled material culling is used.
 
-				if (CardRenderData.bDistantScene)
+				if (CardPageRenderData.bDistantScene)
 				{
 					TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator> NaniteMaterialPassCommands;
 					BuildNaniteMaterialPassCommands(RHICmdList, Scene.NaniteDrawCommands[ENaniteMeshPass::LumenCardCapture], NaniteMaterialPassCommands);
@@ -4990,7 +4990,7 @@ void DrawLumenMeshCapturePass(
 				}
 				else
 				{
-					for (const FNaniteCommandInfo& CommandInfo : CardRenderData.NaniteCommandInfos)
+					for (const FNaniteCommandInfo& CommandInfo : CardPageRenderData.NaniteCommandInfos)
 					{
 						Experimental::FHashElementId SetId(CommandInfo.GetStateBucketId());
 						const FMeshDrawCommand& MeshDrawCommand = Scene.NaniteDrawCommands[ENaniteMeshPass::LumenCardCapture].GetByElementId(SetId).Key;

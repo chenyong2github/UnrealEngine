@@ -9,6 +9,15 @@ extern bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSof
 
 namespace Lumen
 {
+	// Must match usf
+	constexpr uint32 PhysicalPageSize = 128;
+	constexpr uint32 VirtualPageSize = PhysicalPageSize - 1; // 0.5 texel border around page
+	constexpr uint32 MinCardResolution = 4;
+	constexpr uint32 MinResLevel = 2; // 2^2 = MinCardResolution
+	constexpr uint32 MaxResLevel = 11; // 2^11 = 2048 texels
+	constexpr uint32 SubAllocationResLevel = 7; // log2(PHYSICAL_PAGE_SIZE)
+	constexpr uint32 NumResLevels = MaxResLevel - MinResLevel + 1;
+
 	enum class ETracingPermutation
 	{
 		Cards,

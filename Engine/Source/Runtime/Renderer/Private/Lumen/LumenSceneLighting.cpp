@@ -107,6 +107,26 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		VoxelGridResolution = FIntVector(1);
 		NumClipmapLevels = 0;
 	}
+
+	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer)
+	{
+		FeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator, PF_R32_UINT);
+		FeedbackBufferUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.Buffer, PF_R32G32_UINT);
+		FeedbackBufferSize = LumenSceneData.SurfaceCacheFeedbackResources.BufferSize;
+		FeedbackBufferTileJitter = LumenSceneData.SurfaceCacheFeedback.GetFeedbackBufferTileJitter();
+		FeedbackBufferTileWrapMask = Lumen::GetFeedbackBufferTileWrapMask();
+	}
+	else
+	{
+		FRDGBufferDesc DummyBufferDesc(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1));
+		FRDGBufferRef DummyFeedbackBuffer = GraphBuilder.CreateBuffer(DummyBufferDesc, TEXT("Lumen.DummySurfaceCacheFeedback"));
+
+		FeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
+		FeedbackBufferUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
+		FeedbackBufferSize = 0;
+		FeedbackBufferTileJitter = FIntPoint(0, 0);
+		FeedbackBufferTileWrapMask = 0;
+	}
 }
 
 typedef TUniformBufferRef<FLumenVoxelTracingParameters> FLumenVoxelTracingParametersBufferRef;
@@ -147,12 +167,20 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.View = View.ViewUniformBuffer;
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
+
+	extern float GLumenSceneFeedbackResLevelBias;
+	TracingParameters.RWFeedbackBufferAllocator = TracingInputs.FeedbackBufferAllocatorUAV;
+	TracingParameters.RWFeedbackBuffer = TracingInputs.FeedbackBufferUAV;
+	TracingParameters.FeedbackBufferSize = TracingInputs.FeedbackBufferSize;
+	TracingParameters.FeedbackBufferTileJitter = TracingInputs.FeedbackBufferTileJitter;
+	TracingParameters.FeedbackBufferTileWrapMask = TracingInputs.FeedbackBufferTileWrapMask;
+	TracingParameters.FeedbackResLevelBias = GLumenSceneFeedbackResLevelBias;
+
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
 	TracingParameters.IndirectIrradianceAtlas = TracingInputs.IndirectIrradianceAtlas;
 	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
 	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;
-
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
 	
 	GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);
@@ -167,14 +195,14 @@ IMPLEMENT_GLOBAL_SHADER(FInitializeCardScatterIndirectArgsCS, "/Engine/Private/L
 
 uint32 CullCardsToLightGroupSize = 64;
 
-void FCullCardsToShapeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+void FCullCardPagesToShapeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), CullCardsToLightGroupSize);
-	OutEnvironment.SetDefine(TEXT("NUM_CARDS_TO_RENDER_HASH_MAP_BUCKET_UINT32"), FLumenCardRenderer::NumCardsToRenderHashMapBucketUInt32);
+	OutEnvironment.SetDefine(TEXT("NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32"), FLumenCardRenderer::NumCardPagesToRenderHashMapBucketUInt32);
 }
 
-IMPLEMENT_GLOBAL_SHADER(FCullCardsToShapeCS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CullCardsToShapeCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCullCardPagesToShapeCS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CullCardPagesToShapeCS", SF_Compute);
 
 bool FRasterizeToCardsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
@@ -194,18 +222,18 @@ void FLumenCardScatterContext::Init(
 	MaxScatterInstanceCount = InMaxCullingInstanceCount;
 	CardsCullMode = InCardsCullMode;
 
-	NumCardsToOperateOn = LumenSceneData.VisibleCardsIndices.Num();
+	NumCardPagesToOperateOn = LumenSceneData.GetNumCardPages();
 
-	if (CardsCullMode == ECullCardsMode::OperateOnCardsToRender)
+	if (CardsCullMode == ECullCardsMode::OperateOnCardPagesToRender)
 	{
-		NumCardsToOperateOn = LumenCardRenderer.CardIdsToRender.Num();
+		NumCardPagesToOperateOn = LumenCardRenderer.CardPagesToRender.Num();
 	}
 
-	MaxQuadsPerScatterInstance = NumCardsToOperateOn * 6;
+	MaxQuadsPerScatterInstance = NumCardPagesToOperateOn * 6;
 	const int32 NumQuadsInBuffer = FMath::DivideAndRoundUp(MaxQuadsPerScatterInstance * MaxScatterInstanceCount, 1024) * 1024;
 
-	FRDGBufferRef QuadAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxScatterInstanceCount), TEXT("QuadAllocator"));
-	FRDGBufferRef QuadDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), NumQuadsInBuffer), TEXT("QuadDataBuffer"));
+	FRDGBufferRef QuadAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxScatterInstanceCount), TEXT("Lumen.QuadAllocator"));
+	FRDGBufferRef QuadDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), NumQuadsInBuffer), TEXT("Lumen.QuadDataBuffer"));
 
 	FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, GraphBuilder.CreateUAV(FRDGBufferUAVDesc(QuadAllocator, PF_R32_UINT)), 0);
 
@@ -218,7 +246,7 @@ void FLumenCardScatterContext::Init(
 	Parameters.TilesPerInstance = NumLumenQuadsInBuffer;
 }
 
-void FLumenCardScatterContext::CullCardsToShape(
+void FLumenCardScatterContext::CullCardPagesToShape(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLumenSceneData& LumenSceneData, 
@@ -229,13 +257,7 @@ void FLumenCardScatterContext::CullCardsToShape(
 	float UpdateFrequencyScale,
 	int32 ScatterInstanceIndex)
 {
-	LLM_SCOPE_BYTAG(Lumen);
-
-	FRDGBufferRef VisibleCardsIndexBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.VisibleCardsIndexBuffer);
-	FRDGBufferRef CardsToRenderIndexBuffer = GraphBuilder.RegisterExternalBuffer(LumenCardRenderer.CardsToRenderIndexBuffer);
-	FRDGBufferRef CardsToRenderHashMapBuffer = GraphBuilder.RegisterExternalBuffer(LumenCardRenderer.CardsToRenderHashMapBuffer);
-
-	FCullCardsToShapeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullCardsToShapeCS::FParameters>();
+	FCullCardPagesToShapeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullCardPagesToShapeCS::FParameters>();
 	PassParameters->RWQuadAllocator = QuadAllocatorUAV;
 	PassParameters->RWQuadData = QuadDataUAV;
 	PassParameters->View = View.ViewUniformBuffer;
@@ -243,24 +265,22 @@ void FLumenCardScatterContext::CullCardsToShape(
 	PassParameters->ShapeParameters = ShapeParameters;
 	PassParameters->MaxQuadsPerScatterInstance = MaxQuadsPerScatterInstance;
 	PassParameters->ScatterInstanceIndex = ScatterInstanceIndex;
-	PassParameters->NumVisibleCardsIndices = LumenSceneData.VisibleCardsIndices.Num();
-	PassParameters->NumCardsToRenderIndices = LumenCardRenderer.CardIdsToRender.Num();
-	PassParameters->VisibleCardsIndices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VisibleCardsIndexBuffer, PF_R32_UINT));
-	PassParameters->CardsToRenderIndices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardsToRenderIndexBuffer, PF_R32_UINT));
-	PassParameters->CardsToRenderHashMap = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardsToRenderHashMapBuffer, PF_R32_UINT));
+	PassParameters->NumCardPagesToRenderIndices = LumenCardRenderer.CardPagesToRender.Num();
+	PassParameters->CardPagesToRenderIndices = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderIndexBuffer, PF_R32_UINT));
+	PassParameters->CardPagesToRenderHashMap = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(LumenCardRenderer.CardPagesToRenderHashMapBuffer, PF_R32_UINT));
 	PassParameters->FrameId = View.ViewState->GetFrameIndex();
 	PassParameters->CardLightingUpdateFrequencyScale = GLumenSceneCardLightingForceFullUpdate ? 0.0f : UpdateFrequencyScale;
 	PassParameters->CardLightingUpdateMinFrequency = GLumenSceneCardLightingForceFullUpdate ? 1 : GLumenSceneCardLightingUpdateMinFrequency;
 
-	FCullCardsToShapeCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FCullCardsToShapeCS::FOperateOnCardsMode>((uint32)CardsCullMode);
-	PermutationVector.Set<FCullCardsToShapeCS::FShapeType>((int32)ShapeType);
-	auto ComputeShader = View.ShaderMap->GetShader< FCullCardsToShapeCS >(PermutationVector);
+	FCullCardPagesToShapeCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FCullCardPagesToShapeCS::FOperateOnCardPagesMode>((uint32)CardsCullMode);
+	PermutationVector.Set<FCullCardPagesToShapeCS::FShapeType>((int32)ShapeType);
+	auto ComputeShader = View.ShaderMap->GetShader< FCullCardPagesToShapeCS >(PermutationVector);
 
-	const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(NumCardsToOperateOn, CullCardsToLightGroupSize), 1, 1);
+	const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(NumCardPagesToOperateOn, CullCardsToLightGroupSize), 1, 1);
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("CullCardsToShape %u", (int32)ShapeType),
+		RDG_EVENT_NAME("CullCardPagesToShape %u", (int32)ShapeType),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, ComputeShader, GroupSize](FRHICommandList& RHICmdList)
@@ -410,8 +430,8 @@ void CombineLumenSceneLighting(
 		if (GLumenRadiosityDownsampleFactor > 1)
 		{
 			// Offset bilinear samples in order to not sample outside of the lower res radiosity card bounds
-			CardUVSamplingOffset.X = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.MaxAtlasSize.X;
-			CardUVSamplingOffset.Y = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.MaxAtlasSize.Y;
+			CardUVSamplingOffset.X = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.GetPhysicalAtlasSize().X;
+			CardUVSamplingOffset.Y = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.GetPhysicalAtlasSize().Y;
 		}
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
@@ -428,7 +448,7 @@ void CombineLumenSceneLighting(
 			RDG_EVENT_NAME("LightingCombine"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+			[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
 		{
 			FLumenCardLightingInitializePS::FPermutationDomain PermutationVector;
 			auto PixelShader = GlobalShaderMap->GetShader< FLumenCardLightingInitializePS >(PermutationVector);
@@ -466,7 +486,7 @@ void CopyLumenCardAtlas(
 		RDG_EVENT_NAME("CopyLumenCardAtlas"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
 	{
 		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
 		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardCopyAtlasPS >(PermutationVector);
@@ -511,7 +531,7 @@ void ApplyLumenCardAlbedo(
 		RDG_EVENT_NAME("ApplyLumenCardAlbedo"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->MaxAtlasSize, PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap](FRHICommandListImmediate& RHICmdList)
 	{
 		FLumenCardCopyAtlasPS::FPermutationDomain PermutationVector;
 		auto PixelShader = GlobalShaderMap->GetShader< FLumenCardBlendAlbedoPS >(PermutationVector);
@@ -527,24 +547,6 @@ void ApplyLumenCardAlbedo(
 
 TGlobalResource<FTileTexCoordVertexBuffer> GLumenTileTexCoordVertexBuffer(NumLumenQuadsInBuffer);
 TGlobalResource<FTileIndexBuffer> GLumenTileIndexBuffer(NumLumenQuadsInBuffer);
-
-void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture)
-{
-	LLM_SCOPE_BYTAG(Lumen);
-
-	{
-		FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(AtlasTexture, ERenderTargetLoadAction::EClear);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ClearAtlas"),
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[PassParameters](FRHICommandListImmediate& RHICmdList)
-		{
-		});
-	}
-}
 
 DECLARE_GPU_STAT(LumenSceneLighting);
 
@@ -569,7 +571,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, Views[0]);
 
-		if (LumenSceneData.VisibleCardsIndices.Num() > 0)
+		if (LumenSceneData.GetNumCardPages() > 0)
 		{
 			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
 
@@ -586,10 +588,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				View,
 				LumenSceneData,
 				LumenCardRenderer,
-				ECullCardsMode::OperateOnSceneForceUpdateForCardsToRender,
+				ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
 				1);
 
-			DirectLightingCardScatterContext.CullCardsToShape(
+			DirectLightingCardScatterContext.CullCardPagesToShape(
 				GraphBuilder,
 				View,
 				LumenSceneData,
@@ -604,18 +606,17 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				GraphBuilder,
 				View);
 
-			extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
-
-			if (GLumenSceneRecaptureLumenSceneEveryFrame)
+			if (LumenSceneData.bDebugClearAllCachedState)
 			{
-				ClearAtlasRDG(GraphBuilder, TracingInputs.FinalLightingAtlas);
+				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
+
 				if (Lumen::UseIrradianceAtlas(View))
 				{
-					ClearAtlasRDG(GraphBuilder, TracingInputs.IrradianceAtlas);
+					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IrradianceAtlas);
 				}
 				if (Lumen::UseIndirectIrradianceAtlas(View))
 				{
-					ClearAtlasRDG(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
+					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
 				}
 			}
 
@@ -678,8 +679,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 				DirectLightingCardScatterContext);
 
 			LumenSceneData.bFinalLightingAtlasContentsValid = true;
-
-			PrefilterLumenSceneLighting(GraphBuilder, View, TracingInputs, GlobalShaderMap, DirectLightingCardScatterContext);
 
 			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
 			if (Lumen::UseIrradianceAtlas(View))

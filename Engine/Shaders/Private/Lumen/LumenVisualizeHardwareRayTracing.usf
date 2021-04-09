@@ -29,6 +29,7 @@ StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 int LightingMode;
 int MaxTranslucentSkipCount;
 int bIsDeferredMaterial;
+int VisualizeHiResSurface;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
@@ -61,12 +62,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 		int LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
+		const bool bHiResSurface = VisualizeHiResSurface != 0 ? true : false;
+
 		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 			TLAS,
 			RayCone,
 			TraceCoord,
 			LinearCoord,
-			MaxTranslucentSkipCount);
+			MaxTranslucentSkipCount,
+			bHiResSurface);
 
 		bool bTraceRay = true;
 		if (DIM_DEFERRED_MATERIAL_MODE)

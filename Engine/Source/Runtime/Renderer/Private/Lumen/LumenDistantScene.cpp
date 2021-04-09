@@ -253,6 +253,10 @@ void GenerateCoordinateSystem(const FVector& ZAxis, FVector& XAxis, FVector& YAx
 
 void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 {
+	// #lumen_todo: distance scene is disabled as it was colliding with the virtual surface cache work
+	// and anyway requires a rewrite to reach required quality level
+
+#if 0
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDistantScene);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateDistantScene);
@@ -272,7 +276,6 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 		{
 			FLumenCard& DistantCard = LumenSceneData.Cards[DistantCardIndex];
 			DistantCard.RemoveFromAtlas(LumenSceneData);
-			LumenSceneData.RemoveCardFromVisibleCardList(DistantCardIndex);
 			LumenSceneData.CardIndicesToUpdateInBuffer.Add(DistantCardIndex);
 			LumenSceneData.Cards.RemoveSpan(DistantCardIndex, 1);
 		}
@@ -360,4 +363,5 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 			}
 		}
 	}
+#endif
 }

@@ -151,7 +151,7 @@ bool FLumenDirectLightingHardwareRayTracingData::IsInterpolantsTextureCreated()
 void FLumenDirectLightingHardwareRayTracingData::Initialize(FRDGBuilder& GraphBuilder, const FScene* Scene)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-	const FIntPoint MaxAtlasSize = LumenSceneData.MaxAtlasSize;
+	const FIntPoint MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	auto AtlasElementCount = MaxAtlasSize.X * MaxAtlasSize.Y;
 
 	const FRDGTextureDesc LightMaskTextureDescriptor = FRDGTextureDesc::Create2D(
@@ -179,8 +179,7 @@ void FLumenDirectLightingHardwareRayTracingData::Initialize(FRDGBuilder& GraphBu
 
 	//Combined to record the FCardVS2PS information.
 	CardInterpolantsTexture = GraphBuilder.CreateTexture(CardInterpolantsTextureDescriptor, TEXT("CardIndexer1"));
-	CardInterpolantsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, AtlasElementCount),
-		TEXT("CardIndexer2"));
+	CardInterpolantsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), AtlasElementCount), TEXT("CardIndexer2"));
 
 	ShadowMaskAtlas = GraphBuilder.CreateTexture(ShadowMaskAtlasTextureDescriptor, TEXT("ShadowMaskAtlas"));
 }
@@ -397,7 +396,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
-	const FIntPoint MaxAtlasSize = LumenSceneData.MaxAtlasSize;
+	const FIntPoint MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
 	const FVector4 AtlasSizeAndInvSize = FVector4(MaxAtlasSize.X, MaxAtlasSize.Y, 1.0f / MaxAtlasSize.X, 1.0f / MaxAtlasSize.Y);
 	ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
 

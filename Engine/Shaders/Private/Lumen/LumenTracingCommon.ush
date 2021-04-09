@@ -23,6 +23,15 @@ Texture2D IndirectIrradianceAtlas;
 Texture2D OpacityAtlas;
 Texture2D DepthAtlas;
 
+#if SURFACE_CACHE_FEEDBACK
+	RWStructuredBuffer<uint> RWFeedbackBufferAllocator;
+	RWStructuredBuffer<uint2> RWFeedbackBuffer;
+	uint FeedbackBufferSize;
+	uint FeedbackBufferTileWrapMask;
+	uint2 FeedbackBufferTileJitter;
+	float FeedbackResLevelBias;
+#endif
+
 #ifndef VISIBILITY_ONLY_TRACE
 	#define VISIBILITY_ONLY_TRACE 0
 #endif
@@ -221,27 +230,6 @@ class FCardTraceBlendState
 
 #endif
 
-float2 CalculateValidRegionScale(float Mip, float2 CardUVToAtlasScale)
-{
-	float2 LowerResolutionMipSizeTexels = exp2(LumenCardScene.NumMips - 1 - Mip) * CardUVToAtlasScale;
-	return (LowerResolutionMipSizeTexels - 1) / LowerResolutionMipSizeTexels;
-}
-
-void CalculateMip(float SampleRadius, FLumenCardData CardData, float3 FaceLocalExtent, float CardMaxMip, out float MaxMip, out float2 ValidRegionScale)
-{
-	float2 SampleSizeTexels = abs(SampleRadius * CardData.LocalPositionToAtlasUVScale * LumenCardScene.AtlasSize);
-	float2 Mip = clamp(log2(SampleSizeTexels), 0, CardMaxMip);
-	MaxMip = max(Mip.x, Mip.y);
-	float LowerResolutionMip = MaxMip + 1;
-	float2 CardUVToAtlasScale = GetCardUVToAtlasScale(CardData.LocalPositionToAtlasUVScale, FaceLocalExtent);
-	ValidRegionScale = CalculateValidRegionScale(LowerResolutionMip, CardUVToAtlasScale);
-}
-
-float2 CalculateAtlasUV(float2 LocalPosition, float2 ValidRegionScale, FLumenCardData CardData)
-{
-	return LocalPosition * CardData.LocalPositionToAtlasUVScale * ValidRegionScale + CardData.LocalPositionToAtlasUVBias;
-}
-
 //https://iquilezles.org/www/articles/smin/smin.htm
 float SmoothMin2( float a, float b, float k )
 {
@@ -257,7 +245,7 @@ float ComputeBorderFadeDistance(float2 BoxMin, float2 BoxMax, float2 InPoint)
 	return SmoothMin2(ClosestDistances.x, ClosestDistances.y, 100.0f);
 }
 
-#define TRACING_ATLAS_SAMPLER GlobalTrilinearClampedSampler
+#define TRACING_ATLAS_SAMPLER GlobalBilinearClampedSampler
 
 struct FConeTraceInput
 {
@@ -279,6 +267,12 @@ struct FConeTraceInput
 	bool bBlackOutSteepIntersections;
 	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
 	float InitialMaxDistance;
+
+	// Used for dithering
+	uint2 ScreenCoord;
+
+	// Whether to sample high res surface cache data or low res always resident pages
+	bool bHiResSurface;
 
 	// Mesh SDF traces
 	uint NumMeshSDFs;
@@ -313,6 +307,9 @@ struct FConeTraceInput
 		bBlackOutSteepIntersections = false;
 		bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = true;
 		InitialMaxDistance = 0;
+
+		ScreenCoord = uint2(0, 0);
+		bHiResSurface = false;
 	}
 };
 
@@ -348,12 +345,14 @@ void ConeTraceSingleLumenCard(
 	if (IntersectionRange.y > IntersectionRange.x
 		&& LumenCardData.bVisible)
 	{
+		// #lumen_todo: restore after a distance scene rewrite
+/*
 		{
 			FCardTraceBlendState ConeStepBlendState;
 			ConeStepBlendState.Initialize(TraceInput.MaxTraceDistance);
 
 			float StepTime = IntersectionRange.x * TraceInput.MaxTraceDistance;
-			float3 SamplePosition = LocalConeOrigin + StepTime * LocalConeDirection;
+			float3 SamplePosition = LocalCoreveneOrigin + StepTime * LocalConeDirection;
 			float TraceEndDistance = IntersectionRange.y * TraceInput.MaxTraceDistance;
 
 			float IntersectionLength = (IntersectionRange.y - IntersectionRange.x) * TraceInput.MaxTraceDistance;
@@ -538,6 +537,7 @@ void ConeTraceSingleLumenCard(
 
 			CardTraceBlendState.AddCardTrace(ConeStepBlendState);
 		}
+*/
 	}
 }
 
@@ -751,6 +751,104 @@ FTraceMeshSDFDerivedData CalculateMeshSDFDerivedData(
 	return TraceSDFData;
 }
 
+struct FSurfaceCacheSample
+{
+	float2 PhysicalAtlasUV;
+	uint2 PackedFeedback;
+	bool bValid;
+};
+
+// Must match Lumen::PhysicalPageSize and Lumen::VirtualPageSize in Lumen.h
+#define VIRTUAL_PAGE_SIZE			127
+#define PHYSICAL_PAGE_SIZE			128
+#define MIN_RES_LEVEL				2
+#define MAX_RES_LEVEL				11
+#define SUB_ALLOCATION_RES_LEVEL	7		// = log2(PHYSICAL_PAGE_SIZE)
+
+uint2 ResLevelXYToSizeInPages(uint2 ResLevelXY)
+{
+	return ResLevelXY > SUB_ALLOCATION_RES_LEVEL ? 1u << (ResLevelXY - SUB_ALLOCATION_RES_LEVEL) : 1;
+}
+
+uint2 GetSizeInPages(FLumenCardData Card, uint ResLevel)
+{
+	uint2 ResLevelXY = ResLevel - Card.ResLevelToResLevelXYBias;
+	return ResLevelXYToSizeInPages(ResLevelXY);
+}
+
+FSurfaceCacheSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardIndex, float2 LocalSamplePosition, float SampleRadius, bool bHiResSurface)
+{
+	// CardUV in [0;1]
+	float2 CardUV = SamplePositonToCardUV(Card, LocalSamplePosition);
+
+	uint2 SizeInPages = Card.SizeInPages;
+	uint PageTableOffset = Card.PageTableOffset;
+
+	if (bHiResSurface)
+	{
+		SizeInPages = Card.HiResSizeInPages;
+		PageTableOffset = Card.HiResPageTableOffset;
+	}
+
+	uint2 PageCoord = CardUV * SizeInPages;
+	uint LinearPageCoord = PageCoord.x + PageCoord.y * SizeInPages.x;
+
+	const uint PageTableIndex = PageTableOffset + LinearPageCoord;
+	const uint PageTableValue = LumenCardScene.PageTableBuffer.Load(4 * PageTableIndex);
+
+	uint2 AtlasBias;
+	AtlasBias.x = ((PageTableValue >> 0) & 0xFFF) * 4.0f;
+	AtlasBias.y = ((PageTableValue >> 12) & 0xFFF) * 4.0f;
+
+	uint2 ResLevelXY;
+	ResLevelXY.x = (PageTableValue >> 24) & 0xF;
+	ResLevelXY.y = (PageTableValue >> 28) & 0xF;
+
+	// Recompute new SizeInPages, as page may be pointing to an another mip map level
+	SizeInPages = ResLevelXYToSizeInPages(ResLevelXY);
+	uint2 AtlasScale = ResLevelXY > SUB_ALLOCATION_RES_LEVEL ? PHYSICAL_PAGE_SIZE : (1u << ResLevelXY);
+
+	// Sample page with a bilinear sampling border
+	float2 PageUV = frac(CardUV * SizeInPages);
+	float2 PhysicalAtlasUV = (PageUV * (AtlasScale - 1.0f) + AtlasBias + 0.5f) * LumenCardScene.InvPhysicalAtlasSize;
+
+	// Compute packed feedback buffer value
+	uint2 PackedFeedback = 0;
+	#if SURFACE_CACHE_FEEDBACK
+	{
+		// Compute optimal res level, based on the cone width (SampleRadius)
+		float SampleResolution = max(Card.LocalExtent.x, Card.LocalExtent.y) / max(SampleRadius, 1.0f);
+		uint DesiredResLevel = clamp(log2(SampleResolution) + FeedbackResLevelBias, MIN_RES_LEVEL, MAX_RES_LEVEL);
+
+		uint2 LevelSizeInPages = GetSizeInPages(Card, DesiredResLevel);
+		uint2 LocalPageCoord = CardUV * LevelSizeInPages;
+
+		PackedFeedback.x = CardIndex | (DesiredResLevel << 24);
+		PackedFeedback.y = LocalPageCoord.x + (LocalPageCoord.y << 8);
+	}
+	#endif
+
+	FSurfaceCacheSample SurfaceCacheSample;
+	SurfaceCacheSample.PhysicalAtlasUV = PhysicalAtlasUV;
+	SurfaceCacheSample.bValid = ResLevelXY.x > 0;
+	SurfaceCacheSample.PackedFeedback = PackedFeedback;
+	return SurfaceCacheSample;
+}
+
+struct FLumenCardSample
+{
+	float Weight;
+	float2 PhysicalAtlasUV;
+	uint2 PackedFeedback;
+};
+
+void InitCardSample(inout FLumenCardSample CardSample)
+{
+	CardSample.Weight = 0.0f;
+	CardSample.PhysicalAtlasUV = float2(0.0f, 0.0f);
+	CardSample.PackedFeedback = uint2(0, 0);
+}
+
 void SampleLumenCard(
 	float3 SamplePosition,
 	float SampleRadius,
@@ -758,10 +856,11 @@ void SampleLumenCard(
 	float CardWeight,
 	uint CardIndex,
 	float DepthVisibilityRadius,
-	uint AtlasId,
-	inout float3 Lighting,
-	inout float TotalWeight)
+	bool bHiResSurface,
+	inout FLumenCardSample CardSample)
 {
+	InitCardSample(CardSample);
+
 	if (CardIndex < LumenCardScene.NumCards)
 	{
 		FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
@@ -775,69 +874,66 @@ void SampleLumenCard(
 
 			LocalSamplePosition.xy = clamp(LocalSamplePosition.xy, -LumenCardData.LocalExtent.xy, LumenCardData.LocalExtent.xy);
 
-			// Shadow map visibility
-			float VisibilityWeight = 1.0f;
+			FSurfaceCacheSample SurfaceCacheSample = ComputeSurfaceCacheSample(LumenCardData, CardIndex, LocalSamplePosition.xy, SampleRadius, bHiResSurface);
+
+			if (SurfaceCacheSample.bValid)
 			{
-				float Mip;
-				float2 ValidRegionScale;
-				CalculateMip(SampleRadius, LumenCardData, LumenCardData.LocalExtent, LumenCardData.MaxMip, Mip, ValidRegionScale);
-
-				float2 AtlasUV = CalculateAtlasUV(LocalSamplePosition.xy, ValidRegionScale, LumenCardData);
-				float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, Mip).xy;
-
-				// Bias a bit as SDF traces aren't super accurate
-				const float RayBias = bAccurateHit ? -0.1f : -0.2f;
-				const float NormalizedDistanceToHit = (-LocalSamplePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f + RayBias;
-
-				VisibilityWeight = 1.0f;
-				if (NormalizedDistanceToHit > DepthMoments.x)
+				// Shadow map visibility
+				float VisibilityWeight = 1.0f;
 				{
-					float Variance = abs(Square(DepthMoments.x) - DepthMoments.y);
-					VisibilityWeight = saturate(Variance / (Variance + Square(NormalizedDistanceToHit - DepthMoments.x)));
+					float2 DepthMoments = Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, SurfaceCacheSample.PhysicalAtlasUV, 0.0f).xy;
 
-					const float VisibilityCutoff = 0.15f;
-					VisibilityWeight = (VisibilityWeight - VisibilityCutoff) / (1.0f - VisibilityCutoff);
-				}
-			}
+					// Bias a bit as SDF traces aren't super accurate
+					const float RayBias = bAccurateHit ? -0.1f : -0.2f;
+					const float NormalizedDistanceToHit = (-LocalSamplePosition.z / LumenCardData.LocalExtent.z) * 0.5f + 0.5f + RayBias;
 
-			float3 LocalCardZAxis = float3(0, 0, 1);
-			float3 WorldCardZAxis = mul(LumenCardData.WorldToLocalRotation, LocalCardZAxis);
+					VisibilityWeight = 1.0f;
+					if (NormalizedDistanceToHit > DepthMoments.x)
+					{
+						float Variance = abs(Square(DepthMoments.x) - DepthMoments.y);
+						VisibilityWeight = saturate(Variance / (Variance + Square(NormalizedDistanceToHit - DepthMoments.x)));
 
-			//@todo - weight based on heightmap normal to remove stretched texels
-			float HeightmapNormalWeight = 1.0f;
-
-			float Weight = VisibilityWeight * HeightmapNormalWeight * CardWeight;
-
-			if (Weight > 0)
-			{
-				float Mip;
-				float2 ValidRegionScale;
-				CalculateMip(SampleRadius, LumenCardData, LumenCardData.LocalExtent, LumenCardData.MaxMip, Mip, ValidRegionScale);
-
-				float2 AtlasUV = CalculateAtlasUV(LocalSamplePosition.xy, ValidRegionScale, LumenCardData);
-
-				float3 CardLighting;
-				if (AtlasId == FINAL_LIGHTING_ATLAS_ID)
-				{
-					CardLighting = Texture2DSampleLevel(FinalLightingAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
-				}
-				else if (AtlasId == IRRADIANCE_ATLAS_ID)
-				{
-					CardLighting = Texture2DSampleLevel(IrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
-				}
-				else // if (AtlasId == INDIRECT_IRRADIANCE_ATLAS_ID)
-				{
-					CardLighting = Texture2DSampleLevel(IndirectIrradianceAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb;
+						const float VisibilityCutoff = 0.15f;
+						VisibilityWeight = (VisibilityWeight - VisibilityCutoff) / (1.0f - VisibilityCutoff);
+					}
 				}
 
-				//float3 CardLighting = Pow2(Texture2DSampleLevel(LumenCardScene.AlbedoAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).rgb);
-				float OpacityWeight = Texture2DSampleLevel(OpacityAtlas, TRACING_ATLAS_SAMPLER, AtlasUV, Mip).x;
-				Weight *= OpacityWeight;
+				float Weight = VisibilityWeight * CardWeight;
 
-				Lighting += CardLighting * Weight;
-				TotalWeight += Weight;
+				if (Weight > 0.0f)
+				{
+					CardSample.Weight = Weight;
+					CardSample.PhysicalAtlasUV = SurfaceCacheSample.PhysicalAtlasUV;
+					CardSample.PackedFeedback = SurfaceCacheSample.PackedFeedback;
+				}
 			}
 		}
+	}
+}
+
+void AccumulateLumenCardLighting(FLumenCardSample CardSample, uint AtlasId, inout float3 LightingSum, inout float WeightSum)
+{
+	if (CardSample.Weight > 0.0f)
+	{
+		float3 CardLighting = 0.0f;
+
+		if (AtlasId == FINAL_LIGHTING_ATLAS_ID)
+		{
+			CardLighting = Texture2DSampleLevel(FinalLightingAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+		}
+		else if (AtlasId == IRRADIANCE_ATLAS_ID)
+		{
+			CardLighting = Texture2DSampleLevel(IrradianceAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+		}
+		else // if (AtlasId == INDIRECT_IRRADIANCE_ATLAS_ID)
+		{
+			CardLighting = Texture2DSampleLevel(IndirectIrradianceAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+		}
+
+		float OpacityWeight = Texture2DSampleLevel(OpacityAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).x;
+
+		LightingSum += CardLighting * CardSample.Weight * OpacityWeight;
+		WeightSum += CardSample.Weight * OpacityWeight;
 	}
 }
 
@@ -863,7 +959,7 @@ uint FindBestMeshCardIndex(FLumenMeshCardsData MeshCardsData, float3 SamplePosit
 	return LUMEN_INVALID_CARD_INDEX;
 }
 
-float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
+float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
 	uint MeshCardId = LumenCardScene.DFObjectToMeshCardsIndexBuffer.Load(4 * DFObjectIndex);
 
@@ -879,9 +975,7 @@ float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition,
 	uint CardIndexY = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationY);
 	uint CardIndexZ = FindBestMeshCardIndex(MeshCardsData, SamplePosition, CardOrientationZ);
 
-	float3 Lighting = 0;
-	float TotalWeight = 0;
-
+	FLumenCardSample CardSampleX;
 	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
@@ -889,10 +983,10 @@ float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition,
 		AxisWeights.x,
 		CardIndexX,
 		CardInterpolateDepthVisibilityRadius,
-		AtlasId,
-		Lighting,
-		TotalWeight);
+		bHiResSurface,
+		CardSampleX);
 
+	FLumenCardSample CardSampleY;
 	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
@@ -900,10 +994,10 @@ float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition,
 		AxisWeights.y,
 		CardIndexY,
 		CardInterpolateDepthVisibilityRadius,
-		AtlasId,
-		Lighting,
-		TotalWeight);
+		bHiResSurface,
+		CardSampleY);
 
+	FLumenCardSample CardSampleZ;
 	SampleLumenCard(
 		SamplePosition,
 		SampleRadius,
@@ -911,36 +1005,71 @@ float4 SampleLumenMeshCardsWithWeight(uint DFObjectIndex, float3 SamplePosition,
 		AxisWeights.z,
 		CardIndexZ,
 		CardInterpolateDepthVisibilityRadius,
-		AtlasId,
-		Lighting,
-		TotalWeight);
+		bHiResSurface,
+		CardSampleZ);
 
-	#if DISTANT_SCENE
+	// Stochastic tri-planar
+	float3 WeightPrefixSum;
+	WeightPrefixSum.x = CardSampleX.Weight;
+	WeightPrefixSum.y = CardSampleX.Weight + CardSampleY.Weight;
+	WeightPrefixSum.z = CardSampleX.Weight + CardSampleY.Weight + CardSampleZ.Weight;
+
+	float StochasticWeight = InterleavedGradientNoise(ScreenCoord, View.StateFrameIndexMod8) * WeightPrefixSum.z;
+
+	FLumenCardSample StochasticCardSample;
+	InitCardSample(StochasticCardSample);
+	if (StochasticWeight < WeightPrefixSum.x)
 	{
-		uint ListIndex = 0;
-		uint DistantCardIndex = LumenCardScene.DistantCardIndices[ListIndex];
+		StochasticCardSample = CardSampleX;
+	}
+	else if (StochasticWeight < WeightPrefixSum.y)
+	{
+		StochasticCardSample = CardSampleY;
+	}
+	else
+	{
+		StochasticCardSample = CardSampleZ;
+	}
 
-		float DistantCardWeight = saturate(dot(SampleNormal, LumenCardScene.DistantSceneDirection));
+	#if SURFACE_CACHE_FEEDBACK
+	// Write every n-th element
+	if (all((ScreenCoord & FeedbackBufferTileWrapMask) == FeedbackBufferTileJitter)
 
-		SampleLumenCard(
-			SamplePosition,
-			SampleRadius,
-			true,
-			DistantCardWeight,
-			DistantCardIndex,
-			CardInterpolateDepthVisibilityRadius + 500.0f,
-			AtlasId,
-			Lighting,
-			TotalWeight);
+		&& FeedbackBufferSize > 0 
+		&& StochasticCardSample.Weight > 0.1f
+		&& StochasticCardSample.PackedFeedback.x > 0)
+	{
+		uint FeedbackBufferWriteOffset = 0;
+		InterlockedAdd(RWFeedbackBufferAllocator[0], 1, FeedbackBufferWriteOffset);
+
+		if (FeedbackBufferWriteOffset < FeedbackBufferSize)
+		{
+			RWFeedbackBuffer[FeedbackBufferWriteOffset] = StochasticCardSample.PackedFeedback;
+		}
 	}
 	#endif
 
-	return float4(Lighting, TotalWeight);
+	float3 Lighting = 0.0f;
+	float Weight = 0.0f;
+
+	const bool bUseStochasticInterpolation = false;
+	if (bUseStochasticInterpolation)
+	{
+		AccumulateLumenCardLighting(StochasticCardSample, AtlasId, Lighting, Weight);
+	}
+	else
+	{
+		AccumulateLumenCardLighting(CardSampleX, AtlasId, Lighting, Weight);
+		AccumulateLumenCardLighting(CardSampleY, AtlasId, Lighting, Weight);
+		AccumulateLumenCardLighting(CardSampleZ, AtlasId, Lighting, Weight);
+	}
+
+	return float4(Lighting, Weight);
 }
 
-float3 SampleLumenMeshCards(uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, uint AtlasId)
+float3 SampleLumenMeshCards(uint2 ScreenCoord, uint DFObjectIndex, float3 SamplePosition, float3 SampleNormal, float SampleRadius, bool bAccurateHit, float CardInterpolateDepthVisibilityRadius, bool bHiResSurface, uint AtlasId)
 {
-	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, AtlasId);
+	float4 LightingAndWeight = SampleLumenMeshCardsWithWeight(ScreenCoord, DFObjectIndex, SamplePosition, SampleNormal, SampleRadius, bAccurateHit, CardInterpolateDepthVisibilityRadius, bHiResSurface, AtlasId);
 
 	if (LightingAndWeight.w > 0)
 	{
@@ -992,7 +1121,16 @@ void ConeTraceMeshSDFsAndInterpolateFromCards(
 		//OutResult.Lighting = frac(InterpolatePosition / 1000);
 	
 		uint AtlasId = FINAL_LIGHTING_ATLAS_ID;
-		OutResult.Lighting = SampleLumenMeshCards(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, TraceInput.CardInterpolateDepthVisibilityRadius, AtlasId);
+		OutResult.Lighting = SampleLumenMeshCards(
+			TraceInput.ScreenCoord,
+			TraceMeshSDFResult.HitObject,
+			InterpolatePosition,
+			TraceSDFData.HitNormal,
+			InterpolateRadius,
+			TraceSDFData.bAccurateHit,
+			TraceInput.CardInterpolateDepthVisibilityRadius,
+			TraceInput.bHiResSurface,
+			AtlasId);
 		OutResult.Transparency = 0;
 	}
 

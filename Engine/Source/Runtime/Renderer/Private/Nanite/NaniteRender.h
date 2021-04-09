@@ -9,7 +9,7 @@
 #include "UnifiedBuffer.h"
 #include "Rendering/NaniteResources.h"
 
-class FCardRenderData;
+class FCardPageRenderData;
 class FVirtualShadowMapArray;
 class FLumenCardPassUniformParameters;
 
@@ -666,7 +666,7 @@ void DrawLumenMeshCapturePass(
 	FRDGBuilder& GraphBuilder,
 	const FScene& Scene,
 	FViewInfo* SharedView,
-	const TArray<FCardRenderData, SceneRenderingAllocator>& CardsToRender,
+	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	const FCullingContext& CullingContext,
 	const FRasterContext& RasterContext,
 	FLumenCardPassUniformParameters* PassUniformParameters,

@@ -14,19 +14,17 @@
 class FPrimitiveSceneInfo;
 class FLumenCard;
 
-struct FLumenMeshCardsGPUData
+namespace Lumen
 {
-	// Must match LUMEN_MESH_CARDS_DATA_STRIDE in usf
-	enum { DataStrideInFloat4s = 4 };
-	enum { DataStrideInBytes = DataStrideInFloat4s * 16 };
-
-	static void FillData(const class FLumenMeshCards& RESTRICT MeshCards, FVector4* RESTRICT OutData);
+	void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, FScene* Scene);
 };
 
 class FLumenMeshCards
 {
 public:
 	void Initialize(
+		FPrimitiveSceneInfo* InCapturePrimitive,
+		int32 InCaptureInstanceIndex,
 		const FMatrix& InLocalToWorld, 
 		const FBox& InBounds,
 		uint32 InFirstCardIndex,
@@ -34,6 +32,9 @@ public:
 		uint32 InNumCardsPerOrientation[6],
 		uint32 InCardOffsetPerOrientation[6])
 	{
+		CapturePrimitive = InCapturePrimitive;
+		CaptureInstanceIndex = InCaptureInstanceIndex;
+
 		Bounds = InBounds;
 		SetTransform(InLocalToWorld);
 		FirstCardIndex = InFirstCardIndex;
@@ -53,6 +54,9 @@ public:
 
 	FMatrix LocalToWorld;
 	FBox Bounds;
+
+	FPrimitiveSceneInfo* CapturePrimitive = nullptr;
+	int32 CaptureInstanceIndex = -1;
 
 	uint32 FirstCardIndex = 0;
 	uint32 NumCards = 0;
