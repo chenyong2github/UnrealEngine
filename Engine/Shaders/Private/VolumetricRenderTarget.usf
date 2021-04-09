@@ -339,6 +339,7 @@ float2 SafeSampleVolumetricDepthTexture(float2 UV)
 
 float4 VolumetricTextureSizeAndInvSize;
 float UvOffsetScale;
+float UvOffsetSampleAcceptanceWeight;
 float2 FullResolutionToVolumetricBufferResolutionScale;
 
 void ComposeVolumetricRTOverScenePS(
@@ -701,7 +702,7 @@ void ComposeVolumetricRTOverScenePS(
 		}
 
 		// Now continue to accumulate in DataAcc
-		const float Extinction = 30.0f;
+		const float Extinction = UvOffsetSampleAcceptanceWeight;
 		{
 			const float weight = exp2(-Extinction * abs(VolumeRGBT0.a - OutputRt0.a));
 			ValidSampleCount += weight;
