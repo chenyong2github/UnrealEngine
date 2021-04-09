@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WmfMp4Writer.h"
-#include "Microsoft/AVEncoderIMFSampleWrapper.h"
+
+// TODO (M84FIX) add back in
+// #include "Microsoft/AVEncoderIMFSampleWrapper.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -22,7 +24,7 @@ bool FWmfMp4Writer::Initialize(const TCHAR* Filename)
 	return true;
 }
 
-TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AVEncoder::FAudioEncoderConfig& Config)
+TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AVEncoder::FAudioConfig& Config)
 {
 	GUID Format;
 	int AudioBitsPerSample = 0;
@@ -60,7 +62,7 @@ TOptional<DWORD> FWmfMp4Writer::CreateAudioStream(const FString& Codec, const AV
 	return TOptional<DWORD>(StreamIndex);
 }
 
-TOptional<DWORD> FWmfMp4Writer::CreateVideoStream(const FString& Codec, const AVEncoder::FVideoEncoderConfig& Config)
+TOptional<DWORD> FWmfMp4Writer::CreateVideoStream(const FString& Codec, const AVEncoder::FVideoConfig& Config)
 {
 	GUID Format;
 	if (Codec == "h264")
@@ -102,32 +104,36 @@ bool FWmfMp4Writer::Start()
 	return true;
 }
 
-bool FWmfMp4Writer::Write(const AVEncoder::FAVPacket& InSample, DWORD StreamIndex)
+bool FWmfMp4Writer::Write(const AVEncoder::FMediaPacket& InSample, DWORD StreamIndex)
 {
-	AVEncoder::FIMFSampleWrapper Sample { InSample.Type };
+	// TODO (M84FIX)
+	
+	// AVEncoder::FIMFSampleWrapper Sample { InSample.Type };
 
-	if (!Sample.CreateSample())
-	{
-		return false;
-	}
+	// if (!Sample.CreateSample())
+	// {
+	// 	return false;
+	// }
 
-	TRefCountPtr<IMFMediaBuffer> WmfBuffer;
-	CHECK_HR_DEFAULT(MFCreateAlignedMemoryBuffer(InSample.Data.Num(), MF_1_BYTE_ALIGNMENT, WmfBuffer.GetInitReference()));
-	uint8* Dst = nullptr;
-	CHECK_HR_DEFAULT(WmfBuffer->Lock(&Dst, nullptr, nullptr));
-	FMemory::Memcpy(Dst, InSample.Data.GetData(), InSample.Data.Num());
-	CHECK_HR_DEFAULT(WmfBuffer->Unlock());
+	// TRefCountPtr<IMFMediaBuffer> WmfBuffer;
+	// CHECK_HR_DEFAULT(MFCreateAlignedMemoryBuffer(InSample.Data.Num(), MF_1_BYTE_ALIGNMENT, WmfBuffer.GetInitReference()));
+	// uint8* Dst = nullptr;
+	// CHECK_HR_DEFAULT(WmfBuffer->Lock(&Dst, nullptr, nullptr));
+	// FMemory::Memcpy(Dst, InSample.Data.GetData(), InSample.Data.Num());
+	// CHECK_HR_DEFAULT(WmfBuffer->Unlock());
 
-	WmfBuffer->SetCurrentLength(InSample.Data.Num());
-	Sample.GetSample()->AddBuffer(WmfBuffer);
-	Sample.SetTime(InSample.Timestamp);
-	Sample.SetDuration(InSample.Duration);
+	// WmfBuffer->SetCurrentLength(InSample.Data.Num());
+	// Sample.GetSample()->AddBuffer(WmfBuffer);
+	// Sample.SetTime(InSample.Timestamp);
+	// Sample.SetDuration(InSample.Duration);
 
-	CHECK_HR(Writer->WriteSample(StreamIndex, const_cast<IMFSample*>(Sample.GetSample())));
+	// CHECK_HR(Writer->WriteSample(StreamIndex, const_cast<IMFSample*>(Sample.GetSample())));
 
-	UE_LOG(MP4, VeryVerbose, TEXT("stream #%d: time %.3f, duration %.3f%s"), StreamIndex, Sample.GetTime().GetTotalSeconds(), Sample.GetDuration().GetTotalSeconds(), InSample.IsVideoKeyFrame() ? TEXT(", key-frame") : TEXT(""));
+	// UE_LOG(MP4, VeryVerbose, TEXT("stream #%d: time %.3f, duration %.3f%s"), StreamIndex, Sample.GetTime().GetTotalSeconds(), Sample.GetDuration().GetTotalSeconds(), InSample.IsVideoKeyFrame() ? TEXT(", key-frame") : TEXT(""));
 
-	return true;
+	// return true;
+	
+	return false;
 }
 
 bool FWmfMp4Writer::Finalize()

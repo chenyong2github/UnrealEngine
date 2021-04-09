@@ -5,7 +5,7 @@
 #include "WmfPrivate.h"
 
 #include "HAL/ThreadSafeBool.h"
-#include "AVEncoder.h"
+#include "MediaPacket.h"
 
 class FWmfRingBuffer
 {
@@ -22,11 +22,11 @@ public:
 
 	FTimespan GetDuration() const;
 
-	void Push(AVEncoder::FAVPacket&& Sample);
+	void Push(AVEncoder::FMediaPacket&& Sample);
 
 	void PauseCleanup(bool bPause);
 
-	TArray<AVEncoder::FAVPacket> GetCopy();
+	TArray<AVEncoder::FMediaPacket> GetCopy();
 
 	void Reset();
 
@@ -35,7 +35,7 @@ private:
 
 private:
 	FTimespan MaxDuration = 0;
-	TArray<AVEncoder::FAVPacket> Samples;
+	TArray<AVEncoder::FMediaPacket> Samples;
 	FCriticalSection Mutex;
 	FThreadSafeBool bCleanupPaused = false;
 };

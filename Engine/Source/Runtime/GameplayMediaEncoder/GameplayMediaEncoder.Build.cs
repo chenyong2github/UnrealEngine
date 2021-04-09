@@ -24,7 +24,9 @@ public class GameplayMediaEncoder : ModuleRules
 			"Slate",
 			"HTTP",
 			"Json",
+			//"AVEncoder",
 			"AVEncoder",
+			"WebRTC",
 			//"IBMRTMPIngest"
         });
 

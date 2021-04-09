@@ -6,20 +6,33 @@
 
 #include "Logging/LogMacros.h"
 #include "AudioMixerDevice.h"
-#include "AVEncoder.h"
 
 #include "RHI.h"
 #include "RHIResources.h"
+
+#include "HAL/Thread.h"
+
+THIRD_PARTY_INCLUDES_START
+#pragma warning(push)
+#pragma warning(disable: 4582 4583 4596 6319 6323)
+
+#pragma warning(pop)
+THIRD_PARTY_INCLUDES_END
+
+#include "AudioEncoder.h"
+#include "VideoEncoder.h"
+#include "MediaPacket.h"
+#include "VideoEncoderInput.h"
 
 class SWindow;
 
 class IGameplayMediaEncoderListener
 {
 public:
-	virtual void OnMediaSample(const AVEncoder::FAVPacket& Sample) = 0;
+	virtual void OnMediaSample(const AVEncoder::FMediaPacket& Sample) = 0;
 };
 
-class GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder final : private ISubmixBufferListener, private AVEncoder::IAudioEncoderListener, private AVEncoder::IVideoEncoderListener
+class GAMEPLAYMEDIAENCODER_API FGameplayMediaEncoder final : private ISubmixBufferListener, public AVEncoder::IAudioEncoderListener
 {
 public:
 
@@ -36,31 +49,11 @@ public:
 	void SetVideoBitrate(uint32 Bitrate);
 	void SetVideoFramerate(uint32 Framerate);
 
-	/*
-	 * When capturing frame data, we should use the App Time rather than Platform time
-	 * Default is to use Platform Time
-	 * This is useful for fixed framerate video rendering
-	 * **AUDIO is not supported**
-	*/
-	void SetFramesShouldUseAppTime(bool bUseAppTime);
-
-	bool IsFramesUsingAppTime() const
-	{
-		static bool bIsForcedAppTime = FParse::Param(FCommandLine::Get(), TEXT("GameplayMediaEncoder.UseAppTime"));
-
-		return bIsForcedAppTime || bShouldFramesUseAppTime;
-	}
-
-	double QueryClock() const
-	{
-		return IsFramesUsingAppTime() ? FApp::GetCurrentTime() : FPlatformTime::Seconds();
-	}
-
-	/**
-	 * Returns the audio codec name and configuration
-	 */
-	TPair<FString, AVEncoder::FAudioEncoderConfig> GetAudioConfig() const;
-	TPair<FString, AVEncoder::FVideoEncoderConfig> GetVideoConfig() const;
+	///**
+	// * Returns the audio codec name and configuration
+	// */
+	//TPair<FString, AVEncoder::FAudioConfig> GetAudioConfig() const;
+	//TPair<FString, AVEncoder::FVideoConfig> GetVideoConfig() const;
 
 	bool Initialize();
 	void Shutdown();
@@ -91,6 +84,9 @@ public:
 		Get()->Stop();
 	}
 
+	AVEncoder::FAudioConfig GetAudioConfig() const;
+	AVEncoder::FVideoConfig GetVideoConfig() const { return VideoConfig; }
+
 private:
 
 	// Private to control how our single instance is created
@@ -100,31 +96,35 @@ private:
 	FTimespan GetMediaTimestamp() const;
 
 	// Back buffer capture
-	void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer);
+	void OnFrameBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& FrameBuffer);
 	// ISubmixBufferListener interface
 	void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) override;
 
 	void ProcessAudioFrame(const float* AudioData, int32 NumSamples, int32 NumChannels, int32 SampleRate);
-	void ProcessVideoFrame(const FTexture2DRHIRef& BackBuffer);
+	void ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffer);
 
 	bool ChangeVideoConfig();
 
-	//
-	// AVEncoder::IAudioEncoderListener interface
-	void OnEncodedAudioFrame(const AVEncoder::FAVPacket& Packet) override;
-	//
-	// AVEncoder::IVideoEncoderListener interface
-	void OnEncodedVideoFrame(const AVEncoder::FAVPacket& Packet, AVEncoder::FEncoderVideoFrameCookie* Cookie) override;
+	void OnEncodedAudioFrame(const AVEncoder::FMediaPacket& Packet) override;
+	void OnEncodedVideoFrame(uint32 LayerIndex, const AVEncoder::FVideoEncoderInputFrame* Frame, const AVEncoder::FCodecPacket& Packet);
 
-	void OnEncodedFrame(const AVEncoder::FAVPacket& Packet);
+	void CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture2DRHIRef& DestinationTexture);
 
 	FCriticalSection ListenersCS;
 	TArray<IGameplayMediaEncoderListener*> Listeners;
 
 	FCriticalSection AudioProcessingCS;
 	FCriticalSection VideoProcessingCS;
+
 	TUniquePtr<AVEncoder::FAudioEncoder> AudioEncoder;
+
+	AVEncoder::FVideoConfig VideoConfig;
+
+	FTexture2DRHIRef BufferTexture;
+	void CopyTexture(const FTexture2DRHIRef& src, const FTexture2DRHIRef& dst);
+
 	TUniquePtr<AVEncoder::FVideoEncoder> VideoEncoder;
+	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput;
 
 	uint64 NumCapturedFrames = 0;
 	FTimespan StartTime = 0;
@@ -148,6 +148,7 @@ private:
 	TAtomic<uint32> NewVideoFramerate{ 0 };
 	FThreadSafeBool bChangeFramerate = false;
 
-	bool bShouldFramesUseAppTime = false;
+	TArray<int16> PCM16;
+	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBufferMap;
 };
 

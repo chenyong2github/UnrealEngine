@@ -98,7 +98,7 @@ private:
 
 		// Call this in the end, to generate the HttpRequest
 		template<typename T1, typename T2>
-		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpPostRequest(const FString& URL, T1&& TargetObj, T2&& TargetObjHandler)
+		TSharedRef<IHttpRequest> CreateHttpPostRequest(const FString& URL, T1&& TargetObj, T2&& TargetObjHandler)
 		{
 			auto HttpRequest = CreateHttpPostRequestImpl(URL);
 			HttpRequest->OnProcessRequestComplete().BindRaw(std::forward<T1>(TargetObj), std::forward<T2>(TargetObjHandler));
@@ -113,7 +113,7 @@ private:
 		FString BoundaryEnd;
 		FString Data;
 
-		TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateHttpPostRequestImpl(const FString& URL);
+		TSharedRef<IHttpRequest> CreateHttpPostRequestImpl(const FString& URL);
 	};
 
 	// IGameplayMediaEncoderListener interface

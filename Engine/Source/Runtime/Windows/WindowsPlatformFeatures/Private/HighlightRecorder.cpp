@@ -63,7 +63,7 @@ bool FHighlightRecorder::Start(double RingBufferDurationSecs)
 	RingBuffer.Reset();
 	RingBuffer.SetMaxDuration(FTimespan::FromSeconds(RingBufferDurationSecs));
 
-	RecordingStartTime = FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock());
+	RecordingStartTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
 	PauseTimestamp = 0;
 	TotalPausedDuration = 0;
 	NumPushedFrames = 0;
@@ -128,10 +128,10 @@ void FHighlightRecorder::Stop()
 
 FTimespan FHighlightRecorder::GetRecordingTime() const
 {
-	return FTimespan::FromSeconds(FGameplayMediaEncoder::Get()->QueryClock()) - RecordingStartTime - TotalPausedDuration;
+	return FTimespan::FromSeconds(FPlatformTime::Seconds()) - RecordingStartTime - TotalPausedDuration;
 }
 
-void FHighlightRecorder::OnMediaSample(const AVEncoder::FAVPacket& InSample)
+void FHighlightRecorder::OnMediaSample(const AVEncoder::FMediaPacket& InSample)
 {
 	// We might be paused, so don't do anything
 	if (State != EState::Recording)
@@ -150,14 +150,14 @@ void FHighlightRecorder::OnMediaSample(const AVEncoder::FAVPacket& InSample)
 		++NumPushedFrames;
 	}
 
-	AVEncoder::FAVPacket SampleCopy = InSample;
+	AVEncoder::FMediaPacket SampleCopy = InSample;
 
 
-	AVEncoder::FAVPacket A = InSample;
-	AVEncoder::FAVPacket B = MoveTemp(A);
-	AVEncoder::FAVPacket C(AVEncoder::EPacketType::Video);
+	AVEncoder::FMediaPacket A = InSample;
+	AVEncoder::FMediaPacket B = MoveTemp(A);
+	AVEncoder::FMediaPacket C(AVEncoder::EPacketType::Video);
 	C = MoveTemp(B);
-	AVEncoder::FAVPacket D(AVEncoder::EPacketType::Video);
+	AVEncoder::FMediaPacket D(AVEncoder::EPacketType::Video);
 	D = C;
 
 	if (TotalPausedDuration != 0)
@@ -230,7 +230,7 @@ bool FHighlightRecorder::SaveHighlightInBackground(const FString& Filename, doub
 
 bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, double MaxDurationSecs)
 {
-	TArray<AVEncoder::FAVPacket> Samples = RingBuffer.GetCopy();
+	TArray<AVEncoder::FMediaPacket> Samples = RingBuffer.GetCopy();
 
 	if (Samples.Num()==0)
 	{
@@ -278,7 +278,7 @@ bool FHighlightRecorder::SaveHighlightInBackgroundImpl(const FString& Filename, 
 	// get samples starting from `StartTime` and push them into Mp4Writer
 	for (int Idx = FirstSampleIndex; Idx != Samples.Num(); ++Idx)
 	{
-		AVEncoder::FAVPacket& Sample = Samples[Idx];
+		AVEncoder::FMediaPacket& Sample = Samples[Idx];
 		Sample.Timestamp = Sample.Timestamp - StartTime;
 		if (!Mp4Writer->Write(Sample, (Sample.Type==AVEncoder::EPacketType::Audio) ? AudioStreamIndex : VideoStreamIndex))
 		{
@@ -318,7 +318,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& FullFilename, bool b
 
 	if (bHasAudio)
 	{
-		TPair<FString, AVEncoder::FAudioEncoderConfig> AudioConfig = FGameplayMediaEncoder::Get()->GetAudioConfig();
+		TPair<FString, AVEncoder::FAudioConfig> AudioConfig = TPair<FString, AVEncoder::FAudioConfig>( FGameplayMediaEncoder::Get()->GetAudioConfig().Codec, FGameplayMediaEncoder::Get()->GetAudioConfig());		
 		if (AudioConfig.Key == "")
 		{
 			UE_LOG(HighlightRecorder, Error, TEXT("Could not get audio config"));
@@ -336,7 +336,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& FullFilename, bool b
 		}
 	}
 
-	TPair<FString, AVEncoder::FVideoEncoderConfig> VideoConfig = FGameplayMediaEncoder::Get()->GetVideoConfig();
+	TPair<FString, AVEncoder::FVideoConfig> VideoConfig = TPair<FString, AVEncoder::FVideoConfig>( FGameplayMediaEncoder::Get()->GetVideoConfig().Codec, FGameplayMediaEncoder::Get()->GetVideoConfig());
 	if (VideoConfig.Key == "")
 	{
 		UE_LOG(HighlightRecorder, Error, TEXT("Could not get video config"));
@@ -362,7 +362,7 @@ bool FHighlightRecorder::InitialiseMp4Writer(const FString& FullFilename, bool b
 }
 
 // finds index and timestamp of the first sample that should be written to .mp4
-bool FHighlightRecorder::GetSavingStart(const TArray<AVEncoder::FAVPacket>& Samples, FTimespan MaxDuration, int& StartIndex, FTimespan& StartTime) const
+bool FHighlightRecorder::GetSavingStart(const TArray<AVEncoder::FMediaPacket>& Samples, FTimespan MaxDuration, int& StartIndex, FTimespan& StartTime) const
 // the first sample in .mp4 file should have timestamp 0 and all other timestamps should be relative to the
 // first one
 // 1) if `MaxDurationSecs` > actual ring buffer duration (last sample timestamp - first) -> we need to save all

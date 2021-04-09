@@ -1,41 +1,64 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
 using UnrealBuildTool;
+using System.IO;
+using System;
 
 public class AVEncoder : ModuleRules
 {
 	public AVEncoder(ReadOnlyTargetRules Target) : base(Target)
 	{
+        // Without these two compilation fails on VS2017 with D8049: command line is too long to fit in debug record.
+        bLegacyPublicIncludePaths = false;
+        DefaultBuildSettings = BuildSettingsVersion.V2;
 
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"Core",
-			"Engine",
-			"RHI",
-			"RenderCore",
+        // PCHUsage = PCHUsageMode.NoPCHs;
+
+        // PrecompileForTargets = PrecompileTargetsType.None;
+
+        PublicIncludePaths.AddRange(new string[] {
+			// ... add public include paths required here ...
 		});
 
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		PrivateIncludePaths.AddRange(new string[] {
+			// ... add other private include paths required here ...
+		});
+
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"Engine",
+			"nvEncode"
+		});
+
+		PublicDependencyModuleNames.AddRange(new string[] {
+			"RenderCore",
+			"Core",
+			"RHI"
+			// ... add other public dependencies that you statically link with here ...
+		});
+
+		DynamicallyLoadedModuleNames.AddRange(new string[] {
+			// ... add any modules that your module loads dynamically here ...
+		});
+
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicDefinitions.Add("AVENCODER_SUPPORTED_MICROSOFT_PLATFORM=1");
-
-			PrivateDependencyModuleNames.AddRange(new string[]
-				{
-					"D3D11RHI"
-				});
-
-			PublicDelayLoadDLLs.Add("mfplat.dll");
-			PublicDelayLoadDLLs.Add("mfuuid.dll");
-			PublicDelayLoadDLLs.Add("Mfreadwrite.dll");
-
-			PublicSystemLibraries.Add("d3d11.lib");
-			PublicSystemLibraries.Add("DXGI.lib");
+			// d3d to be able to use NVENC
+			PublicSystemLibraries.AddRange(new string[] {
+				"dxgi.lib",
+				"d3d11.lib",
+				"d3d12.lib",
+				"mfplat.lib",
+				"mfuuid.lib"
+			});
+			PublicDefinitions.Add("WITH_CUDA=0");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			PublicDefinitions.Add("AVENCODER_SUPPORTED_MICROSOFT_PLATFORM=1");
+			PrivateDependencyModuleNames.Add("CUDA");			
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			// PublicFrameworks.AddRange(new string[] { "CoreAudio", "AudioUnit", "AudioToolbox" });
 		}
 	}
 }
-
