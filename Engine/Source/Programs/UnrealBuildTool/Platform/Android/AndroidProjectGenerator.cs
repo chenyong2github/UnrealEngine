@@ -53,12 +53,6 @@ namespace UnrealBuildTool
 					AGDEInstalled = false;
 				}
 			}
-
-			AGDEInstalled = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Google\AndroidGameDevelopmentExtension")?.ValueCount > 0;
-			if (Arguments.HasOption("-noagde"))
-			{
-				AGDEInstalled = false;
-			}
 		}
 
 		bool HostSupportsVSAndroid()
