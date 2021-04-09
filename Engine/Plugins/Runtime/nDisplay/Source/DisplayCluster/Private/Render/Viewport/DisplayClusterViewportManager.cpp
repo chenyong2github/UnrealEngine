@@ -283,9 +283,22 @@ void FDisplayClusterViewportManager::UpdateFrameResources_RenderThread(FRHIComma
 	PostProcessManager->PerformPostProcessAfterWarpBlend_RenderThread(RHICmdList);
 }
 
+static TAutoConsoleVariable<int32> CVarCrossGPUTransfersEnabled(
+	TEXT("nDisplay.render.CrossGPUTransfers"),
+	1,
+	TEXT("(0 = disabled)\n"),
+	ECVF_RenderThreadSafe
+);
+
 void FDisplayClusterViewportManager::DoCrossGPUTransfers_RenderThread(class FViewport* InViewport, FRHICommandListImmediate& RHICmdList) const
 {
 	check(IsInRenderingThread());
+
+	bool bIsCrossGPUTransfersEnabled = (CVarCrossGPUTransfersEnabled.GetValueOnRenderThread() != 0);
+	if (!bIsCrossGPUTransfersEnabled)
+	{
+		return;
+	}
 
 	// The GPUs on which all views must be resolved to.
 	const FRHIGPUMask ViewportGPUMask = InViewport->GetGPUMask(RHICmdList);
