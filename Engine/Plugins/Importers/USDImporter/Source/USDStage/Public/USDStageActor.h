@@ -212,7 +212,10 @@ private:
 	TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex;
 
 public:
+	UE_DEPRECATED( 4.27, "Use the const version if you don't wish to load the stage on-demand, or use GetOrLoadUsdStage if you do" )
 	USDSTAGE_API UE::FUsdStage& GetUsdStage();
+
+	USDSTAGE_API UE::FUsdStage& GetOrLoadUsdStage();
 	USDSTAGE_API const UE::FUsdStage& GetUsdStage() const;
 
 	FUsdListener& GetUsdListener() { return UsdListener; }

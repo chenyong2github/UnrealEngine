@@ -78,7 +78,7 @@ struct FUsdStageActorImpl
 	static TSharedRef< FUsdSchemaTranslationContext > CreateUsdSchemaTranslationContext( AUsdStageActor* StageActor, const FString& PrimPath )
 	{
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = MakeShared< FUsdSchemaTranslationContext >(
-			StageActor->GetUsdStage(),
+			StageActor->GetOrLoadUsdStage(),
 			*StageActor->AssetCache
 		);
 
@@ -220,15 +220,16 @@ struct FUsdStageActorImpl
 
 		TSharedRef< FUsdSchemaTranslationContext > TranslationContext = FUsdStageActorImpl::CreateUsdSchemaTranslationContext( StageActor, InPrimPath );
 
+		UE::FUsdStage UsdStage = StageActor->GetOrLoadUsdStage();
 		UE::FSdfPath UsdPrimPath( *InPrimPath );
-		UE::FUsdPrim UsdPrim = StageActor->GetUsdStage().GetPrimAtPath( UsdPrimPath );
+		UE::FUsdPrim UsdPrim = UsdStage.GetPrimAtPath( UsdPrimPath );
 
 		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim ) ) )
 		{
 			while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
 			{
 				UE::FSdfPath ParentUsdPrimPath = UsdPrimPath.GetParentPath();
-				UE::FUsdPrim ParentUsdPrim = StageActor->GetUsdStage().GetPrimAtPath( ParentUsdPrimPath );
+				UE::FUsdPrim ParentUsdPrim = UsdStage.GetPrimAtPath( ParentUsdPrimPath );
 				if ( ParentUsdPrim.IsPseudoRoot() )
 				{
 					// It doesn't matter if we're collapsed when our parent is the root: We'll be a separate component/asset anyway.
@@ -558,7 +559,7 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 	// If the stage was closed in a big transaction (e.g. undo open) a random UObject may be transacting before us and triggering USD changes,
 	// and the UE::FUsdStage will still be opened and valid (even though we intend on closing/changing it when we transact). It could be problematic/wasteful if we
 	// responded to those notices, so just early out here
-	const UE::FUsdStage& Stage = GetUsdStage();
+	const UE::FUsdStage& Stage = GetOrLoadUsdStage();
 	if ( !Stage || !FPaths::IsSamePath( Stage.GetRootLayer().GetRealPath(), RootLayer.FilePath ) )
 	{
 		return;
@@ -669,14 +670,14 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 				if ( bIsResync )
 				{
-					LoadAssets( *TranslationContext, GetUsdStage().GetPrimAtPath( AssetsPrimPath ) );
+					LoadAssets( *TranslationContext, GetOrLoadUsdStage().GetPrimAtPath( AssetsPrimPath ) );
 
 					// Resyncing also includes "updating" the prim
 					UpdatedAssets.Add( AssetsPrimPath.GetString() );
 				}
 				else
 				{
-					LoadAsset( *TranslationContext, GetUsdStage().GetPrimAtPath( AssetsPrimPath ) );
+					LoadAsset( *TranslationContext, GetOrLoadUsdStage().GetPrimAtPath( AssetsPrimPath ) );
 				}
 
 				RefreshedAssets.Add( AssetsPrimPath.GetString() );
@@ -788,7 +789,7 @@ UUsdPrimTwin* AUsdStageActor::GetOrCreatePrimTwin( const UE::FSdfPath& UsdPrimPa
 	UUsdPrimTwin* UsdPrimTwin = RootTwin->Find( PrimPath );
 	UUsdPrimTwin* ParentUsdPrimTwin = RootTwin->Find( ParentPrimPath );
 
-	const UE::FUsdPrim Prim = GetUsdStage().GetPrimAtPath( UsdPrimPath );
+	const UE::FUsdPrim Prim = GetOrLoadUsdStage().GetPrimAtPath( UsdPrimPath );
 
 	if ( !Prim )
 	{
@@ -926,7 +927,7 @@ void AUsdStageActor::UpdatePrim( const UE::FSdfPath& InUsdPrimPath, bool bResync
 			}
 		}
 
-		UE::FUsdPrim PrimToExpand = GetUsdStage().GetPrimAtPath( UsdPrimPath );
+		UE::FUsdPrim PrimToExpand = GetOrLoadUsdStage().GetPrimAtPath( UsdPrimPath );
 		UUsdPrimTwin* UsdPrimTwin = ExpandPrim( PrimToExpand, TranslationContext );
 
 #if WITH_EDITOR
@@ -948,6 +949,13 @@ UE::FUsdStage& AUsdStageActor::GetUsdStage()
 
 const UE::FUsdStage& AUsdStageActor::GetUsdStage() const
 {
+	return UsdStage;
+}
+
+UE::FUsdStage& AUsdStageActor::GetOrLoadUsdStage()
+{
+	OpenUsdStage();
+
 	return UsdStage;
 }
 

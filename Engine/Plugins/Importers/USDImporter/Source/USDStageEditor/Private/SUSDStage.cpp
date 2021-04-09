@@ -104,7 +104,7 @@ void SUsdStage::Construct( const FArguments& InArgs )
 
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetUsdStage();
+		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
 	}
 
 	ChildSlot
@@ -196,7 +196,7 @@ void SUsdStage::SetupStageActorDelegates()
 					 ViewModel.UsdStageActor.IsValid() &&
 					 ( bViewingTheUpdatedPrim || ( bViewingStageProperties && bStageUpdated ) ) )
 				{
-					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetUsdStage(), *PrimPath );
+					this->UsdPrimInfoWidget->SetPrimPath( ViewModel.UsdStageActor->GetOrLoadUsdStage(), *PrimPath );
 				}
 
 				if ( PrimPath == TEXT("/") && this->UsdStageInfoWidget )
@@ -669,7 +669,7 @@ void SUsdStage::OnSave()
 	UE::FUsdStage UsdStage;
 	if ( ViewModel.UsdStageActor.IsValid() )
 	{
-		UsdStage = ViewModel.UsdStageActor->GetUsdStage();
+		UsdStage = ViewModel.UsdStageActor->GetOrLoadUsdStage();
 	}
 
 	if ( UsdStage )
@@ -728,7 +728,7 @@ void SUsdStage::OnPrimSelectionChanged( const TArray<FString>& PrimPaths )
 
 	if ( UsdPrimInfoWidget )
 	{
-		UE::FUsdStage UsdStage = StageActor->GetUsdStage();
+		UE::FUsdStage UsdStage = StageActor->GetOrLoadUsdStage();
 
 		SelectedPrimPath = PrimPaths.Num() == 1 ? PrimPaths[ 0 ] : TEXT( "" );
 		UsdPrimInfoWidget->SetPrimPath( UsdStage, *SelectedPrimPath );

@@ -818,7 +818,7 @@ namespace UsdUtils
 			// will already be accounted for by those actors/components/assets undoing/redoing by themselves via the UE transaction buffer.
 			FScopedBlockNotices BlockNotices( StageActor->GetUsdListener() );
 
-			UE::FUsdStage& Stage = StageActor->GetUsdStage();
+			UE::FUsdStage& Stage = StageActor->GetOrLoadUsdStage();
 
 			TArray<FString> PrimsChanged = UsdUtils::ApplyFieldMapToStage(
 				Values,
@@ -869,7 +869,7 @@ namespace UsdUtils
 				BlockNotices.Emplace( StageActor->GetUsdListener() );
 			}
 
-			UE::FUsdStage& Stage = StageActor->GetUsdStage();
+			UE::FUsdStage& Stage = StageActor->GetOrLoadUsdStage();
 
 			TArray<FString> PrimsChanged;
 			if ( bIsApplyingConcertSync && ReceivedValuesBeforeUndo.IsSet() )
@@ -1021,7 +1021,7 @@ void UUsdTransactor::Update( const UsdUtils::FObjectChangesByPath& NewInfoChange
 
 	Modify();
 
-	const UE::FUsdStage& Stage = StageActorPtr->GetUsdStage();
+	const UE::FUsdStage& Stage = StageActorPtr->GetOrLoadUsdStage();
 	const UE::FSdfLayer& EditTarget = Stage.GetEditTarget();
 
 	UsdUtils::FTransactorRecordedEdits NewEdits;

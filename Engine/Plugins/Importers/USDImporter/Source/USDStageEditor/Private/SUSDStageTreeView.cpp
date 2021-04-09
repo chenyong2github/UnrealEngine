@@ -641,7 +641,7 @@ void SUsdStageTreeView::OnAddPrim()
 	// Add a new top-level prim (direct child of the pseudo-root prim)
 	else
 	{
-		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStageActor->GetUsdStage() );
+		FUsdPrimViewModelRef TreeItem = MakeShared< FUsdPrimViewModel >( nullptr, UsdStageActor->GetOrLoadUsdStage() );
 		RootItems.Add( TreeItem );
 
 		PendingRenameItem = TreeItem;
@@ -683,13 +683,14 @@ void SUsdStageTreeView::OnRemovePrim()
 
 	for ( FUsdPrimViewModelRef SelectedItem : MySelectedItems )
 	{
-		UsdStageActor->GetUsdStage().RemovePrim( SelectedItem->UsdPrim.GetPrimPath() );
+		UsdStageActor->GetOrLoadUsdStage().RemovePrim( SelectedItem->UsdPrim.GetPrimPath() );
 	}
 }
 
 void SUsdStageTreeView::OnAddReference()
 {
-	if ( !UsdStageActor.IsValid() || !UsdStageActor->GetUsdStage() || !UsdStageActor->GetUsdStage().IsEditTargetValid() )
+	UE::FUsdStage& Stage = UsdStageActor->GetOrLoadUsdStage();
+	if ( !UsdStageActor.IsValid() || !Stage || !Stage.IsEditTargetValid() )
 	{
 		return;
 	}
@@ -742,8 +743,7 @@ bool SUsdStageTreeView::CanAddPrim() const
 		return false;
 	}
 
-	UE::FUsdStage UsdStage =  UsdStageActor->GetUsdStage();
-
+	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage )
 	{
 		return false;
@@ -759,8 +759,7 @@ bool SUsdStageTreeView::CanExecutePrimAction() const
 		return false;
 	}
 
-	UE::FUsdStage UsdStage =  UsdStageActor->GetUsdStage();
-
+	UE::FUsdStage UsdStage =  UsdStageActor->GetOrLoadUsdStage();
 	if ( !UsdStage || !UsdStage.IsEditTargetValid() )
 	{
 		return false;

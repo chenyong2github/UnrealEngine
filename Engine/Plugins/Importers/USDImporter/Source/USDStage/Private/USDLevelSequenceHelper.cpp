@@ -1632,7 +1632,7 @@ FUsdLevelSequenceHelper::FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> 
 {
 	if (AUsdStageActor* ValidStageActor = InStageActor.Get())
 	{
-		Init(InStageActor->GetUsdStage());
+		Init( InStageActor->GetOrLoadUsdStage() );
 		BindToUsdStageActor(ValidStageActor);
 	}
 }
