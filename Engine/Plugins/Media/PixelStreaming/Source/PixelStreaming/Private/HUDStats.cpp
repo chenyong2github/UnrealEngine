@@ -17,6 +17,8 @@ namespace
 			FHUDStats& Stats = FHUDStats::Get();
 			Stats.bEnabled = bHudStatsEnabledCVar;
 			Stats.Reset();
+			if (Stats.bEnabled)
+				GAreScreenMessagesEnabled = true;
 		}),
 		ECVF_Cheat
 	);
@@ -47,7 +49,7 @@ void FHUDStats::Tick()
 	GEngine->AddOnScreenDebugMessage(4, 0, FColor::Green, *FString::Printf(TEXT("QP: %.0f"), EncoderQP.Get()), false /* newer on top */);
 
 	GEngine->AddOnScreenDebugMessage(5, 0, FColor::Green, *FString::Printf(TEXT("FPS: encoder %.0f, max %.0f"), EncoderFPS.Get(), GEngine->GetMaxFPS()), false /* newer on top */);
-
+	
 	GEngine->AddOnScreenDebugMessage(6, 0, FColor::Green, *FString::Printf(TEXT("B/W: %0.3f Mbps"), BandwidthMbps), false);
 }
 

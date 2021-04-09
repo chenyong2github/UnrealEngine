@@ -2,10 +2,35 @@
 
 #pragma once
 
-#include "WebRtcIncludes.h"
-#include "Codecs/WmfIncludes.h"
+
+#include "HAL/Thread.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/ThreadSafeBool.h"
+#include "HAL/ThreadSafeCounter.h"
+#include "HAL/PlatformFilemanager.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/CriticalSection.h"
+
+
+// HACK (M84FIX): to be added back later
+// #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+// #include "WmfIncludes.h"
+// #endif
+
+// HACK (M84FIX): this warning suppression should happen inside WebRTCInclude.h and seemingly it does, but for the life of me I cannot make it suppress from inside that header.
+THIRD_PARTY_INCLUDES_START
+// C4596 'name': illegal qualified name in member declaration in abseil-cpp
+#pragma warning(push)
+#pragma warning(disable: 4596 4583)
+#include "WebRTCIncludes.h"
+#pragma warning(pop)
+THIRD_PARTY_INCLUDES_END
+
+
+#include "WebRTCLogging.h"
 #include "Utils.h"
-#include "WebRtcLogging.h"
 
 // Engine
 
@@ -43,16 +68,6 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 
-#include "HAL/Thread.h"
-#include "HAL/Platform.h"
-#include "HAL/PlatformProcess.h"
-#include "HAL/PlatformTime.h"
-#include "HAL/ThreadSafeBool.h"
-#include "HAL/ThreadSafeCounter.h"
-#include "HAL/PlatformFileManager.h"
-#include "HAL/IConsoleManager.h"
-#include "HAL/CriticalSection.h"
-
 #include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
 #include "Containers/Queue.h"
@@ -70,7 +85,13 @@
 #include "Sockets.h"
 #include "Engine/Engine.h"
 #include "Framework/Application/SlateUser.h"
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsPlatformMisc.h"
+#elif PLATFORM_LINUX
+#include "Linux/LinuxPlatformMisc.h"
+#endif
+
 #include "Internationalization/Internationalization.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Stats/Stats.h"

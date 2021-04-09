@@ -2,7 +2,13 @@
 
 #include "Player.h"
 #include "StreamerConnection.h"
-#include "Codecs/VideoDecoder.h"
+
+// TODO (M84FIX): Implement new Decoder 
+// HACK decoder only works under WINDOWS currently
+//#if PLATFORM_WINDOWS
+//	#include "Codecs/VideoDecoder.h"
+//#endif
+
 #include "HUDStats.h"
 
 #include "IMediaEventSink.h"
@@ -84,6 +90,12 @@ void FPlayer::Close()
 	DeferredEvents.Enqueue(EMediaEvent::MediaClosed);
 }
 
+FGuid FPlayer::GetPlayerPluginGUID() const
+{
+	static FGuid PlayerPluginGUID(0xe5d58cf8, 0xfa474530, 0x84b00d8d, 0x0f4d7160);
+	return PlayerPluginGUID;
+}
+
 void FPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 {
 	//if (State == EMediaState::Closed)
@@ -101,20 +113,28 @@ void FPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 	}
 }
 
-bool FPlayer::CreateDXManagerAndDevice()
+bool FPlayer::CreateManagerAndDevice()
 {
-	return FVideoDecoder::CreateDXManagerAndDevice();
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	// TODO (M84FIX) - Implement new Decoder 
+	return false;
+	//return FVideoDecoder::CreateDXManagerAndDevice();
+#elif PLATFORM_LINUX
+	// TODO
+	return false;
+#endif
 }
 
-bool FPlayer::DestroyDXManagerAndDevice()
+bool FPlayer::DestroyManagerAndDevice()
 {
-	return FVideoDecoder::DestroyDXManagerAndDevice();
-}
-
-FGuid FPlayer::GetPlayerPluginGUID() const
-{
-	static FGuid PlayerPluginGUID(0xe5d58cf8, 0xfa474530, 0x84b00d8d, 0x0f4d7160);
-	return PlayerPluginGUID;
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+	// TODO (M84FIX) - Implement new Decoder 
+	return false;
+	//return FVideoDecoder::DestroyDXManagerAndDevice();
+#elif PLATFORM_LINUX
+	// TODO
+	return false;
+#endif
 }
 
 IMediaSamples& FPlayer::GetSamples()

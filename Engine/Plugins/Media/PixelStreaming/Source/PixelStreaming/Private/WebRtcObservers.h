@@ -41,10 +41,10 @@ public:
 	}
 
 	// errors usually mean incompatibility between our session configuration (often H.264, its profile and level) and
-	// player, malformed SDP or if player doesn't support PlanB/UnifiedPlan (whatever was used by proxy)
-	void OnFailure(const std::string& Error) override
+	// player, malformed SDP or if player doesn't support UnifiedPlan (whatever was used by proxy)
+	void OnFailure(webrtc::RTCError Error) override
 	{
-		FailureCallback(ToString(Error));
+		FailureCallback(FString(UTF8_TO_TCHAR(Error.message())));
 	}
 
 private:

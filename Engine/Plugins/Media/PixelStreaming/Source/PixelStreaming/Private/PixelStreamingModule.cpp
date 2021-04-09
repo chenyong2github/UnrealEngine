@@ -16,7 +16,13 @@
 #include "UObject/UObjectIterator.h"
 #include "Engine/Texture2D.h"
 #include "Slate/SceneViewport.h"
+
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 #include "Windows/WindowsHWrapper.h"
+#elif PLATFORM_LINUX
+#include "CudaModule.h"
+#endif
+
 #include "RenderingThread.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
@@ -48,6 +54,7 @@ namespace
 		ECVF_Default
 	);
 
+	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// required for WMF video decoding
 	// some Windows versions don't have Media Foundation preinstalled. We configure MF DLLs as delay-loaded and load them manually here
 	// checking the result and avoiding error message box if failed
@@ -69,6 +76,7 @@ namespace
 				&& FPlatformProcess::GetDllHandle(TEXT("msmpeg2adec.dll"));
 		}
 	}
+	#endif
 }
 
 void FPixelStreamingModule::InitStreamer()
@@ -107,6 +115,7 @@ void FPixelStreamingModule::InitStreamer()
 	}
 
 	// subscribe to engine delegates here for init / framebuffer creation / whatever
+	// TODO check if there is a better callback to attach so that we can use with editor
 	if (FSlateApplication::IsInitialized())
 	{
 		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FPixelStreamingModule::OnBackBufferReady_RenderThread);
@@ -135,6 +144,7 @@ void FPixelStreamingModule::InitPlayer()
 {
 	check(!bPlayerInitialized);
 
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	// Win7+ only
 	if (!IsWindows7Plus())
 	{
@@ -148,11 +158,16 @@ void FPixelStreamingModule::InitPlayer()
 		return;
 	}
 
-	HRESULT Res = MFStartup(MF_VERSION);
-	checkf(SUCCEEDED(Res), TEXT("MFStartup failed: %d"), Res);
+	//Doesn't compile anymore?
+	//HRESULT Res = MFStartup(MF_VERSION);
+	//checkf(SUCCEEDED(Res), TEXT("MFStartup failed: %d"), Res);
+#elif PLATFORM_LINUX
+	// Linux pre-setup code here, none currently needed
+#endif
+
 	if (GIsClient)
 	{
-		bool bRes = FPlayer::CreateDXManagerAndDevice();
+		bool bRes = FPlayer::CreateManagerAndDevice();
 		if (!bRes)
 		{
 			UE_LOG(PixelPlayer, Warning, TEXT("Failed to create DXGI Manager and Device"));
@@ -166,33 +181,30 @@ void FPixelStreamingModule::InitPlayer()
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
-	FString DynamicRHIName = TEXT("[null]");
-	bool bIsD3D11 = false;
-	bool bIsD3D12 = false;
-	if (GDynamicRHI != nullptr)
-	{
-		DynamicRHIName = GDynamicRHI->GetName();
-		bIsD3D11 = GDynamicRHI->GetName() == FString(TEXT("D3D11"));
-		bIsD3D12 = GDynamicRHI->GetName() == FString(TEXT("D3D12"));
-	}
-	
 	// only D3D11/D3D12 is supported
-	if (!bIsD3D11 && !bIsD3D12)
+	if (GDynamicRHI == nullptr ||
+		!( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
+		   GDynamicRHI->GetName() == FString(TEXT("D3D12"))	||
+		   GDynamicRHI->GetName() == FString(TEXT("Vulkan"))))
 	{
-		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11/D3D12 Dynamic RHI is supported. Detected %s"), *DynamicRHIName);
+		UE_LOG(PixelStreaming, Warning, TEXT("Only D3D11/D3D12/Vulkan Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
 		return;
 	}
+	else if( GDynamicRHI->GetName() == FString(TEXT("D3D11")) || 
+		   	 GDynamicRHI->GetName() == FString(TEXT("D3D12")))
+	{
+		// By calling InitStreamer and InitPlayer post engine init we can use pixel streaming in standalone editor mode
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
+		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FPixelStreamingModule::InitPlayer);
+	}
+	else if (GDynamicRHI->GetName() == FString(TEXT("Vulkan")))
+	{
+#if PLATFORM_LINUX
+		FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitStreamer);
+		FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").OnPostCUDAInit.AddRaw(this, &FPixelStreamingModule::InitPlayer);
+#endif
+	}
 
-	InitStreamer();
-	if (bIsD3D11)
-	{
-		// The player is currently only supported on DX11.
-		InitPlayer();
-	}
-	else
-	{
-		UE_LOG(PixelStreaming, Log, TEXT("Player is supported only on DX11"));
-	}
 }
 
 void FPixelStreamingModule::ShutdownModule()
@@ -205,13 +217,14 @@ void FPixelStreamingModule::ShutdownModule()
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 
-	FPlayer::DestroyDXManagerAndDevice();
+	FPlayer::DestroyManagerAndDevice();
 }
 
 bool FPixelStreamingModule::CheckPlatformCompatibility() const
 {
 	bool bCompatible = true;
 
+	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	bool bWin8OrHigher = FPlatformMisc::VerifyWindowsVersion(6, 2);
 	if (!bWin8OrHigher)
 	{
@@ -222,7 +235,9 @@ bool FPixelStreamingModule::CheckPlatformCompatibility() const
 		UE_LOG(PixelStreamer, Error, TEXT("%s"), *ErrorString);
 		bCompatible = false;
 	}
-	else if (!FStreamer::CheckPlatformCompatibility())
+	#endif
+	
+	if (!FStreamer::CheckPlatformCompatibility())
 	{
 		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
 		FString ErrorString = TEXT("No compatible GPU found, or failed to load their respective encoder libraries");

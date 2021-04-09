@@ -25,6 +25,9 @@ DEFINE_LOG_CATEGORY(LogAudioCapturer);
 		};                       \
 	}
 
+const int FAudioCapturer::SampleRate;
+const int FAudioCapturer::NumChannels;
+
 void FAudioCapturer::OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 InNumChannels, const int32 InSampleRate, double AudioClock)
 {
 	if (!(bInitialized && bRecordingInitialized))
@@ -105,7 +108,9 @@ int32 FAudioCapturer::Init()
 
 	{
 		FScopeLock Lock(&DeviceBufferCS);
-		DeviceBuffer = MakeUnique<webrtc::AudioDeviceBuffer>();
+
+		m_taskQueueFactory = webrtc::CreateDefaultTaskQueueFactory();
+		DeviceBuffer = MakeUnique<webrtc::AudioDeviceBuffer>( m_taskQueueFactory.get() );
 	}
 
 	// subscribe to audio data
@@ -115,16 +120,14 @@ int32 FAudioCapturer::Init()
 	}
 
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-	if (AudioDevice)
-	{
-		AudioDevice->RegisterSubmixBufferListener(this);
-	}
-	else
+	if (!AudioDevice)
 	{
 		UE_LOG(LogAudioCapturer, Warning, TEXT("No audio device"));
+		return -1;
 	}
 
 	bInitialized = true;
+	AudioDevice->RegisterSubmixBufferListener(this);
 
 	UE_LOG(LogAudioCapturer, Verbose, TEXT("Init"));
 
@@ -143,11 +146,12 @@ int32 FAudioCapturer::Terminate()
 	}
 
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-	if (AudioDevice)
+	if (!AudioDevice)
 	{
-		AudioDevice->UnregisterSubmixBufferListener(this);
+		return -1;
 	}
 
+	AudioDevice->UnregisterSubmixBufferListener(this);
 	bInitialized = false;
 
 	{

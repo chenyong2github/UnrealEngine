@@ -4,10 +4,14 @@
 #include "Streamer.h"
 #include "InputDevice.h"
 #include "IPixelStreamingModule.h"
-#include "Codecs/VideoEncoder.h"
+#include "VideoEncoder.h"
+#include "VideoEncoderFactory.h"
 #include "WebRtcObservers.h"
 
 #include "Modules/ModuleManager.h"
+
+#include "PixelStreamingEncoderFactory.h"
+#include "PixelStreamingVideoEncoder.h"
 
 FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId, bool bInOriginalQualityController)
     : Streamer(InStreamer)
@@ -15,12 +19,12 @@ FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId, bool
 	, bOriginalQualityController(bInOriginalQualityController)
 	, InputDevice(FModuleManager::Get().GetModuleChecked<IPixelStreamingModule>("PixelStreaming").GetInputDevice())
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%u, quality controller: %d"), TEXT(__FUNCTION__), PlayerId, bOriginalQualityController);
+	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%u, quality controller: %d"), TEXT("FPlayerSession::FPlayerSession"), PlayerId, bOriginalQualityController);
 }
 
 FPlayerSession::~FPlayerSession()
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%u"), TEXT("FPlayerSession::~FPlayerSession"), PlayerId);
 	if (DataChannel)
 		DataChannel->UnregisterObserver();
 }
@@ -62,6 +66,7 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 		// So before adding a new sink to the capturer (`PeerConnection->SetLocalDescription()`) we push
 		// this `FPlayerSession` into encoder factory queue and pop it out of the queue when encoder instance
 		// is created. Unfortunately I (Andriy) don't see a way to put `check`s to verify it works correctly.
+		
 		Streamer.VideoEncoderFactory->AddSession(*this);
 
 		PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
@@ -120,67 +125,67 @@ void FPlayerSession::DisconnectPlayer(const FString& Reason)
 
 void FPlayerSession::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState NewState)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT(__FUNCTION__), PlayerId, ToString(NewState));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT("FPlayerSession::OnSignalingChange"), PlayerId, ToString(NewState));
 }
 
 // Called when a remote stream is added
 void FPlayerSession::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Stream=%s"), TEXT(__FUNCTION__), PlayerId, *ToString(Stream->id()));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Stream=%s"), TEXT("FPlayerSession::OnAddStream"), PlayerId, *ToString(Stream->id()));
 }
 
 void FPlayerSession::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Stream=%s"), TEXT(__FUNCTION__), PlayerId, *ToString(Stream->id()));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Stream=%s"), TEXT("FPlayerSession::OnRemoveStream"), PlayerId, *ToString(Stream->id()));
 }
 
 void FPlayerSession::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnDataChannel"), PlayerId);
 	DataChannel = InDataChannel;
 	DataChannel->RegisterObserver(this);
 }
 
 void FPlayerSession::OnRenegotiationNeeded()
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnRenegotiationNeeded"), PlayerId);
 }
 
 void FPlayerSession::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState NewState)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT(__FUNCTION__), PlayerId, ToString(NewState));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT("FPlayerSession::OnIceConnectionChange"), PlayerId, ToString(NewState));
 }
 
 void FPlayerSession::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState NewState)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT(__FUNCTION__), PlayerId, ToString(NewState));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, NewState=%s"), TEXT("FPlayerSession::OnIceGatheringChange"), PlayerId, ToString(NewState));
 }
 
 void FPlayerSession::OnIceCandidate(const webrtc::IceCandidateInterface* Candidate)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnIceCandidate"), PlayerId);
 
 	Streamer.SignallingServerConnection->SendIceCandidate(PlayerId, *Candidate);
 }
 
 void FPlayerSession::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnIceCandidatesRemoved"), PlayerId);
 }
 
 void FPlayerSession::OnIceConnectionReceivingChange(bool Receiving)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Receiving=%d"), TEXT(__FUNCTION__), PlayerId, *reinterpret_cast<int8*>(&Receiving));
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u, Receiving=%d"), TEXT("FPlayerSession::OnIceConnectionReceivingChange"), PlayerId, *reinterpret_cast<int8*>(&Receiving));
 }
 
 void FPlayerSession::OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnTrack"), PlayerId);
 }
 
 void FPlayerSession::OnRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver)
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT(__FUNCTION__), PlayerId);
+	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnRemoveTrack"), PlayerId);
 }
 
 //
@@ -260,7 +265,7 @@ void FPlayerSession::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 		return;
 	}
 
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("player %d: %s"), PlayerId, TEXT(__FUNCTION__));
+	UE_LOG(PixelStreamer, VeryVerbose, TEXT("player %d: %s"), PlayerId, TEXT("FPlayerSession::SendFreezeFrame"));
 
 	// just a sanity check. WebRTC buffer size is 16MB, which translates to 3840Mbps for 30fps video. It's not expected
 	// that freeze frame size will come close to this limit and it's not expected we'll send freeze frames too often.
@@ -290,19 +295,19 @@ void FPlayerSession::SendUnfreezeFrame()
 		return;
 	}
 
-	UE_LOG(PixelStreamer, VeryVerbose, TEXT("player %d: %s"), PlayerId, TEXT(__FUNCTION__));
+	UE_LOG(PixelStreamer, VeryVerbose, TEXT("player %d: %s"), PlayerId, TEXT("FPlayerSession::SendUnfreezeFrame"));
 
 	rtc::CopyOnWriteBuffer Buffer(2);
 	Buffer[0] = static_cast<uint8_t>(PixelStreamingProtocol::EToPlayerMsg::UnfreezeFrame);
 	DataChannel->Send(webrtc::DataBuffer(Buffer, true));
 }
 
-void FPlayerSession::OnBufferedAmountChange(uint64 PreviousAmount)
+void FPlayerSession::OnBufferedAmountChange(uint64_t PreviousAmount)
 {
 	UE_LOG(PixelStreamer, VeryVerbose, TEXT("player %d: OnBufferedAmountChanged: prev %d, cur %d"), PlayerId, PreviousAmount, DataChannel->buffered_amount());
 }
 
-void FPlayerSession::SetVideoEncoder(FVideoEncoder* InVideoEncoder)
+void FPlayerSession::SetVideoEncoder(FPixelStreamingVideoEncoder* InVideoEncoder)
 {
 	VideoEncoder = InVideoEncoder;
 }
