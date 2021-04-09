@@ -999,7 +999,7 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 				PinA->PinType.PinCategory == PinCategoryMisc && PinA->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
 				(
 					PinB->PinType.PinCategory == PinCategoryType &&
-					NodeA ?
+					NodeA && PinToTypeDefinition(PinB) == FNiagaraTypeDefinition::GetGenericNumericDef() ?
 					NodeA->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinB)) : PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetGenericNumericDef()
 				)
 				&& PinToTypeDefinition(PinB) != FNiagaraTypeDefinition::GetParameterMapDef();
@@ -1008,7 +1008,7 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 				PinB->PinType.PinCategory == PinCategoryMisc && PinB->PinType.PinSubCategory == UNiagaraNodeWithDynamicPins::AddPinSubCategory &&
 				(
                     PinA->PinType.PinCategory == PinCategoryType &&
-                    NodeB ?
+                    NodeB && PinToTypeDefinition(PinA) == FNiagaraTypeDefinition::GetGenericNumericDef() ?
                     NodeB->AllowNiagaraTypeForAddPin(PinToTypeDefinition(PinA)) : PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetGenericNumericDef()
                 )
 				&& PinToTypeDefinition(PinA) != FNiagaraTypeDefinition::GetParameterMapDef();
