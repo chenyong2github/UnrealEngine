@@ -406,6 +406,9 @@ private:
 #endif
 	TArray<TFuture<bool>> OutputFutures;
 	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> CachedSequenceHierarchyRoot;
+
+public:
+	static FString DefaultDebugWidgetAsset;
 };
 
 UCLASS()

@@ -14,9 +14,11 @@
 #include "ImagePixelData.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+FString UMoviePipelineBurnInSetting::DefaultBurnInWidgetAsset = TEXT("/MovieRenderPipeline/Blueprints/DefaultBurnIn.DefaultBurnIn_C");
+
 void UMoviePipelineBurnInSetting::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
-	if (BurnInClass.IsValid())
+	if (BurnInClass.IsValid() && WidgetRenderer != nullptr)
 	{
 		ExpectedRenderPasses.Add(FMoviePipelinePassIdentifier(TEXT("BurnInOverlay")));
 	}
@@ -94,11 +96,12 @@ void UMoviePipelineBurnInSetting::SetupImpl(const MoviePipeline::FMoviePipelineR
 	}
 
 	UClass* BurnIn = BurnInClass.TryLoadClass<UMoviePipelineBurnInWidget>();
-	ensureAlwaysMsgf(BurnIn, TEXT("Failed to load burnin class: '%s'."), *BurnInClass.GetAssetPathString());
+	if (!ensureAlwaysMsgf(BurnIn, TEXT("Failed to load burnin class: '%s'."), *BurnInClass.GetAssetPathString()))
+	{
+		return;
+	}
 
 	BurnInWidgetInstance = CreateWidget<UMoviePipelineBurnInWidget>(GetWorld(), BurnIn);
-	
-	
 
 	VirtualWindow = SNew(SVirtualWindow).Size(FVector2D(OutputResolution.X, OutputResolution.Y));
 	VirtualWindow->SetContent(BurnInWidgetInstance->TakeWidget());

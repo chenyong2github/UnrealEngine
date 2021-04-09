@@ -205,6 +205,7 @@ namespace MoviePipeline
 					Node->OriginalMovieScenePlaybackRange = Node->MovieScene->GetPlaybackRange();
 #if WITH_EDITOR
 					Node->bOriginalMovieSceneReadOnly = Node->MovieScene->IsReadOnly();
+					Node->bOriginalMovieScenePlaybackRangeLocked = Node->MovieScene->IsPlaybackRangeLocked();
 #endif
 					if (UPackage* OwningPackage = Node->MovieScene->GetTypedOuter<UPackage>())
 					{
@@ -212,7 +213,6 @@ namespace MoviePipeline
 					}
 
 					Node->EvaluationType = Node->MovieScene->GetEvaluationType();
-					Node->bOriginalMovieScenePlaybackRangeLocked = Node->MovieScene->IsPlaybackRangeLocked();
 				}
 			}
 
@@ -257,10 +257,10 @@ namespace MoviePipeline
 					Node->MovieScene->SetPlaybackRange(Node->OriginalMovieScenePlaybackRange);
 #if WITH_EDITOR
 					Node->MovieScene->SetReadOnly(Node->bOriginalMovieSceneReadOnly);
-#endif
-					Node->MovieScene->MarkAsChanged();
-					Node->MovieScene->SetEvaluationType(Node->EvaluationType);
 					Node->MovieScene->SetPlaybackRangeLocked(Node->bOriginalMovieScenePlaybackRangeLocked);
+#endif
+					Node->MovieScene->SetEvaluationType(Node->EvaluationType);
+					Node->MovieScene->MarkAsChanged();
 
 					if (UPackage* OwningPackage = Node->MovieScene->GetTypedOuter<UPackage>())
 					{
@@ -280,8 +280,10 @@ namespace MoviePipeline
 		{
 			if (Node->MovieScene.IsValid())
 			{
+#if WITH_EDITOR
 				Node->MovieScene->SetReadOnly(false);
 				Node->MovieScene->SetPlaybackRangeLocked(false);
+#endif
 				Node->MovieScene->SetEvaluationType(EMovieSceneEvaluationType::WithSubFrames);
 			}
 

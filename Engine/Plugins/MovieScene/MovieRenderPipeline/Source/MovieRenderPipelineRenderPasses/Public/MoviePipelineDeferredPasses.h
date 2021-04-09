@@ -128,6 +128,11 @@ protected:
 
 	// Cache the custom stencil value. Only has meaning if they have stencil layers.
 	TOptional<int32> PreviousCustomDepthValue;
+
+public:
+	static FString StencilLayerMaterialAsset;
+	static FString DefaultDepthAsset;
+	static FString DefaultMotionVectorsAsset;
 };
 
 

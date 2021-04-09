@@ -58,6 +58,7 @@ static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
 	TEXT("1+: Run this many loops of the movie rendering pipeline before pausing again.\n"),
 	ECVF_Default);
 
+FString UMoviePipeline::DefaultDebugWidgetAsset = TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C");
 
 UMoviePipeline::UMoviePipeline()
 	: CustomTimeStep(nullptr)
@@ -189,10 +190,11 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 			FFrameNumber EndFrameTickResolution = FFrameRate::TransformTime(FFrameTime(FFrameNumber(OutputSetting->CustomEndFrame)), TargetSequence->GetMovieScene()->GetDisplayRate(), TargetSequence->GetMovieScene()->GetTickResolution()).CeilToFrame();
 
 			TRange<FFrameNumber> CustomPlaybackRange = TRange<FFrameNumber>(StartFrameTickResolution, EndFrameTickResolution);
-			
+#if WITH_EDITOR
 			TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
 			TargetSequence->GetMovieScene()->SetReadOnly(false);
 			TargetSequence->GetMovieScene()->SetPlaybackRange(CustomPlaybackRange);
+#endif
 		}
 	}
 	
@@ -1150,7 +1152,7 @@ void UMoviePipeline::LoadDebugWidget()
 	TSubclassOf<UMovieRenderDebugWidget> DebugWidgetClassToUse = DebugWidgetClass;
 	if (DebugWidgetClassToUse.Get() == nullptr)
 	{
-		DebugWidgetClassToUse = LoadClass<UMovieRenderDebugWidget>(nullptr, TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C"), nullptr, LOAD_None, nullptr);
+		DebugWidgetClassToUse = LoadClass<UMovieRenderDebugWidget>(nullptr, *DefaultDebugWidgetAsset, nullptr, LOAD_None, nullptr);
 	}
 
 	if (DebugWidgetClassToUse.Get() != nullptr)
