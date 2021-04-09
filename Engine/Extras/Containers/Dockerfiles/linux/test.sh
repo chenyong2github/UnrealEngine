@@ -44,4 +44,4 @@ set -ex
 
 # Run tests using both the regular and slim variants of the development container image
 runTests "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}" 'dist-dev'
-runTests "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}-slim" 'dist-slim'
+runTests "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" 'dist-slim'
