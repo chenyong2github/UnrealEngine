@@ -1490,6 +1490,9 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		}
 	}
 
+#if PLATFORM_HOLOLENS
+	bIsStandaloneStereoOnlyDevice = true;
+#else
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		if (Module->IsStandaloneStereoOnlyDevice())
@@ -1497,6 +1500,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 			bIsStandaloneStereoOnlyDevice = true;
 		}
 	}
+#endif
 
 	// Add a device space for the HMD without an action handle and ensure it has the correct index
 	ensure(DeviceSpaces.Emplace(XR_NULL_HANDLE) == HMDDeviceId);

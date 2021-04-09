@@ -127,6 +127,7 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 	, SwapChain(nullptr)
 	, WindowHandle(InWindowHandle)
 	, PresentCount(0)
+	, bRenderOffscreen(false)
 	, LockToVsync(1)
 	, AcquiredSemaphore(nullptr)
 {
@@ -137,6 +138,7 @@ FVulkanViewport::FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevi
 	// Make sure Instance is created
 	RHI->InitInstance();
 
+	bRenderOffscreen = FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
 	CreateSwapchain(nullptr);
 
 	if (SupportsStandardSwapchain())
@@ -974,7 +976,7 @@ VkFormat FVulkanViewport::GetSwapchainImageFormat() const
 
 bool FVulkanViewport::SupportsStandardSwapchain()
 {
-	return !RHI->bIsStandaloneStereoDevice;
+	return !bRenderOffscreen && !RHI->bIsStandaloneStereoDevice;
 }
 
 bool FVulkanViewport::RequiresRenderingBackBuffer()
@@ -984,7 +986,7 @@ bool FVulkanViewport::RequiresRenderingBackBuffer()
 
 EPixelFormat FVulkanViewport::GetPixelFormatForNonDefaultSwapchain()
 {
-	if (RHI->bIsStandaloneStereoDevice)
+	if (bRenderOffscreen || RHI->bIsStandaloneStereoDevice)
 	{
 		return PF_R8G8B8A8;
 	}

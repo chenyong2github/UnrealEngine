@@ -127,6 +127,7 @@ protected:
 	FVulkanSwapChain* SwapChain;
 	void* WindowHandle;
 	uint32 PresentCount;
+	bool bRenderOffscreen;
 
 	int8 LockToVsync;
 
