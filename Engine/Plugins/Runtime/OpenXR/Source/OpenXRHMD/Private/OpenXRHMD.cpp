@@ -135,6 +135,7 @@ public:
 	}
 
 	virtual bool IsHMDConnected() override { return true; }
+	virtual bool IsStandaloneStereoOnlyDevice() override;
 	virtual bool IsExtensionAvailable(const FString& Name) const override { return AvailableExtensions.Contains(Name); }
 	virtual bool IsExtensionEnabled(const FString& Name) const override { return EnabledExtensions.Contains(Name); }
 	virtual bool IsLayerAvailable(const FString& Name) const override { return EnabledLayers.Contains(Name); }
@@ -211,6 +212,21 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHM
 	}
 #endif//XR_USE_GRAPHICS_API_VULKAN
 	return nullptr;
+}
+
+bool FOpenXRHMDPlugin::IsStandaloneStereoOnlyDevice()
+{
+	if (PreInit())
+	{
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			if (Module->IsStandaloneStereoOnlyDevice())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool FOpenXRHMDPlugin::EnumerateExtensions()
@@ -1373,6 +1389,7 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsMobileMultiViewEnabled(false)
 	, bSupportsHandTracking(false)
 	, bNeedsAcquireOnRHI(false)
+	, bIsStandaloneStereoOnlyDevice(false)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, ExtensionPlugins(std::move(InExtensionPlugins))
@@ -1470,6 +1487,14 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		if (!ensure(SelectedEnvironmentBlendMode != XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM))
 		{
 			SelectedEnvironmentBlendMode = BlendModes[0];
+		}
+	}
+
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		if (Module->IsStandaloneStereoOnlyDevice())
+		{
+			bIsStandaloneStereoOnlyDevice = true;
 		}
 	}
 
@@ -1835,7 +1860,7 @@ bool FOpenXRHMD::OnStereoStartup()
 	}
 
 #if !PLATFORM_HOLOLENS
-	if (!bUseExtensionSpectatorScreenController && !FPlatformMisc::IsStandaloneStereoOnlyDevice())
+	if (!bUseExtensionSpectatorScreenController && !bIsStandaloneStereoOnlyDevice)
 	{
 		SpectatorScreenController = MakeUnique<FDefaultSpectatorScreenController>(this);
 		UE_LOG(LogHMD, Verbose, TEXT("OpenXR using base spectator screen."));
@@ -2746,12 +2771,12 @@ void FOpenXRHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHIC
 
 bool FOpenXRHMD::HasHiddenAreaMesh() const
 {
-	return HiddenAreaMeshes.Num() > 0;
+	return false;
 }
 
 bool FOpenXRHMD::HasVisibleAreaMesh() const
 {
-	return VisibleAreaMeshes.Num() > 0;
+	return false;
 }
 
 void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const

@@ -25,7 +25,11 @@ class FOpenXRRenderBridge;
 /**
  * Simple Head Mounted Display
  */
-class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase , public TStereoLayerManager<FOpenXRLayer>
+class FOpenXRHMD
+	: public FHeadMountedDisplayBase
+	, public FXRRenderTargetManager
+	, public FSceneViewExtensionBase
+	, public TStereoLayerManager<FOpenXRLayer>
 {
 public:
 	class FDeviceSpace
@@ -260,7 +264,6 @@ public:
 
 	OPENXRHMD_API FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
 	OPENXRHMD_API FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
-
 	OPENXRHMD_API bool IsExtensionEnabled(const FString& Name) const { return EnabledExtensions.Contains(Name); }
 	OPENXRHMD_API XrInstance GetInstance() { return Instance; }
 	OPENXRHMD_API XrSystemId GetSystem() { return System; }
@@ -271,6 +274,8 @@ public:
 	}
 	OPENXRHMD_API XrTime GetDisplayTime() const;
 	OPENXRHMD_API TArray<IOpenXRExtensionPlugin*>& GetExtensionPlugins() { return ExtensionPlugins; }
+
+	OPENXRHMD_API bool IsStandaloneStereoOnlyDevice() const { return bIsStandaloneStereoOnlyDevice; }
 
 private:
 	bool					bStereoEnabled;
@@ -287,6 +292,7 @@ private:
 	bool					bSupportsHandTracking;
 	bool					bProjectionLayerAlphaEnabled;
 	bool					bNeedsAcquireOnRHI;
+	bool					bIsStandaloneStereoOnlyDevice;
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;

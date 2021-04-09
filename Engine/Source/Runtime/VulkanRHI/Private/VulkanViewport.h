@@ -149,6 +149,9 @@ protected:
 
 	static int32 DoAcquireImageIndex(FVulkanViewport* Viewport);
 	bool DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> SwapChainJob);
+	bool SupportsStandardSwapchain();
+	bool RequiresRenderingBackBuffer();
+	EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
 	friend class FVulkanDynamicRHI;
 	friend class FVulkanCommandListContext;

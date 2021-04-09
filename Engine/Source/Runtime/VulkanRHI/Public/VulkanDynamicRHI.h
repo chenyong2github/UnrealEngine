@@ -473,6 +473,7 @@ public:
 #endif
 
 protected:
+	bool bIsStandaloneStereoDevice = false;
 	bool bSupportsDebugUtilsExt = false;
 #if VULKAN_HAS_DEBUGGING_ENABLED
 #if VULKAN_SUPPORTS_DEBUG_UTILS

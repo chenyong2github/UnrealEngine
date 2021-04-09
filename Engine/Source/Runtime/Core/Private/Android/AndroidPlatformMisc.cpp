@@ -1568,24 +1568,13 @@ bool FAndroidMisc::SupportsTouchInput()
 		}
 	}
 
-	// Stereo-only HMDs don't support touch input
-	if (IsStandaloneStereoOnlyDevice())
+	// Oculus HMDs don't support touch input
+	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 	{
 		return false;
 	}
 
 	return true;
-}
-
-bool FAndroidMisc::IsStandaloneStereoOnlyDevice()
-{
-	// Oculus HMDs are always in stereo mode
-	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
-	{
-		return true;
-	}
-
-	return false;
 }
 
 extern void AndroidThunkCpp_RegisterForRemoteNotifications();

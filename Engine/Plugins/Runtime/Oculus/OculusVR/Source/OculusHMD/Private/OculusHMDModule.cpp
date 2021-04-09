@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
+#include "Android/AndroidPlatformMisc.h"
 #endif
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"
@@ -52,7 +53,7 @@ void FOculusHMDModule::ShutdownModule()
 #endif
 }
 
-#if OCULUS_HMD_SUPPORTED_PLATFORMS && PLATFORM_ANDROID
+#if PLATFORM_ANDROID
 extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
@@ -276,6 +277,16 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe >  FOculusH
 	return VulkanExtensions;
 #endif
 	return nullptr;
+}
+
+
+bool FOculusHMDModule::IsStandaloneStereoOnlyDevice()
+{
+#if PLATFORM_ANDROID
+	return FAndroidMisc::GetDeviceMake() == FString("Oculus");
+#else
+	return false;
+#endif
 }
 
 

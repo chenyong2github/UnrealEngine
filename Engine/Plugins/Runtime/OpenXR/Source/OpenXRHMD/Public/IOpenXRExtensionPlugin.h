@@ -130,6 +130,15 @@ public:
 	}
 
 	/**
+	* Indicates that the device we're currently running does not support a spectator view.
+	* This will only be called once at initialization and should only return a result based for the current device the engine is running on.
+	*/
+	virtual bool IsStandaloneStereoOnlyDevice()
+	{
+		return false;
+	}
+
+	/**
 	* Fill the array with extensions required by the plugin
 	* If false is returned the plugin and its extensions will be ignored
 	*/

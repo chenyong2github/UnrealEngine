@@ -133,8 +133,6 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 	, Instance(InInstance)
 	, LockToVsync(InLockToVsync)
 {
-	check(FVulkanPlatform::SupportsStandardSwapchain());
-
 	NextPresentTargetTime = (FPlatformTime::Seconds() - GStartTime);
 
 	if (RecreateInfo != nullptr && RecreateInfo->SwapChain != VK_NULL_HANDLE)
@@ -573,8 +571,6 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 
 void FVulkanSwapChain::Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo)
 {
-	check(FVulkanPlatform::SupportsStandardSwapchain());
-
 	// We could be responding to an OUT_OF_DATE event and the GPU might not be done with swapchain image, so wait for idle.
 	// Alternatively could also check on the fence(s) for the image(s) from the swapchain but then timing out/waiting could become an issue.
 	Device.WaitUntilIdle();
@@ -630,8 +626,6 @@ void FVulkanSwapChain::Destroy(FVulkanSwapChainRecreateInfo* RecreateInfo)
 
 int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 {
-	check(FVulkanPlatform::SupportsStandardSwapchain());
-
 	check(CurrentImageIndex == -1);
 
 	// Get the index of the next swapchain image we should render to.
@@ -767,8 +761,6 @@ void FVulkanSwapChain::RenderThreadPacing()
 
 FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVulkanQueue* PresentQueue, VulkanRHI::FSemaphore* BackBufferRenderingDoneSemaphore)
 {
-	check(FVulkanPlatform::SupportsStandardSwapchain());
-
 	check(CurrentImageIndex != -1);
 
 	//ensure(GfxQueue == PresentQueue);

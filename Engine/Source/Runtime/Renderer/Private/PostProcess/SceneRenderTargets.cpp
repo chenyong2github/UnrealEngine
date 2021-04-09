@@ -30,6 +30,8 @@
 #include "VT/VirtualTextureFeedback.h"
 #include "VisualizeTexture.h"
 #include "GpuDebugRendering.h"
+#include "IHeadMountedDisplayModule.h"
+
 static TAutoConsoleVariable<int32> CVarRSMResolution(
 	TEXT("r.LPV.RSMResolution"),
 	360,
@@ -1736,7 +1738,8 @@ void FSceneRenderTargets::AllocateAnisotropyTarget(FRHICommandListImmediate& RHI
 
 EPixelFormat FSceneRenderTargets::GetDesiredMobileSceneColorFormat() const
 {
-	const EPixelFormat defaultLowpFormat = FPlatformMisc::IsStandaloneStereoOnlyDevice() ? PF_R8G8B8A8 : PF_B8G8R8A8;
+	const EPixelFormat defaultLowpFormat = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice()
+		? PF_R8G8B8A8 : PF_B8G8R8A8;
 	EPixelFormat DefaultColorFormat = (!IsMobileHDR() || !GSupportsRenderTargetFormat_PF_FloatRGBA) ? defaultLowpFormat : PF_FloatRGBA;
 	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
 	{

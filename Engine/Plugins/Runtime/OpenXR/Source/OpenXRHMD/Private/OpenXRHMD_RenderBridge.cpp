@@ -17,7 +17,7 @@ bool FOpenXRRenderBridge::Present(int32& InOutSyncInterval)
 #if PLATFORM_HOLOLENS
 	bool bNeedsNativePresent = false;
 #else
-	bool bNeedsNativePresent = !FPlatformMisc::IsStandaloneStereoOnlyDevice();
+	bool bNeedsNativePresent = !OpenXRHMD->IsStandaloneStereoOnlyDevice();
 #endif
 
 	return bNeedsNativePresent;

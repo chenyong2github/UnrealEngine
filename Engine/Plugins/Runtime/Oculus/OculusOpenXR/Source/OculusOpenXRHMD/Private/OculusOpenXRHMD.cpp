@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 
 #if PLATFORM_ANDROID
+#include "Android/AndroidPlatformMisc.h"
 #include <openxr_oculus.h>
 #include <dlfcn.h>
 #endif //PLATFORM_ANDROID
@@ -57,6 +58,15 @@ bool FOculusOpenXRHMD::GetCustomLoader(PFN_xrGetInstanceProcAddr* OutGetProcAddr
 #else //PLATFORM_ANDROID
 	return false;
 #endif //PLATFORM_ANDROID
+}
+
+bool FOculusOpenXRHMD::IsStandaloneStereoOnlyDevice()
+{
+#if PLATFORM_ANDROID
+	return FAndroidMisc::GetDeviceMake() == FString("Oculus");
+#else
+	return false;
+#endif
 }
 
 bool FOculusOpenXRHMD::GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions)
