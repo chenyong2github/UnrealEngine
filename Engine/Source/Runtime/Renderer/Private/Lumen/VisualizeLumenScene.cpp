@@ -67,6 +67,20 @@ FAutoConsoleVariableRef CVarVisualizeLumenSceneHiResSurface(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenVisualizeMode = 0;
+FAutoConsoleVariableRef CVarLumenVisualizeMode(
+	TEXT("r.Lumen.Visualize.Mode"),
+	GLumenVisualizeMode,
+	TEXT("Lumen scene visualization mode.\n")
+	TEXT("0 - Final lighting\n")
+	TEXT("1 - Albedo\n")
+	TEXT("2 - Geometry normals\n")
+	TEXT("3 - Normals\n")
+	TEXT("4 - Emissive\n")
+	TEXT("5 - Card weights"),
+	ECVF_RenderThreadSafe
+);
+
 int32 GVisualizeLumenSceneFeedback = 1;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneFeedback(
 	TEXT("r.Lumen.Visualize.Feedback"),
@@ -201,6 +215,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLumenSceneParameters, )
 	SHADER_PARAMETER(int, VisualizeClipmapIndex)
 	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
 	SHADER_PARAMETER(int, VisualizeHiResSurface)
+	SHADER_PARAMETER(int, VisualizeMode)
 END_SHADER_PARAMETER_STRUCT()
 
 class FVisualizeLumenSceneCS : public FGlobalShader
@@ -250,7 +265,9 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
 
 		// Workaround for an internal PC FXC compiler crash when compiling with disabled optimizations
 		if (Parameters.Platform == SP_PCD3D_SM5)
@@ -376,6 +393,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		VisualizeParameters.VisualizeClipmapIndex = FMath::Clamp(GVisualizeLumenSceneClipmapIndex, -1, TracingInputs.NumClipmapLevels - 1);
 		VisualizeParameters.VisualizeVoxelFaceIndex = FMath::Clamp(GVisualizeLumenSceneVoxelFaceIndex, -1, 5);
 		VisualizeParameters.VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
+		VisualizeParameters.VisualizeMode = GLumenVisualizeMode;
 		VisualizeParameters.CardInterpolateInfluenceRadius = GVisualizeLumenSceneCardInterpolateInfluenceRadius;
 
 		float MaxMeshSDFTraceDistance = GVisualizeLumenSceneMaxMeshSDFTraceDistance;

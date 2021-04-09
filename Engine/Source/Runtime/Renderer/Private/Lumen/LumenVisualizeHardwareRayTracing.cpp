@@ -113,7 +113,15 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(int, VisualizeHiResSurface)
+		SHADER_PARAMETER(int, VisualizeMode)
 	END_SHADER_PARAMETER_STRUCT()
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FLumenHardwareRayTracingRGS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("ENABLE_VISUALIZE_MODE"), 1);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "LumenVisualizeHardwareRayTracingRGS", SF_RayGen);
@@ -256,8 +264,10 @@ void VisualizeHardwareRayTracing(
 
 		// Constants!
 		extern int32 GVisualizeLumenSceneHiResSurface;
+		extern int32 GLumenVisualizeMode;
 		PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 		PassParameters->VisualizeHiResSurface = GVisualizeLumenSceneHiResSurface ? 1 : 0;
+		PassParameters->VisualizeMode = GLumenVisualizeMode;
 
 		// Output..
 		PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);

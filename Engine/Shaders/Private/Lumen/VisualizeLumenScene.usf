@@ -131,12 +131,12 @@ void VisualizeQuadsCS(
 
 	float4 FinalColor = 0.0f;
 
-	#define VISUALIZE_MODE 0
-	#if VISUALIZE_MODE == 0
+	#define TRACE_VISUALIZE_MODE 0
+	#if TRACE_VISUALIZE_MODE == 0
 		FinalColor = float4(TraceResult.Lighting + float3(0 * (saturate(TraceResult.NumOverlaps / 20.0f)), 0, 0), 0);
-	#elif VISUALIZE_MODE == 1
+	#elif TRACE_VISUALIZE_MODE == 1
 		FinalColor = float4(frac(TraceResult.OpaqueHitDistance.xxx / 100.0f), 0);
-	#elif VISUALIZE_MODE == 2
+	#elif TRACE_VISUALIZE_MODE == 2
 		FinalColor = float4(TraceResult.Lighting + TraceResult.Debug, 0);
 	#else 
 		FinalColor = float4(TraceResult.NumSteps.xxx / 100.0f, 0);

@@ -389,7 +389,7 @@ const static uint32 MaxRadiosityConeDirections = 32;
 BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentNormalAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageBuffer)
@@ -418,7 +418,7 @@ void SetupTraceFromTexelParameters(
 	TraceFromTexelParameters.IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, .1f, 10.0f);
 
 	// Trace from this frame's cards
-	TraceFromTexelParameters.NormalAtlas         = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
+	TraceFromTexelParameters.CurrentNormalAtlas  = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	TraceFromTexelParameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 
 	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;

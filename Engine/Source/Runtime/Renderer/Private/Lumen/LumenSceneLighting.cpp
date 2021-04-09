@@ -74,7 +74,10 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	check(LumenSceneData.FinalLightingAtlas);
 
 	FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
+	AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
 	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
+	NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
+	EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
 
 	auto RegisterOptionalAtlas = [&GraphBuilder, &View](bool (*UseAtlas)(const FViewInfo&), TRefCountPtr<IPooledRenderTarget> Atlas) {
@@ -179,7 +182,10 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;
 	TracingParameters.IndirectIrradianceAtlas = TracingInputs.IndirectIrradianceAtlas;
+	TracingParameters.AlbedoAtlas = TracingInputs.AlbedoAtlas;
 	TracingParameters.OpacityAtlas = TracingInputs.OpacityAtlas;
+	TracingParameters.NormalAtlas = TracingInputs.NormalAtlas;
+	TracingParameters.EmissiveAtlas = TracingInputs.EmissiveAtlas;
 	TracingParameters.DepthAtlas = TracingInputs.DepthAtlas;
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
 	

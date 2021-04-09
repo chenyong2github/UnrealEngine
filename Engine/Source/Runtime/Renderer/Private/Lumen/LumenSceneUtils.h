@@ -297,7 +297,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EmissiveAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLighting)
 	SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters, LumenVoxelTracingParameters)
@@ -313,7 +316,10 @@ public:
 	FRDGTextureRef FinalLightingAtlas;
 	FRDGTextureRef IrradianceAtlas;
 	FRDGTextureRef IndirectIrradianceAtlas;
+	FRDGTextureRef AlbedoAtlas;
 	FRDGTextureRef OpacityAtlas;
+	FRDGTextureRef NormalAtlas;
+	FRDGTextureRef EmissiveAtlas;
 	FRDGTextureRef DepthAtlas;
 	FRDGTextureRef VoxelLighting;
 	FRDGBufferUAVRef FeedbackBufferAllocatorUAV;
