@@ -22,6 +22,51 @@
 #if WITH_EDITOR
 #include "MoviePipelineDebugSettings.h"
 #endif
+void UMoviePipeline::ProcessOutstandingFutures()
+{
+	// Check if any frames failed to output
+	TArray<int32> CompletedOutputFutures;
+	for (int32 Index = 0; Index < OutputFutures.Num(); ++Index)
+	{
+		const FMoviePipelineOutputFuture& OutputFuture = OutputFutures[Index];
+		if (OutputFuture.Get<0>().IsReady())
+		{
+			CompletedOutputFutures.Add(Index);
+
+			// The future was completed, time to add it to our shot output data.
+			FMoviePipelineShotOutputData* ShotOutputData = nullptr;
+			for (int32 OutputDataIndex = 0; OutputDataIndex < GeneratedShotOutputData.Num(); OutputDataIndex++)
+			{
+				if (OutputFuture.Get<2>() == GeneratedShotOutputData[OutputDataIndex].Shot)
+				{
+					ShotOutputData = &GeneratedShotOutputData[OutputDataIndex];
+				}
+			}
+
+			if (!ShotOutputData)
+			{
+				GeneratedShotOutputData.Add(FMoviePipelineShotOutputData());
+				ShotOutputData = &GeneratedShotOutputData.Last();
+				ShotOutputData->Shot = OutputFuture.Get<2>();
+			}
+
+			// Add the filepath to the renderpass data.
+			ShotOutputData->RenderPassData.FindOrAdd(OutputFuture.Get<3>()).FilePaths.Add(OutputFuture.Get<1>());
+
+			if (!OutputFuture.Get<0>().Get())
+			{
+				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
+				RequestShutdown(true);
+				break;
+			}
+		}
+	}
+
+	for (int32 Index = CompletedOutputFutures.Num() - 1; Index >= 0; --Index)
+	{
+		OutputFutures.RemoveAt(CompletedOutputFutures[Index]);
+	}
+}
 
 void UMoviePipeline::TickProducingFrames()
 {
@@ -32,28 +77,7 @@ void UMoviePipeline::TickProducingFrames()
 	// We should not be calling this once we have completed all the shots.
 	check(CurrentShotIndex >= 0 && CurrentShotIndex < ActiveShotList.Num());
 
-	// Check if any frames failed to output
-	TArray<int32> CompletedOutputFutures;
-	for (int32 Index=0; Index < OutputFutures.Num(); ++Index)
-	{
-		const TFuture<bool>& OutputFuture = OutputFutures[Index];
-		if (OutputFuture.IsReady())
-		{
-			CompletedOutputFutures.Add(Index);
-
-			if (!OutputFuture.Get())
-			{
-				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
-				RequestShutdown(true);
-				break;
-			}
-		}
-	}
-
-	for (int32 Index=CompletedOutputFutures.Num()-1; Index>=0; --Index)
-	{
-		OutputFutures.RemoveAt(CompletedOutputFutures[Index]);
-	}
+	ProcessOutstandingFutures();
 
 	if (bShutdownRequested)
 	{

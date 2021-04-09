@@ -432,9 +432,11 @@ void UMoviePipeline::AddFrameToOutputMetadata(const FString& ClipName, const FSt
 }
 #endif
 
-void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
+void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture, const FString& InFilePath, const FMoviePipelinePassIdentifier InPassIdentifier)
 {
-	OutputFutures.Add(MoveTemp(OutputFuture));
+	OutputFutures.Add(
+		TTuple<TFuture<bool>, FString, UMoviePipelineExecutorShot*, FMoviePipelinePassIdentifier>(MoveTemp(OutputFuture), InFilePath, ActiveShotList[GetCurrentShotIndex()], InPassIdentifier)
+	);
 }
 
 void UMoviePipeline::ProcessOutstandingFinishedFrames()

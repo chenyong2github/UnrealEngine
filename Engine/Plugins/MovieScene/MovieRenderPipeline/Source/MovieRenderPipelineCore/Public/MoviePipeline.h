@@ -31,12 +31,12 @@ class UMoviePipelineExecutorShot;
 class UMoviePipelineSetting;
 class UTexture;
 
-
+typedef TTuple<TFuture<bool>, FString, UMoviePipelineExecutorShot*, FMoviePipelinePassIdentifier> FMoviePipelineOutputFuture;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinishedNative, UMoviePipeline*, bool);
+DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineWorkFinishedNative, FMoviePipelineOutputData);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline, bool, bFatalError);
-
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineErrored, UMoviePipeline* /*Pipeline*/, bool /*bIsFatal*/, FText /*ErrorText*/);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineWorkFinished, FMoviePipelineOutputData, Results);
 
 UCLASS(Blueprintable)
 class MOVIERENDERPIPELINECORE_API UMoviePipeline : public UObject
@@ -86,19 +86,61 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Movie Render Pipeline")
 	bool IsShutdownRequested() const { return bShutdownRequested; }
 
-	/** 
-	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
-	* all files written to disk, and any post-finalize exports have finished. This Pipeline will call
-	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
-	* and are no longer trying to do anything (even if we still exist).
-	*/
+	/** Deprecated. Use OnMoviePipelineWorkFinished() instead. */
+	UE_DEPRECATED(4.27, "Use OnMoviePipelineWorkFinished() instead.")
 	FMoviePipelineFinishedNative& OnMoviePipelineFinished()
 	{
 		return OnMoviePipelineFinishedDelegateNative;
 	}
 
+	/** Deprecated. Use OnMoviePipelineWorkFinishedDelegate instead */
+	UE_DEPRECATED(4.27, "Use OnMoviePipelineWorkFinishedDelegate instead.")
 	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
 	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
+
+	/**
+	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
+	* all files written to disk, and any post-finalize exports have finished. This Pipeline will call
+	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
+	* and are no longer trying to do anything (even if we still exist).
+	*
+	* The params struct in the return will have metadata about files written to disk for each shot.
+	*/
+	FMoviePipelineWorkFinishedNative& OnMoviePipelineWorkFinished()
+	{
+		return OnMoviePipelineWorkFinishedDelegateNative;
+	}
+	
+	/**
+	* Called when we have completely finished this pipeline. This means that all frames have been rendered,
+	* all files written to disk, and any post-finalize exports have finished. This Pipeline will call
+	* Shutdown() on itself before calling this delegate to ensure we've unregistered from all delegates
+	* and are no longer trying to do anything (even if we still exist).
+	*
+	* The params struct in the return will have metadata about files written to disk for each shot.
+	*/
+	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
+	FMoviePipelineWorkFinished OnMoviePipelineWorkFinishedDelegate;
+
+	/**
+	* Only called if `IsFlushDiskWritesPerShot()` is set!
+	* Called after each shot is finished and files have been flushed to disk. The returned data in
+	* the params struct will have only the per-shot metadata for the just finished shot. Use
+	* OnMoviePipelineFinished() if you need all ot the metadata.
+	*/
+	FMoviePipelineWorkFinishedNative& OnMoviePipelineShotWorkFinished()
+	{
+		return OnMoviePipelineShotWorkFinishedDelegateNative;
+	}
+
+	/**
+	* Only called if `IsFlushDiskWritesPerShot()` is set!
+	* Called after each shot is finished and files have been flushed to disk. The returned data in
+	* the params struct will have only the per-shot metadata for the just finished shot. Use
+	* OnMoviePipelineFinished() if you need all ot the metadata.
+	*/
+	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
+	FMoviePipelineWorkFinished OnMoviePipelineShotWorkFinishedDelegate;
 
 	/**
 	* Get the Master Configuration used to render this shot. This contains the global settings for the shot, as well as per-shot
@@ -122,6 +164,7 @@ public:
 
 	UMoviePipelineExecutorJob* GetCurrentJob() const { return CurrentJob; }
 	EMovieRenderPipelineState GetPipelineState() const { return PipelineState; }
+	FMoviePipelineOutputData GetOutputDataParams();
 
 #if WITH_EDITOR
 	const FMovieSceneExportMetadata& GetOutputMetadata() const { return OutputMetadata; }
@@ -132,9 +175,10 @@ public:
 #if WITH_EDITOR
 	void AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha);
 #endif
-	void AddOutputFuture(TFuture<bool>&& OutputFuture);
+	void AddOutputFuture(TFuture<bool>&& OutputFuture, const FString& InFilePath, const FMoviePipelinePassIdentifier InPassIdentifier);
 
 	void ProcessOutstandingFinishedFrames();
+	void ProcessOutstandingFutures();
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
 	const MoviePipeline::FAudioState& GetAudioState() const { return AudioState; }
 	void SetFlushDiskWritesPerShot(const bool bFlushWrites) { bFlushDiskWritesPerShot = bFlushWrites; }
@@ -180,12 +224,7 @@ protected:
 	* This function should be called by the Executor when execution has finished (this should still be called in the event of an error)
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	virtual void OnMoviePipelineFinishedImpl()
-	{
-		// Broadcast to both Native and Python/BP
-		OnMoviePipelineFinishedDelegateNative.Broadcast(this, bFatalError);
-		OnMoviePipelineFinishedDelegate.Broadcast(this, bFatalError);
-	}
+	virtual void OnMoviePipelineFinishedImpl();
 private:
 
 	/** Instantiate our Debug UI Widget and initialize it to ourself. */
@@ -374,8 +413,13 @@ private:
 	/** When using temporal sub-frame stepping common counts (such as 3) don't result in whole ticks. We keep track of how many ticks we lose so we can add them the next time there's a chance. */
 	float AccumulatedTickSubFrameDeltas;
 
-	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
+	/** Deprecated. */
 	FMoviePipelineFinishedNative OnMoviePipelineFinishedDelegateNative;
+	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
+	FMoviePipelineWorkFinishedNative OnMoviePipelineWorkFinishedDelegateNative;
+
+	/** Called when each shot has finished work if IsFlushDiskWritesPerShot() is set. */
+	FMoviePipelineWorkFinishedNative OnMoviePipelineShotWorkFinishedDelegateNative;
 
 	/**
 	 * We have to apply camera motion vectors manually. So we keep the current and previous frame's camera view and rotation.
@@ -404,7 +448,12 @@ private:
 	/** Keep track of clips we've exported, for building FCPXML and other project files */
 	FMovieSceneExportMetadata OutputMetadata;
 #endif
-	TArray<TFuture<bool>> OutputFutures;
+	/** Keeps track of files written for each shot so it can be retrieved later via scripting for post-processing. */
+	TArray<FMoviePipelineShotOutputData> GeneratedShotOutputData;
+
+	/** Files that we've requested be written to disk but have not yet finished writing. */
+	TArray<FMoviePipelineOutputFuture> OutputFutures;
+
 	TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> CachedSequenceHierarchyRoot;
 
 public:

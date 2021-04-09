@@ -111,7 +111,7 @@ void UMoviePipelineInProcessExecutor::OnMapLoadFinished(UWorld* NewWorld)
 	FCoreDelegates::OnBeginFrame.AddUObject(this, &UMoviePipelineInProcessExecutor::OnTick);
 	
 	// Listen for when the pipeline thinks it has finished.
-	ActiveMoviePipeline->OnMoviePipelineFinished().AddUObject(this, &UMoviePipelineInProcessExecutor::OnMoviePipelineFinished);
+	ActiveMoviePipeline->OnMoviePipelineWorkFinished().AddUObject(this, &UMoviePipelineInProcessExecutor::OnMoviePipelineFinished);
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UMoviePipelineInProcessExecutor::OnApplicationQuit);
 
 	// Wait until we actually recieved the right map and created the pipeline before saying that we're actively rendering
@@ -161,7 +161,7 @@ void UMoviePipelineInProcessExecutor::OnApplicationQuit()
 	}
 }
 
-void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline, bool bFatalError)
+void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(FMoviePipelineOutputData InOutputData)
 {
 	FCoreDelegates::OnBeginFrame.RemoveAll(this);
 	UMoviePipeline* MoviePipeline = ActiveMoviePipeline;
@@ -169,7 +169,7 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* In
 	if (ActiveMoviePipeline)
 	{
 		// Unsubscribe in the event that it gets called twice we don't have issues.
-		ActiveMoviePipeline->OnMoviePipelineFinished().RemoveAll(this);
+		ActiveMoviePipeline->OnMoviePipelineWorkFinished().RemoveAll(this);
 	}
 
 	// Null these out now since OnIndividualPipelineFinished might invoke something that causes a GC
@@ -179,7 +179,7 @@ void UMoviePipelineInProcessExecutor::OnMoviePipelineFinished(UMoviePipeline* In
 	RestoreState();
 
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
-	OnIndividualPipelineFinished(MoviePipeline);
+	OnIndividualPipelineFinished(InOutputData.Pipeline);
 }
 
 void UMoviePipelineInProcessExecutor::BackupState()

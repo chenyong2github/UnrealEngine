@@ -35,7 +35,7 @@ protected:
 
 private:
 	void OnMapLoadFinished(UWorld* NewWorld);
-	void OnMoviePipelineFinished(UMoviePipeline* InMoviePipeline, bool bFatalError);
+	void OnMoviePipelineFinished(FMoviePipelineOutputData InOutputData);
 	void OnApplicationQuit();
 	void OnTick();
 

@@ -42,13 +42,16 @@ TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> UMoviePipelineAppleProResOutp
 	return OutWriter;
 }
 
-void UMoviePipelineAppleProResOutput::Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter)
+bool UMoviePipelineAppleProResOutput::Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter)
 {
 	FProResWriter* CodecWriter = static_cast<FProResWriter*>(InWriter);
 	if(!CodecWriter->Writer->Initialize())
 	{
 		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to initialize Apple Pro Res Writer."));
+		return false;
 	}
+
+	return true;
 }
 
 void UMoviePipelineAppleProResOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses)

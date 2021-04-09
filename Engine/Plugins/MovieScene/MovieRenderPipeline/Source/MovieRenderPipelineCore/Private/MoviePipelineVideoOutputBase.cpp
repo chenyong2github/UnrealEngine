@@ -113,12 +113,12 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 		}
 
 
-		MovieRenderPipeline::IVideoCodecWriter* OutputWriter = nullptr;
-		for (const TUniquePtr<MovieRenderPipeline::IVideoCodecWriter>& Writer : AllWriters)
+		FMoviePipelineCodecWriter* OutputWriter = nullptr;
+		for (int32 Index = 0; Index < AllWriters.Num(); Index++)
 		{
-			if (Writer->FileName == FinalFilePath)
+			if (AllWriters[Index].Get<0>()->FileName == FinalFilePath)
 			{
-				OutputWriter = Writer.Get();
+				OutputWriter = &AllWriters[Index];
 				break;
 			}
 		}
@@ -132,11 +132,19 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 			if (NewWriter)
 			{
-				AllWriters.Add(MoveTemp(NewWriter));
-				OutputWriter = AllWriters.Last().Get();
-				OutputWriter->FormatArgs = FinalFormatArgs;
+				TPromise<bool> Completed;
+				GetPipeline()->AddOutputFuture(Completed.GetFuture(), FinalFilePath, RenderPassData.Key);
 
-				Initialize_EncodeThread(OutputWriter);
+				AllWriters.Add(FMoviePipelineCodecWriter(MoveTemp(NewWriter), MoveTemp(Completed)));
+				OutputWriter = &AllWriters.Last();
+				OutputWriter->Get<0>().Get()->FormatArgs = FinalFormatArgs;
+
+				// If it fails to initialize, immediately mark the promise as failed so the render queue stops.
+				bool bResults = Initialize_EncodeThread(OutputWriter->Get<0>().Get());
+				if (!bResults)
+				{
+					OutputWriter->Get<1>().SetValue(false);
+				}
 			}
 		}
 
@@ -151,19 +159,19 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 		// Making sure that if OCIO is enabled the Quantization won't do additional color conversion.
 		UMoviePipelineColorSetting* ColorSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
-		OutputWriter->bConvertToSrgb = !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled);
+		OutputWriter->Get<0>()->bConvertToSrgb = !(ColorSetting && ColorSetting->OCIOConfiguration.bIsEnabled);
 
 		//FGraphEventRef Event = Task.Execute([this, OutputWriter, RawRenderPassData]
 		//	{
 			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
 			{
 				// Enqueue a encode for this frame onto our worker thread.
-				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(CompositedPasses));
+				this->WriteFrame_EncodeThread(OutputWriter->Get<0>().Get(), RawRenderPassData, MoveTemp(CompositedPasses));
 			}
 			else
 			{
 				TArray<MoviePipeline::FCompositePassInfo> Dummy;
-				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(Dummy));
+				this->WriteFrame_EncodeThread(OutputWriter->Get<0>().Get(), RawRenderPassData, MoveTemp(Dummy));
 			}
 		//	});
 		//OutstandingTasks.Add(Event);
@@ -189,9 +197,9 @@ bool UMoviePipelineVideoOutputBase::HasFinishedProcessingImpl()
 
 void UMoviePipelineVideoOutputBase::BeginFinalizeImpl()
 {
-	for (const TUniquePtr<MovieRenderPipeline::IVideoCodecWriter>& Writer : AllWriters)
+	for (const FMoviePipelineCodecWriter& Writer : AllWriters)
 	{
-		MovieRenderPipeline::IVideoCodecWriter* RawWriter = Writer.Get();
+		MovieRenderPipeline::IVideoCodecWriter* RawWriter = Writer.Get<0>().Get();
 		FMoviePipelineBackgroundMediaTasks Task;
 	
 		//OutstandingTasks.Add(Task.Execute([this, RawWriter] {
@@ -203,14 +211,16 @@ void UMoviePipelineVideoOutputBase::BeginFinalizeImpl()
 void UMoviePipelineVideoOutputBase::FinalizeImpl()
 {
 	FGraphEventRef* LastEvent = nullptr;
-	for (const TUniquePtr<MovieRenderPipeline::IVideoCodecWriter>& Writer : AllWriters)
+	for (FMoviePipelineCodecWriter& Writer : AllWriters)
 	{
-		MovieRenderPipeline::IVideoCodecWriter* RawWriter = Writer.Get();
+		MovieRenderPipeline::IVideoCodecWriter* RawWriter = Writer.Get<0>().Get();
 		FMoviePipelineBackgroundMediaTasks Task;
 	
 		//*LastEvent = Task.Execute([this, RawWriter] {
 			this->Finalize_EncodeThread(RawWriter);
 		//	});
+
+			Writer.Get<1>().SetValue(true);
 	}
 	
 	// Stall until all of the events are handled so that they still exist when the Task Graph goes to execute them.
