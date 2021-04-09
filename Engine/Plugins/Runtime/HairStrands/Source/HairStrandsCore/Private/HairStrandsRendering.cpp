@@ -206,7 +206,7 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FGroomCacheUpdatePassCS, "/Engine/Private/HairStrands/HairStrandsInterpolation.usf", "MainCS", SF_Compute);
 
 template<typename DataType>
-void InternalCreateVertexBufferRDG(FRDGBuilder& GraphBuilder, const TArray<DataType>& InData, EPixelFormat Format, FRDGExternalBuffer& Out, const TCHAR* DebugName)
+void InternalCreateStructuredBufferRDG(FRDGBuilder& GraphBuilder, const TArray<DataType>& InData, EPixelFormat Format, FRDGExternalBuffer& Out, const TCHAR* DebugName)
 {
 	FRDGBufferRef Buffer = nullptr;
 
@@ -247,7 +247,7 @@ static void AddGroomCacheUpdatePass(
 	const FIntVector DispatchCount = ComputeDispatchCount(ElementCount, GroupSize);
 
 	FRDGExternalBuffer Buffer;
-	InternalCreateVertexBufferRDG(GraphBuilder, GroomCacheData.VertexData.PointsPosition, EPixelFormat::PF_Unknown, Buffer, TEXT("GroomCache_PositionBuffer"));
+	InternalCreateStructuredBufferRDG(GraphBuilder, GroomCacheData.VertexData.PointsPosition, EPixelFormat::PF_Unknown, Buffer, TEXT("GroomCache_PositionBuffer"));
 
 	FGroomCacheUpdatePassCS::FParameters* Parameters = GraphBuilder.AllocParameters<FGroomCacheUpdatePassCS::FParameters>();
 	Parameters->DispatchCountX = DispatchCount.X;
