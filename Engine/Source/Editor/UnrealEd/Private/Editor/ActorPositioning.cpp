@@ -160,41 +160,39 @@ FActorPositionTraceResult FActorPositioning::TraceWorldForPosition(const UWorld&
 
 FTransform FActorPositioning::GetCurrentViewportPlacementTransform(const AActor& Actor, bool bSnap, const FViewportCursorLocation* InCursor)
 {
-	FVector Collision = Actor.GetPlacementExtent();
-	const UActorFactory* Factory = GEditor->FindActorFactoryForActorClass(Actor.GetClass());
-
-	// Get cursor origin and direction in world space.
-	FViewportCursorLocation CursorLocation = InCursor ? *InCursor : GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
-	const auto CursorPos = CursorLocation.GetCursorPos();
-
 	FTransform ActorTransform = FTransform::Identity;
-
-	if (CursorLocation.GetViewportType() == LVT_Perspective && !GCurrentLevelEditingViewportClient->Viewport->GetHitProxy( CursorPos.X, CursorPos.Y ))
+	if (GCurrentLevelEditingViewportClient)
 	{
-		ActorTransform.SetTranslation(GetActorPositionInFrontOfCamera(Actor, CursorLocation.GetOrigin(), CursorLocation.GetDirection()));
-	}
-	else
-	{
-		const FSnappedPositioningData PositioningData = FSnappedPositioningData(GCurrentLevelEditingViewportClient, GEditor->ClickLocation, GEditor->ClickPlane)
-			.DrawSnapHelpers(true)
-			.UseFactory(Factory)
-			.UsePlacementExtent(Actor.GetPlacementExtent());
+		// Get cursor origin and direction in world space.
+		FViewportCursorLocation CursorLocation = InCursor ? *InCursor : GCurrentLevelEditingViewportClient->GetCursorWorldLocationFromMousePos();
+		const auto CursorPos = CursorLocation.GetCursorPos();
 
-		ActorTransform = bSnap ? GetSnappedSurfaceAlignedTransform(PositioningData) : GetSurfaceAlignedTransform(PositioningData);
-
-		if (GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled)
+		if (CursorLocation.GetViewportType() == LVT_Perspective && !GCurrentLevelEditingViewportClient->Viewport->GetHitProxy(CursorPos.X, CursorPos.Y))
 		{
-			// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor's rotation and translation so that the resulting transform after SpawnActor is correct.
-
-			if (auto* RootComponent = Actor.GetRootComponent())
-			{
-				RootComponent->UpdateComponentToWorld();
-			}
-
-			FVector OrigActorScale3D = ActorTransform.GetScale3D();
-			ActorTransform = Actor.GetTransform().Inverse() * ActorTransform;
-			ActorTransform.SetScale3D(OrigActorScale3D);
+			ActorTransform.SetTranslation(GetActorPositionInFrontOfCamera(Actor, CursorLocation.GetOrigin(), CursorLocation.GetDirection()));
+			return ActorTransform;
 		}
+	}
+
+	const FSnappedPositioningData PositioningData = FSnappedPositioningData(nullptr, GEditor->ClickLocation, GEditor->ClickPlane)
+		.DrawSnapHelpers(true)
+		.UseFactory(GEditor->FindActorFactoryForActorClass(Actor.GetClass()))
+		.UsePlacementExtent(Actor.GetPlacementExtent());
+
+	ActorTransform = bSnap ? GetSnappedSurfaceAlignedTransform(PositioningData) : GetSurfaceAlignedTransform(PositioningData);
+
+	if (GetDefault<ULevelEditorViewportSettings>()->SnapToSurface.bEnabled)
+	{
+		// HACK: If we are aligning rotation to surfaces, we have to factor in the inverse of the actor's rotation and translation so that the resulting transform after SpawnActor is correct.
+
+		if (auto* RootComponent = Actor.GetRootComponent())
+		{
+			RootComponent->UpdateComponentToWorld();
+		}
+
+		FVector OrigActorScale3D = ActorTransform.GetScale3D();
+		ActorTransform = Actor.GetTransform().Inverse() * ActorTransform;
+		ActorTransform.SetScale3D(OrigActorScale3D);
 	}
 
 	return ActorTransform;
