@@ -50,7 +50,9 @@ namespace DatasmithRuntime
 	};
 
 	constexpr const TCHAR* OpaqueMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrOpaque.M_PbrOpaque");
+	constexpr const TCHAR* OpaqueMaterialPath_2Sided = TEXT("/DatasmithRuntime/Materials/M_PbrOpaque_2Sided.M_PbrOpaque_2Sided");
 	constexpr const TCHAR* TranslucentMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrTranslucent.M_PbrTranslucent");
+	constexpr const TCHAR* TranslucentMaterialPath_2Sided = TEXT("/DatasmithRuntime/Materials/M_PbrTranslucent_2Sided.M_PbrTranslucent_2Sided");
 
 	struct FMaterialParameters
 	{
@@ -432,8 +434,16 @@ namespace DatasmithRuntime
 
 			bool bNeedsTranslucent = (OpacityValue.bNumericValid && OpacityValue.GetScalar() != 1.0f) || OpacityValue.Texture || RefractionValue.bNumericValid || RefractionValue.Texture;
 
-			FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath : OpaqueMaterialPath);
-			MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			if (UEPbrMaterial.GetTwoSided())
+			{
+				FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath_2Sided : OpaqueMaterialPath_2Sided);
+				MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			}
+			else
+			{
+				FSoftObjectPath SoftObject(bNeedsTranslucent ? TranslucentMaterialPath : OpaqueMaterialPath);
+				MaterialInstance->Parent = Cast<UMaterial>(SoftObject.TryLoad());
+			}
 			check(MaterialInstance->Parent);
 
 			// PBR Material are too complex to be fully supported with simple Twinmotion material
