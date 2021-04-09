@@ -2546,18 +2546,22 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	}
 
 	TArray<const XrCompositionLayerBaseHeader*> Headers;
-	XrCompositionLayerProjection Layer = {};
-	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
-	Layer.next = nullptr;
-	Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
-	Layer.space = PipelinedFrameStateRHI.TrackingSpace;
-	Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
-	Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
-	Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer));
 
-	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	if (IsBackgroundLayerVisible())
 	{
-		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
+		XrCompositionLayerProjection Layer = {};
+		Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
+		Layer.next = nullptr;
+		Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
+		Layer.space = PipelinedFrameStateRHI.TrackingSpace;
+		Layer.viewCount = PipelinedLayerStateRHI.ProjectionLayers.Num();
+		Layer.views = PipelinedLayerStateRHI.ProjectionLayers.GetData();
+		Headers.Add(reinterpret_cast<const XrCompositionLayerBaseHeader*>(&Layer));
+
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
+		}
 	}
 
 	for (const XrCompositionLayerQuad& Quad : PipelinedLayerStateRHI.QuadLayers)
