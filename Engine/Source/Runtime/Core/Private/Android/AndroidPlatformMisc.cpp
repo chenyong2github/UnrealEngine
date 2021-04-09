@@ -1548,8 +1548,8 @@ bool FAndroidMisc::GetUseVirtualJoysticks()
 		}
 	}
 
-	// Stereo-only HMDs don't require virtual joysticks
-	if (IsStandaloneStereoOnlyDevice())
+	// Oculus HMDs don't require virtual joysticks
+	if (FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 	{
 		return false;
 	}
@@ -2415,7 +2415,7 @@ bool FAndroidMisc::ShouldUseVulkan()
 
 		const bool bVulkanAvailable = IsVulkanAvailable();
 
-		const bool bVulkanDisabledCVar = !IsStandaloneStereoOnlyDevice() && CVarDisableVulkan->GetValueOnAnyThread() == 1;
+		const bool bVulkanDisabledCVar = CVarDisableVulkan->GetValueOnAnyThread() == 1;
 
 		if (bVulkanAvailable && !bVulkanDisabledCVar)
 		{
