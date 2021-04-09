@@ -482,8 +482,14 @@ FIntPoint FLumenSurfaceCacheFeedback::GetFeedbackBufferTileJitter() const
 
 void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder)
 {
+	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+
 	extern int32 GVisualizeLumenSceneFeedback;
-	const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneFeedback != 0;
+	extern int32 GVisualizeLumenSceneTraceMeshSDFs;
+	const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene
+		&& GVisualizeLumenSceneFeedback != 0
+		&& GVisualizeLumenSceneTraceMeshSDFs != 0
+		&& DistanceFieldSceneData.NumObjectsInBuffer > 0;
 
 	extern int32 GLumenReflectionsFeedback;
 	const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsFeedback != 0;

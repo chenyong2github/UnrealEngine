@@ -55,7 +55,7 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMaxLOD(
 			FGlobalComponentRecreateRenderStateContext Context;
 		}),
 	ECVF_Scalability | ECVF_RenderThreadSafe
-			);
+);
 
 float GLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio = 1.7f;
 FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstancesMaxSurfaceAreaRatio(
@@ -655,6 +655,25 @@ bool IsMatrixOrthogonal(const FMatrix& Matrix)
 	return false;
 }
 
+bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const int32 LODLevel, const FVector FaceSurfaceArea, float MinFaceSurfaceArea)
+{
+	const int32 AxisIndex = CardBuildData.Orientation / 2;
+	const float AxisSurfaceArea = FaceSurfaceArea[AxisIndex];
+	const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || AxisSurfaceArea > MinFaceSurfaceArea);
+	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
+
+#if 0
+	static int32 GDebugMinCardOrientation = 0;
+	static int32 GDebugMaxCardOrientation = 5;
+	if (CardBuildData.Orientation < GDebugMinCardOrientation || CardBuildData.Orientation > GDebugMaxCardOrientation)
+	{
+		return false;
+	}
+#endif
+
+	return bCardPassedCulling && bCardPassedLODTest;
+}
+
 int32 FLumenSceneData::AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPrimitive, int32 LumenInstanceIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale)
 {
 	const FVector LocalToWorldScale = LocalToWorld.GetScaleVector();
@@ -662,12 +681,12 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPri
 	const FVector FaceSurfaceArea(ScaledBoundSize.Y * ScaledBoundSize.Z, ScaledBoundSize.X * ScaledBoundSize.Z, ScaledBoundSize.Y * ScaledBoundSize.X);
 	const float LargestFaceArea = FaceSurfaceArea.GetMax();
 	const float MinFaceSurfaceArea = GLumenMeshCardsMinSize * GLumenMeshCardsMinSize;
+	const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
 
 	if (LargestFaceArea > MinFaceSurfaceArea
 		&& IsMatrixOrthogonal(LocalToWorld)) // #lumen_todo: implement card capture for non orthogonal local to world transforms
 	{
 		const int32 NumBuildDataCards = MeshCardsBuildData.CardBuildData.Num();
-		const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
 
 		uint32 NumCards = 0;
 		uint32 NumCardsPerOrientation[6] = { 0 };
@@ -676,12 +695,8 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPri
 		for (int32 CardIndex = 0; CardIndex < NumBuildDataCards; ++CardIndex)
 		{
 			const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndex];
-			const int32 AxisIndex = CardBuildData.Orientation / 2;
-			const float AxisSurfaceArea = FaceSurfaceArea[AxisIndex];
-			const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || AxisSurfaceArea > MinFaceSurfaceArea);
-			const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
-			if (bCardPassedCulling && bCardPassedLODTest)
+			if (MeshCardCullTest(CardBuildData, LODLevel, FaceSurfaceArea, MinFaceSurfaceArea))
 			{
 				++NumCardsPerOrientation[CardBuildData.Orientation];
 				++NumCards;
@@ -712,14 +727,10 @@ int32 FLumenSceneData::AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPri
 
 			// Add cards
 			for (int32 CardIndex = 0; CardIndex < NumBuildDataCards; ++CardIndex)
-			{
+			{	
 				const FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardIndex];
-				const int32 AxisIndex = CardBuildData.Orientation / 2;
-				const float AxisSurfaceArea = FaceSurfaceArea[AxisIndex];
-				const bool bCardPassedCulling = (!GLumenMeshCardsCullFaces || AxisSurfaceArea > MinFaceSurfaceArea);
-				const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
-				if (bCardPassedCulling && bCardPassedLODTest)
+				if (MeshCardCullTest(CardBuildData, LODLevel, FaceSurfaceArea, MinFaceSurfaceArea))
 				{
 					const int32 CardInsertIndex = FirstCardIndex + CardOffsetPerOrientation[CardBuildData.Orientation];
 					++CardOffsetPerOrientation[CardBuildData.Orientation];
