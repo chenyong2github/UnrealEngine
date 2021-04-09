@@ -200,8 +200,8 @@ class FCompactFeedbackHashTableCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, HashTableElementCounts)
 		SHADER_PARAMETER(uint32, HashTableSize)
 		SHADER_PARAMETER(uint32, HashTableIndexWrapMask)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<uint>, FeedbackBufferAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(RWStructuredBuffer<uint2>, FeedbackBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, FeedbackBufferAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, FeedbackBuffer)
 		SHADER_PARAMETER(uint32, FeedbackBufferSize)
 	END_SHADER_PARAMETER_STRUCT()
 
