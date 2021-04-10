@@ -212,6 +212,7 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(ActorGuid))
 	{
 		OnActorDescRemovedEvent.Broadcast(ExistingActorDesc->Get());
+
 		OnActorDescRemoved(ExistingActorDesc->Get());
 		RemoveActorDescriptor(ExistingActorDesc->Get());
 		ExistingActorDesc->Reset();
