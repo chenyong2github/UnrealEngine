@@ -5,7 +5,6 @@
 
 
 float3 StrataForwardLighting(
-	FGBufferData GBuffer,
 	float3 MaterialParametersWorldNormal,
 	float3 V,
 	float3 L,
@@ -13,7 +12,7 @@ float3 StrataForwardLighting(
 	float3 LShadow,
 	float3 IndirectOcclusion,
 	FStrataPixelHeader Header,
-	FStrataData Strata,
+	FStrataData StrataData,
 	inout float3 OutThroughput
 	)
 {
@@ -26,18 +25,18 @@ float3 StrataForwardLighting(
 	OutThroughput = 1.0f;
 
 	UNROLL
-	for (int l = 0; l < Strata.LayerCount; ++l)
+	for (int l = 0; l < StrataData.LayerCount; ++l)
 	{
 		float3 LayerThroughput = 0.0f;
 		float3 LayerCoverage = 0.0f;
 
 		const bool bTopLayer = l == 0;
-		const bool bBottomLayer = l == (Strata.LayerCount - 1);
+		const bool bBottomLayer = l == (StrataData.LayerCount - 1);
 
 		UNROLL
-		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
+		for (int i = 0; i < StrataData.Layers[l].BSDFCount; ++i)
 		{
-			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+			FStrataBSDF BSDF = StrataData.Layers[l].BSDFs[i];
 
 			// Sanitize BSDF before it is used for forward shading
 			StrataSanitizeBSDF(BSDF);

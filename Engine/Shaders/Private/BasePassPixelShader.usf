@@ -975,14 +975,14 @@ void FPixelShaderInOut_MainPS(
 #endif // !STRATA_ENABLED
 
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
-	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
+	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 
 	// Initialise a Strata header with normal in registers
 	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 	UNROLL
-	for (int l = 0; l < Strata.LayerCount; ++l)
+	for (int l = 0; l < StrataData.LayerCount; ++l)
 	{
-		StrataPixelHeader.BSDFCount += Strata.Layers[l].BSDFCount;
+		StrataPixelHeader.BSDFCount += StrataData.Layers[l].BSDFCount;
 	}
 	StrataPixelHeader.SharedNormals = MaterialParameters.SharedNormals;
 
@@ -1579,14 +1579,14 @@ void FPixelShaderInOut_MainPS(
 	PackStrataOut(
 		OpaqueBasePass.Strata.MaterialLobesBufferUAV, 
 		GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), OpaqueBasePass.Strata.MaxBytesPerPixel),
-		StrataPixelHeader, Strata, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
+		StrataPixelHeader, StrataData, MaterialParameters.CameraVector, bStrataSubsurfaceEnable, EmissiveLuminance);
 
 	Color += EmissiveLuminance;
 #endif // STRATA_OPAQUE_ENABLED
 
 #if STRATA_TRANSLUCENT_ENABLED
 	//FORWARD_SHADING
-	if (Strata.LayerCount > 0)
+	if (StrataData.LayerCount > 0)
 	{
 		float3 L = ResolvedView.DirectionalLightDirection;
 		float3 V = MaterialParameters.CameraVector;
@@ -1594,7 +1594,6 @@ void FPixelShaderInOut_MainPS(
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(
-			GBuffer,		// STRATA_TODO remove that!
 			MaterialParameters.WorldNormal,
 			V,
 			L,
@@ -1602,7 +1601,7 @@ void FPixelShaderInOut_MainPS(
 			DirectionalLightShadow,
 			IndirectOcclusion,
 			StrataPixelHeader,
-			Strata,
+			StrataData,
 			Throughput);
 
 		DualBlendColorCov = GetMaterialOpacity(PixelMaterialInputs); // Opacity represent coverage STRATA_TODO after validation, rename everything
