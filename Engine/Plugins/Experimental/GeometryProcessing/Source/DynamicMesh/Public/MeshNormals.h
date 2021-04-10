@@ -70,6 +70,18 @@ public:
 	}
 
 	/**
+	 * Assumes that ComputeTriangleNormals() has already been run.
+	 * 
+	 * Looks through the normals for any that are zero, and tries to set them to the normal of 
+	 * some neighboring triangle, preferring the triangle on its longer side if possible. This is 
+	 * useful for finding connected components based on normals, as it prevents degenerate triangles
+	 * with 0 normals from connecting otherwise disconnected components.
+	 * This won't help if a whole mesh componenent is entirely made of such degenerate triangles
+	 * (which is usually ok).
+	 */
+	void SetDegenerateTriangleNormalsToNeighborNormal();
+
+	/**
 	 * Recompute the per-element normals of the given overlay by averaging one-ring face normals
 	 * @warning NormalOverlay must be attached to ParentMesh or an exact copy
 	 */

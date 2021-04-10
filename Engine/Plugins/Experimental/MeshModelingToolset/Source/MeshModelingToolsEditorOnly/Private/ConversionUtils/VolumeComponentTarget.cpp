@@ -23,7 +23,7 @@ FVolumeComponentTarget::FVolumeComponentTarget(UPrimitiveComponent* Component)
 	VolumeToMeshOptions.bInWorldSpace = false;
 	VolumeToMeshOptions.bSetGroups = true;
 	VolumeToMeshOptions.bMergeVertices = true;
-	VolumeToMeshOptions.bAutoRepairMesh = true;
+	VolumeToMeshOptions.bAutoRepairMesh = false;
 	VolumeToMeshOptions.bOptimizeMesh = true;
 }
 

@@ -70,9 +70,20 @@ void FPlanarFlipsOptimization::ApplySinglePass()
 			{
 				continue;		// if both are degenerate we can't fix by flipping edge between them
 			}
+			if (bRespectGroupBoundaries && Mesh->IsGroupBoundaryEdge(eid))
+			{
+				continue;
+			}
 			double MinAspect = FMathd::Min(AspectRatios[EdgeT.A], AspectRatios[EdgeT.B]);
+			
+			// The triangles need to be coplanar, but we also check for zero normals, which are a sign
+			// of a degenerate triangle. We want to try to flip those.
+			// TODO: Perhaps should also look for edges where an opposite vert is almost in the plane
+			// of the other triangle even if the normals disagree (i.e., triangle is practically degenerate).
 			double NormDot = Normals[EdgeT.A].Dot(Normals[EdgeT.B]);
-			if (NormDot > PlanarDotThresh)
+			if (NormDot > PlanarDotThresh 
+				|| Normals[EdgeT.A] == FVector3d::Zero() 
+				|| Normals[EdgeT.B] == FVector3d::Zero())
 			{
 				Flips.Add({ eid, MinAspect });
 			}
@@ -104,7 +115,9 @@ void FPlanarFlipsOptimization::ApplySinglePass()
 		FVector3d FlipNormal2 = VectorUtil::Normal(D, C, A);
 		if (FlipNormal1.Dot(Normal) < PlanarDotThresh || FlipNormal2.Dot(Normal) < PlanarDotThresh)
 		{
-			continue;		// should not happen?
+			// This should only happen if flipping would result in a degenerate tri (which
+			// will have a zero normal). We don't want the flip in that case.
+			continue;
 		}
 
 		if (FMathd::Min(FlipAspect1, FlipAspect2) > Metric)

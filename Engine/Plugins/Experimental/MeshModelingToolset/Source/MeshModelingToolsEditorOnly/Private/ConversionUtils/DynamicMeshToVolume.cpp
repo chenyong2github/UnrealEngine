@@ -17,10 +17,205 @@ using namespace UE::Geometry;
 namespace UE {
 namespace Conversion {
 
-void DynamicMeshToVolume(const FDynamicMesh3& InputMesh, AVolume* TargetVolume)
+/**
+ * A slightly modified version of FPoly::OptimizeIntoConvexPolys. Unlike the original, it won't 
+ * arbitrarily delete colinear verts or snap things to grid. Like the original, it assumes that 
+ * the passed in polys are convex and coplanar (usually just a triangulation), and it will not 
+ * merge polygons sharing a multi-edge (colinear) side.
+ *
+ * @param	InOwnerBrush	The brush that owns the polygons.
+ * @param	InPolygons		An array of FPolys that will be replaced with a new set of polygons that are merged together as much as possible.
+ */
+static void OptimizeIntoConvexPolys(ABrush* InOwnerBrush, TArray<FPoly>& InPolygons)
+{
+	bool bDidMergePolygons = true;
+
+	while (bDidMergePolygons)
+	{
+		bDidMergePolygons = false;
+
+		for (int32 PolyIndex = 0; PolyIndex < InPolygons.Num() && !bDidMergePolygons; ++PolyIndex)
+		{
+			const FPoly* PolyMain = &InPolygons[PolyIndex];
+
+			// Find all the polygons that neighbor this one (aka share an edge)
+
+			for (int32 p2 = PolyIndex + 1; p2 < InPolygons.Num() && !bDidMergePolygons; ++p2)
+			{
+				const FPoly* PolyNeighbor = &InPolygons[p2];
+
+				if (PolyMain->Normal.Equals(PolyNeighbor->Normal))
+				{
+					// See if PolyNeighbor is sharing an edge with Poly
+
+					int32 PolyMainIndex1 = INDEX_NONE, PolyMainIndex2 = INDEX_NONE;
+					int32 PolyNeighborIndex1 = INDEX_NONE, PolyNeighborIndex2 = INDEX_NONE;
+
+					int32 PolyMainNumVerts = PolyMain->Vertices.Num();
+					int32 PolyNeighborNumVerts = PolyNeighbor->Vertices.Num();
+
+					for (int32 v = 0; v < PolyMainNumVerts; ++v)
+					{
+						FVector vtx = PolyMain->Vertices[v];
+
+						int32 idx = INDEX_NONE;
+
+						for (int32 v2 = 0; v2 < PolyNeighborNumVerts; ++v2)
+						{
+							const FVector* vtx2 = &PolyNeighbor->Vertices[v2];
+
+							if (vtx.Equals(*vtx2))
+							{
+								idx = v2;
+								break;
+							}
+						}
+
+						// TODO: Could clean this up. We only need to find the first shared vert
+						// and then check the next neighbor (and maybe previous, if at start)
+						if (idx != INDEX_NONE)
+						{
+							if (PolyMainIndex1 == INDEX_NONE)
+							{
+								PolyMainIndex1 = v;
+								PolyNeighborIndex1 = idx;
+							}
+							else if (PolyMainIndex2 == INDEX_NONE)
+							{
+								PolyMainIndex2 = v;
+								PolyNeighborIndex2 = idx;
+								break;
+							}
+						}
+					}
+
+					// Check that we found two shared verts and that their indices are adjacent in PolyMain.
+					if (!(PolyMainIndex1 != INDEX_NONE && PolyMainIndex2 != INDEX_NONE
+						&& (PolyMainIndex1 + 1 == PolyMainIndex2 || (PolyMainIndex1 == 0 && PolyMainIndex2 == PolyMainNumVerts - 1))))
+					{
+						continue; // skip neighbor
+					}
+
+					// Swap indices around so that they correspond to the start and end of the edge counterclockwise
+					// in PolyMain (this will only not be the case if the edge spans end and start of vert array).
+					if (PolyMainIndex1 + 1 != PolyMainIndex2)
+					{
+						Swap(PolyMainIndex1, PolyMainIndex2);
+						Swap(PolyNeighborIndex1, PolyNeighborIndex2);
+					}
+
+					// Check that the edge goes the opposite direction in PolyNeighbor
+					if ((PolyNeighborIndex2 + 1) % PolyNeighborNumVerts != PolyNeighborIndex1)
+					{
+						continue; // skip neighbor
+					}
+
+					// Found a shared edge.  Let's see if we can merge these polygons together.
+					// The most robust thing to do is to just go ahead and try the merge and see if FPoly::IsConvex() 
+					// returns true. 
+
+					FPoly PolyMerged = *PolyMain;
+					int32 NumTotalVerts = PolyMainNumVerts + PolyNeighborNumVerts - 2;
+					PolyMerged.Vertices.SetNumUninitialized(NumTotalVerts);
+
+					// The new vertices get added after PolyMainIndex1. First shift over everything that
+					// is to the right of PolyMainIndex1
+					int32 NumVertsToShift = PolyMainNumVerts - 1 - PolyMainIndex1;
+					for (int32 i = 0; i < NumVertsToShift; ++i)
+					{
+						PolyMerged.Vertices[NumTotalVerts - 1 - i] = PolyMerged.Vertices[PolyMainNumVerts - 1 - i];
+					}
+					// Now splice in PolyNeighbor vertices.
+					for (int32 i = 1; i < PolyNeighborNumVerts - 1; ++i) // Skipping the shared verts
+					{
+						int32 NeighborIndex = (PolyNeighborIndex1 + i) % PolyNeighborNumVerts;
+						PolyMerged.Vertices[PolyMainIndex1 + i] = PolyNeighbor->Vertices[NeighborIndex];
+					}
+
+					PolyMerged.CalcNormal(true);
+
+					// Check if the result is valid
+					if (PolyMerged.IsConvex() && PolyMerged.Finalize(InOwnerBrush, 1) == 0)
+					{
+						// Remove the original polygons from the list. Uses knowledge that p2 > PolyIndex
+						InPolygons.RemoveAtSwap(p2);
+						InPolygons.RemoveAtSwap(PolyIndex);
+
+						// Add the newly merged polygon into the list
+						InPolygons.Add(PolyMerged);
+
+						// Tell the outside loop that we merged polygons and need to run through it all again
+						bDidMergePolygons = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Largely copied from FGeomObject::FinalizeSourceData(). Does various cleanup
+ * operations, particularly to make the volume polygons all planar and convex.
+ */
+static void ApplyLegacyVolumeCleanup(ABrush* brush)
+{
+	// Remove invalid polygons from the brush
+	for (int32 x = 0; x < brush->Brush->Polys->Element.Num(); ++x)
+	{
+		FPoly* Poly = &brush->Brush->Polys->Element[x];
+		if (Poly->Vertices.Num() < 3)
+		{
+			brush->Brush->Polys->Element.RemoveAt(x);
+			x = -1;
+		}
+	}
+	for (int32 p = 0; p < brush->Brush->Polys->Element.Num(); ++p)
+	{
+		FPoly* Poly = &(brush->Brush->Polys->Element[p]);
+		Poly->iLink = p;
+		int32 SaveNumVertices = Poly->Vertices.Num();
+		if (!Poly->IsCoplanar() || !Poly->IsConvex())
+		{
+			// If the polygon is no longer coplanar and/or convex, break it up into separate triangles.
+			FPoly WkPoly = *Poly;
+			brush->Brush->Polys->Element.RemoveAt(p);
+			TArray<FPoly> Polygons;
+			if (WkPoly.Triangulate(brush, Polygons) > 0)
+			{
+				OptimizeIntoConvexPolys(brush, Polygons);
+				for (int32 t = 0; t < Polygons.Num(); ++t)
+				{
+					brush->Brush->Polys->Element.Add(Polygons[t]);
+				}
+			}
+			p = -1;
+		}
+		else
+		{
+			int32 FixResult = Poly->Fix();
+			if (FixResult != SaveNumVertices)
+			{
+				// If the polygon collapses after running "Fix" against it, it needs to be
+				// removed from the brushes polygon list.
+				if (FixResult == 0)
+				{
+					brush->Brush->Polys->Element.RemoveAt(p);
+				}
+				p = -1;
+			}
+			else
+			{
+				// If we get here, the polygon is valid and needs to be kept.  Finalize its internals.
+				Poly->Finalize(brush, 1);
+			}
+		}
+	}
+}
+
+void DynamicMeshToVolume(const FDynamicMesh3& InputMesh, AVolume* TargetVolume, const FMeshToVolumeOptions& Options)
 {
 	TArray<FDynamicMeshFace> Faces;
-	GetPolygonFaces(InputMesh, Faces);
+	GetPolygonFaces(InputMesh, Faces, Options.bRespectGroupBoundaries);
 	DynamicMeshToVolume(InputMesh, Faces, TargetVolume);
 }
 
@@ -126,6 +321,9 @@ void DynamicMeshToVolume(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace
 		*/
 	}
 
+	ApplyLegacyVolumeCleanup(TargetVolume);
+	FBSPOps::bspUnlinkPolys(Model);
+
 	// requires ed
 	FBSPOps::csgPrepMovingBrush(TargetVolume);
 
@@ -134,30 +332,29 @@ void DynamicMeshToVolume(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace
 }
 
 
-void GetPolygonFaces(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces)
+void GetPolygonFaces(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces, bool bRespectGroupBoundaries)
 {
 	Faces.SetNum(0);
 
+	// We'll find faces using a connected component search based on normals. Note that we give
+	// degenerate tris the normal of their neighbor so that they don't connect non-planar
+	// components.
+
 	FMeshNormals Normals(&InputMesh);
 	Normals.ComputeTriangleNormals();
+	Normals.SetDegenerateTriangleNormalsToNeighborNormal(); // See comment above
 
-	double PlanarTolerance = FMathf::ZeroTolerance;
+	double NormalTolerance = FMathf::ZeroTolerance;
 
 	FMeshConnectedComponents Components(&InputMesh);
-	Components.FindConnectedTriangles([&](int32 Triangle0, int32 Triangle1)
-		{
-			FVector3d Origin = InputMesh.GetTriCentroid(Triangle0);
-			FVector3d Normal = Normals[Triangle0];
+	Components.FindConnectedTriangles([&InputMesh, &Normals, NormalTolerance, bRespectGroupBoundaries](int32 Triangle0, int32 Triangle1)
+	{
+		return (!bRespectGroupBoundaries || InputMesh.GetTriangleGroup(Triangle0) == InputMesh.GetTriangleGroup(Triangle1))
 
-			FVector3d A, B, C;
-			InputMesh.GetTriVertices(Triangle1, A, B, C);;
-			double DistA = (A - Origin).Dot(Normal);
-			double DistB = (B - Origin).Dot(Normal);
-			double DistC = (C - Origin).Dot(Normal);
-			double MaxDist = FMathd::Max3(FMathd::Abs(DistA), FMathd::Abs(DistB), FMathd::Abs(DistC));
-
-			return MaxDist < PlanarTolerance;
-		});
+			// This test is only performed if triangles share an edge, so checking the normal is 
+			// sufficient for coplanarity.
+			&& Normals[Triangle0].Dot(Normals[Triangle1]) >= 1 - NormalTolerance;
+	});
 
 	for (const FMeshConnectedComponents::FComponent& Component : Components)
 	{

@@ -212,7 +212,11 @@ void UMeshToVolumeTool::RecalculateVolume()
 {
 	if (Settings->ConversionMode == EMeshToVolumeMode::MinimalPolygons)
 	{
-		UE::Conversion::GetPolygonFaces(InputMesh, Faces);
+		// Since this tool is likely to be a sink, there isn't much reason to keep
+		// the group differentiations if they are coplanar.
+		bool bRespectGroupBoundaries = false;
+
+		UE::Conversion::GetPolygonFaces(InputMesh, Faces, bRespectGroupBoundaries);
 	}
 	else
 	{

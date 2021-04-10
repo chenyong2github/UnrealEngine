@@ -15,9 +15,18 @@ class AVolume;
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 namespace UE {
-namespace Conversion { 
+namespace Conversion {
 
-using namespace UE::Geometry;
+using namespace UE::Geometry; 
+
+struct FMeshToVolumeOptions
+{
+	/**
+	 * When true, coplanar components with different group id's will not be
+	 * merged into a single volume polygon.
+	 */
+	bool bRespectGroupBoundaries = true;
+};
 
 struct FDynamicMeshFace
 {
@@ -29,7 +38,8 @@ struct FDynamicMeshFace
  * Gets an array of face objects that can be used to convert a dynamic mesh to a volume. This version tries to
  * merge coplanar triangles into polygons.
  */
-void MESHMODELINGTOOLSEDITORONLY_API GetPolygonFaces(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces);
+void MESHMODELINGTOOLSEDITORONLY_API GetPolygonFaces(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces,
+	bool bRespectGroupBoundaries);
 /**
  * Gets an array of face objects that can be used to convert a dynamic mesh to a volume. This version makes
  * each triangle its own face.
@@ -39,7 +49,8 @@ void MESHMODELINGTOOLSEDITORONLY_API GetTriangleFaces(const FDynamicMesh3& Input
 /**
  * Converts a dynamic mesh to a volume.
  */
-void MESHMODELINGTOOLSEDITORONLY_API DynamicMeshToVolume(const FDynamicMesh3& InputMesh, AVolume* TargetVolume);
+void MESHMODELINGTOOLSEDITORONLY_API DynamicMeshToVolume(const FDynamicMesh3& InputMesh, AVolume* TargetVolume,
+	const FMeshToVolumeOptions& Options = FMeshToVolumeOptions());
 void MESHMODELINGTOOLSEDITORONLY_API DynamicMeshToVolume(const FDynamicMesh3& InputMesh, TArray<FDynamicMeshFace>& Faces, AVolume* TargetVolume);
 
 }}//end namespace UE::Conversion

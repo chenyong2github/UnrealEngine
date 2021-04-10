@@ -120,6 +120,140 @@ void FMeshNormals::Compute_Triangle()
 	});
 }
 
+void FMeshNormals::SetDegenerateTriangleNormalsToNeighborNormal()
+{
+	check(Normals.Num() >= Mesh->MaxTriangleID());
+
+	// We're going to look through the triangles and set any zero normals
+	// to the normal of their neighbor, preferring to go toward the neighbor
+	// with the longer side when possible. Since we could have multiple degenerate
+	// triangles linked together, this may require a little neighborhood walk.
+
+	// Our walking function
+	auto GetNeighborThatHasNormal = [this](int32 StartTid, TSet<int32>& WalkedTidsOut, int32& NonDegenerateNeighborTidOut)
+	{
+		WalkedTidsOut.Reset();
+		NonDegenerateNeighborTidOut = FDynamicMesh3::InvalidID;
+
+		check(StartTid != FDynamicMesh3::InvalidID && Normals[StartTid] == FVector3d::Zero());
+
+		// We don't like recursion, so we use a little stack instead to help us prioritize 
+		// the longer-side neighbors in our walk.
+		TArray<int32> TidsToSearch;
+		TidsToSearch.Push(StartTid);
+
+		while (!TidsToSearch.IsEmpty())
+		{
+			int32 CurrentTid = TidsToSearch.Pop();
+
+			if (WalkedTidsOut.Contains(CurrentTid))
+			{
+				continue;
+			}
+
+			// See if we've reached a non-degenerate triangle
+			if (Normals[CurrentTid] != FVector3d::Zero())
+			{
+				NonDegenerateNeighborTidOut = CurrentTid;
+				return;
+			}
+
+			WalkedTidsOut.Add(CurrentTid);
+
+			// Sanity check so we don't go forever
+			if (WalkedTidsOut.Num() > Mesh->MaxTriangleID())
+			{
+				check(false);
+				return;
+			}
+
+			// Otherwise, get neighbors and corresponding squared edge lengths.
+			int32 NeighborTids[3];
+			double SquaredEdgeLengths[3];
+			FIndex3i TriEdges = Mesh->GetTriEdges(CurrentTid);
+			for (int i = 0; i < 3; ++i)
+			{
+				FIndex2i Tids = Mesh->GetEdgeT(TriEdges[i]);
+				int32 OtherTid = (Tids.A == CurrentTid) ? Tids.B : Tids.A;
+				NeighborTids[i] = OtherTid;
+
+				if (OtherTid == FDynamicMesh3::InvalidID)
+				{
+					SquaredEdgeLengths[i] = 0;
+				}
+				else
+				{
+					FVector3d Vert1, Vert2;
+					Mesh->GetEdgeV(TriEdges[i], Vert1, Vert2);
+					SquaredEdgeLengths[i] = FVector3d::DistSquared(Vert1, Vert2);
+				}
+			}
+
+			// Order neighbors by ascending length
+			if (SquaredEdgeLengths[0] > SquaredEdgeLengths[1])
+			{
+				Swap(NeighborTids[0], NeighborTids[1]);
+				Swap(SquaredEdgeLengths[0], SquaredEdgeLengths[1]);
+			}
+			if (SquaredEdgeLengths[1] > SquaredEdgeLengths[2])
+			{
+				Swap(NeighborTids[1], NeighborTids[2]);
+				Swap(SquaredEdgeLengths[1], SquaredEdgeLengths[2]);
+			}
+			if (SquaredEdgeLengths[0] > SquaredEdgeLengths[1])
+			{
+				Swap(NeighborTids[0], NeighborTids[1]);
+				Swap(SquaredEdgeLengths[0], SquaredEdgeLengths[1]);
+			}
+
+			// Add onto stack. Longest length neighbor is at top of stack
+			for (int32 i = 0; i < 3; ++i)
+			{
+				if (NeighborTids[i] != FDynamicMesh3::InvalidID)
+				{
+					TidsToSearch.Push(NeighborTids[i]);
+				}
+			}
+		}
+	};
+
+	// It's possible that we could have an island of degenerates, ie no normal neighbor.
+	// In that case we might as well not waste time starting the same walk from each one.
+	TSet<int32> IslandDegenerates;
+
+	TSet<int32> CurrentWalkedTids;
+
+	for (int32 Tid : Mesh->TriangleIndicesItr())
+	{
+		if (Normals[Tid] == FVector3d::Zero() && !IslandDegenerates.Contains(Tid))
+		{
+			// Find a normal to use
+			CurrentWalkedTids.Reset();
+			int32 NonDegenerateNeighborTid = FDynamicMesh3::InvalidID;
+			GetNeighborThatHasNormal(Tid, CurrentWalkedTids, NonDegenerateNeighborTid);
+
+			// Make sure there was a non-degenerate neighbor.
+			if (NonDegenerateNeighborTid == FDynamicMesh3::InvalidID)
+			{
+				ensureMsgf(false, TEXT("FMeshNormals::SetDegenerateTriangleNormalsToNeighborNormal: "
+					"Had a component entirely composed of degenerate triangle normals."));
+				IslandDegenerates.Append(CurrentWalkedTids);
+			}
+			else
+			{
+				// Apply the neighbor normal.
+				FVector3d NormalToUse = Normals[NonDegenerateNeighborTid];
+				check(NormalToUse != FVector3d::Zero());
+
+				for (int32 WalkedTid : CurrentWalkedTids)
+				{
+					Normals[WalkedTid] = NormalToUse;
+				}
+			}
+		}//end if normal is zero
+	}//end for all triangles
+}
+
 
 
 

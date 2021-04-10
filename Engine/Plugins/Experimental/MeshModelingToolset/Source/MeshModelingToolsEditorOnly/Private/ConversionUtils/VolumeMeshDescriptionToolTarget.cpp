@@ -24,7 +24,12 @@ UVolumeMeshDescriptionToolTarget::UVolumeMeshDescriptionToolTarget()
 	VolumeToMeshOptions.bInWorldSpace = false;
 	VolumeToMeshOptions.bSetGroups = true;
 	VolumeToMeshOptions.bMergeVertices = true;
-	VolumeToMeshOptions.bAutoRepairMesh = true;
+
+	// When a volume has cracks, this option seems to make the geometry
+	// worse rather than better, since the filled in triangles are sometimes
+	// degenerate, folded in on themselves, etc.
+	VolumeToMeshOptions.bAutoRepairMesh = false;
+	
 	VolumeToMeshOptions.bOptimizeMesh = true;
 }
 
