@@ -195,6 +195,9 @@ public:
 
 	bool IsEmpty() const;
 
+	/** Whether the shadermap has all the shader types it needs (i.e. ones that returned ShouldCompilePermutation) */
+	bool IsComplete(const ITargetPlatform* TargetPlatform) const;
+
 	void Empty();
 	void ReleaseAllSections();
 

@@ -115,6 +115,20 @@ static FAutoConsoleVariableRef CVarShaderCompilerCacheStatsPrintoutInterval(
 	ECVF_Default
 );
 
+/** Helper functions for logging more debug info */
+namespace ShaderCompiler
+{
+	FString GetTargetPlatformName(const ITargetPlatform* TargetPlatform)
+	{
+		if (TargetPlatform)
+		{
+			return TargetPlatform->PlatformName();
+		}
+
+		return TEXT("(current)");
+	}
+}
+
 /** Storage for the global shadar map(s) that have been replaced by new one(s), which aren't yet compiled.
  * 
  *	Sometimes a mesh drawing command references a pointer to global SM's memory. To nix these MDCs when we're replacing a global SM, we would just recreate the render state for all the components, but
@@ -5386,7 +5400,7 @@ static void PrepareGlobalShaderCompileJob(EShaderPlatform Platform,
 
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
-	UE_LOG(LogShaders, Verbose, TEXT("	%s"), ShaderType->GetName());
+	UE_LOG(LogShaders, Verbose, TEXT("	%s (permutation %d)"), ShaderType->GetName(), Key.PermutationId);
 	COOK_STAT(GlobalShaderCookStats::ShadersCompiled++);
 
 	// Allow the shader type to modify the compile environment.
@@ -5519,7 +5533,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 	LayoutParams.InitializeForPlatform(TargetPlatform);
 	const EShaderPermutationFlags PermutationFlags = GetShaderPermutationFlags(LayoutParams);
 
-	UE_LOG(LogMaterial, Verbose, TEXT("Verifying Global Shaders for %s"), *LegacyShaderPlatformToShaderFormat(Platform).ToString());
+	UE_LOG(LogMaterial, Verbose, TEXT("Verifying Global Shaders for %s (%s)"), *LegacyShaderPlatformToShaderFormat(Platform).ToString(), *ShaderCompiler::GetTargetPlatformName(TargetPlatform));
 
 	// Ensure that the global shader map contains all global shader types.
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(Platform);
@@ -5715,19 +5729,24 @@ static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
 	TArray<uint8> SaveData;
 
 	FGlobalShaderMapId ShaderMapId(Platform, TargetPlatform);
-	for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
+	// avoid saving incomplete shadermaps
+	FGlobalShaderMap* GlobalSM = GetGlobalShaderMap(Platform);
+	if (GlobalSM->IsComplete(TargetPlatform))
 	{
-		FGlobalShaderMapSection* Section = GGlobalShaderMap[Platform]->FindSection(ShaderFilenameDependencies.Key);
-		if (Section)
+		for (auto const& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 		{
-			Section->FinalizeContent();
+			FGlobalShaderMapSection* Section = GlobalSM->FindSection(ShaderFilenameDependencies.Key);
+			if (Section)
+			{
+				Section->FinalizeContent();
 
-			SaveData.Reset();
-			FMemoryWriter Ar(SaveData, true);
-			Section->Serialize(Ar);
+				SaveData.Reset();
+				FMemoryWriter Ar(SaveData, true);
+				Section->Serialize(Ar);
 
-			GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
-			COOK_STAT(Timer.AddMiss(SaveData.Num()));
+				GetDerivedDataCacheRef().Put(*GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value), SaveData, TEXT("GlobalShaderMap"_SV));
+				COOK_STAT(Timer.AddMiss(SaveData.Num()));
+			}
 		}
 	}
 }
@@ -6374,7 +6393,7 @@ static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FS
 
 void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& CompilationResults)
 {
-	UE_LOG(LogShaders, Warning, TEXT("Compiled %u global shaders"), CompilationResults.Num());
+	UE_LOG(LogShaders, Verbose, TEXT("Compiled %u global shaders"), CompilationResults.Num());
 
 	TArray<EShaderPlatform> ShaderPlatformsProcessed;
 	TArray<const FShaderPipelineType*> SharedPipelines;
@@ -6412,7 +6431,7 @@ void ProcessCompiledGlobalShaders(const TArray<FShaderCommonCompileJobPtr>& Comp
 		{
 			// Process the shader pipelines that share shaders
 			EShaderPlatform Platform = ShaderPlatformsProcessed[PlatformIndex];
-			auto* GlobalShaderMap = GGlobalShaderMap[Platform];
+			FGlobalShaderMap* GlobalShaderMap = GGlobalShaderMap[Platform];
 			const ITargetPlatform* TargetPlatform = GGlobalShaderTargetPlatform[Platform];
 
 			FPlatformTypeLayoutParameters LayoutParams;
