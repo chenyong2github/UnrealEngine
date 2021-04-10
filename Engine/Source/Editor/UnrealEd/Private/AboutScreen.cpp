@@ -79,7 +79,8 @@ void SAboutScreen::Construct(const FArguments& InArgs)
 					+SVerticalBox::Slot()
 					.Padding(0.f, 4.f)
 					[
-						SNew(STextBlock)
+						SNew(SEditableText)
+						.IsReadOnly(true)
 						.ColorAndOpacity(FStyleColors::ForegroundHover)
 						.Text( Version )
 					]
