@@ -252,30 +252,32 @@ namespace DatasmithRuntime
 		ActorData.ParentId = ParentId;
 		ActorData.WorldTransform = FTransform( ActorElement->GetRotation(), ActorElement->GetTranslation(), ActorElement->GetScale() );
 
+		bool bProcessSuccessful = false;
+
 		if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 		{
 			IDatasmithMeshActorElement* MeshActorElement = static_cast<IDatasmithMeshActorElement*>(ActorElement.Get());
 			
 			ActorData.Type = EDataType::MeshActor;
-			ProcessMeshActorData(ActorData, MeshActorElement);
+			bProcessSuccessful = ProcessMeshActorData(ActorData, MeshActorElement);
 		}
 		else if (ActorElement->IsA(EDatasmithElementType::Light))
 		{
 			IDatasmithLightActorElement* LightActorElement = static_cast<IDatasmithLightActorElement*>(ActorElement.Get());
 
 			ActorData.Type = EDataType::LightActor;
-			ProcessLightActorData(ActorData, LightActorElement);
+			bProcessSuccessful = ProcessLightActorData(ActorData, LightActorElement);
 		}
 		else if (ActorElement->IsA(EDatasmithElementType::Camera))
 		{
 			IDatasmithCameraActorElement* CameraElement = static_cast<IDatasmithCameraActorElement*>(ActorElement.Get());
 
-			ProcessCameraActorData(ActorData, CameraElement);
+			bProcessSuccessful = ProcessCameraActorData(ActorData, CameraElement);
 		}
-		else
+
+		if (!bProcessSuccessful)
 		{
 			CreateActorComponent(ActorData, ActorElement);
-
 			ActorData.AddState(EAssetState::Processed | EAssetState::Completed);
 		}
 	}
@@ -1095,7 +1097,7 @@ namespace DatasmithRuntime
 			{
 				SceneComponent->UnregisterComponent();
 
-				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
 
 				if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(SceneComponent))
 				{
@@ -1121,8 +1123,8 @@ namespace DatasmithRuntime
 
 					for (USceneComponent* ChildComponent : Children)
 					{
-						ChildComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-						ChildComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepWorldTransform);
+						ChildComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+						ChildComponent->AttachToComponent(ParentComponent, FAttachmentTransformRules::KeepRelativeTransform);
 					}
 
 					DeleteSceneComponent();
@@ -1136,8 +1138,8 @@ namespace DatasmithRuntime
 
 					for (AActor* ChildActor : ChildActors)
 					{
-						ChildActor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
-						ChildActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepWorldTransform);
+						ChildActor->DetachFromActor(FDetachmentTransformRules::KeepRelativeTransform);
+						ChildActor->AttachToActor(ParentActor, FAttachmentTransformRules::KeepRelativeTransform);
 					}
 
 					RootComponent->GetOwner()->GetWorld()->EditorDestroyActor(Actor, true);
@@ -1422,15 +1424,9 @@ namespace DatasmithRuntime
 
 		// Find the right parent
 		FSceneGraphId ParentId = ActorData.ParentId;
-		while (ParentId != DirectLink::InvalidId)
+		while (ParentId != DirectLink::InvalidId && ActorDataList[ParentId].HasState(EAssetState::Skipped))
 		{
-			FActorData& ParentData = ActorDataList[ParentId];
-			if (!ParentData.HasState(EAssetState::Skipped))
-			{
-				break;
-			}
-
-			ParentId = ParentData.ParentId;
+			ParentId = ActorDataList[ParentId].ParentId;
 		}
 
 		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None && ParentId != DirectLink::InvalidId)
@@ -1465,14 +1461,17 @@ namespace DatasmithRuntime
 
 		const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
 
-		SceneComponent->SetWorldTransform( ActorData.WorldTransform );
+		const FTransform ParentToWorld = ParentComponent->GetComponentToWorld();
+		const FTransform RelativeTransform = ActorData.WorldTransform.GetRelativeTransform(ParentToWorld);
+
+		SceneComponent->SetRelativeTransform( RelativeTransform );
 		SceneComponent->SetVisibility(ActorElement->GetVisibility());
 		SceneComponent->SetMobility( EComponentMobility::Movable );
 
 		if (SceneComponent->GetAttachParent() != ParentComponent)
 		{
-			SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-			SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepWorldTransform );
+			SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
 		}
 
 		SceneComponent->ComponentTags.Empty(ActorElement->GetTagsCount());
