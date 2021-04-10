@@ -448,7 +448,7 @@ void UStatusBarSubsystem::CreateContentBrowserIfNeeded()
 		IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();;
 
 		FContentBrowserConfig Config;
-		Config.bCanSetAsPrimaryBrowser = false;
+		Config.bCanSetAsPrimaryBrowser = true;
 
 		TFunction<TSharedPtr<SDockTab>()> GetTab(
 			[this]() -> TSharedPtr<SDockTab>

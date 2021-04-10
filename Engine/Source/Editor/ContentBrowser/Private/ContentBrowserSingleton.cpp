@@ -615,12 +615,13 @@ void FContentBrowserSingleton::SharedCreateAssetDialogWindow(const TSharedRef<SA
 
 void FContentBrowserSingleton::ChooseNewPrimaryBrowser()
 {
+	// The drawer is the lowest priority. If a docked content browser can become the primary browser choose it first
 	// Find the first valid browser and trim any invalid browsers along the way
 	for (int32 BrowserIdx = 0; BrowserIdx < AllContentBrowsers.Num(); ++BrowserIdx)
 	{
-		if ( AllContentBrowsers[BrowserIdx].IsValid() )
+		if (TSharedPtr<SContentBrowser> TestBrowser = AllContentBrowsers[BrowserIdx].Pin())
 		{
-			if (AllContentBrowsers[BrowserIdx].Pin()->CanSetAsPrimaryContentBrowser())
+			if (TestBrowser->CanSetAsPrimaryContentBrowser() && TestBrowser != ContentBrowserDrawer)
 			{
 				SetPrimaryContentBrowser(AllContentBrowsers[BrowserIdx].Pin().ToSharedRef());
 				break;
@@ -632,6 +633,12 @@ void FContentBrowserSingleton::ChooseNewPrimaryBrowser()
 			AllContentBrowsers.RemoveAt(BrowserIdx);
 			BrowserIdx--;
 		}
+	}
+
+	// Set the content browser drawer as the primary browser
+	if (!PrimaryContentBrowser.IsValid())
+	{
+		PrimaryContentBrowser = ContentBrowserDrawer;
 	}
 }
 
@@ -758,7 +765,8 @@ TSharedRef<SWidget> FContentBrowserSingleton::CreateContentBrowser( const FName 
 
 	AllContentBrowsers.Add( NewBrowser );
 
-	if( !PrimaryContentBrowser.IsValid() )
+	// The drawer is the lowest priority. If a new content browser is being added see if it is capable of becoming the primary browser
+	if( !PrimaryContentBrowser.IsValid() || PrimaryContentBrowser == ContentBrowserDrawer)
 	{
 		ChooseNewPrimaryBrowser();
 	}
@@ -777,11 +785,6 @@ TSharedRef<SDockTab> FContentBrowserSingleton::SpawnContentBrowserTab( const FSp
 		.ToolTip( IDocumentation::Get()->CreateToolTip( Label, nullptr, "Shared/ContentBrowser", "Tab" ) );
 
 	TSharedRef<SWidget> NewBrowser = CreateContentBrowser( SpawnTabArgs.GetTabId().TabType, NewTab, nullptr );
-
-	if ( !PrimaryContentBrowser.IsValid() )
-	{
-		ChooseNewPrimaryBrowser();
-	}
 
 	// Add wrapper for tutorial highlighting
 	TSharedRef<SBox> Wrapper =
