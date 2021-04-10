@@ -846,6 +846,7 @@ void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& 
 				}
 			}
 
+			check(MatchingBin);
 			bool bRemoved = false;
 
 			for (int32 AllocationIndex = 0; AllocationIndex < MatchingBin->BinAllocations.Num(); AllocationIndex++)
@@ -872,7 +873,7 @@ void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& 
 				}
 			}
 
-			ensure(bRemoved);
+			check(bRemoved);
 		}
 		else
 		{

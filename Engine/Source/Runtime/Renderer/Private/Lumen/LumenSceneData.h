@@ -156,7 +156,7 @@ public:
 	FLumenSurfaceMipMap& GetMipMap(int32 ResLevel)
 	{
 		const int32 MipIndex = ResLevel - Lumen::MinResLevel;
-		ensure(MipIndex >= 0 && MipIndex < UE_ARRAY_COUNT(SurfaceMipMaps));
+		check(MipIndex >= 0 && MipIndex < UE_ARRAY_COUNT(SurfaceMipMaps));
 		return SurfaceMipMaps[MipIndex]; 
 	}
 
@@ -166,7 +166,7 @@ public:
 	const FLumenSurfaceMipMap& GetMipMap(int32 ResLevel) const
 	{
 		const int32 MipIndex = ResLevel - Lumen::MinResLevel;
-		ensure(MipIndex >= 0 && MipIndex < UE_ARRAY_COUNT(SurfaceMipMaps));
+		check(MipIndex >= 0 && MipIndex < UE_ARRAY_COUNT(SurfaceMipMaps));
 		return SurfaceMipMaps[MipIndex];
 	}
 
