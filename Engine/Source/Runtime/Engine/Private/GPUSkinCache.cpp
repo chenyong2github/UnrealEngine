@@ -803,6 +803,8 @@ void FGPUSkinCache::AddRayTracingGeometryToUpdate(FRayTracingGeometry* InRayTrac
 	}
 }
 
+DECLARE_GPU_STAT(GPUSkinCacheBuildBLAS);
+DECLARE_GPU_STAT(GPUSkinCacheUpdateBLAS);
 void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RHICmdList)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FGPUSkinCache::CommitRayTracingGeometryUpdates);
@@ -829,14 +831,16 @@ void FGPUSkinCache::CommitRayTracingGeometryUpdates(FRHICommandListImmediate& RH
 		{
 			if (BatchedBuildParams.Num())
 			{
-				SCOPED_DRAW_EVENT(RHICmdList, BuildGPUSkinCacheBLAS);
+				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheBuildBLAS);
+				SCOPED_DRAW_EVENT(RHICmdList, GPUSkinCacheBuildBLAS);
 				RHICmdList.BuildAccelerationStructures(BatchedBuildParams);
 				BatchedBuildParams.Empty(BatchedBuildParams.Max());
 			}
 
 			if (BatchedUpdateParams.Num())
 			{
-				SCOPED_DRAW_EVENT(RHICmdList, UpdateGPUSkinCacheBLAS);
+				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheUpdateBLAS);
+				SCOPED_DRAW_EVENT(RHICmdList, GPUSkinCacheUpdateBLAS);
 				RHICmdList.BuildAccelerationStructures(BatchedUpdateParams);
 				BatchedUpdateParams.Empty(BatchedUpdateParams.Max());
 			}

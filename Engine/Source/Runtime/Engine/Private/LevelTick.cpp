@@ -61,6 +61,7 @@
 #include "InGamePerformanceTracker.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "GPUSkinCache.h"
 #include "ComputeFramework/ComputeFramework.h"
 
@@ -994,27 +995,41 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
 	return SendAllEndOfFrameUpdates;
 }
 
+DECLARE_GPU_STAT(EndOfFrameUpdates);
+DECLARE_GPU_STAT(GPUSkinCache);
+DECLARE_GPU_STAT(GPUSkinCacheRayTracingGeometry);
+DECLARE_GPU_STAT(ComputeFrameworkExecuteBatches);
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
 		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
 	{
+		SCOPED_GPU_STAT(RHICmdList, EndOfFrameUpdates);
+
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
-			// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
-			// allow the GPU Skin Cache system to update.
-			SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
+			{
+				SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
 
-			// Flush any remaining pending resource barriers.
-			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
+				// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
+				// allow the GPU Skin Cache system to update.
+				SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
+
+				// Flush any remaining pending resource barriers.
+				SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
+			}
 
 		#if RHI_RAYTRACING
-			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+			{
+				SCOPED_GPU_STAT(RHICmdList, GPUSkinCacheRayTracingGeometry);
+				SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
+			}
 		#endif // RHI_RAYTRACING
 		}
 
 		if (SendAllEndOfFrameUpdates->ComputeFramework)
 		{
+			SCOPED_GPU_STAT(RHICmdList, ComputeFrameworkExecuteBatches);
 			SendAllEndOfFrameUpdates->ComputeFramework->ExecuteBatches(RHICmdList, SendAllEndOfFrameUpdates->FeatureLevel);
 		}
 
