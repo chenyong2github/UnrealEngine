@@ -194,7 +194,7 @@ void InstanceCull(
 				FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, bSkipBoxCullFrustum);
 				
 				BRANCH
-				if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
+				if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
 				{
 					FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB( PrevRect, true );

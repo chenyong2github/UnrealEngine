@@ -327,17 +327,21 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	{
 		FFrustumCullData PrevCull = BoxCullFrustum( Cluster.BoxBoundsCenter, Cluster.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
 		
-		BRANCH
-		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
-		{
-			#if VIRTUAL_TEXTURE_TARGET
-				FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-				bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
-			#else
-				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+		#if VIRTUAL_TEXTURE_TARGET
+			BRANCH
+			if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
+			{
+				FScreenRect PrevRect = GetScreenRect(NaniteView.ViewRect, PrevCull, 4);	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
+				bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB(NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect);
+			}
+		#else
+			BRANCH
+			if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
+			{
+				FScreenRect PrevRect = GetScreenRect(NaniteView.HZBTestViewRect, PrevCull, 4);
 				bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB(PrevRect, true);
-			#endif
-		}
+			}
+		#endif
 	}
 #endif
 
@@ -653,18 +657,22 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 		if( bViewHZB && bVisible )
 		{
 			FFrustumCullData PrevCull = BoxCullFrustum( HierarchyNodeSlice.BoxBoundsCenter, HierarchyNodeSlice.BoxBoundsExtent, DynamicData.PrevLocalToClip, bNearClip, bSkipBoxCullFrustum );
-			
-			BRANCH
-			if( PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane )
-			{
-				#if VIRTUAL_TEXTURE_TARGET
+						
+			#if VIRTUAL_TEXTURE_TARGET
+				BRANCH
+				if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
+				{
 					FScreenRect PrevRect = GetScreenRect( NaniteView.ViewRect, PrevCull, 4 );		// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
 					bVisible = bSkipBoxCullHZB ? true : IsVisibleHZB( NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect );
-				#else
+				}
+			#else
+				BRANCH
+				if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
+				{
 					FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
 					bWasOccluded = bSkipBoxCullHZB ? false : !IsVisibleHZB(PrevRect, true);
-				#endif
-			}
+				}
+			#endif
 		}
 #endif
 

@@ -17,6 +17,7 @@ struct FFrustumCullData
 
 	bool	bCrossesFarPlane;
 	bool	bCrossesNearPlane;
+	bool	bFrustumSideCulled;
 	bool	bIsVisible;
 };
 
@@ -365,6 +366,7 @@ FFrustumCullData BoxCullFrustumOrthoNoClip(float3 Center, float3 Extent, float4x
 	if (!bSkipFrustumCull) // for debugging, will compile out
 	{
 		const bool bFrustumCull = any(Cull.RectMax.xy < -1.0f || Cull.RectMin.xy > 1.0f);
+		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
 		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
 	}
 
@@ -476,6 +478,7 @@ FFrustumCullData BoxCullFrustumGeneral(float3 Center, float3 Extent, float4x4 Lo
 							-PC110.xy > PC110.w && -PC111.xy > PC111.w;
 
 		const bool bFrustumCull = any(SignMin || SignMax);
+		Cull.bFrustumSideCulled = Cull.bIsVisible && bFrustumCull;
 		Cull.bIsVisible = Cull.bIsVisible && !bFrustumCull;
 	}
 

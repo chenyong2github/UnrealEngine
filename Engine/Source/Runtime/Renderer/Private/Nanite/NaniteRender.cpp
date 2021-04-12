@@ -3245,7 +3245,7 @@ void CullRasterize(
 		CullingParameters.InViews		= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
 		CullingParameters.NumViews		= Views.Num();
 		CullingParameters.NumPrimaryViews = NumPrimaryViews;
-		CullingParameters.DisocclusionLodScaleFactor = (GNaniteDisocclusionHack && GLumenFastCameraMode) ? 0.01f : 1.0f;	// TODO: Get rid of this hack
+		CullingParameters.DisocclusionLodScaleFactor = GNaniteDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2D(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
