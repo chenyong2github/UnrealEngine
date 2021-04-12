@@ -112,7 +112,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			if (RestResource) Total += RestResource->GetResourcesSize();
 			if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
 			if (ClusterCullingResource) Total += ClusterCullingResource->GetResourcesSize();
+			#if RHI_RAYTRACING
 			if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
+			#endif
 			return Total;
 		}
 
@@ -168,7 +170,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				if (RestResource) Total += RestResource->GetResourcesSize();
 				if (ProceduralResource) Total += ProceduralResource->GetResourcesSize();
 				if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
+				#if RHI_RAYTRACING
 				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
+				#endif
 				return Total;
 			}
 
@@ -237,7 +241,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			{
 				uint32 Total = 0;
 				if (RestResource) Total += RestResource->GetResourcesSize();
+				#if RHI_RAYTRACING
 				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
+				#endif
 				return Total;
 			}
 
@@ -482,9 +488,11 @@ private:
 	// Functions allocating lazily/on-demand resources (guides, interpolation, RT geometry, ...)
 	FHairStrandsRestResource*			AllocateGuidesResources(uint32 GroupIndex);
 	FHairStrandsInterpolationResource*	AllocateInterpolationResources(uint32 GroupIndex);
+#if RHI_RAYTRACING
 	FHairStrandsRaytracingResource*		AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
 	FHairStrandsRaytracingResource*		AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
 	FHairStrandsRaytracingResource*		AllocateStrandsRaytracingResources(uint32 GroupIndex);
+#endif
 	friend class UGroomComponent;
 
 #if WITH_EDITORONLY_DATA

@@ -2258,9 +2258,9 @@ FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(u
 	return nullptr;
 }
 
+#if RHI_RAYTRACING
 FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
 {
-#if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
@@ -2274,13 +2274,11 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 		}
 		return LOD.RaytracingResource;
 	}
-#endif
 	return nullptr;
 }
 
 FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
 {
-#if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
@@ -2294,13 +2292,11 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(u
 		}
 		return LOD.RaytracingResource;
 	}
-#endif
 	return nullptr;
 }
 
 FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(uint32 GroupIndex)
 {
-#if RHI_RAYTRACING
 	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()))
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
@@ -2313,9 +2309,9 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(
 		}
 		return GroupData.Strands.RaytracingResource;
 	}
-#endif
 	return nullptr;
 }
+#endif // RHI_RAYTRACING
 
 void UGroomAsset::InitStrandsResources()
 {
