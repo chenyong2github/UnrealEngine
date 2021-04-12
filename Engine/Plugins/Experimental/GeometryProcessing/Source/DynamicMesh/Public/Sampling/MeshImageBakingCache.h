@@ -59,6 +59,8 @@ public:
 
 	const FImageOccupancyMap* GetOccupancyMap() const;
 
+	/** if this function returns true, we should abort calculation */
+	TFunction<bool(void)> CancelF = []() { return false; };
 
 protected:
 	const FDynamicMesh3* DetailMesh = nullptr;
@@ -67,7 +69,7 @@ protected:
 
 	FImageDimensions Dimensions;
 	int32 UVLayer;
-	double Thickness;
+	double Thickness = 3.0;
 
 	TDenseGrid2<FCorrespondenceSample> SampleMap;
 	bool bSamplesValid = false;

@@ -298,6 +298,19 @@ public:
 	 */
 	bool HaveValidResult() const { return bResultValid; }
 
+	/**
+	 * @return the elapsed compute time
+	 */
+	float GetElapsedComputeTime() const
+	{
+		check(BackgroundCompute);
+		if (BackgroundCompute)
+		{
+			return BackgroundCompute->GetElapsedComputeTime();
+		}
+		return 0.0;
+	}
+
 
 	//
 	// Change notification

@@ -257,6 +257,11 @@ bool FMeshImageBakingCache::ValidateCache()
 		// calculate interior texels
 		ParallelFor(Dimensions.Num(), [&](int64 LinearIdx)
 		{
+			if (CancelF())
+			{
+				return;
+			}
+
 			if (OccupancyMap->IsInterior(LinearIdx) == false)
 			{
 				return;
@@ -287,6 +292,11 @@ void FMeshImageBakingCache::EvaluateSamples(
 
 	ParallelFor(Dimensions.Num(), [&](int64 LinearIdx)
 	{
+		if (CancelF())
+		{
+			return;
+		}
+
 		if (OccupancyMap->IsInterior(LinearIdx) == false)
 		{
 			return;

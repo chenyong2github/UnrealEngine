@@ -9,6 +9,10 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 #include "Image/ImageDimensions.h"
+#include "Image/ImageBuilder.h"
+#include "Sampling/MeshImageBaker.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
 
 
@@ -24,9 +28,14 @@ using UE::Geometry::FImageDimensions;
 class IPrimitiveComponentBackedTarget;
 class IMeshDescriptionProvider;
 class IMaterialProvider;
+class FBakeNormalMapOp;
+class FBakeOcclusionMapOp;
+class FBakeCurvatureMapOp;
+class FBakeMeshPropertyMapOp;
+class FBakeTexture2DImageMapOp;
 
 /**
- *
+ * Tool Builder
  */
 UCLASS()
 class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolBuilder : public UInteractiveToolBuilder
@@ -301,7 +310,7 @@ public:
  * Detail Map Baking Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsTool : public UMultiSelectionTool
+class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsTool : public UMultiSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshImageBaker>
 {
 	GENERATED_BODY()
 
@@ -313,11 +322,15 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
+
+	// IGenericDataOperatorFactory API
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshImageBaker>> MakeNewOperator() override;
 
 protected:
 	// need to update bResultValid if these are modified, so we don't publicly expose them. 
@@ -344,6 +357,13 @@ protected:
 
 
 protected:
+	friend class FBakeMapBaseOp;
+	friend class FBakeNormalMapOp;
+	friend class FBakeOcclusionMapOp;
+	friend class FBakeCurvatureMapOp;
+	friend class FBakeTexture2DImageMapOp;
+	friend class FBakeMeshPropertyMapOp;
+
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
@@ -353,6 +373,10 @@ protected:
 
     UPROPERTY()
 	UMaterialInstanceDynamic* BentNormalPreviewMaterial;
+
+	UPROPERTY()
+	UMaterialInstanceDynamic* WorkingPreviewMaterial;
+	float SecondsBeforeWorkingMaterial = 0.75;
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> BaseMeshDescription;
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
@@ -367,13 +391,15 @@ protected:
 	void UpdateDetailMesh();
 	bool bDetailMeshValid = false;
 
-	bool bResultValid;
+	bool bInputsDirty = false;
 	void UpdateResult();
 
 	void UpdateOnModeChange();
 	void UpdateVisualization();
 
-	TPimplPtr<UE::Geometry::FMeshImageBakingCache> BakeCache;
+	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshImageBaker>> Compute = nullptr;
+	void OnMapsUpdated(const TUniquePtr<UE::Geometry::FMeshImageBaker>& NewResult);
+
 	struct FBakeCacheSettings
 	{
 		FImageDimensions Dimensions;
@@ -388,7 +414,13 @@ protected:
 	};
 	FBakeCacheSettings CachedBakeCacheSettings;
 
-
+	enum class EOpState
+	{
+		Complete,	// Inputs valid & Result is valid - no-op.
+		Evaluate,	// Inputs valid & Result is invalid - re-evaluate.
+		Invalid		// Inputs invalid - pause eval.
+	};
+	EOpState OpState = EOpState::Evaluate;
 
 	struct FNormalMapSettings
 	{
@@ -403,7 +435,7 @@ protected:
 	UPROPERTY()
 	UTexture2D* CachedNormalMap;
 
-	void UpdateResult_Normal();
+	EOpState UpdateResult_Normal();
 
 
 
@@ -436,7 +468,7 @@ protected:
 	UPROPERTY()
 	UTexture2D* CachedBentNormalMap;
 
-	void UpdateResult_Occlusion();
+	EOpState UpdateResult_Occlusion();
 
 
 
@@ -461,7 +493,7 @@ protected:
 	UPROPERTY()
 	UTexture2D* CachedCurvatureMap;
 
-	void UpdateResult_Curvature();
+	EOpState UpdateResult_Curvature();
 
 
 
@@ -480,7 +512,7 @@ protected:
 	UPROPERTY()
 	UTexture2D* CachedMeshPropertyMap;
 
-	void UpdateResult_MeshProperty();
+	EOpState UpdateResult_MeshProperty();
 
 
 
@@ -495,11 +527,12 @@ protected:
 			return Dimensions == Other.Dimensions && UVLayer == Other.UVLayer;
 		}
 	};
+	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedTextureImage;
 	FTexture2DImageSettings CachedTexture2DImageSettings;
 	UPROPERTY()
 	UTexture2D* CachedTexture2DImageMap;
 
-	void UpdateResult_Texture2DImage();
+	EOpState UpdateResult_Texture2DImage();
 
 
 

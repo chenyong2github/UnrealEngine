@@ -24,8 +24,10 @@ public:
 		return ImageBakeCache;
 	}
 
+	virtual void Bake()
+	{
 
-	virtual void Bake() = 0;
+	}
 
 
 protected:
