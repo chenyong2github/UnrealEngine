@@ -1050,6 +1050,19 @@ void UNiagaraStackModuleItem::SetIsEnabledInternal(bool bInIsEnabled)
 	OnRequestFullRefreshDeferred().Broadcast();
 }
 
+bool UNiagaraStackModuleItem::IsDebugDrawEnabled() const
+{
+	return FunctionCallNode->DebugState != ENiagaraFunctionDebugState::NoDebug;
+}
+
+void UNiagaraStackModuleItem::SetDebugDrawEnabled(bool bInEnabled)
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("EnableDisableModule", "Enable/Disable Debug for Module"));
+	FunctionCallNode->DebugState = bInEnabled ? ENiagaraFunctionDebugState::Basic : ENiagaraFunctionDebugState::NoDebug;
+	FunctionCallNode->MarkNodeRequiresSynchronization(__FUNCTION__, true);
+	OnRequestFullRefreshDeferred().Broadcast();
+}
+
 bool UNiagaraStackModuleItem::SupportsHighlights() const
 {
 	return FunctionCallNode != nullptr && FunctionCallNode->FunctionScript != nullptr;

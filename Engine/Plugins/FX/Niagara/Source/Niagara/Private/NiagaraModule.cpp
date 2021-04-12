@@ -170,6 +170,7 @@ FNiagaraVariable INiagaraModule::Particles_MeshIndex;
 FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
 FNiagaraVariable INiagaraModule::ScriptUsage;
 FNiagaraVariable INiagaraModule::ScriptContext;
+FNiagaraVariable INiagaraModule::FunctionDebugState;
 FNiagaraVariable INiagaraModule::DataInstance_Alive;
 FNiagaraVariable INiagaraModule::Translator_BeginDefaults;
 FNiagaraVariable INiagaraModule::Translator_CallID;
@@ -292,6 +293,8 @@ void INiagaraModule::StartupModule()
 	ScriptUsage = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage"));
 	ScriptContext = FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context"));
 	DataInstance_Alive = FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive"));
+
+	FunctionDebugState = FNiagaraVariable(FNiagaraTypeDefinition::GetFunctionDebugStateEnum(), TEXT("Function.DebugState"));
 
 	Translator_BeginDefaults = FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("Begin Defaults"));
 	Translator_CallID = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Translator.CallID"));
@@ -545,6 +548,8 @@ UEnum* FNiagaraTypeDefinition::ScriptContextEnum;
 UEnum* FNiagaraTypeDefinition::ParameterScopeEnum;
 UEnum* FNiagaraTypeDefinition::ParameterPanelCategoryEnum;
 
+UEnum* FNiagaraTypeDefinition::FunctionDebugStateEnum;
+
 FNiagaraTypeDefinition FNiagaraTypeDefinition::ParameterMapDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::IDDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::NumericDef;
@@ -683,6 +688,8 @@ void FNiagaraTypeDefinition::Init()
 
 	ParameterScopeEnum = StaticEnum<ENiagaraParameterScope>();
 	ParameterPanelCategoryEnum = StaticEnum<ENiagaraParameterPanelCategory>();
+
+	FunctionDebugStateEnum = StaticEnum<ENiagaraFunctionDebugState>();
 	
 #if WITH_EDITOR
 	RecreateUserDefinedTypeRegistry();

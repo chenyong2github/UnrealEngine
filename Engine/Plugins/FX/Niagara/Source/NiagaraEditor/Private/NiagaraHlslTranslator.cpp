@@ -6141,6 +6141,11 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 
 	FPinCollectorArray OutputPins;
 	Operation->GetOutputPins(OutputPins);
+	OutputPins.RemoveAll([](UEdGraphPin* Pin)
+		{
+			return Pin->bOrphanedPin == true;
+		});
+
 	for (int32 OutputIndex = 0; OutputIndex < OutputPins.Num(); OutputIndex++)
 	{
 		UEdGraphPin* OutputPin = OutputPins[OutputIndex];
