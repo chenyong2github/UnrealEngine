@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Chaos/Core.h"
 #include "Chaos/HeightField.h"
+#include "Chaos/Core.h"
 #include "Chaos/Convex.h"
 #include "Chaos/Box.h"
 #include "Chaos/GJK.h"
