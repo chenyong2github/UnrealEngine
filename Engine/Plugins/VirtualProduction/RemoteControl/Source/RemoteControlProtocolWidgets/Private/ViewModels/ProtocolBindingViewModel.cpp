@@ -211,7 +211,7 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 					IntMin = NumericProperty->GetIntMetaData(ClampMinKey);
 				}
 
-				TOptional<int32> IntMax;
+				TOptional<int64> IntMax;
 				if(NumericProperty->HasMetaData(ClampMaxKey))
 				{
 					IntMax = NumericProperty->GetIntMetaData(ClampMaxKey);
@@ -279,7 +279,7 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 					IntMin = NumericProperty->GetIntMetaData(ClampMinKey);
 				}
 
-				TOptional<int32> IntMax;
+				TOptional<int64> IntMax;
 				if(NumericProperty->HasMetaData(ClampMaxKey))
 				{
 					IntMax = NumericProperty->GetIntMetaData(ClampMaxKey);

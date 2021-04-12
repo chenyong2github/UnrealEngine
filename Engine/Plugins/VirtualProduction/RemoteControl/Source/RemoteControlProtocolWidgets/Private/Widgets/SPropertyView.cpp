@@ -215,11 +215,11 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 	{
 		if (InPropertyHandle.IsValid() && InPropertyHandle->IsValidHandle() && InPropertyHandle->IsEditable())
 		{
-			FProperty* Property = InPropertyHandle->GetProperty();
+			FProperty* PropertyToVerify = InPropertyHandle->GetProperty();
 
-			if (Property)
+			if (PropertyToVerify)
 			{
-				if (const FFieldVariant Outer = Property->GetOwnerVariant())
+				if (const FFieldVariant Outer = PropertyToVerify->GetOwnerVariant())
 				{
 					// if the outer is a container property (array,set or map) it's editable even without the proper flags.
 					if (Outer.IsA<FArrayProperty>() || Outer.IsA<FSetProperty>() || Outer.IsA<FMapProperty>())
@@ -228,7 +228,7 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 					}
 				}
 
-				return Property && !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Property->HasAnyPropertyFlags(CPF_Edit);
+				return PropertyToVerify && !PropertyToVerify->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && PropertyToVerify->HasAnyPropertyFlags(CPF_Edit);
 			}
 		}
 
@@ -241,12 +241,12 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 	{
 		if (InPropertyHandle.IsValid() && InPropertyHandle->IsValidHandle() && InPropertyHandle->IsEditable())
 		{
-			if (FProperty* Property = InPropertyHandle->GetProperty())
+			if (FProperty* PropertyToVerify = InPropertyHandle->GetProperty())
 			{
-				FFieldClass* PropertyClass = Property->GetClass();
+				FFieldClass* PropertyClass = PropertyToVerify->GetClass();
 				if (PropertyClass == FArrayProperty::StaticClass() || PropertyClass == FSetProperty::StaticClass() || PropertyClass == FMapProperty::StaticClass())
 				{
-					return !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && Property->HasAnyPropertyFlags(CPF_Edit);
+					return !PropertyToVerify->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && PropertyToVerify->HasAnyPropertyFlags(CPF_Edit);
 				}
 			}
 		}
