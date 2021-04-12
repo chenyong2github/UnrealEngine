@@ -501,6 +501,9 @@ void FRDGUserValidation::ValidateAddPass(const void* ParameterStruct, const FSha
 
 	checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::SkipRenderPass) || EnumHasAllFlags(Flags, ERDGPassFlags::Raster),
 		TEXT("Pass %s specified SkipRenderPass without Raster. Only raster passes support this flag."));
+
+	checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::NeverMerge) || EnumHasAllFlags(Flags, ERDGPassFlags::Raster),
+		TEXT("Pass %s specified NeverMerge without Raster. Only raster passes support this flag."));
 }
 
 void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking)

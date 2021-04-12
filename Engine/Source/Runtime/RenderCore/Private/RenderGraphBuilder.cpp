@@ -1164,8 +1164,8 @@ void FRDGBuilder::Compile()
 			{
 				FRDGPass* NextPass = Passes[PassHandle];
 
-				// A pass where the user controls the render pass can't merge with other passes
-				if (EnumHasAnyFlags(NextPass->GetFlags(), ERDGPassFlags::SkipRenderPass))
+				// A pass where the user controls the render pass or it is forced to skip pass merging can't merge with other passes
+				if (EnumHasAnyFlags(NextPass->GetFlags(), ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverMerge))
 				{
 					CommitMerge();
 					continue;

@@ -95,6 +95,9 @@ enum class ERDGPassFlags : uint8
 	/** Render pass begin / end is skipped and left to the user. Only valid when combined with 'Raster'. Disables render pass merging for the pass. */
 	SkipRenderPass = 1 << 5,
 
+	/** Pass will never have its render pass merged with other passes. */
+	NeverMerge = 1 << 6,
+
 	/** Pass uses copy commands but writes to a staging resource. */
 	Readback = Copy | NeverCull
 };
