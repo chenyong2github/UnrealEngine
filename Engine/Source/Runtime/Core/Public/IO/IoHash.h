@@ -34,7 +34,7 @@ public:
 	inline explicit FIoHash(const ByteArray& Hash);
 
 	/** Construct a hash from a BLAKE3-256 hash. */
-	inline explicit FIoHash(const FBlake3Hash& Hash);
+	inline FIoHash(const FBlake3Hash& Hash);
 
 	/** Construct a hash from a 40-character hex string. */
 	inline explicit FIoHash(FAnsiStringView HexHash);
