@@ -36,6 +36,7 @@ namespace Chaos
 			: PseudoFraction(1.0)
 			, Step(1)
 			, NumSteps(1)
+			, bSolverSubstepped(false)
 		{
 		}
 
@@ -43,6 +44,16 @@ namespace Chaos
 			: PseudoFraction(InPseudoFraction)
 			, Step(InStep)
 			, NumSteps(InNumSteps)
+			, bSolverSubstepped(false)
+		{
+
+		}
+
+		FSubStepInfo(const FReal InPseudoFraction, const int32 InStep, const int32 InNumSteps, bool bInSolverSubstepped)
+			: PseudoFraction(InPseudoFraction)
+			, Step(InStep)
+			, NumSteps(InNumSteps)
+			, bSolverSubstepped(bInSolverSubstepped)
 		{
 
 		}
@@ -51,6 +62,7 @@ namespace Chaos
 		FReal PseudoFraction;
 		int32 Step;
 		int32 NumSteps;
+		bool bSolverSubstepped;
 	};
 
 	/**
@@ -333,6 +345,46 @@ namespace Chaos
 			return IsUsingAsyncResults() && UseAsyncInterpolation;
 		}
 
+		void SetMaxDeltaTime_External(float InMaxDeltaTime)
+		{
+			MMaxDeltaTime = InMaxDeltaTime;
+		}
+
+		void SetMinDeltaTime_External(float InMinDeltaTime)
+		{
+			MMinDeltaTime = InMinDeltaTime;
+		}
+
+		float GetMaxDeltaTime_External() const
+		{
+			return MMaxDeltaTime;
+		}
+
+		float GetMinDeltaTime_External() const
+		{
+			return MMinDeltaTime;
+		}
+
+		void SetMaxSubSteps_External(const int32 InMaxSubSteps)
+		{
+			MMaxSubSteps = InMaxSubSteps;
+		}
+
+		int32 GetMaxSubSteps_External() const
+		{
+			return MMaxSubSteps;
+		}
+
+		void SetSolverSubstep_External(bool bInSubstepExternal)
+		{
+			bSolverSubstep_External = bInSubstepExternal;
+		}
+
+		bool GetSolverSubstep_External() const
+		{
+			return bSolverSubstep_External;
+		}
+
 		/** Returns the time used by physics results. If fixed dt is used this will be the interpolated time */
 		FReal GetPhysicsResultsTime_External() const
 		{
@@ -432,8 +484,12 @@ namespace Chaos
 		friend struct TSolverSimMaterialScope;
 
 		bool bIsShuttingDown;
+		bool bSolverSubstep_External;
 		FReal AsyncDt;
 		FReal AccumulatedTime;
+		float MMaxDeltaTime;
+		float MMinDeltaTime;
+		int32 MMaxSubSteps;
 		int32 ExternalSteps;
 		TArray<FGeometryParticle*> UniqueIdxToGTParticles;
 

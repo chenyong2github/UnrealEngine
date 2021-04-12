@@ -102,7 +102,7 @@ namespace Chaos
 		// E.g., for 4 steps this will be: 1/4, 1/3, 1/2, 1
 		const FReal PseudoFraction = (FReal)1 / (FReal)(PushData->IntervalNumSteps - PushData->IntervalStep);
 		
-		Solver.AdvanceSolverBy(PushData->ExternalDt, FSubStepInfo{PseudoFraction, PushData->IntervalStep, PushData->IntervalNumSteps });
+		Solver.AdvanceSolverBy(PushData->ExternalDt, FSubStepInfo{PseudoFraction, PushData->IntervalStep, PushData->IntervalNumSteps, PushData->bSolverSubstepped});
 		Solver.GetMarshallingManager().FreeDataToHistory_Internal(PushData);	//cannot use push data after this point
 		PushData = nullptr;
 
@@ -136,8 +136,12 @@ namespace Chaos
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
 		, bIsShuttingDown(false)
+		, bSolverSubstep_External(false)
 		, AsyncDt(-1)
 		, AccumulatedTime(0)
+		, MMaxDeltaTime(0.0)
+		, MMinDeltaTime(SMALL_NUMBER)
+		, MMaxSubSteps(1)
 		, ExternalSteps(0)
 #if !UE_BUILD_SHIPPING
 		, bStealAdvanceTasksForTesting(false)

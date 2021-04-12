@@ -230,9 +230,9 @@ namespace Chaos
 				//
 				// * If we have used all of our substeps but still have time remaining, then some
 				//   energy will be lost.
-				const FReal MinDeltaTime = MSolver->GetMinDeltaTime();
-				const FReal MaxDeltaTime = MSolver->GetMaxDeltaTime();
-				int32 StepsRemaining = MSolver->GetMaxSubSteps();
+				const FReal MinDeltaTime = MSolver->GetMinDeltaTime_External();
+				const FReal MaxDeltaTime = MSolver->GetMaxDeltaTime_External();
+				int32 StepsRemaining = MSubStepInfo.bSolverSubstepped ? 1 : MSolver->GetMaxSubSteps_External();
 				FReal TimeRemaining = MDeltaTime;
 				bool bFirstStep = true;
 				while (StepsRemaining > 0 && TimeRemaining > MinDeltaTime)
@@ -341,9 +341,6 @@ namespace Chaos
 		, CurrentFrame(0)
 		, MTime(0.0)
 		, MLastDt(0.0)
-		, MMaxDeltaTime(0.0)
-		, MMinDeltaTime(SMALL_NUMBER)
-		, MMaxSubSteps(1)
 		, bHasFloor(true)
 		, bIsFloorAnalytic(false)
 		, FloorHeight(0.f)
@@ -616,9 +613,9 @@ namespace Chaos
 		MTime = 0;
 		MLastDt = 0.0f;
 		CurrentFrame = 0;
-		MMaxDeltaTime = 1.f;
-		MMinDeltaTime = SMALL_NUMBER;
-		MMaxSubSteps = 1;
+		SetMaxDeltaTime_External(1.0f);
+		SetMinDeltaTime_External(SMALL_NUMBER);
+		SetMaxSubSteps_External(1);
 		MEvolution = TUniquePtr<FPBDRigidsEvolution>(new FPBDRigidsEvolution(Particles, SimMaterials, &ContactModifiers, BufferMode == EMultiBufferMode::Single)); 
 
 		PerSolverField = MakeUnique<FPerSolverFieldSystem>();
@@ -814,7 +811,7 @@ namespace Chaos
 
 		GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().PushProducerStorageData_External(MarshallingManager.GetExternalTimestamp_External());
 
-		MarshallingManager.Step_External(DeltaTime, NumSteps);
+		MarshallingManager.Step_External(DeltaTime, NumSteps, GetSolverSubstep_External());
 	}
 
 	void FPBDRigidsSolver::ProcessSinglePushedData_Internal(FPushPhysicsData& PushData)

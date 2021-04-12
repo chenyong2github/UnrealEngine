@@ -190,6 +190,7 @@ struct FPushPhysicsData
 	int32 InternalStep;		//The solver step this data will be associated with
 	int32 IntervalStep;		//The step we are currently at for this simulation interval. If not sub-stepping both step and num steps are 1: step is [0, IntervalNumSteps-1]
 	int32 IntervalNumSteps;	//The total number of steps associated with this simulation interval
+	bool bSolverSubstepped;
 
 	TArray<ISimCallbackObject*> SimCallbackObjectsToAdd;	//callback object registered at this specific time
 	TArray<ISimCallbackObject*> SimCallbackObjectsToRemove;	//callback object removed at this specific time
@@ -236,7 +237,7 @@ public:
 		GetProducerData_External()->SimCallbackInputs.Add(FSimCallbackInputAndObject{ SimCallbackObject, InputData });
 	}
 	/** Step forward using the external delta time. Should only be called by external thread */
-	void Step_External(FReal ExternalDT, const int32 NumSteps = 1);
+	void Step_External(FReal ExternalDT, const int32 NumSteps = 1, bool bSolverSubstepped = false);
 
 	/** Step the internal time forward if possible*/
 	FPushPhysicsData* StepInternalTime_External();

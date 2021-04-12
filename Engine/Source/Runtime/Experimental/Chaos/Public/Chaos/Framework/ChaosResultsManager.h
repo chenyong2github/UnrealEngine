@@ -41,7 +41,7 @@ namespace Chaos
 		{
 		}
 
-		FPullPhysicsData* PullSyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager);
+		FPullPhysicsData* PullSyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, bool bWasSubstepping);
 		const FChaosInterpolationResults& PullAsyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, const FReal ResultsTime);
 
 	private:

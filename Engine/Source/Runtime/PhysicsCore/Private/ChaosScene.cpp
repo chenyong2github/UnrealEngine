@@ -324,11 +324,20 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 #if WITH_CHAOS
 	using namespace Chaos;
 	SetGravity(*NewGrav);
-	MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds,InMaxPhysicsDeltaTime) : InDeltaSeconds;
+
+	if(bSubstepping)
+	{
+		MDeltaTime = FMath::Min(InDeltaSeconds, InMaxSubsteps * InMaxSubstepDeltaTime);
+	}
+	else
+	{
+		MDeltaTime = InMaxPhysicsDeltaTime > 0.f ? FMath::Min(InDeltaSeconds, InMaxPhysicsDeltaTime) : InDeltaSeconds;
+	}
 
 	if(FPhysicsSolver* Solver = GetSolver())
 	{
-		if (InAsyncDt > 0)
+		const bool bIsAsync = InAsyncDt > 0;
+		if (bIsAsync)
 		{
 			Solver->EnableAsyncMode(InAsyncDt);
 		}
@@ -338,12 +347,13 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 		}
 		if(bSubstepping)
 		{
-			Solver->SetMaxDeltaTime(InMaxSubstepDeltaTime);
-			Solver->SetMaxSubSteps(InMaxSubsteps);
-		} else
+			Solver->SetMaxDeltaTime_External(InMaxSubstepDeltaTime);
+			Solver->SetMaxSubSteps_External(InMaxSubsteps);
+		} 
+		else
 		{
-			Solver->SetMaxDeltaTime(InMaxPhysicsDeltaTime);
-			Solver->SetMaxSubSteps(1);
+			Solver->SetMaxDeltaTime_External(InMaxPhysicsDeltaTime);
+			Solver->SetMaxSubSteps_External(1);
 		}
 	}
 #endif

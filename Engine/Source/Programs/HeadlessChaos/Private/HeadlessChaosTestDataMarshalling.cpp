@@ -207,7 +207,7 @@ namespace ChaosTest
 				ExternalTime += ExternalDt;
 				MarshallingManager.FinalizePullData_Internal(Step, StartTime, ExternalDt);
 				//in sync mode the external time we pass in doesn't matter
-				FPullPhysicsData* Next = ResultsManager.PullSyncPhysicsResults_External(MarshallingManager);
+				FPullPhysicsData* Next = ResultsManager.PullSyncPhysicsResults_External(MarshallingManager, false);
 				EXPECT_EQ(Next->ExternalStartTime, StartTime);
 			}
 		}

@@ -576,7 +576,7 @@ namespace ChaosTest {
 				//tick solver
 				{
 					FVec3 Grav(0,0,-1);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false, -1);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,1,false, -1);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -598,7 +598,7 @@ namespace ChaosTest {
 			//tick solver one last time
 			{
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false, -1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false, -1);
 				Scene.StartFrame();
 				Scene.EndFrame();
 			}
@@ -617,7 +617,7 @@ namespace ChaosTest {
 				//tick solver
 				{
 					FVec3 Grav(0,0,-1);
-					Scene.SetUpForFrame(&Grav,1,99999,99999,10,false, -1);
+					Scene.SetUpForFrame(&Grav,1,99999,99999,1,false, -1);
 					Scene.StartFrame();
 					Scene.EndFrame();
 				}
@@ -634,7 +634,7 @@ namespace ChaosTest {
 			//tick solver one last time
 			{
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false, -1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false, -1);
 				Scene.StartFrame();
 				Scene.EndFrame();
 			}
@@ -664,7 +664,7 @@ namespace ChaosTest {
 			{
 				//tick solver
 				FVec3 Grav(0,0,-1);
-				Scene.SetUpForFrame(&Grav,1,99999,99999,10,false, -1);
+				Scene.SetUpForFrame(&Grav,1,99999,99999,1,false, -1);
 				Scene.StartFrame();
 				Scene.EndFrame();
 

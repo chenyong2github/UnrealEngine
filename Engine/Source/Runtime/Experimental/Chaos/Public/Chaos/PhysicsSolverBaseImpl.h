@@ -54,8 +54,11 @@ namespace Chaos
 		}
 		else
 		{
-			//no interpolation so just use latest
-			if (FPullPhysicsData* PullData = PullResultsManager->PullSyncPhysicsResults_External(MarshallingManager))
+			//no interpolation so just use latest, in non-substepping modes this will just be the next result
+			// available in the queue - however if we substepped externally we need to consume the whole
+			// queue by telling the sync pull that we expect multiple results.
+			const bool bSubstepping = bSolverSubstep_External && MMaxSubSteps > 1;
+			if (FPullPhysicsData* PullData = PullResultsManager->PullSyncPhysicsResults_External(MarshallingManager, bSubstepping))
 			{
 				LatestData = PullData;
 				const int32 SyncTimestamp = PullData->SolverTimestamp;

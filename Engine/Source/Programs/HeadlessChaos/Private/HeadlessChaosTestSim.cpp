@@ -240,5 +240,62 @@ namespace ChaosTest {
 		EXPECT_TRUE(Dynamic1WentToSleep);
 		EXPECT_TRUE(Dynamic1HasWokeAgain);
 	}
+
+	TYPED_TEST(AllTraits, SimTests_MidSubstepSleep)
+	{
+		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Sphere{new TSphere<FReal, 3>(FVec3(0), 10)};
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+		auto Solver = Module->CreateSolver<TypeParam>(nullptr);
+
+		FSingleParticlePhysicsProxy* Proxy = FSingleParticlePhysicsProxy::Create(Chaos::TPBDRigidParticle<FReal, 3>::CreateParticle());
+		Chaos::FRigidBodyHandle_External& Particle = Proxy->GetGameThreadAPI();
+		Particle.SetGeometry(Sphere);
+
+		Solver->RegisterObject(Proxy);
+
+		Solver->SetMaxSubSteps_External(4);
+		Solver->SetMaxDeltaTime_External(1.0f / 60.0f);
+		Solver->DisableAsyncMode();
+
+		const FVector InitialX = Proxy->GetGameThreadAPI().X();
+
+		struct FCallback : TSimCallbackObject<>
+		{
+			virtual void OnPreSimulate_Internal() override
+			{
+				check(Proxy);
+				PTX = Proxy->GetPhysicsThreadAPI()->X();
+				if(Hits == 1)
+				{
+					Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
+				}
+				++Hits;
+			}
+
+			FSingleParticlePhysicsProxy* Proxy = nullptr;
+			FVector PTX = FVector::ZeroVector;
+			int32 Hits = 0;
+			asdasd accumulate dt and check it's 4 * 1/60
+		};
+
+		FCallback* Callback = Solver->CreateAndRegisterSimCallbackObject_External<FCallback>();
+		Callback->Proxy = Proxy;
+
+		// This should ensure 4 steps take place.
+		Solver->AdvanceAndDispatch_External(1.0f);
+		Solver->UpdateGameThreadStructures();
+
+		EXPECT_EQ(Callback->Hits, 4);
+
+		const FVector GTX = Proxy->GetGameThreadAPI().X();
+
+		EXPECT_NE(GTX, InitialX);
+		EXPECT_EQ(GTX, Callback->PTX);
+
+		Solver->UnregisterAndFreeSimCallbackObject_External(Callback);
+
+		Module->DestroySolver(Solver);
+	}
 }
 

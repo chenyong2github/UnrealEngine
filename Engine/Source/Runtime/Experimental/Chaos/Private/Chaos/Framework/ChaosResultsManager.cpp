@@ -6,48 +6,6 @@
 
 namespace Chaos
 {	
-	FPullPhysicsData* FChaosResultsManager::PullSyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager)
-	{
-		//sync mode doesn't use prev results, but if we were async previously we need to clean it up
-		if (Results.Prev)
-		{
-			MarshallingManager.FreePullData_External(Results.Prev);
-			Results.Prev = nullptr;
-		}
-
-		//if we switched from async to sync we may have multiple pending results, so discard them all except latest
-		if(bUsingSync == false)
-		{
-			FPullPhysicsData* PullDataLatest = nullptr;
-			do
-			{
-				//free any old results
-				if (Results.Next)
-				{
-					MarshallingManager.FreePullData_External(Results.Next);
-				}
-
-				Results.Next = PullDataLatest;
-				PullDataLatest = MarshallingManager.PopPullData_External();
-
-			} while (PullDataLatest && !bUsingSync);
-		}
-		else
-		{
-			//already in sync mode so don't take latest, just take next result
-			if (Results.Next)
-			{
-				MarshallingManager.FreePullData_External(Results.Next);
-			}
-
-			Results.Next = MarshallingManager.PopPullData_External();
-		}
-
-		bUsingSync = true;	//indicate that we used sync mode so don't rely on any cached results
-
-		return Results.Next;
-	}
-
 	enum class ESetPrevNextDataMode
 	{
 		Prev,
@@ -90,6 +48,84 @@ namespace Chaos
 				}
 			}
 		}
+	}
+
+	/** 
+	 Advance the results in the marshaller queue by one if it is available 
+
+	 @param MarshallingManager Manger to advance
+	 @param Results Results to update with advanced state
+	 @return whether an advance occurred
+	*/
+	bool AdvanceResult(FChaosMarshallingManager& MarshallingManager, FChaosInterpolationResults& Results)
+	{
+		if(FPullPhysicsData* PotentialNext = MarshallingManager.PopPullData_External())
+		{
+			//newer result exists so prev is overwritten
+			if(Results.Prev)
+			{
+				MarshallingManager.FreePullData_External(Results.Prev);
+			}
+
+			Results.Prev = Results.Next;
+			//mark prev with next's data.
+			//any particles that were dirty in the previous results and are now constant will still have the old values set
+			SetPrevNextDataHelper<ESetPrevNextDataMode::Prev>(*Results.Prev, Results.RigidInterpolations);
+
+			Results.Next = PotentialNext;
+			return true;
+		}
+		
+		return false;
+	}
+
+	/**
+	 Collapse the whole pending queue inside a marshalling manager to one results object written to Results.Next
+
+	 @param MarshallingManager Manger to advance
+	 @param Results Results to update with advanced state
+	*/
+	void CollapseResultsToLatest(FChaosMarshallingManager& MarshallingManager, FChaosInterpolationResults& Results)
+	{
+		if(Results.Next == nullptr)
+		{
+			//nothing in Next (first time), so get latest if possible
+			Results.Next = MarshallingManager.PopPullData_External();
+		}
+
+		while(AdvanceResult(MarshallingManager, Results))
+		{}
+	}
+
+	FPullPhysicsData* FChaosResultsManager::PullSyncPhysicsResults_External(FChaosMarshallingManager& MarshallingManager, bool bWasSubstepping)
+	{
+		//sync mode doesn't use prev results, but if we were async previously we need to clean it up
+		if (Results.Prev)
+		{
+			MarshallingManager.FreePullData_External(Results.Prev);
+			Results.Prev = nullptr;
+		}
+
+		// If we switched from async to sync we may have multiple pending results, so discard them all except latest.
+		// If we dispatched substeps there will be multiple results pending but the latest is the one we want.
+		if(bUsingSync == false || bWasSubstepping)
+		{
+			CollapseResultsToLatest(MarshallingManager, Results);
+		}
+		else
+		{
+			//already in sync mode so don't take latest, just take next result
+			if (Results.Next)
+			{
+				MarshallingManager.FreePullData_External(Results.Next);
+			}
+
+			Results.Next = MarshallingManager.PopPullData_External();
+		}
+
+		bUsingSync = true;	//indicate that we used sync mode so don't rely on any cached results
+
+		return Results.Next;
 	}
 
 	FReal ComputeAlphaHelper(const FPullPhysicsData& Next, const FReal ResultsTime)
@@ -140,22 +176,7 @@ namespace Chaos
 			//go through every result and record the dirty proxies
 			while (Results.Next->ExternalEndTime < ResultsTime)
 			{
-				if (FPullPhysicsData* PotentialNext = MarshallingManager.PopPullData_External())
-				{
-					//newer result exists so prev is overwritten
-					if (Results.Prev)
-					{
-						MarshallingManager.FreePullData_External(Results.Prev);
-					}
-
-					Results.Prev = Results.Next;
-					//mark prev with next's data.
-					//any particles that were dirty in the previous results and are now constant will still have the old values set
-					SetPrevNextDataHelper<ESetPrevNextDataMode::Prev>(*Results.Prev, Results.RigidInterpolations);
-
-					Results.Next = PotentialNext;
-				}
-				else
+				if(!AdvanceResult(MarshallingManager, Results))
 				{
 					break;
 				}

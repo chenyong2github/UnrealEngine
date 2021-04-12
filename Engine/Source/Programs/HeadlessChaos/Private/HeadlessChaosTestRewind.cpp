@@ -63,7 +63,7 @@ namespace ChaosTest {
 					FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 					FReal SimDt;
 					auto* Solver = CreateSolverHelper(DtMode, RewindHistorySize, Optimization, SimDt);
-					Solver->SetMaxDeltaTime(SimDt);	//make sure it can step even for huge steps
+					Solver->SetMaxDeltaTime_External(SimDt);	//make sure it can step even for huge steps
 
 					Lambda(Solver, SimDt, Optimization);
 

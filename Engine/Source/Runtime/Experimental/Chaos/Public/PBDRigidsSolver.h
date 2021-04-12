@@ -179,13 +179,8 @@ namespace Chaos
 		const FReal GetSolverTime() const { return MTime; }
 
 		/**/
-		void SetMaxDeltaTime(const FReal InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
 		FReal GetLastDt() const { return MLastDt; }
-		FReal GetMaxDeltaTime() const { return MMaxDeltaTime; }
-		FReal GetMinDeltaTime() const { return MMinDeltaTime; }
-		void SetMaxSubSteps(const int32 InMaxSubSteps) { MMaxSubSteps = InMaxSubSteps; }
-		int32 GetMaxSubSteps() const { return MMaxSubSteps; }
-
+		
 		/**/
 		void SetIterations(const int32 InNumIterations) { GetEvolution()->SetNumIterations(InNumIterations); }
 		void SetPushOutIterations(const int32 InNumIterations) {  GetEvolution()->SetNumPushOutIterations(InNumIterations); }
@@ -311,9 +306,6 @@ namespace Chaos
 		int32 CurrentFrame;
 		FReal MTime;
 		FReal MLastDt;
-		FReal MMaxDeltaTime;
-		FReal MMinDeltaTime;
-		int32 MMaxSubSteps;
 		bool bHasFloor;
 		bool bIsFloorAnalytic;
 		FReal FloorHeight;
