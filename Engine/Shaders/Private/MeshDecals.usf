@@ -41,59 +41,7 @@ struct FMeshDecalVSToPS
 	float4	Position		: SV_POSITION;
 };
 
-#if USING_TESSELLATION	
-	struct FMeshDecalVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-	#if NEED_MESH_DECAL_INTERPOLATORS
-		FMeshDecalInterpolants MeshDecalInterpolants;
-	#endif
-		float4 Position : VS_To_DS_Position;
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define VS_OUTPUT_TYPE FMeshDecalVSToDS
-#else
-	#define VS_OUTPUT_TYPE FMeshDecalVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FMeshDecalVSToDS
-	#define FPassSpecificVSToPS FMeshDecalVSToPS
-	#define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
-
-	FMeshDecalVSToDS PassInterpolate(FMeshDecalVSToDS a, float aInterp, FMeshDecalVSToDS b, float bInterp)
-	{
-		FMeshDecalVSToDS O;
-		
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		INTERPOLATE_MEMBER(MeshDecalInterpolants.PixelPositionExcludingWPO);
-	#endif
-
-		return O;
-	}
-
-	#undef INTERPOLATE_MEMBER
-	
-	FMeshDecalVSToPS PassFinalizeTessellationOutput(FMeshDecalVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FMeshDecalVSToPS O;
-		
-		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		O.MeshDecalInterpolants.PixelPositionExcludingWPO = Interpolants.MeshDecalInterpolants.PixelPositionExcludingWPO;
-	#endif
-		
-		// Finally, transform position to clip-space
-		O.Position = mul(WorldPosition, View.TranslatedWorldToClip);
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
+#define VS_OUTPUT_TYPE FMeshDecalVSToPS
 
 #if VERTEXSHADER
 
@@ -102,7 +50,7 @@ void MainVS(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 	)
@@ -125,12 +73,6 @@ void MainVS(
 		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
 	
-#if USING_TESSELLATION
-	Output.Position = WorldPosition;
-	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-	
-#else // !USING_TESSELLATION
-
 	Output.Position = mul(WorldPosition, View.TranslatedWorldToClip);
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
@@ -138,9 +80,7 @@ void MainVS(
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
 
-#endif // USING_TESSELLATION
-
-#if !USING_TESSELLATION && HAS_INVERTED_Z_BUFFER
+#if HAS_INVERTED_Z_BUFFER
 	// Move all geometry a small amount towards the camera to avoid z-fighting.
 	// Assuming a reverse z buffer this pushes the near plane a fixed small distance.
 	Output.Position.z += ResolvedView.DecalDepthBias;

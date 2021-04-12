@@ -31,72 +31,7 @@ struct FHitProxyVSToPS
 	float4 Position : SV_POSITION;
 };
 
-#if USING_TESSELLATION	
-	struct FHitProxyVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-	    #if PER_INSTANCE_HITPROXY_ID
-		    float4 InstanceHitProxyId : HIT_PROXY_ID;
-	    #endif
-		float4 Position : VS_To_DS_Position;
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			float3 PixelPositionExcludingWPO : TEXCOORD7;
-		#endif
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define FHitProxyVSOutput FHitProxyVSToDS
-#else
-	#define FHitProxyVSOutput FHitProxyVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FHitProxyVSToDS
-	#define FPassSpecificVSToPS FHitProxyVSToPS
-	
-	FHitProxyVSToDS PassInterpolate(FHitProxyVSToDS a, float aInterp, FHitProxyVSToDS b, float bInterp)
-	{
-		FHitProxyVSToDS O;
-
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-		#if PER_INSTANCE_HITPROXY_ID
-			TESSELLATION_INTERPOLATE_MEMBER(InstanceHitProxyId);
-		#endif
-
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			TESSELLATION_INTERPOLATE_MEMBER(PixelPositionExcludingWPO);
-		#endif
-
-		return O;
-	}
-
-	FHitProxyVSToPS PassFinalizeTessellationOutput(FHitProxyVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FHitProxyVSToPS O;
-		
-		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-		
-		#if PER_INSTANCE_HITPROXY_ID
-			O.InstanceHitProxyId = Interpolants.InstanceHitProxyId;
-		#endif
-
-		// Finally, transform position to clip-space
-		{
-			O.Position = mul(WorldPosition, View.TranslatedWorldToClip);
-		}
-			
-		O.PixelPosition = WorldPosition;
-
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			O.PixelPositionExcludingWPO = Interpolants.PixelPositionExcludingWPO.xyz;
-		#endif
-		
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
+#define FHitProxyVSOutput FHitProxyVSToPS
 
 #if VERTEXSHADER
 
@@ -104,7 +39,7 @@ void Main(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out FHitProxyVSOutput Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 	)
@@ -129,11 +64,6 @@ void Main(
 	Output.InstanceHitProxyId = VertexFactoryGetInstanceHitProxyId(Input, VFIntermediates);
 #endif
 
-#if USING_TESSELLATION
-	Output.Position = WorldPosition;
-	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-#else
-
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 		Output.Position = mul(RasterizedWorldPosition, View.TranslatedWorldToClip);
@@ -145,7 +75,6 @@ void Main(
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 	Output.PixelPosition = WorldPosition;
-#endif
 
 #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;

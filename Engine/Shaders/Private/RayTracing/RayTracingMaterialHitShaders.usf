@@ -6,9 +6,10 @@
 #define NEEDS_LIGHTMAP_COORDINATE (HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP)
 #ifdef USING_TESSELLATION
 	#undef USING_TESSELLATION
-	// Needed for VertexFactoryInterpolate
-	#define USING_TESSELLATION 1
 #endif
+// Needed for VertexFactoryInterpolate
+#define USING_TESSELLATION 1
+
 #ifndef SIMPLIFIED_MATERIAL_SHADER
 	#define SIMPLIFIED_MATERIAL_SHADER 0
 #endif

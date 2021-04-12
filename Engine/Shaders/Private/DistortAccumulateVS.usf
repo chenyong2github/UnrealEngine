@@ -25,51 +25,7 @@ struct FDistortAccumulateVSToPS
 	float4	Position		: SV_POSITION;
 };
 
-#if USING_TESSELLATION	
-	struct FDistortAccumulateVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-		float4 Position : VS_To_DS_Position;
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define VS_OUTPUT_TYPE FDistortAccumulateVSToDS
-#else
-	#define VS_OUTPUT_TYPE FDistortAccumulateVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FDistortAccumulateVSToDS
-	#define FPassSpecificVSToPS FDistortAccumulateVSToPS
-	#define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
-
-	FDistortAccumulateVSToDS PassInterpolate(FDistortAccumulateVSToDS a, float aInterp, FDistortAccumulateVSToDS b, float bInterp)
-	{
-		FDistortAccumulateVSToDS O;
-		
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-		return O;
-	}
-
-	#undef INTERPOLATE_MEMBER
-	
-	FDistortAccumulateVSToPS PassFinalizeTessellationOutput(FDistortAccumulateVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FDistortAccumulateVSToPS O;
-		
-		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-		
-		// Finally, transform position to clip-space
-		O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
-			
-		O.PixelPosition = WorldPosition;
-		
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
+#define VS_OUTPUT_TYPE FDistortAccumulateVSToPS
 
 #if VERTEXSHADER
 
@@ -78,7 +34,7 @@ void Main(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
@@ -116,12 +72,6 @@ void Main(
 		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
 	
-#if USING_TESSELLATION
-	Output.Position = WorldPosition;
-	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-	
-#else // !USING_TESSELLATION
-
 	Output.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
@@ -146,14 +96,8 @@ void Main(
 
 	Output.PixelPosition = WorldPosition;
 
-#endif // USING_TESSELLATION
-
 #if INSTANCED_STEREO
-	#if USING_TESSELLATION	
-		Output.FactoryInterpolants.InterpolantsVSToPS.EyeIndex = EyeIndex;
-	#else
-		Output.FactoryInterpolants.EyeIndex = EyeIndex;
-	#endif
+	Output.FactoryInterpolants.EyeIndex = EyeIndex;
 #endif
 
 	OutputVertexID( Output );

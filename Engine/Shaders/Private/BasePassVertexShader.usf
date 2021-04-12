@@ -8,11 +8,6 @@
 #include "SHCommon.ush"
 #include "VolumetricLightmapShared.ush"
 
-// Metal needs to combine the vertex & hull shaders for tesellation support.
-#if COMPILER_METAL && USING_TESSELLATION
-#include "BasePassTessellationShaders.usf"
-#endif
-
 #if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 #include "ReflectionEnvironmentShared.ush"
 #include "ForwardLightingCommon.ush"
@@ -32,7 +27,7 @@ void Main(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out FBasePassVSOutput Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
@@ -73,14 +68,6 @@ void Main(
 		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
 
-#if USING_TESSELLATION
-	// We let the Domain Shader convert to post projection when tessellating
-	Output.Position = WorldPosition;	
-
-	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		Output.BasePassInterpolants.WorldPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
-	#endif
-#else
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
 	#if ODS_CAPTURE
@@ -113,16 +100,11 @@ void Main(
 	#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 		Output.BasePassInterpolants.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 	#endif
-#endif	// USING_TESSELLATION
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolants(Input, VFIntermediates, VertexParameters);
 
 #if INSTANCED_STEREO
-	#if USING_TESSELLATION	
-		Output.FactoryInterpolants.InterpolantsVSToPS.EyeIndex = EyeIndex;
-	#else
-		Output.FactoryInterpolants.EyeIndex = EyeIndex;
-	#endif
+	Output.FactoryInterpolants.EyeIndex = EyeIndex;
 #endif
 
 // Calculate the fog needed for translucency
@@ -234,24 +216,14 @@ void Main(
 			VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);
 			PrevTranslatedWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters);
 	
-			#if !USING_TESSELLATION
-				PrevTranslatedWorldPosition = mul(float4(PrevTranslatedWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
-			#endif
+			PrevTranslatedWorldPosition = mul(float4(PrevTranslatedWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
 		}
 
-		#if USING_TESSELLATION
-			// We let the Domain Shader convert to post projection when tessellating
-			Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition;
-			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-			Output.BasePassInterpolants.VelocityScreenPosition = WorldPosition;
-			#endif
-		#else
-			// compute the old screen pos with the old world position and the old camera matrix
-			Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition; 
-			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-			Output.BasePassInterpolants.VelocityScreenPosition = ClipSpacePosition;
-			#endif
-		#endif	// USING_TESSELLATION
+		// compute the old screen pos with the old world position and the old camera matrix
+		Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition; 
+		#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
+		Output.BasePassInterpolants.VelocityScreenPosition = ClipSpacePosition;
+		#endif
 	}
 #endif	// WRITES_VELOCITY_TO_GBUFFER
 

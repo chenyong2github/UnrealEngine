@@ -14,7 +14,7 @@
 
 
 #if ENABLE_NON_NANITE_VSM
-	#define VIRTUAL_SM_ENABLED (!(USING_TESSELLATION || ONEPASS_POINTLIGHT_SHADOW || PERSPECTIVE_CORRECT_DEPTH))
+	#define VIRTUAL_SM_ENABLED (!(ONEPASS_POINTLIGHT_SHADOW || PERSPECTIVE_CORRECT_DEPTH))
 #else
 	#define VIRTUAL_SM_ENABLED 0
 #endif
@@ -297,105 +297,9 @@ void MainOnePassPointLightGS(triangle FShadowDepthVSToGS Input[3], inout Triangl
 
 #endif
 
-#if USING_TESSELLATION
-
-struct FShadowDepthVSToDS
-{
-	FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-	float4 Position : VS_to_DS_Position;
-	OPTIONAL_VertexID_VS_To_DS
-#if ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
-	uint LayerIndex : VS_to_DS_RenderTargetArrayIndex;
-#endif
-};
-
-struct FShadowDepthDSToPS : FShadowDepthVSToPS
-{
-#if ONEPASS_POINTLIGHT_SHADOW
-#if USING_VERTEX_SHADER_LAYER
-	float4 Position : SV_POSITION;
-	float4 InterpPosition : TEXCOORD6;
-	uint LayerIndex : SV_RenderTargetArrayIndex;
-#else
-	float4 Position : TEXCOORD6;
-#endif
-	float3 WorldNormal : TEXCOORD8;
-#else
-	float4 Position : SV_POSITION;
-#endif
-};
-
-#define FPassSpecificVSToDS FShadowDepthVSToDS
-#define FPassSpecificVSToPS FShadowDepthDSToPS
-
-FShadowDepthVSToDS PassInterpolate(FShadowDepthVSToDS a, float aInterp, FShadowDepthVSToDS b, float bInterp)
-{
-	FShadowDepthVSToDS O;
-	O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-#if ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
-	O.LayerIndex = a.LayerIndex;
-#endif
-	return O;
-}
-
-FShadowDepthDSToPS PassFinalizeTessellationOutput(FShadowDepthVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-{
-	FShadowDepthDSToPS O;
-	
-#if INTERPOLATE_VF_ATTRIBUTES
-	O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-#endif
-
-	const float3 WorldNormal = MaterialParameters.TangentToWorld[2];
-
-#if ONEPASS_POINTLIGHT_SHADOW
-#if USING_VERTEX_SHADER_LAYER
-	O.LayerIndex = Interpolants.LayerIndex;
-	O.Position = WorldPosition = mul(WorldPosition, PassStruct.ShadowViewProjectionMatrices[Interpolants.LayerIndex]);
-	O.InterpPosition = WorldPosition;
-#else
-	O.Position = WorldPosition;
-#endif // USING_VERTEX_SHADER_LAYER
-	O.WorldNormal = WorldNormal;
-#else
-
-	float ShadowDepth;
-	SetShadowDepthOutputs(
-		PassStruct.ProjectionMatrix,
-		PassStruct.ViewMatrix,
-		WorldPosition, 
-		WorldNormal,
-		O.Position, 
-#if PERSPECTIVE_CORRECT_DEPTH
-		O.ShadowDepth,
-		O.DepthBias
-#else
-		ShadowDepth
-#endif
-		);
-#endif
-
-// Conditions below are derived. See struct FShadowDepthVSToPS in ShadowDepthCommon.ush
-#if !PERSPECTIVE_CORRECT_DEPTH && !COMPILER_SUPPORTS_EMPTY_STRUCTS && !ONEPASS_POINTLIGHT_SHADOW
-	O.Dummy = 0;
-#endif
-
-#if INTERPOLATE_POSITION
-	O.PixelPosition = WorldPosition.xyz;
-#endif
-
-	return O;
-}
-	
-#include "Tessellation.ush"
-
-#endif // #if USING_TESSELLATION
-
 void Main(
 	FVertexFactoryInput Input,
-#if USING_TESSELLATION
-	out FShadowDepthVSToDS OutParameters,
-#elif ONEPASS_POINTLIGHT_SHADOW
+#if ONEPASS_POINTLIGHT_SHADOW
 	out FShadowDepthVSToGS OutParameters,
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
 	out uint LayerIndex : SV_RenderTargetArrayIndex,
@@ -425,22 +329,7 @@ void Main(
 
 	WorldPos.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 
-#if USING_TESSELLATION
-	OutPosition = OutParameters.Position = WorldPos;
-	
-	// Tessellated materials need vertex coords for displacement
-	OutParameters.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-
-	#if ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
-#if GPUCULL_TODO
-		OutParameters.LayerIndex = bUseGpuSceneInstancing ? VertexFactoryGetViewIndex(VFIntermediates) : LayerId;
-#else //!GPUCULL_TODO
-		OutParameters.LayerIndex = LayerId;
-#endif // GPUCULL_TODO
-
-	#endif
-
-#elif ONEPASS_POINTLIGHT_SHADOW
+#if ONEPASS_POINTLIGHT_SHADOW
 
 	OutPosition = OutParameters.GSPosition = WorldPos;
 	OutParameters.WorldNormal = WorldNormal;
@@ -527,9 +416,7 @@ void Main(
 void MainForGS(
 	OPTIONAL_VertexID
 	FVertexFactoryInput Input,
-#if USING_TESSELLATION
-	out FShadowDepthVSToDS OutParameters
-#elif ONEPASS_POINTLIGHT_SHADOW
+#if ONEPASS_POINTLIGHT_SHADOW
 	out FShadowDepthVSToGS OutParameters
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER
 		, out uint LayerIndex : SV_RenderTargetArrayIndex
@@ -551,7 +438,7 @@ void MainForGS(
 	Main(Input,
 		OutParameters,
 		OPTIONAL_VertexID_PARAM
-#if !USING_TESSELLATION && (FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER)
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
 		LayerIndex,
 #endif
 		UnusedPosition);

@@ -9,12 +9,6 @@
 
 #pragma once
 
-#if VERTEXSHADER && HULLSHADER
-#ifndef TESSELLATIONSHADER
-#define TESSELLATIONSHADER 1
-#endif
-#endif
-
 #define STRONG_TYPE
 #define StrongTypedBuffer Buffer
 

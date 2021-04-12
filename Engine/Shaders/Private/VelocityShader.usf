@@ -33,73 +33,9 @@ struct FVelocityVSToPS
 	FVelocityInterpsVSToPS Interps;
 };
 
-#if USING_TESSELLATION
+#define FVertexOutput FVelocityVSToPS
+#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToPS
 
-	struct FVelocityInterpsVSToDS
-	{
-		// float4(ScreenPos.xyzw)
-		float4 PackedVelocityA : TEXCOORD6;
-		// float4(PrevScreenPos.xyzw)
-		float4 PackedVelocityC : TEXCOORD8;
-	};
-
-	struct FVelocityVSToDS
-	{
-		FVelocityInterpsVSToDS Interps;
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-		float4 Position : VS_To_DS_Position;
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define FVertexOutput FVelocityVSToDS
-	#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToDS
-#else
-	#define FVertexOutput FVelocityVSToPS
-	#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToPS
-#endif
-
-#if USING_TESSELLATION
-	#define FPassSpecificVSToDS FVelocityVSToDS
-	#define FPassSpecificVSToPS FVelocityVSToPS
-	
-	#define VELOCITY_INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
-	
-	FVelocityVSToDS PassInterpolate(FVelocityVSToDS a, float aInterp, FVelocityVSToDS b, float bInterp)
-	{
-		FVelocityVSToDS O;
-
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-		
-		VELOCITY_INTERPOLATE_MEMBER(Interps.PackedVelocityA);
-		VELOCITY_INTERPOLATE_MEMBER(Interps.PackedVelocityC);
-
-		return O;
-	}
-	
-	#undef VELOCITY_INTERPOLATE_MEMBER
-	
-	FVelocityVSToPS PassFinalizeTessellationOutput(FVelocityVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FVelocityVSToPS O;
-		
-		O.Interps.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-
-		{
-			O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
-		}
-
-		// Move all geometry a little bit towards the camera (to not get z fighting with existing zbuffer of the same meshes rendered with slightly different float computations).
-		O.Position.z += GTessellationDepthBias * O.Position.w;
-		
-		O.Interps.PackedVelocityA = Interpolants.Interps.PackedVelocityA;
-		O.Interps.PackedVelocityC = Interpolants.Interps.PackedVelocityC;
-		
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
-	
 /*=============================================================================
  * Vertex Shader
  *============================================================================*/
@@ -108,7 +44,7 @@ void MainVertexShader(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out FVertexOutput Output 
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
@@ -145,19 +81,12 @@ void MainVertexShader(
 		TranslatedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
 
-#if USING_TESSELLATION
-	Output.FactoryInterpolants = VertexFactoryGetInterpolants( Input, VFIntermediates, VertexParameters );
-#else
 	Output.Interps.FactoryInterpolants = VertexFactoryGetInterpolants( Input, VFIntermediates, VertexParameters );
-#endif // #if USING_TESSELLATION
+
 	float4 PrevTranslatedWorldPosition = VertexFactoryGetPreviousWorldPosition( Input, VFIntermediates );	
 	VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);
 	PrevTranslatedWorldPosition.xyz += GetMaterialPreviousWorldPositionOffset(VertexParameters);
 	
-#if USING_TESSELLATION
-	Output.Position = TranslatedWorldPosition;
-#endif
-
 	{
 		float4 ScreenPos;
 		// compute the old screen pos with the old world position and the old camera matrix
@@ -169,9 +98,7 @@ void MainVertexShader(
 		float4 PrevScreenPosObj = mul(float4(PrevTranslatedWorldPosition.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
 	#endif
 
-#if !USING_TESSELLATION
 		{
-#endif
 
 		#if ODS_CAPTURE
 			float3 ODS = OffsetODS(TranslatedWorldPosition.xyz, ResolvedView.TranslatedWorldCameraOrigin.xyz, ResolvedView.StereoIPD);
@@ -180,10 +107,8 @@ void MainVertexShader(
 			ScreenPos = mul(float4(TranslatedWorldPosition.xyz, 1), ResolvedView.TranslatedWorldToClip);
 		#endif
 			
-#if !USING_TESSELLATION
 			Output.Position = ScreenPos;
 		}
-#endif
 
 	#if INSTANCED_STEREO && !MULTI_VIEW
 	BRANCH
@@ -200,7 +125,7 @@ void MainVertexShader(
 	}
 	#endif
 
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 		OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(TranslatedWorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
 
@@ -209,20 +134,10 @@ void MainVertexShader(
 	}
 
 // Move all geometry a little bit towards the camera (to not get z fighting with existing zbuffer of the same meshes rendered with slightly different float computations).
-#if !USING_TESSELLATION
     Output.Position.z += View.NumSceneColorMSAASamples > 1 ? GNonTessellationDepthBias * Output.Position.w : 0.0;
-#endif
-
-#if USING_TESSELLATION
-	OutputVertexID( Output );
-#endif
 
 #if INSTANCED_STEREO
-	#if USING_TESSELLATION	
-		Output.FactoryInterpolants.InterpolantsVSToPS.EyeIndex = EyeIndex;
-	#else
-		Output.Interps.FactoryInterpolants.EyeIndex = EyeIndex;
-	#endif
+	Output.Interps.FactoryInterpolants.EyeIndex = EyeIndex;
 #endif
 }
 #endif // VERTEXSHADER

@@ -20,61 +20,7 @@ struct FLightMapDensityVSToPS
 	float4 Position			: SV_POSITION;
 };
 
-#if USING_TESSELLATION	
-	struct FLightMapDensityVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-		float4 Position	: VS_To_DS_Position;
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			float3 PixelPositionExcludingWPO : TEXCOORD7;
-		#endif
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define FLightMapDensityVSOutput FLightMapDensityVSToDS
-#else
-	#define FLightMapDensityVSOutput FLightMapDensityVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FLightMapDensityVSToDS
-	#define FPassSpecificVSToPS FLightMapDensityVSToPS
-	
-	FLightMapDensityVSToDS PassInterpolate(FLightMapDensityVSToDS a, float aInterp, FLightMapDensityVSToDS b, float bInterp)
-	{
-		FLightMapDensityVSToDS O;
-		
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			TESSELLATION_INTERPOLATE_MEMBER(PixelPositionExcludingWPO);
-		#endif
-
-		return O;
-	}
-
-	FLightMapDensityVSToPS PassFinalizeTessellationOutput(FLightMapDensityVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FLightMapDensityVSToPS O;
-		
-		O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-		
-		// Finally, transform position to clip-space
-		{
-			O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
-		}
-
-		O.WorldPosition = WorldPosition;
-
-		#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-			O.PixelPositionExcludingWPO = Interpolants.PixelPositionExcludingWPO.xyz;
-		#endif
-		
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
+#define FLightMapDensityVSOutput FLightMapDensityVSToPS
 
 /*=============================================================================
 	Vertex Shader
@@ -84,7 +30,7 @@ void MainVertexShader(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out FLightMapDensityVSOutput Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 	)
@@ -98,12 +44,6 @@ void MainVertexShader(
 
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
 	WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
-
-#if USING_TESSELLATION
-	Output.Position = WorldPosition;
-	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
-	
-#else // !USING_TESSELLATION
 
 	Output.WorldPosition = WorldPosition;
 	{
@@ -119,8 +59,6 @@ void MainVertexShader(
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
-
-#endif // USING_TESSELLATION
 
 	OutputVertexID( Output );
 }

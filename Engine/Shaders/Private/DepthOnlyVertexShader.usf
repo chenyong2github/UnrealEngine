@@ -24,67 +24,8 @@ struct FDepthOnlyVSToPS
 	#endif
 };
 
-#if USING_TESSELLATION	
-	struct FDepthOnlyVSToDS
-	{
-		FVertexFactoryInterpolantsVSToDS FactoryInterpolants;
-		float4 Position : VS_To_DS_Position;
-		#if USE_RAW_WORLD_POSITION
-			float3 PixelPositionExcludingWPO : TEXCOORD7;
-		#endif
-		OPTIONAL_VertexID_VS_To_DS
-	};
-	
-	#define FDepthOnlyVSOutput FDepthOnlyVSToDS
-	#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToDS
-#else
-	#define FDepthOnlyVSOutput FDepthOnlyVSToPS
-	#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToPS
-#endif
-
-#if USING_TESSELLATION	
-	#define FPassSpecificVSToDS FDepthOnlyVSToDS
-	#define FPassSpecificVSToPS FDepthOnlyVSToPS
-	
-	FDepthOnlyVSToDS PassInterpolate(FDepthOnlyVSToDS a, float aInterp, FDepthOnlyVSToDS b, float bInterp)
-	{
-		FDepthOnlyVSToDS O;
-		
-		O.FactoryInterpolants = VertexFactoryInterpolate(a.FactoryInterpolants, aInterp, b.FactoryInterpolants, bInterp);
-
-		#if USE_RAW_WORLD_POSITION
-			TESSELLATION_INTERPOLATE_MEMBER(PixelPositionExcludingWPO);
-		#endif
-
-		return O;
-	}
-
-	FDepthOnlyVSToPS PassFinalizeTessellationOutput(FDepthOnlyVSToDS Interpolants, float4 WorldPosition, FMaterialTessellationParameters MaterialParameters)
-	{
-		FDepthOnlyVSToPS O;
-		
-		#if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
-			O.FactoryInterpolants = VertexFactoryAssignInterpolants(Interpolants.FactoryInterpolants);
-		#endif
-
-		// Finally, transform position to clip-space
-		{
-			O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
-		}
-			
-		#if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
-			O.PixelPosition = WorldPosition;
-		#endif
-
-		#if USE_RAW_WORLD_POSITION
-			O.PixelPositionExcludingWPO = Interpolants.PixelPositionExcludingWPO;
-		#endif
-		
-		return O;
-	}
-	
-	#include "Tessellation.ush"
-#endif
+#define FDepthOnlyVSOutput FDepthOnlyVSToPS
+#define VertexFactoryGetInterpolants VertexFactoryGetInterpolantsVSToPS
 
 #if VERTEXSHADER
 
@@ -92,7 +33,7 @@ void Main(
 	FVertexFactoryInput Input,
 	OPTIONAL_VertexID
 	out FDepthOnlyVSOutput Output
-#if USE_GLOBAL_CLIP_PLANE && !USING_TESSELLATION
+#if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
@@ -131,10 +72,6 @@ void Main(
 		WorldPos.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
 
-#if USING_TESSELLATION
-	// Transformation is done in Domain shader when tessellating
-	Output.Position = WorldPos; 
-#else
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPos);
 	#if ODS_CAPTURE
@@ -168,27 +105,20 @@ void Main(
 #if USE_GLOBAL_CLIP_PLANE
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPos.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
-#endif
 
-#if !MATERIALBLENDING_SOLID || USING_TESSELLATION || OUTPUT_PIXEL_DEPTH_OFFSET
+#if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
 	// Masked and transparent materials need texture coords to clip, and tessellated
 	// materials need texture coords to displace
 	Output.FactoryInterpolants = VertexFactoryGetInterpolants(Input, VFIntermediates, VertexParameters);
 
 #if INSTANCED_STEREO
-	#if USING_TESSELLATION	
-		Output.FactoryInterpolants.InterpolantsVSToPS.EyeIndex = EyeIndex;
-	#else
-		Output.FactoryInterpolants.EyeIndex = EyeIndex;
-	#endif
+	Output.FactoryInterpolants.EyeIndex = EyeIndex;
 #endif
 
 #endif
 
 #if !MATERIALBLENDING_SOLID || OUTPUT_PIXEL_DEPTH_OFFSET
-	#if !USING_TESSELLATION	
-		Output.PixelPosition = WorldPos;
-	#endif
+	Output.PixelPosition = WorldPos;
 #endif
 
 #if USE_RAW_WORLD_POSITION

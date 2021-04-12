@@ -355,11 +355,6 @@
 
 // ---------------------------------------------------- Compiler specific defaults and fallbacks
 
-/** Defined only for Metal's combined Vertex + Hull shader */
-#ifndef TESSELLATIONSHADER
-#define TESSELLATIONSHADER 0
-#endif
-
 // Hlslcc platforms ignore the uniform keyword as it can't properly optimize flow
 #if COMPILER_HLSLCC
 #define uniform
