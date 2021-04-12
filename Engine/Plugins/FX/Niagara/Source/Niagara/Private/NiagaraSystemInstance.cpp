@@ -17,8 +17,6 @@
 #include "NiagaraCrashReporterHandler.h"
 #include "Async/Async.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #if WITH_EDITORONLY_DATA
 #include "Editor.h"
 #endif
@@ -2520,5 +2518,3 @@ const FString& FNiagaraSystemInstance::GetCrashReporterTag()const
 	}
 	return CrashReporterTag;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
