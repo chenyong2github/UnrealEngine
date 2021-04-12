@@ -78,7 +78,7 @@ public:
 	 */
 	void SetPixel(int64 LinearIndex, const PixelType& NewValue)
 	{
-		SetPixel(Dimensions.GetCoords(LinearIndex), NewValue);
+		Image[LinearIndex] = NewValue;
 	}
 
 
