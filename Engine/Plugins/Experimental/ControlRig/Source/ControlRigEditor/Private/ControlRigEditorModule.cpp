@@ -790,8 +790,8 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 			UMovieSceneControlRigParameterTrack* Track = MovieScene->AddTrack<UMovieSceneControlRigParameterTrack>(ActorTrackGuid);
 			if (Track)
 			{
-				USkeletalMesh* SkeletalMesh = MeshActor->GetSkeletalMeshComponent()->SkeletalMesh;
-				USkeleton* Skeleton = SkeletalMesh->GetSkeleton();
+				USkeletalMeshComponent* SkelMeshComp = MeshActor->GetSkeletalMeshComponent();
+				USkeletalMesh* SkeletalMesh = SkelMeshComp->SkeletalMesh;
 
 				FString ObjectName = (ControlRigClass->GetName());
 				ObjectName.RemoveFromEnd(TEXT("_C"));
@@ -813,12 +813,12 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(NewSection);
 			
 				FBakeToControlDelegate BakeCallback = FBakeToControlDelegate::CreateLambda([this, WeakSequencer, LevelSequence, 
-					AnimSequence, MovieScene, ControlRig, ParamSection,ActorTrackGuid, Skeleton]
+					AnimSequence, MovieScene, ControlRig, ParamSection,ActorTrackGuid, SkelMeshComp]
 				(bool bKeyReduce, float KeyReduceTolerance)
 				{
 					if (ParamSection)
 					{
-						ParamSection->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, Skeleton, bKeyReduce,
+						ParamSection->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, SkelMeshComp, bKeyReduce,
 							KeyReduceTolerance);
 					}
 					WeakSequencer.Pin()->EmptySelection();

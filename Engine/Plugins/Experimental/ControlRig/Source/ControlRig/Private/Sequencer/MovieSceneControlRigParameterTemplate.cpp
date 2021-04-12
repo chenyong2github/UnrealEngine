@@ -563,7 +563,7 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 				AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
 				ControlRig->Initialize();
 				ControlRig->RequestInit();
-				ControlRig->SetBoneInitialTransformsFromSkeletalMesh(SkeletalMeshComponent->SkeletalMesh);
+				ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComponent);
 				ControlRig->Evaluate_AnyThread();
 			}
 		}

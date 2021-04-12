@@ -368,7 +368,7 @@ FTransform UControlRigSequencerEditorLibrary::GetSkeletalMeshComponentWorldTrans
 {
 	TArray<FFrameNumber> Frames;
 	Frames.Add(Frame);
-	TArray<FTransform> Transforms = GetSkeletalMeshComponentWorldTransforms(LevelSequence, SkeletalMeshComponent, Frames);
+	TArray<FTransform> Transforms = GetSkeletalMeshComponentWorldTransforms(LevelSequence, SkeletalMeshComponent, Frames,SocketName);
 	if (Transforms.Num() == 1)
 	{
 		return Transforms[0];
@@ -515,30 +515,44 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 	//get level sequence if one exists...
 	TWeakPtr<ISequencer> WeakSequencer = GetSequencerFromAsset(LevelSequence);
 
-	ALevelSequenceActor* OutActor;
+	ALevelSequenceActor* OutActor = nullptr;
 	FMovieSceneSequencePlaybackSettings Settings;
 	FLevelSequenceCameraSettings CameraSettings;
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 	FMovieSceneSequenceTransform RootToLocalTransform;
-	ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, OutActor);
-	Player->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
-	Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
+	IMovieScenePlayer* Player = nullptr;
+	ULevelSequencePlayer* LevelPlayer = nullptr;
+	if (WeakSequencer.IsValid())
+	{
+		Player = WeakSequencer.Pin().Get();
+	}
+	else
+	{
+		Player = LevelPlayer = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, Settings, OutActor);
+		LevelPlayer->Initialize(LevelSequence, World->PersistentLevel, Settings, CameraSettings);
+		LevelPlayer->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
+	}
+	if (Player == nullptr)
+	{
+		UE_LOG(LogControlRig, Error, TEXT("Baking: Problem Setting up Player"));
+		return false;
+	}
+	
 
 	bool bResult = false;
 	const FScopedTransaction Transaction(LOCTEXT("BakeToControlRig_Transaction", "Bake To Control Rig"));
 	{
 		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
 
-		if (SpawnableRestoreState.bWasChanged)
+		if (LevelPlayer && SpawnableRestoreState.bWasChanged)
 		{
 			// Evaluate at the beginning of the subscene time to ensure that spawnables are created before export
-			Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
+			LevelPlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()).Value, EUpdatePositionMethod::Play));
 		}
 		TArrayView<TWeakObjectPtr<>>  Result = Player->FindBoundObjects(Binding.BindingID, Template);
 	
 		if (Result.Num() > 0 && Result[0].IsValid())
 		{
-
 			UObject* BoundObject = Result[0].Get();
 			USkeleton* Skeleton = nullptr;
 			USkeletalMeshComponent* SkeletalMeshComp = nullptr;
@@ -551,7 +565,10 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 				if (bResult == false)
 				{
 					TempAnimSequence->MarkPendingKill();
-					World->DestroyActor(OutActor);
+					if (OutActor)
+					{
+						World->DestroyActor(OutActor);
+					}
 					return false;
 				}
 
@@ -588,7 +605,10 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 					{
 						TempAnimSequence->MarkPendingKill();
 						MovieScene->RemoveTrack(*Track);
-						World->DestroyActor(OutActor);
+						if (OutActor)
+						{
+							World->DestroyActor(OutActor);
+						}
 						return false;
 					}
 					FControlRigEditMode* ControlRigEditMode = nullptr;
@@ -633,7 +653,7 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 						WeakSequencer.Pin()->ThrobSectionSelection();
 						WeakSequencer.Pin()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 					}
-					ParamSection->LoadAnimSequenceIntoThisSection(TempAnimSequence, MovieScene, Skeleton,
+					ParamSection->LoadAnimSequenceIntoThisSection(TempAnimSequence, MovieScene, SkeletalMeshComp,
 						bReduceKeys, Tolerance);
 
 					//Turn Off Any Skeletal Animation Tracks
@@ -670,18 +690,23 @@ bool UControlRigSequencerEditorLibrary::BakeToControlRig(UWorld* World, ULevelSe
 		}
 	}
 
-	Player->Stop();
-	World->DestroyActor(OutActor);
-
+	if (LevelPlayer)
+	{
+		LevelPlayer->Stop();
+	}
+	if (OutActor)
+	{
+		World->DestroyActor(OutActor);
+	}
 	return bResult;
 }
 
-bool UControlRigSequencerEditorLibrary::LoadAnimSequenceIntoControlRigSection(UMovieSceneSection* MovieSceneSection, UAnimSequence* AnimSequence,  USkeleton* Skeleton,
+bool UControlRigSequencerEditorLibrary::LoadAnimSequenceIntoControlRigSection(UMovieSceneSection* MovieSceneSection, UAnimSequence* AnimSequence, USkeletalMeshComponent* SkelMeshComp,
 	FFrameNumber InStartFrame,bool bKeyReduce, float Tolerance)
 {
-	if (MovieSceneSection == nullptr || AnimSequence == nullptr || Skeleton == nullptr)
+	if (MovieSceneSection == nullptr || AnimSequence == nullptr || SkelMeshComp == nullptr)
 	{
-		return false;;
+		return false;
 	}
 	UMovieScene* MovieScene = MovieSceneSection->GetTypedOuter<UMovieScene>();
 	if (MovieScene == nullptr)
@@ -690,7 +715,7 @@ bool UControlRigSequencerEditorLibrary::LoadAnimSequenceIntoControlRigSection(UM
 	}
 	if (UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(MovieSceneSection))
 	{
-		return Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, Skeleton, bKeyReduce, Tolerance, InStartFrame);
+		return Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, SkelMeshComp, bKeyReduce, Tolerance, InStartFrame);
 	}
 	return false;
 }
@@ -769,7 +794,7 @@ static bool GetControlRigValues(UWorld* World, ULevelSequence* LevelSequence, UC
 {
 	if (LevelSequence)
 	{
-		ALevelSequenceActor* OutActor;
+		ALevelSequenceActor* OutActor = nullptr;
 		FMovieSceneSequencePlaybackSettings Settings;
 		FLevelSequenceCameraSettings CameraSettings;
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;

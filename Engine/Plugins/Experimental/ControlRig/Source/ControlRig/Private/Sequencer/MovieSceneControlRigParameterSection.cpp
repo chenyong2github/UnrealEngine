@@ -14,6 +14,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneControlParameterRigSection"
 
@@ -2063,9 +2064,13 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 	}
 }
 
-bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAnimSequence* AnimSequence, UMovieScene* MovieScene,USkeleton* Skeleton,
+bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAnimSequence* AnimSequence, UMovieScene* MovieScene,USkeletalMeshComponent* SkelMeshComp,
 	bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame)
 {
+	if (SkelMeshComp == nullptr || SkelMeshComp->SkeletalMesh == nullptr || SkelMeshComp->SkeletalMesh->GetSkeleton() == nullptr)
+	{
+		return false;
+	}
 	UFKControlRig* AutoRig = Cast<UFKControlRig>(ControlRig);
 	if (!AutoRig && !ControlRig->SupportsEvent(FRigUnit_InverseExecution::EventName))
 	{
@@ -2126,7 +2131,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	const FAnimationCurveData& CurveData = DataModel->GetCurveData();
 	const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
 
-	ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
+	ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp);
 	ControlRig->RequestSetup();
 	ControlRig->Evaluate_AnyThread();
 
@@ -2147,7 +2152,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 		{
 			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
 
-			FName BoneName = Skeleton->GetReferenceSkeleton().GetBoneName(AnimationTrack.BoneTreeIndex);
+			FName BoneName = SkelMeshComp->SkeletalMesh->GetSkeleton()->GetReferenceSkeleton().GetBoneName(AnimationTrack.BoneTreeIndex);
 			FTransform BoneTransform;
 			UE::Anim::GetBoneTransformFromModel(DataModel, BoneTransform, TrackIndex, SequenceSecond, EAnimInterpolationType::Linear);
 			SourceHierarchy->SetLocalTransform(FRigElementKey(BoneName, ERigElementType::Bone), BoneTransform);

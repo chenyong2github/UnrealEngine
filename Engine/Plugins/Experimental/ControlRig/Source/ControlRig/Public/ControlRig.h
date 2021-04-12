@@ -32,6 +32,7 @@
 class IControlRigObjectBinding;
 class UScriptStruct;
 class USkeletalMesh;
+class USkeletalMeshComponent;
 
 struct FReferenceSkeleton;
 struct FRigUnit;
@@ -374,6 +375,10 @@ public:
 	FControlRigExecuteEvent& OnPostSetup_AnyThread() { return PostSetupEvent; }
 	FControlRigExecuteEvent& OnExecuted_AnyThread() { return ExecutedEvent; }
 	FRigEventDelegate& OnRigEvent_AnyThread() { return RigEventDelegate; }
+
+	// Setup the initial transform / ref pose of the bones based upon skeletal mesh component
+	// Unlike the other two functions below this uses the current refpose instead of the RefSkeleton pose.
+	void SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMeshComponent* InSkelMeshComp);
 
 	// Setup the initial transforms / ref pose of the bones based on a skeletal mesh
 	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);

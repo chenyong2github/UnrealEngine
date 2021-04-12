@@ -91,7 +91,7 @@ public:
 	* @param MovieSceneSection The MovieSceneSectionto load into
 	* @param AnimSequence The Sequence to load
 	* @param MovieScene The MovieScene getting loaded into
-	* @param Skeleton The Skeleton of the skelmesh component getting loaded into.
+	* @param SkelMeshComponent The Skeletal Mesh component getting loaded into.
 	* @param InStartFrame Frame to insert the animation
 	* @param bKeyReduce If true do key reduction based upon Tolerance, if false don't
 	* @param Tolerance If reducing keys, tolerance about which keys will be removed, smaller tolerance, more keys usually.
@@ -99,7 +99,7 @@ public:
 	* @return returns True if successful, False otherwise
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
-	static bool LoadAnimSequenceIntoControlRigSection(UMovieSceneSection* MovieSceneSection, UAnimSequence* AnimSequence, USkeleton* Skeleton,
+	static bool LoadAnimSequenceIntoControlRigSection(UMovieSceneSection* MovieSceneSection, UAnimSequence* AnimSequence, USkeletalMeshComponent* SkelMeshComp,
 		FFrameNumber InStartFrame, bool bKeyReduce = false, float Tolerance = 0.001f);
 
 	/**

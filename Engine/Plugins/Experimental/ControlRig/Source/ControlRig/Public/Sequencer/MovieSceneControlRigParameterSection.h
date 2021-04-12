@@ -19,6 +19,7 @@
 #include "MovieSceneControlRigParameterSection.generated.h"
 
 class UAnimSequence;
+class USkeletalMeshComponent;
 
 struct CONTROLRIG_API FControlRigBindingHelper
 {
@@ -214,9 +215,9 @@ public:
 	//Function to save control rig key when recording.
 	void RecordControlRigKey(FFrameNumber FrameNumber, bool bSetDefault, bool bDoAutoKey);
 
-	//Function to load an Anim Sequence into this section. It will automatically reszie to the section size.
+	//Function to load an Anim Sequence into this section. It will automatically resize to the section size.
 	//Will return false if fails or is canceled
-	virtual bool LoadAnimSequenceIntoThisSection(UAnimSequence* Sequence, UMovieScene* MovieScene, USkeleton* Skeleton,
+	virtual bool LoadAnimSequenceIntoThisSection(UAnimSequence* Sequence, UMovieScene* MovieScene, USkeletalMeshComponent* SkelMeshComp,
 		bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame = 0);
 #endif
 	const TArray<bool>& GetControlsMask() const

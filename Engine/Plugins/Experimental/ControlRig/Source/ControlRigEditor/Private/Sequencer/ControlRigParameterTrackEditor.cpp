@@ -841,7 +841,6 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 		UMovieSceneSequence* OwnerSequence = GetSequencer()->GetFocusedMovieSceneSequence();
 		UMovieScene* OwnerMovieScene = OwnerSequence->GetMovieScene();
 		{
-
 			UAnimSequence* TempAnimSequence = NewObject<UAnimSequence>(GetTransientPackage(), NAME_None);
 			TempAnimSequence->SetSkeleton(Skeleton);
 			const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
@@ -937,7 +936,6 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 						}
 					}
 
-
 					bool bSequencerOwnsControlRig = true;
 
 					ControlRig->Modify();
@@ -946,7 +944,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					ControlRig->GetDataSourceRegistry()->RegisterDataSource(UControlRig::OwnerComponent, ControlRig->GetObjectBinding()->GetBoundObject());
 					ControlRig->Initialize();
 					ControlRig->RequestInit();
-					ControlRig->SetBoneInitialTransformsFromRefSkeleton(Skeleton->GetReferenceSkeleton());
+					ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkelMeshComp);
 					ControlRig->Evaluate_AnyThread();
 
 					UMovieSceneSection* NewSection = Track->CreateControlRigSection(0, ControlRig, bSequencerOwnsControlRig);
@@ -960,7 +958,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					GetSequencer()->SelectSection(NewSection);
 					GetSequencer()->ThrobSectionSelection();
 					GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-					ParamSection->LoadAnimSequenceIntoThisSection(TempAnimSequence, OwnerMovieScene, Skeleton,
+					ParamSection->LoadAnimSequenceIntoThisSection(TempAnimSequence, OwnerMovieScene, SkelMeshComp,
 						BakeSettings->bReduceKeys, BakeSettings->Tolerance);
 
 					//Turn Off Any Skeletal Animation Tracks
@@ -3216,16 +3214,17 @@ void FControlRigParameterSection::OnAnimationAssetSelectedForFK(const FAssetData
 	{
 		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AssetData.GetAsset());
 		UObject* BoundObject = nullptr;
-		USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectBinding, &BoundObject, SequencerPtr);
+		AcquireSkeletonFromObjectGuid(ObjectBinding, &BoundObject, SequencerPtr);
+		USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject, SequencerPtr);
 
-		if (AnimSequence && Skeleton && AnimSequence->GetDataModel()->GetNumBoneTracks() > 0)
+		if (AnimSequence && SkelMeshComp && AnimSequence->GetDataModel()->GetNumBoneTracks() > 0)
 		{
 
 			FScopedTransaction Transaction(LOCTEXT("BakeAnimation_Transaction", "Bake Animation To FK Control Rig"));
 			Section->Modify();
 			UMovieScene* MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
 			FFrameNumber StartFrame = SequencerPtr->GetLocalTime().Time.GetFrame();
-			if (!Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, Skeleton, false, 0.1f, StartFrame))
+			if (!Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, SkelMeshComp, false, 0.1f, StartFrame))
 			{
 				Transaction.Cancel();
 			}
