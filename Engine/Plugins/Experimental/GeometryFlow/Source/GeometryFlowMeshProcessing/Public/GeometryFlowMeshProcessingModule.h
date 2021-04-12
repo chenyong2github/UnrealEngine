@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+GEOMETRYFLOWMESHPROCESSING_API DECLARE_LOG_CATEGORY_EXTERN(LogGeometryFlowMeshProcessing, Log, All);
+
 class FGeometryFlowMeshProcessingModule : public IModuleInterface
 {
 public:

@@ -2,7 +2,7 @@
 
 #include "Graphs/GenerateMeshLODGraph.h"
 
-
+#include "MeshLODToolsetModule.h"
 #include "GeometryFlowGraph.h"
 #include "GeometryFlowGraphUtil.h"
 #include "BaseNodes/TransferNode.h"
@@ -135,7 +135,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	}
 
 	ensure(NormalMapEvalResult == EGeometryFlowResult::Ok);
-	UE_LOG(LogTemp, Warning, TEXT("NormalMapPass - Evaluated %d Nodes, Recomputed %d"), NormalMapEvalInfo->NumEvaluations(), NormalMapEvalInfo->NumComputes());
+	UE_LOG(LogMeshLODToolset, Display, TEXT("NormalMapPass - Evaluated %d Nodes, Recomputed %d"), NormalMapEvalInfo->NumEvaluations(), NormalMapEvalInfo->NumComputes());
 
 
 	//
@@ -158,7 +158,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 		TextureImages.Add(MoveTemp(NewImage));
 		ensure(TexBakeEvalResult == EGeometryFlowResult::Ok);
 
-		UE_LOG(LogTemp, Warning, TEXT("TextureBakePass %s - Evaluated %d Nodes, Recomputed %d"), *TexBakeStep.Identifier, TexBakeEvalInfo->NumEvaluations(), TexBakeEvalInfo->NumComputes());
+		UE_LOG(LogMeshLODToolset, Display, TEXT("TextureBakePass %s - Evaluated %d Nodes, Recomputed %d"), *TexBakeStep.Identifier, TexBakeEvalInfo->NumEvaluations(), TexBakeEvalInfo->NumComputes());
 	}
 
 	// 
@@ -179,7 +179,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	}
 
 	ensure(TangentsEvalResult == EGeometryFlowResult::Ok);
-	UE_LOG(LogTemp, Warning, TEXT("OutputTangentsPass - Evaluated %d Nodes, Recomputed %d"), TangentsEvalInfo->NumEvaluations(), TangentsEvalInfo->NumComputes());
+	UE_LOG(LogMeshLODToolset, Display, TEXT("OutputTangentsPass - Evaluated %d Nodes, Recomputed %d"), TangentsEvalInfo->NumEvaluations(), TangentsEvalInfo->NumComputes());
 
 
 	//
@@ -201,7 +201,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	}
 
 	ensure(EvalResult == EGeometryFlowResult::Ok);
-	UE_LOG(LogTemp, Warning, TEXT("OutputMeshPass - Evaluated %d Nodes, Recomputed %d"), MeshEvalInfo->NumEvaluations(), MeshEvalInfo->NumComputes());
+	UE_LOG(LogMeshLODToolset, Display, TEXT("OutputMeshPass - Evaluated %d Nodes, Recomputed %d"), MeshEvalInfo->NumEvaluations(), MeshEvalInfo->NumComputes());
 
 	//
 	// evaluate collision
@@ -221,7 +221,7 @@ void FGenerateMeshLODGraph::EvaluateResult(
 	}
 
 	ensure(CollisionEvalResult == EGeometryFlowResult::Ok);
-	UE_LOG(LogTemp, Warning, TEXT("OutputCollisionPass - Evaluated %d Nodes, Recomputed %d"), CollisionEvalInfo->NumEvaluations(), CollisionEvalInfo->NumComputes());
+	UE_LOG(LogMeshLODToolset, Display, TEXT("OutputCollisionPass - Evaluated %d Nodes, Recomputed %d"), CollisionEvalInfo->NumEvaluations(), CollisionEvalInfo->NumComputes());
 
 }
 
@@ -444,7 +444,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 	//{
 	//	return !Node->GetIdentifier().EndsWith("Settings");
 	//});
-	//UE_LOG(LogTemp, Warning, TEXT("GRAPH:\n%s"), *GraphDump);
+	//UE_LOG(LogMeshLODToolset, Display, TEXT("GRAPH:\n%s"), *GraphDump);
 
 }
 

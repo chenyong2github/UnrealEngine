@@ -43,6 +43,9 @@
 #include "Polygroups/PolygroupSet.h"
 #include "Polygroups/PolygroupUtil.h"
 
+#include "Framework/Notifications/NotificationManager.h"
+#include "Framework/Docking/TabManager.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
@@ -324,6 +327,16 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
 	CollisionPreview->CreateInWorld(TargetWorld, PreviewTransform);
+
+	// Pop up notifications for any warnings
+	for ( const FProgressCancel::FMessageInfo& Warning : Progress.Warnings )
+	{
+		FNotificationInfo NotificationInfo(Warning.MessageText);
+		NotificationInfo.ExpireDuration = 6.0f;
+		NotificationInfo.Hyperlink = FSimpleDelegate::CreateLambda([]() { FGlobalTabmanager::Get()->TryInvokeTab(FName("OutputLog")); });
+		NotificationInfo.HyperlinkText = LOCTEXT("ShowOutputLogHyperlink", "Show Output Log");
+		FSlateNotificationManager::Get().AddNotification(NotificationInfo)->SetCompletionState(SNotificationItem::CS_Fail);
+	}
 }
 
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()

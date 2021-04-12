@@ -71,7 +71,8 @@ public class MeshLODToolset : ModuleRules
 
 				"UnrealEd",
 				"EditorScriptingUtilities",
-				"AssetTools"
+				"AssetTools",
+				"Slate"			// for FSlateNotificationManager, etc.
 
 				// ... add private dependencies that you statically link with here ...
 			}

@@ -4,6 +4,8 @@
 
 #define LOCTEXT_NAMESPACE "FMeshLODToolsetModule"
 
+DEFINE_LOG_CATEGORY(LogMeshLODToolset);
+
 void FMeshLODToolsetModule::StartupModule()
 {
 	// This code will execute after your module is loaded into memory; the exact timing is specified in the .uplugin file per-module

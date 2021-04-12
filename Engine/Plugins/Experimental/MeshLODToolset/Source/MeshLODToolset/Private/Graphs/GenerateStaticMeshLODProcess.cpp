@@ -2,6 +2,8 @@
 
 #include "Graphs/GenerateStaticMeshLODProcess.h"
 
+#include "MeshLODToolsetModule.h"
+
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 
@@ -178,6 +180,7 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 			{
 				FText WarningText = FText::Format(LOCTEXT("UnusedMaterialWarning", "Found an unused material ({0}). Consider removing it before using this tool."),
 												  FText::FromName(Materials[UnusedMaterialIndex].MaterialInterface->GetFName()));
+				UE_LOG(LogMeshLODToolset, Warning, TEXT("%s"), *WarningText.ToString());
 				Progress->AddWarning(WarningText, FProgressCancel::EMessageLevel::UserWarning);
 			}
 		}
@@ -234,13 +237,11 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 			}
 			if (bFoundTextureNonParamExpession)
 			{
-				FString WarningMessage("WARNING: UGenerateStaticMeshLODProcess: Non-parameter texture sampler detected in input material [%s]. Output materials may have unexpected behaviour.");
-				UE_LOG(LogTemp, Warning, TEXT("%s"), *WarningMessage, *Material->GetName());
-
+				FText WarningText = FText::Format(LOCTEXT("NonParameterTextureWarning", "Non-parameter texture sampler detected in input material [{0}]. Output materials may have unexpected behaviour."),
+												  FText::FromString(Material->GetName()));
+				UE_LOG(LogMeshLODToolset, Warning, TEXT("%s"), *WarningText.ToString());
 				if (Progress)
 				{
-					FText WarningText = FText::Format(LOCTEXT("NonParameterTextureWarning", "Non-parameter texture sampler detected in input material [{0}]. Output materials may have unexpected behaviour."),
-								  FText::FromString(Material->GetName()));
 					Progress->AddWarning(WarningText, FProgressCancel::EMessageLevel::UserWarning);
 				}
 			}
@@ -270,11 +271,7 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 					TexInfo.bIsNormalMap = TexInfo.Texture->IsNormalMap();
 					SourceMaterials[mi].bHasNormalMap |= TexInfo.bIsNormalMap;
 
-					//TexInfo.bIsDefaultTexture = TexInfo.Texture->IsDefaultTexture();
 					TexInfo.bIsDefaultTexture = UEditorAssetLibrary::GetPathNameForLoadedAsset(TexInfo.Texture).StartsWith(TEXT("/Engine/"));
-
-					UE_LOG(LogTemp, Warning, TEXT("SOURCE TEX PATH IS %s - DefaultTex %d - SRGB %d"), *UEditorAssetLibrary::GetPathNameForLoadedAsset(TexInfo.Texture),
-						TexInfo.bIsDefaultTexture?1:0, TexInfo.Texture->SRGB);
 
 					TexInfo.bShouldBakeTexture = (TexInfo.bIsNormalMap == false && TexInfo.bIsDefaultTexture == false);
 					if (TexInfo.bShouldBakeTexture)

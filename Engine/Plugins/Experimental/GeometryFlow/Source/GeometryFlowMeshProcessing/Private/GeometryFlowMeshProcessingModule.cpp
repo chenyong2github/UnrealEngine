@@ -2,6 +2,8 @@
 
 #include "GeometryFlowMeshProcessingModule.h"
 
+DEFINE_LOG_CATEGORY(LogGeometryFlowMeshProcessing);
+
 #define LOCTEXT_NAMESPACE "FGeometryFlowMeshProcessingModule"
 
 void FGeometryFlowMeshProcessingModule::StartupModule()

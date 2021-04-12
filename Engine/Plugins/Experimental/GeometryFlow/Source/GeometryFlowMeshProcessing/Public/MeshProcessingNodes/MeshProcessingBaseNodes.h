@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GeometryFlowMeshProcessingModule.h"
 #include "GeometryFlowCoreNodes.h"
 #include "GeometryFlowNodeUtil.h"
 #include "DataTypes/DynamicMeshData.h"
@@ -77,7 +78,7 @@ public:
 					bool bIsMeshMutable = DatasIn.GetDataFlags(InParamMesh()).bIsMutableData;
 					if (bIsMeshMutable)
 					{
-						UE_LOG(LogTemp, Warning, TEXT("[%s]  RECOMPUTING MeshOp In Place!"), *GetIdentifier());
+						UE_LOG(LogGeometryFlowMeshProcessing, Display, TEXT("[%s]  RECOMPUTING MeshOp In Place!"), *GetIdentifier());
 
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
@@ -90,7 +91,7 @@ public:
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning, TEXT("[%s]  RECOMPUTING MeshOp"), *GetIdentifier());
+						UE_LOG(LogGeometryFlowMeshProcessing, Display, TEXT("[%s]  RECOMPUTING MeshOp"), *GetIdentifier());
 
 						// do we ever want to support using a copy of the source mesh?
 						const FDynamicMesh3& SourceMesh = MeshArg->GetDataConstRef<FDynamicMesh3>((int)EMeshProcessingDataTypes::DynamicMesh);
@@ -191,7 +192,7 @@ public:
 					bool bIsMeshMutable = DatasIn.GetDataFlags(InParamMesh()).bIsMutableData;
 					if (bIsMeshMutable)
 					{
-						UE_LOG(LogTemp, Warning, TEXT("[%s]  RECOMPUTING MeshOp In Place!"), *GetIdentifier());
+						UE_LOG(LogGeometryFlowMeshProcessing, Display, TEXT("[%s]  RECOMPUTING MeshOp In Place!"), *GetIdentifier());
 
 						FDynamicMesh3 EditableMesh;
 						MeshArg->GiveTo<FDynamicMesh3>(EditableMesh, (int)EMeshProcessingDataTypes::DynamicMesh);
@@ -204,7 +205,7 @@ public:
 					}
 					else
 					{
-						UE_LOG(LogTemp, Warning, TEXT("[%s]  RECOMPUTING MeshOp"), *GetIdentifier());
+						UE_LOG(LogGeometryFlowMeshProcessing, Display, TEXT("[%s]  RECOMPUTING MeshOp"), *GetIdentifier());
 
 						// do we ever want to support using a copy of the source mesh?
 						const FDynamicMesh3& SourceMesh = MeshArg->GetDataConstRef<FDynamicMesh3>((int)EMeshProcessingDataTypes::DynamicMesh);
