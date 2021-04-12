@@ -525,7 +525,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.LocalBounds = Instance.RenderBounds;
 	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 	Instance.PerInstanceRandom = 0;
-	Instance.Flags = bCastDynamicShadow ? 1U : 0U;
+	Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -560,7 +560,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		Instance.PerInstanceRandom = 0.0f;
-		Instance.Flags = bCastDynamicShadow ? 1U : 0U;
+		Instance.Flags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 	}
 
 	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(

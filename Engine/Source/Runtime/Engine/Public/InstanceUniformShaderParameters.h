@@ -9,6 +9,10 @@
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
 
+#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS			0x1
+#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
+#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER			0x4
+
 class FNaniteInfo
 {
 public:
@@ -79,9 +83,9 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(FVector,  LocalBoundsExtent)
 	SHADER_PARAMETER(uint32,   LastUpdateSceneFrameNumber)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
-	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset_AndHasImposter)
+	SHADER_PARAMETER(uint32,   NaniteHierarchyOffset)
 	SHADER_PARAMETER(float,    PerInstanceRandom)
-	SHADER_PARAMETER(uint32,   Flags)			// CastShadows=1,
+	SHADER_PARAMETER(uint32,   Flags)
 	SHADER_PARAMETER(FVector4, LightMapAndShadowMapUVBias)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -111,11 +115,13 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.LocalBoundsCenter					= LocalBoundsCenter;
 	Result.LocalBoundsExtent					= LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
-	Result.NaniteHierarchyOffset_AndHasImposter	= NaniteInfo.HierarchyOffset_AndHasImposter;
+	Result.NaniteHierarchyOffset				= NaniteInfo.HierarchyOffset_AndHasImposter >> 1u;
 	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	Result.PerInstanceRandom					= PerInstanceRandom;
 	Result.Flags								= 0;
-	Result.Flags								|= bCastShadow ? 1 : 0;
+	Result.Flags								|= bCastShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0;
+	Result.Flags								|= InvNonUniformScaleAndDeterminantSign.W < 0.0f ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0;
+	Result.Flags								|= (NaniteInfo.HierarchyOffset_AndHasImposter & 1u) != 0u ? INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER : 0;
 	return Result;
 }
 
@@ -157,7 +163,7 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 struct FInstanceSceneShaderData
 {
 	// Must match GetInstanceData() in SceneData.ush
-	enum { InstanceDataStrideInFloat4s = 12 };
+	enum { InstanceDataStrideInFloat4s = 10 };
 
 	FVector4 Data[InstanceDataStrideInFloat4s];
 
