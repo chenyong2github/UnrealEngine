@@ -335,6 +335,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
 	bStaticComponentsRegisteredInStreamingManager = false;
+	IncrementalComponentState = EIncrementalComponentState::Init;
 }
 
 void ULevel::Initialize(const FURL& InURL)
@@ -1187,97 +1188,48 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 		checkf(OwningWorld->IsGameWorld(), TEXT("Cannot call IncrementalUpdateComponents with non 0 argument in the Editor/ commandlets."));
 	}
 
-	// Do BSP on the first pass.
-	if (CurrentActorIndexForUpdateComponents == 0)
-	{
-		UpdateModelComponents();
-		// Sort actors to ensure that parent actors will be registered before child actors
-		SortActorsHierarchy(Actors, this);
-	}
+	bool bFullyUpdateComponents = NumComponentsToUpdate == 0;
 
-	int32 PreviousIndex = CurrentActorIndexForUpdateComponents;
-	// Find next valid actor to process components registration
+	// The editor is never allowed to incrementally update components.  Make sure to pass in a value of zero for NumActorsToUpdate.
+	check(bFullyUpdateComponents || OwningWorld->IsGameWorld());
 
-	while (CurrentActorIndexForUpdateComponents < Actors.Num())
+	do
 	{
-		AActor* Actor = Actors[CurrentActorIndexForUpdateComponents];
-		bool bAllComponentsRegistered = true;
-		if (Actor && !Actor->IsPendingKill())
+		switch (IncrementalComponentState)
 		{
-#if PERF_TRACK_DETAILED_ASYNC_STATS
-			FScopeCycleCounterUObject ContextScope(Actor);
-#endif
-			if (!bHasCurrentActorCalledPreRegister)
+		case EIncrementalComponentState::Init:
+			// Do BSP on the first pass.
+			UpdateModelComponents();
+			// Sort actors to ensure that parent actors will be registered before child actors
+			SortActorsHierarchy(Actors, this);
+			IncrementalComponentState = EIncrementalComponentState::RegisterInitialComponents;
+
+			//pass through
+		case EIncrementalComponentState::RegisterInitialComponents:
+			if (IncrementalRegisterComponents(true, NumComponentsToUpdate, Context))
 			{
-				Actor->PreRegisterAllComponents();
-				bHasCurrentActorCalledPreRegister = true;
+				bool ShouldRunConstructionScripts = !bHasRerunConstructionScripts && bRerunConstructionScripts && !IsTemplate() && !GIsUCCMakeStandaloneHeaderGenerator;
+				IncrementalComponentState = ShouldRunConstructionScripts ? EIncrementalComponentState::RunConstructionScripts : EIncrementalComponentState::Finalize;
 			}
-			bAllComponentsRegistered = Actor->IncrementalRegisterComponents(NumComponentsToUpdate, Context);
-		}
+			break;
 
-		if (bAllComponentsRegistered)
-		{	
-			// All components have been registered fro this actor, move to a next one
-			CurrentActorIndexForUpdateComponents++;
+		case EIncrementalComponentState::RunConstructionScripts:
+			if (IncrementalRunConstructionScripts(bFullyUpdateComponents))
+			{
+				IncrementalComponentState = EIncrementalComponentState::Finalize;
+			}
+			break;
+
+		case EIncrementalComponentState::Finalize:
+			IncrementalComponentState = EIncrementalComponentState::Init;
+			CurrentActorIndexForIncrementalUpdate = 0;
 			bHasCurrentActorCalledPreRegister = false;
-		}
-
-		// If we do an incremental registration return to outer loop after each processed actor 
-		// so outer loop can decide whether we want to continue processing this frame
-		if (NumComponentsToUpdate != 0)
-		{
+			bAreComponentsCurrentlyRegistered = true;
+			CreateCluster();
 			break;
 		}
-	}
-
-	// See whether we are done.
-	if (CurrentActorIndexForUpdateComponents >= Actors.Num())
-	{
-		CurrentActorIndexForUpdateComponents	= 0;
-		bHasCurrentActorCalledPreRegister		= false;
-		bAreComponentsCurrentlyRegistered		= true;
-
-#if PERF_TRACK_DETAILED_ASYNC_STATS
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_ULevel_IncrementalUpdateComponents_RerunConstructionScripts);
-#endif
-		if (bRerunConstructionScripts && !IsTemplate() && !GIsUCCMakeStandaloneHeaderGenerator)
-		{
-			// We need to process pending adds prior to rerunning the construction scripts, which may internally
-			// perform removals / adds themselves.
-			if (Context)
-			{
-				Context->Process();
-			}
-
-			// Don't rerun construction scripts until after all actors' components have been registered.  This
-			// is necessary because child attachment lists are populated during registration, and running construction
-			// scripts requires that the attachments are correctly initialized.
-			// Don't use ranged for as construction scripts can manipulate the actor array
-			for (int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
-			{
-				if (AActor* Actor = Actors[ActorIndex])
-				{
-					// Child actors have already been built and initialized up by their parent and they should not be reconstructed again
-					if (!Actor->IsChildActor())
-					{
-#if PERF_TRACK_DETAILED_ASYNC_STATS
-						FScopeCycleCounterUObject ContextScope(Actor);
-#endif
-						Actor->RerunConstructionScripts();
-					}
-				}
-			}
-			bHasRerunConstructionScripts = true;
-		}
-
-		CreateCluster();
-	}
-	// Only the game can use incremental update functionality.
-	else
-	{
-		// The editor is never allowed to incrementally updated components.  Make sure to pass in a value of zero for NumActorsToUpdate.
-		check(OwningWorld->IsGameWorld());
-	}
+	}while(bFullyUpdateComponents && !bAreComponentsCurrentlyRegistered);
+	
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeferredUpdateBodies);
@@ -1291,6 +1243,99 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 	}
 }
 
+bool ULevel::IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context)
+{
+	// Find next valid actor to process components registration
+	while (CurrentActorIndexForIncrementalUpdate < Actors.Num())
+	{
+		AActor* Actor = Actors[CurrentActorIndexForIncrementalUpdate];
+		bool bAllComponentsRegistered = true;
+		if (Actor && !Actor->IsPendingKill())
+		{
+#if PERF_TRACK_DETAILED_ASYNC_STATS
+			FScopeCycleCounterUObject ContextScope(Actor);
+#endif
+			if (bPreRegisterComponents && !bHasCurrentActorCalledPreRegister)
+			{
+				Actor->PreRegisterAllComponents();
+				bHasCurrentActorCalledPreRegister = true;
+			}
+			bAllComponentsRegistered = Actor->IncrementalRegisterComponents(NumComponentsToUpdate, Context);
+		}
+
+		if (bAllComponentsRegistered)
+		{
+			// All components have been registered fro this actor, move to a next one
+			CurrentActorIndexForIncrementalUpdate++;
+			bHasCurrentActorCalledPreRegister = false;
+		}
+
+		// If we do an incremental registration return to outer loop after each processed actor 
+		// so outer loop can decide whether we want to continue processing this frame
+		if (NumComponentsToUpdate != 0)
+		{
+			break;
+		}
+	}
+
+	if (CurrentActorIndexForIncrementalUpdate >= Actors.Num())
+	{
+		// We need to process pending adds prior to rerunning the construction scripts, which may internally
+		// perform removals / adds themselves.
+		if (Context)
+		{
+			Context->Process();
+		}
+		CurrentActorIndexForIncrementalUpdate = 0;
+		return true;
+	}
+
+	return false;
+}
+
+bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
+{
+	// Find next valid actor to process components registration
+	while (CurrentActorIndexForIncrementalUpdate < Actors.Num())
+	{
+		AActor* Actor = Actors[CurrentActorIndexForIncrementalUpdate];
+		CurrentActorIndexForIncrementalUpdate++;
+
+		if (Actor == nullptr || Actor->IsPendingKill() || Actor->IsChildActor())
+		{
+			continue;
+		}
+
+		// Child actors have already been built and initialized up by their parent and they should not be reconstructed again
+		if (Actor->IsChildActor())
+		{
+			continue;
+		}
+
+#if PERF_TRACK_DETAILED_ASYNC_STATS
+		FScopeCycleCounterUObject ContextScope(Actor);
+#endif
+		
+		// TODO - Ideally we could pull out component registration from this call, allowing for even better distribution of the 
+		// expensive RegisterComponentWithWorld calls, but there are a few systems that would need to be re-factored in order to do this
+		// safely.
+		Actor->RerunConstructionScripts();
+
+		// If we do an incremental registration return to outer loop after each processed actor 
+		// so outer loop can decide whether we want to continue processing this frame
+		if (!bProcessAllActors)
+		{
+			break;
+		}
+	}
+
+	if (CurrentActorIndexForIncrementalUpdate >= Actors.Num())
+	{
+		CurrentActorIndexForIncrementalUpdate = 0;
+		return true;
+	}
+	return false;
+}
 
 bool ULevel::IncrementalUnregisterComponents(int32 NumComponentsToUnregister)
 {

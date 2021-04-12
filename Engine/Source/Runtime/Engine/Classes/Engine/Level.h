@@ -653,10 +653,21 @@ public:
 	/** Whether the level is partitioned or not. */
     UPROPERTY()
 	uint8										bIsPartitioned : 1;
+
+	enum class EIncrementalComponentState : uint8
+	{
+		Init,
+		RegisterInitialComponents,
+		RunConstructionScripts,
+		Finalize
+	};
+
 	/** Whether the actor referenced by CurrentActorIndexForUpdateComponents has called PreRegisterAllComponents */
-	uint8										bHasCurrentActorCalledPreRegister;
+	uint8										bHasCurrentActorCalledPreRegister:1;
+	/** The current stage for incrementally updating actor components in the level*/
+	EIncrementalComponentState					IncrementalComponentState;
 	/** Current index into actors array for updating components.							*/
-	int32										CurrentActorIndexForUpdateComponents;
+	int32										CurrentActorIndexForIncrementalUpdate;
 	/** Current index into actors array for updating components.							*/
 	int32										CurrentActorIndexForUnregisterComponents;
 
@@ -1151,6 +1162,9 @@ public:
 
 #endif
 
+private:
+	bool IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context);
+	bool IncrementalRunConstructionScripts(bool bProcessAllActors);
 };
 
 
