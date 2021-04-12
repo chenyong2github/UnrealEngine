@@ -38,7 +38,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGlobalField, Log, All);
 /** Clipmap enable/disable */
 static TAutoConsoleVariable<int32> CVarPhysicsFieldEnableClipmap(
 	TEXT("r.PhysicsField.EnableField"),
-	0,
+	1,
 	TEXT("Enable/Disable the Physics field clipmap"),
 	ECVF_RenderThreadSafe);
 
