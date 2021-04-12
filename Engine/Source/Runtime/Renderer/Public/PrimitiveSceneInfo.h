@@ -153,6 +153,8 @@ struct FPrimitiveFlagsCompact
 	uint8 bStaticLighting : 1;
 	/** True if the primitive casts static shadows. */
 	uint8 bCastStaticShadow : 1;
+	/** True if the primitive is a nanite mesh. */
+	uint8 bIsNaniteMesh : 1;
 
 	FPrimitiveFlagsCompact(const FPrimitiveSceneProxy* Proxy);
 };
