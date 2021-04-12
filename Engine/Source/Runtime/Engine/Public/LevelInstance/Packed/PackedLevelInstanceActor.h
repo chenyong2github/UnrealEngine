@@ -32,9 +32,11 @@ class ENGINE_API APackedLevelInstance : public ALevelInstance
 public:
 	virtual bool SupportsLoading() const override;
 
+	virtual void Serialize(FArchive& Ar) override;
 #if WITH_EDITOR
 	static FName GetPackedComponentTag();
 
+	virtual void PostLoad() override;
 	virtual void OnWorldAssetChanged() override;
 	virtual void OnWorldAssetSaved(bool bPromptForSave) override;
 	virtual void OnCommit() override;
@@ -43,6 +45,8 @@ public:
 	virtual void OnEditChild() override;
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+		
+	void SetPackedVersion(const FGuid& Version) { PackedVersion = Version; }
 
 	// AActor overrides
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::None; }
@@ -53,6 +57,8 @@ public:
 	void GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const;
 
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const override { return ELevelInstanceRuntimeBehavior::None; }
+
+	virtual void RerunConstructionScripts() override;
 
 	template<class T>
 	T* AddPackedComponent()
@@ -73,9 +79,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = Pack)
 	TSoftObjectPtr<UBlueprint> BlueprintAsset;
 
-	UPROPERTY(VisibleAnywhere, Category = Pack)
-	bool bRerunConstructionScripts;
-
 	UPROPERTY()
 	TArray<TSoftObjectPtr<UBlueprint>> PackedBPDependencies;
 
@@ -88,5 +91,8 @@ private:
 
 	UPROPERTY(NonTransactional)
 	bool bChildChanged;
+
+	UPROPERTY()
+	FGuid PackedVersion;
 #endif
 };

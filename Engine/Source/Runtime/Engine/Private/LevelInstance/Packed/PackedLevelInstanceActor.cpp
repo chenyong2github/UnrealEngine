@@ -4,12 +4,13 @@
 #include "LevelInstance/Packed/PackedLevelInstanceBuilder.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "LevelInstance/LevelInstancePrivate.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 
 APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
-	, bRerunConstructionScripts(false)
 	, bEditing(false)
 	, ChildEditing(0)
 	, bChildChanged(false)
@@ -18,6 +19,20 @@ APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectIniti
 #if WITH_EDITORONLY_DATA
 	// Packed Level Instances don't support level streaming or sub actors
 	DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::None;
+#endif
+}
+
+void APackedLevelInstance::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	// We want to make sure we serialize that property so we can compare to the CDO
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::PackedLevelInstanceVersion)
+	{
+		Ar << PackedVersion;
+	}
 #endif
 }
 
@@ -31,6 +46,46 @@ bool APackedLevelInstance::SupportsLoading() const
 }
 
 #if WITH_EDITOR
+
+void APackedLevelInstance::PostLoad()
+{
+	Super::PostLoad();
+
+	// Non CDO: Set the Guid to something different then the default value so that we actually run the construction script on actors that haven't been resaved against their latest BP
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && GetLinkerCustomVersion(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::PackedLevelInstanceVersion)
+	{
+		const static FGuid NoVersionGUID(0x50817615, 0x74A547A3, 0x9295D655, 0x8A852C0F);
+		PackedVersion = NoVersionGUID;
+	}
+}
+
+void APackedLevelInstance::RerunConstructionScripts()
+{
+	bool bShouldRerunConstructionScript = true;
+
+	if (GetWorld() && GetWorld()->IsGameWorld())
+	{
+		bShouldRerunConstructionScript = false;
+
+		// Only rerun if version mismatchs
+		if (PackedVersion != GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion)
+		{
+			bShouldRerunConstructionScript = true;
+			UE_LOG(LogLevelInstance, Warning, TEXT("RerunConstructionScript was executed on %s (%s) because its version (%s) doesn't match latest version (%s). Resaving this actor will fix this"),
+				*GetPathName(),
+				*GetPackage()->GetPathName(),
+				*PackedVersion.ToString(),
+				*GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion.ToString());
+		}
+	}
+	
+	if(bShouldRerunConstructionScript)
+	{
+		Super::RerunConstructionScripts();
+		PackedVersion = GetClass()->GetDefaultObject<APackedLevelInstance>()->PackedVersion;
+	}
+}
+
 FName APackedLevelInstance::GetPackedComponentTag()
 {
 	static FName PackedComponentTag("PackedComponent");

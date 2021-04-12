@@ -424,13 +424,14 @@ bool FPackedLevelInstanceBuilder::CreateOrUpdateBlueprintFromPacked(APackedLevel
 	BP->Modify();
 	// Avoid running construction script while dragging an instance of that BP for performance reasons
 	BP->bRunConstructionScriptOnDrag = false;
+	FGuid NewVersion = FGuid::NewGuid();
 	APackedLevelInstance* CDO = CastChecked<APackedLevelInstance>(BP->GeneratedClass->GetDefaultObject());
-	auto PropagatePropertiesToActor = [InActor](APackedLevelInstance* TargetActor)
+	auto PropagatePropertiesToActor = [InActor, NewVersion](APackedLevelInstance* TargetActor)
 	{
 		TargetActor->Modify(false);
 		TargetActor->SetWorldAsset(InActor->GetWorldAsset());
 		TargetActor->PackedBPDependencies = InActor->PackedBPDependencies;
-
+		TargetActor->SetPackedVersion(NewVersion);
 		// match root component mobility to source actor
 		USceneComponent* Root = TargetActor->GetRootComponent();
 		Root->SetMobility(InActor->GetRootComponent()->Mobility);

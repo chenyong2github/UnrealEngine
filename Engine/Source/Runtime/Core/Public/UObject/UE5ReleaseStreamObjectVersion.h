@@ -36,6 +36,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Added max linear and angular speed to Chaos bodies
 		AddChaosMaxLinearAngularSpeed,
 
+		// PackedLevelInstance version
+		PackedLevelInstanceVersion,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
