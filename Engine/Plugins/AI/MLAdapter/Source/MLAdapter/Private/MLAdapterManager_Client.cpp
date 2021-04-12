@@ -77,10 +77,10 @@ void UMLAdapterManager::AddCommonFunctions(FRPCServer& Server)
 		}
 		else
 		{
-			UMLAdapterSession& Session = GetSession();
+			UMLAdapterSession& SessionInstance = GetSession();
 			for (const FMLAdapter::FAgentID& AgentID : AgentIDs)
 			{
-				UMLAdapterAgent* Agent = Session.GetAgent(AgentID);
+				UMLAdapterAgent* Agent = SessionInstance.GetAgent(AgentID);
 				Results.push_back(Agent == nullptr || Agent->IsDone());
 			}
 		}
