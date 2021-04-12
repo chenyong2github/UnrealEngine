@@ -339,6 +339,13 @@ namespace Metasound
 			}
 
 			template<typename ArithmeticType>
+			static FTime FromSeconds(const ArithmeticType& InSeconds)
+			{
+				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
+				return FTime(static_cast<TimeType>(InSeconds));
+			}
+
+			template<typename ArithmeticType>
 			static FTime FromMilliseconds(const ArithmeticType& InMilliseconds)
 			{
 				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
