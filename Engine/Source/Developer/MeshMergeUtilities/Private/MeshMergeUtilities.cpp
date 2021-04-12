@@ -3020,7 +3020,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				}
 
 				FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(LODIndex, MergedMeshLOD);
-				StaticMesh->CommitMeshDescription(LODIndex);
+
+				UStaticMesh::FCommitMeshDescriptionParams CommitParams;
+				CommitParams.bUseHashAsGuid = true;
+				StaticMesh->CommitMeshDescription(LODIndex, CommitParams);
 			}
 		}
 		
