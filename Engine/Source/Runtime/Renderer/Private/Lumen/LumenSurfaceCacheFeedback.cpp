@@ -110,6 +110,7 @@ void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBui
 	Resouces.Buffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("Lumen.Feedback"));	
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.BufferAllocator, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.Buffer, PF_R32_UINT), 0);
 }
 
 
@@ -480,28 +481,30 @@ FIntPoint FLumenSurfaceCacheFeedback::GetFeedbackBufferTileJitter() const
 	return TileJitter;
 }
 
-void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
-	extern int32 GVisualizeLumenSceneFeedback;
-	extern int32 GVisualizeLumenSceneTraceMeshSDFs;
-	const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene
-		&& GVisualizeLumenSceneFeedback != 0
-		&& GVisualizeLumenSceneTraceMeshSDFs != 0
-		&& DistanceFieldSceneData.NumObjectsInBuffer > 0;
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	extern int32 GLumenReflectionsFeedback;
-	const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsFeedback != 0;
-
-	if (GLumenSceneFeedback != 0 && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
+	if (bLumenActive && GLumenSceneFeedback != 0)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+		extern int32 GVisualizeLumenSceneFeedback;
+		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneFeedback != 0;
 
-		ensure(LumenSceneData.SurfaceCacheFeedbackResources.Buffer == nullptr);
+		extern int32 GLumenReflectionsFeedback;
+		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsFeedback != 0;
 
-		LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, LumenSceneData.SurfaceCacheFeedbackResources);
-	}	
+		if (bReflectionsUseFeedback || bVisualizeUsesFeedback)
+		{
+			FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+			ensure(LumenSceneData.SurfaceCacheFeedbackResources.Buffer == nullptr);
+
+			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, LumenSceneData.SurfaceCacheFeedbackResources);
+		}
+	}
 }
 
 void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRDGBuilder& GraphBuilder)
