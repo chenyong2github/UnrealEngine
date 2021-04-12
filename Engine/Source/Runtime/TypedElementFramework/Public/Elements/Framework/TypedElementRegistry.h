@@ -61,6 +61,15 @@ public:
 	}
 
 	/**
+	 * Event fired prior to processing any elements that were previously marked for deferred destruction.
+	 * @see ProcessDeferredElementsToDestroy.
+	 */
+	FSimpleMulticastDelegate& OnProcessingDeferredElementsToDestroy()
+	{
+		return OnProcessingDeferredElementsToDestroyDelegate;
+	}
+
+	/**
 	 * Get the element type ID for the associated element type name, if any.
 	 * @return The element type ID, or 0 if the given name wasn't registered.
 	 */
@@ -509,4 +518,5 @@ private:
 
 	FOnElementReplaced OnElementReplacedDelegate;
 	FOnElementUpdated OnElementUpdatedDelegate;
+	FSimpleMulticastDelegate OnProcessingDeferredElementsToDestroyDelegate;
 };

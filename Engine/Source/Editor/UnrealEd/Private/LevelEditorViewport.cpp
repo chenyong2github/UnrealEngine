@@ -1773,6 +1773,10 @@ FLevelEditorViewportClient::~FLevelEditorViewportClient()
 	{
 		SelectionSet->OnPreChange().RemoveAll(this);
 	}
+	if (UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance())
+	{
+		Registry->OnProcessingDeferredElementsToDestroy().RemoveAll(this);
+	}
 	ResetElementsToManipulate();
 
 	// Unregister for all global callbacks to this object
@@ -1833,6 +1837,9 @@ void FLevelEditorViewportClient::InitializeViewportInteraction()
 	{
 		UTypedElementSelectionSet* SelectionSet = GetMutableSelectionSet();
 		SelectionSet->OnPreChange().AddRaw(this, &FLevelEditorViewportClient::ResetElementsToManipulateFromSelectionChange);
+
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+		Registry->OnProcessingDeferredElementsToDestroy().AddRaw(this, &FLevelEditorViewportClient::ResetElementsToManipulateFromProcessingDeferredElementsToDestroy);
 	}
 
 	{
@@ -3515,19 +3522,31 @@ void FLevelEditorViewportClient::CacheElementsToManipulate(const bool bForceRefr
 	}
 }
 
-void FLevelEditorViewportClient::ResetElementsToManipulate()
+void FLevelEditorViewportClient::ResetElementsToManipulate(const bool bClearList)
 {
-	if (bHasCachedElementsToManipulate)
+	if (bClearList)
 	{
 		CachedElementsToManipulate->Reset();
-		bHasCachedElementsToManipulate = false;
 	}
+	bHasCachedElementsToManipulate = false;
 }
 
 void FLevelEditorViewportClient::ResetElementsToManipulateFromSelectionChange(const UTypedElementSelectionSet* InSelectionSet)
 {
 	check(InSelectionSet == GetSelectionSet());
-	ResetElementsToManipulate();
+
+	// Don't clear the list immediately, as the selection may change from a construction script running (while we're still iterating the list!)
+	// We'll process the clear on the next cache request, or when the typed element registry actually processes its pending deletion
+	ResetElementsToManipulate(/*bClearList*/false);
+}
+
+void FLevelEditorViewportClient::ResetElementsToManipulateFromProcessingDeferredElementsToDestroy()
+{
+	if (!bHasCachedElementsToManipulate)
+	{
+		// If we have no cache, make sure the cached list is definitely empty now to ensure it doesn't contain any lingering references to things that are about to be deleted
+		CachedElementsToManipulate->Reset();
+	}
 }
 
 const UTypedElementSelectionSet* FLevelEditorViewportClient::GetSelectionSet() const

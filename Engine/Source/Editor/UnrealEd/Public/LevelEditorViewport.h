@@ -718,10 +718,13 @@ private:
 	void CacheElementsToManipulate(const bool bForceRefresh = false);
 
 	/** Reset the list of elements to manipulate */
-	void ResetElementsToManipulate();
+	void ResetElementsToManipulate(const bool bClearList = true);
 
 	/** Reset the list of elements to manipulate, because the selection set they were cached from has changed */
 	void ResetElementsToManipulateFromSelectionChange(const UTypedElementSelectionSet* InSelectionSet);
+
+	/** Reset the list of elements to manipulate, because the typed element registry is about to process deferred deletion */
+	void ResetElementsToManipulateFromProcessingDeferredElementsToDestroy();
 
 	/** Get the selection set that associated with our level editor. */
 	const UTypedElementSelectionSet* GetSelectionSet() const;

@@ -142,6 +142,8 @@ UTypedElementInterface* UTypedElementRegistry::GetElementInterfaceImpl(const FTy
 
 void UTypedElementRegistry::ProcessDeferredElementsToDestroy()
 {
+	OnProcessingDeferredElementsToDestroyDelegate.Broadcast();
+
 	FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
 
 	for (TUniquePtr<FRegisteredElementType>& RegisteredElementType : RegisteredElementTypes)
