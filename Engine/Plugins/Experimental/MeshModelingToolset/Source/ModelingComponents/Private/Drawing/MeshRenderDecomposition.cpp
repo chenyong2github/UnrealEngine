@@ -71,8 +71,10 @@ static void CollectSubDecomposition(
 	int32 MaxTrisPerGroup = MaxChunkSize;
 	if (Triangles.Num() < MaxTrisPerGroup)
 	{
+		DecompLock.Lock();
 		int32 i = Decomp.AppendGroup();
 		FMeshRenderDecomposition::FGroup& Group = Decomp.GetGroup(i);
+		DecompLock.Unlock();
 		Group.Triangles = Triangles;
 		Group.Material = Material;
 		return;
