@@ -244,6 +244,16 @@ namespace UnrealGameSync
 
 	class UserSettings
 	{
+		/// <summary>
+		/// Enum that decribes which robomerge changes to show
+		/// </summary>
+		public enum RobomergeShowChangesOption
+		{
+			All,		// Show all changes from robomerge
+			Badged,		// Show only robomerge changes that have an associated badge
+			None		// Show no robomerge changes
+		};
+
 		string FileName;
 		ConfigFile ConfigFile = new ConfigFile();
 
@@ -256,6 +266,8 @@ namespace UnrealGameSync
 		public bool bAutoResolveConflicts;
 		public bool bShowUnreviewedChanges;
 		public bool bShowAutomatedChanges;
+		public RobomergeShowChangesOption ShowRobomerge;
+		public bool bAnnotateRobmergeChanges;
 		public bool bShowLocalTimes;
 		public bool bKeepInTray;
 		public Guid[] EnabledTools;
@@ -356,6 +368,12 @@ namespace UnrealGameSync
 			bAutoResolveConflicts = (ConfigFile.GetValue("General.AutoResolveConflicts", "1") != "0");
 			bShowUnreviewedChanges = ConfigFile.GetValue("General.ShowUnreviewed", true);
 			bShowAutomatedChanges = ConfigFile.GetValue("General.ShowAutomated", false);
+
+			// safely parse the filter enum
+			ShowRobomerge = RobomergeShowChangesOption.All;
+			Enum.TryParse(ConfigFile.GetValue("General.RobomergeFilter", ""), out ShowRobomerge);
+
+			bAnnotateRobmergeChanges = ConfigFile.GetValue("General.AnnotateRobomerge", true);
 			bShowLocalTimes = ConfigFile.GetValue("General.ShowLocalTimes", false);
 			bKeepInTray = ConfigFile.GetValue("General.KeepInTray", true);
 
@@ -725,6 +743,8 @@ namespace UnrealGameSync
 			GeneralSection.SetValue("AutoResolveConflicts", bAutoResolveConflicts);
 			GeneralSection.SetValue("ShowUnreviewed", bShowUnreviewedChanges);
 			GeneralSection.SetValue("ShowAutomated", bShowAutomatedChanges);
+			GeneralSection.SetValue("RobomergeFilter", ShowRobomerge.ToString());
+			GeneralSection.SetValue("AnnotateRobomerge", bAnnotateRobmergeChanges);
 			GeneralSection.SetValue("ShowLocalTimes", bShowLocalTimes);
 			if(LastProject != null)
 			{
