@@ -9,6 +9,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 #include "WorldPartition/HLOD/HLODBuilder.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 #endif
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
@@ -67,18 +68,14 @@ void AWorldPartitionHLOD::RerunConstructionScripts()
 
 #if WITH_EDITOR
 
-void AWorldPartitionHLOD::PostRegisterAllComponents()
+bool AWorldPartitionHLOD::IsHiddenEd() const
 {
-	Super::PostRegisterAllComponents();
-
-	SetIsTemporarilyHiddenInEditor(true);
-	bListedInSceneOutliner = true;
-	SetFolderPath(*FString::Printf(TEXT("HLOD/HLOD%d"), GetLODLevel()));
+	return true;
 }
 
-EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
+EActorGridPlacement AWorldPartitionHLOD::GetGridPlacement() const
 {
-	return EActorGridPlacement::Bounds;
+	return SubActorsHLODLayer && SubActorsHLODLayer->IsAlwaysLoaded() ? EActorGridPlacement::AlwaysLoaded : EActorGridPlacement::Bounds;
 }
 
 TUniquePtr<FWorldPartitionActorDesc> AWorldPartitionHLOD::CreateClassActorDesc() const

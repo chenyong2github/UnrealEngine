@@ -156,7 +156,13 @@ FName UHLODLayer::GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float 
 
 FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
 {
-	return GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
+	return IsAlwaysLoaded() ? NAME_None : GetRuntimeGridName(InHLODLevel, CellSize, LoadingRange);
+}
+
+const TSoftObjectPtr<UHLODLayer>& UHLODLayer::GetParentLayer() const
+{
+	static const TSoftObjectPtr<UHLODLayer> NullLayer;
+	return IsAlwaysLoaded() ? NullLayer : ParentLayer;
 }
 
 #endif // WITH_EDITOR

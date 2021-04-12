@@ -848,11 +848,8 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					UE_LOG(LogWorldPartition, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
 				}
 
-				if (NumHLODActors > 0)
+				if (NumHLODActors == FilteredActors.Num())
 				{
-					// HLOD cells should contain only HLODs
-					check(NumHLODActors == FilteredActors.Num());
-
 					// Mark this cell as containing HLOD data
 					UWorldPartitionRuntimeHLODCellData* HLODCellData = NewObject<UWorldPartitionRuntimeHLODCellData>(StreamingCell);
 					StreamingCell->AddCellData(HLODCellData);

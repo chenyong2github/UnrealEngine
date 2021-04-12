@@ -43,9 +43,10 @@ public:
 	const FMeshProxySettings& GetMeshSimplifySettings() const { return MeshSimplifySettings; }
 	const TSoftObjectPtr<UMaterial>& GetHLODMaterial() const { return HLODMaterial; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
-	int32 GetCellSize() const { return CellSize; }
-	float GetLoadingRange() const { return LoadingRange; }
-	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const { return ParentLayer; }
+	int32 GetCellSize() const { return bAlwaysLoaded ? 0 : CellSize; }
+	float GetLoadingRange() const { return bAlwaysLoaded ? WORLD_MAX : LoadingRange; }
+	const TSoftObjectPtr<UHLODLayer>& GetParentLayer() const;
+	bool IsAlwaysLoaded() const { return bAlwaysLoaded; }
 
 	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange);
 #endif
@@ -57,26 +58,31 @@ private:
 	EHLODLayerType LayerType;
 
 	/** Merged mesh generation settings - Used when this layer is of type EHLODLayerType::MeshMerge */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (editcondition = "LayerType == EHLODLayerType::MeshMerge"))
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshMerge"))
 	FMeshMergingSettings MeshMergeSettings;
 
 	/** Simplified mesh generation settings - Used when this layer is of type EHLODLayerType::MeshSimplify */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (editcondition = "LayerType == EHLODLayerType::MeshSimplify"))
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshSimplify"))
 	FMeshProxySettings MeshSimplifySettings;
 
 	/** Material that will be used by the generated HLOD static mesh */
-	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category=HLOD, meta = (editcondition = "LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify"))
+	UPROPERTY(EditAnywhere, Config, AdvancedDisplay, Category=HLOD, meta = (EditConditionHides, EditCondition = "LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify"))
 	TSoftObjectPtr<UMaterial> HLODMaterial;
 
+	/** Whether HLOD actors generated for this layer will be always loaded */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)
+	uint32 bAlwaysLoaded : 1;
+
+	/** Cell size of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
 	int32 CellSize;
 
-	/** Loading range of the RuntimeGrid */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD)
+	/** Loading range of the runtime grid created to encompass HLOD actors generated for this HLOD Layer */
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
 	float LoadingRange;
 
-	/** HLODLayer to assign to the generated HLOD actors */
-	UPROPERTY(EditAnywhere, Config, Category=HLOD)
+	/** HLOD Layer to assign to the generated HLOD actors */
+	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "!bAlwaysLoaded"))
 	TSoftObjectPtr<UHLODLayer> ParentLayer;
 #endif
 };
