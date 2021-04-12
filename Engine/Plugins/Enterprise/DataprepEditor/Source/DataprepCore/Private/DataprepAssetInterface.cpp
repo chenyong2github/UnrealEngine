@@ -49,6 +49,24 @@ void UDataprepAssetInterface::PostLoad()
 	{
 		Output->GetOnChanged().AddUObject( this, &UDataprepAssetInterface::OnConsumerChanged );
 	}
+	else
+	{
+		// Check if a consumer class has become available since last load
+		for( TObjectIterator< UClass > It ; It ; ++It )
+		{
+			UClass* CurrentClass = (*It);
+
+			if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
+			{
+				if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
+				{
+					UE_LOG( LogDataprepCore, Warning, TEXT("Default Dataprep consumer was assigned") );
+					SetConsumer( CurrentClass );
+					break;
+				}
+			}
+		}
+	}
 
 	if(Recipe != nullptr)
 	{
