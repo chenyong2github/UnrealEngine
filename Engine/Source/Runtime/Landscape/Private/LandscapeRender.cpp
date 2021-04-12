@@ -2472,11 +2472,6 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 		return;
 	}
 
-	if (!VertexFactory->GetType()->SupportsRayTracingDynamicGeometry())
-	{
-		return;
-	}
-
 	int32 ForcedLODLevel = ForcedLOD;
 
 	int32 ViewLodOveride = GetViewLodOverride(*Context.ReferenceView);
@@ -2612,7 +2607,7 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			RayTracingInstance.BuildInstanceMaskAndFlags();
 			OutRayTracingInstances.Add(RayTracingInstance);
 
-			if (bNeedsRayTracingGeometryUpdate)
+			if (bNeedsRayTracingGeometryUpdate && VertexFactory->GetType()->SupportsRayTracingDynamicGeometry())
 			{
 				// Use the internal managed vertex buffer because landscape dynamic RT geometries are not updated every frame
 				// which is a requirement for the shared vertex buffer usage
