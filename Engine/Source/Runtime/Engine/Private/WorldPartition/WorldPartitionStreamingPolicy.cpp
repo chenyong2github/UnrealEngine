@@ -229,8 +229,15 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 			if (CellState != QueryState)
 			{
 				bool bSkipCell = false;
+
+				// Don't consider HLOD cells if HLODs are disabled.
+				if (!GWorldPartitionShowHLODs)
+				{
+					bSkipCell = Cell->HasCellData<UWorldPartitionRuntimeHLODCellData>();
+				}
+
 				// If we are querying for Unloaded/Loaded but a Cell is part of a data layer outside of the query that is activated do not consider it
-				if (QueryState < CellState)
+				if (!bSkipCell && QueryState < CellState)
 				{
 					for (const FName& CellDataLayer : Cell->GetDataLayers())
 					{
