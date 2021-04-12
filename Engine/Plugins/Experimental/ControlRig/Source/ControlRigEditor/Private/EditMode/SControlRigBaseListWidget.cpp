@@ -273,6 +273,7 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 	OwningControlRigWidget = InArgs._OwningControlRigWidget;
 
 	FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
+	ToolbarBuilder.SetLabelVisibility(EVisibility::Visible);
 	FUIAction CreatePoseDialog(
 		FExecuteAction::CreateRaw(this, &SControlRigPoseAnimSelectionToolbar::MakeControlRigAssetDialog, FControlRigAssetType::ControlRigPose,false));
 	/*
@@ -290,9 +291,9 @@ void SControlRigPoseAnimSelectionToolbar::Construct(const FArguments& InArgs)
 	{
 		ToolbarBuilder.AddToolBarButton(CreatePoseDialog,
 			NAME_None,
-			LOCTEXT("CreatePose", "Create Pose From Selection"),
+			LOCTEXT("CreatePose", "Create Pose"),
 			LOCTEXT("CreatePoseTooltip", "Create pose asset from selection."),
-			FSlateIcon(),
+			FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.CreatePose")),
 			EUserInterfaceActionType::Button
 		);
 		/*

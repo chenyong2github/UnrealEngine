@@ -28,6 +28,7 @@
 #include "SControlRigTweenWidget.h"
 #include "IControlRigEditorModule.h"
 #include "Framework/Docking/TabManager.h"
+#include "ControlRigEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
@@ -524,9 +525,9 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 	})
 		),
 		NAME_None,
-		LOCTEXT("OnlySelectControls", "Only Select Controls"),
+		LOCTEXT("OnlySelectControls", "Select"),
 		LOCTEXT("OnlySelectControlsTooltip", "Only Select Control Rig Controls"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SetPaint"), //todo get icon
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.OnlySelectControls")),
 		EUserInterfaceActionType::ToggleButton
 		);
 	ToolBarBuilder.AddSeparator();
@@ -537,7 +538,7 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		NAME_None,
 		LOCTEXT("Poses", "Poses"),
 		LOCTEXT("PosesTooltip", "Show Poses"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.Settings"), //MZ todo replace with correct icon
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.PoseTool")),
 		EUserInterfaceActionType::Button
 	);
 	ToolBarBuilder.AddSeparator();
@@ -548,7 +549,7 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		NAME_None,
 		LOCTEXT("Tweens", "Tweens"),
 		LOCTEXT("TweensTooltip", "Create Tweens"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile"), //MZ todo replace with correct icon
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.TweenTool")),
 		EUserInterfaceActionType::Button
 	);
 
@@ -557,8 +558,8 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeSnapperDialog),
 		NAME_None,
 		LOCTEXT("Snapper", "Snapper"),
-		LOCTEXT("SnapperTooltip", "Snap Control to another over a set of frames"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager"), //MZ todo replace with correct icon
+		LOCTEXT("SnapperTooltip", "Snap child objects to a parent object over a set of frames"),
+		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.SnapperTool")),
 		EUserInterfaceActionType::Button
 	);
 	/*

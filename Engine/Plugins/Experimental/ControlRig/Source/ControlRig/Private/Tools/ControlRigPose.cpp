@@ -74,69 +74,66 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 		FRigControlCopy* CopyRigControl = MirrorTable.GetControl(*this, ControlElement->GetName());
 		if (CopyRigControl)
 		{
-			if (CopyRigControl->ControlType == ControlElement->Settings.ControlType)
+			switch (ControlElement->Settings.ControlType)
 			{
-				switch (ControlElement->Settings.ControlType)
+			case ERigControlType::Transform:
+			case ERigControlType::TransformNoScale:
+			case ERigControlType::EulerTransform:
+			case ERigControlType::Position:
+			case ERigControlType::Scale:
+			case ERigControlType::Rotator:
+			{
+				if (bDoMirror == false)
 				{
-				case ERigControlType::Transform:
-				case ERigControlType::TransformNoScale:
-				case ERigControlType::EulerTransform:
-				case ERigControlType::Position:
-				case ERigControlType::Scale:
-				case ERigControlType::Rotator:
-				{
-					if (bDoMirror == false)
+					if (bDoLocal) // -V547  
 					{
-						if (bDoLocal) // -V547  
-						{
-							ControlRig->SetControlLocalTransform(ControlElement->GetName(), CopyRigControl->LocalTransform, true,Context,bSetupUndo);
-						}
-						else
-						{
-							ControlRig->SetControlGlobalTransform(ControlElement->GetName(), CopyRigControl->GlobalTransform, true,Context,bSetupUndo);
-						}
+						ControlRig->SetControlLocalTransform(ControlElement->GetName(), CopyRigControl->LocalTransform, true,Context,bSetupUndo);
 					}
 					else
 					{
-						FVector GlobalTranslation;
-						FQuat GlobalRotation;
-						FVector LocalTranslation;
-						FQuat LocalRotation;
-						bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
-						MirrorTable.GetMirrorTransform(*CopyRigControl, bDoLocal,bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation, LocalRotation);
-						SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation,LocalRotation, true,Context,bSetupUndo);
-					}				
-					break;
+						ControlRig->SetControlGlobalTransform(ControlElement->GetName(), CopyRigControl->GlobalTransform, true,Context,bSetupUndo);
+					}
 				}
-				case ERigControlType::Float:
+				else
 				{
-					float Val = CopyRigControl->Value.Get<float>();
-					ControlRig->SetControlValue<float>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
-					break;
-				}
-				case ERigControlType::Bool:
-				{
-					bool Val = CopyRigControl->Value.Get<bool>();
-					ControlRig->SetControlValue<bool>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
-					break;
-				}
-				case ERigControlType::Integer:
-				{
-					int32 Val = CopyRigControl->Value.Get<int32>();
-					ControlRig->SetControlValue<int32>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
-					break;
-				}
-				case ERigControlType::Vector2D:
-				{
-					FVector2D Val = CopyRigControl->Value.Get<FVector2D>();
-					ControlRig->SetControlValue<FVector2D>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
-					break;
-				}
-				default:
-					//TODO add log
-					break;
-				};
+					FVector GlobalTranslation;
+					FQuat GlobalRotation;
+					FVector LocalTranslation;
+					FQuat LocalRotation;
+					bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
+					MirrorTable.GetMirrorTransform(*CopyRigControl, bDoLocal,bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation, LocalRotation);
+					SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation,LocalRotation, true,Context,bSetupUndo);
+				}				
+				break;
 			}
+			case ERigControlType::Float:
+			{
+				float Val = CopyRigControl->Value.Get<float>();
+				ControlRig->SetControlValue<float>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
+				break;
+			}
+			case ERigControlType::Bool:
+			{
+				bool Val = CopyRigControl->Value.Get<bool>();
+				ControlRig->SetControlValue<bool>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
+				break;
+			}
+			case ERigControlType::Integer:
+			{
+				int32 Val = CopyRigControl->Value.Get<int32>();
+				ControlRig->SetControlValue<int32>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
+				break;
+			}
+			case ERigControlType::Vector2D:
+			{
+				FVector2D Val = CopyRigControl->Value.Get<FVector2D>();
+				ControlRig->SetControlValue<FVector2D>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
+				break;
+			}
+			default:
+				//TODO add log
+				break;
+			};
 		}
 	}
 }
@@ -172,67 +169,63 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 		FRigControlCopy* CopyRigControl = MirrorTable.GetControl(*this, ControlElement->GetName());
 		if (CopyRigControl)
 		{
-			if (CopyRigControl->ControlType == ControlElement->Settings.ControlType)
+			FRigControlCopy* InitialFound = nullptr;
+			int32* Index = InitialPose.CopyOfControlsNameToIndex.Find(CopyRigControl->Name);
+			if (Index)
 			{
-
-				FRigControlCopy* InitialFound = nullptr;
-				int32* Index = InitialPose.CopyOfControlsNameToIndex.Find(CopyRigControl->Name);
-				if (Index)
+				InitialFound = &(InitialPose.CopyOfControls[*Index]);
+			}
+			if (InitialFound && InitialFound->ControlType == CopyRigControl->ControlType)
+			{
+				if ((CopyRigControl->ControlType == ERigControlType::Transform || CopyRigControl->ControlType == ERigControlType::EulerTransform ||
+					CopyRigControl->ControlType == ERigControlType::TransformNoScale || CopyRigControl->ControlType == ERigControlType::Position ||
+					CopyRigControl->ControlType == ERigControlType::Rotator || CopyRigControl->ControlType == ERigControlType::Scale
+					))
 				{
-					InitialFound = &(InitialPose.CopyOfControls[*Index]);
-				}
-				if (InitialFound && InitialFound->ControlType == CopyRigControl->ControlType)
-				{
-					if ((CopyRigControl->ControlType == ERigControlType::Transform || CopyRigControl->ControlType == ERigControlType::EulerTransform ||
-						CopyRigControl->ControlType == ERigControlType::TransformNoScale || CopyRigControl->ControlType == ERigControlType::Position ||
-						CopyRigControl->ControlType == ERigControlType::Rotator || CopyRigControl->ControlType == ERigControlType::Scale
-						))
+					if (bDoMirror == false)
 					{
-						if (bDoMirror == false)
+						if (bDoLocal == true)    // -V547  
 						{
-							if (bDoLocal == true)    // -V547  
-							{
-								FTransform Val = CopyRigControl->LocalTransform;
-								FTransform InitialVal = InitialFound->LocalTransform;
-								FVector Translation, Scale;
-								FQuat Rotation;
-								Translation = FMath::Lerp(InitialVal.GetTranslation(), Val.GetTranslation(), BlendValue);
-								Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-								Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
-								Val = FTransform(Rotation, Translation, Scale);
-								ControlRig->SetControlLocalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
-							}
-							else
-							{
-								FTransform Val = CopyRigControl->GlobalTransform;
-								FTransform InitialVal = InitialFound->GlobalTransform;
-								FVector Translation, Scale;
-								FQuat Rotation;
-								Translation = FMath::Lerp(InitialVal.GetTranslation(), Val.GetTranslation(), BlendValue);
-								Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-								Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
-								Val = FTransform(Rotation, Translation, Scale);
-								ControlRig->SetControlGlobalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
-							}
+							FTransform Val = CopyRigControl->LocalTransform;
+							FTransform InitialVal = InitialFound->LocalTransform;
+							FVector Translation, Scale;
+							FQuat Rotation;
+							Translation = FMath::Lerp(InitialVal.GetTranslation(), Val.GetTranslation(), BlendValue);
+							Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+							Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
+							Val = FTransform(Rotation, Translation, Scale);
+							ControlRig->SetControlLocalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
 						}
 						else
 						{
-							FVector GlobalTranslation;
-							FQuat GlobalRotation;
-							FVector LocalTranslation;
-							FQuat LocalRotation;
-							bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
-							MirrorTable.GetMirrorTransform(*CopyRigControl,bDoLocal, bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation, LocalRotation);
-							FVector InitialTranslation = InitialFound->GlobalTransform.GetTranslation();
-							FQuat InitialGlobalRotation = InitialFound->GlobalTransform.GetRotation();
-							FVector InitialLocalTranslation = InitialFound->LocalTransform.GetTranslation();
-							FQuat InitialLocationRotation = InitialFound->LocalTransform.GetRotation();
-							GlobalTranslation = FMath::Lerp(InitialTranslation, GlobalTranslation, BlendValue);
-							GlobalRotation = FQuat::Slerp(InitialGlobalRotation, GlobalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-							LocalTranslation = FMath::Lerp(InitialLocalTranslation, LocalTranslation, BlendValue);
-							LocalRotation = FQuat::Slerp(InitialLocationRotation, LocalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-							SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation,LocalTranslation, LocalRotation, bDoKey,Context,bSetupUndo);							
+							FTransform Val = CopyRigControl->GlobalTransform;
+							FTransform InitialVal = InitialFound->GlobalTransform;
+							FVector Translation, Scale;
+							FQuat Rotation;
+							Translation = FMath::Lerp(InitialVal.GetTranslation(), Val.GetTranslation(), BlendValue);
+							Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+							Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
+							Val = FTransform(Rotation, Translation, Scale);
+							ControlRig->SetControlGlobalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
 						}
+					}
+					else
+					{
+						FVector GlobalTranslation;
+						FQuat GlobalRotation;
+						FVector LocalTranslation;
+						FQuat LocalRotation;
+						bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
+						MirrorTable.GetMirrorTransform(*CopyRigControl,bDoLocal, bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation, LocalRotation);
+						FVector InitialTranslation = InitialFound->GlobalTransform.GetTranslation();
+						FQuat InitialGlobalRotation = InitialFound->GlobalTransform.GetRotation();
+						FVector InitialLocalTranslation = InitialFound->LocalTransform.GetTranslation();
+						FQuat InitialLocationRotation = InitialFound->LocalTransform.GetRotation();
+						GlobalTranslation = FMath::Lerp(InitialTranslation, GlobalTranslation, BlendValue);
+						GlobalRotation = FQuat::Slerp(InitialGlobalRotation, GlobalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+						LocalTranslation = FMath::Lerp(InitialLocalTranslation, LocalTranslation, BlendValue);
+						LocalRotation = FQuat::Slerp(InitialLocationRotation, LocalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
+						SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation,LocalTranslation, LocalRotation, bDoKey,Context,bSetupUndo);							
 					}
 				}
 			}
