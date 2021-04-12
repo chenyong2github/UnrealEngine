@@ -137,7 +137,7 @@ void FClothPaintingModule::RegisterMenus()
 					FClothPainterCommands::Get().TogglePaintMode,
 					TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateRaw(this, &FClothPaintingModule::GetPaintToolsButtonText, Context->SkeletalMeshEditor)),
 					FText(),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode.TexturePaint")
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MeshPaint.Brush")
 				));	
 			}
 		}));
