@@ -347,6 +347,7 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 
 					TArray<UObject*, TInlineAllocator<1>> FoundObjects;
 					Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+					Bindings = BoundObjects.Find(InGuid);
 					for (UObject* Object : FoundObjects)
 					{
 						Bindings->Objects.Add(Object);
@@ -357,6 +358,7 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 			{
 				TArray<UObject*, TInlineAllocator<1>> FoundObjects;
 				Player.ResolveBoundObjects(InGuid, SequenceID, *Sequence, ResolutionContext, FoundObjects);
+				Bindings = BoundObjects.Find(InGuid);
 				for (UObject* Object : FoundObjects)
 				{
 					Bindings->Objects.Add(Object);
