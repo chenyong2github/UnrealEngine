@@ -837,6 +837,7 @@ private:
 		void SetRange(const TRange<FTimespan> & NewRange);
 
 		const TRange<FMediaTimeStamp> & GetRange() const;
+		bool IsSet() const;
 
 		void Flush();
 
