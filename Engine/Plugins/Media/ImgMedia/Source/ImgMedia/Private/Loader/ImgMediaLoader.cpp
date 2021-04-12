@@ -391,7 +391,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					{
 						--NewSequenceIndex;
 					}
-					else if (ImagePaths.Num() == 1)
+					else if (GetNumImages() == 1)
 					{
 						if (PlayRate >= 0.0f)
 						{
