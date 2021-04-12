@@ -14,6 +14,7 @@
 #include "RHI/Public/PipelineStateCache.h"
 #include "Raytracing/RaytracingOptions.h"
 #include "RayTracingMaterialHitShaders.h"
+#include "RayTracingDefinitions.h"
 #include "SceneTextureParameters.h"
 
 #include "PostProcess/PostProcessing.h"
@@ -185,7 +186,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 		{
 			// Declare default pipeline
 			FRayTracingPipelineStateInitializer Initializer;
-			Initializer.MaxPayloadSizeInBytes = 64; // sizeof(FPackedMaterialClosestHitPayload)
+			Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 			FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 			Initializer.SetRayGenShaderTable(RayGenShaderTable);
 

@@ -19,6 +19,7 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "SceneTextureParameters.h"
+#include "RayTracingDefinitions.h"
 
 static float GRayTracingMaxNormalBias = 0.1f;
 static FAutoConsoleVariableRef CVarRayTracingNormalBias(
@@ -353,7 +354,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 			{
 				FRayTracingPipelineStateInitializer Initializer;
 
-				Initializer.MaxPayloadSizeInBytes = 64; // sizeof(FPackedMaterialClosestHitPayload)
+				Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 
 				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);

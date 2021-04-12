@@ -24,6 +24,7 @@ static int32 GRayTracingSkyLight = -1;
 #include "RayGenShaderUtils.h"
 #include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
+#include "RayTracingDefinitions.h"
 
 #include "Raytracing/RaytracingOptions.h"
 #include "PostProcess/PostProcessing.h"
@@ -532,7 +533,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			{
 				// Declare default pipeline
 				FRayTracingPipelineStateInitializer Initializer;
-				Initializer.MaxPayloadSizeInBytes = 64; // sizeof(FPackedMaterialClosestHitPayload)
+				Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);
 

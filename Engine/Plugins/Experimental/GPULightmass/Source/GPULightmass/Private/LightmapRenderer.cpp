@@ -23,6 +23,7 @@
 #include "EngineModule.h"
 #include "PostProcess/PostProcessing.h"
 #include "RayTracingGeometryManager.h"
+#include "RayTracingDefinitions.h"
 #include "ScreenPass.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
@@ -961,7 +962,7 @@ void FSceneRenderState::SetupRayTracingScene()
 
 			FRayTracingPipelineStateInitializer PSOInitializer;
 
-			PSOInitializer.MaxPayloadSizeInBytes = 64;
+			PSOInitializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
 			PSOInitializer.bAllowHitGroupIndexing = true;
 
 			TArray<FRHIRayTracingShader*> RayGenShaderTable;

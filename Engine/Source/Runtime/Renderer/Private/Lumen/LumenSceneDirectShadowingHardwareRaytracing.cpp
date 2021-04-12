@@ -19,6 +19,7 @@
 #include "RayTracing/RaytracingOptions.h"
 #include "BuiltInRayTracingShaders.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "RayTracingDefinitions.h"
 
 static TAutoConsoleVariable<int32> CVarLumenDirectLightingHardwareRaytracing(
 	TEXT("r.Lumen.DirectLighting.HardwareRayTracing"),
@@ -536,7 +537,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 			{
 				FRayTracingPipelineStateInitializer Initializer;
 
-				Initializer.MaxPayloadSizeInBytes = 60; // sizeof(FPackedMaterialClosestHitPayload)
+				Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 
 				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);
