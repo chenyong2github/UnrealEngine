@@ -153,8 +153,10 @@ public:
 	inline void AddBinary(FAnsiStringView Name, FMemoryView Value) { SetName(Name); AddBinary(Value); }
 	inline void AddBinary(FMemoryView Value) { AddBinary(Value.GetData(), Value.GetSize()); }
 	/** Write a binary field by copying the buffer. Holds a reference if owned. */
-	inline void AddBinary(FAnsiStringView Name, FSharedBuffer Value) { SetName(Name); AddBinary(MoveTemp(Value)); }
-	CORE_API void AddBinary(FSharedBuffer Value);
+	inline void AddBinary(FAnsiStringView Name, const FSharedBuffer& Value) { SetName(Name); AddBinary(Value); }
+	CORE_API void AddBinary(const FSharedBuffer& Value);
+	inline void AddBinary(FAnsiStringView Name, const FCompositeBuffer& Value) { SetName(Name); AddBinary(Value); }
+	CORE_API void AddBinary(const FCompositeBuffer& Value);
 
 	/** Write a string field by copying the UTF-8 value. */
 	inline void AddString(FAnsiStringView Name, FAnsiStringView Value) { SetName(Name); AddString(Value); }

@@ -4,6 +4,8 @@
 
 #include "Containers/StringConv.h"
 #include "IO/IoHash.h"
+#include "Memory/CompositeBuffer.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/ByteSwap.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -368,9 +370,14 @@ void FCbWriter::AddBinary(const void* const Value, const uint64 Size)
 	EndField(ECbFieldType::Binary);
 }
 
-void FCbWriter::AddBinary(FSharedBuffer Buffer)
+void FCbWriter::AddBinary(const FSharedBuffer& Buffer)
 {
 	AddBinary(Buffer.GetData(), Buffer.GetSize());
+}
+
+void FCbWriter::AddBinary(const FCompositeBuffer& Buffer)
+{
+	AddBinary(Buffer.Flatten());
 }
 
 void FCbWriter::AddString(const FAnsiStringView Value)

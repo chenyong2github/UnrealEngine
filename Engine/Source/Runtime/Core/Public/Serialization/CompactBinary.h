@@ -1281,6 +1281,10 @@ public:
 	{
 		return FCbField(FCbArrayView::AsFieldView(), MoveTemp(*this));
 	}
+
+private:
+	friend inline FCbFieldIterator begin(const FCbArray& Array) { return Array.CreateIterator(); }
+	friend inline FCbFieldIterator end(const FCbArray&) { return FCbFieldIterator(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1322,6 +1326,9 @@ public:
 		return FCbField();
 	}
 
+	/** Find a field by case-sensitive name comparison. */
+	inline FCbField operator[](FAnsiStringView Name) const { return Find(Name); }
+
 	/** Access the object as an object field. */
 	inline FCbField AsField() const &
 	{
@@ -1333,6 +1340,10 @@ public:
 	{
 		return FCbField(FCbObjectView::AsFieldView(), MoveTemp(*this));
 	}
+
+private:
+	friend inline FCbFieldIterator begin(const FCbObject& Object) { return Object.CreateIterator(); }
+	friend inline FCbFieldIterator end(const FCbObject&) { return FCbFieldIterator(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
