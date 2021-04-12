@@ -36,7 +36,8 @@ static TAutoConsoleVariable<int32> CVarShaderDevelopmentMode(
 void UpdateShaderDevelopmentMode()
 {
 	// Keep LogShaders verbosity in sync with r.ShaderDevelopmentMode
-	// r.ShaderDevelopmentMode==1 results in all LogShaders log messages being displayed
+	// r.ShaderDevelopmentMode==1 results in all LogShaders log messages being displayed.
+	// if r.ShaderDevelopmentMode isn't set, we leave the category alone (it defaults to Error, but we can be overriding it to something higher)
 	bool bLogShadersUnsuppressed = UE_LOG_ACTIVE(LogShaders, Log);
 	bool bDesiredLogShadersUnsuppressed = CVarShaderDevelopmentMode.GetValueOnGameThread() == 1;
 
@@ -45,10 +46,6 @@ void UpdateShaderDevelopmentMode()
 		if (bDesiredLogShadersUnsuppressed)
 		{
 			UE_SET_LOG_VERBOSITY(LogShaders, Log);
-		}
-		else
-		{
-			UE_SET_LOG_VERBOSITY(LogShaders, Error);
 		}
 	}
 }
