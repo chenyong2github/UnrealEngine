@@ -6,6 +6,8 @@ using System;
 
 public class WebRTC : ModuleRules
 {
+	protected string ConfigPath {get; private set; }
+
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -28,21 +30,21 @@ public class WebRTC : ModuleRules
 			bShouldUseWebRTC = true;
 		}
 
+		if (Target.Configuration == UnrealTargetConfiguration.Debug)
+		{
+			ConfigPath = "Debug";
+		}
+		else
+		{
+			ConfigPath = "Release";
+		}
+
 		if (bShouldUseWebRTC)
-		{string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.31262"; // Revision 31262 is Release 84
+		{
+			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.31262"; // Revision 31262 is Release 84
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory;
 
 			string PlatformSubdir = Target.Platform.ToString();
-
-			string ConfigPath = "";
-			if (Target.Configuration == UnrealTargetConfiguration.Debug)
-			{
-				ConfigPath = "Debug";
-			}
-			else
-			{
-				ConfigPath = "Release";
-			}
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
