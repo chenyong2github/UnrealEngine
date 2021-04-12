@@ -192,8 +192,15 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
 
+			const float PreviousValue = InOutput.Curve.Get(Index);
 			const float Value = ControlRig->GetCurveValue(Name);
-			InOutput.Curve.Set(Index, Value);
+
+			if(!FMath::IsNearlyEqual(PreviousValue, Value))
+			{
+				// this causes a side effect of marking the curve as "valid"
+				// so only apply it for curves that have really changed
+				InOutput.Curve.Set(Index, Value);
+			}
 		}
 	}
 }
