@@ -124,6 +124,13 @@ void UDataprepActionAsset::Execute(const TArray<UObject*>& InObjects)
 				TArray<UObject*>& Objects = OperationContext->Context->Objects;
 				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<UObject*>( Objects.GetData(), Objects.Num() ) );
 			}
+			else if ( StepType == UDataprepFilterNoFetcher::StaticClass() )
+			{
+				UDataprepFilterNoFetcher* Filter = static_cast<UDataprepFilterNoFetcher*>( StepObject );
+
+				TArray<UObject*>& Objects = OperationContext->Context->Objects;
+				OperationContext->Context->Objects = Filter->FilterObjects( TArrayView<UObject*>( Objects.GetData(), Objects.Num() ) );
+			}
 			else if ( StepType == UDataprepSelectionTransform::StaticClass() )
 			{
 				UDataprepSelectionTransform* SelectionTransform = static_cast<UDataprepSelectionTransform*>(StepObject);
@@ -198,6 +205,18 @@ int32 UDataprepActionAsset::AddStep(TSubclassOf<UDataprepParameterizableObject> 
 			{
 				UE_LOG(LogDataprepCore, Error, TEXT("The fetcher type (%s) is not used by a filter."), *StepType->GetPathName() )
 			}
+		}
+		else if ( ValidRootClass == UDataprepFilterNoFetcher::StaticClass() )
+		{
+			Modify();
+			UDataprepActionStep* ActionStep = NewObject< UDataprepActionStep >( this, UDataprepActionStep::StaticClass(), NAME_None, RF_Transactional );
+			UDataprepFilterNoFetcher* Filter = NewObject< UDataprepFilterNoFetcher >( ActionStep, StepType.Get(), NAME_None, RF_Transactional );
+			ActionStep->StepObject = Filter;
+			ActionStep->PathOfStepObjectClass = ActionStep->StepObject->GetClass();
+			ActionStep->bIsEnabled = true;
+			Steps.Add( ActionStep );
+			OnStepsOrderChanged.Broadcast();
+			return Steps.Num() - 1;
 		}
 
 		// Please keep this function up to date with FDataprepCoreUtils::IsClassValidForStepCreation
@@ -648,6 +667,11 @@ void UDataprepActionAsset::ExecuteAction(const TSharedPtr<FDataprepActionContext
 		else if ( StepType == UDataprepFilter::StaticClass() )
 		{
 			UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
+			SelectedObjects = Filter->FilterObjects( SelectedObjects );
+		}
+		else if ( StepType == UDataprepFilterNoFetcher::StaticClass() )
+		{
+			UDataprepFilterNoFetcher* Filter = static_cast<UDataprepFilterNoFetcher*>( StepObject );
 			SelectedObjects = Filter->FilterObjects( SelectedObjects );
 		}
 		else if ( StepType == UDataprepSelectionTransform::StaticClass() )

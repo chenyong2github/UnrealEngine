@@ -188,6 +188,228 @@ void UMeshProcessingLibrary::DefeatureMesh(FMeshDescription& MeshDescription, co
 #endif // WITH_MESH_SIMPLIFIER
 
 #if WITH_PROXYLOD
+
+void UMeshProcessingLibrary::FindOverlappingActors(const TArray<AActor*>& InActorsToTest, const TArray<AActor*>& InActorsToTestAgainst, const UJacketingOptions* Options, TArray<AActor*>& OutOverlappingActors, bool bSilent)
+{
+	if (InActorsToTestAgainst.Num() == 0 || InActorsToTest.Num() == 0)
+	{
+		UE_LOG(LogMeshProcessingLibrary, Warning, TEXT("FindOverlappingActors: No actors to process. Aborting..."));
+		return;
+	}
+
+	// Collect start time to log amount of time spent to import incoming file
+	uint64 StartTime = FPlatformTime::Cycles64();
+	uint64 LastTime = FPlatformTime::Cycles64();
+
+	TFunction<void(const TArray<AActor*>&, TArray<UStaticMeshComponent*>&)> GetActorsComponents = [](const TArray<AActor*>& InActors, TArray<UStaticMeshComponent*>& OutComponents)
+	{
+		for (AActor* Actor : InActors)
+		{
+			if (Actor == nullptr)
+			{
+				continue;
+			}
+
+			for (UActorComponent* Component : Actor->GetComponents())
+			{
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+				{
+					if (StaticMeshComponent->GetStaticMesh() == nullptr)
+					{
+						continue;
+					}
+					OutComponents.Add(StaticMeshComponent);
+				}
+			}
+		}
+	};
+
+	TArray<UStaticMeshComponent*> BuildVolumeComponents;
+
+	GetActorsComponents(InActorsToTestAgainst, BuildVolumeComponents);
+
+	if (BuildVolumeComponents.Num() == 0)
+	{
+		UE_LOG(LogMeshProcessingLibrary, Warning, TEXT("FindOverlappingActors: No meshes to process. Aborting..."));
+		return;
+	}
+
+	// Geometry input data for voxelizing methods
+	TArray<FMeshMergeData> Geometry;
+
+	for (UStaticMeshComponent* StaticMeshComponent : BuildVolumeComponents)
+	{
+		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+		if (StaticMesh == nullptr)
+		{
+			continue;
+		}
+
+		// FMeshMergeData will release the newly created MeshDescription
+		FMeshDescription* MeshDescriptionOriginal = StaticMesh->GetMeshDescription(0);
+		FMeshDescription* MeshDescription = new FMeshDescription();
+		*MeshDescription = *MeshDescriptionOriginal;
+		//Make sure all ID are from 0 to N
+		FElementIDRemappings OutRemappings;
+		MeshDescription->Compact(OutRemappings);
+
+		const FTransform& ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
+
+		// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation
+		FStaticMeshOperations::ApplyTransform(*MeshDescription, ComponentToWorldTransform);
+
+		// Geometry input data for voxelizing methods
+		FMeshMergeData MergeData;
+		MergeData.bIsClippingMesh = false;
+		MergeData.SourceStaticMesh = StaticMesh;
+		MergeData.RawMesh = MeshDescription;
+
+		Geometry.Add(MergeData);
+	}
+
+	if (Geometry.Num() == 0)
+	{
+		UE_LOG(LogMeshProcessingLibrary, Warning, TEXT("FindOverlappingActors: No geometry to process. Aborting..."));
+		return;
+	}
+
+	const float Accuracy = MeshProcessingUtils::ValidateVoxelSize(Options->Accuracy, BuildVolumeComponents);
+
+	TSharedPtr<FScopedSlowTask> Progress;
+	const float Voxelization = 40.f;
+	const float GapFilling = 20.f;
+	const float MeshTesting = 38.f;
+
+	if (!bSilent)
+	{
+		Progress = TSharedPtr<FScopedSlowTask>(new FScopedSlowTask(100.0f, LOCTEXT("StartWork", "Occlusion culling ..."), true, *GWarn));
+		Progress->MakeDialog(true);
+		Progress->EnterProgressFrame(1.f, FText::FromString(TEXT("Analyzing meshes ...")));
+	}
+
+	if (Progress.IsValid())
+	{
+		Progress->EnterProgressFrame(Voxelization, FText::FromString(TEXT("Creating Voxelization ...")));
+	}
+
+	TUniquePtr<IProxyLODVolume> Volume(IProxyLODVolume::CreateSDFVolumeFromMeshArray(Geometry, Accuracy));
+	if (!Volume.IsValid())
+	{
+		UE_LOG(LogMeshProcessingLibrary, Error, TEXT("FindOverlappingActors: Voxelization of geometry failed. Aborting process..."));
+		return;
+	}
+
+	// Release the memory used by geometry (deletes the allocated mesh descriptions)
+	Geometry.Empty();
+
+	if (Progress.IsValid())
+	{
+		Progress->EnterProgressFrame(GapFilling, FText::FromString(TEXT("Closing gaps ...")));
+	}
+
+	double IntermediateTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - LastTime);
+	UE_LOG(LogMeshProcessingLibrary, Log, TEXT("FindOverlappingActors: Creation of volume took %.3f s."), IntermediateTime);
+	LastTime = FPlatformTime::Cycles64();
+
+	double HoleRadius = 0.5 * Options->MergeDistance; // cm
+	IProxyLODVolume::FVector3i VolumeBBoxSize = Volume->GetBBoxSize();
+
+	// Clamp the hole radius.
+	const double VoxelSize = Volume->GetVoxelSize();
+	int32 MinIndex = VolumeBBoxSize.MinIndex();
+	double BBoxMinorAxis = VolumeBBoxSize[MinIndex] * VoxelSize;
+	if (HoleRadius > 0.5 * BBoxMinorAxis)
+	{
+		HoleRadius = 0.5 * BBoxMinorAxis;
+		UE_LOG(LogMeshProcessingLibrary, Warning, TEXT("OverlappingActors: Merge distance %f too large, clamped to %f."), Options->MergeDistance, float(2. * HoleRadius));
+	}
+
+	// Used in gap-closing.  This max is to bound a potentially expensive computation.
+	// If the gap size requires more dilation steps at the current voxel size,
+	// then the dilation (and erosion) will be done with larger voxels.
+	const int32 MaxDilationSteps = 7;
+
+	LastTime = FPlatformTime::Cycles64();
+
+	if (HoleRadius > 0.25 * VoxelSize && MaxDilationSteps > 0)
+	{
+		// performance tuning number.  if more dilations are required for this hole radius, a coarser grid is used.
+		Volume->CloseGaps(HoleRadius, MaxDilationSteps);
+	}
+
+	IntermediateTime = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - LastTime);
+	UE_LOG(LogMeshProcessingLibrary, Log, TEXT("FindOverlappingActors: Closure of gaps took %.3f s."), IntermediateTime);
+	LastTime = FPlatformTime::Cycles64();
+
+	TSet< AActor* > OverlappingActorSet;
+	OverlappingActorSet.Reserve(Geometry.Num());
+
+	// Set the maximum distance over which a point is considered outside the volume
+	const float MaxDistance = -1.99f * Accuracy;
+
+	TArray<UStaticMeshComponent*> StaticMeshComponentsToTest;
+
+	GetActorsComponents(InActorsToTest, StaticMeshComponentsToTest);
+
+	float ProcessingStep = MeshTesting / (float)StaticMeshComponentsToTest.Num();
+
+	// Compute volume bounding box for quick early testing
+	FBox VolumeBoundingBox( EForceInit::ForceInit );
+
+	for (AActor* VolumeActor : InActorsToTestAgainst)
+	{
+		VolumeBoundingBox += VolumeActor->GetComponentsBoundingBox();
+	}
+	
+	// Check each actor agains volume
+	for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponentsToTest)
+	{
+		if (Progress.IsValid())
+		{
+			Progress->EnterProgressFrame(ProcessingStep, FText::FromString(TEXT("Checking inclusion of meshes ...")));
+		}
+
+		const FBox OverlapBox = VolumeBoundingBox.Overlap( StaticMeshComponent->Bounds.GetBox() );
+
+		bool bComponentInside = (OverlapBox.GetVolume() > 0);
+
+		// Component's bounding box intersects with volume, check on vertices
+		// (we need at least one vertex inside of volume)
+		if (bComponentInside)
+		{
+			bComponentInside = false;
+
+			const FMeshDescription* MeshDescription = StaticMeshComponent->GetStaticMesh()->GetMeshDescription(0);
+			const FTransform& ComponentTransform = StaticMeshComponent->GetComponentTransform();
+			TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
+			{
+				const FVector WorldPosition = ComponentTransform.TransformPosition(VertexPositions[VertexID]);
+				if (Volume->QueryDistance(WorldPosition) <= MaxDistance)
+				{
+					bComponentInside = true;
+					break;
+				}
+			}
+		}
+
+		if (bComponentInside)
+		{
+			AActor* Actor = StaticMeshComponent->GetOwner();
+			OverlappingActorSet.Add(Actor);
+		}
+	}
+
+	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+
+	int32 ElapsedMin = int32(ElapsedSeconds / 60.0);
+	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
+	UE_LOG(LogMeshProcessingLibrary, Log, TEXT("FindOverlappingActors: took %d min %.3f s. %d occluded actors out of %d"), ElapsedMin, ElapsedSeconds, OverlappingActorSet.Num(), BuildVolumeComponents.Num());
+
+	OutOverlappingActors = OverlappingActorSet.Array();
+}
+
 // See FVoxelizeMeshMerging::ProxyLOD
 void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors, const UJacketingOptions* Options, TArray<AActor*>& OccludedActorArray, bool bSilent)
 {
@@ -261,7 +483,7 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 	// Geometry input data for voxelizing methods
 	TArray<FMeshMergeData> Geometry;
 	// Store world space mesh for each static mesh component
-	TMap<UStaticMeshComponent*, FMeshDescription*> RawMeshes;
+	TMap<UStaticMeshComponent*, FMeshDescription*> MeshDescriptions;
 	int32 VertexCount = 0;
 	int32 PolygonCount = 0;
 	int32 DeletedPolygonCount = 0;
@@ -274,29 +496,29 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			continue;
 		}
 
-		// FMeshMergeData will release the RawMesh...
-		FMeshDescription* RawMeshOriginal = StaticMesh->GetMeshDescription(0);
-		FMeshDescription* RawMesh = new FMeshDescription();
-		*RawMesh = *RawMeshOriginal;
+		// FMeshMergeData will release the allocated MeshDescription...
+		FMeshDescription* MeshDescriptionOriginal = StaticMesh->GetMeshDescription(0);
+		FMeshDescription* MeshDescription = new FMeshDescription();
+		*MeshDescription = *MeshDescriptionOriginal;
 		//Make sure all ID are from 0 to N
 		FElementIDRemappings OutRemappings;
-		RawMesh->Compact(OutRemappings);
+		MeshDescription->Compact(OutRemappings);
 
 		const FTransform& ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
 
 		// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation
-		FStaticMeshOperations::ApplyTransform(*RawMesh, ComponentToWorldTransform);
+		FStaticMeshOperations::ApplyTransform(*MeshDescription, ComponentToWorldTransform);
 
-		VertexCount += RawMesh->Vertices().Num();
-		PolygonCount += RawMesh->Polygons().Num();
+		VertexCount += MeshDescription->Vertices().Num();
+		PolygonCount += MeshDescription->Polygons().Num();
 
-		// Stores transformed RawMesh for later use
-		RawMeshes.Add(StaticMeshComponent, RawMesh);
+		// Stores transformed MeshDescription for later use
+		MeshDescriptions.Add(StaticMeshComponent, MeshDescription);
 
 		FMeshMergeData MergeData;
 		MergeData.bIsClippingMesh = false;
 		MergeData.SourceStaticMesh = StaticMesh;
-		MergeData.RawMesh = RawMesh;
+		MergeData.RawMesh = MeshDescription;
 
 		Geometry.Add(MergeData);
 	}
@@ -412,9 +634,9 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 		if (!bComponentInside)
 		{
 			bComponentInside = true;
-			FMeshDescription* RawMesh = RawMeshes[StaticMeshComponent];
-			TVertexAttributesConstRef<FVector> VertexPositions = RawMesh->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-			for (FVertexID VertexID : RawMesh->Vertices().GetElementIDs())
+			FMeshDescription* MeshDescription = MeshDescriptions[StaticMeshComponent];
+			TVertexAttributesConstRef<FVector> VertexPositions = MeshDescription->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+			for (FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
 			{
 				if (Volume->QueryDistance(VertexPositions[VertexID]) > MaxDistance)
 				{
@@ -426,7 +648,7 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 
 		if (bComponentInside)
 		{
-			DeletedPolygonCount += RawMeshes[StaticMeshComponent]->Polygons().Num();
+			DeletedPolygonCount += MeshDescriptions[StaticMeshComponent]->Polygons().Num();
 			OccludedComponentCount++;
 
 			AActor* Actor = StaticMeshComponent->GetOwner();
@@ -493,8 +715,8 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			continue;
 		}
 
-		TVertexAttributesConstRef<FVector> VertexPositions = RawMeshes[StaticMeshComponent]->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
-		for (FVertexID VertexID : RawMeshes[StaticMeshComponent]->Vertices().GetElementIDs())
+		TVertexAttributesConstRef<FVector> VertexPositions = MeshDescriptions[StaticMeshComponent]->VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+		for (FVertexID VertexID : MeshDescriptions[StaticMeshComponent]->Vertices().GetElementIDs())
 		{
 			VertexDataArray.Emplace(FVertexData(StaticMeshComponent, &VertexPositions[VertexID], false));
 		}
@@ -531,7 +753,7 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 		if (MeshesToRebuild.Find(StaticMeshComponent->GetStaticMesh()) == nullptr)
 		{
 			TVisibilityPair& VisibilityPair = MeshesToRebuild.Add(StaticMeshComponent->GetStaticMesh(), TVisibilityPair(StaticMeshComponent, TArray<bool>()));
-			VisibilityPair.Value.AddZeroed(RawMeshes[StaticMeshComponent]->Vertices().Num());
+			VisibilityPair.Value.AddZeroed(MeshDescriptions[StaticMeshComponent]->Vertices().Num());
 		}
 
 		TArray<bool>& VertexVisibility = MeshesToRebuild[StaticMeshComponent->GetStaticMesh()].Value;
@@ -544,27 +766,28 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 	// Removing occluded triangles from meshes
 	TArray<UStaticMesh*> StaticMeshArray;
 	MeshesToRebuild.GetKeys(StaticMeshArray);
-	ParallelFor(MeshesToRebuild.Num(), [&](int32 Index) {
+	ParallelFor(MeshesToRebuild.Num(), [&](int32 Index) 
+	{
 		UStaticMesh* StaticMesh = StaticMeshArray[Index];
 		TVisibilityPair& VisibilityPair = MeshesToRebuild[StaticMesh];
 		UStaticMeshComponent* StaticMeshComponent = VisibilityPair.Key;
 		TArray<bool>& VertexVisibility = VisibilityPair.Value;
 
-		FMeshDescription* RawMesh = RawMeshes[StaticMeshComponent];
+		FMeshDescription* MeshDescription = MeshDescriptions[StaticMeshComponent];
 
-		if (RawMesh->Polygons().Num() == 0 || RawMesh->Vertices().Num() == 0)
+		if (MeshDescription->Polygons().Num() == 0 || MeshDescription->Vertices().Num() == 0)
 		{
 			VisibilityPair.Key = nullptr;
 			return;
 		}
 
-		FMeshDescription NewRawMesh = *RawMesh;
+		FMeshDescription NewMeshDescription = *MeshDescription;
 
 		TArray<FPolygonID> PolygonToRemove;
-		for (const FPolygonID& PolygonID : NewRawMesh.Polygons().GetElementIDs())
+		for (const FPolygonID& PolygonID : NewMeshDescription.Polygons().GetElementIDs())
 		{
 			TArray<FVertexID> PolygonVertices;
-			NewRawMesh.GetPolygonVertices(PolygonID, PolygonVertices);
+			NewMeshDescription.GetPolygonVertices(PolygonID, PolygonVertices);
 			bool bPolygonVisible = false;
 			for (FVertexID VertexID : PolygonVertices)
 			{
@@ -582,34 +805,34 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			VisibilityPair.Key = nullptr;
 		}
 		// This should never happen. Such situation should have been caught earlier
-		else if (PolygonToRemove.Num() == NewRawMesh.Polygons().Num())
+		else if (PolygonToRemove.Num() == NewMeshDescription.Polygons().Num())
 		{
 			check(false);
 		}
 		// Update mesh to only contain visible triangles
 		else
 		{
-			NewRawMesh.DeletePolygons(PolygonToRemove);
+			NewMeshDescription.DeletePolygons(PolygonToRemove);
 			
 			//Compact and Remap IDs so we have clean ID from 0 to n since we just erased some polygons
 			FElementIDRemappings RemappingInfos;
-			NewRawMesh.Compact(RemappingInfos);
+			NewMeshDescription.Compact(RemappingInfos);
 
 			FTransform Transform = StaticMeshComponent->GetComponentTransform().Inverse();
 
 			//Apply the inverse component transform
-			FStaticMeshOperations::ApplyTransform(NewRawMesh, Transform);
+			FStaticMeshOperations::ApplyTransform(NewMeshDescription, Transform);
 
-			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
-			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = NewRawMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
+			TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
+			TVertexInstanceAttributesRef<FVector> VertexInstanceTangents = NewMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Tangent);
 
-			RawMesh->Empty();
+			MeshDescription->Empty();
 
 			//Create the missing normals and tangents on polygons because FStaticMeshOperations::ComputeTangentsAndNormals requires it
-			if(!NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal).IsValid()
-				|| !NewRawMesh.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent).IsValid())
+			if(!NewMeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Normal).IsValid()
+				|| !NewMeshDescription.PolygonAttributes().GetAttributesRef<FVector>(MeshAttribute::Polygon::Tangent).IsValid())
 			{
-				FStaticMeshOperations::ComputePolygonTangentsAndNormals(NewRawMesh);
+				FStaticMeshOperations::ComputePolygonTangentsAndNormals(NewMeshDescription);
 			}
 
 			const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
@@ -620,18 +843,18 @@ void UMeshProcessingLibrary::ApplyJacketingOnMeshActors(const TArray<AActor*>& A
 			ComputeNTBsOptions |= BuildSettings.bComputeWeightedNormals ? EComputeNTBsFlags::WeightedNTBs : EComputeNTBsFlags::None;
 			ComputeNTBsOptions |= BuildSettings.bRemoveDegenerates ? EComputeNTBsFlags::IgnoreDegenerateTriangles : EComputeNTBsFlags::None;
 
-			FStaticMeshOperations::ComputeTangentsAndNormals(NewRawMesh, ComputeNTBsOptions);
+			FStaticMeshOperations::ComputeTangentsAndNormals(NewMeshDescription, ComputeNTBsOptions);
 			// TODO: Maybe add generation of lightmap UV here.
 
 			// Update mesh description of static mesh with new geometry
-			FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
-			*MeshDescription = MoveTemp(NewRawMesh);
+			FMeshDescription* OrigMeshDescription = StaticMesh->GetMeshDescription(0);
+			*OrigMeshDescription = MoveTemp(NewMeshDescription);
 		}
 	});
 
 	for (UStaticMesh* StaticMesh : StaticMeshArray)
 	{
-		//Commit the result so the old FRawMesh is updated
+		//Commit the result so the old FMeshDescription is updated
 		StaticMesh->CommitMeshDescription(0);
 	}
 

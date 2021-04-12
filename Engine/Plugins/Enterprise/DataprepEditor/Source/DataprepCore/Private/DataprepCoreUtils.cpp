@@ -411,6 +411,7 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 	}
 
 	UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
+	UClass* DataprepFilterNoFetcherClass = UDataprepFilterNoFetcher::StaticClass();
 	UClass* DataprepTopLevelClass = UDataprepParameterizableObject::StaticClass();
 	UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
 	UClass* DataprepFetcherClass = UDataprepFetcher::StaticClass();
@@ -422,6 +423,12 @@ bool FDataprepCoreUtils::IsClassValidForStepCreation(const TSubclassOf<UDataprep
 		{
 			OutMessageIfInvalid = LOCTEXT("StepTypeIsAFilter", "The class to use for the creation of the step is filter. Please use the desired fetcher for the filter instead.");
 			return false;
+		}
+
+		if ( Class == DataprepFilterNoFetcherClass )
+		{
+			OutValidRootClass = DataprepFilterNoFetcherClass;
+			return true;
 		}
 
 		if ( Class == DataprepTopLevelClass )
@@ -459,6 +466,7 @@ UClass* FDataprepCoreUtils::GetTypeOfActionStep(const UDataprepParameterizableOb
 	UClass* CurrentClass = Object ? Object->GetClass() : nullptr;
 
 	const UClass* DataprepFilterClass = UDataprepFilter::StaticClass();
+	const UClass* DataprepFilterNoFetcherClass = UDataprepFilterNoFetcher::StaticClass();
 	const UClass* DataprepOperationClass = UDataprepOperation::StaticClass();
 	const UClass* DataprepTransformClass = UDataprepSelectionTransform::StaticClass();
 
@@ -467,6 +475,7 @@ UClass* FDataprepCoreUtils::GetTypeOfActionStep(const UDataprepParameterizableOb
 		if ( CurrentClass == DataprepFilterClass
 			|| CurrentClass == DataprepOperationClass
 			|| CurrentClass == DataprepTransformClass
+			|| CurrentClass == DataprepFilterNoFetcherClass
 			)
 		{
 			break;

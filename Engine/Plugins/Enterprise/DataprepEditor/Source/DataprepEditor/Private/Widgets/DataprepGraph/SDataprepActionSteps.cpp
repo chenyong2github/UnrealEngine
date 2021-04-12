@@ -49,6 +49,11 @@ namespace DataprepActionStepsWidgetUtils
 				UDataprepFilter* Filter = static_cast<UDataprepFilter*>( StepObject );
 				return SNew( SDataprepFilter, *Filter, InStepData );
 			}
+			else if ( StepType == UDataprepFilterNoFetcher::StaticClass() )
+			{
+				UDataprepFilterNoFetcher* Filter = static_cast<UDataprepFilterNoFetcher*>( StepObject );
+				return SNew( SDataprepFilterNoFetcher, *Filter, InStepData );
+			}
 		}
 		return SNullWidget::NullWidget;
 	}

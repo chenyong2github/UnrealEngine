@@ -20,7 +20,7 @@ enum class EJacketingTarget : uint8
 };
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, Transient)
-class UJacketingOptions : public UObject
+class MESHPROCESSINGLIBRARY_API UJacketingOptions : public UObject
 {
 	GENERATED_BODY()
 
@@ -149,4 +149,13 @@ public:
 public:
 	static void DefeatureMesh(FMeshDescription& MeshDescription, const UMeshDefeaturingParameterObject& Parameters);
 	static void ApplyJacketingOnMeshActors(const TArray<AActor*>& Actors, const UJacketingOptions* Options, TArray<AActor*>& OccludedActorArray, bool bSilent);
+	/**
+	 * Find the set of all actors that overlap any of the actors in another set.
+	 * @param	InActorsToTest			Input actors to test for overlap.
+	 * @param	InActorsToTestAgainst	Input actors to test against. Each actor in InActorsToTest will be tested against the volume built from InActorsToTestAgainst.
+	 * @param	Options					Parameter values to use for the overlapping.
+	 * @param	OutOverlappingActors	The actors that pass the overlap test (a subset from InActorsToTest).
+	 * @param	bSilent					Enable/disable progress dialog.
+	 */
+	static void FindOverlappingActors(const TArray<AActor*>& InActorsToTest, const TArray<AActor*>& InActorsToTestAgainst, const UJacketingOptions* Options, TArray<AActor*>& OutOverlappingActors, bool bSilent);
 };

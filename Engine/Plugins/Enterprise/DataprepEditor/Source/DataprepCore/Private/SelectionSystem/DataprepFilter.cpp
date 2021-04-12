@@ -32,3 +32,22 @@ UClass* UDataprepFilter::GetFilterTypeForFetcherType(UClass* FetcherClass)
 	return nullptr;
 }
 
+FText UDataprepFilterNoFetcher::GetDisplayFilterName_Implementation() const
+{
+	return GetClass()->GetDisplayNameText();
+}
+
+FText UDataprepFilterNoFetcher::GetNodeDisplayFilterName_Implementation() const
+{
+	return GetClass()->GetDisplayNameText();
+}
+
+FText UDataprepFilterNoFetcher::GetTooltipText_Implementation() const
+{
+	return GetClass()->GetToolTipText();
+}
+
+FText UDataprepFilterNoFetcher::GetAdditionalKeyword_Implementation() const
+{
+	return {};
+}
