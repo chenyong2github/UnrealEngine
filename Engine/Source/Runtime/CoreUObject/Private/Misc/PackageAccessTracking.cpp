@@ -12,7 +12,6 @@ FPackageAccessRefScope::FPackageAccessRefScope(FName InPackageName, FName InOpNa
 	: PackageName(InPackageName)
 	, OpName(InOpName)
 {
-	checkf(FPackageName::IsValidLongPackageName(InPackageName.ToString(), true), TEXT("Invalid package name: %s"), *InPackageName.ToString());
 	Outer = CurrentThreadScope;
 	CurrentThreadScope = this;
 }
