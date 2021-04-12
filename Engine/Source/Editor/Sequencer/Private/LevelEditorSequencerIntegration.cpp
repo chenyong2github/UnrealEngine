@@ -30,6 +30,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "SequencerSettings.h"
 #include "SequencerInfoColumn.h"
+#include "SequencerSpawnableColumn.h"
 #include "LevelEditorViewport.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -1091,9 +1092,27 @@ TSharedRef< ISceneOutlinerColumn > FLevelEditorSequencerIntegration::CreateSeque
 	return MakeShareable( new Sequencer::FSequencerInfoColumn( SceneOutliner, *BoundSequencers[0].Sequencer.Pin(), BoundSequencers[0].BindingData.Get() ) );
 }
 
+TSharedRef< ISceneOutlinerColumn > FLevelEditorSequencerIntegration::CreateSequencerSpawnableColumn( ISceneOutliner& SceneOutliner ) const
+{
+	//@todo only supports the first bound sequencer
+	check(BoundSequencers.Num() > 0);
+	check(BoundSequencers[0].Sequencer.IsValid());
+
+	return MakeShareable( new Sequencer::FSequencerSpawnableColumn() );
+}
 
 void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 {
+	// Register Spawnable Column 
+	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
+
+	FSceneOutlinerColumnInfo SpawnColumnInfo(ESceneOutlinerColumnVisibility::Visible, 11, 
+		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerSpawnableColumn));
+
+	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerSpawnableColumn >(SpawnColumnInfo);
+	AcquiredResources.Add([=]{ this->DetachOutlinerColumn(); });
+
+	// Register Info (Level Sequence) Column only if the preference is turned on
 	for (const FSequencerAndOptions& SequencerAndOptions : BoundSequencers)
 	{
 		TSharedPtr<FSequencer> Pinned = SequencerAndOptions.Sequencer.Pin();
@@ -1106,20 +1125,18 @@ void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 		}
 	}
 
-	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
-
 	FSceneOutlinerColumnInfo ColumnInfo(ESceneOutlinerColumnVisibility::Visible, 15, 
 		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerInfoColumn));
 
 	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerInfoColumn >(ColumnInfo);
 
-	AcquiredResources.Add([=]{ this->DetachOutlinerColumn(); });
 }
 
 void FLevelEditorSequencerIntegration::DetachOutlinerColumn()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked< FSceneOutlinerModule >("SceneOutliner");
 
+	SceneOutlinerModule.UnRegisterColumnType< Sequencer::FSequencerSpawnableColumn >();
 	SceneOutlinerModule.UnRegisterColumnType< Sequencer::FSequencerInfoColumn >();
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
