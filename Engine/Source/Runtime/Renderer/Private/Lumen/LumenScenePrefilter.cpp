@@ -124,7 +124,7 @@ void FDeferredShadingSceneRenderer::CopyLumenSceneDepth(
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
-		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+		PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 		PassParameters->PS.View = View.ViewUniformBuffer;
 		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.SourceDepthAtlas = DepthBufferAtlas;
@@ -146,7 +146,7 @@ void FDeferredShadingSceneRenderer::CopyLumenSceneDepth(
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
-		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+		PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 		PassParameters->PS.View = View.ViewUniformBuffer;
 		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.SourceMip = 0;

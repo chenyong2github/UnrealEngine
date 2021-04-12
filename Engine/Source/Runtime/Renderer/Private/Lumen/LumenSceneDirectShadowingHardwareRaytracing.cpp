@@ -423,7 +423,7 @@ void RenderHardwareRayTracedShadowIntoLumenCards(
 		SetupPassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		SetupPassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		SetupPassParameters->VS.ScatterInstanceIndex = ScatterInstanceIndex;
-		SetupPassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+		SetupPassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 
 		SetupPassParameters->PS.AtlasSizeAndInvSize = FVector4(MaxAtlasSize.X, MaxAtlasSize.Y, 1.0f / MaxAtlasSize.X, 1.0f / MaxAtlasSize.Y);
 		SetupPassParameters->PS.CardInterpolantsUAV = GraphBuilder.CreateUAV(LumenDirectLightingHardwareRayTracingData.CardInterpolantsBuffer, PF_R32_UINT);

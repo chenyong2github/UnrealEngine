@@ -234,7 +234,7 @@ void InitializeCardScatterIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThr
 }
 
 Buffer<uint> QuadData;
-float2 CardUVSamplingOffset;
+float2 DownsampledInputAtlasSize;
 
 void RasterizeToCardsVS(
 	float2 TexCoord : ATTRIBUTE0,
@@ -276,13 +276,22 @@ void RasterizeToCardsVS(
 		#endif
 
 		float2 ScreenUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
+		float2 AtlasUV = ScreenUV;
+
+		// When sampling from a downsampled atlas we need to appropriately clamp input UVs to prevent bilinear reading outside of the valid area
+		if (DownsampledInputAtlasSize.x > 0.0f)
+		{
+			float2 CardWidthInTexels = (CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy) * DownsampledInputAtlasSize;
+			float2 ClampBorder = 0.5f / CardWidthInTexels;
+
+			TexCoord = clamp(TexCoord, ClampBorder, 1.0f - ClampBorder);
+			AtlasUV = lerp(CardPage.PhysicalAtlasUVRect.xy, CardPage.PhysicalAtlasUVRect.zw, TexCoord);
+		}
 
 		float2 ScreenPosition = float2(2.0f, -2.0f) * ScreenUV + float2(-1.0f, 1.0f);
-
 		OutPosition = float4(ScreenPosition, 0, 1);
 
-		float2 QuadCorner = -2.0f * TexCoord + 1.0f;
-		CardInterpolants.AtlasUV = ScreenUV + QuadCorner * CardUVSamplingOffset;
+		CardInterpolants.AtlasUV = AtlasUV;
 		CardInterpolants.CardUV = lerp(CardPage.CardUVRect.xy, CardPage.CardUVRect.zw, TexCoord);
 		CardInterpolants.CardPageIndex = CardPageIndex;
 	}

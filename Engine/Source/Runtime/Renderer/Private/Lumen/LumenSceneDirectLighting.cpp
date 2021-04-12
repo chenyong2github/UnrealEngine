@@ -512,7 +512,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = CardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = ScatterInstanceIndex;
-		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+		PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 
 		GetVolumeShadowingShaderParameters(
 			GraphBuilder,

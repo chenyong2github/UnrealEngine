@@ -247,7 +247,7 @@ bool IsRadiosityEnabled()
 	return GLumenFastCameraMode ? false : bool(GLumenRadiosity);
 }
 
-FIntPoint GetRadiosityAtlasSize(FIntPoint PhysicalAtlasSize)
+FIntPoint FLumenSceneData::GetRadiosityAtlasSize() const
 {
 	return FIntPoint::DivideAndRoundDown(PhysicalAtlasSize, GLumenRadiosityDownsampleFactor);
 }
@@ -437,7 +437,7 @@ void SetupTraceFromTexelParameters(
 		TraceFromTexelParameters.RadiosityConeDirections[i] = SampleDirections[i];
 	}
 
-	TraceFromTexelParameters.RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
+	TraceFromTexelParameters.RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 }
 
 class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
@@ -541,7 +541,7 @@ void RenderRadiosityComputeScatter(
 	extern int32 GLumenSceneCardLightingForceFullUpdate;
 	const int32 Divisor = TraceBlockMaxSize * GLumenRadiosityDownsampleFactor * (GLumenSceneCardLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
 	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
-	const FIntPoint RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
+	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
 	FRDGBufferRef CardTraceBlockAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CardTraceBlockAllocator"));
 	FRDGBufferRef CardTraceBlockData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FIntVector4), NumTraceBlocksToAllocate), TEXT("CardTraceBlockData"));
@@ -755,7 +755,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			PassParameters->VS.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 			PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 			PassParameters->VS.ScatterInstanceIndex = 0;
-			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+			PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 
 			SetupTraceFromTexelParameters(GraphBuilder, Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);
 
@@ -765,7 +765,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 			FScene* LocalScene = Scene;
 			const int32 RadiosityDownsampleArea = GLumenRadiosityDownsampleFactor * GLumenRadiosityDownsampleFactor;
-			const FIntPoint RadiosityAtlasSize = GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize());
+			const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("TraceFromAtlasTexels: %u Cones", RadiosityDirections.SampleDirections.Num()),

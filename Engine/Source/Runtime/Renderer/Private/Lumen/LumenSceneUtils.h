@@ -159,7 +159,7 @@ class FRasterizeToCardsVS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardScatterParameters, CardScatterParameters)
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
-		SHADER_PARAMETER(FVector2D, CardUVSamplingOffset)
+		SHADER_PARAMETER(FVector2D, DownsampledInputAtlasSize)
 		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -477,7 +477,6 @@ extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingPara
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-extern FIntPoint GetRadiosityAtlasSize(FIntPoint PhysicalAtlasSize);
 extern float ComputeMaxCardUpdateDistanceFromCamera();
 
 extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(

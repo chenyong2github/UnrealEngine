@@ -725,7 +725,6 @@ void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& Lumen
 	{
 		ClearAtlas(GraphBuilder, LumenSceneData.IndirectIrradianceAtlas);
 	}
-	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.OpacityAtlas);
 }
 
@@ -750,10 +749,6 @@ void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneD
 	LightingDesc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	LumenSceneData.bFinalLightingAtlasContentsValid = false;
-
-	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(PageAtlasSize), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-	RadiosityDesc.AutoWritable = false;
-	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("Lumen.SceneRadiosity"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc OpacityDesc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 	OpacityDesc.AutoWritable = false;
@@ -1278,8 +1273,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame || GLumenSceneReset;
-		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize()
-			|| (LumenSceneData.RadiosityAtlas && LumenSceneData.RadiosityAtlas->GetDesc().Extent != GetRadiosityAtlasSize(LumenSceneData.GetPhysicalAtlasSize()));
+		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
 		if (GLumenSceneReset != 2)
 		{

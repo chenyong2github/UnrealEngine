@@ -431,20 +431,17 @@ void CombineLumenSceneLighting(
 	{
 		FLumenCardLightingEmissive* PassParameters = GraphBuilder.AllocParameters<FLumenCardLightingEmissive>();
 		
-		extern int32 GLumenRadiosityDownsampleFactor;
-		FVector2D CardUVSamplingOffset = FVector2D::ZeroVector;
-		if (GLumenRadiosityDownsampleFactor > 1)
+		FVector2D DownsampledInputAtlasSize = FVector2D::ZeroVector;
+		if (LumenSceneData.GetRadiosityAtlasSize() != LumenSceneData.GetPhysicalAtlasSize())
 		{
-			// Offset bilinear samples in order to not sample outside of the lower res radiosity card bounds
-			CardUVSamplingOffset.X = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.GetPhysicalAtlasSize().X;
-			CardUVSamplingOffset.Y = (GLumenRadiosityDownsampleFactor * 0.25f) / LumenSceneData.GetPhysicalAtlasSize().Y;
+			DownsampledInputAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 		}
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction);
 		PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 		PassParameters->VS.ScatterInstanceIndex = 0;
-		PassParameters->VS.CardUVSamplingOffset = CardUVSamplingOffset;
+		PassParameters->VS.DownsampledInputAtlasSize = DownsampledInputAtlasSize;
 		PassParameters->PS.View = View.ViewUniformBuffer;
 		PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 		PassParameters->PS.RadiosityAtlas = RadiosityAtlas;
@@ -483,7 +480,7 @@ void CopyLumenCardAtlas(
 	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 	PassParameters->VS.ScatterInstanceIndex = 0;
-	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+	PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->PS.SrcAtlas = SrcAtlas;
@@ -526,7 +523,7 @@ void ApplyLumenCardAlbedo(
 	PassParameters->VS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->VS.CardScatterParameters = VisibleCardScatterContext.Parameters;
 	PassParameters->VS.ScatterInstanceIndex = 0;
-	PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
+	PassParameters->VS.DownsampledInputAtlasSize = FVector2D::ZeroVector;
 	PassParameters->PS.View = View.ViewUniformBuffer;
 	PassParameters->PS.LumenCardScene = LumenCardSceneUniformBuffer;
 	PassParameters->PS.AlbedoAtlas = AlbedoAtlas;
@@ -579,11 +576,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{
-			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
+			const FRDGTextureDesc RadiosityAtlasDesc = FRDGTextureDesc::Create2D(
+				LumenSceneData.GetRadiosityAtlasSize(),
+				PF_FloatR11G11B10,
+				FClearValueBinding::Black,
+				TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_NoFastClear);
+			FRDGTextureRef RadiosityAtlas = GraphBuilder.CreateTexture(RadiosityAtlasDesc, TEXT("Lumen.SceneRadiosity"));
 
 			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
-
-			LumenSceneData.RadiosityAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityAtlas);
 
 			FLumenCardScatterContext DirectLightingCardScatterContext;
 			extern float GLumenSceneCardDirectLightingUpdateFrequencyScale;

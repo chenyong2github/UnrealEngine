@@ -380,16 +380,15 @@ public:
 
 	// --- Captured from the triangle scene ---
 	TRefCountPtr<IPooledRenderTarget> AlbedoAtlas;
+	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;
 	TRefCountPtr<IPooledRenderTarget> NormalAtlas;
 	TRefCountPtr<IPooledRenderTarget> EmissiveAtlas;
+	TRefCountPtr<IPooledRenderTarget> DepthAtlas;
 
 	// --- Generated ---
-	TRefCountPtr<IPooledRenderTarget> DepthAtlas;
 	TRefCountPtr<IPooledRenderTarget> FinalLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> IrradianceAtlas;
 	TRefCountPtr<IPooledRenderTarget> IndirectIrradianceAtlas;
-	TRefCountPtr<IPooledRenderTarget> RadiosityAtlas;
-	TRefCountPtr<IPooledRenderTarget> OpacityAtlas;
 
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
@@ -447,6 +446,7 @@ public:
 	FLumenPageTableEntry& MapSurfaceCachePage(FLumenSurfaceMipMap& MipMap, int32 PageTableIndex);
 	int32 GetNumCardPages() const { return PageTable.Num(); }
 	FIntPoint GetPhysicalAtlasSize() const { return PhysicalAtlasSize; }
+	FIntPoint GetRadiosityAtlasSize() const;
 
 	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
 
