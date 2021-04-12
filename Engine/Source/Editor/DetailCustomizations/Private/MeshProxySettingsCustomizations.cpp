@@ -79,8 +79,6 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 	TSharedPtr< IPropertyHandle > MergeDistanceHandle                     = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, MergeDistance));
 	TSharedPtr< IPropertyHandle > UnresolvedGeometryColorHandle           = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, UnresolvedGeometryColor));
 	TSharedPtr< IPropertyHandle > VoxelSizeHandle                         = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FMeshProxySettings, VoxelSize));
-	
-
 
 	for (auto Iter(PropertyHandles.CreateConstIterator()); Iter; ++Iter)
 	{
@@ -88,27 +86,37 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 		if (Iter.Value() == HardAngleThresholdPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.ToolTip(FText::FromString(FString("Angle at which a hard edge is introduced between faces.  Note: Increases vertex count and may introduce additional UV seams.  It is only recommended if not using normals maps")));
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsHardAngleThresholdVisible));
 		}
 		else if (Iter.Value() == NormalCalcMethodPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsNormalCalcMethodVisible));
 		}
 		else if (Iter.Value() == MaxRayCastDistdPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsSearchDistanceVisible));
 		}
 		else if (Iter.Value() == RecalculateNormalsPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsRecalculateNormalsVisible));
 		}
 		else if (Iter.Value() == UseLandscapeCullingPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.DisplayName(FText::FromString(FString("Enable Volume Culling")));
 			MeshProxySettingsRow.ToolTip(FText::FromString(FString("Allow culling volumes to exclude geometry.")));
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsUseLandscapeCullingVisible));
@@ -116,26 +124,35 @@ void FMeshProxySettingsCustomizations::CustomizeChildren(TSharedRef<IPropertyHan
 		else if (Iter.Value() == LandscapeCullingPrecisionPropertyHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsUseLandscapeCullingPrecisionVisible));
 		}
 		else if (Iter.Value() == MergeDistanceHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsMergeDistanceVisible));
 		}
 		else if (Iter.Value() == UnresolvedGeometryColorHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsUnresolvedGeometryColorVisible));
 		}
 		else if (Iter.Value() == VoxelSizeHandle)
 		{
 			IDetailPropertyRow& MeshProxySettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(MeshProxySettingsRow);
+			
 			MeshProxySettingsRow.Visibility(TAttribute<EVisibility>(this, &FMeshProxySettingsCustomizations::IsVoxelSizeVisible));
 		}
 		else
 		{
 			IDetailPropertyRow& SettingsRow = AddPropertyToGroup(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
 		}
 	}
 }

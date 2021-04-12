@@ -6,9 +6,12 @@
 #include "UObject/UnrealType.h"
 #include "PropertyHandle.h"
 #include "DetailLayoutBuilder.h"
+#include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
+#include "IDetailChildrenBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "PropertyRestriction.h"
+#include "OverrideResetToDefault.h"
 
 #define LOCTEXT_NAMESPACE "FMeshMergingSettingCustomization"
 
@@ -90,6 +93,39 @@ bool FMeshMergingSettingsObjectCustomization::AreMaterialPropertiesEnabled() con
 	EnumProperty->GetValue(CurrentEnumValue);
 
 	return !(CurrentEnumValue == (uint8)EMeshLODSelectionType::AllLODs);
+}
+
+TSharedRef<IPropertyTypeCustomization> FMeshMergingSettingsCustomization::MakeInstance()
+{
+	return MakeShareable(new FMeshMergingSettingsCustomization);
+}
+
+void FMeshMergingSettingsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	HeaderRow
+	.NameContent()
+	[
+			StructPropertyHandle->CreatePropertyNameWidget(StructPropertyHandle->GetPropertyDisplayName())
+	]
+	.ValueContent()
+	[
+			StructPropertyHandle->CreatePropertyValueWidget(false)
+	];
+}
+
+void FMeshMergingSettingsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	uint32 NumChildren = 0;
+	
+	StructPropertyHandle->GetNumChildren(NumChildren);
+
+	for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
+	{
+		TSharedRef<IPropertyHandle> ChildHandle = StructPropertyHandle->GetChildHandle(ChildIndex).ToSharedRef();
+		IDetailPropertyRow& NewRow = ChildBuilder.AddProperty(ChildHandle);
+
+		AddResetToDefaultOverrides(NewRow);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -66,29 +66,39 @@ void FHierarchicalSimplificationCustomizations::CustomizeChildren( TSharedRef<IP
 		if (Iter.Value() == SimplifyMeshPropertyHandle)
 		{
 			IDetailPropertyRow& SimplifyMeshRow = MergeGroup.AddPropertyRow(SimplifyMeshPropertyHandle.ToSharedRef());
+			AddResetToDefaultOverrides(SimplifyMeshRow);
+
 			SimplifyMeshRow.Visibility(TAttribute<EVisibility>(this, &FHierarchicalSimplificationCustomizations::IsSimplifyMeshVisible));
 		}
 		else if (Iter.Value() == ProxyMeshSettingPropertyHandle)
 		{
 			IDetailPropertyRow& SettingsRow = MergeGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
+
 			SettingsRow.Visibility(TAttribute<EVisibility>(this, &FHierarchicalSimplificationCustomizations::IsProxyMeshSettingVisible));
 		}
 		else if (Iter.Value() == MergeMeshSettingPropertyHandle)
 		{
 			IDetailPropertyRow& SettingsRow = MergeGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
+
 			SettingsRow.Visibility(TAttribute<EVisibility>(this, &FHierarchicalSimplificationCustomizations::IsMergeMeshSettingVisible));
 		}
 		else  if (Iter.Value() == TransitionScreenSizePropertyHandle)
 		{
 			IDetailPropertyRow& SettingsRow = MergeGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
 		}
 		else if (Iter.Value() == OverrideDrawDistancePropertyHandle)
 		{
 			IDetailPropertyRow& SettingsRow = MergeGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
 		}
 		else if (Iter.Value() == ReusePreviousLevelClustersPropertyHandle)
 		{
 			IDetailPropertyRow& SettingsRow = ClusterGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
+
 			uint32 Index = StructPropertyHandle->GetIndexInArray();
 			// Hide the property for HLOD level 0
 			SettingsRow.Visibility(TAttribute<EVisibility>::Create([Index]()
@@ -99,6 +109,7 @@ void FHierarchicalSimplificationCustomizations::CustomizeChildren( TSharedRef<IP
 		else
 		{
 			IDetailPropertyRow& SettingsRow = ClusterGroup.AddPropertyRow(Iter.Value().ToSharedRef());
+			AddResetToDefaultOverrides(SettingsRow);
 		}
 	}
 }

@@ -6,10 +6,12 @@
 #include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
+#include "GameFramework/WorldSettings.h"
+#include "OverrideResetToDefault.h"
 
 class FDetailWidgetRow;
 
-class FHierarchicalSimplificationCustomizations : public IPropertyTypeCustomization
+class FHierarchicalSimplificationCustomizations : public IPropertyTypeCustomization, public TOverrideResetToDefaultWithStaticUStruct<FHierarchicalSimplification>
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();

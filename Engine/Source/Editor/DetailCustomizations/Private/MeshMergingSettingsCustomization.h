@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/MeshMerging.h"
 #include "Layout/Visibility.h"
 #include "IDetailCustomization.h"
+#include "OverrideResetToDefault.h"
 
 class IDetailLayoutBuilder;
 class IPropertyHandle;
@@ -25,4 +27,15 @@ protected:
 	bool AreMaterialPropertiesEnabled() const;
 	TSharedPtr<IPropertyHandle> EnumProperty;
 private:
+};
+
+
+class FMeshMergingSettingsCustomization : public IPropertyTypeCustomization, public TOverrideResetToDefaultWithStaticUStruct<FMeshMergingSettings>
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	/** IPropertyTypeCustomization instance */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 };

@@ -3,13 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/MeshMerging.h"
 #include "Layout/Visibility.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
+#include "OverrideResetToDefault.h"
 
 class FDetailWidgetRow;
 
-class FMeshProxySettingsCustomizations : public IPropertyTypeCustomization
+class FMeshProxySettingsCustomizations : public IPropertyTypeCustomization, public TOverrideResetToDefaultWithStaticUStruct<FMeshProxySettings>
 {
 
 public:
