@@ -172,7 +172,7 @@ namespace UsdUtils
 						ConvertedChange.PrimAppliedSchemas.Add( SchemaName.ToString() );
 					}
 
-					UE_LOG( LogUsd, Log, TEXT( "Recorded the creation of prim '%s' with TypeName '%s', SchemaTypeName '%s' and PrimAppliedSchemas [%s]" ),
+					UE_LOG( LogUsd, Log, TEXT( "Recorded the creation of prim '%s' with TypeName '%s' and PrimAppliedSchemas [%s]" ),
 						*PrimPath,
 						*ConvertedChange.PrimTypeName,
 						*FString::Join( ConvertedChange.PrimAppliedSchemas, TEXT( ", " ) )
