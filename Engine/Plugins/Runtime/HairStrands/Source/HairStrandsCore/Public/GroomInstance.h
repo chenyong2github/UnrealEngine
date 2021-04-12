@@ -91,6 +91,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		// Resources - Raytracing data when enabling (expensive) raytracing method
 		#if RHI_RAYTRACING
 		FHairStrandsRaytracingResource* RenRaytracingResource = nullptr;
+		bool RenRaytracingResourceOwned = false;
 		#endif
 
 		FRDGExternalBuffer DebugAttributeBuffer;
@@ -117,6 +118,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			FHairCardsDeformedResource* DeformedResource = nullptr;
 			#if RHI_RAYTRACING
 			FHairStrandsRaytracingResource* RaytracingResource = nullptr;
+			bool RaytracingResourceOwned = false;
 			#endif
 
 			// Interpolation data/resources
@@ -149,6 +151,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			FHairMeshesDeformedResource* DeformedResource = nullptr;
 			#if RHI_RAYTRACING
 			FHairStrandsRaytracingResource* RaytracingResource = nullptr;
+			bool RaytracingResourceOwned = false;
 			#endif
 
 			UMaterialInterface* Material = nullptr;

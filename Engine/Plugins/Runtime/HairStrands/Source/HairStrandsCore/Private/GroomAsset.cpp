@@ -490,6 +490,14 @@ void UGroomAsset::UpdateResource()
 			{
 				InternalUpdateResource(GroupData.Strands.ClusterCullingResource);
 			}
+
+			#if RHI_RAYTRACING
+			if (IsHairRayTracingEnabled() && GroupData.Strands.RaytracingResource)
+			{
+				// Release raytracing resources, so that it will be recreate by the component.
+				InternalReleaseResource(GroupData.Strands.RaytracingResource);
+			}
+			#endif
 		}
 	}
 
@@ -523,6 +531,9 @@ void UGroomAsset::ReleaseResource()
 			InternalReleaseResource(GroupData.Strands.RestResource);
 			InternalReleaseResource(GroupData.Strands.ClusterCullingResource);
 			InternalReleaseResource(GroupData.Strands.InterpolationResource);
+			#if RHI_RAYTRACING
+			InternalReleaseResource(GroupData.Strands.RaytracingResource);
+			#endif
 		}
 
 		for (FHairGroupData::FCards::FLOD& LOD : GroupData.Cards.LODs)
@@ -532,10 +543,16 @@ void UGroomAsset::ReleaseResource()
 			InternalReleaseResource(LOD.InterpolationResource);
 			InternalReleaseResource(LOD.Guides.RestResource);
 			InternalReleaseResource(LOD.Guides.InterpolationResource);
+			#if RHI_RAYTRACING
+			InternalReleaseResource(LOD.RaytracingResource);
+			#endif
 		}
 		for (FHairGroupData::FMeshes::FLOD& LOD : GroupData.Meshes.LODs)
 		{
 			InternalReleaseResource(LOD.RestResource);
+			#if RHI_RAYTRACING
+			InternalReleaseResource(LOD.RaytracingResource);
+			#endif
 		}
 	}
 
@@ -924,6 +941,8 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 
 	SavePendingProceduralAssets();
 
+	const bool bHairStrandsRaytracingRadiusChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairShadowSettings, HairRaytracingRadiusScale);
+	
 	// By pass update for all procedural cards parameters, as we don't want them to invalidate the cards data. 
 	// Cards should be refresh only under user action
 	// By pass update if bStrandsInterpolationChanged has the resources have already been recreated
@@ -2205,28 +2224,97 @@ void UGroomAsset::InitGuideResources()
 	//}
 }
 
-void UGroomAsset::AllocateGuidesResources(uint32 GroupIndex)
+FHairStrandsRestResource* UGroomAsset::AllocateGuidesResources(uint32 GroupIndex)
 {
 	if (GroupIndex < uint32(GetNumHairGroups()))
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		if (GroupData.Guides.HasValidData())
 		{
-			GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Guides);
-			BeginInitResource(GroupData.Guides.RestResource);
+			if (GroupData.Guides.RestResource == nullptr)
+			{
+				GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Guides);
+				BeginInitResource(GroupData.Guides.RestResource);
+			}
+			return GroupData.Guides.RestResource;
 		}
 	}
+	return nullptr;
 }
 
-void UGroomAsset::AllocateInterpolationResources(uint32 GroupIndex)
+FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(uint32 GroupIndex)
 {
 	if (GroupIndex < uint32(GetNumHairGroups()))
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		check(GroupData.Guides.IsValid());
-		GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
-		BeginInitResource(GroupData.Strands.InterpolationResource);
+		if (GroupData.Strands.InterpolationResource == nullptr)
+		{
+			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
+			BeginInitResource(GroupData.Strands.InterpolationResource);
+		}
+		return GroupData.Strands.InterpolationResource;
 	}
+	return nullptr;
+}
+
+FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
+{
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
+	{
+		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
+		FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIndex];
+		check(LOD.Data.IsValid());
+
+		if (LOD.RaytracingResource == nullptr)
+		{
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.Data);
+			BeginInitResource(LOD.RaytracingResource);
+		}
+		return LOD.RaytracingResource;
+	}
+#endif
+	return nullptr;
+}
+
+FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex)
+{
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()) && LODIndex < uint32(HairGroupsLOD[GroupIndex].LODs.Num()))
+	{
+		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
+		FHairGroupData::FMeshes::FLOD& LOD = GroupData.Meshes.LODs[LODIndex];
+		check(LOD.Data.IsValid());
+
+		if (LOD.RaytracingResource == nullptr)
+		{
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.Data);
+			BeginInitResource(LOD.RaytracingResource);
+		}
+		return LOD.RaytracingResource;
+	}
+#endif
+	return nullptr;
+}
+
+FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(uint32 GroupIndex)
+{
+#if RHI_RAYTRACING
+	if (IsRayTracingEnabled() && GroupIndex < uint32(GetNumHairGroups()))
+	{
+		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
+		check(GroupData.Strands.HasValidData());
+
+		if (GroupData.Strands.RaytracingResource == nullptr)
+		{
+			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.Data);
+			BeginInitResource(GroupData.Strands.RaytracingResource);
+		}
+		return GroupData.Strands.RaytracingResource;
+	}
+#endif
+	return nullptr;
 }
 
 void UGroomAsset::InitStrandsResources()

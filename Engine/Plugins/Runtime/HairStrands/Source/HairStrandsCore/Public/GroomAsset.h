@@ -28,6 +28,9 @@
 class UAssetUserData;
 class UMaterialInterface;
 class UNiagaraSystem;
+struct FHairStrandsRestResource;
+struct FHairStrandsInterpolationResource;
+struct FHairStrandsRaytracingResource;
 
 USTRUCT(BlueprintType)
 struct HAIRSTRANDSCORE_API FHairGroupInfo
@@ -109,11 +112,17 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			if (RestResource) Total += RestResource->GetResourcesSize();
 			if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
 			if (ClusterCullingResource) Total += ClusterCullingResource->GetResourcesSize();
+			if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 			return Total;
 		}
 
 		FHairStrandsClusterCullingData		ClusterCullingData;
 		FHairStrandsClusterCullingResource* ClusterCullingResource = nullptr;
+
+		#if RHI_RAYTRACING
+		FHairStrandsRaytracingResource*		RaytracingResource = nullptr;
+		#endif
+
 	} Strands;
 
 	struct FCards
@@ -159,6 +168,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				if (RestResource) Total += RestResource->GetResourcesSize();
 				if (ProceduralResource) Total += ProceduralResource->GetResourcesSize();
 				if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
+				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 				return Total;
 			}
 
@@ -177,6 +187,10 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			FHairCardsInterpolationResource*	InterpolationResource = nullptr;
 
 			FBaseWithInterpolation				Guides;
+
+			#if RHI_RAYTRACING
+			FHairStrandsRaytracingResource*		RaytracingResource = nullptr;
+			#endif
 
 			bool bIsCookedOut = false;
 		};
@@ -223,6 +237,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			{
 				uint32 Total = 0;
 				if (RestResource) Total += RestResource->GetResourcesSize();
+				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
 				return Total;
 			}
 
@@ -230,6 +245,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			FHairMeshesDatas Data;
 			FHairMeshesRestResource* RestResource = nullptr;
+			#if RHI_RAYTRACING
+			FHairStrandsRaytracingResource* RaytracingResource = nullptr;
+			#endif
 			bool bIsCookedOut = false;
 		};
 		TArray<FLOD> LODs;
@@ -461,8 +479,12 @@ public:
 private:
 	void ApplyStripFlags(uint8 StripFlags, const class ITargetPlatform* CookTarget);
 
-	void AllocateGuidesResources(uint32 GroupIndex);
-	void AllocateInterpolationResources(uint32 GroupIndex);
+	// Functions allocating lazily/on-demand resources (guides, interpolation, RT geometry, ...)
+	FHairStrandsRestResource*			AllocateGuidesResources(uint32 GroupIndex);
+	FHairStrandsInterpolationResource*	AllocateInterpolationResources(uint32 GroupIndex);
+	FHairStrandsRaytracingResource*		AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
+	FHairStrandsRaytracingResource*		AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
+	FHairStrandsRaytracingResource*		AllocateStrandsRaytracingResources(uint32 GroupIndex);
 	friend class UGroomComponent;
 
 #if WITH_EDITORONLY_DATA
