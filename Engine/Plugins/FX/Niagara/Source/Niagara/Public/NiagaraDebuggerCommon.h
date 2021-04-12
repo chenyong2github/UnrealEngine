@@ -322,14 +322,6 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(EditAnywhere, Category = "Debug General")
 	ENiagaraDebugHudSystemVerbosity HudVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
 
-	/**
-	When enabled GPU particles will be debuggable by copying the data to CPU
-	accessible memory, this has both a performance & memory cost.  The data
-	is also latent so expect a frame or two of lag.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
-	bool bEnableGpuReadback = false;
-
 	/** Modifies the display location of the HUD overview. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
 	FIntPoint HUDLocation = FIntPoint(30.0f, 150.0f);
@@ -414,7 +406,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	List of attributes to show about the system, each entry uses wildcard matching.
 	For example, "System.*" would match all system attributes.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (DisplayName="System Attributes"))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition = "bShowSystemVariables", DisplayName="System Attributes"))
 	TArray<FNiagaraDebugHUDVariable> SystemVariables;
 
 	/** Selects which font to use for system information display. */
@@ -426,29 +418,39 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	bool bShowParticleVariables = true;
 
 	/**
+	When enabled GPU particle data will be copied from the GPU to the CPU.
+	Warning: This has an impact on performance & memory since we copy the whole buffer.
+	The displayed data is latent since we are seeing what happened a few frames ago.
+	*/
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
+	bool bEnableGpuParticleReadback = false;
+
+	/**
 	List of attributes to show per particle, each entry uses wildcard matching.
 	For example, "*Position" would match all attributes that end in Position.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (DisplayName="Particle Attributes"))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", DisplayName="Particle Attributes"))
 	TArray<FNiagaraDebugHUDVariable> ParticlesVariables;
 
 	/** Selects which font to use for particle information display. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
 	ENiagaraDebugHudFont ParticleFont = ENiagaraDebugHudFont::Small;
 
 	/**
-	When enabled particle attributess will display with the system information
+	When enabled particle attributes will display with the system information
 	rather than in world at the particle location.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (DisplayName="Show Particles Attributes With System"))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", DisplayName="Show Particles Attributes With System"))
 	bool bShowParticlesVariablesWithSystem = false;
 
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (InlineEditConditionToggle))
+	bool bUseMaxParticlesToDisplay = true;
+
 	/**
-	Maximum number of particles to show information about.
-	Set to 0 to show all attributes, but be warned that displaying information about 1000's of particles
-	will result in poor editor performance & potentially OOM on some platforms.
+	When enabled, the maximum number of particles to show information about.
+	When disabled all particles will show attributes, this can result in poor performance & potential OOM on some platforms.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables && bUseMaxParticlesToDisplay", UIMin="1", ClampMin="1"))
 	int32 MaxParticlesToDisplay = 32;
 
 	UPROPERTY()

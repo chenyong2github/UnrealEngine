@@ -102,10 +102,10 @@ namespace NiagaraDebugLocal
 		MakeTuple(TEXT("ShowSystemVariables="), TEXT("Set system variables visibility"), [](FString Arg) {Settings.bShowSystemVariables = FCString::Atoi(*Arg) != 0; GCachedSystemVariables.Empty(); }),
 
 		// Particle commands
-		MakeTuple(TEXT("GpuReadback="), TEXT("Enables GPU readback support for particle attributes"), [](FString Arg) {Settings.bEnableGpuReadback = FCString::Atoi(*Arg) != 0;}),
+		MakeTuple(TEXT("EnableGpuParticleReadback="), TEXT("Enables GPU readback support for particle attributes"), [](FString Arg) {Settings.bEnableGpuParticleReadback = FCString::Atoi(*Arg) != 0;}),
 		MakeTuple(TEXT("ParticleVariables="), TEXT("Set the particle variables to display"), [](FString Arg) {FNiagaraDebugHUDVariable::InitFromString(Arg, Settings.ParticlesVariables); GCachedSystemVariables.Empty(); }),
 		MakeTuple(TEXT("ShowParticleVariables="), TEXT("Set Particle variables visibility"), [](FString Arg) {Settings.bShowParticleVariables = FCString::Atoi(*Arg) != 0; GCachedSystemVariables.Empty(); }),
-		MakeTuple(TEXT("MaxParticlesToDisplay="), TEXT("Maximum number of particles to show variables on"), [](FString Arg) {Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 0); }),
+		MakeTuple(TEXT("MaxParticlesToDisplay="), TEXT("Maximum number of particles to show variables on"), [](FString Arg) {Settings.MaxParticlesToDisplay = FMath::Max(FCString::Atoi(*Arg), 0); Settings.bUseMaxParticlesToDisplay = Settings.MaxParticlesToDisplay > 0; }),
 		MakeTuple(TEXT("ShowParticlesVariablesWithSystem="), TEXT("When enabled particle variables are shown with the system display"), [](FString Arg) {Settings.bShowParticlesVariablesWithSystem = FCString::Atoi(*Arg) != 0; }),
 	};
 
@@ -570,7 +570,7 @@ FNiagaraDataSet* FNiagaraDebugHud::GetParticleDataSet(FNiagaraSystemInstance* Sy
 	if (EmitterInstance->GetGPUContext())
 	{
 #if !UE_BUILD_SHIPPING
-		if (!Settings.bEnableGpuReadback)
+		if (!Settings.bEnableGpuParticleReadback)
 		{
 			return nullptr;
 		}
@@ -1205,10 +1205,15 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 					continue;
 				}
 
-				const uint32 NumParticles = Settings.MaxParticlesToDisplay > 0 ? FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances()) : DataBuffer->GetNumInstances();
+				const FTransform& SystemTransform = SystemInstance->GetWorldTransform();
+				const bool bParticlesLocalSpace = EmitterInstance->GetCachedEmitter()->bLocalSpace;
+
+				const uint32 NumParticles = Settings.bUseMaxParticlesToDisplay ? FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances()) : DataBuffer->GetNumInstances();
 				for (uint32 iInstance = 0; iInstance < NumParticles; ++iInstance)
 				{
-					const FVector ParticleWorldPosition = PositionReader.Get(iInstance);
+					const FVector ParticalLocalPosition = PositionReader.Get(iInstance);
+					const FVector ParticleWorldPosition = bParticlesLocalSpace ? SystemTransform.TransformPosition(ParticalLocalPosition) : ParticalLocalPosition;
+
 					const FVector ParticleScreenLocation = Canvas->Project(ParticleWorldPosition);
 					if (!FMath::IsNearlyZero(ParticleScreenLocation.Z))
 					{
@@ -1405,7 +1410,7 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								}
 
 								StringBuilder.Appendf(TEXT("Emitter (%s)\n"), *EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName());
-								const uint32 NumParticles = FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances());
+								const uint32 NumParticles = Settings.bUseMaxParticlesToDisplay ? FMath::Min((uint32)Settings.MaxParticlesToDisplay, DataBuffer->GetNumInstances()) : DataBuffer->GetNumInstances();
 								for (uint32 iInstance = 0; iInstance < NumParticles; ++iInstance)
 								{
 									StringBuilder.Appendf(TEXT(" Particle(%u) "), iInstance);
