@@ -10,19 +10,14 @@
 class FCbObject;
 template <typename FuncType> class TUniqueFunction;
 
-namespace UE
-{
-namespace DerivedData
-{
-
-class FCacheRecord;
-struct FCacheKey;
-
-using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>;
+namespace UE::DerivedData { class FCacheRecord; }
+namespace UE::DerivedData { class FCacheRecordBuilder; }
+namespace UE::DerivedData { struct FCacheKey; }
+namespace UE::DerivedData { using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace Private
+namespace UE::DerivedData::Private
 {
 
 class ICacheRecordInternal
@@ -39,6 +34,8 @@ public:
 	virtual TConstArrayView<FPayload> GetAttachmentPayloads() const = 0;
 };
 
+FCacheRecord CreateCacheRecord(ICacheRecordInternal* Record);
+
 class ICacheRecordBuilderInternal
 {
 public:
@@ -52,9 +49,14 @@ public:
 	virtual FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) = 0;
 };
 
-} // Private
+FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* RecordBuilder);
+
+} // UE::DerivedData::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE::DerivedData
+{
 
 /**
  * A cache record is a key, a value, attachments, and metadata.
@@ -111,8 +113,8 @@ public:
 	/** Reset this to null. */
 	inline void Reset() { *this = FCacheRecord(); }
 
-public:
-	// Internal API
+private:
+	friend FCacheRecord Private::CreateCacheRecord(Private::ICacheRecordInternal* Record);
 
 	/** Construct a cache record. Use Record.Clone() or Builder.Build[Async](). */
 	inline explicit FCacheRecord(Private::ICacheRecordInternal* InRecord)
@@ -120,11 +122,8 @@ public:
 	{
 	}
 
-private:
 	TUniquePtr<Private::ICacheRecordInternal> Record;
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * A cache record builder is used to construct a cache record.
@@ -220,19 +219,16 @@ public:
 		return RecordBuilder->BuildAsync(MoveTemp(Callback), Priority);
 	}
 
-public:
-	// Internal API
+private:
+	friend FCacheRecordBuilder Private::CreateCacheRecordBuilder(Private::ICacheRecordBuilderInternal* RecordBuilder);
 
+	/** Construct a cache record builder. Use ICache::CreateRecord(). */
 	inline explicit FCacheRecordBuilder(Private::ICacheRecordBuilderInternal* InRecordBuilder)
 		: RecordBuilder(InRecordBuilder)
 	{
 	}
 
-private:
 	TUniquePtr<Private::ICacheRecordBuilderInternal> RecordBuilder;
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-} // DerivedData
-} // UE
+} // UE::DerivedData

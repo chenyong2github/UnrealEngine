@@ -9,19 +9,15 @@
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
-namespace UE
-{
-namespace DerivedData
-{
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace Private
+namespace UE::DerivedData::Private
 {
 
 struct FCacheBucketName { const TCHAR* Name; };
 
-}
+} // UE::DerivedData::Private
+
+namespace UE::DerivedData
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -83,6 +79,34 @@ private:
 	const TCHAR* Name = nullptr;
 };
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** A key that uniquely identifies a cache record. */
+struct FCacheKey
+{
+	FCacheBucket Bucket;
+	FIoHash Hash;
+
+	/** A key with a null bucket and a zero hash. */
+	static const FCacheKey Empty;
+};
+
+inline const FCacheKey FCacheKey::Empty;
+
+/** A key that uniquely identifies a payload within a cache record. */
+struct FCachePayloadKey
+{
+	FCacheKey CacheKey;
+	FPayloadId Id;
+
+	/** A payload key with an empty cache key and a null payload identifier. */
+	static const FCachePayloadKey Empty;
+};
+
+inline const FCachePayloadKey FCachePayloadKey::Empty;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template <>
 inline FStringView FCacheBucket::ToString<TCHAR>() const
 {
@@ -104,13 +128,6 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** A key that uniquely identifies a cache record. */
-struct FCacheKey
-{
-	FCacheBucket Bucket;
-	FIoHash Hash;
-};
 
 inline bool operator==(const FCacheKey& A, const FCacheKey& B)
 {
@@ -142,13 +159,6 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A key that uniquely identifies a payload within a cache record. */
-struct FCachePayloadKey
-{
-	FCacheKey CacheKey;
-	FPayloadId Id;
-};
-
 inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)
 {
 	return A.CacheKey == B.CacheKey && A.Id == B.Id;
@@ -179,5 +189,4 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} // DerivedData
-} // UE
+} // UE::DerivedData

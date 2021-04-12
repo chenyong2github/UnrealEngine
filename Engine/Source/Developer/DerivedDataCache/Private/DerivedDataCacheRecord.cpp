@@ -8,11 +8,7 @@
 #include "Serialization/CompactBinary.h"
 #include "UObject/NameTypes.h"
 
-namespace UE
-{
-namespace DerivedData
-{
-namespace Private
+namespace UE::DerivedData::Private
 {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -21,18 +17,18 @@ class FCacheRecordBuilderInternal final : public ICacheRecordBuilderInternal
 {
 public:
 	explicit FCacheRecordBuilderInternal(const FCacheKey& Key);
-	virtual ~FCacheRecordBuilderInternal() = default;
+	~FCacheRecordBuilderInternal() final = default;
 
-	virtual void SetMeta(FCbObject&& Meta) final;
+	void SetMeta(FCbObject&& Meta) final;
 
-	virtual FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	virtual FPayloadId SetValue(FPayload&& Payload) final;
+	FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
+	FPayloadId SetValue(FPayload&& Payload) final;
 
-	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
-	virtual FPayloadId AddAttachment(FPayload&& Payload) final;
+	FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) final;
+	FPayloadId AddAttachment(FPayload&& Payload) final;
 
-	virtual FCacheRecord Build() final;
-	virtual FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) final;
+	FCacheRecord Build() final;
+	FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) final;
 
 	FCacheKey Key;
 	FCbObject Meta;
@@ -48,19 +44,19 @@ public:
 	FCacheRecordInternal() = default;
 	explicit FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordBuilder);
 
-	virtual ~FCacheRecordInternal() = default;
+	~FCacheRecordInternal() final = default;
 
-	virtual FCacheRecord Clone() const final;
+	FCacheRecord Clone() const final;
 
-	virtual const FCacheKey& GetKey() const final;
-	virtual const FCbObject& GetMeta() const final;
+	const FCacheKey& GetKey() const final;
+	const FCbObject& GetMeta() const final;
 
-	virtual FSharedBuffer GetValue() const final;
-	virtual const FPayload& GetValuePayload() const final;
+	FSharedBuffer GetValue() const final;
+	const FPayload& GetValuePayload() const final;
 
-	virtual FSharedBuffer GetAttachment(const FPayloadId& Id) const final;
-	virtual const FPayload& GetAttachmentPayload(const FPayloadId& Id) const final;
-	virtual TConstArrayView<FPayload> GetAttachmentPayloads() const final;
+	FSharedBuffer GetAttachment(const FPayloadId& Id) const final;
+	const FPayload& GetAttachmentPayload(const FPayloadId& Id) const final;
+	TConstArrayView<FPayload> GetAttachmentPayloads() const final;
 
 	FCacheKey Key;
 	FCbObject Meta;
@@ -78,9 +74,9 @@ static const FPayload& GetEmptyCachePayload()
 	return Empty;
 }
 
-static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FSharedBuffer& Buffer)
+static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FIoHash& RawHash)
 {
-	return Id.IsValid() ? Id : FPayloadId::FromHash(FIoHash::HashBuffer(Buffer));
+	return Id.IsValid() ? Id : FPayloadId::FromHash(RawHash);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -95,7 +91,7 @@ FCacheRecordInternal::FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordB
 
 FCacheRecord FCacheRecordInternal::Clone() const
 {
-	return FCacheRecord(new FCacheRecordInternal(*this));
+	return CreateCacheRecord(new FCacheRecordInternal(*this));
 }
 
 const FCacheKey& FCacheRecordInternal::GetKey() const
@@ -112,7 +108,7 @@ FSharedBuffer FCacheRecordInternal::GetValue() const
 {
 	if (ValueCache.IsNull() && Value.IsValid())
 	{
-		ValueCache = Value.GetBuffer().Decompress();
+		ValueCache = Value.GetData().Decompress();
 	}
 	return ValueCache;
 }
@@ -134,7 +130,7 @@ FSharedBuffer FCacheRecordInternal::GetAttachment(const FPayloadId& Id) const
 		FSharedBuffer& DataCache = AttachmentsCache[Index];
 		if (!DataCache)
 		{
-			DataCache = Attachments[Index].GetBuffer().Decompress();
+			DataCache = Attachments[Index].GetData().Decompress();
 		}
 		return DataCache;
 	}
@@ -171,37 +167,42 @@ void FCacheRecordBuilderInternal::SetMeta(FCbObject&& InMeta)
 
 FPayloadId FCacheRecordBuilderInternal::SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
-	const FPayloadId ValueId = GetOrCreatePayloadId(Id, Buffer);
-	return SetValue(FPayload(ValueId, FCompressedBuffer::Compress(NAME_Default, Buffer)));
+	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
+	const FPayloadId ValueId = GetOrCreatePayloadId(Id, FIoHash(CompressedBuffer.GetRawHash()));
+	return SetValue(FPayload(ValueId, MoveTemp(CompressedBuffer)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::SetValue(FPayload&& Payload)
 {
-	checkf(Value.IsNull(), TEXT("Failed to set value with ID %s because an there is an existing value with ID %s"),
-		*WriteToString<32>(Payload.GetId()), *WriteToString<32>(Value.GetId()));
+	checkf(Payload, TEXT("Failed to set value on %s because the payload is null."), *WriteToString<96>(Key));
+	checkf(Value.IsNull(),
+		TEXT("Cache: Failed to set value on %s with ID %s because it has an existing value with ID %s."),
+		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()), *WriteToString<32>(Value.GetId()));
 	Value = MoveTemp(Payload);
 	return Value.GetId();
 }
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id)
 {
-	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, Buffer);
-	return AddAttachment(FPayload(AttachmentId, FCompressedBuffer::Compress(NAME_Default, Buffer)));
+	FCompressedBuffer CompressedBuffer = FCompressedBuffer::Compress(NAME_Default, Buffer);
+	const FPayloadId AttachmentId = GetOrCreatePayloadId(Id, FIoHash(CompressedBuffer.GetRawHash()));
+	return AddAttachment(FPayload(AttachmentId, MoveTemp(CompressedBuffer)));
 }
 
 FPayloadId FCacheRecordBuilderInternal::AddAttachment(FPayload&& Payload)
 {
+	checkf(Payload, TEXT("Failed to add attachment on %s because the payload is null."), *WriteToString<96>(Key));
 	const int32 Index = Algo::LowerBound(Attachments, Payload, FPayloadLessById());
 	checkf(!Attachments.IsValidIndex(Index) || !FPayloadEqualById()(Attachments[Index], Payload),
-		TEXT("Failed to add attachment with ID %s because an existing attachment is using that ID"),
-		*WriteToString<32>(Payload.GetId()));
+		TEXT("Failed to add attachment on %s with ID %s because it has an existing attachment with that ID."),
+		*WriteToString<96>(Key), *WriteToString<32>(Payload.GetId()));
 	Attachments.Insert(MoveTemp(Payload), Index);
 	return Attachments[Index].GetId();
 }
 
 FCacheRecord FCacheRecordBuilderInternal::Build()
 {
-	return FCacheRecord(new FCacheRecordInternal(MoveTemp(*this)));
+	return CreateCacheRecord(new FCacheRecordInternal(MoveTemp(*this)));
 }
 
 FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority)
@@ -212,13 +213,23 @@ FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& Callba
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCacheRecordBuilder CreateCacheRecordBuilder(const FCacheKey& Key)
+FCacheRecord CreateCacheRecord(ICacheRecordInternal* Record)
 {
-	return FCacheRecordBuilder(new FCacheRecordBuilderInternal(Key));
+	return FCacheRecord(Record);
+}
+
+FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* RecordBuilder)
+{
+	return FCacheRecordBuilder(RecordBuilder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} // Private
-} // DerivedData
-} // UE
+FCacheRecordBuilder CreateCacheRecordBuilder(const FCacheKey& Key)
+{
+	return CreateCacheRecordBuilder(new FCacheRecordBuilderInternal(Key));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // UE::DerivedData::Private

@@ -160,15 +160,12 @@ namespace DerivedDataCacheCookStats
 }
 #endif
 
-namespace UE
-{
-namespace DerivedData
+namespace UE::DerivedData
 {
 
 ICache* CreateCache();
 
-} // DerivedData
-} // UE
+} // UE::DerivedData
 
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
@@ -694,12 +691,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FDerivedDataCacheModule final : public IDerivedDataCacheModule
 {
 public:
-	virtual FDerivedDataCacheInterface& GetDDC() final
+	FDerivedDataCacheInterface& GetDDC() final
 	{
 		return **CreateOrGetDDC();
 	}
 
-	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() final
+	FDerivedDataCacheInterface* const* CreateOrGetDDC() final
 	{
 		FScopeLock Lock(&CreateLock);
 		if (!GDerivedDataCacheInstance)
@@ -710,7 +707,7 @@ public:
 		return &GDerivedDataCacheInstance;
 	}
 
-	virtual void ShutdownModule() final
+	void ShutdownModule() final
 	{
 		FDDCCleanup::Shutdown();
 
@@ -728,9 +725,7 @@ IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace UE
-{
-namespace DerivedData
+namespace UE::DerivedData
 {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -738,34 +733,34 @@ namespace DerivedData
 class FCache final : public ICache
 {
 public:
-	virtual ~FCache() = default;
+	~FCache() final = default;
 
-	virtual FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
+	FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
 
-	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
+	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
 
-	virtual FRequest Put(
+	FRequest Put(
 		TArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
 		FOnCachePutComplete&& Callback) final;
 
-	virtual FRequest Get(
+	FRequest Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
 		FOnCacheGetComplete&& Callback) final;
 
-	virtual FRequest GetPayload(
+	FRequest GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
 		FOnCacheGetPayloadComplete&& Callback) final;
 
-	virtual void CancelAll() final;
+	void CancelAll() final;
 
 private:
 	void Put(
@@ -791,17 +786,17 @@ private:
 
 	static FString MakeRecordKey(const FCacheKey& Key)
 	{
-		check(Key.Bucket.IsValid() && !Key.Hash.IsZero());
+		check(Key != FCacheKey::Empty);
 		TStringBuilder<96> Out;
 		Out << Key.Bucket << TEXT("_") << Key.Hash;
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 
-	static FString MakePayloadKey(const FCachePayloadKey& PayloadKey)
+	static FString MakePayloadKey(const FCacheKey& CacheKey, const FIoHash& CompressedHash)
 	{
-		check(PayloadKey.CacheKey.Bucket.IsValid() && !PayloadKey.CacheKey.Hash.IsZero() && PayloadKey.Id.IsValid());
+		check(CacheKey != FCacheKey::Empty && !CompressedHash.IsZero());
 		TStringBuilder<96> Out;
-		Out << PayloadKey.CacheKey.Bucket << TEXT("_") << PayloadKey.CacheKey.Hash << TEXT("_") << PayloadKey.Id;
+		Out << CacheKey.Bucket << TEXT("_CAS_") << CompressedHash;
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 };
@@ -833,52 +828,66 @@ void FCache::Put(
 		return;
 	}
 
-	const auto PutPayload = [&Key, Context](const FPayload& Payload)
-	{
-		const FSharedBuffer Buffer = Payload.GetBuffer().GetCompressed().Flatten();
-		check(Buffer && Buffer.GetSize() <= MAX_int32);
-		TConstArrayView<uint8> BufferView = MakeArrayView(
-			static_cast<const uint8*>(Buffer.GetData()),
-			static_cast<int32>(Buffer.GetSize()));
-		GetDerivedDataCacheRef().Put(*MakePayloadKey(FCachePayloadKey{Key, Payload.GetId()}), BufferView, Context);
-	};
-
 	FCbWriter Writer;
 	Writer.BeginObject();
+
+	const auto PutPayload = [&Writer, &Key, Context](const FPayload& Payload, bool bInline = false)
 	{
-		if (const FPayload& Value = Record.GetValuePayload())
+		const FCompositeBuffer CompressedBuffer = Payload.GetData().GetCompressed();
+		const FIoHash CompressedHash = FIoHash::HashBuffer(CompressedBuffer);
+		if (!bInline)
 		{
-			PutPayload(Value);
-			Writer.BeginObject("Value"_ASV);
-			Writer.AddObjectId("Id"_ASV, FCbObjectId(Value.GetId().GetView()));
-			Writer.AddBinaryAttachment("Hash"_ASV, Value.GetHash());
-			Writer.EndObject();
-		}
-		if (!Record.GetAttachmentPayloads().IsEmpty())
-		{
-			Writer.BeginArray("Attachments"_ASV);
-			for (const FPayload& Attachment : Record.GetAttachmentPayloads())
-			{
-				PutPayload(Attachment);
-				Writer.BeginObject();
-				Writer.AddObjectId("Id"_ASV, FCbObjectId(Attachment.GetId().GetView()));
-				Writer.AddBinaryAttachment("Hash"_ASV, Attachment.GetHash());
-				Writer.EndObject();
-			}
-			Writer.EndArray();
+			const FCachePayloadKey PayloadKey{Key, Payload.GetId()};
+			const FSharedBuffer Buffer = CompressedBuffer.Flatten();
+			checkf(Buffer.GetSize() <= MAX_int32,
+				TEXT("Cache: Put failed for %s from '%.*s' because payload is 2 GiB or greater."),
+				*WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
+			const TConstArrayView<uint8> BufferView = MakeArrayView(
+				static_cast<const uint8*>(Buffer.GetData()),
+				static_cast<int32>(Buffer.GetSize()));
+			GetDerivedDataCacheRef().Put(*MakePayloadKey(PayloadKey.CacheKey, CompressedHash), BufferView, Context);
 		}
 
-		const FCbObject& Meta = Record.GetMeta();
-		if (Meta.CreateViewIterator())
+		Writer.BeginObject();
+		Writer.AddObjectId("Id"_ASV, FCbObjectId(Payload.GetId().GetView()));
+		Writer.AddBinaryAttachment("RawHash"_ASV, Payload.GetRawHash());
+		Writer.AddHash("CompressedHash"_ASV, CompressedHash);
+		if (bInline)
 		{
-			Writer.AddObject("Meta"_ASV, Meta);
+			Writer.AddBinary("CompressedData"_ASV, CompressedBuffer);
 		}
+		Writer.EndObject();
+	};
+
+	if (const FPayload& Value = Record.GetValuePayload())
+	{
+		const bool bInline = Record.GetAttachmentPayloads().IsEmpty();
+		Writer.SetName("Value"_ASV);
+		PutPayload(Value, bInline);
 	}
+	if (!Record.GetAttachmentPayloads().IsEmpty())
+	{
+		Writer.BeginArray("Attachments"_ASV);
+		for (const FPayload& Attachment : Record.GetAttachmentPayloads())
+		{
+			PutPayload(Attachment);
+		}
+		Writer.EndArray();
+	}
+
+	const FCbObject& Meta = Record.GetMeta();
+	if (Meta.CreateViewIterator())
+	{
+		Writer.AddObject("Meta"_ASV, Meta);
+	}
+
 	Writer.EndObject();
 
 	TArray<uint8> Data;
 	const uint64 SaveSize = Writer.GetSaveSize();
-	check(SaveSize <= MAX_int32);
+	checkf(SaveSize <= MAX_int32,
+		TEXT("Cache: Put failed for %s from '%.*s' because record is 2 GiB or greater."),
+		*WriteToString<96>(Key), Context.Len(), Context.GetData());
 	Data.SetNumUninitialized(static_cast<int32>(SaveSize));
 	Writer.Save(MakeMemoryView(Data));
 
@@ -912,7 +921,7 @@ void FCache::Get(
 {
 	FPayload Value;
 	TArray<FPayload> Attachments;
-	TArray<FPayloadId, TInlineAllocator<1>> SkippedPayloads;
+	TArray<FIoHash, TInlineAllocator<1>> SkippedPayloads;
 	FCacheRecordBuilder RecordBuilder = CreateRecord(Key);
 	EStatus Status = EStatus::Error;
 
@@ -955,38 +964,52 @@ void FCache::Get(
 
 	// Read the record from its compact binary fields.
 	const FCbObject RecordObject(MoveTemp(RecordBuffer));
-	FCbObject MetaObject = RecordObject.Find("Meta"_ASV).AsObject();
-	const FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView();
-	const FCbArrayView AttachmentsArray = RecordObject["Attachments"_ASV].AsArrayView();
+	FCbObject MetaObject = RecordObject["Meta"_ASV].AsObject();
+	const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
+	const FCbArray AttachmentsArray = RecordObject["Attachments"_ASV].AsArray();
 
 	// Read the value and attachments if they have been requested.
-	const auto GetPayload = [&SkippedPayloads, &Key, Policy, Context](FCbObjectView PayloadObject, ECachePolicy SkipFlag) -> FPayload
+	const auto GetPayload = [&SkippedPayloads, &Key, Policy, Context](FCbObject PayloadObject, ECachePolicy SkipFlag) -> FPayload
 	{
 		TArray<uint8> PayloadData;
-		const FPayloadId PayloadId = FPayloadId(PayloadObject["Id"_ASV].AsObjectId().GetView());
-		const FIoHash PayloadHash = PayloadObject["Hash"_ASV].AsBinaryAttachment();
+		const FPayloadId PayloadId = FPayloadId(PayloadObject.FindView("Id"_ASV).AsObjectId().GetView());
+		const FIoHash PayloadRawHash = PayloadObject.FindView("RawHash"_ASV).AsBinaryAttachment();
+		const FIoHash PayloadCompressedHash = PayloadObject.FindView("CompressedHash"_ASV).AsHash();
+		const FSharedBuffer PayloadCompressedData = PayloadObject["CompressedData"_ASV].AsBinary();
 		const FCachePayloadKey PayloadKey{Key, PayloadId};
 		if (EnumHasAnyFlags(Policy, SkipFlag))
 		{
-			SkippedPayloads.Add(PayloadId);
-			return FPayload(PayloadId, PayloadHash);
+			if (PayloadCompressedData.IsNull())
+			{
+				SkippedPayloads.Add(PayloadCompressedHash);
+			}
+			return FPayload(PayloadId, PayloadRawHash);
 		}
-		else if (GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(PayloadKey), PayloadData, Context))
+
+		FCompressedBuffer CompressedBuffer;
+		if (PayloadCompressedData)
 		{
-			if (FIoHash::HashBuffer(MakeMemoryView(PayloadData)) == PayloadHash)
-			{
-				return FPayload(PayloadId, PayloadHash, FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData))));
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted content for %s from '%.*s'"),
-					*WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
-				return FPayload();
-			}
+			CompressedBuffer = FCompressedBuffer::FromCompressed(PayloadCompressedData);
+		}
+		else if (GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(PayloadKey.CacheKey, PayloadCompressedHash), PayloadData, Context))
+		{
+			CompressedBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData)));
 		}
 		else
 		{
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
+				*WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
+			return FPayload();
+		}
+
+		if (CompressedBuffer.GetRawHash() == PayloadRawHash &&
+			FIoHash::HashBuffer(CompressedBuffer.GetCompressed()) == PayloadCompressedHash)
+		{
+			return FPayload(PayloadId, MoveTemp(CompressedBuffer));
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted content for %s from '%.*s'"),
 				*WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
 			return FPayload();
 		}
@@ -998,9 +1021,9 @@ void FCache::Get(
 	}
 
 	Attachments.Reserve(AttachmentsArray.Num());
-	for (FCbFieldView AttachmentField : AttachmentsArray)
+	for (FCbField AttachmentField : AttachmentsArray)
 	{
-		Attachments.Add(GetPayload(AttachmentField.AsObjectView(), ECachePolicy::SkipAttachments));
+		Attachments.Add(GetPayload(AttachmentField.AsObject(), ECachePolicy::SkipAttachments));
 		if (!Attachments.Last())
 		{
 			return;
@@ -1013,7 +1036,7 @@ void FCache::Get(
 		TArray<FString, TInlineAllocator<1>> SkippedPayloadKeys;
 		SkippedPayloadKeys.Reserve(SkippedPayloads.Num());
 		Algo::Transform(SkippedPayloads, SkippedPayloadKeys,
-			[&Key](const FPayloadId& Id) -> FString { return MakePayloadKey(FCachePayloadKey{Key, Id}); });
+			[&Key](const FIoHash& Hash) -> FString { return MakePayloadKey(Key, Hash); });
 		const bool bPayloadsExist = EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal)
 			? GetDerivedDataCacheRef().TryToPrefetch(SkippedPayloadKeys, Context)
 			: GetDerivedDataCacheRef().AllCachedDataProbablyExists(SkippedPayloadKeys);
@@ -1084,70 +1107,75 @@ void FCache::GetPayload(
 		return;
 	}
 
+	// Request the record from storage.
+	FSharedBuffer RecordBuffer;
+	{
+		TArray<uint8> RecordData;
+		if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key.CacheKey), RecordData, Context))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing record for %s from '%.*s'"),
+				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return;
+		}
+		RecordBuffer = MakeSharedBufferFromArray(MoveTemp(RecordData));
+	}
+
+	// Validate that the record can be read as compact binary without crashing.
+	if (ValidateCompactBinaryRange(RecordBuffer, ECbValidateMode::Default) != ECbValidateError::None)
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Read the record from its compact binary fields.
+	const FCbObject RecordObject(MoveTemp(RecordBuffer));
+	const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
+	const FCbArrayView AttachmentsArray = RecordObject.FindView("Attachments"_ASV).AsArrayView();
+
+	// Find the hash of the payload in the record.
+	FIoHash PayloadCompressedHash;
+	FSharedBuffer PayloadCompressedData;
+	const FCbObjectId KeyObjectId(Key.Id.GetView());
+	if (ValueObject["Id"_ASV].AsObjectId() == KeyObjectId)
+	{
+		Payload = FPayload(Key.Id, ValueObject.FindView("RawHash"_ASV).AsBinaryAttachment());
+		PayloadCompressedHash = ValueObject.FindView("CompressedHash"_ASV).AsHash();
+		PayloadCompressedData = ValueObject["CompressedData"_ASV].AsBinary();
+	}
+	else
+	{
+		for (FCbFieldView AttachmentField : AttachmentsArray)
+		{
+			if (AttachmentField.AsObjectView()["Id"_ASV].AsObjectId() == KeyObjectId)
+			{
+				Payload = FPayload(Key.Id, AttachmentField.AsObjectView()["RawHash"_ASV].AsBinaryAttachment());
+				PayloadCompressedHash = AttachmentField.AsObjectView()["CompressedHash"_ASV].AsHash();
+				break;
+			}
+		}
+	}
+
+	// Verify that the payload was found in the record.
+	if (PayloadCompressedHash.IsZero())
+	{
+		UE_LOG(LogDerivedDataCache, Verbose,
+			TEXT("Cache: GetPayload cache miss with missing payload in record for %s from '%.*s'"),
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
 	// Check for existence of the payload if it is being skipped.
 	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue))
 	{
-		const bool bPayloadExists = EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal)
-			? GetDerivedDataCacheRef().TryToPrefetch({MakePayloadKey(Key)}, Context)
-			: GetDerivedDataCacheRef().CachedDataProbablyExists(*MakePayloadKey(Key));
+		const bool bPayloadExists = PayloadCompressedData || EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal)
+			? GetDerivedDataCacheRef().TryToPrefetch({MakePayloadKey(Key.CacheKey, PayloadCompressedHash)}, Context)
+			: GetDerivedDataCacheRef().CachedDataProbablyExists(*MakePayloadKey(Key.CacheKey, PayloadCompressedHash));
 		if (bPayloadExists)
 		{
-			// Request the record from storage.
-			FSharedBuffer RecordBuffer;
-			{
-				TArray<uint8> RecordData;
-				if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key.CacheKey), RecordData, Context))
-				{
-					UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing record for %s from '%.*s'"),
-						*WriteToString<96>(Key), Context.Len(), Context.GetData());
-					return;
-				}
-				RecordBuffer = MakeSharedBufferFromArray(MoveTemp(RecordData));
-			}
-
-			// Validate that the record can be read as compact binary without crashing.
-			if (ValidateCompactBinaryRange(RecordBuffer, ECbValidateMode::Default) != ECbValidateError::None)
-			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
-					*WriteToString<96>(Key), Context.Len(), Context.GetData());
-				return;
-			}
-
-			// Read the record from its compact binary fields.
-			const FCbObject RecordObject(MoveTemp(RecordBuffer));
-			const FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView();
-			const FCbArrayView AttachmentsArray = RecordObject["Attachments"_ASV].AsArrayView();
-
-			// Find the hash of the payload in the record.
-			const FCbObjectId KeyObjectId(Key.Id.GetView());
-			if (ValueObject["Id"_ASV].AsObjectId() == KeyObjectId)
-			{
-				Payload = FPayload(Key.Id, ValueObject["Hash"_ASV].AsBinaryAttachment());
-			}
-			else
-			{
-				for (FCbFieldView AttachmentField : AttachmentsArray)
-				{
-					if (AttachmentField.AsObjectView()["Id"_ASV].AsObjectId() == KeyObjectId)
-					{
-						Payload = FPayload(Key.Id, AttachmentField.AsObjectView()["Hash"_ASV].AsBinaryAttachment());
-						break;
-					}
-				}
-			}
-
-			if (Payload)
-			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache hit for %s from '%.*s'"),
-					*WriteToString<96>(Key), Context.Len(), Context.GetData());
-				Status = EStatus::Ok;
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Verbose,
-					TEXT("Cache: GetPayload (exists) cache miss with missing payload in record for %s from '%.*s'"),
-					*WriteToString<96>(Key), Context.Len(), Context.GetData());
-			}
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache hit for %s from '%.*s'"),
+				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+			Status = EStatus::Ok;
 		}
 		else
 		{
@@ -1158,19 +1186,32 @@ void FCache::GetPayload(
 	}
 
 	// Request the payload from storage.
-	TArray<uint8> Data;
-	if (!GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(Key), Data, Context))
+	if (PayloadCompressedData.IsNull())
 	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache miss for %s from '%.*s'"),
-			*WriteToString<96>(Key), Context.Len(), Context.GetData());
-		return;
+		TArray<uint8> Data;
+		if (!GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(Key.CacheKey, PayloadCompressedHash), Data, Context))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache miss for %s from '%.*s'"),
+				*WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return;
+		}
+		PayloadCompressedData = MakeSharedBufferFromArray(MoveTemp(Data));
 	}
 
-	Payload = FPayload(Key.Id, FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(Data))));
-
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
-		*WriteToString<96>(Key), Context.Len(), Context.GetData());
-	Status = EStatus::Ok;
+	FCompressedBuffer CompressedBuffer = FCompressedBuffer::FromCompressed(PayloadCompressedData);
+	if (CompressedBuffer.GetRawHash() == Payload.GetRawHash() &&
+		FIoHash::HashBuffer(CompressedBuffer.GetCompressed()) == PayloadCompressedHash)
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
+		Payload = FPayload(Key.Id, MoveTemp(CompressedBuffer));
+		Status = EStatus::Ok;
+	}
+	else
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache miss with corrupted content for %s from '%.*s'"),
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
+	}
 }
 
 FRequest FCache::GetPayload(
@@ -1200,5 +1241,4 @@ ICache* CreateCache()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} // DerivedData
-} // UE
+} // UE::DerivedData
