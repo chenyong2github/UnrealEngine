@@ -2640,6 +2640,16 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 
 					CompilerContext.SetCalculatedMetaDataAndFlags(NewFunction, EntryNode, Schema);
 				}
+
+				if (BP->bIsRegeneratingOnLoad)
+				{
+					// Ensure that the function's variable cache is up-to-date after property creation. Note that
+					// this may incur a load if the variable's default value (a string) refers to an external asset;
+					// that won't result in a package import until after the BP is compiled, and sometimes users will
+					// save the Blueprint after having set the variable's default value without also recompiling it.
+					// In that case we want to ensure these assets are loaded as part of regenerating classes on load.
+					EntryNode->RefreshFunctionVariableCache();
+				}
 			}
 		}
 	};
