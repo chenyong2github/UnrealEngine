@@ -278,6 +278,25 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 	GetTypedPrimitives<UDisplayClusterSyncTickComponent>(OutPrimitives);
 	GetTypedPrimitives<UDisplayClusterXformComponent>(OutPrimitives);
 
+#if WITH_EDITOR
+	{
+		/* Find visual "_impl" components. */
+		
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		
+		GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+		{
+			if (PrimComp->GetOuter() &&
+				PrimComp->GetOuter()->IsA<UDisplayClusterSceneComponent>() &&
+				PrimComp->GetName().EndsWith(TEXT("_impl")))
+			{
+				OutPrimitives.Add(PrimComp->ComponentId);
+			}
+		}
+	}
+#endif
+	
 	return OutPrimitives.Num() > 0;
 }
 
