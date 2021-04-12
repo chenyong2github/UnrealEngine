@@ -29,16 +29,21 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 	// TODO: Could remove LightMapAndShadowMapUVBias if r.AllowStaticLighting=false.
 	// This is a read-only setting that will cause all shaders to recompile if changed.
 
-	InstanceUniformShaderParameters.LocalToWorld.To3x4MatrixTranspose((float*)&Data[0]);
-	InstanceUniformShaderParameters.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[3]);
+	Data[0].X  = *(const    float*)&InstanceUniformShaderParameters.Flags;
+	Data[0].Y  = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
+	Data[0].Z  = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
+	Data[0].W  = *(const    float*)&InstanceUniformShaderParameters.LastUpdateSceneFrameNumber;
+
+	InstanceUniformShaderParameters.LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
+	InstanceUniformShaderParameters.PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 	
-	Data[6]    = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsCenter;
-	Data[6].W  = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
-	Data[7]    = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsExtent;
-	Data[7].W  = *(const    float*)&InstanceUniformShaderParameters.LastUpdateSceneFrameNumber;
-	Data[8].X  = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
-	Data[8].Y  = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset;
-	Data[8].Z  = *(const    float*)&InstanceUniformShaderParameters.PerInstanceRandom;
-	Data[8].W  = *(const    float*)&InstanceUniformShaderParameters.Flags;
+	Data[7]    = *(const  FVector*)&InstanceUniformShaderParameters.LocalBoundsCenter;
+	Data[7].W  = *(const    float*)&InstanceUniformShaderParameters.LocalBoundsExtent.X;
+	
+	Data[8].X  = *(const    float*)&InstanceUniformShaderParameters.LocalBoundsExtent.Y;
+	Data[8].Y  = *(const    float*)&InstanceUniformShaderParameters.LocalBoundsExtent.Z;
+	Data[8].Z  = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset;
+	Data[8].W  = *(const    float*)&InstanceUniformShaderParameters.PerInstanceRandom;
+
 	Data[9]    = *(const FVector4*)&InstanceUniformShaderParameters.LightMapAndShadowMapUVBias;
 }

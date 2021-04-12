@@ -125,13 +125,24 @@ void InstanceCull(
 #else
 		uint InstanceId = DispatchIndex;
 #endif
-		FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
+		FInstanceSceneData InstanceData = GetInstanceData(InstanceId);
+		const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
+
+		BRANCH
+		if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)
+		{
+			// Only process valid Nanite instances
+			return;
+		}
+
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;
+		const bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;
 
 		// JonO/Note: Depth-Only pass indicates its a shadow map... but this may not technically always be the case?
 		//if(OnlyCastShadowsPrimitives && !InstanceData.CastShadows) 
-		if(OnlyCastShadowsPrimitives && !bCastShadows) 
+
+		BRANCH
+		if (OnlyCastShadowsPrimitives && !bCastShadows) 
 		{
 			return;
 		}
@@ -150,8 +161,6 @@ void InstanceCull(
 
 			FNaniteView NaniteView = GetNaniteView(ViewId);
 
-			const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
-
 			// Depth clipping should only be disabled with orthographic projections
 			const bool bNearClip = (NEAR_CLIP != 0);
 
@@ -168,7 +177,7 @@ void InstanceCull(
 			float4x4 LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
-			bIsVisible = (InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu) && BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
+			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
 			const bool bViewHZB = ((NaniteView.Flags & VIEW_FLAG_HZBTEST) != 0);
 
 			FFrustumCullData Cull;
@@ -367,21 +376,29 @@ void InstanceCullVSM(
 	const bool bSkipBoxCullHZB     = false;
 #endif
 
-	uint InstanceId = DispatchIndex;
-	FInstanceSceneData InstanceData = GetInstanceData( InstanceId );
+	const uint InstanceId = DispatchIndex;
+
+	BRANCH
+	if (InstanceId >= NumInstances)
+	{
+		return;
+	}
+
+	FInstanceSceneData InstanceData = GetInstanceData(InstanceId);
 	const uint RuntimeResourceID = InstanceData.NaniteRuntimeResourceID;
 
-	const bool bActive = InstanceId < NumInstances && InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu; // Only process valid Nanite primitives
-
-	//if(!bActive || !InstanceData.CastShadows) 
-	if(!bActive) 
+	BRANCH
+	if (!InstanceData.ValidInstance || RuntimeResourceID == 0xFFFFFFFFu)  //if(!InstanceData.CastShadows) 
 	{
+		// Only process valid Nanite instances
 		return;
 	}
 
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	bool bCastShadow = (PrimitiveData.Flags & 1u) != 0u;
-	if(!bCastShadow) 
+	
+	BRANCH
+	if (!bCastShadow) 
 	{
 		return;
 	}

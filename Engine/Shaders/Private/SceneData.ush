@@ -39,6 +39,7 @@ struct FInstanceSceneData
 	// TODO: bool     CastShadows;
 	float    PerInstanceRandom;
 	float4   LightMapAndShadowMapUVBias;
+	bool     ValidInstance;
 };
 
 #if USE_GLOBAL_GPU_SCENE_DATA
@@ -69,53 +70,62 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 {
 	FInstanceSceneData InstanceData = (FInstanceSceneData)0;
 
-	InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(0 * SOAStride + InstanceId),
-															 LoadInstanceDataElement(1 * SOAStride + InstanceId),
-															 LoadInstanceDataElement(2 * SOAStride + InstanceId),
-															 float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	const uint Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
+	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).y);
+	InstanceData.NaniteRuntimeResourceID					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).z);
+	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).w);
 
-	InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceDataElement(3 * SOAStride + InstanceId),
-															 LoadInstanceDataElement(4 * SOAStride + InstanceId),
-															 LoadInstanceDataElement(5 * SOAStride + InstanceId),
-															 float4(0.0f, 0.0f, 0.0f, 1.0f)));
+	// Only process valid instances
+	//InstanceData.ValidInstance							= (InstanceData.PrimitiveId != 0xFFFFFFFFu && InstanceData.NaniteRuntimeResourceID != 0xFFFFFFFFu);
+	InstanceData.ValidInstance								= InstanceData.PrimitiveId != 0xFFFFFFFFu;
 
-	InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(6 * SOAStride + InstanceId).xyz;
-	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(6 * SOAStride + InstanceId).w);
-	InstanceData.LocalBoundsExtent							= LoadInstanceDataElement(7 * SOAStride + InstanceId).xyz;
-	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(7 * SOAStride + InstanceId).w);
+	BRANCH
+	if (InstanceData.ValidInstance)
+	{
+		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(1 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(2 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(3 * SOAStride + InstanceId),
+																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	InstanceData.NaniteRuntimeResourceID					= asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).x);
-	InstanceData.NaniteHierarchyOffset						= asint(LoadInstanceDataElement(8 * SOAStride + InstanceId).y);
-	InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).z;
-	const uint Flags										= asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).w);
+		InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceDataElement(4 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(5 * SOAStride + InstanceId),
+																 LoadInstanceDataElement(6 * SOAStride + InstanceId),
+																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-	InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
+		InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(7 * SOAStride + InstanceId).xyz;
+		InstanceData.LocalBoundsExtent.x						= LoadInstanceDataElement(7 * SOAStride + InstanceId).w;
 
-	InstanceData.NaniteHasImposter							= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(8 * SOAStride + InstanceId).xy;
+		InstanceData.NaniteHierarchyOffset						= asint(LoadInstanceDataElement(8 * SOAStride + InstanceId).z);
+		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).w;
 
-	float3 Scale2;
-	Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
-	Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
-	Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
+		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
 
-	InstanceData.InvNonUniformScaleAndDeterminantSign.xyz	= rsqrt(Scale2);
-	InstanceData.InvNonUniformScaleAndDeterminantSign.w		= (Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f;
+		float3 Scale2;
+		Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
+		Scale2.y = length2(InstanceData.LocalToWorld[1].xyz);
+		Scale2.z = length2(InstanceData.LocalToWorld[2].xyz);
 
-	InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+		InstanceData.InvNonUniformScaleAndDeterminantSign.xyz	= rsqrt(Scale2);
+		InstanceData.InvNonUniformScaleAndDeterminantSign.w		= (Flags & INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? -1.0f : 1.0f;
 
-	float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
-	InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
+		InstanceData.NonUniformScale.xyz						= Scale2 * InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
+
+		float3 AbsNonUniformScale								= abs(InstanceData.NonUniformScale.xyz);
+		InstanceData.NonUniformScale.w							= max3(AbsNonUniformScale.x, AbsNonUniformScale.y, AbsNonUniformScale.z);
 	
-	InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
-	InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.x);
-	InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.y);
-	InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.z);
-	InstanceData.WorldToLocal[3].xyz						= 0.0f;
-	InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
-	InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
+		InstanceData.WorldToLocal								= InstanceData.LocalToWorld;
+		InstanceData.WorldToLocal[0].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.x);
+		InstanceData.WorldToLocal[1].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.y);
+		InstanceData.WorldToLocal[2].xyz					   *= Pow2(InstanceData.InvNonUniformScaleAndDeterminantSign.z);
+		InstanceData.WorldToLocal[3].xyz						= 0.0f;
+		InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
+		InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
 
-	// TODO: Uploading not fully functional
-	// InstanceData.CastShadows								= (Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
+		// TODO: Uploading not fully functional
+		// InstanceData.CastShadows								= (Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
+		InstanceData.NaniteHasImposter							= (Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
+	}
 
 	return InstanceData;
 }
