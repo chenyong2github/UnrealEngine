@@ -130,6 +130,7 @@ namespace Metasound
 			, PlaybackLocation(FFloatWriteRef::CreateNew(0.0f))
 			, AudioBufferL(FAudioBufferWriteRef::CreateNew(InArgs.Settings))
 			, AudioBufferR(FAudioBufferWriteRef::CreateNew(InArgs.Settings))
+			, Decoder(Audio::FSimpleDecoderWrapper::InitParams{static_cast<uint32>(InArgs.Settings.GetNumFramesPerBlock()), InArgs.Settings.GetSampleRate(), 6.f /*MaxPitchShiftMagnitudeAllowedInOctages */})
 			, OutputSampleRate(InArgs.Settings.GetSampleRate())
 			, OutputBlockSizeInFrames(InArgs.Settings.GetNumFramesPerBlock())
 		{
@@ -293,11 +294,13 @@ namespace Metasound
 
 		void StartPlaying()
 		{
+			// Copy the wave asset off on init in case the user changes it while we're playing it.
+			// We'll only check for new wave assets when the current one finishes for sample accurate concantenation
+			CurrentWaveAsset = *WaveAsset;
+
 			if (IsWaveValid())
 			{
-				// Copy the wave asset off on init in case the user changes it while we're playing it.
-				// We'll only check for new wave assets when the current one finishes for sample accurate concantenation
-				CurrentWaveAsset = *WaveAsset;
+				
 				SoundAssetSampleRate = CurrentWaveAsset->GetSampleRate();
 				SoundAssetDurationSeconds = CurrentWaveAsset->GetDuration();
 				SoundAssetNumFrames = CurrentWaveAsset->GetNumFrames();
@@ -320,6 +323,16 @@ namespace Metasound
 
 				PlaybackStartFrame = (uint32)(StartTimeSeconds * SoundAssetSampleRate);
 				UpdateAndGetLoopStartTime();
+
+
+
+				// Update our current loop frame
+				CurrentConsumedFrameCount = LoopStartFrame;
+
+				// Reset our decoded frame counting for sub loop
+				NumTotalDecodedFramesInLoop = 0;
+
+				*LoopPercent = 0.0f;
 
 				StartDecoder(StartTimeSeconds, true /* bLogFailures */);
 
@@ -388,21 +401,12 @@ namespace Metasound
 			if (IsCurrentWaveValid(bLogFailures))
 			{
 				const FSoundWaveProxyPtr& WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
-
+				
 				CuePoints = WaveProxy->GetCuePoints();
 
 				float PitchShiftClamped = FMath::Clamp(*PitchShift, -12.0f * MaxPitchShiftOctaves, 12.0f * MaxPitchShiftOctaves);
 
-				Audio::FSimpleDecoderWrapper::InitParams Params;
-				Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
-				Params.OutputSampleRate = OutputSampleRate;
-				Params.MaxPitchShiftMagnitudeAllowedInOctaves = 6.f;
-				Params.InitialPitchShiftSemitones = PitchShiftClamped;
-				Params.StartTimeSeconds = SeekTimeSeconds;
-
-				bool bRetainExistingSamples = false;
-
-				return Decoder.Initialize(Params, WaveProxy, bRetainExistingSamples);
+				return Decoder.SetWave(WaveProxy, SeekTimeSeconds, PitchShiftClamped);
 			}
 
 			return false;
@@ -410,27 +414,7 @@ namespace Metasound
 
 		bool SeekDecoder(float SeekTimeSeconds, bool bLogFailures = false)
 		{
-			if (IsCurrentWaveValid(bLogFailures))
-			{
-				const FSoundWaveProxyPtr& WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
-
-				CuePoints = WaveProxy->GetCuePoints();
-
-				float PitchShiftClamped = FMath::Clamp(*PitchShift, -12.0f * MaxPitchShiftOctaves, 12.0f * MaxPitchShiftOctaves);
-
-				Audio::FSimpleDecoderWrapper::InitParams Params;
-				Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
-				Params.OutputSampleRate = OutputSampleRate;
-				Params.MaxPitchShiftMagnitudeAllowedInOctaves = 6.f;
-				Params.InitialPitchShiftSemitones = PitchShiftClamped;
-				Params.StartTimeSeconds = SeekTimeSeconds;
-
-				bool bRetainExistingSamples = true;
-
-				return Decoder.Initialize(Params, WaveProxy, bRetainExistingSamples);
-			}
-
-			return false;
+			return Decoder.SeekToTime(SeekTimeSeconds);
 		}
 
 
@@ -619,6 +603,8 @@ namespace Metasound
 			{
 				FMemory::Memzero(FinalOutputLeft, sizeof(float) * NumOutputFramesToGenerate);
 				FMemory::Memzero(FinalOutputRight, sizeof(float) * NumOutputFramesToGenerate);
+
+				NumFramesGenerated = NumOutputFramesToGenerate;
 			}
 
 			return NumFramesGenerated;

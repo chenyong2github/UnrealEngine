@@ -56,52 +56,73 @@ namespace Metasound
 
 namespace Audio
 {
-	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave, bool bRetainExistingSamples)
+	FSimpleDecoderWrapper::FSimpleDecoderWrapper(const InitParams& InInitParams)
+	: OutputSampleRate(InInitParams.OutputSampleRate)
+	, MaxPitchShiftCents(InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.0f)
+	, MaxPitchShiftRatio(FMath::Pow(2.0f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves))
+	, DecodeBlockSizeInFrames(64)
+	, OutputBlockSizeInFrames(InInitParams.OutputBlockSizeInFrames)
 	{
-		// validate data
-		if (!ensure(InWave.IsValid()) || !InWave->IsStreaming())
+		check(OutputBlockSizeInFrames > 0);
+	}
+
+	bool FSimpleDecoderWrapper::SetWave(const FSoundWaveProxyPtr& InWave, float InStartTimeSeconds, float InInitialPitchShiftSemitones)
+	{
+		Wave = InWave;
+
+		bool bSuccessful = true;
+
+		if (Wave.IsValid())
 		{
-			ensureAlwaysMsgf(InWave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)"));
+			// validate data
+			if (!ensureAlwaysMsgf(Wave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)")))
+			{
+				Wave.Reset();
+				Input.Reset();
+				Output.Reset();
+				Decoder.Reset();
+				bDecoderIsDone = false;
 
-			Input.Reset();
-			Output.Reset();
-			Decoder.Reset();
-			bDecoderIsDone = false;
-			bIsSeekable = InWave->IsSeekableStreaming();
+				return false;
+			}
 
-			return false;
+			// initialize input/output data
+			InputSampleRate = Wave->GetSampleRate();
+			FsOutToInRatio = (OutputSampleRate / InputSampleRate);
+
+			NumChannels = Wave->GetNumChannels();
+			DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
+
+			// set Circular Buffer capacity
+			int32 Capacity = FMath::Max(1, static_cast<int32>(OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2));
+			OutputCircularBuffer.Reserve(Capacity, true /* bRetainExistingSamples */);
+
+
+			// try to initialize decoders
+			bSuccessful = InitializeDecodersInternal(Wave, InStartTimeSeconds);
+			bDecoderIsDone = !bSuccessful;
+
+			Resampler.Init(Audio::EResamplingMethod::Linear, FsOutToInRatio, NumChannels);
+			PitchShifter.Reset(NumChannels, InInitialPitchShiftSemitones);
 		}
-
-		// initialize input/output data
-		InputSampleRate = InWave->GetSampleRate();
-		OutputSampleRate = InInitParams.OutputSampleRate;
-		FsOutToInRatio = (OutputSampleRate / InputSampleRate);
-		MaxPitchShiftRatio = FMath::Pow(2.0f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves);
-		MaxPitchShiftCents = InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.0f;
-		StartTimeSeconds = InInitParams.StartTimeSeconds;
-
-		NumChannels = InWave->GetNumChannels();
-		NumFrames = InWave->GetNumFrames();
-		DecodeBlockSizeInFrames = 64;
-		DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
-
-		// set Circular Buffer capacity
-		int32 Capacity = FMath::Max(1, static_cast<int32>(InInitParams.OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2));
-		OutputCircularBuffer.Reserve(Capacity, bRetainExistingSamples);
-
-		TotalNumFramesOutput = 0;
-		TotalNumFramesDecoded = 0;
-
-		// try to initialize decoders
-		bool bSuccessful = InitializeDecodersInternal(InWave);
-		bDecoderIsDone = !bSuccessful;
-
-		// initialize SRC object (will be re-initialized for pitch shifting)
-		Resampler.Init(Audio::EResamplingMethod::Linear, FsOutToInRatio, NumChannels);
-		PitchShifter.Reset(NumChannels, InInitParams.InitialPitchShiftSemitones);
 
 		return bSuccessful;
 	}
+
+	bool FSimpleDecoderWrapper::SeekToTime(const float InSeconds)
+	{
+		if (Wave.IsValid())
+		{
+			// try to initialize decoders
+			bool bSuccessful = InitializeDecodersInternal(Wave, InSeconds);
+			bDecoderIsDone = !bSuccessful;
+
+			return bSuccessful;
+		}
+
+		return false;
+	}
+	
 
 	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents, bool bIsLooping)
 	{
@@ -180,31 +201,18 @@ namespace Audio
 		return NumOutputSamples; // update once we are aware of partial decode on last buffer
 	}
 
-	/*
-	void FSimpleDecoderWrapper::SeekToTime(const float InSeconds)
+	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& InWave, float InStartTimeSeconds)
 	{
-		if (Input.IsValid() && bIsSeekable)
-		{
-			Input->SeekToTime(InSeconds);
-		}
-		if (!bIsSeekable)
-		{
-			ensureMsgf(false, TEXT("Attempting to seek on a sound wave that is not set to Seekable"));
-		}
-	}
-	*/
-
-	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave)
-	{
-		if (!ensure(Wave.IsValid()))
+		if (!ensure(InWave.IsValid()))
 		{
 			return false;
 		}
 
 		// Input:
-		FName OldFormat = Wave->GetRuntimeFormat();
-		Input = MakeShareable(Audio::CreateBackCompatDecoderInput(OldFormat, Wave).Release());
-		Input->SeekToTime(StartTimeSeconds);
+		FName OldFormat = InWave->GetRuntimeFormat();
+		// TODO: Why is this shared? Doesn't look like it needs to be shared. 
+		Input = MakeShareable(Audio::CreateBackCompatDecoderInput(OldFormat, InWave).Release());
+		Input->SeekToTime(InStartTimeSeconds);
 
 		if (!Input)
 		{

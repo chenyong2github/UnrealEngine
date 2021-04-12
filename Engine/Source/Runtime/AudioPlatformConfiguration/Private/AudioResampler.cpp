@@ -125,19 +125,29 @@ namespace Audio
 	{
 		int32 ErrorResult = 0;
 
-		// Reset the SRC state if we already have one
+		// Reset the SRC state if we already have one with equal channels
 		if (LibSRCState)
 		{
-			ErrorResult = src_reset(LibSRCState);
-			if (ErrorResult != 0)
+			if (InNumChannels == src_get_channels(LibSRCState))
 			{
-				const char* ErrorString = src_strerror(ErrorResult);
-				UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %s."), ErrorString);
-				return;
+				ErrorResult = src_reset(LibSRCState);
+				if (ErrorResult != 0)
+				{
+					const char* ErrorString = src_strerror(ErrorResult);
+					UE_LOG(LogAudioResampler, Error, TEXT("Failed to reset sample converter state: %s."), ErrorString);
+					return;
+				}
+			}
+			else
+			{
+				// If the channel counts do not match, then remove one.
+				LibSRCState = src_delete(LibSRCState);
+				check(nullptr == LibSRCState);
 			}
 		}
-		// Otherwise create a new one
-		else
+
+		// Create a new one if one does not exist.
+		if (nullptr == LibSRCState)	
 		{
 			LibSRCState = src_new((int32)ResamplingMethod, InNumChannels, &ErrorResult);
 			if (!LibSRCState)
