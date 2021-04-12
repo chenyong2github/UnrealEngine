@@ -63,6 +63,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > RecomputeNormals;
 		TSharedPtr< FUICommandInfo > Resample;
 		TSharedPtr< FUICommandInfo > ConvertToMesh;
+		TSharedPtr< FUICommandInfo > Validate;
 
 		// Property Commands
 		TSharedPtr< FUICommandInfo > SetInitialDynamicState;
