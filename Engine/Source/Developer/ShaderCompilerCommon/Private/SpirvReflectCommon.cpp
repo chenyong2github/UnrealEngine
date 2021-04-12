@@ -54,8 +54,7 @@ void FSpirvReflectBindings::AddDescriptorBinding(SpvReflectDescriptorBinding* In
 		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 			if (InBinding->accessed)
 			{
-				// Storage buffers must always occupy a UAV binding slot
-				SBufferUAVs.Add(InBinding);
+				SBufferSRVs.Add(InBinding);
 			}
 			break;
 

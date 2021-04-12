@@ -1849,6 +1849,10 @@ static void GatherSpirvReflectionBindings(
 	OutBindings.GatherOutputAttributes(Reflection);
 	OutBindings.GatherDescriptorBindings(Reflection);
 
+	// Storage buffers always occupy a UAV binding slot, so move all SBufferSRVs into the SBufferUAVs array
+	OutBindings.SBufferUAVs.Append(OutBindings.SBufferSRVs);
+	OutBindings.SBufferSRVs.Empty();
+
 	// Change indices of input attributes by their name suffix. Only in the vertex shader stage, "ATTRIBUTE" semantics have a special meaning for shader attributes.
 	if (ShaderFrequency == SF_Vertex)
 	{
