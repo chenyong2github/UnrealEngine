@@ -76,7 +76,7 @@ protected:
 
 	/** User-configured name for this element, mostly for debugging purposes but 
 	 *	comes in handy when fetching observation/action spaces descriptions.
-	 *	Defaults to UE4 instance name*/
+	 *	Defaults to UnrealEngine instance name*/
 	UPROPERTY()
 	FString Nickname; 
 

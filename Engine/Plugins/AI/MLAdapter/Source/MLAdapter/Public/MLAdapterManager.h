@@ -77,7 +77,7 @@ public:
 	virtual bool IsRunning() const;
 
 	virtual void ConfigureAsServer(FRPCServer& Server);
-	/** "Client" in this context means UE4 game client, not RPC client */
+	/** "Client" in this context means UnrealEngine game client, not RPC client */
 	virtual void ConfigureAsClient(FRPCServer& Server);
 	/** Essentially calls both the server and client versions */
 	virtual void ConfigureAsStandalone(FRPCServer& Server);

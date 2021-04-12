@@ -64,7 +64,7 @@ void UMLAdapterManager::AddCommonFunctions(FRPCServer& Server)
 	Server.bind("exit", []() {
 		FPlatformMisc::RequestExit(/*bForce=*/false);
 	});
-	Librarian.AddRPCFunctionDescription(TEXT("exit"), TEXT("(), Closes the UE4 instance."));
+	Librarian.AddRPCFunctionDescription(TEXT("exit"), TEXT("(), Closes the UnrealEngine instance."));
 	
 	Server.bind("batch_is_finished", [this](std::vector<FMLAdapter::FAgentID> AgentIDs) {
 		std::vector<bool> Results;

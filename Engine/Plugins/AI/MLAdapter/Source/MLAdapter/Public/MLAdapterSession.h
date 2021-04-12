@@ -65,7 +65,7 @@ public:
 	virtual void ConfigureAsServer();
 	/** This is where Session can add Client-side-specific functions by calling 
 	 *	UMLAdapterManager::Get().AddClientFunctionBind. "Client" in this context means 
-	 *	UE4 game client, not RPC client */
+	 *	UnrealEngine game client, not RPC client */
 	virtual void ConfigureAsClient();
 
 	/** using FMLAdapter::InvalidAgentID for AgentID will reset all agents */
