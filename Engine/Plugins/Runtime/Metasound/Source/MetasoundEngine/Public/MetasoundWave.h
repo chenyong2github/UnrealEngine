@@ -28,24 +28,9 @@ namespace Metasound
 		FWaveAsset(const FWaveAsset&) = default;
 		FWaveAsset& operator=(const FWaveAsset& Other) = default;
 
-		FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
-		{
-			SoundWaveProxy.Reset();
+		FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData);
 
-			if (InInitData.IsValid())
-			{
-				if (InInitData->CheckTypeCast<FSoundWaveProxy>())
-				{
-					// should we be getting handed a SharedPtr here?
-					SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
-				}
-			}
-		}
-
-		bool IsSoundWaveValid() const
-		{
-			return SoundWaveProxy.IsValid();
-		}
+		bool IsSoundWaveValid() const;
 
 		const FSoundWaveProxyPtr& GetSoundWaveProxy() const
 		{
@@ -91,12 +76,22 @@ namespace Audio
 			return !bDecoderIsDone && Input.IsValid() && Output.IsValid() && Decoder.IsValid();
 		}
 
-		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave);
+		/** Initialize the decoder to produce audio from the given wave.
+		 *
+		 * @param InInitParams - Initialization parameters for the decoder. 
+		 * @param InWave - The wave proxy to decode.
+		 * @param bRetainExistingSamples - If true, any existing decoded samples in the FSimpleDecoderWrapper
+		 *                                 will be output during subsequent calls to GenerateAudio(...). If false,
+		 *                                 any previously existing decoded samples will be discarded.
+		 *
+		 * @return True on success, false on failure. 
+		 */
+		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave, bool bRetainExistingSamples=false);
 
 		// returns number of samples written.   
 		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents = 0.0f, bool bIsLooping = false);
 
-		void SeekToTime(const float InSeconds);
+		//void SeekToTime(const float InSeconds);
 
 	private:
 		// actual decoder objects

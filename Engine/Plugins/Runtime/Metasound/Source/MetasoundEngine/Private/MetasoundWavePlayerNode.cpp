@@ -400,7 +400,34 @@ namespace Metasound
 				Params.InitialPitchShiftSemitones = PitchShiftClamped;
 				Params.StartTimeSeconds = SeekTimeSeconds;
 
-				return Decoder.Initialize(Params, WaveProxy);
+				bool bRetainExistingSamples = false;
+
+				return Decoder.Initialize(Params, WaveProxy, bRetainExistingSamples);
+			}
+
+			return false;
+		}
+
+		bool SeekDecoder(float SeekTimeSeconds, bool bLogFailures = false)
+		{
+			if (IsCurrentWaveValid(bLogFailures))
+			{
+				const FSoundWaveProxyPtr& WaveProxy = CurrentWaveAsset.GetSoundWaveProxy();
+
+				CuePoints = WaveProxy->GetCuePoints();
+
+				float PitchShiftClamped = FMath::Clamp(*PitchShift, -12.0f * MaxPitchShiftOctaves, 12.0f * MaxPitchShiftOctaves);
+
+				Audio::FSimpleDecoderWrapper::InitParams Params;
+				Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
+				Params.OutputSampleRate = OutputSampleRate;
+				Params.MaxPitchShiftMagnitudeAllowedInOctaves = 6.f;
+				Params.InitialPitchShiftSemitones = PitchShiftClamped;
+				Params.StartTimeSeconds = SeekTimeSeconds;
+
+				bool bRetainExistingSamples = true;
+
+				return Decoder.Initialize(Params, WaveProxy, bRetainExistingSamples);
 			}
 
 			return false;
@@ -537,7 +564,7 @@ namespace Metasound
 						*LoopPercent = 0.0f;
 
 						// Now seek to the loop start frame
-						StartDecoder(LoopSeekTime);
+						SeekDecoder(LoopSeekTime);
 					}
 					else
 					{

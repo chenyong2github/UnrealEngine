@@ -787,6 +787,31 @@ namespace Audio
 			InternalBuffer.AddZeroed(Capacity);
 		}
 
+		/** Reserve capacity.
+		 *
+		 * @param InMinimumCapacity - Minimum capacity of circular buffer.
+		 * @param bRetainExistingSamples - If true, existing samples in the buffer will be retained. If false, they are discarded.
+		 */
+		void Reserve(uint32 InMinimumCapacity, bool bRetainExistingSamples)
+		{
+			if (Capacity <= InMinimumCapacity)
+			{
+				uint32 NewCapacity = InMinimumCapacity + 1;
+
+				checkf(NewCapacity < (uint32)TNumericLimits<int32>::Max(), TEXT("Max capacity overflow. Requested %d. Maximum allowed %d"), NewCapacity, TNumericLimits<int32>::Max());
+
+				uint32 NumToAdd = NewCapacity - Capacity;
+				InternalBuffer.AddZeroed(NumToAdd);
+				Capacity = NewCapacity;
+			}
+
+			if (!bRetainExistingSamples)
+			{
+				ReadCounter.Set(0);
+				WriteCounter.Set(0);
+			}
+		}
+
 		// Pushes some amount of samples into this circular buffer.
 		// Returns the amount of samples written.
 		// This can only be used for trivially copyable types.

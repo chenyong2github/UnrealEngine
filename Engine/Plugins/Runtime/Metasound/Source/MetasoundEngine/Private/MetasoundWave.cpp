@@ -1,18 +1,62 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundWave.h"
-#include "MetasoundPrimitives.h"
+
+#include "AudioDevice.h"
+#include "AudioDeviceManager.h"
+#include "ContentStreaming.h"
+#include "DecoderInputFactory.h"
+#include "DSP/ParamInterpolator.h"
 #include "IAudioCodec.h"
 #include "IAudioCodecRegistry.h"
+#include "MetasoundPrimitives.h"
 #include "Sound/SoundWave.h"
-#include "DecoderInputFactory.h"
-#include "AudioDeviceManager.h"
-#include "AudioDevice.h"
-#include "DSP/ParamInterpolator.h"
+
+namespace Metasound
+{
+
+	FWaveAsset::FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
+	{
+		if (InInitData.IsValid())
+		{
+			if (InInitData->CheckTypeCast<FSoundWaveProxy>())
+			{
+				// should we be getting handed a SharedPtr here?
+				SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
+
+				if (SoundWaveProxy.IsValid())
+				{
+					// TODO HACK: Prime the sound for playback.
+					//
+					// Preferably playback latency would be controlled externally.
+					// With the current decoder and waveplayer implementation, the 
+					// wave player does not know whether samples were actually decoded
+					// or if the decoder is still waiting on the stream cache. Generally
+					// this is not an issue except for looping. Looping requires counting
+					// of decoded samples to get exact loop points. When the decoder 
+					// returns zeroed audio (because the stream cache has not loaded
+					// the requested chunk) the sample counting gets off. Currently
+					// there is not route to expose that information to the wave 
+					// player to correct the sample counting logic. 
+					//
+					// In hopes of mitigating the issue, the stream cache
+					// is primed here in the hopes that the chunk is ready by the
+					// time that the decoder attempts to decode audio.
+					IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWaveProxy, 1, [](EAudioChunkLoadResult) {});
+				}
+			}
+		}
+	}
+
+	bool FWaveAsset::IsSoundWaveValid() const
+	{
+		return SoundWaveProxy.IsValid();
+	}
+}
 
 namespace Audio
 {
-	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave)
+	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave, bool bRetainExistingSamples)
 	{
 		// validate data
 		if (!ensure(InWave.IsValid()) || !InWave->IsStreaming())
@@ -42,7 +86,8 @@ namespace Audio
 		DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
 
 		// set Circular Buffer capacity
-		OutputCircularBuffer.SetCapacity(InInitParams.OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2);
+		int32 Capacity = FMath::Max(1, static_cast<int32>(InInitParams.OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2));
+		OutputCircularBuffer.Reserve(Capacity, bRetainExistingSamples);
 
 		TotalNumFramesOutput = 0;
 		TotalNumFramesDecoded = 0;
@@ -135,6 +180,7 @@ namespace Audio
 		return NumOutputSamples; // update once we are aware of partial decode on last buffer
 	}
 
+	/*
 	void FSimpleDecoderWrapper::SeekToTime(const float InSeconds)
 	{
 		if (Input.IsValid() && bIsSeekable)
@@ -146,6 +192,7 @@ namespace Audio
 			ensureMsgf(false, TEXT("Attempting to seek on a sound wave that is not set to Seekable"));
 		}
 	}
+	*/
 
 	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave)
 	{
