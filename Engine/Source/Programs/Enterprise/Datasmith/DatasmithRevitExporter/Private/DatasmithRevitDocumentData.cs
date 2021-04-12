@@ -1376,45 +1376,6 @@ namespace DatasmithRevitExporter
 				}
 			}
 
-			{
-			}
-
-			return CurrentElement.MeshMaterialsMap[CurrentMaterialName];
-		}
-
-		public FBaseElementData GetCurrentActor()
-		{
-			return ElementDataStack.Peek().GetCurrentActor();
-		}
-
-		public Element GetCurrentElement()
-		{
-			return ElementDataStack.Count > 0 ? ElementDataStack.Peek().CurrentElement : null;
-		}
-
-		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
-		{
-			List<FDatasmithFacadeActor> RemoveChildren = new List<FDatasmithFacadeActor>();
-			List<FDatasmithFacadeActor> AddChildren = new List<FDatasmithFacadeActor>();
-
-			for (int ChildIndex = 0; ChildIndex < InElementData.ChildElements.Count; ChildIndex++)
-			{
-				FBaseElementData ChildElement = InElementData.ChildElements[ChildIndex];
-
-				// Optimize the Datasmith child actor.
-				FBaseElementData ResultElement = OptimizeElementRecursive(ChildElement, InDatasmithScene);
-
-				if (ChildElement != ResultElement)
-				{
-					RemoveChildren.Add(ChildElement.ElementActor);
-
-					if (ResultElement != null)
-					{
-						AddChildren.Add(ResultElement.ElementActor);
-					}
-				}
-			}
-
 			foreach (FDatasmithFacadeActor Child in RemoveChildren)
 			{
 				InElementData.ElementActor.RemoveChild(Child);
