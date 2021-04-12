@@ -177,6 +177,7 @@ private:
 	//~ End UI command handlers
 
 	void OnReadOnlyChanged(bool bReadOnly);
+	void OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName);
 
 	void BindCommands();
 
@@ -217,4 +218,6 @@ private:
 	TWeakObjectPtr<UDisplayClusterBlueprint> LoadedBlueprint;
 
 	FName SCSEditorExtensionIdentifier;
+
+	FDelegateHandle RenameVariableHandle;
 };

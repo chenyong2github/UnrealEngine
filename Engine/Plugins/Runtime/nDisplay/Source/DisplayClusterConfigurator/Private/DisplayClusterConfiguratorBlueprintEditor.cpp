@@ -13,8 +13,10 @@
 #include "DisplayClusterConfiguratorLog.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
@@ -100,6 +102,8 @@ FDisplayClusterConfiguratorBlueprintEditor::~FDisplayClusterConfiguratorBlueprin
 	}
 	
 	ShutdownDCSCSEditors();
+
+	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableHandle);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEditor(const EToolkitMode::Type Mode,
@@ -183,6 +187,8 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	SetCurrentMode(ConfigurationMode->GetModeName());
 
 	PostLayoutBlueprintEditorInitialization();
+
+	RenameVariableHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable);
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
@@ -287,6 +293,11 @@ void FDisplayClusterConfiguratorBlueprintEditor::ClusterChanged(bool bStructureC
 	if (LoadedBlueprint.IsValid())
 	{
 		FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(LoadedBlueprint.Get(), bStructureChange);
+	}
+
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		Actor->UpdatePreviewComponents();
 	}
 
 	OnClusterChanged.Broadcast();
@@ -573,6 +584,46 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnl
 	ViewOutputMapping->SetEnabled(!bReadOnly);
 	ViewCluster->SetEnabled(!bReadOnly);
 	ViewInput->SetEnabled(!bReadOnly);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName)
+{
+	if (Blueprint != LoadedBlueprint)
+	{
+		return;
+	}
+
+	// Check the configuration's viewports for any matching references to the component variable being renamed, and update those references
+	// to the new variable name
+	if (UDisplayClusterConfigurationData* Config = GetConfig())
+	{
+		for (TPair<FString, UDisplayClusterConfigurationClusterNode*> ClusterNodePair : Config->Cluster->Nodes)
+		{
+			UDisplayClusterConfigurationClusterNode* ClusterNode = ClusterNodePair.Value;
+			for (TPair<FString, UDisplayClusterConfigurationViewport*> ViewportPair : ClusterNode->Viewports)
+			{
+				UDisplayClusterConfigurationViewport* Viewport = ViewportPair.Value;
+
+				// Don't attempt to replace variable names in custom projection policies as users should be in complete control
+				// of the parameters in the custom case
+				if (!Viewport->ProjectionPolicy.bIsCustom)
+				{
+					for (TPair<FString, FString>& PolicyParameters : Viewport->ProjectionPolicy.Parameters)
+					{
+						if (PolicyParameters.Value == OldVariableName.ToString())
+						{
+							PolicyParameters.Value = NewVariableName.ToString();
+						}
+					}
+				}
+
+				if (Viewport->Camera == OldVariableName.ToString())
+				{
+					Viewport->Camera = NewVariableName.ToString();
+				}
+			}
+		}
+	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::BindCommands()
