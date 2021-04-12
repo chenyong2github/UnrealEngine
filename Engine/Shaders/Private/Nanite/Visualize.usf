@@ -44,7 +44,7 @@ float3 IntToColor(uint Index)
 }
 
 // TODO: Try N.V to improve shading look
-float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color)
+float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color, float3 OutlineColor, bool bDarkOutline)
 {
 	// Sobel edge detect depth
 	static int SobelX[] =
@@ -80,7 +80,7 @@ float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color)
 		const UlongType VisPixelCurrent = VisBuffer64[PixelPosXY + UVSample[Tap]];
 		UnpackVisPixel(VisPixelCurrent, DepthIntCurrent, VisibleClusterIndexCurrent, TriIndexCurrent);
 
-		float SampleDensityDepth = 20.0f * pow(1.0f / pow(2.718f, ConvertFromDeviceZ(asfloat(DepthIntCurrent)) * 0.0005f), 1.0f);
+		float SampleDensityDepth = log2( ConvertFromDeviceZ(asfloat(DepthIntCurrent)) + 1.0 ) * 10.0;
 
 		DepthGradX += SobelX[Tap] * SampleDensityDepth;
 		DepthGradY += SobelY[Tap] * SampleDensityDepth;
@@ -89,15 +89,11 @@ float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color)
 	// Build outline from depth
 	float3 DepthOutline = max(abs(DepthGradX), abs(DepthGradY));
 
-	// Convert depth to density
-	float DensityDepth = 1.0f / pow(2.718f, ConvertFromDeviceZ(asfloat(DepthInt)) * 0.0004f);
-
-	// Saturate visualization colors
-	float3 CombineColor =  1.4f * (1.0f - DepthOutline) * lerp(1.0f, Color, 0.75f);
-	CombineColor = lerp(Luminance(CombineColor), CombineColor, 1.2f);
-
-	// Depth blue tint
-	CombineColor = lerp(float3(0.0f, 0.15f, 0.5f) * CombineColor, CombineColor, saturate(DensityDepth + 0.33));
+	float3 CombineColor;
+	if( bDarkOutline )
+		CombineColor = Color * ( 1.0 - DepthOutline * 0.25 );
+	else
+		CombineColor = Color + DepthOutline * 0.25 * OutlineColor;
 
 	return saturate(CombineColor);
 }
@@ -138,6 +134,9 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 	const float3 Velocity = float3(0.0f, 0.0f, 0.0f);
 
 	float3 Result = float3(0, 0, 0);
+	float3 OutlineColor = 1;
+	bool bDarkOutline = false;
+
 	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsUnOccluded))
 	{
 		// Nanite Pixel
@@ -164,7 +163,7 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		const float4 PointClip1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToClip);
 		const float4 PointClip2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToClip);
 
-		const float2 PixelClip = (PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
+		const float2 PixelClip = (PixelPos.xy + 0.5 - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
 		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
@@ -188,10 +187,14 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		if (VisualizeMode == VISUALIZE_TRIANGLES)
 		{
 			Result = IntToColor(TriIndex);
+			Result = Result * 0.8 + 0.2;
+			bDarkOutline = true;
 		}
 		else if (VisualizeMode == VISUALIZE_CLUSTERS)
 		{
 			Result = IntToColor(VisibleCluster.ClusterIndex);
+			Result = Result * 0.8 + 0.2;
+			bDarkOutline = true;
 		}
 		else if (VisualizeMode == VISUALIZE_GROUPS)
 		{
@@ -271,9 +274,9 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		}
 	}
 
-	if (ShouldApplySobelFilter())
+	if (ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsUnOccluded))
 	{
-		Result = ApplySobelFilter(PixelPos.xy, DepthInt, Result);
+		Result = ApplySobelFilter(PixelPos.xy, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
 
 	DebugOutput[PixelPos.xy] = float4(Result, 0);;
