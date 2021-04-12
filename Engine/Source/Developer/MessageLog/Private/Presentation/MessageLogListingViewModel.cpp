@@ -310,7 +310,6 @@ void FMessageLogListingViewModel::NotifyIfAnyMessages( const FText& Message, EMe
 		}
 
 		FNotificationInfo ErrorNotification(NotificationMessage);
-		ErrorNotification.Image = FEditorStyle::GetBrush(FTokenizedMessage::GetSeverityIconName(HighestSeverityPresent(0)));
 
 		if (NumMessagesPresent(0, EMessageSeverity::Error) > 0)
 		{
@@ -326,7 +325,7 @@ void FMessageLogListingViewModel::NotifyIfAnyMessages( const FText& Message, EMe
 			TSharedPtr<SNotificationItem> NewNotificationItem = FSlateNotificationManager::Get().AddNotification(ErrorNotification);
 			if (NewNotificationItem.IsValid())
 			{
-				NewNotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+				NewNotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
 				OpenNotifications.Emplace(NotificationId, NewNotificationItem);
 			}
 		}
