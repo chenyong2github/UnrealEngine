@@ -1016,6 +1016,9 @@ void UWorld::SendAllEndOfFrameUpdates()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EndOfFrameUpdates);
 	CSV_SCOPED_SET_WAIT_STAT(EndOfFrameUpdates);
 
+	// Allow systems to complete async work that could introduce additional components to end of frame updates
+	FWorldDelegates::OnWorldPreSendAllEndOfFrameUpdates.Broadcast(this);
+
 	if (!HasEndOfFrameUpdates())
 	{
 		return;
