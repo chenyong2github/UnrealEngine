@@ -555,7 +555,7 @@ void FLumenCard::Initialize(float InResolutionScale, const FMatrix& LocalToWorld
 
 void FLumenCard::SetTransform(const FMatrix& LocalToWorld, FVector CardLocalCenter, FVector CardLocalExtent, int32 InOrientation)
 {
-	ensure(InOrientation < 6);
+	check(InOrientation < 6);
 
 	Orientation = InOrientation;
 	const FVector& CardToLocalRotationX = LumenMeshCardRotationFrame[Orientation][0];
