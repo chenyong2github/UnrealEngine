@@ -72,12 +72,18 @@ namespace UnrealGameSync
 			foreach (DetectProjectSettingsTask DetectProjectSettingsTask in ConfigFiles)
 			{
 				ConfigFile ConfigFile = DetectProjectSettingsTask.LatestProjectConfigFile;
+				if(ConfigFile == null)
+				{
+					continue;
+				}
+
 				ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
 				if (ProviderSection == null)
+				{
 					continue;
+				}
 
 				string[] ProviderValues = ProviderSection.GetValues("Provider", (string[]) null);
-
 				foreach (ConfigObject Provider in ProviderValues.Select(s => new ConfigObject(s)).ToList())
 				{
 					string Identifier = Provider.GetValue("Identifier");
