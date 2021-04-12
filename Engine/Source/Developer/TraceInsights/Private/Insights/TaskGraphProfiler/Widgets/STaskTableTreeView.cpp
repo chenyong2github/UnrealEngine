@@ -7,6 +7,7 @@
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TasksProfiler.h"
+#include "Widgets/Input/SComboBox.h"
 
 // Insights
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
@@ -26,6 +27,30 @@ namespace Insights
 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTaskTableTreeViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTaskTableTreeViewCommands : public TCommands<FTaskTableTreeViewCommands>
+{
+public:
+	FTaskTableTreeViewCommands()
+		: TCommands<FTaskTableTreeViewCommands>(TEXT("FTaskTableTreeViewCommands"), NSLOCTEXT("FTaskTableTreeViewCommands", "Task Table Tree View Commands", "Task Table Tree View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+	{
+	}
+
+	virtual ~FTaskTableTreeViewCommands()
+	{
+	}
+
+	// UI_COMMAND takes long for the compiler to optimize
+	PRAGMA_DISABLE_OPTIMIZATION
+	virtual void RegisterCommands() override
+	{
+	}
+	PRAGMA_ENABLE_OPTIMIZATION
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STaskTableTreeView::STaskTableTreeView()
 {
@@ -43,6 +68,18 @@ STaskTableTreeView::~STaskTableTreeView()
 void STaskTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<Insights::FTaskTable> InTablePtr)
 {
 	ConstructWidget(InTablePtr);
+
+	AddCommmands();
+
+	// Make sure the default value is applied.
+	TimestampOptions_OnSelectionChanged(SelectedTimestampOption);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::AddCommmands()
+{
+	FTaskTableTreeViewCommands::Register();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -133,7 +170,79 @@ FText STaskTableTreeView::GetCurrentOperationName() const
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr<SWidget> STaskTableTreeView::ConstructToolbar()
 {
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("Timestamps", "Timestamps"))
+		]
+		
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SBox)
+			.MinDesiredWidth(160.0f)
+			[
+				SNew(SComboBox<TSharedPtr<ETimestampOptions>>)
+				.OptionsSource(GetAvailableTimestampOptions())
+				.OnSelectionChanged(this, &STaskTableTreeView::TimestampOptions_OnSelectionChanged)
+				.OnGenerateWidget(this, &STaskTableTreeView::TimestampOptions_OnGenerateWidget)
+				.IsEnabled(this, &STaskTableTreeView::TimestampOptions_IsEnabled)
+				[
+					SNew(STextBlock)
+					.Text(this, &STaskTableTreeView::TimestampOptions_GetSelectionText)
+				]
+			]
+		];
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<SWidget> STaskTableTreeView::ConstructFooter()
+{
 	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> STaskTableTreeView::TimestampOptions_OnGenerateWidget(TSharedPtr<ETimestampOptions> InOption)
+{
+	auto GetTooltipText = [](ETimestampOptions InOption)
+	{
+		switch (InOption)
+		{
+			case ETimestampOptions::Absolute:
+			{
+				return LOCTEXT("AbsoluteValueTooltip", "The timestamps for all columns will show absolute values.");
+			}
+			case ETimestampOptions::RelativeToPrevious:
+			{
+				return LOCTEXT("RelativeToPreviousTooltip", "The timestamps for all columns will show values relative to the previous stage. Ex: Scheduled will be relative to Launched.");
+			}
+			case ETimestampOptions::RelativeToCreated:
+			{
+				return LOCTEXT("RelativeToCreatedTooltip", "The timestamps for all columns will show values relative to the created time.");
+			}
+		}
+
+		return FText();
+	};
+
+	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox);
+	Widget->AddSlot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(TimestampOptions_GetText(*InOption))
+			.ToolTipText(GetTooltipText(*InOption))
+			.Margin(2.0f)
+		];
+
+	return Widget;
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -167,18 +276,95 @@ void STaskTableTreeView::ApplyColumnConfig(const TArrayView<FColumnConfig>& Pres
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-TSharedPtr<SWidget> STaskTableTreeView::ConstructFooter()
-{
-	return nullptr;
-}
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STaskTableTreeView::InternalCreateGroupings()
 {
 	STableTreeView::InternalCreateGroupings();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TArray<TSharedPtr<STaskTableTreeView::ETimestampOptions>>* STaskTableTreeView::GetAvailableTimestampOptions()
+{
+	if (AvailableTimestampOptions.Num() == 0)
+	{
+		AvailableTimestampOptions.Add(MakeShared<ETimestampOptions>(ETimestampOptions::Absolute));
+		AvailableTimestampOptions.Add(MakeShared<ETimestampOptions>(ETimestampOptions::RelativeToPrevious));
+		AvailableTimestampOptions.Add(MakeShared<ETimestampOptions>(ETimestampOptions::RelativeToCreated));
+	}
+
+	return &AvailableTimestampOptions;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::TimestampOptions_OnSelectionChanged(TSharedPtr<ETimestampOptions> InOption, ESelectInfo::Type SelectInfo)
+{
+	TimestampOptions_OnSelectionChanged(*InOption);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::TimestampOptions_OnSelectionChanged(ETimestampOptions InOption)
+{
+	SelectedTimestampOption = InOption;
+
+	switch (SelectedTimestampOption)
+	{
+	case ETimestampOptions::Absolute:
+	{
+		GetTaskTable()->SwitchToAbsoluteTimestamps();
+		break;
+	}
+	case ETimestampOptions::RelativeToPrevious:
+	{
+		GetTaskTable()->SwitchToRelativeToPreviousTimestamps();
+		break;
+	}
+	case ETimestampOptions::RelativeToCreated:
+	{
+		GetTaskTable()->SwitchToRelativeToCreatedTimestamps();
+		break;
+	}
+	}
+
+	UpdateTree();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STaskTableTreeView::TimestampOptions_GetSelectionText() const
+{
+	return TimestampOptions_GetText(SelectedTimestampOption);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText STaskTableTreeView::TimestampOptions_GetText(ETimestampOptions InOption) const
+{
+	switch (InOption)
+	{
+		case ETimestampOptions::Absolute:
+		{
+			return LOCTEXT("Absolute", "Absolute");
+		}
+		case ETimestampOptions::RelativeToPrevious:
+		{
+			return LOCTEXT("RelativeToPrevious", "Relative To Previous");
+		}
+		case ETimestampOptions::RelativeToCreated:
+		{
+			return LOCTEXT("RelativeToCreated", "Relative To Created");
+		}
+	}
+
+	return FText();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STaskTableTreeView::TimestampOptions_IsEnabled() const
+{
+	return !bIsUpdateRunning;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

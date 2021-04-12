@@ -24,6 +24,13 @@ private:
 		float Width;
 	};
 
+	enum class ETimestampOptions : uint32
+	{
+		Absolute,
+		RelativeToPrevious,
+		RelativeToCreated,
+	};
+
 public:
 	/** Default constructor. */
 	STaskTableTreeView();
@@ -79,10 +86,22 @@ protected:
 
 private:
 	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
+	void AddCommmands();
+
+	const TArray<TSharedPtr<ETimestampOptions>>* GetAvailableTimestampOptions();
+	TSharedRef<SWidget> TimestampOptions_OnGenerateWidget(TSharedPtr<ETimestampOptions> InOption);
+	void TimestampOptions_OnSelectionChanged(TSharedPtr<ETimestampOptions> InOption, ESelectInfo::Type SelectInfo);
+	void TimestampOptions_OnSelectionChanged(ETimestampOptions InOption);
+	FText TimestampOptions_GetSelectionText() const;
+	FText TimestampOptions_GetText(ETimestampOptions InOption) const;
+	bool TimestampOptions_IsEnabled() const;
 
 private:
 	double QueryStartTime = 0.0f;
 	double QueryEndTime = 0.0f;
+
+	ETimestampOptions SelectedTimestampOption = ETimestampOptions::RelativeToPrevious;
+	TArray<TSharedPtr<ETimestampOptions>> AvailableTimestampOptions;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -51,6 +51,10 @@ public:
 	const FTaskEntry* GetTask(int32 InIndex) const { return IsValidRowIndex(InIndex) ? &TaskEntries[InIndex] : nullptr; }
 	const FTaskEntry& GetTaskChecked(int32 InIndex) const { check(IsValidRowIndex(InIndex)); return TaskEntries[InIndex]; }
 
+	void SwitchToAbsoluteTimestamps();
+	void SwitchToRelativeToPreviousTimestamps();
+	void SwitchToRelativeToCreatedTimestamps();
+
 private:
 	void AddDefaultColumns();
 

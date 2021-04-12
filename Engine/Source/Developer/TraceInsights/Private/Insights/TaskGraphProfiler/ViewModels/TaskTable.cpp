@@ -92,6 +92,52 @@ struct DefaultTaskFieldGetterFuncts
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct RelativeToPreviousTaskFieldGetterFuncts
+{
+	static FTableCellValue GetCreatedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetLaunchedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetLaunchedTimestamp() - Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetScheduledTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetScheduledTimestamp() - Task.GetLaunchedTimestamp()); }
+	static FTableCellValue GetStartedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetStartedTimestamp() - Task.GetScheduledTimestamp()); }
+	static FTableCellValue GetFinishedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetFinishedTimestamp() - Task.GetStartedTimestamp()); }
+	static FTableCellValue GetCompletedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) 
+	{
+		// CompletedTimestamp can be 0, so don't show negative numbers in this case.
+		if (Task.GetCompletedTimestamp() != 0)
+		{
+			return FTableCellValue(Task.GetCompletedTimestamp() - Task.GetFinishedTimestamp());
+		}
+		else
+		{
+			return FTableCellValue(Task.GetCompletedTimestamp());
+		}
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct RelativeToCreatedTaskFieldGetterFuncts
+{
+	static FTableCellValue GetCreatedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetLaunchedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetLaunchedTimestamp() - Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetScheduledTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetScheduledTimestamp() - Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetStartedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetStartedTimestamp() - Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetFinishedTimestamp(const FTableColumn& Column, const FTaskEntry& Task) { return FTableCellValue(Task.GetFinishedTimestamp() - Task.GetCreatedTimestamp()); }
+	static FTableCellValue GetCompletedTimestamp(const FTableColumn& Column, const FTaskEntry& Task)
+	{
+		// CompletedTimestamp can be 0, so don't show negative numbers in this case.
+		if (Task.GetCompletedTimestamp() != 0)
+		{
+			return FTableCellValue(Task.GetCompletedTimestamp() - Task.GetCreatedTimestamp());
+		}
+		else
+		{
+			return FTableCellValue(Task.GetCompletedTimestamp());
+		}
+	}
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTaskTable
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -568,6 +614,39 @@ void FTaskTable::AddDefaultColumns()
 
 		AddColumn(ColumnRef);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskTable::SwitchToAbsoluteTimestamps()
+{
+	FindColumnChecked(FTaskTableColumns::LaunchedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetLaunchedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::ScheduledTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetScheduledTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::StartedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetStartedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::FinishedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetFinishedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::CompletedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<DefaultTaskFieldGetterFuncts::GetCompletedTimestamp>>());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskTable::SwitchToRelativeToPreviousTimestamps()
+{
+	FindColumnChecked(FTaskTableColumns::LaunchedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToPreviousTaskFieldGetterFuncts::GetLaunchedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::ScheduledTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToPreviousTaskFieldGetterFuncts::GetScheduledTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::StartedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToPreviousTaskFieldGetterFuncts::GetStartedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::FinishedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToPreviousTaskFieldGetterFuncts::GetFinishedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::CompletedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToPreviousTaskFieldGetterFuncts::GetCompletedTimestamp>>());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTaskTable::SwitchToRelativeToCreatedTimestamps()
+{
+	FindColumnChecked(FTaskTableColumns::LaunchedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToCreatedTaskFieldGetterFuncts::GetLaunchedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::ScheduledTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToCreatedTaskFieldGetterFuncts::GetScheduledTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::StartedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToCreatedTaskFieldGetterFuncts::GetStartedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::FinishedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToCreatedTaskFieldGetterFuncts::GetFinishedTimestamp>>());
+	FindColumnChecked(FTaskTableColumns::CompletedTimestampColumnId)->SetValueGetter(MakeShared<FTaskColumnValueGetter<RelativeToCreatedTaskFieldGetterFuncts::GetCompletedTimestamp>>());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
