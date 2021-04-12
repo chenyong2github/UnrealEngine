@@ -131,7 +131,7 @@ void STaskTableTreeView::RebuildTree(bool bResync)
 					{
 						Allocs.Emplace(TaskInfo);
 						uint32 Index = Allocs.Num() - 1;
-						FName NodeName(BaseNodeName, Index);
+						FName NodeName(BaseNodeName, TaskInfo.Id + 1);
 						FTaskNodePtr NodePtr = MakeShared<FTaskNode>(NodeName, TaskTable, Index);
 						Nodes->Add(NodePtr);
 						return TraceServices::ETaskEnumerationResult::Continue;
