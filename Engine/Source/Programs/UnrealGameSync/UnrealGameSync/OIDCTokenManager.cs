@@ -71,6 +71,11 @@ namespace UnrealGameSync
 			Dictionary<string, ProviderInfo> Providers = new Dictionary<string, ProviderInfo>();
 			foreach (DetectProjectSettingsTask DetectProjectSettingsTask in ConfigFiles)
 			{
+				if(DetectProjectSettingsTask == null)
+				{
+					continue;
+				}
+
 				ConfigFile ConfigFile = DetectProjectSettingsTask.LatestProjectConfigFile;
 				if(ConfigFile == null)
 				{
