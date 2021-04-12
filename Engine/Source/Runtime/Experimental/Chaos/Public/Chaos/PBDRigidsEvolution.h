@@ -711,6 +711,19 @@ public:
 				Rigid->Q() = Rigid->R();
 				Rigid->PreV() = Rigid->V();
 				Rigid->PreW() = Rigid->W();
+
+				// Update the world bounds
+				if (Rigid->HasBounds())
+				{
+					const FAABB3& LocalBounds = Rigid->LocalBounds();
+					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Rigid->P(), Rigid->Q()));
+					if (Rigid->CCDEnabled())
+					{
+						WorldSpaceBounds.ThickenSymmetrically(Rigid->V() * Dt);
+					}
+					Rigid->SetWorldSpaceInflatedBounds(WorldSpaceBounds);
+				}
+				
 			}
 		}
 	}
