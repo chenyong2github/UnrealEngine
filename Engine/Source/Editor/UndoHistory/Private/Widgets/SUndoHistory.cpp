@@ -69,7 +69,6 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 										.HAlign(HAlign_Left)
 										[
 											SNew(STextBlock)
-												.TextStyle( FEditorStyle::Get(), "Docking.TabFont" )
 												.Text(LOCTEXT("TransactionHistoryLabel", "Transactions"))
 										]
 								]
