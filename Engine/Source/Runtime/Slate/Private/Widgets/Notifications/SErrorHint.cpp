@@ -10,8 +10,8 @@ void SErrorHint::Construct(const FArguments& InArgs)
 
 	ExpandAnimation = FCurveSequence(0.0f, 0.15f);
 
-	CustomVisibility = Visibility;
-	Visibility = TAttribute<EVisibility>( SharedThis(this), &SErrorHint::MyVisibility );
+	CustomVisibility = GetVisibilityAttribute().ToAttribute();
+	SetVisibility(MakeAttributeSP(this, &SErrorHint::MyVisibility));
 
 	ChildSlot
 	.HAlign(HAlign_Center)

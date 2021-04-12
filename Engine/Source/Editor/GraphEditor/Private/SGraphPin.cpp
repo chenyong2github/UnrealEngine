@@ -150,7 +150,7 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 	bUsePinColorForText = InArgs._UsePinColorForText;
 	this->SetCursor(EMouseCursor::Default);
 
-	Visibility = TAttribute<EVisibility>(this, &SGraphPin::GetPinVisiblity);
+	SetVisibility(MakeAttributeSP(this, &SGraphPin::GetPinVisiblity));
 
 	GraphPinObj = InPin;
 	check(GraphPinObj != NULL);
@@ -168,10 +168,10 @@ void SGraphPin::Construct(const FArguments& InArgs, UEdGraphPin* InPin)
 
 	// Create the pin icon widget
 	TSharedRef<SWidget> PinWidgetRef = SPinTypeSelector::ConstructPinTypeImage(
-		TAttribute<const FSlateBrush*>::Create( TAttribute<const FSlateBrush*>::FGetter::CreateRaw(this, &SGraphPin::GetPinIcon ) ),
-		TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw(this, &SGraphPin::GetPinColor) ),
-		TAttribute<const FSlateBrush*>::Create( TAttribute<const FSlateBrush*>::FGetter::CreateRaw(this, &SGraphPin::GetSecondaryPinIcon ) ),
-		TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw(this, &SGraphPin::GetSecondaryPinColor) ));
+		MakeAttributeSP(this, &SGraphPin::GetPinIcon ),
+		MakeAttributeSP(this, &SGraphPin::GetPinColor),
+		MakeAttributeSP(this, &SGraphPin::GetSecondaryPinIcon),
+		MakeAttributeSP(this, &SGraphPin::GetSecondaryPinColor));
 	PinImage = PinWidgetRef;
 
 	PinWidgetRef->SetCursor( 

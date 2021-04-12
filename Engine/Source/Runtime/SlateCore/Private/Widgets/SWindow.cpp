@@ -2084,7 +2084,7 @@ int32 SWindow::PaintWindow( double CurrentTime, float DeltaTime, FSlateWindowEle
 	// Always set the window geometry and visibility
 	PersistentState.AllottedGeometry = GetWindowGeometryInWindow();
 	PersistentState.CullingBounds = GetClippingRectangleInWindow();
-	if (!Visibility.IsBound())
+	if (!GetVisibilityAttribute().IsBound())
 	{
 		SetVisibility(GetWindowVisibility());
 	}

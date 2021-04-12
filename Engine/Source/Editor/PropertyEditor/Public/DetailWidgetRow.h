@@ -79,7 +79,7 @@ private:
 
 		void Construct( const FArguments& InArgs )
 		{
-			Visibility = EVisibility::Collapsed;
+			SetVisibility(EVisibility::Collapsed);
 		}
 
 	};

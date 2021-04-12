@@ -181,7 +181,7 @@ SDockingNode::ECleanupRetVal SDockingSplitter::CleanUpNodes()
 		const bool bIsDockArea = !(this->ParentNodePtr.IsValid());
 		if (!bIsDockArea)
 		{
-			this->Visibility = EVisibility::Collapsed;
+			SetVisibility(EVisibility::Collapsed);
 		}		
 	}
 		

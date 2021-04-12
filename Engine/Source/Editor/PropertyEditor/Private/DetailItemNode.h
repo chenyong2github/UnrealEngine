@@ -97,6 +97,11 @@ private:
 	 */
 	void InitGroup();
 
+	/**
+	 * Implementation of IsPropertyEditingEnabled
+	 */
+	bool IsPropertyEditingEnabledImpl() const;
+
 private:
 	/** Customization on this node */
 	FDetailLayoutCustomization Customization;

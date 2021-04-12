@@ -574,7 +574,7 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 
 	auto MessageArea = BuildMessageArea();
 
-	Visibility = EVisibility::SelfHitTestInvisible;
+	SetVisibility(EVisibility::SelfHitTestInvisible);
 
 	// construct default column headers
 	PlatformColumnHeader = SNew(SHeaderRow);

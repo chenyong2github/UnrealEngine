@@ -31,7 +31,7 @@ void SDockingNode::SetSizeCoefficient( float InSizeCoefficient )
 
 void SDockingNode::OnLiveTabAdded()
 {
-	this->Visibility = EVisibility::Visible;
+	SetVisibility(EVisibility::Visible);
 
 	TSharedPtr<SDockingNode> ParentNode = ParentNodePtr.Pin();
 	if (ParentNode.IsValid())

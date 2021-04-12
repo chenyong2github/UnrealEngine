@@ -7,8 +7,8 @@ void SErrorText::Construct(const FArguments& InArgs)
 {
 	ExpandAnimation = FCurveSequence(0.0f, 0.15f);
 
-	CustomVisibility = Visibility;
-	Visibility = TAttribute<EVisibility>( SharedThis(this), &SErrorText::MyVisibility );
+	CustomVisibility = GetVisibilityAttribute().ToAttribute();
+	SetVisibility(MakeAttributeSP(this, &SErrorText::MyVisibility));
 
 	SBorder::Construct( SBorder::FArguments()
 		.BorderBackgroundColor( InArgs._BackgroundColor )

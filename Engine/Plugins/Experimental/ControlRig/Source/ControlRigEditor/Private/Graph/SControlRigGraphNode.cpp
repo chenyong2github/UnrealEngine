@@ -390,13 +390,11 @@ TSharedRef<SWidget> SControlRigGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitl
 {
 	NodeTitle = InNodeTitle;
 
-	auto WidgetRef = SGraphNode::CreateTitleWidget(NodeTitle);
-	auto VisibilityAttribute = TAttribute<EVisibility>::Create(
-		TAttribute<EVisibility>::FGetter::CreateSP(this, &SControlRigGraphNode::GetTitleVisibility));
-	WidgetRef->SetVisibility(VisibilityAttribute);
+	TSharedRef<SWidget> WidgetRef = SGraphNode::CreateTitleWidget(NodeTitle);
+	WidgetRef->SetVisibility(MakeAttributeSP(this, &SControlRigGraphNode::GetTitleVisibility));
 	if (NodeTitle.IsValid())
 	{
-		NodeTitle->SetVisibility(VisibilityAttribute);
+		NodeTitle->SetVisibility(MakeAttributeSP(this, &SControlRigGraphNode::GetTitleVisibility));
 	}
 
 	return SNew(SHorizontalBox)

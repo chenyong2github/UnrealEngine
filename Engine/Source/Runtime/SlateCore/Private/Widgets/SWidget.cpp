@@ -203,6 +203,9 @@ namespace SlateTraceMetaData
 SLATE_IMPLEMENT_WIDGET(SWidget)
 void SWidget::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "EnabledState", EnabledStateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Visibility", VisibilityAttribute, EInvalidateWidgetReason::Visibility)
+		.UpdateWhenCollapsed();
 }
 
 SWidget::SWidget()
@@ -232,9 +235,9 @@ SWidget::SWidget()
 	// Note we are defaulting to tick for backwards compatibility
 	, UpdateFlags(EWidgetUpdateFlags::NeedsTick)
 	, DesiredSize()
+	, EnabledStateAttribute(*this, true)
+	, VisibilityAttribute(*this, EVisibility::Visible)
 	, CullingBoundsExtension()
-	, EnabledState(true)
-	, Visibility(EVisibility::Visible)
 	, RenderOpacity(1.0f)
 	, RenderTransform()
 	, RenderTransformPivot(FVector2D::ZeroVector)
@@ -354,8 +357,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void SWidget::SWidgetConstruct(const FSlateBaseNamedArgs& Args)
 {
-	EnabledState = Args._IsEnabled;
-	Visibility = Args._Visibility;
+	SetEnabled(Args._IsEnabled);
+	VisibilityAttribute.Assign(*this, Args._Visibility); // SetVisibility is virtual, assign directly to stay backward compatible
 	RenderOpacity = Args._RenderOpacity;
 	RenderTransform = Args._RenderTransform;
 	RenderTransformPivot = Args._RenderTransformPivot;
@@ -1174,20 +1177,19 @@ bool SWidget::IsDirectlyHovered() const
 
 void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
 {
-	SetAttribute(Visibility, InVisibility, EInvalidateWidgetReason::Visibility);
+	VisibilityAttribute.Assign(*this, MoveTemp(InVisibility));
 }
 
 void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
-	if (InvalidateReason == EInvalidateWidgetReason::None)
+	if (InvalidateReason == EInvalidateWidgetReason::None /*|| !IsConstructionCompleted()*/)
 	{
 		return;
 	}
 
 	SCOPED_NAMED_EVENT_TEXT("SWidget::Invalidate", FColor::Orange);
-	const bool bWasVolatile = IsVolatileIndirectly() || IsVolatile();
 
 	// Backwards compatibility fix:  Its no longer valid to just invalidate volatility since we need to repaint to cache elements if a widget becomes non-volatile. So after volatility changes force repaint
 	if (InvalidateReason == EInvalidateWidgetReason::Volatility)

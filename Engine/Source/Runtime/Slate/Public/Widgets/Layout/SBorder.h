@@ -136,11 +136,11 @@ protected:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	//~End SWidget overrides.
 
-	const FSlateBrush* GetBorderImageAttribute() const { return BorderImageAttribute.Get(); }
-	const FSlateColor& GetBorderBackgroundColor() const { return BorderBackgroundColorAttribute.Get(); }
-	const FVector2D& GetDesiredSizeScale() const { return DesiredSizeScaleAttribute.Get(); }
+	const FSlateBrush* GetBorderImage() const { return BorderImageAttribute.Get(); }
+	FSlateColor GetBorderBackgroundColor() const { return BorderBackgroundColorAttribute.Get(); }
+	FVector2D GetDesiredSizeScale() const { return DesiredSizeScaleAttribute.Get(); }
 	bool GetShowDisabledEffect() const { return ShowDisabledEffectAttribute.Get(); }
-	TSlateAttributeRef<const FSlateBrush*> GetBorderImageAttributeAttribute() const { return TSlateAttributeRef<const FSlateBrush*>(*this, BorderImageAttribute); }
+	TSlateAttributeRef<const FSlateBrush*> GetBorderImageAttribute() const { return TSlateAttributeRef<const FSlateBrush*>(*this, BorderImageAttribute); }
 	TSlateAttributeRef<FSlateColor> GetBorderBackgroundColorAttribute() const { return TSlateAttributeRef<FSlateColor>(*this, BorderBackgroundColorAttribute); }
 	TSlateAttributeRef<FVector2D> GetDesiredSizeScaleAttribute() const { return TSlateAttributeRef<FVector2D>(*this, DesiredSizeScaleAttribute); }
 	TSlateAttributeRef<bool> GetShowDisabledEffectAttribute() const { return TSlateAttributeRef<bool>(*this, ShowDisabledEffectAttribute); }

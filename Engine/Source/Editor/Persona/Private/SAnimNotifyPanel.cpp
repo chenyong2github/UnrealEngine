@@ -667,7 +667,7 @@ void SAnimNotifyPair::Construct(const FArguments& InArgs)
 
 	float ScaleMult = 1.0f;
 	FVector2D NodeSize = NodePtr->ComputeDesiredSize(ScaleMult);
-	Visibility = EVisibility::SelfHitTestInvisible;
+	SetVisibility(EVisibility::SelfHitTestInvisible);
 
 	this->ChildSlot
 		[

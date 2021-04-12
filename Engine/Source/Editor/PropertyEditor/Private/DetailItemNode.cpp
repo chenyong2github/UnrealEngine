@@ -711,21 +711,23 @@ FPropertyPath FDetailItemNode::GetPropertyPath() const
 
 TAttribute<bool> FDetailItemNode::IsPropertyEditingEnabled() const
 {
-	return TAttribute<bool>::Create([this]()
-		{
-			bool IsParentEnabledValue = IsParentEnabled.Get(true);
-			if (Customization.HasCustomWidget())
-			{
-				IDetailsViewPrivate* DetailsView = GetDetailsView();
-				if (DetailsView)
-				{
-					return IsParentEnabledValue && 
-						!DetailsView->IsCustomRowReadOnly(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString()));
-				}
-			}
+	return MakeAttributeSP(this, &FDetailItemNode::IsPropertyEditingEnabledImpl);
+}
 
-			return IsParentEnabledValue;
-		});
+bool FDetailItemNode::IsPropertyEditingEnabledImpl() const
+{
+	bool IsParentEnabledValue = IsParentEnabled.Get(true);
+	if (Customization.HasCustomWidget())
+	{
+		IDetailsViewPrivate* DetailsView = GetDetailsView();
+		if (DetailsView)
+		{
+			return IsParentEnabledValue &&
+				!DetailsView->IsCustomRowReadOnly(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString()));
+		}
+	}
+	
+	return IsParentEnabledValue;
 }
 
 TSharedPtr<FPropertyNode> FDetailItemNode::GetPropertyNode() const

@@ -33,7 +33,7 @@ public:
 		bUsePinColorForText = InArgs._UsePinColorForText;
 		this->SetCursor(EMouseCursor::Default);
 
-		Visibility = TAttribute<EVisibility>(this, &SCopyNodeGraphPin::GetPinVisiblity);
+		SetVisibility(MakeAttributeSP(this, &SCopyNodeGraphPin::GetPinVisiblity));
 
 		GraphPinObj = InPin;
 		check(GraphPinObj != NULL);

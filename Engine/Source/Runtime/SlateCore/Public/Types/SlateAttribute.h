@@ -221,6 +221,8 @@ struct FSlateDeprecatedTAttribute
 	FGetter GetBinding() const { return false; }
 
 	void Bind(const FGetter& InGetter) {}
+	template<class SourceType>
+	void Bind(SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) {}
 	bool IsBound() const { return false; }
 
 	bool IdenticalTo(const TAttribute<ObjectType>& InOther) const { return false; }

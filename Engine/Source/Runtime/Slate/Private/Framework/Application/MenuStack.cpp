@@ -95,7 +95,7 @@ namespace MenuStackInternal
 		void Construct(const FArguments& InArgs)
 		{
 			// The visibility of the content wrapper should match that of the provided content
-			Visibility = AccessWidgetVisibilityAttribute(InArgs._MenuContent.Widget);
+			SetVisibility(AccessWidgetVisibilityAttribute(InArgs._MenuContent.Widget));
 
 			OnKeyDownDelegate = InArgs._OnKeyDown;
 			OnMenuLostFocus = InArgs._OnMenuLostFocus;

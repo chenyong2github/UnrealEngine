@@ -936,15 +936,15 @@ public:
 	 *
 	 * @param InEnabledState	An attribute containing the enabled state or a delegate to call to get the enabled state.
 	 */
-	void SetEnabled(const TAttribute<bool>& InEnabledState)
+	void SetEnabled(TAttribute<bool> InEnabledState)
 	{
-		SetAttribute(EnabledState, InEnabledState, EInvalidateWidgetReason::Paint);
+		EnabledStateAttribute.Assign(*this, MoveTemp(InEnabledState));
 	}
 
 	/** @return Whether or not this widget is enabled */
 	FORCEINLINE bool IsEnabled() const
 	{
-		return EnabledState.Get();
+		return EnabledStateAttribute.Get();
 	}
 
 	/** @return Is this widget interactive or not? Defaults to false */
@@ -986,7 +986,7 @@ public:
 	 * @return is this widget visible, hidden or collapsed.
 	 * @note this widget can be visible but if a parent is hidden or collapsed, it would not show on screen.
 	 */
-	FORCEINLINE EVisibility GetVisibility() const { return Visibility.Get(); }
+	FORCEINLINE EVisibility GetVisibility() const { return VisibilityAttribute.Get(); }
 
 	/** @param InVisibility  should this widget be */
 	virtual void SetVisibility(TAttribute<EVisibility> InVisibility);
@@ -1563,7 +1563,7 @@ protected:
 	 */
 	virtual bool ComputeVolatility() const
 	{
-		return Visibility.IsBound() || EnabledState.IsBound() || RenderTransform.IsBound();
+		return RenderTransform.IsBound();
 	}
 
 	/**
@@ -1571,9 +1571,9 @@ protected:
 	 * 
 	 * @param Widget The widget to get the visibility attribute of
 	 */
-	static const TAttribute<EVisibility>& AccessWidgetVisibilityAttribute(const TSharedRef<SWidget>& Widget)
+	static TAttribute<EVisibility> AccessWidgetVisibilityAttribute(const TSharedRef<SWidget>& Widget)
 	{
-		return Widget->Visibility;
+		return Widget->VisibilityAttribute.ToAttribute(Widget.Get());
 	}
 
 	/**
@@ -1666,6 +1666,11 @@ protected:
 	{
 		return SetWidgetAttribute(*this, TargetValue, SourceValue, BaseInvalidationReason);
 	}
+
+	/** @return an attribute reference of EnabledStateAttribute */
+	TSlateAttributeRef<bool> GetEnabledStateAttribute() const { return TSlateAttributeRef<bool>(*this, EnabledStateAttribute); }
+	/** @return an attribute reference of VisibilityAttribute */
+	TSlateAttributeRef<EVisibility> GetVisibilityAttribute() const { return TSlateAttributeRef<EVisibility>(*this, VisibilityAttribute); }
 
 protected:
 	/** Dtor ensures that active timer handles are UnRegistered with the SlateApplication. */
@@ -1765,24 +1770,26 @@ protected:
 	}
 
 private:
+
 	/** Flow direction preference */
 	EFlowDirectionPreference FlowDirectionPreference;
 
 	/** The different updates this widget needs next frame. */
 	EWidgetUpdateFlags UpdateFlags;
 
-#if WITH_SLATE_DEBUGGING
-	/** The last time this widget got painted. */
-	uint32 LastPaintFrame = 0;
-#endif
-
 	mutable FSlateWidgetPersistentState PersistentState;
+
+	/** The list of active timer handles for this widget. */
+	TArray<TSharedRef<FActiveTimerHandle>> ActiveTimers;
 
 	/** Stores the ideal size this widget wants to be. */
 	TOptional<FVector2D> DesiredSize;
 
-	/** The list of active timer handles for this widget. */
-	TArray<TSharedRef<FActiveTimerHandle>> ActiveTimers;
+	/** Whether or not this widget is enabled */
+	TSlateAttribute<bool> EnabledStateAttribute;
+
+	/** Is this widget visible, hidden or collapsed */
+	TSlateAttribute<EVisibility> VisibilityAttribute;
 
 protected:
 
@@ -1795,11 +1802,14 @@ protected:
 	*/
 	FMargin CullingBoundsExtension;
 
+#if WITH_EDITORONLY_DATA
 	/** Whether or not this widget is enabled */
-	TAttribute< bool > EnabledState;
-
+	UE_DEPRECATED(5.0, "Direct access to EnabledState is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<bool> EnabledState;
 	/** Is this widget visible, hidden or collapsed */
-	TAttribute< EVisibility > Visibility;
+	UE_DEPRECATED(5.0, "Direct access to Visibility is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<EVisibility> Visibility;
+#endif
 
 	/** The opacity of the widget. Automatically applied during rendering. */
 	float RenderOpacity;
@@ -1817,24 +1827,29 @@ private:
 	/** Pointer to this widgets parent widget.  If it is null this is a root widget or it is not in the widget tree */
 	TWeakPtr<SWidget> ParentWidgetPtr;
 
+	/** Tag for this widget */
+	FName Tag;
+
 	/** Debugging information on the type of widget we're creating for the Widget Reflector. */
 	FName TypeOfWidget;
+
+private: 
 
 #if !UE_BUILD_SHIPPING
 	/** Full file path (and line) in which this widget was created */
 	FName CreatedInLocation;
 #endif
 
-	/** Tag for this widget */
-	FName Tag;
+#if WITH_SLATE_DEBUGGING
+	/** The last time this widget got painted. */
+	uint32 LastPaintFrame = 0;
+#endif
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	UE_DEPRECATED(4.27, "Access to SWidget::Cursor is deprecated and will not function. Call SetCursor/GetCursor instead")
 	/** The cursor to show when the mouse is hovering over this widget. */
 	TAttribute<TOptional<EMouseCursor::Type>> Cursor;
 #endif
-
-private:
 
 #if UE_SLATE_WITH_WIDGET_UNIQUE_IDENTIFIER
 	/** The widget's id */

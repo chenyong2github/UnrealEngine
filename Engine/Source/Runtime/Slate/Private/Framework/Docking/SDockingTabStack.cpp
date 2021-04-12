@@ -604,7 +604,7 @@ SDockingNode::ECleanupRetVal SDockingTabStack::CleanUpNodes()
 	}
 	else if (Tabs.Num() > 0)
 	{
-		Visibility = EVisibility::Collapsed;
+		SetVisibility(EVisibility::Collapsed);
 		return HistoryTabsUnderNode;
 	}
 	else
