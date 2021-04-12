@@ -28,23 +28,34 @@ Pass::Status StripReflectInfoPass::Process() {
 
   std::vector<Instruction*> to_remove;
 
+  // UE Change Begin: Remove all GOOGLE reflection extensions in this pass
+  auto MustRemoveDecoration = [](uint32_t decoration) {
+    return decoration == SpvDecorationHlslSemanticGOOGLE ||
+           decoration == SpvDecorationUserTypeGOOGLE;
+  };
+  // UE Change End: Remove all GOOGLE reflection extensions in this pass
+
   bool other_uses_for_decorate_string = false;
   for (auto& inst : context()->module()->annotations()) {
     switch (inst.opcode()) {
       case SpvOpDecorateStringGOOGLE:
-        if (inst.GetSingleWordInOperand(1) == SpvDecorationHlslSemanticGOOGLE) {
+        // UE Change Begin: Remove all GOOGLE reflection extensions in this pass
+        if (MustRemoveDecoration(inst.GetSingleWordInOperand(1))) {
           to_remove.push_back(&inst);
         } else {
           other_uses_for_decorate_string = true;
         }
+        // UE Change End: Remove all GOOGLE reflection extensions in this pass
         break;
 
       case SpvOpMemberDecorateStringGOOGLE:
-        if (inst.GetSingleWordInOperand(2) == SpvDecorationHlslSemanticGOOGLE) {
+        // UE Change Begin: Remove all GOOGLE reflection extensions in this pass
+        if (MustRemoveDecoration(inst.GetSingleWordInOperand(2))) {
           to_remove.push_back(&inst);
         } else {
           other_uses_for_decorate_string = true;
         }
+        // UE Change End: Remove all GOOGLE reflection extensions in this pass
         break;
 
       case SpvOpDecorateId:

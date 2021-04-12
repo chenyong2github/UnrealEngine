@@ -757,6 +757,25 @@ namespace CrossCompiler
 		}
 	}
 
+	bool FShaderConductorContext::DisassembleSpirv(const void* InSpirv, uint32 InSpirvByteSize, TArray<ANSICHAR>& OutAssemblyText)
+	{
+		// Initialize Blob with input SPIR-V code
+		ShaderConductor::Compiler::ResultDesc BinaryInput;
+		BinaryInput.isText = false;
+		BinaryInput.hasError = false;
+		BinaryInput.target = ShaderConductor::Blob(InSpirv, InSpirvByteSize);
+
+		// Disassemble via ShaderConductor interface
+		ShaderConductor::Compiler::ResultDesc TextOutput = ShaderConductor::Compiler::Disassemble(BinaryInput);
+		if (TextOutput.isText && !TextOutput.hasError)
+		{
+			// Convert and return output to ANSI string
+			ConvertByteArrayToAnsiString(reinterpret_cast<const ANSICHAR*>(TextOutput.target.Data()), TextOutput.target.Size(), OutAssemblyText);
+			return true;
+		}
+		return false;
+	}
+
 #else // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
 	FShaderConductorContext::FShaderConductorContext()
@@ -832,6 +851,11 @@ namespace CrossCompiler
 	void FShaderConductorContext::ConvertCompileErrors(const TArray<FString>& ErrorStringLines, TArray<FShaderCompilerError>& OutErrors)
 	{
 		// Dummy
+	}
+
+	bool FShaderConductorContext::DisassembleSpirv(const void* InSpirv, uint32 InSpirvByteSize, TArray<ANSICHAR>& OutAssemblyText)
+	{
+		return false; // Dummy
 	}
 
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX

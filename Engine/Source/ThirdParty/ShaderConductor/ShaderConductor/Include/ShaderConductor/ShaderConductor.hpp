@@ -272,9 +272,12 @@ namespace ShaderConductor
         // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
         static ResultDesc Rewrite(SourceDesc source, const Compiler::Options& options);
         // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
-		// UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
-		static ResultDesc Optimize(const ResultDesc& binaryResult, const char* const * optConfigs, uint32_t numOptConfigs);
+        // UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+        static ResultDesc Optimize(const ResultDesc& binaryResult, const char* const* optConfigs, uint32_t numOptConfigs);
         // UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+        // UE Change Begin: Add disassembler to public interface
+        static ResultDesc Disassemble(const ResultDesc& binaryResult);
+        // UE Change End: Add disassembler to public interface
 
         // Currently only Dxil on Windows supports linking
         static bool LinkSupport();

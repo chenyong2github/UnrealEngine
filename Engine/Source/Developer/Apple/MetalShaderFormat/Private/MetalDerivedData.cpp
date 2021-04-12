@@ -440,6 +440,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			if (bDumpDebugInfo)
 			{
 				DumpDebugShaderBinary(Input, SpirvData.GetData(), SpirvData.Num() * sizeof(uint32), TEXT("spv"));
+				DumpDebugShaderDisassembledSpirv(Input, SpirvData.GetData(), SpirvData.Num() * sizeof(uint32), TEXT("spvasm"));
 			}
 			
 			// Now perform reflection on the SPIRV and tweak any decorations that we need to.

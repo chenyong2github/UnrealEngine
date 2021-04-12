@@ -24,10 +24,6 @@ THIRD_PARTY_INCLUDES_END
 #endif
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
-// Glslang's 'spv::Disassemble' function needs STL's <std::ostream>,
-// so we dump out SPIR-V disassembled ASM for debugging purposes using STL's fstream
-#include <fstream>
-
 #if PLATFORM_MAC
 // Horrible hack as we need the enum available but the Vulkan headers do not compile on Mac
 enum VkDescriptorType {
@@ -2233,29 +2229,10 @@ static void BuildShaderOutputFromSpirv(
 
 	if (bDebugDump)
 	{
-		// Write meta data to debug output file
+		// Write meta data to debug output file and write SPIR-V dump in binary and text form
 		DumpDebugShaderText(Input, MetaData, TEXT("meta.txt"));
-
-		// SPIR-V file (Binary)
 		DumpDebugShaderBinary(Input, Spirv.GetByteData(), Spirv.GetByteSize(), TEXT("spv"));
-
-		//@todo-lh: move this also to ShaderCompilerCommon module
-		// Disassembled SPIR-V file (Text)
-		const FString DisAsmSpvFilename = Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename()) + TEXT(".spvasm");
-		std::ofstream File;
-		File.open(TCHAR_TO_ANSI(*DisAsmSpvFilename), std::fstream::out);
-		if (File.is_open())
-		{
-			// Convert to STL container for glslang library
-			std::vector<uint32> SpirvData;
-			SpirvData.resize(Spirv.Data.Num());
-			FMemory::Memcpy(&SpirvData[0], Spirv.GetByteData(), Spirv.GetByteSize());
-
-			// Emit disassembled SPIR-V
-			spv::Parameterize();
-			spv::Disassemble(File, SpirvData);
-			File.close();
-		}
+		DumpDebugShaderDisassembledSpirv(Input, Spirv.GetByteData(), Spirv.GetByteSize(), TEXT("spvasm"));
 	}
 }
 

@@ -813,7 +813,7 @@ namespace
                 Unicode::UTF8ToUTF16String(options.DXCArgs[arg], &argUTF16);
                 if (argUTF16.compare(0, 8, L"-Oconfig") == 0)
                 {
-					// Replace previous '-O' argument with the custom configuration
+                    // Replace previous '-O' argument with the custom configuration
                     auto dxcOptArgIter = std::find_if(dxcArgStrings.begin(), dxcArgStrings.end(),
                                                       [](const std::wstring& entry) { return entry.compare(0, 2, L"-O") == 0; });
                     if (dxcOptArgIter != dxcArgStrings.end())
@@ -996,7 +996,7 @@ namespace
         opts.flatten_multidimensional_arrays = false;
         opts.enable_420pack_extension =
             (target.language == ShadingLanguage::Glsl) && ((target.version == nullptr) || (opts.version >= 420));
-		opts.vulkan_semantics = true;// false; //WIP
+        opts.vulkan_semantics = true;// false; //WIP
         opts.vertex.fixup_clipspace = opts.es;
         opts.vertex.flip_vert_y = opts.es;
         opts.vertex.support_nonzero_base_instance = true;
@@ -1521,16 +1521,16 @@ namespace ShaderConductor
     }
     // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
 
-	// UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+    // UE Change Begin: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
     Compiler::ResultDesc Compiler::Optimize(const ResultDesc& binaryResult, const char* const* optConfigs, uint32_t numOptConfigs)
-	{
+    {
         Compiler::ResultDesc result;
         result.isText = false;
         result.hasError = false;
 
         spvtools::Optimizer optimizer(SPV_ENV_UNIVERSAL_1_3);
 
-		std::string messages;
+        std::string messages;
         optimizer.SetMessageConsumer([&messages](spv_message_level_t /*level*/, const char* /*filename*/,
                                                  const spv_position_t& /*position*/, const char* msg) { messages += msg; });
 
@@ -1565,6 +1565,41 @@ namespace ShaderConductor
         return result;
     }
     // UE Change End: Allow optimization after source-to-spirv conversion and before spirv-to-source cross-compilation
+
+    // UE Change Begin: Add disassembler to public interface
+    Compiler::ResultDesc Compiler::Disassemble(const ResultDesc& binaryResult)
+    {
+        ResultDesc textResult;
+        textResult.isText = false;
+        textResult.hasError = false;
+
+        if (binaryResult.isText || binaryResult.hasError)
+        {
+            textResult.hasError = true;
+            return textResult;
+        }
+
+        spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_3);
+
+        const uint32_t* spirvData = reinterpret_cast<const uint32_t*>(binaryResult.target.Data());
+        const size_t spirvDataSize = binaryResult.target.Size();
+        const size_t spirvDataWordSize = spirvDataSize / sizeof(uint32_t);
+
+        std::string text;
+        const uint32_t options =
+            SPV_BINARY_TO_TEXT_OPTION_INDENT | SPV_BINARY_TO_TEXT_OPTION_COMMENT | SPV_BINARY_TO_TEXT_OPTION_FRIENDLY_NAMES;
+        if (!tools.Disassemble(spirvData, spirvDataWordSize, &text, options))
+        {
+            textResult.hasError = true;
+            return textResult;
+        }
+
+        textResult.isText = true;
+        textResult.target = Blob(text.data(), static_cast<uint32_t>(text.size()));
+
+        return textResult;
+    }
+    // UE Change End: Add disassembler to public interface
 
     bool Compiler::LinkSupport()
     {

@@ -1591,6 +1591,19 @@ void DumpDebugShaderBinary(const FShaderCompilerInput& Input, void* InData, int3
 	}
 }
 
+void DumpDebugShaderDisassembledSpirv(const FShaderCompilerInput& Input, void* InData, int32 InDataByteSize, const FString& FileExtension)
+{
+	if (InData != nullptr && InDataByteSize > 0 && !FileExtension.IsEmpty())
+	{
+		TArray<ANSICHAR> AssemblyText;
+		if (CrossCompiler::FShaderConductorContext::DisassembleSpirv(InData, InDataByteSize, AssemblyText))
+		{
+			// Assembly text contains NUL terminator, so text lenght is |array|-1
+			DumpDebugShaderText(Input, AssemblyText.GetData(), AssemblyText.Num() - 1, FileExtension);
+		}
+	}
+}
+
 namespace CrossCompiler
 {
 	FString CreateResourceTableFromEnvironment(const FShaderCompilerEnvironment& Environment)
