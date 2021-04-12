@@ -149,6 +149,10 @@ UDisplayClusterBlueprint* FDisplayClusterConfiguratorUtils::FindBlueprintFromObj
 				return Cast<UDisplayClusterBlueprint>(Blueprint);
 			}
 		}
+		else if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(Owner->GetClass()))
+		{
+			return Cast<UDisplayClusterBlueprint>(Blueprint);
+		}
 	}
 
 	return nullptr;

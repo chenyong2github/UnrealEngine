@@ -349,10 +349,10 @@ public:
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY()
+	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
-	UPROPERTY()
+	UPROPERTY(VisibleInstanceOnly, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
@@ -362,7 +362,7 @@ public:
 	UPROPERTY()
 	bool bIsEnabled;
 
-	UPROPERTY(EditAnywhere, Category = nDisplay)
+	UPROPERTY(EditDefaultsOnly, Category = nDisplay)
 	FDisplayClusterConfigurationExternalImage PreviewImage;
 #endif
 
@@ -435,7 +435,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationNetworkSettings Network;
 
-	UPROPERTY()
+	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 #if WITH_EDITORONLY_DATA
@@ -617,19 +617,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(Export)
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
 
-	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(Export)
 	UDisplayClusterConfigurationInput* Input;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	TMap<FString, FString> CustomParameters;
 
-	UPROPERTY(VisibleAnywhere, Category = nDisplay)
+	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
 #if WITH_EDITORONLY_DATA

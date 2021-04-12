@@ -173,7 +173,7 @@ private:
 	/**
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
-	UPROPERTY(Instanced, DuplicateTransient)
+	UPROPERTY(VisibleAnywhere, Instanced, DuplicateTransient, Category = "Config Data")
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 	UPROPERTY()

@@ -108,7 +108,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	FString Camera;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditDefaultsOnly, Category = "Display Cluster Viewport")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
