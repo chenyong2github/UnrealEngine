@@ -1080,27 +1080,31 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, TAr
 		// if there is a function node, it might have delegated some of the static switch values inside its script graph
 		// to be set by the next higher caller instead of directly by the user
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
-		if (FunctionNode && FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
+		if (FunctionNode)
 		{
-			for (const FNiagaraPropagatedVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
-			{
-				UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.SwitchParameter.GetName(), EGPD_Input);
-				if (!ValuePin)
-				{
-					continue;
-				}
-				ValuePin->DefaultValue = FString();
-				FName PinName = SwitchValue.ToVariable().GetName();
-				for (UEdGraphPin* InputPin : CallInputs)
-				{
-					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
-					{
-						ValuePin->DefaultValue = InputPin->DefaultValue;
-						break;
-					}
-				}				
-			}
+			FunctionNode->DebugState = FunctionNode->bInheritDebugStatus? ConstantResolver.GetDebugState() : ENiagaraFunctionDebugState::NoDebug;
 
+			if (FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
+			{
+				for (const FNiagaraPropagatedVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
+				{
+					UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.SwitchParameter.GetName(), EGPD_Input);
+					if (!ValuePin)
+					{
+						continue;
+					}
+					ValuePin->DefaultValue = FString();
+					FName PinName = SwitchValue.ToVariable().GetName();
+					for (UEdGraphPin* InputPin : CallInputs)
+					{
+						if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
+						{
+							ValuePin->DefaultValue = InputPin->DefaultValue;
+							break;
+						}
+					}
+				}
+			}
 		}
 	}
 }

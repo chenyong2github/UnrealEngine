@@ -123,6 +123,7 @@ void FNiagaraConstants::Init()
 		SwitchParameters.Add(SYS_PARAM_EMITTER_SIMULATION_TARGET);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
 		SwitchParameters.Add(SYS_PARAM_SCRIPT_CONTEXT);
+		SwitchParameters.Add(SYS_PARAM_FUNCTION_DEBUG_STATE);
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)

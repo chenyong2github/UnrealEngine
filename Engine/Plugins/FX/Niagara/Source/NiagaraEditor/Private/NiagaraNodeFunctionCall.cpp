@@ -740,7 +740,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 		// parameter map that sets the input values for our function. This is mainly done to prevent data interfaces being
 		// initialized as parameter when they are not used in the function or module.
 		TSet<FName> HiddenPinNames;
-		for (UEdGraphPin* Pin : FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(*this, FCompileConstantResolver(Translator)))
+		for (UEdGraphPin* Pin : FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(*this, FCompileConstantResolver(Translator, DebugState)))
 		{
 			HiddenPinNames.Add(Pin->PinName);
 		}
@@ -826,7 +826,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 			}
 		}
 
-		FCompileConstantResolver ConstantResolver(Translator);
+		FCompileConstantResolver ConstantResolver(Translator, DebugState);
 		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins, ConstantResolver);
 		Translator->ExitFunctionCallNode();
 	}
@@ -1215,7 +1215,10 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		FPinCollectorArray InputPins;
 		GetInputPins(InputPins);
+
+		ENiagaraFunctionDebugState OldDebugState = OutHistory.ConstantResolver.SetDebugState(DebugState);
 		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, OutHistory.ConstantResolver);
+		OutHistory.ConstantResolver.SetDebugState(OldDebugState);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
@@ -1306,7 +1309,10 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FNa
 			// Set the static switch values so we traverse the correct node paths
 			TArray<UEdGraphPin*> InputPins;
 			GetInputPins(InputPins);
+
+			ENiagaraFunctionDebugState PreviousDebugState = ConstantResolver.SetDebugState(DebugState);
 			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver);
+			ConstantResolver.SetDebugState(PreviousDebugState);
 			
 			return ScriptSource->NodeGraph->FindParameterMapDefaultValuePin(VariableName, FunctionScript->GetUsage(), InParentUsage);
 		}

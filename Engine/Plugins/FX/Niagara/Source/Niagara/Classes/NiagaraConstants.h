@@ -131,6 +131,7 @@
 #define SYS_PARAM_INSTANCE_ALIVE                         INiagaraModule::GetVar_DataInstance_Alive()
 #define SYS_PARAM_SCRIPT_USAGE                           INiagaraModule::GetVar_ScriptUsage()
 #define SYS_PARAM_SCRIPT_CONTEXT                         INiagaraModule::GetVar_ScriptContext()
+#define SYS_PARAM_FUNCTION_DEBUG_STATE					 INiagaraModule::GetVar_FunctionDebugState()
 #define TRANSLATOR_PARAM_BEGIN_DEFAULTS                  INiagaraModule::GetVar_BeginDefaults()
 #define TRANSLATOR_PARAM_CALL_ID                  		 INiagaraModule::GetVar_CallID()
 

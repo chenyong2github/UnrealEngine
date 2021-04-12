@@ -155,6 +155,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SimulationTarget() { return Emitter_SimulationTarget; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_ScriptUsage() { return ScriptUsage; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_ScriptContext() { return ScriptContext; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_FunctionDebugState() { return FunctionDebugState; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_InterpSpawnStartDt() { return Emitter_InterpSpawnStartDt; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnGroup() { return Emitter_SpawnGroup; }
 
@@ -314,6 +315,7 @@ private:
 
 	static FNiagaraVariable ScriptUsage;
 	static FNiagaraVariable ScriptContext;
+	static FNiagaraVariable FunctionDebugState;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
 	static FNiagaraVariable Translator_CallID;

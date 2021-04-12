@@ -18,6 +18,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
+#include "NiagaraNodeFunctionCall.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
@@ -192,7 +193,8 @@ void UNiagaraNodeStaticSwitch::SetSwitchValue(const FCompileConstantResolver& Co
 			SwitchValue = Constant.GetValue<bool>();
 			IsValueSet = true;
 		}
-		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer || SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer ||
+			SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
 		{
 			SwitchValue = Constant.GetValue<int32>();
 			IsValueSet = true;
@@ -209,6 +211,11 @@ void UNiagaraNodeStaticSwitch::ClearSwitchValue()
 bool UNiagaraNodeStaticSwitch::IsSetByCompiler() const
 {
 	return !SwitchTypeData.SwitchConstant.IsNone();
+}
+
+bool UNiagaraNodeStaticSwitch::IsDebugSwitch() const
+{
+	return SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.SwitchConstant == TEXT("Function.DebugState") && SwitchTypeData.Enum == FNiagaraTypeDefinition::GetFunctionDebugStateEnum();
 }
 
 void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter)
@@ -293,7 +300,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 
 void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslator* Translator)
 {
-	if (!IsSetByCompiler() || !Translator)
+	if (!IsSetByCompiler() || IsDebugSwitch() || !Translator)
 	{
 		return;
 	}
@@ -349,7 +356,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 			Translator->Error(FText::Format(LOCTEXT("InvalidSwitchMaxIntValue", "Invalid max int value {0} for static switch."), FText::FromString(FString::FromInt(Value))), this, nullptr);
 		}
 	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
+	else if ((SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum))
 	{
 		TArray<int32> OptionValues = GetOptionValues();
 
