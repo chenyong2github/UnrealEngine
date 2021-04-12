@@ -13893,7 +13893,7 @@ bool FMaterialLayersFunctions::ResolveParent(const FMaterialLayersFunctions& Par
 
 		if (bHasUninitializedLinks)
 		{
-			// If we had any unitialized links, this means we're loading data saved by a previous version of UE4
+			// If we had any unitialized links, this means we're loading data saved by a previous version of UE
 			// In this case, we have no way of determining if this layer was added to parent (and should therefore be kept),
 			// or if this layer was explicitly deleted from child (and should therefore remain deleted).
 			// In order to avoid needlessly changing legacy materials, we assume the layer was explicitly deleted, so we keep it deleted here

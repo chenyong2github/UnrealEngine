@@ -290,7 +290,7 @@ private:
 	virtual void InitDynamicRHI() override;
 	virtual void ReleaseDynamicRHI() override;
 
-	// @todo UE4 DLL: Without these functions we get unresolved linker errors with FRenderResource
+	// @todo DLL: Without these functions we get unresolved linker errors with FRenderResource
 	virtual void InitRHI() override {}
 	virtual void ReleaseRHI() override {}
 	virtual void InitResource() override { FViewport::InitResource(); }

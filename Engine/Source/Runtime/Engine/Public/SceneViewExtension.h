@@ -15,7 +15,7 @@
  *  SCENE VIEW EXTENSIONS
  *  -----------------------------------------------------------------------------------------------
  *
- *  This system lets you hook various aspects of UE4 rendering.
+ *  This system lets you hook various aspects of UE rendering.
  *  To create a view extension, it is advisable to inherit
  *  from FSceneViewExtensionBase, which implements the
  *  ISceneViewExtension interface.

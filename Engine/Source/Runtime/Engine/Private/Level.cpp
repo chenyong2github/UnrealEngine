@@ -1530,7 +1530,7 @@ void ULevel::CreateModelComponents()
 			if (NodeGroup->Nodes.Num())
 			{
 				// get one of the surfaces/components from the NodeGroup
-				// @todo UE4: Remove need for GetSurfaceLightMapResolution to take a surfaceindex, or a ModelComponent :)
+				// @todo: Remove need for GetSurfaceLightMapResolution to take a surfaceindex, or a ModelComponent :)
 				UModelComponent* SomeModelComponent = ModelComponents[Model->Nodes[NodeGroup->Nodes[0]].ComponentIndex];
 				int32 SurfaceIndex = Model->Nodes[NodeGroup->Nodes[0]].iSurf;
 

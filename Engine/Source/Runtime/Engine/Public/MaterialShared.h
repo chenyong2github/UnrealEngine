@@ -2716,7 +2716,7 @@ ENGINE_API bool DoesMaterialUseTexture(const UMaterialInterface* Material,const 
 
 #if WITH_EDITORONLY_DATA
 /** TODO - This can be removed whenever VER_UE4_MATERIAL_ATTRIBUTES_REORDERING is no longer relevant. */
-ENGINE_API void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UE4Ver, int32 RenderObjVer);
+ENGINE_API void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UEVer, int32 RenderObjVer);
 #endif // WITH_EDITORONLY_DATA
 
 /**

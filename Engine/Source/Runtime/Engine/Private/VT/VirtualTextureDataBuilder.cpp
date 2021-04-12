@@ -561,7 +561,7 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 
 		// We can't split crunch compression into multiple tasks/threads, since all tiles need to compress together in order to generate the codec payload
 		// Instead we rely on internal Crunch threading to make this efficient
-		// Might be worth modifying Crunch to expose threading callbacks, so this can use UE4 task graph instead of Crunch's internal threadpool
+		// Might be worth modifying Crunch to expose threading callbacks, so this can use UE task graph instead of Crunch's internal threadpool
 		if (bAllowAsync && FApp::ShouldUseThreadingForPerformance())
 		{
 			CrunchParameters.NumWorkerThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
@@ -917,7 +917,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 
 		FTextureSourceBlockData& BlockData = SourceBlocks[BlockIndex];
 		BlockData.BlockX = SourceBlockData.BlockX;
-		// UE4 applies a (1-y) transform to imported UVs, so apply a similar transform to UDIM block locations here
+		// UE applies a (1-y) transform to imported UVs, so apply a similar transform to UDIM block locations here
 		// This ensures that UDIM tiles will appear in the correct location when sampled with transformed UVs
 		BlockData.BlockY = (SizeInBlocksY - SourceBlockData.BlockY) % SizeInBlocksY;
 		BlockData.NumMips = SourceBlockData.NumMips;

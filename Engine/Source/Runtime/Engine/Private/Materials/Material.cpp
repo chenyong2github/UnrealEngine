@@ -4045,40 +4045,40 @@ void UMaterial::PostLoad()
 	LoadedMaterialResources.Empty();
 
 #if WITH_EDITORONLY_DATA
-	const int32 UE4Ver = GetLinkerUEVersion();
+	const int32 UEVer = GetLinkerUEVersion();
 	const int32 RenderObjVer = GetLinkerCustomVersion(FRenderingObjectVersion::GUID);
 
-	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&BaseColor, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Metallic, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Specular, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Roughness, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Anisotropy, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Normal, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Tangent, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&EmissiveColor, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Opacity, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&OpacityMask, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&WorldPositionOffset, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&WorldDisplacement, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&TessellationMultiplier, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&SubsurfaceColor, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&ClearCoat, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&ClearCoatRoughness, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&AmbientOcclusion, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&Refraction, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[0], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[1], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[2], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[3], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[4], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[5], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[6], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[7], UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&PixelDepthOffset, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UE4Ver, RenderObjVer);
-	DoMaterialAttributeReorder(&FrontMaterial, UE4Ver, RenderObjVer);
+	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&BaseColor, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Metallic, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Specular, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Roughness, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Anisotropy, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Normal, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Tangent, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&EmissiveColor, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Opacity, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&OpacityMask, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&WorldPositionOffset, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&WorldDisplacement, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&TessellationMultiplier, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&SubsurfaceColor, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&ClearCoat, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&ClearCoatRoughness, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&AmbientOcclusion, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&Refraction, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[0], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[1], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[2], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[3], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[4], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[5], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[6], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[7], UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&PixelDepthOffset, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&FrontMaterial, UEVer, RenderObjVer);
 #endif // WITH_EDITORONLY_DATA
 
 	if (!IsDefaultMaterial())

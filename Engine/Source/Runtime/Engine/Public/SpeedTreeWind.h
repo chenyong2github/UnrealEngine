@@ -14,7 +14,7 @@
 //		IDV, Inc.
 //		Web: http://www.idvinc.com
 
-//  SpeedTree v6.2.2 wind class rewritten for use inside UE4 with no other dependencies
+//  SpeedTree v6.2.2 wind class rewritten for use inside UE with no other dependencies
 
 #pragma once
 

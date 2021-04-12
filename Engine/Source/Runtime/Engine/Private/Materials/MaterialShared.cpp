@@ -4086,11 +4086,11 @@ bool UMaterialInterface::IsTextureReferencedByProperty(EMaterialProperty InPrope
 //Reorder the output index for any FExpressionInput connected to a UMaterialExpressionBreakMaterialAttributes.
 //If the order of pins in the material results or the make/break attributes nodes changes 
 //then the OutputIndex stored in any FExpressionInput coming from UMaterialExpressionBreakMaterialAttributes will be wrong and needs reordering.
-void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UE4Ver, int32 RenderObjVer)
+void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UEVer, int32 RenderObjVer)
 {
 	if( Input && Input->Expression && Input->Expression->IsA(UMaterialExpressionBreakMaterialAttributes::StaticClass()) )
 	{
-		if( UE4Ver < VER_UE4_MATERIAL_ATTRIBUTES_REORDERING )
+		if(UEVer < VER_UE4_MATERIAL_ATTRIBUTES_REORDERING )
 		{
 			switch(Input->OutputIndex)
 			{
@@ -4101,7 +4101,7 @@ void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UE4Ver, int32 Ren
 			}
 		}
 		
-		if( UE4Ver < VER_UE4_FIX_REFRACTION_INPUT_MASKING && Input->OutputIndex == 13 )
+		if(UEVer < VER_UE4_FIX_REFRACTION_INPUT_MASKING && Input->OutputIndex == 13 )
 		{
 			Input->Mask = 1;
 			Input->MaskR = 1;
@@ -4111,7 +4111,7 @@ void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UE4Ver, int32 Ren
 		}
 
 		// closest version to the clear coat change
-		if( UE4Ver < VER_UE4_ADD_ROOTCOMPONENT_TO_FOLIAGEACTOR && Input->OutputIndex >= 12 )
+		if(UEVer < VER_UE4_ADD_ROOTCOMPONENT_TO_FOLIAGEACTOR && Input->OutputIndex >= 12 )
 		{
 			Input->OutputIndex += 2;
 		}
