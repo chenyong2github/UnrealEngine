@@ -1466,7 +1466,6 @@ void UMeshPaintingSubsystem::ClearPaintableMeshComponents()
 void UMeshPaintingSubsystem::ResetState()
 {
 	PaintableComponents.Empty();
-	ComponentToAdapterMap.Empty();
 	SelectedMeshComponents.Empty();
 }
 

@@ -95,7 +95,7 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	FinishPainting();
 	// If the user has pending changes and the editor is not exiting, we want to do the commit for all the modified textures.
-	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested())
+	if ((GetNumberOfPendingPaintChanges() > 0) && !IsEngineExitRequested() && ShutdownType != EToolShutdownType::Cancel)
 	{
 		CommitAllPaintedTextures();
 	}
@@ -553,8 +553,8 @@ void UMeshTexturePaintingTool::OnUpdateDrag(const FRay& Ray)
 
 void UMeshTexturePaintingTool::OnEndDrag(const FRay& Ray)
 {
-	FinishPainting();
 	FinishPaintingTexture();
+	FinishPainting();
 	bStampPending = false;
 	bInDrag = false;
 }
