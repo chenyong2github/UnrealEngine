@@ -7,6 +7,7 @@
 
 class FArchive;
 class FName;
+struct FBlake3Hash;
 
 /**
  * A compressed buffer stores compressed data in a self-contained format.
@@ -63,6 +64,9 @@ public:
 
 	/** Returns the size of the raw data. Zero on error or if this is empty or null. */
 	[[nodiscard]] CORE_API uint64 GetRawSize() const;
+
+	/** Returns the hash of the raw data. Zero on error or if this is null. */
+	[[nodiscard]] CORE_API FBlake3Hash GetRawHash() const;
 
 	/**
 	 * Decompress into a memory view that is exactly GetRawSize() bytes.
