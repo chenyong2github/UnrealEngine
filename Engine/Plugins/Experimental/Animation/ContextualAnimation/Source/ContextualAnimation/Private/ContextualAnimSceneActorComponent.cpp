@@ -27,13 +27,23 @@ FBoxSphereBounds UContextualAnimSceneActorComponent::CalcBounds(const FTransform
 void UContextualAnimSceneActorComponent::OnRegister()
 {
 	Super::OnRegister();
-	UContextualAnimManager::Get(GetWorld())->RegisterSceneActorComponent(this);
+	UContextualAnimManager* ContextAnimManager = UContextualAnimManager::Get(GetWorld());
+	if (ensure(!bRegistered) && ensureMsgf(ContextAnimManager, TEXT("Failed to find contextual animation manager for world '%s'"), *GetWorld()->GetName()))
+	{
+		ContextAnimManager->RegisterSceneActorComponent(this);
+		bRegistered = true;
+	}
 }
 
 void UContextualAnimSceneActorComponent::OnUnregister()
 {
 	Super::OnUnregister();
-	UContextualAnimManager::Get(GetWorld())->UnregisterSceneActorComponent(this);
+	UContextualAnimManager* ContextAnimManager = UContextualAnimManager::Get(GetWorld());
+	if (bRegistered && ensureMsgf(ContextAnimManager, TEXT("Failed to find contextual animation manager for world '%s'"), *GetWorld()->GetName()))
+	{
+		ContextAnimManager->UnregisterSceneActorComponent(this);
+		bRegistered = false;
+	}
 }
 
 void UContextualAnimSceneActorComponent::OnJoinedScene(const FContextualAnimSceneActorData* SceneActorData)

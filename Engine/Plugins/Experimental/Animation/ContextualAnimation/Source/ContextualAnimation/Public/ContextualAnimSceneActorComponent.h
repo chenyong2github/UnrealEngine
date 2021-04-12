@@ -81,4 +81,8 @@ protected:
 	 */
 	UFUNCTION()
 	void OnTickPose(class USkinnedMeshComponent* SkinnedMeshComponent, float DeltaTime, bool bNeedsValidRootMotion);
+
+private:
+
+	bool bRegistered = false;
 };
