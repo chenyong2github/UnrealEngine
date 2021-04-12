@@ -1212,12 +1212,12 @@ void* FMetalDynamicRHI::RHIGetNativeDevice()
 
 void* FMetalDynamicRHI::RHIGetNativeGraphicsQueue()
 {
-	return ImmediateContext.GetInternalContext().GetCommandQueue().CommandQueue;
+	return ImmediateContext.GetInternalContext().GetCommandQueue().GetQueue();
 }
 
 void* FMetalDynamicRHI::RHIGetNativeComputeQueue()
 {
-	return ImmediateContext.GetInternalContext().GetCommandQueue().CommandQueue;
+	return ImmediateContext.GetInternalContext().GetCommandQueue().GetQueue();
 }
 
 void* FMetalDynamicRHI::RHIGetNativeInstance()
