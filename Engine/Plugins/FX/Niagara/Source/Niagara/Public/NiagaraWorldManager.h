@@ -132,6 +132,9 @@ public:
 	/** Called after all actor tick groups are complete. */
 	void PostActorTick(float DeltaSeconds);
 
+	/** Called before we run end of frame updates, allows us to wait on async work. */
+	void PreSendAllEndOfFrameUpdates();
+
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 	void OnPostWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 
@@ -258,6 +261,7 @@ private:
 	static FDelegateHandle OnPreWorldFinishDestroyHandle;
 	static FDelegateHandle OnWorldBeginTearDownHandle;
 	static FDelegateHandle TickWorldHandle;
+	static FDelegateHandle OnWorldPreSendAllEndOfFrameUpdatesHandle;
 	static FDelegateHandle PreGCHandle;
 	static FDelegateHandle PostReachabilityAnalysisHandle;
 	static FDelegateHandle PostGCHandle;
