@@ -101,6 +101,7 @@ namespace Gauntlet
 
 		IAppInstance Run(IAppInstall App);
 
+		string GetPackagedExecutableLocation() { return null; }
 	};
 
 
