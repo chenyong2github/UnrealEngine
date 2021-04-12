@@ -22,6 +22,7 @@ public class DisplayClusterConfigurator : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DesktopPlatform",
+				"BlueprintGraph",
 				"GraphEditor",
 				"EditorStyle",
 				"EditorSubsystem",

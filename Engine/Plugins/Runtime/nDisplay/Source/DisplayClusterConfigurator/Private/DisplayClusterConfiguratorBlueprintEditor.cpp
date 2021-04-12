@@ -135,8 +135,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	BindCommands();
 	
 	RegisterMenus();
-
-	TSharedRef<FApplicationMode> BlueprintMode = MakeShared<FDisplayClusterConfiguratorEditorBlueprintMode>(Editor);
+	
 	TSharedRef<FApplicationMode> ConfigurationMode = MakeShared<FDisplayClusterConfiguratorEditorConfigurationMode>(Editor);
 	
 	{
@@ -155,7 +154,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	}
 
 	AddApplicationMode(ConfigurationMode->GetModeName(), ConfigurationMode);
-	AddApplicationMode(BlueprintMode->GetModeName(), BlueprintMode);
 	
 	const TArray<UBlueprint*> Blueprints{ Blueprint };
 	CommonInitialization(Blueprints, false);
@@ -385,6 +383,28 @@ void FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpda
 void FDisplayClusterConfiguratorBlueprintEditor::ReselectObjects()
 {
 	SelectObjects(SelectedObjects, false);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::RestoreLastEditedState()
+{
+	check(IsEditingSingleBlueprint());
+
+	UBlueprint* Blueprint = GetBlueprintObj();
+	for (const FEditedDocumentInfo& Document : Blueprint->LastEditedDocuments)
+	{
+		if (UObject* Obj = Document.EditedObjectPath.ResolveObject())
+		{
+			TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Obj, FDocumentTracker::RestorePreviousDocument);
+		}
+	}
+
+	// Small hack to make sure our viewport is focused by default. Restoring documents seem to override
+	// the focused tab from blueprint editor modes.
+	if (TabManager->HasTabSpawner(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport) &&
+		TabManager->FindExistingLiveTab(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport))
+	{
+		TabManager->TryInvokeTab(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport);
+	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::UpdateOutputMappingPreview()

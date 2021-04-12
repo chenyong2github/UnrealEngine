@@ -85,6 +85,9 @@ public:
 	/** Reselects selected objects. Useful if recompiling as sometimes the details panel loses focus. */
 	void ReselectObjects();
 
+	/** Restores previously open documents. */
+	void RestoreLastEditedState();
+
 protected:
 	/** Applies preview texture to all output mapping viewport nodes. */
 	void UpdateOutputMappingPreview();

@@ -36,6 +36,9 @@ public:
 
 	/** Create initial config data and components. */
 	static void SetupNewBlueprint(UDisplayClusterBlueprint* NewBlueprint);
+
+	/** Perform one time setup of open documents. */
+	static void SetupInitialBlueprintDocuments(UDisplayClusterBlueprint* NewBlueprint);
 private:
 	void OnConfigureNewAssetRequest(UFactory* InFactory);
 
