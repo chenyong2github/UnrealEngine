@@ -494,6 +494,15 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zp8");
 			}
 
+			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Off)
+			{
+				Arguments.Add("/wd4996");
+			}
+			else if(CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
+			{
+				Arguments.Add("/we4996");
+			}
+
 			//@todo: Disable warnings for VS2015. These should be reenabled as we clear the reasons for them out of the engine source and the VS2015 toolchain evolves.
 			if (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED)
 			{
