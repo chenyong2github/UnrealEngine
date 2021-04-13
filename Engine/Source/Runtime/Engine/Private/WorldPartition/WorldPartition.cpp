@@ -1086,6 +1086,9 @@ void UWorldPartition::FinalizeGeneratedPackageForCook()
 {
 	check(RuntimeHash);
 	RuntimeHash->FinalizeGeneratedPackageForCook();
+
+	// Apply remapping of Persistent Level's SoftObjectPaths
+	FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
 }
 
 void UWorldPartition::SavePerUserSettings()
