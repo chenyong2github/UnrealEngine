@@ -14,6 +14,7 @@
 #include "Misc/MemStack.h"
 #include "GameFramework/Character.h"
 #include "ContextualAnimActorInterface.h"
+#include "Components/SkeletalMeshComponent.h"
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
