@@ -18,7 +18,7 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 
 	int32 Result = ExecuteUnrealPak(FCommandLine::Get())? 0 : 1;
 
-	UE_LOG(LogPakFile, Display, TEXT("Unreal pak executed in %f seconds"), FPlatformTime::Seconds() - StartTime);
+	UE_LOG(LogPakFile, Display, TEXT("UnrealPak executed in %f seconds"), FPlatformTime::Seconds() - StartTime);
 
 	GLog->Flush();
 
