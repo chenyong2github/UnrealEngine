@@ -9,9 +9,11 @@
 #include "RHIDefinitions.h"
 #include "RenderTargetPool.h"
 #include "SystemTextures.h"
+#include "SceneView.h"
 #include "IEyeTracker.h"
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
+#include "Engine/Engine.h"
 
 const int32 kComputeGroupSize = FComputeShaderUtils::kGolden2DGroupSize;
 

@@ -2,7 +2,7 @@
 
 #include "USDConversionBlueprintLibrary.h"
 
-#include "UnrealUsdWrapper.h"
+#include "UnrealUSDWrapper.h"
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"

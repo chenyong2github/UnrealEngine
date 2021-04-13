@@ -555,7 +555,6 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 				if (Diff > LoopDiff)
 				{
 					VideoSampleQueue.Pop();
-					UE_LOG(LogWmfMedia, VeryVerbose, TEXT("pop1.1"));
 					continue;
 				}
 

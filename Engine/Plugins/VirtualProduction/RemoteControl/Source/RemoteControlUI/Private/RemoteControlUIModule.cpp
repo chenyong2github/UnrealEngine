@@ -143,8 +143,11 @@ void FRemoteControlUIModule::RegisterDetailRowExtension()
 
 void FRemoteControlUIModule::UnregisterDetailRowExtension()
 {
-	FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	Module.GetGlobalRowExtensionDelegate().RemoveAll(this);
+	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		FPropertyEditorModule& Module = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		Module.GetGlobalRowExtensionDelegate().RemoveAll(this);
+	}
 }
 
 void FRemoteControlUIModule::RegisterAssetTools()
@@ -366,7 +369,10 @@ void FRemoteControlUIModule::RegisterSettings()
 
 void FRemoteControlUIModule::UnregisterSettings()
 {
-	GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().RemoveAll(this);
+	if (UObjectInitialized())
+	{
+		GetMutableDefault<URemoteControlUISettings>()->OnSettingChanged().RemoveAll(this);
+	}
 }
 
 void FRemoteControlUIModule::OnSettingsModified(UObject*, FPropertyChangedEvent&)

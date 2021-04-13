@@ -71,7 +71,7 @@ namespace DatasmithRuntime
 
 		if (StaticMesh == nullptr)
 		{
-			MeshData.Hash = GetTypeHash(MeshElement->CalculateElementHash(true));
+			MeshData.Hash = GetTypeHash(MeshElement->CalculateElementHash(true), EDataType::Mesh);
 			MeshData.ResourceHash = GetTypeHash(MeshElement->GetFileHash());
 
 			if (UObject* AssetPtr = FAssetRegistry::FindObjectFromHash(MeshData.Hash))
@@ -571,7 +571,7 @@ namespace DatasmithRuntime
 		}
 
 		// #ue_datasmithruntime: Multi-threading issue with BodySetup::CreatePhysicsMeshes.
-		static bool bEnableCollision = false;
+		static bool bEnableCollision = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision;
 
 		{
 			FGCScopeGuard GCGuard;
@@ -652,103 +652,109 @@ namespace DatasmithRuntime
 			}
 
 			// #ueent_datasmithruntime: Enable collision after mesh component has been displayed. Can this be multi-threaded?
-			MeshComponent->bAlwaysCreatePhysicsState = false;
-			MeshComponent->BodyInstance.SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			MeshComponent->bAlwaysCreatePhysicsState = ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision;
+			MeshComponent->BodyInstance.SetCollisionEnabled(ImportOptions.BuildCollisions);
+
+			if (MeshComponent->bAlwaysCreatePhysicsState)
+			{
+				MeshComponent->BodyInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+				//MeshComponent->BodyInstance.bNotifyRigidBodyCollision = true;
+			}
+			else
+			{
+				MeshComponent->BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+			}
 
 			ActorData.Object = TWeakObjectPtr<UObject>(MeshComponent);
-		}
-		else
-		{
-			MeshComponent->MarkRenderStateDirty();
 		}
 
 		FinalizeComponent(ActorData);
 
-		// #ueent_datasmithruntime: Enable collision after mesh component has been displayed. Can this be multi-threaded?
-		MeshComponent->bAlwaysCreatePhysicsState = false;
-		MeshComponent->BodyInstance.SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
 		MeshComponent->SetStaticMesh(StaticMesh);
+
+		if (StaticMesh != nullptr)
+		{
 #ifdef ASSET_DEBUG
-		StaticMesh->ClearFlags(RF_Public);
+			StaticMesh->ClearFlags(RF_Public);
 #endif
 
-		// Allocate memory or not for override materials
-		TArray< UMaterialInterface* >& OverrideMaterials = MeshComponent->OverrideMaterials;
+			// Allocate memory or not for override materials
+			TArray< UMaterialInterface* >& OverrideMaterials = MeshComponent->OverrideMaterials;
 
-		// There are override materials, make sure the slots are allocated
-		if (MeshActorElement->GetMaterialOverridesCount() > 0)
-		{
-			// Update override materials if mesh element has less materials assigned than static mesh
-			if (StaticMesh->GetStaticMaterials().Num() > OverrideMaterials.Num())
+			// There are override materials, make sure the slots are allocated
+			if (MeshActorElement->GetMaterialOverridesCount() > 0)
 			{
-				FActionTaskFunction AssignMaterialFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
+				// Update override materials if mesh element has less materials assigned than static mesh
+				if (StaticMesh->GetStaticMaterials().Num() > OverrideMaterials.Num())
 				{
-					return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
-				};
-
-				TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
-
-				if (MeshActorElement->GetMaterialOverride(0)->GetId() == -1)
-				{
-					TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(0);
-
-					if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+					FActionTaskFunction AssignMaterialFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
 					{
-						DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, 0xffff });
-						AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0xffff } });
+						return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
+					};
 
-						TasksToComplete |= EWorkerTask::MaterialAssign;
-					}
-				}
-				else
-				{
-					TMap<FString, int32> SlotMapping;
-					SlotMapping.Reserve(StaticMaterials.Num());
+					TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
 
-					for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
+					if (MeshActorElement->GetMaterialOverride(0)->GetId() == -1)
 					{
-						const FStaticMaterial& StaticMaterial = StaticMaterials[Index];
+						TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(0);
 
-						if (StaticMaterial.MaterialSlotName != NAME_None)
+						if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 						{
-							SlotMapping.Add(StaticMaterial.MaterialSlotName.ToString(), Index);
+							DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, 0xffff });
+							AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, 0xffff } });
+
+							TasksToComplete |= EWorkerTask::MaterialAssign;
 						}
 					}
-
-					for (int32 Index = 0; Index < MeshActorElement->GetMaterialOverridesCount(); ++Index)
+					else
 					{
-						TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(Index);
+						TMap<FString, int32> SlotMapping;
+						SlotMapping.Reserve(StaticMaterials.Num());
 
-						FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
-
-						if (SlotMapping.Contains(MaterialSlotName))
+						for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
 						{
-							if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+							const FStaticMaterial& StaticMaterial = StaticMaterials[Index];
+
+							if (StaticMaterial.MaterialSlotName != NAME_None)
 							{
-								const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+								SlotMapping.Add(StaticMaterial.MaterialSlotName.ToString(), Index);
+							}
+						}
 
-								DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, (uint16)Index });
+						for (int32 Index = 0; Index < MeshActorElement->GetMaterialOverridesCount(); ++Index)
+						{
+							TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(Index);
 
-								AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
-								TasksToComplete |= EWorkerTask::MaterialAssign;
+							FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
+
+							if (SlotMapping.Contains(MaterialSlotName))
+							{
+								if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+								{
+									const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+
+									DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, (uint16)Index });
+
+									AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
+									TasksToComplete |= EWorkerTask::MaterialAssign;
+								}
 							}
 						}
 					}
 				}
-			}
 
-			OverrideMaterials.SetNum(StaticMesh->GetStaticMaterials().Num());
-			for (int32 Index = 0; Index < OverrideMaterials.Num(); ++Index)
+				OverrideMaterials.SetNum(StaticMesh->GetStaticMaterials().Num());
+				for (int32 Index = 0; Index < OverrideMaterials.Num(); ++Index)
+				{
+					OverrideMaterials[Index] = nullptr;
+				}
+
+			}
+			// No override material, discard the array if necessary
+			else if (OverrideMaterials.Num() > 0)
 			{
-				OverrideMaterials[Index] = nullptr;
+				OverrideMaterials.Empty();
 			}
-
-		}
-		// No override material, discard the array if necessary
-		else if (OverrideMaterials.Num() > 0)
-		{
-			OverrideMaterials.Empty();
 		}
 
 		if (MeshActorElement->GetTagsCount() > 0)
@@ -759,6 +765,8 @@ namespace DatasmithRuntime
 				MeshComponent->ComponentTags.Add(MeshActorElement->GetTag(Index));
 			}
 		}
+
+		MeshComponent->MarkRenderStateDirty();
 
 		ActorData.AddState(EAssetState::Completed);
 

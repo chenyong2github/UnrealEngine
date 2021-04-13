@@ -52,7 +52,20 @@ public:
 
 	// Handle request for additional render targetable resource inside viewport api for projection policy
 	virtual bool ShouldUseAdditionalTargetableResource() const
-	{ return false; }
+	{ 
+		return false; 
+	}
+
+	/**
+	* Returns true if the policy supports input mip-textures.
+	* Use a mip texture for smoother deformation on curved surfaces.
+	*
+	* @return - true, if mip-texture is supported by the policy implementation
+	*/
+	virtual bool ShouldUseSourceTextureWithMips() const
+	{
+		return false;
+	}
 
 	// This policy can support ICVFX rendering
 	virtual bool ShouldSupportICVFX() const
@@ -68,7 +81,7 @@ public:
 	}
 
 	/**
-	* Detec projection policy settings changes
+	* Check projection policy settings changes
 	*
 	* @param InConfigurationProjectionPolicy - new settings
 	*

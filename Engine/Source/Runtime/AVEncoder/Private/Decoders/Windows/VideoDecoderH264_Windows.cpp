@@ -21,7 +21,7 @@
 #include "Windows/PostWindowsApi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 /*********************************************************************************************************************/
-#include <Windows/COMPointer.h>
+#include <Microsoft/COMPointer.h>
 #include "MicrosoftCommon.h"
 
 #include "VideoDecoderCommon.h"

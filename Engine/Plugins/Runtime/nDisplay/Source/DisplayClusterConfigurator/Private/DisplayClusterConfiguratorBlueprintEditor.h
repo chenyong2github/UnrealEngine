@@ -85,6 +85,9 @@ public:
 	/** Reselects selected objects. Useful if recompiling as sometimes the details panel loses focus. */
 	void ReselectObjects();
 
+	/** Restores previously open documents. */
+	void RestoreLastEditedState();
+
 protected:
 	/** Applies preview texture to all output mapping viewport nodes. */
 	void UpdateOutputMappingPreview();
@@ -177,6 +180,7 @@ private:
 	//~ End UI command handlers
 
 	void OnReadOnlyChanged(bool bReadOnly);
+	void OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName);
 
 	void BindCommands();
 
@@ -217,4 +221,6 @@ private:
 	TWeakObjectPtr<UDisplayClusterBlueprint> LoadedBlueprint;
 
 	FName SCSEditorExtensionIdentifier;
+
+	FDelegateHandle RenameVariableHandle;
 };

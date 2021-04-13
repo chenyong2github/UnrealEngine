@@ -840,6 +840,10 @@ static void TFO_InstallPlugins()
 
 	OodleJobifyUserPointer = nullptr;
 	OodleJobifyNumThreads = FTaskGraphInterface::Get().GetNumWorkerThreads();
+
+	// @@ TEMP @todo clamp OodleJobifyNumThreads to avoid int overflow
+	if ( OodleJobifyNumThreads > 16 ) OodleJobifyNumThreads = 16;
+
 	OodleTex_Plugins_SetJobSystemAndCount(TFO_RunJob, TFO_WaitJob, OodleJobifyNumThreads);
 
 	OodleTex_Plugins_SetAssertion(TFO_OodleAssert);

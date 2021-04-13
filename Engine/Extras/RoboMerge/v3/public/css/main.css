@@ -330,3 +330,7 @@ label.workspaceExactMatch {
 label.workspaceInexactMatch {
 	font-weight: 400;
 }
+
+.big-help {
+	margin: 5px;
+}

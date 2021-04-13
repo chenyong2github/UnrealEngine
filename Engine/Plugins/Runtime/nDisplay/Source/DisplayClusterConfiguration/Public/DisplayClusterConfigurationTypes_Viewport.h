@@ -55,8 +55,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	FDisplayClusterConfigurationPostRender_Override Override;
 
+	// Add postprocess blur to viewport
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;
+
+	// Generate Mips texture for this viewport (used, only if projection policy supports this feature)
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationPostRender_GenerateMips GenerateMips;
 
 	// Performance: force monoscopic render, resolved to stereo viewport
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
@@ -108,7 +113,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	FString Camera;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY(EditDefaultsOnly, Category = "Display Cluster Viewport")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")

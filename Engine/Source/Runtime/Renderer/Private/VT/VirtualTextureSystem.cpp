@@ -1442,7 +1442,6 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		for (uint32 LoadPageTableLayerIndex = 0u; LoadPageTableLayerIndex < NumPageTableLayersToLoad; ++LoadPageTableLayerIndex)
 		{
 			const uint32 PageTableLayerIndex = PageTableLayersToLoad[LoadPageTableLayerIndex];
-			const FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = AllocatedVT->GetPhysicalSpaceForPageTableLayer(PageTableLayerIndex);
 			const uint32 ProducerIndex = AllocatedVT->GetProducerIndexForPageTableLayer(PageTableLayerIndex);
 			check(ProducerIndex < NumUniqueProducers);
 			
@@ -1452,7 +1451,11 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 			const uint32 ProducerPhysicalGroupIndex = AllocatedVT->GetProducerPhysicalGroupIndexForPageTableLayer(PageTableLayerIndex);
 			ProducerGroupMaskToLoad[ProducerIndex] |= 1 << ProducerPhysicalGroupIndex;
 
-			++PageUpdateBuffers[PhysicalSpace->GetID()].WorkingSetSize;
+			const FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = AllocatedVT->GetPhysicalSpaceForPageTableLayer(PageTableLayerIndex);
+			if (PhysicalSpace)
+			{
+				++PageUpdateBuffers[PhysicalSpace->GetID()].WorkingSetSize;
+			}
 		}
 
 		const uint32 vDimensions = Space->GetDimensions();

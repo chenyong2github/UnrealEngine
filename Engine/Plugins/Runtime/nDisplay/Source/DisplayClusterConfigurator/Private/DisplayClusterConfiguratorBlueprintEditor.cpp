@@ -13,8 +13,10 @@
 #include "DisplayClusterConfiguratorLog.h"
 
 #include "DisplayClusterRootActor.h"
+#include "DisplayClusterProjectionStrings.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Components/DisplayClusterCameraComponent.h"
+#include "Components/DisplayClusterScreenComponent.h"
 
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
@@ -100,6 +102,8 @@ FDisplayClusterConfiguratorBlueprintEditor::~FDisplayClusterConfiguratorBlueprin
 	}
 	
 	ShutdownDCSCSEditors();
+
+	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableHandle);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEditor(const EToolkitMode::Type Mode,
@@ -131,8 +135,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	BindCommands();
 	
 	RegisterMenus();
-
-	TSharedRef<FApplicationMode> BlueprintMode = MakeShared<FDisplayClusterConfiguratorEditorBlueprintMode>(Editor);
+	
 	TSharedRef<FApplicationMode> ConfigurationMode = MakeShared<FDisplayClusterConfiguratorEditorConfigurationMode>(Editor);
 	
 	{
@@ -151,7 +154,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	}
 
 	AddApplicationMode(ConfigurationMode->GetModeName(), ConfigurationMode);
-	AddApplicationMode(BlueprintMode->GetModeName(), BlueprintMode);
 	
 	const TArray<UBlueprint*> Blueprints{ Blueprint };
 	CommonInitialization(Blueprints, false);
@@ -183,6 +185,8 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	SetCurrentMode(ConfigurationMode->GetModeName());
 
 	PostLayoutBlueprintEditorInitialization();
+
+	RenameVariableHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable);
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
@@ -289,6 +293,11 @@ void FDisplayClusterConfiguratorBlueprintEditor::ClusterChanged(bool bStructureC
 		FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(LoadedBlueprint.Get(), bStructureChange);
 	}
 
+	if (ADisplayClusterRootActor* Actor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		Actor->UpdatePreviewComponents();
+	}
+
 	OnClusterChanged.Broadcast();
 }
 
@@ -374,6 +383,28 @@ void FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpda
 void FDisplayClusterConfiguratorBlueprintEditor::ReselectObjects()
 {
 	SelectObjects(SelectedObjects, false);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::RestoreLastEditedState()
+{
+	check(IsEditingSingleBlueprint());
+
+	UBlueprint* Blueprint = GetBlueprintObj();
+	for (const FEditedDocumentInfo& Document : Blueprint->LastEditedDocuments)
+	{
+		if (UObject* Obj = Document.EditedObjectPath.ResolveObject())
+		{
+			TSharedPtr<SDockTab> TabWithGraph = OpenDocument(Obj, FDocumentTracker::RestorePreviousDocument);
+		}
+	}
+
+	// Small hack to make sure our viewport is focused by default. Restoring documents seem to override
+	// the focused tab from blueprint editor modes.
+	if (TabManager->HasTabSpawner(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport) &&
+		TabManager->FindExistingLiveTab(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport))
+	{
+		TabManager->TryInvokeTab(FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport);
+	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::UpdateOutputMappingPreview()
@@ -573,6 +604,46 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnl
 	ViewOutputMapping->SetEnabled(!bReadOnly);
 	ViewCluster->SetEnabled(!bReadOnly);
 	ViewInput->SetEnabled(!bReadOnly);
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName)
+{
+	if (Blueprint != LoadedBlueprint)
+	{
+		return;
+	}
+
+	// Check the configuration's viewports for any matching references to the component variable being renamed, and update those references
+	// to the new variable name
+	if (UDisplayClusterConfigurationData* Config = GetConfig())
+	{
+		for (TPair<FString, UDisplayClusterConfigurationClusterNode*> ClusterNodePair : Config->Cluster->Nodes)
+		{
+			UDisplayClusterConfigurationClusterNode* ClusterNode = ClusterNodePair.Value;
+			for (TPair<FString, UDisplayClusterConfigurationViewport*> ViewportPair : ClusterNode->Viewports)
+			{
+				UDisplayClusterConfigurationViewport* Viewport = ViewportPair.Value;
+
+				// Don't attempt to replace variable names in custom projection policies as users should be in complete control
+				// of the parameters in the custom case
+				if (!Viewport->ProjectionPolicy.bIsCustom)
+				{
+					for (TPair<FString, FString>& PolicyParameters : Viewport->ProjectionPolicy.Parameters)
+					{
+						if (PolicyParameters.Value == OldVariableName.ToString())
+						{
+							PolicyParameters.Value = NewVariableName.ToString();
+						}
+					}
+				}
+
+				if (Viewport->Camera == OldVariableName.ToString())
+				{
+					Viewport->Camera = NewVariableName.ToString();
+				}
+			}
+		}
+	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::BindCommands()

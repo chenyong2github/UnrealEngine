@@ -58,6 +58,8 @@ int32 FVulkanAndroidPlatform::CachedFramePace = 60;
 int32 FVulkanAndroidPlatform::CachedRefreshRate = 60;
 int32 FVulkanAndroidPlatform::CachedSyncInterval = 1;
 
+bool FVulkanAndroidPlatform::bSupportsUniformBufferPatching = false;
+
 #define CHECK_VK_ENTRYPOINTS(Type,Func) if (VulkanDynamicAPI::Func == NULL) { bFoundAllEntryPoints = false; UE_LOG(LogRHI, Warning, TEXT("Failed to find entry point for %s"), TEXT(#Func)); }
 
 
@@ -270,6 +272,8 @@ bool FVulkanAndroidPlatform::LoadVulkanLibrary()
 	FramePacer = MakeUnique<FAndroidVulkanFramePacer>();
 	FPlatformRHIFramePacer::Init(FramePacer.Get());
 
+	FVulkanAndroidPlatform::bSupportsUniformBufferPatching = FAndroidMisc::GetDeviceMake() == FString("Oculus");
+
 	return true;
 }
 
@@ -448,7 +452,7 @@ bool FVulkanAndroidPlatform::SupportsUniformBufferPatching()
 {
 	// Only Allow it on ( Oculus + Vulkan + Android ) devices for now to reduce the impact on general system
 	// So far, the feature is designed on top of emulated UBs.
-	return !UseRealUBsOptimization(true) && FPlatformMisc::IsStandaloneStereoOnlyDevice();
+	return !UseRealUBsOptimization(true) && bSupportsUniformBufferPatching;
 }
 
 bool FVulkanAndroidPlatform::FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info)

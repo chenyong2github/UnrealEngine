@@ -166,6 +166,13 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 		PropertyModule.RegisterCustomClassLayout(LayoutName,
 			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorClusterDetailCustomization>));
 	}
+
+	{
+		const FName LayoutName = UDisplayClusterConfigurationClusterNode::StaticClass()->GetFName();
+		RegisteredClassLayoutNames.Add(LayoutName);
+		PropertyModule.RegisterCustomClassLayout(LayoutName,
+			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorDetailCustomization>));
+	}
 	
 	{
 		const FName LayoutName = UDisplayClusterConfigurationViewport::StaticClass()->GetFName();

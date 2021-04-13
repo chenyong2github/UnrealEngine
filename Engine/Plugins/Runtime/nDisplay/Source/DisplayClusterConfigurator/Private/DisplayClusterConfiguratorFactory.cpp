@@ -21,6 +21,8 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/MessageDialog.h"
+#include "EdGraph/EdGraph.h"
+#include "EdGraphSchema_K2.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorFactory"
@@ -116,8 +118,6 @@ UObject* UDisplayClusterConfiguratorFactory::FactoryCreateNew(UClass* Class, UOb
 		SetupNewBlueprint(NewBP);
 	}
 	
-	NewBP->LastEditedDocuments.Reset();
-
 	FKismetEditorUtilities::CompileBlueprint(NewBP);
 	
 	return NewBP;
@@ -165,17 +165,33 @@ void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBluepr
 	
 	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
 	NewBlueprint->SetConfigData(FDisplayClusterConfiguratorUtils::GenerateNewConfigData());
+	// Setup default components.
 	{
-		USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterCameraComponent::StaticClass());
-		UDisplayClusterCameraComponent* ComponentTemplate = CastChecked<UDisplayClusterCameraComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
-		ComponentTemplate->SetRelativeLocation(FVector(-200.f, 0.f, 50.f));
-		NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
+		{
+			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterCameraComponent::StaticClass());
+			UDisplayClusterCameraComponent* ComponentTemplate = CastChecked<UDisplayClusterCameraComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
+			ComponentTemplate->SetRelativeLocation(FVector(-200.f, 0.f, 50.f));
+			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
+		}
+		{
+			USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterScreenComponent::StaticClass());
+			UDisplayClusterScreenComponent* ComponentTemplate = CastChecked<UDisplayClusterScreenComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
+			ComponentTemplate->SetRelativeLocation(FVector(0.f, 0.f, 50.f));
+			NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
+		}
 	}
+
+	SetupInitialBlueprintDocuments(NewBlueprint);
+}
+
+void UDisplayClusterConfiguratorFactory::SetupInitialBlueprintDocuments(UDisplayClusterBlueprint* NewBlueprint)
+{
+	NewBlueprint->LastEditedDocuments.Reset();
+	
+	// Display default event graph.
+	if (UEdGraph* EventGraph = FindObject<UEdGraph>(NewBlueprint, *UEdGraphSchema_K2::GN_EventGraph.ToString()))
 	{
-		USCS_Node* NewNode = NewBlueprint->SimpleConstructionScript->CreateNode(UDisplayClusterScreenComponent::StaticClass());
-		UDisplayClusterScreenComponent* ComponentTemplate = CastChecked<UDisplayClusterScreenComponent>(NewNode->GetActualComponentTemplate(NewBlueprint->GetGeneratedClass()));
-		ComponentTemplate->SetRelativeLocation(FVector(0.f, 0.f, 50.f));
-		NewBlueprint->SimpleConstructionScript->AddNode(NewNode);
+		NewBlueprint->LastEditedDocuments.Add(EventGraph);
 	}
 }
 

@@ -1,13 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayClusterConfiguratorUtils.h"
-#include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "DisplayClusterConfiguratorFactory.h"
+
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
+
 #include "IDisplayClusterConfiguration.h"
-#include "Components/DisplayClusterOriginComponent.h"
+#include "DisplayClusterConfigurationTypes.h"
+
 #include "Components/DisplayClusterSyncTickComponent.h"
 
 #include "Engine/SCS_Node.h"
@@ -61,7 +64,8 @@ UDisplayClusterBlueprint* FDisplayClusterConfiguratorUtils::CreateBlueprintFromR
 		FName("CreateBlueprintFromRootActor")));
 
 	AddRootActorComponentsToBlueprint(Blueprint, RootActor, false);
-
+	UDisplayClusterConfiguratorFactory::SetupInitialBlueprintDocuments(Blueprint);
+	
 	return Cast<UDisplayClusterBlueprint>(Blueprint);
 }
 
@@ -144,6 +148,10 @@ UDisplayClusterBlueprint* FDisplayClusterConfiguratorUtils::FindBlueprintFromObj
 			{
 				return Cast<UDisplayClusterBlueprint>(Blueprint);
 			}
+		}
+		else if (UBlueprint* Blueprint = UBlueprint::GetBlueprintFromClass(Owner->GetClass()))
+		{
+			return Cast<UDisplayClusterBlueprint>(Blueprint);
 		}
 	}
 

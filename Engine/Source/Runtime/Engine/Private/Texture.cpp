@@ -1718,36 +1718,44 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
 	FString FormatPrefix;
 	bool bHasPrefix = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix);
-
-	FString TextureCompressionFormat;
-	bool bHasFormat = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat);
+	bHasPrefix = bHasPrefix && ! FormatPrefix.IsEmpty();
 	
-	// Disable in the Editor by default ?
-	// I guess this is done for speed but it's not a great idea because it means people aren't seeing the real content
-	//	would be preferrable to properly make a "fast preview" vs "cook encode" mode
-	//bool bEnableInEditor = false;
-	bool bEnableInEditor = true;
-	EngineSettings.GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor);
-
-	// do prefixing if bEnableInEditor or if making cooked content
-	bool bEnablePrefix = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
-
-	if (bHasPrefix && bHasFormat && bEnablePrefix)
+	if ( bHasPrefix )
 	{
-		ITextureFormatModule*TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
+		FString TextureCompressionFormat;
+		bool bHasFormat = EngineSettings.GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat);
+		bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
 
-		if ( TextureFormatModule )
+		if ( bHasFormat )
 		{
-			ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+			// Disable in the Editor by default ?
+			// I guess this is done for speed but it's not a great idea because it means people aren't seeing the real content
+			//	would be preferrable to properly make a "fast preview" vs "cook encode" mode
+			//bool bEnableInEditor = false;
+			bool bEnableInEditor = true;
+			EngineSettings.GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor);
 
-			TArray<FName> SupportedFormats;
-			TextureFormat->GetSupportedFormats(SupportedFormats);
+			// do prefixing if bEnableInEditor or if making cooked content
+			bool bEnablePrefix = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
 
-			FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
-
-			if (SupportedFormats.Contains(NewFormatName))
+			if ( bEnablePrefix )
 			{
-				TextureFormatName = NewFormatName;
+				ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
+
+				if ( TextureFormatModule )
+				{
+					ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+
+					TArray<FName> SupportedFormats;
+					TextureFormat->GetSupportedFormats(SupportedFormats);
+
+					FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+
+					if (SupportedFormats.Contains(NewFormatName))
+					{
+						TextureFormatName = NewFormatName;
+					}
+				}
 			}
 		}
 	}

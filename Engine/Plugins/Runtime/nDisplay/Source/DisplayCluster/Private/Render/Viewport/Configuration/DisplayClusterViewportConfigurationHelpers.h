@@ -207,8 +207,9 @@ namespace DisplayClusterViewportConfigurationHelpers
 		{
 			DstViewport.GetRenderSettings().BufferRatio = InRenderSettings.BufferRatio;
 
-			UpdateViewportSetting_Override(DstViewport, InRenderSettings.Override);
+			UpdateViewportSetting_Override(DstViewport,        InRenderSettings.Override);
 			UpdateViewportSetting_PostprocessBlur(DstViewport, InRenderSettings.PostprocessBlur);
+			UpdateViewportSetting_GenerateMips(DstViewport,    InRenderSettings.GenerateMips);
 
 			UpdateViewportStereoMode(DstViewport, InRenderSettings.StereoMode);
 

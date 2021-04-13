@@ -1455,7 +1455,7 @@ static void OnAppCommandCB(struct android_app* app, int32_t cmd)
 
 		// Ignore pause command for Oculus if the window hasn't been initialized to prevent halting initial load
 		// if the headset is not active
-		if (!bHasWindow && FAndroidMisc::IsStandaloneStereoOnlyDevice())
+		if (!bHasWindow && FAndroidMisc::GetDeviceMake() == FString("Oculus"))
 		{
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));
 			UE_LOG(LogAndroid, Log, TEXT("Oculus: Ignoring APP_CMD_PAUSE command before APP_CMD_INIT_WINDOW"));

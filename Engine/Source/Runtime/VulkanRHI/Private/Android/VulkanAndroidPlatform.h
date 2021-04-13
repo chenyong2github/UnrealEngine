@@ -145,6 +145,8 @@ protected:
 	static int32 CachedFramePace;
 	static int32 CachedRefreshRate;
 	static int32 CachedSyncInterval;
+
+	static bool bSupportsUniformBufferPatching;
 };
 
 #if VULKAN_SUPPORTS_GOOGLE_DISPLAY_TIMING

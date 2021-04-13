@@ -27,6 +27,7 @@ class UDisplayClusterConfigurationClusterNode;
 class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfigurationSceneComponentMesh;
 class UDisplayClusterScreenComponent;
+class ADisplayClusterRootActor;
 
 template<typename NumericType>
 class SSpinBox;
@@ -47,6 +48,9 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
 
+	ADisplayClusterRootActor* GetRootActor() const;
+	UDisplayClusterConfigurationData* GetConfigData() const;
+
 public:
 	template<typename TDetailCustomizationType>
 	static TSharedRef<IDetailCustomization> MakeInstance()
@@ -57,9 +61,13 @@ public:
 protected:
 	void AddCustomInfoRow(IDetailCategoryBuilder* InCategory, TAttribute<FText> NameContentAttribute, TAttribute<FText> ValueContentAttribute);
 
+	/** True while the details is customizing a blueprint editor menu. */
+	bool IsRunningForBlueprintEditor() const { return ToolkitPtr.IsValid(); }
+
 protected:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
-
+	TWeakObjectPtr<ADisplayClusterRootActor> RootActorPtr;
+	
 	IDetailLayoutBuilder* LayoutBuilder;
 
 	IDetailCategoryBuilder* NDisplayCategory;

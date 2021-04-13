@@ -51,7 +51,9 @@ protected:
 	FWorkflowAllowedTabSet EditorTabFactories;
 };
 
-
+/*
+ * Blueprint graphmode for display cluster blueprints. TODO: Not currently used, delete if not needed.
+ */
 class FDisplayClusterConfiguratorEditorConfigurationMode : public FDisplayClusterConfiguratorBlueprintModeBase
 {
 public:

@@ -50,12 +50,16 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 		TArray<TWeakObjectPtr<UObject>> ObjectsBeingEdited = InLayoutBuilder.GetSelectedObjects();
 		check(ObjectsBeingEdited.Num() > 0);
 		ObjectBeingEdited = ObjectsBeingEdited[0].Get();
-	}
 
+		if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(ObjectBeingEdited))
+		{
+			RootActorPtr = RootActor;
+			check(RootActorPtr.IsValid());
+		}
+	}
+	
+	if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited))
 	{
-		FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited);
-		check(BPEditor);
-		
 		ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(BPEditor->AsShared());
 		check(ToolkitPtr.IsValid());
 	}
@@ -63,6 +67,55 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 	LayoutBuilder = &InLayoutBuilder;
 	NDisplayCategory = &LayoutBuilder->EditCategory("nDisplay", FText::GetEmpty());
 	NDisplayCategory->InitiallyCollapsed(false);
+
+	// Hide properties that should only be visible on the instance. VisibleInstanceOnly doesn't work with these properties.
+	if (IsRunningForBlueprintEditor())
+	{
+		TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
+		NDisplayCategory->GetDefaultProperties(CategoryProperties);
+
+		for (TSharedRef<IPropertyHandle>& Property : CategoryProperties)
+		{
+			if (Property->HasMetaData("nDisplayInstanceOnly"))
+			{
+				Property->MarkHiddenByCustomization();
+			}
+		}
+	}
+}
+
+ADisplayClusterRootActor* FDisplayClusterConfiguratorDetailCustomization::GetRootActor() const
+{
+	ADisplayClusterRootActor* RootActor = nullptr;
+	
+	if (ToolkitPtr.IsValid())
+	{
+		RootActor = Cast<ADisplayClusterRootActor>(ToolkitPtr.Pin()->GetPreviewActor());
+	}
+	else
+	{
+		RootActor = RootActorPtr.Get();
+	}
+
+	check(RootActor);
+	return RootActor;
+}
+
+UDisplayClusterConfigurationData* FDisplayClusterConfiguratorDetailCustomization::GetConfigData() const
+{
+	UDisplayClusterConfigurationData* ConfigData = nullptr;
+	
+	if (ToolkitPtr.IsValid())
+	{
+		ConfigData = ToolkitPtr.Pin()->GetConfig();
+	}
+	else if (RootActorPtr.IsValid())
+	{
+		ConfigData = RootActorPtr->GetConfigData();
+	}
+	
+	check(ConfigData);
+	return ConfigData;
 }
 
 void FDisplayClusterConfiguratorDetailCustomization::AddCustomInfoRow(IDetailCategoryBuilder* InCategory, TAttribute<FText> NameContentAttribute, TAttribute<FText> ValueContentAttribute)
@@ -132,10 +185,7 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::CustomizeDetails(ID
 	NoneOption = MakeShared<FString>("None");
 
 	// Set config data pointer
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
-	check(Toolkit.IsValid());
-
-	UDisplayClusterConfigurationData* ConfigurationData = Toolkit->GetConfig();
+	UDisplayClusterConfigurationData* ConfigurationData = GetConfigData();
 	check(ConfigurationData != nullptr);
 	ConfigurationDataPtr = ConfigurationData;
 
@@ -163,8 +213,7 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::ResetCameraOptions(
 	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
 	check(ConfigurationViewport != nullptr);
 	
-	check(ToolkitPtr.IsValid());
-	AActor* RootActor = ToolkitPtr.Pin()->GetPreviewActor();
+	AActor* RootActor = GetRootActor();
 	
 	TArray<UActorComponent*> ActorComponents;
 	RootActor->GetComponents(UDisplayClusterCameraComponent::StaticClass(), ActorComponents);
@@ -322,10 +371,7 @@ void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDeta
 
 void FDisplayClusterConfiguratorSceneComponentDetailCustomization::ResetTrackerIdOptions()
 {
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
-	check(Toolkit.IsValid());
-
-	UDisplayClusterConfigurationData* ConfigurationData = Toolkit->GetConfig();
+	UDisplayClusterConfigurationData* ConfigurationData = GetConfigData();
 	check(ConfigurationData != nullptr);
 	
 	UDisplayClusterSceneComponent* SceneComponent = SceneComponenPtr.Get();
@@ -780,12 +826,12 @@ EVisibility FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetCustomR
 
 EVisibility FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetNvidiaPolicyRowsVisibility() const
 {
-	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
-
-	if (ConfigurationCluster->Sync.RenderSyncPolicy.Type.Equals(*NvidiaOption.Get()))
+	if (UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get())
 	{
-		return EVisibility::Visible;
+		if (ConfigurationCluster->Sync.RenderSyncPolicy.Type.Equals(*NvidiaOption.Get()))
+		{
+			return EVisibility::Visible;
+		}
 	}
 
 	return EVisibility::Collapsed;
@@ -972,7 +1018,10 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolic
 FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetSelectedRenderSyncPolicyText() const
 {
 	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
+	if (ConfigurationCluster == nullptr)
+	{
+		return FText::GetEmpty();
+	}
 
 	if (bIsCustomPolicy)
 	{
@@ -1133,7 +1182,10 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::OnInputSyncPolicyS
 FText FDisplayClusterConfiguratorInputSyncPolicyCustomization::GetSelectedInputSyncPolicyText() const
 {
 	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
+	if (ConfigurationCluster == nullptr)
+	{
+		return FText::GetEmpty();
+	}
 
 	return FText::FromString(ConfigurationCluster->Sync.InputSyncPolicy.Type);
 }

@@ -52,6 +52,12 @@ public:
 	virtual bool IsWarpBlendSupported() override;
 	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) override;
 
+	virtual bool ShouldUseSourceTextureWithMips() const override
+	{
+		// Support input texture with mips
+		return true;
+	}
+
 protected:
 	bool CreateWarpBlendFromConfig();
 
