@@ -144,7 +144,6 @@ int32 FManagedArrayCollection::AddElements(int32 NumberElements, FName Group)
 			Entry.Value.Value->Resize(StartSize + NumberElements);
 		}
 	}
-	GenerateGuids(Group, StartSize);
 	GroupInfo[Group].Size += NumberElements;
 
 	SetDefaults(Group, StartSize, NumberElements);
@@ -204,7 +203,6 @@ void FManagedArrayCollection::Resize(int32 Size, FName Group)
 			Entry.Value.Value->Resize(Size);
 		}
 	}
-	GenerateGuids(Group, StartSize);
 	GroupInfo[Group].Size = Size;
 }
 

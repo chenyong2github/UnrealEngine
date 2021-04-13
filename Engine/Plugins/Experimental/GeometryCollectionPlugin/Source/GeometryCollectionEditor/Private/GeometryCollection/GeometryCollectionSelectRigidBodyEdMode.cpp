@@ -155,7 +155,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 				{
 					TransformIndex = ParentArray[TransformIndex];
 				}
-
+				/*
 				// Retrieve the rigid body id
 				//const TManagedArray<int32>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyIdArray();
 				const TManagedArray<FGuid>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyGuidArray();
@@ -177,6 +177,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 						PropertyHandleSolverPin->SetValue(GeometryCollectionComponent->ChaosSolverActor);
 					}
 				}
+				*/
 			}
 		}
 	}
