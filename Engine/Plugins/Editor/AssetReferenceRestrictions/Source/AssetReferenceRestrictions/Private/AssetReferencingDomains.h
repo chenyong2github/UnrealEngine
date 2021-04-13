@@ -32,6 +32,9 @@ struct FDomainData final : public TSharedFromThis<FDomainData>
 	// Can we see everything?
 	bool bCanSeeEverything = false;
 
+	// Can we be seen by everything?
+	bool bCanBeSeenByEverything = false;
+
 	bool IsValid() const
 	{
 		return DomainRootPaths.Num() > 0;

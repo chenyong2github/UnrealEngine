@@ -19,6 +19,8 @@ UAssetReferencingPolicySettings::UAssetReferencingPolicySettings(const FObjectIn
 	GameFeatureRule.PluginPathPrefix = TEXT("/GameFeatures/");
 	GameFeatureRule.CanReferenceTheseDomains.Add(GameDomainName);
 
+	EnginePlugins.DefaultRule.bCanBeSeenByOtherDomainsWithoutDependency = true;
+
 	ProjectPlugins.DefaultRule.CanReferenceTheseDomains.Add(GameDomainName);
 }
 

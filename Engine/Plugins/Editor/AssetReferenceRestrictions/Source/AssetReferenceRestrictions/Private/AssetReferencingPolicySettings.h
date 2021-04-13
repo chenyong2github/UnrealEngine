@@ -18,8 +18,13 @@ struct FARPDefaultPluginDomainRules
 	TArray<FString> CanReferenceTheseDomains;
 
 	// Can content in the ProjectContent domain access plugin content automatically (for plugins that don't match a specific rule)?
-	UPROPERTY(config, EditAnywhere, Category = "Project Plugins")
-	bool bCanProjectAccessDefaultPlugins = true;
+	UPROPERTY(config, EditAnywhere, Category=Settings)
+	bool bCanProjectAccessThesePlugins = true;
+
+	// Can content in other domains access plugin content automatically (for plugins that don't match a specific rule)?
+	// Note: This rule may be deprecated in the future!
+	UPROPERTY(config, EditAnywhere, Category=Settings)
+	bool bCanBeSeenByOtherDomainsWithoutDependency = false;
 };
 
 UENUM()

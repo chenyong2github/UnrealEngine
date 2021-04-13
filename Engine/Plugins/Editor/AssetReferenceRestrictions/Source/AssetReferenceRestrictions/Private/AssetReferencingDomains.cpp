@@ -338,7 +338,11 @@ void FDomainDatabase::BuildDomainFromPlugin(TSharedRef<IPlugin> Plugin)
 	{
 		AddDomainVisibilityList(Domain, DomainSettings.DefaultRule.CanReferenceTheseDomains);
 
-		if (DomainSettings.DefaultRule.bCanProjectAccessDefaultPlugins)
+		if (DomainSettings.DefaultRule.bCanBeSeenByOtherDomainsWithoutDependency)
+		{
+			Domain->bCanBeSeenByEverything = true;
+		}
+		else if (DomainSettings.DefaultRule.bCanProjectAccessThesePlugins)
 		{
 			GameDomain->DomainsVisibleFromHere.Add(Domain);
 		}
@@ -413,7 +417,7 @@ TTuple<bool, FText> FDomainDatabase::CanDomainsSeeEachOther(TSharedPtr<FDomainDa
 	check(Referencee.IsValid());
 	check(Referencer.IsValid());
 
-	if ((Referencee == Referencer) || Referencer->DomainsVisibleFromHere.Contains(Referencee))
+	if ((Referencee == Referencer) || Referencer->DomainsVisibleFromHere.Contains(Referencee) || Referencee->bCanBeSeenByEverything)
 	{
 		return MakeTuple(true, FText::GetEmpty());
 	}
