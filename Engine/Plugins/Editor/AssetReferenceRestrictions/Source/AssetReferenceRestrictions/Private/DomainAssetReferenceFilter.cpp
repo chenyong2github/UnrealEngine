@@ -137,14 +137,19 @@ bool FDomainAssetReferenceFilter::PassesFilterImpl(const FAssetData& AssetData, 
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FDomainAssetReferenceFilter_PassesFilterImpl);
 
-	const FString ReferencedAssetPath = AssetData.PackageName.ToString();
+	// An empty/null asset reference is always valid (e.g., the (none) option in the class picker)
+	if (!AssetData.IsValid())
+	{
+		return true;
+	}
 
 	TSharedPtr<FDomainData> AssetDomain = DomainDB->FindDomainFromAssetData(AssetData);
 
-	// This ensure should never fail; every asset should belong to engine, game, or a plugin
-	// that is allowed to contain content, and we create domains for all of those.
+	// This ensure should never fail; every valid asset should belong to engine, special system mount,
+	// game, or a plugin that is allowed to contain content, and we create domains for all of those.
 	// The only exception anticipated is if somehow an editor with an asset picker is pointed
 	// towards something living in the transient package, but that's not expected!
+	// If it gets hit, transient can be added to the special system mount 'Temp' domain
 	if (ensureMsgf(AssetDomain.IsValid(), TEXT("Asset %s didn't match any domain"), *AssetData.ObjectPath.ToString()))
 	{
 		// Check the referencing domains

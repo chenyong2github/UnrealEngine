@@ -28,6 +28,8 @@ struct FDomainData final : public TSharedFromThis<FDomainData>
 
 	// The domains that are visible from here (if bCanSeeEverything is true, then literally everything is visible from here)
 	TSet<TSharedPtr<FDomainData>> DomainsVisibleFromHere;
+
+	// Can we see everything?
 	bool bCanSeeEverything = false;
 
 	bool IsValid() const
@@ -80,6 +82,10 @@ private:
 
 	// The engine content domain
 	TSharedPtr<FDomainData> EngineDomain;
+
+	// Used for various 'special' mount points like /Temp/, /Memory/, and /Extra/
+	// Not visible as a domain for other domains to see, and can see everything
+	TSharedPtr<FDomainData> TempDomain;
 
 	// The game content domain
 	TSharedPtr<FDomainData> GameDomain;

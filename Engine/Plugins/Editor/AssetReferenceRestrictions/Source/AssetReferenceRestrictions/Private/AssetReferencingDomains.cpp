@@ -127,13 +127,22 @@ void FDomainDatabase::RebuildFromScratch()
 	DomainNameMap.Reset();
 	PathMap.Reset();
 	EngineDomain.Reset();
+	TempDomain.Reset();
 	GameDomain.Reset();
 	DomainsDefinedByPlugins.Reset();
 
 	// Create the built-in domains
+	//@TODO: Would be good to get the path roots directly from FLongPackagePathsSingleton but it's private
 	EngineDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::EngineDomainName);
 	EngineDomain->UserFacingDomainName = LOCTEXT("EngineDomain", "EngineContent");
 	EngineDomain->DomainRootPaths.Add(TEXT("/Engine/"));
+
+	TempDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::TempDomainName);
+	TempDomain->UserFacingDomainName = LOCTEXT("TempDomain", "Temp");
+	TempDomain->bCanSeeEverything = true;
+	TempDomain->DomainRootPaths.Add(TEXT("/Temp/"));
+	TempDomain->DomainRootPaths.Add(TEXT("/Extra/"));
+	TempDomain->DomainRootPaths.Add(TEXT("/Memory/"));
 
 	GameDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::GameDomainName);
 	GameDomain->UserFacingDomainName = LOCTEXT("GameDomain", "ProjectContent");  	//@TODO: FText::AsCultureInvariant(GetDefault<UGeneralProjectSettings>()->ProjectName;);

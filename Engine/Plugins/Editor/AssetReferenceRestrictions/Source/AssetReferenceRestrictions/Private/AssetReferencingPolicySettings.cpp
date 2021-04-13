@@ -7,6 +7,7 @@
 
 const FString UAssetReferencingPolicySettings::EngineDomainName(TEXT("EngineContent"));
 const FString UAssetReferencingPolicySettings::GameDomainName(TEXT("ProjectContent"));
+const FString UAssetReferencingPolicySettings::TempDomainName(TEXT("Temp"));
 
 UAssetReferencingPolicySettings::UAssetReferencingPolicySettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -38,7 +39,7 @@ TArray<FString> UAssetReferencingPolicySettings::GetListOfDomains(bool bAllowPlu
 
 	if (bAllowGame)
 	{
-		Result.Add(TEXT("ProjectContent"));
+		Result.Add(GameDomainName);
 	}
 
 	for (const FARPDomainDefinitionByContentRoot& DomainDef : AdditionalDomains)
@@ -55,7 +56,7 @@ TArray<FString> UAssetReferencingPolicySettings::GetListOfDomains(bool bAllowPlu
 
 	if (bAllowEngine)
 	{
-		Result.Add(TEXT("EngineContent"));
+		Result.Add(EngineDomainName);
 	}
 
 	return Result;

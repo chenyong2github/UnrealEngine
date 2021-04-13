@@ -183,8 +183,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Project Content", meta=(TitleProperty=DomainName))
 	TArray<FARPDomainDefinitionByContentRoot> AdditionalDomains;
 
+	// The names of the project, special system mount, and game domains
 	static const FString EngineDomainName;
 	static const FString GameDomainName;
+	static const FString TempDomainName;
 
 public:
 	//~UObject interface
