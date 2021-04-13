@@ -1658,6 +1658,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		const int32 NumDrawCommands = MeshCommandPass.GetInstanceCullingContext()->CullingCommands.Num();
 		if (NumDrawCommands > 0)
 		{
+			FString LightNameWithLevel;
+			FSceneRenderer::GetLightNameForDrawEvent(ProjectedShadowInfo->GetLightSceneInfo().Proxy, LightNameWithLevel);
+			RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
+
 			TArray<int32, SceneRenderingAllocator> DrawCommandInstanceCountTmp;
 			DrawCommandInstanceCountTmp.AddZeroed(NumDrawCommands);
 			FRDGBufferRef DrawCommandInstanceCountRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
