@@ -31,13 +31,21 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	const FDynamicMesh3* Mesh,
 	const UE::Geometry::FTransform3d& Transform,
 	FString ObjectName,
-	const TArrayView<UMaterialInterface*>& Materials
+	const TArrayView<UMaterialInterface*>& ComponentMaterials,
+	const TArrayView<UMaterialInterface*>& AssetMaterials
 )
 {
 	FGeneratedStaticMeshAssetConfig AssetConfig;
-	for (UMaterialInterface* Material : Materials)
+	for (UMaterialInterface* Material : ComponentMaterials)
 	{
 		AssetConfig.Materials.Add(Material);
+	}
+	if (AssetMaterials.Num() > 0 && ensure(AssetMaterials.Num() == ComponentMaterials.Num()))
+	{
+		for (UMaterialInterface* Material : AssetMaterials)
+		{
+			AssetConfig.AssetMaterials.Add(Material);
+		}
 	}
 
 	AssetConfig.MeshDescription = MakeUnique<FMeshDescription>();

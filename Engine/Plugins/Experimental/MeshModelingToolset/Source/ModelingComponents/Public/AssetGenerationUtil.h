@@ -84,7 +84,8 @@ namespace AssetGenerationUtil
 	* @param Transform transformation for the new actor
 	* @param ObjectName name of the new asset
 	* @param PackagePath path of the new asset
-	* @param Materials materials to set on generated actor
+	* @param ComponentMaterials materials to set on generated actor component (and asset if AssetMaterials not provided)
+	* @param AssetMaterials materials to set on generated actor mesh asset (optional; if omitted the component materials will be used)
 	* @return new mesh actor
 	*/
 	MODELINGCOMPONENTS_API AActor* GenerateStaticMeshActor(
@@ -93,7 +94,8 @@ namespace AssetGenerationUtil
 		const FDynamicMesh3* Mesh,
 		const UE::Geometry::FTransform3d& Transform,
 		FString ObjectName,
-		const TArrayView<UMaterialInterface*>& Materials
+		const TArrayView<UMaterialInterface*>& ComponentMaterials,
+		const TArrayView<UMaterialInterface*>& AssetMaterials = TArrayView<UMaterialInterface*>()
 	);
 
 

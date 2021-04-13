@@ -599,20 +599,18 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 				continue;
 			}
 
-			// build array of materials from the original
-			TArray<UMaterialInterface*> Materials;
+			// get materials for both the component and the asset
 			IMaterialProvider* TargetMaterial = TargetMaterialInterface(OrigMeshIdx);
-			for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
-			{
-				Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
-			}
+			FComponentMaterialSet ComponentMaterialSet, AssetMaterialSet;
+			TargetMaterial->GetMaterialSet(ComponentMaterialSet, false);
+			TargetMaterial->GetMaterialSet(AssetMaterialSet, true /*prefer asset materials*/);
 
 			// add all the additional meshes
 			for (int AddMeshIdx = 1; AddMeshIdx < SplitMeshes.Num(); AddMeshIdx++)
 			{
 				AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 					AssetAPI, TargetWorld,
-					&SplitMeshes[AddMeshIdx], Results[OrigMeshIdx].Transform, TEXT("PlaneCutOtherPart"), Materials);
+					&SplitMeshes[AddMeshIdx], Results[OrigMeshIdx].Transform, TEXT("PlaneCutOtherPart"), ComponentMaterialSet.Materials, AssetMaterialSet.Materials);
 				if (NewActor != nullptr)
 				{
 					NewSelection.Actors.Add(NewActor);

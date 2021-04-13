@@ -201,9 +201,14 @@ AActor* FModelingModeAssetAPI::GenerateStaticMeshActor(
 		Builder.NewMeshComponent->SetMaterial(MatIdx, AssetConfig.Materials[MatIdx]);
 	}
 	// also put the materials on the asset
-	for (int MatIdx = 0, NumMats = AssetConfig.Materials.Num(); MatIdx < NumMats; MatIdx++)
+	// use the asset-specific AssetMaterials array only if it matches the size of the Materials array
+	//  otherwise favor the Materials array
+	TArray<UMaterialInterface*>* AssetMaterials =
+		(AssetConfig.Materials.Num() == AssetConfig.AssetMaterials.Num()) ?
+			&AssetConfig.AssetMaterials : &AssetConfig.Materials;
+	for (int MatIdx = 0, NumMats = AssetMaterials->Num(); MatIdx < NumMats; MatIdx++)
 	{
-		Builder.NewStaticMesh->SetMaterial(MatIdx, AssetConfig.Materials[MatIdx]);
+		Builder.NewStaticMesh->SetMaterial(MatIdx, (*AssetMaterials)[MatIdx]);
 	}
 
 	// save the new asset (or don't, if that's what the user wants)

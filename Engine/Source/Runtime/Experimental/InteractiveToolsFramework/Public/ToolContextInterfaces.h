@@ -426,7 +426,8 @@ struct FGeneratedStaticMeshAssetConfig
 	INTERACTIVETOOLSFRAMEWORK_API ~FGeneratedStaticMeshAssetConfig();
 
 	TUniquePtr<FMeshDescription> MeshDescription;
-	TArray<UMaterialInterface*> Materials;
+	TArray<UMaterialInterface*> Materials; // Materials for the component (and asset if no AssetMaterials)
+	TArray<UMaterialInterface*> AssetMaterials; // Optional, for the asset only
 
 	bool bEnableRecomputeNormals = false;
 	bool bEnableRecomputeTangents = false;
