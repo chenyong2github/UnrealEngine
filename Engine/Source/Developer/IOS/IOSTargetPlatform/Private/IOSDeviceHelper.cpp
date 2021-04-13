@@ -219,6 +219,8 @@ public:
                         QueryDevices();
                     }
                 }
+#else
+				 QueryDevices();
 #endif
             }
             RecheckCounter--;
