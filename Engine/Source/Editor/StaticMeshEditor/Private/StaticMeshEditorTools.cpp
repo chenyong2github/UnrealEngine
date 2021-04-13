@@ -561,6 +561,7 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 		.ValueContent()
 		[
 			SNew(SCheckBox)
+			.IsEnabled(this, &FMeshBuildSettingsLayout::IsRemoveDegeneratesDisabled)
 			.IsChecked(this, &FMeshBuildSettingsLayout::ShouldRemoveDegenerates)
 			.OnCheckStateChanged(this, &FMeshBuildSettingsLayout::OnRemoveDegeneratesChanged)
 		];
@@ -848,6 +849,16 @@ ECheckBoxState FMeshBuildSettingsLayout::ShouldGenerateLightmapUVs() const
 ECheckBoxState FMeshBuildSettingsLayout::ShouldGenerateDistanceFieldAsIfTwoSided() const
 {
 	return BuildSettings.bGenerateDistanceFieldAsIfTwoSided ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+bool FMeshBuildSettingsLayout::IsRemoveDegeneratesDisabled() const
+{
+	if (TSharedPtr<FLevelOfDetailSettingsLayout> LODSettingsLayout = ParentLODSettings.Pin())
+	{
+		return !LODSettingsLayout->IsNaniteEnabled();
+	}
+
+	return true;
 }
 
 int32 FMeshBuildSettingsLayout::GetMinLightmapResolution() const
@@ -4522,6 +4533,13 @@ FText FLevelOfDetailSettingsLayout::GetCurrentLodTooltip() const
 		return LOCTEXT("StaticMeshEditorLODPickerCurrentLODTooltip", "With Auto LOD selected, LOD0's properties are visible for editing");
 	}
 	return FText::GetEmpty();
+}
+
+bool FLevelOfDetailSettingsLayout::IsNaniteEnabled() const
+{
+	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
+	check(StaticMesh != nullptr);
+	return StaticMesh->NaniteSettings.bEnabled;
 }
 
 /////////////////////////////////

@@ -360,6 +360,17 @@ struct FFBXUVs
 };
 
 
+float UnFbx::FFbxImporter::GetPointComparisonThreshold() const
+{
+	return (ImportOptions->bRemoveDegenerates && !ImportOptions->bBuildNanite) ? THRESH_POINTS_ARE_SAME : 0.0f;
+}
+
+float UnFbx::FFbxImporter::GetTriangleAreaThreshold() const
+{
+	return (ImportOptions->bRemoveDegenerates && !ImportOptions->bBuildNanite) ? SMALL_NUMBER : 0.0f;
+}
+
+
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
@@ -811,7 +822,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				int32 PolygonVertexCount = Mesh->GetPolygonSize(PolygonIndex);
 				//Verify if the polygon is degenerate, in this case do not add them
 				{
-					float ComparisonThreshold = ImportOptions->bRemoveDegenerates ? SMALL_NUMBER : 0.0f;
+					float ComparisonThreshold = GetTriangleAreaThreshold();
 					P.Reset();
 					P.AddUninitialized(PolygonVertexCount);
 					for (int32 CornerIndex = 0; CornerIndex < PolygonVertexCount; CornerIndex++)
@@ -956,14 +967,14 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				//TODO check all polygon vertex, not just the first 3 vertex
 				if (!bHasNonDegeneratePolygons)
 				{
-					float TriangleComparisonThreshold = ImportOptions->bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
+					float PointComparisonThreshold = GetPointComparisonThreshold();
 					FVector VertexPosition[3];
 					VertexPosition[0] = VertexPositions[CornerVerticesIDs[0]];
 					VertexPosition[1] = VertexPositions[CornerVerticesIDs[1]];
 					VertexPosition[2] = VertexPositions[CornerVerticesIDs[2]];
-					if (!( VertexPosition[0].Equals(VertexPosition[1], TriangleComparisonThreshold)
-						|| VertexPosition[0].Equals(VertexPosition[2], TriangleComparisonThreshold)
-						|| VertexPosition[1].Equals(VertexPosition[2], TriangleComparisonThreshold)))
+					if (!( VertexPosition[0].Equals(VertexPosition[1], PointComparisonThreshold)
+						|| VertexPosition[0].Equals(VertexPosition[2], PointComparisonThreshold)
+						|| VertexPosition[1].Equals(VertexPosition[2], PointComparisonThreshold)))
 					{
 						bHasNonDegeneratePolygons = true;
 					}

@@ -197,6 +197,7 @@ private:
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
 	ECheckBoxState ShouldGenerateLightmapUVs() const;
 	ECheckBoxState ShouldGenerateDistanceFieldAsIfTwoSided() const;
+	bool IsRemoveDegeneratesDisabled() const;
 	int32 GetMinLightmapResolution() const;
 	int32 GetSrcLightmapIndex() const;
 	int32 GetDstLightmapIndex() const;
@@ -523,6 +524,9 @@ public:
 
 	/** Apply current LOD settings to the mesh. */
 	void ApplyChanges();
+
+	/** Returns true if the LOD's static mesh has Nanite enabled */
+	bool IsNaniteEnabled() const;
 
 private:
 
