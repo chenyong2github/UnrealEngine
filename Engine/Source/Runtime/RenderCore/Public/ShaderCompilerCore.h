@@ -484,7 +484,7 @@ enum class ESCWErrorCode
  * Meant to be use as such: check(CheckVirtualShaderFilePath(VirtualFilePath));
  * CompileErrors output array is optional.
  */
-extern RENDERCORE_API bool CheckVirtualShaderFilePath(const FString& VirtualPath, TArray<FShaderCompilerError>* CompileErrors = nullptr);
+extern RENDERCORE_API bool CheckVirtualShaderFilePath(FStringView VirtualPath, TArray<FShaderCompilerError>* CompileErrors = nullptr);
 
 /**
  * Loads the shader file with the given name.
