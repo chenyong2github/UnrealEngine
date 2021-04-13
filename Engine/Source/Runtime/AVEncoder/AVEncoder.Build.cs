@@ -50,7 +50,6 @@ public class AVEncoder : ModuleRules
 				"mfplat.lib",
 				"mfuuid.lib"
 			});
-			PublicDefinitions.Add("WITH_CUDA=0");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
@@ -60,5 +59,8 @@ public class AVEncoder : ModuleRules
 		{
 			// PublicFrameworks.AddRange(new string[] { "CoreAudio", "AudioUnit", "AudioToolbox" });
 		}
+		
+		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears
+		PublicDefinitions.Add("WITH_CUDA=0");
 	}
 }
