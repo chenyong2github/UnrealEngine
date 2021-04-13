@@ -10,6 +10,7 @@
 #include "UObject/NameTypes.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
+#include "Misc/StringBuilder.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"
@@ -18,6 +19,7 @@
 #include "Misc/CommandLine.h"
 #include "Containers/Map.h"
 #include "Stats/Stats.h"
+#include "String/Find.h"
 #include "Async/AsyncWork.h"
 #include "Containers/Ticker.h"
 #include "Stats/StatsData.h"
@@ -727,8 +729,7 @@ IStatGroupEnableManager& IStatGroupEnableManager::Get()
 
 FName FStatNameAndInfo::ToLongName(FName InStatName, char const* InGroup, char const* InCategory, TCHAR const* InDescription, bool InSortByName)
 {
-	FString LongName;
-	LongName.Reserve(255);
+	TStringBuilder<256> LongName;
 	if (InGroup)
 	{
 		LongName += TEXT("//");
@@ -739,7 +740,7 @@ FName FStatNameAndInfo::ToLongName(FName InStatName, char const* InGroup, char c
 	if (InDescription)
 	{
 		LongName += TEXT("///");
-		LongName += FStatsUtils::ToEscapedFString(InDescription);
+		FStatsUtils::ToEscapedString(InDescription, LongName);
 		LongName += TEXT("///");
 	}
 	if (InCategory)
@@ -759,56 +760,60 @@ FName FStatNameAndInfo::ToLongName(FName InStatName, char const* InGroup, char c
 
 FName FStatNameAndInfo::GetShortNameFrom(FName InLongName)
 {
-	FString Input(InLongName.ToString());
+	TStringBuilder<256> Temp;
+	Temp << InLongName;
+	FStringView Input(Temp);
 
 	if (Input.StartsWith(TEXT("//"), ESearchCase::CaseSensitive))
 	{
-		Input.RightChopInline(2, false);
-		const int32 IndexEnd = Input.Find(TEXT("//"), ESearchCase::CaseSensitive);
+		Input.RemovePrefix(2);
+		const int32 IndexEnd = UE::String::FindFirst(Input, TEXT("//"));
 		if (IndexEnd == INDEX_NONE)
 		{
 			checkStats(0);
 			return InLongName;
 		}
-		Input.RightChopInline(IndexEnd + 2, false);
+		Input.RightChopInline(IndexEnd + 2);
 	}
-	const int32 DescIndexEnd = Input.Find(TEXT("///"), ESearchCase::CaseSensitive);
+	const int32 DescIndexEnd = UE::String::FindFirst(Input, TEXT("///"), ESearchCase::CaseSensitive);
 	if (DescIndexEnd != INDEX_NONE)
 	{
-		Input.LeftInline(DescIndexEnd, false);
+		Input.LeftInline(DescIndexEnd);
 	}
-	const int32 CategoryIndexEnd = Input.Find( TEXT( "####" ), ESearchCase::CaseSensitive );
+	const int32 CategoryIndexEnd = UE::String::FindFirst(Input, TEXT( "####" ), ESearchCase::CaseSensitive );
 	if( DescIndexEnd == INDEX_NONE && CategoryIndexEnd != INDEX_NONE )
 	{
-		Input.LeftInline(CategoryIndexEnd, false);
+		Input.LeftInline(CategoryIndexEnd);
 	}
-	const int32 SortByNameIndexEnd = Input.Find( TEXT( "/#/#" ), ESearchCase::CaseSensitive );
+	const int32 SortByNameIndexEnd = UE::String::FindFirst(Input, TEXT( "/#/#" ), ESearchCase::CaseSensitive );
 	if( DescIndexEnd == INDEX_NONE && CategoryIndexEnd == INDEX_NONE && SortByNameIndexEnd != INDEX_NONE )
 	{
-		Input.LeftInline(SortByNameIndexEnd, false);
+		Input.LeftInline(SortByNameIndexEnd);
 	}
-	return FName(*Input);
+	return FName(Input);
 }
 
 FName FStatNameAndInfo::GetGroupNameFrom(FName InLongName)
 {
-	FString Input(InLongName.ToString());
+	TStringBuilder<256> Temp;
+	Temp << InLongName;
+	FStringView Input(Temp);
 
 	if (Input.StartsWith(TEXT("//"), ESearchCase::CaseSensitive))
 	{
-		Input.RightChopInline(2, false);
+		Input.RemovePrefix(2);
 		if (Input.StartsWith(TEXT("Groups//")))
 		{
-			Input.RightChopInline(8, false);
+			Input.RemovePrefix(8);
 		}
-		const int32 IndexEnd = Input.Find(TEXT("//"), ESearchCase::CaseSensitive);
+		const int32 IndexEnd = UE::String::FindFirst(Input, TEXT("//"));
 		if (IndexEnd != INDEX_NONE)
 		{
-			return FName(*Input.Left(IndexEnd));
+			return FName(Input.Left(IndexEnd));
 		}
 		checkStats(0);
 	}
-	return NAME_None;
+	return FName();
 }
 
 FString FStatNameAndInfo::GetDescriptionFrom(FName InLongName)
@@ -822,7 +827,7 @@ FString FStatNameAndInfo::GetDescriptionFrom(FName InLongName)
 		const int32 IndexEnd = Input.Find(TEXT("///"), ESearchCase::CaseSensitive);
 		if (IndexEnd != INDEX_NONE)
 		{
-			return FStatsUtils::FromEscapedFString(*Input.Left(IndexEnd));
+			return FStatsUtils::FromEscapedString(*Input.Left(IndexEnd));
 		}
 	}
 	return FString();

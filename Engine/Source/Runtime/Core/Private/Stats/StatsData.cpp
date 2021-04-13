@@ -5,9 +5,12 @@
 #include "Misc/CoreStats.h"
 #if STATS
 
-#include "Containers/LockFreeFixedSizeAllocator.h"
-#include "HAL/IConsoleManager.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/LockFreeFixedSizeAllocator.h"
+#include "Containers/StringView.h"
+#include "Misc/StringBuilder.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/AsciiSet.h"
 
 DECLARE_CYCLE_STAT(TEXT("Broadcast"),STAT_StatsBroadcast,STATGROUP_StatSystem);
 DECLARE_CYCLE_STAT(TEXT("Condense"),STAT_StatsCondense,STATGROUP_StatSystem);
@@ -2043,7 +2046,7 @@ void FStatsUtils::AccumulateStat(FStatMessage& Dest, FStatMessage const& Item, E
 	}
 }
 
-FString FStatsUtils::FromEscapedFString(const TCHAR* Escaped)
+FString FStatsUtils::FromEscapedString(const TCHAR* Escaped)
 {
 	FString Result;
 	FString Input(Escaped);
@@ -2076,48 +2079,24 @@ FString FStatsUtils::FromEscapedFString(const TCHAR* Escaped)
 	return Result;
 }
 
-FString FStatsUtils::ToEscapedFString(const TCHAR* Source)
+void FStatsUtils::ToEscapedString(FStringView Input, FStringBuilderBase& Output)
 {
-	FString Invalid(INVALID_NAME_CHARACTERS);
-	Invalid += TEXT("$");
-
-	FString Output;
-	FString Input(Source);
-	int32 StartValid = 0;
-	int32 NumValid = 0;
-
-	for (int32 i = 0; i < Input.Len(); i++)
+	constexpr FAsciiSet InvalidChars = FAsciiSet(INVALID_NAME_CHARACTERS) + '$';
+	while (true)
 	{
-		int32 Index = 0;
-		if (!Invalid.FindChar(Input[i], Index))
+		FStringView ValidInput = FAsciiSet::FindPrefixWithout(Input, InvalidChars);
+		Output.Append(ValidInput);
+
+		if (ValidInput.end() == Input.end())
 		{
-			NumValid++;
+			break;
 		}
-		else
-		{
-			// Copy the valid range so far
-			Output += Input.Mid(StartValid, NumValid);
 
-			// Reset valid ranges
-			StartValid = i + 1;
-			NumValid = 0;
+		// Replace the invalid character with a special string
+		Output << '$' << static_cast<uint32>(*ValidInput.end()) << '$';
 
-			// Replace the invalid character with a special string
-			Output += FString::Printf(TEXT("$%u$"), uint32(Input[i]));
-		}
+		Input.RemovePrefix(ValidInput.Len() + 1);
 	}
-
-	// Just return the input if the entire string was valid
-	if (StartValid == 0 && NumValid == Input.Len())
-	{
-		return Input;
-	}
-	else if (NumValid > 0)
-	{
-		// Copy the remaining valid part
-		Output += Input.Mid(StartValid, NumValid);
-	}
-	return Output;
 }
 
 

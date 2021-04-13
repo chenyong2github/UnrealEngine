@@ -777,8 +777,8 @@ struct CORE_API FStatsUtils
 	}
 
 	/** Internal use, converts arbitrary string to and from an escaped notation for storage in an FName. **/
-	static FString ToEscapedFString(const TCHAR* Source);
-	static FString FromEscapedFString(const TCHAR* Escaped);
+	static void ToEscapedString(FStringView Input, FStringBuilderBase& Output);
+	static FString FromEscapedString(const TCHAR* Escaped);
 	
 	static FString BuildUniqueThreadName( uint32 InThreadID )
 	{
