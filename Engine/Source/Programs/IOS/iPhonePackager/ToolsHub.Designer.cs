@@ -33,6 +33,7 @@ namespace iPhonePackager
 			this.CancelThisFormButton = new System.Windows.Forms.Button();
 			this.tabControl1 = new System.Windows.Forms.TabControl();
 			this.tabPage1 = new System.Windows.Forms.TabPage();
+			this.label21 = new System.Windows.Forms.Label();
 			this.label14 = new System.Windows.Forms.Label();
 			this.label5 = new System.Windows.Forms.Label();
 			this.label6 = new System.Windows.Forms.Label();
@@ -114,6 +115,7 @@ namespace iPhonePackager
 			// 
 			// tabPage1
 			// 
+			this.tabPage1.Controls.Add(this.label21);
 			this.tabPage1.Controls.Add(this.label14);
 			this.tabPage1.Controls.Add(this.label5);
 			this.tabPage1.Controls.Add(this.label6);
@@ -131,6 +133,29 @@ namespace iPhonePackager
 			this.tabPage1.TabIndex = 0;
 			this.tabPage1.Text = "New User";
 			this.tabPage1.UseVisualStyleBackColor = true;
+			// 
+			// label13
+			// 
+			this.label13.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+			| System.Windows.Forms.AnchorStyles.Right)));
+			this.label13.Location = new System.Drawing.Point(16, 195);
+			this.label13.Name = "label13";
+			this.label13.Size = new System.Drawing.Size(404, 86);
+			this.label13.TabIndex = 44;
+			this.label13.Text = resources.GetString("label13.Text");
+			// 
+			// label21
+			// 
+			this.label21.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+			| System.Windows.Forms.AnchorStyles.Right)));
+			this.label21.Location = new System.Drawing.Point(16, 16);
+			this.label21.Name = "label21";
+			this.label21.Size = new System.Drawing.Size(494, 63);
+			this.label21.TabIndex = 48;
+			this.label21.TabStop = true;
+			this.label21.Text = resources.GetString("label21.Text");
+			this.label21.UseCompatibleTextRendering = true;
+			// 
 			// 
 			// label14
 			// 
@@ -503,6 +528,7 @@ namespace iPhonePackager
 		private System.Windows.Forms.Label label14;
 		private System.Windows.Forms.Button InstallIPAButton;
 		private System.Windows.Forms.Label label20;
+		private System.Windows.Forms.Label label21;
 		private System.Windows.Forms.GroupBox groupBox1;
 		private System.Windows.Forms.Label label19;
 		private System.Windows.Forms.Label label17;
