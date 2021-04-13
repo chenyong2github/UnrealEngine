@@ -33,7 +33,11 @@
 		},
 		{
 			"Name": "DataRegistry",
-			"Enabled":  true
+			"Enabled": true
+		},
+		{
+			"Name": "AssetReferenceRestrictions",
+			"Enabled": true
 		}
 	]
 }

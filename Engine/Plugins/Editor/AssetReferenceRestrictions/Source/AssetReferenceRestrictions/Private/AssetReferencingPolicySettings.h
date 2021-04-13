@@ -183,6 +183,16 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Project Content", meta=(TitleProperty=DomainName))
 	TArray<FARPDomainDefinitionByContentRoot> AdditionalDomains;
 
+	// This is a temporary flags for testing and should not be disabled under normal circumstances
+	// (it will be removed by 5.0)
+	UPROPERTY(config)
+	bool bEnableAssetFiltering_TEMP = true;
+
+	// This is a temporary flag for testing and should not be disabled under normal circumstances
+	// (it will be removed by 5.0)
+	UPROPERTY(config)
+	bool bEnableAssetValidator_TEMP = true;
+
 	// The names of the project, special system mount, and game domains
 	static const FString EngineDomainName;
 	static const FString GameDomainName;

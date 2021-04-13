@@ -8,6 +8,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "AssetReferencingPolicySubsystem.h"
 #include "AssetReferencingDomains.h"
+#include "AssetReferencingPolicySettings.h"
 
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"
 
@@ -18,6 +19,11 @@ UAssetValidator_AssetReferenceRestrictions::UAssetValidator_AssetReferenceRestri
 
 bool UAssetValidator_AssetReferenceRestrictions::CanValidateAsset_Implementation(UObject* InAsset) const
 {
+	if (!GetDefault<UAssetReferencingPolicySettings>()->bEnableAssetValidator_TEMP)
+	{
+		return false;
+	}
+
 	if (InAsset)
 	{
 		const FAssetData AssetData(InAsset);
@@ -50,16 +56,6 @@ EDataValidationResult UAssetValidator_AssetReferenceRestrictions::ValidateLoaded
 		const FString SoftDependencyStr = SoftDependency.ToString();
 		if (!FPackageName::IsScriptPackage(SoftDependencyStr))
 		{
-
-//@TODO: Probably not needed anymore?
-#if 0
-			FString UncookedFolderName;
-			if (IsInUncookedFolder(SoftDependencyStr, &UncookedFolderName))
-			{
-				AssetFails(InAsset, FText::Format(LOCTEXT("IllegalReference_SoftRef", "Illegally soft references {0} asset {1}"), FText::FromString(UncookedFolderName), FText::FromString(SoftDependencyStr)), ValidationErrors);
-			}
-#endif
-
 			TArray<FAssetData> DependencyAssets;
 			AssetRegistry.GetAssetsByPackageName(SoftDependency, DependencyAssets, true);
 			if (DependencyAssets.Num() == 0)

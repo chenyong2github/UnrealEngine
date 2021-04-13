@@ -8,6 +8,11 @@
 
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"
 
+bool UAssetReferencingPolicySubsystem::ShouldCreateSubsystem(UObject* Outer) const
+{
+	return GetDefault<UAssetReferencingPolicySettings>()->bEnableAssetFiltering_TEMP;
+}
+
 void UAssetReferencingPolicySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	check(GEditor);
