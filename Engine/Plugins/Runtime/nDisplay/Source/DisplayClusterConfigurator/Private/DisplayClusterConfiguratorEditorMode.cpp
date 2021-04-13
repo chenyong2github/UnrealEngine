@@ -53,6 +53,8 @@ FDisplayClusterConfiguratorEditorConfigurationMode::FDisplayClusterConfiguratorE
 		EditorIn->GetToolbarBuilder()->AddBlueprintGlobalOptionsToolbar(Toolbar);
 		EditorIn->GetToolbarBuilder()->AddDebuggingToolbar(Toolbar);
 	}
+
+	EditorIn->GetConfiguratorToolbar()->AddModesToolbar(ToolbarExtender);
 }
 
 void FDisplayClusterConfiguratorEditorConfigurationMode::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)

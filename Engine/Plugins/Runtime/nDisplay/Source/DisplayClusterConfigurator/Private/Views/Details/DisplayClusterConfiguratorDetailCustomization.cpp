@@ -826,12 +826,12 @@ EVisibility FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetCustomR
 
 EVisibility FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetNvidiaPolicyRowsVisibility() const
 {
-	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
-
-	if (ConfigurationCluster->Sync.RenderSyncPolicy.Type.Equals(*NvidiaOption.Get()))
+	if (UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get())
 	{
-		return EVisibility::Visible;
+		if (ConfigurationCluster->Sync.RenderSyncPolicy.Type.Equals(*NvidiaOption.Get()))
+		{
+			return EVisibility::Visible;
+		}
 	}
 
 	return EVisibility::Collapsed;
@@ -1018,7 +1018,10 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolic
 FText FDisplayClusterConfiguratorRenderSyncPolicyCustomization::GetSelectedRenderSyncPolicyText() const
 {
 	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
+	if (ConfigurationCluster == nullptr)
+	{
+		return FText::GetEmpty();
+	}
 
 	if (bIsCustomPolicy)
 	{
@@ -1179,7 +1182,10 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::OnInputSyncPolicyS
 FText FDisplayClusterConfiguratorInputSyncPolicyCustomization::GetSelectedInputSyncPolicyText() const
 {
 	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-	check(ConfigurationCluster != nullptr);
+	if (ConfigurationCluster == nullptr)
+	{
+		return FText::GetEmpty();
+	}
 
 	return FText::FromString(ConfigurationCluster->Sync.InputSyncPolicy.Type);
 }

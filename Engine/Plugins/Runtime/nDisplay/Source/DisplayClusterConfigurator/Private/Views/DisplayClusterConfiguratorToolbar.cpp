@@ -78,7 +78,9 @@ void FDisplayClusterConfiguratorToolbar::FillModesToolbar(FToolBarBuilder& Toolb
 	);
 
 	ToolbarBuilder.EndSection();
-	
+
+	/*
+	 * TODO: Either delete or enable if we add back in the seperate graph mode.
 	TAttribute<FName> GetActiveMode(EditorPtr.ToSharedRef(), &FDisplayClusterConfiguratorBlueprintEditor::GetCurrentMode);
 	FOnModeChangeRequested SetActiveMode = FOnModeChangeRequested::CreateSP(
 		EditorPtr.ToSharedRef(), &FDisplayClusterConfiguratorBlueprintEditor::SetCurrentMode);
@@ -110,6 +112,7 @@ void FDisplayClusterConfiguratorToolbar::FillModesToolbar(FToolBarBuilder& Toolb
 
 	// Right side padding
 	EditorPtr->AddToolbarWidget(SNew(SSpacer).Size(FVector2D(4.0f, 1.0f)));
+	*/
 
 }
  
