@@ -272,10 +272,6 @@ struct RIGVM_API FRigVMRegister
 	// Returns true if the register stores more than one element
 	FORCEINLINE_DEBUGGABLE bool IsArray() const { return bIsArray || (ElementCount > 1); }
 
-	// Returns true if the register stores shallow memory
-	// Potentially unused (to be removed)
-	FORCEINLINE_DEBUGGABLE bool IsShallow() const { return ScriptStructIndex == INDEX_NONE; }
-
 	// Returns the number of allocated bytes (including alignment + trailing bytes)
 	FORCEINLINE_DEBUGGABLE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes + TrailingBytes; }
 
@@ -1179,14 +1175,6 @@ public:
 	{
 		return AddDynamicValue<T>(NAME_None, InValue, InSliceCount);
 	}
-
-	// Remove a register given its index
-	// Note: This only works if SupportsNames() == true
-	FName Rename(int32 InRegisterIndex, const FName& InNewName);
-
-	// Remove a register given its old name
-	// Note: This only works if SupportsNames() == true
-	FName Rename(const FName& InOldName, const FName& InNewName);
 
 	// Adds a register path and returns its index
 	int32 GetOrAddRegisterOffset(int32 InRegisterIndex, int32 InArrayElement = 0);

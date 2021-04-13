@@ -1623,37 +1623,6 @@ bool FRigVMMemoryContainer::Destroy(int32 InRegisterIndex, int32 InElementIndex,
 	return true;
 }
 
-FName FRigVMMemoryContainer::Rename(int32 InRegisterIndex, const FName& InNewName)
-{
-	if (Registers[InRegisterIndex].Name == InNewName)
-	{
-		return Registers[InRegisterIndex].Name;
-	}
-
-	if (!IsNameAvailable(InNewName))
-	{
-		return Registers[InRegisterIndex].Name;
-	}
-
-	Registers[InRegisterIndex].Name = InNewName;
-	UpdateRegisters();
-
-	return InNewName;
-}
-
-FName FRigVMMemoryContainer::Rename(const FName& InOldName, const FName& InNewName)
-{
-	ensure(bUseNameMap);
-
-	int32 RegisterIndex = GetIndex(InOldName);
-	if (RegisterIndex == INDEX_NONE)
-	{
-		return NAME_None;
-	}
-
-	return Rename(RegisterIndex, InNewName);
-}
-
 int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, int32 InArrayElement)
 {
 	return GetOrAddRegisterOffset(InRegisterIndex, FString(), InArrayElement);
