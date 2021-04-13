@@ -87,10 +87,14 @@ void FMeshOcclusionMapBaker::Bake()
 			Normalize(DetailTriNormal);
 
 			FVector3d BaseTangentX, BaseTangentY;
-			BaseMeshTangents->GetInterpolatedTriangleTangent(
-				SampleData.BaseSample.TriangleIndex,
-				SampleData.BaseSample.BaryCoords,
-				BaseTangentX, BaseTangentY);
+			if (NormalSpace == ESpace::Tangent)
+			{
+				check(BaseMeshTangents);
+				BaseMeshTangents->GetInterpolatedTriangleTangent(
+					SampleData.BaseSample.TriangleIndex,
+					SampleData.BaseSample.BaryCoords,
+					BaseTangentX, BaseTangentY);
+			}
 
 			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
 			FVector3d DetailPos = DetailMesh->GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);
@@ -162,8 +166,10 @@ void FMeshOcclusionMapBaker::Bake()
 
 	OcclusionBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	OcclusionBuilder->SetDimensions(BakeCache->GetDimensions());
+	OcclusionBuilder->Clear(FVector3f::Zero());
 	NormalBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	NormalBuilder->SetDimensions(BakeCache->GetDimensions());
+	NormalBuilder->Clear(FVector3f::Zero());
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{

@@ -21,7 +21,7 @@ public:
 	// Inputs
 	//
 
-	const TMeshTangents<double>* BaseMeshTangents;
+	const TMeshTangents<double>* BaseMeshTangents = nullptr;
 
 	//
 	// Options
