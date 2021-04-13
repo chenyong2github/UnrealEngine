@@ -1159,6 +1159,94 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Gets the total memory bytes available, based on what is known to the garbage collector.
+		/// </summary>
+		/// <remarks>This will return a max of 2GB for a 32bit application.</remarks>
+		/// <returns>The total memory available, in bytes.</returns>
+		public static long GetAvailableMemoryBytes()
+		{
+			GCMemoryInfo MemoryInfo = GC.GetGCMemoryInfo();
+			// TotalAvailableMemoryBytes will be 0 if garbage collection has not run yet
+			return MemoryInfo.TotalAvailableMemoryBytes != 0 ? MemoryInfo.TotalAvailableMemoryBytes :- 1;
+		}
+
+		/// <summary>
+		/// Gets the total memory bytes free, based on what is known to the garbage collector.
+		/// </summary>
+		/// <remarks>This will return a max of 2GB for a 32bit application.</remarks>
+		/// <returns>The total memory free, in bytes.</returns>
+		public static long GetFreeMemoryBytes()
+		{
+			GCMemoryInfo MemoryInfo = GC.GetGCMemoryInfo();
+			// TotalAvailableMemoryBytes will be 0 if garbage collection has not run yet
+			return MemoryInfo.TotalAvailableMemoryBytes != 0 ? MemoryInfo.TotalAvailableMemoryBytes - MemoryInfo.MemoryLoadBytes : -1;
+		}
+
+		/// <summary>
+		/// Determines the maximum number of actions to execute in parallel, taking into account the resources available on this machine.
+		/// </summary>
+		/// <param name="MaxProcessorCount">How many actions to execute in parallel. When 0 a default will be chosen based on system resources</param>
+		/// <param name="ProcessorCountMultiplier">Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.</param>
+		/// <param name="MemoryPerActionBytes"></param>
+		/// <returns>Max number of actions to execute in parallel</returns>
+		public static int GetMaxActionsToExecuteInParallel(int MaxProcessorCount, double ProcessorCountMultiplier, long MemoryPerActionBytes)
+		{
+			// Get the number of logical processors
+			int NumLogicalCores = Utils.GetLogicalProcessorCount();
+
+			// Use WMI to figure out physical cores, excluding hyper threading.
+			int NumPhysicalCores = Utils.GetPhysicalProcessorCount();
+			if (NumPhysicalCores == -1)
+			{
+				NumPhysicalCores = NumLogicalCores;
+			}
+
+			Log.TraceInformation($"Determining max actions to execute in parallel ({NumPhysicalCores} physical cores, {NumLogicalCores} logical cores)");
+
+			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
+			int MaxActionsToExecuteInParallel;
+			if (NumPhysicalCores < NumLogicalCores && ProcessorCountMultiplier != 1.0)
+			{
+				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
+				// Use multiplier if provided
+				MaxActionsToExecuteInParallel = (int)(NumPhysicalCores * ProcessorCountMultiplier);
+				Log.TraceInformation($"  Requested {ProcessorCountMultiplier} process count multiplier: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+			}
+			else if (NumPhysicalCores < NumLogicalCores)
+			{
+				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
+				MaxActionsToExecuteInParallel = NumLogicalCores;
+			}
+			// No hyper-threading. Only kicking off a task per CPU to keep machine responsive.
+			else
+			{
+				MaxActionsToExecuteInParallel = NumPhysicalCores;
+			}
+
+			// Limit number of actions to execute if the system is memory starved.
+			if (MemoryPerActionBytes > 0)
+			{
+				long FreeMemoryBytes = GetFreeMemoryBytes();
+				if (FreeMemoryBytes != -1)
+				{
+					int TotalMemoryActions = Convert.ToInt32(FreeMemoryBytes / MemoryPerActionBytes);
+					if (TotalMemoryActions < MaxActionsToExecuteInParallel)
+					{
+						MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, TotalMemoryActions));
+						Log.TraceInformation($"  Requested {StringUtils.FormatBytesString(MemoryPerActionBytes)} free memory per action, {StringUtils.FormatBytesString(FreeMemoryBytes)} available: limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+					}
+				}
+			}
+
+			if (MaxProcessorCount < MaxActionsToExecuteInParallel)
+			{
+				MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
+				Log.TraceInformation($"  Requested max {MaxProcessorCount} action(s): limiting max parallel actions to {MaxActionsToExecuteInParallel}");
+			}
+			return MaxActionsToExecuteInParallel;
+		}
+
+		/// <summary>
 		/// Executes a list of custom build step scripts
 		/// </summary>
 		/// <param name="ScriptFiles">List of script files to execute</param>

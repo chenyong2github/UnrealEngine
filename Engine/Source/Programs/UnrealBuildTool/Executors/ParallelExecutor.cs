@@ -49,9 +49,19 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
+		/// When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value
+		/// to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse.
+		/// This value is ignored if the CPU does not support hyper-threading.
 		/// </summary>
 		[XmlConfigFile]
 		double ProcessorCountMultiplier = 1.0;
+
+		/// <summary>
+		/// Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved.
+		/// Set to 0 to disable free memory checking.
+		/// </summary>
+		[XmlConfigFile]
+		double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// When enabled, will stop compiling targets after a compile error occurs.
@@ -80,7 +90,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out how many processors to use
-				NumParallelProcesses = Math.Min((int)(Environment.ProcessorCount * ProcessorCountMultiplier), MaxProcessorCount);
+				NumParallelProcesses = Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytes));
 			}
 		}
 

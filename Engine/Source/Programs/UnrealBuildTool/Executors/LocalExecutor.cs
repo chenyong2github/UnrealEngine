@@ -198,18 +198,26 @@ namespace UnrealBuildTool
 	class LocalExecutor : ActionExecutor
 	{
 		/// <summary>
+		/// Maximum processor count for local execution. 
+		/// </summary>
+		[XmlConfigFile]
+		int MaxProcessorCount = int.MaxValue;
+
+		/// <summary>
 		/// Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
 		/// When using the local executor (not XGE), run a single action on each CPU core. Note that you can set this to a larger value
 		/// to get slightly faster build times in many cases, but your computer's responsiveness during compiling may be much worse.
+		/// This value is ignored if the CPU does not support hyper-threading.
 		/// </summary>
 		[XmlConfigFile]
 		double ProcessorCountMultiplier = 1.0;
 
 		/// <summary>
-		/// Maximum processor count for local execution. 
+		/// Free memory per action in bytes, used to limit the number of parallel actions if the machine is memory starved.
+		/// Set to 0 to disable free memory checking.
 		/// </summary>
 		[XmlConfigFile]
-		int MaxProcessorCount = int.MaxValue;
+		double MemoryPerActionBytes = 1.5 * 1024 * 1024 * 1024;
 
 		/// <summary>
 		/// How many processes that will be executed in parallel
@@ -232,53 +240,13 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out how many processors to use
-				NumParallelProcesses = GetMaxActionsToExecuteInParallel();
+				NumParallelProcesses = Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytes));
 			}
 		}
 
 		public override string Name
 		{
 			get { return "Local"; }
-		}
-
-		/// <summary>
-		/// Determines the maximum number of actions to execute in parallel, taking into account the resources available on this machine.
-		/// </summary>
-		/// <returns>Max number of actions to execute in parallel</returns>
-		public virtual int GetMaxActionsToExecuteInParallel()
-		{
-			// Get the number of logical processors
-			int NumLogicalCores = Utils.GetLogicalProcessorCount();
-
-			// Use WMI to figure out physical cores, excluding hyper threading.
-			int NumPhysicalCores = Utils.GetPhysicalProcessorCount();
-			if (NumPhysicalCores == -1)
-			{
-				NumPhysicalCores = NumLogicalCores;
-			}
-
-			// The number of actions to execute in parallel is trying to keep the CPU busy enough in presence of I/O stalls.
-			int MaxActionsToExecuteInParallel = 0;
-			if (NumPhysicalCores < NumLogicalCores && ProcessorCountMultiplier != 1.0)
-			{
-				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
-				// Use multiplier if provided
-				MaxActionsToExecuteInParallel = (int)(NumPhysicalCores * ProcessorCountMultiplier);
-			}
-			else if (NumPhysicalCores < NumLogicalCores && NumPhysicalCores > 4)
-			{
-				// The CPU has more logical cores than physical ones, aka uses hyper-threading. 
-				// Use average of logical and physical if we have "lots of cores"
-				MaxActionsToExecuteInParallel = Math.Max((int)(NumPhysicalCores + NumLogicalCores) / 2, NumLogicalCores - 4);
-			}
-			// No hyper-threading. Only kicking off a task per CPU to keep machine responsive.
-			else
-			{
-				MaxActionsToExecuteInParallel = NumPhysicalCores;
-			}
-
-			MaxActionsToExecuteInParallel = Math.Max(1, Math.Min(MaxActionsToExecuteInParallel, MaxProcessorCount));
-			return MaxActionsToExecuteInParallel;
 		}
 
 		/// <summary>

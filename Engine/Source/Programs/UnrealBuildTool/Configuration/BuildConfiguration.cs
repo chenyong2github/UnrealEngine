@@ -95,7 +95,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Number of actions that can be executed in parallel. If 0 then code will pick a default based
-		/// on the number of cores available. Only applies to the ParallelExecutor
+		/// on the number of cores and memory available. Applies to the ParallelExecutor, HybridExecutor, and LocalExecutor
 		/// </summary>
 		[XmlConfigFile]
 		[CommandLine("-MaxParallelActions")]
