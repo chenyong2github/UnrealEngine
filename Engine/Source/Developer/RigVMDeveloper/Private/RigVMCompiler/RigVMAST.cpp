@@ -2461,57 +2461,97 @@ const FRigVMBlockExprAST* FRigVMParserAST::GetObsoleteBlock(bool bCreateIfMissin
 	return ObsoleteBlock;
 }
 
-void FRigVMParserAST::RemoveExpression(FRigVMExprAST* InExpr, bool bRefreshIndices, bool bRecurseToChildren)
+void FRigVMParserAST::RemoveExpressions(TArray<FRigVMExprAST*> InExprs)
 {
-	TArray<FRigVMExprAST*> Parents = InExpr->Parents;
-	for (FRigVMExprAST* Parent : Parents)
-	{
-		InExpr->RemoveParent(Parent);
-	}
-	TArray<FRigVMExprAST*> Children = InExpr->Children;
-	for (FRigVMExprAST* Child : Children)
-	{
-		Child->RemoveParent(InExpr);
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-		if (bRecurseToChildren && Child->NumParents() == 0)
+	if(InExprs.IsEmpty())
+	{
+		return;
+	}
+	
+	RefreshExprIndices();
+
+	TArray<FRigVMExprAST*> ExpressionsToRemove;
+	ExpressionsToRemove.Append(InExprs);
+
+	TArray<int32> NumRemainingParents;
+	NumRemainingParents.AddUninitialized(Expressions.Num());
+	for(int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
+	{
+		NumRemainingParents[ExpressionIndex] = Expressions[ExpressionIndex]->Parents.Num();
+	}
+
+	TArray<bool> bRemoveExpression;
+	bRemoveExpression.AddZeroed(Expressions.Num());
+	for(int32 ExpressionIndex = 0; ExpressionIndex < ExpressionsToRemove.Num(); ExpressionIndex++)
+	{
+		FRigVMExprAST* Expr = ExpressionsToRemove[ExpressionIndex];
+		bRemoveExpression[Expr->GetIndex()] = true;
+
+		for (FRigVMExprAST* Child : Expr->Children)
 		{
-			RemoveExpression(Child, false, bRecurseToChildren);
+			if(--NumRemainingParents[Child->GetIndex()] == 0)
+			{
+				ExpressionsToRemove.Add(Child);
+			}
 		}
 	}
 
-	Expressions.Remove(InExpr);
+	TArray<FRigVMExprAST*> RemainingExpressions;
+	RemainingExpressions.Reserve(Expressions.Num() - ExpressionsToRemove.Num());
+	
+	for(int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
+	{
+		if(!bRemoveExpression[ExpressionIndex])
+		{
+			FRigVMExprAST* Expr = Expressions[ExpressionIndex];
+			RemainingExpressions.Add(Expr);
+
+			for(int32 ChildIndex = 0; ChildIndex < Expr->Children.Num(); ChildIndex++)
+			{
+				FRigVMExprAST* ChildExpr = Expr->Children[ChildIndex];
+				if(bRemoveExpression[ChildExpr->GetIndex()])
+				{
+					Expr->Children.RemoveAt(ChildIndex);
+					break;
+				}
+			}
+
+			for(int32 ParentIndex = 0; ParentIndex < Expr->Parents.Num(); ParentIndex++)
+			{
+				FRigVMExprAST* ParentExpr = Expr->Parents[ParentIndex];
+				if(bRemoveExpression[ParentExpr->GetIndex()])
+				{
+					Expr->Parents.RemoveAt(ParentIndex);
+					break;
+				}
+			}
+		}
+	}
+
+	Expressions = RemainingExpressions;
 
 	TArray<FRigVMASTProxy> KeysToRemove;
 	for (TPair<FRigVMASTProxy, FRigVMExprAST*> Pair : SubjectToExpression)
 	{
-		if (Pair.Value == InExpr)
+		if (bRemoveExpression[Pair.Value->GetIndex()])
 		{
 			KeysToRemove.Add(Pair.Key);
 		}
 	}
+	
 	for (const FRigVMASTProxy& KeyToRemove : KeysToRemove)
 	{
 		SubjectToExpression.Remove(KeyToRemove);
 	}
 
-	delete InExpr;
+	for(int32 ExpressionIndex = ExpressionsToRemove.Num() - 1; ExpressionIndex >= 0; ExpressionIndex--)
+	{
+		delete ExpressionsToRemove[ExpressionIndex];
+	}
 
-	if (bRefreshIndices)
-	{
-		RefreshExprIndices();
-	}
-}
-
-void FRigVMParserAST::RemoveExpressions(TArray<FRigVMExprAST*> InExprs, bool bRefreshIndices, bool bRecurseToChildren)
-{
-	for (FRigVMExprAST* InExpr : InExprs)
-	{
-		RemoveExpression(InExpr, false, bRecurseToChildren);
-	}
-	if (bRefreshIndices)
-	{
-		RefreshExprIndices();
-	}
+	RefreshExprIndices();
 }
 
 void FRigVMParserAST::TraverseParents(const FRigVMExprAST* InExpr, TFunctionRef<bool(const FRigVMExprAST*)> InContinuePredicate)

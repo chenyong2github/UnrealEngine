@@ -136,7 +136,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
 		for(URigVMNode* ModelNode : VisitedGraph->GetNodes())
 		{
-			FRigVMControllerGraphGuard Guard(InController, VisitedGraph);
+			FRigVMControllerGraphGuard Guard(InController, VisitedGraph, false);
 			if(!InController->RemoveUnusedOrphanedPins(ModelNode, true))
 			{
 				static const FString LinkedMessage = TEXT("Node @@ uses pins that no longer exist. Please rewire the links and re-compile.");

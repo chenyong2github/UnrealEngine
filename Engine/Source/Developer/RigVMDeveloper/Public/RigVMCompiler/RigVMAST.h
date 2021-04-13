@@ -1280,17 +1280,9 @@ private:
 		return Expr;
 	}
 
-	// removes a single expression from the parser
-	// @param InExpr the expression to remove
-	// @param bRefreshIndices flag to determine if the expression indices need to be refreshed
-	// @param bRecurseToChildren flag to determine if nested expressions should also be removed
-	void RemoveExpression(FRigVMExprAST* InExpr, bool bRefreshIndices = true, bool bRecurseToChildren = false);
-
 	// removes an array of expressions from the parser
 	// @param InExprs the expressions to remove
-	// @param bRefreshIndices flag to determine if the expression indices need to be refreshed
-	// @param bRecurseToChildren flag to determine if nested expressions should also be removed
-	void RemoveExpressions(TArray<FRigVMExprAST*> InExprs, bool bRefreshIndices = true, bool bRecurseToChildren = true);
+	void RemoveExpressions(TArray<FRigVMExprAST*> InExprs);
 
 	// a static helper function to traverse along all parents of an expression,
 	// provided a predicate to return true if the traverse should continue,
