@@ -65,7 +65,11 @@ namespace UnrealGameSync
 					FileRecords.AddRange(WildcardFileRecords);
 				}
 
-				string ClientPrefix = ClientRoot + Path.DirectorySeparatorChar;
+				string ClientPrefix = ClientRoot;
+				if (!ClientPrefix.EndsWith(Path.DirectorySeparatorChar))
+				{
+					ClientPrefix += Path.DirectorySeparatorChar;
+				}
 
 				Paths = new List<string>();
 				foreach(PerforceFileRecord FileRecord in FileRecords)
