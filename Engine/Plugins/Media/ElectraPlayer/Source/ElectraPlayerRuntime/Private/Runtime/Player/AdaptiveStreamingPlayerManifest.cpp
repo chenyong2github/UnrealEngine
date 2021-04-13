@@ -36,20 +36,15 @@ static const FString MIMETypeDASH(TEXT("application/dash+xml"));
 FString GetMIMETypeForURL(const FString &URL)
 {
 	FString MimeType;
-	TUniquePtr<IURLParser> UrlParser(IURLParser::Create());
-	if (!UrlParser)
-	{
-		return MimeType;
-	}
-	UEMediaError Error = UrlParser->ParseURL(URL);
-	if (Error != UEMEDIA_ERROR_OK)
+	FURL_RFC3986 UrlParser;
+	if (!UrlParser.Parse(URL))
 	{
 		return MimeType;
 	}
 
 	//	FString PathOnly = UrlParser->GetPath();
 	TArray<FString> PathComponents;
-	UrlParser->GetPathComponents(PathComponents);
+	UrlParser.GetPathComponents(PathComponents);
 	if (PathComponents.Num())
 	{
 		FString LowerCaseExtension = FPaths::GetExtension(PathComponents.Last().ToLower());

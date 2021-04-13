@@ -425,8 +425,8 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 	// Get the timeline asset object.
 	TSharedPtrTS<FTimelineMediaAssetHLS> Asset = Manifest->CurrentMediaAsset;
 
-	TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-	UrlBuilder->ParseURL(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+	FURL_RFC3986 UrlBuilder;
+	UrlBuilder.Parse(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 
 	for(const HLSPlaylistParser::FMediaPlaylist& VariantStream : Playlist.GetPlaylists())
 	{
@@ -731,7 +731,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 				vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 				vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-				vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);;
+				vs->Internal.CDN					= FURL_RFC3986(UrlBuilder).ResolveWith(vs->URI).Get();
 
 				// Check if there is an audio adaptation set already due to an audio rendition group referenced by this variant.
 				if (bHaveAudioGroup)
@@ -826,7 +826,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 					vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 					vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-					vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
+					vs->Internal.CDN					= FURL_RFC3986(UrlBuilder).ResolveWith(vs->URI).Get();
 				}
 				else
 				{
@@ -855,7 +855,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 									Repr->Bitrate = StreamMetaData.Bandwidth;
 									vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 									vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-									vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
+									vs->Internal.CDN					= FURL_RFC3986(UrlBuilder).ResolveWith(vs->URI).Get();
 								}
 							}
 						}
@@ -919,7 +919,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 						vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 						vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
-						vs->Internal.CDN					= UrlBuilder->ResolveWith(vs->URI);
+						vs->Internal.CDN					= FURL_RFC3986(UrlBuilder).ResolveWith(vs->URI).Get();
 						Manifest->AudioOnlyStreams.Push(vs);
 
 						Manifest->PlaylistIDMap.Add(vs->Internal.UniqueID, vs);
@@ -1038,14 +1038,14 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 	}
 
 	// Add the variant playlist to the list of playlists to be fetched.
-	TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-	UrlBuilder->ParseURL(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+	FURL_RFC3986 UrlBuilder;
+	UrlBuilder.Parse(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 	FPlaylistLoadRequestHLS& VariantRequest = OutRequests.AddDefaulted_GetRef();
 	check(StartingVariantStream->Internal.LoadState == FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::NotLoaded);
 	StartingVariantStream->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 	VariantRequest.InternalUniqueID 		  = StartingVariantStream->Internal.UniqueID;
 	VariantRequest.RequestedAtTime  		  = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-	VariantRequest.URL  					  = UrlBuilder->ResolveWith(StartingVariantStream->URI);
+	VariantRequest.URL  					  = FURL_RFC3986(UrlBuilder).ResolveWith(StartingVariantStream->URI).Get();
 	VariantRequest.LoadType 				  = FPlaylistLoadRequestHLS::ELoadType::Initial;
 	VariantRequest.AdaptationSetUniqueID	  = StartingVariantStream->Internal.AdaptationSetUniqueID;
 	VariantRequest.RepresentationUniqueID     = StartingVariantStream->Internal.RepresentationUniqueID;
@@ -1077,7 +1077,7 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 					Rendition->Internal.LoadState   		= FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 					RenditionRequest.InternalUniqueID   	= Rendition->Internal.UniqueID;
 					RenditionRequest.RequestedAtTime		= PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
-					RenditionRequest.URL					= UrlBuilder->ResolveWith(Rendition->URI);
+					RenditionRequest.URL					= FURL_RFC3986(UrlBuilder).ResolveWith(Rendition->URI).Get();
 					RenditionRequest.LoadType   			= FPlaylistLoadRequestHLS::ELoadType::Initial;
 					RenditionRequest.AdaptationSetUniqueID  = Rendition->Internal.AdaptationSetUniqueID;
 					RenditionRequest.RepresentationUniqueID = Rendition->Internal.RepresentationUniqueID;
@@ -1176,12 +1176,12 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 			TSharedPtrTS<IAdaptiveStreamSelector> StreamSelector(PlayerSessionServices->GetStreamSelector());
 			StreamSelector->MarkStreamAsUnavailable(VideoVariant->Internal.Blacklisted->AssetIDs);
 
-			TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-			UrlBuilder->ParseURL(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+			FURL_RFC3986 UrlBuilder;
+			UrlBuilder.Parse(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 			AlternateVariantStream->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 			// Update the changed request parameters.
 			InOutFailedRequest.InternalUniqueID 		  = AlternateVariantStream->Internal.UniqueID;
-			InOutFailedRequest.URL  					  = UrlBuilder->ResolveWith(AlternateVariantStream->URI);
+			InOutFailedRequest.URL  					  = FURL_RFC3986(UrlBuilder).ResolveWith(AlternateVariantStream->URI).Get();
 			InOutFailedRequest.AdaptationSetUniqueID	  = AlternateVariantStream->Internal.AdaptationSetUniqueID;
 			InOutFailedRequest.RepresentationUniqueID     = AlternateVariantStream->Internal.RepresentationUniqueID;
 			InOutFailedRequest.CDN  					  = AlternateVariantStream->Internal.CDN;
@@ -1427,8 +1427,8 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 		if (MediaSegmentList.Num())
 		{
 			TArray<FString> SplitResults;
-			TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-			UrlBuilder->ParseURL(SourceRequest.URL);
+			FURL_RFC3986 UrlBuilder;
+			UrlBuilder.Parse(SourceRequest.URL);
 
 			int64 NextSequenceNum      = MediaStream->MediaSequence;
 			int64 NextDiscontinuityNum = MediaStream->DiscontinuitySequence;
@@ -1568,7 +1568,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 						GetSegmentAttributeString(URI, HLSPlaylistParser::ExtXKey, TEXT("URI"));
 						GetSegmentAttributeString(IV, HLSPlaylistParser::ExtXKey, TEXT("IV"));
 						// Resolve the URL if it is relative.
-						FString LicenseKeyURL = UrlBuilder->ResolveWith(URI);
+						FString LicenseKeyURL = FURL_RFC3986(UrlBuilder).ResolveWith(URI).Get();
 						// Is there a change in attributes?
 						if (LicenseKeyInfo.IsValid() && (LicenseKeyInfo->Method != Method || LicenseKeyInfo->URI != LicenseKeyURL || LicenseKeyInfo->IV != IV))
 						{
@@ -1593,7 +1593,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 				// Is there a new init segment specified with EXT-X-MAP ?
 				if (GetSegmentAttributeString(AttrValue, HLSPlaylistParser::ExtXMap, TEXT("URI")))
 				{
-					FString InitSegmentURL = UrlBuilder->ResolveWith(AttrValue);
+					FString InitSegmentURL = FURL_RFC3986(UrlBuilder).ResolveWith(AttrValue).Get();
 					InitSegmentInfo = MakeSharedTS<FManifestHLSInternal::FMediaStream::FInitSegmentInfo>();
 					InitSegmentInfo->URI = InitSegmentURL;
 // FIXME: The init segment could/can have a separate EXT-X-KEY applied to it!!
