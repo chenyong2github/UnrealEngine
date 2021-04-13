@@ -13232,6 +13232,28 @@ bool UMaterialFunctionInstance::ValidateFunctionUsage(class FMaterialCompiler* C
 	return Parent ? Parent->ValidateFunctionUsage(Compiler, Output) : false;
 }
 
+void UMaterialFunctionInstance::Serialize(FArchive& Ar)
+{
+	FGuid OldStateId;
+	// catch assets saved without proper StateId
+	if (Ar.IsLoading() && Ar.IsPersistent())
+	{
+		OldStateId = StateId;
+		StateId.Invalidate();
+	}
+
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading() && Ar.IsPersistent())
+	{
+		if (!StateId.IsValid())
+		{
+			UE_LOG(LogMaterial, Warning, TEXT("%s was saved without a valid StateId (old asset?). This will cause all materials using it to recompile their shaders on each load - please resave to fix."), *GetName());
+			StateId = OldStateId;
+		}
+	}
+}
+
 void UMaterialFunctionInstance::PostLoad()
 {
 	Super::PostLoad();
