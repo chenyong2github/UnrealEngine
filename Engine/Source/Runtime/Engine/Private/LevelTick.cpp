@@ -996,7 +996,6 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
 }
 
 DECLARE_GPU_STAT(EndOfFrameUpdates);
-DECLARE_GPU_STAT(GPUSkinCache);
 DECLARE_GPU_STAT(GPUSkinCacheRayTracingGeometry);
 DECLARE_GPU_STAT(ComputeFrameworkExecuteBatches);
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
@@ -1009,8 +1008,6 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
 			{
-				SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
-
 				// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
 				// allow the GPU Skin Cache system to update.
 				SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);

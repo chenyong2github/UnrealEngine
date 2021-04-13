@@ -1279,8 +1279,12 @@ FGPUSkinCache::FRWBuffersAllocation* FGPUSkinCache::TryAllocBuffer(uint32 NumVer
 	return NewAllocation;
 }
 
+DECLARE_GPU_STAT(GPUSkinCache);
+
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 {
+	SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
+
 	int32 BatchCount = BatchDispatches.Num();
 	INC_DWORD_STAT_BY(STAT_GPUSkinCache_TotalNumChunks, BatchCount);
 
@@ -1321,6 +1325,8 @@ void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList)
 
 void FGPUSkinCache::DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber)
 {
+	SCOPED_GPU_STAT(RHICmdList, GPUSkinCache);
+
 	INC_DWORD_STAT(STAT_GPUSkinCache_TotalNumChunks);
 	PrepareUpdateSkinning(SkinCacheEntry, Section, RevisionNumber, nullptr);
 	DispatchUpdateSkinning(RHICmdList, SkinCacheEntry, Section, RevisionNumber);
