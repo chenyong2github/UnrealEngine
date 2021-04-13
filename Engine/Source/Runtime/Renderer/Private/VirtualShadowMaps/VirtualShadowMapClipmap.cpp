@@ -11,15 +11,15 @@ VirtualShadowMapClipmap.cpp
 #include "VirtualShadowMapArray.h"
 #include "VirtualShadowMapCacheManager.h"
 
-static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapResolutionLodBias(
-	TEXT( "r.Shadow.Virtual.Clipmap.ResolutionLodBias" ),
+static TAutoConsoleVariable<float> CVarVirtualShadowMapResolutionLodBiasDirectional(
+	TEXT( "r.Shadow.Virtual.ResolutionLodBiasDirectional" ),
 	-0.5f,
-	TEXT( "" ),
+	TEXT( "Bias applied to LOD calculations for directional lights. -1.0 doubles resolution, 1.0 halves it and so on." ),
 	ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 	TEXT( "r.Shadow.Virtual.Clipmap.FirstLevel" ),
-	8,
+	6,
 	TEXT( "First level of the virtual clipmap. Lower values allow higher resolution shadows closer to the camera." ),
 	ECVF_RenderThreadSafe
 );
@@ -85,7 +85,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	// For now we adjust resolution by just biasing the page we look up in. This is wasteful in terms of page table vs.
 	// just resizing the virtual shadow maps for each clipmap, but convenient for now. This means we need to additionally bias
 	// which levels are present.
-	ResolutionLodBias = CVarVirtualShadowMapClipmapResolutionLodBias.GetValueOnRenderThread() + FMath::Log2(LodScale);
+	ResolutionLodBias = CVarVirtualShadowMapResolutionLodBiasDirectional.GetValueOnRenderThread() + FMath::Log2(LodScale);
 	// Clamp negative absolute resolution biases as they would exceed the maximum resolution/ranges allocated
 	ResolutionLodBias = FMath::Max(0.0f, ResolutionLodBias);
 

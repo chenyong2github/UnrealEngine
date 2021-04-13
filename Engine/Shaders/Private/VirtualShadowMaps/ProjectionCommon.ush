@@ -12,13 +12,6 @@ ProjectionCommon.ush:
 
 #define VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE 1e-6f
 
-uint CalcMipLevelFromFootprint(float Footprint, uint MipLevelCount = VSM_MAX_MIP_LEVELS)
-{
-	float MipLevelFloat = log2(max(1.0f, Footprint));
-	uint MipLevel = min(MipLevelCount - 1, uint(floor(MipLevelFloat)));
-	return MipLevel;
-}
-
 float CalcClipmapLevelFloat(FVirtualShadowMapProjectionShaderData BaseProjectionData, float3 WorldPosition)
 {
 	float DistanceToClipmapOrigin = length(WorldPosition - BaseProjectionData.ClipmapWorldOrigin);
@@ -124,7 +117,6 @@ FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int Clipm
 	const FVirtualShadowMapProjectionShaderData ProjectionDataA = GetVirtualShadowMapProjectionData(ClipmapId);
 	const FVirtualShadowMapProjectionShaderData ProjectionDataB = GetVirtualShadowMapProjectionData(ClipmapId + LevelOffset);
 
-	// TODO: Simplify/optimize
 	float2 OffsetA = float2(ProjectionDataA.ClipmapCornerOffset);
 	float2 OffsetB = float2(ProjectionDataB.ClipmapCornerOffset);
 
@@ -394,22 +386,4 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float RayStartDistance, float3 EstimatedGeoWorldNormal)
 {
 	return SampleVirtualShadowMapInner(VirtualShadowMapId, WorldPosition, RayStartDistance, true, EstimatedGeoWorldNormal);
-}
-
-// Helper for debug mostly
-float3 VirtualShadowMapDebugIntToColor(uint Index)
-{
-	const float3 ColorTable[8] = {
-		float3(1.0f, 0.0f, 0.0f),
-		float3(0.0f, 1.0f, 0.0f),
-		float3(0.0f, 0.0f, 1.0f),
-
-		float3(1.0f, 1.0f, 0.0f),
-		float3(0.0f, 1.0f, 1.0f),
-		float3(1.0f, 0.0f, 1.0f),
-
-		float3(0.5f, 0.7f, 0.1f),
-		float3(1.0f, 1.0f, 1.0f)
-	};
-	return ColorTable[Index % 8];
 }

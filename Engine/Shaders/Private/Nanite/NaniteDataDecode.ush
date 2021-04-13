@@ -131,6 +131,8 @@ struct FStats
 	uint NumPostVisitedNodes;
 	uint NumPostCandidateClusters;
 	uint NumLargePageRectClusters;
+	uint NumPrimaryViews;
+	uint NumTotalViews;
 };
 
 struct FPersistentState

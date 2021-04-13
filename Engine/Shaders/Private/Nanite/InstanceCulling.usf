@@ -297,7 +297,6 @@ RWStructuredBuffer< FPackedNaniteView > CompactedViewsOut;
 RWStructuredBuffer< FCompactedViewInfo > CompactedViewInfoOut;
 RWStructuredBuffer< uint > CompactedViewsAllocationOut;
 
-
 [numthreads(64, 1, 1)]
 void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 {
@@ -316,7 +315,6 @@ void CompactViewsVSM_CS(uint PrimaryViewId : SV_DispatchThreadID)
 
 			uint4 RectPages = PageRectBounds[MipView.TargetLayerIndex * VSM_MAX_MIP_LEVELS + MipView.TargetMipLevel];
 
-			// Always keep the primary view
 			if (all(RectPages.zw >= RectPages.xy))
 			{
 				NumValidViews += 1U;
@@ -365,6 +363,20 @@ void InstanceCullVSM(
 	uint DispatchIndex : SV_DispatchThreadID,
 	uint GroupIndex : SV_GroupIndex)
 {
+	// View compaction stats
+#if DEBUG_FLAGS
+	if (DebugFlags & DEBUG_FLAG_WRITE_STATS && DispatchIndex == 0)
+	{
+	#if USE_COMPACTED_VIEWS
+		OutStatsBuffer[0].NumPrimaryViews = CompactedViewsAllocation[0];
+		OutStatsBuffer[0].NumTotalViews = CompactedViewsAllocation[1];
+	#else
+		OutStatsBuffer[0].NumPrimaryViews = NumPrimaryViews;
+		OutStatsBuffer[0].NumTotalViews = NumPrimaryViews * GetNaniteView( 0 ).TargetNumMipLevels;
+	#endif
+	}
+#endif
+
 	// Depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = ( NEAR_CLIP != 0 );
 

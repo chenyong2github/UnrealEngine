@@ -79,10 +79,10 @@ static TAutoConsoleVariable<int32> CVarShowStats(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarResolutionLodScale(
-	TEXT("r.Shadow.Virtual.ResolutionLodScale"),
-	1.0f,
-	TEXT("Scale factor applied to LOD calculations (0.5 effectively halves resolution requested)."),
+static TAutoConsoleVariable<float> CVarResolutionLodBiasLocal(
+	TEXT("r.Shadow.Virtual.ResolutionLodBiasLocal"),
+	0.0f,
+	TEXT("Bias applied to LOD calculations for local lights. -1.0 doubles resolution, 1.0 halves it and so on."),
 	ECVF_RenderThreadSafe
 );
 
@@ -390,7 +390,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
-		SHADER_PARAMETER(float, LodFootprintScale)
+		SHADER_PARAMETER(float, ResolutionLodBiasLocal)
 		SHADER_PARAMETER(float, PageDilationBorderSize)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -753,7 +753,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::BuildPageAllocation");
 
-	const float LodFootprintScale = 1.0f / CVarResolutionLodScale.GetValueOnRenderThread();
+	const float ResolutionLodBiasLocal = CVarResolutionLodBiasLocal.GetValueOnRenderThread();
 	const float PageDilationBorderSize = CVarPageDilationBorderSize.GetValueOnRenderThread();
 	
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightsInfo.SortedLights;
@@ -929,7 +929,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 						PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
 						PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
-						PassParameters->LodFootprintScale = LodFootprintScale;
+						PassParameters->ResolutionLodBiasLocal = ResolutionLodBiasLocal;
 						PassParameters->PageDilationBorderSize = PageDilationBorderSize;
 
 						auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);

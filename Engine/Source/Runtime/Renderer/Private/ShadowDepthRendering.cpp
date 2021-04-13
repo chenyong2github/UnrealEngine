@@ -101,7 +101,7 @@ static TAutoConsoleVariable<int32> CVarNaniteShadowsUseHZB(
 
 static TAutoConsoleVariable<int32> CVarShadowsVirtualUseHZB(
 	TEXT("r.Shadow.Virtual.UseHZB"),
-	0,
+	1,
 	TEXT("Enables HZB for Virtual Shadow Maps."),
 	ECVF_RenderThreadSafe);
 

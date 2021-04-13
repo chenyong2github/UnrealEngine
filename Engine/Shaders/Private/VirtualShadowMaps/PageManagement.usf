@@ -36,7 +36,7 @@ Texture2D<UlongType> VisBuffer64;
 StructuredBuffer<int> VirtualShadowMapIdRemap;
 uint NumDirectionalLightSmInds;
 uint bPostBasePass;
-float LodFootprintScale;
+float ResolutionLodBiasLocal;
 float PageDilationBorderSize;
 uint InputType;
 
@@ -100,7 +100,14 @@ FScreenPixelData GetScreenPixelData(uint2 PixelPos, float DeviceZ)
 	return Data;
 }
 
-uint GetMipLevel(int VirtualShadowMapId, float3 WorldPosition, float SceneDepth)
+uint CalcMipLevelLocal(float Footprint)
+{
+	float MipLevelFloat = log2(Footprint) + ResolutionLodBiasLocal;
+	uint MipLevel = uint(max(floor(MipLevelFloat), 0.0f));
+	return min(MipLevel, (VSM_MAX_MIP_LEVELS - 1U));
+}
+
+uint GetMipLevelLocal(int VirtualShadowMapId, float3 WorldPosition, float SceneDepth)
 {
 	float Footprint = float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
@@ -124,7 +131,7 @@ uint GetMipLevel(int VirtualShadowMapId, float3 WorldPosition, float SceneDepth)
 		Footprint = RadiusClip * float(2 * VSM_VIRTUAL_MAX_RESOLUTION_XY);
 	}
 
-	return CalcMipLevelFromFootprint(LodFootprintScale * Footprint, VSM_MAX_MIP_LEVELS);
+	return CalcMipLevelLocal(Footprint);
 }
 
 void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, float2 PageDilationOffset)
@@ -261,7 +268,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 					VirtualShadowMapId += VirtualShadowMapGetCubeFace( -ToLight );
 				}
 
-				uint MipLevel = GetMipLevel(VirtualShadowMapId, WorldPosition, SceneDepth);
+				uint MipLevel = GetMipLevelLocal(VirtualShadowMapId, WorldPosition, SceneDepth);
 				MarkPage(VirtualShadowMapId, MipLevel, WorldPosition, PageDilationOffset);
 			}
 		}

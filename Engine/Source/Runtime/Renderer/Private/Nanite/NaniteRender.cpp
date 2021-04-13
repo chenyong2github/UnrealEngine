@@ -368,6 +368,8 @@ struct FNaniteStats
 	uint32 NumPostVisitedNodes;
 	uint32 NumPostCandidateClusters;
 	uint32 NumLargePageRectClusters;
+	uint32 NumPrimaryViews;
+	uint32 NumTotalViews;
 };
 
 struct FCompactedViewInfo
@@ -3223,15 +3225,17 @@ void CullRasterize(
 		Stats.NumTris  = 0;
 		Stats.NumVerts = 0;
 		Stats.NumViews = 0;
-		Stats.NumMainInstancesPreCull  = CullingContext.NumInstancesPreCull;
-		Stats.NumMainInstancesPostCull = 0;
+		Stats.NumMainInstancesPreCull	= CullingContext.NumInstancesPreCull;
+		Stats.NumMainInstancesPostCull	= 0;
 		Stats.NumMainVisitedNodes		= 0;
 		Stats.NumMainCandidateClusters	= 0;
-		Stats.NumPostInstancesPreCull  = 0;
-		Stats.NumPostInstancesPostCull = 0;
+		Stats.NumPostInstancesPreCull	= 0;
+		Stats.NumPostInstancesPostCull	= 0;
 		Stats.NumPostVisitedNodes		= 0;
 		Stats.NumPostCandidateClusters	= 0;
-		Stats.NumLargePageRectClusters = 0;
+		Stats.NumLargePageRectClusters	= 0;
+		Stats.NumPrimaryViews			= 0;
+		Stats.NumTotalViews				= 0;
 
 		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
 	}
