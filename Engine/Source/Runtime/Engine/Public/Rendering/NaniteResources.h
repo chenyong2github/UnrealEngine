@@ -345,6 +345,7 @@ struct FResources
 	uint32	RuntimeResourceID		= 0xFFFFFFFFu;
 	int32	HierarchyOffset			= INDEX_NONE;
 	int32	RootPageIndex			= INDEX_NONE;
+	uint32	NumHierarchyNodes		= 0;
 	
 #if WITH_EDITOR
 	// HACK: Need to cache this because Geometry Collection might serialize the same object more than once.

@@ -486,6 +486,7 @@ void FStreamingManager::Add( FResources* Resources )
 	{
 		check(Resources->RootClusterPage.Num() > 0);
 		Resources->HierarchyOffset = Hierarchy.Allocator.Allocate(Resources->HierarchyNodes.Num());
+		Resources->NumHierarchyNodes = Resources->HierarchyNodes.Num();
 		Hierarchy.TotalUpload += Resources->HierarchyNodes.Num();
 		INC_DWORD_STAT_BY( STAT_NaniteTotalPages, Resources->PageStreamingStates.Num() );
 		INC_DWORD_STAT_BY( STAT_NaniteRootPages, 1 );
@@ -518,7 +519,7 @@ void FStreamingManager::Remove( FResources* Resources )
 	LLM_SCOPE_BYTAG(Nanite);
 	if (Resources->RuntimeResourceID != INVALID_RUNTIME_RESOURCE_ID)
 	{
-		Hierarchy.Allocator.Free( Resources->HierarchyOffset, Resources->HierarchyNodes.Num() );
+		Hierarchy.Allocator.Free( Resources->HierarchyOffset, Resources->NumHierarchyNodes );
 		Resources->HierarchyOffset = -1;
 
 		RootPages.Allocator.Free( Resources->RootPageIndex, 1 );
@@ -804,7 +805,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 		// If this page is getting uninstalled it also means it wont be reinstalled and any split groups can't be satisfied, so we can safely uninstall them.	
 		
 		uint32 HierarchyNodeIndex = Fixup.GetNodeIndex();
-		check( HierarchyNodeIndex < (uint32)Resources.HierarchyNodes.Num() );
+		check( HierarchyNodeIndex < Resources.NumHierarchyNodes );
 		uint32 ChildIndex = Fixup.GetChildIndex();
 		uint32 ChildStartReference = bIsUninstall ? 0xFFFFFFFFu : ( ( TargetGPUPageIndex << MAX_CLUSTERS_PER_PAGE_BITS ) | Fixup.GetClusterGroupPartStartIndex() );
 		uint32 Offset = ( size_t )&( ( (FPackedHierarchyNode*)0 )[ HierarchyOffset + HierarchyNodeIndex ].Misc1[ ChildIndex ].ChildStartReference );
@@ -1189,6 +1190,8 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 #if !WITH_EDITOR
 		// We can't free the CPU data in editor builds because the resource might be kept around and used for cooking later.
 		Resources->RootClusterPage.Empty();
+		Resources->HierarchyNodes.Empty();
+		Resources->ImposterAtlas.Empty();
 #endif
 	}
 
