@@ -89,7 +89,7 @@ namespace UE
 		/// </summary>
 		public override void TickTest()
 		{
-			const int kTimeOutDuration = 2;
+			const int kTimeOutDuration = 10;
 
 			// run the base class tick;
 			base.TickTest();
