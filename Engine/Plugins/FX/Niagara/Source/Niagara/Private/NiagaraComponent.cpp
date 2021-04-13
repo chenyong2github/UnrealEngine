@@ -1837,6 +1837,20 @@ void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInter
 #endif
 }
 
+
+void UNiagaraComponent::SetVariableStaticMesh(FName InVariableName, UStaticMesh* InValue)
+{
+	if (SystemInstanceController.IsValid())
+	{
+		TWeakObjectPtr<UStaticMesh> ObjPtr = InValue;
+		SystemInstanceController->SetVariable_Deferred(InVariableName, ObjPtr);
+	}
+#if WITH_EDITOR
+	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUStaticMeshDef(), InVariableName);
+	SetParameterOverride(VariableDesc, FNiagaraVariant(InValue));
+#endif
+}
+
 void UNiagaraComponent::SetVariableTextureRenderTarget(FName InVariableName, UTextureRenderTarget* TextureRenderTarget)
 {
 	if (SystemInstanceController.IsValid())

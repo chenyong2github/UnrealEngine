@@ -844,7 +844,10 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 	//if (bAnyRendererBindingsAdded)
 	{
 		if (ParentSystemInstance)
+		{
+			ParentSystemInstance->GetOverrideParameters()->Bind(&RendererBindings);
 			ParentSystemInstance->GetInstanceParameters().Bind(&RendererBindings);
+		}
 
 		//SystemScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);
 		//ScriptDefinedDataInterfaceParameters.Bind(&RendererBindings);

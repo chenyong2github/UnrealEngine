@@ -120,6 +120,10 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	TObjectPtr<UStaticMesh> Mesh;
 
+	/** Use the UStaticMesh bound to this user variable if it is set to a valid value. If this is bound to a valid value and Mesh is also set, UserParamBinding wins.*/
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FNiagaraUserParameterBinding UserParamBinding;
+
 	/** Scale of the mesh */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	FVector Scale;
@@ -131,6 +135,9 @@ struct NIAGARA_API FNiagaraMeshRendererMeshProperties
 	/** What space is the pivot offset in? */
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	ENiagaraMeshPivotOffsetSpace PivotOffsetSpace;
+
+    UStaticMesh* ResolveStaticMesh(const FNiagaraEmitterInstance* Emitter) const;
+	bool HasValidMeshProperties() const;
 };
 
 UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))

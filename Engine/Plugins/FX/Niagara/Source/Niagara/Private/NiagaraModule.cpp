@@ -567,6 +567,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::UStaticMeshDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::WildcardDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
@@ -638,6 +639,7 @@ void FNiagaraTypeDefinition::Init()
 	UMaterialDef = FNiagaraTypeDefinition(UMaterialClass);
 	UTextureDef = FNiagaraTypeDefinition(UTextureClass);
 	UTextureRenderTargetDef = FNiagaraTypeDefinition(UTextureRenderTargetClass);
+	UStaticMeshDef = FNiagaraTypeDefinition(UStaticMesh::StaticClass());
 
 	CollisionEventDef = FNiagaraTypeDefinition(FNiagaraCollisionEventPayload::StaticStruct());
 	NumericStructs.Add(NumericStruct);
@@ -831,6 +833,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(UMaterialDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UTextureDef, VarFlags);
 	FNiagaraTypeRegistry::Register(UTextureRenderTargetDef, VarFlags);
+	FNiagaraTypeRegistry::Register(UStaticMeshDef, VarFlags);
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
 

@@ -63,20 +63,23 @@ public:
 
 	void PostTickRenderers(const FNiagaraSystemInstance& SystemInstance);
 	void OnSystemComplete(const FNiagaraSystemInstance& SystemInstance);
+	void RecacheRenderers(const FNiagaraSystemInstance& SystemInstance, const FNiagaraSystemInstanceController& Controller);
 
-	FORCEINLINE bool IsRenderingEnabled() const { return bRenderingEnabled && EmitterRenderers.Num() > 0; }
+	FORCEINLINE bool IsRenderingEnabled() const { return bRenderingEnabled && EmitterRenderers_GT.Num() > 0; }
 	FORCEINLINE void SetRenderingEnabled(bool bInEnabled) { bRenderingEnabled = bInEnabled; }
-
 	FORCEINLINE bool HasAnyMotionBlurEnabled() const { return bAnyMotionBlurEnabled; }
 
-
 private:
-	/** Emitter Renderers in the order they appear in the emitters. */
-	TArray<FNiagaraRenderer*> EmitterRenderers;
+	/** Emitter Renderers in the order they appear in the emitters. To be accessed by the GameThread */
+	TArray<FNiagaraRenderer*> EmitterRenderers_GT;
+	/** Emitter Renderers in the order they appear in the emitters. To be accessed by the RenderThread */
+	TArray<FNiagaraRenderer*> EmitterRenderers_RT;
 
 	/** Indices of renderers in the order they should be rendered. */
 	TArray<int32> RendererDrawOrder;
 
 	bool bRenderingEnabled = true;
 	bool bAnyMotionBlurEnabled = false;
+
+	ERHIFeatureLevel::Type FeatureLevel;
 };

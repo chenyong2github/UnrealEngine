@@ -55,7 +55,37 @@ FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
 	, PivotOffset(ForceInitToZero)
 	, PivotOffsetSpace(ENiagaraMeshPivotOffsetSpace::Mesh)
 {	
+
+	FNiagaraTypeDefinition StaticMeshDef(UStaticMesh::StaticClass());
+	UserParamBinding.Parameter.SetType(StaticMeshDef);
 }
+
+UStaticMesh* FNiagaraMeshRendererMeshProperties::ResolveStaticMesh(const FNiagaraEmitterInstance* Emitter) const
+{
+	UStaticMesh* FoundMesh = nullptr;
+
+	if (UserParamBinding.Parameter.IsValid() && Emitter)
+	{
+		UStaticMesh* TestMesh = Cast<UStaticMesh>(Emitter->GetRendererBoundVariables().GetUObject(UserParamBinding.Parameter));
+		if (TestMesh && TestMesh->GetRenderData())
+		{
+			FoundMesh = TestMesh;
+		}
+	}
+
+	if (!FoundMesh && Mesh && Mesh->GetRenderData())
+	{
+		FoundMesh = Mesh;
+	}
+
+	return FoundMesh;
+}
+
+bool FNiagaraMeshRendererMeshProperties::HasValidMeshProperties() const
+{
+	return Mesh || UserParamBinding.Parameter.IsValid();
+}
+
 
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
@@ -111,7 +141,7 @@ FNiagaraRenderer* UNiagaraMeshRendererProperties::CreateEmitterRenderer(ERHIFeat
 {
 	for (const auto& MeshProperties : Meshes)
 	{
-		if (MeshProperties.Mesh && MeshProperties.Mesh->GetRenderData())
+		if (MeshProperties.ResolveStaticMesh(Emitter))
 		{
 			// There's at least one valid mesh
 			FNiagaraRenderer* NewRenderer = new FNiagaraRendererMeshes(FeatureLevel, this, Emitter);
@@ -361,7 +391,7 @@ void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const
 {
 	check(Meshes.IsValidIndex(MeshIndex));
 
-	const UStaticMesh* Mesh = Meshes[MeshIndex].Mesh;
+	const UStaticMesh* Mesh = Meshes[MeshIndex].ResolveStaticMesh(Emitter);
 	check(Mesh);
 
 	const FStaticMeshRenderData* RenderData = Mesh->GetRenderData();
@@ -431,7 +461,7 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 	TArray<UMaterialInterface*> OrderedMeshMaterials;
 	for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); ++MeshIndex)
 	{
-		const UStaticMesh* Mesh = Meshes[MeshIndex].Mesh;
+		const UStaticMesh* Mesh = Meshes[MeshIndex].ResolveStaticMesh(InEmitter);
 		if (Mesh && Mesh->GetRenderData())
 		{
 			GetUsedMeshMaterials(MeshIndex, InEmitter, OrderedMeshMaterials);
@@ -464,6 +494,15 @@ bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterS
 	{
 		InParameterStore.AddParameter(MaterialParamBinding.GetParamMapBindableVariable(), false);
 		bAnyAdded = true;
+	}
+
+	for (FNiagaraMeshRendererMeshProperties& Binding : Meshes)
+	{
+		if (Binding.UserParamBinding.Parameter.IsValid())
+		{
+			InParameterStore.AddParameter(Binding.UserParamBinding.Parameter, false);
+			bAnyAdded = true;
+		}
 	}
 
 	return bAnyAdded;

@@ -290,6 +290,7 @@ FNiagaraRenderer::FNiagaraRenderer(ERHIFeatureLevel::Type InFeatureLevel, const 
 void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const FNiagaraSystemInstanceController& InController)
 {
 	//Get our list of valid base materials. Fall back to default material if they're not valid.
+	BaseMaterials_GT.Empty();
 	InProps->GetUsedMaterials(Emitter, BaseMaterials_GT);
 	bool bCreateMidsForUsedMaterials = InProps->NeedsMIDsForMaterials();
 

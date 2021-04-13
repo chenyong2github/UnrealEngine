@@ -4,6 +4,9 @@
 #include "Materials/MaterialInstanceDynamic.h"
 
 FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
+	: bNeedsRendererRecache(false)
+	, bNeedsOverrideParametersTicked(false)
+	, bNeedsUpdateEmitterMaterials(false)
 {
 }
 
@@ -68,6 +71,21 @@ void FNiagaraSystemInstanceController::PostTickRenderers(FNiagaraSystemRenderDat
 {
 	if (auto SystemInst = SystemInstance.Get())
 	{
+		if (bNeedsOverrideParametersTicked)
+		{
+			bNeedsOverrideParametersTicked = false;
+			OverrideParameters->Tick();
+		}
+		if (bNeedsUpdateEmitterMaterials)
+		{
+			bNeedsUpdateEmitterMaterials = false;
+			UpdateEmitterMaterials();
+		}
+		if (bNeedsRendererRecache)
+		{
+			RenderData.RecacheRenderers(*SystemInst, *this);
+			bNeedsRendererRecache = false;
+		}
 		RenderData.PostTickRenderers(*SystemInst);
 	}
 }
@@ -403,7 +421,24 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakOb
 		OverrideParameters->SetUObject(NewValue, VariableDesc);
 		if (CurrentValue != NewValue)
 		{
-			UpdateEmitterMaterials(); // Will need to update our internal tables. Maybe need a new MID.
+			bNeedsUpdateEmitterMaterials = true; // Will need to update our internal tables. Maybe need a new MID.
+		}
+	}
+}
+
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UStaticMesh> InValue)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUStaticMeshDef(), InVariableName);
+		UObject* CurrentValue = OverrideParameters->GetUObject(VariableDesc);
+		UStaticMesh* NewValue = InValue.Get();
+		OverrideParameters->SetUObject(NewValue, VariableDesc);
+		if (CurrentValue != NewValue)
+		{
+			bNeedsOverrideParametersTicked = true;
+			bNeedsUpdateEmitterMaterials = true;
+			OnNeedsRendererRecache();
 		}
 	}
 }

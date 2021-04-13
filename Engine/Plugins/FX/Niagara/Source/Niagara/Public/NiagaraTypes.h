@@ -1048,6 +1048,7 @@ public:
 	static const FNiagaraTypeDefinition& GetIDDef() { return IDDef; }
 	static const FNiagaraTypeDefinition& GetUObjectDef() { return UObjectDef; }
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
+	static const FNiagaraTypeDefinition& GetUStaticMeshDef() { return UStaticMeshDef; }
 	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
 	static const FNiagaraTypeDefinition& GetUTextureRenderTargetDef() { return UTextureRenderTargetDef; }
 	static const FNiagaraTypeDefinition& GetWildcardDef() { return WildcardDef; }
@@ -1125,6 +1126,7 @@ private:
 	static FNiagaraTypeDefinition UMaterialDef;
 	static FNiagaraTypeDefinition UTextureDef;
 	static FNiagaraTypeDefinition UTextureRenderTargetDef;
+	static FNiagaraTypeDefinition UStaticMeshDef;
 	static FNiagaraTypeDefinition WildcardDef;
 
 	static FNiagaraTypeDefinition HalfDef;

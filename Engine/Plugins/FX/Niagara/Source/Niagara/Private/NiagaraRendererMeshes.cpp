@@ -164,19 +164,21 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 
 	// Initialize the valid mesh slots, and prep them with the data for every mesh, LOD, and section we'll be needing over the lifetime of the renderer
 	const uint32 MaxMeshes = Properties->Meshes.Num();
-	Meshes.Reserve(MaxMeshes);
+	Meshes.Empty(MaxMeshes);
 	for (uint32 SourceMeshIndex = 0; SourceMeshIndex < MaxMeshes; ++SourceMeshIndex)
 	{
 		const auto& MeshProperties = Properties->Meshes[SourceMeshIndex];
-		if (MeshProperties.Mesh && MeshProperties.Mesh->GetRenderData())
+		UStaticMesh* Mesh = MeshProperties.ResolveStaticMesh(Emitter);
+		
+		if (Mesh)
 		{
 			FMeshData& MeshData = Meshes.AddDefaulted_GetRef();
-			MeshData.RenderData = MeshProperties.Mesh->GetRenderData();
+			MeshData.RenderData = Mesh->GetRenderData();
 			MeshData.SourceMeshIndex = SourceMeshIndex;
 			MeshData.PivotOffset = MeshProperties.PivotOffset;
 			MeshData.PivotOffsetSpace = MeshProperties.PivotOffsetSpace;
 			MeshData.Scale = MeshProperties.Scale;
-			MeshData.MinimumLOD = MeshProperties.Mesh->GetMinLOD().GetValue();
+			MeshData.MinimumLOD = Mesh->GetMinLOD().GetValue();
 
 			// Create an index remap from mesh material index to it's index in the master material list
 			TArray<UMaterialInterface*> MeshMaterials;
@@ -198,7 +200,7 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			}
 
 			// Extend the local bounds by this mesh's bounds
-			FBox LocalBounds = MeshProperties.Mesh->GetExtendedBounds().GetBox();
+			FBox LocalBounds = Mesh->GetExtendedBounds().GetBox();
 			LocalBounds.Min *= MeshProperties.Scale;
 			LocalBounds.Max *= MeshProperties.Scale;
 			MeshData.LocalCullingSphere.Center = LocalBounds.GetCenter();
@@ -1404,7 +1406,8 @@ FNiagaraDynamicDataBase* FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 	// Bail if we have cached mesh render data for any meshes that are no longer valid
 	for (const auto& MeshData : Meshes)
 	{
-		if (!Properties->Meshes.IsValidIndex(MeshData.SourceMeshIndex) || !Properties->Meshes[MeshData.SourceMeshIndex].Mesh)
+		if (!Properties->Meshes.IsValidIndex(MeshData.SourceMeshIndex) || 
+			!Properties->Meshes[MeshData.SourceMeshIndex].HasValidMeshProperties())
 		{
 			return nullptr;
 		}

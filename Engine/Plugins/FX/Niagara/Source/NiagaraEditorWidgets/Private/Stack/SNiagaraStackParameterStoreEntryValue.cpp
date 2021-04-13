@@ -215,6 +215,22 @@ TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructW
 				.NewAssetFactories(TArray<UFactory*>());
 
 		}
+		else if (StackEntry->GetInputType().GetClass()->IsChildOf(UStaticMesh::StaticClass()))
+		{
+			TArray<const UClass*> AllowedClasses;
+			AllowedClasses.Add(UStaticMesh::StaticClass());
+
+			return SNew(SObjectPropertyEntryBox)
+				.ObjectPath_Raw(this, &SNiagaraStackParameterStoreEntryValue::GetCurrentAssetPath)
+				.AllowedClass(UStaticMesh::StaticClass())
+				.OnObjectChanged_Raw(this, &SNiagaraStackParameterStoreEntryValue::OnAssetSelectedFromPicker, UStaticMesh::StaticClass())
+				.AllowClear(false)
+				.DisplayUseSelected(true)
+				.DisplayBrowse(true)
+				.DisplayThumbnail(true)
+				.NewAssetFactories(TArray<UFactory*>());
+
+		}
 		else
 		{
 			return SNew(STextBlock)
