@@ -180,6 +180,12 @@
     <Compile Include="Forms\AutomatedBuildWindow.Designer.cs">
       <DependentUpon>AutomatedBuildWindow.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\NetCoreWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\NetCoreWindow.Designer.cs">
+      <DependentUpon>NetCoreWindow.cs</DependentUpon>
+    </Compile>
     <Compile Include="Json.cs" />
     <Compile Include="FileFilter.cs" />
     <Compile Include="FindFoldersToCleanTask.cs" />
@@ -397,6 +403,7 @@
     </Compile>
     <Compile Include="Automation\VisualStudioAutomation.cs" />
     <Compile Include="Automation\P4Automation.cs" />
+    <Compile Include="ToolUpdateMonitor.cs" />
     <Compile Include="UriHandlers\UriHandler.cs" />
     <Compile Include="UriHandlers\P4Handler.cs" />
     <Compile Include="UriHandlers\UGSHandler.cs" />
@@ -449,6 +456,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\IssueSettingsWindow.resx">
       <DependentUpon>IssueSettingsWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\NetCoreWindow.resx">
+      <DependentUpon>NetCoreWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\SelectUserWindow.resx">
       <DependentUpon>SelectUserWindow.cs</DependentUpon>

@@ -1,3 +1,5 @@
+using System.Drawing;
+
 namespace UnrealGameSync
 {
 	partial class WorkspaceControl
@@ -138,6 +140,14 @@ namespace UnrealGameSync
 			this.FilterContextMenu_Type_Code = new System.Windows.Forms.ToolStripMenuItem();
 			this.FilterContextMenu_Type_Content = new System.Windows.Forms.ToolStripMenuItem();
 			this.FilterContextMenu_Badges = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Robomerge = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Robomerge_ShowAll = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Robomerge_ShowBadged = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Robomerge_ShowNone = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_AfterRobomergeShowSeparator = new System.Windows.Forms.ToolStripSeparator();
+			this.FilterContextMenu_Robomerge_Annotate = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Author = new System.Windows.Forms.ToolStripMenuItem();
+			this.FilterContextMenu_Author_Name = new System.Windows.Forms.ToolStripTextBox();
 			this.FilterContextMenu_AfterBadgeSeparator = new System.Windows.Forms.ToolStripSeparator();
 			this.FilterContextMenu_ShowBuildMachineChanges = new System.Windows.Forms.ToolStripMenuItem();
 			this.BuildHealthContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
@@ -1105,12 +1115,14 @@ namespace UnrealGameSync
 			// FilterContextMenu
 			// 
 			this.FilterContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.FilterContextMenu_Default,
-            this.FilterContextMenu_BeforeBadgeSeparator,
-            this.FilterContextMenu_Type,
-            this.FilterContextMenu_Badges,
-            this.FilterContextMenu_AfterBadgeSeparator,
-            this.FilterContextMenu_ShowBuildMachineChanges});
+			this.FilterContextMenu_Default,
+			this.FilterContextMenu_BeforeBadgeSeparator,
+			this.FilterContextMenu_Type,
+			this.FilterContextMenu_Badges,
+			this.FilterContextMenu_Robomerge,
+			this.FilterContextMenu_Author,
+			this.FilterContextMenu_AfterBadgeSeparator,
+			this.FilterContextMenu_ShowBuildMachineChanges});
 			this.FilterContextMenu.Name = "FilterContextMenu";
 			this.FilterContextMenu.Size = new System.Drawing.Size(232, 104);
 			// 
@@ -1168,6 +1180,70 @@ namespace UnrealGameSync
 			this.FilterContextMenu_Badges.Name = "FilterContextMenu_Badges";
 			this.FilterContextMenu_Badges.Size = new System.Drawing.Size(231, 22);
 			this.FilterContextMenu_Badges.Text = "Badges";
+			// 
+			// FilterContextMenu_Robomerge
+			// 
+			this.FilterContextMenu_Robomerge.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+			this.FilterContextMenu_Robomerge_ShowAll,
+			this.FilterContextMenu_Robomerge_ShowBadged,
+			this.FilterContextMenu_Robomerge_ShowNone,
+			this.FilterContextMenu_AfterRobomergeShowSeparator,
+			this.FilterContextMenu_Robomerge_Annotate});
+			this.FilterContextMenu_Robomerge.Name = "FilterContextMenu_Robomerge";
+			this.FilterContextMenu_Robomerge.Size = new System.Drawing.Size(231, 22);
+			this.FilterContextMenu_Robomerge.Text = "Robomerge";
+			// 
+			// FilterContextMenu_Robomerge_Show
+			// 
+			this.FilterContextMenu_Robomerge_ShowAll.Name = "FilterContextMenu_Robomerge_Show";
+			this.FilterContextMenu_Robomerge_ShowAll.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowAll.Text = "Show All";
+			this.FilterContextMenu_Robomerge_ShowAll.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowAll_Click);
+			// 
+			// FilterContextMenu_Robomerge_ShowBadged
+			// 
+			this.FilterContextMenu_Robomerge_ShowBadged.Name = "FilterContextMenu_Robomerge_ShowBadged";
+			this.FilterContextMenu_Robomerge_ShowBadged.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowBadged.Text = "Show Changes with Badges";
+			this.FilterContextMenu_Robomerge_ShowBadged.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowBadged_Click);
+			// 
+			// FilterContextMenu_Robomerge_ShowNone
+			// 
+			this.FilterContextMenu_Robomerge_ShowNone.Name = "FilterContextMenu_Robomerge_ShowNone";
+			this.FilterContextMenu_Robomerge_ShowNone.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_ShowNone.Text = "Show None";
+			this.FilterContextMenu_Robomerge_ShowNone.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_ShowNone_Click);
+			// 
+			// FilterContextMenu_AfterRobomergeShowSeparator
+			// 
+			this.FilterContextMenu_AfterRobomergeShowSeparator.Name = "FilterContextMenu_AfterRobomergeShowSeparator";
+			this.FilterContextMenu_AfterRobomergeShowSeparator.Size = new System.Drawing.Size(228, 6);
+			// 
+			// FilterContextMenu_Robomerge_Annotate
+			// 
+			this.FilterContextMenu_Robomerge_Annotate.Name = "FilterContextMenu_Type_Content";
+			this.FilterContextMenu_Robomerge_Annotate.Size = new System.Drawing.Size(120, 22);
+			this.FilterContextMenu_Robomerge_Annotate.Text = "Annotate Robomerge Changes";
+			this.FilterContextMenu_Robomerge_Annotate.Click += new System.EventHandler(this.FilterContextMenu_Robomerge_Annotate_Click);
+			// 
+			// FilterContextMenu_Author
+			// 
+			this.FilterContextMenu_Author.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+			this.FilterContextMenu_Author_Name});
+			this.FilterContextMenu_Author.Name = "FilterContextMenu_Author";
+			this.FilterContextMenu_Author.Size = new System.Drawing.Size(231, 22);
+			this.FilterContextMenu_Author.Text = "Author";
+			// 
+			// FilterContextMenu_Author_Name
+			// 
+			this.FilterContextMenu_Author_Name.Name = "FilterContextMenu_Author_Name";
+			this.FilterContextMenu_Author_Name.Size = new System.Drawing.Size(100, 22);
+			this.FilterContextMenu_Author_Name.Text = AuthorFilterPlaceholderText;
+			// no placeholder text property in 4.x so do it manually
+			this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.DarkGray;
+			this.FilterContextMenu_Author_Name.TextBox.GotFocus += new System.EventHandler(this.FilterContextMenu_Author_Name_GotFocus);
+			this.FilterContextMenu_Author_Name.TextBox.LostFocus += new System.EventHandler(this.FilterContextMenu_Author_Name_LostFocus);
+			this.FilterContextMenu_Author_Name.TextBox.TextChanged += new System.EventHandler(this.FilterContextMenu_Author_Name_Changed);
 			// 
 			// FilterContextMenu_AfterBadgeSeparator
 			// 
@@ -1380,6 +1456,14 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Type_Code;
 		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Type_Content;
 		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Type_ShowAll;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Robomerge;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Robomerge_ShowAll;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Robomerge_ShowBadged;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Robomerge_ShowNone;
+		private System.Windows.Forms.ToolStripSeparator FilterContextMenu_AfterRobomergeShowSeparator;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Robomerge_Annotate;
+		private System.Windows.Forms.ToolStripMenuItem FilterContextMenu_Author;
+		private System.Windows.Forms.ToolStripTextBox FilterContextMenu_Author_Name;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator10;
 		private System.Windows.Forms.ContextMenuStrip BuildHealthContextMenu;
 		private System.Windows.Forms.ToolStripSeparator BuildHealthContextMenu_MaxSeparator;

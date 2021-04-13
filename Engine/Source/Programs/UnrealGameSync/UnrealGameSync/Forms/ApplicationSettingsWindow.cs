@@ -57,12 +57,30 @@ namespace UnrealGameSync
 
 		bool? bRestartUnstable;
 
-		private ApplicationSettingsWindow(string DefaultServerAndPort, string DefaultUserName, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
+		ToolUpdateMonitor ToolUpdateMonitor;
+
+		class ToolItem
+		{
+			public ToolDefinition Definition { get; }
+
+			public ToolItem(ToolDefinition Definition)
+			{
+				this.Definition = Definition;
+			}
+
+			public override string ToString()
+			{
+				return Definition.Description;
+			}
+		}
+
+		private ApplicationSettingsWindow(string DefaultServerAndPort, string DefaultUserName, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
 		{
 			InitializeComponent();
 
 			this.OriginalExecutableFileName = OriginalExecutableFileName;
 			this.Settings = Settings;
+			this.ToolUpdateMonitor = ToolUpdateMonitor;
 			this.Log = Log;
 
 			Utility.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
@@ -115,11 +133,17 @@ namespace UnrealGameSync
 			{
 				this.EnableProtocolHandlerCheckBox.CheckState = CheckState.Indeterminate;
 			}
+
+			List<ToolDefinition> Tools = ToolUpdateMonitor.Tools;
+			foreach (ToolDefinition Tool in Tools)
+			{
+				this.CustomToolsListBox.Items.Add(new ToolItem(Tool), Settings.EnabledTools.Contains(Tool.Id));
+			}
 		}
 
-		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
+		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, TextWriter Log)
 		{
-			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultConnection.ServerAndPort, DefaultConnection.UserName, bUnstable, OriginalExecutableFileName, Settings, Log);
+			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultConnection.ServerAndPort, DefaultConnection.UserName, bUnstable, OriginalExecutableFileName, Settings, ToolUpdateMonitor, Log);
 			if(ApplicationSettings.ShowDialog() == DialogResult.OK)
 			{
 				return ApplicationSettings.bRestartUnstable;
@@ -194,13 +218,13 @@ namespace UnrealGameSync
 			}
 
 			RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
-			if(IsAutomaticallyRunAtStartup())
+			if (AutomaticallyRunAtStartupCheckBox.Checked)
 			{
-	            Key.DeleteValue("UnrealGameSync", false);
+				Key.SetValue("UnrealGameSync", String.Format("\"{0}\" -RestoreState", OriginalExecutableFileName));
 			}
 			else
 			{
-				Key.SetValue("UnrealGameSync", String.Format("\"{0}\" -RestoreState", OriginalExecutableFileName));
+				Key.DeleteValue("UnrealGameSync", false);
 			}
 
 			if (Settings.bKeepInTray != KeepInTrayCheckBox.Checked || Settings.SyncOptions.NumThreads != ParallelSyncThreadsSpinner.Value)
@@ -208,6 +232,18 @@ namespace UnrealGameSync
 				Settings.SyncOptions.NumThreads = (int)ParallelSyncThreadsSpinner.Value;
 				Settings.bKeepInTray = KeepInTrayCheckBox.Checked;
 				Settings.Save();
+			}
+
+			List<Guid> NewEnabledTools = new List<Guid>();
+			foreach (ToolItem Item in CustomToolsListBox.CheckedItems)
+			{
+				NewEnabledTools.Add(Item.Definition.Id);
+			}
+			if (!NewEnabledTools.SequenceEqual(Settings.EnabledTools))
+			{
+				Settings.EnabledTools = NewEnabledTools.ToArray();
+				Settings.Save();
+				ToolUpdateMonitor.UpdateNow();
 			}
 
 			if (EnableProtocolHandlerCheckBox.CheckState == CheckState.Checked)

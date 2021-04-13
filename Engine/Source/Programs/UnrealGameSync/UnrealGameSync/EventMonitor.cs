@@ -204,6 +204,9 @@ namespace UnrealGameSync
 		public EventData LastStarReview;
 		public List<BadgeData> Badges = new List<BadgeData>();
 		public List<CommentData> Comments = new List<CommentData>();
+
+		public GetMetadataResponseV2 SharedMetadata;
+		public GetMetadataResponseV2 ProjectMetadata;
 	}
 
 	class EventMonitor : IDisposable
@@ -541,6 +544,9 @@ namespace UnrealGameSync
 
 		void ConvertMetadataToEvents(GetMetadataResponseV2 Metadata)
 		{
+			EventSummary NewSummary = new EventSummary();
+			NewSummary.ChangeNumber = Metadata.Change;
+
 			EventSummary Summary;
 			if (ChangeNumberToSummary.TryGetValue(Metadata.Change, out Summary))
 			{
@@ -548,9 +554,35 @@ namespace UnrealGameSync
 				{
 					UserNameToLastSyncEvent.Remove(CurrentUser);
 				}
-				ChangeNumberToSummary.Remove(Metadata.Change);
+
+				NewSummary.SharedMetadata = Summary.SharedMetadata;
+				NewSummary.ProjectMetadata = Summary.ProjectMetadata;
 			}
 
+			if (string.IsNullOrEmpty(Metadata.Project))
+			{
+				NewSummary.SharedMetadata = Metadata;
+			}
+			else
+			{
+				NewSummary.ProjectMetadata = Metadata;
+			}
+
+			ChangeNumberToSummary[NewSummary.ChangeNumber] = NewSummary;
+
+			if (NewSummary.SharedMetadata != null)
+			{
+				PostEvents(NewSummary.SharedMetadata);
+			}
+
+			if (NewSummary.ProjectMetadata != null)
+			{
+				PostEvents(NewSummary.ProjectMetadata);
+			}
+		}
+
+		void PostEvents(GetMetadataResponseV2 Metadata)
+		{
 			if (Metadata.Badges != null)
 			{
 				foreach (GetBadgeDataResponseV2 BadgeData in Metadata.Badges)
@@ -670,6 +702,7 @@ namespace UnrealGameSync
 
 		void PollForUpdates()
 		{
+			Stopwatch NetCoreTimer = Stopwatch.StartNew();
 			EventData Event = null;
 			CommentData Comment = null;
 			bool bUpdateThrottledRequests = true;
@@ -710,9 +743,38 @@ namespace UnrealGameSync
 					}
 				}
 
+				// Post info about whether net core is installed
+				if (DeploymentSettings.NetCoreTelemetryUrl != null && NetCoreTimer.Elapsed > TimeSpan.FromMinutes(60.0))
+				{
+					try
+					{
+						RESTApi.POST(DeploymentSettings.NetCoreTelemetryUrl, "netcore", "{ }", "User=" + CurrentUserName, "Machine=" + Environment.MachineName, "NetCore=" + HasNetCore3().ToString());
+					}
+					catch
+					{
+					}
+					NetCoreTimer.Restart();
+				}
+
 				// Wait for something else to do
 				bUpdateThrottledRequests = RefreshEvent.WaitOne(30 * 1000);
 			}
+		}
+
+		public static bool HasNetCore3()
+		{
+			DirectoryInfo BaseDirInfo = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet", "shared", "Microsoft.NETCore.App"));
+			if (BaseDirInfo.Exists)
+			{
+				foreach (DirectoryInfo SubDir in BaseDirInfo.EnumerateDirectories())
+				{
+					if (SubDir.Name.StartsWith("3.", StringComparison.Ordinal))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		bool SendEventToBackend(EventData Event)
