@@ -420,7 +420,7 @@ void FStreamingManager::InitRHI()
 	StreamingPageLRU.Next				= &StreamingPageLRU;
 	StreamingPageLRU.Prev				= &StreamingPageLRU;
 
-	StreamingPageFixupChunks.SetNumUninitialized( MaxStreamingPages );
+	StreamingPageFixupChunks.SetNum( MaxStreamingPages );
 
 	PendingPages.SetNum( MaxPendingPages );
 
@@ -461,6 +461,11 @@ void FStreamingManager::ReleaseRHI()
 			delete StreamingRequestReadbackBuffers[BufferIndex];
 			StreamingRequestReadbackBuffers[BufferIndex] = nullptr;
 		}
+	}
+
+	for (FFixupChunk* FixupChunk : StreamingPageFixupChunks)
+	{
+		FMemory::Free(FixupChunk);
 	}
 
 	RootPages.Release();
@@ -756,7 +761,7 @@ void FStreamingManager::ApplyFixups( const FFixupChunk& FixupChunk, const FResou
 			if (TargetPagePtr)
 			{
 				FStreamingPageInfo* TargetPage = *TargetPagePtr;
-				FFixupChunk& TargetFixupChunk = StreamingPageFixupChunks[TargetPage->GPUPageIndex];
+				FFixupChunk& TargetFixupChunk = *StreamingPageFixupChunks[TargetPage->GPUPageIndex];
 				check(StreamingPageInfos[TargetPage->GPUPageIndex].ResidentKey == TargetKey);
 
 				NumTargetPageClusters = TargetFixupChunk.Header.NumClusters;
@@ -918,7 +923,7 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 						// Prevent race between installs and uninstalls of the same page. Only uninstall if the page is not going to be installed again.
 						if (!BatchNewPageKeys.Contains(StreamingPageInfo.ResidentKey))
 						{
-							ApplyFixups(StreamingPageFixupChunks[GPUPageIndex], **Resources, INVALID_PAGE_INDEX, INVALID_PAGE_INDEX);
+							ApplyFixups(*StreamingPageFixupChunks[GPUPageIndex], **Resources, INVALID_PAGE_INDEX, INVALID_PAGE_INDEX);
 						}
 					}
 				}
@@ -986,23 +991,17 @@ void FStreamingManager::InstallReadyPages( uint32 NumReadyPages )
 					BulkDataPtr = *BulkDataPtrPtr;
 				}
 			
-				const uint8* Ptr = BulkDataPtr + PageStreamingState.BulkOffset;
-				uint32 FixupChunkSize = ((FFixupChunk*)Ptr)->GetSize();
-
-				FFixupChunk* FixupChunk = &StreamingPageFixupChunks[PendingPage.GPUPageIndex];
-				FMemory::Memcpy(FixupChunk, Ptr, FixupChunkSize);
-				UploadTask.Src = Ptr + FixupChunkSize;
+				const uint8* SrcPtr = BulkDataPtr + PageStreamingState.BulkOffset;
 #else
-				// Read header of FixupChunk so the length can be calculated
-				FFixupChunk* FixupChunk = &StreamingPageFixupChunks[ PendingPage.GPUPageIndex ];
-
-				FMemory::Memcpy(FixupChunk, PendingPage.MemoryPtr, sizeof(FFixupChunk::Header));
-				uint32 FixupChunkSize = FixupChunk->GetSize();
-
-				// Read the rest of FixupChunk
-				FMemory::Memcpy(FixupChunk->Data, PendingPage.MemoryPtr + sizeof(FFixupChunk::Header), FixupChunkSize - sizeof(FFixupChunk::Header));
-				UploadTask.Src = PendingPage.MemoryPtr + FixupChunkSize;
+				const uint8* SrcPtr = PendingPage.MemoryPtr;
 #endif
+
+				const uint32 FixupChunkSize = ((const FFixupChunk*)SrcPtr)->GetSize();
+				FFixupChunk* FixupChunk = (FFixupChunk*)FMemory::Realloc(StreamingPageFixupChunks[PendingPage.GPUPageIndex], FixupChunkSize, sizeof(uint16));
+				StreamingPageFixupChunks[PendingPage.GPUPageIndex] = FixupChunk;
+				FMemory::Memcpy(FixupChunk, SrcPtr, FixupChunkSize);
+				UploadTask.Src = SrcPtr + FixupChunkSize;
+
 				uint32 PageOffset = PendingPage.GPUPageIndex << CLUSTER_PAGE_GPU_SIZE_BITS;
 				uint32 DataSize = PageStreamingState.BulkSize - FixupChunkSize;
 				check(NumInstalledPages < MaxPageInstallsPerUpdate);

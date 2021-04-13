@@ -182,7 +182,7 @@ private:
 
 	FStreamingPageInfo*						StreamingPageInfoFreeList;
 	TArray< FStreamingPageInfo >			StreamingPageInfos;
-	TArray< FFixupChunk >					StreamingPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
+	TArray< FFixupChunk* >					StreamingPageFixupChunks;			// Fixup information for resident streaming pages. We need to keep this around to be able to uninstall pages.
 
 	TArray< FPendingPage >					PendingPages;
 #if !WITH_EDITOR
