@@ -206,7 +206,7 @@ namespace UnrealBuildTool
 				else
 				{
 					// the library path does not seem to be resolvable as is, lets warn about it as dependency checking will not work for it
-					Log.TraceWarning("Library '{0}' was not resolvable to a file when used in Module '{1}', assuming it is a filename and will search library paths for it. This is slow and dependency checking will not work for it. Please update reference to be fully qualified alternatively use PublicSystemLibraryPaths if you do intended to use this slow path to suppress this warning. ", LibraryName, Name);
+					LogWarningOrThrowError(Rules.Target.DefaultWarningLevel, "Library '{0}' was not resolvable to a file when used in Module '{1}', assuming it is a filename and will search library paths for it. This is slow and dependency checking will not work for it. Please update reference to be fully qualified alternatively use PublicSystemLibraryPaths if you do intended to use this slow path to suppress this warning. ", LibraryName, Name);
 					PublicSystemLibraries.Add(LibraryName);
 				}
 			}
@@ -247,6 +247,24 @@ namespace UnrealBuildTool
 
 			// get the module directories from the module
 			ModuleDirectories = Rules.GetAllModuleDirectories();
+		}
+
+		/// <summary>
+		/// Log a warning or throw an error message
+		/// </summary>
+		/// <param name="Level"></param>
+		/// <param name="Format"></param>
+		/// <param name="Args"></param>
+		static void LogWarningOrThrowError(WarningLevel Level, string Format, params object[] Args)
+		{
+			if (Level == WarningLevel.Error)
+			{
+				throw new BuildException(Format, Args);
+			}
+			else if (Level == WarningLevel.Warning)
+			{
+				Log.TraceWarning(Format, Args);
+			}
 		}
 
 		/// <summary>
