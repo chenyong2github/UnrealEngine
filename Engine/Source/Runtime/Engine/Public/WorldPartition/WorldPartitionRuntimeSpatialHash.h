@@ -116,7 +116,7 @@ struct FSpatialHashStreamingGrid
 
 	float GetLoadingRange() const
 	{
-		if (OverrideLoadingRange > 0.f)
+		if (OverrideLoadingRange >= 0.f)
 		{
 			return OverrideLoadingRange;
 		}

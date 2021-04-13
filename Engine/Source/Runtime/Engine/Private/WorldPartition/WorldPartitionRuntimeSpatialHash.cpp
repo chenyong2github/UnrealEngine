@@ -82,7 +82,7 @@ FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	, LoadingRange(0.0f)
 	, DebugColor(ForceInitToZero)
 	, WorldBounds(ForceInitToZero)
-	, OverrideLoadingRange(0.f)
+	, OverrideLoadingRange(-1.f)
 	, GridHelper(nullptr)
 {
 }
@@ -984,25 +984,22 @@ FAutoConsoleCommand UWorldPartitionRuntimeSpatialHash::OverrideLoadingRangeComma
 	{
 		FString ArgString = FString::Join(Args, TEXT(" "));
 		int32 GridIndex = 0;
-		float OverrideLoadingRange = 0.f;
+		float OverrideLoadingRange = -1.f;
 		FParse::Value(*ArgString, TEXT("grid="), GridIndex);
 		FParse::Value(*ArgString, TEXT("range="), OverrideLoadingRange);
 
-		if (OverrideLoadingRange > 0.f)
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
-			for (const FWorldContext& Context : GEngine->GetWorldContexts())
+			UWorld* World = Context.World();
+			if (World && World->IsGameWorld())
 			{
-				UWorld* World = Context.World();
-				if (World && World->IsGameWorld())
+				if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 				{
-					if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+					if (UWorldPartitionRuntimeSpatialHash* RuntimeSpatialHash = Cast<UWorldPartitionRuntimeSpatialHash>(WorldPartition->RuntimeHash))
 					{
-						if (UWorldPartitionRuntimeSpatialHash* RuntimeSpatialHash = Cast<UWorldPartitionRuntimeSpatialHash>(WorldPartition->RuntimeHash))
+						if (RuntimeSpatialHash->StreamingGrids.IsValidIndex(GridIndex))
 						{
-							if (RuntimeSpatialHash->StreamingGrids.IsValidIndex(GridIndex))
-							{
-								RuntimeSpatialHash->StreamingGrids[GridIndex].OverrideLoadingRange = OverrideLoadingRange;
-							}
+							RuntimeSpatialHash->StreamingGrids[GridIndex].OverrideLoadingRange = OverrideLoadingRange;
 						}
 					}
 				}
