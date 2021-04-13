@@ -2647,12 +2647,14 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 				case ETableCellDataType::Int64:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
+					AvailableFilters->Last()->Convertor = Column->GetValueConverter();
 					Context.AddFilterData<int64>(Column->GetIndex(), 0);
 					break;
 				}
 				case ETableCellDataType::Double:
 				{
 					AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
+					AvailableFilters->Last()->Convertor = Column->GetValueConverter();
 					Context.AddFilterData<double>(Column->GetIndex(), 0.0);
 					break;
 				}
@@ -2663,6 +2665,7 @@ FReply STableTreeView::OnAdvancedFiltersClicked()
 					if (!Column->IsHierarchy())
 					{
 						AvailableFilters->Add(MakeShared<FFilter>(Column->GetIndex(), Column->GetTitleName(), Column->GetDescription(), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
+						AvailableFilters->Last()->Convertor = Column->GetValueConverter();
 						Context.AddFilterData<FString>(Column->GetIndex(), FString());
 					}
 					break;

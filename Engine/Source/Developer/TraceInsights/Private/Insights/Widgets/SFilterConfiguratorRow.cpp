@@ -106,6 +106,9 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.MinDesiredWidth(50.0f)
 				.OnTextCommitted(this, &SFilterConfiguratorRow::OnTextBoxValueCommitted)
 				.Text(this, &SFilterConfiguratorRow::GetTextBoxValue)
+				.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
+				.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
+				.OnVerifyTextChanged(this, &SFilterConfiguratorRow::TextBox_OnVerifyTextChanged)
 			];
 			
 		GeneratedWidget->AddSlot()
@@ -401,6 +404,46 @@ FText SFilterConfiguratorRow::GetTextBoxValue() const
 void SFilterConfiguratorRow::OnTextBoxValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
 {
 	FilterConfiguratorNodePtr->SetTextBoxValue(InNewText.ToString());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SFilterConfiguratorRow::GetTextBoxTooltipText() const
+{
+	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	if (Converter.IsValid())
+	{
+		return Converter->GetTooltipText();
+	}
+
+	return FText();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SFilterConfiguratorRow::GetTextBoxHintText() const
+{
+	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	if (Converter.IsValid())
+	{
+		return Converter->GetHintText();
+	}
+
+	return FText();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage)
+{
+	TSharedPtr<IFilterValueConvertor> Converter = FilterConfiguratorNodePtr->GetSelectedFilter()->Convertor;
+	if (Converter.IsValid())
+	{
+		int64 Value;
+		return Converter->Convert(InText.ToString(), Value, OutErrorMessage);
+	}
+
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

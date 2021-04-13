@@ -62,6 +62,9 @@ private:
 
 	FText GetTextBoxValue() const;
 	void OnTextBoxValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+	FText GetTextBoxTooltipText() const;
+	FText GetTextBoxHintText() const;
+	bool TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage);
 
 private:
 	FFilterConfiguratorNodePtr FilterConfiguratorNodePtr;

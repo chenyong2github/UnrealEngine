@@ -158,18 +158,38 @@ void FFilterConfiguratorNode::ProcessFilter()
 		{
 		case EFilterDataType::Double:
 		{
-			FilterValue.Set<double>(FCString::Atod(*TextBoxValue));
+			if (SelectedFilter->Convertor.IsValid())
+			{
+				double Value = 0.0;
+				FText Errors;
+				bool Result = SelectedFilter->Convertor->Convert(TextBoxValue, Value, Errors);
+				FilterValue.Set<double>(Result ? Value : 0.0);
+			}
+			else
+			{
+				FilterValue.Set<double>(FCString::Atod(*TextBoxValue));
+			}
 			break;
 		}
 		case EFilterDataType::Int64:
 		{
-			if (TextBoxValue.Contains(TEXT("x")))
+			if (SelectedFilter->Convertor.IsValid())
 			{
-				FilterValue.Set<int64>((int64)FParse::HexNumber64(*TextBoxValue));
+				int64 Value = 0;
+				FText Errors;
+				bool Result = SelectedFilter->Convertor->Convert(TextBoxValue, Value, Errors);
+				FilterValue.Set<int64>(Result ? Value : 0);
 			}
 			else
 			{
-				FilterValue.Set<int64>(FCString::Atoi64(*TextBoxValue));
+				if (TextBoxValue.Contains(TEXT("x")))
+				{
+					FilterValue.Set<int64>((int64)FParse::HexNumber64(*TextBoxValue));
+				}
+				else
+				{
+					FilterValue.Set<int64>(FCString::Atoi64(*TextBoxValue));
+				}
 			}
 			break;
 		}

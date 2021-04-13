@@ -12,6 +12,7 @@ namespace Insights
 {
 
 class FBaseTreeNode;
+class IFilterValueConvertor;
 class FTable;
 class ITableCellValueGetter;
 class ITableCellValueFormatter;
@@ -183,6 +184,12 @@ public:
 	bool CanBeSorted() const { return ValueSorter.IsValid(); }
 
 	//////////////////////////////////////////////////
+	// Value Converter (can be nullptr)
+
+	TSharedPtr<IFilterValueConvertor> GetValueConverter() const { return ValueConverter; }
+	void SetValueConverter(TSharedPtr<IFilterValueConvertor> InValueConverter) { ValueConverter = InValueConverter; }
+
+	//////////////////////////////////////////////////
 
 	TWeakPtr<FTable> GetParentTable() const { return ParentTable; }
 	void SetParentTable(TWeakPtr<FTable> InParentTable) { ParentTable = InParentTable; }
@@ -239,6 +246,9 @@ private:
 
 	/** Custom sorter for values displayed by this column. */
 	TSharedPtr<ITableCellValueSorter> ValueSorter;
+	
+	/** Used to convert in a custom way from string to column data type in FilterConfigurator */
+	TSharedPtr<IFilterValueConvertor> ValueConverter;
 
 	/* Parent table. Only one table instance can own this column. */
 	TWeakPtr<FTable> ParentTable;

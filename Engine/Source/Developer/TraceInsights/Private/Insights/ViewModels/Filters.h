@@ -97,6 +97,17 @@ struct FFilterGroupOperator
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class IFilterValueConvertor
+{
+public:
+	virtual bool Convert(const FString& Input, int64& Output, FText& OutError) const { unimplemented(); return false; }
+	virtual bool Convert(const FString& Input, double& Output, FText& OutError) const { unimplemented(); return false; }
+	virtual FText GetTooltipText() const { return FText(); }
+	virtual FText GetHintText() const { return FText(); }
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct FFilter
 {
 	typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
@@ -115,6 +126,7 @@ struct FFilter
 	FText Name;
 	FText Desc;
 	EFilterDataType DataType;
+	TSharedPtr<IFilterValueConvertor> Convertor;
 	SupportedOperatorsArrayPtr SupportedOperators;
 };
 
