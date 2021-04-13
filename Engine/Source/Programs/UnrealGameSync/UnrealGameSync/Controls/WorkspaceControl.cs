@@ -34,6 +34,8 @@ namespace UnrealGameSync
 
 	interface IWorkspaceControlOwner
 	{
+		ToolUpdateMonitor ToolUpdateMonitor { get; }
+
 		void EditSelectedProject(WorkspaceControl Workspace);
 		void RequestProjectChange(WorkspaceControl Workspace, UserSelectedProjectSettings Project, bool bModal);
 		void ShowAndActivate();
@@ -323,6 +325,12 @@ namespace UnrealGameSync
 		System.Threading.Timer StartupTimer;
 		List<WorkspaceStartupCallback> StartupCallbacks;
 
+		// When an author filter is applied this will be non-empty and != AuthorFilterPlaceholderText
+		string AuthorFilterText = "";
+		
+		// Placeholder text that is in the control and cleared when the user starts editing.
+		static string AuthorFilterPlaceholderText = "<username>";
+
 		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, LineBasedTextWriter InLog, UserSettings InSettings)
 		{
 			InitializeComponent();
@@ -446,6 +454,8 @@ namespace UnrealGameSync
 
 				TintColor = GetTintColor();
 			}
+
+			Owner.ToolUpdateMonitor.OnChange += UpdateStatusPanel_CrossThread;
 		}
 
 		public void IssueMonitor_OnIssuesChangedAsync()
@@ -701,6 +711,8 @@ namespace UnrealGameSync
 		/// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
 		protected override void Dispose(bool disposing)
 		{
+			Owner.ToolUpdateMonitor.OnChange -= UpdateStatusPanel_CrossThread;
+
 			bIsDisposing = true;
 
 			if (disposing && (components != null))
@@ -1078,7 +1090,7 @@ namespace UnrealGameSync
 
 		void UpdateCompleteCallback(WorkspaceUpdateContext Context, WorkspaceUpdateResult Result, string ResultMessage)
 		{
-			MainThreadSynchronizationContext.Post((o) => UpdateComplete(Context, Result, ResultMessage), null);
+			MainThreadSynchronizationContext.Post((o) => { if (!bIsDisposing) { UpdateComplete(Context, Result, ResultMessage); } }, null);
 		}
 
 		void UpdateComplete(WorkspaceUpdateContext Context, WorkspaceUpdateResult Result, string ResultMessage)
@@ -1385,7 +1397,15 @@ namespace UnrealGameSync
 			Columns[ChangeColumn.Index] = String.Format("{0}", Change.Number);
 
 			Columns[TimeColumn.Index] = DisplayTime.ToShortTimeString();
-			Columns[AuthorColumn.Index] = FormatUserName(Change.User);
+			string UserName = FormatUserName(Change.User);
+
+			// If annotate robomerge is on, add a prefix to the user name
+			if (Settings.bAnnotateRobmergeChanges && IsRobomergeChange(Change))
+			{
+				UserName += " (robo)";
+			}
+
+			Columns[AuthorColumn.Index] = UserName;
 			Columns[DescriptionColumn.Index] = Change.Description.Replace('\n', ' ');
 
 			for (int ColumnIdx = 1; ColumnIdx < BuildList.Columns.Count; ColumnIdx++)
@@ -1409,6 +1429,18 @@ namespace UnrealGameSync
 			BuildList.Items.Add(Item);
 		}
 
+		/// <summary>
+		/// Returns true if this change was submitted on behalf of someone by robomerge
+		/// </summary>
+		/// <param name="Change"></param>
+		/// <returns></returns>
+		bool IsRobomergeChange(PerforceChangeSummary Change)
+		{
+			// If hiding robomerge, filter out based on workspace name. Note - don't look at the description because we
+			// *do* want to see conflicts that were manually merged by someone
+			return Change.Client.IndexOf("ROBOMERGE", StringComparison.OrdinalIgnoreCase) >= 0;
+		}
+
 		bool ShouldShowChange(PerforceChangeSummary Change, string[] ExcludeChanges)
 		{
 			if (ProjectSettings.FilterType != FilterType.None)
@@ -1427,6 +1459,33 @@ namespace UnrealGameSync
 					return false;
 				}
 			}
+
+			// if filtering by user, only show changes where the author contains the filter text
+			if (!string.IsNullOrEmpty(this.AuthorFilterText)
+				&& this.AuthorFilterText != AuthorFilterPlaceholderText
+				&& Change.User.IndexOf(this.AuthorFilterText, StringComparison.OrdinalIgnoreCase) < 0)
+			{
+				return false;
+			}
+			
+			// If this is a robomerge change, check if any filters will cause it to be hidden
+			if (IsRobomergeChange(Change))
+			{
+				if (Settings.ShowRobomerge == UserSettings.RobomergeShowChangesOption.None)
+				{
+					return false;
+				}
+				else if (Settings.ShowRobomerge == UserSettings.RobomergeShowChangesOption.Badged)
+				{
+					// if this change has any badges, we'll show it unless it's later filtered out
+					EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
+					if (Summary == null || !Summary.Badges.Any())
+					{
+						return false;
+					}
+				}
+			}
+
 			if (ProjectSettings.FilterBadges.Count > 0)
 			{
 				EventSummary Summary = EventMonitor.GetSummaryForChange(Change.Number);
@@ -1931,7 +1990,7 @@ namespace UnrealGameSync
 			}
 			else if (Workspace != null)
 			{
-				if (e.State.HasFlag(ListViewItemStates.Selected))
+				if (e.Item.Selected)
 				{
 					BuildList.DrawSelectedBackground(e.Graphics, e.Bounds);
 				}
@@ -2481,6 +2540,27 @@ namespace UnrealGameSync
 			}
 		}
 
+		private static void SafeProcessStart(string Url, string Arguments, string WorkingDir)
+		{
+			try
+			{
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = Url;
+				StartInfo.Arguments = Arguments;
+				StartInfo.WorkingDirectory = WorkingDir;
+				Process.Start(StartInfo).Dispose();
+			}
+			catch
+			{
+				MessageBox.Show(String.Format("Unable to open {0} {1}", Url, Arguments));
+			}
+		}
+
+		public void UpdateSettings()
+		{
+			UpdateStatusPanel();
+		}
+
 		private string ReplaceRegexMatches(string Text, Match MatchResult)
 		{
 			if (Text != null)
@@ -3019,12 +3099,12 @@ namespace UnrealGameSync
 			ProcessNames.Add("UE4Editor-Win64-Debug-Cmd");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame");
 			ProcessNames.Add("UE4Editor-Win64-DebugGame-Cmd");
-			ProcessNames.Add("UE5Editor");
-			ProcessNames.Add("UE5Editor-Cmd");
-			ProcessNames.Add("UE5Editor-Win64-Debug");
-			ProcessNames.Add("UE5Editor-Win64-Debug-Cmd");
-			ProcessNames.Add("UE5Editor-Win64-DebugGame");
-			ProcessNames.Add("UE5Editor-Win64-DebugGame-Cmd");
+			ProcessNames.Add("UnrealEditor");
+			ProcessNames.Add("UnrealEditor-Cmd");
+			ProcessNames.Add("UnrealEditor-Win64-Debug");
+			ProcessNames.Add("UnrealEditor-Win64-Debug-Cmd");
+			ProcessNames.Add("UnrealEditor-Win64-DebugGame");
+			ProcessNames.Add("UnrealEditor-Win64-DebugGame-Cmd");
 			ProcessNames.Add("CrashReportClient");
 			ProcessNames.Add("CrashReportClient-Win64-Development");
 			ProcessNames.Add("CrashReportClient-Win64-Debug");
@@ -3187,9 +3267,29 @@ namespace UnrealGameSync
 			StringBuilder CommandLine = new StringBuilder();
 			if (Workspace != null && Workspace.Perforce != null)
 			{
-				CommandLine.AppendFormat("-p \"{0}\" -c \"{1}\" -u \"{2}\"", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.ClientName, Workspace.Perforce.UserName);
+				CommandLine.Append(Workspace.Perforce.GetConnectionOptions());
 			}
 			SafeProcessStart("p4v.exe", CommandLine.ToString());
+		}
+
+
+		void RunTool(ToolDefinition Tool, ToolLink Link)
+		{
+			string ToolDir = Owner.ToolUpdateMonitor.GetToolPath(Tool.Name);
+
+			Dictionary<string, string> Variables = GetWorkspaceVariables(Workspace.CurrentChangeNumber);
+			Variables["ToolDir"] = ToolDir;
+
+			string FileName = Utility.ExpandVariables(Link.FileName, Variables);
+			string Arguments = Utility.ExpandVariables(Link.Arguments, Variables);
+			string WorkingDir = Utility.ExpandVariables(Link.WorkingDir ?? ToolDir, Variables);
+
+			SafeProcessStart(FileName, Arguments, WorkingDir);
+		}
+
+		private void UpdateStatusPanel_CrossThread()
+		{
+			MainThreadSynchronizationContext.Post((o) => { if (!IsDisposed) { UpdateStatusPanel(); } }, null);
 		}
 
 		private void UpdateStatusPanel()
@@ -3324,6 +3424,20 @@ namespace UnrealGameSync
 					ProgramsLine.AddLink("Visual Studio", FontStyle.Regular, () => { OpenSolution(); });
 					ProgramsLine.AddText("  |  ");
 				}
+
+				List<ToolDefinition> Tools = Owner.ToolUpdateMonitor.Tools;
+				foreach(ToolDefinition Tool in Tools)
+				{
+					if (Tool.Enabled)
+					{
+						foreach (ToolLink Link in Tool.StatusPanelLinks)
+						{
+							ProgramsLine.AddLink(Link.Label, FontStyle.Regular, () => RunTool(Tool, Link));
+							ProgramsLine.AddText("  |  ");
+						}
+					}
+				}
+
 				ProgramsLine.AddLink("Windows Explorer", FontStyle.Regular, () => { SafeProcessStart("explorer.exe", String.Format("\"{0}\"", Path.GetDirectoryName(SelectedFileName))); });
 
 				if (GetDefaultIssueFilter() != null)
@@ -4119,7 +4233,7 @@ namespace UnrealGameSync
 			}
 
 			bool bNewHoverSync = false;
-			if (HitTest.Item != null)
+			if (HitTest.Item != null && StatusColumn.Index < HitTest.Item.SubItems.Count)
 			{
 				bNewHoverSync = GetSyncBadgeRectangle(HitTest.Item.SubItems[StatusColumn.Index].Bounds).Contains(e.Location);
 			}
@@ -4441,10 +4555,7 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -u\"{1}\" -c{2} change {3}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.UserName, Workspace.ClientName, ContextMenuChange.Number)))
-			{
-				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
-			}
+			Utility.SpawnP4VC(String.Format("{0} change {1}", Workspace.Perforce.GetConnectionOptions(), ContextMenuChange.Number));
 		}
 
 		private void BuildListContextMenu_ViewInSwarm_Click(object sender, EventArgs e)
@@ -5653,6 +5764,16 @@ namespace UnrealGameSync
 			FilterContextMenu_Badges.Enabled = FilterContextMenu_Badges.DropDownItems.Count > 0;
 
 			FilterContextMenu_ShowBuildMachineChanges.Checked = Settings.bShowAutomatedChanges;
+
+			// Set checks if any robomerge filters are applied
+			FilterContextMenu_Robomerge.Checked = Settings.ShowRobomerge != UserSettings.RobomergeShowChangesOption.All || Settings.bAnnotateRobmergeChanges;
+			FilterContextMenu_Robomerge_ShowAll.Checked = Settings.ShowRobomerge == UserSettings.RobomergeShowChangesOption.All;
+			FilterContextMenu_Robomerge_ShowBadged.Checked = Settings.ShowRobomerge == UserSettings.RobomergeShowChangesOption.Badged;
+			FilterContextMenu_Robomerge_Annotate.Checked = Settings.bAnnotateRobmergeChanges;
+
+			// Set checks if an author filter string is set
+			FilterContextMenu_Author.Checked = !string.IsNullOrEmpty(this.AuthorFilterText) && this.AuthorFilterText != AuthorFilterPlaceholderText;
+
 			FilterContextMenu.Show(FilterButton, new Point(0, FilterButton.Height));
 		}
 
@@ -5689,11 +5810,83 @@ namespace UnrealGameSync
 			UpdateBuildListFilter();
 		}
 
+		private void FilterContextMenu_Robomerge_ShowAll_Click(object sender, EventArgs e)
+		{
+			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.All;	
+			Settings.Save();
+			UpdateBuildListFilter();
+		}
+
+		private void FilterContextMenu_Robomerge_ShowBadged_Click(object sender, EventArgs e)
+		{
+			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.Badged;
+			Settings.Save();
+			UpdateBuildListFilter();
+		}
+
+		private void FilterContextMenu_Robomerge_ShowNone_Click(object sender, EventArgs e)
+		{
+			Settings.ShowRobomerge = UserSettings.RobomergeShowChangesOption.None;
+			Settings.Save();
+			UpdateBuildListFilter();
+		}
+
+		private void FilterContextMenu_Robomerge_Annotate_Click(object sender, EventArgs e)
+		{
+			Settings.bAnnotateRobmergeChanges ^= true;
+			Settings.Save();
+			BuildList.Items.Clear();	// need to reload to update user names
+
+			UpdateBuildListFilter();
+		}
+
+		/// <summary>
+		/// Handler for the edit box of the author filtering taking focus. This clears any
+		/// placeholder text and sets the foreground color to black so it shows as active
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void FilterContextMenu_Author_Name_GotFocus(object sender, EventArgs e)
+		{
+			if (this.FilterContextMenu_Author_Name.Text == AuthorFilterPlaceholderText)
+			{
+				this.FilterContextMenu_Author_Name.Text = "";
+				this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.Black;
+			}
+		}
+
+		/// <summary>
+		/// Handler for the edit box of the author filter losing focus. If the filter box
+		/// is empty we restore the placeholder text and state
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void FilterContextMenu_Author_Name_LostFocus(object sender, EventArgs e)
+		{
+			if (string.IsNullOrEmpty(this.FilterContextMenu_Author_Name.Text))
+			{
+				this.FilterContextMenu_Author_Name.Text = AuthorFilterPlaceholderText;
+				this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.DarkGray;
+			}
+		}
+
+		/// <summary>
+		/// Handler for the author name changing. We save off the text and update the 
+		/// filter string
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void FilterContextMenu_Author_Name_Changed(object sender, EventArgs e)
+		{
+			AuthorFilterText = this.FilterContextMenu_Author_Name.Text;
+			UpdateBuildListFilter();
+		}
+
+
 		private void FilterContextMenu_Type_ShowAll_Click(object sender, EventArgs e)
 		{
 			ProjectSettings.FilterType = FilterType.None;
 			Settings.Save();
-
 			UpdateBuildListFilter();
 		}
 

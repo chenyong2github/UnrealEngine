@@ -653,7 +653,13 @@ namespace UnrealGameSync
 								string RelativePath = FullName.Substring(LocalRootPrefix.Length).Replace('\\', '/');
 								if (Filter.Matches(RelativePath))
 								{
-									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), SyncRecord.FileSize);
+									long FileSize = SyncRecord.FileSize;
+									if (SyncRecord.Action == "deleted" || SyncRecord.Action == "move/delete")
+									{
+										FileSize = 0;
+									}
+
+									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 								}
 								else
@@ -1044,14 +1050,6 @@ namespace UnrealGameSync
 				{
 					Progress.Set("Starting build...", 0.0f);
 
-					// Check we've built UBT (it should have been compiled by generating project files)
-					string UnrealBuildToolPath = Path.Combine(LocalRootPath, "Engine", "Binaries", "DotNET", "UnrealBuildTool.exe");
-					if(!File.Exists(UnrealBuildToolPath))
-					{
-						StatusMessage = String.Format("Couldn't find {0}", UnrealBuildToolPath);
-						return WorkspaceUpdateResult.FailedToCompile;
-					}
-
 					// Execute all the steps
 					float MaxProgressFraction = 0.0f;
 					foreach (BuildStep Step in BuildSteps)
@@ -1072,16 +1070,17 @@ namespace UnrealGameSync
 									{
 										StepStopwatch.AddData(new { Target = Step.Target });
 
+										string BuildBat = Path.Combine(LocalRootPath, "Engine", "Build", "BatchFiles", "Build.bat");
 										string CommandLine = String.Format("{0} {1} {2} {3} -NoHotReloadFromIDE", Step.Target, Step.Platform, Step.Configuration, Utility.ExpandVariables(Step.Arguments ?? "", Context.Variables));
 										if(Context.Options.HasFlag(WorkspaceUpdateOptions.Clean) || bForceClean)
 										{
-											Log.WriteLine("ubt> Running {0} {1} -clean", UnrealBuildToolPath, CommandLine);
-											Utility.ExecuteProcess(UnrealBuildToolPath, null, CommandLine + " -clean", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
+											Log.WriteLine("ubt> Running {0} {1} -clean", BuildBat, CommandLine);
+											Utility.ExecuteProcess(CmdExe, null, "/C \"\"" + BuildBat + "\" " + CommandLine + " -clean\"", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
 										}
 
-										Log.WriteLine("ubt> Running {0} {1} -progress", UnrealBuildToolPath, CommandLine);
+										Log.WriteLine("ubt> Running {0} {1} -progress", BuildBat, CommandLine);
 
-										int ResultFromBuild = Utility.ExecuteProcess(UnrealBuildToolPath, null, CommandLine + " -progress", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
+										int ResultFromBuild = Utility.ExecuteProcess(CmdExe, null, "/C \"\"" + BuildBat + "\" "+ CommandLine + " -progress\"", null, new ProgressTextWriter(Progress, new PrefixedTextWriter("ubt> ", Log)));
 										if(ResultFromBuild != 0)
 										{
 											StepStopwatch.Stop("Failed");
