@@ -1045,12 +1045,6 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				// Package name
 				const FName PackageName = InMemoryPackage->GetFName();
 
-				// Skip assets from memory mounted packages (/Memory/...)
-				if (FPackageName::IsMemoryPackage(PackageName.ToString()))
-				{
-					return;
-				}
-
 				PackagesToSkip.Add(PackageName);
 
 				if (InFilter.PackageNames.Num() && !InFilter.PackageNames.Contains(PackageName))

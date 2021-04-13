@@ -8069,11 +8069,13 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	}
 
 	// Get the full file path with extension
-	const FString FullFilePath = FPackageName::LongPackageNameToFilename(GetOutermost()->GetName(), FPackageName::GetMapPackageExtension());
-
-	// Save/Display the modify date. File size is handled generically for all packages
-	FDateTime AssetDateModified = IFileManager::Get().GetTimeStamp(*FullFilePath);
-	OutTags.Add(FAssetRegistryTag("DateModified", AssetDateModified.ToString(), FAssetRegistryTag::TT_Chronological, FAssetRegistryTag::TD_Date));
+	FString FullFilePath;
+	if (FPackageName::TryConvertLongPackageNameToFilename(GetOutermost()->GetName(), FullFilePath, FPackageName::GetMapPackageExtension()))
+	{
+		// Save/Display the modify date. File size is handled generically for all packages
+		FDateTime AssetDateModified = IFileManager::Get().GetTimeStamp(*FullFilePath);
+		OutTags.Add(FAssetRegistryTag("DateModified", AssetDateModified.ToString(), FAssetRegistryTag::TT_Chronological, FAssetRegistryTag::TD_Date));
+	}
 
 	FWorldDelegates::GetAssetTags.Broadcast(this, OutTags);
 }
