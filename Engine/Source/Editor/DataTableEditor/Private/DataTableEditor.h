@@ -164,6 +164,7 @@ protected:
 	void OnCopyClicked();
 	void OnPasteClicked();
 	void OnDuplicateClicked();
+	bool CanEditTable() const;
 
 	void SetDefaultSort();
 	EColumnSortMode::Type GetColumnSortMode(const FName ColumnId) const;
