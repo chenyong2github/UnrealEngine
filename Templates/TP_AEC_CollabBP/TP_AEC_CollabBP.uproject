@@ -47,10 +47,6 @@
 			]
 		},
 		{
-			"Name": "StaticMeshEditorExtension",
-			"Enabled": true
-		},
-		{
 			"Name": "DatasmithGLTFImporter",
 			"Enabled": true
 		},
