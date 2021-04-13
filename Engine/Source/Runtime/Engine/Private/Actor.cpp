@@ -707,6 +707,17 @@ void AActor::RemoveControllingMatineeActor( AMatineeActor& InMatineeActor )
 
 void AActor::BeginDestroy()
 {
+#if WITH_EDITOR && DO_CHECK
+	if (IsPackageExternal())
+	{
+		ForEachObjectWithPackage(GetPackage(), [this](UObject* Object)
+		{
+			ensureMsgf(!Object->HasAnyFlags(RF_Public | RF_Standalone), TEXT("BeginDestroy was called on external actor %s without properly detaching it's package"), *GetPathName());
+			return true;
+		}, false);
+	}
+#endif
+
 	UnregisterAllComponents();
 	ULevel* Level = GetLevel();
 	if (Level && !Level->HasAnyInternalFlags(EInternalObjectFlags::Unreachable))

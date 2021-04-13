@@ -332,13 +332,16 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bEditorOnly)
 	{
-		// Make sure to preload any AInfo actors first (mainly for ShouldActorBeLoaded as it needs to have access to the WorldDataLayers actor)
-		TArray<UWorldPartitionEditorCell::FActorHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();
-		AlwaysLoadedActors.Sort([](const UWorldPartitionEditorCell::FActorHandle& A, const UWorldPartitionEditorCell::FActorHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
-			
-		TArray<FWorldPartitionReference> LoadedActors;
-		LoadedActors.Reserve(AlwaysLoadedActors.Num());
-		Algo::Transform(AlwaysLoadedActors, LoadedActors, [](const UWorldPartitionEditorCell::FActorHandle& ActorHandle) { return ActorHandle.Handle; });
+		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoaded requires it)
+		FWorldPartitionReference WorldDataLayersActor;
+		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle : EditorHash->GetAlwaysLoadedCell()->Actors)
+		{
+			if (ActorHandle->GetActorClass()->IsChildOf<AWorldDataLayers>())
+			{
+				WorldDataLayersActor = ActorHandle.Handle;
+				break;
+			}
+		}
 
 		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
