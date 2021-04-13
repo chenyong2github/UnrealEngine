@@ -10,6 +10,7 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "RendererInterface.h"
+#include "RenderGraphDefinitions.h"
 
 /**
  * Explicit VRS source flags; each type of VRS image generated here will have it's own flag defined in this bitfield.
