@@ -8,10 +8,6 @@
 #include "AssetRegistryModule.h"
 #include "AssetReferencingDomains.h"
 
-#if UE_ASSET_DOMAIN_FILTERING_CROSS_CHECK_RESULTS
-#include "RefAssetReferenceFilter.h"
-#endif
-
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"
 
 TArray<FDomainAssetReferenceFilter*> FDomainAssetReferenceFilter::FilterInstances;
@@ -20,10 +16,6 @@ FDomainAssetReferenceFilter::FDomainAssetReferenceFilter(const FAssetReferenceFi
 	: IAssetReferenceFilter()
 	, DomainDB(InDomainDB)
 {
-#if UE_ASSET_DOMAIN_FILTERING_CROSS_CHECK_RESULTS
-	CrossChecker = MakeShareable(new FRefAssetReferenceFilter(Context));
-#endif
-
 	OriginalReferencingAssets = Context.ReferencingAssets;
 
 	DetermineReferencingDomain();
@@ -96,27 +88,6 @@ bool FDomainAssetReferenceFilter::PassesFilter(const FAssetData& AssetData, FTex
 {
 	FText MyReason;
 	bool bMyResult = PassesFilterImpl(AssetData, /*out*/ MyReason);
-
-#if UE_ASSET_DOMAIN_FILTERING_CROSS_CHECK_RESULTS
-	FText OldReason;
-	bool bOldResult = CrossChecker->PassesFilter(AssetData, /*out*/ &OldReason);
-
-	if ((bMyResult != bOldResult) || (MyReason.ToString() != OldReason.ToString()))
-	{
-		UE_LOG(LogInit, Error, TEXT("QQQ Mismatch for asset %s\n\tMe:%d\n\tOld:%d\n\tMyReason: %s\n\tOldReason: %s\n\tRefs: %s"),
-			*AssetData.ObjectPath.ToString(),
-			bMyResult ? 1 : 0,
-			bOldResult ? 1 : 0,
-			*MyReason.ToString(),
-			*OldReason.ToString(),
-			*FString::JoinBy(ReferencingDomains, TEXT(", "), [](TSharedPtr<FDomainData> Foo) { return Foo->UserFacingDomainName.ToString(); }));
-
-		if (bMyResult != bOldResult)
-		{
-			ensureAlways(false);
-		}
-	}
-#endif
 
 	if (OutOptionalFailureReason)
 	{

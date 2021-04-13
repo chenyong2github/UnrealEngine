@@ -8,9 +8,6 @@ struct FAssetData;
 struct FDomainDatabase;
 struct FDomainData;
 
-//@TODO: Remove the cross-checking
-#define UE_ASSET_DOMAIN_FILTERING_CROSS_CHECK_RESULTS 0
-
 class FDomainAssetReferenceFilter : public IAssetReferenceFilter
 {
 public:
@@ -38,10 +35,6 @@ private:
 
 	TArray<FAssetData> OriginalReferencingAssets;
 	TSet<TSharedPtr<FDomainData>> ReferencingDomains;
-
-#if UE_ASSET_DOMAIN_FILTERING_CROSS_CHECK_RESULTS
-	TSharedPtr<class FRefAssetReferenceFilter> CrossChecker;
-#endif
 
 	FText Failure_CouldNotDetermineDomain;
 };
