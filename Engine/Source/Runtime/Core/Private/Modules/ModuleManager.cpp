@@ -1084,12 +1084,30 @@ void FModuleManager::FindModulePaths(const TCHAR* NamePattern, TMap<FName, FStri
 		return;
 	}
 
-	// Search the cache
-	for (const TPair<FName, FString>& Pair : ModulePathsCache)
+	// Avoid wildcard pattern matching if possible
+	if (FCString::Strchr(NamePattern, '*') == nullptr)
 	{
-		if (Pair.Key.ToString().MatchesWildcard(NamePattern))
+		FName Key(NamePattern, FNAME_Find);
+		if (Key != FName())
 		{
-			OutModulePaths.Add(Pair.Key, Pair.Value);
+			if (const FString* Value = ModulePathsCache.Find(Key))
+			{
+				OutModulePaths.Add(Key, *Value);
+			}
+		}
+	}
+	else
+	{
+		// Search the cache
+		FString KeyTemp;
+		KeyTemp.Reserve(256);
+		for (const TPair<FName, FString>& Pair : ModulePathsCache)
+		{
+			Pair.Key.ToString(KeyTemp);
+			if (KeyTemp.MatchesWildcard(NamePattern))
+			{
+				OutModulePaths.Add(Pair.Key, Pair.Value);
+			}
 		}
 	}
 }
