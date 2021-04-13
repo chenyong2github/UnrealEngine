@@ -368,7 +368,7 @@ bool FRigVMRegisterOffset::ContainsArraySegment() const
 {
 	for (int32 SegmentIndex : Segments)
 	{
-		if (SegmentIndex < 0)
+		if (SegmentIndex < 0) // Segement indices less than zero represent array element offsets.
 		{
 			return true;
 		}
@@ -508,6 +508,8 @@ FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryConta
 
 		Construct(Index);
 
+		// Why was this introduced? Are we trying to save time here?
+		// An assignment should be copying everything.
 		if (MemoryType == ERigVMMemoryType::Literal)
 		{
 			Copy(Index, Index, &InOther);
