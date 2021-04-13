@@ -1221,8 +1221,8 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 				return &CachePool[CacheOffset];
 			}
 
-			UE_LOG(LogAudioStreamCaching, Display, TEXT("Cache Offset [%i] currently stores chunk for Soundwave: %s -- (looking for Soundwave %s)")
-				, CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString(), *InKey.SoundWaveName.ToString());
+			UE_LOG(LogAudioStreamCaching, Verbose, TEXT("Cache Miss for soundwave: %s. (Cache Lookup ID [%i] currently stores chunk for Soundwave: %s"),
+				*InKey.SoundWaveName.ToString(), CacheOffset, *CachePool[CacheOffset].Key.SoundWaveName.ToString());
 		}
 	}
 

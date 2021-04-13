@@ -22,7 +22,7 @@ enum class ESoundwaveSampleRateSettings : uint8
 /************************************************************************/
 struct FAudioStreamCachingSettings
 {
-	static constexpr int32 DefaultCacheSize = 32 * 1024;
+	static constexpr int32 DefaultCacheSize = 64 * 1024;
 
 	// Target memory usage, in kilobytes.
 	// In the future settings for the cache can be more complex, but for now

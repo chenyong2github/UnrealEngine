@@ -115,7 +115,7 @@ void CacheAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides, const TC
 	if (OutOverrides.bUseStreamCaching)
 	{
 		// Cache size:
-		const int32 DefaultCacheSize = 32 * 1024;
+		const int32 DefaultCacheSize = 64 * 1024;
 		int32 RetrievedCacheSize = DefaultCacheSize;
 		int32 RetrievedChunkSizeOverride = INDEX_NONE;
 
