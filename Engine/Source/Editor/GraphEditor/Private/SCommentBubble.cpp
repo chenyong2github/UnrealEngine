@@ -251,7 +251,7 @@ void SCommentBubble::UpdateBubble()
 						[
 							SAssignNew(TextBlock, SMultiLineEditableTextBox)
 							.Text(MakeAttributeLambda([this] { return CachedCommentText; }))
-							.Style(FAppStyle::Get(), "Graph.Node.NodeTitleEditableText")
+							.Style(FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
 							.HintText( NSLOCTEXT( "CommentBubble", "EditCommentHint", "Click to edit" ))
 							.IsReadOnly(this, &SCommentBubble::IsReadOnly)
 							.SelectAllTextWhenFocused( true )

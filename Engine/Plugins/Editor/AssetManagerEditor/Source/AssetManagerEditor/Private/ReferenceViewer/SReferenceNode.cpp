@@ -212,10 +212,9 @@ void SReferenceNode::UpdateGraphNode()
 	{
 		TSharedPtr<SCommentBubble> CommentBubble;
 
-		SAssignNew( CommentBubble, SCommentBubble )
-		.GraphNode( GraphNode )
-		.Text( this, &SGraphNode::GetNodeComment )
-		.ColorAndOpacity( this, &SReferenceNode::GetCommentColor );
+		SAssignNew(CommentBubble, SCommentBubble)
+			.GraphNode(GraphNode)
+			.Text(this, &SGraphNode::GetNodeComment);
 
 		GetOrAddSlot( ENodeZone::TopCenter )
 		.SlotOffset( TAttribute<FVector2D>( CommentBubble.Get(), &SCommentBubble::GetOffset ))
