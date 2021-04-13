@@ -34,6 +34,7 @@ UDisplayClusterXformComponent::UDisplayClusterXformComponent(const FObjectInitia
 			VisXformComponent->SetMobility(EComponentMobility::Movable);
 			VisXformComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			VisXformComponent->SetVisibility(true);
+			VisXformComponent->SetIsVisualizationComponent(true);
 		}
 	}
 #endif

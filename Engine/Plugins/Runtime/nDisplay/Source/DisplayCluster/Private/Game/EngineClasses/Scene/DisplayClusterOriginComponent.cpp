@@ -32,6 +32,7 @@ UDisplayClusterOriginComponent::UDisplayClusterOriginComponent(const FObjectInit
 			VisualizationComponent->SetMobility(EComponentMobility::Movable);
 			VisualizationComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 			VisualizationComponent->SetVisibility(true);
+			VisualizationComponent->SetIsVisualizationComponent(true);
 		}
 	}
 #endif

@@ -110,6 +110,13 @@ FDisplayClusterConfiguratorSCSEditorViewportClient::FDisplayClusterConfiguratorS
 	
 	EditorFloorComp = NewObject<UStaticMeshComponent>(GetTransientPackage(),
 		MakeUniqueObjectName(GetTransientPackage(), UStaticMeshComponent::StaticClass(), TEXT("EditorFloorComp")));
+#if 0
+	//@todo: need decision - preview with grid or without?
+	// Hide FloorGrid in preview
+	EditorFloorComp->SetIsVisualizationComponent(true);
+	EditorFloorComp->bHiddenInSceneCapture = true;
+	EditorFloorComp->bHiddenInGame = true;
+#endif
 
 	UStaticMesh* FloorMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/nDisplay/Meshes/sm_nDisplayGrid.sm_nDisplayGrid"), nullptr, LOAD_None, nullptr);
 	if (ensure(FloorMesh))

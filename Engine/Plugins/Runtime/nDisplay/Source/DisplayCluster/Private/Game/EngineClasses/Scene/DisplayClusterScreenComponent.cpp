@@ -51,6 +51,7 @@ UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInit
 		VisScreenComponent->SetMobility(EComponentMobility::Movable);
 		VisScreenComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		VisScreenComponent->SetVisibility(true);
+		VisScreenComponent->SetIsVisualizationComponent(true);
 	}
 #endif
 }

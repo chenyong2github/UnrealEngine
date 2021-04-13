@@ -29,6 +29,7 @@ UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitiali
 		WarpMeshComponent->SetMobility(EComponentMobility::Movable);
 		WarpMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		WarpMeshComponent->SetVisibility(true);
+		WarpMeshComponent->SetIsVisualizationComponent(true);
 	}
 }
 

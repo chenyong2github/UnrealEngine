@@ -170,7 +170,7 @@ UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetDefaultConfigData
 }
 
 template <typename TComp>
-void ImplCollectAllDescendantsClidren(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
+void ImplCollectChildrenVisualizationComponent(TSet<FPrimitiveComponentId>& OutPrimitives, TComp* pComp)
 {
 #if WITH_EDITOR
 	USceneComponent* SceneComp = Cast<USceneComponent>(pComp);
@@ -195,7 +195,7 @@ void ImplCollectAllDescendantsClidren(TSet<FPrimitiveComponentId>& OutPrimitives
 }
 
 template <typename TComp>
-void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames) const
+void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& OutPrimitives, const TArray<FString>* InCompNames, bool bCollectChildrenVisualizationComponent) const
 {
 	TArray<TComp*> TypedComponents;
 	GetComponents<TComp>(TypedComponents, true);
@@ -217,7 +217,10 @@ void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& O
 							OutPrimitives.Add(PrimComp->ComponentId);
 						}
 
-						ImplCollectAllDescendantsClidren(OutPrimitives, CompIt);
+						if (bCollectChildrenVisualizationComponent)
+						{
+							ImplCollectChildrenVisualizationComponent(OutPrimitives, CompIt);
+						}
 						break;
 					}
 				}
@@ -230,7 +233,10 @@ void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& O
 					OutPrimitives.Add(PrimComp->ComponentId);
 				}
 
-				ImplCollectAllDescendantsClidren(OutPrimitives, CompIt);
+				if (bCollectChildrenVisualizationComponent)
+				{
+					ImplCollectChildrenVisualizationComponent(OutPrimitives, CompIt);
+				}
 			}
 
 		}
@@ -239,20 +245,23 @@ void ADisplayClusterRootActor::GetTypedPrimitives(TSet<FPrimitiveComponentId>& O
 
 bool ADisplayClusterRootActor::FindPrimitivesByName(const TArray<FString>& InNames, TSet<FPrimitiveComponentId>& OutPrimitives)
 {
-	GetTypedPrimitives<UActorComponent>(OutPrimitives, &InNames);
+	GetTypedPrimitives<UActorComponent>(OutPrimitives, &InNames, false);
 
 	return true;
 }
 
+// Gather components no rendered in game
 bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponentId>& OutPrimitives)
 {
-	// Gather components no rendered in game
+	check(IsInGameThread());
 	FScopeLock Lock(&InternalsSyncScope);
 
 	OutPrimitives.Empty();
 
 	if (CurrentConfigData)
 	{
+		//@todo: Add more rules to hide components used in config
+		// Hide all static meshes assigned into configuration:
 		TArray<FString> WarpMeshNames;
 		CurrentConfigData->GetReferencedMeshNames(WarpMeshNames);
 		if (WarpMeshNames.Num() > 0)
@@ -261,42 +270,48 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		}
 	}
 
-	GetTypedPrimitives<UDisplayClusterCameraComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSceneComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterICVFX_CineCameraComponent>(OutPrimitives);
-	GetTypedPrimitives<UCineCameraComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterICVFX_RefCineCameraComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterMeshComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterOriginComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSceneComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterPreviewComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterRootComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSceneComponentSync>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSceneComponentSyncParent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSceneComponentSyncThis>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterScreenComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterSyncTickComponent>(OutPrimitives);
-	GetTypedPrimitives<UDisplayClusterXformComponent>(OutPrimitives);
+	//@todo: Add SetIsVisualizationComponent(true) to all custom components invisible in game and preview
+	// Hide all visualization components from RootActor
+	{
+		TArray<UPrimitiveComponent*> PrimitiveComponents;
+		GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+		for (UPrimitiveComponent* CompIt : PrimitiveComponents)
+		{
+			if (CompIt->IsVisualizationComponent())
+			{
+				OutPrimitives.Add(CompIt->ComponentId);
+			}
+
+			ImplCollectChildrenVisualizationComponent(OutPrimitives, CompIt);
+		}
+	}
 
 #if WITH_EDITOR
+	// Hide all visualization components from preview scene
+	UWorld* ConfiguratorWorld = GetWorld();
+	if (ConfiguratorWorld && ConfiguratorWorld->IsPreviewWorld())
 	{
-		/* Find visual "_impl" components. */
-		
-		TArray<UPrimitiveComponent*> PrimitiveComponents;
-		
-		GetComponents<UPrimitiveComponent>(PrimitiveComponents);
-		for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+		// Iterate over all actors, looking for editor components.
+		for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(ConfiguratorWorld))
 		{
-			if (PrimComp->GetOuter() &&
-				PrimComp->GetOuter()->IsA<UDisplayClusterSceneComponent>() &&
-				PrimComp->GetName().EndsWith(TEXT("_impl")))
+			if (AActor* Actor = WeakActor.Get())
 			{
-				OutPrimitives.Add(PrimComp->ComponentId);
+				TArray<UPrimitiveComponent*> PrimitiveComponents;
+				Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+				for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
+				{
+					if (PrimComp->IsVisualizationComponent())
+					{
+						OutPrimitives.Add(PrimComp->ComponentId);
+					}
+
+					ImplCollectChildrenVisualizationComponent(OutPrimitives, PrimComp);
+				}
 			}
 		}
 	}
 #endif
-	
+
 	return OutPrimitives.Num() > 0;
 }
 
@@ -359,6 +374,7 @@ void ADisplayClusterRootActor::InitializeRootActor()
 bool ADisplayClusterRootActor::BuildHierarchy()
 {
 	check(CurrentConfigData);
+	check(IsInGameThread());
 
 	if (!IsBlueprint())
 	{
@@ -390,7 +406,7 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 	}
 
 	// If no default camera set, try to set the first one
-	if (!DefaultCameraComponent.IsDefinedSceneComponent())
+	if (DefaultCameraComponent.IsDefinedSceneComponent() == false)
 	{
 		TMap<FString, UDisplayClusterCameraComponent*> Cameras;
 		GetTypedComponents<UDisplayClusterCameraComponent>(Cameras, CameraComponents);
@@ -629,6 +645,8 @@ UDisplayClusterCameraComponent* ADisplayClusterRootActor::GetDefaultCamera() con
 
 void ADisplayClusterRootActor::SetDefaultCamera(const FString& CameraId)
 {
+	check(IsInGameThread());
+
 	FScopeLock Lock(&InternalsSyncScope);
 
 	UDisplayClusterCameraComponent* NewDefaultCamera = GetCameraById(CameraId);
