@@ -188,6 +188,9 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 
 	// Cleanup
 	World->RemoveFromRoot();
+	World->ClearWorldComponents();
+	World->CleanupWorld();
+
 	WorldContext.SetCurrentWorld(nullptr);
 	GWorld = nullptr;
 
