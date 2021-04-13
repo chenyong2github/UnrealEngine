@@ -905,9 +905,18 @@ void FInstancedStaticMeshRenderData::InitVertexFactories()
 			{
 				RenderData->VertexBuffers.StaticMeshVertexBuffer.BindLightMapVertexBuffer(&VertexFactory, Data, LightMapCoordinateIndex);
 			}
-			RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
 
+			if (RenderData->bHasColorVertexData)
+			{
+				RenderData->VertexBuffers.ColorVertexBuffer.BindColorVertexBuffer(&VertexFactory, Data);
+			}
+			else
+			{
+				FColorVertexBuffer::BindDefaultColorVertexBuffer(&VertexFactory, Data, FColorVertexBuffer::NullBindStride::FColorSizeForComponentOverride);
+			}
+			
 			check(PerInstanceRenderData);
+			
 			PerInstanceRenderData->InstanceBuffer.BindInstanceVertexBuffer(&VertexFactory, Data);
 
 			VertexFactory.SetData(Data);
