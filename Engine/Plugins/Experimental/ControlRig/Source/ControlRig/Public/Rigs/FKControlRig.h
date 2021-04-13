@@ -46,8 +46,6 @@ public:
 
 	// utility function to 
 	static FName GetControlName(const FName& InBoneName);
-	static FName GetNullName(const FName& InBoneName);
-
 
 	TArray<FName> GetControlNames();
 	bool GetControlActive(int32 Index) const;
