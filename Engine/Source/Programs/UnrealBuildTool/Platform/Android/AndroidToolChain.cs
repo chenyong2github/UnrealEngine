@@ -699,6 +699,11 @@ namespace UnrealBuildTool
 				Result += " -fvisibility=hidden -fvisibility-inlines-hidden"; // Symbols default to hidden.
 			}
 
+			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
+			{
+				Result += " -Werror=deprecated-declarations";
+			}
+
 			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
 			{
 				Result += " -Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow");
@@ -1489,7 +1494,6 @@ namespace UnrealBuildTool
 			if (CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create)
 			{
 				BaseArguments += " -Werror";
-
 			}
 
 			string NativeGluePath = Path.GetFullPath(GetNativeGluePath());
