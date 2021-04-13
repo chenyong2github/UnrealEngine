@@ -376,10 +376,8 @@ void FTexturePagePool::UnmapPageMapping(FVirtualTextureSystem* System, uint32 Ma
 void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress, bool bMapAncestorPages)
 {
 	FPageEntry& PageEntry = Pages[pAddress];
-	FVirtualTextureProducer* Producer = nullptr;
 	if (PageEntry.PackedProducerHandle != 0u)
 	{
-		Producer = System->FindProducer(PageEntry.GetProducerHandle());
 		check(NumPagesAllocated > 0u);
 		--NumPagesAllocated;
 		PageHash.Remove(GetPageHash(PageEntry), pAddress);

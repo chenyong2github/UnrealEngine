@@ -163,8 +163,6 @@ private:
 			uint32 Local_vLevel : 4;
 			uint32 GroupIndex : 4;
 		};
-
-		FVirtualTextureProducerHandle GetProducerHandle() const { return FVirtualTextureProducerHandle(PackedProducerHandle); }
 	};
 
 	static uint16 GetPageHash(const FPageEntry& Entry);
