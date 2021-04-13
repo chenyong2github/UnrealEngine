@@ -214,10 +214,12 @@ FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View)
 		FVector(B.Max)
 	};
 
+	// Compute the MinP/MaxP in pixel coord, relative to View.ViewRect.Min
+	const FMatrix& ViewProj = View.ViewMatrices.GetViewProjectionMatrix();
 	for (uint32 i = 0; i < 8; ++i)
 	{
 		FVector2D P;
-		if (View.WorldToPixel(Vertices[i], P))
+		if (FSceneView::ProjectWorldToScreen(Vertices[i], View.ViewRect, ViewProj, P))
 		{
 			MinP.X = FMath::Min(MinP.X, P.X);
 			MinP.Y = FMath::Min(MinP.Y, P.Y);
@@ -226,15 +228,16 @@ FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View)
 		}
 	}
 
+	// Clamp to pixel border
 	FIntRect OutRect;
 	OutRect.Min = FIntPoint(FMath::FloorToInt(MinP.X), FMath::FloorToInt(MinP.Y));
 	OutRect.Max = FIntPoint(FMath::CeilToInt(MaxP.X),  FMath::CeilToInt(MaxP.Y));
 
 	// Clamp to screen rect
-	OutRect.Min.X = FMath::Max(View.ViewRect.Min.X, OutRect.Min.X);
-	OutRect.Min.Y = FMath::Max(View.ViewRect.Min.Y, OutRect.Min.Y);
-	OutRect.Max.X = FMath::Min(View.ViewRect.Max.X, OutRect.Max.X);
-	OutRect.Max.Y = FMath::Min(View.ViewRect.Max.Y, OutRect.Max.Y);
+	OutRect.Min.X = FMath::Clamp(OutRect.Min.X, View.ViewRect.Min.X, View.ViewRect.Max.X);
+	OutRect.Max.X = FMath::Clamp(OutRect.Max.X, View.ViewRect.Min.X, View.ViewRect.Max.X);
+	OutRect.Min.Y = FMath::Clamp(OutRect.Min.Y, View.ViewRect.Min.Y, View.ViewRect.Max.Y);
+	OutRect.Max.Y = FMath::Clamp(OutRect.Max.Y, View.ViewRect.Min.Y, View.ViewRect.Max.Y);
 
 	return OutRect;
 }

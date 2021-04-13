@@ -3146,6 +3146,14 @@ void RenderHairStrandsVisibilityBuffer(
 
 	const bool bGenerateTile = GHairStrandsTile > 0;
 
+	const FIntRect HairRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
+	const int32 HairPixelCount = HairRect.Width() * HairRect.Height();
+	if (HairPixelCount <= 0)
+	{
+		View.HairStrandsViewData.VisibilityData = FHairStrandsVisibilityData();
+		return;
+	}
+
 	{
 		
 		{
