@@ -1107,9 +1107,9 @@ const FSlateBrush* SGraphPin::GetPinStatusIcon() const
 
 		if (UEdGraphNode* GraphNode = WatchedPin->GetOwningNodeUnchecked())
 		{
-			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(GraphNode);
+			UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(GraphNode);
 
-			if (FKismetDebugUtilities::IsPinBeingWatched(Blueprint, WatchedPin))
+			if (Blueprint && FKismetDebugUtilities::IsPinBeingWatched(Blueprint, WatchedPin))
 			{
 				return FEditorStyle::GetBrush(TEXT("Graph.WatchedPinIcon_Pinned"));
 			}
