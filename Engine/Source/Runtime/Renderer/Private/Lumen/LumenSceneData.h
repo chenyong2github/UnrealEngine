@@ -16,10 +16,10 @@
 #include "SceneTypes.h"
 #include "UniformBuffer.h"
 #include "LumenSparseSpanArray.h"
+#include "LumenUniqueList.h"
 #include "LumenSurfaceCacheFeedback.h"
 #include "Containers/BinaryHeap.h"
 #include "Lumen.h"
-#include "Experimental/Containers/SherwoodHashTable.h"
 
 class FLumenSceneData;
 class FLumenMeshCards;
@@ -205,7 +205,8 @@ public:
 class FLumenPrimitiveInstance
 {
 public:
-	FBox BoundingBox;
+	FBox WorldSpaceBoundingBox;
+
 	int32 MeshCardsIndex;
 	bool bValidMeshCards;
 };
@@ -213,9 +214,9 @@ public:
 class FLumenPrimitive
 {
 public:
-	FBox BoundingBox;
+	FBox WorldSpaceBoundingBox;
 
-	// Max extent of a card in any of instances belonging to this primitive. Used for culling.
+	// Max extent of cards belonging to this primitive. Used for early culling.
 	float MaxCardExtent;
 
 	TArray<FLumenPrimitiveInstance, TInlineAllocator<1>> Instances;
@@ -317,26 +318,6 @@ union FVirtualPageIndex
 	};
 };
 
-/**
- * Crude list of unique elements - flat array, backed by a set for faster insertion
- */
-template <typename ElementType, typename Allocator>
-struct TLumenUniqueList
-{
-	void Add(ElementType Element)
-	{
-		bool bIsAlreadyInSet = false;
-		Set.Add(Element, &bIsAlreadyInSet);
-		if (!bIsAlreadyInSet)
-		{
-			Array.Add(Element);
-		}
-	}
-
-	TArray<ElementType, Allocator> Array;
-	Experimental::TSherwoodSet<ElementType> Set;
-};
-
 class FLumenSceneData
 {
 public:
@@ -347,7 +328,7 @@ public:
 	FScatterUploadBuffer ByteBufferUploadBuffer;
 
 	TSparseSpanArray<FLumenCard> Cards;
-	TArray<int32> CardIndicesToUpdateInBuffer;
+	FUniqueIndexList CardIndicesToUpdateInBuffer;
 	FRWBufferStructured CardBuffer;
 
 	TArray<FBox> PrimitiveModifiedBounds;
@@ -356,8 +337,7 @@ public:
 	TArray<FLumenPrimitive> LumenPrimitives;
 
 	// Mesh Cards
-	TArray<int32> DFObjectIndicesToUpdateInBuffer;
-	TArray<int32> MeshCardsIndicesToUpdateInBuffer;
+	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
 	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 	FRWBufferStructured MeshCardsBuffer;
@@ -367,13 +347,13 @@ public:
 	FRWBufferStructured CardPageBuffer;
 
 	// Mapping from Primitive to LumenDFInstance
-	TArray<int32> PrimitivesToUpdate;
-	TBitArray<>	PrimitivesMarkedToUpdate;
+	FUniqueIndexList PrimitivesToUpdate;
 	FRWByteAddressBuffer PrimitiveToDFLumenInstanceOffsetBuffer;
 	uint32 PrimitiveToLumenDFInstanceOffsetBufferSize = 0;
 
 	// Mapping from LumenDFInstance to DFObjectIndex
-	TArray<int32> LumenDFInstancesToUpdate;
+	FUniqueIndexList DFObjectIndicesToUpdateInBuffer;
+	FUniqueIndexList LumenDFInstancesToUpdate;
 	TSparseSpanArray<int32> LumenDFInstanceToDFObjectIndex;
 	FRWByteAddressBuffer LumenDFInstanceToDFObjectIndexBuffer;
 	uint32 LumenDFInstanceToDFObjectIndexBufferSize = 0;
@@ -439,7 +419,7 @@ public:
 	bool IsPhysicalSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const;
 
 	void ForceEvictEntireCache();
-	bool EvictOldestAllocation(bool bForceEvict, TLumenUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
+	bool EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
 
 	const FLumenPageTableEntry& GetPageTableEntry(int32 PageTableIndex) const { return PageTable[PageTableIndex]; }
 	FLumenPageTableEntry& GetPageTableEntry(int32 PageTableIndex) { return PageTable[PageTableIndex]; }

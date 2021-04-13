@@ -536,7 +536,6 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 	LumenSceneData.DFObjectIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Empty(1024);
 	LumenSceneData.PrimitivesToUpdate.Empty(1024);
-	LumenSceneData.PrimitivesMarkedToUpdate.Reset();
 	LumenSceneData.LumenDFInstancesToUpdate.Empty(1024);
 }
 

@@ -214,18 +214,7 @@ void FLumenSceneData::AddPrimitiveToUpdate(int32 PrimitiveIndex)
 {
 	if (bTrackAllPrimitives)
 	{
-		if (PrimitiveIndex + 1 > PrimitivesMarkedToUpdate.Num())
-		{
-			const int32 NewSize = Align(PrimitiveIndex + 1, 64);
-			PrimitivesMarkedToUpdate.Add(0, NewSize - PrimitivesMarkedToUpdate.Num());
-		}
-
-		// Make sure we aren't updating same primitive multiple times.
-		if (!PrimitivesMarkedToUpdate[PrimitiveIndex])
-		{
-			PrimitivesToUpdate.Add(PrimitiveIndex);
-			PrimitivesMarkedToUpdate[PrimitiveIndex] = true;
-		}
+		PrimitivesToUpdate.Add(PrimitiveIndex);
 	}
 }
 
@@ -405,8 +394,10 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 				LumenPrimitive.Primitive = PrimitiveSceneInfo;
 				LumenPrimitive.Primitive->LumenPrimitiveIndex = LumenPrimitiveIndex;
-				LumenPrimitive.BoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
-				LumenPrimitive.MaxCardExtent = LumenPrimitive.BoundingBox.GetExtent().GetMax();
+				LumenPrimitive.WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
+				LumenPrimitive.MaxCardExtent = LumenPrimitive.WorldSpaceBoundingBox.GetExtent().GetMax();
+
+				const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 
 				if (PrimitiveInstances && NumInstances > 1)
 				{
@@ -415,7 +406,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					extern float GLumenMeshCardsMergedMaxWorldSize;
 					if (GLumenMeshCardsMergeInstances
 						&& NumInstances > 1
-						&& LumenPrimitive.BoundingBox.GetSize().GetMax() < GLumenMeshCardsMergedMaxWorldSize)
+						&& LumenPrimitive.WorldSpaceBoundingBox.GetSize().GetMax() < GLumenMeshCardsMergedMaxWorldSize)
 					{
 						FBox LocalBounds;
 						LocalBounds.Init();
@@ -442,9 +433,11 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							LumenPrimitive.CardResolutionScale = FMath::Sqrt(1.0f / SurfaceAreaRatio) * GLumenMeshCardsMergedResolutionScale;
 
 							LumenPrimitive.Instances.SetNum(1);
-							LumenPrimitive.Instances[0].BoundingBox = LocalBounds;
+							LumenPrimitive.Instances[0].WorldSpaceBoundingBox = LocalBounds.TransformBy(LocalToWorld);
 							LumenPrimitive.Instances[0].MeshCardsIndex = -1;
 							LumenPrimitive.Instances[0].bValidMeshCards = true;
+
+							LumenPrimitive.MaxCardExtent = LumenPrimitive.Instances[0].WorldSpaceBoundingBox.GetExtent().GetMax();
 						}
 
 #define LOG_LUMEN_PRIMITIVE_ADDS 0
@@ -461,7 +454,6 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 					if (!LumenPrimitive.bMergedInstances)
 					{
-						const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 						LumenPrimitive.Instances.SetNum(NumInstances);
 
 						LumenPrimitive.MaxCardExtent = 0.0f;
@@ -471,19 +463,20 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 							FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[InstanceIndex];
 							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[InstanceIndex];
 
-							const FBox& LocalBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
+							const FBox& RenderBoundingBox = PrimitiveInstance.RenderBounds.GetBox();
 
-							LumenInstance.BoundingBox = LocalBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal);
-							LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.BoundingBox.GetExtent().GetMax());
+							LumenInstance.WorldSpaceBoundingBox = RenderBoundingBox.TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
 							LumenInstance.MeshCardsIndex = -1;
 							LumenInstance.bValidMeshCards = true;
+
+							LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.WorldSpaceBoundingBox.GetExtent().GetMax());
 						}
 					}
 				}
 				else
 				{
 					LumenPrimitive.Instances.SetNum(1);
-					LumenPrimitive.Instances[0].BoundingBox = LumenPrimitive.BoundingBox;
+					LumenPrimitive.Instances[0].WorldSpaceBoundingBox = LumenPrimitive.WorldSpaceBoundingBox;
 					LumenPrimitive.Instances[0].MeshCardsIndex = -1;
 					LumenPrimitive.Instances[0].bValidMeshCards = true;
 				}
@@ -527,8 +520,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 			if (PrimitiveSceneInfo->LumenPrimitiveIndex >= 0)
 			{
 				FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[PrimitiveSceneInfo->LumenPrimitiveIndex];
-				LumenPrimitive.BoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
-				LumenPrimitive.MaxCardExtent = LumenPrimitive.BoundingBox.GetExtent().GetMax();
+				LumenPrimitive.WorldSpaceBoundingBox = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
+				LumenPrimitive.MaxCardExtent = LumenPrimitive.WorldSpaceBoundingBox.GetExtent().GetMax();
 
 				const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
 
@@ -547,22 +540,21 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 					for (int32 LumenInstanceIndex = 0; LumenInstanceIndex < LumenPrimitive.Instances.Num(); ++LumenInstanceIndex)
 					{
 						FLumenPrimitiveInstance& LumenInstance = LumenPrimitive.Instances[LumenInstanceIndex];
-						FBox BoundingBox = LumenPrimitive.BoundingBox;
-						FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+						FBox WorldSpaceBoundingBox = LumenPrimitive.WorldSpaceBoundingBox;
+						const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 
 						if (PrimitiveInstances && LumenInstanceIndex < PrimitiveInstances->Num())
 						{
 							const FPrimitiveInstance& PrimitiveInstance = (*PrimitiveInstances)[LumenInstanceIndex];
-							LocalToWorld = PrimitiveInstance.InstanceToLocal * LocalToWorld;
-							BoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal);
+							WorldSpaceBoundingBox = PrimitiveInstance.RenderBounds.GetBox().TransformBy(PrimitiveInstance.InstanceToLocal * LocalToWorld);
 						}
 
 						const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
 
-						LumenInstance.BoundingBox = BoundingBox;
+						LumenInstance.WorldSpaceBoundingBox = WorldSpaceBoundingBox;
 						LumenSceneData.UpdateMeshCards(LocalToWorld, LumenInstance.MeshCardsIndex, CardRepresentationData->MeshCardsBuildData);
 
-						LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.BoundingBox.GetExtent().GetMax());
+						LumenPrimitive.MaxCardExtent = FMath::Max(LumenPrimitive.MaxCardExtent, LumenInstance.WorldSpaceBoundingBox.GetExtent().GetMax());
 					}
 				}
 			}
@@ -1154,7 +1146,7 @@ bool FLumenSceneData::IsPhysicalSpaceAvailable(const FLumenCard& Card, int32 Res
  */
 void FLumenSceneData::ForceEvictEntireCache()
 {
-	TLumenUniqueList<int32, SceneRenderingAllocator> DirtyCards;
+	TSparseUniqueList<int32, SceneRenderingAllocator> DirtyCards;
 
 	while (EvictOldestAllocation(/*bForceEvict*/ true, DirtyCards))
 	{
@@ -1168,7 +1160,7 @@ void FLumenSceneData::ForceEvictEntireCache()
 	}
 }
 
-bool FLumenSceneData::EvictOldestAllocation(bool bForceEvict, TLumenUniqueList<int32, SceneRenderingAllocator>& DirtyCards)
+bool FLumenSceneData::EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards)
 {
 	if (UnlockedAllocationHeap.Num() > 0)
 	{
