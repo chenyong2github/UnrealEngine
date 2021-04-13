@@ -65,7 +65,8 @@ namespace Audio
 		}
 
 		// Normal case: linear interpolation across the input buffer
-		while (FMath::CeilToInt(CurrentIndex) < NumInputFrames)
+		const int32 LastFrame = NumInputFrames - 1;
+		while (FMath::CeilToInt(CurrentIndex) < LastFrame)
 		{
 			const int32 i = NumChannels * (int32)FMath::Floor(CurrentIndex);
 			float const* A = InputBuffer.GetData() + i;
@@ -82,7 +83,7 @@ namespace Audio
 		}
 
 		// wrap our fractional index by the buffer size
-		CurrentIndex -= (float)NumInputFrames;
+		CurrentIndex -= (float)(LastFrame);
 
 		// If -1 < CurrentIndex < 0.f, we are going to need to interpolate between
 		// the final frame of this buffer and the 0th frame of the next buffer.

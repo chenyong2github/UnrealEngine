@@ -163,7 +163,7 @@ namespace Audio
 
 			Resampler.SetSampleRateRatio(FsOutToInRatio);
 			PitchShifter.UpdatePitchShift(FMath::Clamp(PitchShiftInCents, -MaxPitchShiftCents, MaxPitchShiftCents) / 100.0f);
-
+		
 
 			// perform SRC and push to circular buffer until we have enough frames for the output
 			while (Decoder && !(bDecoderIsDone || bDecoderHasLooped) && (OutputCircularBuffer.Num() < NumOutputSamples))
@@ -172,14 +172,14 @@ namespace Audio
 				Audio::IDecoderOutput::FPushedAudioDetails Details;
 				const Audio::IDecoder::EDecodeResult  DecodeResult = Decoder->Decode(bIsLooping);
 				const int32 NumFramesDecoded = Output->PopAudio(PreSrcBuffer, Details) / NumChannels;
-				OutNumFramesConsumed += NumFramesDecoded;
-				int32 NumResamplerOutputFrames = 0;
-				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
-				ensure(Error == 0);
 
 				bDecoderIsDone = DecodeResult == Audio::IDecoder::EDecodeResult::Finished;
 				bDecoderHasLooped = DecodeResult == Audio::IDecoder::EDecodeResult::Looped;
 
+				OutNumFramesConsumed += NumFramesDecoded;
+				int32 NumResamplerOutputFrames = 0;
+				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
+				ensure(Error == 0);
 				if (!PostSrcBuffer.Num() || !NumResamplerOutputFrames)
 				{
 					continue;
