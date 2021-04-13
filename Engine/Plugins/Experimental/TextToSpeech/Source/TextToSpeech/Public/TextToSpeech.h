@@ -9,3 +9,4 @@
 #include "GenericPlatform/TextToSpeechBase.h"
 #include "TextToSpeechModule.h"
 #include "GenericPlatform/ITextToSpeechFactory.h"
+#include "TextToSpeechEngineSubsystem.h"

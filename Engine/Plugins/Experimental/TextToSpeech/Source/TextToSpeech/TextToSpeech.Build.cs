@@ -10,7 +10,8 @@ public class TextToSpeech : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] 
 			{
-				"Core"
+				"Core",
+				"CoreUObject"
 			}
 		);
 	
