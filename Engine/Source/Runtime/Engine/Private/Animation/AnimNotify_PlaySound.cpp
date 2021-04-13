@@ -76,7 +76,7 @@ void UAnimNotify_PlaySound::ValidateAssociatedAssets()
 {
 	static const FName NAME_AssetCheck("AssetCheck");
 
-	if ((Sound != nullptr) && (Sound->IsLooping()))
+	if ((Sound != nullptr) && (Sound->IsLooping()) && (!Sound->IsA<USoundWaveProcedural>()))
 	{
 		UObject* ContainingAsset = GetContainingAsset();
 
