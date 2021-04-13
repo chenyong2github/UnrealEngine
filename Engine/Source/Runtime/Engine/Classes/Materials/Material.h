@@ -1261,7 +1261,7 @@ public:
 	template<typename ExpressionType>
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds, const TArray<FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const
 	{
-		for (class UMaterialExpression* Expression : Expressions)
+		for (const TObjectPtr<UMaterialExpression>& Expression : Expressions)
 		{
 			FMaterialParameterInfo BaseParameterInfo;
 			BaseParameterInfo.Association = EMaterialParameterAssociation::GlobalParameter;
@@ -1924,7 +1924,7 @@ private:
 
 		for (TObjectPtr<UMaterialExpression>& Expression : Expressions)
 		{
-			if (TrySetParameterValue((Expression && Expression.IsA<ParameterType>()) ? (ParameterType*)Expression.Get() : nullptr))
+			if (TrySetParameterValue(Cast<ParameterType>(Expression)))
 			{
 				return true;
 			}
@@ -1941,9 +1941,9 @@ private:
 						const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 						if (ExpressionPtr)
 						{
-							for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+							for (const TObjectPtr<UMaterialExpression>& FunctionExpression : *ExpressionPtr)
 							{
-								if (TrySetParameterValue((FunctionExpression && FunctionExpression.IsA<ParameterType>()) ? (ParameterType*)FunctionExpression.Get() : nullptr))
+								if (TrySetParameterValue(Cast<ParameterType>(FunctionExpression)))
 								{
 									return true;
 								}

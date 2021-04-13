@@ -12801,11 +12801,10 @@ bool UMaterialFunction::SetVectorParameterValueEditorOnly(FName ParameterName, F
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
-							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionVectorParameter>())
+							if (UMaterialExpressionVectorParameter* FunctionExpressionParameter = Cast<UMaterialExpressionVectorParameter>(FunctionExpression))
 							{
-								UMaterialExpressionVectorParameter* FunctionExpressionParameter = (UMaterialExpressionVectorParameter*)FunctionExpression.Get();
 								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
 								{
 									return true;
@@ -12845,11 +12844,10 @@ bool UMaterialFunction::SetScalarParameterValueEditorOnly(FName ParameterName, f
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
-							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionScalarParameter>())
+							if (UMaterialExpressionScalarParameter* FunctionExpressionParameter = Cast<UMaterialExpressionScalarParameter>(FunctionExpression))
 							{
-								UMaterialExpressionScalarParameter* FunctionExpressionParameter = (UMaterialExpressionScalarParameter*)FunctionExpression.Get();
 								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
 								{
 									return true;
@@ -12889,11 +12887,10 @@ bool UMaterialFunction::SetTextureParameterValueEditorOnly(FName ParameterName, 
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
-							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionTextureSampleParameter>())
+							if (UMaterialExpressionTextureSampleParameter* FunctionExpressionParameter = Cast<UMaterialExpressionTextureSampleParameter>(FunctionExpression))
 							{
-								UMaterialExpressionTextureSampleParameter* FunctionExpressionParameter = (UMaterialExpressionTextureSampleParameter*)FunctionExpression.Get();
 								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
 								{
 									return true;
@@ -12933,11 +12930,10 @@ bool UMaterialFunction::SetRuntimeVirtualTextureParameterValueEditorOnly(FName P
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
-							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionRuntimeVirtualTextureSampleParameter>())
+							if (UMaterialExpressionRuntimeVirtualTextureSampleParameter* FunctionExpressionParameter = Cast<UMaterialExpressionRuntimeVirtualTextureSampleParameter>(FunctionExpression))
 							{
-								UMaterialExpressionRuntimeVirtualTextureSampleParameter* FunctionExpressionParameter = (UMaterialExpressionRuntimeVirtualTextureSampleParameter*)FunctionExpression.Get();
 								if (FunctionExpressionParameter->SetParameterValue(ParameterName, InValue))
 								{
 									return true;
@@ -12977,7 +12973,7 @@ bool UMaterialFunction::SetFontParameterValueEditorOnly(FName ParameterName, cla
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
 							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionFontSampleParameter>())
 							{
@@ -13021,7 +13017,7 @@ bool UMaterialFunction::SetStaticSwitchParameterValueEditorOnly(FName ParameterN
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
 							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionStaticSwitchParameter>())
 							{
@@ -13065,7 +13061,7 @@ bool UMaterialFunction::SetStaticComponentMaskParameterValueEditorOnly(FName Par
 					const TArray<TObjectPtr<UMaterialExpression>>* ExpressionPtr = Function->GetFunctionExpressions();
 					if (ExpressionPtr)
 					{
-						for (TObjectPtr<UMaterialExpression> FunctionExpression : *ExpressionPtr)
+						for (const TObjectPtr<UMaterialExpression>&FunctionExpression : *ExpressionPtr)
 						{
 							if (FunctionExpression && FunctionExpression.IsA<UMaterialExpressionStaticComponentMaskParameter>())
 							{

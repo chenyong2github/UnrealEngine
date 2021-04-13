@@ -5079,31 +5079,23 @@ void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<
 {
 	for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
 	{
-		if (!InMaterialExpression[ExpressionIndex])
+		if (const UMaterialExpressionCollectionParameter* CollectionPtr = Cast<UMaterialExpressionCollectionParameter>(InMaterialExpression[ExpressionIndex]))
 		{
-			continue;
-		}
-
-		if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionCollectionParameter>())
-		{
-			const UMaterialExpressionCollectionParameter* CollectionPtr = (UMaterialExpressionCollectionParameter*)InMaterialExpression[ExpressionIndex].Get();
 			if (CollectionPtr->Collection)
 			{
 				OutGuidList.Add(CollectionPtr->Collection->StateId);
 			}
 			return;
 		}
-		else if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionMaterialFunctionCall>())
+		else if (const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(InMaterialExpression[ExpressionIndex]))
 		{
-			const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = (UMaterialExpressionMaterialFunctionCall*)InMaterialExpression[ExpressionIndex].Get();
-			if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
+			if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction ? MaterialFunctionCall->MaterialFunction->GetFunctionExpressions() : nullptr)
 			{
 				FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
 			}
 		}
-		else if (InMaterialExpression[ExpressionIndex].IsA<UMaterialExpressionMaterialAttributeLayers>())
+		else if (const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(InMaterialExpression[ExpressionIndex]))
 		{
-			const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = (UMaterialExpressionMaterialAttributeLayers*)InMaterialExpression[ExpressionIndex].Get();
 			const TArray<UMaterialFunctionInterface*>& Layers = MaterialLayers->GetLayers();
 			const TArray<UMaterialFunctionInterface*>& Blends = MaterialLayers->GetBlends();
 

@@ -154,11 +154,11 @@ namespace
 
 				bool bFunctionModified = false;
 				const TArray<TObjectPtr<UMaterialExpression>> *Expressions = Function->GetFunctionExpressions();
-				for (TObjectPtr<UMaterialExpression> Expression : *Expressions)
+				for (const TObjectPtr<UMaterialExpression>& Expression : *Expressions)
 				{
-					if (Expression && Expression.IsA<UMaterialExpressionRuntimeVirtualTextureSample>())
+					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
+					if (RVTSampleExpression)
 					{
-						UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = (UMaterialExpressionRuntimeVirtualTextureSample*)Expression.Get();
 						if (RuntimeVirtualTexture == RVTSampleExpression->VirtualTexture)
 						{
 							if (RVTSampleExpression->InitVirtualTextureDependentSettings())

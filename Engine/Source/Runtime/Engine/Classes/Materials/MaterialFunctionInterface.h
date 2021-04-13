@@ -162,7 +162,7 @@ public:
 		if (const UMaterialFunctionInterface* ParameterFunction = GetBaseFunction())
 		{
 			const UClass* TargetClass = UMaterialExpressionMaterialFunctionCall::StaticClass();
-			for (TObjectPtr<UMaterialExpression> Expression : *ParameterFunction->GetFunctionExpressions())
+			for (const TObjectPtr<UMaterialExpression>& Expression : *ParameterFunction->GetFunctionExpressions())
 			{
 				if (const UMaterialExpressionMaterialFunctionCall* FunctionExpression = (Expression && Expression.IsA(TargetClass)) ? (const UMaterialExpressionMaterialFunctionCall*)Expression.Get() : nullptr)
 				{
@@ -171,9 +171,9 @@ public:
 						FunctionExpression->MaterialFunction->GetAllParameterInfo<const ExpressionType>(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
 					}
 				}
-				else if (Expression && Expression.IsA<const ExpressionType>())
+				else if (const ExpressionType* ParameterExpression = Cast<const ExpressionType>(Expression))
 				{
-					((const ExpressionType*)Expression.Get())->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
+					ParameterExpression->GetAllParameterInfo(OutParameterInfo, OutParameterIds, InBaseParameterInfo);
 				}
 			}
 
