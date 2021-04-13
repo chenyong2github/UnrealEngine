@@ -205,3 +205,9 @@ FText UK2Node_CastByteToEnum::GetMenuCategory() const
 {
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Enum);
 }
+
+void UK2Node_CastByteToEnum::ReloadEnum(class UEnum* InEnum)
+{
+	Enum = InEnum;
+	CachedTooltip.MarkDirty();
+}

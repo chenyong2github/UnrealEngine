@@ -155,4 +155,9 @@ FText UK2Node_BitmaskLiteral::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Math);
 }
 
+void UK2Node_BitmaskLiteral::ReloadEnum(class UEnum* InEnum)
+{
+	BitflagsEnum = InEnum;
+}
+
 #undef LOCTEXT_NAMESPACE

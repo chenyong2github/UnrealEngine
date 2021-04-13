@@ -220,4 +220,9 @@ void UK2Node_SwitchEnum::RemovePinFromSwitchNode(UEdGraphPin* Pin)
 	}
 }
 
+void UK2Node_SwitchEnum::ReloadEnum(class UEnum* InEnum)
+{
+	SetEnum(InEnum);
+}
+
 #undef LOCTEXT_NAMESPACE

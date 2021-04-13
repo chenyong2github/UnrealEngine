@@ -19,5 +19,7 @@ class BLUEPRINTGRAPH_API INodeDependingOnEnumInterface
 
 	virtual class UEnum* GetEnum() const PURE_VIRTUAL(INodeDependingOnEnumInterface::GetEnum,return NULL;);
 
+	virtual void ReloadEnum(class UEnum*) PURE_VIRTUAL(INodeDependingOnEnumInterface::ReloadEnum, return;);
+
 	virtual bool ShouldBeReconstructedAfterEnumChanged() const {return false;}
 };

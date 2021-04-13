@@ -953,4 +953,9 @@ void UK2Node_Select::ExpandNode(class FKismetCompilerContext& CompilerContext, U
 	}
 }
 
+void UK2Node_Select::ReloadEnum(class UEnum* InEnum)
+{
+	SetEnum(InEnum, true);
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -331,6 +331,12 @@ void UAnimGraphNode_BlendListByEnum::BakeDataDuringCompilation(class FCompilerRe
 	}
 }
 
+void UAnimGraphNode_BlendListByEnum::ReloadEnum(class UEnum* InEnum)
+{
+	BoundEnum = InEnum;
+	CachedNodeTitle.MarkDirty();
+}
+
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

@@ -174,3 +174,8 @@ FText UK2Node_EnumLiteral::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Enum);
 }
 
+void UK2Node_EnumLiteral::ReloadEnum(class UEnum* InEnum)
+{
+	Enum = InEnum;
+	CachedTooltip.MarkDirty();
+}

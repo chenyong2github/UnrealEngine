@@ -347,4 +347,10 @@ void UK2Node_ForEachElementInEnum::PostPlacedNewNode()
 	}
 }
 
+void UK2Node_ForEachElementInEnum::ReloadEnum(class UEnum* InEnum)
+{
+	Enum = InEnum;
+	CachedNodeTitle.MarkDirty();
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -39,6 +39,7 @@ class UK2Node_BitmaskLiteral : public UK2Node, public INodeDependingOnEnumInterf
 
 	//~ Begin INodeDependingOnEnumInterface
 	virtual class UEnum* GetEnum() const override { return BitflagsEnum; }
+	virtual void ReloadEnum(class UEnum* InEnum) override;
 	virtual bool ShouldBeReconstructedAfterEnumChanged() const override { return true; }
 	//~ End INodeDependingOnEnumInterface
 
