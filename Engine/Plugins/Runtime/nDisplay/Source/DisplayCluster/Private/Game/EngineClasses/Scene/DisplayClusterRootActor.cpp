@@ -270,6 +270,7 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		}
 	}
 
+#if WITH_EDITOR
 	//@todo: Add SetIsVisualizationComponent(true) to all custom components invisible in game and preview
 	// Hide all visualization components from RootActor
 	{
@@ -286,7 +287,6 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		}
 	}
 
-#if WITH_EDITOR
 	// Hide all visualization components from preview scene
 	UWorld* ConfiguratorWorld = GetWorld();
 	if (ConfiguratorWorld && ConfiguratorWorld->IsPreviewWorld())

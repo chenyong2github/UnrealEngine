@@ -22,14 +22,19 @@ UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitiali
 	{
 #if !WITH_EDITOR
 		WarpMeshComponent->SetFlags(EObjectFlags::RF_DuplicateTransient | RF_Transient | RF_TextExportTransient);
+		WarpMeshComponent->SetVisibility(false);
 #endif
+
 		WarpMeshComponent->AttachToComponent(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 		WarpMeshComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
 		WarpMeshComponent->SetRelativeScale3D(FVector::OneVector);
 		WarpMeshComponent->SetMobility(EComponentMobility::Movable);
 		WarpMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+#if WITH_EDITOR
 		WarpMeshComponent->SetVisibility(true);
 		WarpMeshComponent->SetIsVisualizationComponent(true);
+#endif /*WITH_EDITOR*/
 	}
 }
 
