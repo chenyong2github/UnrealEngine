@@ -217,6 +217,16 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		return false;
 	}
 
+	if (PostRenderSettings.GenerateMips.bAutoGenerateMips)
+	{
+		//Check if current projection policy supports this feature
+		if (!ProjectionPolicy.IsValid() || !ProjectionPolicy->ShouldUseSourceTextureWithMips())
+		{
+			// Don't create unused mips texture
+			PostRenderSettings.GenerateMips.bAutoGenerateMips = false;
+		}
+	}
+
 	float RTTSizeMult = RenderSettings.RenderTargetRatio * InFrameSettings.ClusterRenderTargetRatioMult;
 
 	uint32 FrameTargetsAmmount = 2;
