@@ -209,6 +209,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnPIEEvent OnPreSwitchBeginPIEAndSIE;
 	/** Sent after the user switches between from PIE to SIE, or vice-versa.  Passes in whether we are currently in SIE */
 	static FOnPIEEvent OnSwitchBeginPIEAndSIE;
+	/** Sent when a PIE session is cancelled */
+	static FSimpleMulticastDelegate CancelPIE;
 	/** Sent when PC local play session is starting */
 	static FOnStandaloneLocalPlayEvent BeginStandaloneLocalPlay;
 	/** Within a property window, the currently selected item was changed.*/

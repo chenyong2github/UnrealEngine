@@ -944,6 +944,7 @@ void UEditorEngine::RequestPlaySession(const FString& DeviceId, const FString& D
 
 void UEditorEngine::CancelRequestPlaySession()
 {
+	FEditorDelegates::CancelPIE.Broadcast();
 	PlaySessionRequest.Reset();
 	PlayInEditorSessionInfo.Reset();
 }

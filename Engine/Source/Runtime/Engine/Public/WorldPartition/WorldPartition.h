@@ -96,6 +96,7 @@ private:
 	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnPrePIEEnded(bool bWasSimulatingInEditor);
+	void OnCancelPIE();
 	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
 	void OnEndPlay();
 

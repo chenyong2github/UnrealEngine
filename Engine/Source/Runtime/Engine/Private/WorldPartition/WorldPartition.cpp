@@ -207,6 +207,14 @@ void UWorldPartition::OnBeginPlay(EWorldPartitionStreamingMode Mode)
 	RuntimeHash->OnBeginPlay(Mode);
 }
 
+void UWorldPartition::OnCancelPIE()
+{
+	// No check here since CancelPIE can be called after PrePIEEnded
+	bIsPIE = false;
+	// Call OnEndPlay here since EndPlayMapDelegate is not called when cancelling PIE
+	OnEndPlay();
+}
+
 void UWorldPartition::OnEndPlay()
 {
 	check(IsMainWorldPartition());
@@ -534,6 +542,7 @@ void UWorldPartition::RegisterDelegates()
 	{
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
 		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
+		FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
 		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 	}
 }
@@ -545,6 +554,7 @@ void UWorldPartition::UnregisterDelegates()
 	{
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
 		FEditorDelegates::PrePIEEnded.RemoveAll(this);
+		FEditorDelegates::CancelPIE.RemoveAll(this);
 		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 	}
 }
