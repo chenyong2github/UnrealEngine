@@ -69,6 +69,7 @@ protected:
 #if WITH_EDITOR
 	virtual bool IsHiddenEd() const override;
 	virtual EActorGridPlacement GetGridPlacement() const override;
+	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
