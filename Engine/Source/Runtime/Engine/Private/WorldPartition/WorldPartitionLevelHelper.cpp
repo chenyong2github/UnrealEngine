@@ -81,7 +81,8 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 			if (ActorExternalPackage)
 			{
 				TArray<UObject*> Objects;
-				GetObjectsWithOuter(ActorExternalPackage, Objects);
+				const bool bIncludeNestedSubobjects = false;
+				GetObjectsWithOuter(ActorExternalPackage, Objects, bIncludeNestedSubobjects);
 				for (UObject* Object : Objects)
 				{
 					if (Object->GetFName() != NAME_PackageMetaData)
