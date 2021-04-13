@@ -19,6 +19,13 @@ namespace Metasound
 		static constexpr bool Value = false;
 	};
 
+	// Disable arrays of triggers
+	template<>
+	struct TEnableAutoArrayTypeRegistration<FTrigger>
+	{
+		static constexpr bool Value = false;
+	};
+
 	// Disable auto-conversion using the FAudioBuffer(int32) constructor
 	template<typename FromDataType>
 	struct TEnableAutoConverterNodeRegistration<FromDataType, FAudioBuffer>

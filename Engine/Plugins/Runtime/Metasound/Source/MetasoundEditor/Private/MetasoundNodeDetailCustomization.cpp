@@ -75,8 +75,7 @@ namespace Metasound
 			static const TSet<FName> HiddenInputTypeNames =
 			{
 				"Audio:Mono",
-				"Audio:Stereo",
-				"Trigger:Array"
+				"Audio:Stereo"
 			};
 		}
 
