@@ -88,10 +88,9 @@ namespace UnrealVS
 			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy);
 			if (ProjectHierarchy != null)
 			{
-				
 				// @todo: filter this so that we only respond to changes in the command line property
 				// Setup a timer to prevent any more performance problem from spamming events
-				if( UpdateCommandLineComboTimer == null )
+				if (UpdateCommandLineComboTimer == null)
 				{
 					UpdateCommandLineComboTimer = new System.Timers.Timer(1000);
 					UpdateCommandLineComboTimer.AutoReset = false;
@@ -108,7 +107,7 @@ namespace UnrealVS
 		/// </summary>
 		private void OnUpdateCommandLineCombo(Object source, ElapsedEventArgs e)
 		{
-            ThreadHelper.Generic.BeginInvoke(UpdateCommandLineCombo);
+			ThreadHelper.Generic.BeginInvoke(UpdateCommandLineCombo);
 		}
 
 		/// <summary>
@@ -159,10 +158,10 @@ namespace UnrealVS
 		private void UpdateCommandLineCombo()
 		{
 			// Enable or disable our command-line selector
-			DesiredCommandLine = null;	// clear this state var used by the combo box handler
+			DesiredCommandLine = null;  // clear this state var used by the combo box handler
 			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject( out ProjectHierarchy );
-			if( ProjectHierarchy != null )
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy);
+			if (ProjectHierarchy != null)
 			{
 				ComboCommand.Enabled = true;
 				ComboCommandList.Enabled = true;
@@ -211,7 +210,7 @@ namespace UnrealVS
 							{
 								// net core projects move debugger arguments into a debug profile setup via launchSetings.json
 								string activeDebugProfile;
-								if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ConfigurationName, (uint) _PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
+								if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
 								{
 									activeDebugProfile = null;
 								}
@@ -348,7 +347,7 @@ namespace UnrealVS
 
 							// Get the project platform name.
 							string ProjectPlatformName = SelectedConfiguration.PlatformName;
-							if(ProjectPlatformName == "Any CPU")
+							if (ProjectPlatformName == "Any CPU")
 							{
 								ProjectPlatformName = "AnyCPU";
 							}
@@ -366,7 +365,7 @@ namespace UnrealVS
 								{
 									PropertyStorage.RemoveProperty("LocalDebuggerCommandArguments", ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE);
 									PropertyStorage.RemoveProperty("RemoteDebuggerCommandArguments", ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE);
-									foreach( string ExtraField in ExtraFields )
+									foreach (string ExtraField in ExtraFields)
 									{
 										PropertyStorage.RemoveProperty(ExtraField, ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE);
 									}
@@ -416,30 +415,53 @@ namespace UnrealVS
 									}
 
 									string launchSettingsPath = Path.Combine(Path.GetDirectoryName(SelectedStartupProject.FileName), "Properties", "launchSettings.json");
+									LaunchSettingsJson settings = null;
 									if (File.Exists(launchSettingsPath))
 									{
-										string jsonDoc = File.ReadAllText(launchSettingsPath);
-										LaunchSettingsJson settings = JsonSerializer.Deserialize<LaunchSettingsJson>(jsonDoc, new JsonSerializerOptions
+										try
 										{
-											PropertyNameCaseInsensitive = true
-										});
-
-										if (!string.IsNullOrEmpty(activeDebugProfile))
-										{
-											settings.Profiles[activeDebugProfile].CommandLineArgs = FullCommandLine;
+											string jsonDoc = File.ReadAllText(launchSettingsPath);
+											settings = JsonSerializer.Deserialize<LaunchSettingsJson>(jsonDoc, new JsonSerializerOptions
+											{
+												PropertyNameCaseInsensitive = true
+											});
 										}
-										else
+										catch (Exception Ex)
 										{
-											// if no active debug profile is set then VS uses the first one
-											settings.Profiles.First().Value.CommandLineArgs = FullCommandLine;
+											Logging.WriteLine($"Error loading {launchSettingsPath}");
+											Logging.WriteLine(Ex.ToString());
 										}
-
-										string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
-										{
-											WriteIndented = true,
-										});
-										File.WriteAllText(launchSettingsPath, json);
 									}
+
+									// Create empty Launch Settings if launchSettings.json does not exist or failed to load
+									if (settings == null || settings.Profiles == null || settings.Profiles.Count == 0)
+									{
+										settings = new LaunchSettingsJson
+										{
+											Profiles = new Dictionary<string, LaunchSettingsJson.LaunchSettingsProfile>()
+										};
+										settings.Profiles.Add(SelectedStartupProject.Name, new LaunchSettingsJson.LaunchSettingsProfile
+										{
+											CommandName = "Project",
+											CommandLineArgs = string.Empty,
+										});
+									}
+
+									if (!string.IsNullOrEmpty(activeDebugProfile) && settings.Profiles.ContainsKey(activeDebugProfile))
+									{
+										settings.Profiles[activeDebugProfile].CommandLineArgs = FullCommandLine;
+									}
+									else
+									{
+										// if no active debug profile is set then VS uses the first one
+										settings.Profiles.First().Value.CommandLineArgs = FullCommandLine;
+									}
+
+									string json = JsonSerializer.Serialize(settings, new JsonSerializerOptions
+									{
+										WriteIndented = true,
+									});
+									File.WriteAllText(launchSettingsPath, json);
 								}
 							}
 						}

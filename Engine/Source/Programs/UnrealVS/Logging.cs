@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -69,9 +69,13 @@ namespace UnrealVS
 					WriteLine("Visual Studio 11 build");
 #elif VS12
 					WriteLine("Visual Studio 12 build");
+#elif VS13
+					WriteLine("Visual Studio 13 build");
+#elif VS14
+					WriteLine("Visual Studio 14 build");
 #else
-					WriteLine("UNKNOWN Build");
-#endif				
+					WriteLine("UNKNOWN Visual Studio build");
+#endif
 				}
 				catch (IOException)
 				{
