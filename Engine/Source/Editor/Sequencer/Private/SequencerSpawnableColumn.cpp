@@ -2,6 +2,8 @@
 
 #include "SequencerSpawnableColumn.h"
 #include "ActorTreeItem.h"
+#include "Widgets/Images/SImage.h"
+#include "GameFramework/Actor.h"
 
 namespace Sequencer
 {
