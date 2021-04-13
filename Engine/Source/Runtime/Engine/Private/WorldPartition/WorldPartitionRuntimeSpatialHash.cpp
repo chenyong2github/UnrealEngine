@@ -42,8 +42,14 @@
 #include "Engine/WorldComposition.h"
 #include "LevelUtils.h"
 
+#include "Logging/MessageLog.h"
+#include "Misc/UObjectToken.h"
+#include "Misc/MapErrors.h"
+
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif //WITH_EDITOR
+
+#define LOCTEXT_NAMESPACE "WorldPartition"
 
 static int32 GShowRuntimeSpatialHashGridLevel = 0;
 static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevel(
@@ -484,6 +490,51 @@ FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor
 	return Super::GetActorRuntimeGrid(Actor);
 }
 
+void UWorldPartitionRuntimeSpatialHash::CheckForErrorsInternal(const TMap<FGuid, FWorldPartitionActorViewProxy>& ActorDescList) const
+{
+	Super::CheckForErrorsInternal(ActorDescList);
+
+	auto GetActorLabel = [](const FWorldPartitionActorDescView& ActorDescView) -> FString
+	{
+		const FName ActorLabel = ActorDescView.GetActorLabel();
+		if (!ActorLabel.IsNone())
+		{
+			return ActorLabel.ToString();
+		}
+
+		const FString ActorPath = ActorDescView.GetActorPath().ToString();
+
+		FString SubObjectName;
+		FString SubObjectContext;
+		if (FString(ActorPath).Split(TEXT("."), &SubObjectContext, &SubObjectName))
+		{
+			return SubObjectName;
+		}
+
+		return ActorPath;
+	};
+
+	for (auto& ActorDescListPair: ActorDescList)
+	{
+		const FWorldPartitionActorViewProxy& ActorDescView = ActorDescListPair.Value;
+
+		if (!ActorDescView.GetActorIsEditorOnly())
+		{
+			const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
+			const float ActorBoundsArea2D = ActorBounds2D.GetArea();
+
+			if (ActorBoundsArea2D < KINDA_SMALL_NUMBER)
+			{
+				TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Warning()
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_Actor", "Actor")))
+					->AddToken(FAssetNameToken::Create(GetActorLabel(ActorDescView)))
+					->AddToken(FTextToken::Create(LOCTEXT("MapCheck_WorldPartition_HasEmptyBounds", "has empty bounds")))
+					->AddToken(FMapErrorToken::Create(FName(TEXT("WorldPartition_ActorHasEmptyBounds_CheckForErrors"))));
+			}
+		}
+	}
+}
+
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 {
 	FSpatialHashRuntimeGrid& MainGrid = Grids.AddDefaulted_GetRef();
@@ -681,7 +732,11 @@ void UWorldPartitionRuntimeSpatialHash::CreateActorDescViewMap(const UActorDescC
 					const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
 					const float ActorBoundsArea = ActorBounds2D.GetArea();
 
-					if (ActorBoundsArea > WorldBoundsArea / 2.0f)
+					if (ActorBoundsArea < 1.0f)
+					{
+						ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::Location);
+					}
+					else if (ActorBoundsArea > WorldBoundsArea / 2.0f)
 					{
 						ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::AlwaysLoaded);
 					}
@@ -1162,3 +1217,5 @@ void UWorldPartitionRuntimeSpatialHash::Draw3D(const TArray<FWorldPartitionStrea
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

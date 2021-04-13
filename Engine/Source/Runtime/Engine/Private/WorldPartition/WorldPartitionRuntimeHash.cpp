@@ -9,7 +9,6 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
-#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
@@ -155,6 +154,17 @@ void UWorldPartitionRuntimeHash::ChangeActorDescViewGridPlacement(FWorldPartitio
 
 void UWorldPartitionRuntimeHash::CheckForErrors() const
 {
+	TMap<FGuid, FWorldPartitionActorViewProxy> ActorDescList;
+	for (UActorDescContainer::TConstIterator<> ActorDescIt(GetOuterUWorldPartition()); ActorDescIt; ++ActorDescIt)
+	{
+		ActorDescList.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
+	}
+
+	CheckForErrorsInternal(ActorDescList);
+}
+
+void UWorldPartitionRuntimeHash::CheckForErrorsInternal(const TMap<FGuid, FWorldPartitionActorViewProxy>& ActorDescList) const
+{
 	auto GetActorLabel = [](const FWorldPartitionActorDescView& ActorDescView) -> FString
 	{
 		const FName ActorLabel = ActorDescView.GetActorLabel();
@@ -174,12 +184,6 @@ void UWorldPartitionRuntimeHash::CheckForErrors() const
 
 		return ActorPath;
 	};
-
-	TMap<FGuid, FWorldPartitionActorViewProxy> ActorDescList;
-	for (UActorDescContainer::TConstIterator<> ActorDescIt(GetOuterUWorldPartition()); ActorDescIt; ++ActorDescIt)
-	{
-		ActorDescList.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
-	}
 
 	for (auto& ActorDescListPair: ActorDescList)
 	{
@@ -244,7 +248,7 @@ void UWorldPartitionRuntimeHash::CheckForErrors() const
 
 		for (AActor* Actor : LevelScriptExternalActorReferences)
 		{
-			if (FWorldPartitionActorDescView* ActorDescView = ActorDescList.Find(Actor->GetActorGuid()))
+			if (const FWorldPartitionActorDescView* ActorDescView = ActorDescList.Find(Actor->GetActorGuid()))
 			{
 				TArray<FName> ActorDescLayers = ActorDescView->GetDataLayers();
 				if (ActorDescLayers.Num())

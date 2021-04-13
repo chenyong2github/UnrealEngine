@@ -9,6 +9,7 @@
 #include "WorldPartitionActorDescView.h"
 #include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
+#include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartitionRuntimeHash.generated.h"
 
 class UWorldPartitionRuntimeCell;
@@ -31,8 +32,9 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly) { return false; }
 	virtual bool GenerateNavigationData() { return false; }
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
-	virtual void CheckForErrors() const;
 	virtual void DrawPreview() const {}
+
+	void CheckForErrors() const;
 
 	// PIE/Game methods
 	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
@@ -57,9 +59,11 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 protected:
 #if WITH_EDITOR
+	virtual void CheckForErrorsInternal(const TMap<FGuid, FWorldPartitionActorViewProxy>& ActorDescList) const;
+
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate) { return false; }
 	virtual void CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const;
-	void ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const;
+	void ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const;	
 #endif
 
 private:

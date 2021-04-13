@@ -186,18 +186,33 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			bool bFoundCell = false;
 			for (FSquare2DGridHelper::FGridLevel& GridLevel : PartitionedActors.Levels)
 			{
-				int32 IntersectingCellCount = 0;
-				GridLevel.ForEachIntersectingCellsBreakable(ClusterInstance->Bounds, [&IntersectingCellCount](const FIntVector2& Coords) { return ++IntersectingCellCount <= 1; });
-				if (IntersectingCellCount == 1)
+				const FBox2D ActorBounds(FVector2D(ClusterInstance->Bounds.Min), FVector2D(ClusterInstance->Bounds.Max));
+				const float ActorBoundsArea = ActorBounds.GetArea();
+
+				GridLevel.ForEachIntersectingCellsBreakable(ClusterInstance->Bounds, [&GridLevel, ActorCluster, ClusterInstance, &ActorBounds, &ActorBoundsArea, &bFoundCell](const FIntVector2& Coords)
 				{
-					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, &ActorCluster, &ClusterInstance](const FIntVector2& Coords)
-						{
-							GridLevel.GetCell(Coords).AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
-						});
-					bFoundCell = true;
+					FBox2D CellBounds;
+					GridLevel.GetCellBounds(Coords, CellBounds);
+
+					const FBox2D Intersection(FVector2D::Max(CellBounds.Min, ActorBounds.Min), FVector2D::Min(CellBounds.Max, ActorBounds.Max));
+					const float CoveredArea = Intersection.GetArea() / ActorBoundsArea;
+
+					if (CoveredArea > 0.66f)
+					{
+						GridLevel.GetCell(Coords).AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
+						bFoundCell = true;
+						return false;
+					}
+
+					return true;
+				});
+
+				if (bFoundCell)
+				{
 					break;
 				}
 			}
+
 			if (!(ensure(bFoundCell)))
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
