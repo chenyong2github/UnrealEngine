@@ -494,6 +494,11 @@ namespace UnrealBuildTool
 				Arguments.Add("/Zp8");
 			}
 
+			if (CompileEnvironment.DefaultWarningLevel == WarningLevel.Error)
+			{
+				Arguments.Add("/WX");
+			}
+
 			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Off)
 			{
 				Arguments.Add("/wd4996");

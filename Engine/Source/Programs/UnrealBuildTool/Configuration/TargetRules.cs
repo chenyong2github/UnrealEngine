@@ -920,6 +920,18 @@ namespace UnrealBuildTool
 		public int MinGameModuleSourceFilesForUnityBuild = 32;
 
 		/// <summary>
+		/// Default treatment of uncategorized warnings
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel DefaultWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
+		/// Whether to treat all warnings as errors. UE generally treats most warnings as errors, with the exception of deprecation warnings,
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public WarningLevel DeprecationWarningLevel = WarningLevel.Warning;
+
+		/// <summary>
 		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
 		/// </summary>
 		[CommandLine("-ShadowVariableErrors", Value = nameof(WarningLevel.Error))]
@@ -2369,6 +2381,16 @@ namespace UnrealBuildTool
 		public int MinGameModuleSourceFilesForUnityBuild
 		{
 			get { return Inner.MinGameModuleSourceFilesForUnityBuild; }
+		}
+
+		public WarningLevel DefaultWarningLevel
+		{
+			get { return Inner.DefaultWarningLevel; }
+		}
+
+		public WarningLevel DeprecationWarningLevel
+		{
+			get { return Inner.DeprecationWarningLevel; }
 		}
 
 		public WarningLevel ShadowVariableWarningLevel
