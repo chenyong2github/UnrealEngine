@@ -23,7 +23,12 @@ void FGenericPlatformOutputDevices::SetupOutputDevices()
 	check(GLog);
 
 	ResetCachedAbsoluteFilename();
-	GLog->AddOutputDevice(FPlatformOutputDevices::GetLog());
+	
+	// Add the default log device (typically file) unless the commandline says otherwise.
+	if (!FParse::Param(FCommandLine::Get(), TEXT("NODEFAULTLOG")))
+	{
+		GLog->AddOutputDevice(FPlatformOutputDevices::GetLog());
+	}
 
 	TArray<FOutputDevice*> ChannelFileOverrides;
 	FPlatformOutputDevices::GetPerChannelFileOverrides(ChannelFileOverrides);
