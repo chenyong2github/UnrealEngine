@@ -23,13 +23,19 @@ public class TextToSpeech : ModuleRules
 				"ApplicationCore"
 			}
 		);
+		
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Engine"
+			}
+		);
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] 
 				{
 					"AudioMixer",
-					"Engine",
 					"SignalProcessing",
 					"AudioPlatformConfiguration"
 				}
