@@ -256,6 +256,10 @@ void UEditPivotTool::ApplyAction(EEditPivotToolActions ActionType)
 		case EEditPivotToolActions::Back:
 			SetPivotToBoxPoint(ActionType);
 			break;
+
+		case EEditPivotToolActions::WorldOrigin:
+			SetPivotToWorldOrigin();
+			break;
 	}
 }
 
@@ -293,6 +297,11 @@ void UEditPivotTool::SetPivotToBoxPoint(EEditPivotToolActions ActionPoint)
 	ActiveGizmos[0].TransformGizmo->SetNewGizmoTransform(NewTransform);
 }
 
+
+void UEditPivotTool::SetPivotToWorldOrigin()
+{
+	ActiveGizmos[0].TransformGizmo->SetNewGizmoTransform(FTransform());
+}
 
 
 void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)

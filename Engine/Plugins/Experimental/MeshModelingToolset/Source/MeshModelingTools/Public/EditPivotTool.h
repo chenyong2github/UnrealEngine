@@ -99,7 +99,8 @@ enum class EEditPivotToolActions
 	Left,
 	Right,
 	Front,
-	Back
+	Back,
+	WorldOrigin
 };
 
 
@@ -140,6 +141,8 @@ public:
 	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 4))
 	void Back() { PostAction(EEditPivotToolActions::Back); }
 
+	UFUNCTION(CallInEditor, Category = BoxPositions, meta = (DisplayPriority = 5))
+	void WorldOrigin() { PostAction(EEditPivotToolActions::WorldOrigin); }
 };
 
 
@@ -213,6 +216,7 @@ protected:
 	EEditPivotToolActions PendingAction;
 	virtual void ApplyAction(EEditPivotToolActions ActionType);
 	virtual void SetPivotToBoxPoint(EEditPivotToolActions ActionPoint);
+	virtual void SetPivotToWorldOrigin();
 
 	void UpdateAssets(const UE::Geometry::FFrame3d& NewPivotWorldFrame);
 };
