@@ -257,6 +257,9 @@ private:
 	/** Deferred play time change value (MinValue = no change, MaxValue = current time). */
 	TOptional<FTimespan> RequestedTime;
 
+	/** If true then RequestedTime is due to the video looping. */
+	bool bIsRequestedTimeLoop;
+
 	/** The session's internal playback rate (not necessarily the same as GetRate). */
 	float SessionRate;
 
