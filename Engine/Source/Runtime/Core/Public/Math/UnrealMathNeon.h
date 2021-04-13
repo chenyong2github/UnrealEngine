@@ -230,6 +230,22 @@ FORCEINLINE VectorRegister VectorLoadFloat1( const void *Ptr )
 {
 	return vdupq_n_f32( ((float32_t *)Ptr)[0] );
 }
+
+/**
+ * Loads 4 unaligned floats - 2 from the first pointer, 2 from the second, and packs
+ * them in to 1 vector.
+ *
+ * @param Ptr1	Unaligned memory pointer to the first 2 floats
+ * @param Ptr2	Unaligned memory pointer to the second 2 floats
+ * @return		VectorRegister(Ptr1[0], Ptr1[1], Ptr2[0], Ptr2[1])
+ */
+FORCEINLINE VectorRegister VectorLoadTwoPairsFloat(const float* Ptr1, const float* Ptr2)
+{
+	float32x2_t Lo = vld1_f32(Ptr1);
+	float32x2_t Hi = vld1_f32(Ptr2);
+	return vcombine_f32(Lo, Hi);
+}
+
 /**
  * Creates a vector out of three floats and leaves W undefined.
  *
@@ -735,6 +751,22 @@ FORCEINLINE VectorRegister VectorCombineHigh(const VectorRegister& Vec1, const V
 FORCEINLINE VectorRegister VectorCombineLow(const VectorRegister& Vec1, const VectorRegister& Vec2 )
 {
 	return vcombine_f32(vget_low_f32(Vec1), vget_low_f32(Vec2));
+}
+
+/**
+ * Deinterleaves the components of the two given vectors such that the even components
+ * are in one vector and the odds in another.
+ *
+ * @param Lo	[Even0, Odd0, Even1, Odd1]
+ * @param Hi	[Even2, Odd2, Even3, Odd3]
+ * @param OutEvens [Even0, Even1, Even2, Even3]
+ * @param OutOdds [Odd0, Odd1, Odd2, Odd3]
+*/
+FORCEINLINE void VectorDeinterleave(VectorRegister& OutEvens, VectorRegister& OutOdds, const VectorRegister& Lo, const VectorRegister& Hi)
+{
+	float32x4x2_t deinterleaved = vuzpq_f32(Lo, Hi);
+	OutEvens = deinterleaved.val[0];
+	OutOdds = deinterleaved.val[1];
 }
 
 /**

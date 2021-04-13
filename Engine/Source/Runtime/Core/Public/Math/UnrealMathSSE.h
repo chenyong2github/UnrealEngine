@@ -190,6 +190,21 @@ FORCEINLINE VectorRegister VectorLoad( const void* Ptr )
  */
 #define VectorLoadFloat2( Ptr )			_mm_castpd_ps(_mm_load1_pd((const double*)(Ptr)))
 
+/** 
+ * Loads 4 unaligned floats - 2 from the first pointer, 2 from the second, and packs
+ * them in to 1 vector.
+ *
+ * @param Ptr1	Unaligned memory pointer to the first 2 floats
+ * @param Ptr2	Unaligned memory pointer to the second 2 floats
+ * @return		VectorRegister(Ptr1[0], Ptr1[1], Ptr2[0], Ptr2[1])
+ */
+FORCEINLINE VectorRegister VectorLoadTwoPairsFloat(const float* Ptr1, const float* Ptr2)
+{
+	__m128 Ret = _mm_castpd_ps(_mm_load_sd((double const *)(Ptr1)));
+	Ret = _mm_loadh_pi(Ret, (__m64 const*)(Ptr2));
+	return Ret;
+}
+
 /**
  * Creates a vector out of three FLOATs and leaves W undefined.
  *
@@ -903,6 +918,21 @@ FORCEINLINE VectorRegister VectorCombineHigh(const VectorRegister& Vec1, const V
 FORCEINLINE VectorRegister VectorCombineLow(const VectorRegister& Vec1, const VectorRegister& Vec2 )
 {
 	return VectorShuffle(Vec1, Vec2, 0, 1, 0, 1);
+}
+
+/**
+ * Deinterleaves the components of the two given vectors such that the even components
+ * are in one vector and the odds in another.
+ *
+ * @param Lo	[Even0, Odd0, Even1, Odd1]
+ * @param Hi	[Even2, Odd2, Even3, Odd3]
+ * @param OutEvens [Even0, Even1, Even2, Even3]
+ * @param OutOdds [Odd0, Odd1, Odd2, Odd3]
+*/
+FORCEINLINE void VectorDeinterleave(VectorRegister& OutEvens, VectorRegister& OutOdds, const VectorRegister& Lo, const VectorRegister& Hi)
+{
+	OutEvens = _mm_shuffle_ps(Lo, Hi, SHUFFLEMASK(0, 2, 0, 2));
+	OutOdds = _mm_shuffle_ps(Lo, Hi, SHUFFLEMASK(1, 3, 1, 3));
 }
 
 /**

@@ -1113,6 +1113,18 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
 	LogTest( TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-6f ) );
 
+	SetScratch(1.0f, 2.0f, 3.0f, 4.0f);
+	V0 = VectorLoadTwoPairsFloat(GScratch + 0, GScratch + 1);
+	V1 = MakeVectorRegister(1.0f, 2.0f, 2.0f, 3.0f);
+	LogTest(TEXT("VectorLoadTwoPairsFloat"), TestVectorsEqual(V0, V1));
+
+	V0 = MakeVectorRegister(0.0f, 1.0f, 2.0f, 3.0f);
+	V1 = MakeVectorRegister(4.0f, 5.0f, 6.0f, 7.0f);
+	VectorDeinterleave(V2, V3, V0, V1);
+	V0 = MakeVectorRegister(0.0f, 2.0f, 4.0f, 6.0f);
+	V1 = MakeVectorRegister(1.0f, 3.0f, 5.0f, 7.0f);
+	LogTest(TEXT("VectorDeinterleave"), TestVectorsEqual(V2, V0) && TestVectorsEqual(V3, V1));
+
 	// VectorMod
 	V0 = MakeVectorRegister(0.0f, 3.2f, 2.8f,  1.5f);
 	V1 = MakeVectorRegister(2.0f, 1.2f, 2.0f,  3.0f);
