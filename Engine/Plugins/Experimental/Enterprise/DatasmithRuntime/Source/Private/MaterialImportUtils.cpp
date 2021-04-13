@@ -525,7 +525,7 @@ namespace DatasmithRuntime
 				SetTextureParams(InputValue.Texture.Get(), EPbrTexturePropertySlot::SpecularMapSlot);
 			}
 
-			// GetTwoSided(), GetWorldDisplacement() & GetAmbientOcclusion() Not supported
+			// GetWorldDisplacement() & GetAmbientOcclusion() Not supported
 
 			return true;
 		}

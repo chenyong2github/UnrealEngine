@@ -1181,7 +1181,7 @@ namespace DatasmithRuntime
 		
 		// Check to see if the camera must be updated or not
 		// Update if only the current actor is the only one with a valid source and the source has changed
-		bool bUpdateCamera = true;
+		bool bModifyViewpoint = ImportOptions.bModifyViewpoint;
 
 		TArray<AActor*> Actors;
 		UGameplayStatics::GetAllActorsOfClass(RootComponent->GetOwner()->GetWorld(), ADatasmithRuntimeActor::StaticClass(), Actors);
@@ -1197,14 +1197,14 @@ namespace DatasmithRuntime
 
 				if (ADatasmithRuntimeActor* RuntimeActor = Cast<ADatasmithRuntimeActor>(Actor))
 				{
-					bUpdateCamera &= RuntimeActor->GetSourceName() == TEXT("None");
+					bModifyViewpoint &= RuntimeActor->GetSourceName() == TEXT("None");
 				}
 			}
 		}
 
-		bUpdateCamera &= LastSceneGuid != SceneElement->GetSharedState()->GetGuid();
+		bModifyViewpoint &= LastSceneGuid != SceneElement->GetSharedState()->GetGuid();
 
-		if (bUpdateCamera)
+		if (bModifyViewpoint)
 		{
 			if (APlayerController* PlayerController = UGameplayStatics::GetPlayerController(RootComponent->GetOwner()->GetWorld(), 0))
 			{
@@ -1212,98 +1212,106 @@ namespace DatasmithRuntime
 				if (APawn* Pawn = PlayerController->GetPawn())
 				{
 					Pawn->SetActorLocationAndRotation(ActorData.WorldTransform.GetLocation(), ActorData.WorldTransform.GetRotation(), false);
-					ActorData.Object = Pawn;
 				}
 			}
 		}
 
-#if 0
-		UCineCameraComponent* CameraComponent = ActorData.GetObject<UCineCameraComponent>();
-
-		if (CameraComponent == nullptr)
+		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
 		{
-			UWorld* World = RootComponent->GetOwner()->GetWorld();
+			UCineCameraComponent* CameraComponent = ActorData.GetObject<UCineCameraComponent>();
 
-			ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
+			if (CameraComponent == nullptr)
+			{
+				if (ImportOptions.BuildHierarchy == EBuildHierarchyMethod::Unfiltered)
+				{
+					UWorld* World = RootComponent->GetOwner()->GetWorld();
+
+					ACineCameraActor* CameraActor = Cast< ACineCameraActor >( World->SpawnActor( ACineCameraActor::StaticClass(), nullptr, nullptr ) );
 #if WITH_EDITOR
-			CameraActor->SetActorLabel(CameraElement->GetLabel());
+					CameraActor->SetActorLabel(CameraElement->GetLabel());
 #endif
-			CameraComponent = CameraActor->GetCineCameraComponent();
-
-			ActorData.Object = TStrongObjectPtr<UObject>(CameraComponent);
-
-			CameraActor->GetRootComponent()->SetMobility(EComponentMobility::Movable);
-		}
-		else
-		{
-			CameraComponent->GetOwner()->UpdateComponentTransforms();
-			CameraComponent->GetOwner()->MarkComponentsRenderStateDirty();
-		}
-
-		CameraComponent->GetOwner()->GetRootComponent()->SetRelativeTransform(ActorData.WorldTransform);
-
-		CameraComponent->Filmback.SensorWidth = CameraElement->GetSensorWidth();
-		CameraComponent->Filmback.SensorHeight = CameraElement->GetSensorWidth() / CameraElement->GetSensorAspectRatio();
-		CameraComponent->LensSettings.MaxFStop = 32.0f;
-		CameraComponent->CurrentFocalLength = CameraElement->GetFocalLength();
-		CameraComponent->CurrentAperture = CameraElement->GetFStop();
-
-		CameraComponent->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride;
-		CameraComponent->FocusSettings.ManualFocusDistance = CameraElement->GetFocusDistance();
-
-		if (const IDatasmithPostProcessElement* PostProcess = CameraElement->GetPostProcess().Get())
-		{
-			FPostProcessSettings& PostProcessSettings = CameraComponent->PostProcessSettings;
-
-			if ( !FMath::IsNearlyEqual( PostProcess->GetTemperature(), 6500.f ) )
-			{
-				PostProcessSettings.bOverride_WhiteTemp = true;
-				PostProcessSettings.WhiteTemp = PostProcess->GetTemperature();
-			}
-
-			if ( PostProcess->GetVignette() > 0.f )
-			{
-				PostProcessSettings.bOverride_VignetteIntensity = true;
-				PostProcessSettings.VignetteIntensity = PostProcess->GetVignette();
-			}
-
-			if (PostProcess->GetColorFilter() != FLinearColor::Black && PostProcess->GetColorFilter() != FLinearColor::White )
-			{
-				PostProcessSettings.bOverride_FilmWhitePoint = true;
-				PostProcessSettings.FilmWhitePoint = PostProcess->GetColorFilter();
-			}
-
-			if ( !FMath::IsNearlyEqual( PostProcess->GetSaturation(), 1.f ) )
-			{
-				PostProcessSettings.bOverride_ColorSaturation = true;
-				PostProcessSettings.ColorSaturation.W = PostProcess->GetSaturation();
-			}
-
-			if ( PostProcess->GetCameraISO() > 0.f || PostProcess->GetCameraShutterSpeed() > 0.f || PostProcess->GetDepthOfFieldFstop() > 0.f )
-			{
-				PostProcessSettings.bOverride_AutoExposureMethod = true;
-				PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-
-				if ( PostProcess->GetCameraISO() > 0.f )
+					CameraComponent = CameraActor->GetCineCameraComponent();
+				}
+				else
 				{
-					PostProcessSettings.bOverride_CameraISO = true;
-					PostProcessSettings.CameraISO = PostProcess->GetCameraISO();
+					FName ComponentName = NAME_None;
+					ComponentName = MakeUniqueObjectName(RootComponent->GetOwner(), UCineCameraComponent::StaticClass(), CameraElement->GetLabel());
+					CameraComponent = NewObject< UCineCameraComponent >(RootComponent->GetOwner(), ComponentName);
 				}
 
-				if ( PostProcess->GetCameraShutterSpeed() > 0.f )
+				ActorData.Object = CameraComponent;
+			}
+			//else
+			//{
+			//	CameraComponent->GetOwner()->UpdateComponentTransforms();
+			//	CameraComponent->GetOwner()->MarkComponentsRenderStateDirty();
+			//}
+
+			CameraComponent->Filmback.SensorWidth = CameraElement->GetSensorWidth();
+			CameraComponent->Filmback.SensorHeight = CameraElement->GetSensorWidth() / CameraElement->GetSensorAspectRatio();
+			CameraComponent->LensSettings.MaxFStop = 32.0f;
+			CameraComponent->CurrentFocalLength = CameraElement->GetFocalLength();
+			CameraComponent->CurrentAperture = CameraElement->GetFStop();
+
+			CameraComponent->FocusSettings.FocusMethod = CameraElement->GetEnableDepthOfField() ? ECameraFocusMethod::Manual : ECameraFocusMethod::DoNotOverride;
+			CameraComponent->FocusSettings.ManualFocusDistance = CameraElement->GetFocusDistance();
+
+			if (const IDatasmithPostProcessElement* PostProcess = CameraElement->GetPostProcess().Get())
+			{
+				FPostProcessSettings& PostProcessSettings = CameraComponent->PostProcessSettings;
+
+				if ( !FMath::IsNearlyEqual( PostProcess->GetTemperature(), 6500.f ) )
 				{
-					PostProcessSettings.bOverride_CameraShutterSpeed = true;
-					PostProcessSettings.CameraShutterSpeed = PostProcess->GetCameraShutterSpeed();
+					PostProcessSettings.bOverride_WhiteTemp = true;
+					PostProcessSettings.WhiteTemp = PostProcess->GetTemperature();
 				}
 
-				if ( PostProcess->GetDepthOfFieldFstop() > 0.f )
+				if ( PostProcess->GetVignette() > 0.f )
 				{
-					PostProcessSettings.bOverride_DepthOfFieldFstop = true;
-					PostProcessSettings.DepthOfFieldFstop = PostProcess->GetDepthOfFieldFstop();
+					PostProcessSettings.bOverride_VignetteIntensity = true;
+					PostProcessSettings.VignetteIntensity = PostProcess->GetVignette();
+				}
+
+				if (PostProcess->GetColorFilter() != FLinearColor::Black && PostProcess->GetColorFilter() != FLinearColor::White )
+				{
+					PostProcessSettings.bOverride_FilmWhitePoint = true;
+					PostProcessSettings.FilmWhitePoint = PostProcess->GetColorFilter();
+				}
+
+				if ( !FMath::IsNearlyEqual( PostProcess->GetSaturation(), 1.f ) )
+				{
+					PostProcessSettings.bOverride_ColorSaturation = true;
+					PostProcessSettings.ColorSaturation.W = PostProcess->GetSaturation();
+				}
+
+				if ( PostProcess->GetCameraISO() > 0.f || PostProcess->GetCameraShutterSpeed() > 0.f || PostProcess->GetDepthOfFieldFstop() > 0.f )
+				{
+					PostProcessSettings.bOverride_AutoExposureMethod = true;
+					PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+
+					if ( PostProcess->GetCameraISO() > 0.f )
+					{
+						PostProcessSettings.bOverride_CameraISO = true;
+						PostProcessSettings.CameraISO = PostProcess->GetCameraISO();
+					}
+
+					if ( PostProcess->GetCameraShutterSpeed() > 0.f )
+					{
+						PostProcessSettings.bOverride_CameraShutterSpeed = true;
+						PostProcessSettings.CameraShutterSpeed = PostProcess->GetCameraShutterSpeed();
+					}
+
+					if ( PostProcess->GetDepthOfFieldFstop() > 0.f )
+					{
+						PostProcessSettings.bOverride_DepthOfFieldFstop = true;
+						PostProcessSettings.DepthOfFieldFstop = PostProcess->GetDepthOfFieldFstop();
+					}
 				}
 			}
 		}
-#endif
+
+		FinalizeComponent(ActorData);
+
 		ActorData.SetState(EAssetState::Processed | EAssetState::Completed);
 
 		return true;
