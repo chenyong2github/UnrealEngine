@@ -517,7 +517,6 @@ public partial class Project : CommandUtils
 		}
 		else
 		{
-
 			LogFileReaderProcess(ServerLogFile, ServerProcess, (string Output) =>
 			{
 				bool bKeepReading = true;
@@ -668,7 +667,7 @@ public partial class Project : CommandUtils
 							IPInterfaceProperties IP = adapter.GetIPProperties();
 							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
 							{
-								if (IP.UnicastAddresses[Index].IsDnsEligible && IP.UnicastAddresses[Index].Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]) && IP.UnicastAddresses[Index].Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
 								{
 									if (!IsNullOrEmpty(Params.Port))
 									{
@@ -709,7 +708,7 @@ public partial class Project : CommandUtils
 							IPInterfaceProperties IP = adapter.GetIPProperties();
 							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
 							{
-								if (IP.UnicastAddresses[Index].IsDnsEligible)
+								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]))
 								{
 									if (!IsNullOrEmpty(Params.Port))
 									{
@@ -988,6 +987,13 @@ public partial class Project : CommandUtils
 			CommandUtils.MakePathSafeToUseWithCommandLine(ProjectName.FullName));
 		if (!String.IsNullOrEmpty(ServerLogFile))
 		{
+			// Issue with dotnet not allowing any files with an exclusive advisory lock to be opened for read-only or copied
+			// https://github.com/dotnet/runtime/issues/34126
+			if (TargetPlatform == "Linux")
+			{
+				Args += " -noexclusivelockonwrite";
+			}
+
 			Args += " -abslog=" + CommandUtils.MakePathSafeToUseWithCommandLine(ServerLogFile);
 		}
 		if (IsBuildMachine)

@@ -3790,7 +3790,7 @@ public partial class Project : CommandUtils
 							IPInterfaceProperties IP = adapter.GetIPProperties();
 							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
 							{
-								if (IP.UnicastAddresses[Index].IsDnsEligible && IP.UnicastAddresses[Index].Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]) && IP.UnicastAddresses[Index].Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
 								{
 									if (!IsNullOrEmpty(Params.Port))
 									{
@@ -3833,7 +3833,7 @@ public partial class Project : CommandUtils
 							IPInterfaceProperties IP = adapter.GetIPProperties();
 							for (int Index = 0; Index < IP.UnicastAddresses.Count; ++Index)
 							{
-								if (IP.UnicastAddresses[Index].IsDnsEligible)
+								if (InternalUtils.IsDnsEligible(IP.UnicastAddresses[Index]))
 								{
 									if (!IsNullOrEmpty(Params.Port))
 									{

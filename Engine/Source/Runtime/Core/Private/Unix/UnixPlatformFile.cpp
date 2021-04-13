@@ -953,9 +953,13 @@ IFileHandle* FUnixPlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, b
 	int32 Handle = open(TCHAR_TO_UTF8(*NormalizeFilename(Filename, true)), Flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
 	if (Handle != -1)
 	{
+		// Due to dotnet not allowing any files marked as LOCK_EX to be opened for read only or copied, this allows us to
+		// to disable the locking mechanics. https://github.com/dotnet/runtime/issues/34126
+		extern bool GAllowExclusiveLockOnWrite;
+
 		// mimic Windows "exclusive write" behavior (we don't use FILE_SHARE_WRITE) by locking the file.
 		// note that the (non-mandatory) "lock" will be removed by itself when the last file descriptor is close()d
-		if (flock(Handle, LOCK_EX | LOCK_NB) == -1)
+		if (GAllowExclusiveLockOnWrite && (flock(Handle, LOCK_EX | LOCK_NB) == -1))
 		{
 			// if locked, consider operation a failure
 			if (EAGAIN == errno || EWOULDBLOCK == errno)

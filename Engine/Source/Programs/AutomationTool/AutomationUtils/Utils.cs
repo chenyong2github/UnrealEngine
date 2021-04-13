@@ -913,6 +913,21 @@ namespace AutomationTool
 			}
 		}
 
+		/// <summary>
+		/// Indicates whether the Internet Protocol (IP) address is valid to appear in a Domain Name System (DNS) server database.
+		///
+		/// Addresses in the range 169.254.0.0 to 169.254.255.255 are not DNS eligible. These addresses are reserved for Automatic Private IP Addressing (APIPA).
+		/// https://docs.microsoft.com/en-us/dotnet/api/system.net.networkinformation.ipaddressinformation.isdnseligible?view=netcore-3.1
+		/// 
+		/// NET Core 3.1 does not include a usable implementation of UnicastIPAddressInformation.IsDnsEligible() for Linux or Mac
+		/// </summary>
+		/// <param name="AddressInformation">Information about the address to evaluate for DNS eligibility</param>
+		/// <returns></returns>
+		public static bool IsDnsEligible(System.Net.NetworkInformation.IPAddressInformation AddressInformation)
+		{
+			byte[] AddressBytes = AddressInformation.Address.GetAddressBytes();
+			return !(AddressBytes[0] == 169 && AddressBytes[1] == 254);
+		}
 	}
 
 

@@ -63,6 +63,11 @@ bool CORE_API GTimeEnsures = true;
 // Allows settings a specific signal to maintain its default handler rather then ignoring the signal
 int32 CORE_API GSignalToDefault = 0;
 
+// Due to dotnet not allowing any files marked as LOCK_EX to be opened for read only or copied, this allows us to
+// to disable the locking mechanics. https://github.com/dotnet/runtime/issues/34126
+// Default to true, can be disabled with -noexclusivelockonwrite
+bool GAllowExclusiveLockOnWrite = true;
+
 #if UE_SERVER
 // Scale factor for how much we would like to increase or decrease the memory pool size
 float CORE_API GPoolTableScale = 1.0f;
@@ -193,6 +198,11 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 				if (FCStringAnsi::Stricmp(Arg, "-noensuretiming") == 0)
 				{
 					GTimeEnsures = false;
+				}
+
+				if (FCStringAnsi::Stricmp(Arg, "-noexclusivelockonwrite") == 0)
+				{
+					GAllowExclusiveLockOnWrite = false;
 				}
 
 				const char SignalToDefaultCmd[] = "-sigdfl=";
