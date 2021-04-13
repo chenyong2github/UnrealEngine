@@ -47,7 +47,7 @@ struct MESHMODELINGTOOLS_API FPhysicsBoxData
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
-	FVector Dimensions;
+	FVector Dimensions = FVector::ZeroVector;
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
 	FTransform Transform;

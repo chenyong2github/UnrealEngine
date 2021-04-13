@@ -40,10 +40,10 @@ struct MESHLODTOOLSET_API FLODManagerLODInfo
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = LODInformation)
-	int32 VertexCount;
+	int32 VertexCount = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = LODInformation)
-	int32 TriangleCount;
+	int32 TriangleCount = 0;
 };
 
 
