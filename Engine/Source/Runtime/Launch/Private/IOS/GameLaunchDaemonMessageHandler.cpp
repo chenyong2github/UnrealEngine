@@ -14,6 +14,8 @@
 
 void FGameLaunchDaemonMessageHandler::Init()
 {
+    FModuleManager::Get().LoadModuleChecked(TEXT("LaunchDaemonMessages"));
+    
 	MessageEndpoint = FMessageEndpoint::Builder("FGameLaunchDaemonMessageHandler")
 		.Handling<FIOSLaunchDaemonPing>(this, &FGameLaunchDaemonMessageHandler::HandlePingMessage)
 		.Handling<FIOSLaunchDaemonLaunchApp>(this, &FGameLaunchDaemonMessageHandler::HandleLaunchRequest);
