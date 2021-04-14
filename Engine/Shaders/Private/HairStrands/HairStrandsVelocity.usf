@@ -15,10 +15,12 @@
 
 uint2 ResolutionOffset;
 float VelocityThreshold;
+float CoverageThreshold;
 
 Texture2D<uint> NodeIndex;
 Buffer<float2> NodeVelocity;
 StructuredBuffer<FNodeVis> NodeVis; 
+Texture2D<uint4> CategorizationTexture;
 
 #define VELOCITY_TYPE_NONE 0
 #define VELOCITY_TYPE_AVG 1  
@@ -63,51 +65,55 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		float MaxVelocityMagnitude2 = 0;
 		#endif		
 
-		for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
+		const FCategorizationData CatData = DecodeCategorizationData(CategorizationTexture.Load(uint3(PixelCoord,0)));
+		if (CatData.PixelCoverage >= CoverageThreshold)
 		{
-			const uint SampleIndex = NodeDesc.Offset + NodeIt;
-			const float2 EncodedVelocity = NodeVelocity[SampleIndex];
+			for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
+			{
+				const uint SampleIndex = NodeDesc.Offset + NodeIt;
+				const float2 EncodedVelocity = NodeVelocity[SampleIndex];
+
+				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
+				AverageVelocity += DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+				#endif			
+
+				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
+				const float NodeDepth = NodeVis[SampleIndex].Depth;
+				if (NodeDepth > ClosestDepth) // Inverse-Z
+				{
+					ClosestEncodedVelocity = EncodedVelocity;
+					ClosestDepth = NodeDepth;
+				}
+				#endif
+
+				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
+				const float2 CurrentVelocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+				const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
+				if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
+				{
+				MaxEncodedVelocity = EncodedVelocity;
+					MaxVelocityMagnitude2 = CurrentVelocityMagnitude2;
+				}
+				#endif			
+
+				// If the velocity is above a certain threshold, the pixel will be resolve with a fast resolved. 
+				// This will result into a sharper, but more noisy output. However it sill avoid getting smearing 
+				// from TAA.
+				bNeedFastResolve = bNeedFastResolve || NeedFastResolve(EncodedVelocity, VelocityThreshold);
+			}
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-			AverageVelocity += DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
-			#endif			
+			OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy);
+			#endif		
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-			const float NodeDepth = NodeVis[SampleIndex].Depth;
-			if (NodeDepth > ClosestDepth) // Inverse-Z
-			{
-				ClosestEncodedVelocity = EncodedVelocity;
-				ClosestDepth = NodeDepth;
-			}
-			#endif
+			OutVelocityTexture[PixelCoord] = ToOutput(ClosestEncodedVelocity);
+			#endif		
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-			const float2 CurrentVelocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
-			const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
-			if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
-			{
-				MaxEncodedVelocity = EncodedVelocity;
-				MaxVelocityMagnitude2 = CurrentVelocityMagnitude2;
-			}
-			#endif			
-
-			// If the velocity is above a certain threshold, the pixel will be resolve with a fast resolved. 
-			// This will result into a sharper, but more noisy output. However it sill avoid getting smearing 
-			// from TAA.
-			bNeedFastResolve = bNeedFastResolve || NeedFastResolve(EncodedVelocity, VelocityThreshold);
+			OutVelocityTexture[PixelCoord] = ToOutput(MaxEncodedVelocity);
+			#endif
 		}
-
-		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-		OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy);
-		#endif		
-
-		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-		OutVelocityTexture[PixelCoord] = ToOutput(ClosestEncodedVelocity);
-		#endif		
-
-		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-		OutVelocityTexture[PixelCoord] = ToOutput(MaxEncodedVelocity);
-		#endif
 	}
 
 	OutResolveMaskTexture[PixelCoord] = bNeedFastResolve ? 1 : 0;
