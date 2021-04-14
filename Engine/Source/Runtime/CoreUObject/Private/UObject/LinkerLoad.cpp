@@ -1228,10 +1228,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Validate the summary.
-	if (Summary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
+	if (Summary.GetFileVersionUE() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
 	{
 		UE_LOG(LogLinker, Warning, TEXT("The file %s was saved by a previous version which is not backwards compatible with this one. Min Required Version: %i  Package Version: %i"),
-			*GetDebugName(), (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE4());
+			*GetDebugName(), (int32)VER_UE4_OLDEST_LOADABLE_PACKAGE, Summary.GetFileVersionUE());
 		return LINKER_Failed;
 	}
 
@@ -1290,10 +1290,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummaryInternal()
 	}
 
 	// Don't load packages that were saved with package version newer than the current one.
-	if ((Summary.GetFileVersionUE4() > GPackageFileUEVersion) || (Summary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUEVersion))
+	if ((Summary.GetFileVersionUE() > GPackageFileUEVersion) || (Summary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion))
 	{
 		UE_LOG(LogLinker, Warning, TEXT("Unable to load package (%s) PackageVersion %i, MaxExpected %i : LicenseePackageVersion %i, MaxExpected %i."),
-			*GetDebugName(), Summary.GetFileVersionUE4(), GPackageFileUEVersion, Summary.GetFileVersionLicenseeUE4(), GPackageFileLicenseeUEVersion);
+			*GetDebugName(), Summary.GetFileVersionUE(), GPackageFileUEVersion, Summary.GetFileVersionLicenseeUE(), GPackageFileLicenseeUEVersion);
 		return LINKER_Failed;
 	}
 
@@ -1443,8 +1443,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 
 	const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
 
-	SetUEVer(Summary.GetFileVersionUE4());
-	SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE4());
+	SetUEVer(Summary.GetFileVersionUE());
+	SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE());
 	SetEngineVer(Summary.SavedByEngineVersion);
 	SetCustomVersions(SummaryVersions);
 
@@ -1466,8 +1466,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	// Loader needs to be the same version.
 	if (Loader)
 	{
-		Loader->SetUEVer(Summary.GetFileVersionUE4());
-		Loader->SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE4());
+		Loader->SetUEVer(Summary.GetFileVersionUE());
+		Loader->SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE());
 		Loader->SetEngineVer(Summary.SavedByEngineVersion);
 		Loader->SetCustomVersions(SummaryVersions);
 	}
@@ -1505,8 +1505,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 #endif
 
 		// Remember the linker versions
-		LinkerRootPackage->LinkerPackageVersion = Summary.GetFileVersionUE4();
-		LinkerRootPackage->LinkerLicenseeVersion = Summary.GetFileVersionLicenseeUE4();
+		LinkerRootPackage->LinkerPackageVersion = Summary.GetFileVersionUE();
+		LinkerRootPackage->LinkerLicenseeVersion = Summary.GetFileVersionLicenseeUE();
 
 		// Only set the custom version if it is not already latest.
 		// If it is latest, we will compare against latest in GetLinkerCustomVersion

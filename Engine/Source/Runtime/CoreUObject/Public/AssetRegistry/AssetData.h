@@ -634,10 +634,10 @@ public:
 	int64 DiskSize;
 
 	/** UE4 file version that the package was saved with */
-	int32 FileVersionUE4;
+	int32 FileVersionUE;
 
 	/** Licensee file version that the package was saved with */
-	int32 FileVersionLicenseeUE4;
+	int32 FileVersionLicenseeUE;
 
 private:
 	UE::AssetRegistry::FPackageCustomVersionsHandle CustomVersions;
@@ -648,8 +648,8 @@ public:
 
 	FAssetPackageData()
 		: DiskSize(0)
-		, FileVersionUE4(-1)
-		, FileVersionLicenseeUE4(-1)
+		, FileVersionUE(-1)
+		, FileVersionLicenseeUE(-1)
 		, Flags(0)
 	{
 	}
@@ -686,7 +686,7 @@ public:
 		CustomVersions = UE::AssetRegistry::FPackageCustomVersionsHandle::FindOrAdd(MoveTemp(InCustomVersions));
 	}
 
-	/** Whether the package was saved from a licensee executable, used to tell whether non-matching FileVersionLicenseeUE4 requires a resave */
+	/** Whether the package was saved from a licensee executable, used to tell whether non-matching FileVersionLicenseeUE requires a resave */
 	bool IsLicenseeVersion() const { return (Flags & FLAG_LICENSEE_VERSION) != 0; }
 	void SetIsLicenseeVersion(bool bValue) { Flags = (Flags & ~FLAG_LICENSEE_VERSION) | (bValue ? FLAG_LICENSEE_VERSION : 0); }
 
@@ -701,8 +701,8 @@ public:
 		Ar << PackageGuid;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << CookedHash;
-		Ar << FileVersionUE4;
-		Ar << FileVersionLicenseeUE4;
+		Ar << FileVersionUE;
+		Ar << FileVersionLicenseeUE;
 		Ar << Flags;
 		Ar << CustomVersions;
 	}

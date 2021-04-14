@@ -7248,7 +7248,7 @@ void FAsyncArchive::ReadCallback(bool bWasCancelled, IAsyncReadRequest* Request)
 			FBufferReader Ar(Mem, FMath::Min<int64>(FMaxPackageSummarySize::Value, FileSize),/*bInFreeOnClose=*/ false, /*bIsPersistent=*/ true);
 			FPackageFileSummary Sum;
 			Ar << Sum;
-			if (Ar.IsError() || Sum.TotalHeaderSize > FileSize || Sum.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
+			if (Ar.IsError() || Sum.TotalHeaderSize > FileSize || Sum.GetFileVersionUE() < VER_UE4_OLDEST_LOADABLE_PACKAGE)
 			{
 				SetError();
 			}

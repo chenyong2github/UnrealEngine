@@ -780,7 +780,7 @@ int32 ULoadPackageCommandlet::Main( const FString& Params )
 		if (bCheckForLegacyPackages)
 		{
 			FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_NoVerify);
-			MinVersion = FMath::Min<int32>(MinVersion, Linker->Summary.GetFileVersionUE4());
+			MinVersion = FMath::Min<int32>(MinVersion, Linker->Summary.GetFileVersionUE());
 		}
 		else
 		{
@@ -798,7 +798,7 @@ int32 ULoadPackageCommandlet::Main( const FString& Params )
 	GIsEditor = GIsServer = GIsClient = true;
 	if (bCheckForLegacyPackages)
 	{
-		UE_LOG(LogPackageUtilities, Log, TEXT("%d minimum UE4 version number."), MinVersion );
+		UE_LOG(LogPackageUtilities, Log, TEXT("%d minimum UE version number."), MinVersion );
 	}
 
 	return 0;

@@ -649,7 +649,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Cached;
 
 		// Have we been asked to skip the cache of text that exists in the header of newer packages?
-		if (bSkipGatherCache && PackageFileSummary.GetFileVersionUE4() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
+		if (bSkipGatherCache && PackageFileSummary.GetFileVersionUE() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
 		{
 			// Fallback on the old package flag check.
 			if (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather)
@@ -661,12 +661,12 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		const FCustomVersion* const EditorVersion = PackageFileSummary.GetCustomVersionContainer().GetVersion(FEditorObjectVersion::GUID);
 
 		// Packages not resaved since localization gathering flagging was added to packages must be loaded.
-		if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_PACKAGE_REQUIRES_LOCALIZATION_GATHER_FLAGGING)
+		if (PackageFileSummary.GetFileVersionUE() < VER_UE4_PACKAGE_REQUIRES_LOCALIZATION_GATHER_FLAGGING)
 		{
 			PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_TooOld;
 		}
 		// Package not resaved since gatherable text data was added to package headers must be loaded, since their package header won't contain pregathered text data.
-		else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_SERIALIZE_TEXT_IN_PACKAGES || (!EditorVersion || EditorVersion->Version < FEditorObjectVersion::GatheredTextEditorOnlyPackageLocId))
+		else if (PackageFileSummary.GetFileVersionUE() < VER_UE4_SERIALIZE_TEXT_IN_PACKAGES || (!EditorVersion || EditorVersion->Version < FEditorObjectVersion::GatheredTextEditorOnlyPackageLocId))
 		{
 			// Fallback on the old package flag check.
 			if (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather)
@@ -674,7 +674,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 				PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_TooOld;
 			}
 		}
-		else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_DIALOGUE_WAVE_NAMESPACE_AND_CONTEXT_CHANGES)
+		else if (PackageFileSummary.GetFileVersionUE() < VER_UE4_DIALOGUE_WAVE_NAMESPACE_AND_CONTEXT_CHANGES)
 		{
 			TArray<FAssetData> AllAssetDataInSamePackage;
 			AssetRegistry.GetAssetsByPackageName(PackagePendingGather.PackageName, AllAssetDataInSamePackage);
@@ -688,7 +688,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		}
 
 		// If this package doesn't have any cached data, then we have to load it for gather
-		if (PackageFileSummary.GetFileVersionUE4() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES && PackageFileSummary.GatherableTextDataOffset == 0 && (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather))
+		if (PackageFileSummary.GetFileVersionUE() >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES && PackageFileSummary.GatherableTextDataOffset == 0 && (PackageFileSummary.GetPackageFlags() & PKG_RequiresLocalizationGather))
 		{
 			PackagePendingGather.PackageLocCacheState = EPackageLocCacheState::Uncached_NoCache;
 		}

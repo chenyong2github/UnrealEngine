@@ -80,7 +80,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Don't read packages that are too old
-	if( PackageFileSummary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE )
+	if( PackageFileSummary.GetFileVersionUE() < VER_UE4_OLDEST_LOADABLE_PACKAGE )
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too old"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooOld);
@@ -88,7 +88,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	// Don't read packages that were saved with an package version newer than the current one.
-	if( (PackageFileSummary.GetFileVersionUE4() > GPackageFileUEVersion) || (PackageFileSummary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUEVersion) )
+	if( (PackageFileSummary.GetFileVersionUE() > GPackageFileUEVersion) || (PackageFileSummary.GetFileVersionLicenseeUE() > GPackageFileLicenseeUEVersion) )
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
@@ -119,8 +119,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	//make sure the filereader gets the correct version number (it defaults to latest version)
-	SetUEVer(PackageFileSummary.GetFileVersionUE4());
-	SetLicenseeUEVer(PackageFileSummary.GetFileVersionLicenseeUE4());
+	SetUEVer(PackageFileSummary.GetFileVersionUE());
+	SetLicenseeUEVer(PackageFileSummary.GetFileVersionLicenseeUE());
 	SetEngineVer(PackageFileSummary.SavedByEngineVersion);
 
 	const FCustomVersionContainer& PackageFileSummaryVersions = PackageFileSummary.GetCustomVersionContainer();
@@ -356,8 +356,8 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 	PackageData.PackageGuid = PackageFileSummary.Guid;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	PackageData.SetCustomVersions(PackageFileSummary.GetCustomVersionContainer().GetAllVersions());
-	PackageData.FileVersionUE4 = PackageFileSummary.GetFileVersionUE4();
-	PackageData.FileVersionLicenseeUE4 = PackageFileSummary.GetFileVersionLicenseeUE4();
+	PackageData.FileVersionUE = PackageFileSummary.GetFileVersionUE();
+	PackageData.FileVersionLicenseeUE = PackageFileSummary.GetFileVersionLicenseeUE();
 	PackageData.SetIsLicenseeVersion(PackageFileSummary.SavedByEngineVersion.IsLicenseeVersion());
 
 	if (!SerializeNameMap())
@@ -650,7 +650,7 @@ namespace AssetRegistry
 		const bool bIsMapPackage = (PackageFileSummary.GetPackageFlags() & PKG_ContainsMap) != 0;
 
 		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
-		bool bPreDependencyFormat = PackageFileSummary.GetFileVersionUE4() < VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS || !!(PackageFileSummary.GetPackageFlags() & PKG_FilterEditorOnly);
+		bool bPreDependencyFormat = PackageFileSummary.GetFileVersionUE() < VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS || !!(PackageFileSummary.GetPackageFlags() & PKG_FilterEditorOnly);
 
 		// Load offsets to optionally-read data
 		if (bPreDependencyFormat)
@@ -676,7 +676,7 @@ namespace AssetRegistry
 		// We will also do this for maps saved after they were marked public but no asset data was saved for some reason. A bug caused this to happen for some maps.
 		if (bIsMapPackage)
 		{
-			const bool bLegacyPackage = PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS;
+			const bool bLegacyPackage = PackageFileSummary.GetFileVersionUE() < VER_UE4_PUBLIC_WORLDS;
 			const bool bNoMapAsset = (ObjectCount == 0);
 			if (bLegacyPackage || bNoMapAsset)
 			{
@@ -724,7 +724,7 @@ namespace AssetRegistry
 
 			// Before worlds were RF_Public, other non-public assets were added to the asset data table in map packages.
 			// Here we simply skip over them
-			if (bIsMapPackage && PackageFileSummary.GetFileVersionUE4() < VER_UE4_PUBLIC_WORLDS)
+			if (bIsMapPackage && PackageFileSummary.GetFileVersionUE() < VER_UE4_PUBLIC_WORLDS)
 			{
 				if (ObjectPath != FPackageName::GetLongPackageAssetName(PackageName))
 				{
@@ -747,7 +747,7 @@ namespace AssetRegistry
 				ObjectPath = PackageName + TEXT(".") + ObjectPath;
 			}
 			// Previously export couldn't have its outer as an import
-			else if (PackageFileSummary.GetFileVersionUE4() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
+			else if (PackageFileSummary.GetFileVersionUE() < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
 			{
 				UE_ASSET_LOG(LogAssetRegistry, Warning, *PackageName, TEXT("Package has invalid export %s, resave source package!"), *ObjectPath);
 				continue;

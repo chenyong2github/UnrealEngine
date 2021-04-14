@@ -111,8 +111,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				{
 					// we can't safely load more than this because the legacy version code differs in ways we can not predict.
 					// Make sure that the linker will fail to load with it.
-					Sum.FileVersionUE4 = 0;
-					Sum.FileVersionLicenseeUE4 = 0;
+					Sum.FileVersionUE = 0;
+					Sum.FileVersionLicenseeUE = 0;
 					return;
 				}
 
@@ -121,15 +121,15 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 					int32 LegacyUE3Version = 0;
 					Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
 				}
-				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE4);
-				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE4);
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE);
+				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE);
 
 				if (LegacyFileVersion <= -2)
 				{
 					Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))), GetCustomVersionFormatForArchive(LegacyFileVersion));
 				}
 
-				if (!Sum.FileVersionUE4 && !Sum.FileVersionLicenseeUE4)
+				if (!Sum.FileVersionUE && !Sum.FileVersionLicenseeUE)
 				{
 #if WITH_EDITOR
 					if (!GAllowUnversionedContentInEditor)
@@ -141,16 +141,16 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 #endif
 					// this file is unversioned, remember that, then use current versions
 					Sum.bUnversioned = true;
-					Sum.FileVersionUE4 = GPackageFileUEVersion;
-					Sum.FileVersionLicenseeUE4 = GPackageFileLicenseeUEVersion;
+					Sum.FileVersionUE = GPackageFileUEVersion;
+					Sum.FileVersionLicenseeUE = GPackageFileLicenseeUEVersion;
 					Sum.CustomVersionContainer = FCurrentCustomVersions::GetAll();
 				}
 			}
 			else
 			{
 				// This is probably an old UE3 file, make sure that the linker will fail to load with it.
-				Sum.FileVersionUE4 = 0;
-				Sum.FileVersionLicenseeUE4 = 0;
+				Sum.FileVersionUE = 0;
+				Sum.FileVersionLicenseeUE = 0;
 			}
 		}
 		else
@@ -170,8 +170,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				// Must write out the last UE3 engine version, so that older versions identify it as new
 				int32 LegacyUE3Version = 864;
 				Record << SA_VALUE(TEXT("LegacyUE3Version"), LegacyUE3Version);
-				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE4);
-				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE4);
+				Record << SA_VALUE(TEXT("FileVersionUE4"), Sum.FileVersionUE);
+				Record << SA_VALUE(TEXT("FileVersionLicenseeUE4"), Sum.FileVersionLicenseeUE);
 
 				// Serialise custom version map.
 				Sum.CustomVersionContainer.Serialize(Record.EnterField(SA_FIELD_NAME(TEXT("CustomVersions"))));
@@ -196,12 +196,12 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("NameCount"), Sum.NameCount) << SA_VALUE(TEXT("NameOffset"), Sum.NameOffset);
 		if (!BaseArchive.IsFilterEditorOnly())
 		{
-			if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID)
+			if (BaseArchive.IsSaving() || Sum.FileVersionUE >= VER_UE4_ADDED_PACKAGE_SUMMARY_LOCALIZATION_ID)
 			{
 				Record << SA_VALUE(TEXT("LocalizationId"), Sum.LocalizationId);
 			}
 		}
-		if (Sum.FileVersionUE4 >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
+		if (Sum.FileVersionUE >= VER_UE4_SERIALIZE_TEXT_IN_PACKAGES)
 		{
 			Record << SA_VALUE(TEXT("GatherableTextDataCount"), Sum.GatherableTextDataCount) << SA_VALUE(TEXT("GatherableTextDataOffset"), Sum.GatherableTextDataOffset);
 		}
@@ -209,17 +209,17 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("ImportCount"), Sum.ImportCount) << SA_VALUE(TEXT("ImportOffset"), Sum.ImportOffset);
 		Record << SA_VALUE(TEXT("DependsOffset"), Sum.DependsOffset);
 
-		if (BaseArchive.IsLoading() && (Sum.FileVersionUE4 < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE4 > GPackageFileUEVersion))
+		if (BaseArchive.IsLoading() && (Sum.FileVersionUE < VER_UE4_OLDEST_LOADABLE_PACKAGE || Sum.FileVersionUE > GPackageFileUEVersion))
 		{
 			return; // we can't safely load more than this because the below was different in older files.
 		}
 
-		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP)
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP)
 		{
 			Record << SA_VALUE(TEXT("SoftPackageReferencesCount"), Sum.SoftPackageReferencesCount) << SA_VALUE(TEXT("SoftPackageReferencesOffset"), Sum.SoftPackageReferencesOffset);
 		}
 
-		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_SEARCHABLE_NAMES)
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE >= VER_UE4_ADDED_SEARCHABLE_NAMES)
 		{
 			Record << SA_VALUE(TEXT("SearchableNamesOffset"), Sum.SearchableNamesOffset);
 		}
@@ -233,7 +233,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 #if WITH_EDITORONLY_DATA
 		if (!BaseArchive.IsFilterEditorOnly())
 		{
-			if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER)
+			if (BaseArchive.IsSaving() || Sum.FileVersionUE >= VER_UE4_ADDED_PACKAGE_OWNER)
 			{
 				Record << SA_VALUE(TEXT("PersistentGuid"), Sum.PersistentGuid);
 			}
@@ -246,7 +246,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			}
 
 			// The owner persistent guid was added in VER_UE4_ADDED_PACKAGE_OWNER but removed in the next version VER_UE4_NON_OUTER_PACKAGE_IMPORT
-			if (BaseArchive.IsLoading() && Sum.FileVersionUE4 >= VER_UE4_ADDED_PACKAGE_OWNER && Sum.FileVersionUE4 < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
+			if (BaseArchive.IsLoading() && Sum.FileVersionUE >= VER_UE4_ADDED_PACKAGE_OWNER && Sum.FileVersionUE < VER_UE4_NON_OUTER_PACKAGE_IMPORT)
 			{
 				FGuid OwnerPersistentGuid;
 				Record << SA_VALUE(TEXT("OwnerPersistentGuid"), OwnerPersistentGuid);
@@ -272,7 +272,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			}
 		}
 
-		if (Sum.GetFileVersionUE4() >= VER_UE4_ENGINE_VERSION_OBJECT)
+		if (Sum.GetFileVersionUE() >= VER_UE4_ENGINE_VERSION_OBJECT)
 		{
 			if (BaseArchive.IsCooking() || (BaseArchive.IsSaving() && !FEngineVersion::Current().HasChangelist()))
 			{
@@ -282,7 +282,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				Record << SA_VALUE(TEXT("SavedByEngineVersion"), Sum.SavedByEngineVersion);
-				FixCorruptEngineVersion(Sum.GetFileVersionUE4(), Sum.SavedByEngineVersion);
+				FixCorruptEngineVersion(Sum.GetFileVersionUE(), Sum.SavedByEngineVersion);
 			}
 		}
 		else
@@ -296,7 +296,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			}
 		}
 
-		if (Sum.GetFileVersionUE4() >= VER_UE4_PACKAGE_SUMMARY_HAS_COMPATIBLE_ENGINE_VERSION)
+		if (Sum.GetFileVersionUE() >= VER_UE4_PACKAGE_SUMMARY_HAS_COMPATIBLE_ENGINE_VERSION)
 		{
 			if (BaseArchive.IsCooking() || (BaseArchive.IsSaving() && !FEngineVersion::Current().HasChangelist()))
 			{
@@ -306,7 +306,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				Record << SA_VALUE(TEXT("CompatibleWithEngineVersion"), Sum.CompatibleWithEngineVersion);
-				FixCorruptEngineVersion(Sum.GetFileVersionUE4(), Sum.CompatibleWithEngineVersion);
+				FixCorruptEngineVersion(Sum.GetFileVersionUE(), Sum.CompatibleWithEngineVersion);
 			}
 		}
 		else
@@ -321,7 +321,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		if (!FCompression::VerifyCompressionFlagsValid(Sum.CompressionFlags))
 		{
 			UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" has invalid compression flags (%d)."), *BaseArchive.GetArchiveName(), Sum.CompressionFlags);
-			Sum.FileVersionUE4 = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
+			Sum.FileVersionUE = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
 			return;
 		}
 
@@ -332,7 +332,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		{
 			// this file has package level compression, we won't load it.
 			UE_LOG(LogLinker, Warning, TEXT("Failed to read package file summary, the file \"%s\" is has package level compression (and is probably cooked). These old files cannot be loaded in the editor."), *BaseArchive.GetArchiveName());
-			Sum.FileVersionUE4 = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
+			Sum.FileVersionUE = VER_UE4_OLDEST_LOADABLE_PACKAGE - 1;
 			return; // we can't safely load more than this because we just changed the version to something it is not.
 		}
 
@@ -354,16 +354,16 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 		Record << SA_VALUE(TEXT("AssetRegistryDataOffset"), Sum.AssetRegistryDataOffset);
 		Record << SA_VALUE(TEXT("BulkDataStartOffset"), Sum.BulkDataStartOffset);
 
-		if (Sum.GetFileVersionUE4() >= VER_UE4_WORLD_LEVEL_INFO)
+		if (Sum.GetFileVersionUE() >= VER_UE4_WORLD_LEVEL_INFO)
 		{
 			Record << SA_VALUE(TEXT("WorldTileInfoDataOffset"), Sum.WorldTileInfoDataOffset);
 		}
 
-		if (Sum.GetFileVersionUE4() >= VER_UE4_CHANGED_CHUNKID_TO_BE_AN_ARRAY_OF_CHUNKIDS)
+		if (Sum.GetFileVersionUE() >= VER_UE4_CHANGED_CHUNKID_TO_BE_AN_ARRAY_OF_CHUNKIDS)
 		{
 			Record << SA_VALUE(TEXT("ChunkIDs"), Sum.ChunkIDs);
 		}
-		else if (Sum.GetFileVersionUE4() >= VER_UE4_ADDED_CHUNKID_TO_ASSETDATA_AND_UPACKAGE)
+		else if (Sum.GetFileVersionUE() >= VER_UE4_ADDED_CHUNKID_TO_ASSETDATA_AND_UPACKAGE)
 		{
 			// handle conversion of single ChunkID to an array of ChunkIDs
 			if (BaseArchive.IsLoading())
@@ -378,7 +378,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 				}
 			}
 		}
-		if (BaseArchive.IsSaving() || Sum.FileVersionUE4 >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
+		if (BaseArchive.IsSaving() || Sum.FileVersionUE >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
 		{
 			Record << SA_VALUE(TEXT("PreloadDependencyCount"), Sum.PreloadDependencyCount) << SA_VALUE(TEXT("PreloadDependencyOffset"), Sum.PreloadDependencyOffset);
 		}

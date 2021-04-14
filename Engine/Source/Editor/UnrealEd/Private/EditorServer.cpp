@@ -2416,7 +2416,7 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 			return false;
 		}
 
-		const int32 UEVersion = Summary.GetFileVersionUE4();
+		const int32 UEVersion = Summary.GetFileVersionUE();
 
 		// Validate the summary.
 		if( UEVersion < VER_UE4_OLDEST_LOADABLE_PACKAGE )
@@ -2425,12 +2425,12 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));
 			Arguments.Add(TEXT("Version"), UEVersion);
 			Arguments.Add(TEXT("First"), VER_UE4_OLDEST_LOADABLE_PACKAGE);
-			OutNotMapReason = FText::Format( LOCTEXT( "UE4FileIsOlder", "{File} is an UE4 map [File:v{Version}], from an engine release no longer supported [Min:v{First}]." ), 
+			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsOlder", "{File} is an UE4 map [File:v{Version}], from an engine release no longer supported [Min:v{First}]." ), 
 				Arguments);
 			return false;
 		}
 
-		const int32 UE4LicenseeVersion = Summary.GetFileVersionLicenseeUE4();
+		const int32 UELicenseeVersion = Summary.GetFileVersionLicenseeUE();
 
 		// Don't load packages that were saved with an engine version newer than the current one.
 		if( UEVersion > GPackageFileUEVersion )
@@ -2439,17 +2439,17 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));
 			Arguments.Add(TEXT("Version"), UEVersion);
 			Arguments.Add(TEXT("Last"), GPackageFileUEVersion);
-			OutNotMapReason = FText::Format( LOCTEXT( "UE4FileIsNewer", "{File} is a UE4 map [File:v{Version}], from an engine release newer than this [Cur:v{Last}]." ), 
+			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewer", "{File} is a UE map [File:v{Version}], from an engine release newer than this [Cur:v{Last}]." ), 
 				Arguments);
 			return false;
 		}
-		else if( UE4LicenseeVersion > GPackageFileLicenseeUEVersion )
+		else if( UELicenseeVersion > GPackageFileLicenseeUEVersion )
 		{
 			FFormatNamedArguments Arguments;
 			Arguments.Add(TEXT("File"), FText::FromString( FString( PackageFilename ) ));
-			Arguments.Add(TEXT("Version"), UE4LicenseeVersion);
+			Arguments.Add(TEXT("Version"), UELicenseeVersion);
 			Arguments.Add(TEXT("Last"), GPackageFileLicenseeUEVersion);
-			OutNotMapReason = FText::Format( LOCTEXT( "UE4FileIsNewer", "{File} is a UE4 map [File:v{Version}], from an engine release newer than this [Cur:v{Last}]." ), 
+			OutNotMapReason = FText::Format( LOCTEXT( "UEFileIsNewer", "{File} is a UE map [File:v{Version}], from an engine release newer than this [Cur:v{Last}]." ), 
 				Arguments);
 			return false;
 		}

@@ -52,9 +52,9 @@ struct FPackageFileSummary
 
 private:
 	/* UE4 file version */
-	int32		FileVersionUE4;
+	int32		FileVersionUE;
 	/* Licensee file version */
-	int32		FileVersionLicenseeUE4;
+	int32		FileVersionLicenseeUE;
 	/* Custom version numbers. Keyed off a unique tag for each custom component. */
 	FCustomVersionContainer CustomVersionContainer;
 
@@ -218,14 +218,25 @@ public:
 	/** Constructor */
 	COREUOBJECT_API FPackageFileSummary();
 
-	int32 GetFileVersionUE4() const
+	int32 GetFileVersionUE() const
 	{
-		return FileVersionUE4;
+		return FileVersionUE;
 	}
 
+	int32 GetFileVersionLicenseeUE() const
+	{
+		return FileVersionLicenseeUE;
+	}
+	UE_DEPRECATED(5.0, "Use GetFileVersion instead")
+	int32 GetFileVersionUE4() const
+	{
+		return GetFileVersionUE();
+	}
+
+	UE_DEPRECATED(5.0, "Use GetFileVersionLicenseeUE instead")
 	int32 GetFileVersionLicenseeUE4() const
 	{
-		return FileVersionLicenseeUE4;
+		return GetFileVersionLicenseeUE();
 	}
 
 	const FCustomVersionContainer& GetCustomVersionContainer() const
@@ -235,10 +246,10 @@ public:
 
 	void SetCustomVersionContainer(const FCustomVersionContainer& InContainer);
 
-	void SetFileVersions(const int32 EpicUE4, const int32 LicenseeUE4, const bool bInSaveUnversioned = false)
+	void SetFileVersions(const int32 EpicUE, const int32 LicenseeUE, const bool bInSaveUnversioned = false)
 	{
-		FileVersionUE4 = EpicUE4;
-		FileVersionLicenseeUE4 = LicenseeUE4;
+		FileVersionUE = EpicUE;
+		FileVersionLicenseeUE = LicenseeUE;
 		bUnversioned = bInSaveUnversioned;
 	}
 
