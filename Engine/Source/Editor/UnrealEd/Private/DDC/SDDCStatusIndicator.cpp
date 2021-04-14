@@ -19,6 +19,8 @@
 #include "Settings/EditorProjectSettings.h"
 #include "Modules/ModuleManager.h"
 #include "ISettingsModule.h"
+#include "Widgets/Images/SImage.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SDDCStatusIndicator"
 
@@ -29,14 +31,14 @@ void SDDCStatusIndicator::Construct(const FArguments& InArgs)
 	const FText DDCLabel = FText::FromString(DDC->IsDefaultGraph() ? TEXT("DDC") : DDCGraphName);
 	/*FDerivedDataCacheInterface::FOnDDCNotification& DDCNotificationEvent = GetDerivedDataCacheRef().GetDDCNotificationEvent();
 
-if (bSubscribe)
-{
-	DDCNotificationEvent.AddRaw(this, &FDDCNotifications::OnDDCNotificationEvent);
-}
-else
-{
-	DDCNotificationEvent.RemoveAll(this);
-}*/
+	if (bSubscribe)
+	{
+		DDCNotificationEvent.AddRaw(this, &FDDCNotifications::OnDDCNotificationEvent);
+	}
+	else
+	{
+		DDCNotificationEvent.RemoveAll(this);
+	}*/
 
 	BusyPulseSequence = FCurveSequence(0.f, 1.0f, ECurveEaseFunction::QuadInOut);
 	FadeGetSequence = FCurveSequence(0.f, 0.5f, ECurveEaseFunction::Linear);
@@ -44,65 +46,55 @@ else
 
 	this->ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("SProjectBadge.BadgeShape"))
-		.Padding(FMargin(10.0f, 4.0f))
-		.BorderBackgroundColor(FColor::Black)
-		.ToolTip(SNew(SToolTip)[ SNew(SDDCInformation) ])
+		SNew(SHorizontalBox)
+		.ToolTip(SNew(SToolTip)[SNew(SDDCInformation)])
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 3, 0)
 		[
-			SNew(SHorizontalBox)
-		
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0, 0, 3, 0)
-			[
-				SNew(SOverlay)
+			SNew(SOverlay)
 				
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Top)
-				.Padding(0, 0, 4, 4)
-				[
-					SNew(STextBlock)
-					.ColorAndOpacity_Lambda([this] { return FLinearColor::Red.CopyWithNewOpacity(FadePutSequence.GetLerp());} )
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Arrow_Up)
-				]
-
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Bottom)
-				.Padding(4, 4, 0, 0)
-				[
-					SNew(STextBlock)
-					.ColorAndOpacity_Lambda([this] { return FLinearColor::Green.CopyWithNewOpacity(FadeGetSequence.GetLerp()); })
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
-					.Text(FEditorFontGlyphs::Arrow_Down)
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0,0,3,0)
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Top)
+			.Padding(0, 0, 4, 4)
 			[
-				SNew(STextBlock)
-				.ColorAndOpacity_Lambda([this] {
-					return FLinearColor::White.CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(BusyPulseSequence.GetLerp(), 1)));
-				})
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
-				.Text(FEditorFontGlyphs::Server)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.ArrowUp"))
+				.ColorAndOpacity_Lambda([this] { return FLinearColor::Red.CopyWithNewOpacity(FadePutSequence.GetLerp()); })
 			]
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0, 0, 10, 0)
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Bottom)
+			.Padding(4, 4, 0, 0)
 			[
-				SNew(STextBlock)
-				.Text(DDCLabel)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.ArrowDown"))
+				.ColorAndOpacity_Lambda([this] { return FLinearColor::Green.CopyWithNewOpacity(FadeGetSequence.GetLerp()); })
 			]
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0,0,3,0)
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("Icons.Server"))
+			.ColorAndOpacity_Lambda([this] {
+				return FStyleColors::Foreground.GetSpecifiedColor().CopyWithNewOpacity(0.5f + (0.5f * FMath::MakePulsatingValue(BusyPulseSequence.GetLerp(), 1)));
+			})
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(0, 0, 10, 0)
+		[
+			SNew(STextBlock)
+			.Text(DDCLabel)
 		]
 	];
 
@@ -180,7 +172,6 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 
 		FNotificationInfo Info(LOCTEXT("SharedProjectLocalDDC", "This project recommends you setup the 'Global Local DDC Path', \nso that all copies of this project use the same local DDC cache."));
 		Info.bUseSuccessFailIcons = true;
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
 		Info.bFireAndForget = false;
 		Info.bUseThrobber = false;
 		Info.FadeOutDuration = 0.0f;
@@ -195,13 +186,14 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 				Notification->SetCompletionState(SNotificationItem::CS_None);
 				Notification->ExpireAndFadeout();
 			}
-		})));
+		}),
+		SNotificationItem::ECompletionState::CS_Fail));
 
 		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
 		if (NotificationItem.IsValid())
 		{
 			NotificationPromise.SetValue(NotificationItem);
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
 		}
 	}
 
@@ -211,7 +203,6 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 
 		FNotificationInfo Info(LOCTEXT("SharedProjectS3DDC", "This project recommends you setup the 'Global Local S3 DDC Path', \nso that all copies of this project use the same local S3 DDC cache."));
 		Info.bUseSuccessFailIcons = true;
-		Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
 		Info.bFireAndForget = false;
 		Info.bUseThrobber = false;
 		Info.FadeOutDuration = 0.0f;
@@ -226,13 +217,14 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 				Notification->SetCompletionState(SNotificationItem::CS_None);
 				Notification->ExpireAndFadeout();
 			}
-		})));
+		}),
+		SNotificationItem::ECompletionState::CS_Fail));
 
 		TSharedPtr<SNotificationItem> NotificationItem = FSlateNotificationManager::Get().AddNotification(Info);
 		if (NotificationItem.IsValid())
 		{
 			NotificationPromise.SetValue(NotificationItem);
-			NotificationItem->SetCompletionState(SNotificationItem::CS_Pending);
+			NotificationItem->SetCompletionState(SNotificationItem::CS_Fail);
 		}
 	}
 

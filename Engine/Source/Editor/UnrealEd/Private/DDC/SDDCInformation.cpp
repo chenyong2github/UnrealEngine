@@ -18,6 +18,8 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Algo/Compare.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Styling/StyleColors.h"
+#include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "SDDCInformation"
 
@@ -174,7 +176,7 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 	Panel->AddSlot(0, Row)
 	[
 		SNew(STextBlock)
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		.ColorAndOpacity(FStyleColors::ForegroundHover)
 		.Text(LOCTEXT("DDC", "DDC"))
 	];
 
@@ -182,7 +184,7 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(5, 0))
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		.ColorAndOpacity(FStyleColors::ForegroundHover)
 		.Text(LOCTEXT("Speed", "Speed"))
 	];
 
@@ -190,7 +192,7 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(5, 0))
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		.ColorAndOpacity(FStyleColors::ForegroundHover)
 		.Text(LOCTEXT("Loaded", "Loaded"))
 	];
 
@@ -198,17 +200,16 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 	[
 		SNew(STextBlock)
 		.Margin(FMargin(5, 0))
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+		.ColorAndOpacity(FStyleColors::ForegroundHover)
 		.Text(LOCTEXT("HitPercentage", "Hit%"))
 	];
 
 	Panel->AddSlot(4, Row)
 	[
-		SNew(STextBlock)
-		.Margin(FMargin(5, 0))
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-		.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.12"))
-		.Text(FEditorFontGlyphs::Pencil)
+		SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
+		.ColorAndOpacity(FStyleColors::ForegroundHover)
+		
 	];
 
 	Row++;
@@ -270,8 +271,9 @@ TSharedRef<SWidget> SDDCInformation::GetComplexDataGrid()
 			Panel->AddSlot(4, Row)
 			.HAlign(HAlign_Center)
 			[
-				SNew(SCheckBox)
-				.IsChecked(Backend->IsWritable() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Check"))
+				.Visibility(Backend->IsWritable() ? EVisibility::Visible : EVisibility::Hidden)
 			];
 
 			Row++;

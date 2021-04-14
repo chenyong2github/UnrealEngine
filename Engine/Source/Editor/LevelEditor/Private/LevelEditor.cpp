@@ -41,7 +41,6 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "Classes/EditorStyleSettings.h"
-#include "DDC/SDDCStatusIndicator.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -224,13 +223,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			[
 				LevelEditorTmp->GetTitleBarMessageWidget()
 			]
-			
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SDDCStatusIndicator)
-			]
-
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.Padding(0.0f, 0.0f, 8.0f, 0.0f)

@@ -69,7 +69,7 @@
 #include "Elements/Component/ComponentElementLevelEditorCommonActionsCustomization.h"
 #include "Elements/SMInstance/SMInstanceElementId.h"
 #include "Elements/SMInstance/SMInstanceElementLevelEditorSelectionCustomization.h"
-#include <atomic>
+#include "DDC/SDDCStatusIndicator.h"
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
 
@@ -1912,9 +1912,9 @@ void SLevelEditor::RegisterStatusBarTools()
 
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.StatusBar.ToolBar");
 	
-	FToolMenuSection& Section = Menu->AddSection("Compile", FText::GetEmpty(), FToolMenuInsert("SourceControl", EToolMenuInsertType::Before));
+	FToolMenuSection& CompileSection = Menu->AddSection("Compile", FText::GetEmpty(), FToolMenuInsert("SourceControl", EToolMenuInsertType::Before));
 
-	Section.AddDynamicEntry("CompilerAvailable", 
+	CompileSection.AddDynamicEntry("CompilerAvailable",
 		FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
 			// Only show the compile options on machines with the solution (assuming they can build it)
@@ -1950,6 +1950,15 @@ void SLevelEditor::RegisterStatusBarTools()
 #endif
 			}
 		}));
+
+
+	FToolMenuSection& DDCSection = Menu->AddSection("DDC", FText::GetEmpty(), FToolMenuInsert("Compile", EToolMenuInsertType::Before));
+
+	DDCSection.AddEntry(
+		FToolMenuEntry::InitWidget("DDCStatusIndicator", SNew(SDDCStatusIndicator), FText::GetEmpty(), true, false)
+	);
+
+
 }
 
 void SLevelEditor::AddStandaloneLevelViewport( const TSharedRef<SLevelViewport>& LevelViewport )
