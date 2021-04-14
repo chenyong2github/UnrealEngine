@@ -80,7 +80,7 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	{
 	}
 
-	RootComponent = NewObject< USceneComponent >( this, USceneComponent::StaticClass(), TEXT("DatasmithRuntimeComponent"), RF_Transactional );
+	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DatasmithRuntimeComponent"));
 	AddInstanceComponent( RootComponent );
 	RootComponent->SetMobility(EComponentMobility::Movable);
 	RootComponent->Bounds = DefaultBounds;
