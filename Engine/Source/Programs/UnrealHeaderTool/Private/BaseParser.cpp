@@ -181,7 +181,7 @@ FString FPropertySpecifier::ConvertToString() const
 // FBaseParser
 
 FBaseParser::FBaseParser()
-	: UHTConfig(UHTConfig.Get())
+	: UHTConfig(FUHTConfig::Get())
 	, StatementsParsed(0)
 	, LinesParsed(0)
 {
