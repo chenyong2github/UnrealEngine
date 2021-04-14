@@ -174,7 +174,7 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 	UWorldPartitionConvertOptions* DefaultConvertOptions = GetMutableDefault<UWorldPartitionConvertOptions>();
 	DefaultConvertOptions->CommandletClass = GetDefault<UWorldPartitionEditorSettings>()->CommandletClass;
 	DefaultConvertOptions->bInPlace = false;
-	DefaultConvertOptions->bSkipStableGUIDValidation = true;
+	DefaultConvertOptions->bSkipStableGUIDValidation = false;
 	DefaultConvertOptions->LongPackageName = InLongPackageName;
 
 	TSharedPtr<SWindow> DlgWindow =
@@ -241,6 +241,15 @@ bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)
 			if (Result == 0)
 			{
 				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("ConvertMapCompleted", "Conversion succeeded. Editor will now restart."));
+
+#if	PLATFORM_DESKTOP
+				if (DefaultConvertOptions->bGenerateIni)
+				{
+					const FString PackageFilename = FPackageName::LongPackageNameToFilename(DefaultConvertOptions->LongPackageName);
+					const FString PackageDirectory = FPaths::ConvertRelativePathToFull(FPaths::GetPath(PackageFilename));
+					FPlatformProcess::ExploreFolder(*PackageDirectory);
+				}
+#endif
 				FUnrealEdMisc::Get().RestartEditor(false);
 			}
 		}
