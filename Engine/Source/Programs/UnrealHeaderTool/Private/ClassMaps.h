@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/Stack.h"
 #include "UObject/ErrorException.h"
-#include "UnderlyingEnumType.h"
 
 #include "UnrealSourceFile.h"
 #include "UObject/ErrorException.h"
+#include "UnrealTypeDefinitionInfo.h"
 
 class UField;
 class UClass;
@@ -20,15 +20,6 @@ class FArchive;
 struct FManifestModule;
 class FUnrealSourceFile;
 class FUnrealTypeDefinitionInfo;
-
-enum class ESerializerArchiveType
-{
-	None = 0,
-
-	Archive                 = 1,
-	StructuredArchiveRecord = 2
-};
-ENUM_CLASS_FLAGS(ESerializerArchiveType)
 
 struct FArchiveTypeDefinePair
 {

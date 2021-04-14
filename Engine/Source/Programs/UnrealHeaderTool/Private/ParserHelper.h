@@ -13,6 +13,7 @@
 #include "ClassMaps.h"
 #include "Templates/UniqueObj.h"
 #include "Templates/UniquePtr.h"
+#include "UnrealTypeDefinitionInfo.h"
 
 class UEnum;
 class UScriptStruct;
@@ -67,12 +68,6 @@ struct EArrayType
 		Dynamic,
 		Set
 	};
-};
-
-enum class EAllocatorType
-{
-	Default,
-	MemoryImage
 };
 
 struct ERefQualifier
