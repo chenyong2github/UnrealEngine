@@ -44,10 +44,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "1", ClampMax = "10", UIMax = "4"))
 	int32 GutterSize = 2;
 
-	/** Max distance to search for the outer mesh surface */
-	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
-	double MaxDistance = 50;
-
 	/** The resulting automatically-generated texture map */
 	UPROPERTY(VisibleAnywhere, Category = MapSettings)
 	UTexture2D* Result;
@@ -55,6 +51,43 @@ public:
 	/** Whether to prompt user for an asset name for each generated texture, or automatically place them next to the source geometry collections */
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bPromptToSave = true;
+
+	/** Bake the distance to the external surface to a texture channel (red) */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	bool bDistToOuter = true;
+
+	/** Bake the ambient occlusion of each bone (considered separately) to a texture channel (green) */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	bool bAmbientOcclusion = true;
+
+	/** Bake the Z-component of the normal to a texture channel (blue) */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	bool bZNormal = true;
+
+	/** Bake the Z-component of the position (relative to the overall bounding box) to a texture channel (alpha) */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	bool bZPosition = false;
+
+	/** Max distance to search for the outer mesh surface */
+	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
+	double MaxDistance = 100;
+
+	/** Number of occlusion rays */
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides, UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
+	int OcclusionRays = 16;
+
+	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides))
+	bool bGaussianBlur = true;
+
+	/** Pixel Radius of Gaussian Blur Kernel */
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion && bGaussianBlur", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	double BlurRadius = 2.25;
+
+	/** Whether to use the absolute value of the Z-Component of the normal */
+	UPROPERTY(EditAnywhere, Category = ZNormalSettings, meta = (EditCondition = "bZNormal", EditConditionHides))
+	bool bUseAbsoluteValue = true;
+
 };
 
 

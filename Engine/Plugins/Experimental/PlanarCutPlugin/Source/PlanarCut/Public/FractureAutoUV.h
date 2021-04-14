@@ -28,22 +28,47 @@ bool PLANARCUT_API UVLayout(
 );
 
 
+// Different attributes we can bake
+enum class EBakeAttributes : int32
+{
+	None,
+	DistanceToExternal,
+	AmbientOcclusion,
+	//Curvature, // TODO: add a smoothed curvature attribute
+	NormalZ,
+	PositionZ
+};
+
+struct FTextureAttributeSettings
+{
+	double ToExternal_MaxDistance = 100.0;
+	int AO_Rays = 32;
+	double AO_BiasAngleDeg = 15.0;
+	bool bAO_Blur = true;
+	double AO_BlurRadius = 2.5;
+	double AO_MaxDistance = 0.0; // 0.0 is interpreted as TNumericLimits<double>::Max()
+	bool bNormalZ_TakeAbs = true;
+};
+
+
 /**
  * Generate a texture for internal faces based on depth inside surface
  * TODO: add options to texture based on other quantities
  *
  * @param Collection		The collection to be create a new texture for
- * @param MaxDistance		Maximum distance to search for 'outside' surface, when computing depth inside surface
  * @param GutterSize		Number of texels to fill outside of UV island borders (values are copied from nearest inside pt)
+ * @param BakeAttributes	Which attributes to bake into which color channel
+ * @param AttributeSettings	Settings for the BakeAttributes
  * @param TextureOut		Texture to write to
  * @param bOnlyOddMaterials	If true, restrict UV island layout to odd-numbered material IDs
  * @param WhichMaterials	If non-empty, restrict UV island layout to only the listed material IDs
  */
 void PLANARCUT_API TextureInternalSurfaces(
 	FGeometryCollection& Collection,
-	double MaxDistance,
 	int32 GutterSize,
-	UE::Geometry::TImageBuilder<FVector3f>& TextureOut,
+	UE::Geometry::FIndex4i BakeAttributes,
+	const FTextureAttributeSettings& AttributeSettings,
+	UE::Geometry::TImageBuilder<FVector4f>& TextureOut,
 	bool bOnlyOddMaterials = true,
 	TArrayView<int32> WhichMaterials = TArrayView<int32>()
 );

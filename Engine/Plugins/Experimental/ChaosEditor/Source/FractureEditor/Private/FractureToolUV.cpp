@@ -165,8 +165,6 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 		}
 	}
 
-	FString UseBaseName = ObjectBaseName;
-
 	// create new package
 	FString UniqueAssetName;
 	FString UniquePackageName;
@@ -174,7 +172,6 @@ bool UFractureToolAutoUV::SaveGeneratedTexture(UTexture2D* GeneratedTexture, FSt
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(PackageFolderPath + TEXT("/") + ObjectBaseName, TEXT(""), UniquePackageName, UniqueAssetName);
 
-	UPackage* Package = CreatePackage(*UniquePackageName);
 	UPackage* AssetPackage = CreatePackage(*UniquePackageName);
 
 	// move texture from Transient package to real package
@@ -218,11 +215,26 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		FImageDimensions Dimensions(OutputRes, OutputRes);
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
 
-		UE::Geometry::TImageBuilder<FVector3f> ImageBuilder;
+		UE::Geometry::TImageBuilder<FVector4f> ImageBuilder;
 		ImageBuilder.SetDimensions(Dimensions);
-		ImageBuilder.Clear(FVector3f(0, 0, 0));
+		ImageBuilder.Clear(FVector4f(0, 0, 0, 0));
 
-		UE::PlanarCut::TextureInternalSurfaces(Collection, AutoUVSettings->MaxDistance, FMath::CeilToInt(AutoUVSettings->GutterSize), ImageBuilder);
+		typedef UE::PlanarCut::EBakeAttributes EBakeAttributes;
+		// Note: Ordering of these attributes should match the order and comments in the AutoUVSettings struct
+		//		 Update the order and comments there if you change the ordering here.
+		FIndex4i Attributes(
+			AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0, 
+			AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0, 
+			AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0,
+			AutoUVSettings->bZPosition ? (int32)EBakeAttributes::PositionZ : 0
+		);
+		UE::PlanarCut::FTextureAttributeSettings AttribSettings;
+		AttribSettings.ToExternal_MaxDistance = AutoUVSettings->MaxDistance;
+		AttribSettings.AO_Rays = AutoUVSettings->OcclusionRays;
+		AttribSettings.bAO_Blur = AutoUVSettings->bGaussianBlur;
+		AttribSettings.AO_BlurRadius = AutoUVSettings->BlurRadius;
+		AttribSettings.bNormalZ_TakeAbs = AutoUVSettings->bUseAbsoluteValue;
+		UE::PlanarCut::TextureInternalSurfaces(Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder);
 
 		UVTask.EnterProgressFrame(1, LOCTEXT("SavingTexture", "Saving result"));
 
