@@ -221,7 +221,7 @@ namespace P4VUtils.Commands
 			{
 				Logger.LogInformation("Re-opening the following files for {Operation}:", Operation);
 
-				string[] LocalFiles = Records.Select(x => OpenedClientToLocalMap[x.ClientFile!]).ToArray();
+				string[] LocalFiles = Records.Select(x => PerforceUtils.EscapePath(OpenedClientToLocalMap[x.ClientFile!])).ToArray();
 				foreach (string LocalFile in LocalFiles)
 				{
 					Logger.LogInformation("    {LocalFile}", LocalFile);

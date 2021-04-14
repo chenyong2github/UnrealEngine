@@ -394,12 +394,8 @@ namespace EpicGames.Perforce
 			{
 				Arguments.AppendFormat(" -t \"{0}\"", FileType);
 			}
-			foreach (string FileName in FileNames)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileName);
-			}
 
-			return CommandAsync<AddRecord>(Arguments.ToString(), null, CancellationToken);
+			return BatchedCommandAsync<AddRecord>(Arguments.ToString(), FileNames, null, CancellationToken);
 		}
 
 		#endregion
@@ -1188,11 +1184,8 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Append(" -v");
 			}
-			foreach (string FileSpec in FileSpecs)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
-			}
-			return CommandAsync<DeleteRecord>(Arguments.ToString(), null, CancellationToken);
+
+			return BatchedCommandAsync<DeleteRecord>(Arguments.ToString(), FileSpecs, null, CancellationToken);
 		}
 
 		#endregion
@@ -1370,12 +1363,8 @@ namespace EpicGames.Perforce
 			{
 				Arguments.AppendFormat(" -t \"{0}\"", FileType);
 			}
-			foreach (string FileSpec in FileSpecs)
-			{
-				Arguments.AppendFormat(" \"{0}\"", FileSpec);
-			}
 
-			return CommandAsync<EditRecord>(Arguments.ToString(), null, CancellationToken);
+			return BatchedCommandAsync<EditRecord>(Arguments.ToString(), FileSpecs, null, CancellationToken);
 		}
 
 		#endregion
