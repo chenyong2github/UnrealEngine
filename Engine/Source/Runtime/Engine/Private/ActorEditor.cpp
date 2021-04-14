@@ -166,6 +166,10 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 			{
 				ReregisterAllComponents();
 			}
+			else
+			{
+				PostRegisterAllComponents();
+			}
 		}
 		else
 		{
