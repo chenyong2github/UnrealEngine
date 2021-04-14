@@ -5,6 +5,7 @@
 #include "VideoEncoderCommon.h"
 #include "VideoEncoderFactory.h"
 #include "AVEncoderDebug.h"
+#include "Misc/Paths.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

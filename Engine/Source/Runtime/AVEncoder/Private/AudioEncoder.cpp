@@ -1,4 +1,5 @@
 #include "AudioEncoder.h"
+#include "Misc/ScopeLock.h"
 
 namespace AVEncoder
 {
