@@ -556,6 +556,8 @@ protected:
 		});
 	}
 
+	void DeactivateAllModesPendingDeletion();
+
 	/** List of default modes for this tool.  These must all be compatible with each other. */
 	TArray<FEditorModeID> DefaultModeIDs;
 
