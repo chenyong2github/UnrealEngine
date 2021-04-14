@@ -69,6 +69,17 @@ public:
 	[[nodiscard]] CORE_API FBlake3Hash GetRawHash() const;
 
 	/**
+	 * Returns the name of the compression format used by this buffer.
+	 *
+	 * The format name may differ from the format name specified when creating the compressed buffer
+	 * because an incompressible buffer is stored with NAME_None, and a request of NAME_Default will
+	 * be stored in a specific format such as NAME_LZ4.
+	 *
+	 * @return The format name, or NAME_None if this null, or NAME_Error if the format is unknown.
+	 */
+	[[nodiscard]] CORE_API FName GetFormatName() const;
+
+	/**
 	 * Decompress into a memory view that is exactly GetRawSize() bytes.
 	 */
 	[[nodiscard]] CORE_API bool TryDecompressTo(FMutableMemoryView RawView) const;

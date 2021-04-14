@@ -514,6 +514,19 @@ static const FMethod* GetMethod(FName FormatName)
 	return nullptr;
 }
 
+static FName GetMethodName(EMethod Method)
+{
+	switch (Method)
+	{
+	default:
+		return NAME_Error;
+	case EMethod::None:
+		return NAME_None;
+	case EMethod::LZ4:
+		return NAME_LZ4;
+	}
+}
+
 template <typename BufferType>
 inline FCompositeBuffer ValidBufferOrEmpty(BufferType&& CompressedData)
 {
@@ -626,6 +639,12 @@ uint64 FCompressedBuffer::GetRawSize() const
 FBlake3Hash FCompressedBuffer::GetRawHash() const
 {
 	return CompressedData ? UE::CompressedBuffer::FHeader::Read(CompressedData).RawHash : FBlake3Hash();
+}
+
+FName FCompressedBuffer::GetFormatName() const
+{
+	using namespace UE::CompressedBuffer;
+	return CompressedData ? GetMethodName(FHeader::Read(CompressedData).Method) : NAME_None;
 }
 
 bool FCompressedBuffer::TryDecompressTo(FMutableMemoryView RawView) const
