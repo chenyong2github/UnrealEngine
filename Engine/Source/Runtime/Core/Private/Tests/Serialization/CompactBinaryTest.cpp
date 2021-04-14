@@ -326,6 +326,15 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("FCbFieldView(Object) Range"), Field.AsInt32(), ActualNum);
 		}
 		TestEqual(TEXT("FCbFieldView(Object)::AsObjectView() Range -> Count"), ActualNum, ExpectedNum);
+
+		ActualNum = 0;
+		for (FCbFieldView Field : Object.AsFieldView())
+		{
+			++ActualNum;
+			TestNotEqual(TEXT("FCbFieldView(ObjectField) Iterator Name"), Field.GetName().Len(), 0);
+			TestEqual(TEXT("FCbFieldView(ObjectField) Range"), Field.AsInt32(), ActualNum);
+		}
+		TestEqual(TEXT("FCbFieldView(ObjectField)::AsObjectView() Range -> Count"), ActualNum, ExpectedNum);
 	};
 
 	// Test FCbFieldView(Object, Empty)
@@ -447,6 +456,9 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		for (FCbFieldIterator It = ObjectClone.CreateIterator(), End; It != End; ++It)
 		{
 		}
+		for (FCbField Field : ObjectClone)
+		{
+		}
 
 		// CopyTo
 		uint8 CopyBytes[6];
@@ -512,6 +524,14 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("FCbFieldView(Array) Range"), Field.AsInt32(), ActualNum);
 		}
 		TestEqual(TEXT("FCbFieldView(Array)::AsArrayView() Range -> Count"), ActualNum, ExpectedNum);
+
+		ActualNum = 0;
+		for (FCbFieldView Field : Array.AsFieldView())
+		{
+			++ActualNum;
+			TestEqual(TEXT("FCbFieldView(ArrayField) Range"), Field.AsInt32(), ActualNum);
+		}
+		TestEqual(TEXT("FCbFieldView(ArrayField)::AsArrayView() Range -> Count"), ActualNum, ExpectedNum);
 	};
 
 	// Test FCbFieldView(Array, Empty)
@@ -609,6 +629,9 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("FCbArray::CreateIterator().GetBuffer()"), Field.GetBuffer().GetView(), Field.GetView());
 		}
 		for (FCbFieldIterator It = ArrayClone.CreateIterator(), End; It != End; ++It)
+		{
+		}
+		for (FCbField Field : ArrayClone)
 		{
 		}
 
