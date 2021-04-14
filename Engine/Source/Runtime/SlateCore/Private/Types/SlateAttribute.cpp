@@ -31,7 +31,11 @@ namespace SlateAttributePrivate
 		int32 FoundIndex = UE::Slate::FWidgetList::GetAllWidgets().Find(Widget);
 		if (FoundIndex == INDEX_NONE)
 		{
-			return false; // the widget is already destroyed
+			// The widget is already destroyed (this is bad) or we are destroying the SWidget base class SlateAttribute (this is ok)
+			UPTRINT SlateAttributePtr = (UPTRINT)this;
+			UPTRINT WidgetPtr = (UPTRINT)Widget;
+			const bool bIsBaseWidgetAttribute = SlateAttributePtr >= WidgetPtr && SlateAttributePtr <= WidgetPtr + sizeof(SWidget);
+			return bIsBaseWidgetAttribute;
 		}
 		// if the shared instance exist, then the widget is not being destroyed
 		return !UE::Slate::FWidgetList::GetAllWidgets()[FoundIndex]->DoesSharedInstanceExist();

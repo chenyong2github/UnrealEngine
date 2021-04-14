@@ -881,7 +881,7 @@ namespace SlateAttributePrivate
 		~TSlateMemberAttribute()
 		{
 			/**
-			 * The parent should now be destroyed and the shared pointer should invalidate.
+			 * The parent should now be destroyed and the shared pointer should be invalidate.
 			 * If you hit the check, that means the TSlateAttribute is not a variable member of SWidget.
 			 * It will introduced bad memory access.
 			 * See documentation above.
