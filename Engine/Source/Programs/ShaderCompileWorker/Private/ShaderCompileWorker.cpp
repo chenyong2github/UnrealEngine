@@ -886,6 +886,14 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 			{
 				Frequency = SF_Vertex;
 			}
+			else if (!FCString::Strcmp(*Token, TEXT("ms")))
+			{
+				Frequency = SF_Mesh;
+			}
+			else if (!FCString::Strcmp(*Token, TEXT("as")))
+			{
+				Frequency = SF_Amplification;
+			}
 			else if (!FCString::Strcmp(*Token, TEXT("hs")))
 			{
 				Frequency = SF_Hull;

@@ -1225,12 +1225,14 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	Text += Input.EntryPointName;
 	switch (Input.Target.Frequency)
 	{
-	case SF_Vertex:		Text += TEXT(" -vs"); break;
-	case SF_Hull:		Text += TEXT(" -hs"); break;
-	case SF_Domain:		Text += TEXT(" -ds"); break;
-	case SF_Geometry:	Text += TEXT(" -gs"); break;
-	case SF_Pixel:		Text += TEXT(" -ps"); break;
-	case SF_Compute:	Text += TEXT(" -cs"); break;
+	case SF_Vertex:			Text += TEXT(" -vs"); break;
+	case SF_Mesh:			Text += TEXT(" -ms"); break;
+	case SF_Amplification:	Text += TEXT(" -as"); break;
+	case SF_Hull:			Text += TEXT(" -hs"); break;
+	case SF_Domain:			Text += TEXT(" -ds"); break;
+	case SF_Geometry:		Text += TEXT(" -gs"); break;
+	case SF_Pixel:			Text += TEXT(" -ps"); break;
+	case SF_Compute:		Text += TEXT(" -cs"); break;
 #if RHI_RAYTRACING
 	case SF_RayGen:			Text += TEXT(" -rgs"); break;
 	case SF_RayMiss:		Text += TEXT(" -rms"); break;

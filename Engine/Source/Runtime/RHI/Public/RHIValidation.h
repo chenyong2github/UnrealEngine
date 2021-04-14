@@ -172,6 +172,20 @@ public:
 		return RHI->RHICreateGeometryShader(Code, Hash);
 	}
 
+	// FlushType: Wait RHI Thread
+	virtual FMeshShaderRHIRef RHICreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+	{
+		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		return RHI->RHICreateMeshShader(Code, Hash);
+	}
+
+	// FlushType: Wait RHI Thread
+	virtual FAmplificationShaderRHIRef RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+	{
+		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		return RHI->RHICreateAmplificationShader(Code, Hash);
+	}
+
 	// Some RHIs can have pending messages/logs for error tracking, or debug modes
 	virtual void FlushPendingLogs() override final
 	{
@@ -1383,6 +1397,18 @@ public:
 	{
 		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
 		return RHI->CreateGeometryShader_RenderThread(RHICmdList, Code, Hash);
+	}
+
+	virtual FMeshShaderRHIRef CreateMeshShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
+	{
+		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		return RHI->CreateMeshShader_RenderThread(RHICmdList, Code, Hash);
+	}
+
+	virtual FAmplificationShaderRHIRef CreateAmplificationShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
+	{
+		check(RHISupportsMeshShaders(GMaxRHIShaderPlatform));
+		return RHI->CreateAmplificationShader_RenderThread(RHICmdList, Code, Hash);
 	}
 
 	virtual FComputeShaderRHIRef CreateComputeShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final

@@ -4598,6 +4598,8 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("DOMAINSHADER"), Target.Frequency == SF_Domain);
 		Input.Environment.SetDefine(TEXT("HULLSHADER"), Target.Frequency == SF_Hull);
 		Input.Environment.SetDefine(TEXT("VERTEXSHADER"), Target.Frequency == SF_Vertex);
+		Input.Environment.SetDefine(TEXT("MESHSHADER"), Target.Frequency == SF_Mesh);
+		Input.Environment.SetDefine(TEXT("AMPLIFICATIONSHADER"), Target.Frequency == SF_Amplification);
 		Input.Environment.SetDefine(TEXT("GEOMETRYSHADER"), Target.Frequency == SF_Geometry);
 		Input.Environment.SetDefine(TEXT("COMPUTESHADER"), Target.Frequency == SF_Compute);
 		Input.Environment.SetDefine(TEXT("RAYCALLABLESHADER"), Target.Frequency == SF_RayCallable);
@@ -5609,10 +5611,9 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 		const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
 		if (Pipeline->IsGlobalTypePipeline())
 		{
-			if (!GlobalShaderMap->HasShaderPipeline(Pipeline) || (OutdatedShaderPipelineTypes && OutdatedShaderPipelineTypes->Contains(Pipeline)))
+			if (Pipeline->ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, kUniqueShaderPermutationId, PermutationFlags))
+				&& (!GlobalShaderMap->HasShaderPipeline(Pipeline) || (OutdatedShaderPipelineTypes && OutdatedShaderPipelineTypes->Contains(Pipeline))))
 			{
-				auto& StageTypes = Pipeline->GetStages();
-
 				if (OutdatedShaderPipelineTypes)
 				{
 					// Remove old pipeline
@@ -5637,7 +5638,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 				else
 				{
 					// If sharing shaders amongst pipelines, add this pipeline as a dependency of an existing individual job
-					for (const FShaderType* ShaderType : StageTypes)
+					for (const FShaderType* ShaderType : Pipeline->GetStages())
 					{
 						TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, kUniqueShaderPermutationId);
 

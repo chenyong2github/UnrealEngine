@@ -800,24 +800,21 @@ static TArray<FShaderPipelineType*>& GetSortedShaderPipelineTypes(FShaderType::E
 
 FShaderPipelineType::FShaderPipelineType(
 	const TCHAR* InName,
-	const FShaderType* InVertexShader,
-	const FShaderType* InHullShader,
-	const FShaderType* InDomainShader,
-	const FShaderType* InGeometryShader,
+	const FShaderType* InVertexOrMeshShader,
+	const FShaderType* InGeometryOrAmplificationShader,
 	const FShaderType* InPixelShader,
+	bool bInIsMeshPipeline,
 	bool bInShouldOptimizeUnusedOutputs) :
 	Name(InName),
 	TypeName(Name),
 	HashedName(TypeName),
-	HashedPrimaryShaderFilename(InVertexShader->GetShaderFilename()),
+	HashedPrimaryShaderFilename(InVertexOrMeshShader->GetShaderFilename()),
 	GlobalListLink(this),
 	bShouldOptimizeUnusedOutputs(bInShouldOptimizeUnusedOutputs)
 {
 	checkf(Name && *Name, TEXT("Shader Pipeline Type requires a valid Name!"));
 
-	checkf(InVertexShader, TEXT("A Shader Pipeline always requires a Vertex Shader"));
-
-	checkf((InHullShader == nullptr && InDomainShader == nullptr) || (InHullShader != nullptr && InDomainShader != nullptr), TEXT("Both Hull & Domain shaders are needed for tessellation on Pipeline %s"), Name);
+	checkf(InVertexOrMeshShader, TEXT("A Shader Pipeline always requires a Vertex or Mesh Shader"));
 
 	//make sure the name is shorter than the maximum serializable length
 	check(FCString::Strlen(InName) < NAME_SIZE);
@@ -826,28 +823,19 @@ FShaderPipelineType::FShaderPipelineType(
 
 	if (InPixelShader)
 	{
-		check(InPixelShader->GetTypeForDynamicCast() == InVertexShader->GetTypeForDynamicCast());
+		check(InPixelShader->GetTypeForDynamicCast() == InVertexOrMeshShader->GetTypeForDynamicCast());
 		Stages.Add(InPixelShader);
 		AllStages[SF_Pixel] = InPixelShader;
 	}
-	if (InGeometryShader)
-	{
-		check(InGeometryShader->GetTypeForDynamicCast() == InVertexShader->GetTypeForDynamicCast());
-		Stages.Add(InGeometryShader);
-		AllStages[SF_Geometry] = InGeometryShader;
-	}
-	if (InDomainShader)
-	{
-		check(InDomainShader->GetTypeForDynamicCast() == InVertexShader->GetTypeForDynamicCast());
-		check(InHullShader->GetTypeForDynamicCast() == InVertexShader->GetTypeForDynamicCast());
-		Stages.Add(InDomainShader);
-		AllStages[SF_Domain] = InDomainShader;
 
-		Stages.Add(InHullShader);
-		AllStages[SF_Hull] = InHullShader;
+	if (InGeometryOrAmplificationShader)
+	{
+		check(InGeometryOrAmplificationShader->GetTypeForDynamicCast() == InVertexOrMeshShader->GetTypeForDynamicCast());
+		Stages.Add(InGeometryOrAmplificationShader);
+		AllStages[bInIsMeshPipeline ? SF_Amplification : SF_Geometry] = InGeometryOrAmplificationShader;
 	}
-	Stages.Add(InVertexShader);
-	AllStages[SF_Vertex] = InVertexShader;
+	Stages.Add(InVertexOrMeshShader);
+	AllStages[bInIsMeshPipeline ? SF_Mesh : SF_Vertex] = InVertexOrMeshShader;
 
 	for (uint32 FrequencyIndex = 0; FrequencyIndex < SF_NumStandardFrequencies; ++FrequencyIndex)
 	{
@@ -864,7 +852,7 @@ FShaderPipelineType::FShaderPipelineType(
 	GlobalListLink.LinkHead(GetTypeList());
 	GetNameToTypeMap().Add(HashedName, this);
 
-	TArray<FShaderPipelineType*>& SortedTypes = GetSortedShaderPipelineTypes(InVertexShader->GetTypeForDynamicCast());
+	TArray<FShaderPipelineType*>& SortedTypes = GetSortedShaderPipelineTypes(InVertexOrMeshShader->GetTypeForDynamicCast());
 	const int32 SortedIndex = Algo::LowerBoundBy(SortedTypes, HashedName, [](const FShaderPipelineType* InType) { return InType->GetHashedName(); });
 	SortedTypes.Insert(this, SortedIndex);
 
@@ -878,7 +866,7 @@ FShaderPipelineType::~FShaderPipelineType()
 	GetNameToTypeMap().Remove(HashedName);
 	GlobalListLink.Unlink();
 
-	TArray<FShaderPipelineType*>& SortedTypes = GetSortedShaderPipelineTypes(AllStages[SF_Vertex]->GetTypeForDynamicCast());
+	TArray<FShaderPipelineType*>& SortedTypes = GetSortedShaderPipelineTypes(AllStages[HasMeshShader() ? SF_Mesh : SF_Vertex]->GetTypeForDynamicCast());
 	const int32 SortedIndex = Algo::BinarySearchBy(SortedTypes, HashedName, [](const FShaderPipelineType* InType) { return InType->GetHashedName(); });
 	check(SortedIndex != INDEX_NONE);
 	SortedTypes.RemoveAt(SortedIndex);
@@ -1002,6 +990,18 @@ const FSHAHash& FShaderPipelineType::GetSourceHash(EShaderPlatform ShaderPlatfor
 		Filenames.Add(ShaderType->GetShaderFilename());
 	}
 	return GetShaderFilesHash(Filenames, ShaderPlatform);
+}
+
+bool FShaderPipelineType::ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const
+{
+	for (const FShaderType* ShaderType : Stages)
+	{
+		if (!ShaderType->ShouldCompilePermutation(Parameters))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 void FShaderPipeline::AddShader(FShader* Shader, int32 PermutationId)

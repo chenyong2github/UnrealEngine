@@ -377,7 +377,9 @@ bool FGlobalShaderMap::IsComplete(const ITargetPlatform* TargetPlatform) const
 	for (TLinkedList<FShaderPipelineType*>::TIterator ShaderPipelineIt(FShaderPipelineType::GetTypeList()); ShaderPipelineIt; ShaderPipelineIt.Next())
 	{
 		const FShaderPipelineType* Pipeline = *ShaderPipelineIt;
-		if (Pipeline->IsGlobalTypePipeline() && !HasShaderPipeline(Pipeline))
+		if (Pipeline->IsGlobalTypePipeline()
+			&& Pipeline->ShouldCompilePermutation(FGlobalShaderPermutationParameters(Platform, kUniqueShaderPermutationId, PermutationFlags))
+			&& !HasShaderPipeline(Pipeline))
 		{
 			return false;
 		}

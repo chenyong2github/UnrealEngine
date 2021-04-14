@@ -666,7 +666,7 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 			return false;
 		}
 
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 		if (GraphicsDesc.VertexShader != FSHAHash() && GraphicsDesc.MeshShader != FSHAHash())
 		{
 			// Vertex shader and mesh shader are mutually exclusive
@@ -3407,6 +3407,16 @@ struct FPipelineCacheFileData
 									if (PSO.GraphicsDesc.DomainShader != FSHAHash())
 									{
 										Entry.Value.Shaders.Add(PSO.GraphicsDesc.DomainShader);
+									}
+
+									if (PSO.GraphicsDesc.MeshShader != FSHAHash())
+									{
+										Entry.Value.Shaders.Add(PSO.GraphicsDesc.MeshShader);
+									}
+
+									if (PSO.GraphicsDesc.AmplificationShader != FSHAHash())
+									{
+										Entry.Value.Shaders.Add(PSO.GraphicsDesc.AmplificationShader);
 									}
 									break;
 								case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:

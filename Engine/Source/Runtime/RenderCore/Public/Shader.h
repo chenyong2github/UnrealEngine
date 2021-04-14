@@ -1457,15 +1457,14 @@ public:
 	// Set bShouldOptimizeUnusedOutputs to false if the FShaders will point to the individual shaders in the map
 	FShaderPipelineType(
 		const TCHAR* InName,
-		const FShaderType* InVertexShader,
-		const FShaderType* InHullShader,
-		const FShaderType* InDomainShader,
-		const FShaderType* InGeometryShader,
+		const FShaderType* InVertexOrMeshShader,
+		const FShaderType* InGeometryOrAmplificationShader,
 		const FShaderType* InPixelShader,
+		bool bInIsMeshPipeline,
 		bool bInShouldOptimizeUnusedOutputs);
 	~FShaderPipelineType();
 
-	FORCEINLINE bool HasTessellation() const { return AllStages[SF_Domain] != nullptr; }
+	FORCEINLINE bool HasMeshShader() const { return AllStages[SF_Mesh] != nullptr; }
 	FORCEINLINE bool HasGeometry() const { return AllStages[SF_Geometry] != nullptr; }
 	FORCEINLINE bool HasPixelShader() const { return AllStages[SF_Pixel] != nullptr; }
 
@@ -1517,6 +1516,8 @@ public:
 	/** Calculates a Hash based on this shader pipeline type stages' source code and includes */
 	const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
 
+	bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
+
 protected:
 	const TCHAR* const Name;
 	FName TypeName;
@@ -1539,28 +1540,23 @@ protected:
 #if !UE_BUILD_DOCS
 // Vertex+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(PipelineName, VertexShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, nullptr, &PixelShaderType::StaticType, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, &PixelShaderType::StaticType, false, bRemoveUnused);
 // Only VS
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VS(PipelineName, VertexShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, nullptr, nullptr, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, false, bRemoveUnused);
 // Vertex+Geometry+Pixel
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSGSPS(PipelineName, VertexShaderType, GeometryShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, &GeometryShaderType::StaticType, &PixelShaderType::StaticType, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &GeometryShaderType::StaticType, &PixelShaderType::StaticType, false, bRemoveUnused);
 // Vertex+Geometry
 #define IMPLEMENT_SHADERPIPELINE_TYPE_VSGS(PipelineName, VertexShaderType, GeometryShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, nullptr, nullptr, &GeometryShaderType::StaticType, nullptr, bRemoveUnused);
-// Vertex+Hull+Domain+Pixel
-#define IMPLEMENT_SHADERPIPELINE_TYPE_VSHSDSPS(PipelineName, VertexShaderType, HullShaderType, DomainShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &HullShaderType::StaticType, &DomainShaderType::StaticType, nullptr, &PixelShaderType::StaticType, bRemoveUnused);
-// Vertex+Hull+Domain+Geometry+Pixel
-#define IMPLEMENT_SHADERPIPELINE_TYPE_VSHSDSGSPS(PipelineName, VertexShaderType, HullShaderType, DomainShaderType, GeometryShaderType, PixelShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &HullShaderType::StaticType, &DomainShaderType::StaticType, &GeometryShaderType::StaticType, &PixelShaderType::StaticType, bRemoveUnused);
-// Vertex+Hull+Domain
-#define IMPLEMENT_SHADERPIPELINE_TYPE_VSHSDS(PipelineName, VertexShaderType, HullShaderType, DomainShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &HullShaderType::StaticType, &DomainShaderType::StaticType, nullptr, nullptr, bRemoveUnused);
-// Vertex+Hull+Domain+Geometry
-#define IMPLEMENT_SHADERPIPELINE_TYPE_VSHSDSGS(PipelineName, VertexShaderType, HullShaderType, DomainShaderType, GeometryShaderType, bRemoveUnused)	\
-	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &HullShaderType::StaticType, &DomainShaderType::StaticType, &GeometryShaderType::StaticType, nullptr, bRemoveUnused);
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &VertexShaderType::StaticType, &GeometryShaderType::StaticType, nullptr, false, bRemoveUnused);
+
+// Mesh+Pixel
+#define IMPLEMENT_SHADERPIPELINE_TYPE_MSPS(PipelineName, MeshShaderType, PixelShaderType, bRemoveUnused)	\
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::StaticType, nullptr, &PixelShaderType::StaticType, true, bRemoveUnused);
+// Mesh+Amplification+Pixel
+#define IMPLEMENT_SHADERPIPELINE_TYPE_MSASPS(PipelineName, MeshShaderType, AmplificationShaderType, PixelShaderType, bRemoveUnused)	\
+	static FShaderPipelineType PipelineName(TEXT(PREPROCESSOR_TO_STRING(PipelineName)), &MeshShaderType::StaticType, &AmplificationShaderType::StaticType, &PixelShaderType::StaticType, true, bRemoveUnused);
 #endif
 
 /** Encapsulates a dependency on a shader type and saved state from that shader type. */

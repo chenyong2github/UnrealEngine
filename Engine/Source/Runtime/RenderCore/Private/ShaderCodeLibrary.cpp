@@ -673,11 +673,11 @@ void FShaderCodeLibraryPipeline::Initialize(const FShaderPipeline* Pipeline)
 void FShaderCodeLibraryPipeline::GetPipelineHash(FSHAHash& Output)
 {
 	FSHA1 Hasher;
-	Hasher.Update(&Shaders[SF_Vertex].Hash[0], sizeof(FSHAHash));
-	Hasher.Update(&Shaders[SF_Pixel].Hash[0], sizeof(FSHAHash));
-	Hasher.Update(&Shaders[SF_Geometry].Hash[0], sizeof(FSHAHash));
-	Hasher.Update(&Shaders[SF_Hull].Hash[0], sizeof(FSHAHash));
-	Hasher.Update(&Shaders[SF_Domain].Hash[0], sizeof(FSHAHash));
+
+	for (int32 Frequency = 0; Frequency < SF_NumGraphicsFrequencies; Frequency++)
+	{
+		Hasher.Update(&Shaders[Frequency].Hash[0], sizeof(FSHAHash));
+	}
 
 	Hasher.Final();
 	Hasher.GetHash(&Output.Hash[0]);

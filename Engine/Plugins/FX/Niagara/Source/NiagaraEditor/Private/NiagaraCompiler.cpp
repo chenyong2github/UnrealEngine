@@ -1068,6 +1068,8 @@ void FNiagaraEditorModule::TestCompileScriptFromConsole(const TArray<FString>& A
 			Input.Environment.SetDefine(TEXT("HULLSHADER"), 0);
 			Input.Environment.SetDefine(TEXT("VERTEXSHADER"), 0);
 			Input.Environment.SetDefine(TEXT("GEOMETRYSHADER"), 0);
+			Input.Environment.SetDefine(TEXT("MESHSHADER"), 0);
+			Input.Environment.SetDefine(TEXT("AMPLIFICATIONSHADER"), 0);
 			Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), TranslatedHLSL);
 
 			FShaderCompilerOutput Output;
@@ -1164,6 +1166,8 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	Input.Environment.SetDefine(TEXT("HULLSHADER"), 0);
 	Input.Environment.SetDefine(TEXT("VERTEXSHADER"), 0);
 	Input.Environment.SetDefine(TEXT("GEOMETRYSHADER"), 0);
+	Input.Environment.SetDefine(TEXT("MESHSHADER"), 0);
+	Input.Environment.SetDefine(TEXT("AMPLIFICATIONSHADER"), 0);
 	Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), TranslatedHLSL);
 	Input.bGenerateDirectCompileFile = false;
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / TEXT("VM");
