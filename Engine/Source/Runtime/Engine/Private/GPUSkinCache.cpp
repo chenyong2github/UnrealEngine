@@ -107,7 +107,6 @@ static TAutoConsoleVariable<float> CVarGPUSkinCacheSceneMemoryLimitInMB(
 	ECVF_RenderThreadSafe
 );
 
-////temporary disable until resource lifetimes are safe for all cases
 static int32 GAllowDupedVertsForRecomputeTangents = 0;
 FAutoConsoleVariableRef CVarGPUSkinCacheAllowDupedVertesForRecomputeTangents(
 	TEXT("r.SkinCache.AllowDupedVertsForRecomputeTangents"),
@@ -164,7 +163,7 @@ ENGINE_API bool GPUSkinCacheNeedsDuplicatedVertices()
 #if WITH_EDITOR // Duplicated vertices are used in the editor when merging meshes
 	return true;
 #else
-	return (bool)GAllowDupedVertsForRecomputeTangents;
+	return GAllowDupedVertsForRecomputeTangents == 0;
 #endif
 }
 
@@ -1174,13 +1173,13 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 
 			if (bFullPrecisionUV)
 			{
-				if (GAllowDupedVertsForRecomputeTangents) Shader = ComputeShader11;
-				else Shader = ComputeShader01;
+				if (GAllowDupedVertsForRecomputeTangents) Shader = ComputeShader01;
+				else Shader = ComputeShader11;
 			}
 			else
 			{
-				if (GAllowDupedVertsForRecomputeTangents) Shader = ComputeShader10;
-				else Shader = ComputeShader00;
+				if (GAllowDupedVertsForRecomputeTangents) Shader = ComputeShader00;
+				else Shader = ComputeShader10;
 			}
 
 			check(Shader.IsValid());
