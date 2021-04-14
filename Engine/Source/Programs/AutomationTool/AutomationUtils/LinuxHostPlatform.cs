@@ -13,12 +13,12 @@ namespace AutomationTool
 {
 	class LinuxHostPlatform : HostPlatform
 	{
-		static string CachedMsBuildTool = "";
+		static string CachedFrameworkMsbuildTool = "";
 
-		public override string GetMsBuildExe()
+		public override string GetFrameworkMsbuildExe()
 		{
 			// As of 5.0 mono comes with msbuild which performs better. If that's installed then use it
-			if (string.IsNullOrEmpty(CachedMsBuildTool))
+			if (string.IsNullOrEmpty(CachedFrameworkMsbuildTool))
 			{
 				int Value;
 				bool CanUseMsBuild = (int.TryParse(Environment.GetEnvironmentVariable("UE_USE_SYSTEM_MONO"), out Value) &&
@@ -27,15 +27,20 @@ namespace AutomationTool
 
 				if (CanUseMsBuild)
 				{
-					CachedMsBuildTool = "msbuild";
+					CachedFrameworkMsbuildTool = "msbuild";
 				}
 				else
 				{
-					CachedMsBuildTool = "xbuild";
+					CachedFrameworkMsbuildTool = "xbuild";
 				}
 			}
 
-			return CachedMsBuildTool;
+			return CachedFrameworkMsbuildTool;
+		}
+
+		public override string GetDotnetMsbuildExe()
+		{
+			return "../../ThirdParty/DotNet/Linux/dotnet";
 		}
 
 		public override string RelativeBinariesFolder

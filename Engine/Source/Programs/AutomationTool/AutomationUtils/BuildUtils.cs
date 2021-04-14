@@ -19,9 +19,9 @@ namespace AutomationTool
 		/// <param name="LogName">Optional logfile name.</param>
 		public static void MsBuild(CommandEnvironment Env, string Project, string Arguments, string LogName)
 		{
-			if (String.IsNullOrEmpty(Env.MsBuildExe))
+			if (String.IsNullOrEmpty(Env.FrameworkMsbuildPath))
 			{
-				throw new AutomationException("Unable to find msbuild.exe at: \"{0}\"", Env.MsBuildExe);
+				throw new AutomationException("Unable to find msbuild.exe at: \"{0}\"", Env.FrameworkMsbuildPath);
 			}
 			if (!FileExists(Project))
 			{
@@ -32,7 +32,8 @@ namespace AutomationTool
 			{
 				RunArguments += " " + Arguments;
 			}
-			RunAndLog(Env, Env.MsBuildExe, RunArguments, LogName);
+
+			RunAndLog(Env, Env.FrameworkMsbuildPath, RunArguments, LogName);
 		}
 
 		/// <summary>
@@ -50,14 +51,14 @@ namespace AutomationTool
 			{
 				throw new AutomationException(String.Format("Unabled to build Solution {0}. Solution file not found.", SolutionFile));
 			}
-			if (String.IsNullOrEmpty(Env.MsBuildExe))
+			if (String.IsNullOrEmpty(Env.FrameworkMsbuildPath))
 			{
-				throw new AutomationException("Unable to find msbuild.exe at: \"{0}\"", Env.MsBuildExe);
+				throw new AutomationException("Unable to find msbuild.exe at: \"{0}\"", Env.FrameworkMsbuildPath);
 			}
 			string CmdLine = String.Format("\"{0}\" /m /t:Build /p:Configuration=\"{1}\" /p:Platform=\"{2}\" /verbosity:minimal /nologo", SolutionFile, BuildConfig, BuildPlatform);
 			using (TelemetryStopwatch CompileStopwatch = new TelemetryStopwatch("Compile.{0}.{1}.{2}", Path.GetFileName(SolutionFile), "WinC#", BuildConfig))
 			{
-				RunAndLog(Env, Env.MsBuildExe, CmdLine, LogName);
+				RunAndLog(Env, Env.FrameworkMsbuildPath, CmdLine, LogName);
 			}
 		}
 

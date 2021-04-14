@@ -54,14 +54,15 @@ namespace AutomationTool
 		public string EngineSavedFolder { get; protected set; }
 		public string LogFolder { get; protected set; }
 		public string FinalLogFolder { get; protected set; }
-        public string CSVFile { get; protected set; }
+		public string CSVFile { get; protected set; }
 		public string RobocopyExe { get; protected set; }
 		public string MountExe { get; protected set; }
 		public string CmdExe { get; protected set; }
-		public string UATExe { get; protected set; }		
+		public string UATExe { get; protected set; }
 		public string TimestampAsString { get; protected set; }
 		public bool HasCapabilityToCompile { get; protected set; }
-		public string MsBuildExe { get; protected set; }
+		public string FrameworkMsbuildPath { get; protected set; }
+		public string DotnetMsbuildPath { get; protected set; }
 		public string MallocNanoZone { get; protected set; }
 		public bool IsChildInstance { get; protected set; }
 
@@ -183,7 +184,8 @@ namespace AutomationTool
 			Log.TraceVerbose("LocalRoot={0}", LocalRoot);
 			Log.TraceVerbose("LogFolder={0}", LogFolder);
 			Log.TraceVerbose("MountExe={0}", MountExe);
-			Log.TraceVerbose("MsBuildExe={0}", MsBuildExe);
+			Log.TraceVerbose("FrameworkMsbuildExe={0}", FrameworkMsbuildPath);
+			Log.TraceVerbose("DotnetMsbuildExe={0}", DotnetMsbuildPath);
 			Log.TraceVerbose("RobocopyExe={0}", RobocopyExe);
 			Log.TraceVerbose("TimestampAsString={0}", TimestampAsString);
 			Log.TraceVerbose("UATExe={0}", UATExe);			
@@ -197,23 +199,31 @@ namespace AutomationTool
 			// Assume we have the capability co compile.
 			HasCapabilityToCompile = true;
 
-			if (HasCapabilityToCompile)
+			try
 			{
-				try
-				{
-					MsBuildExe = HostPlatform.Current.GetMsBuildExe();
-				}
-				catch (Exception Ex)
-				{
-					Log.WriteLine(LogEventType.Warning, Ex.Message);
-					Log.WriteLine(LogEventType.Warning, "Assuming no compilation capability.");
-					HasCapabilityToCompile = false;
-					MsBuildExe = "";
-				}
+				FrameworkMsbuildPath = HostPlatform.Current.GetFrameworkMsbuildExe();
 			}
-
+			catch (Exception Ex)
+			{
+				Log.WriteLine(LogEventType.Warning, Ex.Message);
+				Log.WriteLine(LogEventType.Warning, "Assuming no compilation capability for NET Framework projects.");
+				HasCapabilityToCompile = false;
+				FrameworkMsbuildPath = "";
+			}
 			Log.TraceVerbose("CompilationEvironment.HasCapabilityToCompile={0}", HasCapabilityToCompile);
-			Log.TraceVerbose("CompilationEvironment.MsBuildExe={0}", MsBuildExe);
+			Log.TraceVerbose("CompilationEvironment.FrameworkMsbuildExe={0}", FrameworkMsbuildPath);
+
+			try
+			{
+				DotnetMsbuildPath = HostPlatform.Current.GetDotnetMsbuildExe();
+			}
+			catch (Exception Ex)
+			{
+				Log.WriteLine(LogEventType.Warning, Ex.Message);
+				Log.WriteLine(LogEventType.Warning, "Assuming no compilation capability for NET Core projects.");
+				FrameworkMsbuildPath = "";
+			}
+			Log.TraceVerbose("CompilationEvironment.DotnetMsbuildExe={0}", DotnetMsbuildPath);
 		}
 
 		/// <summary>

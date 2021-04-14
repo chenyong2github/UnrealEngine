@@ -14,27 +14,32 @@ namespace AutomationTool
 {
 	class MacHostPlatform : HostPlatform
 	{
-		static string CachedMsBuildTool = "";
+		static string CachedFrameworkMsbuildExe = "";
 
-		public override string GetMsBuildExe()
+		public override string GetFrameworkMsbuildExe()
 		{
 			// As of 5.0 mono comes with msbuild which performs better. If that's installed then use it
-			if (string.IsNullOrEmpty(CachedMsBuildTool))
+			if (string.IsNullOrEmpty(CachedFrameworkMsbuildExe))
 			{
 				bool CanUseMsBuild = string.IsNullOrEmpty(CommandUtils.WhichApp("msbuild")) == false;
 
 				if (CanUseMsBuild)
 				{
-					CachedMsBuildTool = "msbuild";
+					CachedFrameworkMsbuildExe = "msbuild";
 				}
 				else
 				{
 					Log.TraceInformation("Using xbuild. Install Mono 5.0 or greater for faster builds!");
-					CachedMsBuildTool = "xbuild";
+					CachedFrameworkMsbuildExe = "xbuild";
 				}
 			}
 
-			return CachedMsBuildTool;
+			return CachedFrameworkMsbuildExe;
+		}
+
+		public override string GetDotnetMsbuildExe()
+		{
+			return "../../ThirdParty/DotNet/Mac/dotnet";
 		}
 
 		public override string RelativeBinariesFolder
@@ -137,6 +142,9 @@ namespace AutomationTool
 				}
 				// some of our C# applications are converted to dotnet core, do not run those via mono
 				// they are instead assumed to produce a host executable that can just be run
+
+				// this needs fixing: these applications should be launched through the bundled dotnet
+
 				else if (AppName.Contains("UnrealBuildTool") || AppName.Contains("AutomationTool"))
 				{
 					Options &= ~CommandUtils.ERunOptions.AppMustExist;

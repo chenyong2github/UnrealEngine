@@ -12,9 +12,14 @@ namespace AutomationTool
 {
 	class WindowsHostPlatform : HostPlatform
 	{
-		public override string GetMsBuildExe()
+		public override string GetFrameworkMsbuildExe()
 		{
 			return WindowsExports.GetMSBuildToolPath();
+		}
+
+		public override string GetDotnetMsbuildExe()
+		{
+			return @"..\..\ThirdParty\DotNet\Windows\dotnet.exe";
 		}
 
 		public override string RelativeBinariesFolder

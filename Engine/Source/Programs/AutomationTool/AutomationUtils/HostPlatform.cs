@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -66,10 +66,16 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Gets the build executable filename.
+		/// Gets the build executable filename for NET Framework projects e.g. msbuild, or xbuild
 		/// </summary>
 		/// <returns></returns>
-		abstract public string GetMsBuildExe();
+		abstract public string GetFrameworkMsbuildExe();
+
+		/// <summary>
+		/// Gets the build executable filename for NET Core projects. Typically, the path to the bundled dotnet executable.
+		/// </summary>
+		/// <returns></returns>
+		abstract public string GetDotnetMsbuildExe();
 
 		/// <summary>
 		/// Folder under UE4/ to the platform's binaries.

@@ -159,7 +159,7 @@ namespace AutomationTool.Tasks
 				{
 					Arguments.Add(String.Format("/target:{0}", CommandUtils.MakePathSafeToUseWithCommandLine(Parameters.Target)));
 				}
-				if(!CommandUtils.CmdEnv.MsBuildExe.Equals("xbuild"))
+				if(!CommandUtils.CmdEnv.FrameworkMsbuildPath.Equals("xbuild"))
 				{
 					// not supported by xbuild
 					Arguments.Add("/restore");
