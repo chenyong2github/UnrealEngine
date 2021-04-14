@@ -66,6 +66,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FVector WorldBBoxSize = FVector::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 	TArray<int32> AttributeIndices;
+
 	TArray<FName> Vars;
 	TArray<int32> VarComponents;
 	TArray<uint32> Offsets;
@@ -202,6 +203,7 @@ public:
 	void GetAttributeIndex(FVectorVMContext& Context, const FName& InName, int32 NumChannels);
 
 	static const FString NumTilesName;
+	static const FString OneOverNumTilesName;
 
 	static const FString GridName;
 	static const FString OutputGridName;
@@ -237,6 +239,10 @@ public:
 	static const FName GetPreviousFloatValueFunctionName;
 	static const FName SamplePreviousGridFloatFunctionName;
 	static const FString AttributeIndicesBaseName;
+	static const FString AttributePixelOffsetName;
+	static const FString AttributeUVOffsetName;
+	static const FString AttributeUVClampMinName;
+	static const FString AttributeUVClampMaxName;
 	static const TCHAR* VectorComponentNames[];
 
 	static const FName SetNumCellsFunctionName;
