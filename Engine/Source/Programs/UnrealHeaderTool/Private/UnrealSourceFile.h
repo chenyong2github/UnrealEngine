@@ -256,6 +256,22 @@ public:
 	void MarkDependenciesResolved();
 
 	/**
+	 * Mark this source file has being referenced
+	 */
+	void MarkReferenced()
+	{
+		bIsReferenced = true;
+	}
+
+	/**
+	 * Return true if this source file should be exported
+	 */
+	bool ShouldExport() const
+	{
+		return bIsReferenced || GetScope()->ContainsTypes();
+	}
+
+	/**
 	 * Checks if dependencies has been resolved.
 	 */
 	bool AreDependenciesResolved() const;
@@ -293,6 +309,9 @@ private:
 
 	// Source file content.
 	FString Content;
+
+	// Tells if this file is referenced by another
+	bool bIsReferenced = false;
 
 	// Tells if generated header file was changed.
 	bool bHasChanged;

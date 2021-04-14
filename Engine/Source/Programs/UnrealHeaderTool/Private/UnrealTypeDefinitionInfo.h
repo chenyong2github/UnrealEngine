@@ -21,6 +21,27 @@ public:
 	{ }
 
 	/**
+	 * Return the CPP version of the name
+	 */
+	const FString& GetNameCPP() const
+	{
+		// TEMPORARY STUB 
+		static FString EmptyString;
+		return EmptyString;
+		//return NameCPP;
+	}
+
+	/**
+	 * Return true if this type has source information
+	 */
+	bool HasSource() const
+	{
+		// TEMPORARY STUB
+		return true;
+		//return SourceFile != nullptr;
+	}
+
+	/**
 	 * Gets the line number in source file this type was defined in.
 	 */
 	int32 GetLineNumber() const
