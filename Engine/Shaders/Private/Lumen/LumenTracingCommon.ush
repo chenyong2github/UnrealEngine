@@ -35,7 +35,8 @@ Texture2D DepthAtlas;
 	#define VISUALIZE_MODE_GEOMETRY_NORMALS 2
 	#define VISUALIZE_MODE_NORMALS 3
 	#define VISUALIZE_MODE_EMISSIVE 4
-	#define VISUALIZE_CARD_WEIGHTS 5
+	#define VISUALIZE_MODE_OPACITY 5
+	#define VISUALIZE_CARD_WEIGHTS 6
 
 	uint VisualizeMode;
 #endif
@@ -952,6 +953,8 @@ void AccumulateLumenCardLighting(FLumenCardSample CardSample, uint AtlasId, inou
 			CardLighting = Texture2DSampleLevel(IndirectIrradianceAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
 		}
 
+		float OpacityWeight = Texture2DSampleLevel(OpacityAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).x;
+
 		// Debug visualization
 		#if ENABLE_VISUALIZE_MODE == 1
 		{
@@ -966,6 +969,11 @@ void AccumulateLumenCardLighting(FLumenCardSample CardSample, uint AtlasId, inou
 			else if (VisualizeMode == VISUALIZE_MODE_EMISSIVE)
 			{
 				CardLighting = Texture2DSampleLevel(EmissiveAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb;
+			}
+			else if (VisualizeMode == VISUALIZE_MODE_OPACITY)
+			{
+				CardLighting = OpacityWeight;
+				OpacityWeight = 1.0f;
 			}
 			else if (VisualizeMode == VISUALIZE_CARD_WEIGHTS)
 			{
@@ -986,8 +994,6 @@ void AccumulateLumenCardLighting(FLumenCardSample CardSample, uint AtlasId, inou
 			}
 		}
 		#endif
-
-		float OpacityWeight = Texture2DSampleLevel(OpacityAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).x;
 
 		LightingSum += CardLighting * CardSample.Weight * OpacityWeight;
 		WeightSum += CardSample.Weight * OpacityWeight;
