@@ -82,7 +82,7 @@ static FString GetIconFilename(EMacImageScope::Type Scope)
 
 	if (Scope == EMacImageScope::Engine)
 	{
-		FString Filename = FPaths::EngineDir() / FString(TEXT("Source/Runtime/Launch/Resources")) / PlatformName / FString("UE4.icns");
+		FString Filename = FPaths::EngineDir() / FString(TEXT("Source/Runtime/Launch/Resources")) / PlatformName / FString("UnrealEngine.icns");
 		return FPaths::ConvertRelativePathToFull(Filename);
 	}
 	else
