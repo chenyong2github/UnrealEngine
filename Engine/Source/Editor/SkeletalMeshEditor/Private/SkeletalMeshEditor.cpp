@@ -1111,9 +1111,12 @@ void FSkeletalMeshEditor::ApplyClothing(UClothingAssetBase* InAsset, int32 InLod
 		};
 		if (UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(InAsset))
 		{
+			ClothingAsset->Modify();
+
 			// Look for a currently bound asset an unbind it if necessary first
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIndex, InSectionIndex))
 			{
+				CurrentAsset->Modify();
 				CurrentAsset->UnbindFromSkeletalMesh(Mesh, InLodIndex);
 				ClearOriginalSectionUserData();
 			}
@@ -1133,6 +1136,7 @@ void FSkeletalMeshEditor::ApplyClothing(UClothingAssetBase* InAsset, int32 InLod
 			//User set none, so unbind anything that is bind
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIndex, InSectionIndex))
 			{
+				CurrentAsset->Modify();
 				CurrentAsset->UnbindFromSkeletalMesh(Mesh, InLodIndex);
 				ClearOriginalSectionUserData();
 			}

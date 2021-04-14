@@ -6071,9 +6071,12 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 		};
 		if (UClothingAssetCommon* ClothingAsset = Cast<UClothingAssetCommon>(InNewEntry->Asset.Get()))
 		{
+			ClothingAsset->Modify();
+
 			// Look for a currently bound asset an unbind it if necessary first
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIdx, InSectionIdx))
 			{
+				CurrentAsset->Modify();
 				CurrentAsset->UnbindFromSkeletalMesh(Mesh, InLodIdx);
 				ClearOriginalSectionUserData();
 			}
@@ -6102,6 +6105,7 @@ void FPersonaMeshDetails::OnClothingSelectionChanged(TSharedPtr<FClothingEntry> 
 			//User set none, so unbind anything that is bind
 			if (UClothingAssetBase* CurrentAsset = Mesh->GetSectionClothingAsset(InLodIdx, InSectionIdx))
 			{
+				CurrentAsset->Modify();
 				CurrentAsset->UnbindFromSkeletalMesh(Mesh, InLodIdx);
 				ClearOriginalSectionUserData();
 			}
