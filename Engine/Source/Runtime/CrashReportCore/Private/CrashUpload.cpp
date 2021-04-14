@@ -154,14 +154,14 @@ bool FCrashUploadBase::CompressData(const TArray<FString>& InPendingFiles, FComp
 	{
 		const FString Filename = FPaths::GetCleanFilename(PathOfFileToUpload);
 
-		const bool bValidFullDumpForCopy = Filename == FGenericCrashContext::UE4MinidumpName &&
+		const bool bValidFullDumpForCopy = Filename == FGenericCrashContext::UEMinidumpName &&
 			(FPrimaryCrashProperties::Get()->CrashDumpMode == ECrashDumpMode::FullDump || FPrimaryCrashProperties::Get()->CrashDumpMode == ECrashDumpMode::FullDumpAlways) &&
 			FPrimaryCrashProperties::Get()->CrashVersion >= ECrashDescVersions::VER_3_CrashContext &&
 			!FullCrashDumpLocation.IsEmpty();
 
 		if (bValidFullDumpForCopy)
 		{
-			const FString DestinationPath = FullCrashDumpLocation / FGenericCrashContext::UE4MinidumpName;
+			const FString DestinationPath = FullCrashDumpLocation / FGenericCrashContext::UEMinidumpName;
 			const bool bCreated = IFileManager::Get().MakeDirectory(*FullCrashDumpLocation, true);
 			if (!bCreated)
 			{
@@ -468,7 +468,7 @@ void FCrashUploadToReceiver::CompressAndSendData()
 
 	PendingFiles.Empty();
 
-	const FString Filename = ErrorReport.GetReportDirectoryLeafName() + TEXT(".ue4crash");
+	const FString Filename = ErrorReport.GetReportDirectoryLeafName() + TEXT(".uecrash");
 
 	// Set up request for upload
 	auto Request = CreateHttpRequest();
@@ -750,7 +750,7 @@ void FCrashUploadToDataRouter::CompressAndSendData()
 {
 	FCompressedHeader CompressedHeader;
 	CompressedHeader.DirectoryName = ErrorReport.GetReportDirectoryLeafName();
-	CompressedHeader.FileName = ErrorReport.GetReportDirectoryLeafName() + TEXT(".ue4crash");
+	CompressedHeader.FileName = ErrorReport.GetReportDirectoryLeafName() + TEXT(".uecrash");
 
 	FCompressedData CompressedData;
 	if (!CompressData(PendingFiles, CompressedData, PostData, &CompressedHeader))

@@ -962,7 +962,8 @@ void FMaintenance::DeleteOldLogs()
 	// Remove all legacy crash contexts (regardless of age and purge settings, these are deprecated)
 	TArray<FString> Directories;
 	IFileManager::Get().FindFiles(Directories, *FString::Printf(TEXT("%s/UE4CC*"), *FPaths::ProjectLogDir()), false, true);
-
+	IFileManager::Get().FindFiles(Directories, *FString::Printf(TEXT("%s/UECC*"), *FPaths::ProjectLogDir()), false, true);
+	
 	for (const FString& Dir : Directories)
 	{
 		const FString CrashConfigDirectory = FPaths::ProjectLogDir() / Dir;

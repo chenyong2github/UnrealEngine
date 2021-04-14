@@ -48,7 +48,7 @@ const TCHAR* const FGenericCrashContext::CrashConfigFileNameW = TEXT("CrashRepor
 const TCHAR* const FGenericCrashContext::CrashConfigExtension = TEXT(".ini");
 const TCHAR* const FGenericCrashContext::ConfigSectionName = TEXT("CrashReportClient");
 const TCHAR* const FGenericCrashContext::CrashConfigPurgeDays = TEXT("CrashConfigPurgeDays");
-const TCHAR* const FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UE4CC-");
+const TCHAR* const FGenericCrashContext::CrashGUIDRootPrefix = TEXT("UECC-");
 
 const TCHAR* const FGenericCrashContext::CrashContextExtension = TEXT(".runtime-xml");
 const TCHAR* const FGenericCrashContext::RuntimePropertiesTag = TEXT( "RuntimeProperties" );
@@ -56,7 +56,7 @@ const TCHAR* const FGenericCrashContext::PlatformPropertiesTag = TEXT( "Platform
 const TCHAR* const FGenericCrashContext::EngineDataTag = TEXT( "EngineData" );
 const TCHAR* const FGenericCrashContext::GameDataTag = TEXT( "GameData" );
 const TCHAR* const FGenericCrashContext::EnabledPluginsTag = TEXT("EnabledPlugins");
-const TCHAR* const FGenericCrashContext::UE4MinidumpName = TEXT( "UE4Minidump.dmp" );
+const TCHAR* const FGenericCrashContext::UEMinidumpName = TEXT( "UEMinidump.dmp" );
 const TCHAR* const FGenericCrashContext::NewLineTag = TEXT( "&nl;" );
 
 const TCHAR* const FGenericCrashContext::CrashTypeCrash = TEXT("Crash");
@@ -101,7 +101,7 @@ void FGenericCrashContext::Initialize()
 	NCached::Session.bIsSourceDistribution = FEngineBuildSettings::IsSourceDistribution();
 	NCached::Session.ProcessId = FPlatformProcess::GetCurrentProcessId();
 
-	NCached::Set(NCached::Session.GameName, *FString::Printf(TEXT("UE4-%s"), FApp::GetProjectName()));
+	NCached::Set(NCached::Session.GameName, *FString::Printf(TEXT("UE5-%s"), FApp::GetProjectName()));
 	NCached::Set(NCached::Session.GameSessionID, TEXT("")); // Updated by callback
 	NCached::Set(NCached::Session.GameStateName, TEXT("")); // Updated by callback
 	NCached::Set(NCached::Session.UserActivityHint, TEXT("")); // Updated by callback
@@ -132,7 +132,7 @@ void FGenericCrashContext::Initialize()
 	// Information that cannot be gathered if command line is not initialized (e.g. crash during static init)
 	if (FCommandLine::IsInitialized())
 	{
-		NCached::Session.bIsUE4Release = FApp::IsEngineInstalled();
+		NCached::Session.bIsUERelease = FApp::IsEngineInstalled();
 		NCached::Set(NCached::Session.CommandLine, (FCommandLine::IsInitialized() ? FCommandLine::GetOriginalForLogging() : TEXT("")));
 		NCached::Set(NCached::Session.EngineMode, FGenericPlatformMisc::GetEngineMode());
 		NCached::Set(NCached::Session.EngineModeEx, FGenericCrashContext::EngineModeExUnknown); // Updated from callback
@@ -220,7 +220,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		}
 		if (InParams.bSetGameNameSuffix)
 		{
-			NCached::Set(NCached::Session.GameName, *(FString(TEXT("UE4-")) + FApp::GetProjectName() + InParams.GameNameSuffix));
+			NCached::Set(NCached::Session.GameName, *(FString(TEXT("UE-")) + FApp::GetProjectName() + InParams.GameNameSuffix));
 		}
 		if (InParams.SendUnattendedBugReports.IsSet())
 		{
@@ -496,7 +496,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 		const TCHAR* ProjectName = FApp::GetProjectName();
 		if (ProjectName != nullptr && ProjectName[0] != 0)
 		{
-			AddCrashPropertyInternal(Buffer, TEXT("GameName"), *FString::Printf(TEXT("UE4-%s"), ProjectName));
+			AddCrashPropertyInternal(Buffer, TEXT("GameName"), *FString::Printf(TEXT("UE-%s"), ProjectName));
 		}
 		else
 		{
@@ -535,7 +535,7 @@ void FGenericCrashContext::SerializeSessionContext(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("LanguageLCID"), NCached::Session.LanguageLCID);
 	AddCrashPropertyInternal(Buffer, TEXT("AppDefaultLocale"), NCached::Session.DefaultLocale);
 	AddCrashPropertyInternal(Buffer, TEXT("BuildVersion"), FApp::GetBuildVersion());
-	AddCrashPropertyInternal(Buffer, TEXT("IsUE4Release"), NCached::Session.bIsUE4Release);
+	AddCrashPropertyInternal(Buffer, TEXT("IsUERelease"), NCached::Session.bIsUERelease);
 
 	// Need to set this at the time of the crash to check if requesting exit had been called
 	AddCrashPropertyInternal(Buffer, TEXT("IsRequestingExit"), NCached::Session.bIsExitRequested);
@@ -777,7 +777,7 @@ void FGenericCrashContext::AddPortableCallStackHash() const
 	const TCHAR* ExeName = FPlatformProcess::ExecutableName();
 
 	// We dont want this to be thrown into an FString as it will alloc memory
-	const TCHAR* UE4EditorName = TEXT("UnrealEditor");
+	const TCHAR* UEEditorName = TEXT("UnrealEditor");
 
 	FSHA1 Sha;
 	FSHAHash Hash;
@@ -786,7 +786,7 @@ void FGenericCrashContext::AddPortableCallStackHash() const
 	{
 		// If we are our own module or our module contains UnrealEditor we assume we own these. We cannot depend on offsets of system libs
 		// as they may have different versions
-		if (It->ModuleName == ExeName || It->ModuleName.Contains(UE4EditorName))
+		if (It->ModuleName == ExeName || It->ModuleName.Contains(UEEditorName))
 		{
 			Sha.Update(reinterpret_cast<const uint8*>(&It->Offset), sizeof(It->Offset));
 		}

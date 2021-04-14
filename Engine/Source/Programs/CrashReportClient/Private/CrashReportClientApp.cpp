@@ -295,7 +295,7 @@ SubmitCrashReportResult RunWithUI(FPlatformErrorReport ErrorReport)
 	// Set up the main ticker
 	FMainLoopTiming MainLoop(IdealTickRate, EMainLoopOptions::UsingSlate);
 
-	// set the normal UE4 IsEngineExitRequested() when outer frame is closed
+	// set the normal IsEngineExitRequested() when outer frame is closed
 	FSlateApplication::Get().SetExitRequestedHandler(FSimpleDelegate::CreateStatic(&OnRequestExit));
 
 	// Prepare the custom Slate styles
@@ -827,7 +827,7 @@ static bool LoadTempCrashContextFromFile(FSharedCrashContext& CrashContext, uint
 	FindAndCopyValue(ContextProperties, TEXT("CommandLine"), SessionContext.CommandLine);
 	FindAndParseValue(ContextProperties, TEXT("LanguageLCID"), SessionContext.LanguageLCID);
 	FindAndCopyValue(ContextProperties, TEXT("AppDefaultLocale"), SessionContext.DefaultLocale);
-	FindAndParseValue(ContextProperties, TEXT("IsUE4Release"), SessionContext.bIsUE4Release);
+	FindAndParseValue(ContextProperties, TEXT("IsUERelease"), SessionContext.bIsUERelease);
 	FindAndCopyValue(ContextProperties, TEXT("UserName"), SessionContext.UserName);
 	FindAndCopyValue(ContextProperties, TEXT("BaseDir"), SessionContext.BaseDir);
 	FindAndCopyValue(ContextProperties, TEXT("RootDir"), SessionContext.RootDir);

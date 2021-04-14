@@ -1088,8 +1088,8 @@ namespace Gauntlet
 			// testflights which append a long random name to the destination folder, easily pushing past 260 chars.
 			Func<string, string> TruncateLongPathFilter= (X =>
 			{
-				// /UE4CC-Windows-F0DD9BB04C3C9250FAF39D8AB4A88556/
-				Match M = Regex.Match(X, @"UE4CC-.+-([\dA-Fa-f]+)");
+				// /UECC-Windows-F0DD9BB04C3C9250FAF39D8AB4A88556/
+				Match M = Regex.Match(X, @"UECC-.+-([\dA-Fa-f]+)");
 
 				if (M.Success)
 				{

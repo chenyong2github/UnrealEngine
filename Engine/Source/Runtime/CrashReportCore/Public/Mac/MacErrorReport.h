@@ -35,7 +35,7 @@ public:
 
 	/**
 	 * Parse the callstack from the Apple-style crash report log
-	 * @return UE4 crash diagnosis text
+	 * @return UE crash diagnosis text
 	 */
 	FText DiagnoseReport() const;
 

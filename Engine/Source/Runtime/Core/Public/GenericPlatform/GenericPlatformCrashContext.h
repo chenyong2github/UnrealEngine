@@ -131,7 +131,7 @@ struct FSessionContext
 	bool 					bIsInternalBuild;
 	bool 					bIsPerforceBuild;
 	bool 					bIsSourceDistribution;
-	bool 					bIsUE4Release;
+	bool 					bIsUERelease;
 	bool					bIsOOM;
 	bool					bIsExitRequested;
 	uint32					ProcessId;
@@ -248,7 +248,7 @@ public:
 	static const TCHAR* const EngineDataTag;
 	static const TCHAR* const GameDataTag;
 	static const TCHAR* const EnabledPluginsTag;
-	static const TCHAR* const UE4MinidumpName;
+	static const TCHAR* const UEMinidumpName;
 	static const TCHAR* const NewLineTag;
 	static const int32 CrashGUIDLength = 128;
 

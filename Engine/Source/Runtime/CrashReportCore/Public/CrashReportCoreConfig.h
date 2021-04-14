@@ -18,8 +18,8 @@ class FConfigFile;
 /**
 *  Holds FullCrashDump properties from the config.
 *
-*	FullCrashDump_0_Branch=UE4
-*	FullCrashDump_0_Location=\\epicgames.net\root\Builds\UE4
+*	FullCrashDump_0_Branch=UE
+*	FullCrashDump_0_Location=\\epicgames.net\root\Builds\UE
 *	FullCrashDump_1_Branch=...
 *	...
 */
@@ -40,8 +40,8 @@ struct FFullCrashDumpEntry
 	const FString Location;
 
 	/**
-	*	Branch=UE4 means exact match
-	*	Branch=UE4* means contain match
+	*	Branch=UE means exact match
+	*	Branch=UE* means contain match
 	*/
 	const bool bExactMatch;
 };
