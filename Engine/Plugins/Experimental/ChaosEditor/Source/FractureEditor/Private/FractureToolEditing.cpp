@@ -358,7 +358,7 @@ void UFractureToolStripSimulationData::Execute(TWeakPtr<FFractureEditorModeToolk
 					FSuppressableWarningDialog StripSimulationDataWarning(Info);
 					if(StripSimulationDataWarning.ShowModal() != FSuppressableWarningDialog::EResult::Cancel)
 					{
-						for (const TPair<FName, TArray<FName>> Removal : Removals)
+						for (const TPair<FName, TArray<FName>>& Removal : Removals)
 						{
 							for (const FName AttributeName : Removal.Value)
 							{
