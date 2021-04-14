@@ -349,6 +349,8 @@ bool SEditConditionWidget::HasEditConditionToggle() const
 
 void SEditConditionWidget::OnEditConditionCheckChanged( ECheckBoxState CheckState )
 {
+	checkSlow(HasEditConditionToggle());
+
 	FScopedTransaction EditConditionChangedTransaction(LOCTEXT("UpdatedEditConditionFmt", "Edit Condition Changed"));
 	
 	OnEditConditionValueChanged.ExecuteIfBound(CheckState == ECheckBoxState::Checked);
@@ -356,8 +358,6 @@ void SEditConditionWidget::OnEditConditionCheckChanged( ECheckBoxState CheckStat
 
 ECheckBoxState SEditConditionWidget::OnGetEditConditionCheckState() const
 {
-	checkSlow(HasEditConditionToggle());
-
 	return EditConditionValue.Get() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
