@@ -379,7 +379,7 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
-		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
+		if (SceneDepth > 0)
 		{
 			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 

@@ -69,7 +69,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
-		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
+		if (SceneDepth > 0)
 		{
 #define BRDF_PDF_SPHERICAL_HARMONIC 1
 #if BRDF_PDF_SPHERICAL_HARMONIC
@@ -307,8 +307,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 	if (ScreenProbeIndex < GetNumScreenProbes() 
-		&& SceneDepth > 0 
-		&& SceneDepth < 1000000.0f)
+		&& SceneDepth > 0)
 	{
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float PDF = 0.0f;
@@ -586,7 +585,7 @@ void ScreenProbeGenerateRaysCS(
 
 	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
-	if (ScreenProbeIndex < GetNumScreenProbes() && SceneDepth > 0 && SceneDepth < 1000000.0f)
+	if (ScreenProbeIndex < GetNumScreenProbes() && SceneDepth > 0)
 	{
 #define UNIFORM_RAY_DISTRIBUTION_DEBUG 0
 #if UNIFORM_RAY_DISTRIBUTION_DEBUG
