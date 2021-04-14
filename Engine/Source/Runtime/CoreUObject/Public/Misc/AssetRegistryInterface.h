@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Containers/ContainersFwd.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
@@ -37,9 +39,7 @@ namespace EAssetRegistryDependencyType
 class IAssetRegistry;
 class UAssetRegistryImpl;
 
-namespace UE
-{
-namespace AssetRegistry
+namespace UE::AssetRegistry
 {
 
 	/**
@@ -183,17 +183,35 @@ namespace AssetRegistry
 	class COREUOBJECT_API FFiltering
 	{
 	public:
-		/** Called to check whether we should filter out assets of the given class and package flags from the editor's asset registry */
+		/** Return whether to filter out assets of the given class and flags from the editor's asset registry */
 		static bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags);
 
-		/** Called to check whether we should filter out the given object (assumed to be an asset) from the editor's asset registry */
+		/** Return whether to filter out the given object (assumed to be an asset) from the editor's asset registry */
 		static bool ShouldSkipAsset(const UObject* InAsset);
 
 		/** Call to invalidate the list of skip assets and cause their next use to recreate them on demand */
 		static void MarkDirty();
+
+#if WITH_ENGINE && WITH_EDITOR
+		/** Copy the global skip classes set from the given external sets that were already populated. */
+		static void SetSkipClasses(const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+#endif
 	};
 
+#if WITH_ENGINE && WITH_EDITOR
+namespace Utils
+{
+	/** Return whether to filter out assets of the given class and flags based on the skip classes */
+	COREUOBJECT_API bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags,
+		const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+	/** Return whether to filter out the given object (assumed to be an asset) based on the skip classes */
+	COREUOBJECT_API bool ShouldSkipAsset(const UObject* InAsset,
+		const TSet<FName>& InSkipUncookedClasses, const TSet<FName>& InSkipCookedClasses);
+	/** Run the calculation of which classes to skip and store results in the given sets. */
+	COREUOBJECT_API void PopulateSkipClasses(TSet<FName>& OutSkipUncookedClasses, TSet<FName>& OutSkipCookedClasses);
 }
+#endif
+
 }
 
 // Enums used in public Engine headers
