@@ -22,6 +22,4 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
-	/** The widget representing available content and which content the user has selected. */
-	TSharedPtr<SAddContentWidget> AddContentWidget;
 };

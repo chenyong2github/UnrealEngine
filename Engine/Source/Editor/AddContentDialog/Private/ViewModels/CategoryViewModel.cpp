@@ -2,7 +2,6 @@
 
 #include "ViewModels/CategoryViewModel.h"
 #include "IContentSource.h"
-#include "AddContentDialogStyle.h"
 
 #define LOCTEXT_NAMESPACE "ContentSourceViewModel"
 
@@ -23,11 +22,6 @@ FText FCategoryViewModel::GetText() const
 	return Text;
 }
 
-const FSlateBrush* FCategoryViewModel::GetIconBrush() const
-{
-	return IconBrush;
-}
-
 uint32 FCategoryViewModel::GetTypeHash() const
 {
 	return (uint32)Category;
@@ -38,33 +32,27 @@ void FCategoryViewModel::Initialize()
 	switch (Category)
 	{
 	case EContentSourceCategory::BlueprintFeature:
-		Text = LOCTEXT("BlueprintFeature", "Blueprint Feature");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.BlueprintFeatureCategory");
+		Text = LOCTEXT("BlueprintFeature", "Blueprint");
 		SortID = 0;
 		break;
 	case EContentSourceCategory::CodeFeature:
-		Text = LOCTEXT("CodeFeature", "C++ Feature");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.CodeFeatureCategory");
+		Text = LOCTEXT("CodeFeature", "C++");
 		SortID = 1;
 		break;
 	case EContentSourceCategory::EnterpriseFeature:
 		Text = LOCTEXT("EnterpriseFeature", "Unreal Studio Feature");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.BlueprintFeatureCategory");
 		SortID = 2;
 		break;
 	case EContentSourceCategory::Content:
-		Text = LOCTEXT("ContentPacks", "Content Packs");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.ContentPackCategory");
+		Text = LOCTEXT("ContentPacks", "Content");
 		SortID = 3;
 		break;
 	case EContentSourceCategory::EnterpriseContent:
-		Text = LOCTEXT("EnterpriseContentPacks", "Unreal Studio Content Packs");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.ContentPackCategory");
+		Text = LOCTEXT("EnterpriseContentPacks", "Unreal Studio Content");
 		SortID = 4;
 		break;
 	default:
 		Text = LOCTEXT("Miscellaneous", "Miscellaneous");
-		IconBrush = FAddContentDialogStyle::Get().GetBrush("AddContentDialog.UnknownCategory");
 		SortID = 5;
 		break;
 	}

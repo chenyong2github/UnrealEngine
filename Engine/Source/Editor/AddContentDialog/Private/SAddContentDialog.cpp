@@ -9,7 +9,6 @@
 
 void SAddContentDialog::Construct(const FArguments& InArgs)
 {
-	SAssignNew(AddContentWidget, SAddContentWidget);
 
 	SWindow::Construct(SWindow::FArguments()
 		.Title(LOCTEXT("AddContentDialogTitle", "Add Content to the Project"))
@@ -19,16 +18,10 @@ void SAddContentDialog::Construct(const FArguments& InArgs)
 		.SupportsMaximize(false)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(FMargin(15))
+			.BorderImage(FEditorStyle::GetBrush("Brushes.Panel"))
+			.Padding(FMargin(10,0))
 			[
-				SNew(SVerticalBox)
-
-				// Add content widget.
-				+ SVerticalBox::Slot()
-				[
-					AddContentWidget.ToSharedRef()
-				]
+				SNew(SAddContentWidget)
 			]
 		]);
 }

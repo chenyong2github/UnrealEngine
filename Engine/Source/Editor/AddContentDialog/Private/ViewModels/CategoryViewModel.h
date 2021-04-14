@@ -18,12 +18,9 @@ public:
 	/** Gets the display name of the category. */
 	FText GetText() const;
 
-	/** Gets the brush which should be used to draw the icon for the category. */
-	const FSlateBrush* GetIconBrush() const;
-
 	inline bool operator==(const FCategoryViewModel& Other) const
 	{
-		return Other.Text.EqualTo(Text) && (Other.IconBrush == IconBrush);
+		return Category == Other.Category;
 	}
 
 	bool operator<(FCategoryViewModel const& Other) const
@@ -39,7 +36,6 @@ private:
 private:
 	EContentSourceCategory Category;
 	FText Text;
-	const FSlateBrush* IconBrush;
 	int SortID;
 };
 

@@ -54,13 +54,6 @@ private:
 	/** Creates the widget the displays a screenshot in the screenshot carousel. */
 	TSharedRef<SWidget> CreateScreenshotWidget(TSharedPtr<FSlateBrush> ScreenshotBrush);
 
-
-	/** Handles the user clicking on one of the check boxes representing the category tabs. */
-	void CategoryCheckBoxCheckStateChanged(ECheckBoxState CheckState, FCategoryViewModel Category);
-
-	/** Gets the check state for one of the check boxes representing the category tabs. */
-	ECheckBoxState GetCategoryCheckBoxCheckState(FCategoryViewModel Category) const;
-
 	/** Handles the text in the search box changing. */
 	void SearchTextChanged(const FText& SearchText);
 
@@ -70,6 +63,14 @@ private:
 	/** Handles the add content to project button being clicked. */
 	FReply AddButtonClicked();
 
+	/** Handles the close button being clicked. */
+	FReply CancelButtonClicked();
+
+	/** Handles selected category changing in the UI */
+	void OnSelectedCategoryChanged(FCategoryViewModel SelectedCategory);
+
+	/** Gets the curerently selected category */
+	FCategoryViewModel GetSelectedCategory() const;
 
 	/** Handles the available categories changing on the view model. */
 	void CategoriesChanged();

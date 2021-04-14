@@ -23,7 +23,7 @@ public:
 	static TSharedRef<FAddContentWidgetViewModel> CreateShared();
 
 	/** Gets the view models for the current set of content source categories. */
-	const TArray<FCategoryViewModel>* GetCategories();
+	const TArray<FCategoryViewModel>& GetCategories() const;
 
 	/** Sets the delegate which should be executed when the set of categories changes. */
 	void SetOnCategoriesChanged(FOnCategoriesChanged OnCategoriesChangedIn);

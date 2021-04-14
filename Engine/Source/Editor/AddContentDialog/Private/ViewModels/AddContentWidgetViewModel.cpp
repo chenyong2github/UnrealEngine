@@ -35,9 +35,9 @@ void FAddContentWidgetViewModel::Initialize()
 	BuildContentSourceViewModels();
 }
 
-const TArray<FCategoryViewModel>* FAddContentWidgetViewModel::GetCategories()
+const TArray<FCategoryViewModel>& FAddContentWidgetViewModel::GetCategories() const
 {
-	return &Categories;
+	return Categories;
 }
 
 void FAddContentWidgetViewModel::SetOnCategoriesChanged(FOnCategoriesChanged OnCategoriesChangedIn)

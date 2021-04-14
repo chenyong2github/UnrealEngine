@@ -7,7 +7,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "IAddContentDialogModule.h"
 #include "ContentSourceProviderManager.h"
-#include "AddContentDialogStyle.h"
 #include "SAddContentDialog.h"
 
 #include "ContentSourceProviders/FeaturePack/FeaturePackContentSourceProvider.h"
@@ -27,12 +26,10 @@ public:
 
 		ContentSourceProviderManager = TSharedPtr<FContentSourceProviderManager>(new FContentSourceProviderManager());
 		ContentSourceProviderManager->RegisterContentSourceProvider(MakeShareable(new FFeaturePackContentSourceProvider()));
-		FAddContentDialogStyle::Initialize();
 	}
 
 	virtual void ShutdownModule() override
 	{
-		FAddContentDialogStyle::Shutdown();
 		FWidgetCarouselModuleStyle::Shutdown();
 	}
 

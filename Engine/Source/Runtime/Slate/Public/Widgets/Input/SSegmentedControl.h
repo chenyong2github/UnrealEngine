@@ -77,23 +77,30 @@ public:
 	DECLARE_DELEGATE_OneParam( FOnValueChanged, OptionType );
 
 	SLATE_BEGIN_ARGS( SSegmentedControl<OptionType> )
-	: _Style(&FAppStyle::Get().GetWidgetStyle<FSegmentedControlStyle>("SegmentedControl"))
+		: _Style(&FAppStyle::Get().GetWidgetStyle<FSegmentedControlStyle>("SegmentedControl"))
+		, _TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
+		, _MaxSegmentsPerLine(0)
 	{}
 		/** Slot type supported by this panel */
 		SLATE_SUPPORTS_SLOT(FSlot<OptionType>)
 
 		/** Styling for this control */
 		SLATE_STYLE_ARGUMENT(FSegmentedControlStyle, Style)
+	
+		/** Styling for the text in each slot. If a custom widget is supplied for a slot this argument is not used */
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 
 		/** The current control value */
-		SLATE_ATTRIBUTE( OptionType, Value )
+		SLATE_ATTRIBUTE(OptionType, Value)
 
 		/** Padding to apply to each slot */
 		SLATE_ATTRIBUTE(FMargin, UniformPadding)
 
 		/** Called when the value is changed */
-		SLATE_EVENT( FOnValueChanged, OnValueChanged )
+		SLATE_EVENT(FOnValueChanged, OnValueChanged)
 		
+		/** Optional maximum number of segments per line before the control wraps vertically to the next line. If this value is <= 0 no wrapping happens */
+		SLATE_ARGUMENT(int32, MaxSegmentsPerLine)
 	SLATE_END_ARGS()
 
 	void Construct( const FArguments& InArgs )
@@ -101,11 +108,14 @@ public:
 		check(InArgs._Style);
 
 		Style = InArgs._Style;
+		TextStyle = InArgs._TextStyle;
 
 		CurrentValue = InArgs._Value;
 		OnValueChanged = InArgs._OnValueChanged;
 
 		UniformPadding = InArgs._UniformPadding;
+
+		MaxSegmentsPerLine = InArgs._MaxSegmentsPerLine;
 
 		const int32 NumSlots = InArgs.Slots.Num();
 		Children.Reserve(NumSlots);
@@ -154,20 +164,22 @@ public:
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >( "ButtonText" ))
+					.TextStyle(TextStyle)
 					.Justification(ETextJustify::Center)
 					.Text_Lambda([ChildSlotPtr] () { return ChildSlotPtr->_Text.Get(); } ) 
 				];
 			}
 
-			UniformBox->AddSlot(SlotIndex, 0)
+			int32 ColumnIndex = MaxSegmentsPerLine ? SlotIndex % MaxSegmentsPerLine : SlotIndex;
+			UniformBox->AddSlot(ColumnIndex, MaxSegmentsPerLine > 0 ? SlotIndex / MaxSegmentsPerLine : 0)
 			// Note HAlignment is applied at the check box level because if it were applied here it would make the slots look physically disconnected from each other 
 			.VAlign(ChildSlotPtr->VAlignment)
 			[
 				SNew(SCheckBox)
+				.Clipping(EWidgetClipping::ClipToBounds)
 				.HAlign(ChildSlotPtr->HAlignment)
 				.ToolTipText(ChildSlotPtr->_Tooltip)
-				.Style(SlotIndex == 0 ? &Style->FirstControlStyle : SlotIndex == (NumSlots - 1) ? &Style->LastControlStyle : &Style->ControlStyle)
+				.Style(ColumnIndex == 0 ? &Style->FirstControlStyle : ColumnIndex == (NumSlots - 1) ? &Style->LastControlStyle : &Style->ControlStyle)
 				.IsChecked(this, &SSegmentedControl::IsCurrentValue, ChildValue)
 				.OnCheckStateChanged(this, &SSegmentedControl::CommitValue, ChildValue)
 				.Padding(UniformPadding)
@@ -185,13 +197,16 @@ public:
 	}
 
 	// Slot Management
-	FSlot<OptionType>& AddSlot(const OptionType& InValue)
+	FSlot<OptionType>& AddSlot(const OptionType& InValue, bool bRebuildChildren = true)
 	{
 		FSlot<OptionType>& NewSlot = *(new FSlot<OptionType>(InValue));
 
 		Children.Add( &NewSlot );
-		RebuildChildren();
 
+		if (bRebuildChildren)
+		{
+			RebuildChildren();
+		}
 		return NewSlot;
 	}
 
@@ -237,4 +252,8 @@ protected:
 	TAttribute<FMargin> UniformPadding;
 
 	const FSegmentedControlStyle* Style;
+
+	const FTextBlockStyle* TextStyle;
+
+	int32 MaxSegmentsPerLine = 0;
 };
