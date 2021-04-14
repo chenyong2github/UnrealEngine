@@ -90,7 +90,7 @@ FPrimitiveViewRelevance FNiagaraSystemRenderData::GetViewRelevance(const FSceneV
 	FPrimitiveViewRelevance Relevance;
 	if (IsRenderingEnabled())
 	{
-		for (const auto Renderer : EmitterRenderers_GT)
+		for (const auto Renderer : EmitterRenderers_RT)
 		{
 			if (Renderer)
 			{
