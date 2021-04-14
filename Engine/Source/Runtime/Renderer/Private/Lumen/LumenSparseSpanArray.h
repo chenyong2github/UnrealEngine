@@ -65,7 +65,6 @@ public:
 			Elements[ElementIndex].~ElementType();
 		}
 
-		// #lumen_todo: implement defragmentation and array size shrinking.
 		RemoveFromFreeSpans(FirstElementIndex, NumElements);
 		AllocatedElementsBitArray.SetRange(FirstElementIndex, NumElements, false);
 
@@ -253,50 +252,85 @@ private:
 		return -1;
 	}
 
-	void RemoveFromFreeSpans(int32 FirstElementIndex, int32 NumElements)
+	int32 BinarySearchForSpanAfter(int32 LastElementIndex)
 	{
-		bool bAdded = false;
-		int32 NextFreeSpanIndex = 0;
-		for (int32 FreeSpanIndex = 0; FreeSpanIndex < FreeSpans.Num(); ++FreeSpanIndex)
+		int32 Index = 0;
+		int32 Size = FreeSpans.Num();
+
+		// Binary search for larger arrays
+		while (Size > 32)
 		{
-			FSpan& FreeSpan = FreeSpans[FreeSpanIndex];
+			const int32 LeftoverSize = Size % 2;
+			Size = Size / 2;
 
-			if (FreeSpan.FirstElementIndex + FreeSpan.NumElements < FirstElementIndex)
-			{
-				NextFreeSpanIndex = FreeSpanIndex + 1;
-			}
+			const int32 CheckIndex = Index + Size;
+			const int32 IndexIfLess = CheckIndex + LeftoverSize;
 
-			if (FreeSpan.FirstElementIndex == FirstElementIndex + NumElements)
+			Index = FreeSpans[CheckIndex].FirstElementIndex >= LastElementIndex ? Index : IndexIfLess;
+		}
+
+		// Finish with a linear search
+		const int32 ArrayEnd = Index + Size;
+		while (Index < ArrayEnd)
+		{
+			if (FreeSpans[Index].FirstElementIndex >= LastElementIndex)
 			{
-				FreeSpan.FirstElementIndex = FirstElementIndex;
-				FreeSpan.NumElements += NumElements;
-				bAdded = true;
 				break;
 			}
+			++Index;
+		}
 
-			if (FreeSpan.FirstElementIndex + FreeSpan.NumElements == FirstElementIndex)
+		return Index;
+	}
+
+	void RemoveFromFreeSpans(int32 FirstElementIndex, int32 NumElements)
+	{
+		const int32 SpanAfterIndex = BinarySearchForSpanAfter(FirstElementIndex + NumElements);
+		const int32 SpanBeforeIndex = SpanAfterIndex - 1;
+
+		bool bAdded = false;
+
+		// Merge span before with new free span
+		if (SpanBeforeIndex >= 0)
+		{
+			FSpan& SpanBefore = FreeSpans[SpanBeforeIndex];
+
+			if (SpanBefore.FirstElementIndex + SpanBefore.NumElements == FirstElementIndex)
 			{
-				FreeSpan.NumElements += NumElements;
+				SpanBefore.NumElements += NumElements;
 
-				// Try to merge two ranges.
-				if (FreeSpanIndex + 1 < FreeSpans.Num())
+				// Try to merge also with a span after
+				if (SpanAfterIndex < FreeSpans.Num())
 				{
-					FSpan& NextFreeSpan = FreeSpans[FreeSpanIndex + 1];
-					if (FreeSpan.FirstElementIndex + FreeSpan.NumElements == NextFreeSpan.FirstElementIndex)
+					FSpan& SpanAfter = FreeSpans[SpanAfterIndex];
+
+					if (SpanBefore.FirstElementIndex + SpanBefore.NumElements == SpanAfter.FirstElementIndex)
 					{
-						FreeSpan.NumElements += NextFreeSpan.NumElements;
-						FreeSpans.RemoveAt(FreeSpanIndex + 1);
+						SpanBefore.NumElements += SpanAfter.NumElements;
+						FreeSpans.RemoveAt(SpanAfterIndex);
 					}
 				}
 
 				bAdded = true;
-				break;
+			}
+		}
+
+		// Merge span after with new free span
+		if (!bAdded && SpanAfterIndex < FreeSpans.Num())
+		{
+			FSpan& SpanAfter = FreeSpans[SpanAfterIndex];
+
+			if (SpanAfter.FirstElementIndex == FirstElementIndex + NumElements)
+			{
+				SpanAfter.FirstElementIndex = FirstElementIndex;
+				SpanAfter.NumElements += NumElements;
+				bAdded = true;
 			}
 		}
 
 		if (!bAdded)
 		{
-			FreeSpans.Insert(FSpan(FirstElementIndex, NumElements), NextFreeSpanIndex);
+			FreeSpans.Insert(FSpan(FirstElementIndex, NumElements), SpanAfterIndex);
 		}
 	}
 
