@@ -411,7 +411,8 @@ namespace AVEncoder
 		EncoderInitParams.encodeHeight = EncoderInitParams.darHeight = Height;
 		EncoderInitParams.encodeGUID = NV_ENC_CODEC_H264_GUID;
 
-		EncoderInitParams.presetGUID = NV_ENC_PRESET_LOW_LATENCY_HQ_GUID;
+		//TODO: Commented this out to get builds compiling
+		//EncoderInitParams.presetGUID = NV_ENC_PRESET_LOW_LATENCY_HQ_GUID;
 
 		EncoderInitParams.frameRateNum = Encoder.MaxFramerate;
 		EncoderInitParams.frameRateDen = 1;
