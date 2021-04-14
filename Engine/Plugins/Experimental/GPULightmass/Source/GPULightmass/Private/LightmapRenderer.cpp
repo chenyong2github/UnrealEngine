@@ -8,6 +8,7 @@
 #include "Scene/StaticMesh.h"
 #include "LightmapGBuffer.h"
 #include "LightmapRayTracing.h"
+#include "PathTracingLightParameters.inl"
 #include "ClearQuad.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Async/ParallelFor.h"
@@ -165,201 +166,6 @@ struct FGPUBatchedTileRequests
 	TResourceArray<FGPUTileDescription> BatchedTilesDesc;
 };
 
-#if RHI_RAYTRACING
-void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState& LightScene, FRDGBuilder& GraphBuilder, FRDGBufferSRV** OutLightBuffer, unsigned* OutLightCount)
-{
-	const uint32 MaxLightCount = RAY_TRACING_LIGHT_COUNT_MAXIMUM;
-	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM] = {};
-
-	unsigned LightCount = 0;
-
-	if (LightScene.SkyLight.IsSet())
-	{
-		FPathTracingLight& DestLight = Lights[LightCount++];
-		DestLight.Color = FVector(LightScene.SkyLight->Color);
-		DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
-		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-		bool SkyLightIsStationary = LightScene.SkyLight->bStationary;
-		DestLight.Flags |= SkyLightIsStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
-	}
-
-	for (auto Light : LightScene.DirectionalLights.Elements)
-	{
-		if (LightCount < MaxLightCount)
-		{
-			FPathTracingLight& DestLight = Lights[LightCount++];
-
-			DestLight.Normal = -Light.Direction;
-			DestLight.Color = FVector(Light.Color);
-			DestLight.Dimensions = FVector(
-				FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)),
-				FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceSoftAngle)),
-				0.0f);
-			DestLight.Attenuation = 1.0;
-			DestLight.IESTextureSlice = -1;
-
-			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
-		}
-	}
-
-	for (auto Light : LightScene.PointLights.Elements)
-	{
-		if (LightCount < MaxLightCount)
-		{
-			FPathTracingLight& DestLight = Lights[LightCount++];
-
-			DestLight.Position = Light.Position;
-			DestLight.Color = FVector(Light.Color);
-			DestLight.Normal = Light.Direction;
-			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
-			DestLight.dPdv = Light.Tangent;
-
-			DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
-			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-			DestLight.FalloffExponent = Light.FalloffExponent;
-			DestLight.IESTextureSlice = -1;
-
-			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
-		}
-	}
-
-	for (auto Light : LightScene.SpotLights.Elements)
-	{
-		if (LightCount < MaxLightCount)
-		{
-			FPathTracingLight& DestLight = Lights[LightCount++];
-
-			DestLight.Position = Light.Position;
-			DestLight.Normal = Light.Direction;
-			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, Light.Direction);
-			DestLight.dPdv = Light.Tangent;
-			DestLight.Color = FVector(Light.Color);
-			DestLight.Dimensions = FVector(Light.SourceRadius, Light.SourceSoftRadius, Light.SourceLength);
-			DestLight.Shaping = Light.SpotAngles;
-			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-			DestLight.FalloffExponent = Light.FalloffExponent;
-			DestLight.IESTextureSlice = -1;
-
-			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
-		}
-	}
-
-	for (auto Light : LightScene.RectLights.Elements)
-	{
-		if (LightCount < MaxLightCount)
-		{
-			FPathTracingLight& DestLight = Lights[LightCount++];
-
-			DestLight.Position = Light.Position;
-			DestLight.Normal = Light.Direction;
-			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, -Light.Direction);
-			DestLight.dPdv = Light.Tangent;
-
-			FLinearColor LightColor = Light.Color;
-			LightColor /= 0.5f * Light.SourceWidth * Light.SourceHeight;
-			DestLight.Color = FVector(LightColor);
-
-			DestLight.Dimensions = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
-			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
-			DestLight.Shaping = FVector2D(FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle)), Light.BarnDoorLength);
-
-			DestLight.IESTextureSlice = -1;
-
-			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
-		}
-	}
-
-	{
-		// Upload the buffer of lights to the GPU
-		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
-		*OutLightBuffer = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracingLightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
-		*OutLightCount = LightCount;
-	}
-}
-
-FSkyLightData SetupSkyLightParameters(const GPULightmass::FLightSceneRenderState& LightScene)
-{
-	FSkyLightData SkyLightData;
-	// Check if parameters should be set based on if the sky light's texture has been processed and if its mip tree has been built yet
-	if (LightScene.SkyLight.IsSet())
-	{
-		check(LightScene.SkyLight->ProcessedTexture);
-		check(LightScene.SkyLight->ImportanceSamplingData->bIsValid);
-
-		SkyLightData.SamplesPerPixel = 1;
-		SkyLightData.SamplingStopLevel = 0;
-		SkyLightData.MaxRayDistance = 1.0e7;
-		SkyLightData.MaxNormalBias = 0.1f;
-		SkyLightData.MaxShadowThickness = 1.0e3;
-
-		SkyLightData.Color = FVector(LightScene.SkyLight->Color);
-		SkyLightData.Texture = LightScene.SkyLight->ProcessedTexture;
-		SkyLightData.TextureDimensions = FIntVector(LightScene.SkyLight->TextureDimensions.X, LightScene.SkyLight->TextureDimensions.Y, 1);
-		SkyLightData.TextureSampler = LightScene.SkyLight->ProcessedTextureSampler;
-		SkyLightData.MipDimensions = LightScene.SkyLight->ImportanceSamplingData->MipDimensions;
-
-		SkyLightData.MipTreePosX = LightScene.SkyLight->ImportanceSamplingData->MipTreePosX.SRV;
-		SkyLightData.MipTreeNegX = LightScene.SkyLight->ImportanceSamplingData->MipTreeNegX.SRV;
-		SkyLightData.MipTreePosY = LightScene.SkyLight->ImportanceSamplingData->MipTreePosY.SRV;
-		SkyLightData.MipTreeNegY = LightScene.SkyLight->ImportanceSamplingData->MipTreeNegY.SRV;
-		SkyLightData.MipTreePosZ = LightScene.SkyLight->ImportanceSamplingData->MipTreePosZ.SRV;
-		SkyLightData.MipTreeNegZ = LightScene.SkyLight->ImportanceSamplingData->MipTreeNegZ.SRV;
-
-		SkyLightData.MipTreePdfPosX = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfPosX.SRV;
-		SkyLightData.MipTreePdfNegX = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfNegX.SRV;
-		SkyLightData.MipTreePdfPosY = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfPosY.SRV;
-		SkyLightData.MipTreePdfNegY = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfNegY.SRV;
-		SkyLightData.MipTreePdfPosZ = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfPosZ.SRV;
-		SkyLightData.MipTreePdfNegZ = LightScene.SkyLight->ImportanceSamplingData->MipTreePdfNegZ.SRV;
-		SkyLightData.SolidAnglePdf = LightScene.SkyLight->ImportanceSamplingData->SolidAnglePdf.SRV;
-	}
-	else
-	{
-		SkyLightData.SamplesPerPixel = -1;
-		SkyLightData.SamplingStopLevel = 0;
-		SkyLightData.MaxRayDistance = 0.0f;
-		SkyLightData.MaxNormalBias = 0.0f;
-		SkyLightData.MaxShadowThickness = 0.0f;
-
-		SkyLightData.Color = FVector(0.0);
-		SkyLightData.Texture = GBlackTextureCube->TextureRHI;
-		SkyLightData.TextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		SkyLightData.MipDimensions = FIntVector(0);
-
-		SkyLightData.MipTreePosX = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreeNegX = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePosY = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreeNegY = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePosZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreeNegZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
-
-		SkyLightData.MipTreePdfPosX = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePdfNegX = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePdfPosY = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePdfNegY = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePdfPosZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.MipTreePdfNegZ = GBlackTextureWithSRV->ShaderResourceViewRHI;
-		SkyLightData.SolidAnglePdf = GBlackTextureWithSRV->ShaderResourceViewRHI;
-	}
-
-	return SkyLightData;
-}
-#endif
 namespace GPULightmass
 {
 
@@ -1954,6 +1760,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 						if (GPUBatchedTileRequests.BatchedTilesDesc.Num() > 0)
 						{
 							FRHIResourceCreateInfo CreateInfo(TEXT("BatchedTilesBuffer"));
+							CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 							CreateInfo.ResourceArray = &GPUBatchedTileRequests.BatchedTilesDesc;
 
 							GPUBatchedTileRequests.BatchedTilesBuffer = RHICreateStructuredBuffer(sizeof(FGPUTileDescription), GPUBatchedTileRequests.BatchedTilesDesc.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
@@ -2015,14 +1822,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 									PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
-									{
-										SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
-									}
-
-									{
-										SkyLightDataUniformBuffer = CreateUniformBufferImmediate(SetupSkyLightParameters(Scene->LightSceneRenderState), EUniformBufferUsage::UniformBuffer_SingleFrame);
-										PassParameters->SkyLight = SkyLightDataUniformBuffer;
-									}
+									SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, PassParameters);
 
 									// TODO: find a way to share IES atlas with path tracer ...
 									PassParameters->IESTexture = GWhiteTexture->TextureRHI;
