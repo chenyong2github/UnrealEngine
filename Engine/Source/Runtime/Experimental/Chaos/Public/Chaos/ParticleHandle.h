@@ -1237,10 +1237,9 @@ public:
 		return false;
 	}
 
-	// @todo(ccaulfield): should be available on kinematics?
 	const FVec3& PreV() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->PreV();
 		}
@@ -1248,10 +1247,9 @@ public:
 		return ZeroVector;
 	}
 
-	// @todo(ccaulfield): should be available on kinematics?
 	const FVec3& PreW() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (MHandle->CastToRigidParticle())
 		{
 			return MHandle->CastToRigidParticle()->PreW();
 		}

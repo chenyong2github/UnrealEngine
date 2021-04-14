@@ -97,6 +97,7 @@ namespace Chaos
 		static constexpr FRealSingle DefaultCollisionCullDistance = 5.0f;
 		static constexpr int32 DefaultNumJointPairIterations = 3;
 		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;
+		static constexpr int32 DefaultRestitutionThreshold = 1000;
 
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
