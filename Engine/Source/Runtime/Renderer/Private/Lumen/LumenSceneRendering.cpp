@@ -73,7 +73,7 @@ FAutoConsoleVariableRef CVarLumenSceneMaxQuadResolution(
 );
 
 int32 GLumenSceneReset = 0;
-FAutoConsoleVariableRef CVarLumenSceneResetCards(
+FAutoConsoleVariableRef CVarLumenSceneReset(
 	TEXT("r.LumenScene.Reset"),
 	GLumenSceneReset,
 	TEXT("Reset all atlases and captured cards.\n")

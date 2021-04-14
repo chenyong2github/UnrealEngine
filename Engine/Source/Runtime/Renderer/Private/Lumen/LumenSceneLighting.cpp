@@ -578,6 +578,21 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		{
 			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
 
+			if (LumenSceneData.bDebugClearAllCachedState)
+			{
+				AddClearRenderTargetPass(GraphBuilder, RadiosityAtlas);
+				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
+
+				if (Lumen::UseIrradianceAtlas(View))
+				{
+					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IrradianceAtlas);
+				}
+				if (Lumen::UseIndirectIrradianceAtlas(View))
+				{
+					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
+				}
+			}
+
 			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
 			FLumenCardScatterContext DirectLightingCardScatterContext;
@@ -606,20 +621,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			DirectLightingCardScatterContext.BuildScatterIndirectArgs(
 				GraphBuilder,
 				View);
-
-			if (LumenSceneData.bDebugClearAllCachedState)
-			{
-				AddClearRenderTargetPass(GraphBuilder, TracingInputs.FinalLightingAtlas);
-
-				if (Lumen::UseIrradianceAtlas(View))
-				{
-					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IrradianceAtlas);
-				}
-				if (Lumen::UseIndirectIrradianceAtlas(View))
-				{
-					AddClearRenderTargetPass(GraphBuilder, TracingInputs.IndirectIrradianceAtlas);
-				}
-			}
 
 			CombineLumenSceneLighting(
 				Scene,
