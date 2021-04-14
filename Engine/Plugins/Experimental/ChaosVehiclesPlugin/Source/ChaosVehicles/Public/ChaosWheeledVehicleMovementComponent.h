@@ -158,6 +158,11 @@ struct FVehicleDifferentialConfig
 {
 	GENERATED_USTRUCT_BODY()
 
+	FVehicleDifferentialConfig()
+	{
+		InitDefaults();
+	}
+
 	/** Type of differential */
 	UPROPERTY(EditAnywhere, Category=Setup)
 	EVehicleDifferential DifferentialType;
@@ -192,6 +197,11 @@ USTRUCT()
 struct FVehicleEngineConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleEngineConfig()
+	{
+		InitDefaults();
+	}
 
 	/** Torque [Normalized 0..1] for a given RPM */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -276,6 +286,11 @@ USTRUCT()
 struct FVehicleTransmissionConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleTransmissionConfig()
+	{
+		InitDefaults();
+	}
 
 	friend class UChaosVehicleWheel;
 
@@ -406,6 +421,11 @@ USTRUCT()
 struct FVehicleSteeringConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleSteeringConfig()
+	{
+		InitDefaults();
+	}
 
 	/** Single angle : both wheels steer by the same amount
 	 *  AngleRatio   : outer wheels on corner steer less than the inner ones by set ratio 

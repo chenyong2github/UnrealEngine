@@ -12,6 +12,13 @@ struct FBaseSnapshotData //: public UObject
 public:
 	GENERATED_BODY()
 
+	FBaseSnapshotData()
+	{
+		Transform = FTransform::Identity;
+		LinearVelocity = FVector::ZeroVector;
+		AngularVelocity = FVector::ZeroVector;
+	}
+
 	UPROPERTY()
 	FTransform Transform;		// world coords
 
@@ -27,6 +34,15 @@ USTRUCT(BlueprintType)
 struct FWheelSnapshot
 {
 	GENERATED_BODY()
+
+	FWheelSnapshot()
+	{
+		SuspensionOffset = 0.f;
+		WheelRotationAngle = 0.f;
+		SteeringAngle = 0.f;
+		WheelRadius = 0.f;
+		WheelAngularVelocity = 0.f;
+	}
 	
 	UPROPERTY()
 	float SuspensionOffset;		// suspension location
@@ -49,6 +65,12 @@ struct FWheeledSnaphotData : public FBaseSnapshotData
 {
 public:
 	GENERATED_BODY()
+
+	FWheeledSnaphotData()
+	{
+		SelectedGear = 0;
+		EngineRPM = 0.f;
+	}
 
 	UPROPERTY()
 	int SelectedGear;		// -ve reverse gear(s), 0 neutral, +ve forward gears

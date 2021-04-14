@@ -105,6 +105,20 @@ struct CHAOSVEHICLES_API FVehicleReplicatedState
 {
 	GENERATED_USTRUCT_BODY()
 
+	FVehicleReplicatedState()
+	{
+		SteeringInput = 0.f;
+		ThrottleInput = 0.f;
+		BrakeInput = 0.f;
+		PitchInput = 0.f;
+		RollInput = 0.f;
+		YawInput = 0.f;
+		HandbrakeInput = 0.f;
+		TargetGear = 0;
+		ThrottleUp = 0.f;
+		ThrottleDown = 0.f;
+	}
+
 	// input replication: steering
 	UPROPERTY()
 	float SteeringInput;
@@ -165,6 +179,11 @@ struct FVehicleTorqueControlConfig
 {
 public:
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleTorqueControlConfig()
+	{
+		InitDefaults();
+	}
 
 	/** Torque Control Enabled */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -235,6 +254,11 @@ struct FVehicleTargetRotationControlConfig
 {
 public:
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleTargetRotationControlConfig()
+	{
+		InitDefaults();
+	}
 
 	/** Rotation Control Enabled */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -327,6 +351,11 @@ struct FVehicleStabilizeControlConfig
 {
 public:
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleStabilizeControlConfig()
+	{
+		InitDefaults();
+	}
 
 	/** Torque Control Enabled */
 	UPROPERTY(EditAnywhere, Category = Setup)
@@ -542,6 +571,11 @@ struct CHAOSVEHICLES_API FVehicleAerofoilConfig
 {
 	GENERATED_USTRUCT_BODY()
 
+	FVehicleAerofoilConfig()
+	{
+		InitDefaults();
+	}
+
 	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
 	UPROPERTY(EditAnywhere, Category = AerofoilSetup)
 	EVehicleAerofoilType AerofoilType;
@@ -612,6 +646,11 @@ USTRUCT()
 struct FVehicleThrustConfig
 {
 	GENERATED_USTRUCT_BODY()
+
+	FVehicleThrustConfig()
+	{
+		InitDefaults();
+	}
 
 	// Does this aerofoil represent a fixed spoiler, an aircraft wing, etc how is controlled.
 	UPROPERTY(EditAnywhere, Category = ThrustSetup)
