@@ -137,7 +137,7 @@ private:
 	/** The item currently selected in the combo box */
 	TSharedPtr<FString> SelectedItem;
 	/** The search field used for the combox box's contents */
-	TSharedPtr< SEditableTextBox > SearchField;
+	TSharedPtr<SEditableTextBox> SearchField;
 	/** The ListView that we pop up; visualized the available options. */
 	TSharedPtr< SComboListType > ComboListView;
 	/** The Scrollbar used in the ListView. */
