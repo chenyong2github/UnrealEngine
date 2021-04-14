@@ -27,6 +27,14 @@ static FAutoConsoleVariableRef CVarMaterialExcludeNonPipelinedShaders(
 	ECVF_ReadOnly
 );
 
+int32 GMaterialDumpDDCKeys = 0;
+static FAutoConsoleVariableRef CVarMaterialDumpDDCKeys(
+	TEXT("r.Material.DumpDDCKeys"),
+	GMaterialDumpDDCKeys,
+	TEXT("if != 0, DDC keys for each material shadermap will be dumped into project's Saved directory (MaterialDDCKeys subdirectory)"),
+	ECVF_Default
+);
+
 #if ENABLE_COOK_STATS
 namespace MaterialShaderCookStats
 {
@@ -1180,6 +1188,19 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			TArray<uint8> CachedData;
 			const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform);
 			OutDDCKeyDesc = FSHA1_HashString(DataKey);
+
+			if (UNLIKELY(GMaterialDumpDDCKeys))
+			{
+				FString TempPath = FPaths::ProjectSavedDir() / TEXT("MaterialDDCKeys") / LexToString(InPlatform);
+				IFileManager::Get().MakeDirectory(*TempPath, true);
+
+				FString FileName = FString::Printf(TEXT("%s-%s-%s.txt"), *Material->GetAssetName(), *LexToString(ShaderMapId.FeatureLevel), *LexToString(ShaderMapId.QualityLevel));
+				FString TempFile = TempPath / FileName;
+
+				TUniquePtr<FArchive> DumpAr(IFileManager::Get().CreateFileWriter(*TempFile));
+				// serializing the string via << produces a non-textual file because it saves string's length, too
+				DumpAr->Serialize(const_cast<TCHAR*>(*DataKey), DataKey.Len() * sizeof(TCHAR));
+			}
 
 			bool CheckCache = true;
 
