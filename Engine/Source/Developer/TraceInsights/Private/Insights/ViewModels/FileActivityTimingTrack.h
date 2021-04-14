@@ -20,6 +20,7 @@ class FFileActivitySharedState : public Insights::ITimingViewExtender, public TS
 {
 	friend class FOverviewFileActivityTimingTrack;
 	friend class FDetailedFileActivityTimingTrack;
+	friend class FFileActivityTimingTrack;
 
 public:
 	struct FIoFileActivity
@@ -31,19 +32,21 @@ public:
 		double CloseStartTime;
 		double CloseEndTime;
 		int32 EventCount;
-		int32 Depth;
+		int32 Index;	// Different FIoFileActivity may have the same Index if their operations don't overlap in time
+		int32 MaxConcurrentEvents; // e.g. overlapped IO reads
+		uint32 StartingDepth; // Depth of first event on this file
 	};
 
 	struct FIoTimingEvent
 	{
 		double StartTime;
 		double EndTime;
-		uint32 Depth;
+		uint32 Depth; // During update, this is local within a track - then it's set to a global depth
 		uint32 Type; // TraceServices::EFileActivityType + "Failed" flag
 		uint64 Offset;
 		uint64 Size;
 		uint64 ActualSize;
-		TSharedPtr<FIoFileActivity> FileActivity;
+		int32 FileActivityIndex;
 	};
 
 public:
@@ -59,9 +62,6 @@ public:
 	const TArray<FIoTimingEvent>& GetAllEvents() const { return AllIoEvents; }
 
 	void RequestUpdate() { bForceIoEventsUpdate = true; }
-
-	bool IsMergeLanesToggleOn() const { return bMergeIoLanes; }
-	void ToggleMergeLanes() { bMergeIoLanes = !bMergeIoLanes; RequestUpdate(); }
 
 	bool IsAllIoTracksToggleOn() const { return bShowHideAllIoTracks; }
 	void SetAllIoTracksToggle(bool bOnOff);
@@ -81,6 +81,8 @@ public:
 	bool AreBackgroundEventsVisible() const;
 	void ToggleBackgroundEvents();
 
+	static const uint32 MaxLanes;
+
 private:
 	void BuildSubMenu(FMenuBuilder& InOutMenuBuilder);
 
@@ -92,7 +94,6 @@ private:
 
 	bool bShowHideAllIoTracks;
 	bool bForceIoEventsUpdate;
-	bool bMergeIoLanes; // merge lanes of file activity events in a way that avoids duplication (for the Activity track)
 
 	TArray<TSharedPtr<FIoFileActivity>> FileActivities;
 	TMap<uint64, TSharedPtr<FIoFileActivity>> FileActivityMap;
