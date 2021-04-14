@@ -4146,14 +4146,13 @@ static void GetNonSequencerActorWorldTransforms(ISequencer* Sequencer, const FAc
 			}
 			else
 			{
-				WorldTransform = WorldTransform * Actor->GetActorTransform();
+				WorldTransform = WorldTransform * Actor->GetRootComponent()->GetRelativeTransform();
 			}
-
+			SocketName = Actor->GetAttachParentSocketName();
 			Actor = Actor->GetAttachParentActor();
 			NewActorSelection.Actor = Actor;
 			if (Actor)
 			{
-				SocketName = Actor->GetAttachParentSocketName();
 				NewActorSelection.SocketName = SocketName;
 			}
 		} while (Actor);
@@ -4178,3 +4177,4 @@ void MovieSceneToolHelpers::GetActorWorldTransforms(ISequencer* Sequencer, const
 		GetNonSequencerActorWorldTransforms(Sequencer, ActorSelection, Frames, OutWorldTransforms);
 	}
 }
+

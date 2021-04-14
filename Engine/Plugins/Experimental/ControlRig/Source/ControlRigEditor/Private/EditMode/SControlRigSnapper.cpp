@@ -256,6 +256,19 @@ void SControlRigSnapper::Construct(const FArguments& InArgs)
 							[
 								SNew(SEditableTextBox)
 								.ToolTipText(LOCTEXT("GetStartFrameTooltip", "Set first frame to snap"))
+								.OnTextCommitted_Lambda([this](const FText& InText, ETextCommit::Type TextCommitType)
+									{
+										TWeakPtr<ISequencer> Sequencer = Snapper.GetSequencer();
+										if (Sequencer.IsValid() && Sequencer.Pin()->GetFocusedMovieSceneSequence())
+										{
+
+											TOptional<double> NewFrameTime = Sequencer.Pin()->GetNumericTypeInterface()->FromString(InText.ToString(), 0);
+											if (NewFrameTime.IsSet())
+											{
+												StartFrame = FFrameNumber((int32)NewFrameTime.GetValue());
+											}
+										}
+									})
 								.Text_Lambda([this]()
 									{
 										return GetStartFrameToSnapText();
@@ -276,6 +289,19 @@ void SControlRigSnapper::Construct(const FArguments& InArgs)
 								[
 									SNew(SEditableTextBox)
 									.ToolTipText(LOCTEXT("GetEndFrameTooltip", "Set end frame to snap"))
+									.OnTextCommitted_Lambda([this](const FText& InText, ETextCommit::Type TextCommitType)
+									{
+										TWeakPtr<ISequencer> Sequencer = Snapper.GetSequencer();
+										if (Sequencer.IsValid() && Sequencer.Pin()->GetFocusedMovieSceneSequence())
+										{
+
+											TOptional<double> NewFrameTime = Sequencer.Pin()->GetNumericTypeInterface()->FromString(InText.ToString(), 0);
+											if (NewFrameTime.IsSet())
+											{
+												EndFrame = FFrameNumber((int32)NewFrameTime.GetValue());
+											}
+										}
+									})
 									.Text_Lambda([this]()
 										{
 											return GetEndFrameToSnapText();
