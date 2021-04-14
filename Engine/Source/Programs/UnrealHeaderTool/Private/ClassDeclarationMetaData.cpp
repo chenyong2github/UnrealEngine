@@ -8,6 +8,7 @@
 #include "BaseParser.h"
 #include "HeaderParser.h"
 #include "Classes.h"
+#include "ParserClass.h"
 #include "Specifiers/ClassMetadataSpecifiers.h"
 #include "Algo/FindSortedStringCaseInsensitive.h"
 
