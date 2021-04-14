@@ -52,6 +52,9 @@ public:
 	// UK2Node_CallFunction interface
 	virtual void SetFromFunction(const UFunction* Function);
 	// End of UK2Node_CallFunction interface
+
+	/** Recombines all split pins and sets the node to have default values (all wildcard pins) */
+	BLUEPRINTGRAPH_API void ResetNodeToWildcard();
 	
 private:
 
@@ -86,9 +89,6 @@ private:
 	*			so it does not determine the types.
 	*/
 	bool HasDeterminingComparisonTypes() const;
-
-	/** Recombines all split pins and sets the node to have default values (all wildcard pins) */
-	void ResetNodeToWildcard();
 
 	/**
 	* Attempts to create a cast node and connect it to a call function node
