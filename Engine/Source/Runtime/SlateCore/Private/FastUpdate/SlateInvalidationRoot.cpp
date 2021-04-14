@@ -443,7 +443,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 
 			// Check visibility, it may have been in the update list but a parent who was also in the update list already updated it.
 			SWidget* WidgetPtr = WidgetProxy.GetWidget();
-			if (!WidgetProxy.bUpdatedSinceLastInvalidate && WidgetPtr && WidgetPtr->IsFastPathVisible())
+			if (!WidgetProxy.bUpdatedSinceLastInvalidate && WidgetProxy.Visibility.IsVisible() && WidgetPtr)
 			{
 				bWidgetsNeededRepaint = bWidgetsNeededRepaint || WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint | EWidgetUpdateFlags::NeedsVolatilePaint);
 
@@ -688,35 +688,17 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 					if (ensureMsgf(WidgetPtr, TEXT("A parent remove this widget. Child order invalidation should have been called before we process this widget.")))
 					{
-						auto UpdateAttribute = [&InvalidationWidget, WidgetPtr]()
+						if (!InvalidationWidget.Visibility.IsCollapseIndirectly())
 						{
+							// if my parent is not collapse, then update my visible state
+							FSlateAttributeMetaData::UpdateCollapsedAttributes(*WidgetPtr);
+							if (!InvalidationWidget.Visibility.IsCollapsed())
+							{
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
-							if (GSlateInvalidationRootVerifySlateAttribute)
-							{
-								ensureAlwaysMsgf(InvalidationWidget.bDebug_AttributeUpdated == false, TEXT("Attribute should only be updated once per frame."));
-							}
+								ensureAlwaysMsgf(!GSlateInvalidationRootVerifySlateAttribute || InvalidationWidget.bDebug_AttributeUpdated == false, TEXT("Attribute should only be updated once per frame."));
+								InvalidationWidget.bDebug_AttributeUpdated = true;
 #endif
-
-							// It is possible that the widget doesn't have an attribute registered anymore.
-							FSlateAttributeMetaData::UpdateAttributes(*WidgetPtr);
-							InvalidationWidget.bDebug_AttributeUpdated = true;
-						};
-
-						if (WidgetPtr->IsFastPathVisible())
-						{
-							UpdateAttribute();
-						}
-						else if (InvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
-						{
-							// Is my parent visible, should I update the collapsed attributes
-							const FSlateInvalidationWidgetList::InvalidationWidgetType& ParentInvalidationWidget = (*FastWidgetPathList)[InvalidationWidget.ParentIndex];
-							if (ParentInvalidationWidget.Visibility.IsVisible() && ensure(ParentInvalidationWidget.GetWidget()) && ParentInvalidationWidget.GetWidget()->IsFastPathVisible())
-							{
-								FSlateAttributeMetaData::UpdateCollapsedAttributes(*WidgetPtr);
-								if (WidgetPtr->IsFastPathVisible())
-								{
-									UpdateAttribute();
-								}
+								FSlateAttributeMetaData::UpdateExpandedAttributes(*WidgetPtr);
 							}
 						}
 					}
@@ -836,14 +818,17 @@ bool FSlateInvalidationRoot::ProcessPostUpdate()
 			}
 #endif
 
-			const bool bIsInvalidationRoot = WidgetPtr->Advanced_IsInvalidationRoot();
-			if (bIsInvalidationRoot && WidgetPtr != InvalidationRootWidget)
+			if (WidgetProxy.Visibility.IsVisible())
 			{
-				FSlateInvalidationRoot* InvalidationRoot = const_cast<FSlateInvalidationRoot*>(WidgetPtr->Advanced_AsInvalidationRoot());
-				check(InvalidationRoot);
-				// Prevent reentering call
-				FSlateInvalidationWidgetPostHeap::FScopeWidgetCannotBeAdded Guard{ *WidgetsNeedingPostUpdate, WidgetProxy };
-				InvalidationRoot->ProcessInvalidation();
+				const bool bIsInvalidationRoot = WidgetPtr->Advanced_IsInvalidationRoot();
+				if (bIsInvalidationRoot && WidgetPtr != InvalidationRootWidget)
+				{
+					FSlateInvalidationRoot* InvalidationRoot = const_cast<FSlateInvalidationRoot*>(WidgetPtr->Advanced_AsInvalidationRoot());
+					check(InvalidationRoot);
+					// Prevent reentering call
+					FSlateInvalidationWidgetPostHeap::FScopeWidgetCannotBeAdded Guard{ *WidgetsNeedingPostUpdate, WidgetProxy };
+					InvalidationRoot->ProcessInvalidation();
+				}
 			}
 
 			bWidgetsNeedRepaint |= WidgetProxy.ProcessPostInvalidation(*WidgetsNeedingPostUpdate, *FastWidgetPathList, *this);
@@ -980,7 +965,7 @@ void DumpUpdateList(const FSlateInvalidationWidgetList& FastWidgetPathList, cons
 
 		const FWidgetProxy& WidgetProxy = FastWidgetPathList[MyIndex];
 		const SWidget* WidgetPtr = WidgetProxy.GetWidget();
-		if (WidgetPtr)
+		if (WidgetProxy.Visibility.IsVisible() && WidgetPtr)
 		{
 			if (WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsVolatilePaint))
 			{
@@ -990,7 +975,7 @@ void DumpUpdateList(const FSlateInvalidationWidgetList& FastWidgetPathList, cons
 			{
 				UE_LOG(LogSlate, Log, TEXT("Repaint %s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetPtr));
 			}
-			else if (WidgetPtr->IsFastPathVisible())
+			else
 			{
 				if (WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
 				{
@@ -1167,40 +1152,71 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 
 void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 {
-	WidgetList.ForEachInvalidationWidget([](FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
+	WidgetList.ForEachInvalidationWidget([&WidgetList](FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget)
 		{
-			if (InvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
+			if (SWidget* Widget = InvalidationWidget.GetWidget())
 			{
-				if (SWidget* Widget = InvalidationWidget.GetWidget())
 				{
-					bool bSouldBeFastPathVisible = Widget->GetVisibility().IsVisible();
-					TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
-					if (ensure(ParentWidget))
+					const EVisibility WidgetVisibility = Widget->GetVisibility();
+					bool bParentIsVisible = true;
+					bool bParentIsCollapsed = false;
+
+					const TSharedPtr<SWidget> ParentWidget = Widget->GetParentWidget();
+					if (InvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
 					{
-						bSouldBeFastPathVisible = bSouldBeFastPathVisible && ParentWidget->IsFastPathVisible();
+						// Confirm that we have the correct parent
+						UE_SLATE_LOG_ERROR_IF_FALSE(WidgetList.IsValidIndex(InvalidationWidget.ParentIndex)
+							, GSlateInvalidationRootVerifyWidgetVisibility
+							, TEXT("The widget's parent index '%s' is invalid")
+							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+
+						const FSlateInvalidationWidgetList::InvalidationWidgetType& ParentInvalidationWidget = WidgetList[InvalidationWidget.ParentIndex];
+						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget.Get() == ParentInvalidationWidget.GetWidget()
+							, GSlateInvalidationRootVerifyWidgetVisibility
+							, TEXT("The widget's parent '%s' is not '%s'")
+							, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
+							, *FReflectionMetaData::GetWidgetDebugInfo(ParentWidget.Get()));
+
+						bParentIsVisible = ParentInvalidationWidget.Visibility.IsVisible();
+						bParentIsCollapsed = ParentInvalidationWidget.Visibility.IsCollapsed();
+					}
+					else
+					{
+						UE_SLATE_LOG_ERROR_IF_FALSE(ParentWidget == nullptr || ParentWidget->Advanced_IsInvalidationRoot()
+							, GSlateInvalidationRootVerifyWidgetVisibility
+							, TEXT("The widget's parent is valid and is not an invalidation root.")
+							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}
 
-					if (Widget->IsFastPathVisible() != bSouldBeFastPathVisible)
-					{
-						// It's possible that one of the parent is volatile
-						if (!Widget->IsVolatile() && !Widget->IsVolatileIndirectly())
-						{
-							UE_SLATE_LOG_ERROR_IF_FALSE(false
-								, GSlateInvalidationRootVerifyWidgetVisibility
-								, TEXT("Widget '%s' should be %s.")
-								, *FReflectionMetaData::GetWidgetDebugInfo(Widget)
-								, (bSouldBeFastPathVisible ? TEXT("visible") : TEXT("hidden")));
-						}
-					}
-
-					const bool bHasValidCachedElementHandle = Widget->IsFastPathVisible() || !Widget->GetPersistentState().CachedElementHandle.HasCachedElements();
-					UE_SLATE_LOG_ERROR_IF_FALSE(bHasValidCachedElementHandle
+					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.AreAncestorsVisible() == bParentIsVisible
 						, GSlateInvalidationRootVerifyWidgetVisibility
-						, TEXT("Widget '%s' has cached element and is not visibled.")
+						, TEXT("Widget '%s' AreAncestorsVisible flag is wrong.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
-
+					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsVisible() == (bParentIsVisible && WidgetVisibility.IsVisible())
+						, GSlateInvalidationRootVerifyWidgetVisibility
+						, TEXT("Widget '%s' IsVisible flag is wrong.")
+						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsCollapsed() == bParentIsCollapsed || WidgetVisibility == EVisibility::Collapsed
+						, GSlateInvalidationRootVerifyWidgetVisibility
+						, TEXT("Widget '%s' IsCollapsed flag is wrong.")
+						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+					UE_SLATE_LOG_ERROR_IF_FALSE(InvalidationWidget.Visibility.IsCollapseIndirectly() == bParentIsCollapsed
+					, GSlateInvalidationRootVerifyWidgetVisibility
+						, TEXT("Widget '%s' IsCollapseIndirectly flag is wrong.")
+						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+				}
+				{
+					if (!InvalidationWidget.Visibility.IsVisible())
+					{
+						UE_SLATE_LOG_ERROR_IF_FALSE(!Widget->GetPersistentState().CachedElementHandle.HasCachedElements()
+							, GSlateInvalidationRootVerifyWidgetVisibility
+							, TEXT("Widget '%s' has cached element and is not visibled.")
+							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+					}
+				}
+				{
 					// Cache last frame visibility
-					InvalidationWidget.bDebug_LastFrameVisible = Widget->IsFastPathVisible();
+					InvalidationWidget.bDebug_LastFrameVisible = InvalidationWidget.Visibility.IsVisible();
 					InvalidationWidget.bDebug_LastFrameVisibleSet = true;
 				}
 			}
@@ -1210,9 +1226,9 @@ void VerifyWidgetVisibility(FSlateInvalidationWidgetList& WidgetList)
 void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlateInvalidationWidgetIndex>& FinalUpdateList)
 {
 	SWidget* Root = WidgetList.GetRoot().Pin().Get();
-	WidgetList.ForEachWidget([Root , &FinalUpdateList](SWidget* Widget)
+	WidgetList.ForEachWidget([Root, &FinalUpdateList](SWidget* Widget)
 		{
-			if (Widget != Root)
+			if (Widget != Root && GSlateInvalidationRootVerifyWidgetVolatile)
 			{
 				{
 					const bool bWasVolatile = Widget->IsVolatile();
@@ -1246,11 +1262,15 @@ void VerifyWidgetVolatile(FSlateInvalidationWidgetList& WidgetList, TArray<FSlat
 						, TEXT("Widget '%s' is volatile but doesn't have the update flag NeedsVolatilePaint.")
 						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 
-					const bool bIsContains = FinalUpdateList.Contains(Widget->GetProxyHandle().GetWidgetIndex());
-					UE_SLATE_LOG_ERROR_IF_FALSE(bIsContains
-						, GSlateInvalidationRootVerifyWidgetVolatile
-						, TEXT("Widget '%s' is volatile but is not in the update list.")
-						, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+					if (Widget->GetProxyHandle().IsValid(Widget))
+					{
+						const bool bIsVisible = Widget->GetProxyHandle().GetProxy().Visibility.IsVisible();
+						const bool bIsContains = FinalUpdateList.Contains(Widget->GetProxyHandle().GetWidgetIndex());
+						UE_SLATE_LOG_ERROR_IF_FALSE(bIsContains || !bIsVisible
+							, GSlateInvalidationRootVerifyWidgetVolatile
+							, TEXT("Widget '%s' is volatile but is not in the update list.")
+							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+					}
 				}
 			}
 		});

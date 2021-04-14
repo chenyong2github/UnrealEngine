@@ -38,6 +38,11 @@ public:
 	 */
 	static void UpdateCollapsedAttributes(SWidget& OwningWidget);
 	/**
+	 * Update attributes that are mark to be updated when the widget is NOT collapsed.
+	 * Invalidate the widget if it has finished its construction phase.
+	 */
+	static void UpdateExpandedAttributes(SWidget& OwningWidget);
+	/**
 	 * Update attributes that are mark to be updated when the widget is collapsed.
 	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
 	 */
@@ -47,6 +52,11 @@ public:
 	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
 	 */
 	static void UpdateCollapsedAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
+	/**
+	 * Update attributes that are mark to be updated when the widget is NOT collapsed.
+	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
+	 */
+	static void UpdateExpandedAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const
@@ -58,7 +68,7 @@ public:
 
 	int32 RegisteredCollaspedAttributeCount() const { return CollaspedAttributeCounter; }
 
-	/** Get the name of all the atrributes, if available. */
+	/** Get the name of all the attributes, if available. */
 	TArray<FName> GetAttributeNames(const SWidget& OwningWidget) const;
 
 private:
@@ -74,9 +84,15 @@ private:
 	static void MoveAttribute(const SWidget& OwningWidget, FSlateAttributeBase& NewAttribute, ESlateAttributeType AttributeType, const FSlateAttributeBase* PreviousAttribute);
 
 private:
+	enum class EUpdateType
+	{
+		All,
+		Collapsed,
+		Expanded, // not mark as collapsed
+	};
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void UpdateAttributesImpl(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation);
+	void UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, bool bAllowInvalidation);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const

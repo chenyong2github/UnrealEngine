@@ -257,57 +257,50 @@ FSlateInvalidationWidgetList::FSlateInvalidationWidgetList(FSlateInvalidationRoo
 }
 
 
-FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, bool bParentVisible, bool bParentVolatile)
+FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile)
 {
 	const bool bIsEmpty = IsEmpty();
 	const FSlateInvalidationWidgetIndex NewIndex = EmplaceInsertAfter(LastestIndex, Widget);
 	LastestIndex = NewIndex.ArrayIndex;
 
 	FSlateInvalidationWidgetIndex LeafMostChildIndex = NewIndex;
-	EVisibility Visibility = Widget->GetVisibility();
-	bool bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+	FSlateInvalidationWidgetVisibility NewVisibility {ParentVisibility, Widget->GetVisibility()};
 
 	bool bUpdateSlateAttribute = false;
-	if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
+	if (ShouldBeAddedToAttributeList(Widget))
 	{
-
 		// The list is already sorted at this point. Add to the end.
 		Data[LastestIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewIndex.ElementIndex);
 
 		// Update attributes now because the visibility flag may change
 		{
-			if (bParentAndSelfVisible)
-			{
-				FSlateAttributeMetaData::UpdateAttributes(Widget.Get(), false);
-				bUpdateSlateAttribute = true;
-
-				Visibility = Widget->GetVisibility();
-				bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
-			}
-			else if (bParentVisible)
+			if (!NewVisibility.IsCollapseIndirectly())
 			{
 				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get(), false);
-				bUpdateSlateAttribute = true;
+				NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
 
-				Visibility = Widget->GetVisibility();
-				bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
-				if (bParentAndSelfVisible)
+				if (!NewVisibility.IsCollapsed())
 				{
-					FSlateAttributeMetaData::UpdateAttributes(Widget.Get(), false);
-					Visibility = Widget->GetVisibility();
-					bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+					FSlateAttributeMetaData::UpdateExpandedAttributes(Widget.Get(), false);
+					NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
+					bUpdateSlateAttribute = true;
 				}
 			}
 		}
 	}
+
+	const bool bIsInvalidationRoot = Widget->Advanced_IsInvalidationRoot();
 
 	{
 		InvalidationWidgetType& WidgetProxy = (*this)[NewIndex];
 		WidgetProxy.Index = NewIndex;
 		WidgetProxy.ParentIndex = ParentIndex;
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
-		WidgetProxy.Visibility = Visibility;
+		WidgetProxy.Visibility = NewVisibility;
+		WidgetProxy.bIsInvalidationRoot = bIsInvalidationRoot;
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 		WidgetProxy.bDebug_AttributeUpdated = bUpdateSlateAttribute;
+#endif
 	}
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
@@ -315,14 +308,14 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 #endif
 	{
 		const FSlateInvalidationWidgetSortOrder SortIndex = { *this, NewIndex };
-		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex, GenerationNumber }, !bParentAndSelfVisible, bParentVolatile);
+		Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewIndex, SortIndex, GenerationNumber }, NewVisibility, bParentVolatile);
 	}
 
 	const bool bParentOrSelfVolatile = bParentVolatile || Widget->IsVolatile();
 
 	// N.B. The SInvalidationBox needs a valid Proxy to decide if he's a root or not.
 	//const bool bDoRecursion = ShouldDoRecursion(Widget);
-	const bool bDoRecursion = !Widget->Advanced_IsInvalidationRoot() || bIsEmpty;
+	const bool bDoRecursion = !bIsInvalidationRoot || bIsEmpty;
 	if (bDoRecursion)
 	{
 		FChildren* Children = Widget->GetAllChildren();
@@ -335,7 +328,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 			if (bShouldAdd)
 			{
 				check(NewWidget->GetParentWidget() == Widget);
-				LeafMostChildIndex = _BuildWidgetList_Recursive(NewWidget, NewIndex, LastestIndex, bParentAndSelfVisible, bParentOrSelfVolatile);
+				LeafMostChildIndex = Internal_BuildWidgetList_Recursive(NewWidget, NewIndex, LastestIndex, NewVisibility, bParentOrSelfVolatile);
 			}
 		}
 
@@ -358,15 +351,17 @@ void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
 	{
 		GenerationNumber = InvalidationRoot->GetFastPathGenerationNumber();
 	}
-
 	const bool bShouldAdd = ShouldBeAdded(InRoot);
 	if (bShouldAdd)
 	{
-		const TSharedPtr<SWidget> Parent = InRoot->GetParentWidget();
-		const bool bParentVisible = Parent.IsValid() ? Parent->GetVisibility().IsVisible() : true;
+		FSlateInvalidationWidgetVisibility ParentVisibility = EVisibility::Visible;
+		if (const TSharedPtr<SWidget> Parent = InRoot->GetParentWidget())
+		{
+			ParentVisibility = Parent->GetVisibility();
+		}
 		const bool bParentVolatile = false;
 		IndexType LatestArrayIndex = FSlateInvalidationWidgetIndex::Invalid.ArrayIndex;
-		_BuildWidgetList_Recursive(InRoot, FSlateInvalidationWidgetIndex::Invalid, LatestArrayIndex, bParentVisible, bParentVolatile);
+		Internal_BuildWidgetList_Recursive(InRoot, FSlateInvalidationWidgetIndex::Invalid, LatestArrayIndex, ParentVisibility, bParentVolatile);
 	}
 }
 
@@ -378,15 +373,16 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 	const FSlateInvalidationWidgetIndex WidgetIndex = Widget->GetProxyHandle().GetWidgetIndex();
 	if (bShouldAddWidget && ChildAtIndex < ParentChildren->Num() && WidgetIndex != FSlateInvalidationWidgetIndex::Invalid)
 	{
-		// Since we are going to add item, the array may get invalidated. Do not use after _BuildWidgetList_Recursive
-		ensure((*this)[WidgetIndex].GetWidget() == &Widget.Get());
-		FSlateInvalidationWidgetIndex PreviousLeafIndex = (*this)[WidgetIndex].LeafMostChildIndex;
+		// Since we are going to add item, the array may get invalidated. Do not use after Internal_BuildWidgetList_Recursive
+		const InvalidationWidgetType& CurrentInvalidationWidget = (*this)[WidgetIndex];
+		ensure(CurrentInvalidationWidget.GetWidget() == &Widget.Get());
+		FSlateInvalidationWidgetIndex PreviousLeafIndex = CurrentInvalidationWidget.LeafMostChildIndex;
 		FSlateInvalidationWidgetIndex NewLeafIndex = PreviousLeafIndex;
 		IndexType LastestArrayIndex = PreviousLeafIndex.ArrayIndex;
 		const bool bDoRecursion = ShouldDoRecursion(Widget);
 		if (bDoRecursion)
 		{
-			const bool bParentVisible = Widget->IsFastPathVisible() && Widget->GetVisibility().IsVisible();
+			const FSlateInvalidationWidgetVisibility CurrentVisibility = CurrentInvalidationWidget.Visibility;
 			const bool bParentVolatile = Widget->IsVolatileIndirectly() || Widget->IsVolatile();
 			int32 NumChildren = ParentChildren->Num();
 			for (int32 Index = ChildAtIndex; Index < NumChildren; ++Index)
@@ -396,7 +392,7 @@ void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Wi
 				if (bShouldAddChild)
 				{
 					check(ChildWidget->GetParentWidget() == Widget);
-					NewLeafIndex = _BuildWidgetList_Recursive(ChildWidget, WidgetIndex, LastestArrayIndex, bParentVisible, bParentVolatile);
+					NewLeafIndex = Internal_BuildWidgetList_Recursive(ChildWidget, WidgetIndex, LastestArrayIndex, CurrentVisibility, bParentVolatile);
 				}
 			}
 		}
@@ -578,7 +574,7 @@ void FSlateInvalidationWidgetList::ProcessAttributeRegistrationInvalidation(cons
 	SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 	check(WidgetPtr);
 
-	if (WidgetPtr->HasRegisteredSlateAttribute() && WidgetPtr->IsAttributesUpdatesEnabled())
+	if (ShouldBeAddedToAttributeList(WidgetPtr))
 	{
 		Data[InvalidationWidget.Index.ArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.InsertUnique(InvalidationWidget.Index.ElementIndex);
 	}
@@ -588,7 +584,7 @@ void FSlateInvalidationWidgetList::ProcessAttributeRegistrationInvalidation(cons
 	}
 }
 
-namespace
+namespace InvalidationList
 {
 	template<typename TSlateInvalidationWidgetList, typename Predicate>
 	void ForEachChildren(TSlateInvalidationWidgetList& Self, const typename TSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget, FSlateInvalidationWidgetIndex WidgetIndex, Predicate InPredicate)
@@ -622,7 +618,7 @@ void FSlateInvalidationWidgetList::_FindChildren(FSlateInvalidationWidgetIndex W
 {
 	Widgets.Reserve(16);
 	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
-	ForEachChildren(*this, InvalidationWidget, WidgetIndex, [&Widgets](const InvalidationWidgetType& ChildWidget)
+	InvalidationList::ForEachChildren(*this, InvalidationWidget, WidgetIndex, [&Widgets](const InvalidationWidgetType& ChildWidget)
 		{
 			Widgets.Emplace(ChildWidget.GetWidget(), ChildWidget.Index);
 		});
@@ -1048,7 +1044,7 @@ void FSlateInvalidationWidgetList::_RemoveRangeFromSameParent(const FIndexRange 
 				InvalidationWidgetType& InvalidationWidget = Self->Data[ArrayIndex].ElementList[ElementIndex];
 				if (SWidget* Widget = InvalidationWidget.GetWidget())
 				{
-					Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Self->Owner, SlateInvalidationWidgetIndexRemoved, FSlateInvalidationWidgetSortOrder(), GenerationNumber });
+					Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Self->Owner, SlateInvalidationWidgetIndexRemoved, FSlateInvalidationWidgetSortOrder() });
 				}
 			}
 #endif //UE_SLATE_WITH_WIDGETLIST_ASSIGNINVALIDPROXYWHENREMOVED
@@ -1272,7 +1268,7 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::_CutArray
 				Widget->SetFastPathProxyHandle(FWidgetProxyHandle{ Owner, NewWidgetIndex, SortIndex, GenerationNumber });
 
 				// Check for ElementIndexList
-				if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
+				if (ShouldBeAddedToAttributeList(Widget))
 				{
 					Data[NewArrayIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewElementIndex);
 				}
@@ -1289,7 +1285,7 @@ FSlateInvalidationWidgetList::FCutResult FSlateInvalidationWidgetList::_CutArray
 
 			// The parent is only invalid when it's the root. We can't remove it, but we shouldn't move it.
 			check(NewInvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid);
-			ForEachChildren(*this, NewInvalidationWidget, NewWidgetIndex, [NewWidgetIndex](InvalidationWidgetType& NewChildInvalidationWidget)
+			InvalidationList::ForEachChildren(*this, NewInvalidationWidget, NewWidgetIndex, [NewWidgetIndex](InvalidationWidgetType& NewChildInvalidationWidget)
 				{
 					NewChildInvalidationWidget.ParentIndex = NewWidgetIndex;
 				});
@@ -1590,7 +1586,7 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 		int32 Index = 0;
 		const_cast<FSlateInvalidationWidgetList*>(this)->ForEachWidget([&](const SWidget* Widget)
 			{
-				if (Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled())
+				if (ShouldBeAddedToAttributeList(Widget))
 				{
 					WidgetListWithForEachWidget.Add(Widget);
 				}
@@ -1621,8 +1617,7 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 				const FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = ArrayNode.ElementList[ElementIndex];
 				if (const SWidget* Widget = InvalidationWidget.GetWidget())
 				{
-					const bool bShouldBeThere = Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
-					if (!bShouldBeThere)
+					if (!Widget->HasRegisteredSlateAttribute())
 					{
 						UE_LOG(LogSlate, Warning, TEXT("ElementIndex '%d' in the array of sort value '%d' should not be there since widget '%s' doesn't have registered SlateAttribute.")
 							, ElementIndex, ArrayNode.SortOrder
@@ -1630,7 +1625,7 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 						bResult = false;
 					}
 
-					if (Widget->IsFastPathVisible() && !InvalidationWidget.bDebug_AttributeUpdated)
+					if (InvalidationWidget.Visibility.IsVisible() && !InvalidationWidget.bDebug_AttributeUpdated)
 					{
 						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' was not updated."), *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 					}

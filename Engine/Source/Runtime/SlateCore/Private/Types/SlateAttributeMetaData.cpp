@@ -294,11 +294,17 @@ void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget)
 }
 
 
+void FSlateAttributeMetaData::UpdateExpandedAttributes(SWidget& OwningWidget)
+{
+	UpdateExpandedAttributes(OwningWidget, OwningWidget.IsConstructionCompleted());
+}
+
+
 void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, bool bAllowInvalidation)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributesImpl(OwningWidget, false, bAllowInvalidation);
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::All, bAllowInvalidation);
 	}
 }
 
@@ -310,13 +316,23 @@ void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget, b
 		// Does it have any collapsed attributes
 		if (AttributeMetaData->CollaspedAttributeCounter > 0)
 		{
-			AttributeMetaData->UpdateAttributesImpl(OwningWidget, true, bAllowInvalidation);
+			AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::Collapsed, bAllowInvalidation);
 		}
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, bool bOnlyCollapsed, bool bAllowInvalidation)
+void FSlateAttributeMetaData::UpdateExpandedAttributes(SWidget& OwningWidget, bool bAllowInvalidation)
+{
+	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
+	{
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::Expanded, bAllowInvalidation);
+	}
+}
+
+
+
+void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, bool bAllowInvalidation)
 {
 	// List of all the callback we need to execute after the invalidation
 	TArray<const FSlateAttributeDescriptor::FInvalidationDelegate*, TInlineAllocator<8>> AllInvalidationDelegates;
@@ -327,7 +343,11 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, bool b
 		FGetterItem& GetterItem = Attributes[Index];
 
 		// Only update attributes that needs to be updated when the widget is collapsed
-		if (bOnlyCollapsed && !GetterItem.bUpdateWhenCollapsed)
+		if (UpdateType == EUpdateType::Collapsed && !GetterItem.bUpdateWhenCollapsed)
+		{
+			continue;
+		}
+		if (UpdateType == EUpdateType::Expanded && GetterItem.bUpdateWhenCollapsed)
 		{
 			continue;
 		}

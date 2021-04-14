@@ -910,7 +910,7 @@ bool FWidgetReflectorNodeUtils::GetWidgetVisibility(const TSharedPtr<const SWidg
 
 bool FWidgetReflectorNodeUtils::GetWidgetVisibilityInherited(const TSharedPtr<const SWidget>& InWidget)
 {
-	return InWidget.IsValid() ? InWidget->IsFastPathVisible() : false;
+	return InWidget.IsValid() ? InWidget->GetProxyHandle().GetWidgetVisibility(InWidget.Get()).IsVisible() : false;
 }
 
 bool FWidgetReflectorNodeUtils::GetWidgetFocusable(const TSharedPtr<const SWidget>& InWidget)

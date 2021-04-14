@@ -11,10 +11,6 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
-#ifndef UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
-	#define UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#endif
-
 class FSlateInvalidationWidgetList
 {
 	friend struct FSlateInvalidationWidgetSortOrder;
@@ -340,6 +336,14 @@ private:
 	{
 		return Widget != SNullWidget::NullWidget;
 	}
+	bool ShouldBeAddedToAttributeList(const SWidget* Widget) const
+	{
+		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
+	}
+	bool ShouldBeAddedToAttributeList(const TSharedRef<SWidget>& Widget) const
+	{
+		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
+	}
 
 private:
 	template <typename... ArgsType>
@@ -375,7 +379,7 @@ private:
 	FCutResult CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:
-	FSlateInvalidationWidgetIndex _BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, bool bParentVisible, bool bParentVolatile);
+	FSlateInvalidationWidgetIndex Internal_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile);
 	void _RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex);
 	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
 	void _FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;

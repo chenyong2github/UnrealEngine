@@ -764,11 +764,11 @@ protected:
 
 private:
 	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle) { FastPathProxyHandle = Handle; }
-	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, bool bInvisibleDueToParentOrSelfVisibility, bool bParentVolatile);
+	void SetFastPathProxyHandle(const FWidgetProxyHandle& Handle, FSlateInvalidationWidgetVisibility Visibility, bool bParentVolatile);
 	void SetFastPathSortOrder(const FSlateInvalidationWidgetSortOrder SortOrder);
 
-	void UpdateFastPathVisibility(bool bParentVisible, bool bWidgetRemoved, FHittestGrid* ParentHittestGrid);
-
+	void UpdateFastPathVisibility(FSlateInvalidationWidgetVisibility ParentVisibility, FHittestGrid* ParentHittestGrid);
+	void UpdateFastPathWidgetRemoved(FHittestGrid* ParentHittestGrid);
 	void UpdateFastPathVolatility(bool bParentVolatile);
 
 	/**
@@ -995,7 +995,8 @@ public:
 	 * @return is the widget visible and his parents also visible.
 	 * @note only valid if the widget is contained by an InvalidationRoot (the proxy is valid).
 	 */
-	bool IsFastPathVisible() const { return !bInvisibleDueToParentOrSelfVisibility; }
+	UE_DEPRECATED(5.0, "IsFastPathVisible is deprecated and should not be used.")
+	bool IsFastPathVisible() const;
 
 #if WITH_ACCESSIBILITY
 	/**
@@ -1167,19 +1168,19 @@ public:
 	/** @return the render transform of the widget. */
 	FORCEINLINE const TOptional<FSlateRenderTransform>& GetRenderTransform() const
 	{
-		return RenderTransform.Get();
+		return RenderTransformAttribute.Get();
 	}
 
 	FORCEINLINE TOptional<FSlateRenderTransform> GetRenderTransformWithRespectToFlowDirection() const
 	{
 		if (LIKELY(GSlateFlowDirection == EFlowDirection::LeftToRight))
 		{
-			return RenderTransform.Get();
+			return RenderTransformAttribute.Get();
 		}
 		else
 		{
 			// If we're going right to left, flip the X translation on render transforms.
-			TOptional<FSlateRenderTransform> Transform = RenderTransform.Get();
+			TOptional<FSlateRenderTransform> Transform = RenderTransformAttribute.Get();
 			if (Transform.IsSet())
 			{
 				FVector2D Translation = Transform.GetValue().GetTranslation();
@@ -1193,12 +1194,12 @@ public:
 	{
 		if (LIKELY(GSlateFlowDirection == EFlowDirection::LeftToRight))
 		{
-			return RenderTransformPivot.Get();
+			return RenderTransformPivotAttribute.Get();
 		}
 		else
 		{
 			// If we're going right to left, flip the X's pivot mirrored about 0.5.
-			FVector2D TransformPivot = RenderTransformPivot.Get();
+			FVector2D TransformPivot = RenderTransformPivotAttribute.Get();
 			TransformPivot.X = 0.5f + (0.5f - TransformPivot.X);
 			return TransformPivot;
 		}
@@ -1207,19 +1208,19 @@ public:
 	/** @param InTransform the render transform to set for the widget (transforms from widget's local space). TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
 	FORCEINLINE void SetRenderTransform(TAttribute<TOptional<FSlateRenderTransform>> InTransform)
 	{
-		SetAttribute(RenderTransform, InTransform, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
+		RenderTransformAttribute.Assign(*this, MoveTemp(InTransform));
 	}
 
 	/** @return the pivot point of the render transform. */
 	FORCEINLINE FVector2D GetRenderTransformPivot() const
 	{
-		return RenderTransformPivot.Get();
+		return RenderTransformPivotAttribute.Get();
 	}
 
 	/** @param InTransformPivot Sets the pivot point of the widget's render transform (in normalized local space). */
 	FORCEINLINE void SetRenderTransformPivot(TAttribute<FVector2D> InTransformPivot)
 	{
-		SetAttribute(RenderTransformPivot, InTransformPivot, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
+		RenderTransformPivotAttribute.Assign(*this, MoveTemp(InTransformPivot));
 	}
 
 	/**
@@ -1561,10 +1562,7 @@ protected:
 	 * Recomputes the volatility of the widget.  If you have additional state you automatically want to make
 	 * the widget volatile, you should sample that information here.
 	 */
-	virtual bool ComputeVolatility() const
-	{
-		return RenderTransform.IsBound();
-	}
+	virtual bool ComputeVolatility() const { return false; }
 
 	/**
 	 * Protected static helper to allow widgets to access the visibility attribute of other widgets directly
@@ -1671,6 +1669,10 @@ protected:
 	TSlateAttributeRef<bool> GetEnabledStateAttribute() const { return TSlateAttributeRef<bool>(*this, EnabledStateAttribute); }
 	/** @return an attribute reference of VisibilityAttribute */
 	TSlateAttributeRef<EVisibility> GetVisibilityAttribute() const { return TSlateAttributeRef<EVisibility>(*this, VisibilityAttribute); }
+	/** @return an attribute reference of RenderTransformAttribute */
+	TSlateAttributeRef<TOptional<FSlateRenderTransform>> GetRenderTransformAttribute() const { return TSlateAttributeRef<TOptional<FSlateRenderTransform>>(*this, RenderTransformAttribute); }
+	/** @return an attribute reference of RenderTransformPivotAttribute */
+	TSlateAttributeRef<FVector2D> GetRenderTransformPivotAttribute() const { return TSlateAttributeRef<FVector2D>(*this, RenderTransformPivotAttribute); }
 
 protected:
 	/** Dtor ensures that active timer handles are UnRegistered with the SlateApplication. */
@@ -1716,9 +1718,6 @@ private:
 
 	/** If we're owned by a volatile widget, we need inherit that volatility and use as part of our volatility, but don't cache it. */
 	uint8 bInheritedVolatility : 1;
-
-	/** If the widget is hidden or collapsed to ancestor visibility */
-	uint8 bInvisibleDueToParentOrSelfVisibility : 1;
 
 	/** Are we currently updating the desired size? */
 	uint8 bNeedsPrepass : 1;
@@ -1785,11 +1784,17 @@ private:
 	/** Stores the ideal size this widget wants to be. */
 	TOptional<FVector2D> DesiredSize;
 
+	/** Is this widget visible, hidden or collapsed */
+	TSlateAttribute<EVisibility> VisibilityAttribute;
+
 	/** Whether or not this widget is enabled */
 	TSlateAttribute<bool> EnabledStateAttribute;
 
-	/** Is this widget visible, hidden or collapsed */
-	TSlateAttribute<EVisibility> VisibilityAttribute;
+	/** Render transform pivot of this widget (in normalized local space) */
+	TSlateAttribute<FVector2D> RenderTransformPivotAttribute;
+
+	/** Render transform of this widget. TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
+	TSlateAttribute<TOptional<FSlateRenderTransform>> RenderTransformAttribute;
 
 protected:
 
@@ -1809,16 +1814,16 @@ protected:
 	/** Is this widget visible, hidden or collapsed */
 	UE_DEPRECATED(5.0, "Direct access to Visibility is now deprecated. Use the setter or getter.")
 	FSlateDeprecatedTAttribute<EVisibility> Visibility;
+	/** Render transform of this widget. TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
+	UE_DEPRECATED(5.0, "Direct access to RenderTransform is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute< TOptional<FSlateRenderTransform> > RenderTransform;
+	/** Render transform pivot of this widget (in normalized local space) */
+	UE_DEPRECATED(5.0, "Direct access to RenderTransformPivot is now deprecated. Use the setter or getter.")
+	TAttribute<FVector2D> RenderTransformPivot;
 #endif
 
 	/** The opacity of the widget. Automatically applied during rendering. */
 	float RenderOpacity;
-
-	/** Render transform of this widget. TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
-	TAttribute< TOptional<FSlateRenderTransform> > RenderTransform;
-
-	/** Render transform pivot of this widget (in normalized local space) */
-	TAttribute< FVector2D > RenderTransformPivot;
 
 private:
 	/** Metadata associated with this widget. */

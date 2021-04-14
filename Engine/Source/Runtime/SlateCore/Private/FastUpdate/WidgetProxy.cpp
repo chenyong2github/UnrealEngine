@@ -24,14 +24,8 @@ FWidgetProxy::FWidgetProxy(TSharedRef<SWidget>& InWidget)
 	, ParentIndex(FSlateInvalidationWidgetIndex::Invalid)
 	, LeafMostChildIndex(FSlateInvalidationWidgetIndex::Invalid)
 	, CurrentInvalidateReason(EInvalidateWidgetReason::None)
-	// Potentially unsafe to update visibility from the widget due to attribute bindings.  This is updated later when the widgets are sorted in ProcessInvalidation
-	, Visibility(EVisibility::Collapsed) 
-	, bUpdatedSinceLastInvalidate(false)
-	, bContainedByWidgetPreHeap(false)
-	, bContainedByWidgetPostHeap(false)
-	, bDebug_LastFrameVisible(true)
-	, bDebug_LastFrameVisibleSet(false)
-	, bDebug_AttributeUpdated(false)
+	, Visibility()
+	, PrivateFlags(false)
 {
 #if UE_SLATE_WITH_WIDGETPROXY_WIDGETTYPE
 	WidgetName = GetWidget()->GetType();
@@ -49,21 +43,16 @@ TSharedPtr<SWidget> FWidgetProxy::GetWidgetAsShared() const
 
 int32 FWidgetProxy::Update(const FPaintArgs& PaintArgs, FSlateWindowElementList& OutDrawElements)
 {
-// Commenting this since it could be triggered in specific cases where Widgte->UpdateFlags in reset but the Widget Proxy is still in the  update list
-//#if WITH_SLATE_DEBUGGING
-//	ensure(UpdateFlags == Widget->UpdateFlags);
-//#endif
-
 	TSharedPtr<SWidget> CurrentWidget = GetWidgetAsShared();
+	check(Visibility.IsVisible());
 
 	// If Outgoing layer id remains index none, there was no change
 	int32 OutgoingLayerId = INDEX_NONE;
 	if (CurrentWidget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsRepaint|EWidgetUpdateFlags::NeedsVolatilePaint))
 	{
-		check(CurrentWidget->IsFastPathVisible());
 		OutgoingLayerId = Repaint(PaintArgs, OutDrawElements);
 	}
-	else if(CurrentWidget->IsFastPathVisible())
+	else
 	{
 		EWidgetUpdateFlags PreviousUpdateFlag = CurrentWidget->UpdateFlags;
 		if (CurrentWidget->HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsActiveTimerUpdate))
@@ -96,7 +85,7 @@ bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& Upd
 	bool bWidgetNeedsRepaint = false;
 	SWidget* WidgetPtr = GetWidget();
 
-	if (WidgetPtr->IsFastPathVisible() && ParentIndex != FSlateInvalidationWidgetIndex::Invalid && !WidgetPtr->PrepassLayoutScaleMultiplier.IsSet())
+	if (Visibility.IsVisible() && ParentIndex != FSlateInvalidationWidgetIndex::Invalid && !WidgetPtr->PrepassLayoutScaleMultiplier.IsSet())
 	{
 		SCOPE_CYCLE_SWIDGET(WidgetPtr);
 		// If this widget has never been prepassed make sure the parent prepasses it to set the correct multiplier
@@ -119,7 +108,7 @@ bool FWidgetProxy::ProcessPostInvalidation(FSlateInvalidationWidgetPostHeap& Upd
 		// When layout changes compute a new desired size for this widget
 		FVector2D CurrentDesiredSize = WidgetPtr->GetDesiredSize();
 		FVector2D NewDesiredSize = FVector2D::ZeroVector;
-		if (Visibility != EVisibility::Collapsed)
+		if (!Visibility.IsCollapsed())
 		{
 			if (WidgetPtr->NeedsPrepass())
 			{
@@ -188,7 +177,7 @@ void FWidgetProxy::MarkProxyUpdatedThisFrame(FSlateInvalidationWidgetPostHeap& P
 	bUpdatedSinceLastInvalidate = true;
 
 	SWidget* WidgetPtr = GetWidget();
-	if (WidgetPtr && WidgetPtr->IsFastPathVisible() && WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate))
+	if (WidgetPtr && Visibility.IsVisible() && WidgetPtr->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate))
 	{
 		// If there are any updates still needed add them to the next update list
 		PostUpdateList.PushBackUnique(*this);
@@ -284,6 +273,15 @@ bool FWidgetProxyHandle::HasValidInvalidationRootOwnership(const SWidget* Widget
 		&& InvalidationRoot->GetFastPathWidgetList()[WidgetIndex].GetWidget() == Widget;
 }
 
+FSlateInvalidationWidgetVisibility FWidgetProxyHandle::GetWidgetVisibility(const SWidget* Widget) const
+{
+	if (IsValid(Widget))
+	{
+		return GetProxy().Visibility;
+	}
+	return FSlateInvalidationWidgetVisibility();
+}
+
 FWidgetProxy& FWidgetProxyHandle::GetProxy()
 {
 	return GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
@@ -307,12 +305,11 @@ void FWidgetProxyHandle::MarkWidgetDirty(EInvalidateWidgetReason InvalidateReaso
 
 void FWidgetProxyHandle::UpdateWidgetFlags(const SWidget* Widget, EWidgetUpdateFlags NewFlags)
 {
-	// Add to update list if the widget is now tickable or has an active timer.
-	if (Widget->IsFastPathVisible() && Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate))
+	if (Widget->HasAnyUpdateFlags(EWidgetUpdateFlags::AnyUpdate) && IsValid(Widget))
 	{
-		if (IsValid(Widget))
+		FWidgetProxy& Proxy = GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
+		if (Proxy.Visibility.IsVisible())
 		{
-			FWidgetProxy& Proxy = GetInvalidationRoot()->GetFastPathWidgetList()[WidgetIndex];
 			GetInvalidationRoot()->WidgetsNeedingPostUpdate->PushBackOrHeapUnique(Proxy);
 		}
 	}
