@@ -366,6 +366,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> DepthAtlas;
 
 	// --- Generated ---
+	TRefCountPtr<IPooledRenderTarget> RadiosityAtlas;
 	TRefCountPtr<IPooledRenderTarget> FinalLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> IrradianceAtlas;
 	TRefCountPtr<IPooledRenderTarget> IndirectIrradianceAtlas;

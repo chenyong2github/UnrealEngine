@@ -576,12 +576,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		if (LumenSceneData.GetNumCardPages() > 0)
 		{
-			const FRDGTextureDesc RadiosityAtlasDesc = FRDGTextureDesc::Create2D(
-				LumenSceneData.GetRadiosityAtlasSize(),
-				PF_FloatR11G11B10,
-				FClearValueBinding::Black,
-				TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_NoFastClear);
-			FRDGTextureRef RadiosityAtlas = GraphBuilder.CreateTexture(RadiosityAtlasDesc, TEXT("Lumen.SceneRadiosity"));
+			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
 
 			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
@@ -695,6 +690,8 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			{
 				LumenSceneData.IndirectIrradianceAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectIrradianceAtlas);
 			}
+
+			LumenSceneData.RadiosityAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityAtlas);
 		}
 
 		ComputeLumenSceneVoxelLighting(GraphBuilder, TracingInputs, GlobalShaderMap);

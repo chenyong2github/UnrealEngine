@@ -76,7 +76,11 @@ int32 GLumenSceneReset = 0;
 FAutoConsoleVariableRef CVarLumenSceneResetCards(
 	TEXT("r.LumenScene.Reset"),
 	GLumenSceneReset,
-	TEXT("Reset all atlases and captured cards. 2 - for continuos reset."),
+	TEXT("Reset all atlases and captured cards.\n")
+	TEXT("1 - one time reset\n")
+	TEXT("2 - continuos reset\n")
+	TEXT("3 - continuos reset every 2 frames\n")
+	TEXT("4 - continuos reset every 3 frames\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -725,6 +729,7 @@ void ClearAtlasesToDebugValues(FRDGBuilder& GraphBuilder, FLumenSceneData& Lumen
 	{
 		ClearAtlas(GraphBuilder, LumenSceneData.IndirectIrradianceAtlas);
 	}
+	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityAtlas);
 	ClearAtlas(GraphBuilder, LumenSceneData.OpacityAtlas);
 }
 
@@ -749,6 +754,10 @@ void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneData& LumenSceneD
 	LightingDesc.AutoWritable = false;
 	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, LightingDesc, LumenSceneData.FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"), ERenderTargetTransience::NonTransient);
 	LumenSceneData.bFinalLightingAtlasContentsValid = false;
+
+	FPooledRenderTargetDesc RadiosityDesc(FPooledRenderTargetDesc::Create2DDesc(LumenSceneData.GetRadiosityAtlasSize(), PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
+	RadiosityDesc.AutoWritable = false;
+	GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, RadiosityDesc, LumenSceneData.RadiosityAtlas, TEXT("Lumen.SceneRadiosity"), ERenderTargetTransience::NonTransient);
 
 	FPooledRenderTargetDesc OpacityDesc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_G8, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 	OpacityDesc.AutoWritable = false;
@@ -1293,10 +1302,18 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		const double StartTime = FPlatformTime::Seconds();
 
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame || GLumenSceneReset;
+		LumenSceneData.bDebugClearAllCachedState = GLumenSceneRecaptureLumenSceneEveryFrame != 0;
 		const bool bReallocateAtlas = LumenSceneData.UpdateAtlasSize();
 
-		if (GLumenSceneReset != 2)
+		if (GLumenSceneReset == 1 
+			|| GLumenSceneReset == 2 
+			|| (GLumenSceneReset == 3 && MainView.Family->FrameNumber % 2 == 0)
+			|| (GLumenSceneReset == 4 && MainView.Family->FrameNumber % 3 == 0))
+		{
+			LumenSceneData.bDebugClearAllCachedState = true;
+		}
+
+		if (GLumenSceneReset == 1)
 		{
 			GLumenSceneReset = 0;
 		}
