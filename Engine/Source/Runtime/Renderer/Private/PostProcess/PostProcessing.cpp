@@ -521,6 +521,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			}
 
 			SceneColor.Texture = LocalSceneColorTexture;
+
+			if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterSeparateTranslucent)
+			{
+				RenderHairComposition(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+			}
 		}
 
 		// Post Process Material Chain - Before Tonemapping

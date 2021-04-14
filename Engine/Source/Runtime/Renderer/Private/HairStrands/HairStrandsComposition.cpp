@@ -689,3 +689,19 @@ void RenderHairComposition(
 		}
 	}
 }
+
+void RenderHairComposition(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture)
+{
+	if (View.Family && HairStrands::HasViewHairStrandsData(View))
+	{
+		InternalRenderHairComposition(
+			GraphBuilder,
+			View,
+			SceneColorTexture,
+			SceneDepthTexture);
+	}
+}

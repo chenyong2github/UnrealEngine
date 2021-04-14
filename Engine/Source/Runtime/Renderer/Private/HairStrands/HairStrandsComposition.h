@@ -10,6 +10,12 @@
 #include "Renderer/Private/SceneRendering.h"
 
 void RenderHairComposition(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture);
+
+void RenderHairComposition(
 	FRDGBuilder& GraphBuilder, 
 	const TArray<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
