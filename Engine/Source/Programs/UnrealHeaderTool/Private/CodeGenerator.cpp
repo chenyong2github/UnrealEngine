@@ -58,7 +58,7 @@
 #include "Misc/ScopeExit.h"
 #include "UnrealTypeDefinitionInfo.h"
 
-#include "FileLineException.h"
+#include "Exceptions.h"
 #include "UObject/FieldIterator.h"
 #include "UObject/FieldPath.h"
 
@@ -6445,11 +6445,6 @@ void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(TSet<FString>&& P
 	GAsyncFileTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(DeleteUnusedGeneratedHeadersTask), TStatId()));
 }
 
-/**
- * Dirty hack global variable to allow different result codes passed through
- * exceptions. Needs to be fixed in future versions of UHT.
- */
-ECompilationResult::Type GCompilationResult = ECompilationResult::OtherCompilationError;
 FCriticalSection TestCommandLineCS;
 
 bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const FPreloadHeaderFileInfo& FileInfo, FString&& InNewHeaderContents, FGraphEventRef& OutSaveTaskRef) const
@@ -6546,7 +6541,7 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 			FString ConflictPath = HeaderPathStr + TEXT(".conflict");
 			FFileHelper::SaveStringToFile(InNewHeaderContents, *ConflictPath);
 
-			GCompilationResult = ECompilationResult::FailedDueToHeaderChange;
+			FResults::SetResult(ECompilationResult::FailedDueToHeaderChange);
 			FError::Throwf(TEXT("ERROR: '%s': Changes to generated code are not allowed - conflicts written to '%s'"), *HeaderPathStr, *ConflictPath);
 		}
 
@@ -6804,7 +6799,7 @@ UPackage* GetModulePackage(FManifestModule& Module)
 
 //FGraphEventRef CreateModuleParse
 
-ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& NumFailures)
+void PreparseModules(const FString& ModuleInfoPath)
 {
 	// Three passes.  1) Public 'Classes' headers (legacy)  2) Public headers   3) Private headers
 	enum EHeaderFolderTypes
@@ -6819,41 +6814,6 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 	// The meta data keywords must be initialized prior to going wide
 	FBaseParser::InitMetadataKeywords();
 
-	ECompilationResult::Type Result = ECompilationResult::Succeeded;
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-	FGraphEventArray ExceptionTasks;
-
-	auto LogException = [&Result, &NumFailures, &ExceptionTasks](FString&& Filename, int32 Line, const FString& Message)
-	{
-		auto LogExceptionTask = [&Result, &NumFailures, Filename = MoveTemp(Filename), Line, Message]()
-		{
-			TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-
-			FString FormattedErrorMessage = FString::Printf(TEXT("%s(%d): Error: %s\r\n"), *Filename, Line, *Message);
-			Result = ECompilationResult::OtherCompilationError;
-
-			UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
-			GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
-
-			++NumFailures;
-		};
-
-		if (IsInGameThread())
-		{
-			LogExceptionTask();
-		}
-		else
-		{
-			FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogExceptionTask), TStatId(), nullptr, ENamedThreads::GameThread);
-
-			static FCriticalSection ExceptionCS;
-			FScopeLock Lock(&ExceptionCS);
-			ExceptionTasks.Add(EventRef);
-		}
-	};
-#endif
-
 	// Pre-initialization
 	int32 NumHeaders = 0;
 	for (FManifestModule& Module : GManifest.Modules)
@@ -6863,7 +6823,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 		GetModulePackage(Module);
 
 		// Count the headers
-		for (int32 PassIndex = 0; PassIndex < FolderType_Count && Result == ECompilationResult::Succeeded; ++PassIndex)
+		for (int32 PassIndex = 0; PassIndex < FolderType_Count; ++PassIndex)
 		{
 			EHeaderFolderTypes CurrentlyProcessing = (EHeaderFolderTypes)PassIndex;
 			const TArray<FString>& UObjectHeaders =
@@ -6892,7 +6852,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 			UPackage* Package = GetModulePackage(Module);
 
 			// Pre-parse the headers
-			for (int32 PassIndex = 0; PassIndex < FolderType_Count && Result == ECompilationResult::Succeeded; ++PassIndex)
+			for (int32 PassIndex = 0; PassIndex < FolderType_Count; ++PassIndex)
 			{
 				EHeaderFolderTypes CurrentlyProcessing = (EHeaderFolderTypes)PassIndex;
 
@@ -6923,64 +6883,31 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 				{
 
 					// Phase #1: Load the file
-					auto LoadLambda = [&UObjectHeaders, &HeaderFiles, &LogException, &ModuleInfoPath, &Result, Index]()
+					auto LoadLambda = [&UObjectHeaders, &HeaderFiles, &PerHeaderData, &ModuleInfoPath, Index]()
 					{
-						if (Result != ECompilationResult::Succeeded)
-						{
-							return;
-						}
-
-						const FString& RawFilename = UObjectHeaders[Index];
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-						try
-#endif
-						{
-							const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
-
-							if (!FFileHelper::LoadFileToString(HeaderFiles[Index], *FullFilename))
+						FResults::Try([&UObjectHeaders, &HeaderFiles, &PerHeaderData, &ModuleInfoPath, Index]()
 							{
-								FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+								const FString& RawFilename = UObjectHeaders[Index];
+								const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
+
+								if (!FFileHelper::LoadFileToString(HeaderFiles[Index], *FullFilename))
+								{
+									FUHTException::Throwf(*PerHeaderData[Index].UnrealSourceFile, 1, TEXT("Unable to load source file"));
+								}
 							}
-						}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-						catch (TCHAR* ErrorMsg)
-						{
-							FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
-							LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
-						}
-#endif
+						);
 					};
 
-					// Phase #2: Perform simplified class parse (can run concurrenrtly)
-					auto PreProcessLambda = [Package, &UObjectHeaders, &HeaderFiles, &PerHeaderData, &LogException, &ModuleInfoPath, &Result, Index]()
+					// Phase #2: Perform simplified class parse (can run concurrently)
+					auto PreProcessLambda = [Package, &UObjectHeaders, &HeaderFiles, &PerHeaderData, Index]()
 					{
-						if (Result != ECompilationResult::Succeeded)
-						{
-							return;
-						}
-
-						const FString& RawFilename = UObjectHeaders[Index];
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-						try
-#endif
-						{
-							PerformSimplifiedClassParse(Package, *RawFilename, *HeaderFiles[Index], PerHeaderData[Index]);
-							HeaderFiles[Index].Empty();
-						}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-						catch (const FFileLineException& Ex)
-						{
-							FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Ex.Filename);
-							LogException(MoveTemp(AbsFilename), Ex.Line, Ex.Message);
-						}
-						catch (TCHAR* ErrorMsg)
-						{
-							FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
-							LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
-						}
-#endif
+						FResults::Try([Package, &UObjectHeaders, &HeaderFiles, &PerHeaderData, Index]()
+							{
+								const FString& RawFilename = UObjectHeaders[Index];
+								PerformSimplifiedClassParse(Package, *RawFilename, *HeaderFiles[Index], PerHeaderData[Index]);
+								HeaderFiles[Index].Empty();
+							}
+						);
 					};
 
 					FGraphEventRef LoadTask = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LoadLambda), TStatId());
@@ -6992,17 +6919,14 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 		// Wait for all the loading and preparsing to complete
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(LoadTasks);
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ExceptionTasks);
-#endif
+		FResults::WaitForErrorTasks();
 
 		PreparseTimer.Stop();
 		UE_LOG(LogCompile, Log, TEXT("Loaded and preparsed classes in %d modules containing %d files(s) in %.3f secs."), GManifest.Modules.Num(), NumHeaders, PreparseTime);
 	}
 
 	// Class declaration phase
-	if (Result == ECompilationResult::Succeeded)
+	if (FResults::IsSucceeding())
 	{
 		double PreparseTime = 0.0;
 		FDurationTimer PreparseTimer(PreparseTime);
@@ -7015,7 +6939,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 			UPackage* Package = GetModulePackage(Module);
 
 			// Pre-parse the headers
-			for (int32 PassIndex = 0; PassIndex < FolderType_Count && Result == ECompilationResult::Succeeded; ++PassIndex)
+			for (int32 PassIndex = 0; PassIndex < FolderType_Count && FResults::IsSucceeding(); ++PassIndex)
 			{
 				EHeaderFolderTypes CurrentlyProcessing = (EHeaderFolderTypes)PassIndex;
 
@@ -7042,114 +6966,93 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					ModulePerHeaderData.PrivateUObjectHeadersData;
 				PerHeaderData.SetNum(UObjectHeaders.Num());
 
-				for (int32 Index = 0, EIndex = UObjectHeaders.Num(); Index < EIndex; ++Index)
+				for (int32 Index = 0, EIndex = UObjectHeaders.Num(); Index < EIndex && FResults::IsSucceeding(); ++Index)
 				{
-					if (Result != ECompilationResult::Succeeded)
-					{
-						break;
-					}
-
-					const FString& RawFilename = UObjectHeaders[Index];
-
-#if !PLATFORM_EXCEPTIONS_DISABLED
-					try
-#endif
-					{
-						// Import class.
-						const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
-
-						ProcessInitialClassParse(PerHeaderData[Index]);
-						TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData[Index].UnrealSourceFile.ToSharedRef();
-						FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
-						FString CleanFilename = FPaths::GetCleanFilename(RawFilename);
-						uint32  CleanFilenameHash = GetTypeHash(CleanFilename);
-						if (const TSharedRef<FUnrealSourceFile>* ExistingSourceFile = GUnrealSourceFilesMap.FindByHash(CleanFilenameHash, CleanFilename))
+					FResults::Try([&Module, &UObjectHeaders, &HeaderFiles, &PerHeaderData, &ModuleInfoPath, CurrentlyProcessing, Index]
 						{
-							FString NormalizedFullFilename = FullFilename;
-							FString NormalizedExistingFilename = (*ExistingSourceFile)->GetFilename();
+							// Import class.
+							const FString& RawFilename = UObjectHeaders[Index];
+							const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
 
-							FPaths::NormalizeFilename(NormalizedFullFilename);
-							FPaths::NormalizeFilename(NormalizedExistingFilename);
-
-							if (NormalizedFullFilename != NormalizedExistingFilename)
+							ProcessInitialClassParse(PerHeaderData[Index]);
+							TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData[Index].UnrealSourceFile.ToSharedRef();
+							FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
+							FString CleanFilename = FPaths::GetCleanFilename(RawFilename);
+							uint32  CleanFilenameHash = GetTypeHash(CleanFilename);
+							if (const TSharedRef<FUnrealSourceFile>* ExistingSourceFile = GUnrealSourceFilesMap.FindByHash(CleanFilenameHash, CleanFilename))
 							{
-								FError::Throwf(TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename);
+								FString NormalizedFullFilename = FullFilename;
+								FString NormalizedExistingFilename = (*ExistingSourceFile)->GetFilename();
+
+								FPaths::NormalizeFilename(NormalizedFullFilename);
+								FPaths::NormalizeFilename(NormalizedExistingFilename);
+
+								if (NormalizedFullFilename != NormalizedExistingFilename)
+								{
+									FUHTException::Throwf(*UnrealSourceFilePtr, 1, TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename);
+								}
+							}
+							GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile);
+
+							if (CurrentlyProcessing == PublicClassesHeaders)
+							{
+								GPublicSourceFileSet.Add(UnrealSourceFilePtr);
+							}
+
+							// Save metadata for the class path, both for it's include path and relative to the module base directory
+							if (FullFilename.StartsWith(Module.BaseDirectory))
+							{
+								// Get the path relative to the module directory
+								const TCHAR* ModuleRelativePath = *FullFilename + Module.BaseDirectory.Len();
+
+								UnrealSourceFilePtr->SetModuleRelativePath(ModuleRelativePath);
+
+								// Calculate the include path
+								const TCHAR* IncludePath = ModuleRelativePath;
+
+								// Walk over the first potential slash
+								if (*IncludePath == TEXT('/'))
+								{
+									IncludePath++;
+								}
+
+								// Does this module path start with a known include path location? If so, we can cut that part out of the include path
+								static const TCHAR PublicFolderName[] = TEXT("Public/");
+								static const TCHAR PrivateFolderName[] = TEXT("Private/");
+								static const TCHAR ClassesFolderName[] = TEXT("Classes/");
+								if (FCString::Strnicmp(IncludePath, PublicFolderName, UE_ARRAY_COUNT(PublicFolderName) - 1) == 0)
+								{
+									IncludePath += (UE_ARRAY_COUNT(PublicFolderName) - 1);
+								}
+								else if (FCString::Strnicmp(IncludePath, PrivateFolderName, UE_ARRAY_COUNT(PrivateFolderName) - 1) == 0)
+								{
+									IncludePath += (UE_ARRAY_COUNT(PrivateFolderName) - 1);
+								}
+								else if (FCString::Strnicmp(IncludePath, ClassesFolderName, UE_ARRAY_COUNT(ClassesFolderName) - 1) == 0)
+								{
+									IncludePath += (UE_ARRAY_COUNT(ClassesFolderName) - 1);
+								}
+
+								// Add the include path
+								if (*IncludePath != 0)
+								{
+									UnrealSourceFilePtr->SetIncludePath(MoveTemp(IncludePath));
+								}
 							}
 						}
-						GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile);
-
-						if (CurrentlyProcessing == PublicClassesHeaders)
-						{
-							GPublicSourceFileSet.Add(UnrealSourceFilePtr);
-						}
-
-						// Save metadata for the class path, both for it's include path and relative to the module base directory
-						if (FullFilename.StartsWith(Module.BaseDirectory))
-						{
-							// Get the path relative to the module directory
-							const TCHAR* ModuleRelativePath = *FullFilename + Module.BaseDirectory.Len();
-
-							UnrealSourceFilePtr->SetModuleRelativePath(ModuleRelativePath);
-
-							// Calculate the include path
-							const TCHAR* IncludePath = ModuleRelativePath;
-
-							// Walk over the first potential slash
-							if (*IncludePath == TEXT('/'))
-							{
-								IncludePath++;
-							}
-
-							// Does this module path start with a known include path location? If so, we can cut that part out of the include path
-							static const TCHAR PublicFolderName[] = TEXT("Public/");
-							static const TCHAR PrivateFolderName[] = TEXT("Private/");
-							static const TCHAR ClassesFolderName[] = TEXT("Classes/");
-							if (FCString::Strnicmp(IncludePath, PublicFolderName, UE_ARRAY_COUNT(PublicFolderName) - 1) == 0)
-							{
-								IncludePath += (UE_ARRAY_COUNT(PublicFolderName) - 1);
-							}
-							else if (FCString::Strnicmp(IncludePath, PrivateFolderName, UE_ARRAY_COUNT(PrivateFolderName) - 1) == 0)
-							{
-								IncludePath += (UE_ARRAY_COUNT(PrivateFolderName) - 1);
-							}
-							else if (FCString::Strnicmp(IncludePath, ClassesFolderName, UE_ARRAY_COUNT(ClassesFolderName) - 1) == 0)
-							{
-								IncludePath += (UE_ARRAY_COUNT(ClassesFolderName) - 1);
-							}
-
-							// Add the include path
-							if (*IncludePath != 0)
-							{
-								UnrealSourceFilePtr->SetIncludePath(MoveTemp(IncludePath));
-							}
-						}
-					}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-					catch (const FFileLineException& Ex)
-					{
-						FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Ex.Filename);
-						LogException(MoveTemp(AbsFilename), Ex.Line, Ex.Message);
-					}
-					catch (TCHAR* ErrorMsg)
-					{
-						FString AbsFilename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*RawFilename);
-						LogException(MoveTemp(AbsFilename), 1, ErrorMsg);
-					}
-#endif
+					);
 				}
 			}
 		}
 
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ExceptionTasks);
-#endif
+		FResults::WaitForErrorTasks();
 
 		PreparseTimer.Stop();
 		UE_LOG(LogCompile, Log, TEXT("Defined classes in %d modules containing %d files(s) in %.3f secs."), GManifest.Modules.Num(), NumHeaders, PreparseTime);
 	}
 
 	// Perform the second phase of loading
-	if (Result == ECompilationResult::Succeeded)
+	if (FResults::IsSucceeding())
 	{
 		double ResolveTime = 0.0;
 		FDurationTimer ResolveTimer(ResolveTime);
@@ -7161,38 +7064,18 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 
 			// Don't resolve superclasses for module when loading from makefile.
 			// Data is only partially loaded at this point.
-#if !PLATFORM_EXCEPTIONS_DISABLED
-			try
-#endif
-			{
-				ResolveSuperClasses(Package);
-			}
-#if !PLATFORM_EXCEPTIONS_DISABLED
-			catch (TCHAR* ErrorMsg)
-			{
-				TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-
-				FString FormattedErrorMessage = FString::Printf(TEXT("Error: %s\r\n"), ErrorMsg);
-
-				Result = GCompilationResult;
-
-				UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
-				GWarn->Log(ELogVerbosity::Error, FormattedErrorMessage);
-
-				++NumFailures;
-			}
-#endif
+			FResults::Try([Package] 
+				{
+					ResolveSuperClasses(Package);
+				}
+			);
 		}
 
-#if !PLATFORM_EXCEPTIONS_DISABLED
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ExceptionTasks);
-#endif
+		FResults::WaitForErrorTasks();
 
 		ResolveTimer.Stop();
 		UE_LOG(LogCompile, Log, TEXT("Resolving classes in %d modules containing %d files(s) in %.3f secs."), GManifest.Modules.Num(), NumHeaders, ResolveTime);
 	}
-
-	return Result;
 }
 
 ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename)
@@ -7202,7 +7085,6 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	MainTimer.Start();
 
 	check(GIsUCCMakeStandaloneHeaderGenerator);
-	ECompilationResult::Type Result = ECompilationResult::Succeeded;
 
 	FString ModuleInfoPath = FPaths::GetPath(ModuleInfoFilename);
 
@@ -7216,24 +7098,23 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	catch (const TCHAR* Ex)
 	{
-		UE_LOG(LogCompile, Error, TEXT("Failed to load manifest file '%s': %s"), *ModuleInfoFilename, Ex);
-		return GCompilationResult;
+		FResults::LogError(*FString::Printf(TEXT("Failed to load manifest file '%s': %s"), *ModuleInfoFilename, Ex));
+		return FResults::GetOverallResults();
 	}
 #endif
 
 	// Counters.
-	int32 NumFailures = 0;
 	double TotalModulePreparseTime = 0.0;
 	double TotalParseAndCodegenTime = 0.0;
 
 	{
 		FDurationTimer TotalModulePreparseTimer(TotalModulePreparseTime);
 		TotalModulePreparseTimer.Start();
-		Result = PreparseModules(ModuleInfoPath, NumFailures);
+		PreparseModules(ModuleInfoPath);
 		TotalModulePreparseTimer.Stop();
 	}
 	// Do the actual parse of the headers and generate for them
-	if (Result == ECompilationResult::Succeeded)
+	if (FResults::IsSucceeding())
 	{
 		FScopedDurationTimer ParseAndCodeGenTimer(TotalParseAndCodegenTime);
 
@@ -7249,37 +7130,11 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 			if (ScriptSuperClass && !ScriptSuperClass->HasAnyClassFlags(CLASS_Intrinsic) && GTypeDefinitionInfoMap.Contains(ScriptClass) && !GTypeDefinitionInfoMap.Contains(ScriptSuperClass))
 			{
-				class FSuperClassContextSupplier : public FContextSupplier
-				{
-				public:
-					FSuperClassContextSupplier(const UClass* Class)
-						: DefinitionInfo(GTypeDefinitionInfoMap[Class])
-					{ }
-
-					virtual FString GetContext() override
-					{
-						FString Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*DefinitionInfo->GetUnrealSourceFile().GetFilename());
-						int32 LineNumber = DefinitionInfo->GetLineNumber();
-						return FString::Printf(TEXT("%s(%i)"), *Filename, LineNumber);
-					}
-				private:
-					TSharedRef<FUnrealTypeDefinitionInfo> DefinitionInfo;
-				} ContextSupplier(ScriptClass);
-
-				FContextSupplier* OldContext = GWarn->GetContext();
-
-				TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
-
-				GWarn->SetContext(&ContextSupplier);
-				GWarn->Log(ELogVerbosity::Error, FString::Printf(TEXT("Error: Superclass %s of class %s not found"), *ScriptSuperClass->GetName(), *ScriptClass->GetName()));
-				GWarn->SetContext(OldContext);
-
-				Result = ECompilationResult::OtherCompilationError;
-				++NumFailures;
+				FResults::LogError(*ScriptClass, *FString::Printf(TEXT("Error: Superclass %s of class %s not found"), *ScriptSuperClass->GetName(), *ScriptClass->GetName()));
 			}
 		}
 
-		if (Result == ECompilationResult::Succeeded)
+		if (FResults::IsSucceeding())
 		{
 			TArray<IScriptGeneratorPluginInterface*> ScriptPlugins;
 			// Can only export scripts for game targets
@@ -7295,10 +7150,10 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 					FClasses AllClasses(ClassesByPackageMap.Find(Package));
 					AllClasses.Validate();
 
-					Result = FHeaderParser::ParseAllHeadersInside(AllClasses, GWarn, Package, Module, ScriptPlugins);
+					ECompilationResult::Type Result = FHeaderParser::ParseAllHeadersInside(AllClasses, GWarn, Package, Module, ScriptPlugins);
 					if (Result != ECompilationResult::Succeeded)
 					{
-						++NumFailures;
+						FResults::SetResult(Result);
 						break;
 					}
 				}
@@ -7373,13 +7228,7 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	}
 
 	RequestEngineExit(TEXT("UnrealHeaderTool finished"));
-
-	if (Result != ECompilationResult::Succeeded || NumFailures > 0)
-	{
-		return ECompilationResult::OtherCompilationError;
-	}
-
-	return Result;
+	return FResults::GetOverallResults();
 }
 
 UClass* ProcessParsedClass(bool bClassIsAnInterface, TArray<FHeaderProvider>& DependentOn, const FString& ClassName, const FString& BaseClassName, UObject* InParent, EObjectFlags Flags)

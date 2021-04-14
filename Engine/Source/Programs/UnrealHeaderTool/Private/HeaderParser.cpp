@@ -18,7 +18,7 @@
 #include "Misc/DefaultValueHelper.h"
 #include "Manifest.h"
 #include "Math/UnitConversion.h"
-#include "FileLineException.h"
+#include "Exceptions.h"
 #include "UnrealTypeDefinitionInfo.h"
 #include "Containers/EnumAsByte.h"
 #include "Algo/AllOf.h"
@@ -110,12 +110,6 @@ FRigVMStructMap FHeaderParser::StructRigVMMap;
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
 TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
 TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
-
-/**
- * Dirty hack global variable to allow different result codes passed through
- * exceptions. Needs to be fixed in future versions of UHT.
- */
-extern ECompilationResult::Type GCompilationResult;
 
 /*-----------------------------------------------------------------------------
 	Utility functions.
@@ -8786,7 +8780,7 @@ ECompilationResult::Type FHeaderParser::ParseHeader(FUnrealSourceFile* SourceFil
 		}
 
 		FailedFilesAnnotation.Set(CurrentSrcFile);
-		Result = GCompilationResult;
+		Result = FResults::GetResults();
 	}
 #endif
 
@@ -9165,7 +9159,7 @@ ECompilationResult::Type FHeaderParser::ParseAllHeadersInside(
 	catch (TCHAR* ErrorMsg)
 	{
 		Warn->Log(ELogVerbosity::Error, ErrorMsg);
-		Result = GCompilationResult;
+		Result = FResults::GetResults();
 	}
 #endif
 	// Unregister the header parser from the feedback context
@@ -9450,7 +9444,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 					bool bKeepOldDirective = ShouldKeepDirective(OldDirective);
 					if (bKeepNewDirective != bKeepOldDirective)
 					{
-						FFileLineException::Throwf(
+						FUHTException::Throwf(
 							Filename,
 							CurrentLine,
 							TEXT("Mixing %s with %s in an #elif preprocessor block is not supported"),
@@ -9485,7 +9479,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 							break;
 
 						case EBlockDirectiveType::WithHotReload:
-							FFileLineException::Throwf(Filename, CurrentLine, TEXT("Bad preprocessor directive in metadata declaration: %s; Only 'CPP', '1' and '0' can have #else directives"), *ClassName);
+							FUHTException::Throwf(Filename, CurrentLine, TEXT("Bad preprocessor directive in metadata declaration: %s; Only 'CPP', '1' and '0' can have #else directives"), *ClassName);
 
 						case EBlockDirectiveType::UnrecognizedBlock:
 						case EBlockDirectiveType::WithEditor:
@@ -9526,7 +9520,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 							|| FindInitialStr(FoundSubstr, TrimmedStrLine, TEXT("UDELEGATE"))
 							|| FindInitialStr(FoundSubstr, TrimmedStrLine, TEXT("UFUNCTION")))
 						{
-							FFileLineException::Throwf(Filename, CurrentLine, TEXT("%s must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"), FoundSubstr);
+							FUHTException::Throwf(Filename, CurrentLine, TEXT("%s must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"), FoundSubstr);
 						}
 
 						// Try and determine if this line contains something like a serialize function
@@ -9548,7 +9542,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 									if (((TrimmedStrLine.Find(Str_FArchive, ESearchCase::CaseSensitive, ESearchDir::FromStart, Pos)) != -1) ||
 										((TrimmedStrLine.Find(Str_FStructuredArchive, ESearchCase::CaseSensitive, ESearchDir::FromStart, Pos)) != -1))
 									{
-										FFileLineException::Throwf(Filename, CurrentLine, TEXT("'%s' must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"), *TrimmedStrLine);
+										FUHTException::Throwf(Filename, CurrentLine, TEXT("'%s' must not be inside preprocessor blocks, except for WITH_EDITORONLY_DATA"), *TrimmedStrLine);
 									}
 								}
 							}
@@ -9605,7 +9599,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 			{
 				if (bFoundGeneratedInclude)
 				{
-					FFileLineException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
+					FUHTException::Throwf(Filename, CurrentLine, TEXT("#include found after .generated.h file - the .generated.h file should always be the last #include in a header"));
 				}
 
 				bFoundGeneratedInclude = DependsOnHeaderName.Contains(TEXT(".generated.h"));
@@ -9739,7 +9733,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 				{
 					if (UInterfaceMacroDecl[10] != TEXT('('))
 					{
-						FFileLineException::Throwf(Filename, CurrentLine, TEXT("Missing open parenthesis after UINTERFACE"));
+						FUHTException::Throwf(Filename, CurrentLine, TEXT("Missing open parenthesis after UINTERFACE"));
 					}
 
 					FName StrippedInterfaceName;
@@ -9761,7 +9755,7 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* Filename, const TCHAR* InB
 				{
 					if (UClassMacroDecl[6] != TEXT('('))
 					{
-						FFileLineException::Throwf(Filename, CurrentLine, TEXT("Missing open parenthesis after UCLASS"));
+						FUHTException::Throwf(Filename, CurrentLine, TEXT("Missing open parenthesis after UCLASS"));
 					}
 
 					FName StrippedClassName;
@@ -9856,7 +9850,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 
 				if (ClassNameWithoutPrefixStr == DependencyClassNameWithoutPrefixStr)
 				{
-					FFileLineException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
+					FUHTException::Throwf(Filename, InputLineLocal, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
 				}
 
 				FString StrippedDependencyName = DependencyClassName.Mid(1);
@@ -9881,7 +9875,7 @@ void FHeaderPreParser::ParseClassDeclaration(const TCHAR* Filename, const TCHAR*
 			FToken InterfaceClassNameToken;
 			if (!GetIdentifier(InterfaceClassNameToken, true))
 			{
-				FFileLineException::Throwf(Filename, InputLine, TEXT("Expected an interface class name"));
+				FUHTException::Throwf(Filename, InputLine, TEXT("Expected an interface class name"));
 			}
 
 			AddDependencyIfNeeded(FString(InterfaceClassNameToken.Identifier));
