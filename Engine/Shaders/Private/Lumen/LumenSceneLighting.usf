@@ -80,8 +80,8 @@ bool DoesLightAffectCardPage(FLumenCardPageData CardPage, FLumenCardData Card)
 
 	// Spot light
 	return bCardAffectedByInfluenceSphere
-		&& SphereIntersectCone(float4(CardPageWorldCenter, CardPageWorldBoundingSphere), LightPosition, LightDirection, CosConeAngle, SinConeAngle);
-		//&& ConeAxisDistanceMinMax.x > 0 && ConeAxisDistanceMinMax.y < LightRadius;
+		&& SphereIntersectCone(float4(CardPageWorldCenter, CardPageWorldBoundingSphere), LightPosition, LightDirection, CosConeAngle, SinConeAngle)
+		&& ConeAxisDistanceMinMax.x > 0 && ConeAxisDistanceMinMax.y < LightRadius;
 
 #elif SHAPE_TYPE == 3
 

@@ -42,10 +42,10 @@ FAutoConsoleVariableRef GVarLumenReflectionTraceMeshSDFs(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenReflectionsFeedback = 1;
-FAutoConsoleVariableRef CVarLumenReflectionsFeedback(
-	TEXT("r.Lumen.Reflections.Feedback"),
-	GLumenReflectionsFeedback,
+int32 GLumenReflectionsSurfaceCacheFeedback = 1;
+FAutoConsoleVariableRef CVarLumenReflectionsSurfaceCacheFeedback(
+	TEXT("r.Lumen.Reflections.SurfaceCacheFeedback"),
+	GLumenReflectionsSurfaceCacheFeedback,
 	TEXT("Whether to allow writing into virtual surface cache feedback buffer from reflection rays."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -602,7 +602,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 
 	// Disable feedback buffer for reflections if needed
-	if (GLumenReflectionsFeedback == 0)
+	if (GLumenReflectionsSurfaceCacheFeedback == 0)
 	{
 		TracingInputs.FeedbackBufferSize = 0;
 	}
