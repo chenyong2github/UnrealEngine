@@ -1199,13 +1199,13 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				std::string FMADefine = std::string("\n"
 										"template<typename T>\n"
 										"static inline __attribute__((always_inline))\n"
-										"T ue4_cross(T x, T y)\n"
+										"T ue_cross(T x, T y)\n"
 										"{\n"
 										"    metal::float3 fx = metal::float3(x);\n"
 										"    metal::float3 fy = metal::float3(y);\n"
 										"    return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
 										"}\n"
-										"#define cross ue4_cross\n\n"
+										"#define cross ue_cross\n\n"
 										"using namespace metal;"
 										);
 				

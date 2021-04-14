@@ -1049,7 +1049,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 				Output.bSucceeded = false;
 				FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 				NewError->StrippedErrorMessage = FString::Printf(
-															 TEXT("Metal %s is no longer supported in UE4 for macOS."),
+															 TEXT("Metal %s is no longer supported in UE for macOS."),
 															 *StandardVersion
 															 );
 				return;
@@ -1064,7 +1064,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			Output.bSucceeded = false;
 			FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 			NewError->StrippedErrorMessage = FString::Printf(
-														 TEXT("Metal %s is no longer supported in UE4."),
+														 TEXT("Metal %s is no longer supported in UE."),
 														 *StandardVersion
 														 );
 			return;
@@ -1079,7 +1079,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			Output.bSucceeded = false;
 			FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 			NewError->StrippedErrorMessage = FString::Printf(
-															 TEXT("Metal %s is no longer supported in UE4."),
+															 TEXT("Metal %s is no longer supported in UE."),
 															 *StandardVersion
 															 );
 			return;
