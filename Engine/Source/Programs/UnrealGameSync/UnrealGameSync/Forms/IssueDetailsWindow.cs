@@ -175,7 +175,13 @@ namespace UnrealGameSync
 					}
 
 					// Wait for something to change
-					RefreshEvent.WaitOne();
+					try
+					{
+						RefreshEvent.WaitOne();
+					}
+					catch (ThreadInterruptedException)
+					{
+					}
 				}
 			}
 

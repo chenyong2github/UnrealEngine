@@ -73,7 +73,13 @@ namespace UnrealGameSync
 			{
 				for(;;)
 				{
-					WakeEvent.WaitOne();
+					try
+					{
+						WakeEvent.WaitOne();
+					}
+					catch (ThreadInterruptedException)
+					{
+					}
 
 					if(bStopRequested)
 					{
