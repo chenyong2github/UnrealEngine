@@ -499,6 +499,23 @@ void UNiagaraEmitter::PostLoad()
 		{
 			ParentAtLastMerge->ConditionalPostLoad();
 		}
+
+		for (auto ScratchPadScript : ScratchPadScripts)
+		{
+			if (ScratchPadScript)
+			{
+				ScratchPadScript->ConditionalPostLoad();
+			}
+		}
+
+		for (auto ParentScratchPadScript : ParentScratchPadScripts)
+		{
+			if (ParentScratchPadScript)
+			{
+				ParentScratchPadScript->ConditionalPostLoad();
+			}
+		}
+
 		if (IsSynchronizedWithParent() == false)
 		{
 			// Modify here so that the asset will be marked dirty when using the resave commandlet.  This will be ignored during regular post load.
