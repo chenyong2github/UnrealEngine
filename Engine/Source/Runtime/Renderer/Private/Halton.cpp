@@ -76,7 +76,7 @@ void FHaltonSequenceIteration::InitRHI()
 	FRHIResourceCreateInfo CreateInfo(TEXT("HaltonSequenceIteration"));
 	{
 		CreateInfo.ResourceArray = &RandomSamples;
-		SequenceIteration = RHICreateStructuredBuffer(sizeof(FSequenceIterationData), RandomSamples.Num() * sizeof(FSequenceIterationData), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		SequenceIteration = RHICreateStructuredBuffer(sizeof(FSequenceIterationData), RandomSamples.Num() * sizeof(FSequenceIterationData), BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 	}
 }
 
