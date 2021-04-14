@@ -86,7 +86,8 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 
 			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
 			const TManagedArray<int32>& Levels = Context.GetGeometryCollection()->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-
+			int32 StartTransformCount = Children.Num();
+			
 			Context.Sanitize();
 			TMap<int32, TArray<int32>> ClusteredSelection = Context.GetClusteredSelections();
 
@@ -134,6 +135,8 @@ void UFractureToolClusterMagnet::Execute(TWeakPtr<FFractureEditorModeToolkit> In
 					}
 				}
 			}
+
+			Context.GenerateGuids(StartTransformCount);
 
 			Refresh(Context, Toolkit);
 		}

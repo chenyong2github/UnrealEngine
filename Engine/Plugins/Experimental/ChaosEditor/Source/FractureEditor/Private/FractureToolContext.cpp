@@ -51,6 +51,21 @@ void FFractureToolContext::RemoveRootNodes()
 		});
 }
 
+void FFractureToolContext::GenerateGuids(int32 StartIdx)
+{
+	if (!GeometryCollection->HasAttribute("GUID", FGeometryCollection::TransformGroup))
+	{
+		FManagedArrayCollection::FConstructionParameters Params(FName(""), false);
+		GeometryCollection->AddAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup, Params);
+	}
+
+	TManagedArray<FGuid>& Guids = GeometryCollection->GetAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
+	for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
+	{
+		Guids[Idx] = FGuid::NewGuid();
+	}
+}
+
 TMap<int32, TArray<int32>> FFractureToolContext::GetClusteredSelections()
 {
 	TMap<int32, TArray<int32>> SiblingGroups;
@@ -212,4 +227,6 @@ bool FFractureToolContext::HasSelectedAncestor(int32 Index) const
 	// We've arrived at the top of the hierarchy with no selected ancestors
 	return false;
 }
+
+
 

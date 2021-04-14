@@ -58,6 +58,13 @@ FAutoConsoleVariableRef CVarGeometryCollectionCollideAll(
 	GeometryCollectionCollideAll,
 	TEXT("Bypass the collision matrix and make geometry collections collide against everything"));
 
+
+bool GeometryCollectionBypassPhysicsAttributes = false;
+FAutoConsoleVariableRef CVarGeometryCollectionBypassPhysicsAttributes(
+	TEXT("p.GeometryCollectionBypassPhysicsAttributes"),
+	GeometryCollectionBypassPhysicsAttributes,
+	TEXT("Bypass the construction of simulation properties when all bodies are simply cached. for playback."));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 //==============================================================================
@@ -1817,6 +1824,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	FGeometryCollection& RestCollection,
 	const FSharedSimulationParameters& SharedParams)
 {
+	if (GeometryCollectionBypassPhysicsAttributes)  return;
+
 	FString BaseErrorPrefix = ErrorReporter.GetPrefix();
 
 	// fracture tools can create an empty GC before appending new geometry

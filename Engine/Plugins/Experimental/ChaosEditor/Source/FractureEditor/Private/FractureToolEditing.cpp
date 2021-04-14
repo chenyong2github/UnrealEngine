@@ -176,6 +176,8 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 					// #todo leaving this out for the moment because we don't want to invalidate existing caches.
 					// FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeometryCollection);
 
+					bDirty |= StripUnnecessaryAttributes(GeometryCollection);
+
 					if (bDirty)
 					{
 						FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
@@ -199,6 +201,97 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 	}
 }
 
+bool UFractureToolValidate::StripUnnecessaryAttributes(FGeometryCollection* GeometryCollection)
+{	
+	static TMap<FName, TArray<FName>> Necessary = {
+		{ "Transform", 
+			{
+			"GUID",
+			"Transform",
+			"BoneColor",
+			"Parent",
+			"Children",
+			"TransformToGeometryIndex",
+			"SimulationType",
+			"StatusFlags",
+			"InitialDynamicState",
+			"SimulatableParticlesAttribute",
+			"InertiaTensor",
+			"Mass",
+			"ExemplarIndex",
+			"MassToLocal",
+			"DefaultMaterialIndex"
+			} 
+		},
+		
+		{ "Vertices",
+			{
+			"Vertex",
+			"UV",
+			"Color",
+			"TangentU",
+			"TangentV",
+			"Normal",
+			"BoneMap"
+			}
+		},
+		
+		{ "Faces",
+			{
+			"Indices",
+			"Visible",
+			"MaterialIndex",
+			"MaterialID"
+			}
+		},
+
+		{ "Geometry",
+			{
+			"TransformIndex",
+			"BoundingBox",
+			"InnerRadius",
+			"OuterRadius",
+			"VertexStart",
+			"VertexCount",
+			"FaceStart",
+			"FaceCount"
+			}
+		},
+
+		{ "Material",
+			{
+			"Sections"
+			}
+		}
+	};
+
+	bool bChangesMade = false;
+
+	const TArray<FName> GroupNames = GeometryCollection->GroupNames();
+	for (const FName Group : GroupNames)
+	{
+		if (Necessary.Contains(Group))
+		{
+			const TArray<FName> AttributeNames = GeometryCollection->AttributeNames(Group);
+			const TArray<FName>& NecessaryAttributes = Necessary[Group];
+			for (const FName AttributeName : AttributeNames)
+			{
+				if (!NecessaryAttributes.Contains(AttributeName))
+				{
+					GeometryCollection->RemoveAttribute(AttributeName, Group);
+					bChangesMade = true;
+				}
+			}
+		}
+		else
+		{
+			GeometryCollection->RemoveGroup(Group);
+			bChangesMade = true;
+		}
+	}
+
+	return bChangesMade;
+}
 
 #undef LOCTEXT_NAMESPACE
 

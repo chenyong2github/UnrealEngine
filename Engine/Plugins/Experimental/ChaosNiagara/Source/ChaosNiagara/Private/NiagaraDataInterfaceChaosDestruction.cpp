@@ -1253,7 +1253,9 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 			CopyData.BoundingboxVolume = CopyData.BoundingBox.GetVolume();
 
 			UPhysicalMaterial* PhysicalMaterial = nullptr;
-			int32 MaterialID = DataIn.Particle->Geometry()->GetMaterialIndex(0);
+			int32 MaterialID = 0;
+			if(DataIn.Particle && DataIn.Particle->Geometry() )
+				MaterialID = DataIn.Particle->Geometry()->GetMaterialIndex(0);
 
 			UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 			UMaterialInterface* Material = nullptr;

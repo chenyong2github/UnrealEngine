@@ -15,8 +15,6 @@ FManagedArrayCollection::FManagedArrayCollection()
 	Version = 5;
 }
 
-static const FName GuidName("GUID");
-
 void FManagedArrayCollection::AddGroup(FName Group)
 {
 	ensure(!GroupInfo.Contains(Group));
@@ -24,9 +22,6 @@ void FManagedArrayCollection::AddGroup(FName Group)
 		0
 	};
 	GroupInfo.Add(Group, info);
-
-	//Every group has to have a GUID attribute
-	AddAttribute<FGuid>(GuidName, Group);
 }
 
 void FManagedArrayCollection::RemoveElements(const FName& Group, const TArray<int32>& SortedDeletionList, FProcessingParameters Params)
@@ -110,22 +105,6 @@ int32 FManagedArrayCollection::NumElements(FName Group) const
 		Num = GroupInfo[Group].Size;
 	}
 	return Num;
-}
-
-/** Should be called whenever new elements are added. Generates guids for new entries */
-void FManagedArrayCollection::GenerateGuids(FName Group, int32 StartIdx)
-{
-	TManagedArray<FGuid>& Guids = GetAttribute<FGuid>(GuidName, Group);
-
-	// we don't actually rely on this at the moment and generating the guids is very expensive.
-	// we don't need these at runtime in any case, so if we need in the editor later, make sure this is in-editor only
-	if (GIsEditor)
-	{
-		for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
-		{
-			Guids[Idx] = FGuid::NewGuid();
-		}
-	}
 }
 
 int32 FManagedArrayCollection::AddElements(int32 NumberElements, FName Group)
@@ -405,6 +384,7 @@ FString FManagedArrayCollection::ToString() const
 	return Buffer;
 }
 
+static const FName GuidName("GUID");
 
 void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
@@ -455,15 +435,41 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 				Pair.Value.Value->Resize(GroupSize);
 			}
 		}
-		if (Version < 4)
+
+		// Material indices are tied to the implicit collision geometry
+		// baking cached assets will strip out the collision geometry
+		// so we copy the indices to an attribute for back access on 
+		// cached only assets. 
+		if (HasGroup("Transform"))
 		{
-			//old content has no guids
-			for (TTuple<FName, FGroupInfo>& Pair : GroupInfo)
+			if (HasAttribute("Implicits", "Transform"))
 			{
-				GenerateGuids(Pair.Key, 0);
+				if (!HasAttribute("DefaultMaterialIndex", "Transform"))
+				{
+					TManagedArray<int32>& DefaultMaterialID = AddAttribute<int32>("DefaultMaterialIndex", "Transform");
+
+					typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> FSharedImplicit;
+					TManagedArray<FSharedImplicit>& Implicits = GetAttribute<FSharedImplicit>("Implicits", "Transform");
+					for (int i = 0; i < NumElements("Transform"); i++)
+					{
+						if (Implicits[i])
+							DefaultMaterialID[i] = Implicits[i]->GetMaterialIndex(0);
+					}
+				}
 			}
 		}
+
 #endif
+
+		// strip out GUID Attributes
+		for (auto& GroupName : GroupNames())
+		{
+			if (HasAttribute(GuidName, GroupName))
+			{
+				RemoveAttribute(GuidName, GroupName);
+			}
+		}
+
 	}
 	else
 	{

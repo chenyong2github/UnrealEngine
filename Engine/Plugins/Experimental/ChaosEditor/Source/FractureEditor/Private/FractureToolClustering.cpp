@@ -100,6 +100,8 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 
 		for (FFractureToolContext& Context : Contexts)
 		{
+			int32 StartTransformCount = Context.GetGeometryCollection()->Transform.Num();
+			
 			Context.RemoveRootNodes();
 			Context.Sanitize();
 
@@ -118,6 +120,8 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 						FGeometryCollectionClusteringUtility::ClusterBonesUnderNewNode(Context.GetGeometryCollection().Get(), Siblings[0], Context.GetSelection(), true);
 					}
 				}
+
+				Context.GenerateGuids(StartTransformCount);
 
 				Refresh(Context, Toolkit);
 			}

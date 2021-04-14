@@ -321,6 +321,20 @@ void FFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 		
 		for(UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
 		{
+			// If collection does not already have guids, make them
+			FGeometryCollectionEdit RestCollectionEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
+			UGeometryCollection* RestCollection = RestCollectionEdit.GetRestCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+			if (!GeometryCollection->HasAttribute("GUID", FGeometryCollection::TransformGroup))
+			{
+				FManagedArrayCollection::FConstructionParameters Params(FName(""), false);
+				TManagedArray<FGuid>& Guids = GeometryCollection->AddAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup, Params);
+				for (int32 Idx = 0; Idx < Guids.Num(); ++Idx)
+				{
+					Guids[Idx] = FGuid::NewGuid();
+				}
+			}
+			
 			FScopedColorEdit ShowBoneColorsEdit(GeometryCollectionComponent);
 			ShowBoneColorsEdit.SetEnableBoneSelection(true);
 			// ShowBoneColorsEdit.SetLevelViewMode(ViewLevel);

@@ -66,6 +66,8 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 			FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
 			const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
 			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
+
+			int32 StartTransformCount = Transform.Num();
 			
 			const FTransform TargetActorTransform(Context.GetGeometryCollectionComponent()->GetOwner()->GetTransform());
 
@@ -94,6 +96,8 @@ void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolk
 					}
 				}
 			}
+
+			Context.GenerateGuids(StartTransformCount);
 
 			Context.GetGeometryCollectionComponent()->InitializeEmbeddedGeometry();
 			Refresh(Context, Toolkit);
@@ -248,6 +252,10 @@ void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit
 					{
 						FracturedGeometryCollection->EmbeddedGeometryExemplar[ExemplarIndex].InstanceCount++;
 					}
+
+					// Get a guid generated for the new instance
+					TManagedArray<FGuid>& Guids = ClosestGeometryCollection->GetAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
+					Guids[Guids.Num()-1] = FGuid::NewGuid();
 
 					// #todo there might be a lot of these -- collect and put outside the loop.
 					ClosestComponent->InitializeEmbeddedGeometry();

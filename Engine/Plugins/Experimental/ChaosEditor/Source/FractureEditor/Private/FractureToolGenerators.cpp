@@ -256,6 +256,20 @@ AGeometryCollectionActor* UFractureToolGenerateAsset::ConvertActorsToGeometryCol
 		FracturedGeometryCollection->EnsureDataIsCooked(false /* init resources */);
 	}
 
+	// Add and initialize guids
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = FracturedGeometryCollection->GetGeometryCollection();
+	if (!GeometryCollection->HasAttribute("GUID", FGeometryCollection::TransformGroup))
+	{
+		FManagedArrayCollection::FConstructionParameters Params(FName(""), false);
+		GeometryCollection->AddAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup, Params);
+	}
+
+	TManagedArray<FGuid>& Guids = GeometryCollection->GetAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
+	for (int32 Idx = 0; Idx < Guids.Num(); ++Idx)
+	{
+		Guids[Idx] = FGuid::NewGuid();
+	}
+
 	return NewActor;
 }
 

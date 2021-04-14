@@ -42,7 +42,7 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override;
 	FReal SignedDistance(const FVec3& x) const;
 
-	virtual const FAABB3 BoundingBox() const override { return MOriginalLocalBoundingBox; }
+	virtual const FAABB3 BoundingBox() const override { return MLocalBoundingBox; }
 
 	// Returns a const ref to the underlying phi grid
 	const TArrayND<FReal, 3>& GetPhiArray() const { return MPhi; }

@@ -73,6 +73,8 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 			Context.ConvertSelectionToClusterNodes();
 			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
 
+			int32 StartTransformCount = GeometryCollection->Transform.Num();
+
 			if (AutoClusterSettings->AutoClusterMode < EFractureAutoClusterMode::Voronoi)
 			{
 				UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(Context.GetGeometryCollectionComponent(), AutoClusterSettings->AutoClusterMode, AutoClusterSettings->SiteCount);
@@ -112,6 +114,9 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 					FGeometryCollectionClusteringUtility::ValidateResults(GeometryCollection);
 				}
 			}
+
+			Context.GenerateGuids(StartTransformCount);
+
 			Refresh(Context, Toolkit);
 		}
 		SetOutlinerComponents(Contexts, Toolkit);
