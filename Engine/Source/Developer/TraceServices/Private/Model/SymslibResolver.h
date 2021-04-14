@@ -61,7 +61,8 @@ private:
 
 	enum : uint32 {
 		MaxNameLen = 512,
-		QueuedAddressLength = 256
+		QueuedAddressLength = 2048,
+		SymbolTasksInParallel = 8
 	};
 
 	/**
@@ -73,12 +74,13 @@ private:
 	 * Dispatches the currently queued addresses to be resolved. Note that is up to the caller to synchronize.
 	 */
 	void DispatchQueuedAddresses();
+	void ResolveSymbols(TArrayView<FQueuedAddress>& QueuedWork);
 	FModuleEntry* GetModuleForAddress(uint64 Address);
 	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine);
 	void LoadModuleTracked(FModuleEntry* Module);
 	EModuleStatus LoadModule(FModuleEntry* Module);
-	void ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target);
-	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target);
+	void ResolveSymbolTracked(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
+	bool ResolveSymbol(uint64 Address, FResolvedSymbol* Target, class FSymbolStringAllocator& StringAllocator);
 	void TrackFileHandlesAndRegions(IMappedFileHandle* FileHandle, IMappedFileRegion* FileRegion);
 
 	FRWLock ModulesLock;
@@ -102,6 +104,8 @@ private:
 	std::atomic<uint32> SymbolsDiscovered;
 	std::atomic<uint32> SymbolsFailed;
 	std::atomic<uint32> SymbolsResolved;
+	std::atomic<uint64> SymbolBytesAllocated;
+	std::atomic<uint64> SymbolBytesWasted;
 
 	IAnalysisSession& Session;
 };
