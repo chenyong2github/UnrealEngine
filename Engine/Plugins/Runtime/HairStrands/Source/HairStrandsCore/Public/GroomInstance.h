@@ -71,6 +71,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
 
 		EHairInterpolationType HairInterpolationType = EHairInterpolationType::NoneSkinning;
+
+		// Indicates if culling is enabled for this hair strands data.
+		bool bIsCullingEnabled = false;
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////

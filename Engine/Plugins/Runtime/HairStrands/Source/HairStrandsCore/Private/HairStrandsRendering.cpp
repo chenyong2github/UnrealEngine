@@ -324,9 +324,12 @@ FRDGHairStrandsCullingData ImportCullingData(FRDGBuilder& GraphBuilder, FHairGro
 	FRDGHairStrandsCullingData Out;
 	Out.bCullingResultAvailable					= In->GetCullingResultAvailable();
 
-	Out.HairStrandsVF_CullingIndirectBuffer		= Register(GraphBuilder, In->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateViews);
-	Out.HairStrandsVF_CullingIndexBuffer		= Register(GraphBuilder, In->GetCulledVertexIdBuffer(), ERDGImportedBufferFlags::CreateViews);
-	Out.HairStrandsVF_CullingRadiusScaleBuffer	= Register(GraphBuilder, In->GetCulledVertexRadiusScaleBuffer(), ERDGImportedBufferFlags::CreateViews);
+	if (Out.bCullingResultAvailable)
+	{
+		Out.HairStrandsVF_CullingIndirectBuffer		= Register(GraphBuilder, In->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateViews);
+		Out.HairStrandsVF_CullingIndexBuffer		= Register(GraphBuilder, In->GetCulledVertexIdBuffer(), ERDGImportedBufferFlags::CreateViews);
+		Out.HairStrandsVF_CullingRadiusScaleBuffer	= Register(GraphBuilder, In->GetCulledVertexRadiusScaleBuffer(), ERDGImportedBufferFlags::CreateViews);
+	}
 
 	Out.ClusterCount		= In->GetClusterCount();
 	Out.ClusterAABBBuffer	= Register(GraphBuilder, In->GetClusterAABBBuffer(), ERDGImportedBufferFlags::CreateViews);
@@ -665,18 +668,20 @@ static void AddHairStrandsInterpolationPass(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
 class FHairClusterAABBCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairClusterAABBCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairClusterAABBCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize>;
+	class FCPUAABB : SHADER_PERMUTATION_BOOL("PERMUTATION_USE_CPU_AABB");
+	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FCPUAABB>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, ClusterCount)
+		SHADER_PARAMETER(FVector, CPUBoundMin)
+		SHADER_PARAMETER(FVector, CPUBoundMax)
 		SHADER_PARAMETER(FMatrix, LocalToWorldMatrix)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RenderDeformedPositionBuffer)
@@ -701,51 +706,75 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairClusterAABBCS, "/Engine/Private/HairStrands/HairStrandsInterpolation.usf", "ClusterAABBEvaluationCS", SF_Compute);
 
+enum class EHairAABBUpdateType
+{
+	UpdateClusterAABB,
+	UpdateGroupAABB
+};
+
 static void AddHairClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
-	const FTransform& InRenLocalToWorld,
+	const EHairAABBUpdateType UpdateType,
+	FHairGroupInstance* Instance,
 	FRDGBufferSRVRef RenderDeformedOffsetBuffer,
-	FHairStrandClusterData::FHairGroup& ClusterData,
-
+	FHairStrandClusterData::FHairGroup* ClusterData,
 	FRDGHairStrandsCullingData& ClusterAABBData,
-
 	FRDGBufferSRVRef RenderPositionBufferSRV,
 	FRDGBufferSRVRef& DrawIndirectRasterComputeBuffer)
 {
-	const uint32 GroupSize = ComputeGroupSize();
-	const FIntVector DispatchCount = ComputeDispatchGroupCount2D(ClusterData.ClusterCount);
+	// Clusters AABB are only update if the groom is deformed.
+	const FBoxSphereBounds& Bounds = Instance->Strands.Data->BoundingBox;
+	const FTransform& InRenLocalToWorld = Instance->LocalToWorld;
+	const FBoxSphereBounds TransformedBounds = Bounds.TransformBy(InRenLocalToWorld);
+	Instance->HairGroupPublicData->bClusterAABBValid = UpdateType == EHairAABBUpdateType::UpdateClusterAABB;
 
-	FRDGBufferRef ClusterIdBuffer = GraphBuilder.RegisterExternalBuffer(ClusterData.ClusterIdBuffer);
-	FRDGBufferRef ClusterIndexOffsetBuffer = GraphBuilder.RegisterExternalBuffer(ClusterData.ClusterIndexOffsetBuffer);
-	FRDGBufferRef ClusterIndexCountBuffer  = GraphBuilder.RegisterExternalBuffer(ClusterData.ClusterIndexCountBuffer);
+	// bNeedDeformation: 
+	// * If the instance has deformatin (simulation, global interpolation, skinning, then we update all clusters (for voxelization purpose) and the instance AABB
+	// * If the instance is static, we only update the instance AABB
+	const uint32 GroupSize = ComputeGroupSize();
+	const FIntVector DispatchCount = (UpdateType == EHairAABBUpdateType::UpdateClusterAABB && ClusterData) ? ComputeDispatchGroupCount2D(ClusterData->ClusterCount) : FIntVector(1,1,1);
+
 	FHairClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterAABBCS::FParameters>();
+	Parameters->CPUBoundMin = TransformedBounds.GetBox().Min;
+	Parameters->CPUBoundMax = TransformedBounds.GetBox().Max;
 	Parameters->DispatchCountX = DispatchCount.X;
-	Parameters->ClusterCount = ClusterData.ClusterCount;
 	Parameters->LocalToWorldMatrix = InRenLocalToWorld.ToMatrixWithScale();
 	Parameters->RenderDeformedPositionBuffer = RenderPositionBufferSRV;
 	Parameters->RenderDeformedOffsetBuffer = RenderDeformedOffsetBuffer;
-	Parameters->ClusterVertexIdBuffer = RegisterAsSRV(GraphBuilder, *ClusterData.ClusterVertexIdBuffer);
-	Parameters->ClusterIdBuffer = GraphBuilder.CreateSRV(ClusterIdBuffer, PF_R32_UINT);
-	Parameters->ClusterIndexOffsetBuffer = GraphBuilder.CreateSRV(ClusterIndexOffsetBuffer, PF_R32_UINT);
-	Parameters->ClusterIndexCountBuffer = GraphBuilder.CreateSRV(ClusterIndexCountBuffer, PF_R32_UINT);
+
+	if (UpdateType == EHairAABBUpdateType::UpdateClusterAABB)
+	{
+		check(ClusterData);
+
+		FRDGBufferRef ClusterIdBuffer = GraphBuilder.RegisterExternalBuffer(ClusterData->ClusterIdBuffer);
+		FRDGBufferRef ClusterIndexOffsetBuffer = GraphBuilder.RegisterExternalBuffer(ClusterData->ClusterIndexOffsetBuffer);
+		FRDGBufferRef ClusterIndexCountBuffer  = GraphBuilder.RegisterExternalBuffer(ClusterData->ClusterIndexCountBuffer);
+		Parameters->ClusterVertexIdBuffer = RegisterAsSRV(GraphBuilder, *ClusterData->ClusterVertexIdBuffer);
+		Parameters->ClusterIdBuffer = GraphBuilder.CreateSRV(ClusterIdBuffer, PF_R32_UINT);
+		Parameters->ClusterIndexOffsetBuffer = GraphBuilder.CreateSRV(ClusterIndexOffsetBuffer, PF_R32_UINT);
+		Parameters->ClusterIndexCountBuffer = GraphBuilder.CreateSRV(ClusterIndexCountBuffer, PF_R32_UINT);
+		Parameters->ClusterCount = ClusterData->ClusterCount;
+
+		// Sanity check
+		check(ClusterData->ClusterCount == ClusterIdBuffer->Desc.NumElements);
+		check(ClusterData->ClusterCount == ClusterIndexOffsetBuffer->Desc.NumElements);
+		check(ClusterData->ClusterCount == ClusterIndexCountBuffer->Desc.NumElements);
+		check(ClusterData->ClusterCount * 6 == ClusterAABBData.ClusterAABBBuffer.Buffer->Desc.NumElements);
+	}
 	Parameters->HairStrandsVF_CullingIndirectBuffer = DrawIndirectRasterComputeBuffer; // Used for checking max vertex count
 	Parameters->OutClusterAABBBuffer = ClusterAABBData.ClusterAABBBuffer.UAV;
 	Parameters->OutGroupAABBBuffer = ClusterAABBData.GroupAABBBuffer.UAV;
 
-	// Sanity check
-	check(ClusterData.ClusterCount == ClusterIdBuffer->Desc.NumElements);
-	check(ClusterData.ClusterCount == ClusterIndexOffsetBuffer->Desc.NumElements);
-	check(ClusterData.ClusterCount == ClusterIndexCountBuffer->Desc.NumElements);
-	check(ClusterData.ClusterCount * 6 == ClusterAABBData.ClusterAABBBuffer.Buffer->Desc.NumElements);
 
 	FHairClusterAABBCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairClusterAABBCS::FGroupSize>(GroupSize);
+	PermutationVector.Set<FHairClusterAABBCS::FCPUAABB>(UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? 0u : 1u);
 	TShaderMapRef<FHairClusterAABBCS> ComputeShader(ShaderMap, PermutationVector);
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsClusterAABB"),
+		RDG_EVENT_NAME("HairStrandsClusterAABB(%s)", TEXT("Cluster,Group"), TEXT("Group Only")),
 		ComputeShader,
 		Parameters,
 		DispatchCount);
@@ -1055,6 +1084,7 @@ class FClearClusterAABBCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutClusterAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutGroupAABBBuffer)
 		SHADER_PARAMETER(uint32, ClusterCount)
+		SHADER_PARAMETER(uint32, bClearClusterAABBs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -1071,6 +1101,7 @@ IMPLEMENT_GLOBAL_SHADER(FClearClusterAABBCS, "/Engine/Private/HairStrands/HairSt
 static void AddClearClusterAABBPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	const EHairAABBUpdateType UpdateType,
 	uint32 ClusterCount,
 	FRDGImportedBuffer& OutClusterAABBBuffer,
 	FRDGImportedBuffer& OutGroupAABBBuffer)
@@ -1079,15 +1110,20 @@ static void AddClearClusterAABBPass(
 
 	FClearClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearClusterAABBCS::FParameters>();
 	Parameters->ClusterCount = ClusterCount;
+	Parameters->bClearClusterAABBs = UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? 1 : 0;
 	Parameters->OutClusterAABBBuffer = OutClusterAABBBuffer.UAV;
 	Parameters->OutGroupAABBBuffer = OutGroupAABBBuffer.UAV;
 
 	TShaderMapRef<FClearClusterAABBCS> ComputeShader(ShaderMap);
 
-	const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(ClusterCount * 6, 1, 1) , FIntVector(64, 1, 1));
+	const FIntVector DispatchCount = 
+		UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? 
+		FIntVector(FMath::DivideAndRoundUp(ClusterCount * 6u, 64u), 1, 1) :
+		FIntVector(1,1,1);
+
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairStrandsClearClusterAABB"),
+		RDG_EVENT_NAME("HairStrandsClearClusterAABB(%s)", UpdateType == EHairAABBUpdateType::UpdateClusterAABB ? TEXT("Cluster,Group") : TEXT("Group Only")),
 		ComputeShader,
 		Parameters,
 		DispatchCount);
@@ -1404,15 +1440,19 @@ void ComputeHairStrandsInterpolation(
 		else
 		{
 			const bool bNeedDeformation = Instance->Strands.DeformedResource != nullptr;
+			const EHairAABBUpdateType UpdateType = bNeedDeformation ? EHairAABBUpdateType::UpdateClusterAABB : EHairAABBUpdateType::UpdateGroupAABB;
 
-			// 1. Clear cluster AABBs (use for voxel allocation & optionally for culling)
+			// 1. Clear cluster AABBs (used optionally  for voxel allocation & for culling)
 			FRDGHairStrandsCullingData CullingData = ImportCullingData(GraphBuilder, Instance->HairGroupPublicData);
-			AddClearClusterAABBPass(
-				GraphBuilder,
-				ShaderMap,
-				CullingData.ClusterCount,
-				CullingData.ClusterAABBBuffer,
-				CullingData.GroupAABBBuffer);
+			{
+				AddClearClusterAABBPass(
+					GraphBuilder,
+					ShaderMap,
+					UpdateType,
+					CullingData.ClusterCount,
+					CullingData.ClusterAABBBuffer,
+					CullingData.GroupAABBBuffer);
+			}
 
 			// 2. Deform hair if needed (e.g.: skinning, simulation, RBF) and recompute tangent
 			FRDGBufferSRVRef Strands_PositionSRV = nullptr;
@@ -1483,18 +1523,29 @@ void ComputeHairStrandsInterpolation(
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->PositionOffsetBuffer);
 				// Generated the static tangent if they haven;t been generated yet
 				Instance->Strands.RestResource->GetTangentBuffer(GraphBuilder, ShaderMap);
-
 			}
 
 			// 2.1 Update the VF input with the update resources
 			Instance->HairGroupPublicData->VFInput = InternalComputeHairStrandsVertexInputData(&GraphBuilder, Instance);
 
 			// 3. Compute cluster AABBs (used for LODing and voxelization)
-			FHairStrandClusterData::FHairGroup& HairGroupCluster = InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
-			if (HairGroupCluster.bVisible)
 			{
 				// Optim: If an instance is using CPU selection and does not voxelize it's data, then there is no need for having valid AABB
-				const bool bNeedAABB = !Instance->bUseCPULODSelection || (Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow);
+				bool bNeedAABB = !Instance->bUseCPULODSelection || (Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow);
+
+				FHairStrandClusterData::FHairGroup* HairGroupCluster = nullptr;
+				if (CullingData.bCullingResultAvailable)
+				{
+					// Sanity check
+					check(Instance->Strands.bIsCullingEnabled);
+					HairGroupCluster = &InClusterData->HairGroups[Instance->HairGroupPublicData->ClusterDataIndex];
+					if (!HairGroupCluster->bVisible)
+					{
+						bNeedAABB = false;
+					}
+				}
+				Instance->HairGroupPublicData->bClusterAABBValid = false;
+				Instance->HairGroupPublicData->bGroupAABBValid = false;
 
 				if (bNeedAABB)
 				{
@@ -1502,12 +1553,16 @@ void ComputeHairStrandsInterpolation(
 					AddHairClusterAABBPass(
 						GraphBuilder,
 						ShaderMap,
-						Instance->LocalToWorld,
+						UpdateType,
+						Instance,
 						Strands_PositionOffsetSRV,
 						HairGroupCluster,
 						CullingData,
 						Strands_PositionSRV,
 						Strands_CulledVertexCount.SRV);
+
+					Instance->HairGroupPublicData->bClusterAABBValid = UpdateType == EHairAABBUpdateType::UpdateClusterAABB;
+					Instance->HairGroupPublicData->bGroupAABBValid = true;
 				}
 			}
 

@@ -39,6 +39,8 @@ uint3 ComputeDispatchGroupCount2D(uint GroupCount)
 /// Clear clusters AABB
 #ifdef SHADER_CLEARCLUSTERAABB
 
+uint bClearClusterAABBs;
+
 RWBuffer<int> OutClusterAABBBuffer; // Cluster data packed as {uint3 AABBMin, uint3 AABBMax}
 RWBuffer<int> OutGroupAABBBuffer; 	// Group data packed as {uint3 AABBMin, uint3 AABBMax}
 
@@ -46,7 +48,7 @@ RWBuffer<int> OutGroupAABBBuffer; 	// Group data packed as {uint3 AABBMin, uint3
 void MainClearClusterAABBCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	// Clear 'clusters' AABB
-	if (DispatchThreadId.x < ClusterCount*6)
+	if (bClearClusterAABBs > 0 && DispatchThreadId.x < ClusterCount*6)
 	{
 		const int ClusterId = DispatchThreadId.x / 6;
 		const bool bIsMin = (DispatchThreadId.x - ClusterId * 6) < 3 ? 1 : 0;

@@ -233,12 +233,16 @@ class FVoxelMarkValidPageIndex_PrepareCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVoxelMarkValidPageIndex_PrepareCS);
 	SHADER_USE_PARAMETER_STRUCT(FVoxelMarkValidPageIndex_PrepareCS, FGlobalShader);
 
+	class FUseCluster : SHADER_PERMUTATION_BOOL("PERMUTATION_USE_CLUSTER");
+	using FPermutationDomain = TShaderPermutationDomain<FUseCluster>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MaxClusterCount)
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, MaxScatterAllocationCount)
 		SHADER_PARAMETER(uint32, bForceDirectPageAllocation)
 
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, GroupAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterAABBsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, PageIndexResolutionAndOffsetBuffer)
@@ -635,66 +639,88 @@ static void AddAllocateVoxelPagesPass(
 
 			AddClearUAVPass(GraphBuilder, ScatterCounterUAV, 0);
 
+			const uint32 bForceDirectPageAllocation = GHairVirtualVoxelUseImmediatePageAllocation > 0 ? 1 : 0;
 			// Prepare
 			for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 			{
 				FHairGroupPublicData* HairGroupData = PrimitiveInfo.PublicDataPtr;
 
+				if (!HairGroupData->DoesSupportVoxelization())
+					continue;
+
+				// For allocating/marking the used pages, a primitive/group can:
+				// * Either use its group AABB (for static groom)
+				// * Or use its clusters AABBs (for dynamic groom)
+				// Even if the bGroupAABBValid is invalid, it has been reset to invalid AABB, so the code below won't mark any page as used.
+				const bool bUseClusterAABB = HairGroupData->bClusterAABBValid;
+				
 				FVoxelMarkValidPageIndex_PrepareCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_PrepareCS::FParameters>();
 				Parameters->MaxClusterCount				= HairGroupData->GetClusterCount();
 				Parameters->MacroGroupId				= MacroGroup.MacroGroupId;
 				Parameters->MaxScatterAllocationCount	= MaxAllocationCount;
-				Parameters->bForceDirectPageAllocation	= GHairVirtualVoxelUseImmediatePageAllocation > 0 ? 1 : 0;
+				Parameters->bForceDirectPageAllocation	= bForceDirectPageAllocation;
 
-				Parameters->ClusterAABBsBuffer		= RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
-				Parameters->MacroGroupAABBBuffer	= GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
+				Parameters->GroupAABBsBuffer			= RegisterAsSRV(GraphBuilder, HairGroupData->GetGroupAABBBuffer());
+				Parameters->ClusterAABBsBuffer			= RegisterAsSRV(GraphBuilder, HairGroupData->GetClusterAABBBuffer());
+				Parameters->MacroGroupAABBBuffer		= GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 				Parameters->PageIndexResolutionAndOffsetBuffer = PageIndexResolutionAndOffsetBufferSRV;
 
 				Parameters->OutDeferredScatterCounter	= ScatterCounterUAV;
 				Parameters->OutDeferredScatterBuffer	= ScatterBufferUAV;
 				Parameters->OutValidPageIndexBuffer		= PageIndexBufferUAV;
 
-				FIntVector DispatchCount((Parameters->MaxClusterCount + GroupSize - 1) / GroupSize, 1, 1);
+				FIntVector DispatchCount = bUseClusterAABB ?
+					FIntVector((Parameters->MaxClusterCount + GroupSize - 1) / GroupSize, 1, 1) :
+					FIntVector(
+						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.X, 8),
+						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.Y, 8),
+						FMath::DivideAndRoundUp(MacroGroup.VirtualVoxelNodeDesc.PageIndexResolution.Z, 8));
+
 				check(DispatchCount.X < 65535);
-				TShaderMapRef<FVoxelMarkValidPageIndex_PrepareCS> ComputeShader(View.ShaderMap);
+				FVoxelMarkValidPageIndex_PrepareCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FVoxelMarkValidPageIndex_PrepareCS::FUseCluster>(bUseClusterAABB ? 1 : 0);
+				TShaderMapRef<FVoxelMarkValidPageIndex_PrepareCS> ComputeShader(View.ShaderMap, PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Prepare"),
+					RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Prepare(%s,%s)", bUseClusterAABB ? TEXT("Cluster") : TEXT("Group"), bForceDirectPageAllocation ? TEXT("Direct") : TEXT("Indirect")),
 					ComputeShader,
 					Parameters,
 					DispatchCount);
 			}
-			
-			FRDGBufferSRVRef ScatterCounterSRV = GraphBuilder.CreateSRV(ScatterCounter, PF_R32_UINT);
 
-			// Build indirect buffer args
-			FRDGBufferRef ScatterIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Hair.PageScatterIndirectArgs"));
+			if (!bForceDirectPageAllocation)
 			{
-				check(MacroGroup.MacroGroupId < MacroGroupCount);
+				FRDGBufferSRVRef ScatterCounterSRV = GraphBuilder.CreateSRV(ScatterCounter, PF_R32_UINT);
 
-				FVoxelMarkValidPageIndex_IndirectArgsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_IndirectArgsCS::FParameters>();
-				Parameters->DeferredScatterCounter = ScatterCounterSRV;
-				Parameters->OutIndirectArgsBuffer = GraphBuilder.CreateUAV(ScatterIndirectArgsBuffer);
+				// Build indirect buffer args
+				FRDGBufferRef ScatterIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Hair.PageScatterIndirectArgs"));
+				{
+					check(MacroGroup.MacroGroupId < MacroGroupCount);
 
-				const FIntVector DispatchCount(1, 1, 1);
-				TShaderMapRef<FVoxelMarkValidPageIndex_IndirectArgsCS> ComputeShader(View.ShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_IndirectArgs"), ComputeShader, Parameters, DispatchCount);
-			}
+					FVoxelMarkValidPageIndex_IndirectArgsCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_IndirectArgsCS::FParameters>();
+					Parameters->DeferredScatterCounter = ScatterCounterSRV;
+					Parameters->OutIndirectArgsBuffer = GraphBuilder.CreateUAV(ScatterIndirectArgsBuffer);
 
-			// Scatter
-			{
-				FRDGBufferSRVRef ScatterBufferSRV = GraphBuilder.CreateSRV(ScatterBuffer, PF_R32G32_UINT);
-				check(MacroGroup.MacroGroupId < MacroGroupCount);
+					const FIntVector DispatchCount(1, 1, 1);
+					TShaderMapRef<FVoxelMarkValidPageIndex_IndirectArgsCS> ComputeShader(View.ShaderMap);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_IndirectArgs"), ComputeShader, Parameters, DispatchCount);
+				}
 
-				FVoxelMarkValidPageIndex_ScatterCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_ScatterCS::FParameters>();
-				Parameters->IndirectBufferArgs = ScatterIndirectArgsBuffer;
-				Parameters->PageIndexResolutionAndOffsetBuffer = PageIndexResolutionAndOffsetBufferSRV;
-				Parameters->DeferredScatterCounter = ScatterCounterSRV;
-				Parameters->DeferredScatterBuffer = ScatterBufferSRV;
-				Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
+				// Scatter
+				{
+					FRDGBufferSRVRef ScatterBufferSRV = GraphBuilder.CreateSRV(ScatterBuffer, PF_R32G32_UINT);
+					check(MacroGroup.MacroGroupId < MacroGroupCount);
 
-				TShaderMapRef<FVoxelMarkValidPageIndex_ScatterCS> ComputeShader(View.ShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Scatter"), ComputeShader, Parameters, ScatterIndirectArgsBuffer, 0);
+					FVoxelMarkValidPageIndex_ScatterCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndex_ScatterCS::FParameters>();
+					Parameters->IndirectBufferArgs = ScatterIndirectArgsBuffer;
+					Parameters->PageIndexResolutionAndOffsetBuffer = PageIndexResolutionAndOffsetBufferSRV;
+					Parameters->DeferredScatterCounter = ScatterCounterSRV;
+					Parameters->DeferredScatterBuffer = ScatterBufferSRV;
+					Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
+
+					TShaderMapRef<FVoxelMarkValidPageIndex_ScatterCS> ComputeShader(View.ShaderMap);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Scatter"), ComputeShader, Parameters, ScatterIndirectArgsBuffer, 0);
+				}
 			}
 		}
 		else
@@ -702,6 +728,8 @@ static void AddAllocateVoxelPagesPass(
 			for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
 			{
 				FHairGroupPublicData* HairGroupData = PrimitiveInfo.PublicDataPtr;
+				if (!HairGroupData->DoesSupportVoxelization())
+					continue;
 
 				FVoxelMarkValidPageIndexCS::FParameters* Parameters = GraphBuilder.AllocParameters<FVoxelMarkValidPageIndexCS::FParameters>();
 				Parameters->MacroGroupId = MacroGroup.MacroGroupId;

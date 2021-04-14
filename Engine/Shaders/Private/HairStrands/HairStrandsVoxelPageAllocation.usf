@@ -35,7 +35,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint MacroGroupId = DispatchThreadId.x;
 
 	FHairAABB Bound = InitHairAABB();
-	const bool bIsValid = MacroGroupId < MacroGroupCount;
+	bool bIsValid = MacroGroupId < MacroGroupCount;
 	if (bIsValid)
 	{
 		Bound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
@@ -43,6 +43,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		{
 			Bound.Min = 0;
 			Bound.Max = 0;
+			bIsValid = false;
 		}
 	}
 
@@ -228,7 +229,7 @@ void UpdatePackScatterCoord(inout uint2 Out, uint PartIndex)
 #define SCATTER_GROUP_SIZE 32
 #define SCATTER_GROUP_LINE 4
 
-#endif
+#endif // SHADER_MARKVALID_PREPARE || SHADER_MARKVALID_INDIRECTARG || SHADER_MARKVALID_SCATTER
 
 #if SHADER_MARKVALID_PREPARE
 uint			MaxClusterCount;
@@ -236,6 +237,7 @@ uint			MacroGroupId;
 uint			MaxScatterAllocationCount;
 uint			bForceDirectPageAllocation;
 
+Buffer<int>		GroupAABBsBuffer;
 Buffer<int>		ClusterAABBsBuffer;
 Buffer<int>		MacroGroupAABBBuffer;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
@@ -248,6 +250,7 @@ RWBuffer<uint2> OutDeferredScatterBuffer;
 // PageIndexBuffer      is sampled with linear coordinate computed from the 3d page coordinate. VALID NODE ARE NOT COMPACTED. It contains the LINEAR PAGE INDEX (to map to the 3d volume).
 // PageIndexCoordBuffer is sampled with linear coordinate for allocated nodes. VALID NODE ARE COMPACTED. It contains the 3d page coordinate and ClustedId. Only used for opaque voxel injection.
 
+#if PERMUTATION_USE_CLUSTER
 [numthreads(SCATTER_GROUP_SIZE, 1, 1)]
 void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -339,7 +342,45 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		}
 	}
 }
-#endif
+#else // PERMUTATION_USE_CLUSTER
+[numthreads(8, 8, 8)]
+void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
+	const FHairAABB MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	const int3 PageIndexResolution = PageIndexResolutionAndOffset.xyz;
+	const uint PageIndexOffset = PageIndexResolutionAndOffset.w;
+
+	const uint3 Coord = DispatchThreadId;
+	if (any(Coord >= PageIndexResolution))
+		return;
+
+	const FHairAABB GroupBound = ReadHairAABB(0, GroupAABBsBuffer);
+	const uint3 MinCoord = PositionToCoord(GroupBound.Min, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
+	const uint3 MaxCoord = PositionToCoord(GroupBound.Max, MacroGroupBound.Min, MacroGroupBound.Max, PageIndexResolution);
+
+	if (any(!IsFinite(float3(MinCoord))))
+		return;
+
+	if (any(!IsFinite(float3(MaxCoord))))
+		return;
+
+	if (all(Coord >= MinCoord) && all(Coord <=MaxCoord))
+	{
+		const uint3 PageIndexCoord = uint3(Coord.x, Coord.y, Coord.z);
+		const uint LinearPageIndexCoord = CoordToIndex(PageIndexCoord, PageIndexResolution, PageIndexOffset);
+		InterlockedOr(OutValidPageIndexBuffer[LinearPageIndexCoord], 1u);
+	}
+
+	// Fake writting to insure RDG allocate buffers even there is only Group-based allocated elements (vs. cluster-based allocated elements)
+	if (Coord.x > 65000)
+	{
+		OutDeferredScatterCounter[0] = 0;
+		OutDeferredScatterBuffer[0] = uint2(0,0);
+	}
+}
+#endif // PERMUTATION_USE_CLUSTER
+#endif // SHADER_MARKVALID_PREPARE
 
 #if SHADER_MARKVALID_INDIRECTARG
 Buffer<uint> DeferredScatterCounter;

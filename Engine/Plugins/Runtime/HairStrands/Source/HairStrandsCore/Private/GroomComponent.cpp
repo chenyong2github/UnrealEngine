@@ -919,8 +919,8 @@ public:
 			VertexFactory = (FVertexFactory*)&StrandsVertexFactory;
 			HairVertexCount = Instance->Strands.RestResource->GetVertexCount();
 			MaxVertexIndex = HairVertexCount * 6;
-			NumPrimitive = 0;
-			bUseCulling = true;
+			bUseCulling = Instance->Strands.bIsCullingEnabled;
+			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
 			MaterialRenderProxy = Strands_MaterialProxy == nullptr ? Instance->Strands.Material->GetRenderProxy() : Strands_MaterialProxy;
 			bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 		}

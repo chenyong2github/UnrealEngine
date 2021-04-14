@@ -69,6 +69,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+	const bool bIsNodeValid = all(NodeDesc.PageIndexResolution != 0);
 
 	// Draw macro group AABB & debug infos
 	if (uint(PixelCoord.x) == 0 && uint(PixelCoord.y) == 0)
@@ -582,33 +583,33 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		CommonDesc.PageTextureResolution= VirtualVoxel.PageTextureResolution;
 		CommonDesc.PageResolution		= VirtualVoxel.PageResolution;
 
-		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[MacroGroupId];
-		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+		if (bIsNodeValid)
+		{
+			FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
+			TraversalSettings.DensityScale		= VirtualVoxel.DensityScale;
+			TraversalSettings.CountThreshold	= GetOpaqueVoxelValue();
+			TraversalSettings.DistanceThreshold = DistanceThreshold;
+			TraversalSettings.bDebugEnabled		= bDebugEnabled;
+			TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale_Shadow;
+			TraversalSettings.Random			= SampleRandom;
+			TraversalSettings.TanConeAngle		= 0;
+			TraversalSettings.bIsPrimaryRay		= true;
+			TraversalSettings.PixelRadius		= -1;
+			TraversalSettings.ForcedMip			= ForcedMipLevel;
 
-		FHairTraversalSettings TraversalSettings = InitHairTraversalSettings();
-		TraversalSettings.DensityScale		= VirtualVoxel.DensityScale;
-		TraversalSettings.CountThreshold	= GetOpaqueVoxelValue();
-		TraversalSettings.DistanceThreshold = DistanceThreshold;
-		TraversalSettings.bDebugEnabled		= bDebugEnabled;
-		TraversalSettings.SteppingScale		= VirtualVoxel.SteppingScale_Shadow;
-		TraversalSettings.Random			= SampleRandom;
-		TraversalSettings.TanConeAngle		= 0;
-		TraversalSettings.bIsPrimaryRay		= true;
-		TraversalSettings.PixelRadius		= -1;
-		TraversalSettings.ForcedMip			= ForcedMipLevel;
+			TraversalResult = ComputeHairCountVirtualVoxel(
+				WP0,
+				WP1,
+				CommonDesc,
+				NodeDesc,
+				VirtualVoxel.PageIndexBuffer,
+				VirtualVoxel.PageIndexOccupancyBuffer,
+				VirtualVoxel.PageTexture,
+				TraversalSettings);
 
-		TraversalResult = ComputeHairCountVirtualVoxel(
-			WP0,
-			WP1,
-			CommonDesc,
-			NodeDesc,
-			VirtualVoxel.PageIndexBuffer,
-			VirtualVoxel.PageIndexOccupancyBuffer,
-			VirtualVoxel.PageTexture,
-			TraversalSettings);
-
-		HitColor = GetColorCode(saturate(TraversalResult.HairCount / 16));
-		bIsValid = TraversalResult.HairCount > 0;
+			HitColor = GetColorCode(saturate(TraversalResult.HairCount / 16));
+			bIsValid = TraversalResult.HairCount > 0;
+		}
 
 		const bool bIsPixelEnable = all(int2(PixelCoord) == GetCursorPos());
 		if (bIsPixelEnable && bIsValid)

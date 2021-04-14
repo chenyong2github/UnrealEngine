@@ -291,6 +291,8 @@ public:
 	/* Hair Cluster & Hair Group bounding box buffer */
 	FRDGExternalBuffer ClusterAABBBuffer;
 	FRDGExternalBuffer GroupAABBBuffer;
+	bool bGroupAABBValid = false;
+	bool bClusterAABBValid = false;
 
 	/* Culling & LODing results for a hair group */ // Better to be transient?
 	FRDGExternalBuffer CulledVertexIdBuffer;

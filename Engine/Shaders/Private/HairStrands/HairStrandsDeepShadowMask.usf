@@ -493,6 +493,7 @@ void MainPS(
 
 		const FPackedVirtualVoxelNodeDesc PackedNode = VirtualVoxel.NodeDescBuffer[Voxel_MacroGroupId];
 		const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxel.PageResolution);
+		const bool bIsValid = all(NodeDesc.PageIndexResolution != 0);
 
 		#if VOXEL_TRAVERSAL_DEBUG
 		const bool bDebugEnabled = PixelCoord.x == GetCursorPos().x && PixelCoord.y == GetCursorPos().y;
@@ -509,7 +510,7 @@ void MainPS(
 		TraversalSettings.Random = Random;
 		TraversalSettings.PixelRadius = SceneDepth * VirtualVoxel.HairCoveragePixelRadiusAtDepth1;
 		
-		if (RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f &&  Categorization.PixelCoverage < CoverageThreshold)
+		if (bIsValid && RayMarchMaskTexture.Load(uint3(PixelCoord, 0)).r > 0.0f &&  Categorization.PixelCoverage < CoverageThreshold)
 		{
 			Result = ComputeHairCountVirtualVoxel(
 				WorldPosition,
