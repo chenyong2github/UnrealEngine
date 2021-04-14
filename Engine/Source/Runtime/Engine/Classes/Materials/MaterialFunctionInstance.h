@@ -77,7 +77,6 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 #endif
 	virtual bool ValidateFunctionUsage(class FMaterialCompiler* Compiler, const FFunctionExpressionOutput& Output) override;
 
-	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, const struct FFunctionExpressionOutput& Output) override;
@@ -86,6 +85,7 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 #endif
 
 #if WITH_EDITORONLY_DATA
+	virtual void Serialize(FArchive& Ar) override;
 	virtual bool IsDependent(UMaterialFunctionInterface* OtherFunction) override;
 	ENGINE_API virtual bool IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const override;
 	ENGINE_API virtual void GetDependentFunctions(TArray<UMaterialFunctionInterface*>& DependentFunctions) const override;
