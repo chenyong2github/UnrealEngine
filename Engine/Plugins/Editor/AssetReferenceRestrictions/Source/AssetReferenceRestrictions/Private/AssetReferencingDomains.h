@@ -11,7 +11,7 @@
 #if UE_ASSET_DOMAIN_FILTERING_DEBUG_LOGGING
 DECLARE_LOG_CATEGORY_EXTERN(LogAssetReferenceRestrictions, Verbose, All);
 #else
-DECLARE_LOG_CATEGORY_EXTERN(LogAssetReferenceRestrictions, Log, Display);
+DECLARE_LOG_CATEGORY_EXTERN(LogAssetReferenceRestrictions, Log, Log);
 #endif
 
 class IPlugin;
@@ -85,6 +85,9 @@ private:
 
 	// The engine content domain
 	TSharedPtr<FDomainData> EngineDomain;
+
+	// The default script domain (for reflected types)
+	TSharedPtr<FDomainData> ScriptDomain;
 
 	// Used for various 'special' mount points like /Temp/, /Memory/, and /Extra/
 	// Not visible as a domain for other domains to see, and can see everything

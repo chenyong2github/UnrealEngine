@@ -200,6 +200,7 @@ public:
 
 	// The names of the project, special system mount, and game domains
 	static const FString EngineDomainName;
+	static const FString ScriptDomainName;
 	static const FString GameDomainName;
 	static const FString TempDomainName;
 

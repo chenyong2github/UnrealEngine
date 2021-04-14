@@ -127,6 +127,7 @@ void FDomainDatabase::RebuildFromScratch()
 	DomainNameMap.Reset();
 	PathMap.Reset();
 	EngineDomain.Reset();
+	ScriptDomain.Reset();
 	TempDomain.Reset();
 	GameDomain.Reset();
 	DomainsDefinedByPlugins.Reset();
@@ -136,6 +137,11 @@ void FDomainDatabase::RebuildFromScratch()
 	EngineDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::EngineDomainName);
 	EngineDomain->UserFacingDomainName = LOCTEXT("EngineDomain", "EngineContent");
 	EngineDomain->DomainRootPaths.Add(TEXT("/Engine/"));
+
+	ScriptDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::ScriptDomainName);
+	ScriptDomain->UserFacingDomainName = LOCTEXT("ScriptDomain", "Script");
+	ScriptDomain->bCanBeSeenByEverything = true;
+	ScriptDomain->DomainRootPaths.Add(TEXT("/Script/"));
 
 	TempDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::TempDomainName);
 	TempDomain->UserFacingDomainName = LOCTEXT("TempDomain", "Temp");
@@ -163,7 +169,7 @@ void FDomainDatabase::RebuildFromScratch()
 
 			for (const FDirectoryPath& PathRoot : PathRule.ContentRoots)
 			{
-				if (ensure(PathRoot.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive)))
+				if (PathRoot.Path.StartsWith(TEXT("/"), ESearchCase::CaseSensitive))
 				{
 					Domain->DomainRootPaths.Add(PathRoot.Path / TEXT(""));
 				}

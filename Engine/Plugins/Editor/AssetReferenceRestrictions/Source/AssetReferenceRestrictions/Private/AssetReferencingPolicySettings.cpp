@@ -6,6 +6,7 @@
 #include "Editor.h"
 
 const FString UAssetReferencingPolicySettings::EngineDomainName(TEXT("EngineContent"));
+const FString UAssetReferencingPolicySettings::ScriptDomainName(TEXT("Script"));
 const FString UAssetReferencingPolicySettings::GameDomainName(TEXT("ProjectContent"));
 const FString UAssetReferencingPolicySettings::TempDomainName(TEXT("Temp"));
 
