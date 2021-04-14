@@ -187,8 +187,14 @@ namespace UE
 			{
 				Attributes = InAttributes;
 				check(Attributes.IsValid());
-				FString BaseTryName = TEXT("__") + BaseKeyName;
+				FString BaseTryName = BaseKeyName;
 				KeyCount = BaseTryName;
+			}
+
+			static const FString& IndexKey()
+			{
+				static FString IndexKeyString = TEXT("_NameIndex_");
+				return IndexKeyString;
 			}
 
 			int32 GetCount() const
@@ -392,7 +398,7 @@ namespace UE
 
 			FAttributeKey GetIndexKey(int32 Index) const
 			{
-				FString DepIndexKeyString = GetKeyCount().ToString() + TEXT("_NameIndex_") + FString::FromInt(Index);
+				FString DepIndexKeyString = GetKeyCount().ToString() + IndexKey() + FString::FromInt(Index);
 				return FAttributeKey(*DepIndexKeyString);
 			}
 		};
@@ -410,7 +416,7 @@ namespace UE
 			void Initialize(const TSharedRef<FAttributeStorage, ESPMode::ThreadSafe>& InAttributes, const FString& BaseKeyName)
 			{
 				Attributes = InAttributes;
-				FString BaseTryName = TEXT("__") + BaseKeyName;
+				FString BaseTryName = BaseKeyName;
 				FAttributeKey KeyCountKey(MoveTemp(BaseTryName));
 				if (!InAttributes->ContainAttribute(KeyCountKey))
 				{ 
@@ -713,8 +719,14 @@ namespace UE
 
 			static const FString& GetDependenciesBaseKey()
 			{
-				static FString BaseNodeDependencies_BaseKey = TEXT("BaseNodeDependencies__");
+				static FString BaseNodeDependencies_BaseKey = TEXT("__BaseNodeDependencies__");
 				return BaseNodeDependencies_BaseKey;
+			}
+
+			static const FAttributeKey& ClassTypeAttributeKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__ClassTypeAttribute__"));
+				return AttributeKey;
 			}
 		};
 
@@ -736,6 +748,7 @@ public:
 	{
 		Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
 		Dependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey());
+		RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 	}
 
 	virtual ~UInterchangeBaseNode() = default;
@@ -753,6 +766,46 @@ public:
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const;
+
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+	{
+		FString KeyDisplayName = NodeAttributeKey.ToString();
+		if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::ParentIDKey())
+		{
+			KeyDisplayName = TEXT("Parent Unique ID");
+		}
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::DisplayLabelKey())
+		{
+			KeyDisplayName = TEXT("Name");
+		}
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::IsEnabledKey())
+		{
+			KeyDisplayName = TEXT("Enabled");
+		}
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::UniqueIDKey())
+		{
+			KeyDisplayName = TEXT("Unique ID");
+		}
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey())
+		{
+			KeyDisplayName = TEXT("Node Class Type");
+		}
+		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey()))
+		{
+			KeyDisplayName = TEXT("Dependencies Count");
+		}
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey()))
+		{
+			KeyDisplayName = TEXT("Dependencies Index ");
+			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
+			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
+			if (IndexPosition < NodeAttributeKey.Key.Len())
+			{
+				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			}
+		}
+		return KeyDisplayName;
+	}
 
 	/**
 	 * Add an attribute to the node
@@ -800,6 +853,11 @@ public:
 	UE::Interchange::FAttributeStorage::TAttributeHandle<T> GetAttributeHandle(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 	{
 		return Attributes->GetAttributeHandle<T>(NodeAttributeKey);
+	}
+
+	void GetAttributeKeys(TArray<UE::Interchange::FAttributeKey>& AttributeKeys)
+	{
+		Attributes->GetAttributeKeys(AttributeKeys);
 	}
 
 	/**

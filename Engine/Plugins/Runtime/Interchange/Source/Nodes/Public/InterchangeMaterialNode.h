@@ -108,6 +108,16 @@ public:
 		return TypeName;
 	}
 
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
+	{
+		FString KeyDisplayName = NodeAttributeKey.ToString();
+		if (NodeAttributeKey == UE::Interchange::FMaterialNodeStaticData::PayloadSourceFileKey())
+		{
+			return KeyDisplayName = TEXT("Payload Source Key");
+		}
+		return Super::GetKeyDisplayName(NodeAttributeKey);
+	}
+
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	virtual class UClass* GetAssetClass() const override
@@ -384,7 +394,7 @@ private:
 	//This member is serialize manually in the serialize override
 	TMap<EInterchangeMaterialNodeParameterName, FParameterData> ParameterDatas;
 
-	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
+	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 
 	//Material Attribute
 	const UE::Interchange::FAttributeKey Macro_CustomMaterialUsageKey = UE::Interchange::FAttributeKey(TEXT("MaterialUsage"));

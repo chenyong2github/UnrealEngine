@@ -194,6 +194,10 @@ namespace UE
 			FrameTime			= 47,
 		};
 
+		/**
+		 * Return the FString for the specified AttributeType
+		 */
+		INTERCHANGECORE_API FString AttributeTypeToString(EAttributeTypes AttributeType);
 
 		/**
 		 * Stub for attribute type traits.

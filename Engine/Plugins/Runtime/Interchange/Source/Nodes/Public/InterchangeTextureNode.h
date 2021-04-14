@@ -26,6 +26,12 @@ namespace UE
 				static FAttributeKey AttributeKey(TEXT("__PayloadSourceFile__"));
 				return AttributeKey;
 			}
+
+			static const FString& GetBaseSourceBlocksKey()
+			{
+				static FString StringKey(TEXT("SourceBlocks"));
+				return StringKey;
+			}
 		};
 
 	}//ns Interchange
@@ -48,7 +54,7 @@ public:
 	virtual void PostInitProperties()
 	{
 		Super::PostInitProperties();
-		SourceBlocks.Initialize(Attributes.ToSharedRef(), TEXT("SourceBlocks"));
+		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTextureNodeStaticData::GetBaseSourceBlocksKey());
 	}
 
 	/**
@@ -87,6 +93,16 @@ public:
 	{
 		const FString TypeName = TEXT("TextureNode");
 		return TypeName;
+	}
+
+	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
+	{
+		FString KeyDisplayName = NodeAttributeKey.ToString();
+		if (NodeAttributeKey == UE::Interchange::FTextureNodeStaticData::PayloadSourceFileKey())
+		{
+			return KeyDisplayName = TEXT("Payload Source Key");
+		}
+		return Super::GetKeyDisplayName(NodeAttributeKey);
 	}
 
 	/** Get the class this node want to create */
@@ -817,7 +833,7 @@ private:
 #endif
 	}
 
-	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FAttributeKey(TEXT("__ClassTypeAttribute__"));
+	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 
 	//Texture Adjustments
 	const UE::Interchange::FAttributeKey Macro_CustomAdjustBrightnessKey = UE::Interchange::FAttributeKey(TEXT("AdjustBrightness"));

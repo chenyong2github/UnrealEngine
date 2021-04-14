@@ -119,6 +119,11 @@ bool UInterchangeBaseNode::RemoveDependencyUID(const FString& DependencyUID)
 
 bool UInterchangeBaseNode::IsEnabled() const
 {
+	if (!Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::IsEnabledKey()))
+	{
+		return false;
+	}
+
 	UE::Interchange::FAttributeStorage::TAttributeHandle<bool> Handle = Attributes->GetAttributeHandle<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey());
 	if (Handle.IsValid())
 	{

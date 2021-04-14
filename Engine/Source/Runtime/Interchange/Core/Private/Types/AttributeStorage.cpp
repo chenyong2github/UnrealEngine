@@ -11,6 +11,70 @@ namespace UE
 {
 	namespace Interchange
 	{
+		FString AttributeTypeToString(EAttributeTypes AttributeType)
+		{
+			FString AttributeTypeString;
+			switch (AttributeType)
+			{
+				case EAttributeTypes::None: { AttributeTypeString = TEXT("None"); } break;
+				case EAttributeTypes::Bool: { AttributeTypeString = TEXT("Bool"); } break;
+				case EAttributeTypes::Box: { AttributeTypeString = TEXT("Box"); } break;
+				case EAttributeTypes::BoxSphereBounds: { AttributeTypeString = TEXT("BoxSphereBounds"); } break;
+				case EAttributeTypes::ByteArray: { AttributeTypeString = TEXT("ByteArray"); } break;
+				case EAttributeTypes::ByteArray64: { AttributeTypeString = TEXT("ByteArray64"); } break;
+				case EAttributeTypes::Color: { AttributeTypeString = TEXT("Color"); } break;
+				case EAttributeTypes::DateTime: { AttributeTypeString = TEXT("DateTime"); } break;
+				case EAttributeTypes::Double: { AttributeTypeString = TEXT("Double"); } break;
+				case EAttributeTypes::Enum: { AttributeTypeString = TEXT("Enum"); } break;
+				case EAttributeTypes::Float: { AttributeTypeString = TEXT("Float"); } break;
+				case EAttributeTypes::Guid: { AttributeTypeString = TEXT("Guid"); } break;
+				case EAttributeTypes::Int8: { AttributeTypeString = TEXT("Int8"); } break;
+				case EAttributeTypes::Int16: { AttributeTypeString = TEXT("Int16"); } break;
+				case EAttributeTypes::Int32: { AttributeTypeString = TEXT("Int32"); } break;
+				case EAttributeTypes::Int64: { AttributeTypeString = TEXT("Int64"); } break;
+				case EAttributeTypes::IntRect: { AttributeTypeString = TEXT("IntRect"); } break;
+				case EAttributeTypes::LinearColor: { AttributeTypeString = TEXT("LinearColor"); } break;
+				case EAttributeTypes::Matrix: { AttributeTypeString = TEXT("Matrix"); } break;
+				case EAttributeTypes::Name: { AttributeTypeString = TEXT("Name"); } break;
+				case EAttributeTypes::Plane: { AttributeTypeString = TEXT("Plane"); } break;
+				case EAttributeTypes::Quat: { AttributeTypeString = TEXT("Quat"); } break;
+				case EAttributeTypes::RandomStream: { AttributeTypeString = TEXT("RandomStream"); } break;
+				case EAttributeTypes::Rotator: { AttributeTypeString = TEXT("Rotator"); } break;
+				case EAttributeTypes::String: { AttributeTypeString = TEXT("String"); } break;
+				case EAttributeTypes::Timespan: { AttributeTypeString = TEXT("Timespan"); } break;
+				case EAttributeTypes::Transform: { AttributeTypeString = TEXT("Transform"); } break;
+				case EAttributeTypes::TwoVectors: { AttributeTypeString = TEXT("TwoVectors"); } break;
+				case EAttributeTypes::UInt8: { AttributeTypeString = TEXT("UInt8"); } break;
+				case EAttributeTypes::UInt16: { AttributeTypeString = TEXT("UInt16"); } break;
+				case EAttributeTypes::UInt32: { AttributeTypeString = TEXT("UInt32"); } break;
+				case EAttributeTypes::UInt64: { AttributeTypeString = TEXT("UInt64"); } break;
+				case EAttributeTypes::Vector: { AttributeTypeString = TEXT("Vector"); } break;
+				case EAttributeTypes::Vector2d: { AttributeTypeString = TEXT("Vector2d"); } break;
+				case EAttributeTypes::Vector4: { AttributeTypeString = TEXT("Vector4"); } break;
+				case EAttributeTypes::IntPoint: { AttributeTypeString = TEXT("IntPoint"); } break;
+				case EAttributeTypes::IntVector: { AttributeTypeString = TEXT("IntVector"); } break;
+				case EAttributeTypes::NetworkGUID: { AttributeTypeString = TEXT("NetworkGUID"); } break;
+				case EAttributeTypes::Vector2DHalf: { AttributeTypeString = TEXT("Vector2DHalf"); } break;
+				case EAttributeTypes::Float16: { AttributeTypeString = TEXT("Float16"); } break;
+				case EAttributeTypes::CapsuleShape: { AttributeTypeString = TEXT("CapsuleShape"); } break;
+				case EAttributeTypes::DualQuat: { AttributeTypeString = TEXT("DualQuat"); } break;
+				case EAttributeTypes::OrientedBox: { AttributeTypeString = TEXT("OrientedBox"); } break;
+				case EAttributeTypes::Ray: { AttributeTypeString = TEXT("Ray"); } break;
+				case EAttributeTypes::Sphere: { AttributeTypeString = TEXT("Sphere"); } break;
+				case EAttributeTypes::FrameNumber: { AttributeTypeString = TEXT("FrameNumber"); } break;
+				case EAttributeTypes::FrameRate: { AttributeTypeString = TEXT("FrameRate"); } break;
+				case EAttributeTypes::FrameTime: { AttributeTypeString = TEXT("FrameTime"); } break;
+				default:
+				{
+					//Ensure if we ask an unknown type
+					const bool bUnknownType = true;
+					ensure(!bUnknownType);
+				}
+				break;
+			}
+			return AttributeTypeString;
+		}
+
 		void LogAttributeStorageErrors(const EAttributeStorageResult Result, const FString OperationName, const FAttributeKey AttributeKey)
 		{
 			//////////////////////////////////////////////////////////////////////////
