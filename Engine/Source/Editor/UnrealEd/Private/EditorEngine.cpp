@@ -1201,6 +1201,23 @@ void UEditorEngine::BroadcastObjectReimported(UObject* InObject)
 	GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetReimport(InObject);
 }
 
+void UEditorEngine::BeginDestroy()
+{
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// UWorld::FinishDestroy clears GWorld if this == GWorld, so we need to do any cleanup on GWorld
+		// before any calls to FinishDestroy are made, in case UEditorEngine and UWorld are GC'd in the same
+		// pass, which happens on editor shutdown. Doing it here in BeginDestroy is early enough.
+		UWorld* World = GWorld;
+		if (World != NULL)
+		{
+			World->ClearWorldComponents();
+			World->CleanupWorld();
+		}
+	}
+	Super::BeginDestroy();
+}
+
 void UEditorEngine::FinishDestroy()
 {
 	if ( !HasAnyFlags(RF_ClassDefaultObject) )
@@ -1235,13 +1252,6 @@ void UEditorEngine::FinishDestroy()
 			AssetRegistryModule->Get().OnInMemoryAssetCreated().RemoveAll(this);
 		}
 
-		UWorld* World = GWorld;
-		if( World != NULL )
-		{
-			World->ClearWorldComponents();
-			World->CleanupWorld();
-		}
-	
 		// Shut down transaction tracking system.
 		if( Trans )
 		{

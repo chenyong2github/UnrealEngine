@@ -1244,6 +1244,9 @@ private:
 	/** Is there at least one material parameter collection instance waiting for a deferred update?								*/
 	uint8 bMaterialParameterCollectionInstanceNeedsDeferredUpdate : 1;
 
+	/** Whether world object has been initialized via Init and has not yet had CleanupWorld called								*/
+	uint8 bInitializedAndNeedsCleanup : 1;
+
 	/** The world's navigation data manager */
 	UPROPERTY(Transient)
 	TObjectPtr<class UNavigationSystemBase>				NavigationSystem;

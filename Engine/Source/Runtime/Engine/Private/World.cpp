@@ -366,6 +366,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 , FeatureLevel(GMaxRHIFeatureLevel)
 , bIsBuilt(false)
 , bShouldTick(true)
+, bInitializedAndNeedsCleanup(false)
 , ActiveLevelCollectionIndex(INDEX_NONE)
 , AudioDeviceHandle()
 #if WITH_EDITOR
@@ -992,6 +993,11 @@ void UWorld::ReleasePhysicsScene()
 
 void UWorld::FinishDestroy()
 {
+	if (bInitializedAndNeedsCleanup)
+	{
+		UE_LOG(LogWorld, Warning, TEXT("UWorld::FinishDestroy called after InitWorld without calling CleanupWorld first."));
+	}
+
 	// Avoid cleanup if the world hasn't been initialized, e.g., the default object or a world object that got loaded
 	// due to level streaming.
 	if (bIsWorldInitialized)
@@ -1772,6 +1778,7 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	// We're initialized now.
 	bIsWorldInitialized = true;
+	bInitializedAndNeedsCleanup = true;
 
 	//@TODO: Should this happen here, or below here?
 	FWorldDelegates::OnPostWorldInitialization.Broadcast(this, IVS);
@@ -4624,7 +4631,12 @@ bool UWorld::IsNavigationRebuilt() const
 void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
 {
     CleanupWorldGlobalTag++;
+	if (!bInitializedAndNeedsCleanup)
+	{
+		UE_LOG(LogWorld, Warning, TEXT("UWorld::CleanupWorld called twice or called without InitWorld called first."));
+	}
 	CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+	bInitializedAndNeedsCleanup = false;
 }
 
 void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)

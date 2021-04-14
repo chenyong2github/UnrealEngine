@@ -725,6 +725,7 @@ public:
 	void BroadcastObjectReimported(UObject* InObject);
 
 	//~ Begin UObject Interface.
+	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

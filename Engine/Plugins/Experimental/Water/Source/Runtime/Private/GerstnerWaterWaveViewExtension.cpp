@@ -15,7 +15,6 @@ FGerstnerWaterWaveViewExtension::~FGerstnerWaterWaveViewExtension()
 
 void FGerstnerWaterWaveViewExtension::Initialize()
 {
-	check(GEngine);
 	if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>())
 	{
 		GerstnerWaterWaveSubsystem->Register(this);
@@ -30,12 +29,9 @@ void FGerstnerWaterWaveViewExtension::Deinitialize()
 		[WaveGPUData=WaveGPUData](FRHICommandListImmediate& RHICmdList){}
 	);
 
-	if (GEngine)
+	if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>())
 	{
-		if (UGerstnerWaterWaveSubsystem* GerstnerWaterWaveSubsystem = GEngine->GetEngineSubsystem<UGerstnerWaterWaveSubsystem>())
-		{
-			GerstnerWaterWaveSubsystem->Unregister(this);
-		}
+		GerstnerWaterWaveSubsystem->Unregister(this);
 	}
 }
 
