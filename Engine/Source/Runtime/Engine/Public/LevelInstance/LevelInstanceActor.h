@@ -55,6 +55,7 @@ public:
 	// UObject overrides
 	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
+	virtual void PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation) override;
 	virtual void PostLoad() override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
@@ -111,6 +112,7 @@ public:
 private:
 
 #if WITH_EDITOR
+	void PostEditUndoInternal();
 	bool CanSetValue(TSoftObjectPtr<UWorld> LevelInstance, FString* Reason = nullptr) const;
 	
 	TSoftObjectPtr<UWorld> CachedWorldAsset;

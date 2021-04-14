@@ -255,6 +255,16 @@ void ALevelInstance::PreEditUndo()
 	}
 }
 
+void ALevelInstance::PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)
+{
+	{
+		TGuardValue<bool> LoadUnloadGuard(bGuardLoadUnload, true);
+		Super::PostEditUndo(TransactionAnnotation);
+	}
+
+	PostEditUndoInternal();
+}
+
 void ALevelInstance::PostEditUndo()
 {
 	{
@@ -262,6 +272,11 @@ void ALevelInstance::PostEditUndo()
 		Super::PostEditUndo();
 	}
 
+	PostEditUndoInternal();
+}
+
+void ALevelInstance::PostEditUndoInternal()
+{
 	if (CachedWorldAsset != WorldAsset)
 	{
 		OnWorldAssetChanged();
