@@ -553,6 +553,10 @@ UE::Interchange::FAssetImportResultRef UInterchangeManager::ImportAssetAsync(con
 	{
 		UE::Interchange::SanitizeObjectPath(PackageBasePath);
 	}
+	else
+	{
+		PackageBasePath = FPaths::GetPath(ImportAssetParameters.ReimportAsset->GetPathName());
+	}
 
 	bool bCanShowDialog = !ImportAssetParameters.bIsAutomated && !IsAttended();
 
