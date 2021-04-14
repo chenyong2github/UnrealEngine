@@ -54,6 +54,9 @@ private:
 	static void SetLongestTimeAndId(TStatId NewLongestId, double LongestTimeMsec);
 	static double GetCurrentLongestTime() { return LongestAudioThreadTimeMsec; }
 
+	// a helper to apply stats and optional additional logging
+	static TUniqueFunction<void()> GetCommandWrapper(TUniqueFunction<void()> InFunction, const TStatId InStatId);
+
 public:
 
 	FAudioThread();

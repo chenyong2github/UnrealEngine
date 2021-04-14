@@ -259,8 +259,6 @@ namespace Audio
 			}
 		};
 
-		IsInAudioThread()
-			? UpdateHandleLambda()
-			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(UpdateHandleLambda));
+		FAudioThread::RunCommandOnAudioThread(MoveTemp(UpdateHandleLambda));
 	}
 } // namespace Audio

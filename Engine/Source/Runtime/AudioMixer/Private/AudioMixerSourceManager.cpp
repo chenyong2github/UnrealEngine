@@ -634,8 +634,7 @@ namespace Audio
 			FSourceInfo& SourceInfo = SourceInfos[SourceId];
 
 			// Unregister these source effect instances from their owning USoundEffectInstance on the next audio thread tick.
- 			const ENamedThreads::Type UnregistrationThread = IsAudioThreadRunning() ? ENamedThreads::AudioThread: ENamedThreads::GameThread;
-			AsyncTask(UnregistrationThread, [SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
+			FAudioThread::RunCommandOnAudioThread([SourceEffects = MoveTemp(SourceInfo.SourceEffects)]() mutable
 			{
 				for (int32 i = 0; i < SourceEffects.Num(); ++i)
 				{
@@ -644,11 +643,6 @@ namespace Audio
 			});
 
 			SourceInfo.SourceEffects.Reset();
-
-			for (int32 i = 0; i < SourceInfo.SourceEffectPresets.Num(); ++i)
-			{
-				SourceInfo.SourceEffectPresets[i] = nullptr;
-			}
 			SourceInfo.SourceEffectPresets.Reset();
 		}
 	}

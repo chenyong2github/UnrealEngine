@@ -2320,9 +2320,7 @@ namespace Audio
 			}
 		};
 
-		IsInAudioThread()
-			? RegisterLambda()
-			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(RegisterLambda));
+		FAudioThread::RunCommandOnAudioThread(MoveTemp(RegisterLambda));
 	}
 
 	void FMixerDevice::UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* InSubmix)
@@ -2350,9 +2348,7 @@ namespace Audio
 			}
 		};
 
-		IsInAudioThread()
-			? UnregisterLambda()
-			: AsyncTask(ENamedThreads::AudioThread, MoveTemp(UnregisterLambda));
+		FAudioThread::RunCommandOnAudioThread(MoveTemp(UnregisterLambda));
 	}
 
 	void FMixerDevice::FlushExtended(UWorld* WorldToFlush, bool bClearActivatedReverb)

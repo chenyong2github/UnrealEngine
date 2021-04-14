@@ -275,49 +275,66 @@ struct FAudioAsyncBatcher
 
 static FAudioAsyncBatcher GAudioAsyncBatcher;
 
-void FAudioThread::RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, const TStatId InStatId)
+TUniqueFunction<void()> FAudioThread::GetCommandWrapper(TUniqueFunction<void()> InFunction, const TStatId InStatId)
 {
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	if (IsAudioThreadRunning())
+	if (GCVarEnableAudioCommandLogging == 1)
 	{
-		if (GCVarEnableAudioCommandLogging == 1)
+		return[Function = MoveTemp(InFunction), InStatId]()
 		{
-			TUniqueFunction<void()> FuncWrapper = [Function = MoveTemp(InFunction), InStatId]()
+			FTaskTagScope Scope(ETaskTag::EAudioThread);
+			FScopeCycleCounter ScopeCycleCounter(InStatId);
+			FAudioThread::SetCurrentAudioThreadStatId(InStatId);
+
+			// Time the execution of the function
+			const double StartTime = FPlatformTime::Seconds();
+
+			// Execute the function
+			Function();
+
+			// Track the longest one
+			const double DeltaTime = (FPlatformTime::Seconds() - StartTime) * 1000.0f;
+			if (DeltaTime > GetCurrentLongestTime())
 			{
-				FTaskTagScope Scope(ETaskTag::EAudioThread);
-				FAudioThread::SetCurrentAudioThreadStatId(InStatId);
-
-				// Time the execution of the function
-				const double StartTime = FPlatformTime::Seconds();
-
-				// Execute the function
-				Function();
-
-				// Track the longest one
-				const double DeltaTime = (FPlatformTime::Seconds() - StartTime) * 1000.0f;
-				if (DeltaTime > GetCurrentLongestTime())
-				{
-					SetLongestTimeAndId(InStatId, DeltaTime);
-				}
-			};
-
-			FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(FuncWrapper), InStatId, GAudioAsyncBatcher.GetAsyncPrereq(), ENamedThreads::AudioThread);
-		}
-		else
-		{
-			TUniqueFunction<void()> FuncWrapper = [Function = MoveTemp(InFunction), InStatId]()
-			{
-				FTaskTagScope Scope(ETaskTag::EAudioThread);
-				// Execute the function
-				Function();
-			};
-			FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(FuncWrapper), InStatId, GAudioAsyncBatcher.GetAsyncPrereq(), ENamedThreads::AudioThread);
-		}
+				SetLongestTimeAndId(InStatId, DeltaTime);
+			}
+		};
 	}
 	else
 	{
+		return[Function = MoveTemp(InFunction), InStatId]()
+		{
+			FTaskTagScope Scope(ETaskTag::EAudioThread);
+			FScopeCycleCounter ScopeCycleCounter(InStatId);
+			Function();
+		};
+	}
+}
+
+void FAudioThread::RunCommandOnAudioThread(TUniqueFunction<void()> InFunction, const TStatId InStatId)
+{
+	if (IsInAudioThread())
+	{
+		// it's audio-thread-safe so execute the command in-place
 		FScopeCycleCounter ScopeCycleCounter(InStatId);
 		InFunction();
+		return;
+	}
+
+	TUniqueFunction<void()> CommandWrapper{ GetCommandWrapper(MoveTemp(InFunction), InStatId) };
+	if (IsInGameThread())
+	{
+		// batch commands to minimise game thread overhead
+		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, GAudioAsyncBatcher.GetAsyncPrereq(), ENamedThreads::AudioThread);
+	}
+	// we are on an unknown thread
+	else if (IsUsingThreadedAudio())
+	{
+		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, nullptr, ENamedThreads::AudioThread);
+	}
+	else
+	{
+		// the command must be executed on the game thread
+		FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(CommandWrapper), TStatId{}, nullptr, ENamedThreads::GameThread);
 	}
 }
 
