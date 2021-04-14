@@ -39,4 +39,21 @@ public:
 
 private:
 	bool StripUnnecessaryAttributes(FGeometryCollection* GeometryCollection);
+	bool StripAttributes(FGeometryCollection* GeometryCollection, const TMap<FName, TArray<FName>>& Whitelist);
+};
+
+UCLASS(DisplayName = "StripSimulationData", Category = "FractureTools")
+class UFractureToolStripSimulationData : public UFractureToolValidate
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolStripSimulationData(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// UFractureActionTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 };
