@@ -419,43 +419,6 @@ struct FDocumentationPolicy
 	bool bFloatRangesRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
 };
 
-enum class EPointerMemberBehavior
-{
-	Disallow,
-	AllowSilently,
-	AllowAndLog,
-};
-
-/////////////////////////////////////////////////////
-// UHTConfig
-
-struct FUHTConfig
-{
-	FUHTConfig();
-
-	static const FUHTConfig& Get();
-
-	// Types that have been renamed, treat the old deprecated name as the new name for code generation
-	TMap<FString, FString> TypeRedirectMap;
-
-	// Special parsed struct names that do not require a prefix
-	TArray<FString> StructsWithNoPrefix;
-
-	// Special parsed struct names that have a 'T' prefix
-	TArray<FString> StructsWithTPrefix;
-
-	// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
-	// Index 0 is 1 parameter, Index 1 is 2, etc...
-	TArray<FString> DelegateParameterCountStrings;
-
-	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
-	EGeneratedCodeVersion DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
-
-	EPointerMemberBehavior NativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
-
-	EPointerMemberBehavior ObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
-};
-
 /////////////////////////////////////////////////////
 // FHeaderParser
 
@@ -694,9 +657,6 @@ protected:
 
 	////////////////////////////////////////////////////
 
-	// UHTConfig data
-	const FUHTConfig& UHTConfig;
-
 	// List of all used identifiers for net service function declarations (every function must be unique)
 	TMap<int32, FString> UsedRPCIds;
 	// List of all net service functions with undeclared response functions 
@@ -716,9 +676,6 @@ protected:
 
 	// Parse the parameter list of a function or delegate declaration
 	void ParseParameterList(UFunction* Function, bool bExpectCommaBeforeName = false, TMap<FName, FString>* MetaData = NULL);
-
-	// Modify token to fix redirected types if needed
-	void RedirectTypeIdentifier(FToken& Token) const;
 
 public:
 	// Throws if a specifier value wasn't provided

@@ -527,7 +527,9 @@ private:
 class FUnrealEnumDefinitionInfo : public FUnrealFieldDefinitionInfo
 {
 public:
-	using FUnrealFieldDefinitionInfo::FUnrealFieldDefinitionInfo;
+	FUnrealEnumDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)
+		: FUnrealFieldDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+	{ }
 
 	virtual FUnrealEnumDefinitionInfo* AsEnum() override
 	{

@@ -4,12 +4,50 @@
 
 #include "CoreMinimal.h"
 #include "Containers/UnrealString.h"
+#include "GeneratedCodeVersion.h"
 
 class FToken;
 
+enum class EPointerMemberBehavior
+{
+	Disallow,
+	AllowSilently,
+	AllowAndLog,
+};
+
+/////////////////////////////////////////////////////
+// UHTConfig
+
+struct FUHTConfig
+{
+	static const FUHTConfig& Get();
+
+	// Types that have been renamed, treat the old deprecated name as the new name for code generation
+	TMap<FString, FString> TypeRedirectMap;
+
+	// Special parsed struct names that do not require a prefix
+	TArray<FString> StructsWithNoPrefix;
+
+	// Special parsed struct names that have a 'T' prefix
+	TArray<FString> StructsWithTPrefix;
+
+	// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
+	// Index 0 is 1 parameter, Index 1 is 2, etc...
+	TArray<FString> DelegateParameterCountStrings;
+
+	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
+	EGeneratedCodeVersion DefaultGeneratedCodeVersion = EGeneratedCodeVersion::V1;
+
+	EPointerMemberBehavior NativePointerMemberBehavior = EPointerMemberBehavior::AllowSilently;
+
+	EPointerMemberBehavior ObjectPtrMemberBehavior = EPointerMemberBehavior::AllowSilently;
+
+private:
+	FUHTConfig();
+};
+
 /////////////////////////////////////////////////////
 // FBaseParser
-
 
 enum class ESymbolParseOption
 {
@@ -45,6 +83,9 @@ class FBaseParser
 {
 protected:
 	FBaseParser();
+
+	// UHTConfig data
+	const FUHTConfig& UHTConfig;
 
 public:
 	// Input text.
@@ -130,6 +171,9 @@ public:
 	void UngetToken( const FToken& Token );
 	bool GetIdentifier( FToken& Token, bool bNoConsts = false );
 	bool GetSymbol( FToken& Token );
+
+	// Modify token to fix redirected types if needed
+	void RedirectTypeIdentifier(FToken& Token) const;
 
 	/**
 	 * Get an int constant

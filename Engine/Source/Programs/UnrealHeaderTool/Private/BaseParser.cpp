@@ -181,7 +181,8 @@ FString FPropertySpecifier::ConvertToString() const
 // FBaseParser
 
 FBaseParser::FBaseParser()
-	: StatementsParsed(0)
+	: UHTConfig(UHTConfig.Get())
+	, StatementsParsed(0)
 	, LinesParsed(0)
 {
 }
@@ -732,6 +733,18 @@ bool FBaseParser::GetSymbol( FToken& Token )
 
 	UngetToken(Token);
 	return false;
+}
+
+// Modify token to fix redirected types if needed
+void FBaseParser::RedirectTypeIdentifier(FToken& Token) const
+{
+	check(Token.TokenType == TOKEN_Identifier);
+
+	const FString* FoundRedirect = UHTConfig.TypeRedirectMap.Find(Token.Identifier);
+	if (FoundRedirect)
+	{
+		Token.SetIdentifier(**FoundRedirect);
+	}
 }
 
 bool FBaseParser::GetConstInt(int32& Result, const TCHAR* Tag)
