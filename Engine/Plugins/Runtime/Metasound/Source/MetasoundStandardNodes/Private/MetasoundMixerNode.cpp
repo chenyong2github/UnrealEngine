@@ -230,26 +230,24 @@ namespace Metasound
 		{
 			if (NumChannels == 1)
 			{
-				return FText::Format(LOCTEXT("AudioMixerAudioInputName", "In {0}"), InputIndex).ToString();
+				return FString::Printf(TEXT("In %i"), InputIndex);
 			}
 			else if (NumChannels == 2)
 			{
-				return FString::Printf(TEXT("%s %s"), *FText::Format(LOCTEXT("AudioMixerAudioInputName", "In {0}"), InputIndex).ToString(), (ChannelIndex == 0) ? "L" : "R");
+				return FString::Printf(TEXT("In %i %s"), InputIndex, (ChannelIndex == 0) ? "L" : "R");
 			}
 
-			return FText::Format(LOCTEXT("AudioMixerAudioInputName", "In {0}, {1}"), InputIndex, ChannelIndex).ToString();
+			return FString::Printf(TEXT("In %i, %i"), InputIndex, ChannelIndex);
 		}
-
 
 		static const FText GetAudioInputDescription(uint32 InputIndex, uint32 ChannelIndex)
 		{
 			return FText::Format(LOCTEXT("AudioMixerAudioInputDescription", "Audio Input #: {0}, Channel: {1}"), InputIndex, ChannelIndex);
 		}
 
-
 		static const FString GetGainInputName(uint32 InputIndex)
 		{
-			return FText::Format(LOCTEXT("AudioMixerGainInputName", "Gain {0}"), InputIndex).ToString();
+			return FString::Printf(TEXT("Gain %i"), InputIndex);
 		}
 
 		static const FText GetGainInputDescription(uint32 InputIndex)
@@ -261,19 +259,19 @@ namespace Metasound
 		{
 			if (NumChannels == 1)
 			{
-				return LOCTEXT("AudioMixerAudioOUtputName", "Out").ToString();
+				return TEXT("Out");
 			}
 			else if (NumChannels == 2)
 			{
-				return FString::Printf(TEXT("%s %s"), *LOCTEXT("AudioMixerAudioOutputName", "Out").ToString(), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
+				return FString::Printf(TEXT("Out %s"), (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
 			}
 
-			return FText::Format(LOCTEXT("AudioMixerAudioOUtputName", "Out {0}"), ChannelIndex).ToString();
+			return FString::Printf(TEXT("Out %i"), ChannelIndex);
 		}
 
 		static const FText GetAudioOutputDescription(uint32 ChannelIndex)
 		{
-			return FText::Format(LOCTEXT("AudioMixerAudioOUtputName", "Summed output for channel: {0}"), ChannelIndex);
+			return FText::Format(LOCTEXT("AudioMixerAudioOutputDescription", "Summed output for channel: {0}"), ChannelIndex);
 		}
 #pragma endregion
 	}; // class TAudioMixerNodeOperator

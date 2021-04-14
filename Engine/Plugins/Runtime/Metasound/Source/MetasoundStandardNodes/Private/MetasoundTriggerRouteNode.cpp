@@ -27,7 +27,7 @@ namespace Metasound
 	{
 		const FString GetInputTriggerName(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("TriggerRouteTriggerInputName", "Set {0}"), InIndex).ToString();
+			return FString::Format(TEXT("Set {0}"), { InIndex });
 		}
 
 		const FText GetInputTriggerDescription(uint32 InIndex)
@@ -41,8 +41,7 @@ namespace Metasound
 
 		const FString GetInputValueName(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("TriggerRouteValueInputName", "Value {0}"), InIndex).ToString();
-
+			return FString::Format(TEXT("Value {0}"), { InIndex });
 		}
 
 		const FText GetInputValueDescription(uint32 InIndex)

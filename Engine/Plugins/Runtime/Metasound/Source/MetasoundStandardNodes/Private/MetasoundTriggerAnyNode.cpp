@@ -43,7 +43,7 @@ namespace Metasound
 	{
 		METASOUNDSTANDARDNODES_API const FString GetInputTriggerName(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("TriggerAnyTriggerInputName", "In {0}"), InIndex).ToString();
+			return FString::Format(TEXT("In {0}"), { InIndex });
 		}
 
 		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDescription(uint32 InIndex)

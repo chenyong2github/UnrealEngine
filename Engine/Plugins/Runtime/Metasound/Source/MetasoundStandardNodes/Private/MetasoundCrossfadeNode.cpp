@@ -37,7 +37,7 @@ namespace Metasound
 
 		const FString GetInputName(uint32 InIndex)
 		{
-			return FText::Format(LOCTEXT("CrossfadeInputName", "In {0}"), InIndex).ToString();
+			return FString::Format(TEXT("In {0}"), { InIndex });
 		}
 
 		const FText GetInputDescription(uint32 InIndex)
