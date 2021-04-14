@@ -34,12 +34,20 @@ public:
 
 	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
+
+	static bool IsHLODEnabled();
 	
 private:
 	void OnWorldPartitionRegistered(UWorldPartition* InWorldPartition);
 	void OnWorldPartitionUnregistered(UWorldPartition* InWorldPartition);
 
+	/** Console command used to turn on/off loading & rendering of world partition HLODs */
+	static class FAutoConsoleCommand EnableHLODCommand;
+
 private:
+
+	static bool WorldPartitionHLODEnabled;
+
 	struct FCellHLODMapping
 	{
 		bool						bIsCellVisible;

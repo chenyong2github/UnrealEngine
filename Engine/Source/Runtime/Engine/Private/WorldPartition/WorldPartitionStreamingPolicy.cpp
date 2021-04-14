@@ -11,6 +11,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
@@ -25,14 +26,6 @@
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #endif
-
-int32 GWorldPartitionShowHLODs = 1;
-static FAutoConsoleVariableRef CVarWorldPartitionShowHLODs(
-	TEXT("wp.Runtime.HLOD"),
-	GWorldPartitionShowHLODs,
-	TEXT("Turn on/off loading & rendering of world partition HLODs."),
-	ECVF_Scalability
-);
 
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer) 
@@ -157,7 +150,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
 		}
 
-		if (!GWorldPartitionShowHLODs)
+		if (!UHLODSubsystem::IsHLODEnabled())
 		{
 			// Remove all HLOD cells from the Activate & Load cells
 			auto RemoveHLODCells = [](TSet<const UWorldPartitionRuntimeCell*>& Cells)
@@ -217,6 +210,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
 {
 	const UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+	const bool bIsHLODEnabled = UHLODSubsystem::IsHLODEnabled();
 
 	for (const FWorldPartitionStreamingQuerySource& QuerySource : QuerySources)
 	{
@@ -231,7 +225,7 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 				bool bSkipCell = false;
 
 				// Don't consider HLOD cells if HLODs are disabled.
-				if (!GWorldPartitionShowHLODs)
+				if (!bIsHLODEnabled)
 				{
 					bSkipCell = Cell->HasCellData<UWorldPartitionRuntimeHLODCellData>();
 				}

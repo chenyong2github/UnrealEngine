@@ -27,6 +27,39 @@ UHLODSubsystem::~UHLODSubsystem()
 {
 }
 
+bool UHLODSubsystem::WorldPartitionHLODEnabled = true;
+
+FAutoConsoleCommand UHLODSubsystem::EnableHLODCommand(
+	TEXT("wp.Runtime.HLOD"),
+	TEXT("Turn on/off loading & rendering of world partition HLODs."),
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	{
+		UHLODSubsystem::WorldPartitionHLODEnabled = (Args.Num() != 1) || (Args[0] != TEXT("0"));
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			UWorld* World = Context.World();
+			if (World && World->IsGameWorld())
+			{
+				UHLODSubsystem* HLODSubSystem = World->GetSubsystem<UHLODSubsystem>();
+				for (const auto& CellHLODMapping : HLODSubSystem->CellsHLODMapping)
+				{
+					const FCellHLODMapping& CellHLODs = CellHLODMapping.Value;
+					bool bIsHLODVisible = UHLODSubsystem::WorldPartitionHLODEnabled && !CellHLODs.bIsCellVisible;
+					for (AWorldPartitionHLOD* HLODActor : CellHLODs.LoadedHLODs)
+					{
+						HLODActor->SetVisibility(bIsHLODVisible);
+					}
+				}
+			}
+		}
+	})
+);
+
+bool UHLODSubsystem::IsHLODEnabled()
+{
+	return UHLODSubsystem::WorldPartitionHLODEnabled;
+}
+
 bool UHLODSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 {
 	if (!Super::ShouldCreateSubsystem(Outer))
@@ -90,7 +123,7 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 	if (CellHLODs)
 	{
 		CellHLODs->LoadedHLODs.Add(InWorldPartitionHLOD);
-		InWorldPartitionHLOD->SetVisibility(!CellHLODs->bIsCellVisible);
+		InWorldPartitionHLOD->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled && !CellHLODs->bIsCellVisible);
 	}
 	else
 	{
@@ -148,7 +181,7 @@ void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 #if WITH_EDITOR
 		UE_LOG(LogHLODSubsystem, Verbose, TEXT("\t\t%s - %s"), *HLODActor->GetActorLabel(), *HLODActor->GetActorGuid().ToString());
 #endif
-		HLODActor->SetVisibility(true);
+		HLODActor->SetVisibility(UHLODSubsystem::WorldPartitionHLODEnabled);
 	}
 }
 
