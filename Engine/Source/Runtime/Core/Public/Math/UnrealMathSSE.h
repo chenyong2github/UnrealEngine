@@ -12,8 +12,10 @@
 
 #include "Math/sse_mathfun.h"
 
-// We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2 below:
+// We suppress static analysis warnings for the cast from (double*) to (float*) in VectorLoadFloat2
+// and VectorLoadTwoPairsFloat below:
 // -V:VectorLoadFloat2:615
+// -V:VectorLoadTwoPairsFloat:615
 
 /*=============================================================================
  *	Helpers:
