@@ -1237,13 +1237,13 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 #endif	// USE_INSTANCING
 }
 
-#if USING_TESSELLATION
-	struct FVertexFactoryInterpolantsVSToDS
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
+	struct FVertexFactoryRayTracingInterpolants
 	{
 		FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
 	};
 
-	float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryInterpolantsVSToDS Interpolants )
+	float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryRayTracingInterpolants Interpolants )
 	{
 	#if NUM_MATERIAL_TEXCOORDS
 		return Interpolants.InterpolantsVSToPS.TexCoords[0].xy;
@@ -1252,56 +1252,24 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 	#endif // #if NUM_MATERIAL_TEXCOORDS
 	}
 
-	FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryInterpolantsVSToDS Input)
+	FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryRayTracingInterpolants Input)
 	{
 		return Input.InterpolantsVSToPS;
 	}
 
-	/** Converts from vertex factory specific interpolants to a FMaterialTessellationParameters, which is used by material inputs. */
-	FMaterialTessellationParameters GetMaterialTessellationParameters(FVertexFactoryInterpolantsVSToDS Interpolants, float3 CameraLocalWorldPosition)
+	FVertexFactoryRayTracingInterpolants VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
 	{
-		FMaterialTessellationParameters	Result;
-	#if NUM_TEX_COORD_INTERPOLATORS
-		UNROLL
-		for(int CoordinateIndex = 0;CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex += 2)
-		{
-			Result.TexCoords[CoordinateIndex] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex/2].xy;
-			if(CoordinateIndex + 1 < NUM_TEX_COORD_INTERPOLATORS)
-			{
-				Result.TexCoords[CoordinateIndex + 1] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex/2].zw;
-			}
-		}
-	#endif // NUM_TEX_COORD_INTERPOLATORS
-
-		half3 TangentToWorld0 = Interpolants.InterpolantsVSToPS.TangentToWorld0.xyz;
-		half4 TangentToWorld2 = Interpolants.InterpolantsVSToPS.TangentToWorld2;
-
-	#if INTERPOLATE_VERTEX_COLOR
-		Result.VertexColor = Interpolants.InterpolantsVSToPS.Color;
-	#endif	// INTERPOLATE_VERTEX_COLOR
-
-		Result.TangentToWorld = AssembleTangentToWorld( TangentToWorld0, TangentToWorld2 );
-
-		Result.TangentToWorldPreScale = 1;
-
-		Result.WorldPosition = CameraLocalWorldPosition + ResolvedView.WorldCameraOrigin;
-		Result.PrimitiveId = GetPrimitiveId(Interpolants.InterpolantsVSToPS);
-		return Result;
-	}
-
-	FVertexFactoryInterpolantsVSToDS VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
-	{
-		FVertexFactoryInterpolantsVSToDS Interpolants;
+		FVertexFactoryRayTracingInterpolants Interpolants;
 		Interpolants.InterpolantsVSToPS = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, VertexParameters);
 		return Interpolants;
 	}
 
-	FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpolantsVSToDS a, float aInterp, FVertexFactoryInterpolantsVSToDS b, float bInterp)
+	FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayTracingInterpolants a, float aInterp, FVertexFactoryRayTracingInterpolants b, float bInterp)
 	{
 		// Default initialize. Otherwise, some graphics pipelines that
 		// couple tessellation with geometry shaders won't write to all TEXCOORD semantics,
-		// but read from them when <FVertexFactoryInterpolantsVSToDS> is being copied as a whole.
-		FVertexFactoryInterpolantsVSToDS O = (FVertexFactoryInterpolantsVSToDS)0;
+		// but read from them when <FVertexFactoryRayTracingInterpolants> is being copied as a whole.
+		FVertexFactoryRayTracingInterpolants O = (FVertexFactoryRayTracingInterpolants)0;
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 		O.InterpolantsVSToPS.PrimitiveId = a.InterpolantsVSToPS.PrimitiveId;
@@ -1312,33 +1280,33 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 		// Do we really need to interpolate TangentToWorld2 here? It should be replaced by the
 		// interpolated normal from 'whatever' interpolation scheme we're using
 	
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld0.xyz);
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld2);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld0.xyz);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.TangentToWorld2);
 	#if INTERPOLATE_VERTEX_COLOR
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.Color);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.Color);
 	#endif
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.PerInstanceParams);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.PerInstanceParams);
 	#endif
 
 	#if NEEDS_LIGHTMAP_COORDINATE
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
 	#endif
 
 	#if NUM_TEX_COORD_INTERPOLATORS
 		UNROLL
 		for(int tc = 0; tc < (NUM_TEX_COORD_INTERPOLATORS+1)/2; ++tc)
 		{
-			TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[tc]);
+			INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[tc]);
 		}
 	#elif USE_PARTICLE_SUBUVS
-		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[0]);
+		INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[0]);
 	#endif
 
 		return O;
 	}
 
-	float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryInterpolantsVSToDS Interpolants)
+	float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryRayTracingInterpolants Interpolants)
 	{
 		// This duplicates stuff already going on in GetMaterialTessellationParameters(), so
 		// maybe the hull shader could leverage that instead?
@@ -1348,7 +1316,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 
 		return TangentToWorld;
 	}
-#endif // #if USING_TESSELLATION
+#endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
 #if USE_INSTANCE_CULLING
 float4 VertexFactoryGetInstanceHitProxyId(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)

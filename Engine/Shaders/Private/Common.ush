@@ -649,7 +649,7 @@ MaterialFloat PhongShadingPow(MaterialFloat X, MaterialFloat Y)
 #endif // #if USING_TESSELLATION && DISPLACEMENT_ANTICRACK
 
 // Helper macro used to interpolate the given member
-#define TESSELLATION_INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
+#define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp
 
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4

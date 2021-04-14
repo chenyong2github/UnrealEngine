@@ -4,11 +4,11 @@
 
 #define ENABLE_SKY_LIGHT 1      
 #define NEEDS_LIGHTMAP_COORDINATE (HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP)
-#ifdef USING_TESSELLATION
-	#undef USING_TESSELLATION
+#ifdef NEEDS_VERTEX_FACTORY_INTERPOLATION
+	#undef NEEDS_VERTEX_FACTORY_INTERPOLATION
 #endif
-// Needed for VertexFactoryInterpolate
-#define USING_TESSELLATION 1
+// Needed for VertexFactoryInterpolate to interpolate attributes from vertices to hit point
+#define NEEDS_VERTEX_FACTORY_INTERPOLATION 1
 
 #ifndef SIMPLIFIED_MATERIAL_SHADER
 	#define SIMPLIFIED_MATERIAL_SHADER 0
@@ -216,7 +216,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out FVertexFactoryInterpolantsVSToPS Interpolants)
 {
-	FVertexFactoryInterpolantsVSToDS Interpolated = (FVertexFactoryInterpolantsVSToDS)0;
+	FVertexFactoryRayTracingInterpolants Interpolated = (FVertexFactoryRayTracingInterpolants)0;
 
 	float3 WorldPositions[3];
 	float2 TexCoords[3];
@@ -235,7 +235,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 		float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPositionExcludingWPO.xyz, TangentToLocal);
 
-		FVertexFactoryInterpolantsVSToDS PerVertexInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
+		FVertexFactoryRayTracingInterpolants PerVertexInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
 		Interpolated = VertexFactoryInterpolate(PerVertexInterpolants, Weights[i], Interpolated, 1.0);
 
 		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
@@ -244,7 +244,7 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 
 	Interpolants = VertexFactoryAssignInterpolants(Interpolated);
 
-#if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_TESSELLATION
+#if (NUM_TEX_COORD_INTERPOLATORS || USE_PARTICLE_SUBUVS) && !VERTEX_FACTORY_MODIFIES_INTERPOLATION
 	float2 TA = TexCoords[1] - TexCoords[0]; 
 	float2 TB = TexCoords[2] - TexCoords[0];
     float UvArea = abs((TA.x * TB.y) - (TA.y * TB.x));

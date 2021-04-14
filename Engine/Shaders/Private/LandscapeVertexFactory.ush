@@ -6,7 +6,7 @@
 
 #include "VertexFactoryCommon.ush"
 
-#define VERTEX_FACTORY_MODIFIES_TESSELLATION 1
+#define VERTEX_FACTORY_MODIFIES_INTERPOLATION 1
 
 // Set by FLightMapTexturePolicy
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
@@ -234,7 +234,7 @@ uint GetNumRayTracingDynamicMeshVerticesIndirect()
 
 struct FVertexFactoryInterpolantsVSToPS
 {
-#if USING_TESSELLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	float4	LayerTexCoord			: TEXCOORD0; // xy == texcoord, zw == tess falloff params
 #else
 	float2	LayerTexCoord			: TEXCOORD0; // xy == texcoord
@@ -267,7 +267,7 @@ struct FVertexFactoryInterpolantsVSToPS
 
 struct FLandscapeTexCoords
 {
-#if USING_TESSELLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	float4	LayerTexCoord : TEXCOORD0; // xy == texcoord, zw == tess falloff params
 #else
 	float2	LayerTexCoord : TEXCOORD0; // xy == texcoord
@@ -281,11 +281,11 @@ struct FLandscapeTexCoords
 #endif
 };
 
-struct FVertexFactoryInterpolantsVSToDS
+struct FVertexFactoryRayTracingInterpolants
 {
 	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
 	
-#if USING_TESSELLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	// First row of the tangent to world matrix
 	float3	TangentToWorld0	: VS_To_DS_TangentToWorld0;
 	// Last row of the tangent to world matrix in xyz
@@ -295,8 +295,8 @@ struct FVertexFactoryInterpolantsVSToDS
 #endif
 };
 
-#if USING_TESSELLATION
-float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryInterpolantsVSToDS Interpolants )
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
+float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryRayTracingInterpolants Interpolants )
 {
 #if (ES3_1_PROFILE)
 	return Interpolants.InterpolantsVSToPS.WeightMapTexCoord.xy;
@@ -305,19 +305,19 @@ float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryInterpolantsVSToDS Int
 #endif
 }
 
-float VertexFactoryModifyTessellationMultiplier(FVertexFactoryInterpolantsVSToDS Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier)
+float VertexFactoryModifyTessellationMultiplier(FVertexFactoryRayTracingInterpolants Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier)
 {		
 	float CurrentDistance = length(CameraLocalWorldPosition);
 	return MaterialTessellationMultiplier * saturate(Interpolants.InterpolantsVSToPS.LayerTexCoord.z - (Interpolants.InterpolantsVSToPS.LayerTexCoord.w * CurrentDistance));
 }
 
-float VertexFactoryModifyTessellationWorldDisplacementMultiplier(FVertexFactoryInterpolantsVSToDS Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier, float CurrentTessellationMultiplier)
+float VertexFactoryModifyTessellationWorldDisplacementMultiplier(FVertexFactoryRayTracingInterpolants Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier, float CurrentTessellationMultiplier)
 {
 	return max(CurrentTessellationMultiplier, 0.001) / max(MaterialTessellationMultiplier, 0.001);// smooth out the application of the displacement based on the current tess multiplier
 }
-#endif // #if USING_TESSELLATION
+#endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
-FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryInterpolantsVSToDS Input)
+FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryRayTracingInterpolants Input)
 {
 	return Input.InterpolantsVSToPS;
 }
@@ -376,7 +376,7 @@ FLandscapeTexCoords GetLandscapeTexCoords(FVertexFactoryInput Input, FVertexFact
 
 	Result.LayerTexCoord.xy = Intermediates.LocalPosition.xy + LandscapeParameters.SubsectionSizeVertsLayerUVPan.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.ww;
 
-#if USING_TESSELLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	Result.LayerTexCoord.zw = Intermediates.TessellationFalloff;
 #endif
 
@@ -422,73 +422,6 @@ float3x3 VertexFactoryGetPerPixelTangentBasis(FVertexFactoryInterpolantsVSToPS I
 
 	Result = CalcTangentBasisFromWorldNormal(WorldNormal);
 #endif
-	return Result;
-}
-
-/** Converts from vertex factory specific interpolants to a FMaterialTessellationParameters, which is used by material inputs. */
-FMaterialTessellationParameters GetMaterialTessellationParameters(FVertexFactoryInterpolantsVSToDS Interpolants, float3 CameraLocalWorldPosition)
-{
-	FMaterialTessellationParameters Result;
-
-#if NUM_MATERIAL_TEXCOORDS     // XY layer
-	Result.TexCoords[0] = Interpolants.InterpolantsVSToPS.LayerTexCoord.xy;
-#if NUM_MATERIAL_TEXCOORDS > 1 // VS calcualted TexCoord 1, default is XZ layer
-	#if (ES3_1_PROFILE)
-		Result.TexCoords[1] = Interpolants.InterpolantsVSToPS.TransformedTexCoord0.xy;
-	#else
-		Result.TexCoords[1] = Interpolants.InterpolantsVSToPS.TransformedTexCoords.xy;
-	#endif
-#if NUM_MATERIAL_TEXCOORDS > 2 // VS calcualted TexCoord 2, default is YZ layer
-	#if (ES3_1_PROFILE)
-		Result.TexCoords[2] = Interpolants.InterpolantsVSToPS.TransformedTexCoord1.xy;
-	#else
-		Result.TexCoords[2] = Interpolants.InterpolantsVSToPS.TransformedTexCoords.zw;
-	#endif
-#if NUM_MATERIAL_TEXCOORDS > 3 // Weightmap
-	#if (ES3_1_PROFILE)
-		Result.TexCoords[3] = Interpolants.InterpolantsVSToPS.WeightMapTexCoord;
-	#else
-		Result.TexCoords[3] = Interpolants.InterpolantsVSToPS.WeightHeightMapTexCoord.xy;
-	#endif
-#if NUM_MATERIAL_TEXCOORDS > 4 // Lightmap
-	#if NEEDS_LIGHTMAP_COORDINATE
-		#if (ES3_1_PROFILE)
-			Result.TexCoords[4] = Interpolants.InterpolantsVSToPS.LightMapCoordinate[0].xy;
-		#else
-			Result.TexCoords[4] = Interpolants.InterpolantsVSToPS.LightMapCoordinate.xy;
-		#endif
-	#else
-		Result.TexCoords[4] = float2(0,0);
-	#endif
-#if NUM_MATERIAL_TEXCOORDS > 5 // Height map
-	#if (ES3_1_PROFILE)
-		Result.TexCoords[5] = float2(0, 0); // Height map UV not supported
-	#else
-		Result.TexCoords[5] = Interpolants.InterpolantsVSToPS.WeightHeightMapTexCoord.zw;
-	#endif
-#if NUM_MATERIAL_TEXCOORDS > 6
-	UNROLL
-	for(uint CoordinateIndex = 6;CoordinateIndex < NUM_MATERIAL_TEXCOORDS;CoordinateIndex ++)
-	{
-		Result.TexCoords[CoordinateIndex] = float2(0,0);
-	}
-#endif // 6
-#endif // 5
-#endif // 4
-#endif // 3
-#endif // 2
-#endif // 1
-#endif // 0
-
-	// Use interpolated normal from VS.
-#if USING_TESSELLATION
-	Result.TangentToWorld = AssembleTangentToWorld( Interpolants.TangentToWorld0, Interpolants.TangentToWorld2 );
-#endif
-
-	Result.VertexColor = 1;
-	Result.TangentToWorldPreScale = 1;
-	Result.WorldPosition = CameraLocalWorldPosition + ResolvedView.WorldCameraOrigin;
-
 	return Result;
 }
 
@@ -886,13 +819,13 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	return Interpolants;
 }
 
-FVertexFactoryInterpolantsVSToDS VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+FVertexFactoryRayTracingInterpolants VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
 {
-	FVertexFactoryInterpolantsVSToDS Interpolants;
+	FVertexFactoryRayTracingInterpolants Interpolants;
 	
 	Interpolants.InterpolantsVSToPS = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, VertexParameters);
 
-#if USING_TESSELLATION
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
 	// Calculate LocalToTangent directly from normal map texture.
 	float3x3 TangentToLocal = CalcTangentBasisFromWorldNormal(Intermediates.WorldNormal);
 	float3x3 TangentToWorld = mul(TangentToLocal, (float3x3)LandscapeParameters.LocalToWorldNoScaling);
@@ -907,28 +840,28 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryGetInterpolantsVSToDS(FVertexFacto
 	return Interpolants;
 }
 
-FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpolantsVSToDS a, float aInterp, FVertexFactoryInterpolantsVSToDS b, float bInterp)
+FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayTracingInterpolants a, float aInterp, FVertexFactoryRayTracingInterpolants b, float bInterp)
 {
-	FVertexFactoryInterpolantsVSToDS O;
+	FVertexFactoryRayTracingInterpolants O;
 	
 #if NEEDS_LIGHTMAP_COORDINATE && !(ES3_1_PROFILE)
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.LightMapCoordinate);
 #endif
 
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.LayerTexCoord);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.LayerTexCoord);
 #if (ES3_1_PROFILE)
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WeightMapTexCoord);
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord0);
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord1);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.WeightMapTexCoord);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord0);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoord1);
 #else
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.WeightHeightMapTexCoord);
-	TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoords);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.WeightHeightMapTexCoord);
+	INTERPOLATE_MEMBER(InterpolantsVSToPS.TransformedTexCoords);
 #endif
 
-#if USING_TESSELLATION
-	TESSELLATION_INTERPOLATE_MEMBER(TangentToWorld0);
-	TESSELLATION_INTERPOLATE_MEMBER(TangentToWorld2);
-	TESSELLATION_INTERPOLATE_MEMBER(CalculatedLOD);
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
+	INTERPOLATE_MEMBER(TangentToWorld0);
+	INTERPOLATE_MEMBER(TangentToWorld2);
+	INTERPOLATE_MEMBER(CalculatedLOD);
 #endif
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
@@ -938,12 +871,12 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 	return O;
 }
 
-#if USING_TESSELLATION
-float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryInterpolantsVSToDS Interpolants)
+#if NEEDS_VERTEX_FACTORY_INTERPOLATION
+float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryRayTracingInterpolants Interpolants)
 {
 	return AssembleTangentToWorld(Interpolants.TangentToWorld0, Interpolants.TangentToWorld2);
 }
-#endif // #if USING_TESSELLATION
+#endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
 #if NUM_VF_PACKED_INTERPOLANTS > 0
 void VertexFactoryPackInterpolants(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4 PackedInterpolants[NUM_VF_PACKED_INTERPOLANTS])
