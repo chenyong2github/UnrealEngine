@@ -126,7 +126,7 @@ class SNewUserTipNotification : public SCompoundWidget
 								[
 									SNew(STextBlock)
 									.TextStyle(FAppStyle::Get(), "DialogButtonText")
-									.Text(FText::FromString("CTRL"))
+									.Text(FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->GetActiveChord(EMultipleKeyBindingIndex::Primary)->GetModifierText(FText::GetEmpty()))
 									.ColorAndOpacity(FStyleColors::ForegroundHover)
 								]
 							]
@@ -148,7 +148,7 @@ class SNewUserTipNotification : public SCompoundWidget
 								[
 									SNew(STextBlock)
 									.TextStyle(FAppStyle::Get(), "DialogButtonText")
-									.Text(FText::FromString("SPACE"))
+									.Text(FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->GetActiveChord(EMultipleKeyBindingIndex::Primary)->Key.GetDisplayName(false))
 									.ColorAndOpacity(FStyleColors::ForegroundHover)
 								]
 							]

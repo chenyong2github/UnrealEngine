@@ -9,9 +9,30 @@
 
 /**
  * Returns the friendly, localized string name of this key binding
- * @todo Slate: Got to be a better way to do this
  */
 FText FInputChord::GetInputText( ) const
+{
+	FFormatNamedArguments Args;
+	Args.Add(TEXT("Modifiers"), GetModifierText());
+	Args.Add(TEXT("Key"), GetKeyText());
+
+	return FText::Format(LOCTEXT("InputText", "{Modifiers}{Key}"), Args);
+}
+
+
+FText FInputChord::GetKeyText() const
+{
+	FText OutString;
+
+	if (Key.IsValid() && !Key.IsModifierKey())
+	{
+		OutString = Key.GetDisplayName();
+	}
+
+	return OutString;
+}
+
+FText FInputChord::GetModifierText(TOptional<FText> ModifierAppender) const
 {
 #if PLATFORM_MAC
 	const FText CommandText = LOCTEXT("KeyName_Control", "Ctrl");
@@ -24,7 +45,7 @@ FText FInputChord::GetInputText( ) const
 	const FText ShiftText = LOCTEXT("KeyName_Shift", "Shift");
 
 
-	const FText AppenderText = Key != EKeys::Invalid ? LOCTEXT("ModAppender", "+") : FText::GetEmpty();
+	const FText AppenderText = Key != EKeys::Invalid ? ModifierAppender.Get(LOCTEXT("ModAppender", "+")) : FText::GetEmpty();
 
 	FFormatNamedArguments Args;
 	int32 ModCount = 0;
@@ -63,22 +84,7 @@ FText FInputChord::GetInputText( ) const
 
 	}
 
-	Args.Add(TEXT("Key"), GetKeyText());
-
-	return FText::Format(LOCTEXT("FourModifiers", "{Mod1}{Appender1}{Mod2}{Appender2}{Mod3}{Appender3}{Mod4}{Appender4}{Key}"), Args);
-}
-
-
-FText FInputChord::GetKeyText( ) const
-{
-	FText OutString; // = KeyGetDisplayName(Key);
-
-	if (Key.IsValid() && !Key.IsModifierKey())
-	{
-		OutString = Key.GetDisplayName();
-	}
-
-	return OutString;
+	return FText::Format(LOCTEXT("FourModifiers", "{Mod1}{Appender1}{Mod2}{Appender2}{Mod3}{Appender3}{Mod4}{Appender4}"), Args);
 }
 
 FInputChord::ERelationshipType FInputChord::GetRelationship( const FInputChord& OtherChord ) const
