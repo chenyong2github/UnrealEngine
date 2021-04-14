@@ -3,6 +3,7 @@
 #include "NVENC_Common.h"
 #include "CoreMinimal.h"
 #include "VideoEncoderCommon.h"
+#include "HAL/PlatformProcess.h"
 
 // define a function pointer for creating an instance of nvEncodeAPI
 typedef NVENCSTATUS(NVENCAPI* NVENCAPIPROC)(NV_ENCODE_API_FUNCTION_LIST*);

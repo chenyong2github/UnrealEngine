@@ -2,6 +2,7 @@
 
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
+#include "RHI.h"
 
 #if PLATFORM_WINDOWS || WITH_CUDA
 #include "Encoders/NVENC/NVENC_EncoderH264.h"

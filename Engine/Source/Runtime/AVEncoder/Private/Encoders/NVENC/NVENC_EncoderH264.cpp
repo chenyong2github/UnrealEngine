@@ -4,6 +4,9 @@
 #include "VideoEncoderCommon.h"
 #include "CodecPacket.h"
 #include "AVEncoderDebug.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformTime.h"
+#include "HAL/PlatformProcess.h"
 
 #if WITH_CUDA
 #include "CudaModule.h"

@@ -2,8 +2,7 @@
 
 #pragma once
 
-//#include "AVEncoder.h"
-//#include "AVEncoderCommon.h"
+#include "Containers/UnrealString.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 

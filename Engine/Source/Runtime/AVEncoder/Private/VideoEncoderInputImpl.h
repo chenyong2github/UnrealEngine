@@ -3,6 +3,9 @@
 #pragma once
 
 #include "VideoEncoderInput.h"
+#include "Containers/Queue.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/RefCounting.h"
 
 // HACK (M84FIX) need to break these dependencies
 #if PLATFORM_WINDOWS
