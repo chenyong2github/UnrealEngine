@@ -30,9 +30,11 @@ namespace Chaos
 			FinalIndices.Reserve(Desc.Indices.Num() * 3);
 			for(const FTriIndices& Tri : Desc.Indices)
 			{
-				//question: It seems like unreal triangles are CW, but couldn't find confirmation for this
-				FinalIndices.Add(Tri.v1);
-				FinalIndices.Add(Tri.v0);
+				// NOTE: This is where the Winding order of the triangles are changed to be consistent throughout the rest of the physics engine
+				// After this point we should have clockwise (CW) winding in left handed (LH) coordinates (or equivalently CCW in RH)
+				// This is the opposite convention followed in most of the unreal engine
+				FinalIndices.Add(Desc.bFlipNormals ? Tri.v1 : Tri.v0);
+				FinalIndices.Add(Desc.bFlipNormals ? Tri.v0 : Tri.v1);
 				FinalIndices.Add(Tri.v2);
 			}
 
@@ -200,9 +202,11 @@ namespace Chaos
 			FinalIndices.Reserve(InParams.TriangleMeshDesc.Indices.Num() * 3);
 			for(const FTriIndices& Tri : InParams.TriangleMeshDesc.Indices)
 			{
-				//question: It seems like unreal triangles are CW, but couldn't find confirmation for this
-				FinalIndices.Add(Tri.v1);
-				FinalIndices.Add(Tri.v0);
+				// NOTE: This is where the Winding order of the triangles are changed to be consistent throughout the rest of the physics engine
+				// After this point we should have clockwise (CW) winding in left handed (LH) coordinates (or equivalently CCW in RH)
+				// This is the opposite convention followed in most of the unreal engine
+				FinalIndices.Add(InParams.TriangleMeshDesc.bFlipNormals ? Tri.v1 : Tri.v0);
+				FinalIndices.Add(InParams.TriangleMeshDesc.bFlipNormals ? Tri.v0 : Tri.v1);
 				FinalIndices.Add(Tri.v2);
 			}
 
