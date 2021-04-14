@@ -2340,7 +2340,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 	Ar << BuildSettings.SrcLightmapIndex;
 	Ar << BuildSettings.DstLightmapIndex;
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_BUILD_SCALE_VECTOR)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_BUILD_SCALE_VECTOR)
 	{
 		float BuildScale(1.0f);
 		Ar << BuildScale;
@@ -4759,7 +4759,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	Ar << bCooked;
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REMOVE_ZERO_TRIANGLE_SECTIONS)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_REMOVE_ZERO_TRIANGLE_SECTIONS)
 	{
 		GStaticMeshesThatNeedMaterialFixup.Set(this);
 	}
@@ -4769,7 +4769,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	Ar << LocalBodySetup;
 	SetBodySetup(LocalBodySetup);
 
-	if (Ar.UE4Ver() >= VER_UE4_STATIC_MESH_STORE_NAV_COLLISION)
+	if (Ar.UEVer() >= VER_UE4_STATIC_MESH_STORE_NAV_COLLISION)
 	{
 		UNavCollisionBase* LocalNavCollision = GetNavCollision();
 		Ar << LocalNavCollision;
@@ -4804,7 +4804,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if( !StripFlags.IsEditorDataStripped() )
 	{
-		if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_DEPRECATED_STATIC_MESH_THUMBNAIL_PROPERTIES_REMOVED )
+		if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_DEPRECATED_STATIC_MESH_THUMBNAIL_PROPERTIES_REMOVED )
 		{
 			FRotator DummyThumbnailAngle;
 			float DummyThumbnailDistance;
@@ -4862,7 +4862,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 
 		// Need to set a flag rather than do conversion in place as RenderData is not
 		// created until postload and it is needed for bounding information
-		bRequiresLODDistanceConversion = Ar.UE4Ver() < VER_UE4_STATIC_MESH_SCREEN_SIZE_LODS;
+		bRequiresLODDistanceConversion = Ar.UEVer() < VER_UE4_STATIC_MESH_SCREEN_SIZE_LODS;
 		bRequiresLODScreenSizeConversion = Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::LODsUseResolutionIndependentScreenSize;
 	}
 #endif // #if WITH_EDITOR
@@ -4897,7 +4897,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 #endif
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_SPEEDTREE_STATICMESH)
+	if (Ar.UEVer() >= VER_UE4_SPEEDTREE_STATICMESH)
 	{
 		bool bHasSpeedTreeWind = SpeedTreeWind.IsValid();
 		Ar << bHasSpeedTreeWind;
@@ -4914,14 +4914,14 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITORONLY_DATA
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !AssetImportData)
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !AssetImportData)
 	{
 		// AssetImportData should always be valid
 		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
 	}
 	
 	// SourceFilePath and SourceFileTimestamp were moved into a subobject
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && AssetImportData )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && AssetImportData )
 	{
 		// AssetImportData should always have been set up in the constructor where this is relevant
 		FAssetImportInfo Info;

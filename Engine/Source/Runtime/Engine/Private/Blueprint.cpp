@@ -285,8 +285,8 @@ void UBlueprintCore::Serialize(FArchive& Ar)
 	}
 #endif
 
-	if ((Ar.UE4Ver() < VER_UE4_BLUEPRINT_SKEL_CLASS_TRANSIENT_AGAIN)
-		&& (Ar.UE4Ver() != VER_UE4_BLUEPRINT_SKEL_TEMPORARY_TRANSIENT))
+	if ((Ar.UEVer() < VER_UE4_BLUEPRINT_SKEL_CLASS_TRANSIENT_AGAIN)
+		&& (Ar.UEVer() != VER_UE4_BLUEPRINT_SKEL_TEMPORARY_TRANSIENT))
 	{
 		Ar << SkeletonGeneratedClass;
 		if( SkeletonGeneratedClass )
@@ -426,7 +426,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITORONLY_DATA
-	if(Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_BLUEPRINT_VARS_NOT_READ_ONLY)
+	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_BLUEPRINT_VARS_NOT_READ_ONLY)
 	{
 		// Allow all blueprint defined vars to be read/write.  undoes previous convention of making exposed variables read-only
 		for (int32 i = 0; i < NewVariables.Num(); ++i)
@@ -436,7 +436,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_K2NODE_REFERENCEGUIDS)
+	if (Ar.UEVer() < VER_UE4_K2NODE_REFERENCEGUIDS)
 	{
 		for (int32 Index = 0; Index < NewVariables.Num(); ++Index)
 		{
@@ -463,7 +463,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 
 		// Actor variables can't have default values (because Blueprint templates are library elements that can 
 		// bridge multiple levels and different levels might not have the actor that the default is referencing).
-		if (Ar.UE4Ver() < VER_UE4_FIX_BLUEPRINT_VARIABLE_FLAGS)
+		if (Ar.UEVer() < VER_UE4_FIX_BLUEPRINT_VARIABLE_FLAGS)
 		{
 			const FEdGraphPinType& VarType = Variable.VarType;
 

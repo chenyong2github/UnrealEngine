@@ -236,12 +236,12 @@ void UPointLightComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_INVERSE_SQUARED_LIGHTS_DEFAULT)
+	if (Ar.UEVer() < VER_UE4_INVERSE_SQUARED_LIGHTS_DEFAULT)
 	{
 		bUseInverseSquaredFalloff = InverseSquaredFalloff_DEPRECATED;
 	}
 	// Reorient old light tubes that didn't use an IES profile
-	else if(Ar.UE4Ver() < VER_UE4_POINTLIGHT_SOURCE_ORIENTATION && SourceLength > KINDA_SMALL_NUMBER && IESTexture == nullptr)
+	else if(Ar.UEVer() < VER_UE4_POINTLIGHT_SOURCE_ORIENTATION && SourceLength > KINDA_SMALL_NUMBER && IESTexture == nullptr)
 	{
 		AddLocalRotation( FRotator(-90.f, 0.f, 0.f) );
 	}

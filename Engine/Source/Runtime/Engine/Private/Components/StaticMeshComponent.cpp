@@ -304,7 +304,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.UE4Ver() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
+	if (Ar.UEVer() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
 	{
 		check(AttachmentCounter.GetValue() == 0);
 		// Irrelevant lights were incorrect before VER_UE4_TOSS_IRRELEVANT_LIGHTS
@@ -328,7 +328,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 		GComponentsWithLegacyLightmaps.AddAnnotation(this, MoveTemp(LegacyComponentData));
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_AUTO_WELDING)
+	if (Ar.UEVer() < VER_UE4_AUTO_WELDING)
 	{
 		GetBodyInstance()->bAutoWeld = false;	//existing content may rely on no auto welding
 	}

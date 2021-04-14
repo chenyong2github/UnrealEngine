@@ -48,7 +48,7 @@ void UMaterialExpressionLandscapeLayerBlend::Serialize(FStructuredArchive::FReco
 	Super::Serialize(Record);
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 
-	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_ADD_LB_WEIGHTBLEND)
+	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UEVer() < VER_UE4_ADD_LB_WEIGHTBLEND)
 	{
 		// convert any LB_AlphaBlend entries to LB_WeightBlend
 		for (FLayerBlendInput& LayerInput : Layers)

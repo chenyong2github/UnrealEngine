@@ -1210,7 +1210,7 @@ void UPrimitiveComponent::PostLoad()
 {
 	Super::PostLoad();
 	
-	int32 const UE4Version = GetLinkerUEVersion();
+	int32 const UEVersion = GetLinkerUEVersion();
 
 	// as temporary fix for the bug TTP 299926
 	// permanent fix is coming
@@ -1220,7 +1220,7 @@ void UPrimitiveComponent::PostLoad()
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (UE4Version < VER_UE4_RENAME_CANBECHARACTERBASE)
+	if (UEVersion < VER_UE4_RENAME_CANBECHARACTERBASE)
 	{
 		CanCharacterStepUpOn = CanBeCharacterBase_DEPRECATED;
 	}

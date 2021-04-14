@@ -3410,7 +3410,7 @@ void UParticleModuleTypeDataMesh::SetToSensibleDefaults(UParticleEmitter* Owner)
 void UParticleModuleTypeDataMesh::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MESH_EMITTER_INITIAL_ORIENTATION_DISTRIBUTION)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_MESH_EMITTER_INITIAL_ORIENTATION_DISTRIBUTION)
 	{
 		FVector oldOrient(0.0f, 0.0f, 0.0f);
 		CreateDistribution();
@@ -3419,7 +3419,7 @@ void UParticleModuleTypeDataMesh::Serialize(FArchive& Ar)
 		RPYDistribution->Max = oldOrient;
 		RPYDistribution->bIsDirty = true;
 	}
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MESH_PARTICLE_COLLISIONS_CONSIDER_PARTICLE_SIZE)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_MESH_PARTICLE_COLLISIONS_CONSIDER_PARTICLE_SIZE)
 	{
 		bCollisionsConsiderPartilceSize = false;//Old data should default to the old behavior of not considering particle size.
 	}

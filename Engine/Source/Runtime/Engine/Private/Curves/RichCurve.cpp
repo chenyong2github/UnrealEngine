@@ -160,7 +160,7 @@ FRichCurveKey::FRichCurveKey(const FInterpCurvePoint<FTwoVectors>& InPoint, int3
 
 bool FRichCurveKey::Serialize(FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_SERIALIZE_RICH_CURVE_KEY)
+	if (Ar.UEVer() < VER_UE4_SERIALIZE_RICH_CURVE_KEY)
 	{
 		return false;
 	}

@@ -29,7 +29,7 @@ struct FMorphTargetDelta
 	/** pipe operator */
 	friend FArchive& operator<<(FArchive& Ar, FMorphTargetDelta& V)
 	{
-		if ((Ar.UE4Ver() < VER_UE4_MORPHTARGET_CPU_TANGENTZDELTA_FORMATCHANGE) && Ar.IsLoading())
+		if ((Ar.UEVer() < VER_UE4_MORPHTARGET_CPU_TANGENTZDELTA_FORMATCHANGE) && Ar.IsLoading())
 		{
 			/** old format of change in tangent basis normal */
 			FDeprecatedSerializedPackedNormal TangentZDelta_DEPRECATED;

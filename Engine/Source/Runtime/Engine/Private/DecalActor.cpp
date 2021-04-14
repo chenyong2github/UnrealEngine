@@ -157,7 +157,7 @@ class UMaterialInstanceDynamic* ADecalActor::CreateDynamicMaterialInstance()
 
 void ADecalActor::Serialize(FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_DECAL_SIZE)
+	if (Ar.UEVer() < VER_UE4_DECAL_SIZE)
 	{
 		if(Decal)
 		{
@@ -168,7 +168,7 @@ void ADecalActor::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_DECAL_SIZE)
+	if (Ar.UEVer() < VER_UE4_DECAL_SIZE)
 	{
 		if(Decal)
 		{

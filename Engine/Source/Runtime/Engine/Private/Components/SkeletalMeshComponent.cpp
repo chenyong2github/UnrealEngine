@@ -299,7 +299,7 @@ void USkeletalMeshComponent::Serialize(FArchive& Ar)
 		RequiredBones.CountBytes(Ar);
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_REMOVE_SKELETALMESH_COMPONENT_BODYSETUP_SERIALIZATION)
+	if (Ar.UEVer() < VER_UE4_REMOVE_SKELETALMESH_COMPONENT_BODYSETUP_SERIALIZATION)
 	{
 		//we used to serialize bodysetup of skeletal mesh component. We no longer do this, but need to not break existing content
 		if (bEnablePerPolyCollision)
@@ -316,7 +316,7 @@ void USkeletalMeshComponent::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading() && (Ar.UE4Ver() < VER_UE4_EDITORONLY_BLUEPRINTS))
+	if (Ar.IsLoading() && (Ar.UEVer() < VER_UE4_EDITORONLY_BLUEPRINTS))
 	{
 		if ((NULL != AnimationBlueprint_DEPRECATED))
 		{
@@ -327,7 +327,7 @@ void USkeletalMeshComponent::Serialize(FArchive& Ar)
 	}
 #endif
 
-	if (Ar.IsLoading() && (Ar.UE4Ver() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE))
+	if (Ar.IsLoading() && (Ar.UEVer() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE))
 	{
 		if (nullptr != AnimBlueprintGeneratedClass)
 		{
@@ -340,7 +340,7 @@ void USkeletalMeshComponent::Serialize(FArchive& Ar)
 		AnimBlueprintGeneratedClass = nullptr;
 	}
 
-	if (Ar.IsLoading() && (Ar.UE4Ver() < VER_UE4_AUTO_WELDING))
+	if (Ar.IsLoading() && (Ar.UEVer() < VER_UE4_AUTO_WELDING))
 	{
 		BodyInstance.bAutoWeld = false;
 	}

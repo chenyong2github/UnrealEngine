@@ -100,7 +100,7 @@ void FSmartNameMapping::Serialize(FArchive& Ar)
 			Ar << TempGuidMap;
 		}
 	}
-	else if(Ar.UE4Ver() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
+	else if(Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 	{
 		SmartName::UID_Type NextUidTemp;
 		Ar << NextUidTemp;

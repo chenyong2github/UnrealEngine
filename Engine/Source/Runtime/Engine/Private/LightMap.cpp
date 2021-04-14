@@ -2982,7 +2982,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 
 	const bool bUsingVTLightmaps = (CVarVirtualTexturedLightMaps.GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel, Ar.CookingTarget());
 
-	if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_LOW_QUALITY_DIRECTIONAL_LIGHTMAPS )
+	if( Ar.IsLoading() && Ar.UEVer() < VER_UE4_LOW_QUALITY_DIRECTIONAL_LIGHTMAPS )
 	{
 		for(uint32 CoefficientIndex = 0;CoefficientIndex < 3;CoefficientIndex++)
 		{
@@ -2993,7 +2993,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 			Ar << Dummy2;
 		}
 	}
-	else if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES )
+	else if( Ar.IsLoading() && Ar.UEVer() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES )
 	{
 		for( uint32 CoefficientIndex = 0; CoefficientIndex < 4; CoefficientIndex++ )
 		{
@@ -3023,7 +3023,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 			Ar << Textures[1];
 		}
 
-		if (Ar.UE4Ver() >= VER_UE4_SKY_LIGHT_COMPONENT)
+		if (Ar.UEVer() >= VER_UE4_SKY_LIGHT_COMPONENT)
 		{
 			if (Ar.IsCooking())
 			{
@@ -3033,7 +3033,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 				ULightMapTexture2D*& SkyTexture = bStripHQLightmaps ? Dummy : SkyOcclusionTexture;
 				Ar << SkyTexture;
 
-				if (Ar.UE4Ver() >= VER_UE4_AO_MATERIAL_MASK)
+				if (Ar.UEVer() >= VER_UE4_AO_MATERIAL_MASK)
 				{
 					ULightMapTexture2D*& MaskTexture = bStripHQLightmaps ? Dummy : AOMaterialMaskTexture;
 					Ar << MaskTexture;
@@ -3043,7 +3043,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 			{
 				Ar << SkyOcclusionTexture;
 
-				if (Ar.UE4Ver() >= VER_UE4_AO_MATERIAL_MASK)
+				if (Ar.UEVer() >= VER_UE4_AO_MATERIAL_MASK)
 				{
 					Ar << AOMaterialMaskTexture;
 				}
@@ -3362,7 +3362,7 @@ FArchive& operator<<(FArchive& Ar, FLightMap*& R)
 			}
 
 			// Dump old lightmaps
-			if (Ar.UE4Ver() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
+			if (Ar.UEVer() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
 			{
 				delete R; // safe because if we're loading we new'd this above
 				R = nullptr;

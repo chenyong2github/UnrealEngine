@@ -31,19 +31,19 @@ protected:
 	EBrevity Verbosity;
 
 	/** only packages that have this version or higher will be resaved; a value of IGNORE_PACKAGE_VERSION indicates that there is no minimum package version */
-	int32 MinResaveUE4Version;
+	int32 MinResaveUEVersion;
 
 	/**
 	 * Limits resaving to packages with this UE4 package version or lower.
 	 * A value of IGNORE_PACKAGE_VERSION (default) removes this limitation.
 	 */
-	int32 MaxResaveUE4Version;
+	int32 MaxResaveUEVersion;
 
 	/**
 	 * Limits resaving to packages with this licensee package version or lower.
 	 * A value of IGNORE_PACKAGE_VERSION (default) removes this limitation.
 	 */
-	int32 MaxResaveLicenseeUE4Version;
+	int32 MaxResaveLicenseeUEVersion;
 
 	/** 
 	 * Maximum number of packages to resave to avoid having a massive sync

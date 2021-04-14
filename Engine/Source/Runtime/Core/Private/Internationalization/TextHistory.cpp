@@ -1870,7 +1870,7 @@ void FTextHistory_AsCurrency::Serialize(FStructuredArchive::FRecord Record)
 		Record << SA_VALUE(TEXT("HistoryType"), HistoryType);
 	}
 
-	if (BaseArchive.UE4Ver() >= VER_UE4_ADDED_CURRENCY_CODE_TO_FTEXT)
+	if (BaseArchive.UEVer() >= VER_UE4_ADDED_CURRENCY_CODE_TO_FTEXT)
 	{
 		Record << SA_VALUE(TEXT("CurrencyCode"), CurrencyCode);
 	}
@@ -2047,7 +2047,7 @@ void FTextHistory_AsDate::Serialize(FStructuredArchive::FRecord Record)
 	Record << SA_VALUE(TEXT("DateStyleInt8"), DateStyleInt8);
 	DateStyle = (EDateTimeStyle::Type)DateStyleInt8;
 
-	if( BaseArchive.UE4Ver() >= VER_UE4_FTEXT_HISTORY_DATE_TIMEZONE )
+	if( BaseArchive.UEVer() >= VER_UE4_FTEXT_HISTORY_DATE_TIMEZONE )
 	{
 		Record << SA_VALUE(TEXT("TimeZone"), TimeZone);
 	}

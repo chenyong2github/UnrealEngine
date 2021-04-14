@@ -18,7 +18,7 @@ bool FReverbSettings::operator==(const FReverbSettings& Other) const
 #if WITH_EDITORONLY_DATA
 void FReverbSettings::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_REVERB_EFFECT_ASSET_TYPE)
+	if (Ar.UEVer() < VER_UE4_REVERB_EFFECT_ASSET_TYPE)
 	{
 		FString ReverbAssetName;
 		switch (ReverbType_DEPRECATED)

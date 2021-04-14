@@ -3355,7 +3355,7 @@ void UMaterial::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+	if (Ar.UEVer() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
 	{
 #if WITH_EDITOR
 		static_assert(!STORE_ONLY_ACTIVE_SHADERMAPS, "Only discard unused SMs in cooked build");
@@ -3400,20 +3400,20 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 
 #if WITH_EDITOR
-	if (Ar.UE4Ver() < VER_UE4_FLIP_MATERIAL_COORDS)
+	if (Ar.UEVer() < VER_UE4_FLIP_MATERIAL_COORDS)
 	{
 		GMaterialsThatNeedExpressionsFlipped.Set(this);
 	}
-	else if (Ar.UE4Ver() < VER_UE4_FIX_MATERIAL_COORDS)
+	else if (Ar.UEVer() < VER_UE4_FIX_MATERIAL_COORDS)
 	{
 		GMaterialsThatNeedCoordinateCheck.Set(this);
 	}
-	else if (Ar.UE4Ver() < VER_UE4_FIX_MATERIAL_COMMENTS)
+	else if (Ar.UEVer() < VER_UE4_FIX_MATERIAL_COMMENTS)
 	{
 		GMaterialsThatNeedCommentFix.Set(this);
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_ADD_LINEAR_COLOR_SAMPLER)
+	if (Ar.UEVer() < VER_UE4_ADD_LINEAR_COLOR_SAMPLER)
 	{
 		GMaterialsThatNeedSamplerFixup.Set(this);
 	}
@@ -3421,7 +3421,7 @@ void UMaterial::Serialize(FArchive& Ar)
 
 	static_assert(MP_MAX == 33, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
-	if (Ar.UE4Ver() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
+	if (Ar.UEVer() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
 		//Set based on old value. Real check may not be possible here in cooked builds?
 		//Cached using acutal check in PostEditChangProperty().
@@ -4110,7 +4110,7 @@ void UMaterial::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 
 	// Fixup for legacy materials which didn't recreate the lighting guid properly on duplication
-	if (GetLinker() && GetLinker()->UE4Ver() < VER_UE4_BUMPED_MATERIAL_EXPORT_GUIDS)
+	if (GetLinker() && GetLinker()->UEVer() < VER_UE4_BUMPED_MATERIAL_EXPORT_GUIDS)
 	{
 		UMaterialInterface** ExistingMaterial = LightingGuidFixupMap.Find(GetLightingGuid());
 

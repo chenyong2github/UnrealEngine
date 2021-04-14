@@ -781,7 +781,7 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 	for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
 	{
 		FExpressionInput* Input = Inputs[InputIndex];
-		DoMaterialAttributeReorder(Input, Record.GetUnderlyingArchive().UE4Ver(), Record.GetUnderlyingArchive().CustomVer(FRenderingObjectVersion::GUID));
+		DoMaterialAttributeReorder(Input, Record.GetUnderlyingArchive().UEVer(), Record.GetUnderlyingArchive().CustomVer(FRenderingObjectVersion::GUID));
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -4249,7 +4249,7 @@ void UMaterialExpressionClamp::Serialize(FStructuredArchive::FRecord Record)
 	Super::Serialize(Record);
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 
-	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RETROFIT_CLAMP_EXPRESSIONS_SWAP)
+	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UEVer() < VER_UE4_RETROFIT_CLAMP_EXPRESSIONS_SWAP)
 	{
 		if (ClampMode == CMODE_ClampMin)
 		{
@@ -8699,7 +8699,7 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 	FExpressionInput Inputs[ERHIFeatureLevel::Num];
 #endif
 
-	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RENAME_SM3_TO_ES3_1)
+	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UEVer() < VER_UE4_RENAME_SM3_TO_ES3_1)
 	{
 		// Copy the ES2 input to SM3 (since SM3 will now become ES3_1 and we don't want broken content)
 		Inputs[ERHIFeatureLevel::ES3_1] = Inputs[ERHIFeatureLevel::ES2_REMOVED];
@@ -11963,7 +11963,7 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 
 	bool bDidUpdate = false;
 
-	if (UnderlyingArchive.UE4Ver() < VER_UE4_INSTANCED_STEREO_UNIFORM_UPDATE)
+	if (UnderlyingArchive.UEVer() < VER_UE4_INSTANCED_STEREO_UNIFORM_UPDATE)
 	{
 		// Look for WorldPosition rename
 		if (Code.ReplaceInline(TEXT("Parameters.WorldPosition"), TEXT("Parameters.AbsoluteWorldPosition"), ESearchCase::CaseSensitive) > 0)
@@ -11972,7 +11972,7 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 		}
 	}
 	// Fix up uniform references that were moved from View to Frame as part of the instanced stereo implementation
-	else if (UnderlyingArchive.UE4Ver() < VER_UE4_INSTANCED_STEREO_UNIFORM_REFACTOR)
+	else if (UnderlyingArchive.UEVer() < VER_UE4_INSTANCED_STEREO_UNIFORM_REFACTOR)
 	{
 		// Uniform members that were moved from View to Frame
 		static const FString UniformMembers[] = {
@@ -12256,25 +12256,25 @@ void UMaterialFunction::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITOR
-	if (Ar.UE4Ver() < VER_UE4_FLIP_MATERIAL_COORDS)
+	if (Ar.UEVer() < VER_UE4_FLIP_MATERIAL_COORDS)
 	{
 		GMaterialFunctionsThatNeedExpressionsFlipped.Set(this);
 	}
-	else if (Ar.UE4Ver() < VER_UE4_FIX_MATERIAL_COORDS)
+	else if (Ar.UEVer() < VER_UE4_FIX_MATERIAL_COORDS)
 	{
 		GMaterialFunctionsThatNeedCoordinateCheck.Set(this);
 	}
-	else if (Ar.UE4Ver() < VER_UE4_FIX_MATERIAL_COMMENTS)
+	else if (Ar.UEVer() < VER_UE4_FIX_MATERIAL_COMMENTS)
 	{
 		GMaterialFunctionsThatNeedCommentFix.Set(this);
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_ADD_LINEAR_COLOR_SAMPLER)
+	if (Ar.UEVer() < VER_UE4_ADD_LINEAR_COLOR_SAMPLER)
 	{
 		GMaterialFunctionsThatNeedSamplerFixup.Set(this);
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_LIBRARY_CATEGORIES_AS_FTEXT)
+	if (Ar.UEVer() < VER_UE4_LIBRARY_CATEGORIES_AS_FTEXT)
 	{
 		for (FString& Category : LibraryCategories_DEPRECATED)
 		{
@@ -18049,7 +18049,7 @@ void UMaterialExpressionSpeedTree::Serialize(FStructuredArchive::FRecord Record)
 {
 	Super::Serialize(Record);
 
-	if (Record.GetUnderlyingArchive().UE4Ver() < VER_UE4_SPEEDTREE_WIND_V7)
+	if (Record.GetUnderlyingArchive().UEVer() < VER_UE4_SPEEDTREE_WIND_V7)
 	{
 		// update wind presets for speedtree v7
 		switch (WindType)

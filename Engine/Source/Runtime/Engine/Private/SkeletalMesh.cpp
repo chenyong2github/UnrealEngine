@@ -1248,7 +1248,7 @@ FArchive &operator<<( FArchive& Ar, FSkeletalMeshLODInfo& I )
 	Ar << I.LODMaterialMap;
 
 #if WITH_EDITORONLY_DATA
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING )
 	{
 		Ar << I.bEnableShadowCasting_DEPRECATED;
 	}
@@ -1724,7 +1724,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 		Ar << GetRefBasesInvMatrix();
 	}
 
-	if( Ar.UE4Ver() < VER_UE4_REFERENCE_SKELETON_REFACTOR )
+	if( Ar.UEVer() < VER_UE4_REFERENCE_SKELETON_REFACTOR )
 	{
 		TMap<FName, int32> DummyNameIndexMap;
 		Ar << DummyNameIndexMap;
@@ -1758,14 +1758,14 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 		}
 	}
 
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !GetAssetImportData())
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !GetAssetImportData())
 	{
 		// AssetImportData should always be valid
 		SetAssetImportData(NewObject<UAssetImportData>(this, TEXT("AssetImportData")));
 	}
 	
 	// SourceFilePath and SourceFileTimestamp were moved into a subobject
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && GetAssetImportData())
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && GetAssetImportData())
 	{
 		// AssetImportData should always have been set up in the constructor where this is relevant
 		FAssetImportInfo Info;
@@ -1776,7 +1776,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 		SourceFileTimestamp_DEPRECATED = TEXT("");
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH)
+	if (Ar.UEVer() >= VER_UE4_APEX_CLOTH)
 	{
 		if(Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::NewClothingSystemAdded)
 		{
@@ -1787,20 +1787,20 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			}
 		}
 
-		if (Ar.UE4Ver() < VER_UE4_REFERENCE_SKELETON_REFACTOR)
+		if (Ar.UEVer() < VER_UE4_REFERENCE_SKELETON_REFACTOR)
 		{
 			RebuildRefSkeletonNameToIndexMap();
 		}
 	}
 
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING )
 	{
 		// Previous to this version, shadowcasting flags were stored in the LODInfo array
 		// now they're in the Materials array so we need to move them over
 		MoveDeprecatedShadowFlagToMaterials();
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_SKELETON_ASSET_PROPERTY_TYPE_CHANGE)
+	if (Ar.UEVer() < VER_UE4_SKELETON_ASSET_PROPERTY_TYPE_CHANGE)
 	{
 		GetPreviewAttachedAssetContainer().SaveAttachedObjectsFromDeprecatedProperties();
 	}
@@ -4123,7 +4123,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMaterial& Elem)
 #if WITH_EDITORONLY_DATA
 	else
 	{
-		if (Ar.UE4Ver() >= VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING)
+		if (Ar.UEVer() >= VER_UE4_MOVE_SKELETALMESH_SHADOWCASTING)
 		{
 			Ar << Elem.bEnableShadowCasting_DEPRECATED;
 		}

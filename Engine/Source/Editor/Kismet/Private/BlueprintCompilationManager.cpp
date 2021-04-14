@@ -878,7 +878,7 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 				BP->ConformNativeComponents();
 				if (FLinkerLoad* Linker = BP->GetLinker())
 				{
-					if (Linker->UE4Ver() < VER_UE4_EDITORONLY_BLUEPRINTS)
+					if (Linker->UEVer() < VER_UE4_EDITORONLY_BLUEPRINTS)
 					{
 						BP->ChangeOwnerOfTemplates();
 					}

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	EngineMinimal.h: Commonly used include for developing projects with UE4
+	EngineMinimal.h: Commonly used include for developing projects with UE
 =============================================================================*/
 
 #pragma once

@@ -377,7 +377,7 @@ void UAssetImportData::Serialize(FStructuredArchive::FRecord Record)
 {
 	FArchive& BaseArchive = Record.GetUnderlyingArchive();
 
-	if (BaseArchive.UE4Ver() >= VER_UE4_ASSET_IMPORT_DATA_AS_JSON)
+	if (BaseArchive.UEVer() >= VER_UE4_ASSET_IMPORT_DATA_AS_JSON)
 	{
 		if (!BaseArchive.IsFilterEditorOnly())
 		{

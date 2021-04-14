@@ -83,7 +83,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	bool bIsTextFormat = UnderlyingArchive.IsTextFormat();
 
-	int32 Version = UnderlyingArchive.UE4Ver();
+	int32 Version = UnderlyingArchive.UEVer();
 
 	check(!UnderlyingArchive.GetArchiveState().UseUnversionedPropertySerialization());
 	checkf(!UnderlyingArchive.IsSaving() || Tag.Prop, TEXT("FPropertyTag must be constructed with a valid property when used for saving data!"));

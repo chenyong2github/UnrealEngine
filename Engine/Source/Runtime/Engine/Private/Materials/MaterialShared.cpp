@@ -1076,7 +1076,7 @@ FArchive& operator<<(FArchive& Ar, FLegacyTextureLookup& Ref)
 
 void FMaterial::LegacySerialize(FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+	if (Ar.UEVer() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
 	{
 		TArray<FString> LegacyStrings;
 		Ar << LegacyStrings;
@@ -1204,7 +1204,7 @@ void FMaterialResource::LegacySerialize(FArchive& Ar)
 {
 	FMaterial::LegacySerialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+	if (Ar.UEVer() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
 	{
 		int32 BlendModeOverrideValueTemp = 0;
 		Ar << BlendModeOverrideValueTemp;

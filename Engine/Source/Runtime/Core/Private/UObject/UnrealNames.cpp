@@ -2721,7 +2721,7 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 		}
 
 		uint16 DummyHashes[2];
-		uint32 SkipPastHashBytes = (Ar.UE4Ver() >= VER_UE4_NAME_HASHES_SERIALIZED) * sizeof(DummyHashes);
+		uint32 SkipPastHashBytes = (Ar.UEVer() >= VER_UE4_NAME_HASHES_SERIALIZED) * sizeof(DummyHashes);
 		Ar.Serialize(&DummyHashes, SkipPastHashBytes);
 	}
 	else

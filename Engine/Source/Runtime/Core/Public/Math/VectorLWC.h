@@ -1060,7 +1060,7 @@ public:
 		// @warning BulkSerialize: TVector<TReal> is serialized as memory dump
 		// See TArray::BulkSerialize for detailed description of implied limitations.
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();
-		//if (Record.GetUnderlyingArchive().UE4Ver() >= VER_UE5_LARGE_WORLD_COORDINATES)
+		//if (Record.GetUnderlyingArchive().UEVer() >= VER_UE5_LARGE_WORLD_COORDINATES)
 		//{
 		//	// Stored as doubles, so serialize double and copy.
 		//	double SX = V.X, SY = V.Y, SZ = V.Z;

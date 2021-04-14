@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	Movement.cpp: Character movement implementation
@@ -575,14 +576,14 @@ void UCharacterMovementComponent::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	const int32 LinkerUE4Ver = GetLinkerUEVersion();
+	const int32 LinkerUEVer = GetLinkerUEVersion();
 
-	if (LinkerUE4Ver < VER_UE4_CHARACTER_MOVEMENT_DECELERATION)
+	if (LinkerUEVer < VER_UE4_CHARACTER_MOVEMENT_DECELERATION)
 	{
 		BrakingDecelerationWalking = MaxAcceleration;
 	}
 
-	if (LinkerUE4Ver < VER_UE4_CHARACTER_BRAKING_REFACTOR)
+	if (LinkerUEVer < VER_UE4_CHARACTER_BRAKING_REFACTOR)
 	{
 		// This bool used to apply walking braking in flying and swimming modes.
 		if (bForceBraking_DEPRECATED)
@@ -592,13 +593,13 @@ void UCharacterMovementComponent::PostLoad()
 		}
 	}
 
-	if (LinkerUE4Ver < VER_UE4_CHARACTER_MOVEMENT_WALKABLE_FLOOR_REFACTOR)
+	if (LinkerUEVer < VER_UE4_CHARACTER_MOVEMENT_WALKABLE_FLOOR_REFACTOR)
 	{
 		// Compute the walkable floor angle, since we have never done so yet.
 		UCharacterMovementComponent::SetWalkableFloorZ(WalkableFloorZ);
 	}
 
-	if (LinkerUE4Ver < VER_UE4_DEPRECATED_MOVEMENTCOMPONENT_MODIFIED_SPEEDS)
+	if (LinkerUEVer < VER_UE4_DEPRECATED_MOVEMENTCOMPONENT_MODIFIED_SPEEDS)
 	{
 		MaxWalkSpeedCrouched = MaxWalkSpeed * CrouchedSpeedMultiplier_DEPRECATED;
 		MaxCustomMovementSpeed = MaxWalkSpeed;
@@ -1280,7 +1281,7 @@ void UCharacterMovementComponent::Serialize(FArchive& Archive)
 {
 	Super::Serialize(Archive);
 
-	if (Archive.IsLoading() && Archive.UE4Ver() < VER_UE4_ADDED_SWEEP_WHILE_WALKING_FLAG)
+	if (Archive.IsLoading() && Archive.UEVer() < VER_UE4_ADDED_SWEEP_WHILE_WALKING_FLAG)
 	{
 		// We need to update the bSweepWhileNavWalking flag to match the previous behavior.
 		// Since UpdatedComponent is transient, we'll have to wait until we're registered.

@@ -813,7 +813,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 	//This would result in all subsequently duplicated objects stamping over formerly duplicated ones.
 
 	// Older FText's stored their "SourceString", that is now stored in a history class so move it there
-	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_FTEXT_HISTORY)
+	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UEVer() < VER_UE4_FTEXT_HISTORY)
 	{
 		FString SourceStringToImplantIntoHistory;
 		Record << SA_VALUE(TEXT("SourceStringToImplantIntoHistory"), SourceStringToImplantIntoHistory);
@@ -821,7 +821,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 		FTextDisplayStringPtr DisplayString;
 
 		// Namespaces and keys are no longer stored in the FText, we need to read them in and discard
-		if (UnderlyingArchive.UE4Ver() >= VER_UE4_ADDED_NAMESPACE_AND_KEY_DATA_TO_FTEXT)
+		if (UnderlyingArchive.UEVer() >= VER_UE4_ADDED_NAMESPACE_AND_KEY_DATA_TO_FTEXT)
 		{
 			FString Namespace;
 			FString Key;
@@ -877,7 +877,7 @@ void FText::SerializeText(FStructuredArchive::FSlot Slot, FText& Value)
 		Value.Flags = OriginalFlags;
 	}
 
-	if (UnderlyingArchive.UE4Ver() >= VER_UE4_FTEXT_HISTORY)
+	if (UnderlyingArchive.UEVer() >= VER_UE4_FTEXT_HISTORY)
 	{
 		bool bSerializeHistory = true;
 
@@ -1460,7 +1460,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FFormatArgumentData& Value)
 	if (UnderlyingArchive.IsLoading())
 	{
 		// ArgumentName was changed to be FString rather than FText, so we need to convert older data to ensure serialization stays happy outside of UStruct::SerializeTaggedProperties.
-		if (UnderlyingArchive.UE4Ver() >= VER_UE4_K2NODE_VAR_REFERENCEGUIDS) // There was no version bump for this change, but VER_UE4_K2NODE_VAR_REFERENCEGUIDS was made at almost the same time.
+		if (UnderlyingArchive.UEVer() >= VER_UE4_K2NODE_VAR_REFERENCEGUIDS) // There was no version bump for this change, but VER_UE4_K2NODE_VAR_REFERENCEGUIDS was made at almost the same time.
 		{
 			Record << SA_VALUE(TEXT("ArgumentName"), Value.ArgumentName);
 		}

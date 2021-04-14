@@ -138,7 +138,7 @@ FAutoConsoleVariableRef CVarSkinWeightProfilesAllowedFromLOD(
 FArchive& operator<<(FArchive& Ar, FRuntimeSkinWeightProfileData& OverrideData)
 {
 #if WITH_EDITOR
-	if (Ar.UE4Ver() < VER_UE4_SKINWEIGHT_PROFILE_DATA_LAYOUT_CHANGES)
+	if (Ar.UEVer() < VER_UE4_SKINWEIGHT_PROFILE_DATA_LAYOUT_CHANGES)
 	{
 		Ar << OverrideData.OverridesInfo_DEPRECATED;
 		Ar << OverrideData.Weights_DEPRECATED;

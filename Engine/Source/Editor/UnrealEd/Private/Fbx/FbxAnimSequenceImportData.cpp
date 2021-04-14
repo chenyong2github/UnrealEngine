@@ -55,7 +55,7 @@ void UFbxAnimSequenceImportData::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if(Ar.UE4Ver() < VER_UE4_FBX_IMPORT_DATA_RANGE_ENCAPSULATION)
+	if(Ar.UEVer() < VER_UE4_FBX_IMPORT_DATA_RANGE_ENCAPSULATION)
 	{
 		FrameImportRange.Min = StartFrame_DEPRECATED;
 		FrameImportRange.Max = EndFrame_DEPRECATED;

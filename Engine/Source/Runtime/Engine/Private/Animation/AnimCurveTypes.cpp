@@ -21,7 +21,7 @@ void FAnimCurveBase::PostSerialize(FArchive& Ar)
 	{
 		if (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::SmartNameRefactor)
 		{
-			if (Ar.UE4Ver() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
+			if (Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 			{
 				Ar << CurveUid;
 
@@ -652,7 +652,7 @@ void FRawCurveTracks::PostSerialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if( !Ar.IsCooking() )
 	{
-		if( Ar.UE4Ver() >= VER_UE4_ANIMATION_ADD_TRACKCURVES )
+		if( Ar.UEVer() >= VER_UE4_ANIMATION_ADD_TRACKCURVES )
 		{
 			for( FTransformCurve& Curve : TransformCurves )
 			{

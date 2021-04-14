@@ -37,7 +37,7 @@ void UEnum::Serialize( FArchive& Ar )
 	Super::Serialize(Ar);
 	if (Ar.IsLoading())
 	{
-		if (Ar.UE4Ver() < VER_UE4_TIGHTLY_PACKED_ENUMS)
+		if (Ar.UEVer() < VER_UE4_TIGHTLY_PACKED_ENUMS)
 		{
 			TArray<FName> TempNames;
 			Ar << TempNames;
@@ -67,7 +67,7 @@ void UEnum::Serialize( FArchive& Ar )
 		Ar << Names;
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_ENUM_CLASS_SUPPORT)
+	if (Ar.UEVer() < VER_UE4_ENUM_CLASS_SUPPORT)
 	{
 		bool bIsNamespace;
 		Ar << bIsNamespace;

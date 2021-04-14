@@ -28,7 +28,7 @@ FInteriorSettings::FInteriorSettings()
 #if WITH_EDITORONLY_DATA
 void FInteriorSettings::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_USE_LOW_PASS_FILTER_FREQ)
+	if (Ar.UEVer() < VER_UE4_USE_LOW_PASS_FILTER_FREQ)
 	{
 		if (InteriorLPF > 0.0f && InteriorLPF < 1.0f)
 		{

@@ -138,7 +138,7 @@ public:
 		//   as inline struct properties in UnClass.cpp!
 
 		Ar << Curve.Points;
-		if (Ar.UE4Ver() >= VER_UE4_INTERPCURVE_SUPPORTS_LOOPING)
+		if (Ar.UEVer() >= VER_UE4_INTERPCURVE_SUPPORTS_LOOPING)
 		{
 			Ar << Curve.bIsLooped;
 			Ar << Curve.LoopKeyOffset;

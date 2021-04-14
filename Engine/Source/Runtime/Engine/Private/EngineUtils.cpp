@@ -502,7 +502,7 @@ FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InClassFlags /*= 0*/
 	, ClassStripFlags( 0 )
 {
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (Ar.UE4Ver() >= InVersion)
+	if (Ar.UEVer() >= InVersion)
 	{
 		if (Ar.IsCooking())
 		{
@@ -522,7 +522,7 @@ FStripDataFlags::FStripDataFlags( class FArchive& Ar, uint8 InGlobalFlags, uint8
 	, ClassStripFlags( 0 )
 {
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (Ar.UE4Ver() >= InVersion)
+	if (Ar.UEVer() >= InVersion)
 	{
 		if (Ar.IsCooking())
 		{
@@ -546,7 +546,7 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InClassFl
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (UnderlyingArchive.UE4Ver() >= InVersion)
+	if (UnderlyingArchive.UEVer() >= InVersion)
 	{
 		if (UnderlyingArchive.IsCooking())
 		{
@@ -569,7 +569,7 @@ FStripDataFlags::FStripDataFlags(FStructuredArchive::FSlot Slot, uint8 InGlobalF
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
 
 	check(InVersion >= VER_UE4_OLDEST_LOADABLE_PACKAGE);
-	if (UnderlyingArchive.UE4Ver() >= InVersion)
+	if (UnderlyingArchive.UEVer() >= InVersion)
 	{
 		if (UnderlyingArchive.IsCooking())
 		{

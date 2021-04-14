@@ -485,7 +485,7 @@ void ULevel::Serialize( FArchive& Ar )
 
 	Ar << ModelComponents;
 
-	if(!Ar.IsFilterEditorOnly() || (Ar.UE4Ver() < VER_UE4_EDITORONLY_BLUEPRINTS) )
+	if(!Ar.IsFilterEditorOnly() || (Ar.UEVer() < VER_UE4_EDITORONLY_BLUEPRINTS) )
 	{
 #if WITH_EDITORONLY_DATA
 		// Skip serializing the LSBP if this is a world duplication for PIE/SIE, as it is not needed, and it causes overhead in startup times
@@ -530,7 +530,7 @@ void ULevel::Serialize( FArchive& Ar )
 			Ar << Len;
 		}
 
-		if(Ar.UE4Ver() < VER_UE4_REMOVE_LEVELBODYSETUP)
+		if(Ar.UEVer() < VER_UE4_REMOVE_LEVELBODYSETUP)
 		{
 			UBodySetup* DummySetup;
 			Ar << DummySetup;
@@ -585,8 +585,8 @@ void ULevel::Serialize( FArchive& Ar )
 	Ar << PrecomputedVisibilityHandler;
 	Ar << PrecomputedVolumeDistanceField;
 
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LEVEL_INFO &&
-		Ar.UE4Ver() < VER_UE4_WORLD_LEVEL_INFO_UPDATED)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LEVEL_INFO &&
+		Ar.UEVer() < VER_UE4_WORLD_LEVEL_INFO_UPDATED)
 	{
 		FWorldTileInfo Info;
 		Ar << Info;

@@ -306,7 +306,7 @@ struct FFoliageInstanceCluster_Deprecated
 
 #if WITH_EDITORONLY_DATA
 		if (!Ar.ArIsFilterEditorOnly ||
-			Ar.UE4Ver() < VER_UE4_FOLIAGE_SETTINGS_TYPE)
+			Ar.UEVer() < VER_UE4_FOLIAGE_SETTINGS_TYPE)
 		{
 			Ar << OldCluster.InstanceIndices;
 		}
@@ -329,7 +329,7 @@ FArchive& operator<<(FArchive& Ar, FFoliageMeshInfo_Deprecated& MeshInfo)
 	}
 
 #if WITH_EDITORONLY_DATA
-	if ((!Ar.ArIsFilterEditorOnly || Ar.UE4Ver() < VER_UE4_FOLIAGE_SETTINGS_TYPE) &&
+	if ((!Ar.ArIsFilterEditorOnly || Ar.UEVer() < VER_UE4_FOLIAGE_SETTINGS_TYPE) &&
 		(!(Ar.GetPortFlags() & PPF_DuplicateForPIE)))
 	{
 		Ar << MeshInfo.Instances;
@@ -3845,7 +3845,7 @@ void AInstancedFoliageActor::Serialize(FArchive& Ar)
 	}
 #endif
 
-	if (Ar.UE4Ver() < VER_UE4_FOLIAGE_SETTINGS_TYPE)
+	if (Ar.UEVer() < VER_UE4_FOLIAGE_SETTINGS_TYPE)
 	{
 #if WITH_EDITORONLY_DATA
 		TMap<UFoliageType*, TUniqueObj<FFoliageMeshInfo_Deprecated>> FoliageMeshesDeprecated;

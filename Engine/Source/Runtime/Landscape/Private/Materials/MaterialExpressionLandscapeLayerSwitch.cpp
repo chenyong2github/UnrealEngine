@@ -113,7 +113,7 @@ void UMaterialExpressionLandscapeLayerSwitch::Serialize(FStructuredArchive::FRec
 {
 	Super::Serialize(Record);
 
-	if (Record.GetUnderlyingArchive().UE4Ver() < VER_UE4_FIX_TERRAIN_LAYER_SWITCH_ORDER)
+	if (Record.GetUnderlyingArchive().UEVer() < VER_UE4_FIX_TERRAIN_LAYER_SWITCH_ORDER)
 	{
 		Swap(LayerUsed, LayerNotUsed);
 	}

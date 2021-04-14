@@ -569,7 +569,7 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 		Ar << bChannelValid[Channel];
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_STATIC_SHADOWMAP_PENUMBRA_SIZE)
+	if (Ar.UEVer() >= VER_UE4_STATIC_SHADOWMAP_PENUMBRA_SIZE)
 	{
 		Ar << InvUniformPenumbraSize;
 	}
@@ -1212,7 +1212,7 @@ FArchive& operator<<(FArchive& Ar,FShadowMap*& R)
 		if (Ar.IsLoading())
 		{
 			// Dump old Shadowmaps
-			if (Ar.UE4Ver() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
+			if (Ar.UEVer() < VER_UE4_COMBINED_LIGHTMAP_TEXTURES)
 			{
 				delete R; // safe because if we're loading we new'd this above
 				R = nullptr;

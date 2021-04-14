@@ -75,12 +75,12 @@ FArchive& operator<<(FArchive& Ar, TVolumeLightingSample<2>& Sample)
 	Ar << Sample.Radius;
 	Ar << Sample.Lighting;
 
-	if (Ar.UE4Ver() >= VER_UE4_SKY_BENT_NORMAL)
+	if (Ar.UEVer() >= VER_UE4_SKY_BENT_NORMAL)
 	{
 		Ar << Sample.PackedSkyBentNormal;
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_VOLUME_SAMPLE_LOW_QUALITY_SUPPORT)
+	if (Ar.UEVer() >= VER_UE4_VOLUME_SAMPLE_LOW_QUALITY_SUPPORT)
 	{
 		Ar << Sample.DirectionalLightShadowing;
 	}
@@ -187,7 +187,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedLightVolumeData& Volume)
 
 			TArray<FVolumeLightingSample> LowQualitySamples;
 
-			if (Ar.UE4Ver() >= VER_UE4_VOLUME_SAMPLE_LOW_QUALITY_SUPPORT)
+			if (Ar.UEVer() >= VER_UE4_VOLUME_SAMPLE_LOW_QUALITY_SUPPORT)
 			{
 				LoadVolumeLightSamples(Ar, NumSHSamples, LowQualitySamples);
 			}

@@ -507,7 +507,7 @@ void USplineMeshComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_SPLINE_MESH_ORIENTATION)
+	if (Ar.UEVer() < VER_UE4_SPLINE_MESH_ORIENTATION)
 	{
 		ForwardAxis = ESplineMeshAxis::Z;
 		SplineParams.StartRoll -= HALF_PI;

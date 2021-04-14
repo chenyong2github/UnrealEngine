@@ -2174,7 +2174,7 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		if (Ar.UE4Ver() < VER_UE4_SWITCH_CALL_NODE_TO_USE_MEMBER_REFERENCE)
+		if (Ar.UEVer() < VER_UE4_SWITCH_CALL_NODE_TO_USE_MEMBER_REFERENCE)
 		{
 			UFunction* Function = FindUField<UFunction>(CallFunctionClass_DEPRECATED, CallFunctionName_DEPRECATED);
 			const bool bProbablySelfCall = (CallFunctionClass_DEPRECATED == NULL) || ((Function != NULL) && (Function->GetOuterUClass()->ClassGeneratedBy == GetBlueprint()));
@@ -2182,7 +2182,7 @@ void UK2Node_CallFunction::Serialize(FArchive& Ar)
 			FunctionReference.SetDirect(CallFunctionName_DEPRECATED, FGuid(), CallFunctionClass_DEPRECATED, bProbablySelfCall);
 		}
 
-		if(Ar.UE4Ver() < VER_UE4_K2NODE_REFERENCEGUIDS)
+		if(Ar.UEVer() < VER_UE4_K2NODE_REFERENCEGUIDS)
 		{
 			FGuid FunctionGuid;
 

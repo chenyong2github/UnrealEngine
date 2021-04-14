@@ -426,7 +426,7 @@
 		case EX_SetArray:
 		{
 			// If not loading, or its a newer version
-			if((!GetLinker()) || !Ar.IsLoading() || (Ar.UE4Ver() >= VER_UE4_CHANGE_SETARRAY_BYTECODE))
+			if((!GetLinker()) || !Ar.IsLoading() || (Ar.UEVer() >= VER_UE4_CHANGE_SETARRAY_BYTECODE))
 			{
 				// Array property to assign to
 				EExprToken TargetToken = SerializeExpr( iCode, Ar );

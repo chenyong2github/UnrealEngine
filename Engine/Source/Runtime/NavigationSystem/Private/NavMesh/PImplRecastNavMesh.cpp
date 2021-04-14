@@ -392,7 +392,7 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 					dtFree(TileHeader);
 
 					//
-					if (Ar.UE4Ver() >= VER_UE4_ADD_MODIFIERS_RUNTIME_GENERATION && 
+					if (Ar.UEVer() >= VER_UE4_ADD_MODIFIERS_RUNTIME_GENERATION && 
 						(Ar.EngineVer().GetMajor() != 4 || Ar.EngineVer().GetMinor() != 7)) // Merged package from 4.7 branch
 					{
 						unsigned char* ComressedTileData = NULL;
@@ -433,7 +433,7 @@ void FPImplRecastNavMesh::Serialize( FArchive& Ar, int32 NavMeshVersion )
 					DetourNavMesh->addTile(TileData, TileDataSize, DT_TILE_FREE_DATA, TileRef, NULL);
 
 					// Serialize compressed tile cache layer
-					if (Ar.UE4Ver() >= VER_UE4_ADD_MODIFIERS_RUNTIME_GENERATION &&
+					if (Ar.UEVer() >= VER_UE4_ADD_MODIFIERS_RUNTIME_GENERATION &&
 						(Ar.EngineVer().GetMajor() != 4 || Ar.EngineVer().GetMinor() != 7)) // Merged package from 4.7 branch
 					{
 						uint8* ComressedTileData = nullptr;

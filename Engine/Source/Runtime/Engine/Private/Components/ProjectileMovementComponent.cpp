@@ -57,9 +57,9 @@ void UProjectileMovementComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	const int32 LinkerUE4Ver = GetLinkerUEVersion();
+	const int32 LinkerUEVer = GetLinkerUEVersion();
 
-	if (LinkerUE4Ver < VER_UE4_REFACTOR_PROJECTILE_MOVEMENT)
+	if (LinkerUEVer < VER_UE4_REFACTOR_PROJECTILE_MOVEMENT)
 	{
 		// Old code used to treat Bounciness as Friction as well.
 		Friction = FMath::Clamp(1.f - Bounciness, 0.f, 1.f);

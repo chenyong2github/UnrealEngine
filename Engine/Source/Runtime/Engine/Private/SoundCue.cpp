@@ -167,7 +167,7 @@ void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 		Super::Serialize(Record);
 	}
 
-	if (UnderlyingArchive.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
+	if (UnderlyingArchive.UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
 		FStripDataFlags StripFlags(Record.EnterField(SA_FIELD_NAME(TEXT("SoundCueStripFlags"))));
 #if WITH_EDITORONLY_DATA

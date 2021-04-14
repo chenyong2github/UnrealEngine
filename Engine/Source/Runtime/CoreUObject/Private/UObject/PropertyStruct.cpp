@@ -343,7 +343,7 @@ EConvertFromTypeResult FStructProperty::ConvertFromType(const FPropertyTag& Tag,
 
 	auto CanSerializeFromStructWithDifferentName = [](const FArchive& InAr, const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
 	{
-		if (InAr.UE4Ver() < VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
+		if (InAr.UEVer() < VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
 		{
 			// Old Implementation
 			return StructProperty && !StructProperty->UseBinaryOrNativeSerialization(InAr);

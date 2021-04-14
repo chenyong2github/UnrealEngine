@@ -55,7 +55,7 @@ bool FNavigationLinkBase::HasMetaArea() const
 #if WITH_EDITORONLY_DATA
 void FNavigationLinkBase::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_NAVIGATION_AGENT_SELECTOR)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_NAVIGATION_AGENT_SELECTOR)
 	{
 		SupportedAgents.bSupportsAgent0 = bSupportsAgent0;
 		SupportedAgents.bSupportsAgent1 = bSupportsAgent1;

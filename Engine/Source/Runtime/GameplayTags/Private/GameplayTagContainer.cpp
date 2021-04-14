@@ -831,7 +831,7 @@ bool FGameplayTagContainer::Serialize(FStructuredArchive::FSlot Slot)
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
-	const bool bOldTagVer = UnderlyingArchive.UE4Ver() < VER_UE4_GAMEPLAY_TAG_CONTAINER_TAG_TYPE_CHANGE;
+	const bool bOldTagVer = UnderlyingArchive.UEVer() < VER_UE4_GAMEPLAY_TAG_CONTAINER_TAG_TYPE_CHANGE;
 	
 	if (bOldTagVer)
 	{

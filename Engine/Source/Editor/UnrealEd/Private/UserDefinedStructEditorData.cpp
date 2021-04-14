@@ -18,7 +18,7 @@ void FStructVariableDescription::PostSerialize(const FArchive& Ar)
 		ContainerType = FEdGraphPinType::ToPinContainerType(bIsArray_DEPRECATED, bIsSet_DEPRECATED, bIsMap_DEPRECATED);
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+	if (Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 	{
 		// Fix up renamed categories
 		if (Category == TEXT("asset"))

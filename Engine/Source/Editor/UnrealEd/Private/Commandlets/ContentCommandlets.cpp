@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	UCContentCommandlets.cpp: Various commmandlets.
@@ -414,23 +415,23 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 	}
 
 	// Check for the min and max versions
-	MinResaveUE4Version = IGNORE_PACKAGE_VERSION;
-	MaxResaveUE4Version = IGNORE_PACKAGE_VERSION;
-	MaxResaveLicenseeUE4Version = IGNORE_PACKAGE_VERSION;
+	MinResaveUEVersion = IGNORE_PACKAGE_VERSION;
+	MaxResaveUEVersion = IGNORE_PACKAGE_VERSION;
+	MaxResaveLicenseeUEVersion = IGNORE_PACKAGE_VERSION;
 	if ( Switches.Contains(TEXT("CHECKLICENSEEVER")) )
 	{
 		// Limits resaving to packages with this licensee package version or lower.
-		MaxResaveLicenseeUE4Version = FMath::Max<int32>(GPackageFileLicenseeUEVersion - 1, 0);
+		MaxResaveLicenseeUEVersion = FMath::Max<int32>(GPackageFileLicenseeUEVersion - 1, 0);
 	}
 	if ( Switches.Contains(TEXT("CHECKUE4VER")) )
 	{
 		// Limits resaving to packages with this ue4 package version or lower.
-		MaxResaveUE4Version = FMath::Max<int32>(GPackageFileUEVersion - 1, 0);
+		MaxResaveUEVersion = FMath::Max<int32>(GPackageFileUEVersion - 1, 0);
 	}
 	else if ( Switches.Contains(TEXT("RESAVEDEPRECATED")) )
 	{
 		// Limits resaving to packages with this package version or lower.
-		MaxResaveUE4Version = FMath::Max<int32>(VER_UE4_DEPRECATED_PACKAGE - 1, 0);
+		MaxResaveUEVersion = FMath::Max<int32>(VER_UE4_DEPRECATED_PACKAGE - 1, 0);
 	}
 	else
 	{
@@ -438,19 +439,19 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		for ( int32 SwitchIdx = 0; SwitchIdx < Switches.Num(); SwitchIdx++ )
 		{
 			const FString& CurrentSwitch = Switches[SwitchIdx];
-			if ( MinResaveUE4Version == IGNORE_PACKAGE_VERSION && FParse::Value(*CurrentSwitch,TEXT("MINVER="),MinResaveUE4Version) )
+			if ( MinResaveUEVersion == IGNORE_PACKAGE_VERSION && FParse::Value(*CurrentSwitch,TEXT("MINVER="),MinResaveUEVersion) )
 			{
-				if ( MinResaveUE4Version == CURRENT_PACKAGE_VERSION )
+				if ( MinResaveUEVersion == CURRENT_PACKAGE_VERSION )
 				{
-					MinResaveUE4Version = GPackageFileUEVersion;
+					MinResaveUEVersion = GPackageFileUEVersion;
 				}
 			}
 
-			if ( MaxResaveUE4Version == IGNORE_PACKAGE_VERSION && FParse::Value(*CurrentSwitch,TEXT("MAXVER="),MaxResaveUE4Version) )
+			if ( MaxResaveUEVersion == IGNORE_PACKAGE_VERSION && FParse::Value(*CurrentSwitch,TEXT("MAXVER="),MaxResaveUEVersion) )
 			{
-				if ( MaxResaveUE4Version == CURRENT_PACKAGE_VERSION )
+				if ( MaxResaveUEVersion == CURRENT_PACKAGE_VERSION )
 				{
-					MaxResaveUE4Version = GPackageFileUEVersion;
+					MaxResaveUEVersion = GPackageFileUEVersion;
 				}
 			}
 		}
@@ -1367,17 +1368,17 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 
 
 	// validate that this package meets the minimum requirement
-	if ( MinResaveUE4Version != IGNORE_PACKAGE_VERSION && UE4PackageVersion < MinResaveUE4Version )
+	if ( MinResaveUEVersion != IGNORE_PACKAGE_VERSION && UE4PackageVersion < MinResaveUEVersion )
 	{
 		bSavePackage = false;
 		return;
 	}
 
 	// Check if this package meets the maximum requirements.
-	const bool bNoLimitation = MaxResaveUE4Version == IGNORE_PACKAGE_VERSION && MaxResaveLicenseeUE4Version == IGNORE_PACKAGE_VERSION;
+	const bool bNoLimitation = MaxResaveUEVersion == IGNORE_PACKAGE_VERSION && MaxResaveLicenseeUEVersion == IGNORE_PACKAGE_VERSION;
 	const bool bAllowResave = bNoLimitation ||
-						 (MaxResaveUE4Version != IGNORE_PACKAGE_VERSION && UE4PackageVersion <= MaxResaveUE4Version) ||
-						 (MaxResaveLicenseeUE4Version != IGNORE_PACKAGE_VERSION && LicenseeUE4PackageVersion <= MaxResaveLicenseeUE4Version);
+						 (MaxResaveUEVersion != IGNORE_PACKAGE_VERSION && UE4PackageVersion <= MaxResaveUEVersion) ||
+						 (MaxResaveLicenseeUEVersion != IGNORE_PACKAGE_VERSION && LicenseeUE4PackageVersion <= MaxResaveLicenseeUEVersion);
 	// If not, don't resave it.
 	if ( !bAllowResave )
 	{

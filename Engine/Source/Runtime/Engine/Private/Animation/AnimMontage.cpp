@@ -476,7 +476,7 @@ void UAnimMontage::PostLoad()
 	}
 
 	// Convert BranchingPoints to AnimNotifies.
-	if (GetLinker() && (GetLinker()->UE4Ver() < VER_UE4_MONTAGE_BRANCHING_POINT_REMOVAL) )
+	if (GetLinker() && (GetLinker()->UEVer() < VER_UE4_MONTAGE_BRANCHING_POINT_REMOVAL) )
 	{
 		ConvertBranchingPointsToAnimNotifies();
 	}

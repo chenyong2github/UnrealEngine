@@ -291,7 +291,7 @@ void UDestructibleMesh::Serialize(FArchive& Ar)
 #endif
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_CLEAN_DESTRUCTIBLE_SETTINGS)
+	if (Ar.UEVer() < VER_UE4_CLEAN_DESTRUCTIBLE_SETTINGS)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		APEXToImpactResistance(DefaultDestructibleParameters.DamageParameters.bCustomImpactResistance, DefaultDestructibleParameters.DamageParameters.ImpactResistance);

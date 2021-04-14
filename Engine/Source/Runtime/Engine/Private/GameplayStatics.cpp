@@ -144,7 +144,7 @@ void FSaveGameHeader::Read(FMemoryReader& MemoryReader)
 		// Note for 4.8 and beyond: if you get a crash loading a pre-4.8 version of your savegame file and 
 		// you don't want to delete it, try uncommenting these lines and changing them to use the version 
 		// information from your previous build. Then load and resave your savegame file.
-		//MemoryReader.SetUE4Ver(MyPreviousUEVersion);				// @see GPackageFileUEVersion
+		//MemoryReader.SetUEVer(MyPreviousUEVersion);				// @see GPackageFileUEVersion
 		//MemoryReader.SetEngineVer(MyPreviousEngineVersion);		// @see FEngineVersion::Current()
 	}
 	else
@@ -157,7 +157,7 @@ void FSaveGameHeader::Read(FMemoryReader& MemoryReader)
 
 		MemoryReader << SavedEngineVersion;
 
-		MemoryReader.SetUE4Ver(PackageFileUEVersion);
+		MemoryReader.SetUEVer(PackageFileUEVersion);
 		MemoryReader.SetEngineVer(SavedEngineVersion);
 
 		if (SaveGameFileVersion >= FSaveGameFileVersion::AddedCustomVersions)

@@ -519,7 +519,7 @@ bool FManifestUObject::LoadInternal(FArchive& Ar, FBuildPatchAppManifest& AppMan
 
 	// Make sure we use the correct serialization version, this is now fixed and must never use a newer version,
 	// because the property tag has changed in structure meaning older clients would not read correctly.
-	Ar.SetUE4Ver(VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG - 1);
+	Ar.SetUEVer(VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG - 1);
 
 	if (Ar.IsLoading())
 	{
@@ -601,7 +601,7 @@ bool FManifestUObject::SaveInternal(FArchive& Ar, const FBuildPatchAppManifest& 
 
 	// Make sure we use the correct serialization version, this is now fixed and must never use a newer version,
 	// because the property tag has changed in structure meaning older clients would not read correctly.
-	Ar.SetUE4Ver(VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG - 1);
+	Ar.SetUEVer(VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG - 1);
 
 	if (Ar.IsLoading())
 	{

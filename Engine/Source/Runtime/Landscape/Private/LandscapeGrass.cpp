@@ -1323,7 +1323,7 @@ FArchive& operator<<(FArchive& Ar, FLandscapeComponentGrassData& Data)
 		else
 		{
 			Data.MaterialStateIds.Empty(1);
-			if (Ar.UE4Ver() >= VER_UE4_SERIALIZE_LANDSCAPE_GRASS_DATA_MATERIAL_GUID)
+			if (Ar.UEVer() >= VER_UE4_SERIALIZE_LANDSCAPE_GRASS_DATA_MATERIAL_GUID)
 			{
 				FGuid MaterialStateId;
 				Ar << MaterialStateId;

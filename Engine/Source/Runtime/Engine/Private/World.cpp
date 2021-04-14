@@ -415,7 +415,7 @@ void UWorld::Serialize( FArchive& Ar )
 
 	Ar << PersistentLevel;
 
-	if (Ar.UE4Ver() < VER_UE4_ADD_EDITOR_VIEWS)
+	if (Ar.UEVer() < VER_UE4_ADD_EDITOR_VIEWS)
 	{
 #if WITH_EDITOR
 		EditorViews.SetNum(4);
@@ -448,7 +448,7 @@ void UWorld::Serialize( FArchive& Ar )
 	}
 #endif
 
-	if (Ar.UE4Ver() < VER_UE4_REMOVE_SAVEGAMESUMMARY)
+	if (Ar.UEVer() < VER_UE4_REMOVE_SAVEGAMESUMMARY)
 	{
 		UObject* DummyObject;
 		Ar << DummyObject;

@@ -991,8 +991,8 @@ bool FLinkerLoad::IsTimeLimitExceeded( const TCHAR* CurrentTask, int32 Granulari
 void FLinkerLoad::ResetStatusInfo()
 {
 	// Set status info.
-	this->SetUE4Ver(GPackageFileUEVersion);
-	this->SetLicenseeUE4Ver(GPackageFileLicenseeUEVersion);
+	this->SetUEVer(GPackageFileUEVersion);
+	this->SetLicenseeUEVer(GPackageFileLicenseeUEVersion);
 	this->SetEngineVer(FEngineVersion::Current());
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -1443,8 +1443,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 
 	const FCustomVersionContainer& SummaryVersions = Summary.GetCustomVersionContainer();
 
-	SetUE4Ver(Summary.GetFileVersionUE4());
-	SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
+	SetUEVer(Summary.GetFileVersionUE4());
+	SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE4());
 	SetEngineVer(Summary.SavedByEngineVersion);
 	SetCustomVersions(SummaryVersions);
 
@@ -1466,8 +1466,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 	// Loader needs to be the same version.
 	if (Loader)
 	{
-		Loader->SetUE4Ver(Summary.GetFileVersionUE4());
-		Loader->SetLicenseeUE4Ver(Summary.GetFileVersionLicenseeUE4());
+		Loader->SetUEVer(Summary.GetFileVersionUE4());
+		Loader->SetLicenseeUEVer(Summary.GetFileVersionLicenseeUE4());
 		Loader->SetEngineVer(Summary.SavedByEngineVersion);
 		Loader->SetCustomVersions(SummaryVersions);
 	}
@@ -6000,7 +6000,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupExportMap()
 	DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FLinkerLoad::FixupExportMap" ), STAT_LinkerLoad_FixupExportMap, STATGROUP_LinkerLoad );
 
 #if WITH_EDITOR
-	if (UE4Ver() < VER_UE4_SKIP_DUPLICATE_EXPORTS_ON_SAVE_PACKAGE && !bExportsDuplicatesFixed)
+	if (UEVer() < VER_UE4_SKIP_DUPLICATE_EXPORTS_ON_SAVE_PACKAGE && !bExportsDuplicatesFixed)
 	{
 		FixupDuplicateExports();
 		bExportsDuplicatesFixed = true;
@@ -6029,7 +6029,7 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupExportMap()
 
 			// ActorComponents outered to a BlueprintGeneratedClass (or even older ones that are outered to Blueprint) need to be marked RF_Public, but older content was 
 			// not created as such.  This updates the ExportTable such that they are correctly flagged when created and when other packages validate their imports.
-			if (UE4Ver() < VER_UE4_BLUEPRINT_GENERATED_CLASS_COMPONENT_TEMPLATES_PUBLIC)
+			if (UEVer() < VER_UE4_BLUEPRINT_GENERATED_CLASS_COMPONENT_TEMPLATES_PUBLIC)
 			{
 				if ((Export.ObjectFlags & RF_Public) == 0)
 				{

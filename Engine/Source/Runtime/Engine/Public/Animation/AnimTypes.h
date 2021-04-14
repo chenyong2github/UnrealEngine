@@ -865,7 +865,7 @@ struct ENGINE_API FRawAnimSequenceTrack
 		T.PosKeys.BulkSerialize(Ar);
 		T.RotKeys.BulkSerialize(Ar);
 
-		if (Ar.UE4Ver() >= VER_UE4_ANIM_SUPPORT_NONUNIFORM_SCALE_ANIMATION)
+		if (Ar.UEVer() >= VER_UE4_ANIM_SUPPORT_NONUNIFORM_SCALE_ANIMATION)
 		{
 			T.ScaleKeys.BulkSerialize(Ar);
 		}

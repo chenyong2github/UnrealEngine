@@ -39,7 +39,7 @@ FArchive& operator<<(FArchive& Ar, FLightmassPrimitiveSettings& Settings)
 	Ar << Temp;
 	Settings.bUseEmissiveForStaticLighting = Temp;
 
-	if (Ar.UE4Ver() >= VER_UE4_NEW_LIGHTMASS_PRIMITIVE_SETTING)
+	if (Ar.UEVer() >= VER_UE4_NEW_LIGHTMASS_PRIMITIVE_SETTING)
 	{
 		Temp = Settings.bUseVertexNormalForHemisphereGather;
 		Ar << Temp;
@@ -1009,7 +1009,7 @@ void UPolys::Serialize( FArchive& Ar )
 	}
 	else
 	{
-		if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_BSP_UNDO_FIX )
+		if( Ar.IsLoading() && Ar.UEVer() < VER_UE4_BSP_UNDO_FIX )
 		{
 			Element.CountBytes(Ar);
 			int32 DbNum = Element.Num(), DbMax = DbNum;

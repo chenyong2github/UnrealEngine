@@ -200,7 +200,7 @@ const FCompositeFont* FSlateFontInfo::GetCompositeFont() const
 #if WITH_EDITORONLY_DATA
 void FSlateFontInfo::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_SLATE_COMPOSITE_FONTS && !FontObject)
+	if (Ar.UEVer() < VER_UE4_SLATE_COMPOSITE_FONTS && !FontObject)
 	{
 		UpgradeLegacyFontInfo(FontName_DEPRECATED, Hinting_DEPRECATED);
 	}

@@ -49,7 +49,7 @@ FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& T)
 		FString TerminalCategoryStr;
 		Ar << TerminalCategoryStr;
 
-		if (Ar.UE4Ver() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+		if (Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 		{
 			// Handle asset->soft object rename, this is here instead of BP code because this structure is embedded
 			if (TerminalCategoryStr == TEXT("asset"))

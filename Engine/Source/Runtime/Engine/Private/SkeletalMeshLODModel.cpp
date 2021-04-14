@@ -81,7 +81,7 @@ FArchive& operator<<(FArchive& Ar, FSoftSkinVertex& V)
 		}
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_SUPPORT_8_BONE_INFLUENCES_SKELETAL_MESHES)
+	if (Ar.UEVer() >= VER_UE4_SUPPORT_8_BONE_INFLUENCES_SKELETAL_MESHES)
 	{
 		for (uint32 InfluenceIndex = MAX_INFLUENCES_PER_STREAM; InfluenceIndex < EXTRA_BONE_INFLUENCES; InfluenceIndex++)
 		{
@@ -111,7 +111,7 @@ FArchive& operator<<(FArchive& Ar, FSoftSkinVertex& V)
 		Ar << V.InfluenceWeights[InfluenceIndex];
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_SUPPORT_8_BONE_INFLUENCES_SKELETAL_MESHES)
+	if (Ar.UEVer() >= VER_UE4_SUPPORT_8_BONE_INFLUENCES_SKELETAL_MESHES)
 	{
 		for (uint32 InfluenceIndex = MAX_INFLUENCES_PER_STREAM; InfluenceIndex < EXTRA_BONE_INFLUENCES; InfluenceIndex++)
 		{
@@ -336,7 +336,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	}
 
 	// for clothing info
-	if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH)
+	if (Ar.UEVer() >= VER_UE4_APEX_CLOTH)
 	{
 		// Load old 'disabled' flag on sections, as this was used to identify legacy clothing sections for conversion
 		if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::DeprecateSectionDisabledFlag)
@@ -351,7 +351,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 		}
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH_LOD)
+	if (Ar.UEVer() >= VER_UE4_APEX_CLOTH_LOD)
 	{
 		if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::RemoveEnableClothLOD)
 		{
@@ -646,7 +646,7 @@ struct FLegacySkelMeshChunk
 		Ar << C.MaxBoneInfluences;
 
 
-		if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH)
+		if (Ar.UEVer() >= VER_UE4_APEX_CLOTH)
 		{
 			Ar << C.ApexClothMappingData;
 			Ar << C.PhysicalMeshVertices;
@@ -860,7 +860,7 @@ void FSkeletalMeshLODModel::Serialize(FArchive& Ar, UObject* Owner, int32 Idx)
 				}
 			}
 
-			if (Ar.UE4Ver() >= VER_UE4_APEX_CLOTH && HasClothData())
+			if (Ar.UEVer() >= VER_UE4_APEX_CLOTH && HasClothData())
 			{
 				FStripDataFlags StripFlags2(Ar, 0, VER_UE4_STATIC_SKELETAL_MESH_SERIALIZATION_FIX);
 				TSkeletalMeshVertexData<FMeshToMeshVertData> DummyClothData(true);

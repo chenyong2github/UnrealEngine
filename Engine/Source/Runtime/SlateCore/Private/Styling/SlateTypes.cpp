@@ -59,7 +59,7 @@ void FCheckBoxStyle::GetResources( TArray< const FSlateBrush* > & OutBrushes ) c
 #if WITH_EDITORONLY_DATA
 void FCheckBoxStyle::PostSerialize(const FArchive& Ar)
 {
-	if(Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_FSLATESOUND_CONVERSION)
+	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_FSLATESOUND_CONVERSION)
 	{
 		// eg, SoundCue'/Game/QA_Assets/Sound/TEST_Music_Ambient.TEST_Music_Ambient'
 		CheckedSlateSound = FSlateSound::FromName_DEPRECATED(CheckedSound_DEPRECATED);
@@ -133,7 +133,7 @@ const FButtonStyle& FButtonStyle::GetDefault()
 #if WITH_EDITORONLY_DATA
 void FButtonStyle::PostSerialize(const FArchive& Ar)
 {
-	if(Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_FSLATESOUND_CONVERSION)
+	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_FSLATESOUND_CONVERSION)
 	{
 		// eg, SoundCue'/Game/QA_Assets/Sound/TEST_Music_Ambient.TEST_Music_Ambient'
 		PressedSlateSound = FSlateSound::FromName_DEPRECATED(PressedSound_DEPRECATED);
@@ -190,7 +190,7 @@ const FComboBoxStyle& FComboBoxStyle::GetDefault()
 #if WITH_EDITORONLY_DATA
 void FComboBoxStyle::PostSerialize(const FArchive& Ar)
 {
-	if(Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_FSLATESOUND_CONVERSION)
+	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_FSLATESOUND_CONVERSION)
 	{
 		// eg, SoundCue'/Game/QA_Assets/Sound/TEST_Music_Ambient.TEST_Music_Ambient'
 		PressedSlateSound = FSlateSound::FromName_DEPRECATED(PressedSound_DEPRECATED);

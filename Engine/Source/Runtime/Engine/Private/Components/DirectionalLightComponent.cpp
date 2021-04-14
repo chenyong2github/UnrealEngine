@@ -1245,7 +1245,7 @@ void UDirectionalLightComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if(Ar.UE4Ver() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
+	if(Ar.UEVer() < VER_UE4_REMOVE_LIGHT_MOBILITY_CLASSES)
 	{
 		// If outer is a DirectionalLight, we use the ADirectionalLight::LoadedFromAnotherClass path
 		if( GetOuter() != NULL && !GetOuter()->IsA(ADirectionalLight::StaticClass()) )

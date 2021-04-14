@@ -1867,7 +1867,7 @@ void UUserWidget::Serialize(FArchive& Ar)
 
 	if ( Ar.IsLoading() )
 	{
-		if ( Ar.UE4Ver() < VER_UE4_USERWIDGET_DEFAULT_FOCUSABLE_FALSE )
+		if ( Ar.UEVer() < VER_UE4_USERWIDGET_DEFAULT_FOCUSABLE_FALSE )
 		{
 			bIsFocusable = bSupportsKeyboardFocus_DEPRECATED;
 		}

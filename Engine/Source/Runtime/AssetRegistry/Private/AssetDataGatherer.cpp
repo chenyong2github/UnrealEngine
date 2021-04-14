@@ -2685,7 +2685,7 @@ bool FAssetDataGatherer::ReadAssetFile(FPackageReader& PackageReader, TArray<FAs
 			return false;
 		}
 
-		// DEPRECATION_TODO: Remove this fixup-on-load once we bump EUnrealEngineObjectUE4Version VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS and therefore all projects will resave each ObjectRedirector
+		// DEPRECATION_TODO: Remove this fixup-on-load once we bump EUnrealEngineObjectUEVersion VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS and therefore all projects will resave each ObjectRedirector
 		// UObjectRedirectors were originally incorrectly marked as having editor-only imports, since UObjectRedirector is an editor-only class. But UObjectRedirectors are followed during cooking
 		// and so their imports should be considered used-in-game. Mark all dependencies in the package as used in game if the package has a UObjectRedirector object
 		FName RedirectorClassName = UObjectRedirector::StaticClass()->GetFName();

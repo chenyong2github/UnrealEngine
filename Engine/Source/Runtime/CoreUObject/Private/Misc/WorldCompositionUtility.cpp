@@ -16,12 +16,12 @@ FArchive& operator<<( FArchive& Ar, FWorldTileLayer& D )
 	// Serialized with FPackageFileSummary
 	Ar << D.Name << D.Reserved0 << D.Reserved1;
 		
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
 	{
 		Ar << D.StreamingDistance;
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LAYER_ENABLE_DISTANCE_STREAMING)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LAYER_ENABLE_DISTANCE_STREAMING)
 	{
 		Ar << D.DistanceStreamingEnabled;
 	}
@@ -32,7 +32,7 @@ FArchive& operator<<( FArchive& Ar, FWorldTileLayer& D )
 void operator<<(FStructuredArchive::FSlot Slot, FWorldTileLayer& D)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	int32 Version = Slot.GetUnderlyingArchive().UE4Ver();
+	int32 Version = Slot.GetUnderlyingArchive().UEVer();
 
 	// Serialized with FPackageFileSummary
 	Record << SA_VALUE(TEXT("Name"), D.Name) << SA_VALUE(TEXT("Reserved0"), D.Reserved0) << SA_VALUE(TEXT("Reserved1"), D.Reserved1);
@@ -90,17 +90,17 @@ FArchive& operator<<( FArchive& Ar, FWorldTileInfo& D )
 	Ar << D.Bounds;
 	Ar << D.Layer;
 	
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LEVEL_INFO_UPDATED)
 	{
 		Ar << D.bHideInTileView << D.ParentTilePackageName;
 	}
 	
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LEVEL_INFO_LOD_LIST)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LEVEL_INFO_LOD_LIST)
 	{
 		Ar << D.LODList;
 	}
 	
-	if (Ar.UE4Ver() >= VER_UE4_WORLD_LEVEL_INFO_ZORDER)
+	if (Ar.UEVer() >= VER_UE4_WORLD_LEVEL_INFO_ZORDER)
 	{
 		Ar << D.ZOrder;
 	}
@@ -116,7 +116,7 @@ FArchive& operator<<( FArchive& Ar, FWorldTileInfo& D )
 void operator<<(FStructuredArchive::FSlot Slot, FWorldTileInfo& D)
 {
 	FStructuredArchive::FRecord Record = Slot.EnterRecord();
-	int32 ArchiveVersion = Slot.GetUnderlyingArchive().UE4Ver();
+	int32 ArchiveVersion = Slot.GetUnderlyingArchive().UEVer();
 
 	// Serialized with FPackageFileSummary
 	Record << SA_VALUE(TEXT("Position"), D.Position) << SA_VALUE(TEXT("Bounds"), D.Bounds) << SA_VALUE(TEXT("Layer"), D.Layer);
@@ -173,9 +173,9 @@ bool FWorldTileInfo::Read(const FString& InPackageFileName, FWorldTileInfo& OutI
 		FileReader->Seek(FileSummary.WorldTileInfoDataOffset);
 
 		//make sure the filereader gets the correct version number (it defaults to latest version)
-		FileReader->SetUE4Ver(FileSummary.GetFileVersionUE4());
+		FileReader->SetUEVer(FileSummary.GetFileVersionUE4());
 		FileReader->SetEngineVer(FileSummary.SavedByEngineVersion);
-		FileReader->SetLicenseeUE4Ver(FileSummary.GetFileVersionLicenseeUE4());
+		FileReader->SetLicenseeUEVer(FileSummary.GetFileVersionLicenseeUE4());
 		FileReader->SetCustomVersions(FileSummary.GetCustomVersionContainer());
 		
 		// Load the structure

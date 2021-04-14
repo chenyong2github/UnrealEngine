@@ -834,13 +834,13 @@ void UReflectionCaptureComponent::SerializeLegacyData(FArchive& Ar)
 
 	if (Ar.CustomVer(FReflectionCaptureObjectVersion::GUID) < FReflectionCaptureObjectVersion::MoveReflectionCaptureDataToMapBuildData)
 	{
-		if (Ar.UE4Ver() >= VER_UE4_REFLECTION_CAPTURE_COOKING)
+		if (Ar.UEVer() >= VER_UE4_REFLECTION_CAPTURE_COOKING)
 		{
 			bool bLegacy = false;
 			Ar << bLegacy;
 		}
 
-		if (Ar.UE4Ver() >= VER_UE4_REFLECTION_DATA_IN_PACKAGES)
+		if (Ar.UEVer() >= VER_UE4_REFLECTION_DATA_IN_PACKAGES)
 		{
 			FGuid SavedVersion;
 			Ar << SavedVersion;

@@ -592,7 +592,7 @@ void UAnimSequence::Serialize(FArchive& Ar)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		if (!Ar.IsCooking())
 		{
-			if (Ar.UE4Ver() >= VER_UE4_ANIMATION_ADD_TRACKCURVES)
+			if (Ar.UEVer() >= VER_UE4_ANIMATION_ADD_TRACKCURVES)
 			{
 				if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RemovingSourceAnimationData)
 				{
@@ -694,14 +694,14 @@ void UAnimSequence::Serialize(FArchive& Ar)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !AssetImportData)
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ASSET_IMPORT_DATA_AS_JSON && !AssetImportData)
 	{
 		// AssetImportData should always be valid
 		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
 	}
 
 	// SourceFilePath and SourceFileTimestamp were moved into a subobject
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && AssetImportData)
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_FBX_ASSET_IMPORT_DATA && AssetImportData)
 	{
 		// AssetImportData should always have been set up in the constructor where this is relevant
 		FAssetImportInfo Info;

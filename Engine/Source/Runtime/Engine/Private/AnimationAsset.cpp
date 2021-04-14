@@ -280,7 +280,7 @@ void UAnimationAsset::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() >= VER_UE4_SKELETON_GUID_SERIALIZATION)
+	if (Ar.UEVer() >= VER_UE4_SKELETON_GUID_SERIALIZATION)
 	{
 		Ar << SkeletonGuid;
 	}

@@ -13,7 +13,7 @@
 // This is useful as enum vales cannot be seen by the preprocessor.
 #define PREPROCESSOR_ENUM_PROTECT(a) ((unsigned int)(a))
 
-enum EUnrealEngineObjectUE4Version
+enum EUnrealEngineObjectUEVersion
 {
 	VER_UE4_OLDEST_LOADABLE_PACKAGE = 214,
 
@@ -648,7 +648,7 @@ enum EUnrealEngineObjectUE4Version
 	VER_UE4_AUTOMATIC_VERSION = VER_UE4_AUTOMATIC_VERSION_PLUS_ONE - 1
 };
 
-enum EUnrealEngineObjectLicenseeUE4Version
+enum EUnrealEngineObjectLicenseeUEVersion
 {
 	VER_LIC_NONE = 0,
 	// - this needs to be the last line (see note below)

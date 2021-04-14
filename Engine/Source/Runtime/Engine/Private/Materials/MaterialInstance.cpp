@@ -3395,7 +3395,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	// Only serialize the static permutation resource if one exists
 	if (bHasStaticPermutationResource)
 	{
-		if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+		if (Ar.UEVer() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
 		{
 			if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::MaterialAttributeLayerParameters)
 			{
@@ -3438,10 +3438,10 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 #endif // WITH_EDITOR
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES )
+	if (Ar.UEVer() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES )
 	{
 #if WITH_EDITORONLY_DATA
-		if( Ar.UE4Ver() < VER_UE4_FIX_MATERIAL_PROPERTY_OVERRIDE_SERIALIZE )
+		if( Ar.UEVer() < VER_UE4_FIX_MATERIAL_PROPERTY_OVERRIDE_SERIALIZE )
 		{
 			// awful old native serialize of FMaterialInstanceBasePropertyOverrides UStruct
 			Ar << bOverrideBaseProperties_DEPRECATED;
@@ -3452,7 +3452,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 				FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_OpacityMaskClipValue);
 				Ar << BasePropertyOverrides.OpacityMaskClipValue;
 
-				if( Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES_PHASE_2 )
+				if( Ar.UEVer() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES_PHASE_2 )
 				{
 					FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_BlendMode);
 					Ar << BasePropertyOverrides.BlendMode;
@@ -3461,13 +3461,13 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 					FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_TwoSided);
 					FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.TwoSided);
 
-					if( Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES_DITHERED_LOD_TRANSITION )
+					if( Ar.UEVer() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES_DITHERED_LOD_TRANSITION )
 					{
 						FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.bOverride_DitheredLODTransition);
 						FArchive_Serialize_BitfieldBool(Ar, BasePropertyOverrides.DitheredLODTransition);
 					}
 					// unrelated but closest change to bug
-					if( Ar.UE4Ver() < VER_UE4_STATIC_SHADOW_DEPTH_MAPS )
+					if( Ar.UEVer() < VER_UE4_STATIC_SHADOW_DEPTH_MAPS )
 					{
 						// switched enum order
 						switch( BasePropertyOverrides.ShadingModel )
@@ -3640,7 +3640,7 @@ void UMaterialInstance::PostLoad()
 	}
 
 	// Fixup for legacy instances which didn't recreate the lighting guid properly on duplication
-	if (GetLinker() && GetLinker()->UE4Ver() < VER_UE4_BUMPED_MATERIAL_EXPORT_GUIDS)
+	if (GetLinker() && GetLinker()->UEVer() < VER_UE4_BUMPED_MATERIAL_EXPORT_GUIDS)
 	{
 		extern TMap<FGuid, UMaterialInterface*> LightingGuidFixupMap;
 		UMaterialInterface** ExistingMaterial = LightingGuidFixupMap.Find(GetLightingGuid());

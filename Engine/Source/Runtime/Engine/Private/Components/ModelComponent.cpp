@@ -243,7 +243,7 @@ void UModelComponent::Serialize(FArchive& Ar)
 
 	Ar << Model;
 
-	if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
+	if( Ar.IsLoading() && Ar.UEVer() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
 	{
 		int32 DummyZoneIndex;
 		Ar << DummyZoneIndex << Elements;

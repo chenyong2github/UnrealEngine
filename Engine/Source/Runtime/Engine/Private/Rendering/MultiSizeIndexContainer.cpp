@@ -141,7 +141,7 @@ void FMultiSizeIndexContainer::CopyIndexBuffer(const TArray<uint32>& NewArray)
 void FMultiSizeIndexContainer::Serialize(FArchive& Ar, bool bNeedsCPUAccess)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMultiSizeIndexContainer::Serialize"), STAT_MultiSizeIndexContainer_Serialize, STATGROUP_LoadTime);
-	if (Ar.UE4Ver() < VER_UE4_KEEP_SKEL_MESH_INDEX_DATA)
+	if (Ar.UEVer() < VER_UE4_KEEP_SKEL_MESH_INDEX_DATA)
 	{
 		bool bOldNeedsCPUAccess = true;
 		Ar << bOldNeedsCPUAccess;

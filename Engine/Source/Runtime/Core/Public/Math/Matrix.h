@@ -343,7 +343,7 @@ public:
 
 	bool Serialize( FArchive& Ar )
 	{
-		if (Ar.UE4Ver() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
+		if (Ar.UEVer() >= VER_UE4_ADDED_NATIVE_SERIALIZATION_FOR_IMMUTABLE_STRUCTURES)
 		{
 			Ar << *this;
 			return true;

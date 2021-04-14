@@ -2511,8 +2511,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 				// Make sure the package has the same version as the linker
-				InOuter->LinkerPackageVersion = Linker->UE4Ver();
-				InOuter->LinkerLicenseeVersion = Linker->LicenseeUE4Ver();
+				InOuter->LinkerPackageVersion = Linker->UEVer();
+				InOuter->LinkerLicenseeVersion = Linker->LicenseeUEVer();
 				InOuter->LinkerCustomVersion = Linker->GetCustomVersions();
 
 				if (EndSavingIfCancelled())

@@ -119,8 +119,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	}
 
 	//make sure the filereader gets the correct version number (it defaults to latest version)
-	SetUE4Ver(PackageFileSummary.GetFileVersionUE4());
-	SetLicenseeUE4Ver(PackageFileSummary.GetFileVersionLicenseeUE4());
+	SetUEVer(PackageFileSummary.GetFileVersionUE4());
+	SetLicenseeUEVer(PackageFileSummary.GetFileVersionLicenseeUE4());
 	SetEngineVer(PackageFileSummary.SavedByEngineVersion);
 
 	const FCustomVersionContainer& PackageFileSummaryVersions = PackageFileSummary.GetCustomVersionContainer();
@@ -286,7 +286,7 @@ bool FPackageReader::ReadAssetRegistryDataIfCookedPackage(TArray<FAssetData*>& A
 		// which of the objects in the export map as the asset.
 		// Otherwise we need to store a temp minimal data and then force load the asset
 		// to re-generate its registry data
-		if (UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
+		if (UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 		{
 			const FString PackagePath = FPackageName::GetLongPackagePath(PackageName);
 
@@ -483,7 +483,7 @@ bool FPackageReader::SerializeExportMap(TArray<FObjectExport>& OutExportMap)
 
 bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList)
 {
-	if (UE4Ver() >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP && PackageFileSummary.SoftPackageReferencesOffset > 0 && PackageFileSummary.SoftPackageReferencesCount > 0)
+	if (UEVer() >= VER_UE4_ADD_STRING_ASSET_REFERENCES_MAP && PackageFileSummary.SoftPackageReferencesOffset > 0 && PackageFileSummary.SoftPackageReferencesCount > 0)
 	{
 		if (!StartSerializeSection(PackageFileSummary.SoftPackageReferencesOffset))
 		{
@@ -497,7 +497,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 			UE_PACKAGEREADER_CORRUPTPACKAGE_WARNING("SerializeSoftPackageReferenceListInvalidReferencesCount", PackageFilename);
 			return false;
 		}
-		if (UE4Ver() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+		if (UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 		{
 			for (int32 ReferenceIdx = 0; ReferenceIdx < PackageFileSummary.SoftPackageReferencesCount; ++ReferenceIdx)
 			{
@@ -509,7 +509,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 					return false;
 				}
 
-				if (UE4Ver() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
+				if (UEVer() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
 				{
 					PackageName = FPackageName::GetNormalizedObjectPath(PackageName);
 					if (!PackageName.IsEmpty())
@@ -543,7 +543,7 @@ bool FPackageReader::SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPac
 
 bool FPackageReader::SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData)
 {
-	if (UE4Ver() >= VER_UE4_ADDED_SEARCHABLE_NAMES && PackageFileSummary.SearchableNamesOffset > 0)
+	if (UEVer() >= VER_UE4_ADDED_SEARCHABLE_NAMES && PackageFileSummary.SearchableNamesOffset > 0)
 	{
 		if (!StartSerializeSection(PackageFileSummary.SearchableNamesOffset))
 		{

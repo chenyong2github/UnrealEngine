@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.cpp: Implementation of content streaming classes.
@@ -1344,7 +1345,7 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
  */
 FArchive& operator<<( FArchive& Ar, FStreamableTextureInstance& TextureInstance )
 {
-	if (Ar.UE4Ver() >= VER_UE4_STREAMABLE_TEXTURE_AABB)
+	if (Ar.UEVer() >= VER_UE4_STREAMABLE_TEXTURE_AABB)
 	{
 		Ar << TextureInstance.Bounds;
 	}
@@ -1355,7 +1356,7 @@ FArchive& operator<<( FArchive& Ar, FStreamableTextureInstance& TextureInstance 
 		TextureInstance.Bounds = FBoxSphereBounds(BoundingSphere);
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_STREAMABLE_TEXTURE_MIN_MAX_DISTANCE)
+	if (Ar.UEVer() >= VER_UE4_STREAMABLE_TEXTURE_MIN_MAX_DISTANCE)
 	{
 		Ar << TextureInstance.MinDistance;
 		Ar << TextureInstance.MaxDistance;

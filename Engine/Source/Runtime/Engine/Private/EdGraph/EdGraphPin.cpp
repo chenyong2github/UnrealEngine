@@ -141,7 +141,7 @@ TArray<TPair<UEdGraphPin*, FString>> PinAllocationTracking;
 
 void FEdGraphPinType::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_EDGRAPHPINTYPE_SERIALIZATION)
+	if (Ar.UEVer() < VER_UE4_EDGRAPHPINTYPE_SERIALIZATION)
 	{
 		if (bIsArray_DEPRECATED)
 		{
@@ -152,7 +152,7 @@ void FEdGraphPinType::PostSerialize(const FArchive& Ar)
 
 bool FEdGraphPinType::Serialize(FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_EDGRAPHPINTYPE_SERIALIZATION)
+	if (Ar.UEVer() < VER_UE4_EDGRAPHPINTYPE_SERIALIZATION)
 	{
 		return false;
 	}
@@ -176,7 +176,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 		PinSubCategory = *PinSubCategoryStr;
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+	if (Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 	{
 		// Fixup has to be here instead of in BP code because this is embedded in other structures
 		if (PinCategory == TEXT("asset"))
@@ -240,7 +240,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 	Ar << bIsReferenceBool;
 	Ar << bIsWeakPointerBool;
 
-	if (Ar.UE4Ver() >= VER_UE4_MEMBERREFERENCE_IN_PINTYPE)
+	if (Ar.UEVer() >= VER_UE4_MEMBERREFERENCE_IN_PINTYPE)
 	{
 		Ar << PinSubCategoryMemberReference;
 	}
@@ -259,7 +259,7 @@ bool FEdGraphPinType::Serialize(FArchive& Ar)
 
 	bool bIsConstBool = bIsConst;
 
-	if (Ar.UE4Ver() >= VER_UE4_SERIALIZE_PINTYPE_CONST)
+	if (Ar.UEVer() >= VER_UE4_SERIALIZE_PINTYPE_CONST)
 	{
 		Ar << bIsConstBool;
 	}

@@ -304,7 +304,7 @@ void AWorldSettings::Serialize( FArchive& Ar )
 	Ar.UsingCustomVersion(FEnterpriseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FWorldSettingCustomVersion::GUID);
 
-	if (Ar.UE4Ver() < VER_UE4_ADD_OVERRIDE_GRAVITY_FLAG)
+	if (Ar.UEVer() < VER_UE4_ADD_OVERRIDE_GRAVITY_FLAG)
 	{
 		//before we had override flag we would use GlobalGravityZ != 0
 		if(GlobalGravityZ != 0.0f)

@@ -387,7 +387,7 @@ FArchive& operator<<(FArchive& Ar,FBodyInstance& BodyInst)
 		Ar << BodyInst.PhysMaterialOverride;
 	}
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_MAX_ANGULAR_VELOCITY_DEFAULT)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_MAX_ANGULAR_VELOCITY_DEFAULT)
 	{
 		if(BodyInst.MaxAngularVelocity != 400.f)
 		{
@@ -3979,10 +3979,10 @@ void FBodyInstance::FixupData(class UObject* Loader)
 {
 	check (Loader);
 
-	int32 const UE4Version = Loader->GetLinkerUEVersion();
+	int32 const UEVersion = Loader->GetLinkerUEVersion();
 
 #if WITH_EDITOR
-	if (UE4Version < VER_UE4_ADD_CUSTOMPROFILENAME_CHANGE)
+	if (UEVersion < VER_UE4_ADD_CUSTOMPROFILENAME_CHANGE)
 	{
 		if (CollisionProfileName == NAME_None)
 		{
@@ -3990,22 +3990,22 @@ void FBodyInstance::FixupData(class UObject* Loader)
 		}
 	}
 
-	if (UE4Version < VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL)
+	if (UEVersion < VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL)
 	{
 		CollisionResponses.SetCollisionResponseContainer(ResponseToChannels_DEPRECATED);
 	}
 #endif // WITH_EDITORONLY_DATA
 
 	// Load profile. If older version, please verify profile name first
-	bool bNeedToVerifyProfile = (UE4Version < VER_UE4_COLLISION_PROFILE_SETTING) || 
+	bool bNeedToVerifyProfile = (UEVersion < VER_UE4_COLLISION_PROFILE_SETTING) || 
 		// or shape component needs to convert since we added profile
-		(UE4Version < VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL && Loader->IsA(UShapeComponent::StaticClass()));
+		(UEVersion < VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL && Loader->IsA(UShapeComponent::StaticClass()));
 	LoadProfileData(bNeedToVerifyProfile);
 
 	// if profile isn't set, then fix up channel responses
 	if( CollisionProfileName == UCollisionProfile::CustomCollisionProfileName ) 
 	{
-		if (UE4Version >= VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL)
+		if (UEVersion >= VER_UE4_SAVE_COLLISIONRESPONSE_PER_CHANNEL)
 		{
 			CollisionResponses.UpdateResponseContainerFromArray();
 		}

@@ -10461,21 +10461,6 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 	}
 #endif
 
-	/* @todo ue4 temporarily disabled
-	AWorldSettings* WorldSettings = World->GetWorldSettings();
-	if( !WorldSettings->IsNavigationRebuilt() )
-	{
-	DrawShadowedString(Canvas,
-	MessageX,
-	MessageY,
-	TEXT("PATHS NEED TO BE REBUILT"),
-	GEngine->GetSmallFont(),
-	FColor(128,128,128)
-	);
-	MessageY += FontSizeY;
-	}
-	*/
-
 	if (World->bIsLevelStreamingFrozen)
 	{
 		SmallTextItem.Text = LOCTEXT("Levelstreamingfrozen", "Level streaming frozen...");

@@ -267,7 +267,7 @@ void UK2Node_FunctionEntry::Serialize(FArchive& Ar)
 			}
 		}
 
-		if (Ar.UE4Ver() < VER_UE4_BLUEPRINT_ENFORCE_CONST_IN_FUNCTION_OVERRIDES
+		if (Ar.UEVer() < VER_UE4_BLUEPRINT_ENFORCE_CONST_IN_FUNCTION_OVERRIDES
 			|| ((Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::EnforceConstInAnimBlueprintFunctionGraphs) && GetBlueprint()->IsA<UAnimBlueprint>()))
 		{
 			// Allow legacy implementations to violate const-correctness

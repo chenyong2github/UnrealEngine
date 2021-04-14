@@ -33,7 +33,7 @@ void USoundNodeEnveloper::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	if (Ar.IsLoading())
 	{
-		if (Ar.UE4Ver() < VER_UE4_SOUND_NODE_ENVELOPER_CURVE_CHANGE)
+		if (Ar.UEVer() < VER_UE4_SOUND_NODE_ENVELOPER_CURVE_CHANGE)
 		{
 			if (VolumeInterpCurve_DEPRECATED)
 			{

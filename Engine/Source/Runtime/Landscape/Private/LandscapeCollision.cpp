@@ -2143,7 +2143,7 @@ bool ULandscapeMeshCollisionComponent::RecreateCollision()
 void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 {
 #if WITH_EDITOR
-	if (Ar.UE4Ver() >= VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
+	if (Ar.UEVer() >= VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
 	{
 		// Cook data here so CookedPhysicalMaterials is always up to date
 		if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject))
@@ -2157,7 +2157,7 @@ void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)
 	// this will also serialize CookedPhysicalMaterials
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
+	if (Ar.UEVer() < VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
 	{
 #if WITH_EDITORONLY_DATA
 		CollisionHeightData.Serialize(Ar, this);
@@ -2201,7 +2201,7 @@ void ULandscapeMeshCollisionComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
+	if (Ar.UEVer() < VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
 	{
 #if WITH_EDITORONLY_DATA
 		// conditional serialization in later versions
@@ -2211,7 +2211,7 @@ void ULandscapeMeshCollisionComponent::Serialize(FArchive& Ar)
 
 	// PhysX cooking mesh data
 	bool bCooked = false;
-	if (Ar.UE4Ver() >= VER_UE4_ADD_COOKED_TO_LANDSCAPE)
+	if (Ar.UEVer() >= VER_UE4_ADD_COOKED_TO_LANDSCAPE)
 	{
 		bCooked = Ar.IsCooking();
 		Ar << bCooked;
@@ -2226,7 +2226,7 @@ void ULandscapeMeshCollisionComponent::Serialize(FArchive& Ar)
 	{
 		// triangle mesh cooked data should be serialized in ULandscapeHeightfieldCollisionComponent
 	}
-	else if (Ar.UE4Ver() >= VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
+	else if (Ar.UEVer() >= VER_UE4_LANDSCAPE_COLLISION_DATA_COOKING)
 	{
 #if WITH_EDITORONLY_DATA		
 		// we serialize raw collision data only with non-cooked content

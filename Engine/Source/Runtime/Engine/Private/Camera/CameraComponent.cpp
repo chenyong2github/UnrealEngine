@@ -149,9 +149,9 @@ void UCameraComponent::PostLoad()
 {
 	Super::PostLoad();
 
-	const int32 LinkerUE4Ver = GetLinkerUEVersion();
+	const int32 LinkerUEVer = GetLinkerUEVersion();
 
-	if (LinkerUE4Ver < VER_UE4_RENAME_CAMERA_COMPONENT_VIEW_ROTATION)
+	if (LinkerUEVer < VER_UE4_RENAME_CAMERA_COMPONENT_VIEW_ROTATION)
 	{
 		bUsePawnControlRotation = bUseControllerViewRotation_DEPRECATED;
 	}

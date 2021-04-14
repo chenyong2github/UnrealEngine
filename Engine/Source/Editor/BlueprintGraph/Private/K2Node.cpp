@@ -715,7 +715,7 @@ void UK2Node::ReconstructNode()
 				Pin->LinkedTo.Remove(OtherPin);
 			}
 
-			if (Blueprint->bIsRegeneratingOnLoad && Linker->UE4Ver() < VER_UE4_INJECT_BLUEPRINT_STRUCT_PIN_CONVERSION_NODES)
+			if (Blueprint->bIsRegeneratingOnLoad && Linker->UEVer() < VER_UE4_INJECT_BLUEPRINT_STRUCT_PIN_CONVERSION_NODES)
 			{
 				if (OtherPin == nullptr || (Pin->PinType.PinCategory != UEdGraphSchema_K2::PC_Struct))
 				{

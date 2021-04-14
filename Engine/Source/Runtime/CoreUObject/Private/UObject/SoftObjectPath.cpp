@@ -227,12 +227,12 @@ void FSoftObjectPath::SerializePath(FArchive& Ar)
 
 	if (bSerializeInternals)
 	{
-		if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
+		if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_ADDED_SOFT_OBJECT_PATH)
 		{
 			FString Path;
 			Ar << Path;
 
-			if (Ar.UE4Ver() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
+			if (Ar.UEVer() < VER_UE4_KEEP_ONLY_PACKAGE_NAMES_IN_STRING_ASSET_REFERENCES_MAP)
 			{
 				Path = FPackageName::GetNormalizedObjectPath(Path);
 			}

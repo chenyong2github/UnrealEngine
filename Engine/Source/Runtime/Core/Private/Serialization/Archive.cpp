@@ -150,8 +150,8 @@ void FArchiveState::Reset()
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
 	ActiveFPLB->Reset();
 #endif
-	ArUE4Ver							= GPackageFileUEVersion;
-	ArLicenseeUE4Ver					= GPackageFileLicenseeUEVersion;
+	ArUEVer								= GPackageFileUEVersion;
+	ArLicenseeUEVer						= GPackageFileLicenseeUEVersion;
 	ArEngineVer							= FEngineVersion::Current();
 	ArEngineNetVer						= FNetworkVersion::GetEngineNetworkProtocolVersion();
 	ArGameNetVer						= FNetworkVersion::GetGameNetworkProtocolVersion();
@@ -209,8 +209,8 @@ void FArchiveState::Reset()
 
 void FArchiveState::CopyTrivialFArchiveStatusMembers(const FArchiveState& ArchiveToCopy)
 {
-	ArUE4Ver                             = ArchiveToCopy.ArUE4Ver;
-	ArLicenseeUE4Ver                     = ArchiveToCopy.ArLicenseeUE4Ver;
+	ArUEVer                              = ArchiveToCopy.ArUEVer;
+	ArLicenseeUEVer                      = ArchiveToCopy.ArLicenseeUEVer;
 	ArEngineVer                          = ArchiveToCopy.ArEngineVer;
 	ArEngineNetVer                       = ArchiveToCopy.ArEngineNetVer;
 	ArGameNetVer                         = ArchiveToCopy.ArGameNetVer;
@@ -733,8 +733,8 @@ void FArchive::SerializeCompressed(void* V, int64 Length, FName CompressionForma
 		if (!bHeaderWasValid)
 		{
 			UE_LOG(LogSerialization, Log, TEXT("ArchiveName: %s"), *GetArchiveName());
-			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UE4Ver());
-			UE_LOG(LogSerialization, Log, TEXT("Archive Licensee Version: %d"), LicenseeUE4Ver());
+			UE_LOG(LogSerialization, Log, TEXT("Archive UE4 Version: %d"), UEVer());
+			UE_LOG(LogSerialization, Log, TEXT("Archive Licensee Version: %d"), LicenseeUEVer());
 			UE_LOG(LogSerialization, Log, TEXT("Position: %lld"), Tell());
 			UE_LOG(LogSerialization, Log, TEXT("Read Size: %lld"), Length);
 			UE_LOG(LogSerialization, Fatal, TEXT("BulkData compressed header read error. This package may be corrupt!"));
@@ -1211,14 +1211,14 @@ void FArchive::LogfImpl(const TCHAR* Fmt, ...)
 	FMemory::SystemFree( Buffer );
 }
 
-void FArchiveState::SetUE4Ver(int32 InVer)
+void FArchiveState::SetUEVer(int32 InVer)
 {
-	ArUE4Ver = InVer;
+	ArUEVer = InVer;
 }
 
-void FArchiveState::SetLicenseeUE4Ver(int32 InVer)
+void FArchiveState::SetLicenseeUEVer(int32 InVer)
 {
-	ArLicenseeUE4Ver = InVer;
+	ArLicenseeUEVer = InVer;
 }
 
 void FArchiveState::SetEngineVer(const FEngineVersionBase& InVer)

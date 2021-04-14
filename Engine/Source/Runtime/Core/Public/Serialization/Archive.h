@@ -186,15 +186,29 @@ public:
 	}
 
 	/** Returns the global engine serialization version used for this archive. */
-	FORCEINLINE int32 UE4Ver() const
+	FORCEINLINE int32 UEVer() const
 	{
-		return ArUE4Ver;
+		return ArUEVer;
 	}
 
 	/** Returns the licensee-specific version used for this archive, will be 0 by default. */
+	FORCEINLINE int32 LicenseeUEVer() const
+	{
+		return ArLicenseeUEVer;
+	}
+
+	/** Returns the global engine serialization version used for this archive. */
+	UE_DEPRECATED(5.0, "Use UEVer instead")
+	FORCEINLINE int32 UE4Ver() const
+	{
+		return UEVer();
+	}
+
+	/** Returns the licensee-specific version used for this archive, will be 0 by default. */
+	UE_DEPRECATED(5.0, "Use LicenseeUEVer instead")
 	FORCEINLINE int32 LicenseeUE4Ver() const
 	{
-		return ArLicenseeUE4Ver;
+		return LicenseeUEVer();
 	}
 
 	/** Returns the compiled engine version used for this archive. */
@@ -861,9 +875,15 @@ public:
 	 * Sets the archive version number. Used by the code that makes sure that FLinkerLoad's 
 	 * internal archive versions match the file reader it creates.
 	 *
-	 * @param UE4Ver	new version number
+	 * @param UEVer	new version number
 	 */
-	virtual void SetUE4Ver(int32 InVer);
+	virtual void SetUEVer(int32 InVer);
+
+	UE_DEPRECATED(5.0, "Use SetUEVer instead")
+	FORCEINLINE void SetUE4Ver(int32 InVer)
+	{
+		SetUEVer(InVer);
+	}
 
 	/**
 	 * Sets the archive licensee version number. Used by the code that makes sure that FLinkerLoad's 
@@ -871,7 +891,13 @@ public:
 	 *
 	 * @param Ver	new version number
 	 */
-	virtual void SetLicenseeUE4Ver(int32 InVer);
+	virtual void SetLicenseeUEVer(int32 InVer);
+
+	UE_DEPRECATED(5.0, "Use SetLicenseeUEVer instead")
+	FORCEINLINE void SetLicenseeUE4Ver(int32 InVer)
+	{
+		SetLicenseeUEVer(InVer);
+	}
 
 	/**
 	 * Sets the archive engine version. Used by the code that makes sure that FLinkerLoad's
@@ -894,10 +920,10 @@ public:
 // These will be private in FArchive
 protected:
 	/** Holds the archive version. */
-	int32 ArUE4Ver;
+	int32 ArUEVer;
 
 	/** Holds the archive version for licensees. */
-	int32 ArLicenseeUE4Ver;
+	int32 ArLicenseeUEVer;
 
 	/** Holds the engine version. */
 	FEngineVersionBase ArEngineVer;
@@ -1737,8 +1763,8 @@ public:
 		LogfImpl(Fmt, Args...);
 	}
 
-	using FArchiveState::UE4Ver;
-	using FArchiveState::LicenseeUE4Ver;
+	using FArchiveState::UEVer;
+	using FArchiveState::LicenseeUEVer;
 	using FArchiveState::EngineVer;
 	using FArchiveState::EngineNetVer;
 	using FArchiveState::GameNetVer;
@@ -1983,16 +2009,16 @@ public:
 	using FArchiveState::SetUseUnversionedPropertySerialization;
 	using FArchiveState::SetForceUnicode;
 	using FArchiveState::SetIsPersistent;
-	using FArchiveState::SetUE4Ver;
-	using FArchiveState::SetLicenseeUE4Ver;
+	using FArchiveState::SetUEVer;
+	using FArchiveState::SetLicenseeUEVer;
 	using FArchiveState::SetEngineVer;
 	using FArchiveState::SetEngineNetVer;
 	using FArchiveState::SetGameNetVer;
 	using FArchiveState::ShouldSkipCompilingAssets;
 	
 private:
-	using FArchiveState::ArUE4Ver;
-	using FArchiveState::ArLicenseeUE4Ver;
+	using FArchiveState::ArUEVer;
+	using FArchiveState::ArLicenseeUEVer;
 	using FArchiveState::ArEngineVer;
 	using FArchiveState::ArEngineNetVer;
 	using FArchiveState::ArGameNetVer;

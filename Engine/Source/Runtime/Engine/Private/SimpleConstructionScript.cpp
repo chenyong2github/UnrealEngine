@@ -45,7 +45,7 @@ void USimpleConstructionScript::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 	if(Ar.IsLoading())
 	{
-		if(Ar.UE4Ver() < VER_UE4_REMOVE_NATIVE_COMPONENTS_FROM_BLUEPRINT_SCS)
+		if(Ar.UEVer() < VER_UE4_REMOVE_NATIVE_COMPONENTS_FROM_BLUEPRINT_SCS)
 		{
 			// If we previously had a root node, we need to move it into the new RootNodes array. This is done in Serialize() in order to support SCS preloading (which relies on a valid RootNodes array).
 			if(RootNode_DEPRECATED != NULL)

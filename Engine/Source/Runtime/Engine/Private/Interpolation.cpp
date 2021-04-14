@@ -9815,7 +9815,7 @@ UInterpTrackFloatAnimBPParam::UInterpTrackFloatAnimBPParam(const FObjectInitiali
 void UInterpTrackFloatAnimBPParam::Serialize(FArchive& Ar)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS	
-	if (Ar.IsSaving() && Ar.UE4Ver() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE)
+	if (Ar.IsSaving() && Ar.UEVer() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE)
 	{
 		if ((nullptr != AnimBlueprintClass) && (nullptr == AnimClass))
 		{
@@ -9825,7 +9825,7 @@ void UInterpTrackFloatAnimBPParam::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_NO_ANIM_BP_CLASS_IN_GAMEPLAY_CODE)
 	{
 		if ((nullptr != AnimBlueprintClass) && (nullptr == AnimClass))
 		{

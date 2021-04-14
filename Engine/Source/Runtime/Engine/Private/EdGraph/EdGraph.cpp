@@ -18,7 +18,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogEdGraph, Log, All);
 void FGraphReference::PostSerialize(const FArchive& Ar)
 {
 #if WITH_EDITORONLY_DATA
-	if (Ar.UE4Ver() >= VER_UE4_K2NODE_REFERENCEGUIDS)
+	if (Ar.UEVer() >= VER_UE4_K2NODE_REFERENCEGUIDS)
 	{
 		// Because the macro instance could have been saved with a GUID that was allocated 
 		// but the macro graph never actually saved with that value we are forced to make 

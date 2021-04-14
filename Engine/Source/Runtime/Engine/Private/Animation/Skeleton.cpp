@@ -505,7 +505,7 @@ void USkeleton::PostLoad()
 {
 	Super::PostLoad();
 
-	if( GetLinker() && (GetLinker()->UE4Ver() < VER_UE4_REFERENCE_SKELETON_REFACTOR) )
+	if( GetLinker() && (GetLinker()->UEVer() < VER_UE4_REFERENCE_SKELETON_REFACTOR) )
 	{
 		// Convert RefLocalPoses & BoneTree to FReferenceSkeleton
 		ConvertToFReferenceSkeleton();
@@ -664,12 +664,12 @@ void USkeleton::Serialize( FArchive& Ar )
 
 	Super::Serialize(Ar);
 
-	if( Ar.UE4Ver() >= VER_UE4_REFERENCE_SKELETON_REFACTOR )
+	if( Ar.UEVer() >= VER_UE4_REFERENCE_SKELETON_REFACTOR )
 	{
 		Ar << ReferenceSkeleton;
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_FIX_ANIMATIONBASEPOSE_SERIALIZATION)
+	if (Ar.UEVer() >= VER_UE4_FIX_ANIMATIONBASEPOSE_SERIALIZATION)
 	{
 		// Load Animation RetargetSources
 		if (Ar.IsLoading())
@@ -710,7 +710,7 @@ void USkeleton::Serialize( FArchive& Ar )
 		}
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_SKELETON_GUID_SERIALIZATION)
+	if (Ar.UEVer() < VER_UE4_SKELETON_GUID_SERIALIZATION)
 	{
 		UE_LOG(LogAnimation, Warning, TEXT("Skeleton '%s' has not been saved since version 'VER_UE4_SKELETON_GUID_SERIALIZATION' This asset will not cook deterministically until it is resaved."), *GetPathName());
 		RegenerateGuid();
@@ -721,7 +721,7 @@ void USkeleton::Serialize( FArchive& Ar )
 	}
 
 	// If we should be using smartnames, serialize the mappings
-	if(Ar.UE4Ver() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
+	if(Ar.UEVer() >= VER_UE4_SKELETON_ADD_SMARTNAMES)
 	{
 		SmartNames.Serialize(Ar, IsTemplate());
 
@@ -729,7 +729,7 @@ void USkeleton::Serialize( FArchive& Ar )
 	}
 
 	// Build look up table between Slot nodes and their Group.
-	if(Ar.UE4Ver() < VER_UE4_FIX_SLOT_NAME_DUPLICATION)
+	if(Ar.UEVer() < VER_UE4_FIX_SLOT_NAME_DUPLICATION)
 	{
 		// In older assets we may have duplicates, remove these while building the map.
 		BuildSlotToGroupMap(true);
@@ -740,7 +740,7 @@ void USkeleton::Serialize( FArchive& Ar )
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.UE4Ver() < VER_UE4_SKELETON_ASSET_PROPERTY_TYPE_CHANGE)
+	if (Ar.UEVer() < VER_UE4_SKELETON_ASSET_PROPERTY_TYPE_CHANGE)
 	{
 		PreviewAttachedAssetContainer.SaveAttachedObjectsFromDeprecatedProperties();
 	}

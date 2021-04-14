@@ -19,7 +19,7 @@ void UDataAsset::Serialize(FStructuredArchive::FRecord Record)
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
 	Super::Serialize(Record);
 
-	if (UnderlyingArchive.IsLoading() && (UnderlyingArchive.UE4Ver() < VER_UE4_ADD_TRANSACTIONAL_TO_DATA_ASSETS))
+	if (UnderlyingArchive.IsLoading() && (UnderlyingArchive.UEVer() < VER_UE4_ADD_TRANSACTIONAL_TO_DATA_ASSETS))
 	{
 		SetFlags(RF_Transactional);
 	}

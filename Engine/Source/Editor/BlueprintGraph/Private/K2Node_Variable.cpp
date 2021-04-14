@@ -30,13 +30,13 @@ void UK2Node_Variable::Serialize(FArchive& Ar)
 	// Fix old content 
 	if(Ar.IsLoading())
 	{
-		if(Ar.UE4Ver() < VER_UE4_VARK2NODE_USE_MEMBERREFSTRUCT)
+		if(Ar.UEVer() < VER_UE4_VARK2NODE_USE_MEMBERREFSTRUCT)
 		{
 			// Copy info into new struct
 			VariableReference.SetDirect(VariableName_DEPRECATED, FGuid(), VariableSourceClass_DEPRECATED, bSelfContext_DEPRECATED);
 		}
 
-		if(Ar.UE4Ver() < VER_UE4_K2NODE_VAR_REFERENCEGUIDS)
+		if(Ar.UEVer() < VER_UE4_K2NODE_VAR_REFERENCEGUIDS)
 		{
 			FGuid VarGuid;
 			

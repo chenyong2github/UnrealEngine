@@ -1083,7 +1083,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 		else
 #endif
 		{
-			if (Ar.UE4Ver() >= VER_UE4_STORE_HASCOOKEDDATA_FOR_BODYSETUP)
+			if (Ar.UEVer() >= VER_UE4_STORE_HASCOOKEDDATA_FOR_BODYSETUP)
 			{
 				// CL#14327190 Removed cooked implicit collision structures from the UBodySetup.
 				// UBodySetups saved with support for cooked implicit geometry store a counter for the number 
@@ -1989,7 +1989,7 @@ TArray<int32> FKConvexElem::GetChaosConvexIndices() const
 #if WITH_EDITORONLY_DATA
 void FKSphereElem::FixupDeprecated( FArchive& Ar )
 {
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
 	{
 		Center = TM_DEPRECATED.GetOrigin();
 	}
@@ -2060,7 +2060,7 @@ FKSphereElem FKSphereElem::GetFinalScaled(const FVector& Scale3D, const FTransfo
 #if WITH_EDITORONLY_DATA
 void FKBoxElem::FixupDeprecated( FArchive& Ar )
 {
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
 	{
 		Center = TM_DEPRECATED.GetOrigin();
 		Orientation_DEPRECATED = TM_DEPRECATED.ToQuat();
@@ -2146,7 +2146,7 @@ float FKBoxElem::GetClosestPointAndNormal(const FVector& WorldPosition, const FT
 #if WITH_EDITORONLY_DATA
 void FKSphylElem::FixupDeprecated( FArchive& Ar )
 {
-	if ( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
+	if ( Ar.IsLoading() && Ar.UEVer() < VER_UE4_REFACTOR_PHYSICS_TRANSFORMS )
 	{
 		Center = TM_DEPRECATED.GetOrigin();
 		Orientation_DEPRECATED = TM_DEPRECATED.ToQuat();

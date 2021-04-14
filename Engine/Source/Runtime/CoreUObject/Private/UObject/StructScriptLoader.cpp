@@ -205,7 +205,7 @@ bool FStructScriptLoader::LoadStructWithScript(UStruct* DestScriptContainer, FAr
 
 	// to help us move development forward (and not have to support ancient 
 	// script code), we define a minimum script version
-	bool bSkipScriptSerialization = (Ar.UE4Ver() < VER_MIN_SCRIPTVM_UE4) || (Ar.LicenseeUE4Ver() < VER_MIN_SCRIPTVM_LICENSEEUE4);
+	bool bSkipScriptSerialization = (Ar.UEVer() < VER_MIN_SCRIPTVM_UE4) || (Ar.LicenseeUEVer() < VER_MIN_SCRIPTVM_LICENSEEUE4);
 #if WITH_EDITOR
 	if (!bSkipScriptSerialization)
 	{

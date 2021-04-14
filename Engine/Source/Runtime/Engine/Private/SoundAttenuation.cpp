@@ -13,7 +13,7 @@
 #if WITH_EDITORONLY_DATA
 void FSoundAttenuationSettings::PostSerialize(const FArchive& Ar)
 {
-	if (Ar.UE4Ver() < VER_UE4_ATTENUATION_SHAPES)
+	if (Ar.UEVer() < VER_UE4_ATTENUATION_SHAPES)
 	{
 		FalloffDistance = RadiusMax_DEPRECATED - RadiusMin_DEPRECATED;
 

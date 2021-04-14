@@ -40,7 +40,7 @@ void UPhysicsConstraintTemplate::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	// If old content, copy properties out of setup into instance
-	if(Ar.UE4Ver() < VER_UE4_ALL_PROPS_TO_CONSTRAINTINSTANCE)
+	if(Ar.UEVer() < VER_UE4_ALL_PROPS_TO_CONSTRAINTINSTANCE)
 	{
 		CopySetupPropsToInstance(&DefaultInstance);
 	}

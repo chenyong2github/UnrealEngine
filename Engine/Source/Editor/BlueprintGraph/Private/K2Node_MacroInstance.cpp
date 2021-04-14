@@ -24,7 +24,7 @@ void UK2Node_MacroInstance::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() < VER_UE4_K2NODE_REFERENCEGUIDS)
+	if (Ar.UEVer() < VER_UE4_K2NODE_REFERENCEGUIDS)
 	{
 		MacroGraphReference.SetGraph(MacroGraph_DEPRECATED);
 	}

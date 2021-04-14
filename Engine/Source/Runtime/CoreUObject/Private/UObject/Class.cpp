@@ -1292,7 +1292,7 @@ void UStruct::SerializeVersionedTaggedProperties(FStructuredArchive::FSlot Slot,
 	//SCOPED_LOADTIMER(SerializeTaggedPropertiesTime);
 
 	// Determine if this struct supports optional property guid's (UBlueprintGeneratedClasses Only)
-	const bool bArePropertyGuidsAvailable = (UnderlyingArchive.UE4Ver() >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) && !FPlatformProperties::RequiresCookedData() && ArePropertyGuidsAvailable();
+	const bool bArePropertyGuidsAvailable = (UnderlyingArchive.UEVer() >= VER_UE4_PROPERTY_GUID_IN_PROPERTY_TAG) && !FPlatformProperties::RequiresCookedData() && ArePropertyGuidsAvailable();
 	const bool bUseRedirects = (!FPlatformProperties::RequiresCookedData() || UnderlyingArchive.IsSaveGame()) && !UnderlyingArchive.IsUsingEventDrivenLoader();
 
 	if (UnderlyingArchive.IsLoading())
@@ -4431,7 +4431,7 @@ void UClass::Serialize( FArchive& Ar )
 	{
 		Ar << (uint32&)ClassFlags;
 	}
-	if (Ar.UE4Ver() < VER_UE4_CLASS_NOTPLACEABLE_ADDED)
+	if (Ar.UEVer() < VER_UE4_CLASS_NOTPLACEABLE_ADDED)
 	{
 		// We need to invert the CLASS_NotPlaceable flag here because it used to mean CLASS_Placeable
 		ClassFlags ^= CLASS_NotPlaceable;
@@ -4460,7 +4460,7 @@ void UClass::Serialize( FArchive& Ar )
 		Interfaces.Empty();
 
 		// In older versions, interface classes were serialized before linking. In case of cyclic dependencies, we need to skip over the serialized array and defer the load until after Link() is called below.
-		if(Ar.UE4Ver() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
+		if(Ar.UEVer() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
 		{
 			// Get our current position
 			InterfacesStart = Ar.Tell();
@@ -4501,7 +4501,7 @@ void UClass::Serialize( FArchive& Ar )
 		int64 CurrentOffset = Ar.Tell();
 
 		// In older versions, we need to seek backwards to the start of the interfaces array
-		if(Ar.UE4Ver() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
+		if(Ar.UEVer() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
 		{
 			Ar.Seek(InterfacesStart);
 		}
@@ -4517,7 +4517,7 @@ void UClass::Serialize( FArchive& Ar )
 		}
 
 		// In older versions, seek back to our current position after linking
-		if(Ar.UE4Ver() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
+		if(Ar.UEVer() < VER_UE4_UCLASS_SERIALIZE_INTERFACES_AFTER_LINKING && !GIsDuplicatingClassForReinstancing)
 		{
 			Ar.Seek(CurrentOffset);
 		}
@@ -4533,7 +4533,7 @@ void UClass::Serialize( FArchive& Ar )
 	FName Dummy = NAME_None;
 	Ar << Dummy;
 
-	if (Ar.UE4Ver() >= VER_UE4_ADD_COOKED_TO_UCLASS)
+	if (Ar.UEVer() >= VER_UE4_ADD_COOKED_TO_UCLASS)
 	{
 		if (Ar.IsSaving())
 		{
@@ -5692,7 +5692,7 @@ void UFunction::Serialize( FArchive& Ar )
 	int32 EventGraphCallOffset = 0;
 #endif
 
-	if (Ar.UE4Ver() >= VER_UE4_SERIALIZE_BLUEPRINT_EVENTGRAPH_FASTCALLS_IN_UFUNCTION)
+	if (Ar.UEVer() >= VER_UE4_SERIALIZE_BLUEPRINT_EVENTGRAPH_FASTCALLS_IN_UFUNCTION)
 	{
 		Ar << EventGraphFunction;
 		Ar << EventGraphCallOffset;

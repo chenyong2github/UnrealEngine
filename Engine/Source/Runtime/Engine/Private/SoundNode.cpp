@@ -31,7 +31,7 @@ void USoundNode::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.UE4Ver() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
+	if (Ar.UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
 		FStripDataFlags StripFlags(Ar);
 #if WITH_EDITORONLY_DATA

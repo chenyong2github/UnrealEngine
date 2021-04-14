@@ -380,7 +380,7 @@ void FRawStaticIndexBuffer::Serialize(FArchive& Ar, bool bNeedsCPUAccess)
 {
 	IndexStorage.SetAllowCPUAccess(bNeedsCPUAccess);
 
-	if (Ar.UE4Ver() < VER_UE4_SUPPORT_32BIT_STATIC_MESH_INDICES)
+	if (Ar.UEVer() < VER_UE4_SUPPORT_32BIT_STATIC_MESH_INDICES)
 	{
 		TResourceArray<uint16,INDEXBUFFER_ALIGNMENT> LegacyIndices;
 

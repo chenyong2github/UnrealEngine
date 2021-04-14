@@ -191,7 +191,7 @@ void UModel::Serialize( FArchive& Ar )
 
 	Ar << Bounds;
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_BSP_UNDO_FIX )
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_BSP_UNDO_FIX )
 	{
 		TTransArray<FVector> OldVectors(this);
 		TTransArray<FVector> OldPoints(this);
@@ -218,7 +218,7 @@ void UModel::Serialize( FArchive& Ar )
 		}
 	}
 	
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_BSP_UNDO_FIX )
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_BSP_UNDO_FIX )
 	{
 		TTransArray<FBspSurf> OldSurfs(this);
 		TTransArray<FVert> OldVerts(this);
@@ -235,7 +235,7 @@ void UModel::Serialize( FArchive& Ar )
 		Verts.BulkSerialize(Ar);
 	}
 
-	if( Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
+	if( Ar.IsLoading() && Ar.UEVer() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
 	{
 		int32 NumZones;
 		Ar << NumSharedSides << NumZones;
@@ -254,7 +254,7 @@ void UModel::Serialize( FArchive& Ar )
 #if WITH_EDITOR
 	bool bHasEditorOnlyData = !Ar.IsFilterEditorOnly();
 	
-	if ( Ar.UE4Ver() < VER_UE4_REMOVE_UNUSED_UPOLYS_FROM_UMODEL )
+	if ( Ar.UEVer() < VER_UE4_REMOVE_UNUSED_UPOLYS_FROM_UMODEL )
 	{
 		bHasEditorOnlyData = true;
 	}
@@ -269,7 +269,7 @@ void UModel::Serialize( FArchive& Ar )
 #else
 	bool bHasEditorOnlyData = !Ar.IsFilterEditorOnly();
 	
-	if ( Ar.UE4Ver() < VER_UE4_REMOVE_UNUSED_UPOLYS_FROM_UMODEL )
+	if ( Ar.UEVer() < VER_UE4_REMOVE_UNUSED_UPOLYS_FROM_UMODEL )
 	{
 		bHasEditorOnlyData = true;
 	}
@@ -289,7 +289,7 @@ void UModel::Serialize( FArchive& Ar )
 
 	Ar << RootOutside << Linked;
 
-	if(Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
+	if(Ar.IsLoading() && Ar.UEVer() < VER_UE4_REMOVE_ZONES_FROM_MODEL)
 	{
 		TArray<int32> DummyPortalNodes;
 		DummyPortalNodes.BulkSerialize( Ar );

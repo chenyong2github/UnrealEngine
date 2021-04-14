@@ -1039,7 +1039,7 @@ void USkyLightComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	// if version is between VER_UE4_SKYLIGHT_MOBILE_IRRADIANCE_MAP and FReleaseObjectVersion::SkyLightRemoveMobileIrradianceMap then handle aborted attempt to serialize irradiance data on mobile.
-	if (Ar.UE4Ver() >= VER_UE4_SKYLIGHT_MOBILE_IRRADIANCE_MAP && !(Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::SkyLightRemoveMobileIrradianceMap))
+	if (Ar.UEVer() >= VER_UE4_SKYLIGHT_MOBILE_IRRADIANCE_MAP && !(Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::SkyLightRemoveMobileIrradianceMap))
 	{
 		FSHVectorRGB3 DummyIrradianceEnvironmentMap;
 		Ar << DummyIrradianceEnvironmentMap;

@@ -34,7 +34,7 @@ int32 UObjectBaseUtility::GetLinkerUEVersion() const
 	if (Loader != nullptr)
 	{
 		// We have a linker so we can return its version.
-		return Loader->UE4Ver();
+		return Loader->UEVer();
 
 	}
 	else if (GetOutermost())
@@ -108,7 +108,7 @@ int32 UObjectBaseUtility::GetLinkerLicenseeUEVersion() const
 	if ( Loader != NULL )
 	{
 		// We have a linker so we can return its version.
-		return Loader->LicenseeUE4Ver();
+		return Loader->LicenseeUEVer();
 	}
 	else if (GetOutermost())
 	{

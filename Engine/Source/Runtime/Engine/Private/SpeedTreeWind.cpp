@@ -777,7 +777,7 @@ FArchive& operator<<(FArchive& Ar, FSpeedTreeWind& Wind)
 		Ar << Params.m_asBranch[BranchIndex].m_fTwitchFreqScale;
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_SPEEDTREE_WIND_V7)
+	if (Ar.UEVer() < VER_UE4_SPEEDTREE_WIND_V7)
 	{
 		float fDiscardOldRolling = 0.0f;
 		Ar << fDiscardOldRolling;
@@ -805,7 +805,7 @@ FArchive& operator<<(FArchive& Ar, FSpeedTreeWind& Wind)
 	Ar << Params.m_fFrondRippleTile;
 	Ar << Params.m_fFrondRippleLightingScalar;
 	
-	if (Ar.UE4Ver() >= VER_UE4_SPEEDTREE_WIND_V7)
+	if (Ar.UEVer() >= VER_UE4_SPEEDTREE_WIND_V7)
 	{
 		Ar << Params.m_fRollingNoiseSize;
 		Ar << Params.m_fRollingNoiseTwist;
@@ -830,7 +830,7 @@ FArchive& operator<<(FArchive& Ar, FSpeedTreeWind& Wind)
 	bool Options[FSpeedTreeWind::NUM_WIND_OPTIONS];
 
 	#define SERIALIZE_OPTION(name) { Options[FSpeedTreeWind::name] = Wind.IsOptionEnabled(FSpeedTreeWind::name); Ar << Options[FSpeedTreeWind::name]; }
-	#define SKIP_OLD_OPTION() if (Ar.UE4Ver() < VER_UE4_SPEEDTREE_WIND_V7) { bool bDiscard = false; Ar << bDiscard; }
+	#define SKIP_OLD_OPTION() if (Ar.UEVer() < VER_UE4_SPEEDTREE_WIND_V7) { bool bDiscard = false; Ar << bDiscard; }
 	
 	SERIALIZE_OPTION(GLOBAL_WIND);
 	SERIALIZE_OPTION(GLOBAL_PRESERVE_SHAPE);
@@ -869,7 +869,7 @@ FArchive& operator<<(FArchive& Ar, FSpeedTreeWind& Wind)
 	SERIALIZE_OPTION(FROND_RIPPLE_TWO_SIDED);
 	SERIALIZE_OPTION(FROND_RIPPLE_ADJUST_LIGHTING);
 
-	if (Ar.UE4Ver() >= VER_UE4_SPEEDTREE_WIND_V7)
+	if (Ar.UEVer() >= VER_UE4_SPEEDTREE_WIND_V7)
 	{
 		SERIALIZE_OPTION(ROLLING);
 	}

@@ -3309,8 +3309,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 		const uint64 AllExportDataSize = Package->IoBuffer.DataSize() - (Package->AllExportDataPtr - Package->IoBuffer.Data());
 		FExportArchive Ar(Package->AllExportDataPtr, Package->CurrentExportDataPtr, AllExportDataSize);
 		{
-			Ar.SetUE4Ver(Package->LinkerRoot->LinkerPackageVersion);
-			Ar.SetLicenseeUE4Ver(Package->LinkerRoot->LinkerLicenseeVersion);
+			Ar.SetUEVer(Package->LinkerRoot->LinkerPackageVersion);
+			Ar.SetLicenseeUEVer(Package->LinkerRoot->LinkerLicenseeVersion);
 			// Ar.SetEngineVer(Summary.SavedByEngineVersion); // very old versioning scheme
 			// Ar.SetCustomVersions(LinkerRoot->LinkerCustomVersion); // only if not cooking with -unversioned
 			Ar.SetUseUnversionedPropertySerialization((Package->LinkerRoot->GetPackageFlags() & PKG_UnversionedProperties) != 0);

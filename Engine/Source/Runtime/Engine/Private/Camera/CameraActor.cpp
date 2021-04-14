@@ -40,7 +40,7 @@ void ACameraActor::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if ((Ar.UE4Ver() < VER_UE4_CAMERA_ACTOR_USING_CAMERA_COMPONENT) && Ar.IsLoading())
+	if ((Ar.UEVer() < VER_UE4_CAMERA_ACTOR_USING_CAMERA_COMPONENT) && Ar.IsLoading())
 	{
 		CameraComponent->bConstrainAspectRatio = bConstrainAspectRatio_DEPRECATED;
 		CameraComponent->ProjectionMode = ECameraProjectionMode::Perspective;

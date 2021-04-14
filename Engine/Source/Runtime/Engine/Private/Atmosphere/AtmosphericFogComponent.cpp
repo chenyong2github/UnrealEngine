@@ -638,12 +638,12 @@ void UAtmosphericFogComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ATMOSPHERIC_FOG_DECAY_NAME_CHANGE)
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_ATMOSPHERIC_FOG_DECAY_NAME_CHANGE)
 	{
 		PrecomputeParams.DensityHeight = PrecomputeParams.DecayHeight_DEPRECATED;
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_ATMOSPHERIC_FOG_CACHE_DATA)
+	if (Ar.UEVer() >= VER_UE4_ATMOSPHERIC_FOG_CACHE_DATA)
 	{
 		TransmittanceData.Serialize(Ar, this, INDEX_NONE, false);
 		IrradianceData.Serialize(Ar, this, INDEX_NONE, false);
@@ -668,7 +668,7 @@ void UAtmosphericFogComponent::Serialize(FArchive& Ar)
 		Ar << CounterVal;
 	}
 
-	if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_ATMOSPHERIC_FOG_CACHE_DATA && PrecomputeCounter == EValid) 
+	if (Ar.IsLoading() && Ar.UEVer() < VER_UE4_ATMOSPHERIC_FOG_CACHE_DATA && PrecomputeCounter == EValid) 
 	{
 		// InscatterAltitudeSampleNum default value has been changed (32 -> 2)
 		// Recalculate InscatterAltitudeSampleNum based on Inscatter Size

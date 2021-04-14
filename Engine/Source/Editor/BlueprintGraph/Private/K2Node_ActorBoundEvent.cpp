@@ -252,7 +252,7 @@ void UK2Node_ActorBoundEvent::Serialize(FArchive& Ar)
 	// Fix up legacy nodes that may not yet have a delegate pin
 	if (Ar.IsLoading())
 	{
-		if (Ar.UE4Ver() < VER_UE4_K2NODE_EVENT_MEMBER_REFERENCE)
+		if (Ar.UEVer() < VER_UE4_K2NODE_EVENT_MEMBER_REFERENCE)
 		{
 			DelegateOwnerClass = EventSignatureClass_DEPRECATED;	
 		}

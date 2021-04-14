@@ -277,7 +277,7 @@ void USoundClass::Serialize( FArchive& Ar )
 {
 	Super::Serialize( Ar );
 
-	if (Ar.UE4Ver() < VER_UE4_SOUND_CLASS_GRAPH_EDITOR)
+	if (Ar.UEVer() < VER_UE4_SOUND_CLASS_GRAPH_EDITOR)
 	{
 		// load this to match size and then throw away
 		TMap<USoundClass*, FSoundClassEditorData>	EditorData_DEPRECATED;

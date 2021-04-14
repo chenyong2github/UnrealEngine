@@ -118,9 +118,9 @@ void UCapsuleComponent::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() && (Ar.UE4Ver() < VER_UE4_AFTER_CAPSULE_HALF_HEIGHT_CHANGE))
+	if (Ar.IsLoading() && (Ar.UEVer() < VER_UE4_AFTER_CAPSULE_HALF_HEIGHT_CHANGE))
 	{
-		if ((CapsuleHeight_DEPRECATED != 0.0f) || (Ar.UE4Ver() < VER_UE4_BLUEPRINT_VARS_NOT_READ_ONLY))
+		if ((CapsuleHeight_DEPRECATED != 0.0f) || (Ar.UEVer() < VER_UE4_BLUEPRINT_VARS_NOT_READ_ONLY))
 		{
 			CapsuleHalfHeight = CapsuleHeight_DEPRECATED;
 			CapsuleHeight_DEPRECATED = 0.0f;

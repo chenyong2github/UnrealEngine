@@ -55,7 +55,7 @@ FArchive& operator<<(FArchive& Ar, FUserPinInfo& Info)
 		Info.PinName = *PinNameStr;
 	}
 
-	if (Ar.UE4Ver() >= VER_UE4_SERIALIZE_PINTYPE_CONST)
+	if (Ar.UEVer() >= VER_UE4_SERIALIZE_PINTYPE_CONST)
 	{
 		Info.PinType.Serialize(Ar);
 		Ar << Info.DesiredPinDirection;

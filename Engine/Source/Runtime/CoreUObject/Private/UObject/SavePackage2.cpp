@@ -785,8 +785,8 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		}
 #endif
 		// Make sure the package has the same version as the linker
-		SaveContext.GetPackage()->LinkerPackageVersion = SaveContext.Linker->UE4Ver();
-		SaveContext.GetPackage()->LinkerLicenseeVersion = SaveContext.Linker->LicenseeUE4Ver();
+		SaveContext.GetPackage()->LinkerPackageVersion = SaveContext.Linker->UEVer();
+		SaveContext.GetPackage()->LinkerLicenseeVersion = SaveContext.Linker->LicenseeUEVer();
 		SaveContext.GetPackage()->LinkerCustomVersion = SaveContext.Linker->GetCustomVersions();
 	}
 	

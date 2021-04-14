@@ -625,7 +625,7 @@ void ULandscapeSplinesComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 #if WITH_EDITORONLY_DATA
-	if (Ar.UE4Ver() >= VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES &&
+	if (Ar.UEVer() >= VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES &&
 		!Ar.IsFilterEditorOnly())
 	{
 		Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
@@ -1572,7 +1572,7 @@ void ULandscapeSplineControlPoint::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
 
 #if WITH_EDITOR
-	if (Ar.UE4Ver() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
+	if (Ar.UEVer() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
 	{
 		bPlaceSplineMeshesInStreamingLevels = false;
 	}
@@ -2377,7 +2377,7 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
 
 #if WITH_EDITOR
-	if (Ar.UE4Ver() < VER_UE4_SPLINE_MESH_ORIENTATION)
+	if (Ar.UEVer() < VER_UE4_SPLINE_MESH_ORIENTATION)
 	{
 		for (FLandscapeSplineMeshEntry& MeshEntry : SplineMeshes)
 		{
@@ -2395,7 +2395,7 @@ void ULandscapeSplineSegment::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.UE4Ver() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
+	if (Ar.UEVer() < VER_UE4_LANDSCAPE_SPLINE_CROSS_LEVEL_MESHES)
 	{
 		bPlaceSplineMeshesInStreamingLevels = false;
 	}
