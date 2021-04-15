@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "VideoCommon.h"
 
-#if PLATFORM_LINUX
+#if WITH_CUDA
 #include "CudaModule.h"
 #endif
 
