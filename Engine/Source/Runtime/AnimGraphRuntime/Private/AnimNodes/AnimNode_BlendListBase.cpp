@@ -181,7 +181,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			// when this flag is true, we'll reinitialize the children
 			if (bResetChildOnActivation)
 			{
-				FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy);
+				FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 
 				// reinitialize
 				BlendPose[ChildIndex].Initialize(ReinitializeContext);

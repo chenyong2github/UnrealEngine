@@ -63,7 +63,7 @@ void FAnimNode_TwoWayBlend::Update_AnyThread(const FAnimationUpdateContext& Cont
 	{
 		if (bNewAIsRelevant && !bAIsRelevant)
 		{
-			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy);
+			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 
 			// reinitialize
 			A.Initialize(ReinitializeContext);
@@ -71,7 +71,7 @@ void FAnimNode_TwoWayBlend::Update_AnyThread(const FAnimationUpdateContext& Cont
 
 		if (bNewBIsRelevant && !bBIsRelevant)
 		{
-			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy);
+			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 
 			// reinitialize
 			B.Initialize(ReinitializeContext);

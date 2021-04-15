@@ -100,7 +100,7 @@ void FAnimNode_Mirror::Update_AnyThread(const FAnimationUpdateContext& Context)
 		// Optionally reinitialize the source when the mirror state changes
 		if (bResetChildOnMirrorStateChange)
 		{
-			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy);
+			FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 			Source.Initialize(ReinitializeContext);
 		}
 	}
