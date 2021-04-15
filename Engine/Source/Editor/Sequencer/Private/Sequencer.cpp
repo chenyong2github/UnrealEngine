@@ -8365,6 +8365,40 @@ TArray<TSharedRef<FSequencerDisplayNode> > FSequencer::GetSelectedNodesToMove()
 	return NodesToMove;
 }
 
+TArray<TSharedRef<FSequencerDisplayNode> > FSequencer::GetSelectedNodesInFolders()
+{
+	TArray<TSharedRef<FSequencerDisplayNode> > NodesToFolders;
+
+	for (TSharedRef<FSequencerDisplayNode> SelectedNode : GetSelection().GetSelectedOutlinerNodes())
+	{
+		TSharedPtr<FSequencerFolderNode> Folder = SelectedNode->FindFolderNode();
+		if (Folder.IsValid())
+		{
+			if (SelectedNode->GetType() == ESequencerNode::Object)
+			{
+				TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(SelectedNode);
+				if (Folder->GetFolder().GetChildObjectBindings().Contains(ObjectBindingNode->GetObjectBinding()))
+				{
+					NodesToFolders.Add(SelectedNode);
+				}
+			}
+			else if (SelectedNode->GetType() == ESequencerNode::Track)
+			{
+				TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(SelectedNode);
+				if (TrackNode->GetTrack())
+				{
+					if (Folder->GetFolder().GetChildMasterTracks().Contains(TrackNode->GetTrack()))
+					{
+						NodesToFolders.Add(SelectedNode);
+					}
+				}
+			}
+		}
+	}
+
+	return NodesToFolders;
+}
+
 void FSequencer::MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder)
 {
 	if (!DestinationFolder)
@@ -8699,6 +8733,55 @@ void FSequencer::MoveSelectedNodesToNewFolder()
 	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
+
+void FSequencer::RemoveSelectedNodesFromFolders()
+{
+	UMovieScene* FocusedMovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	if (!FocusedMovieScene)
+	{
+		return;
+	}
+
+	if (FocusedMovieScene->IsReadOnly())
+	{
+		ShowReadOnlyError();
+		return;
+	}
+
+	TArray<TSharedRef<FSequencerDisplayNode> > NodesToFolders = GetSelectedNodesInFolders();
+	if (!NodesToFolders.Num())
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("RemoveNodeFromFolder", "Remove from Folder"));
+
+	FocusedMovieScene->Modify();
+
+	for (TSharedRef<FSequencerDisplayNode> NodeInFolder : NodesToFolders)
+	{
+		TSharedPtr<FSequencerFolderNode> Folder = NodeInFolder->FindFolderNode();
+		if (Folder.IsValid())
+		{
+			if (NodeInFolder->GetType() == ESequencerNode::Object)
+			{
+				TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(NodeInFolder);
+				Folder->GetFolder().RemoveChildObjectBinding(ObjectBindingNode->GetObjectBinding());
+			}
+			else if (NodeInFolder->GetType() == ESequencerNode::Track)
+			{
+				TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(NodeInFolder);
+				if (TrackNode->GetTrack())
+				{
+					Folder->GetFolder().RemoveChildMasterTrack(TrackNode->GetTrack());
+				}
+			}
+		}
+	}
+
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+}
 
 void ExportObjectBindingsToText(const TArray<UMovieSceneCopyableBinding*>& ObjectsToExport, FString& ExportedText)
 {
@@ -13355,6 +13438,16 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateSP( this, &FSequencer::ExportToCameraAnim ),
 		FCanExecuteAction::CreateLambda( [] { return true; } ) );
 
+	SequencerCommandBindings->MapAction(
+		Commands.MoveToNewFolder,
+		FExecuteAction::CreateSP( this, &FSequencer::MoveSelectedNodesToNewFolder ),
+		FCanExecuteAction::CreateLambda( [this]{ return (GetSelectedNodesToMove().Num() > 0); } ) );
+
+	SequencerCommandBindings->MapAction(
+		Commands.RemoveFromFolder,
+		FExecuteAction::CreateSP( this, &FSequencer::RemoveSelectedNodesFromFolders ),
+		FCanExecuteAction::CreateLambda( [this]{ return (GetSelectedNodesInFolders().Num() > 0); } ) );
+
 	for (int32 i = 0; i < TrackEditors.Num(); ++i)
 	{
 		TrackEditors[i]->BindCommands(SequencerCommandBindings);
@@ -13665,7 +13758,9 @@ void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 		LOCTEXT("MoveNodesToNewFolder", "New Folder"),
 		LOCTEXT("MoveNodesToNewFolderTooltip", "Create a new folder and adds the selected nodes"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
-		FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToNewFolder)));
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToNewFolder),
+			FCanExecuteAction::CreateLambda( [this]{ return (GetSelectedNodesToMove().Num() > 0); })));
 		
 	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;

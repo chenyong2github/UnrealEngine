@@ -283,6 +283,12 @@ public:
 	/** Sets the tree search widget as the focused widget in Slate for easy typing. */
 	TSharedPtr< FUICommandInfo > QuickTreeSearch;
 
+	/** Move selected nodes to new folder. */
+	TSharedPtr< FUICommandInfo > MoveToNewFolder;
+
+	/** Remove selected nodes from folder. */
+	TSharedPtr< FUICommandInfo > RemoveFromFolder;
+
 	/** Bake transform. */
 	TSharedPtr< FUICommandInfo > BakeTransform;
 
