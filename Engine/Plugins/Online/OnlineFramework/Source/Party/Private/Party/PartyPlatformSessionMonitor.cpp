@@ -166,7 +166,11 @@ bool FPartyPlatformSessionManager::FindSession(const USocialUser& User, const FO
 	FUniqueNetIdRepl UserPlatformId;
 	if (const FOnlineUserPresence* PlatformPresence = User.GetFriendPresenceInfo(ESocialSubsystem::Platform))
 	{
-		SessionId = PlatformPresence->SessionId ? PlatformPresence->SessionId->ToString() : FSessionId();
+		if (PlatformPresence->SessionId)
+		{
+			SessionId = PlatformPresence->SessionId->ToString();
+		}
+
 		UserPlatformId = User.GetUserId(ESocialSubsystem::Platform);
 	}
 	return FindSessionInternal(SessionId, UserPlatformId, OnAttemptComplete);
