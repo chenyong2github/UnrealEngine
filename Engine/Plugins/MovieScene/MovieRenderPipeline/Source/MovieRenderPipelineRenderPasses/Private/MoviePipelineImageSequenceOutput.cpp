@@ -205,7 +205,11 @@ void UMoviePipelineImageSequenceOutputBase::OnReceiveImageDataImpl(FMoviePipelin
 #if WITH_EDITOR
 		GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, Payload->bRequireTransparentOutput);
 #endif
-		GetPipeline()->AddOutputFuture(ImageWriteQueue->Enqueue(MoveTemp(TileImageTask)), FinalFilePath, RenderPassData.Key);
+		MoviePipeline::FMoviePipelineOutputFutureData OutputData;
+		OutputData.Shot = GetPipeline()->GetActiveShotList()[Payload->SampleState.OutputState.ShotIndex];
+		OutputData.PassIdentifier = RenderPassData.Key;
+		OutputData.FilePath = FinalFilePath;
+		GetPipeline()->AddOutputFuture(ImageWriteQueue->Enqueue(MoveTemp(TileImageTask)), OutputData);
 	}
 }
 

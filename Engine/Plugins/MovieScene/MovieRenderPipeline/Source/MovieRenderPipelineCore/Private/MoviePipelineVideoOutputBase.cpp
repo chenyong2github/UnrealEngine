@@ -133,7 +133,12 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			if (NewWriter)
 			{
 				TPromise<bool> Completed;
-				GetPipeline()->AddOutputFuture(Completed.GetFuture(), FinalFilePath, RenderPassData.Key);
+				MoviePipeline::FMoviePipelineOutputFutureData OutputData;
+				OutputData.Shot = GetPipeline()->GetActiveShotList()[Payload->SampleState.OutputState.ShotIndex];
+				OutputData.PassIdentifier = RenderPassData.Key;
+				OutputData.FilePath = FinalFilePath;
+
+				GetPipeline()->AddOutputFuture(Completed.GetFuture(), OutputData);
 
 				AllWriters.Add(FMoviePipelineCodecWriter(MoveTemp(NewWriter), MoveTemp(Completed)));
 				OutputWriter = &AllWriters.Last();
