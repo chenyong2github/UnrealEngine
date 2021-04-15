@@ -79,6 +79,7 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	virtual FString GetDocumentationLink() const override;
+	virtual void PostPasteNode() override;
 	//~ End UEdGraphNode Interface.
 
 protected:

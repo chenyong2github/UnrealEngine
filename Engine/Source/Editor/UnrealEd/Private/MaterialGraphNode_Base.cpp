@@ -153,6 +153,35 @@ void UMaterialGraphNode_Base::AllocateDefaultPins()
 	CreateOutputPins();
 }
 
+void UMaterialGraphNode_Base::PostPasteNode()
+{
+	check(PinInfoMap.Num() == 0)
+
+	int32 NumInputDataPins = 0;
+	int32 NumOutputDataPins = 0;
+	int32 NumInputExecPins = 0;
+	int32 NumOutputExecPins = 0;
+	for (UEdGraphPin* Pin : Pins)
+	{
+		int32 Index = INDEX_NONE;
+		EMaterialGraphPinType Type;
+
+		if (Pin->PinType.PinCategory == UMaterialGraphSchema::PC_Exec)
+		{
+			Type = EMaterialGraphPinType::Exec;
+			if (Pin->Direction == EGPD_Input) Index = NumInputExecPins++;
+			else Index = NumOutputExecPins++;
+		}
+		else
+		{
+			Type = EMaterialGraphPinType::Data;
+			if (Pin->Direction == EGPD_Input) Index = NumInputDataPins++;
+			else Index = NumOutputDataPins++;
+		}
+		RegisterPin(Pin, Type, Index);
+	}
+}
+
 void UMaterialGraphNode_Base::RegisterPin(UEdGraphPin* Pin, EMaterialGraphPinType Type, int32 Index)
 {
 	FMaterialGraphPinInfo& PinInfo = PinInfoMap.FindOrAdd(Pin);
