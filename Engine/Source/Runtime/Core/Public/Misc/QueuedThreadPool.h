@@ -66,7 +66,7 @@ public:
 	/**
 	 * Get the next work item in priority order without actually dequeuing.
 	 */
-	IQueuedWork* Peek(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr);
+	IQueuedWork* Peek(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr) const;
 
 	/**
 	 * Empty the queue.

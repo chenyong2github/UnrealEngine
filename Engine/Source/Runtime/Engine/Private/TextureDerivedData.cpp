@@ -909,7 +909,7 @@ void FTexturePlatformData::Cache(
 		EQueuedWorkPriority BasePriority      = FTextureCompilingManager::Get().GetBasePriority(&InTexture);
 
 		AsyncTask = new FTextureAsyncCacheDerivedDataTask(Compressor, this, &InTexture, InSettingsPerLayer, Flags);
-		AsyncTask->StartBackgroundTask(TextureThreadPool, BasePriority);
+		AsyncTask->StartBackgroundTask(TextureThreadPool, BasePriority, EQueuedWorkFlags::None, AsyncTask->GetTask().GetRequiredMemoryEstimate());
 	}
 	else
 	{

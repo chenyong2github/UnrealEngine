@@ -38,9 +38,17 @@ static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncCompilat
 static TAutoConsoleVariable<int32> CVarAsyncAssetCompilationMemoryPerCore(
 	TEXT("Editor.AsyncAssetCompilationMemoryPerCore"),
 	4,
-	TEXT("0 - No memory limit per core.\n")
+	TEXT("0 - No memory limit per asset.\n")
 	TEXT("N - Dynamically adjust concurrency limit by dividing free system memory by this number (in GB).\n")
 	TEXT("Limit concurrency for async processing based on RAM available.\n"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarAsyncAssetCompilationMaxMemoryUsage(
+	TEXT("Editor.AsyncAssetCompilationMaxMemoryUsage"),
+	0,
+	TEXT("0 - No hard memory limit, will be tuned against system available memory (recommended default).\n")
+	TEXT("N - Try to limit total memory usage for asset compilation to this amount (in GB).\n")
+	TEXT("Try to stay under specified memory limit for asset compilation by reducing concurrency when under memory pressure.\n"),
 	ECVF_Default);
 
 namespace AssetCompilingManagerImpl
@@ -74,6 +82,9 @@ int32 FAssetCompilingManager::GetNumRemainingAssets() const
 }
 
 TRACE_DECLARE_INT_COUNTER(AsyncCompilationMaxConcurrency, TEXT("AsyncCompilation/MaxConcurrency"));
+TRACE_DECLARE_INT_COUNTER(AsyncCompilationConcurrency, TEXT("AsyncCompilation/Concurrency"));
+TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalMemoryLimit, TEXT("AsyncCompilation/TotalMemoryLimit"));
+TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalEstimatedMemory, TEXT("AsyncCompilation/TotalEstimatedMemory"));
 
 class FMemoryBoundQueuedThreadPoolWrapper : public FQueuedThreadPoolWrapper
 {
@@ -88,22 +99,91 @@ public:
 	{
 	}
 
-	int32 GetMaxConcurrency() const override
+	int64 GetHardMemoryLimit() const
 	{
-		int32 MemoryPerCore = CVarAsyncAssetCompilationMemoryPerCore.GetValueOnAnyThread(false);
-		int32 DynamicMaxConcurrency = FQueuedThreadPoolWrapper::GetMaxConcurrency();
+		return (int64)CVarAsyncAssetCompilationMaxMemoryUsage.GetValueOnAnyThread() * 1024 * 1024 * 1024;
+	}
 
-		if (MemoryPerCore > 0)
+	int64 GetDefaultMemoryPerAsset() const
+	{
+		return FMath::Max(0ll, (int64)CVarAsyncAssetCompilationMemoryPerCore.GetValueOnAnyThread(false) * 1024 * 1024 * 1024);
+	}
+
+	int64 GetMemoryLimit() const
+	{
+		// Just make sure available physical fits in a int64, if it's bigger than that, we're not expecting to be memory limited anyway
+		int64 AvailablePhysical = (int64)FMath::Min(FPlatformMemory::GetStats().AvailablePhysical, (uint64)INT64_MAX);
+
+		int64 HardMemoryLimit = GetHardMemoryLimit();
+		if (HardMemoryLimit > 0)
 		{
-			FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
-			uint64 MemoryMaxConcurrency = FMath::Max(1llu, MemoryStats.AvailablePhysical / ((uint64)MemoryPerCore * 1024 * 1024 * 1024));
-			DynamicMaxConcurrency = FMath::Min((int32)MemoryMaxConcurrency, DynamicMaxConcurrency);
+			return FMath::Min(HardMemoryLimit, AvailablePhysical);
+		}
+		
+		return AvailablePhysical;
+	}
 
-			TRACE_COUNTER_SET(AsyncCompilationMaxConcurrency, DynamicMaxConcurrency);
+	int64 GetRequiredMemory(const IQueuedWork* InWork) const
+	{
+		int64 RequiredMemory = InWork->GetRequiredMemory();
+
+		// If the task doesn't support a memory estimate, use global defined default
+		if (RequiredMemory == -1)
+		{
+			RequiredMemory = GetDefaultMemoryPerAsset();
 		}
 
+		return RequiredMemory;
+	}
+
+	void UpdateCounters()
+	{
+		TRACE_COUNTER_SET(AsyncCompilationTotalMemoryLimit, GetMemoryLimit());
+		TRACE_COUNTER_SET(AsyncCompilationTotalEstimatedMemory, TotalEstimatedMemory);
+		TRACE_COUNTER_SET(AsyncCompilationConcurrency, GetCurrentConcurrency());
+	}
+
+	void OnScheduled(const IQueuedWork* InWork) override
+	{
+		TotalEstimatedMemory += GetRequiredMemory(InWork);
+		UpdateCounters();
+	}
+
+	void OnUnscheduled(const IQueuedWork* InWork) override
+	{
+		TotalEstimatedMemory -= GetRequiredMemory(InWork);
+		check(TotalEstimatedMemory >= 0);
+		UpdateCounters();
+	}
+
+	int32 GetMaxConcurrency() const override
+	{
+		int64 RequiredMemory = TotalEstimatedMemory;
+		
+		// Add next work memory requirement to see if it still fits in available memory
+		if (IQueuedWork* NextWork = QueuedWork.Peek())
+		{
+			RequiredMemory += GetRequiredMemory(NextWork);
+		}
+
+		int32 DynamicMaxConcurrency = FQueuedThreadPoolWrapper::GetMaxConcurrency();
+		int32 Concurrency = FQueuedThreadPoolWrapper::GetCurrentConcurrency();
+
+		// Never limit below a concurrency of 1 or else we'll starve the asset processing and never be scheduled again
+		// The idea for now is to let assets get built one by one when starving on memory, which should not increase OOM compared to the old synchronous behavior.
+		if (RequiredMemory > 0 && Concurrency > 0 && RequiredMemory >= GetMemoryLimit())
+		{
+			DynamicMaxConcurrency = Concurrency; // Limit concurrency to what we already allowed
+		}
+
+		TRACE_COUNTER_SET(AsyncCompilationMaxConcurrency, DynamicMaxConcurrency);
+
+		check(DynamicMaxConcurrency > 0);
 		return DynamicMaxConcurrency;
 	}
+
+private:
+	std::atomic<int64> TotalEstimatedMemory {0};
 };
 
 FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const

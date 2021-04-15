@@ -1021,6 +1021,11 @@ public:
 	ENGINE_API void ForceRebuildPlatformData();
 
 	/**
+	 * Get an estimate of the peak amount of memory required to build this texture.
+	 */
+	ENGINE_API int64 GetBuildRequiredMemory() const;
+
+	/**
 	 * Marks platform data as transient. This optionally removes persistent or cached data associated with the platform.
 	 */
 	ENGINE_API void MarkPlatformDataTransient();

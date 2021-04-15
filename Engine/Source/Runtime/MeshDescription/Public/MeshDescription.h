@@ -1318,6 +1318,9 @@ public:
 	/** Uses a hash as the GUID, useful to prevent recomputing content already in cache. */
 	void UseHashAsGuid();
 
+	/** Gets the size of the serialized bulk data */
+	int64 GetBulkDataSize() { return BulkData.GetBulkDataSize(); }
+
 private:
 #if WITH_EDITOR
 	/** Protects simultaneous access to BulkData */

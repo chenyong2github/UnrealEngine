@@ -256,8 +256,13 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 	Args.Add(TEXT("TextureFormatName"), FText::FromString(BuildSettingsPerLayer[0].TextureFormatName.GetPlainNameString()));
 	Args.Add(TEXT("TextureResolutionX"), FText::FromString(FString::FromInt(bHasValidMip0 ? TextureData.Blocks[0].MipsPerLayer[0][0].SizeX : 0)));
 	Args.Add(TEXT("TextureResolutionY"), FText::FromString(FString::FromInt(bHasValidMip0 ? TextureData.Blocks[0].MipsPerLayer[0][0].SizeY : 0)));
+	Args.Add(TEXT("EstimatedMemory"), FText::FromString(FString::SanitizeFloat(double(RequiredMemoryEstimate) / (1024.0*1024.0), 3)));
 
-	FTextureStatusMessageContext StatusMessage(FText::Format(NSLOCTEXT("Engine", "BuildTextureStatus", "Building textures: {TextureName} ({TextureFormatName}, {TextureResolutionX}X{TextureResolutionY})"), Args));
+	FTextureStatusMessageContext StatusMessage(
+		FText::Format(
+			NSLOCTEXT("Engine", "BuildTextureStatus", "Building textures: {TextureName} ({TextureFormatName}, {TextureResolutionX}X{TextureResolutionY}) (Required Memory Estimate: {EstimatedMemory} MB)"), 
+			Args
+		));
 
 	if (!ensure(Compressor))
 	{
@@ -413,6 +418,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 	, DerivedData(InDerivedData)
 	, Texture(*InTexture)
 	, CacheFlags(InCacheFlags)
+	, RequiredMemoryEstimate(InTexture->GetBuildRequiredMemory())
 	, bSucceeded(false)
 {
 	check(DerivedData);

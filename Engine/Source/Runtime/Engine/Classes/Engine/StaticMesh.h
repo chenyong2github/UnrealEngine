@@ -1781,6 +1781,11 @@ private:
 	 */
 	void FinishBuildInternal(const TArray<UStaticMeshComponent*>& InAffectedComponents, bool bHasRenderDataChanged, bool bShouldComputeExtendedBounds = true);
 
+	/**
+	 * Get an estimate of the peak amount of memory required to build this mesh.
+	 */
+	int64 GetBuildRequiredMemory() const;
+
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Deserialize MeshDescription for the specified LodIndex from BulkData, DDC or RawMesh.

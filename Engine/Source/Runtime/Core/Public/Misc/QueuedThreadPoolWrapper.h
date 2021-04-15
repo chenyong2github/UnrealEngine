@@ -47,29 +47,38 @@ public:
 	void AddQueuedWork(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority = EQueuedWorkPriority::Normal) override;
 	bool RetractQueuedWork(IQueuedWork* InQueuedWork) override;
 	int32 GetNumThreads() const override;
+	int32 GetCurrentConcurrency() const { return CurrentConcurrency.load(std::memory_order_relaxed); }
 
 protected:
 	FRWLock Lock;
 	FThreadPoolPriorityQueue QueuedWork;
 
 	// Can be overriden to dynamically control the maximum concurrency
-	virtual int32 GetMaxConcurrency() const { return MaxConcurrency.Load(EMemoryOrder::Relaxed); }
+	virtual int32 GetMaxConcurrency() const { return MaxConcurrency.load(std::memory_order_relaxed); }
+	
+	// Can be overriden to know when work has been scheduled.
+	virtual void OnScheduled(const IQueuedWork*) {}
+	
+	// Can be overriden to know when work has been unscheduled.
+	virtual void OnUnscheduled(const IQueuedWork*) {}
 private:
 	struct FScheduledWork;
-
+	FScheduledWork* AllocateWork(IQueuedWork* InnerWork, EQueuedWorkPriority Priority);
+	bool CanSchedule() const;
 	bool Create(uint32 InNumQueuedThreads, uint32 StackSize, EThreadPriority ThreadPriority, const TCHAR* Name) override;
 	void Destroy() override;
 	void Schedule(FScheduledWork* Work = nullptr);
 	void ReleaseWorkNoLock(FScheduledWork* Work);
+	bool TryRetractWorkNoLock(EQueuedWorkPriority InPriority);
 	
 	TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper;
 
 	FQueuedThreadPool* WrappedQueuedThreadPool;
 	TArray<FScheduledWork*> WorkPool;
 	TMap<IQueuedWork*, FScheduledWork*> ScheduledWork;
-	TAtomic<int32> MaxConcurrency;
+	std::atomic<int32> MaxConcurrency;
 	int32 MaxTaskToSchedule;
-	TAtomic<int32> CurrentConcurrency;
+	std::atomic<int32> CurrentConcurrency;
 	EQueuedWorkPriority WrappedQueuePriority;
 };
 

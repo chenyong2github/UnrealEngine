@@ -79,6 +79,11 @@ public:
 	 * Returns any special work flags.
 	 */
 	virtual EQueuedWorkFlags GetQueuedWorkFlags() const { return EQueuedWorkFlags::None; }
+
+	/**
+	 * Returns an approximation of the peak memory (in bytes) this task could require during it's execution.
+	 */
+	virtual int64 GetRequiredMemory() const { return -1 /* Negative value means unknown */; }
 public:
 
 	/**

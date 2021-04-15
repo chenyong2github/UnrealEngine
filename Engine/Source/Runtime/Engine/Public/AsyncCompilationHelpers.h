@@ -3,14 +3,14 @@
 
 #include "CoreMinimal.h"
 
-#if WITH_EDITOR
-
 #include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/QueuedThreadPool.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAsyncCompilation, Log, All);
+
+#if WITH_EDITOR
 
 class FQueuedThreadPoolWrapper;
 

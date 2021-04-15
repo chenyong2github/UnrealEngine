@@ -869,12 +869,12 @@ IQueuedWork* FThreadPoolPriorityQueue::Dequeue(EQueuedWorkPriority* OutDequeuedW
 	return Work;
 }
 
-IQueuedWork* FThreadPoolPriorityQueue::Peek(EQueuedWorkPriority* OutDequeuedWorkPriority)
+IQueuedWork* FThreadPoolPriorityQueue::Peek(EQueuedWorkPriority* OutDequeuedWorkPriority) const
 {
 	IQueuedWork* Work = nullptr;
 	for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
 	{
-		TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
+		const TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
 		if (QueuedWork.Num() > 0)
 		{
 			Work = QueuedWork[0];

@@ -125,6 +125,8 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	uint32 CacheFlags;
 	/** Have many bytes were loaded from DDC or built (for telemetry) */
 	uint32 BytesCached = 0;
+	/** Estimate of the peak amount of memory required to complete this task. */
+	int64 RequiredMemoryEstimate = -1;
 
 	/** true if caching has succeeded. */
 	bool bSucceeded;
@@ -147,7 +149,6 @@ public:
 	/** Does the work to cache derived data. Safe to call from any thread. */
 	void DoWork();
 
-
 	/** Finalize work. Must be called ONLY by the game thread! */
 	void Finalize();
 
@@ -155,6 +156,12 @@ public:
 	uint32 GetBytesCached() const
 	{
 		return BytesCached;
+	}
+
+	/** Estimate of the peak amount of memory required to complete this task. */
+	int64 GetRequiredMemoryEstimate() const
+	{
+		return RequiredMemoryEstimate;
 	}
 
 	/** Expose how the resource was returned for telemetry. */
