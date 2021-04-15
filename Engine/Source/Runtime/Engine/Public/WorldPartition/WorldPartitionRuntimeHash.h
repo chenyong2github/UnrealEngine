@@ -63,6 +63,7 @@ protected:
 
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate) { return false; }
 	virtual void CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const;
+	virtual void UpdateActorDescViewMap(const FBox& WorldBounds, TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const {}
 	void ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const;	
 #endif
 

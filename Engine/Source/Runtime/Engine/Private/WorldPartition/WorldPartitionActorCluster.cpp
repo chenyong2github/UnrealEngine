@@ -278,7 +278,7 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 	}
 }
 
-void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* Container, const TSet<FName>& DataLayers, FBox* ParentBounds)
+void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* Container, const TSet<FName>& DataLayers, FBox& ParentBounds)
 {
 	InstanceCountHint += Container->GetActorDescCount();
 		
@@ -311,7 +311,7 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTr
 			}
 			// Always inherite parent container DataLayers
 			ChildDataLayers.Append(DataLayers);
-			CreateContainerInstanceRecursive(ChildContainerHashBuilder.GetHash(), OutTransform * Transform, OutClusterMode, OutContainer, ChildDataLayers, &Bounds);
+			CreateContainerInstanceRecursive(ChildContainerHashBuilder.GetHash(), OutTransform * Transform, OutClusterMode, OutContainer, ChildDataLayers, Bounds);
 		}
 		else
 		{
@@ -332,11 +332,8 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTr
 		}
 	}
 	
-	if (ParentBounds)
-	{
-		*ParentBounds += Bounds;
-	}
-
+	ParentBounds += Bounds;
+	
 	UE_LOG(LogWorldPartition, Verbose, TEXT("ContainerInstance (%08x) Bounds (%s) Package (%s)"), ID, *Bounds.TransformBy(Transform).ToString(), *Container->GetContainerPackage().ToString());
 	ContainerInstances.Add(FActorContainerInstance(ID, Transform, Bounds, DataLayers, ClusterMode, Container, MoveTemp(ChildContainers), MoveTemp(ActorDescViewMap)));
 }
@@ -385,11 +382,14 @@ const TArray<FActorCluster>& FActorClusterContext::CreateActorClustersImpl(const
 void FActorClusterContext::CreateActorClusters()
 {
 	// First Instance is the main WorldPartition
-	CreateContainerInstanceRecursive(0, FTransform::Identity, EContainerClusterMode::Partitioned, WorldPartition, TSet<FName>());
-			
+	FBox WorldBounds(ForceInit);
+	CreateContainerInstanceRecursive(0, FTransform::Identity, EContainerClusterMode::Partitioned, WorldPartition, TSet<FName>(), WorldBounds);
+		
 	ClusterInstances.Reserve(InstanceCountHint);
-	for (const FActorContainerInstance& ContainerInstance : ContainerInstances)
+	for (FActorContainerInstance& ContainerInstance : ContainerInstances)
 	{
+		RuntimeHash->UpdateActorDescViewMap(WorldBounds, ContainerInstance.ActorDescViewMap);
+
 		const TArray<FActorCluster>& NewClusters = CreateActorClustersImpl(ContainerInstance);
 		for (const FActorCluster& Cluster : NewClusters)
 		{

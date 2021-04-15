@@ -632,37 +632,9 @@ FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, const FIn
 	return UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, InGridName, InCellGlobalCoord, InDataLayerID);
 }
 
-void UWorldPartitionRuntimeSpatialHash::CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const
+void UWorldPartitionRuntimeSpatialHash::UpdateActorDescViewMap(const FBox& WorldBounds, TMap<FGuid, FWorldPartitionActorDescView>& ActorDescViewMap) const
 {
-	Super::CreateActorDescViewMap(Container, OutActorDescViewMap);
-
-	// Compute the initial world bounds.
-	// This bound will change after we update actor descriptor views grid placement.
-	auto GetWorldBounds = [](const TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap)
-	{
-		FBox WorldBounds(ForceInit);
-		for (auto& ActorDescViewPair : ActorDescViewMap)
-		{
-			const FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
-			switch (ActorDescView.GetGridPlacement())
-			{
-				case EActorGridPlacement::Location:
-				{
-					FVector Location = ActorDescView.GetOrigin();
-					WorldBounds += FBox(Location, Location);
-				}
-				break;
-				case EActorGridPlacement::Bounds:
-				{
-					WorldBounds += ActorDescView.GetBounds();
-				}
-				break;
-			}
-		}
-		return WorldBounds;
-	};
-
- 	const FBox WorldBounds = GetWorldBounds(OutActorDescViewMap);
+	Super::UpdateActorDescViewMap(WorldBounds, ActorDescViewMap);
 
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
@@ -676,7 +648,7 @@ void UWorldPartitionRuntimeSpatialHash::CreateActorDescViewMap(const UActorDescC
 	const FBox2D WorldBounds2D = FBox2D(FVector2D(WorldBounds.Min), FVector2D(WorldBounds.Max));
 	const float WorldBoundsArea = WorldBounds2D.GetArea();
 
-	for (auto& ActorDescViewPair : OutActorDescViewMap)
+	for (auto& ActorDescViewPair : ActorDescViewMap)
 	{
 		FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
 

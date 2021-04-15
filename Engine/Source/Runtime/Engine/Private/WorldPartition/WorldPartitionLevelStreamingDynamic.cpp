@@ -225,15 +225,14 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
 
-	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
-	ChildPackagesToLoad.Reserve(ChildPackages.Num());
+	ChildPackagesToLoad.Reset(ChildPackages.Num());
 
 	UWorld* World = GetWorld();
 	for (FWorldPartitionRuntimeCellObjectMapping& ChildPackage : ChildPackages)
 	{
+		bool bNeedDup = false;
 		if (ChildPackage.ContainerID == 0)
 		{
-			bool bNeedDup = false;
 			if (ActorContainer)
 			{
 				FString SubObjectName;
@@ -246,11 +245,11 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 					}
 				}
 			}
-			
-			if(!bNeedDup)
-			{
-				ChildPackagesToLoad.Add(ChildPackage);
-			}
+		}
+
+		if (!bNeedDup)
+		{
+			ChildPackagesToLoad.Add(ChildPackage);
 		}
 	}
 

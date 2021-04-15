@@ -49,6 +49,7 @@ private:
 
 	FName OriginalLevelPackageName;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackages;
+	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
