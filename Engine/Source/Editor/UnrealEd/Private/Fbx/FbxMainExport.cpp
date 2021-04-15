@@ -1985,23 +1985,12 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 	USceneComponent* BoundComponent = Cast<USceneComponent>(BoundObject);
 
 	const bool bIsCameraActor = BoundActor ? BoundActor->IsA(ACameraActor::StaticClass()) : BoundComponent ? BoundComponent->IsA(UCameraComponent::StaticClass()) : false;
-	const bool bIsAttached = BoundActor ? BoundActor->GetAttachParentActor() != nullptr : BoundComponent ? BoundComponent->GetAttachParent() != nullptr : false;
-	const bool bMultipleTransformTracks = TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1);
 
 	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate through interrogation
-	if (bIsCameraActor || bMultipleTransformTracks || bIsAttached)
+	if (bIsCameraActor || TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
 	{
 		if (!bSkip3DTransformTrack)
 		{
-			if (bMultipleTransformTracks)
-			{
-				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because there are multiple transform tracks/sections. Keys will be baked."), BoundObject ? *BoundObject->GetPathName() : TEXT(""));
-			}
-			else if (bIsAttached)
-			{
-				UE_LOG(LogFbx, Warning, TEXT("Exporting %s with interrogation because it is attached. Keys will be baked."), BoundObject ? *BoundObject->GetPathName() : TEXT(""));
-			}
-
 			ExportLevelSequenceInterrogated3DTransformTrack(FbxActor, MovieScenePlayer, InSequenceID, TransformTracks, BoundObject, MovieScene->GetPlaybackRange(), RootToLocalTransform);
 		}
 
