@@ -214,7 +214,19 @@ public:
 		
 		Stack.MostRecentPropertyAddress = NULL;
 		Stack.StepCompiledIn<FProperty>(ValueStorageSpace);
-		void* ItemPtr = (Stack.MostRecentPropertyAddress != NULL && Stack.MostRecentProperty->GetClass() == CurrValueProp->GetClass()) ? Stack.MostRecentPropertyAddress : ValueStorageSpace;
+		const FFieldClass* CurrValuePropClass = CurrValueProp->GetClass();
+		const FFieldClass* MostRecentPropClass = Stack.MostRecentProperty->GetClass();
+		void* ItemPtr;
+		// If the destination and the inner type are identical in size and their field classes derive from one another, then permit the writing out of the array element to the destination memory
+		if (Stack.MostRecentPropertyAddress != NULL && (ValuePropertySize == Stack.MostRecentProperty->ElementSize*Stack.MostRecentProperty->ArrayDim) &&
+			(MostRecentPropClass->IsChildOf(CurrValuePropClass) || CurrValuePropClass->IsChildOf(MostRecentPropClass)))
+		{
+			ItemPtr = Stack.MostRecentPropertyAddress;
+		}
+		else
+		{
+			ItemPtr = ValueStorageSpace;
+		}
 		
 		P_FINISH;
 		P_NATIVE_BEGIN;
