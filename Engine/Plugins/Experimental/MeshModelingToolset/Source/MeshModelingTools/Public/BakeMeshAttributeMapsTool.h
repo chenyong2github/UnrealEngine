@@ -100,7 +100,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = MapSettings)
 	bool bUseWorldSpace = false;
 
-	UPROPERTY(EditAnywhere, Category = MapSettings)
+	/** Distance to search for the correspondence between the source and target meshes */
+	UPROPERTY(EditAnywhere, Category = MapSettings, meta = (ClampMin = "0.001"))
 	float Thickness = 3.0;
 
 	/** Which UV layer to use to create the map */
