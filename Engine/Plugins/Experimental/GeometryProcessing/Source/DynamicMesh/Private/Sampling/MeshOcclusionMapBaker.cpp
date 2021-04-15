@@ -11,6 +11,11 @@ using namespace UE::Geometry;
 
 void FMeshOcclusionMapBaker::Bake()
 {
+	if (OcclusionType == EOcclusionMapType::None)
+	{
+		return;
+	}
+
 	const FMeshImageBakingCache* BakeCache = GetCache();
 	check(BakeCache);
 	const FDynamicMesh3* DetailMesh = BakeCache->GetDetailMesh();
@@ -87,7 +92,7 @@ void FMeshOcclusionMapBaker::Bake()
 			Normalize(DetailTriNormal);
 
 			FVector3d BaseTangentX, BaseTangentY;
-			if (NormalSpace == ESpace::Tangent)
+			if (WantBentNormal() && NormalSpace == ESpace::Tangent)
 			{
 				check(BaseMeshTangents);
 				BaseMeshTangents->GetInterpolatedTriangleTangent(
@@ -116,46 +121,61 @@ void FMeshOcclusionMapBaker::Bake()
 				FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
 				ensure(OcclusionRay.Direction.Dot(DetailTriNormal) > 0);
 
-				// Have weight of point fall off as it becomes more coplanar with face. 
-				// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
-				double PointWeight = 1.0;
-				double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
-				if (BiasDot < BiasDotThreshold)
-				{
-					PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot / BiasDotThreshold, 0.0, 1.0));
-					PointWeight *= PointWeight;
-				}
-				TotalPointWeight += PointWeight;
+				bool bHit = DetailSpatial->TestAnyHitTriangle(OcclusionRay, QueryOptions);
 
-				FVector3d BentNormal = OcclusionRay.Direction;
-				switch (NormalSpace)
+				if (WantAmbientOcclusion())
 				{
-				case ESpace::Tangent:
-				{
-					// compute normal in tangent space
-					double dx = BentNormal.Dot(BaseTangentX);
-					double dy = BentNormal.Dot(BaseTangentY);
-					double dz = BentNormal.Dot(SampleData.BaseNormal);
-					BentNormal = FVector3d(dx, dy, dz);;
-					break;
-				}
-				case ESpace::Object:
-					break;
-				}
-				TotalNormalWeight += 1.0;
+					// Have weight of point fall off as it becomes more coplanar with face. 
+					// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
+					double PointWeight = 1.0;
+					double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
+					if (BiasDot < BiasDotThreshold)
+					{
+						PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot / BiasDotThreshold, 0.0, 1.0));
+						PointWeight *= PointWeight;
+					}
+					TotalPointWeight += PointWeight;
 
-				if (DetailSpatial->TestAnyHitTriangle(OcclusionRay, QueryOptions))
-				{
-					AccumOcclusion += PointWeight;
+					if (bHit)
+					{
+						AccumOcclusion += PointWeight;
+					}
 				}
-				else
+
+				if (WantBentNormal())
 				{
-					AccumNormal += BentNormal;
+					FVector3d BentNormal = OcclusionRay.Direction;
+					switch (NormalSpace)
+					{
+					case ESpace::Tangent:
+					{
+						// compute normal in tangent space
+						double dx = BentNormal.Dot(BaseTangentX);
+						double dy = BentNormal.Dot(BaseTangentY);
+						double dz = BentNormal.Dot(SampleData.BaseNormal);
+						BentNormal = FVector3d(dx, dy, dz);;
+						break;
+					}
+					case ESpace::Object:
+						break;
+					}
+					TotalNormalWeight += 1.0;
+
+					if (!bHit)
+					{
+						AccumNormal += BentNormal;
+					}
 				}
 			}
 
-			AccumOcclusion = (TotalPointWeight > 0.0001) ? (AccumOcclusion / TotalPointWeight) : 0.0;
-			AccumNormal = (TotalNormalWeight > 0.0 && AccumNormal.Length() > 0.0) ? Normalized(AccumNormal / TotalNormalWeight) : DefaultNormal;
+			if (WantAmbientOcclusion())
+			{
+				AccumOcclusion = (TotalPointWeight > 0.0001) ? (AccumOcclusion / TotalPointWeight) : 0.0;
+			}
+			if (WantBentNormal())
+			{
+				AccumNormal = (TotalNormalWeight > 0.0 && AccumNormal.Length() > 0.0) ? Normalized(AccumNormal / TotalNormalWeight) : DefaultNormal;
+			}
 			OutOcclusion = AccumOcclusion;
 			OutNormal = AccumNormal;
 			return;
@@ -164,33 +184,51 @@ void FMeshOcclusionMapBaker::Bake()
 		OutNormal = DefaultNormal;
 	};
 
-	OcclusionBuilder = MakeUnique<TImageBuilder<FVector3f>>();
-	OcclusionBuilder->SetDimensions(BakeCache->GetDimensions());
-	OcclusionBuilder->Clear(FVector3f::Zero());
-	NormalBuilder = MakeUnique<TImageBuilder<FVector3f>>();
-	NormalBuilder->SetDimensions(BakeCache->GetDimensions());
-	NormalBuilder->Clear(FVector3f::Zero());
+	if (WantAmbientOcclusion())
+	{
+		OcclusionBuilder = MakeUnique<TImageBuilder<FVector3f>>();
+		OcclusionBuilder->SetDimensions(BakeCache->GetDimensions());
+		OcclusionBuilder->Clear(FVector3f::Zero());
+	}
+	if (WantBentNormal())
+	{
+		NormalBuilder = MakeUnique<TImageBuilder<FVector3f>>();
+		NormalBuilder->SetDimensions(BakeCache->GetDimensions());
+		NormalBuilder->Clear(FVector3f::Zero());
+	}
 
 	BakeCache->EvaluateSamples([&](const FVector2i& Coords, const FMeshImageBakingCache::FCorrespondenceSample& Sample)
 	{
 		double Occlusion = 0.0;
 		FVector3d BentNormal;
 		OcclusionSampleFunction(Sample, Occlusion, BentNormal);
-		FVector3f OcclusionColor = FMathd::Clamp(1.0f - (float)Occlusion, 0.0f, 1.0f) * FVector3f::One();
-		OcclusionBuilder->SetPixel(Coords, OcclusionColor);
-		FVector3f NormalColor = (FVector3f(BentNormal.X, BentNormal.Y, BentNormal.Z) + FVector3f::One()) * 0.5;
-		NormalBuilder->SetPixel(Coords, NormalColor);
+		if (WantAmbientOcclusion())
+		{
+			FVector3f OcclusionColor = FMathd::Clamp(1.0f - (float)Occlusion, 0.0f, 1.0f) * FVector3f::One();
+			OcclusionBuilder->SetPixel(Coords, OcclusionColor);
+		}
+		if (WantBentNormal())
+		{
+			FVector3f NormalColor = (FVector3f(BentNormal.X, BentNormal.Y, BentNormal.Z) + FVector3f::One()) * 0.5;
+			NormalBuilder->SetPixel(Coords, NormalColor);
+		}
 	});
 
 	const FImageOccupancyMap& Occupancy = *BakeCache->GetOccupancyMap();
 	for (int64 k = 0; k < Occupancy.GutterTexels.Num(); k++)
 	{
 		TPair<int64, int64> GutterTexel = Occupancy.GutterTexels[k];
-		OcclusionBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
-		NormalBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
+		if (WantAmbientOcclusion())
+		{
+			OcclusionBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
+		}
+		if (WantBentNormal())
+		{
+			NormalBuilder->CopyPixel(GutterTexel.Value, GutterTexel.Key);
+		}
 	}
 
-	if (BlurRadius > 0.01)
+	if (WantAmbientOcclusion() && BlurRadius > 0.01)
 	{
 		TDiscreteKernel2f BlurKernel2d;
 		TGaussian2f::MakeKernelFromRadius(BlurRadius, BlurKernel2d);

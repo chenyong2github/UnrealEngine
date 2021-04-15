@@ -572,9 +572,7 @@ void TextureInternalSurfaces(
 			FMeshOcclusionMapBaker OcclusionBaker;
 			OcclusionBaker.SetCache(&BakeCache);
 			
-			// set NormalSpace to Object to avoid need to compute tangents for bent normals computation by the AO baker, which we don't need here.
-			// TODO: consider adding a toggle to fully disable bent normals computation in FMeshOcclusionMapBaker
-			OcclusionBaker.NormalSpace = FMeshOcclusionMapBaker::ESpace::Object;
+			OcclusionBaker.OcclusionType = EOcclusionMapType::AmbientOcclusion;
 			OcclusionBaker.NumOcclusionRays = AttributeSettings.AO_Rays;
 			OcclusionBaker.MaxDistance = AttributeSettings.AO_MaxDistance == 0 ? TNumericLimits<double>::Max() : AttributeSettings.AO_MaxDistance;
 			OcclusionBaker.BiasAngleDeg = AttributeSettings.AO_BiasAngleDeg;

@@ -174,6 +174,7 @@ public:
 
 		TUniquePtr<FMeshOcclusionMapBaker> Baker = MakeUnique<FMeshOcclusionMapBaker>();
 		Baker->SetCache(BakeCache.Get());
+		Baker->OcclusionType = EOcclusionMapType::All;
         Baker->BaseMeshTangents = BaseMeshTangents;
 		Baker->NumOcclusionRays = Settings.OcclusionRays;
         Baker->MaxDistance = Settings.MaxDistance;
@@ -1194,17 +1195,25 @@ void UBakeMeshAttributeMapsTool::OnMapsUpdated(const TUniquePtr<FMeshImageBaker>
 	case EBakeMapType::Occlusion:
 	{
 		FMeshOcclusionMapBaker* Baker = static_cast<FMeshOcclusionMapBaker*>(NewResult.Get());
-		FTexture2DBuilder TextureBuilder;
-		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
-		TextureBuilder.Copy(*Baker->GetResult(FMeshOcclusionMapBaker::EResult::AmbientOcclusion));
-		TextureBuilder.Commit(false);
-		CachedOcclusionMap = TextureBuilder.GetTexture2D();
+		const TUniquePtr<TImageBuilder<FVector3f>>& AOResult = Baker->GetResult(FMeshOcclusionMapBaker::EResult::AmbientOcclusion);
+		if (ensure(AOResult))
+		{
+			FTexture2DBuilder TextureBuilder;
+			TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, CachedOcclusionMapSettings.Dimensions);
+			TextureBuilder.Copy(*AOResult);
+			TextureBuilder.Commit(false);
+			CachedOcclusionMap = TextureBuilder.GetTexture2D();
+		}
 
-		FTexture2DBuilder TextureNormalBuilder;
-		TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
-		TextureNormalBuilder.Copy(*Baker->GetResult(FMeshOcclusionMapBaker::EResult::BentNormal));
-		TextureNormalBuilder.Commit(false);
-		CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
+		const TUniquePtr<TImageBuilder<FVector3f>>& BNResult = Baker->GetResult(FMeshOcclusionMapBaker::EResult::BentNormal);
+		if (ensure(BNResult))
+		{
+			FTexture2DBuilder TextureNormalBuilder;
+			TextureNormalBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, CachedOcclusionMapSettings.Dimensions);
+			TextureNormalBuilder.Copy(*BNResult);
+			TextureNormalBuilder.Commit(false);
+			CachedBentNormalMap = TextureNormalBuilder.GetTexture2D();
+		}
 		break;
 	}
 	case EBakeMapType::Curvature:
