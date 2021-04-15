@@ -50,6 +50,8 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 		RayTracingSceneSRV = RHICreateShaderResourceView(RayTracingSceneBuffer);
 	}
 
+	RayTracingSceneRHI.SafeRelease();
+
 	CreateRayTracingSceneTask = FFunctionGraphTask::CreateAndDispatchWhenReady([
 			&ResultScene = RayTracingSceneRHI,
 			Instances = MakeArrayView(Instances)]()
