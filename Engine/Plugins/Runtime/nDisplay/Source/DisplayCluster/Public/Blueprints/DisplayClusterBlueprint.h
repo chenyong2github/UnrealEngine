@@ -34,6 +34,11 @@ public:
 	const FString& GetConfigPath() const { return PathToConfig; }
 	void SetConfigPath(const FString& InPath);
 	
+public:
+	// Holds the last saved config export. In the AssetRegistry to allow parsing without loading.
+	UPROPERTY(AssetRegistrySearchable)
+	FString ConfigExport;
+
 protected:
 	UPROPERTY()
 	FString PathToConfig;

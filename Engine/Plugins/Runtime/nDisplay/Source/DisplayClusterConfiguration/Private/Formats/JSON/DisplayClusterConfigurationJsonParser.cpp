@@ -45,6 +45,28 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::LoadDa
 
 bool FDisplayClusterConfigurationJsonParser::SaveData(const UDisplayClusterConfigurationData* ConfigData, const FString& FilePath)
 {
+	FString JsonTextOut;
+
+	// Convert to json string
+	if (!AsString(ConfigData, JsonTextOut))
+	{
+		return false;
+	}
+
+	// Save json string to a file
+	if (!FFileHelper::SaveStringToFile(JsonTextOut, *FilePath))
+	{
+		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't save data to file: %s"), *FilePath);
+		return false;
+	}
+
+	UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Configuration data has been successfully saved to file: %s"), *FilePath);
+
+	return true;
+}
+
+bool FDisplayClusterConfigurationJsonParser::AsString(const UDisplayClusterConfigurationData* ConfigData, FString& OutString)
+{
 	// Convert nDisplay internal types to json types
 	if (!ConvertDataToExternalTypes(ConfigData))
 	{
@@ -53,21 +75,11 @@ bool FDisplayClusterConfigurationJsonParser::SaveData(const UDisplayClusterConfi
 	}
 
 	// Serialize json types to json string
-	FString JsonTextOut;
-	if (!FJsonObjectConverter::UStructToJsonObjectString<FDisplayClusterConfigurationJsonContainer>(JsonData, JsonTextOut))
+	if (!FJsonObjectConverter::UStructToJsonObjectString<FDisplayClusterConfigurationJsonContainer>(JsonData, OutString))
 	{
 		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't serialize data to json"));
 		return false;
 	}
-
-	// Finally, save json text to a file
-	if (!FFileHelper::SaveStringToFile(JsonTextOut, *FilePath))
-	{
-		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Couldn't save data to file: %s"), *FilePath);
-		return false;
-	}
-
-	UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Configuration data has been successfully saved to file: %s"), *FilePath);
 
 	return true;
 }
