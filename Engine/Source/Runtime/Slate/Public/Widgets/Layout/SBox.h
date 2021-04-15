@@ -24,14 +24,9 @@ class SLATE_API SBox : public SPanel
 	SLATE_DECLARE_WIDGET(SBox, SPanel)
 
 public:
-	class FBoxSlot : public TSupportsOneChildMixin<FBoxSlot>, public TSupportsContentAlignmentMixin<FBoxSlot>, public TSupportsContentPaddingMixin<FBoxSlot>
+	class FBoxSlot : public FOneSimpleMemberChild
 	{
-	public:
-		FBoxSlot(SWidget* InOwner)
-			: TSupportsOneChildMixin<FBoxSlot>(InOwner)
-			, TSupportsContentAlignmentMixin<FBoxSlot>(HAlign_Fill, VAlign_Fill)
-		{
-		}
+		using FOneSimpleMemberChild::FOneSimpleMemberChild;
 	};
 
 	SLATE_BEGIN_ARGS(SBox)

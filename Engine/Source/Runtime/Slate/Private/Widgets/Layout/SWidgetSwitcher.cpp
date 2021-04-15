@@ -183,7 +183,7 @@ FVector2D SWidgetSwitcher::ComputeDesiredSize(float) const
 		const EVisibility ChildVisibility = Widget->GetVisibility();
 		if (ChildVisibility != EVisibility::Collapsed)
 		{
-			return Widget->GetDesiredSize() + ActiveSlotPtr->SlotPadding.Get().GetDesiredSize();
+			return Widget->GetDesiredSize() + ActiveSlotPtr->GetPadding().GetDesiredSize();
 		}
 	}
 

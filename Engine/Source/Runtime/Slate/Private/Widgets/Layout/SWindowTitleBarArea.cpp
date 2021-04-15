@@ -191,7 +191,7 @@ void SWindowTitleBarArea::SetVAlign(EVerticalAlignment VAlign)
 
 void SWindowTitleBarArea::SetPadding(const TAttribute<FMargin>& InPadding)
 {
-	ChildSlot.SlotPadding = InPadding;
+	ChildSlot.Padding(InPadding);
 }
 
 FVector2D SWindowTitleBarArea::ComputeDesiredSize( float ) const
@@ -200,7 +200,7 @@ FVector2D SWindowTitleBarArea::ComputeDesiredSize( float ) const
 
 	if ( ChildVisibility != EVisibility::Collapsed )
 	{
-		return ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.SlotPadding.Get().GetDesiredSize();
+		return ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.GetPadding().GetDesiredSize();
 	}
 	
 	return FVector2D::ZeroVector;
@@ -211,7 +211,7 @@ void SWindowTitleBarArea::OnArrangeChildren( const FGeometry& AllottedGeometry, 
 	const EVisibility& MyCurrentVisibility = this->GetVisibility();
 	if ( ArrangedChildren.Accepts( MyCurrentVisibility ) )
 	{
-		const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
+		const FMargin SlotPadding(ChildSlot.GetPadding());
 		AlignmentArrangeResult XAlignmentResult = AlignChild<Orient_Horizontal>( AllottedGeometry.GetLocalSize().X, ChildSlot, SlotPadding );
 		AlignmentArrangeResult YAlignmentResult = AlignChild<Orient_Vertical>( AllottedGeometry.GetLocalSize().Y, ChildSlot, SlotPadding );
 

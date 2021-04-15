@@ -65,11 +65,11 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 			if (Orientation == Orient_Vertical)
 			{
 				ThisDesiredSize.X = FMath::Max(ChildDesiredSize.X, ThisDesiredSize.X);
-				ThisDesiredSize.Y += ChildDesiredSize.Y + ThisSlot.SlotPadding.Get().GetTotalSpaceAlong<Orient_Vertical>();
+				ThisDesiredSize.Y += ChildDesiredSize.Y + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Vertical>();
 			}
 			else
 			{
-				ThisDesiredSize.X += ChildDesiredSize.X + ThisSlot.SlotPadding.Get().GetTotalSpaceAlong<Orient_Horizontal>();
+				ThisDesiredSize.X += ChildDesiredSize.X + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Horizontal>();
 				ThisDesiredSize.Y = FMath::Max(ChildDesiredSize.Y, ThisDesiredSize.Y);
 			}
 		}
@@ -85,7 +85,7 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 
 float SScrollPanel::ArrangeChildVerticalAndReturnOffset(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, const SScrollBox::FSlot& ThisSlot, float CurChildOffset) const
 {
-	const FMargin& ThisPadding = ThisSlot.SlotPadding.Get();
+	const FMargin& ThisPadding = ThisSlot.GetPadding();
 	const FVector2D& WidgetDesiredSize = ThisSlot.GetWidget()->GetDesiredSize();
 	const float ThisSlotDesiredHeight = WidgetDesiredSize.Y + ThisPadding.GetTotalSpaceAlong<Orient_Vertical>();
 
@@ -99,7 +99,7 @@ float SScrollPanel::ArrangeChildVerticalAndReturnOffset(const FGeometry& Allotte
 
 float SScrollPanel::ArrangeChildHorizontalAndReturnOffset(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, const SScrollBox::FSlot& ThisSlot, float CurChildOffset) const
 {
-	const FMargin& ThisPadding = ThisSlot.SlotPadding.Get();
+	const FMargin& ThisPadding = ThisSlot.GetPadding();
 	const FVector2D& WidgetDesiredSize = ThisSlot.GetWidget()->GetDesiredSize();
 	const float ThisSlotDesiredWidth = WidgetDesiredSize.X + ThisPadding.GetTotalSpaceAlong<Orient_Horizontal>();
 

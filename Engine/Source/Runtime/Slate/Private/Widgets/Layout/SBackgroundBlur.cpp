@@ -93,13 +93,9 @@ void SBackgroundBlur::SetVAlign(EVerticalAlignment VAlign)
 	}
 }
 
-void SBackgroundBlur::SetPadding(const TAttribute<FMargin>& InPadding)
+void SBackgroundBlur::SetPadding(TAttribute<FMargin> InPadding)
 {
-	if (!ChildSlot.SlotPadding.IdenticalTo(InPadding))
-	{
-		ChildSlot.SlotPadding = InPadding;
-		Invalidate(EInvalidateWidget::Layout);
-	}
+	ChildSlot.Padding(MoveTemp(InPadding));
 }
 
 bool SBackgroundBlur::IsUsingLowQualityFallbackBrush() const

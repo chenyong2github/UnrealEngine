@@ -103,7 +103,7 @@ protected:
 	SCompoundWidget();
 
 	/** The slot that contains this widget's descendants.*/
-	FSimpleSlot ChildSlot;
+	FOneSimpleMemberChild ChildSlot;
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to ContentScale is now deprecated. Use the setter or getter.")

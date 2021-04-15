@@ -8,6 +8,7 @@
 SLATE_IMPLEMENT_WIDGET(SBox)
 void SBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
+	AttributeInitializer.AddMemberAttribute("SlotPadding", STRUCT_OFFSET(PrivateThisType, ChildSlot) + FBoxSlot::GetSlotPaddingAttributeOffset(), FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{ EInvalidateWidgetReason::Layout });
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, WidthOverride, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HeightOverride, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredWidth, EInvalidateWidgetReason::Layout);
@@ -19,7 +20,7 @@ void SBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitia
 }
 
 SBox::SBox()
-	: ChildSlot(this)
+	: ChildSlot(*this)
 	, WidthOverride(*this)
 	, HeightOverride(*this)
 	, MinDesiredWidth(*this)
@@ -58,17 +59,13 @@ void SBox::Construct( const FArguments& InArgs )
 void SBox::SetContent(const TSharedRef< SWidget >& InContent)
 {
 	ChildSlot
-		[
-			InContent
-		];
-
-	// TODO SlateGI - This seems no longer needed.
-	Invalidate(EInvalidateWidget::Layout);
+	[
+		InContent
+	];
 }
 
 void SBox::SetHAlign(EHorizontalAlignment HAlign)
 {
-	// TODO SlateGI - Fix Slots
 	if (ChildSlot.HAlignment != HAlign)
 	{
 		ChildSlot.HAlignment = HAlign;
@@ -78,7 +75,6 @@ void SBox::SetHAlign(EHorizontalAlignment HAlign)
 
 void SBox::SetVAlign(EVerticalAlignment VAlign)
 {
-	// TODO SlateGI - Fix Slots
 	if (ChildSlot.VAlignment != VAlign)
 	{
 		ChildSlot.VAlignment = VAlign;
@@ -88,12 +84,7 @@ void SBox::SetVAlign(EVerticalAlignment VAlign)
 
 void SBox::SetPadding(const TAttribute<FMargin>& InPadding)
 {
-	// TODO SlateGI - Fix Slots
-	if (!ChildSlot.SlotPadding.IdenticalTo(InPadding))
-	{
-		ChildSlot.SlotPadding = InPadding;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
-	}
+	ChildSlot.SetPadding(InPadding);
 }
 
 void SBox::SetWidthOverride(TAttribute<FOptionalSize> InWidthOverride)
@@ -157,7 +148,7 @@ FVector2D SBox::ComputeDesiredSize( float ) const
 float SBox::ComputeDesiredWidth() const
 {
 	// If the user specified a fixed width or height, those values override the Box's content.
-	const FVector2D& UnmodifiedChildDesiredSize = ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.SlotPadding.Get().GetDesiredSize();
+	const FVector2D& UnmodifiedChildDesiredSize = ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.GetPadding().GetDesiredSize();
 	const FOptionalSize CurrentMinDesiredWidth = MinDesiredWidth.Get();
 	const FOptionalSize CurrentMaxDesiredWidth = MaxDesiredWidth.Get();
 
@@ -179,7 +170,7 @@ float SBox::ComputeDesiredWidth() const
 float SBox::ComputeDesiredHeight() const
 {
 	// If the user specified a fixed width or height, those values override the Box's content.
-	const FVector2D& UnmodifiedChildDesiredSize = ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.SlotPadding.Get().GetDesiredSize();
+	const FVector2D& UnmodifiedChildDesiredSize = ChildSlot.GetWidget()->GetDesiredSize() + ChildSlot.GetPadding().GetDesiredSize();
 
 	const FOptionalSize CurrentMinDesiredHeight = MinDesiredHeight.Get();
 	const FOptionalSize CurrentMaxDesiredHeight = MaxDesiredHeight.Get();
@@ -206,7 +197,7 @@ void SBox::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildr
 	{
 		const FOptionalSize CurrentMinAspectRatio = MinAspectRatio.Get();
 		const FOptionalSize CurrentMaxAspectRatio = MaxAspectRatio.Get();
-		const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
+		const FMargin SlotPadding(ChildSlot.GetPadding());
 		bool bAlignChildren = true;
 
 		AlignmentArrangeResult XAlignmentResult(0, 0);

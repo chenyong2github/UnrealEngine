@@ -53,7 +53,7 @@ public:
 	
 	void SetHAlign(EHorizontalAlignment HAlign);
 	void SetVAlign(EVerticalAlignment VAlign);
-	void SetPadding(const TAttribute<FMargin>& InPadding);
+	void SetPadding(TAttribute<FMargin> InPadding);
 
 	bool IsUsingLowQualityFallbackBrush() const;
 

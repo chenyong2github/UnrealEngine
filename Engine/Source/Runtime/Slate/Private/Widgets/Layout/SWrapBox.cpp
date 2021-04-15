@@ -157,7 +157,7 @@ void SWrapBox::FChildArranger::Arrange()
 			Offset.X += ((WrapBox.Orientation == EOrientation::Orient_Horizontal) * WrapBox.InnerSlotPadding.X);
 		}
 
-		const FVector2D DesiredSizeOfSlot = Slot.SlotPadding.Get().GetDesiredSize() + Widget->GetDesiredSize();
+		const FVector2D DesiredSizeOfSlot = Slot.GetPadding().GetDesiredSize() + Widget->GetDesiredSize();
 
 		// Populate arrangement data with default size and offset at right end of current line.
 		ArrangementData.SlotOffset.X = Offset.X;
@@ -344,8 +344,8 @@ void SWrapBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChi
 	FChildArranger::Arrange(*this, [&](const FSlot& Slot, const FChildArranger::FArrangementData& ArrangementData)
 	{
 		// Calculate offset and size in slot using alignment.
-		const AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(ArrangementData.SlotSize.X, Slot, Slot.SlotPadding.Get());
-		const AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(ArrangementData.SlotSize.Y, Slot, Slot.SlotPadding.Get());
+		const AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(ArrangementData.SlotSize.X, Slot, Slot.GetPadding());
+		const AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(ArrangementData.SlotSize.Y, Slot, Slot.GetPadding());
 
 		// Note: Alignment offset is relative to slot offset.
 		const FVector2D PostAlignmentOffset = ArrangementData.SlotOffset + FVector2D(XResult.Offset, YResult.Offset);

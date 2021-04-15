@@ -164,7 +164,7 @@ void SBorder::SetVAlign(EVerticalAlignment VAlign)
 
 void SBorder::SetPadding(const TAttribute<FMargin>& InPadding)
 {
-	SetAttribute(ChildSlot.SlotPadding, InPadding, EInvalidateWidgetReason::Layout);
+	ChildSlot.SetPadding(InPadding);
 }
 
 void SBorder::SetShowEffectWhenDisabled(TAttribute<bool> InShowEffectWhenDisabled)

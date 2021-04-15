@@ -295,13 +295,14 @@ public:
 	EVerticalAlignment VAlignment;
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 template <typename MixedIntoType>
 class TSupportsContentPaddingMixin
 {
 public:
-	MixedIntoType& Padding( const TAttribute<FMargin> InPadding )
+	MixedIntoType& Padding( TAttribute<FMargin> InPadding )
 	{
-		SlotPadding = InPadding;
+		SlotPadding = MoveTemp(InPadding);
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
@@ -323,8 +324,17 @@ public:
 		return *(static_cast<MixedIntoType*>(this));
 	}
 
+	void SetPadding(TAttribute<FMargin> InPadding)
+	{
+		SlotPadding = MoveTemp(InPadding);
+	}
+	const FMargin& GetPadding() const { return SlotPadding.Get(); }
+
+public:
+	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the getter.")
 	TAttribute< FMargin > SlotPadding;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** A slot that support alignment of content and padding */
 class SLATECORE_API FSimpleSlot : public TSupportsOneChildMixin<FSimpleSlot>, public TSupportsContentAlignmentMixin<FSimpleSlot>, public TSupportsContentPaddingMixin<FSimpleSlot>
@@ -808,45 +818,60 @@ public:
 	FOneSimpleMemberChild(WidgetType& InParent)
 		: TSupportsOneChildMixin<FOneSimpleMemberChild>(&InParent)
 		, TSupportsContentAlignmentMixin<FOneSimpleMemberChild>(HAlign_Fill, VAlign_Fill)
-		, SlotPadding(InParent)
+		, SlotPaddingAttribute(InParent)
 	{
 	}
 
+	//~ TSlateAttribute cannot be copied
+	FOneSimpleMemberChild(const FOneSimpleMemberChild&) = delete;
+	FOneSimpleMemberChild& operator=(const FOneSimpleMemberChild&) = delete;
+
 	FOneSimpleMemberChild& Padding(TAttribute<FMargin> InPadding)
 	{
-		SlotPadding.Assign(*FChildren::GetOwner(), MoveTemp(InPadding));
+		SlotPaddingAttribute.Assign(*FChildren::GetOwner(), MoveTemp(InPadding));
 		return *this;
 	}
 
 	FOneSimpleMemberChild& Padding(float Uniform)
 	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Uniform));
+		SlotPaddingAttribute.Set(*FChildren::GetOwner(), FMargin(Uniform));
 		return *this;
 	}
 
 	FOneSimpleMemberChild& Padding(float Horizontal, float Vertical)
 	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Horizontal, Vertical));
+		SlotPaddingAttribute.Set(*FChildren::GetOwner(), FMargin(Horizontal, Vertical));
 		return *this;
 	}
 
 	FOneSimpleMemberChild& Padding(float Left, float Top, float Right, float Bottom)
 	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Left, Top, Right, Bottom));
+		SlotPaddingAttribute.Set(*FChildren::GetOwner(), FMargin(Left, Top, Right, Bottom));
 		return *this;
 	}
 
-	const FMargin& GetSlotPadding() const { return SlotPadding.Get(); }
+	void SetPadding(TAttribute<FMargin> InPadding)
+	{
+		SlotPaddingAttribute.Assign(*FChildren::GetOwner(), MoveTemp(InPadding));
+	}
+	const FMargin& GetPadding() const { return SlotPaddingAttribute.Get(); }
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Direct access to SlotPadding is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<FMargin> SlotPadding;
+#endif
 
 public:
-	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, TSlateAttributeInvalidationReason<EInvalidateWidgetReason::Layout>, TSlateAttributeComparePredicate<>>;
+	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeComparePredicate<>>;
 	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
 
+	static SIZE_T GetSlotPaddingAttributeOffset() { return STRUCT_OFFSET(FOneSimpleMemberChild, SlotPaddingAttribute); }
+
 	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const { return SlotPaddingAttributeRefType(*(static_cast<const WidgetType*>(FChildren::GetOwner())), SlotPadding); }
+	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const { return SlotPaddingAttributeRefType(*(static_cast<const WidgetType*>(FChildren::GetOwner())), SlotPaddingAttribute); }
 
 private:
-	SlotPaddingAttributeType SlotPadding;
+	SlotPaddingAttributeType SlotPaddingAttribute;
 };
 
 

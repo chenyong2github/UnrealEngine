@@ -553,9 +553,9 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 
 		const float DPIScale = MyWindow->GetDPIScaleFactor();
 
-		const float TopOffset = ((ChildSlot.SlotPadding.Get().Top + MyGeometry.GetAbsolutePosition().Y) - WindowGeometry.GetAbsolutePosition().Y);
+		const float TopOffset = ((ChildSlot.GetPadding().Top + MyGeometry.GetAbsolutePosition().Y) - WindowGeometry.GetAbsolutePosition().Y);
 
-		const float BottomOffset = ((ChildSlot.SlotPadding.Get().Bottom + WindowGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y) - MyGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y);
+		const float BottomOffset = ((ChildSlot.GetPadding().Bottom + WindowGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y) - MyGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y);
 
 		FMargin SlotPadding(
 			Location == ESidebarLocation::Left ? MinDrawerSize : 0.0f,

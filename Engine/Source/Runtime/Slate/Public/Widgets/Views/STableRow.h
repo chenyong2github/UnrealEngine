@@ -229,7 +229,7 @@ public:
 		if ( InOwnerTableMode == ETableViewMode::List || InOwnerTableMode == ETableViewMode::Tile )
 		{
 			// -- Row is in a ListView or the user --
-			FSimpleSlot* InnerContentSlotNativePtr = nullptr;
+			FOneSimpleMemberChild* InnerContentSlotNativePtr = nullptr;
 
 			// We just need to hold on to this row's content.
 			this->ChildSlot

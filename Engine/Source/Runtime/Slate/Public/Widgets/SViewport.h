@@ -246,12 +246,6 @@ public:
 	virtual FNavigationReply OnNavigation( const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent ) override;
 
 private:
-
-	FSimpleSlot& Decl_GetContent()
-	{
-		return ChildSlot;
-	}
-
 	// Viewports shouldn't show focus
 	virtual const FSlateBrush* GetFocusBrush() const override
 	{

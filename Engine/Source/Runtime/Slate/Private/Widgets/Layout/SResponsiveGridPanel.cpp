@@ -253,7 +253,7 @@ void SResponsiveGridPanel::OnArrangeChildren( const FGeometry& AllottedGeometry,
 
 			// Do the standard arrangement of elements within a slot
 			// Takes care of alignment and padding.
-			FMargin SlotPadding(CurSlot.SlotPadding.Get());
+			FMargin SlotPadding(CurSlot.GetPadding());
 
 			AlignmentArrangeResult XAxisResult = AlignChild<Orient_Horizontal>(CellSize.X, CurSlot, SlotPadding);
 			AlignmentArrangeResult YAxisResult = AlignChild<Orient_Vertical>(CellSize.Y, CurSlot, SlotPadding);
@@ -348,7 +348,7 @@ void SResponsiveGridPanel::ComputeDesiredCellSizes(float AvailableWidth, TArray<
 			}
 
 			// The slots want to be as big as its content along with the required padding.
-			const FVector2D SlotDesiredSize = CurSlot.GetWidget()->GetDesiredSize() + CurSlot.SlotPadding.Get().GetDesiredSize();
+			const FVector2D SlotDesiredSize = CurSlot.GetWidget()->GetDesiredSize() + CurSlot.GetPadding().GetDesiredSize();
 
 			// If the slot has a (colspan,rowspan) of (1,1) it will only affect that cell.
 			// For larger spans, the slots size will be evenly distributed across all the affected cells.
