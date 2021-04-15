@@ -34,10 +34,9 @@ protected:
 
 private:
 	virtual TSharedRef<SWidget> GetCurveToCopyMenu();
-	FReply SetGradientVisibility(bool bInShowGradient);
+	void SetGradientVisibility(bool bInShowGradient);
 	int32 GetGradientCurvesSwitcherIndex() const;
-	FSlateColor GetGradientButtonColor() const;
-	FSlateColor GetCurveButtonColor() const;
+	bool IsGradientVisible() const;
 	void OnShowInCurveEditor() const;
 	void CurveToCopySelected(const FAssetData& AssetData);
 	TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> CurveDataInterfaceWeak;
