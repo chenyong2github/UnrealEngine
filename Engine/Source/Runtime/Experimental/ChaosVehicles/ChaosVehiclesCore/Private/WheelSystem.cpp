@@ -37,6 +37,7 @@ namespace Chaos
 		, SlipAngle(0.f)
 		, bInContact(false)
 		, WheelIndex(0)
+		, bEngineBraking(false)
 		, Spin(0.f)
 		, AvailableGrip(0.f)
 		, InputForces(FVector::ZeroVector)
@@ -73,7 +74,7 @@ namespace Chaos
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
 		{
-			// ABS limiting brake force to match force from the grip avialable
+			// ABS limiting brake force to match force from the grip available
 			if (ABSEnabled && Braking && FMath::Abs(AppliedLinearBrakeForce) > AvailableGrip)
 			{
 				if ((Braking && ABSEnabled) || (!Braking && TractionControlEnabled))
@@ -156,7 +157,7 @@ namespace Chaos
 				float Clip = (AvailableGrip) / Length;
 				if (Clip < 1.0f)
 				{
-					if (Braking)
+					if (Braking && !bEngineBraking)
 					{
 						WheelLocked = true;
 					}
@@ -178,7 +179,7 @@ namespace Chaos
 
 		if (WheelLocked)
 		{
-			Omega = 0.0f;
+			Omega *= 0.9f; // velocity reduced quickly
 		}
 		else
 		{ 

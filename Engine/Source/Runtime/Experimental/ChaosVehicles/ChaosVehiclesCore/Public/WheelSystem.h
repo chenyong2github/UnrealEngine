@@ -176,9 +176,10 @@ public:
 	}
 
 	/** Set the braking torque - decelerating rotational force */
-	void SetBrakeTorque(float BrakeTorqueIn)
+	void SetBrakeTorque(float BrakeTorqueIn, bool bEngineBrakingIn = false)
 	{
 		BrakeTorque = BrakeTorqueIn;
+		bEngineBraking = bEngineBrakingIn;
 	}
 
 	/** Set the drive torque - accelerating rotational force */
@@ -418,6 +419,7 @@ public:
 	float SlipAngle;			// Angle between wheel forwards and velocity vector
 	bool bInContact;			// Is tire in contact with the ground or free in the air
 	uint32 WheelIndex;			// purely for debugging purposes
+	bool bEngineBraking;		// Is the braking force coming from the engine
 
 	public:
 	// debug for now
