@@ -211,16 +211,6 @@ SNiagaraParameterMapView::~SNiagaraParameterMapView()
 	{
 		SelectedVariableObjects->OnSelectedObjectsChanged().RemoveAll(this);
 	}
-
-	UNiagaraEditorSettings::OnSettingsChanged().RemoveAll(this);
-}
-
-const FSlateBrush* SNiagaraParameterMapView::GetViewOptionsBorderBrush()
-{
-	UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
-	return Settings->GetDisplayAdvancedParameterPanelCategories()
-		? FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.DepressedHighlightedButtonBrush")
-		: FEditorStyle::GetBrush("NoBrush");
 }
 
 void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<TSharedRef<FNiagaraObjectSelection>>& InSelectedObjects, const EToolkitType InToolkitType, const TSharedPtr<FUICommandList>& InToolkitCommands)
@@ -230,7 +220,6 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 	ToolkitType = InToolkitType;
 	ToolkitCommands = InToolkitCommands;
 	AddParameterButtons.SetNum(NiagaraParameterMapSectionID::Num);
-	const FVector2D ViewOptionsShadowOffset = FNiagaraEditorStyle::Get().GetVector("NiagaraEditor.Stack.ViewOptionsShadowOffset");
 	ParametersWithNamespaceModifierRenamePending = MakeShared<TArray<FName>>();
 
 	SelectedScriptObjects = InSelectedObjects[0];
@@ -255,47 +244,10 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 			FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanCopyParameterReference));
 	}
 
-	UNiagaraEditorSettings::OnSettingsChanged().AddSP(this, &SNiagaraParameterMapView::NiagaraEditorSettingsChanged);
-
 	Refresh(false);
 
 	SAssignNew(FilterBox, SSearchBox)
 		.OnTextChanged(this, &SNiagaraParameterMapView::OnFilterTextChanged);
-
-	// View options
-	TSharedRef<SWidget> ViewOptionsWidget = SNew(SBorder)
-		.Padding(0)
-		.BorderImage_Static(&SNiagaraParameterMapView::GetViewOptionsBorderBrush)
-		[
-			SNew(SComboButton)
-			.ContentPadding(0)
-			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
-			.ToolTipText(LOCTEXT("ViewOptionsToolTip", "View Options"))
-			.OnGetMenuContent(this, &SNiagaraParameterMapView::GetViewOptionsMenu)
-			.ButtonContent()
-			[
-				SNew(SOverlay)
-				// drop shadow
-				+ SOverlay::Slot()
-				.VAlign(VAlign_Top)
-				.Padding(ViewOptionsShadowOffset.X, ViewOptionsShadowOffset.Y, 0, 0)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("GenericViewButton"))
-					.ColorAndOpacity(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.ViewOptionsShadowColor"))
-				]
-				+ SOverlay::Slot()
-				.VAlign(VAlign_Top)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("GenericViewButton"))
-					.ColorAndOpacity(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.Stack.FlatButtonColor"))
-				]
-			]
-		];
-
 
 	// create the main action list piece of this widget
 	SAssignNew(GraphActionMenu, SGraphActionMenu, false)
@@ -332,26 +284,7 @@ void SNiagaraParameterMapView::Construct(const FArguments& InArgs, const TArray<
 				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ParameterMapPanel")))
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						// Filter Box
-						+ SHorizontalBox::Slot()
-						.FillWidth(1.0f)
-						.VAlign(VAlign_Center)
-						[
-							FilterBox.ToSharedRef()
-						]
-						// Filter Box View Options
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.Padding(4, 0, 0, 0)
-						[
-							ViewOptionsWidget
-						]
-					]
+					FilterBox.ToSharedRef()
 				]
 			]
 		
@@ -456,35 +389,6 @@ void SNiagaraParameterMapView::AddParameter(FNiagaraVariable NewVariable, bool b
 			}
 		}
 	}
-}
-
-TSharedRef<SWidget> SNiagaraParameterMapView::GetViewOptionsMenu()
-{
-	FMenuBuilder MenuBuilder(false, nullptr);
-
-	auto ToggleShowAdvancedCategoriesActionLambda = [this]() {
-		UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
-		Settings->SetDisplayAdvancedParameterPanelCategories(!Settings->GetDisplayAdvancedParameterPanelCategories());
-	};
-
-	auto GetShowAdvancedCategoriesCheckStateActionLambda = []() {
-		UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
-		return Settings->GetDisplayAdvancedParameterPanelCategories() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;;
-	};
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("ShowAdvancedCategoriesLabel", "Show Advanced Categories"),
-		LOCTEXT("ShowAdvancedCategoriesToolTip", "Display advanced categories for the parameter panel."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateLambda(ToggleShowAdvancedCategoriesActionLambda),
-			FCanExecuteAction(),
-			FGetActionCheckState::CreateLambda(GetShowAdvancedCategoriesCheckStateActionLambda)),
-		NAME_None,
-		EUserInterfaceActionType::Check
-	);
-		
-	return MenuBuilder.MakeWidget();
 }
 
 bool SNiagaraParameterMapView::AllowMakeTypeGeneric(const FNiagaraTypeDefinition& InType) const
@@ -1130,7 +1034,6 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 
 	HiddenSectionIDs.Empty();
 	const UNiagaraEditorSettings* NiagaraEditorSettings = GetDefault<UNiagaraEditorSettings>();
-	bool bShowAdvanced = NiagaraEditorSettings->GetDisplayAdvancedParameterPanelCategories();
 	for (int32 SectionID = 0; SectionID < NiagaraParameterMapSectionID::Num; SectionID++)
 	{
 		TArray<FName> Namespaces;
@@ -1138,9 +1041,7 @@ void SNiagaraParameterMapView::Refresh(bool bRefreshMenu/* = true*/)
 		FNiagaraNamespaceMetadata NamespaceMetadata = NiagaraEditorSettings->GetMetaDataForNamespaces(Namespaces);
 		if (NamespaceMetadata.IsValid() == false ||
 			(IsScriptToolkit() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInScript)) ||
-			(IsSystemToolkit() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)) ||
-			(IsScriptToolkit() && bShowAdvanced == false && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::AdvancedInScript)) ||
-			(IsSystemToolkit() && bShowAdvanced == false && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)))
+			(IsSystemToolkit() && NamespaceMetadata.Options.Contains(ENiagaraNamespaceMetadataOptions::HideInSystem)))
 		{
 			HiddenSectionIDs.Add(SectionID);
 		}
@@ -2107,11 +2008,6 @@ bool SNiagaraParameterMapView::IsStaticSwitchParameter(const FNiagaraVariable& V
 		}
 	}
 	return false;
-}
-
-void SNiagaraParameterMapView::NiagaraEditorSettingsChanged(const FString& PropertyName, const UNiagaraEditorSettings* NiagaraEditorSettings)
-{
-	Refresh();
 }
 
 /************************************************************************/
