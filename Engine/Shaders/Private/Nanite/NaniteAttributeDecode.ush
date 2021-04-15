@@ -170,7 +170,7 @@ uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 			const uint TriLength = BitFieldExtractU32(EncodedRange, 8, 8);
 			if (InTriIndex >= TriStart && InTriIndex < (TriStart + TriLength))
 			{
-				MaterialIndex = BitFieldExtractU32(EncodedRange, 16, 16);
+				MaterialIndex = BitFieldExtractU32(EncodedRange, 6, 16);
 				break;
 			}
 		}
