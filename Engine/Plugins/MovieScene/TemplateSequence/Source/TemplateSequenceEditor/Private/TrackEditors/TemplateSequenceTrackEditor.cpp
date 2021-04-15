@@ -290,6 +290,12 @@ void FTemplateSequenceTrackEditor::OnTemplateSequenceAssetSelected(const FAssetD
 {
 	FSlateApplication::Get().DismissAllMenus();
 
+	UMovieScene* FocusedMovieScene = GetFocusedMovieScene();
+	if (FocusedMovieScene == nullptr || FocusedMovieScene->IsReadOnly())
+	{
+		return;
+	}
+
 	if (UTemplateSequence* SelectedSequence = Cast<UTemplateSequence>(AssetData.GetAsset()))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("AddTemplateSequence_Transaction", "Add Template Animation"));
@@ -369,8 +375,10 @@ FKeyPropertyResult FTemplateSequenceTrackEditor::AddKeyInternal(FFrameNumber Key
 				UMovieSceneTrack* Track = TrackResult.Track;
 				KeyPropertyResult.bTrackCreated |= TrackResult.bWasCreated;
 
-				if (ensure(Track))
+				if (ensure(Track) && Track->CanModify())
 				{
+					Track->Modify();
+
 					UMovieSceneSection* NewSection = Cast<UTemplateSequenceTrack>(Track)->AddNewTemplateSequenceSection(KeyTime, TemplateSequence);
 					KeyPropertyResult.bTrackModified = true;
 					KeyPropertyResult.SectionsCreated.Add(NewSection);
