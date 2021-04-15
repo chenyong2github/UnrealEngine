@@ -99,11 +99,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "CommonInput")
 	FCommonInputTypeInfo DefaultGamepadInputTypeInfo;
 
-	//@TODO: DarenC - This needs a detail customization 
 	/**
 	* Override the input state for each input method
 	*/
-	UPROPERTY(EditAnywhere, Category = "CommonInput")
+	UPROPERTY(EditAnywhere, Category = "CommonInput", Meta = (GetOptions = "CommonInput.CommonInputBaseControllerData.GetRegisteredGamepads"))
 	TMap<FName, FCommonInputTypeInfo> GamepadInputOverrides;
 
 	/**

@@ -17,15 +17,7 @@ class COMMONUI_API UCommonVisibilityWidgetBase : public UCommonBorder
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	UPROPERTY(EditAnywhere, Category = "Visibility")
-	TArray<FName> RegisteredPlatforms;
-
-	UPROPERTY(EditAnywhere, Category = "Visibility")
-	TArray<FName> RegisteredGamepads;
-
-	//@TODO: DarenC - This needs a customization, or meta to prevent add / edit key
-	UPROPERTY(EditAnywhere, Category = "Visibility")
+	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Visibility", meta = (GetOptions = GetRegisteredPlatforms))
 	TMap<FName, bool> VisibilityControls;
 
 	UPROPERTY(EditAnywhere, Category = "Visibility")
@@ -54,4 +46,6 @@ protected:
 
 	void HandleInputMethodChanged(ECommonInputType input);
 
+	UFUNCTION()
+	static const TArray<FName>& GetRegisteredPlatforms();
 };
