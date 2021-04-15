@@ -255,25 +255,30 @@ bool FMeshImageBakingCache::ValidateCache()
 		SampleMap.Resize(Dimensions.GetWidth(), Dimensions.GetHeight());
 
 		// calculate interior texels
-		ParallelFor(Dimensions.Num(), [&](int64 LinearIdx)
+		ParallelFor(Dimensions.GetHeight(), [this, &DetailMeshSampler](int32 ImgY)
 		{
 			if (CancelF())
 			{
 				return;
 			}
 
-			if (OccupancyMap->IsInterior(LinearIdx) == false)
+			for (int32 ImgX = 0; ImgX < Dimensions.GetWidth(); ImgX++)
 			{
-				return;
+				int64 LinearIdx = Dimensions.GetIndex(ImgX, ImgY);
+
+				if (OccupancyMap->IsInterior(LinearIdx) == false)
+				{
+					continue;
+				}
+
+				FVector2d UVPosition = (FVector2d)OccupancyMap->TexelQueryUV[LinearIdx];
+				int32 UVTriangleID = OccupancyMap->TexelQueryTriangle[LinearIdx];
+
+				FCorrespondenceSample Sample;
+				DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
+
+				SampleMap[LinearIdx] = Sample;
 			}
-
-			FVector2d UVPosition = (FVector2d)OccupancyMap->TexelQueryUV[LinearIdx];
-			int32 UVTriangleID = OccupancyMap->TexelQueryTriangle[LinearIdx];
-
-			FCorrespondenceSample Sample;
-			DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-
-			SampleMap[LinearIdx] = Sample;
 		});
 
 		bSamplesValid = true;
@@ -290,22 +295,26 @@ void FMeshImageBakingCache::EvaluateSamples(
 {
 	check(IsCacheValid());
 
-	ParallelFor(Dimensions.Num(), [&](int64 LinearIdx)
+	ParallelFor(Dimensions.GetHeight(), [this, &SampleFunction](int32 ImgY)
 	{
 		if (CancelF())
 		{
 			return;
 		}
 
-		if (OccupancyMap->IsInterior(LinearIdx) == false)
+		for (int32 ImgX = 0; ImgX < Dimensions.GetWidth(); ImgX++)
 		{
-			return;
+			int64 LinearIdx = Dimensions.GetIndex(ImgX, ImgY);
+			if (OccupancyMap->IsInterior(LinearIdx) == false)
+			{
+				continue;
+			}
+			FVector2i Coords(ImgX, ImgY);
+
+			const FCorrespondenceSample& Sample = SampleMap[LinearIdx];
+
+			SampleFunction(Coords, Sample);
 		}
-		FVector2i Coords = Dimensions.GetCoords(LinearIdx);
-
-		const FCorrespondenceSample& Sample = SampleMap[LinearIdx];
-
-		SampleFunction(Coords, Sample);
 
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 }
