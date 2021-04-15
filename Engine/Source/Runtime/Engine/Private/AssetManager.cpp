@@ -2975,8 +2975,8 @@ bool UAssetManager::ShouldScanPrimaryAssetType(FPrimaryAssetTypeInfo& TypeInfo) 
 
 	if (bBaseClassWasLoaded)
 	{
-		// Had to load a class, leave temporary caching mode for future scans
-		GetAssetRegistry().SetTemporaryCachingMode(false);
+		// Had to load a class, mark that the temporary cache needs to be updated
+		GetAssetRegistry().SetTemporaryCachingModeInvalidated();
 	}
 
 	return bIsValid;
@@ -3987,8 +3987,8 @@ void UAssetManager::RefreshPrimaryAssetDirectory(bool bForceRefresh)
 
 			if (bBaseClassWasLoaded)
 			{
-				// Had to load a class, leave temporary caching mode for future scans
-				GetAssetRegistry().SetTemporaryCachingMode(false);
+				// Had to load a class, mark that the temporary cache needs to be updated
+				GetAssetRegistry().SetTemporaryCachingModeInvalidated();
 			}
 
 			if (!bIsValid)

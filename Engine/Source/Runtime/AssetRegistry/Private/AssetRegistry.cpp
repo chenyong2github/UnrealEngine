@@ -3419,6 +3419,11 @@ void UAssetRegistryImpl::SetTemporaryCachingMode(bool bEnable)
 	}
 }
 
+void UAssetRegistryImpl::SetTemporaryCachingModeInvalidated()
+{
+	bIsTempCachingUpToDate = false;
+}
+
 bool UAssetRegistryImpl::GetTemporaryCachingMode() const
 {
 	return bIsTempCachingEnabled;

@@ -357,6 +357,11 @@ public:
 
 	/** Enables or disable temporary search caching, when this is enabled scanning/searching is faster because we assume no objects are loaded between scans. Disabling frees any caches created */
 	virtual void SetTemporaryCachingMode(bool bEnable) = 0;
+	/**
+	 * Mark that the temporary cached needs to be updated before being used again, because e.g. a new class was loaded.
+	 * Does nothing if TemporaryCachingMode is not enabled
+	 */
+	virtual void SetTemporaryCachingModeInvalidated() = 0;
 
 	/** Returns true if temporary caching mode enabled */
 	virtual bool GetTemporaryCachingMode() const = 0;
