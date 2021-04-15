@@ -205,6 +205,9 @@ void UMovieSceneSequencePlayer::PlayInternal()
 
 	if (!IsPlaying() && Sequence && CanPlay())
 	{
+		// Set playback status to playing before any calls to update the position
+		Status = EMovieScenePlayerStatus::Playing;
+
 		float PlayRate = bReversePlayback ? -PlaybackSettings.PlayRate : PlaybackSettings.PlayRate;
 
 		// If at the end and playing forwards, rewind to beginning
