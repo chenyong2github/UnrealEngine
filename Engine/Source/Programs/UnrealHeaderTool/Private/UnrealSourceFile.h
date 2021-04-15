@@ -15,14 +15,14 @@ class UStruct;
 class FArchive;
 class FClassMetaData;
 
-enum ETopologicalState : uint8
+enum class ETopologicalState : uint8
 {
 	Unmarked,
 	Temporary,
 	Permanent,
 };
 
-enum ESourceFileTime : uint8
+enum class ESourceFileTime : uint8
 {
 	Load,
 	PreParse,
@@ -400,7 +400,7 @@ public:
 	 */
 	double& GetTime(ESourceFileTime Time)
 	{
-		return Times[Time];
+		return Times[int32(Time)];
 	}
 
 	/**
@@ -476,7 +476,7 @@ private:
 	FString Content;
 
 	// Different timers for the source
-	double Times[ESourceFileTime::Count] = { 0.0 };
+	double Times[int32(ESourceFileTime::Count)] = { 0.0 };
 
 	// Number of statements parsed.
 	int32 StatementsParsed = 0;

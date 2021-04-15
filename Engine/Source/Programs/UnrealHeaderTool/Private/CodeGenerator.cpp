@@ -6011,9 +6011,9 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 		{
 			FResults::Try(GeneratedCPP.SourceFile, [&GeneratedCPP]()
 				{
-					FUnrealPackageDefinitionInfo& PackageDef = GeneratedCPP.PackageDef;
-					const FManifestModule& Module = PackageDef.GetModule();
-					const FNativeClassHeaderGenerator Generator(PackageDef);
+					FUnrealPackageDefinitionInfo& PackageDefLcl = GeneratedCPP.PackageDef;
+					const FManifestModule& Module = PackageDefLcl.GetModule();
+					const FNativeClassHeaderGenerator Generator(PackageDefLcl);
 					FUnrealSourceFile& SourceFile = GeneratedCPP.SourceFile;
 					FUHTStringBuilder& GeneratedFunctionDeclarations = GeneratedCPP.GeneratedFunctionDeclarations;
 					FUHTStringBuilder& GeneratedHeaderText = GeneratedCPP.Header.GetGeneratedBody();
@@ -6107,8 +6107,8 @@ void FNativeClassHeaderGenerator::GenerateSourceFiles(
 		{
 			FResults::Try(GeneratedCPP.SourceFile, [&GeneratedCPP]()
 				{
-					FUnrealPackageDefinitionInfo& PackageDef = GeneratedCPP.PackageDef;
-					const FManifestModule& Module = PackageDef.GetModule();
+					FUnrealPackageDefinitionInfo& PackageDefLcl = GeneratedCPP.PackageDef;
+					const FManifestModule& Module = PackageDefLcl.GetModule();
 					FUnrealSourceFile& SourceFile = GeneratedCPP.SourceFile;
 					FUHTStringBuilder& GeneratedHeaderText = GeneratedCPP.Header.GetGeneratedBody();
 					FUHTStringBuilder& GeneratedCPPText = GeneratedCPP.Source.GetGeneratedBody();
@@ -7282,7 +7282,7 @@ void GenerateSummary(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 	{
 		const FManifestModule& Module = PackageDef->GetModule();
 
-		double TotalTimes[ESourceFileTime::Count] = { 0.0 };
+		double TotalTimes[int32(ESourceFileTime::Count)] = { 0.0 };
 		int32 LinesParsed = 0;
 		int32 StatementsParsed = 0;
 		int32 SourceCount = 0;
@@ -7291,13 +7291,13 @@ void GenerateSummary(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs)
 		{
 			for (int32 Index = 0; Index < int32(ESourceFileTime::Count); ++Index)
 			{
-				TotalTimes[Index] += SourceFile->GetTime(ESourceFileTime(Index));
+				TotalTimes[int32(Index)] += SourceFile->GetTime(ESourceFileTime(Index));
 			}
 			LinesParsed += SourceFile->GetLinesParsed();
 			StatementsParsed += SourceFile->GetStatementsParsed();
 		}
 		UE_LOG(LogCompile, Log, TEXT("Success: Module %s parsed %d sources(s), %d line(s), %d statement(s).  Times(secs) Load: %.3f, PreParse: %.3f, Parse: %.3f, Generate: %.3f."), *Module.Name,
-			SourceFiles.Num(), LinesParsed, StatementsParsed, TotalTimes[ESourceFileTime::Load], TotalTimes[ESourceFileTime::PreParse], TotalTimes[ESourceFileTime::Parse], TotalTimes[ESourceFileTime::Generate]);
+			SourceFiles.Num(), LinesParsed, StatementsParsed, TotalTimes[int32(ESourceFileTime::Load)], TotalTimes[int32(ESourceFileTime::PreParse)], TotalTimes[int32(ESourceFileTime::Parse)], TotalTimes[int32(ESourceFileTime::Generate)]);
 	}
 }
 
