@@ -307,6 +307,27 @@ public:
 		}
 	}
 
+	void DrawDebugCoordinateSystem(const FVector& Position, const FRotator& AxisRot, float Scale, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
+	{
+		if (IsDebugDrawingEnabled())
+		{
+			FScopeLock Lock(&CommandQueueCS);
+
+			FRotationMatrix R(AxisRot);
+			FVector const X = R.GetScaledAxis(EAxis::X);
+			FVector const Y = R.GetScaledAxis(EAxis::Y);
+			FVector const Z = R.GetScaledAxis(EAxis::Z);
+
+			if (AcceptCommand(3, Position))
+			{
+				CommandQueue.Emplace(FLatentDrawCommand::DrawLine(Position, Position + X * Scale, FColor::Red, bPersistentLines, LifeTime, DepthPriority, Thickness));
+				CommandQueue.Emplace(FLatentDrawCommand::DrawLine(Position, Position + Y * Scale, FColor::Green, bPersistentLines, LifeTime, DepthPriority, Thickness));
+				CommandQueue.Emplace(FLatentDrawCommand::DrawLine(Position, Position + Z * Scale, FColor::Blue, bPersistentLines, LifeTime, DepthPriority, Thickness));
+			}
+		}
+	}
+
+
 	void DrawDebugSphere(FVector const& Center, float Radius, int32 Segments, const FColor& Color, bool bPersistentLines = false, float LifeTime = -1.f, uint8 DepthPriority = 0, float Thickness = 0.f)
 	{
 		if (IsDebugDrawingEnabled())

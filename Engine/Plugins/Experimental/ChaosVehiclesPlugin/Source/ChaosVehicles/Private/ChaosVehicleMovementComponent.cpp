@@ -23,6 +23,7 @@
 #include "DisplayDebugHelpers.h"
 #include "Chaos/ChaosEngineInterface.h"
 #include "Chaos/PBDJointConstraintData.h"
+#include "Chaos/DebugDrawQueue.h"
 
 #include "ChaosVehicleManager.h"
 #include "SimpleVehicle.h"
@@ -296,11 +297,11 @@ void UChaosVehicleSimulation::ApplyAerofoilForces(float DeltaTime)
 		FVector WorldAxis = VehicleState.VehicleWorldTransform.TransformVector(FVector::CrossProduct(FVector(1, 0, 0), Aerofoil.Setup().UpAxis));
 		if (GVehicleDebugParams.ShowAerofoilSurface)
 		{
-			DrawDebugLine(World, WorldLocation - WorldAxis * 150.0f, WorldLocation + WorldAxis * 150.0f, FColor::Black, false, -1.f, 0, 5.f);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(WorldLocation - WorldAxis * 150.0f, WorldLocation + WorldAxis * 150.0f, FColor::Black, false, -1.f, 0, 5.f);
 		}
 		if (GVehicleDebugParams.ShowAerofoilForces)
 		{
-			DrawDebugLine(World, WorldLocation, WorldLocation + WorldForce * GVehicleDebugParams.ForceDebugScaling, FColor::Green, false, -1.f, 0, 16.f);
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugLine(WorldLocation, WorldLocation + WorldForce * GVehicleDebugParams.ForceDebugScaling, FColor::Green, false, -1.f, 0, 16.f);
 		}
 #endif
 	}
@@ -460,12 +461,12 @@ void UChaosVehicleSimulation::DrawDebug3D()
 	if (GVehicleDebugParams.ShowCOM)
 	{
 		const Chaos::FVec3 COMWorld = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(RigidHandle);
-		DrawDebugCoordinateSystem(World, COMWorld, FRotator(BodyTransform.GetRotation()), 200.f, false, -1.f, 0, 2.f);
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugCoordinateSystem(COMWorld, FRotator(BodyTransform.GetRotation()), 200.f, false, -1.f, 0, 2.f);
 	}
 
 	if (GVehicleDebugParams.ShowModelOrigin)
 	{
-		DrawDebugCoordinateSystem(World, BodyTransform.GetLocation(), FRotator(BodyTransform.GetRotation()), 200.f, false, -1.f, 0, 2.f);
+		Chaos::FDebugDrawQueue::GetInstance().DrawDebugCoordinateSystem(BodyTransform.GetLocation(), FRotator(BodyTransform.GetRotation()), 200.f, false, -1.f, 0, 2.f);
 	}
 #endif
 }
@@ -496,7 +497,7 @@ void UChaosVehicleSimulation::AddForce(const FVector& Force, bool bAllowSubstepp
 		if (GVehicleDebugParams.ShowAllForces)
 		{
 			FVector Position = VehicleState.VehicleWorldCOM;
-			DrawDebugDirectionalArrow(World, Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
 				, 20.f, FColor::Blue, false, 0, 0, 2.f);
 		}
 #endif	
@@ -517,7 +518,7 @@ void UChaosVehicleSimulation::AddForceAtPosition(const FVector& Force, const FVe
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GVehicleDebugParams.ShowAllForces)
 		{
-			DrawDebugDirectionalArrow(World, Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Force * GVehicleDebugParams.ForceDebugScaling
 				, 20.f, FColor::Blue, false, 0, 0, 2.f);
 		}
 #endif
@@ -541,7 +542,7 @@ void UChaosVehicleSimulation::AddImpulse(const FVector& Impulse, bool bVelChange
 		if (GVehicleDebugParams.ShowAllForces)
 		{
 			FVector Position = VehicleState.VehicleWorldCOM;
-			DrawDebugDirectionalArrow(World, Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
 				, 20.f, FColor::Red, false, 0, 0, 2.f);
 		}
 #endif
@@ -561,7 +562,7 @@ void UChaosVehicleSimulation::AddImpulseAtPosition(const FVector& Impulse, const
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GVehicleDebugParams.ShowAllForces)
 		{
-			DrawDebugDirectionalArrow(World, Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
+			Chaos::FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(Position, Position + Impulse * GVehicleDebugParams.ForceDebugScaling
 				, 20.f, FColor::Red, false, 0, 0, 2.f);
 		}
 #endif
@@ -1423,6 +1424,12 @@ void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BodyIns
 				InertiaTensor.Y *= this->InertiaTensorScale.Y * MassRatio;
 				InertiaTensor.Z *= this->InertiaTensorScale.Z * MassRatio;
 
+				if (bCenterOfMassOverride)
+				{
+					FTransform COMTransform = FPhysicsInterface::GetComTransformLocal_AssumesLocked(Actor);
+					COMTransform.SetTranslation(CenterOfMassOverride + BodyInstance->COMNudge);
+					FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, COMTransform);
+				}
 				FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, InertiaTensor);
 				FPhysicsInterface::SetMass_AssumesLocked(Actor, this->Mass);
 			});
@@ -1474,8 +1481,12 @@ void UChaosVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float
 
 		if (TargetInstance)
 		{
+			FVector FinalCOM = TargetInstance->GetMassSpaceLocal().GetTranslation();
+			FVector OffsetCOM = TargetInstance->COMNudge;
+			FVector BaseCOM = FinalCOM - TargetInstance->COMNudge;
 			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Mass (Kg): %.1f"), TargetInstance->GetBodyMass()), 4, YPos);
-			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Local COM : %s"), *TargetInstance->GetMassSpaceLocal().GetTranslation().ToString()), 4, YPos);
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Local COM : %s"), *FinalCOM.ToString()), 4, YPos);
+			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("[COM Base : %s  COM Offset : %s]"), *BaseCOM.ToString(), *OffsetCOM.ToString()), 4, YPos);
 			YPos += Canvas->DrawText(RenderFont, FString::Printf(TEXT("Inertia : %s"), *TargetInstance->GetBodyInertiaTensor().ToString()), 4, YPos);
 		}
 

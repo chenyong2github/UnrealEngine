@@ -805,6 +805,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float Mass;
 
+	/**
+	 * Enable to override the calculated COM position with your own fixed value - this prevents the vehicle handling changing when the asset changes
+	 */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup)
+	bool bCenterOfMassOverride;
+
+	/**
+	 * The center of mass override value, this value overrides the calculated COM and the COM offset value in the mesh is also ignored.
+	 */
+	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (EditCondition = "bCentreOfMassOverride"))
+	FVector CenterOfMassOverride;
+
 	/** Chassis width used for drag force computation (cm)*/
 	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float ChassisWidth;
