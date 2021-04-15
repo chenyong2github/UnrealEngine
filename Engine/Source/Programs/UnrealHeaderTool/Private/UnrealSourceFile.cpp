@@ -4,10 +4,23 @@
 #include "UnrealHeaderTool.h"
 #include "Misc/PackageName.h"
 #include "HeaderParser.h"
+#include "Algo/Find.h"
+#include "StringUtils.h"
+#include "Exceptions.h"
 
-void FUnrealSourceFile::AddDefinedClass(UClass* Class, FSimplifiedParsingClassInfo&& ParsingInfo)
+void FUnrealSourceFile::AddDefinedClass(TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl)
 {
-	DefinedClasses.Add(Class, MoveTemp(ParsingInfo));
+	DefinedClasses.Add(MoveTemp(ClassDecl));
+}
+
+void FUnrealSourceFile::AddDefinedEnum(TSharedRef<FUnrealTypeDefinitionInfo> EnumDecl)
+{
+	DefinedEnums.Add(MoveTemp(EnumDecl));
+}
+
+void FUnrealSourceFile::AddDefinedStruct(TSharedRef<FUnrealTypeDefinitionInfo> StructDecl)
+{
+	DefinedStructs.Add(MoveTemp(StructDecl));
 }
 
 const FString& FUnrealSourceFile::GetFileId() const
@@ -104,6 +117,11 @@ void FUnrealSourceFile::SetIncludePath(FString&& InIncludePath)
 	IncludePath = MoveTemp(InIncludePath);
 }
 
+void FUnrealSourceFile::SetContent(FString&& InContent)
+{
+	Content = MoveTemp(InContent);
+}
+
 const FString& FUnrealSourceFile::GetContent() const
 {
 	return Content;
@@ -119,39 +137,6 @@ EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(UStruc
 	return FUHTConfig::Get().DefaultGeneratedCodeVersion;
 }
 
-void FUnrealSourceFile::MarkDependenciesResolved()
-{
-	bDependenciesResolved = true;
-}
-
-bool FUnrealSourceFile::AreDependenciesResolved() const
-{
-	return bDependenciesResolved;
-}
-
-void FUnrealSourceFile::SetScope(FFileScope* InScope)
-{
-	if (&Scope.Get() != InScope)
-	{
-		Scope = TSharedRef<FFileScope>(InScope);
-	}
-}
-
-void FUnrealSourceFile::SetScope(TSharedRef<FFileScope> InScope)
-{
-	Scope = InScope;
-}
-
-void FUnrealSourceFile::MarkAsParsed()
-{
-	bParsed = true;
-}
-
-bool FUnrealSourceFile::IsParsed() const
-{
-	return bParsed;
-}
-
 bool FUnrealSourceFile::HasChanged() const
 {
 	return bHasChanged;
@@ -162,3 +147,68 @@ FString FUnrealSourceFile::GetFileDefineName() const
 	const FString API = FPackageName::GetShortName(Package).ToUpper();
 	return FString::Printf(TEXT("%s_%s_generated_h"), *API, *GetStrippedFilename());
 }
+
+void FUnrealSourceFile::AddClassIncludeIfNeeded(int32 InputLine, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName)
+{
+	if (!Algo::FindBy(GetDefinedClasses(), DependencyClassName, [](const TSharedRef<FUnrealTypeDefinitionInfo>& Info) { return Info->GetNameCPP(); }))
+	{
+		FString DependencyClassNameWithoutPrefix = GetClassNameWithPrefixRemoved(DependencyClassName);
+
+		if (ClassNameWithoutPrefix == DependencyClassNameWithoutPrefix)
+		{
+			FUHTException::Throwf(*this, InputLine, TEXT("A class cannot inherit itself or a type with the same name but a different prefix"));
+		}
+
+		FString StrippedDependencyName = DependencyClassName.Mid(1);
+
+		// Only add a stripped dependency if the stripped name differs from the stripped class name
+		// otherwise it's probably a class with a different prefix.
+		if (StrippedDependencyName != ClassNameWithoutPrefix)
+		{
+			GetIncludes().AddUnique(FHeaderProvider(EHeaderProviderSourceType::ClassName, MoveTemp(StrippedDependencyName)));
+		}
+	}
+}
+
+void FUnrealSourceFile::AddScriptStructIncludeIfNeeded(int32 InputLine, const FString& StructNameWithoutPrefix, const FString& DependencyStructName)
+{
+	if (!Algo::FindBy(GetDefinedStructs(), DependencyStructName, [](const TSharedRef<FUnrealTypeDefinitionInfo>& Info) { return Info->GetNameCPP(); }))
+	{
+		FString DependencyStructNameWithoutPrefix = GetClassNameWithPrefixRemoved(DependencyStructName);
+
+		if (StructNameWithoutPrefix == DependencyStructNameWithoutPrefix)
+		{
+			FUHTException::Throwf(*this, InputLine, TEXT("A struct cannot inherit itself or a type with the same name but a different prefix"));
+		}
+
+		FString StrippedDependencyName = DependencyStructName.Mid(1);
+
+		// Only add a stripped dependency if the stripped name differs from the stripped class name
+		// otherwise it's probably a class with a different prefix.
+		if (StrippedDependencyName != StructNameWithoutPrefix)
+		{
+			GetIncludes().AddUnique(FHeaderProvider(EHeaderProviderSourceType::ScriptStructName, FString(DependencyStructName))); // Structs don't use the stripped name
+		}
+	}
+}
+
+void FUnrealSourceFile::AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo& TypeDef)
+{
+	check(TypeDef.HasSource());
+	if (&TypeDef.GetUnrealSourceFile() != this)
+	{
+		GetIncludes().AddUnique(FHeaderProvider(TypeDef));
+	}
+}
+
+void FUnrealSourceFile::AddTypeDefIncludeIfNeeded(UField* Field)
+{
+	if (Field != nullptr)
+	{
+		if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Field))
+		{
+			AddTypeDefIncludeIfNeeded(**TypeDef);
+		}
+	}
+}
+

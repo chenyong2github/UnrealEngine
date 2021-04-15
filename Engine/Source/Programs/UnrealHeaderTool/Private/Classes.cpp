@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Classes.h"
+#include "ParserClass.h"
 #include "UnrealHeaderTool.h"
 #include "UObject/ErrorException.h"
 #include "UObject/Package.h"
@@ -42,24 +43,6 @@ namespace
 
 		return bNamesMatch;
 	}
-}
-
-FClasses::FClasses(const TArray<UClass*>* Classes)
-	: UObjectClass((FClass*)UObject::StaticClass())
-	, ClassTree(UObjectClass)
-{
-	if (Classes)
-	{
-		for (UClass* Class : *Classes)
-		{
-			ClassTree.AddClass(Class);
-		}
-	}
-}
-
-FClass* FClasses::GetRootClass() const
-{
-	return UObjectClass;
 }
 
 FClass* FClasses::FindClass(const TCHAR* ClassName)
@@ -135,23 +118,3 @@ FClass* FClasses::FindScriptClass(const FString& InClassName, FString* OutErrorM
 
 	return nullptr;
 }
-
-TArray<FClass*> FClasses::GetClassesInPackage(const UPackage* InPackage) const
-{
-	TArray<FClass*> Result;
-	Result.Add(UObjectClass);
-
-	// This cast is evil, but it'll work until we get TArray covariance. ;-)
-	ClassTree.GetChildClasses((TArray<UClass*>&)Result, [=](const UClass* Class) { return InPackage == ANY_PACKAGE || Class->GetOuter() == InPackage; }, true);
-
-	return Result;
-}
-
-#if WIP_UHT_REFACTOR
-
-void FClasses::Validate()
-{
-	ClassTree.Validate();
-}
-
-#endif

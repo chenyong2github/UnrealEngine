@@ -15,109 +15,121 @@ class UClass;
 class FProperty;
 class UPackage;
 class UEnum;
-class FClassDeclarationMetaData;
 class FArchive;
 struct FManifestModule;
 class FUnrealSourceFile;
 class FUnrealTypeDefinitionInfo;
 
-struct FArchiveTypeDefinePair
+// Helper class to support freezing of the container
+struct FFreezableContainer
 {
-	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
-	FString EnclosingDefine;
+public:
+	void Freeze()
+	{
+		bFrozen = true;
+	}
+
+protected:
+	bool bFrozen = false;
 };
 
 // Wrapper class around TypeDefinition map so we can maintain a parallel by name map
-struct FTypeDefinitionInfoMap
+struct FTypeDefinitionInfoMap : public FFreezableContainer
 {
-	void Add(UField* Field, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
+
+	//NOTE: UObjects are frozen after the preparsing phase
+	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
 	{
-		DefinitionsByField.Add(Field, Definition);
-		DefinitionsByName.Add(Field->GetFName(), MoveTemp(Definition));
+		check(!bFrozen);
+		DefinitionsByUObject.Add(Object, Definition);
+		DefinitionsByName.Add(Object->GetFName(), MoveTemp(Definition));
 	}
-	bool Contains(const UField* Field) { return DefinitionsByField.Contains(Field); }
-	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UField* Field) { return DefinitionsByField.Find(Field); }
-	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name) { return DefinitionsByName.Find(Name); }
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UField* Field) { return DefinitionsByField[Field]; }
+
+	void Add(UObject* Object, TSharedRef<FUnrealTypeDefinitionInfo>& Definition)
+	{
+		check(!bFrozen);
+		DefinitionsByUObject.Add(Object, Definition);
+		DefinitionsByName.Add(Object->GetFName(), Definition);
+	}
+
+	bool Contains(const UObject* Object) { check(bFrozen); return DefinitionsByUObject.Contains(Object); }
+	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UObject* Object) { check(bFrozen); return DefinitionsByUObject.Find(Object); }
+	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UObject* Object) { check(bFrozen); return DefinitionsByUObject[Object]; }
+	FUnrealTypeDefinitionInfo& FindChecked(const UObject* Object)
+	{
+		check(bFrozen);
+		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByUObject.Find(Object);
+		check(TypeDef);
+		return **TypeDef;
+	}
+	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name) { check(bFrozen); return DefinitionsByName.Find(Name); }
+	FUnrealTypeDefinitionInfo& FindByNameChecked(const FName Name)
+	{ 
+		check(bFrozen); 
+		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByName.Find(Name);
+		check(TypeDef);
+		return **TypeDef;
+	}
+
+	//NOTE: FFields (properties) are not frozen since they are added during the parsing phase
+	void Add(FField* Field, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
+	{
+		DefinitionsByFField.Add(Field, Definition);
+	}
+	bool Contains(const FField* Field) { return DefinitionsByFField.Contains(Field); }
+	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const FField* Field)
+	{
+		return DefinitionsByFField.Find(Field);
+	}
+	FUnrealTypeDefinitionInfo& FindChecked(const FField* Field)
+	{
+		TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = DefinitionsByFField.Find(Field);
+		check(TypeDef);
+		return **TypeDef;
+	}
+	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const FField* Field) { return DefinitionsByFField[Field]; }
 
 private:
 
-	TMap<UField*, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByField;
+	TMap<UObject*, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByUObject;
+	TMap<FField*, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByFField;
 	TMap<FName, TSharedRef<FUnrealTypeDefinitionInfo>> DefinitionsByName;
 };
 
-// Wrapper class around ClassDeclarations map so we can control access in a threadsafe manner
-struct FClassDeclarations
-{
-	void AddIfMissing(FName Name, TUniqueFunction<TSharedRef<FClassDeclarationMetaData>()>&& DeclConstructFunc);
-	FClassDeclarationMetaData* Find(FName Name);
-	FClassDeclarationMetaData& FindChecked(FName Name);
-
-private:
-	TMap<FName, TSharedRef<FClassDeclarationMetaData>> ClassDeclarations;
-
-	FRWLock ClassDeclLock;
-};
-
 // Wrapper class around SourceFiles map so we can quickly get a list of source files for a given package
-struct FUnrealSourceFiles
+struct FUnrealSourceFiles : public FFreezableContainer
 {
-	void AddByHash(uint32 Hash, FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
+	TSharedRef<FUnrealSourceFile>* AddByHash(uint32 Hash, FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
 	{
+		check(!bFrozen);
+		TSharedRef<FUnrealSourceFile>* Existing = SourceFilesByString.FindByHash(Hash, Filename);
+		AllSourceFiles.Add(&SourceFile.Get());
 		SourceFilesByString.AddByHash(Hash, MoveTemp(Filename), MoveTemp(SourceFile));
-		SourceFilesByPackage.FindOrAdd(SourceFile->GetPackage()).Add(&SourceFile.Get());
+		return Existing;
 	}
-	const TSharedRef<FUnrealSourceFile>* FindByHash(uint32 Hash, const FString& Filename) const
+	const TSharedRef<FUnrealSourceFile>* Find(const FString& Id) const 
 	{
-		return SourceFilesByString.FindByHash(Hash, Filename);
+		check(bFrozen);
+		return SourceFilesByString.Find(Id);
 	}
-	const TSharedRef<FUnrealSourceFile>* Find(const FString& Id) const { return SourceFilesByString.Find(Id); }
-	const TArray<FUnrealSourceFile*>* FindFilesForPackage(const UPackage* Package) const { return SourceFilesByPackage.Find(Package); }
+	const TArray<FUnrealSourceFile*>& GetAllSourceFiles() const
+	{
+		check(bFrozen);
+		return AllSourceFiles;
+	}
 
 private:
 	// A map of all source files indexed by string.
 	TMap<FString, TSharedRef<FUnrealSourceFile>> SourceFilesByString;
 
-	// The list of source files per package. Stored as raw pointer since SourceFilesByString holds shared ref.
-	TMap<UPackage*, TArray<FUnrealSourceFile*>> SourceFilesByPackage;
-};
-
-// Wrapper class around PublicSourceFile set so we can quickly get a list of source files for a given package
-struct FPublicSourceFileSet
-{
-	void Add(FUnrealSourceFile* SourceFile)
-	{
-		SourceFileSet.Add(SourceFile);
-		SourceFilesByPackage.FindOrAdd(SourceFile->GetPackage()).Add(SourceFile);
-	}
-	bool Contains(FUnrealSourceFile* SourceFile) const { return SourceFileSet.Contains(SourceFile); }
-	const TArray<FUnrealSourceFile*>* FindFilesForPackage(const UPackage* Package) const { return SourceFilesByPackage.Find(Package); }
-
-private:
-
-	// The set of all public source files. Stored as raw pointer since FUnrealSourceFiles::SourceFilesByString holds shared ref.
-	TSet<FUnrealSourceFile*> SourceFileSet;
-
-	// The list of public source files per package. Stored as raw pointer since FUnrealSourceFiles::SourceFilesByString holds shared ref.
-	TMap<UPackage*, TArray<FUnrealSourceFile*>> SourceFilesByPackage;
+	// Total collection of sources
+	TArray<FUnrealSourceFile*> AllSourceFiles;
 };
 
 extern FUnrealSourceFiles GUnrealSourceFilesMap;
 extern FTypeDefinitionInfoMap GTypeDefinitionInfoMap;
-extern TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
-extern FCriticalSection GPackageSingletonsCriticalSection;
-extern FPublicSourceFileSet GPublicSourceFileSet;
-extern TMap<FProperty*, FString> GArrayDimensions;
-extern TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
-extern TMap<void*, uint32> GGeneratedCodeHashes;
+extern TMap<UFunction*, uint32> GGeneratedCodeHashes;
 extern FRWLock GGeneratedCodeHashesLock;
-extern TMap<UEnum*, EUnderlyingEnumType> GEnumUnderlyingTypes;
-extern FClassDeclarations GClassDeclarations;
-extern TSet<FProperty*> GUnsizedProperties;
-extern TSet<UField*> GEditorOnlyDataTypes;
-extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
-extern TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
-extern TSet<FProperty*> GPropertyUsesMemoryImageAllocator;
 
 /** Types access specifiers. */
 enum EAccessSpecifier

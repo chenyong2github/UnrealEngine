@@ -138,16 +138,6 @@ public:
 	static TSharedRef<FScope> GetTypeScope(UStruct* Type);
 
 	/**
-	 * Adds struct's or class's scope.
-	 *
-	 * @param Type A struct or class for which to add the scope.
-	 * @param ParentScope A scope in which this scope is contained.
-	 *
-	 * @returns Newly added scope.
-	 */
-	static TSharedRef<FScope> AddTypeScope(UStruct* Type, FScope* ParentScope);
-
-	/**
 	 * Gets structs, enums and delegate functions from this scope.
 	 *
 	 * @param Enums (Output parameter) List of enums from this scope.
@@ -282,9 +272,6 @@ private:
 
 	// Map of types in this scope.
 	TMap<FName, UField*> TypeMap;
-
-	// Global map type <-> scope.
-	static TMap<UStruct*, TSharedRef<FScope> > ScopeMap;
 
 	friend struct FScopeArchiveProxy;
 	friend struct FStructScopeArchiveProxy;

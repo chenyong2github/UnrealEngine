@@ -265,15 +265,9 @@ public:
 	 */
 	void GetHashTag(FUHTStringBuilder& Out) const;
 
-//protected: TEMPORARY MAKE THESE PUBLIC
+protected:
 	explicit FUnrealTypeDefinitionInfo(FString&& InNameCPP)
 		: NameCPP(MoveTemp(InNameCPP))
-	{ }
-
-	// TEMPORARY API - REMOVE
-	FUnrealTypeDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber)
-		: SourceFile(&InSourceFile)
-		, LineNumber(InLineNumber)
 	{ }
 
 	FUnrealTypeDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP)

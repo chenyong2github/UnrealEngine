@@ -18,8 +18,9 @@ class UScriptStruct;
 class UDelegateFunction;
 class FClassMetaData;
 class FOutputDevice;
+class FUnrealPackageDefinitionInfo;
 struct FFuncInfo;
-struct FPreloadHeaderFileInfo;
+struct FGeneratedFileInfo;
 
 //
 //	FNativeClassHeaderGenerator
@@ -51,7 +52,6 @@ class FScope;
 
 // These are declared in this way to allow swapping out the classes for something more optimized in the future
 typedef FStringOutputDevice FUHTStringBuilder;
-typedef FStringOutputDeviceCountLines FUHTStringBuilderLineCounter;
 
 enum class EExportingState
 {
@@ -64,6 +64,13 @@ enum class EExportCallbackType
 	Interface,
 	Class
 };
+
+enum class EExportClassOutFlags
+{
+	None = 0x0,
+	NeedsPushModelHeaders = 0x1 << 0,
+};
+ENUM_CLASS_FLAGS(EExportClassOutFlags);
 
 struct FPropertyNamePointerPair
 {
@@ -79,51 +86,238 @@ struct FPropertyNamePointerPair
 
 FString CreateUTF8LiteralString(const FString& Str);
 
+/**
+ * Structure to load and maintain information about a generated file
+ */
+
+struct FGeneratedFileInfo
+{
+	FGeneratedFileInfo(bool bInAllowSaveExportedHeaders)
+		: bAllowSaveExportedHeaders(bInAllowSaveExportedHeaders)
+	{
+	}
+
+	/**
+	 * Start the process of loading the existing version of the file.  The output file name will also be initialized.
+	 */
+	void StartLoad(FString&& InFilename);
+
+	/**
+	 * Get the output file name.
+	 */
+	FString& GetFilename() { return Filename; }
+	const FString& GetFilename() const { return Filename; }
+
+	/**
+	 * Return the original contents of the output file. This string will not be valid untile the load task has completed.
+	 */
+	const FString& GetOriginalContents() const
+	{
+		return OriginalContents;
+	}
+
+	/**
+	 * Return a string builder that can be used to store the new copy of the file.  The body will not be a 
+	 * complete version of the new file.
+	 */
+	FUHTStringBuilder& GetGeneratedBody()
+	{
+		return GeneratedBody;
+	}
+
+	/**
+	 * After the new contents of the file has been serialized into string builder returned by GetGeneratedBody, 
+	 * invoke this method to generate a body hash for the new contents.
+	 */
+	void GenerateBodyHash();
+
+	/**
+	 * Return the generated hash for the body
+	 */
+	uint32 GetGeneratedBodyHash() const
+	{
+		return GeneratedBodyHash;
+	}
+
+
+	/**
+	 * Store the task being used to save the updated text of the file
+	 */
+	void SetSaveTaskRef(FGraphEventRef&& InSaveTaskRef)
+	{
+		SaveTaskRef = MoveTemp(InSaveTaskRef);
+	}
+
+	/**
+	 * If the save task is valid, add it to the supplied array of tasks
+	 */
+	void AddSaveTaskRef(FGraphEventArray& Events) const
+	{
+		if (SaveTaskRef.IsValid())
+		{
+			Events.Add(SaveTaskRef);
+		}
+	}
+
+	/**
+	 * If the load task is valid, add it to the supplied array of tasks.  StartLoad must have already been called.
+	 */
+	void AddLoadTaskRef(FGraphEventArray& Events) const
+	{
+		if (LoadTaskRef.IsValid())
+		{
+			Events.Add(LoadTaskRef);
+		}
+	}
+
+	/**
+	 * Set the package filename that represents the name of the file as packaged.
+	 * TODO: Verify this is the same as Filename and eliminate if that is the case.
+	 */
+	void SetPackageFilename(FString&& InFilename)
+	{
+		PackageFilename = MoveTemp(InFilename);
+	}
+
+	/**
+	 * If the package filename has been set, add it to the set of given file names
+	 */
+	void AddPackageFilename(TSet<FString>& PackageHeaderPaths)
+	{
+		if (!PackageFilename.IsEmpty())
+		{
+			PackageHeaderPaths.Add(MoveTemp(PackageFilename));
+		}
+	}
+
+	/**
+	 * Set the name of the temporary location of the file.  It will be moved as part of the saving process.
+	 */
+	void SetTempFilename(FString&& InFilename)
+	{
+		TempFilename = MoveTemp(InFilename);
+	}
+
+	/**
+	 * If the temp file name is set, add it to the list of temporary file names
+	 */
+	void AddTempFilename(TArray<FString>& TempHeaderPaths)
+	{
+		if (!TempFilename.IsEmpty())
+		{
+			TempHeaderPaths.Add(MoveTemp(TempFilename));
+		}
+	}
+
+	/**
+	 * If true, the existing version of the file will be read and the new version will be saved.
+	 */
+	bool AllowSaveExportedHeaders() const
+	{
+		return bAllowSaveExportedHeaders;
+	}
+
+private:
+	bool bAllowSaveExportedHeaders = true;
+	uint32 GeneratedBodyHash = 0;
+	FString Filename;
+	FString PackageFilename;
+	FString TempFilename;
+	FString OriginalContents;
+	FUHTStringBuilder GeneratedBody;
+	FGraphEventRef LoadTaskRef;
+	FGraphEventRef SaveTaskRef;
+};
+
+/**
+ * For every FUnrealSourceFile being processed, an instance of this class represents the data associated with generating the new output.
+ */
+struct FGeneratedCPP
+{
+	
+	/**
+	 * Construct a new instance that refers to the source package and file
+	 */
+	FGeneratedCPP(FUnrealPackageDefinitionInfo& InPackageDef, FUnrealSourceFile& InSourceFile);
+
+	/**
+	 * If this source is to be exported, verify that the final generation task has been set and add it to the output.
+	 * This method is used to make sure that any dependent files have been generated before the file in question is
+	 * generated.
+	 */
+	void AddGenerateTaskRef(FGraphEventArray& Events) const;
+
+	/**
+	 * If this source is to be exported, verify that the export task has been set and add it to the output.
+	 * This method is used to make sure that the complete export process for the file, excluding saving task,
+	 * has completed.
+	 */
+	void AddExportTaskRef(FGraphEventArray& Events) const;
+
+	/**
+	 * The package definition being exported
+	 */
+	FUnrealPackageDefinitionInfo& PackageDef;
+
+	/**
+	 * The source file being exported
+	 */
+	FUnrealSourceFile& SourceFile;
+
+	/**
+	 * The old and new header information.
+	 */
+	FGeneratedFileInfo Header;
+
+	/**
+	 * The old and new source information
+	 */
+	FGeneratedFileInfo Source;
+
+	// The following information is collected during generation process
+	TSet<FString> CrossModuleReferences;
+	TSet<FString> ForwardDeclarations;
+	FUHTStringBuilder GeneratedFunctionDeclarations;
+	EExportClassOutFlags ExportFlags = EExportClassOutFlags::None;
+
+	/**
+	 * This task represents the task that generates the source
+	 */
+	FGraphEventRef GenerateTaskRef;
+
+	/**
+	 * This task represents the task that completes the export process of the source
+	 */
+	FGraphEventRef ExportTaskRef;
+};
+
+/**
+ * Structure used to perform output generation
+ */
 struct FNativeClassHeaderGenerator
 {
 private:
-	FString API;
-	FString APIStringPrivate;
+	FUnrealPackageDefinitionInfo& PackageDef;
 
 	/**
-	 * Gets API string for this header.
+	 * Gets API string for this header with trailing space.
 	 */
-	const FString& GetAPIString() const
-	{
-		return APIStringPrivate;
-	}
-
-	const UPackage* Package;
+	const FString& GetAPIString() const;
 
 	/** A collection of structures used to gather various kinds of references conveniently grouped together to make passing easier */
 	struct FReferenceGatherers
 	{
-		FReferenceGatherers(TSet<FString>* InUniqueCrossModuleReferences, TSet<FString>& InPackageHeaderPaths, TArray<FString>& InTempHeaderPaths)
+		FReferenceGatherers(TSet<FString>* InUniqueCrossModuleReferences,TSet<FString> & InForwardDeclarations)
 			: UniqueCrossModuleReferences(InUniqueCrossModuleReferences)
-			, PackageHeaderPaths(InPackageHeaderPaths)
-			, TempHeaderPaths(InTempHeaderPaths)
+			, ForwardDeclarations(InForwardDeclarations)
 		{
 		}
 
 		/** Set of already exported cross-module references, to prevent duplicates */
 		TSet<FString>* UniqueCrossModuleReferences;
-		/** Array of all header filenames from the current package. */
-		TSet<FString>& PackageHeaderPaths;
-		/** Array of temp filenames that for files to overwrite headers */
-		TArray<FString>& TempHeaderPaths;
 		/** Forward declarations that we need. */
-		TSet<FString> ForwardDeclarations;
-
+		TSet<FString>& ForwardDeclarations;
 	};
-
-	/** the existing disk version of the header for this package's names */
-	FString OriginalNamesHeader;
-
-	/** References to the tasks to save the temp files so as to be able to wait and be sure they are complete before moving them */
-	FGraphEventArray TempSaveTasks;
-
-	/** If false, exported headers will not be saved to disk */
-	bool bAllowSaveExportedHeaders;
 
 	/**
 	 * Exports the struct's C++ properties to the HeaderText output device and adds special
@@ -145,20 +339,6 @@ private:
 	static FString GetSingletonNameFuncAddr(UField* Item, TSet<FString>* UniqueCrossModuleReferences, bool bRequiresValidObject=true);
 
 	/**
-	 * Returns the name (overridden if marked up) with TEXT("") or "" wrappers for use in a string literal.
-	 */
-	template <typename T>
-	static FString GetOverriddenNameForLiteral(const T* Item)
-	{
-		const FString& OverriddenName = Item->GetMetaData(TEXT("OverrideNativeName"));
-		if (!OverriddenName.IsEmpty())
-		{
-			return TEXT("TEXT(\"") + OverriddenName + TEXT("\")");
-		}
-		return TEXT("\"") + Item->GetName() + TEXT("\"");
-	}
-
-	/**
 	 * Returns the name (overridden if marked up) or "" wrappers for use in a string literal.
 	 */
 	template <typename T>
@@ -177,24 +357,12 @@ private:
 	 */
 	void ExportInterfaceCallFunctions(FOutputDevice& OutCpp, FUHTStringBuilder& Out, FReferenceGatherers& OutReferenceGatherers, const TArray<UFunction*>& CallbackFunctions, const TCHAR* ClassName) const;
 
-	/**
-	 * Export UInterface boilerplate.
-	 *
-	 * @param UInterfaceBoilerplate Device to export to.
-	 * @param Class Interface to export.
-	 * @param FriendText Friend text for this boilerplate.
-	 */
-	static void ExportUInterfaceBoilerplate(FUHTStringBuilder& UInterfaceBoilerplate, FClass* Class, const FString& FriendText);
-
-public:
-
-	enum class EExportClassOutFlags
-	{
-		None = 0x0,
-		NeedsPushModelHeaders = 0x1 << 0,
-	};
-
 private:
+
+	// Constructor
+	FNativeClassHeaderGenerator(
+		FUnrealPackageDefinitionInfo& PackageDef
+	);
 
 	/**
 	 * After all of the dependency checking, and setup for isolating the generated code, actually export the class
@@ -215,10 +383,13 @@ private:
 
 	/**
 	 * After all of the dependency checking, but before actually exporting the class, set up the generated code
-	 *
-	 * @param	SourceFile			Source file to export.
 	 */
-	bool WriteHeader(const FPreloadHeaderFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, FReferenceGatherers& InOutReferenceGatherers, FGraphEventRef& OutTempSaveTask) const;
+	static bool WriteHeader(FGeneratedFileInfo& FileInfo, const FString& InBodyText, const TSet<FString>& InAdditionalHeaders, const TSet<FString>& ForwardDeclarations);
+
+	/**
+	 * Write the body of a source file using a standard format
+	 */
+	static bool WriteSource(const FManifestModule& Module, FGeneratedFileInfo& FileInfo, const FString& InBodyText, FUnrealSourceFile* InSourceFile, const TSet<FString>& InCrossModuleReferences);
 
 	/**
 	 * Returns a string in the format CLASS_Something|CLASS_Something which represents all class flags that are set for the specified
@@ -302,11 +473,6 @@ private:
 	* @param	TempHeaderPaths	Names of all the headers to move
 	*/
 	static void ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths, FGraphEventArray& InTempSaveTasks);
-
-	/**
-	 * Exports the generated cpp file for all functions/events/delegates in package.
-	 */
-	static void ExportGeneratedCPP(FOutputDevice& Out, const TSet<FString>& InCrossModuleReferences, const TCHAR* EmptyLinkFunctionPostfix, const TCHAR* Body, const TCHAR* OtherIncludes);
 
 	/**
 	 * Get the intrinsic null value for this property
@@ -397,7 +563,7 @@ private:
 	 * @param	Out			The destination to write to.
 	 * @param	Package		Package to export code for.
 	**/
-	void ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, const UPackage* Package, uint32 CRC);
+	void ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, uint32 CRC);
 
 	/**
 	 * Function to output the C++ code necessary to set up the given array of properties
@@ -440,6 +606,22 @@ private:
 	void PropertyNew(FOutputDevice& DeclOut, FOutputDevice& Out, FReferenceGatherers& OutReferenceGatherers, FProperty* Prop, const TCHAR* OffsetStr, const TCHAR* Name, const TCHAR* DeclSpaces, const TCHAR* Spaces, const TCHAR* SourceStruct = nullptr) const;
 
 	/**
+	 * Function to generate the property tag
+	 *
+	 * @param	Out				Destination string builder.
+	 * @param	Object			UObject in question
+	 */
+	static void GetPropertyTag(FUHTStringBuilder& Out, UObject* Object);
+
+	/**
+	 * Function to generate the property tag
+	 * 
+	 * @param	Out				Destination string builder.
+	 * @param	Prop			Property in question.
+	 */
+	static void GetPropertyTag(FUHTStringBuilder& Out, FProperty* Prop);
+
+	/**
 	 * Exports the proxy definitions for the list of enums specified
 	 * 
 	 * @param SourceFile	current source file
@@ -477,11 +659,11 @@ private:
 	/**
 	 * Saves a generated header if it has changed. 
 	 *
-	 * @param HeaderPath	Header Filename
-	 * @param NewHeaderContents	Contents of the generated header.
+	 * @param	FileInfo			Contextual information about the file
+	 * @param	NewHeaderContents	New complete contents of the file
 	 * @return True if the header contents has changed, false otherwise.
 	 */
-	bool SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const FPreloadHeaderFileInfo& FileInfo, FString&& NewHeaderContents, FGraphEventRef& OutSaveTaskRef) const;
+	static bool SaveHeaderIfChanged(FGeneratedFileInfo& FileInfo, FString&& NewHeaderContents);
 
 	/**
 	 * Deletes all .generated.h files which do not correspond to any of the classes.
@@ -498,6 +680,31 @@ private:
 	 * @param	Class									Class for which to export macros.
 	 */
 	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& VTableOut, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FClass* Class, const TCHAR* APIArg);
+
+	/**
+	 * Gets string with function return type.
+	 *
+	 * @param Function Function to get return type of.
+	 * @return FString with function return type.
+	 */
+	static FString GetFunctionReturnString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+
+	/**
+	* Gets string with function parameters (with names).
+	*
+	* @param Function Function to get parameters of.
+	* @return FString with function parameters.
+	*/
+	static FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+
+	/**
+	 * Checks if function is missing "virtual" specifier.
+	 *
+	 * @param SourceFile SourceFile where function is declared.
+	 * @param FunctionNamePosition Position of name of function in SourceFile.
+	 * @return true if function misses "virtual" specifier, false otherwise.
+	 */
+	static bool IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition);
 
 public:
 
@@ -533,38 +740,19 @@ public:
 		return FString::Printf(TEXT("%s.%s"), *FClass::GetTypePackageName(Item), *GetOverriddenName(Item));
 	}
 
-	// Constructor
-	FNativeClassHeaderGenerator(
-		const UPackage* InPackage,
-		const TSet<FUnrealSourceFile*>& SourceFiles,
-		FClasses& AllClasses,
-		bool InAllowSaveExportedHeaders
-	);
-
 	/**
-	 * Gets string with function return type.
-	 * 
-	 * @param Function Function to get return type of.
-	 * @return FString with function return type.
+	 * Generate all the sources
+	 *
+	 * @param	GeneratedCPPs		Complete list of all source files being generated.
 	 */
-	static FString GetFunctionReturnString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+	static void GenerateSourceFiles(TArray<FGeneratedCPP>& GeneratedCPPs);
 
 	/**
-	* Gets string with function parameters (with names).
-	*
-	* @param Function Function to get parameters of.
-	* @return FString with function parameters.
-	*/
-	static FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
-
-	/**
-	 * Checks if function is missing "virtual" specifier.
-	 * 
-	 * @param SourceFile SourceFile where function is declared.
-	 * @param FunctionNamePosition Position of name of function in SourceFile.
-	 * @return true if function misses "virtual" specifier, false otherwise.
+	 * Generate all the extra output files for the given package.
+	 *
+	 * @param	PackageDef			The Package definition in question.
+	 * @param	GeneratedCPPs		Complete list of all source files being generated.
 	 */
-	static bool IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition);
+	static void Generate(FUnrealPackageDefinitionInfo& PackageDef, TArray<FGeneratedCPP>& GeneratedCPPs);
 };
 
-ENUM_CLASS_FLAGS(FNativeClassHeaderGenerator::EExportClassOutFlags);

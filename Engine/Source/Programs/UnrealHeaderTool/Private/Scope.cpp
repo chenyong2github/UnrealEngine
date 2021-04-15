@@ -75,23 +75,13 @@ void FScope::SplitTypesIntoArrays(TArray<UEnum*>& Enums, TArray<UScriptStruct*>&
 
 TSharedRef<FScope> FScope::GetTypeScope(UStruct* Type)
 {
-	auto* ScopeRefPtr = ScopeMap.Find(Type);
-	if (!ScopeRefPtr)
+	TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(Type);
+	if (TypeDef == nullptr)
 	{
 		FError::Throwf(TEXT("Couldn't find scope for the type %s."), *Type->GetName());
 	}
 
-	return *ScopeRefPtr;
-}
-
-TSharedRef<FScope> FScope::AddTypeScope(UStruct* Type, FScope* ParentScope)
-{
-	FStructScope* ScopePtr = new FStructScope(Type, ParentScope);
-	TSharedRef<FScope> Scope = MakeShareable(ScopePtr);
-
-	ScopeMap.Add(Type, Scope);
-
-	return Scope;
+	return (*TypeDef)->GetScope();
 }
 
 UField* FScope::FindTypeByName(FName Name)
@@ -157,8 +147,6 @@ FFileScope* FScope::GetFileScope()
 
 	return CurrentScope->AsFileScope();
 }
-
-TMap<UStruct*, TSharedRef<FScope> > FScope::ScopeMap;
 
 FFileScope::FFileScope(FName InName, FUnrealSourceFile* InSourceFile)
 	: SourceFile(InSourceFile), Name(InName)

@@ -6,7 +6,7 @@
 #include "Misc/Paths.h"
 #include "Scope.h"
 #include "HeaderProvider.h"
-#include "SimplifiedParsingClassInfo.h"
+#include "UnrealTypeDefinitionInfo.h"
 #include "GeneratedCodeVersion.h"
 
 class UPackage;
@@ -15,6 +15,22 @@ class UStruct;
 class FArchive;
 class FClassMetaData;
 
+enum ETopologicalState : uint8
+{
+	Unmarked,
+	Temporary,
+	Permanent,
+};
+
+enum ESourceFileTime : uint8
+{
+	Load,
+	PreParse,
+	Parse,
+	Generate,
+	Count,
+};
+
 /**
  * Contains information about source file that defines various UHT aware types.
  */
@@ -22,14 +38,10 @@ class FUnrealSourceFile : public TSharedFromThis<FUnrealSourceFile>
 {
 public:
 	// Constructor.
-	FUnrealSourceFile(UPackage* InPackage, FString&& InFilename, FString&& InContent)
+	FUnrealSourceFile(UPackage* InPackage, const FString& InFilename)
 		: Scope                (MakeShareable(new FFileScope(*(FString(TEXT("__")) + FPaths::GetBaseFilename(InFilename) + FString(TEXT("__File"))), this)))
-		, Filename             (MoveTemp(InFilename))
+		, Filename             (InFilename)
 		, Package              (InPackage)
-		, Content              (MoveTemp(InContent))
-		, bHasChanged          (false)
-		, bParsed              (false)
-		, bDependenciesResolved(false)
 	{
 		if (GetStrippedFilename() != "NoExportTypes")
 		{
@@ -38,21 +50,23 @@ public:
 	}
 
 	/**
-	 * Gets parsing info for class defined in this source file.
+	 * Adds given class to class definition list for this source file.
 	 *
-	 * @returns Parsing info for class defined in this source file.
+	 * @param ClassDecl Declaration information about the class
 	 */
-	const FSimplifiedParsingClassInfo& GetDefinedClassParsingInfo(UClass* DefinedClass) const
-	{
-		return GetDefinedClassesWithParsingInfo()[DefinedClass];
-	}
+	void AddDefinedClass(TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl);
 
 	/**
-	 * Gets map with classes defined in this source file with parsing info.
+	 * Gets array with classes defined in this source file with parsing info.
 	 *
-	 * @returns Map with classes defined in this source file with parsing info.
+	 * @returns Array with classes defined in this source file with parsing info.
 	 */
-	const TMap<UClass*, FSimplifiedParsingClassInfo>& GetDefinedClassesWithParsingInfo() const
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedClasses()
+	{
+		return DefinedClasses;
+	}
+
+	const TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedClasses() const
 	{
 		return DefinedClasses;
 	}
@@ -63,6 +77,66 @@ public:
 	int32 GetDefinedClassesCount() const
 	{
 		return DefinedClasses.Num();
+	}
+
+	/**
+	 * Adds given enum to enum definition list for this source file.
+	 *
+	 * @param EnumDecl Declaration information about the enum
+	 */
+	void AddDefinedEnum(TSharedRef<FUnrealTypeDefinitionInfo> EnumDecl);
+
+	/**
+	 * Gets array with enums defined in this source file with parsing info.
+	 *
+	 * @returns Array with enum defined in this source file with parsing info.
+	 */
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedEnums()
+	{
+		return DefinedEnums;
+	}
+
+	const TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedEnums() const
+	{
+		return DefinedEnums;
+	}
+
+	/**
+	 * Gets number of types defined in this source file.
+	 */
+	int32 GetDefinedEnumsCount() const
+	{
+		return DefinedEnums.Num();
+	}
+
+	/**
+	 * Adds given struct to struct definition list for this source file.
+	 *
+	 * @param StructDecl Declaration information about the struct
+	 */
+	void AddDefinedStruct(TSharedRef<FUnrealTypeDefinitionInfo> StructDecl);
+
+	/**
+	 * Gets array with structs defined in this source file with parsing info.
+	 *
+	 * @returns Array with structs defined in this source file with parsing info.
+	 */
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedStructs()
+	{
+		return DefinedStructs;
+	}
+
+	const TArray<TSharedRef<FUnrealTypeDefinitionInfo>>& GetDefinedStructs() const
+	{
+		return DefinedStructs;
+	}
+
+	/**
+	 * Gets number of types defined in this source file.
+	 */
+	int32 GetDefinedStructsCount() const
+	{
+		return DefinedStructs.Num();
 	}
 
 	/**
@@ -126,14 +200,6 @@ public:
 	FString GetGeneratedMacroName(FClassMetaData* ClassData, const TCHAR* Suffix = nullptr) const;
 
 	/**
-	 * Adds given class to class definition list for this source file.
-	 *
-	 * @param Class Class to add to list.
-	 * @param ParsingInfo Data from simplified parsing step.
-	 */
-	void AddDefinedClass(UClass* Class, FSimplifiedParsingClassInfo&& ParsingInfo);
-
-	/**
 	 * Gets scope for this file.
 	 */
 	TSharedRef<FFileScope> GetScope() const
@@ -195,6 +261,26 @@ public:
 	}
 
 	/**
+	 * Add an include for a class if required
+	 */
+	void AddClassIncludeIfNeeded(int32 InputLine, const FString& ClassNameWithoutPrefix, const FString& DependencyClassName);
+
+	/**
+	 * Add an include for a script struct if required
+	 */
+	void AddScriptStructIncludeIfNeeded(int32 InputLine, const FString& StructNameWithoutPrefix, const FString& DependencyStructName);
+
+	/**
+	 * Add an include for a type definition if required
+	 */
+	void AddTypeDefIncludeIfNeeded(FUnrealTypeDefinitionInfo& TypeDef);
+
+	/**
+	 * Add an include for a type definition if required
+	 */
+	void AddTypeDefIncludeIfNeeded(UField* Field);
+
+	/**
 	 * Gets generated code version for given UStruct.
 	 */
 	EGeneratedCodeVersion GetGeneratedCodeVersionForStruct(UStruct* Struct) const;
@@ -236,14 +322,9 @@ public:
 	void SetIncludePath(FString&& IncludePath);
 
 	/**
-	 * Mark this file as parsed.
+	 * Sets the contents of the header stipped of CPP content
 	 */
-	void MarkAsParsed();
-
-	/**
-	 * Checks if this file is parsed.
-	 */
-	bool IsParsed() const;
+	void SetContent(FString&& InContent);
 
 	/**
 	 * Checks if generated file has been changed.
@@ -251,9 +332,100 @@ public:
 	bool HasChanged() const;
 
 	/**
-	 * Mark that this file has resolved dependencies.
+	 * Mark the source file as being public
 	 */
-	void MarkDependenciesResolved();
+	void MarkPublic()
+	{
+		bIsPublic = true;
+	}
+
+	/**
+	 * Checks if the source file is public
+	 */
+	bool IsPublic() const
+	{
+		return bIsPublic;
+	}
+
+	/**
+	 * Set the topological sort state
+	 */
+	void SetTopologicalState(ETopologicalState InTopologicalState)
+	{
+		TopologicalState = InTopologicalState;
+	}
+
+	/**
+	 * Get the topological sort state
+	 */
+	ETopologicalState GetTopologicalState() const
+	{
+		return TopologicalState;
+	}
+
+	/**
+	 * Set the number of lines parsed 
+	 */
+	void SetLinesParsed(int32 InLinesParsed)
+	{
+		LinesParsed = InLinesParsed;
+	}
+
+	/**
+	 * Get the number of lines parsed 
+	 */
+	int32 GetLinesParsed() const
+	{
+		return LinesParsed;
+	}
+
+	/**
+	 * Set the number of statements parsed
+	 */
+	void SetStatementsParsed(int32 InStatementsParsed)
+	{
+		StatementsParsed = InStatementsParsed;
+	}
+
+	/**
+	 * Get the number of statements parsed
+	 */
+	int32 GetStatementsParsed() const
+	{
+		return StatementsParsed;
+	}
+	
+	/**
+	 * Get a reference to a time
+	 */
+	double& GetTime(ESourceFileTime Time)
+	{
+		return Times[Time];
+	}
+
+	/**
+	 * Get the ordered index
+	 */
+	int32 GetOrderedIndex() const
+	{
+		return OrderedIndex;
+	}
+
+	/**
+	 * Set the ordered index
+	 */
+	void SetOrderedIndex(int32 InOrderedIndex)
+	{
+		OrderedIndex = InOrderedIndex;
+	}
+
+	/**
+	 * Get the collection of singletons 
+	 */
+	TArray<UField*>& GetSingletons()
+	{
+		return Singletons;
+	}
 
 	/**
 	 * Mark this source file has being referenced
@@ -271,13 +443,6 @@ public:
 		return bIsReferenced || GetScope()->ContainsTypes();
 	}
 
-	/**
-	 * Checks if dependencies has been resolved.
-	 */
-	bool AreDependenciesResolved() const;
-	friend FArchive& operator<<(FArchive& Ar, FUnrealSourceFile& UHTMakefile);
-	void SetScope(FFileScope* Scope);
-	void SetScope(TSharedRef<FFileScope> Scope);
 private:
 
 	// File scope.
@@ -310,24 +475,45 @@ private:
 	// Source file content.
 	FString Content;
 
+	// Different timers for the source
+	double Times[ESourceFileTime::Count] = { 0.0 };
+
+	// Number of statements parsed.
+	int32 StatementsParsed = 0;
+
+	// Total number of lines parsed.
+	int32 LinesParsed = 0;
+
+	// Index of the source file when ordered
+	int32 OrderedIndex = 0;
+
+	// Tells if generated header file was changed.
+	bool bHasChanged = false;
+
+	// Tells if this is a public source file
+	bool bIsPublic = false;
+
 	// Tells if this file is referenced by another
 	bool bIsReferenced = false;
 
-	// Tells if generated header file was changed.
-	bool bHasChanged;
-
-	// Tells if this file was parsed.
-	bool bParsed;
-
-	// Tells if dependencies has been resolved already.
-	bool bDependenciesResolved;
+	// Current topological sort state
+	ETopologicalState TopologicalState = ETopologicalState::Unmarked;
 
 	// This source file includes.
 	TArray<FHeaderProvider> Includes;
 
 	// List of classes defined in this source file along with parsing info.
-	TMap<UClass*, FSimplifiedParsingClassInfo> DefinedClasses;
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedClasses;
+
+	// List of enums defined in this source file along with parsing info.
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedEnums;
+
+	// List of structs defined in this source file along with parsing info.
+	TArray<TSharedRef<FUnrealTypeDefinitionInfo>> DefinedStructs;
 
 	// Mapping of UStructs to versions, according to which their code should be generated.
 	TMap<UStruct*, EGeneratedCodeVersion> GeneratedCodeVersions;
+
+	// Collection of all singletons found during code generation
+	TArray<UField*> Singletons;
 };
