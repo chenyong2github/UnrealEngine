@@ -17,7 +17,7 @@ class ENGINE_API UActorDescContainer : public UObject, public FActorDescList
 	friend class FWorldPartitionActorDesc;
 
 public:
-	void Initialize(UWorld* World, FName InPackageName, bool bRegisterDelegates);
+	void Initialize(UWorld* World, FName InPackageName);
 	virtual void Uninitialize();
 	
 	virtual UWorld* GetWorld() const override;
@@ -49,9 +49,6 @@ protected:
 	//~ End UObject Interface
 
 #if WITH_EDITOR
-	virtual void RegisterDelegates();
-	virtual void UnregisterDelegates();
-
 	virtual void OnActorDescAdded(FWorldPartitionActorDesc* NewActorDesc);
 	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) {}
@@ -65,5 +62,11 @@ protected:
 	bool bContainerInitialized;
 
 	FName ContainerPackageName;
+#endif
+
+private:
+#if WITH_EDITOR
+	void RegisterEditorDelegates();
+	void UnregisterEditorDelegates();
 #endif
 };

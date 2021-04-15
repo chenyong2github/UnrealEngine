@@ -17,7 +17,7 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 #endif
 {}
 
-void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool bRegisterDelegates)
+void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 {
 	check(!World || World == InWorld);
 	World = InWorld;
@@ -96,10 +96,7 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool 
 		}
 	}
 
-	if (bRegisterDelegates)
-	{
-		RegisterDelegates();
-	}
+	RegisterEditorDelegates();
 
 	bContainerInitialized = true;
 #endif
@@ -107,11 +104,10 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool 
 
 void UActorDescContainer::Uninitialize()
 {
-	World = nullptr;
 #if WITH_EDITOR
 	if (bContainerInitialized)
 	{
-		UnregisterDelegates();
+		UnregisterEditorDelegates();
 		bContainerInitialized = false;
 	}
 
@@ -120,6 +116,7 @@ void UActorDescContainer::Uninitialize()
 		ActorDescPtr.Reset();
 	}
 #endif
+	World = nullptr;
 }
 
 UWorld* UActorDescContainer::GetWorld() const
@@ -219,18 +216,18 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 	}
 }
 
-void UActorDescContainer::RegisterDelegates()
+void UActorDescContainer::RegisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
 		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
 		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 	}
 }
 
-void UActorDescContainer::UnregisterDelegates()
+void UActorDescContainer::UnregisterEditorDelegates()
 {
-	if (GEditor && !IsTemplate())
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
 	{
 		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
 		FEditorDelegates::OnPackageDeleted.RemoveAll(this);

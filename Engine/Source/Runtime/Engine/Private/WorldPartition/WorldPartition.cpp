@@ -259,6 +259,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	check(IsMainWorldPartition());
 
+	RegisterDelegates();
+
 #if WITH_EDITOR
 	bool bEditorOnly = !World->IsGameWorld();
 	if (bEditorOnly)
@@ -284,9 +286,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bEditorOnly || IsRunningGame())
 	{
-		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
-		FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
+		const FName PackageName = LevelPackage->GetLoadedPath().GetPackageFName();
+		UActorDescContainer::Initialize(World, PackageName);
+		check(bContainerInitialized);
 
 		bool bIsInstanced = (bEditorOnly && !IsRunningCommandlet()) ? OuterWorld->PersistentLevel->IsInstancedLevel() : false;
 
@@ -295,7 +298,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		if (bIsInstanced)
 		{
-			InstancingContext.AddMapping(LevelPackage->GetLoadedPath().GetPackageFName(), LevelPackage->GetFName());
+			InstancingContext.AddMapping(PackageName, LevelPackage->GetFName());
 
 			const FString SourceWorldName = FPaths::GetBaseFilename(LevelPackage->GetLoadedPath().GetPackageName());
 			const FString DestWorldName = FPaths::GetBaseFilename(LevelPackage->GetFName().ToString());
@@ -303,10 +306,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			ReplaceFrom = SourceWorldName + TEXT(".") + SourceWorldName;
 			ReplaceTo = DestWorldName + TEXT(".") + DestWorldName;
 		}
-
-		const bool bRegisterDelegates = bEditorOnly;
-		UActorDescContainer::Initialize(World, PackageName, bRegisterDelegates);
-		check(bContainerInitialized);
 
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{
@@ -435,6 +434,8 @@ void UWorldPartition::Uninitialize()
 		check(World);
 
 		InitState = EWorldPartitionInitState::Uninitializing;
+
+		UnregisterDelegates();
 		
 		// Unload all loaded cells
 		if (World->IsGameWorld())
@@ -485,8 +486,6 @@ void UWorldPartition::Uninitialize()
 			WorldPartitionSubsystem->UnregisterWorldPartition(this);
 		}
 
-		World = nullptr;
-
 		InitState = EWorldPartitionInitState::Uninitialized;
 	}
 
@@ -507,6 +506,53 @@ bool UWorldPartition::IsMainWorldPartition() const
 {
 	check(World);
 	return World == GetTypedOuter<UWorld>();
+}
+
+void UWorldPartition::RegisterDelegates()
+{
+	check(World); 
+
+#if WITH_EDITOR
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	{
+		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
+		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
+		FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
+		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
+	}
+#endif
+
+	if (World->IsGameWorld())
+	{
+		World->OnWorldBeginPlay.AddUObject(this, &UWorldPartition::OnWorldBeginPlay);
+	}
+}
+
+void UWorldPartition::UnregisterDelegates()
+{
+	check(World);
+
+#if WITH_EDITOR
+	if (GEditor && !IsTemplate() && !World->IsGameWorld())
+	{
+		FEditorDelegates::PreBeginPIE.RemoveAll(this);
+		FEditorDelegates::PrePIEEnded.RemoveAll(this);
+		FEditorDelegates::CancelPIE.RemoveAll(this);
+		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
+	}
+#endif
+
+	if (World->IsGameWorld())
+	{
+		World->OnWorldBeginPlay.RemoveAll(this);
+	}
+}
+
+void UWorldPartition::OnWorldBeginPlay()
+{
+	check(GetWorld()->IsGameWorld());
+	// Wait for any level streaming to complete
+	GetWorld()->BlockTillLevelStreamingCompleted();
 }
 
 #if WITH_EDITOR
@@ -536,30 +582,6 @@ UWorldPartition* UWorldPartition::CreateWorldPartition(AWorldSettings* WorldSett
 	WorldPartition->GetWorld()->PersistentLevel->bIsPartitioned = true;
 
 	return WorldPartition;
-}
-
-void UWorldPartition::RegisterDelegates()
-{
-	Super::RegisterDelegates();
-	if (GEditor && !IsTemplate())
-	{
-		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
-		FEditorDelegates::PrePIEEnded.AddUObject(this, &UWorldPartition::OnPrePIEEnded);
-		FEditorDelegates::CancelPIE.AddUObject(this, &UWorldPartition::OnCancelPIE);
-		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
-	}
-}
-
-void UWorldPartition::UnregisterDelegates()
-{
-	Super::UnregisterDelegates();
-	if (GEditor && !IsTemplate())
-	{
-		FEditorDelegates::PreBeginPIE.RemoveAll(this);
-		FEditorDelegates::PrePIEEnded.RemoveAll(this);
-		FEditorDelegates::CancelPIE.RemoveAll(this);
-		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
-	}
 }
 
 void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
@@ -1149,7 +1171,7 @@ const UActorDescContainer* UWorldPartition::RegisterActorDescContainer(FName Pac
 	}
 		
 	UActorDescContainer* NewContainer = NewObject<UActorDescContainer>(GetTransientPackage());
-	NewContainer->Initialize(GetWorld(), PackageName, true);
+	NewContainer->Initialize(GetWorld(), PackageName);
 	ActorDescContainers.Add(PackageName, TWeakObjectPtr<UActorDescContainer>(NewContainer));
 
 	return NewContainer;

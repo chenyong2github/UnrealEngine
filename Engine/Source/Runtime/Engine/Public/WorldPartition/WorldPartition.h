@@ -225,12 +225,13 @@ private:
 #endif
 
 	bool IsMainWorldPartition() const;
-		
-#if WITH_EDITOR
-	// Delegates registration
-	virtual void RegisterDelegates() override;
-	virtual void UnregisterDelegates() override;
+	void OnWorldBeginPlay();
 
+	// Delegates registration
+	void RegisterDelegates();
+	void UnregisterDelegates();	
+
+#if WITH_EDITOR
 	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
