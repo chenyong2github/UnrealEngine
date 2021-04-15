@@ -1802,10 +1802,16 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
 	FString FormatPrefix;
 	bool bHasPrefix = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix, GEngineIni);
+	bHasPrefix = bHasPrefix && ! FormatPrefix.IsEmpty();
 
+	if ( bHasPrefix )
+	{
 	FString TextureCompressionFormat;
 	bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
+bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
 	
+		if ( bHasFormat )
+		{
 	// Disable in the Editor by default ?
 	// I guess this is done for speed but it's not a great idea because it means people aren't seeing the real content
 	//	would be preferrable to properly make a "fast preview" vs "cook encode" mode
@@ -1816,9 +1822,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	// do prefixing if bEnableInEditor or if making cooked content
 	bool bEnablePrefix = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
 
-	if (bHasPrefix && bHasFormat && bEnablePrefix)
+			if ( bEnablePrefix )
 	{
-		ITextureFormatModule*TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
+				ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
 
 		if ( TextureFormatModule )
 		{
@@ -1833,6 +1839,8 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 			{
 				TextureFormatName = NewFormatName;
 			}
+		}
+	}
 		}
 	}
 
