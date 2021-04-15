@@ -1708,7 +1708,6 @@ int32 FDynamicMeshCollection::CutWithMultiplePlanes(
 
 		// remove old parent geometry
 		GeometryForRemoval.Add(GeometryIdx);
-		Collection->TransformToGeometryIndex[MeshData.TransformIndex] = INDEX_NONE;
 
 		// add newly created geometry as children
 		int32 SubPartIdx = 0;
@@ -1903,8 +1902,6 @@ int32 FDynamicMeshCollection::CutWithCellMeshes(const FInternalSurfaceMaterials&
 			
 			// remove old geom
 			GeometryForRemoval.Add(GeometryIdx);
-			Collection->TransformToGeometryIndex[Surface.TransformIndex] = INDEX_NONE;
-
 		}
 	}
 

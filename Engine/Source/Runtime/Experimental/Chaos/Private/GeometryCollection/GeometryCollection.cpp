@@ -623,8 +623,14 @@ void FGeometryCollection::RemoveGeometryElements(const TArray<int32>& SortedGeom
 			int32 GeoIndex = SortedGeometryIndicesToDelete[DeleteIdx];
 			for (int Idx = 0; Idx < TransformToGeometryIndex.Num(); Idx++)
 			{
-				if (TransformToGeometryIndex[Idx] >= GeoIndex)
+				if (TransformToGeometryIndex[Idx] > GeoIndex)
+				{
 					TransformToGeometryIndex[Idx]--;
+				}
+				else if (TransformToGeometryIndex[Idx] == GeoIndex)
+				{
+					TransformToGeometryIndex[Idx] = INDEX_NONE;
+				}
 			}
 
 		}
