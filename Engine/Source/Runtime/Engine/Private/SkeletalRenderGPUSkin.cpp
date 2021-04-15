@@ -194,7 +194,10 @@ void FSkeletalMeshObjectGPUSkin::InitResources(USkinnedMeshComponent* InMeshComp
 	}
 
 #if RHI_RAYTRACING
-	BeginInitResource(&RayTracingGeometry);
+	if (bSupportRayTracing)
+	{
+		BeginInitResource(&RayTracingGeometry);
+	}
 #endif
 }
 void FSkeletalMeshObjectGPUSkin::ReleaseResources()
@@ -226,7 +229,10 @@ void FSkeletalMeshObjectGPUSkin::ReleaseResources()
 	);
 
 #if RHI_RAYTRACING
-	BeginReleaseResource(&RayTracingGeometry);
+	if (bSupportRayTracing)
+	{
+		BeginReleaseResource(&RayTracingGeometry);
+	}
 
 	// Only enqueue when intialized
 	if (RayTracingDynamicVertexBuffer.NumBytes > 0)

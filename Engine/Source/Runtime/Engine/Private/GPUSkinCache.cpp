@@ -1523,7 +1523,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 	bool bAnySegmentUsesWorldPositionOffset
 	)
 {
-	if (IsRayTracingEnabled() && GEnableGPUSkinCache && SkinCacheEntry)
+	if (IsRayTracingEnabled() && GEnableGPUSkinCache && SkinCacheEntry && SkinCacheEntry->GPUSkin->bSupportRayTracing)
 	{
 		FRayTracingGeometry& RayTracingGeometry = SkinCacheEntry->GPUSkin->RayTracingGeometry;
 
