@@ -135,12 +135,9 @@ private:
 
 	FText GetTooltipText() const
 	{
-		if (const AActor* Actor = ActorPtr.Get())
+		if (const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin())
 		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("ID_Name"), LOCTEXT("CustomColumnMode_InternalName", "ID Name"));
-			Args.Add(TEXT("Name"), FText::FromString(Actor->GetName()));
-			return FText::Format(LOCTEXT("ActorNameTooltip", "{ID_Name}: {Name}"), Args);
+			return FText::FromString(TreeItem->GetDisplayString());
 		}
 
 		return FText();
