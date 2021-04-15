@@ -99,6 +99,9 @@ private:
 	/** Delegate for Curve Selection Changed Event */
 	void OnCurveDisplayChanged(FCurveModel* InCurveModel, bool bDisplayed);
 
+	/** Delegate for difference focused movie scene sequence*/
+	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
+
 	/** Actor Added Delegate*/
 	void HandleActorAdded(AActor* Actor, FGuid TargetObjectGuid);
 	/** Add Control Rig Tracks For Skelmesh Components*/
@@ -166,6 +169,7 @@ public:
 private:
 	FDelegateHandle SelectionChangedHandle;
 	FDelegateHandle SequencerChangedHandle;
+	FDelegateHandle OnActivateSequenceChangedHandle;
 	FDelegateHandle CurveChangedHandle;
 	FDelegateHandle OnChannelChangedHandle;
 	FDelegateHandle OnMovieSceneChannelChangedHandle;
