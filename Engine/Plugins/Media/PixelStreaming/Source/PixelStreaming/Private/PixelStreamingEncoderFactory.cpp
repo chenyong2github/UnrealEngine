@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PixelStreamingEncoderFactory.h"
 #include "PlayerSession.h"
 #include "PixelStreamingVideoEncoder.h"
