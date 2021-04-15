@@ -12,7 +12,7 @@ namespace Audio
 	{
 	public:
 		// ctor
-		FLinearPitchShifter() = default;
+		FLinearPitchShifter(int32 InNumChannels = 0);
 
 		void Reset(int32 InNumChannels, float InInitialPitchShiftSemitones = 0.0f, int32 InInterpLengthFrames = 100);
 
@@ -29,10 +29,9 @@ namespace Audio
 		TArray<float> PreviousFrame;
 		FParam PitchShiftRatio;
 		float CurrentIndex{ 0.0f };
-		int32 NumChannels{ 1 };
+		int32 NumChannels{ 0 };
 		int32 InterpLengthFrames{ 100 };
 		int32 InterpFramesRemaining{ 0 };
-		bool bInterpolateBetweenBuffers{ false };
 
 	}; // class FLinearPitchShifter
 } // namespace Audio

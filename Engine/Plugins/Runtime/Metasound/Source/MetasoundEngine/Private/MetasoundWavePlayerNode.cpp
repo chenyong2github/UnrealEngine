@@ -426,12 +426,12 @@ namespace Metasound
 			int32 NumOutputFramesToGenerate = (EndFrame - StartFrame);
 			int32 NumFramesGenerated = 0;
 
-			const bool bCanDecodeWave = IsCurrentWaveValid();
-			if (bCanDecodeWave)
+			const bool bCanDecoderGenerateAudio = Decoder.CanGenerateAudio();
+			if (bCanDecoderGenerateAudio)
 			{
 				ensure(Decoder.CanGenerateAudio());
 
-				const int32 NumInputChannels = CurrentWaveAsset->GetNumChannels();
+				const int32 NumInputChannels = Decoder.GetNumChannels();
 				const bool bNeedsUpmix = (NumInputChannels == 1);
 				const bool bNeedsDeinterleave = !bNeedsUpmix;
 
@@ -561,6 +561,8 @@ namespace Metasound
 				}
 				
 				// handle decoder having completed during it's decode
+				const bool bCannotGenerateAudio = !Decoder.CanGenerateAudio();
+				const bool bDidNotGenerateEnough = NumFramesGenerated < NumOutputFramesToGenerate;
 				const bool bReachedEOF = !Decoder.CanGenerateAudio() || (NumFramesGenerated < NumOutputFramesToGenerate);
 				if (bReachedEOF && !bIsLooping)
 				{

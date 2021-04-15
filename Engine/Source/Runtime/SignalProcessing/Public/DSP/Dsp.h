@@ -892,9 +892,9 @@ namespace Audio
 		}
 
 		// Same as Pop(), but does not increment the read counter.
-		int32 Peek(SampleType* OutBuffer, uint32 NumSamples)
+		int32 Peek(SampleType* OutBuffer, uint32 NumSamples) const
 		{
-			SampleType* SrcBuffer = InternalBuffer.GetData();
+			const SampleType* SrcBuffer = InternalBuffer.GetData();
 			const uint32 ReadIndex = ReadCounter.GetValue();
 			const uint32 WriteIndex = WriteCounter.GetValue();
 
@@ -912,7 +912,7 @@ namespace Audio
 
 		// Peeks a single element.
 		// returns false if the element is empty.
-		bool Peek(SampleType& OutElement)
+		bool Peek(SampleType& OutElement) const
 		{
 			if (Num() == 0)
 			{
@@ -980,7 +980,7 @@ namespace Audio
 		}
 
 		// Get number of samples that can be popped off of the buffer.
-		uint32 Num()
+		uint32 Num() const
 		{
 			const int32 ReadIndex = ReadCounter.GetValue();
 			const int32 WriteIndex = WriteCounter.GetValue();
@@ -996,13 +996,13 @@ namespace Audio
 		}
 
 		// Get the current capacity of the buffer
-		uint32 GetCapacity()
+		uint32 GetCapacity() const
 		{
 			return Capacity;
 		}
 
 		// Get number of samples that can be pushed onto the buffer before it is full.
-		uint32 Remainder()
+		uint32 Remainder() const
 		{
 			const uint32 ReadIndex = ReadCounter.GetValue();
 			const uint32 WriteIndex = WriteCounter.GetValue();

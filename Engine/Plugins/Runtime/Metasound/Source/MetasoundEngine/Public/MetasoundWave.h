@@ -90,13 +90,12 @@ namespace Audio
 		 */
 		bool SeekToTime(const float InSeconds);
 
-		bool CanGenerateAudio() const
-		{
-			return !bDecoderIsDone && Input.IsValid() && Output.IsValid() && Decoder.IsValid();
-		}
+		bool CanGenerateAudio() const;
 
 		// returns number of samples written.   
 		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents = 0.0f, bool bIsLooping = false);
+
+		uint32 GetNumChannels() const;
 
 
 	private:
@@ -120,19 +119,20 @@ namespace Audio
 		Audio::TCircularAudioBuffer<float> OutputCircularBuffer;
 
 		// meta data:
-		float InputSampleRate{ 44100.f };
-		float OutputSampleRate{ 44100.f };
+		float InputSampleRate{ -1.f };
+		float OutputSampleRate{ -1.f };
 		float FsOutToInRatio{ 1.f };
 		float MaxPitchShiftCents{ 12.0f };
 		float MaxPitchShiftRatio{ 2.0f };
 
-		uint32 NumChannels{ 1 };
+		uint32 NumChannels{ 0 };
 		uint32 DecodeBlockSizeInFrames{ 64 };
 		uint32 DecodeBlockSizeInSamples{ 64 };
 		uint32 OutputBlockSizeInFrames { 512 };
 		
 		bool bDecoderIsDone{ true };
 		bool bDecoderHasLooped{ false };
+		bool bIsInitialized{ false };
 
 	}; // class FSimpleDecoderWrapper
 } // namespace Audio

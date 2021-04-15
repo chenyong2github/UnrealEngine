@@ -86,14 +86,12 @@ namespace Audio
 
 	bool FSimpleDecoderWrapper::SetWave(const FSoundWaveProxyPtr& InWave, float InStartTimeSeconds, float InInitialPitchShiftSemitones)
 	{
-		Wave = InWave;
-
 		bool bSuccessful = true;
 
-		if (Wave.IsValid())
+		if (InWave.IsValid())
 		{
 			// validate data
-			if (!ensureAlwaysMsgf(Wave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)")))
+			if (!ensureAlwaysMsgf(InWave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)")))
 			{
 				Wave.Reset();
 				Input.Reset();
@@ -104,24 +102,57 @@ namespace Audio
 				return false;
 			}
 
-			// initialize input/output data
-			InputSampleRate = Wave->GetSampleRate();
-			FsOutToInRatio = (OutputSampleRate / InputSampleRate);
 
-			NumChannels = Wave->GetNumChannels();
-			DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
+			// Determine which values differ so that correct things can be updated.
+			const bool bIsDifferentWave = (InWave.Get() != Wave.Get());
+			const bool bUpdateNumChannels = (InWave->GetNumChannels() != NumChannels);
+			const bool bUpdateInputSampleRate = (InWave->GetSampleRate() != InputSampleRate);
 
-			// set Circular Buffer capacity
-			int32 Capacity = FMath::Max(1, static_cast<int32>(OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2));
-			OutputCircularBuffer.Reserve(Capacity, true /* bRetainExistingSamples */);
+			const bool bUpdateAudioFormat = bUpdateNumChannels || bUpdateInputSampleRate || !bIsInitialized;
+			const bool bReinitDecoder = bIsDifferentWave || !bIsInitialized;
 
+			Wave = InWave;
 
-			// try to initialize decoders
-			bSuccessful = InitializeDecodersInternal(Wave, InStartTimeSeconds);
+			if (bReinitDecoder)
+			{
+				// try to initialize decoders
+				bSuccessful = InitializeDecodersInternal(Wave, InStartTimeSeconds);
+			}
+			else
+			{
+				// If the wave has not changed, only need to seek.
+				bSuccessful = SeekToTime(InStartTimeSeconds);
+			}
 			bDecoderIsDone = !bSuccessful;
 
-			Resampler.Init(Audio::EResamplingMethod::Linear, FsOutToInRatio, NumChannels);
-			PitchShifter.Reset(NumChannels, InInitialPitchShiftSemitones);
+			if (bUpdateAudioFormat)
+			{
+				// initialize input/output data
+				InputSampleRate = Wave->GetSampleRate();
+				FsOutToInRatio = (OutputSampleRate / InputSampleRate);
+
+				NumChannels = Wave->GetNumChannels();
+				DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
+
+				// set Circular Buffer capacity
+				int32 Capacity = FMath::Max(1, static_cast<int32>(OutputBlockSizeInFrames * NumChannels * (1.0f + FsOutToInRatio * MaxPitchShiftRatio) * 2));
+				OutputCircularBuffer.Reserve(Capacity, true /* bRetainExistingSamples */);
+
+				Resampler.Init(Audio::EResamplingMethod::Linear, FsOutToInRatio, NumChannels);
+				bIsInitialized = true;
+			}
+
+			if (bUpdateNumChannels)
+			{
+				
+				PitchShifter.Reset(Wave->GetNumChannels(), InInitialPitchShiftSemitones);
+				// Have to discard previous samples if the channel count changes. 
+				OutputCircularBuffer.SetNum(0);
+			}
+			else
+			{
+				PitchShifter.UpdatePitchShift(InInitialPitchShiftSemitones);
+			}
 		}
 
 		return bSuccessful;
@@ -141,9 +172,25 @@ namespace Audio
 		return false;
 	}
 	
+	bool FSimpleDecoderWrapper::CanGenerateAudio() const
+	{
+		// If there is a valid decoder, than this object can generate audio.
+		const bool bCanDecoderGenerateAudio = !bDecoderIsDone && Input.IsValid() && Output.IsValid() && Decoder.IsValid() && (NumChannels > 0);
+
+		// If there is audio remaining in the output circular buffer, then this can 
+		// generate some audio.
+		const bool bIsAudioInOutputBuffer = (0 != OutputCircularBuffer.Num());
+
+		return bCanDecoderGenerateAudio || bIsAudioInOutputBuffer;
+	}
 
 	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, int32& OutNumFramesConsumed, float PitchShiftInCents, bool bIsLooping)
 	{
+		if (0 == NumChannels)
+		{
+			return 0;
+		}
+
 		const uint32 NumOutputSamples = NumOutputFrames * NumChannels;
 
 		OutNumFramesConsumed = 0;
@@ -180,6 +227,7 @@ namespace Audio
 				int32 NumResamplerOutputFrames = 0;
 				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
 				ensure(Error == 0);
+
 				if (!PostSrcBuffer.Num() || !NumResamplerOutputFrames)
 				{
 					continue;
@@ -217,6 +265,11 @@ namespace Audio
 		}
 
 		return NumOutputSamples; // update once we are aware of partial decode on last buffer
+	}
+
+	uint32 FSimpleDecoderWrapper::GetNumChannels() const
+	{
+		return NumChannels;
 	}
 
 	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& InWave, float InStartTimeSeconds)
