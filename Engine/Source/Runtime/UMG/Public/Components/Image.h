@@ -75,7 +75,7 @@ public:
 	void SetOpacity(float InOpacity);
 
 	/**  */
-	UFUNCTION(BlueprintCallable, Category = "Appearance", meta = (DeprecatedFunction, DeprecationMessage = "Use SetDesiredSizeOverride() instead"))
+	UE_DEPRECATED(5.0, "Deprecated. Use SetDesiredSizeOverride instead.")
 	void SetBrushSize(FVector2D DesiredSize);
 
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
