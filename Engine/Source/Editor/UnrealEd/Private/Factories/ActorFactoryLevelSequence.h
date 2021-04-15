@@ -5,14 +5,14 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "ActorFactories/ActorFactory.h"
-#include "ActorFactoryMovieScene.generated.h"
+#include "ActorFactoryLevelSequence.generated.h"
 
 class AActor;
 struct FAssetData;
 class ULevel;
 
 UCLASS()
-class UActorFactoryMovieScene : public UActorFactory
+class UActorFactoryLevelSequence : public UActorFactory
 {
 	GENERATED_UCLASS_BODY()
 
