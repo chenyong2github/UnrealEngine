@@ -2257,6 +2257,8 @@ void USkeleton::HandleVirtualBoneChanges()
 	const bool bRebuildNameMap = false;
 	ReferenceSkeleton.RebuildRefSkeleton(this, bRebuildNameMap);
 
+	BuildSkeletonRemappings(true);
+
 	for (TObjectIterator<USkeletalMesh> ItMesh; ItMesh; ++ItMesh)
 	{
 		USkeletalMesh* SkelMesh = *ItMesh;
