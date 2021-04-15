@@ -6,55 +6,7 @@
 
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 
-//
-// Windows only include
-//
-#if PLATFORM_WINDOWS
-	THIRD_PARTY_INCLUDES_START
-	#include "Windows/AllowWindowsPlatformTypes.h"
-	#include "Windows/PreWindowsApi.h"
-		#include <d3d11.h>
-		#include <mftransform.h>
-		#include <mfapi.h>
-		#include <mferror.h>
-		#include <mfidl.h>
-		#include <codecapi.h>
-		#include <shlwapi.h>
-		#include <mfreadwrite.h>
-		#include <d3d11_1.h>
-		#include <d3d12.h>
-		#include <dxgi1_4.h>
-	#include "Windows/PostWindowsApi.h"
-	#include "Windows/HideWindowsPlatformTypes.h"
-	THIRD_PARTY_INCLUDES_END
-
-	//#include "D3D11State.h"
-	//#include "D3D11Resources.h"
-#endif
-
-//
-// XboxOne only includes
-//
-#if PLATFORM_XBOXONE
-
-#include "XboxCommonAllowPlatformTypes.h"
-#include "XboxCommonPreApi.h"
-		#include <d3d11_x.h>
-		#include <d3d12_x.h>
-		#include <d3dcompiler_x.h>
-		#include <d3dx12_x.h>
-		#include <mftransform.h>
-		#include <mfapi.h>
-		#include <mferror.h>
-		#include <mfidl.h>
-		#include <codecapi.h>
-		#include <mfreadwrite.h>
-#include "XboxCommonPostApi.h"
-#include "XboxCommonHidePlatformTypes.h"
-
-#endif
-
-#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && (WINVER >= 0x0600 /*Vista*/) && !UE_SERVER)
+#include "VideoCommon.h"
 
 namespace AVEncoder
 {

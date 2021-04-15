@@ -1,11 +1,13 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "CudaModule.h"
+
+#if WITH_CUDA
+#include "VulkanRHIPrivate.h"
+#endif
 
 DEFINE_LOG_CATEGORY(LogCUDA);
 
 #if WITH_CUDA
-
-#include "VulkanRHIPrivate.h"
-
 void FCUDAModule::StartupModule()
 {    
     FCoreDelegates::OnPostEngineInit.AddRaw(this, &FCUDAModule::InitCuda);

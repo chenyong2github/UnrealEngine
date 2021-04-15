@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "AVEncoder.h"
 
 DEFINE_LOG_CATEGORY(LogAVEncoder);
