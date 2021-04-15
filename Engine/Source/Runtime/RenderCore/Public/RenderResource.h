@@ -670,30 +670,27 @@ public:
 	FRayTracingGeometryInitializer Initializer;
 	FRayTracingGeometryRHIRef RayTracingGeometryRHI;
 
-	// FRenderResource interface.
-	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
-
 	void SetInitializer(const FRayTracingGeometryInitializer& InInitializer)
 	{
 		Initializer = InInitializer;
 	}
 
-	virtual void InitRHI() override
-	{
-		if (!IsRayTracingEnabled())
-			return;
-
-		CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Normal);
-	}
-
 	void CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority InBuildPriority);
-	virtual void ReleaseRHI() override;
 
 	bool HasPendingBuildRequest() const
 	{
 		return RayTracingBuildRequestIndex != INDEX_NONE;
 	}
 	void BoostBuildPriority(float InBoostValue = 0.01f) const;
+
+	// FRenderResource interface
+
+	virtual FString GetFriendlyName() const override { return TEXT("FRayTracingGeometry"); }
+
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+
+	virtual void ReleaseResource() override;
 
 protected:
 

@@ -416,6 +416,14 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	}
 }
 
+void FRayTracingGeometry::InitRHI()
+{
+	if (!IsRayTracingEnabled())
+		return;
+
+	CreateRayTracingGeometry(ERTAccelerationStructureBuildPriority::Normal);
+}
+
 void FRayTracingGeometry::ReleaseRHI()
 {
 	if (HasPendingBuildRequest())
@@ -424,6 +432,15 @@ void FRayTracingGeometry::ReleaseRHI()
 		RayTracingBuildRequestIndex = INDEX_NONE;
 	}
 	RayTracingGeometryRHI.SafeRelease();
+}
+
+void FRayTracingGeometry::ReleaseResource()
+{
+	// Release any resource references held by the initializer.
+	// This includes index and vertex buffers used for building the BLAS.
+	Initializer = FRayTracingGeometryInitializer {};
+
+	FRenderResource::ReleaseResource();
 }
 
 void FRayTracingGeometry::BoostBuildPriority(float InBoostValue) const
