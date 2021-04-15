@@ -1447,7 +1447,7 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 #endif
 
 #if WITH_SLATE_DEBUGGING
-	if (!FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.IsValid())
+	if (FastPathProxyHandle.IsValid(this) && PersistentState.CachedElementHandle.IsValid())
 	{
 		ensure(FastPathProxyHandle.GetProxy().Visibility.IsVisible());
 	}
