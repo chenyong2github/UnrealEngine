@@ -1663,6 +1663,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsTessellation);
 	GET_SECTION_BOOL_HELPER(bSupportsPerPixelDBufferMask);
 	GET_SECTION_BOOL_HELPER(bIsHlslcc);
+	GET_SECTION_BOOL_HELPER(bSupportsVariableRateShading);
 	GET_SECTION_INT_HELPER(NumberOfComputeThreads);
 
 #undef GET_SECTION_BOOL_HELPER

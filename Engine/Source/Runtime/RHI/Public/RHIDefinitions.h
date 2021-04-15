@@ -348,6 +348,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsTessellation : 1;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
+	uint32 bSupportsVariableRateShading : 1;
 	uint32 NumberOfComputeThreads : 10;
 #if WITH_EDITOR
 	FText FriendlyName;
@@ -612,6 +613,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetIsHlslcc(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bIsHlslcc;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVariableRateShading(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsVariableRateShading;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const uint32 GetNumberOfComputeThreads(const FStaticShaderPlatform Platform)
