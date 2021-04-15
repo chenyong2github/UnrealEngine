@@ -62,6 +62,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
+	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
@@ -77,12 +78,6 @@ private:
 
 	static FCriticalSection CriticalSection;
 	UEnum* TraceChannelEnum;
-
-	const static FName SceneDepthName;
-	const static FName CustomDepthName;
-	const static FName DistanceFieldName;
-	const static FName SyncTraceName;
-	const static FName AsyncTraceName;
 };
 
 struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy

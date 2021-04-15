@@ -4066,9 +4066,16 @@ void FRendererModule::RenderPostOpaqueExtensions(FRDGBuilder& GraphBuilder, TArr
 				RenderParameters.DepthTexture = SceneContext.GetSceneDepthSurface()->GetTexture2D();
 				RenderParameters.NormalTexture = SceneContext.GBufferA.IsValid() ? SceneContext.GetGBufferATexture() : nullptr;
 				RenderParameters.VelocityTexture = SceneContext.SceneVelocity.IsValid() ? SceneContext.SceneVelocity->GetRenderTargetItem().ShaderResourceTexture->GetTexture2D() : nullptr;
-				RenderParameters.SmallDepthTexture = SceneContext.GetSmallDepthSurface()->GetTexture2D();
+				RenderParameters.SmallDepthTexture = SceneContext.SmallDepthZ.IsValid() ? SceneContext.GetSmallDepthSurface()->GetTexture2D() : nullptr;
 				RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-				RenderParameters.SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::SceneColor | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SceneVelocity | ESceneTextureSetupMode::GBuffers);
+				if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred)
+				{
+					RenderParameters.SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(RHICmdList, View.FeatureLevel, ESceneTextureSetupMode::SceneColor | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::SceneVelocity | ESceneTextureSetupMode::GBuffers);
+				}
+				else if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
+				{
+					RenderParameters.MobileSceneTexturesUniformParams = CreateMobileSceneTextureUniformBuffer(RHICmdList, EMobileSceneTextureSetupMode::SceneColor | EMobileSceneTextureSetupMode::CustomDepth);
+				}
 				RenderParameters.GlobalDistanceFieldParams = &View.GlobalDistanceFieldInfo.ParameterData;
 
 				RenderParameters.ViewportRect = View.ViewRect;

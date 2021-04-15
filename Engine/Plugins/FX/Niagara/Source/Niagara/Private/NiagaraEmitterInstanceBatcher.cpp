@@ -1309,6 +1309,10 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	{
 		GlobalUniformBuffers.AddUniformBuffer(SceneTexturesUniformBuffer);
 	}
+	if (FRHIUniformBuffer* MobileSceneTexturesUniformBuffer = GNiagaraViewDataManager.GetMobileSceneTextureUniformParameters())
+	{
+		GlobalUniformBuffers.AddUniformBuffer(MobileSceneTexturesUniformBuffer);
+	}
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 	FMemMark Mark(FMemStack::Get());
@@ -1422,7 +1426,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 				}
 			}
 		}
-
 	}
 
 	// Release counts

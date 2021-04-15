@@ -829,22 +829,31 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		GraphBuilder.Execute();
 	}
 
-	if (FXSystem && Views.IsValidIndex(0))
 	{
-		check(RHICmdList.IsOutsideRenderPass());
+		FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
+		FRDGBuilder GraphBuilder(RHICmdList);
+		RendererModule.RenderPostOpaqueExtensions(GraphBuilder, Views, SceneContext);
 
-		FXSystem->PostRenderOpaque(
-			RHICmdList,
-			Views[0].ViewUniformBuffer,
-			nullptr,
-			nullptr,
-			Views[0].AllowGPUParticleUpdate()
-		);
-		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+		if (FXSystem && Views.IsValidIndex(0))
 		{
-			GPUSortManager->OnPostRenderOpaque(RHICmdList);
+			AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+			{
+				check(RHICmdList.IsOutsideRenderPass());
+
+				FXSystem->PostRenderOpaque(
+					RHICmdList,
+					Views[0].ViewUniformBuffer,
+					nullptr,
+					nullptr,
+					Views[0].AllowGPUParticleUpdate()
+				);
+				if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+				{
+					GPUSortManager->OnPostRenderOpaque(RHICmdList);
+				}
+			});
 		}
-		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		GraphBuilder.Execute();
 	}
 
 	// Flush / submit cmdbuffer

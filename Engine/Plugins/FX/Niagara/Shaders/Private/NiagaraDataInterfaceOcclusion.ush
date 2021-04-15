@@ -4,9 +4,21 @@
 
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
+float DIOcclusion_CalcSceneDepth(float2 ScreenUV)
+{
+#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
+	#if MOBILE_DEFERRED_SHADING
+		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, ScreenUV).r);
+	#else
+		return ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a);
+	#endif
+#else
+		return CalcSceneDepth(ScreenUV);
+#endif
+}
+
 void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// we need to project the camera vector to a plane to compare it with scene depth
 	float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz));
 	float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
@@ -44,7 +56,7 @@ void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_Sample
 					continue;
 				}
 				
-				float Depth = CalcSceneDepth(float2(SampleX, SampleY));
+				float Depth = DIOcclusion_CalcSceneDepth(float2(SampleX, SampleY));
 				if (Depth < CameraDistance) 
 				{
 					OccludedSamples++;
@@ -55,15 +67,10 @@ void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_Sample
 	}
 	Out_VisibilityFraction = TotalSamples > 0 ? 1 - OccludedSamples / TotalSamples : 0;
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Steps * Steps));
-#else
-	Out_VisibilityFraction = 1;
-	Out_SampleFraction = 1;
-#endif
 }
 
 void DIOcclusion_Circle(in float3 In_SampleCenterWorldPos, in float In_SampleWindowDiameterWorld, in float In_SampleRays, in float In_SampleStepsPerRay, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	const float PI = 3.14159265;
 	const float SPIRAL_TURN = 2 * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
 	float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz)); // we need to project the camera vector to a plane to compare it with scene depth
@@ -79,7 +86,7 @@ void DIOcclusion_Circle(in float3 In_SampleCenterWorldPos, in float In_SampleWin
 
 	if (ScreenUV.x <= 1 && ScreenUV.x >= 0 && ScreenUV.y <= 1 && ScreenUV.y >= 0)
 	{
-		float Depth = CalcSceneDepth(ScreenUV);
+		float Depth = DIOcclusion_CalcSceneDepth(ScreenUV);
 		if (Depth < CameraDistance) 
 		{
 			OccludedSamples++;
@@ -124,8 +131,4 @@ void DIOcclusion_Circle(in float3 In_SampleCenterWorldPos, in float In_SampleWin
 	}
 	Out_VisibilityFraction = TotalSamples > 0 ? 1 - OccludedSamples / TotalSamples : 0;
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Rays * Steps + 1));
-#else
-	Out_VisibilityFraction = 1;
-	Out_SampleFraction = 1;
-#endif
 }
