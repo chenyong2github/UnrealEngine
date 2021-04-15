@@ -37,12 +37,29 @@ public:
 	{
 		check(InnerBackend);
 	}
+
+	bool ShouldAbortForShutdown()
+	{
+		using ESpeedClass = FDerivedDataBackendInterface::ESpeedClass;
+		ESpeedClass SpeedClass = InnerBackend->GetSpeedClass();
+		if (SpeedClass == ESpeedClass::Local)
+		{
+			return false;
+		}
+		return !GIsBuildMachine && FDerivedDataBackend::Get().IsShuttingDown();
+	}
 		
 	/** Call the inner backend and when that completes, remove the memory cache */
 	void DoWork()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DDCPut_DoWork);
 		COOK_STAT(auto Timer = UsageStats.TimePut());
+
+		if (ShouldAbortForShutdown())
+		{
+			Abandon();
+			return;
+		}
 
 		using EPutStatus = FDerivedDataBackendInterface::EPutStatus;
 		EPutStatus Status = EPutStatus::NotCached;
