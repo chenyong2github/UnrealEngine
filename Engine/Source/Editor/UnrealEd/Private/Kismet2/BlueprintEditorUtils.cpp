@@ -75,6 +75,7 @@
 #include "K2Node_MathExpression.h"
 #include "K2Node_MatineeController.h"
 #include "K2Node_SpawnActorFromClass.h"
+#include "K2Node_StructOperation.h"
 #include "K2Node_TemporaryVariable.h"
 #include "K2Node_Timeline.h"
 #include "K2Node_Knot.h"
@@ -96,6 +97,7 @@
 #include "ScopedTransaction.h"
 #include "ClassViewerFilter.h"
 #include "InstancedReferenceSubobjectHelper.h"
+#include "NodeDependingOnEnumInterface.h"
 
 #include "BlueprintEditorModule.h"
 #include "BlueprintEditor.h"
@@ -9869,6 +9871,206 @@ void FBlueprintEditorUtils::BuildComponentInstancingData(UActorComponent* Compon
 
 		// Flag that cooked data has been built and is now considered to be valid.
 		OutData.bHasValidCookedData = true;
+	}
+}
+
+namespace 
+{
+	// This structure provides the ability to find/update the nodes primary object.  This must be specialized based
+	// on the type of the object being found/updated
+	template <typename TObjectType, bool bIsFind>
+	struct FFindOrUpdateNodeHelper
+	{
+		template <typename FindExisting>
+		static bool FindOrUpdateNode(UK2Node* Node, FindExisting& InFindExisting);
+	};
+
+	template <bool bIsFind>
+	struct FFindOrUpdateNodeHelper<UScriptStruct, bIsFind>
+	{
+		template <typename FindExisting>
+		static bool FindOrUpdateNode(UK2Node* Node, FindExisting InFindExisting)
+		{
+			// If this is a struct operation node operation on the changed struct we must reconstruct
+			if (UK2Node_StructOperation* StructOpNode = Cast<UK2Node_StructOperation>(Node))
+			{
+				if (UScriptStruct* StructInNode = Cast<UScriptStruct>(StructOpNode->StructType))
+				{
+					if (TOptional<UScriptStruct*> NewStructInNode = InFindExisting(StructInNode))
+					{
+						if (!bIsFind)
+						{
+							StructOpNode->StructType = *NewStructInNode;
+						}
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	};
+
+	template <bool bIsFind>
+	struct FFindOrUpdateNodeHelper<UEnum, bIsFind>
+	{
+		template <typename FindExisting>
+		static bool FindOrUpdateNode(UK2Node* Node, FindExisting InFindExisting)
+		{
+			if (INodeDependingOnEnumInterface* EnumInterface = Cast<INodeDependingOnEnumInterface>(Node))
+			{
+				if (UEnum* EnumInNode = EnumInterface->GetEnum())
+				{
+					if (TOptional<UEnum*> NewEnumInNode = InFindExisting(EnumInNode))
+					{
+						if (!bIsFind)
+						{
+							EnumInterface->ReloadEnum(*NewEnumInNode);
+						}
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	};
+
+	// Scan all the nodes looking for references to objects. 
+	template <typename TObject, bool bIsFind, typename FindExisting>
+	void FindOrUpdateNodes(FBlueprintEditorUtils::FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated, FindExisting InFindExisting)
+	{
+		for (TObjectIterator<UK2Node> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+		{
+			UK2Node* Node = *It;
+
+			if (Node && !Node->HasAnyFlags(RF_Transient) && !Node->IsPendingKill())
+			{
+				bool bReconstruct = FFindOrUpdateNodeHelper<TObject, bIsFind>::FindOrUpdateNode(Node, InFindExisting);
+
+				// Look through the nodes pins and if any of them are split and the type of the split pin is a something we need to reconstruct
+				if (!bIsFind || !bReconstruct)
+				{
+					for (UEdGraphPin* Pin : Node->Pins)
+					{
+						if (TObject* Object = Cast<TObject>(Pin->PinType.PinSubCategoryObject.Get()))
+						{
+							if (TOptional<TObject*> NewObject = InFindExisting(Object))
+							{
+								bReconstruct = true;
+								if (bIsFind)
+								{
+									break;
+								}
+								Pin->PinType.PinSubCategoryObject = *NewObject;
+							}
+						}
+					}
+				}
+
+				if (bReconstruct)
+				{
+					UBlueprint* FoundBlueprint = Node->HasValidBlueprint() ? FoundBlueprint = Node->GetBlueprint() : nullptr;
+					InOnNodeFoundOrUpdated(FoundBlueprint, Node);
+				}
+			}
+		}
+	}
+}
+
+void FBlueprintEditorUtils::FindScriptStructsInNodes(const TSet<UScriptStruct*>& Structs, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated)
+{
+	if (Structs.Num() == 0)
+	{
+		return;
+	}
+
+	FindOrUpdateNodes<UScriptStruct, true>(InOnNodeFoundOrUpdated, [&Structs](UScriptStruct* ScriptStruct)
+		{
+			return Structs.Contains(ScriptStruct) ? TOptional(ScriptStruct) : TOptional<UScriptStruct*>();
+		}
+	);
+}
+
+void FBlueprintEditorUtils::FindEnumsInNodes(const TSet<UEnum*>& Enums, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated)
+{
+	if (Enums.Num() == 0)
+	{
+		return;
+	}
+
+	FindOrUpdateNodes<UEnum, true>(InOnNodeFoundOrUpdated, [&Enums](UEnum* Enum)
+		{
+			return Enums.Contains(Enum) ? TOptional(Enum) : TOptional<UEnum*>();
+		}
+	);
+}
+
+void FBlueprintEditorUtils::UpdateScriptStructsInNodes(const TMap<UScriptStruct*, UScriptStruct*>& Structs, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated)
+{
+	if (Structs.Num() == 0)
+	{
+		return;
+	}
+
+	Structs.Find(nullptr);
+
+	FindOrUpdateNodes<UScriptStruct, false>(InOnNodeFoundOrUpdated, [&Structs] (UScriptStruct* ScriptStruct)
+		{
+			UScriptStruct* const* Found = Structs.Find(ScriptStruct);
+			return Found ? TOptional(*Found) : TOptional<UScriptStruct*>();
+		}
+	);
+}
+
+void FBlueprintEditorUtils::UpdateEnumsInNodes(const TMap<UEnum*, UEnum*>& Enums, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated)
+{
+	if (Enums.Num() == 0)
+	{
+		return;
+	}
+
+	FindOrUpdateNodes<UEnum, false>(InOnNodeFoundOrUpdated, [&Enums](UEnum* Enum)
+		{
+			UEnum* const* Found = Enums.Find(Enum);
+			return Found ? TOptional(*Found) : TOptional<UEnum*>();
+		}
+	);
+}
+
+void FBlueprintEditorUtils::RecombineNestedSubPins(UK2Node* Node)
+{
+	checkSlow(Node);
+
+	TArray<UEdGraphPin*> NestedSplitPins;
+	for (int32 i = Node->Pins.Num() - 1; i >= 0; --i)
+	{
+		UEdGraphPin* Pin = Node->Pins[i];
+		if (Pin->ParentPin != nullptr && Pin->ParentPin->ParentPin != nullptr && !Pin->bOrphanedPin)
+		{
+			NestedSplitPins.Add(Pin);
+
+			// If there was nothing connected to or changed about this pin, then skip it
+			if (Pin->LinkedTo.Num() > 0 || !Pin->DoesDefaultValueMatchAutogenerated())
+			{
+				// Otherwise add an orphan pin so warning/connections are not silently lost
+				UEdGraphPin* OrphanPin = Node->CreatePin(Pin->Direction, Pin->PinType, Pin->PinName);
+				OrphanPin->bOrphanedPin = true;
+				OrphanPin->bNotConnectable = true;
+				OrphanPin->DefaultValue = Pin->DefaultValue;
+				OrphanPin->DefaultObject = Pin->DefaultObject;
+
+				for (UEdGraphPin* OldLink : Pin->LinkedTo)
+				{
+					OrphanPin->MakeLinkTo(OldLink);
+				}
+			}
+		}
+	}
+
+	// Wait to recombine because otherwise we could end up combining pins that that haven't had their orphan created yet
+	const UEdGraphSchema* Schema = Node->GetSchema();
+	for (int32 i = NestedSplitPins.Num() - 1; i >= 0; --i)
+	{
+		Schema->RecombinePin(NestedSplitPins[i]);
 	}
 }
 

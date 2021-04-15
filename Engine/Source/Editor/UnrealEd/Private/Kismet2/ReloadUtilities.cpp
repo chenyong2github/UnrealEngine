@@ -8,6 +8,7 @@
 #include "Async/AsyncWork.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Misc/QueuedThreadPool.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
@@ -104,7 +105,7 @@ class FReloadClassReinstancer : public FBlueprintCompileReinstancer
 public:
 
 	/** Sets the re-instancer up to re-instance native classes */
-	FReloadClassReinstancer(UClass* InNewClass, UClass* InOldClass, const TMap<UClass*, UClass*>& OldToNewClassesMap, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InBPSetToRecompile, TSet<UBlueprint*>& InBPSetToRecompileBytecodeOnly);
+	FReloadClassReinstancer(UClass* InNewClass, UClass* InOldClass, const TSet<UObject*>& InReinstancingObjects, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InCompiledBlueprints);
 
 	/** Destructor */
 	virtual ~FReloadClassReinstancer();
@@ -119,9 +120,9 @@ public:
 	void ReinstanceObjectsAndUpdateDefaults();
 
 	/** Creates the reinstancer as a sharable object */
-	static TSharedPtr<FReloadClassReinstancer> Create(UClass* InNewClass, UClass* InOldClass, const TMap<UClass*, UClass*>& OldToNewClassesMap, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InBPSetToRecompile, TSet<UBlueprint*>& InBPSetToRecompileBytecodeOnly)
+	static TSharedPtr<FReloadClassReinstancer> Create(UClass* InNewClass, UClass* InOldClass, const TSet<UObject*>& InReinstancingObjects, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InCompiledBlueprints)
 	{
-		return MakeShareable(new FReloadClassReinstancer(InNewClass, InOldClass, OldToNewClassesMap, OutReconstructedCDOsMap, InBPSetToRecompile, InBPSetToRecompileBytecodeOnly));
+		return MakeShareable(new FReloadClassReinstancer(InNewClass, InOldClass, InReinstancingObjects, OutReconstructedCDOsMap, InCompiledBlueprints));
 	}
 
 	// FSerializableObject interface
@@ -130,7 +131,6 @@ public:
 
 	virtual bool IsClassObjectReplaced() const override { return true; }
 
-	virtual void EnlistDependentBlueprintToRecompile(UBlueprint* BP, bool bBytecodeOnly) override;
 	virtual void BlueprintWasRecompiled(UBlueprint* BP, bool bBytecodeOnly) override;
 
 protected:
@@ -142,10 +142,10 @@ protected:
 private:
 	/** Reference to reconstructed CDOs map in this hot-reload session. */
 	TMap<UObject*, UObject*>& ReconstructedCDOsMap;
-	TSet<UBlueprint*>& BPSetToRecompile;
-	TSet<UBlueprint*>& BPSetToRecompileBytecodeOnly;
-	const TMap<UClass*, UClass*>& OldToNewClassesMap;
-};
+
+	/** Collection of blueprints already recompiled */
+	TSet<UBlueprint*>& CompiledBlueprints;
+ };
 
 void FReloadClassReinstancer::SetupNewClassReinstancing(UClass* InNewClass, UClass* InOldClass)
 {
@@ -419,23 +419,21 @@ void FReloadClassReinstancer::RecreateCDOAndSetupOldClassReinstancing(UClass* In
 	}
 }
 
-FReloadClassReinstancer::FReloadClassReinstancer(UClass* InNewClass, UClass* InOldClass, const TMap<UClass*, UClass*>& InOldToNewClassesMap, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InBPSetToRecompile, TSet<UBlueprint*>& InBPSetToRecompileBytecodeOnly)
+FReloadClassReinstancer::FReloadClassReinstancer(UClass* InNewClass, UClass* InOldClass, const TSet<UObject*>& InReinstancingObjects, TMap<UObject*, UObject*>& OutReconstructedCDOsMap, TSet<UBlueprint*>& InCompiledBlueprints)
 	: NewClass(nullptr)
 	, bNeedsReinstancing(false)
 	, CopyOfPreviousCDO(nullptr)
 	, ReconstructedCDOsMap(OutReconstructedCDOsMap)
-	, BPSetToRecompile(InBPSetToRecompile)
-	, BPSetToRecompileBytecodeOnly(InBPSetToRecompileBytecodeOnly)
-	, OldToNewClassesMap(InOldToNewClassesMap)
+	, CompiledBlueprints(InCompiledBlueprints)
 {
 	ensure(InOldClass);
 	ensure(!HotReloadedOldClass && !HotReloadedNewClass);
 	HotReloadedOldClass = InOldClass;
 	HotReloadedNewClass = InNewClass ? InNewClass : InOldClass;
 
-	for (const TPair<UClass*, UClass*>& OldToNewClass : OldToNewClassesMap)
+	for (UObject* Object : InReinstancingObjects)
 	{
-		ObjectsThatShouldUseOldStuff.Add(OldToNewClass.Key);
+		ObjectsThatShouldUseOldStuff.Add(Object);
 	}
 
 	// If InNewClass is NULL, then the old class has not changed after hot-reload.
@@ -450,10 +448,6 @@ FReloadClassReinstancer::FReloadClassReinstancer(UClass* InNewClass, UClass* InO
 		for (TObjectIterator<UBlueprint> BlueprintIt; BlueprintIt; ++BlueprintIt)
 		{
 			FArchiveReplaceObjectRef<UObject> ReplaceObjectArch(*BlueprintIt, ClassRedirects, false, true, true);
-			if (ReplaceObjectArch.GetCount())
-			{
-				EnlistDependentBlueprintToRecompile(*BlueprintIt, false);
-			}
 		}
 	}
 	else
@@ -687,36 +681,9 @@ void FReloadClassReinstancer::AddReferencedObjects(FReferenceCollector& Collecto
 	Collector.AllowEliminatingReferences(true);
 }
 
-void FReloadClassReinstancer::EnlistDependentBlueprintToRecompile(UBlueprint* BP, bool bBytecodeOnly)
-{
-	if (IsValid(BP))
-	{
-		if (bBytecodeOnly)
-		{
-			if (!BPSetToRecompile.Contains(BP) && !BPSetToRecompileBytecodeOnly.Contains(BP))
-			{
-				BPSetToRecompileBytecodeOnly.Add(BP);
-			}
-		}
-		else
-		{
-			if (!BPSetToRecompile.Contains(BP))
-			{
-				if (BPSetToRecompileBytecodeOnly.Contains(BP))
-				{
-					BPSetToRecompileBytecodeOnly.Remove(BP);
-				}
-
-				BPSetToRecompile.Add(BP);
-			}
-		}
-	}
-}
-
 void FReloadClassReinstancer::BlueprintWasRecompiled(UBlueprint* BP, bool bBytecodeOnly)
 {
-	BPSetToRecompile.Remove(BP);
-	BPSetToRecompileBytecodeOnly.Remove(BP);
+	CompiledBlueprints.Add(BP);
 
 	FBlueprintCompileReinstancer::BlueprintWasRecompiled(BP, bBytecodeOnly);
 }
@@ -779,13 +746,11 @@ bool FReload::GetEnableReinstancing(bool bHasChanged) const
 void FReload::Reset()
 {
 	FunctionRemap.Empty();
-	BPSetToRecompile.Empty();
-	BPSetToRecompileBytecodeOnly.Empty();
 	ReconstructedCDOsMap.Empty();
 	ReinstancedClasses.Empty();
 }
 
-void FReload::UpdateStats(ReinstanceStats& Stats, void* New, void* Old)
+void FReload::UpdateStats(FReinstanceStats& Stats, void* New, void* Old)
 {
 	if (Old == nullptr)
 	{
@@ -801,7 +766,7 @@ void FReload::UpdateStats(ReinstanceStats& Stats, void* New, void* Old)
 	}
 }
 
-void FReload::FormatStats(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const ReinstanceStats& Stats)
+void FReload::FormatStats(FStringBuilderBase& Out, const TCHAR* Singular, const TCHAR* Plural, const FReinstanceStats& Stats)
 {
 	FormatStat(Out, Singular, Plural, TEXT("new"), Stats.New);
 	FormatStat(Out, Singular, Plural, TEXT("changed"), Stats.Changed);
@@ -856,11 +821,25 @@ void FReload::NotifyChange(UClass* New, UClass* Old)
 void FReload::NotifyChange(UEnum* New, UEnum* Old)
 {
 	UpdateStats(EnumStats, New, Old);
+
+	if (Old != nullptr)
+	{
+		UEnum* NewIfChanged = Old != New ? New : nullptr; // supporting code detects unchanged based on null new pointer
+		checkf(!ReinstancedEnums.Contains(Old) || ReinstancedEnums[Old] == NewIfChanged, TEXT("Attempting to reload an enumeration which is already being reloaded as a different enumeration"));
+		ReinstancedEnums.Add(Old, NewIfChanged);
+	}
 }
 
 void FReload::NotifyChange(UScriptStruct* New, UScriptStruct* Old)
 {
 	UpdateStats(StructStats, New, Old);
+
+	if (Old != nullptr)
+	{
+		UScriptStruct* NewIfChanged = Old != New ? New : nullptr; // supporting code detects unchanged based on null new pointer
+		checkf(!ReinstancedStructs.Contains(Old) || ReinstancedStructs[Old] == NewIfChanged, TEXT("Attempting to reload a structure which is already being reloaded as a different structure"));
+		ReinstancedStructs.Add(Old, NewIfChanged);
+	}
 }
 
 void FReload::Reinstance()
@@ -872,18 +851,78 @@ void FReload::Reinstance()
 
 	TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
 
-	TMap<UClass*, UClass*> OldToNewClassesMap;
+	TSet<UObject*> ReinstancingObjects;
+	ReinstancingObjects.Reserve(ClassesToReinstance.Num() + ReinstancedStructs.Num() + ReinstancedEnums.Num());
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
 	{
-		if (Pair.Value != nullptr)
+		ReinstancingObjects.Add(Pair.Key);
+	}
+
+	// Collect all of the blueprint nodes that are getting updated due to enum/struct changes
+	TMap<UBlueprint*, FBlueprintUpdateInfo> ModifiedBlueprints;
+	FBlueprintEditorUtils::FOnNodeFoundOrUpdated OnNodeFoundOrUpdated = [&ModifiedBlueprints](UBlueprint* Blueprint, UK2Node* Node)
+	{
+		// Blueprint can be nullptr
+		FBlueprintUpdateInfo& BlueprintUpdateInfo = ModifiedBlueprints.FindOrAdd(Blueprint);
+		BlueprintUpdateInfo.Nodes.Add(Node);
+	};
+
+	TMap<UScriptStruct*, UScriptStruct*> ChangedStructs;
+	for (const TPair<UScriptStruct*, UScriptStruct*>& Pair : ReinstancedStructs)
+	{
+		ReinstancingObjects.Add(Pair.Key);
+		if (Pair.Value)
 		{
-			OldToNewClassesMap.Add(Pair.Key, Pair.Value);
+			ChangedStructs.Emplace(Pair.Key, Pair.Value);
+		}
+	}
+	FBlueprintEditorUtils::UpdateScriptStructsInNodes(ChangedStructs, OnNodeFoundOrUpdated);
+
+	TMap<UEnum*, UEnum*> ChangedEnums;
+	for (const TPair<UEnum*, UEnum*>& Pair : ReinstancedEnums)
+	{
+		ReinstancingObjects.Add(Pair.Key);
+		if (Pair.Value)
+		{
+			ChangedEnums.Emplace(Pair.Key, Pair.Value);
+		}
+	}
+	FBlueprintEditorUtils::UpdateEnumsInNodes(ChangedEnums, OnNodeFoundOrUpdated);
+
+	// Update all the nodes before we could possibly recompile
+	for (TPair<UBlueprint*, FBlueprintUpdateInfo>& KVP : ModifiedBlueprints)
+	{
+		UBlueprint* Blueprint = KVP.Key;
+		FBlueprintUpdateInfo& Info = KVP.Value;
+
+		for (UK2Node* Node : Info.Nodes)
+		{
+			FBlueprintEditorUtils::RecombineNestedSubPins(Node);
 		}
 	}
 
+	TSet<UBlueprint*> CompiledBlueprints;
 	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
 	{
-		ReinstanceClass(Pair.Value, Pair.Key, OldToNewClassesMap);
+		ReinstanceClass(Pair.Value, Pair.Key, ReinstancingObjects, CompiledBlueprints);
+	}
+
+	// Reconstruct the nodes (and recompile blueprints if they haven't already been recompiled)
+	for (TPair<UBlueprint*, FBlueprintUpdateInfo>& KVP : ModifiedBlueprints)
+	{
+		UBlueprint* Blueprint = KVP.Key;
+		FBlueprintUpdateInfo& Info = KVP.Value;
+
+		if (Blueprint && !CompiledBlueprints.Contains(Blueprint))
+		{
+			EBlueprintCompileOptions Options = EBlueprintCompileOptions::SkipGarbageCollection;
+			FKismetEditorUtilities::CompileBlueprint(Blueprint, Options);
+		}
+
+		for (UK2Node* Node : Info.Nodes)
+		{
+			Node->ReconstructNode();
+		}
 	}
 
 	ReinstancedClasses = MoveTemp(ClassesToReinstance);
@@ -891,9 +930,9 @@ void FReload::Reinstance()
 	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Broadcast();
 }
 
-void FReload::ReinstanceClass(UClass* NewClass, UClass* OldClass, const TMap<UClass*, UClass*>& OldToNewClassesMap)
+void FReload::ReinstanceClass(UClass* NewClass, UClass* OldClass, const TSet<UObject*>& ReinstancingObjects, TSet<UBlueprint*>& CompiledBlueprints)
 {
-	TSharedPtr<FReloadClassReinstancer> ReinstanceHelper = FReloadClassReinstancer::Create(NewClass, OldClass, OldToNewClassesMap, ReconstructedCDOsMap, BPSetToRecompile, BPSetToRecompileBytecodeOnly);
+	TSharedPtr<FReloadClassReinstancer> ReinstanceHelper = FReloadClassReinstancer::Create(NewClass, OldClass, ReinstancingObjects, ReconstructedCDOsMap, CompiledBlueprints);
 	if (ReinstanceHelper->ClassNeedsReinstancing())
 	{
 		Ar.Logf(ELogVerbosity::Log, TEXT("Re-instancing %s after reload."), NewClass ? *NewClass->GetName() : *OldClass->GetName());

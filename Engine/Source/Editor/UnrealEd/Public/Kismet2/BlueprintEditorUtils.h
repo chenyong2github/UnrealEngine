@@ -1713,6 +1713,36 @@ public:
 	 */
 	static void BuildComponentInstancingData(UActorComponent* ComponentTemplate, FBlueprintCookedComponentInstancingData& OutData, bool bUseTemplateArchetype = false);
 
+	/**
+	 * Callback for when a node has been found
+	 */
+	using FOnNodeFoundOrUpdated = TFunction<void(UBlueprint*, UK2Node*)>;
+
+	/**
+	 * Search the blueprints looking for nodes that contain the given script structs
+	 */
+	static void FindScriptStructsInNodes(const TSet<UScriptStruct*>& Structs, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated);
+
+	/**
+	 * Search the blueprints looking for nodes that contain the given enumerations
+	 */
+	static void FindEnumsInNodes(const TSet<UEnum*>& UEnums, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated);
+
+	/**
+	 * Search the blueprints looking for nodes that contain the given script structs and replace the references
+	 */
+	static void UpdateScriptStructsInNodes(const TMap<UScriptStruct*, UScriptStruct*>& Structs, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated);
+
+	/**
+	 * Search the blueprints looking for nodes that contain the given enumerations and replace the references
+	 */
+	static void UpdateEnumsInNodes(const TMap<UEnum*, UEnum*>& Structs, FOnNodeFoundOrUpdated InOnNodeFoundOrUpdated);
+
+	/**
+	 * Recombine any nested subpins on this node
+	 */
+	static void RecombineNestedSubPins(UK2Node* Node);
+
 protected:
 	// Removes all NULL graph references from the SubGraphs array and recurses thru the non-NULL ones
 	static void CleanNullGraphReferencesRecursive(UEdGraph* Graph);
