@@ -1,47 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Systems/TemplateSequenceSystem.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "EntitySystem/MovieSceneComponentPtr.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneSpawnablesSystem.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "IMovieScenePlaybackClient.h"
 #include "IMovieScenePlayer.h"
-#include "TemplateSequence.h"
-#include "Compilation/MovieSceneCompiledDataManager.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "MovieSceneTracksComponentTypes.h"
 #include "Sections/TemplateSequenceSection.h"
-#include "EntitySystem/MovieSceneSpawnablesSystem.h"
-#include "EntitySystem/MovieSceneEntitySystemTask.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
-
-namespace UE
-{
-namespace MovieScene
-{
-
-static TUniquePtr<FTemplateSequenceComponentTypes> GTemplateSequenceComponentTypes;
-
-FTemplateSequenceComponentTypes* FTemplateSequenceComponentTypes::Get()
-{
-	if (!GTemplateSequenceComponentTypes.IsValid())
-	{
-		GTemplateSequenceComponentTypes.Reset(new FTemplateSequenceComponentTypes);
-	}
-	return GTemplateSequenceComponentTypes.Get();
-}
-
-FTemplateSequenceComponentTypes::FTemplateSequenceComponentTypes()
-{
-	using namespace UE::MovieScene;
-
-	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
-
-	ComponentRegistry->NewComponentType(&TemplateSequence, TEXT("Template Sequence"));
-
-	ComponentRegistry->Factories.DuplicateChildComponent(TemplateSequence);
-}
-
-} // namespace MovieScene
-} // namespace UE
+#include "Systems/FloatChannelEvaluatorSystem.h"
+#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "TemplateSequence.h"
+#include "TemplateSequenceComponentTypes.h"
 
 UTemplateSequenceSystem::UTemplateSequenceSystem(const FObjectInitializer& ObjInit)
 	: UMovieSceneEntitySystem(ObjInit)
@@ -68,7 +43,7 @@ void UTemplateSequenceSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, F
 {
 	using namespace UE::MovieScene;
 
-	// Only run if we must
+	// Only run if we must.
 	if (!ApplicableFilter.Matches(Linker->EntityManager))
 	{
 		return;
@@ -120,3 +95,399 @@ void UTemplateSequenceSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, F
 		.FilterAny({ BuiltInComponents->Tags.NeedsLink, BuiltInComponents->Tags.NeedsUnlink })
 		.Iterate_PerAllocation(&Linker->EntityManager, SetupTeardownBindingOverrides);
 }
+
+UTemplateSequencePropertyScalingInstantiatorSystem::UTemplateSequencePropertyScalingInstantiatorSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
+
+	// We run during the instantiation phase if there are any template sequence properties to scale.
+	Phase = ESystemPhase::Instantiation;
+	RelevantComponent = TemplateSequenceComponents->PropertyScale;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// We need to run after binding IDs have been resolved to bound objects.
+		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
+	}
+}
+
+void UTemplateSequencePropertyScalingInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
+
+	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+
+	// Step 1: Keep track of any new property scales.
+	auto GatherNewPropertyScaledInstances = [this, InstanceRegistry](
+			const FMovieSceneEntityID EntityID,
+			const FInstanceHandle InstanceHandle,
+			const FTemplateSequencePropertyScaleComponentData& PropertyScale)
+	{
+		const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandle, PropertyScale.SubSequenceID);
+		if (ensure(SubSequenceHandle.IsValid()))
+		{
+			FPropertyScaleEntityIDs& PropertyScaleEntities = PropertyScaledInstances.FindOrAdd(SubSequenceHandle);
+			if (!PropertyScaleEntities.Contains(EntityID))
+			{
+				PropertyScaleEntities.Add(EntityID);
+
+				switch (PropertyScale.PropertyScaleType)
+				{
+					case ETemplateSectionPropertyScaleType::FloatProperty:
+						++FloatScaleUseCount;
+						break;
+					case ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly:
+					case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
+						++TransformScaleUseCount;
+						break;
+				}
+			}
+		}
+	};
+
+	FEntityTaskBuilder()
+		.ReadEntityIDs()
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(TemplateSequenceComponents->PropertyScale)
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.Iterate_PerEntity(&Linker->EntityManager, GatherNewPropertyScaledInstances);
+
+	// Step 2: Remove old property scales ending.
+	auto RemoveOldPropertyScaledInstances = [this, InstanceRegistry](
+			const FMovieSceneEntityID EntityID,
+			const FInstanceHandle InstanceHandle,
+			const FTemplateSequencePropertyScaleComponentData& PropertyScale)
+	{
+		const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandle, PropertyScale.SubSequenceID);
+		if (ensure(SubSequenceHandle.IsValid()))
+		{
+			FPropertyScaleEntityIDs& PropertyScaleEntities = PropertyScaledInstances.FindChecked(SubSequenceHandle);
+			if (PropertyScaleEntities.Remove(EntityID) > 0)
+			{
+				switch (PropertyScale.PropertyScaleType)
+				{
+					case ETemplateSectionPropertyScaleType::FloatProperty:
+						--FloatScaleUseCount;
+						break;
+					case ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly:
+					case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
+						--TransformScaleUseCount;
+						break;
+				}
+			}
+			if (PropertyScaleEntities.Num() == 0)
+			{
+				PropertyScaledInstances.Remove(SubSequenceHandle);
+			}
+		}
+	};
+
+	FEntityTaskBuilder()
+		.ReadEntityIDs()
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(TemplateSequenceComponents->PropertyScale)
+		.FilterAll({ BuiltInComponents->Tags.NeedsUnlink, TemplateSequenceComponents->PropertyScale })
+		.Iterate_PerEntity(&Linker->EntityManager, RemoveOldPropertyScaledInstances);
+
+	// Step 3: Look at all new entities starting this frame, and set aside all those who belong to the active 
+	// template sub-sequences that we have identified in steps 1 & 2. While we do that, we also lookup these 
+	// entities' original binding ID (if they have one) by reading it from their parent entity.
+	TArray<TTuple<FMovieSceneEntityID, FGuid>> PropertyScaledEntities;
+
+	auto ComputeReverseLookupBinding = [this, BuiltInComponents, &PropertyScaledEntities](
+			const FMovieSceneEntityID EntityID,
+			const FInstanceHandle InstanceHandle,
+			const FMovieSceneEntityID ParentEntity, 
+			UObject* const BoundObject)
+	{
+		if (!PropertyScaledInstances.Contains(InstanceHandle))
+		{
+			return;
+		}
+
+		if (ParentEntity.IsValid())
+		{
+			TOptionalComponentReader<FGuid> Reader;
+			Reader = Linker->EntityManager.ReadComponent(ParentEntity, BuiltInComponents->SceneComponentBinding);
+			if (!Reader.IsValid())
+			{
+				Reader = Linker->EntityManager.ReadComponent(ParentEntity, BuiltInComponents->GenericObjectBinding);
+			}
+
+			if (ensure(Reader.IsValid()))
+			{
+				const FGuid ObjectBindingID = *Reader.ComponentAtIndex(0);
+				PropertyScaledEntities.Emplace(EntityID, ObjectBindingID);
+			}
+		}
+	};
+
+	FEntityTaskBuilder()
+		.ReadEntityIDs()
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(BuiltInComponents->ParentEntity)
+		.Read(BuiltInComponents->BoundObject)
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.Iterate_PerEntity(&Linker->EntityManager, ComputeReverseLookupBinding);
+
+	// Step 4: Store the original binding ID of the entities identified in the previous step, i.e. the entities that
+	// belong to an active template sub-sequence that has at least some properties scaled.
+	for (const TTuple<FMovieSceneEntityID, FGuid>& Pair : PropertyScaledEntities)
+	{
+		Linker->EntityManager.AddComponent(
+				Pair.Get<0>(), TemplateSequenceComponents->PropertyScaleReverseBindingLookup, Pair.Get<1>());
+	}
+}
+
+UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalingEvaluatorSystem(const FObjectInitializer& ObjInit)
+	: UMovieSceneEntitySystem(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
+
+	Phase = ESystemPhase::Evaluation;
+	RelevantComponent = TemplateSequenceComponents->PropertyScale;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// We need to wait until float channels have evaluated (both the values that we're going to multiply, and the
+		// channel of the scale multiplier itself).
+		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
+		// We need to act multiply values before they are blended together with other values we shouldn't touch.
+		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseFloatBlenderSystem::StaticClass());
+		// We need this component to lookup the binding GUID for an entity, so we know what scaling to apply to it.
+		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
+	}
+}
+
+void UTemplateSequencePropertyScalingEvaluatorSystem::AddPropertyScale(const FPropertyScaleKey& Key, const FPropertyScaleValue& Value)
+{
+	PropertyScales.Add(Key, Value);
+}
+
+const UTemplateSequencePropertyScalingEvaluatorSystem::FPropertyScaleValue* UTemplateSequencePropertyScalingEvaluatorSystem::FindPropertyScale(const FPropertyScaleKey& Key)
+{
+	return PropertyScales.Find(Key);
+}
+
+namespace UE
+{
+namespace MovieScene
+{
+
+struct FGatherPropertyScales
+{
+	using UEvaluatorSystem = UTemplateSequencePropertyScalingEvaluatorSystem;
+
+	UEvaluatorSystem* EvaluatorSystem;
+	FInstanceRegistry* InstanceRegistry;
+
+	FGatherPropertyScales(UEvaluatorSystem* InEvaluatorSystem)
+		: EvaluatorSystem(InEvaluatorSystem)
+	{
+		check(InEvaluatorSystem);
+		InstanceRegistry = InEvaluatorSystem->GetLinker()->GetInstanceRegistry();
+	}
+
+	void ForEachEntity(
+			const FInstanceHandle& InstanceHandle, 
+			const FTemplateSequencePropertyScaleComponentData& PropertyScale,
+			float ScaleFactor)
+	{
+		// Find the instance handle of the sub-sequence we need to scale.
+		const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandle, PropertyScale.SubSequenceID);
+		if (ensure(SubSequenceHandle.IsValid()))
+		{
+			EvaluatorSystem->AddPropertyScale(
+					UEvaluatorSystem::FPropertyScaleKey { SubSequenceHandle, PropertyScale.ObjectBinding, PropertyScale.PropertyBinding.PropertyPath },
+					UEvaluatorSystem::FPropertyScaleValue { PropertyScale.PropertyScaleType, ScaleFactor });
+		}
+	}
+};
+
+struct FScaleTransformProperties
+{
+	using UEvaluatorSystem = UTemplateSequencePropertyScalingEvaluatorSystem;
+
+	UEvaluatorSystem* EvaluatorSystem;
+
+	FScaleTransformProperties(UEvaluatorSystem* InEvaluatorSystem)
+		: EvaluatorSystem(InEvaluatorSystem)
+	{
+		check(InEvaluatorSystem);
+	}
+
+	void ForEachAllocation(
+			FEntityAllocation* Allocation,
+			TRead<FInstanceHandle> InstanceHandles,
+			TRead<FMovieScenePropertyBinding> PropertyBindings,
+			TRead<FGuid> ReverseBindingLookups,
+			TWriteOptional<float> LocationXs, TWriteOptional<FSourceFloatChannelFlags> LocationXFlags,
+			TWriteOptional<float> LocationYs, TWriteOptional<FSourceFloatChannelFlags> LocationYFlags,
+			TWriteOptional<float> LocationZs, TWriteOptional<FSourceFloatChannelFlags> LocationZFlags,
+			TWriteOptional<float> RotationXs, TWriteOptional<FSourceFloatChannelFlags> RotationXFlags,
+			TWriteOptional<float> RotationYs, TWriteOptional<FSourceFloatChannelFlags> RotationYFlags,
+			TWriteOptional<float> RotationZs, TWriteOptional<FSourceFloatChannelFlags> RotationZFlags)
+	{
+		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+		{
+			const FInstanceHandle InstanceHandle = InstanceHandles[Index];
+			const FMovieScenePropertyBinding& PropertyBinding = PropertyBindings[Index];
+			const FGuid ObjectBindingID = ReverseBindingLookups[Index];
+			ensure(ObjectBindingID.IsValid());
+
+			const UEvaluatorSystem::FPropertyScaleValue* TransformScale = EvaluatorSystem->FindPropertyScale(
+					UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ObjectBindingID, PropertyBinding.PropertyPath });
+			if (TransformScale != nullptr)
+			{
+				const float ScaleFactor = TransformScale->Get<1>();
+
+				switch (TransformScale->Get<0>())
+				{
+					case ETemplateSectionPropertyScaleType::TransformPropertyLocationOnly:
+						if (LocationXs) LocationXs[Index] *= ScaleFactor;
+						if (LocationYs) LocationYs[Index] *= ScaleFactor;
+						if (LocationZs) LocationZs[Index] *= ScaleFactor;
+
+						// We set the source channel to force re-evaluating next frame because we want it to be
+						// reset to its unscaled value... otherwise we will start accumulating multipliers quickly!
+						if (LocationXFlags) LocationXFlags[Index].bNeedsEvaluate = true;
+						if (LocationYFlags) LocationYFlags[Index].bNeedsEvaluate = true;
+						if (LocationZFlags) LocationZFlags[Index].bNeedsEvaluate = true;
+						break;
+
+					case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
+						if (RotationXs) RotationXs[Index] *= ScaleFactor;
+						if (RotationYs) RotationYs[Index] *= ScaleFactor;
+						if (RotationZs) RotationZs[Index] *= ScaleFactor;
+
+						// See comment above.
+						if (RotationXFlags) RotationXFlags[Index].bNeedsEvaluate = true;
+						if (RotationYFlags) RotationYFlags[Index].bNeedsEvaluate = true;
+						if (RotationZFlags) RotationZFlags[Index].bNeedsEvaluate = true;
+						break;
+
+					default:
+						ensureMsgf(false, TEXT("Unsupported or invalid transform property scale type."));
+						break;
+				}
+			}
+		}
+	}
+};
+
+struct FScaleFloatProperties
+{
+	using UEvaluatorSystem = UTemplateSequencePropertyScalingEvaluatorSystem;
+
+	UEvaluatorSystem* EvaluatorSystem;
+
+	FScaleFloatProperties(UEvaluatorSystem* InEvaluatorSystem)
+		: EvaluatorSystem(InEvaluatorSystem)
+	{
+		check(InEvaluatorSystem);
+	}
+
+	void ForEachEntity(
+			const FInstanceHandle& InstanceHandle,
+			const FMovieScenePropertyBinding& PropertyBinding,
+			const FGuid ReverseLookupBinding,
+			float& PropertyValue,
+			FSourceFloatChannelFlags& PropertyFlags)
+	{
+		const UEvaluatorSystem::FPropertyScaleValue* PropertyScale = EvaluatorSystem->FindPropertyScale(
+				UEvaluatorSystem::FPropertyScaleKey { InstanceHandle, ReverseLookupBinding, PropertyBinding.PropertyPath });
+		if (PropertyScale != nullptr)
+		{
+			const float ScaleFactor = PropertyScale->Get<1>();
+			switch (PropertyScale->Get<0>())
+			{
+				case ETemplateSectionPropertyScaleType::FloatProperty:
+					PropertyValue *= ScaleFactor;
+					// See comment for the similar code in Step 2.
+					PropertyFlags.bNeedsEvaluate = true;
+					break;
+				default:
+					ensureMsgf(false, TEXT("Unsupported or invalid float property scale type."));
+					break;
+			}
+		}
+	}
+};
+
+} // namespace MovieScene
+} // namespace UE
+
+void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+	const FTemplateSequenceComponentTypes* TemplateSequenceComponents = FTemplateSequenceComponentTypes::Get();
+
+	const FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+	const UTemplateSequencePropertyScalingInstantiatorSystem* InstantiatorSystem = Linker->FindSystem<UTemplateSequencePropertyScalingInstantiatorSystem>();
+
+	// Step 1: We are going to look for all entities that describe an active property scale, pick up its up-to-date (evaluated)
+	// scale value (which was evaluated by the float channel evaluator), and build a map that tells us:
+	// - What properties (sub-sequence instance, object/component binding, property path)...
+	// - ...are scaled by what factor (scale value), using what type of scale (scale type enum).
+	//
+	FGraphEventRef GatherTask = FEntityTaskBuilder()
+		.Read(BuiltInComponents->InstanceHandle)
+		.Read(TemplateSequenceComponents->PropertyScale)
+		.Read(BuiltInComponents->FloatResult[0])
+		.Dispatch_PerEntity<FGatherPropertyScales>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
+	if (GatherTask)
+	{
+		InPrerequisites.AddMasterTask(GatherTask);
+	}
+
+	// Step 2: If we have any transform property scaling, iterate specifically on them and apply the scale factor
+	// to the appropriate components.
+	if (ensure(InstantiatorSystem) && InstantiatorSystem->HasAnyTransformScales())
+	{
+		FEntityTaskBuilder()
+			.Read(BuiltInComponents->InstanceHandle)
+			.Read(BuiltInComponents->PropertyBinding)
+			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.WriteOptional(BuiltInComponents->FloatResult[0])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[0])
+			.WriteOptional(BuiltInComponents->FloatResult[1])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[1])
+			.WriteOptional(BuiltInComponents->FloatResult[2])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[2])
+			.WriteOptional(BuiltInComponents->FloatResult[3])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[3])
+			.WriteOptional(BuiltInComponents->FloatResult[4])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[4])
+			.WriteOptional(BuiltInComponents->FloatResult[5])
+			.WriteOptional(BuiltInComponents->FloatChannelFlags[5])
+			.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->Transform.PropertyTag })
+			.Dispatch_PerAllocation<FScaleTransformProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
+	}
+
+	// Step 3: Do the same as step 2 for float properties.
+	if (ensure(InstantiatorSystem) && InstantiatorSystem->HasAnyFloatScales())
+	{
+		FEntityTaskBuilder()
+			.Read(BuiltInComponents->InstanceHandle)
+			.Read(BuiltInComponents->PropertyBinding)
+			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
+			.Write(BuiltInComponents->FloatResult[0])
+			.Write(BuiltInComponents->FloatChannelFlags[0])
+			.FilterAll({ TrackComponents->Float.PropertyTag })
+			.Dispatch_PerEntity<FScaleFloatProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
+	}
+}
+
