@@ -202,7 +202,7 @@
 						ITextInputMethodContext::ECaretPosition CaretPosition;
 						IMMContext->GetSelectionRange(SelectionLocation, SelectionLength, CaretPosition);
 					}
-				}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+				}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 			}
 		}
 		else
@@ -229,7 +229,7 @@
 				IMMContext->SetTextInRange(SelectionLocation, SelectionLength, TheFString);
 				IMMContext->SetSelectionRange(SelectionLocation+TheFString.Len(), 0, ITextInputMethodContext::ECaretPosition::Ending);
 			}
-		}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+		}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 
 		[self unmarkText];
 		[[self inputContext] invalidateCharacterCoordinates]; // recentering
@@ -271,7 +271,7 @@
 						ITextInputMethodContext::ECaretPosition CaretPosition;
 						IMMContext->GetSelectionRange(SelectionLocation, SelectionLength, CaretPosition);
 					}
-				}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+				}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 			}
 		}
 		else
@@ -287,7 +287,7 @@
 				{
 					IMMContext->SetTextInRange(SelectionLocation, SelectionLength, FString());
 				}
-			}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+			}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 			[self unmarkText];
 		}
 		else
@@ -299,7 +299,7 @@
 					{
 						IMMContext->BeginComposition();
 					}
-				}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+				}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 			}
 			markedRange = NSMakeRange(SelectionLocation, [aString length]);
 
@@ -344,7 +344,7 @@
 					IMMContext->UpdateCompositionRange(CompositionRange.location, CompositionRange.length);
 					IMMContext->SetSelectionRange(markedRange.location + selectedRange.location, 0, ITextInputMethodContext::ECaretPosition::Ending);
 				}
-			}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+			}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 		}
 		[[self inputContext] invalidateCharacterCoordinates]; // recentering
 	}
@@ -369,7 +369,7 @@
 					IMMContext->UpdateCompositionRange(0, 0);
 					IMMContext->EndComposition();
 				}
-			}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+			}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 		}
 	}
 }
@@ -394,7 +394,7 @@
 			{
 				IMMContext->GetSelectionRange(SelectionLocation, SelectionLength, CaretPosition);
 			}
-		}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+		}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 		return {SelectionLocation, SelectionLength};
 	}
 	else
@@ -438,7 +438,7 @@
 			{
 				IMMContext->GetTextInRange(aRange.location, aRange.length, String);
 			}
-		}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+		}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 		CFStringRef CFString = FPlatformString::TCHARToCFString(*String);
 		if(CFString)
 		{
@@ -479,7 +479,7 @@
 			{
 				IMMContext->GetTextBounds(aRange.location, aRange.length, Position, Size);
 			}
-		}, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+		}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 
 		if(actualRange)
 		{
@@ -507,7 +507,7 @@
 	if (IMMContext.IsValid())
 	{
 		FVector2D Pos(aPoint.x, aPoint.y);
-		int32 Index = GameThreadReturn(^{ return IMMContext.IsValid() ? IMMContext->GetCharacterIndexFromPoint(Pos) : INDEX_NONE; }, @[ NSDefaultRunLoopMode, UE4IMEEventMode ]);
+		int32 Index = GameThreadReturn(^{ return IMMContext.IsValid() ? IMMContext->GetCharacterIndexFromPoint(Pos) : INDEX_NONE; }, @[ NSDefaultRunLoopMode, UnrealIMEEventMode ]);
 		NSUInteger Idx = Index == INDEX_NONE ? NSNotFound : (NSUInteger)Index;
 		return Idx;
 	}

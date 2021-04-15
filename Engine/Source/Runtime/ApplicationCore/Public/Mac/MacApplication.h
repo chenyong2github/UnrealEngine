@@ -303,7 +303,7 @@ private:
 	void CacheKeyboardInputSource();
 
 	void ConditionallyUpdateModifierKeys(const FDeferredMacEvent& Event);
-	void HandleModifierChange(NSUInteger NewModifierFlags, NSUInteger FlagsShift, NSUInteger UE4Shift, EMacModifierKeys TranslatedCode);
+	void HandleModifierChange(NSUInteger NewModifierFlags, NSUInteger FlagsShift, NSUInteger UEShift, EMacModifierKeys TranslatedCode);
 
 	FCocoaWindow* FindEventWindow(NSEvent* CocoaEvent) const;
 	FCocoaWindow* FindSlateWindowUnderCursor() const;

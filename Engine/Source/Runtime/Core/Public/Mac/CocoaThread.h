@@ -3,13 +3,13 @@
 
 #include "CoreMinimal.h"
 
-/* Custom run-loop modes for UE4 that process only certain kinds of events to simulate Windows event ordering. */
-CORE_API extern NSString* UE4NilEventMode; /* Process only mandatory events */
-CORE_API extern NSString* UE4ShowEventMode; /* Process only show window events */
-CORE_API extern NSString* UE4ResizeEventMode; /* Process only resize/move window events */
-CORE_API extern NSString* UE4FullscreenEventMode; /* Process only fullscreen mode events */
-CORE_API extern NSString* UE4CloseEventMode; /* Process only close window events */
-CORE_API extern NSString* UE4IMEEventMode; /* Process only input method events */
+/* Custom run-loop modes for Unreal that process only certain kinds of events to simulate Windows event ordering. */
+CORE_API extern NSString* UnrealNilEventMode; /* Process only mandatory events */
+CORE_API extern NSString* UnrealShowEventMode; /* Process only show window events */
+CORE_API extern NSString* UnrealResizeEventMode; /* Process only resize/move window events */
+CORE_API extern NSString* UnrealFullscreenEventMode; /* Process only fullscreen mode events */
+CORE_API extern NSString* UnrealCloseEventMode; /* Process only close window events */
+CORE_API extern NSString* UnrealIMEEventMode; /* Process only input method events */
 
 @interface NSThread (FCocoaThread)
 + (NSThread*) gameThread; // Returns the main game thread, or nil if has yet to be constructed.

@@ -69,7 +69,7 @@ namespace
 					FCocoaTextView* TextView = (FCocoaTextView*)[CocoaWindow openGLView];
 					[[TextView inputContext] invalidateCharacterCoordinates];
 				}
-			}, UE4IMEEventMode, true);
+			}, UnrealIMEEventMode, true);
 		}
 	}
 	
@@ -85,7 +85,7 @@ namespace
 					FCocoaTextView* TextView = (FCocoaTextView*)[CocoaWindow openGLView];
 					[[TextView inputContext] invalidateCharacterCoordinates];
 				}
-			}, UE4IMEEventMode, true);
+			}, UnrealIMEEventMode, true);
 		}
 	}
 	
@@ -102,7 +102,7 @@ namespace
 					[[TextView inputContext] discardMarkedText];
 					[TextView unmarkText];
 				}
-			}, UE4IMEEventMode, true);
+			}, UnrealIMEEventMode, true);
 		}
 	}
 }
@@ -182,7 +182,7 @@ void FMacTextInputMethodSystem::ActivateContext(const TSharedRef<ITextInputMetho
 				}
 			}
 			return bSuccess;
-		}, UE4IMEEventMode);
+		}, UnrealIMEEventMode);
 	}
 	if(!bActivatedContext)
 	{
@@ -228,7 +228,7 @@ void FMacTextInputMethodSystem::DeactivateContext(const TSharedRef<ITextInputMet
 				// If the window is no longer open, the context is already inactive (handled by MessageHandler->OnWindowActivationChanged() called in FMacApplication::OnWindowDestroyed())
 				return true;
 			}
-		}, UE4IMEEventMode);
+		}, UnrealIMEEventMode);
 	}
 	if(!bDeactivatedContext)
 	{

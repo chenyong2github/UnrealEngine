@@ -5,7 +5,7 @@
 #include "Templates/RefCounting.h"
 #include "Misc/OutputDeviceRedirector.h"
 
-#define MAC_SEPARATE_GAME_THREAD 1 // Separate the main & game threads so that we better handle the interaction between the Cocoa's event delegates and UE4's event polling.
+#define MAC_SEPARATE_GAME_THREAD 1 // Separate the main & game threads so that we better handle the interaction between the Cocoa's event delegates and UE's event polling.
 
 // this is the size of the game thread stack, it must be a multiple of 4k
 #if (UE_BUILD_DEBUG)
@@ -14,12 +14,12 @@
 	#define GAME_THREAD_STACK_SIZE 128 * 1024 * 1024
 #endif
 
-NSString* UE4NilEventMode = @"UE4NilEventMode";
-NSString* UE4ShowEventMode = @"UE4ShowEventMode";
-NSString* UE4ResizeEventMode = @"UE4ResizeEventMode";
-NSString* UE4FullscreenEventMode = @"UE4FullscreenEventMode";
-NSString* UE4CloseEventMode = @"UE4CloseEventMode";
-NSString* UE4IMEEventMode = @"UE4IMEEventMode";
+NSString* UnrealNilEventMode = @"UnrealNilEventMode";
+NSString* UnrealShowEventMode = @"UnrealShowEventMode";
+NSString* UnrealResizeEventMode = @"UnrealResizeEventMode";
+NSString* UnrealFullscreenEventMode = @"UnrealFullscreenEventMode";
+NSString* UnrealCloseEventMode = @"UnrealCloseEventMode";
+NSString* UnrealIMEEventMode = @"UnrealIMEEventMode";
 
 static FCocoaGameThread* GCocoaGameThread = nil;
 static uint32 GMainThreadId = 0;
@@ -148,12 +148,12 @@ private:
 		// Register for default modes
 		Register(kCFRunLoopDefaultMode);
 		Register((CFStringRef)NSModalPanelRunLoopMode);
-		Register((CFStringRef)UE4NilEventMode);
-		Register((CFStringRef)UE4ShowEventMode);
-		Register((CFStringRef)UE4ResizeEventMode);
-		Register((CFStringRef)UE4FullscreenEventMode);
-		Register((CFStringRef)UE4CloseEventMode);
-		Register((CFStringRef)UE4IMEEventMode);
+		Register((CFStringRef)UnrealNilEventMode);
+		Register((CFStringRef)UnrealShowEventMode);
+		Register((CFStringRef)UnrealResizeEventMode);
+		Register((CFStringRef)UnrealFullscreenEventMode);
+		Register((CFStringRef)UnrealCloseEventMode);
+		Register((CFStringRef)UnrealIMEEventMode);
 	}
 	
 	virtual ~FCocoaRunLoopSource()
@@ -382,7 +382,7 @@ FCocoaRunLoopSource* FCocoaRunLoopSource::GameRunLoopSource = nullptr;
 
 	[super main];
 	
-	// We have exited the game thread, so any UE4 code running now should treat the Main thread
+	// We have exited the game thread, so any UE code running now should treat the Main thread
 	// as the game thread, so we don't crash in static destructors.
 	GGameThreadId = GMainThreadId;
 	

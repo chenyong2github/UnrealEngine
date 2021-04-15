@@ -268,7 +268,7 @@
 			{
 				Widget->SetFocus();
 			}
-		}, @[ NSDefaultRunLoopMode, UE4IMEEventMode, UE4ShowEventMode, UE4ResizeEventMode, UE4FullscreenEventMode], false); // GameThreadCall
+		}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode, UnrealShowEventMode, UnrealResizeEventMode, UnrealFullscreenEventMode], false); // GameThreadCall
 	}
 	[super setAccessibilityFocused:InIsFocused];
 }
@@ -435,7 +435,7 @@
 				}
 			}
 		} // if widget valid and enabled
-	}, @[ NSDefaultRunLoopMode, UE4IMEEventMode, UE4ShowEventMode, UE4ResizeEventMode, UE4FullscreenEventMode], false); // GameThreadCall
+	}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode, UnrealShowEventMode, UnrealResizeEventMode, UnrealFullscreenEventMode], false); // GameThreadCall
 	return YES;
 }
 

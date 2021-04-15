@@ -110,7 +110,7 @@ void FMacConsoleOutputDevice::CreateConsole()
 		}
 		
 		SetDefaultTextColor();
-	}, UE4NilEventMode, true);
+	}, UnrealNilEventMode, true);
 }
 
 void FMacConsoleOutputDevice::DestroyConsole()
@@ -137,7 +137,7 @@ void FMacConsoleOutputDevice::DestroyConsole()
 			
 			[ConsoleWindow close];
 			TextViewTextColor = NULL;
-		}, UE4NilEventMode, true);
+		}, UnrealNilEventMode, true);
 	}
 }
 

@@ -444,7 +444,7 @@ void FMacApplication::DeferEvent(NSObject* Object)
 
 		if (DeferredEvent.Type == NSEventTypeKeyDown)
 		{
-			// In UE4 the main window rather than key window is the current active window in Slate, so the main window may be the one we want to send immKeyDown to,
+			// In Unreal the main window rather than key window is the current active window in Slate, so the main window may be the one we want to send immKeyDown to,
 			// for example in case of search text edit fields in context menus.
 			NSWindow* MainWindow = [NSApp mainWindow];
 			FCocoaWindow* IMMWindow = [MainWindow isKindOfClass:[FCocoaWindow class]] ? (FCocoaWindow*)MainWindow : DeferredEvent.Window;
@@ -543,7 +543,7 @@ void FMacApplication::DeferEvent(NSObject* Object)
 						{
 							OnWindowDidResize(Window.ToSharedRef());
 						}
-					}, @[ NSDefaultRunLoopMode, UE4ResizeEventMode, UE4ShowEventMode, UE4FullscreenEventMode ], true);
+					}, @[ NSDefaultRunLoopMode, UnrealResizeEventMode, UnrealShowEventMode, UnrealFullscreenEventMode ], true);
 				}
 				return;
 			}
@@ -1568,7 +1568,7 @@ void FMacApplication::ConditionallyUpdateModifierKeys(const FDeferredMacEvent& E
 	}
 }
 
-void FMacApplication::HandleModifierChange(NSUInteger NewModifierFlags, NSUInteger FlagsShift, NSUInteger UE4Shift, EMacModifierKeys TranslatedCode)
+void FMacApplication::HandleModifierChange(NSUInteger NewModifierFlags, NSUInteger FlagsShift, NSUInteger UEShift, EMacModifierKeys TranslatedCode)
 {
 	const bool CurrentPressed = (CurrentModifierFlags & FlagsShift) != 0;
 	const bool NewPressed = (NewModifierFlags & FlagsShift) != 0;
@@ -1576,12 +1576,12 @@ void FMacApplication::HandleModifierChange(NSUInteger NewModifierFlags, NSUInteg
 	{
 		if (NewPressed)
 		{
-			ModifierKeysFlags |= 1 << UE4Shift;
+			ModifierKeysFlags |= 1 << UEShift;
 			MessageHandler->OnKeyDown(TranslatedCode, 0, false);
 		}
 		else
 		{
-			ModifierKeysFlags &= ~(1 << UE4Shift);
+			ModifierKeysFlags &= ~(1 << UEShift);
 			MessageHandler->OnKeyUp(TranslatedCode, 0, false);
 		}
 	}
@@ -2084,7 +2084,7 @@ void FMacApplication::CloseQueuedWindows()
 				[Window close];
 				[Window release];
 			}
-		}, UE4CloseEventMode, true);
+		}, UnrealCloseEventMode, true);
 
 		CocoaWindowsToClose.Empty();
 	}
@@ -2106,7 +2106,7 @@ void FMacApplication::InvalidateTextLayouts()
 				}
 			}
 
-		}, UE4IMEEventMode, true);
+		}, UnrealIMEEventMode, true);
 
 		WindowsRequiringTextInvalidation.Empty();
 	}

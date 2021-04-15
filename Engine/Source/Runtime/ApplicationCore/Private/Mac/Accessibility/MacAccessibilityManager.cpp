@@ -227,7 +227,7 @@ static void DumpAccessibilityStatsForwarder()
 				}, NSDefaultRunLoopMode, true);
 			} // if Widget valid
 		} // for Ids loop
-	}, @[ NSDefaultRunLoopMode, UE4IMEEventMode, UE4ShowEventMode, UE4ResizeEventMode, UE4FullscreenEventMode, UE4NilEventMode ], true);
+	}, @[ NSDefaultRunLoopMode, UnrealIMEEventMode, UnrealShowEventMode, UnrealResizeEventMode, UnrealFullscreenEventMode, UnrealNilEventMode ], true);
 }
 
 #if !UE_BUILD_SHIPPING

@@ -151,7 +151,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 	{
 		MainThreadCall(^{
 			[super setAlphaValue:WindowAlpha];
-		}, UE4ShowEventMode, false);
+		}, UnrealShowEventMode, false);
 
 	}
 }
@@ -163,7 +163,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 		bRenderInitialized = true;
 		MainThreadCall(^{
 			[super setAlphaValue:Opacity];
-		}, UE4ShowEventMode, false);
+		}, UnrealShowEventMode, false);
 	}
 }
 
@@ -300,7 +300,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 					MacApplication->OnWindowActivationChanged(Window.ToSharedRef(), EWindowActivation::Activate);
 				}
 			}
-		}, @[ NSDefaultRunLoopMode, UE4ResizeEventMode, UE4ShowEventMode, UE4FullscreenEventMode, UE4CloseEventMode ], true);
+		}, @[ NSDefaultRunLoopMode, UnrealResizeEventMode, UnrealShowEventMode, UnrealFullscreenEventMode, UnrealCloseEventMode ], true);
 	}
 }
 
@@ -321,7 +321,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 					MacApplication->OnWindowActivationChanged(Window.ToSharedRef(), EWindowActivation::Deactivate);
 				}
 			}
-		}, @[ NSDefaultRunLoopMode, UE4ResizeEventMode, UE4ShowEventMode, UE4FullscreenEventMode, UE4CloseEventMode ], true);
+		}, @[ NSDefaultRunLoopMode, UnrealResizeEventMode, UnrealShowEventMode, UnrealFullscreenEventMode, UnrealCloseEventMode ], true);
 	}
 }
 
@@ -480,7 +480,7 @@ NSString* NSPerformDragOperation = @"NSPerformDragOperation";
 					MacApplication->OnWindowWillResize(Window.ToSharedRef());
 				}
 			}
-		}, @[ NSDefaultRunLoopMode, UE4ResizeEventMode, UE4ShowEventMode, UE4FullscreenEventMode ], true);
+		}, @[ NSDefaultRunLoopMode, UnrealResizeEventMode, UnrealShowEventMode, UnrealFullscreenEventMode ], true);
 	}
 	return frameSize;
 }

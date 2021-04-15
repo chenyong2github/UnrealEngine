@@ -62,7 +62,7 @@
 		NSRect WindowRect = NSMakeRect(ConsolePosX, ConsolePosY, ConsoleWidth, ConsoleHeight);
 		
 		Window = [[NSWindow alloc] initWithContentRect:WindowRect styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable|NSWindowStyleMaskClosable backing:NSBackingStoreBuffered defer:NO];
-		[Window setTitle:@"Unreal Engine 4"];
+		[Window setTitle:@"Unreal Engine"];
 		[Window setReleasedWhenClosed:NO];
 		[Window setMinSize:NSMakeSize(400, 100)];
 		[Window setRestorable:NO];
@@ -266,7 +266,7 @@ FMacNativeFeedbackContext::FMacNativeFeedbackContext()
 {
 	MainThreadCall(^{
 		WindowController = [[FMacNativeFeedbackContextWindowController alloc] init];
-	}, UE4NilEventMode, true);
+	}, UnrealNilEventMode, true);
 	SetDefaultTextColor();
 }
 
@@ -279,7 +279,7 @@ FMacNativeFeedbackContext::~FMacNativeFeedbackContext()
 	
 	MainThreadCall(^{
 		[WindowController release];
-	}, UE4NilEventMode, true);
+	}, UnrealNilEventMode, true);
 }
 
 void FMacNativeFeedbackContext::Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category )
