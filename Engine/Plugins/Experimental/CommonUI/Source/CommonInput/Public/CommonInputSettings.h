@@ -54,7 +54,7 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	TSoftClassPtr<UCommonUIInputData> InputData;
 
-	UPROPERTY(config, EditAnywhere, Category = "Input")
+	UPROPERTY(config, EditAnywhere, EditFixedSize, Category = "Input", Meta = (GetOptions = GetRegisteredPlatforms))
 	TMap<FName, FCommonInputPlatformBaseData> CommonInputPlatformData;
 
 	UPROPERTY(config, EditAnywhere, Category = "Thrashing Settings")
@@ -71,6 +71,9 @@ private:
 
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	bool bAllowOutOfFocusDeviceInput = false;
+
+	UFUNCTION()
+	static const TArray<FName>& GetRegisteredPlatforms();
 
 private:
 	void LoadInputData();

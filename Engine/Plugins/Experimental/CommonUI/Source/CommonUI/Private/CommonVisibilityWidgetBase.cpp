@@ -76,3 +76,8 @@ void UCommonVisibilityWidgetBase::HandleInputMethodChanged(ECommonInputType inpu
 {
 	UpdateVisibility();
 }
+
+const TArray<FName>& UCommonVisibilityWidgetBase::GetRegisteredPlatforms()
+{
+	return FCommonInputPlatformBaseData::GetRegisteredPlatforms();
+}
