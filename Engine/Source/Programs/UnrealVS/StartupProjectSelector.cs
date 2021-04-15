@@ -1,14 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.ComponentModel.Design;
+using EnvDTE;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using EnvDTE;
-using System.Runtime.InteropServices;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace UnrealVS
 {
@@ -32,35 +31,35 @@ namespace UnrealVS
 
 			public string Name
 			{
-				get { return (Project != null ? Project.Name : "<invalid>" ); }
+				get { return (Project != null ? Project.Name : "<invalid>"); }
 			}
 
 			public override string ToString()
 			{
-				return (Project != null ? Project.Name : "<invalid>" );
+				return (Project != null ? Project.Name : "<invalid>");
 			}
 		}
 
-        public StartupProjectSelector()
+		public StartupProjectSelector()
 		{
 			_bIsSolutionOpened = UnrealVSPackage.Instance.DTE.Solution.IsOpen;
 
 			// Create the handlers for our commands
 			{
 				// StartupProjectCombo
-				var StartupProjectComboCommandId = new CommandID( GuidList.UnrealVSCmdSet, StartupProjectComboId );
+				var StartupProjectComboCommandId = new CommandID(GuidList.UnrealVSCmdSet, StartupProjectComboId);
 				var StartupProjectComboCommand = new OleMenuCommand(StartupProjectComboHandler, StartupProjectComboCommandId);
 				StartupProjectComboCommand.BeforeQueryStatus += (sender, args) => StartupProjectComboCommand.Enabled = _bIsSolutionOpened;
-				UnrealVSPackage.Instance.MenuCommandService.AddCommand( StartupProjectComboCommand );
+				UnrealVSPackage.Instance.MenuCommandService.AddCommand(StartupProjectComboCommand);
 
 				// StartupProjectComboList
-				var StartupProjectComboListCommandId = new CommandID( GuidList.UnrealVSCmdSet, StartupProjectComboListId );
+				var StartupProjectComboListCommandId = new CommandID(GuidList.UnrealVSCmdSet, StartupProjectComboListId);
 				var StartupProjectComboListCommand = new OleMenuCommand(StartupProjectComboListHandler, StartupProjectComboListCommandId);
 				StartupProjectComboListCommand.BeforeQueryStatus += (sender, args) => StartupProjectComboListCommand.Enabled = _bIsSolutionOpened;
-				UnrealVSPackage.Instance.MenuCommandService.AddCommand( StartupProjectComboListCommand );
+				UnrealVSPackage.Instance.MenuCommandService.AddCommand(StartupProjectComboListCommand);
 
 				StartupProjectComboCommands = new[] { StartupProjectComboCommand, StartupProjectComboListCommand };
-			} 
+			}
 
 			// Register for events that we care about
 			UnrealVSPackage.Instance.OnStartupProjectChanged += OnStartupProjectChanged;
@@ -81,8 +80,8 @@ namespace UnrealVS
 					_CachedStartupProjects.Clear();
 				};
 			UnrealVSPackage.Instance.OnProjectOpened +=
-				delegate(Project OpenedProject)
-				{		
+				delegate (Project OpenedProject)
+				{
 					if (_bIsSolutionOpened)
 					{
 						Logging.WriteLine("Opened project node " + OpenedProject.Name);
@@ -94,7 +93,7 @@ namespace UnrealVS
 					}
 				};
 			UnrealVSPackage.Instance.OnProjectClosed +=
-				delegate(Project ClosedProject)
+				delegate (Project ClosedProject)
 				{
 					Logging.WriteLine("Closed project node " + ClosedProject.Name);
 					RemoveFromStartupProjectList(ClosedProject);
@@ -145,18 +144,15 @@ namespace UnrealVS
 
 			SortCachedStartupProjects();
 
-			if (StartupProjectListChanged != null)
-			{
-				StartupProjectListChanged(this, new StartupProjectListChangedEventArgs {StartupProjects = StartupProjectList});
-			}
+			StartupProjectListChanged?.Invoke(this, new StartupProjectListChangedEventArgs { StartupProjects = StartupProjectList });
 		}
 
 		private void SortCachedStartupProjects()
 		{
-            // Sort projects by game y/n then alphabetically
-            _CachedStartupProjects = (_CachedStartupProjects.OrderBy(ProjectRef => ProjectRef.Name == "UE4" ? 0 : 1)
-                .ThenBy(ProjectRef => Utils.IsGameProject(ProjectRef.Project) ? 0 : 1)
-                .ThenBy(ProjectRef => ProjectRef.Name)).ToList();
+			// Sort projects by game y/n then alphabetically
+			_CachedStartupProjects = (_CachedStartupProjects.OrderBy(ProjectRef => ProjectRef.Name == "UE4" ? 0 : 1)
+				.ThenBy(ProjectRef => Utils.IsGameProject(ProjectRef.Project) ? 0 : 1)
+				.ThenBy(ProjectRef => ProjectRef.Name)).ToList();
 		}
 
 		private bool ProjectPredicate(Project Project)
@@ -193,18 +189,15 @@ namespace UnrealVS
 		{
 			_CachedStartupProjects.RemoveAll(ProjRef => ProjRef.Project == Project);
 
-			if (StartupProjectListChanged != null)
-			{
-				StartupProjectListChanged(this, new StartupProjectListChangedEventArgs { StartupProjects = StartupProjectList });
-			}
-		}	
+			StartupProjectListChanged?.Invoke(this, new StartupProjectListChangedEventArgs { StartupProjects = StartupProjectList });
+		}
 
 		/// <summary>
 		/// Updates the combo box after the project loaded state has changed
 		/// </summary>
 		private void UpdateStartupProjectCombo()
 		{
-			foreach(var Command in StartupProjectComboCommands)
+			foreach (var Command in StartupProjectComboCommands)
 			{
 				Command.Enabled = _bIsSolutionOpened;
 			}
@@ -214,12 +207,12 @@ namespace UnrealVS
 		/// <summary>
 		/// Called when the startup project has changed to a new project.  We'll refresh our interface.
 		/// </summary>
-		public void OnStartupProjectChanged( Project NewStartupProject )
+		public void OnStartupProjectChanged(Project NewStartupProject)
 		{
 			UpdateStartupProjectCombo();
 		}
 
-	
+
 		/// <summary>
 		/// Returns a string to display in the startup project combo box, based on project state
 		/// </summary>
@@ -229,9 +222,8 @@ namespace UnrealVS
 			string Text = "";
 
 			// Switch to this project!
-			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject( out ProjectHierarchy );
-			if( ProjectHierarchy != null )
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
+			if (ProjectHierarchy != null)
 			{
 				var Project = Utils.HierarchyObjectToProject(ProjectHierarchy);
 				if (Project != null)
@@ -245,19 +237,19 @@ namespace UnrealVS
 
 
 		/// Called by combo control to query the text to display or to apply newly-entered text
-		void StartupProjectComboHandler( object Sender, EventArgs Args )
+		void StartupProjectComboHandler(object Sender, EventArgs Args)
 		{
 			var OleArgs = (OleMenuCmdEventArgs)Args;
-			
+
 			// If OutValue is non-zero, then Visual Studio is querying the current combo value to display
-			if( OleArgs.OutValue != IntPtr.Zero )
+			if (OleArgs.OutValue != IntPtr.Zero)
 			{
 				string ValueString = MakeStartupProjectComboText();
-				Marshal.GetNativeVariantForObject( ValueString, OleArgs.OutValue );
+				Marshal.GetNativeVariantForObject(ValueString, OleArgs.OutValue);
 			}
 
 			// Has a new input value been entered?
-			else if( OleArgs.InValue != null )
+			else if (OleArgs.InValue != null)
 			{
 				var InputString = OleArgs.InValue.ToString();
 
@@ -276,12 +268,12 @@ namespace UnrealVS
 					{
 						UnrealVSPackage.Instance.DTE.ExecuteCommand("Project.SetasStartUpProject");
 					}
-				}					
+				}
 			}
 		}
 
 		/// Called by combo control to populate the drop-down list
-		void StartupProjectComboListHandler( object Sender, EventArgs Args )
+		void StartupProjectComboListHandler(object Sender, EventArgs Args)
 		{
 			var OleArgs = (OleMenuCmdEventArgs)Args;
 

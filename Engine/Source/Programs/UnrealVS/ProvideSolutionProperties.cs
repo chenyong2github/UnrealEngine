@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.VisualStudio.Shell;
 using System;
 using System.Globalization;
-using Microsoft.VisualStudio.Shell;
 
 namespace UnrealVS
 {
@@ -12,7 +12,7 @@ namespace UnrealVS
 	[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
 	internal sealed class ProvideSolutionPropertiesAttribute : RegistrationAttribute
 	{
-		private string _propName;
+		private readonly string _propName;
 
 		public ProvideSolutionPropertiesAttribute(string propName)
 		{

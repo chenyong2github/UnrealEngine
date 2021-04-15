@@ -1,20 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EnvDTE;
+using EnvDTE80;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using EnvDTE;
-using EnvDTE80;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
 using Constants = EnvDTE.Constants;
 
 namespace UnrealVS
@@ -30,7 +29,7 @@ namespace UnrealVS
 		public class BuildJob : DependencyObject
 		{
 			////////////// BuildJob Types ///////////////////////
-			
+
 			public enum BuildJobType
 			{
 				Build,
@@ -102,25 +101,25 @@ namespace UnrealVS
 
 			public BuildJobStatus JobStatus
 			{
-				get { return (BuildJobStatus) GetValue(JobStatusProperty); }
+				get { return (BuildJobStatus)GetValue(JobStatusProperty); }
 				set { SetValue(JobStatusProperty, value); }
 			}
 
 			public string JobStatusDisplayString
 			{
-				get { return (string) GetValue(JobStatusDisplayStringProperty); }
+				get { return (string)GetValue(JobStatusDisplayStringProperty); }
 				private set { SetValue(JobStatusDisplayStringProperty, value); }
 			}
 
 			public string OutputText
 			{
-				get { return (string) GetValue(OutputTextProperty); }
+				get { return (string)GetValue(OutputTextProperty); }
 				set { SetValue(OutputTextProperty, value); }
 			}
 
 			public bool HasOutputText
 			{
-				get { return (bool) GetValue(HasOutputTextProperty); }
+				get { return (bool)GetValue(HasOutputTextProperty); }
 				private set { SetValue(HasOutputTextProperty, value); }
 			}
 
@@ -130,26 +129,26 @@ namespace UnrealVS
 			{
 				// Register the dependency properties
 				JobStatusProperty = DependencyProperty.Register("JobStatus",
-				                                                typeof (BuildJobStatus), typeof (BuildJob),
-				                                                new FrameworkPropertyMetadata(BuildJobStatus.Pending,
-				                                                                              OnJobStatusChanged));
+																typeof(BuildJobStatus), typeof(BuildJob),
+																new FrameworkPropertyMetadata(BuildJobStatus.Pending,
+																							  OnJobStatusChanged));
 
 				JobStatusDisplayStringProperty = DependencyProperty.Register("JobStatusDisplayString",
-				                                                             typeof (string), typeof (BuildJob),
-				                                                             new FrameworkPropertyMetadata(InvalidJobStatusString));
+																			 typeof(string), typeof(BuildJob),
+																			 new FrameworkPropertyMetadata(InvalidJobStatusString));
 
 				OutputTextProperty = DependencyProperty.Register("OutputText",
-				                                                 typeof (string), typeof (BuildJob),
-				                                                 new FrameworkPropertyMetadata(String.Empty, OnOutputTextChanged));
+																 typeof(string), typeof(BuildJob),
+																 new FrameworkPropertyMetadata(String.Empty, OnOutputTextChanged));
 
 				HasOutputTextProperty = DependencyProperty.Register("HasOutputText",
-				                                                    typeof (bool), typeof (BuildJob),
-				                                                    new FrameworkPropertyMetadata(false));
+																	typeof(bool), typeof(BuildJob),
+																	new FrameworkPropertyMetadata(false));
 			}
 
 			private static void OnJobStatusChanged(DependencyObject Obj, DependencyPropertyChangedEventArgs Args)
 			{
-				BuildJob ThisBuildJob = (BuildJob) Obj;
+				BuildJob ThisBuildJob = (BuildJob)Obj;
 				if (ThisBuildJob != null)
 				{
 					ThisBuildJob.JobStatusDisplayString = ThisBuildJob.GetJobStatusString();
@@ -158,7 +157,7 @@ namespace UnrealVS
 
 			private static void OnOutputTextChanged(DependencyObject Obj, DependencyPropertyChangedEventArgs Args)
 			{
-				BuildJob ThisBuildJob = (BuildJob) Obj;
+				BuildJob ThisBuildJob = (BuildJob)Obj;
 				if (ThisBuildJob != null)
 				{
 					ThisBuildJob.HasOutputText = !String.IsNullOrEmpty(ThisBuildJob.OutputText);
@@ -183,13 +182,13 @@ namespace UnrealVS
 			{
 				if (Project == null || Config == null || Platform == null) return InvalidDisplayString;
 
-				return String.Format("{0}: {1} [{2}]", Enum.GetName(typeof (BuildJobType), JobType), Project.Name,
-				                     SolutionConfigString);
+				return String.Format("{0}: {1} [{2}]", Enum.GetName(typeof(BuildJobType), JobType), Project.Name,
+									 SolutionConfigString);
 			}
 
 			private string GetJobStatusString()
 			{
-				return Enum.GetName(typeof (BuildJobStatus), JobStatus);
+				return Enum.GetName(typeof(BuildJobStatus), JobStatus);
 			}
 
 			////////////// BuildJob fields ///////////////////////
@@ -233,7 +232,7 @@ namespace UnrealVS
 				return "<None>";
 			}
 		}
-		
+
 		public class BatchBuilderToolState
 		{
 			public readonly ObservableCollection<BuildJobSet> _BuildJobSetsCollection = new ObservableCollection<BuildJobSet>();
@@ -254,8 +253,10 @@ namespace UnrealVS
 
 						for (int SetIdx = 0; SetIdx < SetCount; SetIdx++)
 						{
-							BuildJobSet LoadedSet = new BuildJobSet();
-							LoadedSet.Name = Reader.ReadString();
+							BuildJobSet LoadedSet = new BuildJobSet
+							{
+								Name = Reader.ReadString()
+							};
 							int JobCount = Reader.ReadInt32();
 							for (int JobIdx = 0; JobIdx < JobCount; JobIdx++)
 							{
@@ -263,9 +264,8 @@ namespace UnrealVS
 
 								string Config = Reader.ReadString();
 								string Platform = Reader.ReadString();
-								BuildJob.BuildJobType JobType;
 
-								if (Enum.TryParse(Reader.ReadString(), out JobType))
+								if (Enum.TryParse(Reader.ReadString(), out BuildJob.BuildJobType JobType))
 								{
 									LoadedSet.BuildJobs.Add(new BuildJob(ProjectRef, Config, Platform, JobType));
 								}
@@ -343,19 +343,19 @@ namespace UnrealVS
 
 		public bool IsSolutionOpen
 		{
-			get { return (bool) GetValue(IsSolutionOpenProperty); }
+			get { return (bool)GetValue(IsSolutionOpenProperty); }
 			set { SetValue(IsSolutionOpenProperty, value); }
 		}
 
 		public bool IsSingleBuildJobSelected
 		{
-			get { return (bool) GetValue(IsSingleBuildJobSelectedProperty); }
+			get { return (bool)GetValue(IsSingleBuildJobSelectedProperty); }
 			set { SetValue(IsSingleBuildJobSelectedProperty, value); }
 		}
 
 		public ObservableCollection<BuildJob> BuildJobs
 		{
-			get { return (ObservableCollection<BuildJob>) GetValue(BuildJobsProperty); }
+			get { return (ObservableCollection<BuildJob>)GetValue(BuildJobsProperty); }
 			set { SetValue(BuildJobsProperty, value); }
 		}
 
@@ -367,31 +367,31 @@ namespace UnrealVS
 
 		public bool IsDeletableSetSelected
 		{
-			get { return (bool) GetValue(IsDeletableSetSelectedProperty); }
+			get { return (bool)GetValue(IsDeletableSetSelectedProperty); }
 			set { SetValue(IsDeletableSetSelectedProperty, value); }
 		}
 
 		public string BuildJobsPanelTitle
 		{
-			get { return (string) GetValue(BuildJobsPanelTitleProperty); }
+			get { return (string)GetValue(BuildJobsPanelTitleProperty); }
 			set { SetValue(BuildJobsPanelTitleProperty, value); }
 		}
 
 		public string OutputPanelTitle
 		{
-			get { return (string) GetValue(OutputPanelTitleProperty); }
+			get { return (string)GetValue(OutputPanelTitleProperty); }
 			set { SetValue(OutputPanelTitleProperty, value); }
 		}
 
 		public bool HasOutput
 		{
-			get { return (bool) GetValue(HasOutputProperty); }
+			get { return (bool)GetValue(HasOutputProperty); }
 			set { SetValue(HasOutputProperty, value); }
 		}
 
 		public bool IsBusy
 		{
-			get { return (bool) GetValue(IsBusyProperty); }
+			get { return (bool)GetValue(IsBusyProperty); }
 			set { SetValue(IsBusyProperty, value); }
 		}
 
@@ -447,37 +447,37 @@ namespace UnrealVS
 		{
 			// Register the dependency properties
 			IsSolutionOpenProperty = DependencyProperty.Register("IsSolutionOpen",
-			                                                     typeof (bool), typeof (BatchBuilderToolControl),
-			                                                     new FrameworkPropertyMetadata(false));
+																 typeof(bool), typeof(BatchBuilderToolControl),
+																 new FrameworkPropertyMetadata(false));
 
 			IsSingleBuildJobSelectedProperty = DependencyProperty.Register("IsSingleBuildJobSelected",
-			                                                               typeof (bool), typeof (BatchBuilderToolControl),
-			                                                               new FrameworkPropertyMetadata(false));
+																		   typeof(bool), typeof(BatchBuilderToolControl),
+																		   new FrameworkPropertyMetadata(false));
 
 			BuildJobsProperty = DependencyProperty.Register("BuildJobs",
-			                                                typeof (ObservableCollection<BuildJob>),
-			                                                typeof (BatchBuilderToolControl),
-			                                                new FrameworkPropertyMetadata(new ObservableCollection<BuildJob>()));
+															typeof(ObservableCollection<BuildJob>),
+															typeof(BatchBuilderToolControl),
+															new FrameworkPropertyMetadata(new ObservableCollection<BuildJob>()));
 
 			IsDeletableSetSelectedProperty = DependencyProperty.Register("IsDeletableSetSelected",
-			                                                             typeof (bool), typeof (BatchBuilderToolControl),
-			                                                             new FrameworkPropertyMetadata(false));
+																		 typeof(bool), typeof(BatchBuilderToolControl),
+																		 new FrameworkPropertyMetadata(false));
 
 			BuildJobsPanelTitleProperty = DependencyProperty.Register("BuildJobsPanelTitle",
-			                                                          typeof (string), typeof (BatchBuilderToolControl),
-			                                                          new FrameworkPropertyMetadata(BuildJobsPanelPrefix));
+																	  typeof(string), typeof(BatchBuilderToolControl),
+																	  new FrameworkPropertyMetadata(BuildJobsPanelPrefix));
 
 			OutputPanelTitleProperty = DependencyProperty.Register("OutputPanelTitle",
-			                                                       typeof (string), typeof (BatchBuilderToolControl),
-			                                                       new FrameworkPropertyMetadata(OutputPanelTitlePrefix));
+																   typeof(string), typeof(BatchBuilderToolControl),
+																   new FrameworkPropertyMetadata(OutputPanelTitlePrefix));
 
 			HasOutputProperty = DependencyProperty.Register("HasOutput",
-			                                                typeof (bool), typeof (BatchBuilderToolControl),
-			                                                new FrameworkPropertyMetadata(false));
+															typeof(bool), typeof(BatchBuilderToolControl),
+															new FrameworkPropertyMetadata(false));
 
 			IsBusyProperty = DependencyProperty.Register("IsBusy",
-			                                             typeof (bool), typeof (BatchBuilderToolControl),
-			                                             new FrameworkPropertyMetadata(false));
+														 typeof(bool), typeof(BatchBuilderToolControl),
+														 new FrameworkPropertyMetadata(false));
 		}
 
 		private static void DisplayBatchOutputText(string Text)
@@ -517,15 +517,15 @@ namespace UnrealVS
 			// Register for events that we care about
 			UnrealVSPackage.Instance.StartupProjectSelector.StartupProjectListChanged += RefreshProjectCollection;
 			UnrealVSPackage.Instance.OnSolutionOpened += delegate
-				                                             {
-					                                             IsSolutionOpen = true;
-					                                             RefreshConfigAndPlatformCollections();
-				                                             };
+															 {
+																 IsSolutionOpen = true;
+																 RefreshConfigAndPlatformCollections();
+															 };
 			UnrealVSPackage.Instance.OnSolutionClosed += delegate
-				                                             {
-					                                             IsSolutionOpen = false;
-					                                             RefreshConfigAndPlatformCollections();
-				                                             };
+															 {
+																 IsSolutionOpen = false;
+																 RefreshConfigAndPlatformCollections();
+															 };
 
 			RefreshProjectCollection(UnrealVSPackage.Instance.StartupProjectSelector.StartupProjectList);
 			RefreshConfigAndPlatformCollections();
@@ -561,7 +561,7 @@ namespace UnrealVS
 		{
 			if (_state._BuildJobSetsCollection.Count == 0)
 			{
-				BuildJobSet DefaultItem = new BuildJobSet {Name = "UntitledSet"};
+				BuildJobSet DefaultItem = new BuildJobSet { Name = "UntitledSet" };
 				_state._BuildJobSetsCollection.Add(DefaultItem);
 				if (SetCombo != null)
 				{
@@ -595,9 +595,7 @@ namespace UnrealVS
 				_state._BuildJobSetsCollection.Clear();
 			}
 
-			string[] RefreshConfigs;
-			string[] RefreshPlatforms;
-			Utils.GetSolutionConfigsAndPlatforms(out RefreshConfigs, out RefreshPlatforms);
+			Utils.GetSolutionConfigsAndPlatforms(out string[] RefreshConfigs, out string[] RefreshPlatforms);
 
 			foreach (string Config in RefreshConfigs)
 			{
@@ -641,7 +639,7 @@ namespace UnrealVS
 		{
 			if (!IsSingleBuildJobSelected) return;
 
-			BuildJob SelectedJob = (BuildJob) BuildJobsList.SelectedItem;
+			BuildJob SelectedJob = (BuildJob)BuildJobsList.SelectedItem;
 
 			int CurrentIdx = BuildJobs.IndexOf(SelectedJob);
 			if (CurrentIdx > 0)
@@ -654,7 +652,7 @@ namespace UnrealVS
 		{
 			if (!IsSingleBuildJobSelected) return;
 
-			BuildJob SelectedJob = (BuildJob) BuildJobsList.SelectedItem;
+			BuildJob SelectedJob = (BuildJob)BuildJobsList.SelectedItem;
 
 			int CurrentIdx = BuildJobs.IndexOf(SelectedJob);
 			if (CurrentIdx < BuildJobs.Count - 1)
@@ -676,8 +674,8 @@ namespace UnrealVS
 					foreach (string Platform in PlatformsList.SelectedItems)
 					{
 						Buildables.Add(
-							new BuildJob(new Utils.SafeProjectReference {FullName = Project.Project.FullName, Name = Project.Project.Name},
-							             Config, Platform, JobType));
+							new BuildJob(new Utils.SafeProjectReference { FullName = Project.Project.FullName, Name = Project.Project.Name },
+										 Config, Platform, JobType));
 					}
 				}
 			}
@@ -761,7 +759,7 @@ namespace UnrealVS
 		{
 			if (SetCombo.SelectedItem != null)
 			{
-				_LastSelectedBuildJobSet = (BuildJobSet) SetCombo.SelectedItem;
+				_LastSelectedBuildJobSet = (BuildJobSet)SetCombo.SelectedItem;
 				BuildJobs = _LastSelectedBuildJobSet.BuildJobs;
 				IsDeletableSetSelected = _state._BuildJobSetsCollection.Count > 1;
 				BuildJobsPanelTitle = String.Format("{0} ({1})", BuildJobsPanelPrefix, _LastSelectedBuildJobSet.Name);
@@ -845,11 +843,11 @@ namespace UnrealVS
 			if (BuildJobCount > BuildJobs.Count)
 			{
 				if (VSConstants.S_OK != VsShellUtilities.ShowMessageBox(ServiceProvider.GlobalProvider,
-				                                                        "WARNING: Some build jobs were deleted because they were invalid.",
-				                                                        "UnrealVS",
-				                                                        OLEMSGICON.OLEMSGICON_WARNING,
-				                                                        OLEMSGBUTTON.OLEMSGBUTTON_OKCANCEL,
-				                                                        OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST))
+																		"WARNING: Some build jobs were deleted because they were invalid.",
+																		"UnrealVS",
+																		OLEMSGICON.OLEMSGICON_WARNING,
+																		OLEMSGBUTTON.OLEMSGBUTTON_OKCANCEL,
+																		OLEMSGDEFBUTTON.OLEMSGDEFBUTTON_FIRST))
 				{
 					return;
 				}
@@ -882,9 +880,7 @@ namespace UnrealVS
 		{
 			// check that project, config and platform strings in build jobs are valid
 			// remove invalid ones
-			string[] SolutionConfigs;
-			string[] SolutionPlatforms;
-			Utils.GetSolutionConfigsAndPlatforms(out SolutionConfigs, out SolutionPlatforms);
+			Utils.GetSolutionConfigsAndPlatforms(out string[] SolutionConfigs, out string[] SolutionPlatforms);
 
 			foreach (var JobSet in _state._BuildJobSetsCollection)
 			{
@@ -996,20 +992,17 @@ namespace UnrealVS
 
 		private void OpenItemOutputCommandExecuted(object sender, ExecutedRoutedEventArgs e)
 		{
-			BuildJob Job = e.Parameter as BuildJob;
-			if (Job == null) return;
+			if (!(e.Parameter is BuildJob Job)) return;
 
 			DisplayBatchOutputText(Job.OutputText);
 		}
 
 		private void OnDblClickBuildListItem(object sender, MouseButtonEventArgs e)
 		{
-			var Elem = sender as FrameworkElement;
-			if (Elem == null) return;
+			if (!(sender is FrameworkElement Elem)) return;
 
-			BuildJob Job = Elem.DataContext as BuildJob;
-			if (Job == null) return;
-			
+			if (!(Elem.DataContext is BuildJob Job)) return;
+
 			// Switch the Startup Project and the build config and platform to match this Job
 			if (Job.Project != null)
 			{
@@ -1033,11 +1026,9 @@ namespace UnrealVS
 
 		private void OnDblClickBuildingListItem(object sender, MouseButtonEventArgs e)
 		{
-			var Elem = sender as FrameworkElement;
-			if (Elem == null) return;
+			if (!(sender is FrameworkElement Elem)) return;
 
-			BuildJob Job = Elem.DataContext as BuildJob;
-			if (Job == null) return;
+			if (!(Elem.DataContext is BuildJob Job)) return;
 
 			DisplayBatchOutputText(Job.OutputText);
 		}

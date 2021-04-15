@@ -1,16 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
+using EnvDTE;
+using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell.Interop;
-using EnvDTE;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using VSLangProj;
 using System.IO;
-using EnvDTE80;
-using Microsoft.VisualStudio.Shell;
+using System.Linq;
 using System.Xml;
 
 namespace UnrealVS
@@ -36,10 +33,9 @@ namespace UnrealVS
 		/// </summary>
 		/// <param name="Project">Project object</param>
 		/// <returns>IVsHierarchy for the specified project</returns>
-		public static IVsHierarchy ProjectToHierarchyObject( Project Project )
+		public static IVsHierarchy ProjectToHierarchyObject(Project Project)
 		{
-			IVsHierarchy HierarchyObject;
-			UnrealVSPackage.Instance.SolutionManager.GetProjectOfUniqueName(Project.FullName, out HierarchyObject);
+			UnrealVSPackage.Instance.SolutionManager.GetProjectOfUniqueName(Project.FullName, out IVsHierarchy HierarchyObject);
 			return HierarchyObject;
 		}
 
@@ -49,11 +45,10 @@ namespace UnrealVS
 		/// </summary>
 		/// <param name="HierarchyObject">IVsHierarchy object</param>
 		/// <returns>Visual Studio project object</returns>
-		public static Project HierarchyObjectToProject( IVsHierarchy HierarchyObject )
+		public static Project HierarchyObjectToProject(IVsHierarchy HierarchyObject)
 		{
 			// Get the actual Project object from the IVsHierarchy object that was supplied
-			object ProjectObject;
-			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_ExtObject, out ProjectObject);
+			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_ExtObject, out object ProjectObject);
 			return (Project)ProjectObject;
 		}
 
@@ -62,11 +57,10 @@ namespace UnrealVS
 		/// </summary>
 		/// <param name="HierarchyObject">IVsHierarchy object</param>
 		/// <returns>Visual Studio project object</returns>
-		public static IVsCfgProvider2 HierarchyObjectToCfgProvider( IVsHierarchy HierarchyObject )
+		public static IVsCfgProvider2 HierarchyObjectToCfgProvider(IVsHierarchy HierarchyObject)
 		{
 			// Get the actual Project object from the IVsHierarchy object that was supplied
-			object BrowseObject;
-			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_BrowseObject, out BrowseObject);
+			HierarchyObject.GetProperty(VSConstants.VSITEMID_ROOT, (int)__VSHPROPID.VSHPROPID_BrowseObject, out object BrowseObject);
 
 			IVsCfgProvider2 CfgProvider = null;
 			if (BrowseObject != null)
@@ -82,15 +76,13 @@ namespace UnrealVS
 			return CfgProvider;
 		}
 
-		private static IVsCfgProvider2 GetCfgProviderFromObject( object SomeObject )
+		private static IVsCfgProvider2 GetCfgProviderFromObject(object SomeObject)
 		{
 			IVsCfgProvider2 CfgProvider2 = null;
 
-			var GetCfgProvider = SomeObject as IVsGetCfgProvider;
-			if (GetCfgProvider != null)
+			if (SomeObject is IVsGetCfgProvider GetCfgProvider)
 			{
-				IVsCfgProvider CfgProvider;
-				GetCfgProvider.GetCfgProvider(out CfgProvider);
+				GetCfgProvider.GetCfgProvider(out IVsCfgProvider CfgProvider);
 				if (CfgProvider != null)
 				{
 					CfgProvider2 = CfgProvider as IVsCfgProvider2;
@@ -111,7 +103,7 @@ namespace UnrealVS
 		/// <param name="Project">Project to search for the property</param>
 		/// <param name="PropertyName">Name of the property</param>
 		/// <returns>Property object or null if not found</returns>
-		public static Property GetProjectProperty( Project Project, string PropertyName )
+		public static Property GetProjectProperty(Project Project, string PropertyName)
 		{
 			var Properties = Project.Properties;
 			if (Properties != null)
@@ -135,7 +127,7 @@ namespace UnrealVS
 		/// </summary>
 		/// <param name="Property">The property object to set</param>
 		/// <param name="PropertyValue">Value to set for this property</param>
-		public static void SetPropertyValue( Property Property, object PropertyValue )
+		public static void SetPropertyValue(Property Property, object PropertyValue)
 		{
 			Property.Value = PropertyValue;
 
@@ -155,13 +147,13 @@ namespace UnrealVS
 			public UIHierarchyItem Item { get; set; }
 			public UITreeItem[] Children { get; set; }
 			public string Name { get { return Item != null ? Item.Name : "None"; } }
-			public object Object { get { return Item != null ? Item.Object : null; } }
+			public object Object { get { return Item?.Object; } }
 		}
 
 		/// <summary>
 		/// Converts a UIHierarchy into an easy to use tree of helper class UITreeItem.
 		/// </summary>
-		public static UITreeItem GetUIHierarchyTree( UIHierarchy Hierarchy )
+		public static UITreeItem GetUIHierarchyTree(UIHierarchy Hierarchy)
 		{
 			return new UITreeItem
 			{
@@ -173,7 +165,7 @@ namespace UnrealVS
 		/// <summary>
 		/// Called by the public GetUIHierarchyTree() function above.
 		/// </summary>
-		private static UITreeItem GetUIHierarchyTree( UIHierarchyItem HierarchyItem )
+		private static UITreeItem GetUIHierarchyTree(UIHierarchyItem HierarchyItem)
 		{
 			return new UITreeItem
 			{
@@ -188,13 +180,13 @@ namespace UnrealVS
 		/// <typeparam name="T">The type of object to find in the tree. Extracts everything that "Is a" T.</typeparam>
 		/// <param name="RootItem">The root of the UIHierarchy to search (converted to UITreeItem via GetUIHierarchyTree())</param>
 		/// <returns>An enumerable of objects of type T found beneath the root item.</returns>
-		public static IEnumerable<T> GetUITreeItemObjectsByType<T>( UITreeItem RootItem ) where T : class
+		public static IEnumerable<T> GetUITreeItemObjectsByType<T>(UITreeItem RootItem) where T : class
 		{
 			List<T> Results = new List<T>();
 
-			if (RootItem.Object is T)
+			if (RootItem.Object is T Obj)
 			{
-				Results.Add((T)RootItem.Object);
+				Results.Add(Obj);
 			}
 			foreach (var Child in RootItem.Children)
 			{
@@ -204,7 +196,7 @@ namespace UnrealVS
 			return Results;
 		}
 
-		public static IEnumerable<UIHierarchyItem> GetUITreeItemsByObjectType<T>( UITreeItem RootItem ) where T : class
+		public static IEnumerable<UIHierarchyItem> GetUITreeItemsByObjectType<T>(UITreeItem RootItem) where T : class
 		{
 			List<UIHierarchyItem> Results = new List<UIHierarchyItem>();
 
@@ -224,7 +216,7 @@ namespace UnrealVS
 		/// Helper to check the file ext of a binary against known library file exts.
 		/// FileExt should include the dot e.g. ".dll"
 		/// </summary>
-		public static bool IsLibraryFileExtension( string FileExt )
+		public static bool IsLibraryFileExtension(string FileExt)
 		{
 			if (FileExt.Equals(".dll", StringComparison.InvariantCultureIgnoreCase)) return true;
 			if (FileExt.Equals(".lib", StringComparison.InvariantCultureIgnoreCase)) return true;
@@ -239,7 +231,7 @@ namespace UnrealVS
 		/// <summary>
 		/// Helper to check the properties of a project and determine whether it can be built in VS.
 		/// </summary>
-		public static bool IsProjectBuildable( Project Project )
+		public static bool IsProjectBuildable(Project Project)
 		{
 			return Project.Kind == GuidList.VCSharpProjectKindGuidString || Project.Kind == GuidList.VCProjectKindGuidString;
 		}
@@ -275,12 +267,12 @@ namespace UnrealVS
 			}
 		}
 
-		public static void ExecuteProjectBuild( Project Project,
+		public static void ExecuteProjectBuild(Project Project,
 												string SolutionConfig,
 												string SolutionPlatform,
 												BatchBuilderToolControl.BuildJob.BuildJobType BuildType,
 												Action ExecutingDelegate,
-												Action FailedToStartDelegate )
+												Action FailedToStartDelegate)
 		{
 			IVsHierarchy ProjHierarchy = Utils.ProjectToHierarchyObject(Project);
 
@@ -303,12 +295,11 @@ namespace UnrealVS
 						IVsCfgProvider2 CfgProvider2 = Utils.HierarchyObjectToCfgProvider(ProjHierarchy);
 						if (CfgProvider2 != null)
 						{
-							IVsCfg Cfg;
-							CfgProvider2.GetCfgOfName(ProjectSolutionCtxt.ConfigurationName, ProjectSolutionCtxt.PlatformName, out Cfg);
+							CfgProvider2.GetCfgOfName(ProjectSolutionCtxt.ConfigurationName, ProjectSolutionCtxt.PlatformName, out IVsCfg Cfg);
 
 							if (Cfg != null)
 							{
-								if (ExecutingDelegate != null) ExecutingDelegate();
+								ExecutingDelegate?.Invoke();
 
 								int JobResult = VSConstants.E_FAIL;
 
@@ -359,7 +350,7 @@ namespace UnrealVS
 								}
 								else
 								{
-									if (FailedToStartDelegate != null) FailedToStartDelegate();
+									FailedToStartDelegate?.Invoke();
 								}
 							}
 						}
@@ -369,7 +360,7 @@ namespace UnrealVS
 		}
 
 
-		private static bool LoadConfigFromUBT( Project SelectedProject )
+		private static bool LoadConfigFromUBT(Project SelectedProject)
 		{
 			string ProjectPath = Path.GetDirectoryName(SelectedProject.FullName);
 			string ConfigFileName = Path.Combine(ProjectPath, "UnrealVS.xml");
@@ -397,7 +388,7 @@ namespace UnrealVS
 		}
 
 
-		public static List<string> GetExtraDebuggerCommandArguments( string PlatformName, Project SelectedProject )
+		public static List<string> GetExtraDebuggerCommandArguments(string PlatformName, Project SelectedProject)
 		{
 			List<string> Result = new List<string>();
 
@@ -442,8 +433,7 @@ namespace UnrealVS
 			var UProjectFileName = GetUProjectFileName(Project);
 			var AllUProjects = GetUProjects();
 
-			string UProjectPath = string.Empty;
-			if (!AllUProjects.TryGetValue(Project.Name, out UProjectPath))
+			if (!AllUProjects.TryGetValue(Project.Name, out string UProjectPath))
 			{
 				// Search the project folder
 				var ProjectFolder = Path.GetDirectoryName(Project.FullName);
@@ -451,7 +441,7 @@ namespace UnrealVS
 				if (UProjUnderProject.Length == 1)
 				{
 					UProjectPath = UProjUnderProject[0];
-				}				
+				}
 			}
 
 			return '\"' + UProjectPath + '\"';
@@ -474,8 +464,10 @@ namespace UnrealVS
 			if (ProjectFiles.Count == 0)
 			{
 				// Build a list of all the parent directories for projects. This includes the UE4 root, plus any directories referenced via .uprojectdirs files.
-				List<DirectoryInfo> ParentProjectDirs = new List<DirectoryInfo>();
-				ParentProjectDirs.Add(SolutionDir);
+				List<DirectoryInfo> ParentProjectDirs = new List<DirectoryInfo>
+				{
+					SolutionDir
+				};
 
 				// Read all the .uprojectdirs files
 				foreach (FileInfo ProjectDirsFile in SolutionDir.EnumerateFiles("*.uprojectdirs"))
@@ -501,7 +493,7 @@ namespace UnrealVS
 				HashSet<string> CheckedParentDirs = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 				foreach (DirectoryInfo ParentProjectDir in ParentProjectDirs)
 				{
-					if(CheckedParentDirs.Add(ParentProjectDir.FullName) && ParentProjectDir.Exists)
+					if (CheckedParentDirs.Add(ParentProjectDir.FullName) && ParentProjectDir.Exists)
 					{
 						foreach (DirectoryInfo ProjectDir in ParentProjectDir.EnumerateDirectories())
 						{
@@ -527,21 +519,21 @@ namespace UnrealVS
 			if (Folder != CachedUProjectRootFolder)
 			{
 				Logging.WriteLine("GetUProjects: recaching uproject paths...");
-                DateTime Start = DateTime.Now;
+				DateTime Start = DateTime.Now;
 
 				CachedUProjectRootFolder = Folder;
 				CachedUProjectPaths = EnumerateProjects(new DirectoryInfo(Folder)).Select(x => x.FullName);
 				CachedUProjects = null;
 
-                TimeSpan TimeTaken = DateTime.Now - Start;
-                Logging.WriteLine(string.Format("GetUProjects: EnumerateProjects took {0} sec", TimeTaken.TotalSeconds));
+				TimeSpan TimeTaken = DateTime.Now - Start;
+				Logging.WriteLine(string.Format("GetUProjects: EnumerateProjects took {0} sec", TimeTaken.TotalSeconds));
 
 				foreach (string CachedUProjectPath in CachedUProjectPaths)
 				{
 					Logging.WriteLine(String.Format("GetUProjects: found {0}", CachedUProjectPath));
 				}
 
-                Logging.WriteLine("    DONE");
+				Logging.WriteLine("    DONE");
 			}
 
 			if (CachedUProjects == null)
@@ -552,9 +544,9 @@ namespace UnrealVS
 				var ProjectNames = (from path in ProjectPaths select Path.GetFileNameWithoutExtension(path)).ToArray();
 
 				var CodeUProjects = from UProjectPath in CachedUProjectPaths
-					let ProjectName = Path.GetFileNameWithoutExtension(UProjectPath)
-					where ProjectNames.Any(name => string.Compare(name, ProjectName, StringComparison.OrdinalIgnoreCase) == 0)
-					select new {Name = ProjectName, FilePath = UProjectPath};
+									let ProjectName = Path.GetFileNameWithoutExtension(UProjectPath)
+									where ProjectNames.Any(name => string.Compare(name, ProjectName, StringComparison.OrdinalIgnoreCase) == 0)
+									select new { Name = ProjectName, FilePath = UProjectPath };
 
 				CachedUProjects = new Dictionary<string, string>();
 

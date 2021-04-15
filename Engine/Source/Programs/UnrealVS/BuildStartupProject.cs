@@ -1,16 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Diagnostics;
-using System.ComponentModel.Design;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.OLE.Interop;
-using EnvDTE;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
 using EnvDTE80;
+using Microsoft.VisualStudio.Shell.Interop;
+using System;
+using System.ComponentModel.Design;
 
 namespace UnrealVS
 {
@@ -22,29 +15,28 @@ namespace UnrealVS
 		{
 			// BuildStartupProjectButton
 			{
-				var CommandID = new CommandID( GuidList.UnrealVSCmdSet, BuildStartupProjectButtonID );
-				var BuildStartupProjectButtonCommand = new MenuCommand( new EventHandler( BuildStartupProjectButtonHandler ), CommandID );
-				UnrealVSPackage.Instance.MenuCommandService.AddCommand( BuildStartupProjectButtonCommand );
+				var CommandID = new CommandID(GuidList.UnrealVSCmdSet, BuildStartupProjectButtonID);
+				var BuildStartupProjectButtonCommand = new MenuCommand(new EventHandler(BuildStartupProjectButtonHandler), CommandID);
+				UnrealVSPackage.Instance.MenuCommandService.AddCommand(BuildStartupProjectButtonCommand);
 			}
 
 		}
 
 
 		/// Called when 'BuildStartupProject' button is clicked
-		void BuildStartupProjectButtonHandler( object Sender, EventArgs Args )
+		void BuildStartupProjectButtonHandler(object Sender, EventArgs Args)
 		{
 			// Grab the current startup project
-			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject( out ProjectHierarchy );
-			if( ProjectHierarchy != null )
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
+			if (ProjectHierarchy != null)
 			{
-				var StartupProject = Utils.HierarchyObjectToProject( ProjectHierarchy );
+				var StartupProject = Utils.HierarchyObjectToProject(ProjectHierarchy);
 
 				if (StartupProject != null)
 				{
 					// Get the active solution configuration
 					var ActiveConfiguration =
-						(SolutionConfiguration2) UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.ActiveConfiguration;
+						(SolutionConfiguration2)UnrealVSPackage.Instance.DTE.Solution.SolutionBuild.ActiveConfiguration;
 					var SolutionConfiguration = ActiveConfiguration.Name;
 					var SolutionPlatform = ActiveConfiguration.PlatformName;
 

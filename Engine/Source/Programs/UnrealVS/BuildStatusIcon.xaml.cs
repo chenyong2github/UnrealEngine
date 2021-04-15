@@ -1,19 +1,8 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace UnrealVS
 {
@@ -46,11 +35,11 @@ namespace UnrealVS
 		static BuildStatusIcon()
 		{
 			BuildStatusProperty = DependencyProperty.Register("BuildStatus",
-			                                                  typeof (BatchBuilderToolControl.BuildJob.BuildJobStatus),
-			                                                  typeof (BuildStatusIcon),
-			                                                  new FrameworkPropertyMetadata(
-				                                                  BatchBuilderToolControl.BuildJob.BuildJobStatus.Pending,
-				                                                  OnBuildStatusChanged));
+															  typeof(BatchBuilderToolControl.BuildJob.BuildJobStatus),
+															  typeof(BuildStatusIcon),
+															  new FrameworkPropertyMetadata(
+																  BatchBuilderToolControl.BuildJob.BuildJobStatus.Pending,
+																  OnBuildStatusChanged));
 			ColorLoProperty = DependencyProperty.Register("ColorLo",
 															  typeof(Color),
 															  typeof(BuildStatusIcon),

@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.ComponentModel.Design;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
+using System;
+using System.ComponentModel.Design;
+using System.IO;
 
 namespace UnrealVS
 {
@@ -32,7 +28,7 @@ namespace UnrealVS
 		private static BatchBuilderToolControl _ToolControl;
 		public static BatchBuilderToolControl ToolControl
 		{
-			get 
+			get
 			{
 				if (_ToolControl == null) _ToolControl = new BatchBuilderToolControl(_ToolControlState);
 				return _ToolControl;

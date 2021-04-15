@@ -1,17 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Diagnostics;
 using System.ComponentModel.Design;
+using System.Diagnostics;
 using System.IO;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.OLE.Interop;
-using EnvDTE;
-using System.Runtime.InteropServices;
-using System.Collections.Generic;
-using EnvDTE80;
 
 
 namespace UnrealVS
@@ -25,9 +17,9 @@ namespace UnrealVS
 		{
 			// GenerateProjectFilesButton
 			{
-				var CommandID = new CommandID( GuidList.UnrealVSCmdSet, GenerateProjectFilesButtonID );
-				GenerateProjectFilesButtonCommand = new MenuCommand( new EventHandler( GenerateProjectFilesButtonHandler ), CommandID );
-				UnrealVSPackage.Instance.MenuCommandService.AddCommand( GenerateProjectFilesButtonCommand );
+				var CommandID = new CommandID(GuidList.UnrealVSCmdSet, GenerateProjectFilesButtonID);
+				GenerateProjectFilesButtonCommand = new MenuCommand(new EventHandler(GenerateProjectFilesButtonHandler), CommandID);
+				UnrealVSPackage.Instance.MenuCommandService.AddCommand(GenerateProjectFilesButtonCommand);
 			}
 
 
@@ -41,22 +33,22 @@ namespace UnrealVS
 
 
 		/// Called when 'GenerateProjectFiles' button is clicked
-		void GenerateProjectFilesButtonHandler( object Sender, EventArgs Args )
+		void GenerateProjectFilesButtonHandler(object Sender, EventArgs Args)
 		{
 			// Don't allow a regen if we're already generating projects
-			if( GenerateProjectFilesProcess == null )
+			if (GenerateProjectFilesProcess == null)
 			{
 				// Figure out which project to rebuild
 				string BatchFileName = GetBatchFileName();
 
-				if( !String.IsNullOrEmpty( BatchFileName ) )
+				if (!String.IsNullOrEmpty(BatchFileName))
 				{
 					// Make sure the Output window is visible
-					UnrealVSPackage.Instance.DTE.ExecuteCommand( "View.Output" );
+					UnrealVSPackage.Instance.DTE.ExecuteCommand("View.Output");
 
 					// Activate the output pane
 					var Pane = UnrealVSPackage.Instance.GetOutputPane();
-					if( Pane != null )
+					if (Pane != null)
 					{
 						// Clear and activate the output pane.
 						Pane.Clear();
@@ -65,10 +57,10 @@ namespace UnrealVS
 						Pane.Activate();
 					}
 
-					GenerateProjectFilesProcess = UnrealVSPackage.Instance.LaunchProgram(
-                        "cmd.exe", "/C " + GetSafeFilePath(BatchFileName),
+					GenerateProjectFilesProcess = UnrealVSPackage.LaunchProgram(
+						"cmd.exe", "/C " + GetSafeFilePath(BatchFileName),
 						OnGenerateProjectFilesProcessExit,
-						OnOutputFromGenerateProjectFilesProcess );
+						OnOutputFromGenerateProjectFilesProcess);
 				}
 
 				UpdateGenerateProjectFilesButtonState();
@@ -77,7 +69,7 @@ namespace UnrealVS
 
 
 		/// Called when the GenerateProjectFiles process terminates
-		void OnGenerateProjectFilesProcessExit( object Sender, EventArgs Args )
+		void OnGenerateProjectFilesProcessExit(object Sender, EventArgs Args)
 		{
 			GenerateProjectFilesProcess = null;
 
@@ -88,17 +80,17 @@ namespace UnrealVS
 		/// <summary>
 		/// Updates the enabled/disabled state of the 'Generate Project Files' button
 		/// </summary>
-		void UpdateGenerateProjectFilesButtonState( bool ShouldForceDisable = false )
+		void UpdateGenerateProjectFilesButtonState(bool ShouldForceDisable = false)
 		{
 			var CanGenerateProjects = false;
 
-			if( !ShouldForceDisable )
+			if (!ShouldForceDisable)
 			{
 				// Can't launch when a process is already running
-				if( GenerateProjectFilesProcess == null )
+				if (GenerateProjectFilesProcess == null)
 				{
 					string BatchFileName = GetBatchFileName();
-					if ( BatchFileName != null )
+					if (BatchFileName != null)
 					{
 						CanGenerateProjects = true;
 					}
@@ -127,19 +119,19 @@ namespace UnrealVS
 		/// </summary>
 		public void OnSolutionClosing()
 		{
-			UpdateGenerateProjectFilesButtonState( ShouldForceDisable:true );
+			UpdateGenerateProjectFilesButtonState(ShouldForceDisable: true);
 		}
 
 
 		/// <summary>
 		/// Called when data is received from the GenerateProjectFiles process
 		/// </summary>
-		public void OnOutputFromGenerateProjectFilesProcess( object Sender, DataReceivedEventArgs Args )
+		public void OnOutputFromGenerateProjectFilesProcess(object _Sender, DataReceivedEventArgs Args)
 		{
 			var Pane = UnrealVSPackage.Instance.GetOutputPane();
-			if( Pane != null )
+			if (Pane != null)
 			{
-				Pane.OutputString( Args.Data + "\n" );
+				Pane.OutputString(Args.Data + "\n");
 			}
 		}
 
@@ -147,34 +139,34 @@ namespace UnrealVS
 		{
 			// Check to see if we have UE4.sln loaded
 			if (UnrealVSPackage.Instance.IsUESolutionLoaded)
-			{ 
+			{
 				// We expect "GenerateProjectFiles.bat" to live in the same directory as the solution
 				return Path.Combine(Path.GetDirectoryName(UnrealVSPackage.Instance.SolutionFilepath), "GenerateProjectFiles.bat");
 			}
 			return null;
 		}
 
-        /// <summary>
-        /// Wraps a file path in quotes if it contains a space character
-        /// </summary>
-        /// <param name="InPath"></param>
-        /// <returns></returns>
-        private string GetSafeFilePath( string InPath )
-        {
-            string WorkingPath = InPath;
+		/// <summary>
+		/// Wraps a file path in quotes if it contains a space character
+		/// </summary>
+		/// <param name="InPath"></param>
+		/// <returns></returns>
+		private string GetSafeFilePath(string InPath)
+		{
+			string WorkingPath = InPath;
 
-            if (WorkingPath.Contains(" ") && !WorkingPath.Contains("\""))
-            {
-                WorkingPath = "\"" + WorkingPath + "\"";
-            }
-            return WorkingPath;
-        }
+			if (WorkingPath.Contains(" ") && !WorkingPath.Contains("\""))
+			{
+				WorkingPath = "\"" + WorkingPath + "\"";
+			}
+			return WorkingPath;
+		}
 
 		/// Active process for the "generate project files" command
 		System.Diagnostics.Process GenerateProjectFilesProcess;
 
 		/// Command for 'Generate Project Files' button
-		MenuCommand GenerateProjectFilesButtonCommand;
+		readonly MenuCommand GenerateProjectFilesButtonCommand;
 	}
 
 }

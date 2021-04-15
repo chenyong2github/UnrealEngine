@@ -1,9 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.VisualStudio.Shell;
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using Microsoft.VisualStudio.Shell;
 
 namespace UnrealVS
 {

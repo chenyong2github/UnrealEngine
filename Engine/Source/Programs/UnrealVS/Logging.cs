@@ -1,12 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UnrealVS
 {
@@ -73,6 +69,10 @@ namespace UnrealVS
 					WriteLine("Visual Studio 13 build");
 #elif VS14
 					WriteLine("Visual Studio 14 build");
+#elif VS15
+					WriteLine("Visual Studio 15 build");
+#elif VS16
+					WriteLine("Visual Studio 16 build");
 #else
 					WriteLine("UNKNOWN Visual Studio build");
 #endif

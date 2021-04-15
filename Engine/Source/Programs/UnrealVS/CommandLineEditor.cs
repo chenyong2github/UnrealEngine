@@ -1,25 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
-using System.Diagnostics;
-using System.ComponentModel.Design;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
+using EnvDTE;
+using EnvDTE80;
 using Microsoft.VisualStudio;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.OLE.Interop;
-using EnvDTE;
-using System.Runtime.InteropServices;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.Json.Serialization;
-using EnvDTE80;
 using System.Timers;
 
 namespace UnrealVS
 {
-	internal class CommandLineEditor
+	internal class CommandLineEditor : IDisposable
 	{
 		private class LaunchSettingsJson
 		{
@@ -84,16 +82,17 @@ namespace UnrealVS
 				return;
 			}
 
-			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy);
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
 			if (ProjectHierarchy != null)
 			{
 				// @todo: filter this so that we only respond to changes in the command line property
 				// Setup a timer to prevent any more performance problem from spamming events
 				if (UpdateCommandLineComboTimer == null)
 				{
-					UpdateCommandLineComboTimer = new System.Timers.Timer(1000);
-					UpdateCommandLineComboTimer.AutoReset = false;
+					UpdateCommandLineComboTimer = new System.Timers.Timer(1000)
+					{
+						AutoReset = false,
+					};
 					UpdateCommandLineComboTimer.Elapsed += OnUpdateCommandLineCombo;
 				}
 				// Restart timer to raise the event only after 1s of no notification
@@ -105,7 +104,7 @@ namespace UnrealVS
 		/// <summary>
 		/// Timer callback to UpdateCommandLineCombo
 		/// </summary>
-		private void OnUpdateCommandLineCombo(Object source, ElapsedEventArgs e)
+		private void OnUpdateCommandLineCombo(Object _Source, ElapsedEventArgs _Args)
 		{
 			ThreadHelper.Generic.BeginInvoke(UpdateCommandLineCombo);
 		}
@@ -159,8 +158,7 @@ namespace UnrealVS
 		{
 			// Enable or disable our command-line selector
 			DesiredCommandLine = null;  // clear this state var used by the combo box handler
-			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy);
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
 			if (ProjectHierarchy != null)
 			{
 				ComboCommand.Enabled = true;
@@ -181,12 +179,11 @@ namespace UnrealVS
 		/// Returns a string to display in the command-line combo box, based on project state
 		/// </summary>
 		/// <returns>String to display</returns>
-		private string MakeCommandLineComboText()
+		private static string MakeCommandLineComboText()
 		{
 			string Text = "";
 
-			IVsHierarchy ProjectHierarchy;
-			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
+			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
 			{
 				Project SelectedStartupProject = Utils.HierarchyObjectToProject(ProjectHierarchy);
 				if (SelectedStartupProject != null)
@@ -194,8 +191,7 @@ namespace UnrealVS
 					Configuration SelectedConfiguration = SelectedStartupProject.ConfigurationManager.ActiveConfiguration;
 					if (SelectedConfiguration != null)
 					{
-						IVsBuildPropertyStorage PropertyStorage = ProjectHierarchy as IVsBuildPropertyStorage;
-						if (PropertyStorage != null)
+						if (ProjectHierarchy is IVsBuildPropertyStorage PropertyStorage)
 						{
 							// Query the property store for the debugger arguments
 							string ConfigurationName = String.Format("{0}|{1}", SelectedConfiguration.ConfigurationName, SelectedConfiguration.PlatformName);
@@ -209,8 +205,7 @@ namespace UnrealVS
 							else
 							{
 								// net core projects move debugger arguments into a debug profile setup via launchSetings.json
-								string activeDebugProfile;
-								if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
+								if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out string activeDebugProfile) != VSConstants.S_OK)
 								{
 									activeDebugProfile = null;
 								}
@@ -264,8 +259,7 @@ namespace UnrealVS
 			{
 				var OleArgs = (OleMenuCmdEventArgs)Args;
 
-				string InString = OleArgs.InValue as string;
-				if (InString != null)
+				if (OleArgs.InValue is string InString)
 				{
 					// New text set on the combo - set the command line property
 					DesiredCommandLine = null;
@@ -276,8 +270,7 @@ namespace UnrealVS
 					string EditingString = null;
 					if (OleArgs.InValue != null)
 					{
-						object[] InArray = OleArgs.InValue as object[];
-						if (InArray != null && 0 < InArray.Length)
+						if (OleArgs.InValue is object[] InArray && 0 < InArray.Length)
 						{
 							EditingString = InArray.Last() as string;
 						}
@@ -317,8 +310,7 @@ namespace UnrealVS
 
 		private void CommitCommandLineText(string CommandLine)
 		{
-			IVsHierarchy ProjectHierarchy;
-			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
+			if (UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy) == VSConstants.S_OK && ProjectHierarchy != null)
 			{
 				Project SelectedStartupProject = Utils.HierarchyObjectToProject(ProjectHierarchy);
 				if (SelectedStartupProject != null)
@@ -326,8 +318,7 @@ namespace UnrealVS
 					Configuration SelectedConfiguration = SelectedStartupProject.ConfigurationManager.ActiveConfiguration;
 					if (SelectedConfiguration != null)
 					{
-						IVsBuildPropertyStorage PropertyStorage = ProjectHierarchy as IVsBuildPropertyStorage;
-						if (PropertyStorage != null)
+						if (ProjectHierarchy is IVsBuildPropertyStorage PropertyStorage)
 						{
 							string FullCommandLine = CommandLine;
 
@@ -408,8 +399,7 @@ namespace UnrealVS
 								{
 									// net core project use launchSettings.json to control debug arguments instead
 
-									string activeDebugProfile;
-									if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out activeDebugProfile) != VSConstants.S_OK)
+									if (PropertyStorage.GetPropertyValue("ActiveDebugProfile", ProjectConfigurationName, (uint)_PersistStorageType.PST_USER_FILE, out string activeDebugProfile) != VSConstants.S_OK)
 									{
 										activeDebugProfile = null;
 									}
@@ -509,5 +499,32 @@ namespace UnrealVS
 
 		/// used to shield against too many property changes in the future
 		private System.Timers.Timer UpdateCommandLineComboTimer = null;
+
+		// Track IDisposable state
+		private bool IsDisposed;
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!IsDisposed)
+			{
+				if (disposing)
+				{
+					// Dispose managed state (managed objects)
+					UpdateCommandLineComboTimer?.Dispose();
+					UpdateCommandLineComboTimer = null;
+				}
+
+				// Free unmanaged resources (unmanaged objects) and override finalizer
+				// Set large fields to null
+				IsDisposed = true;
+			}
+		}
+
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+			Dispose(disposing: true);
+			GC.SuppressFinalize(this);
+		}
 	}
 }

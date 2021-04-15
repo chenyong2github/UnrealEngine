@@ -88,8 +88,7 @@ namespace UnrealVS
 			}
 
 			// Grab the current startup project
-			IVsHierarchy ProjectHierarchy;
-			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out ProjectHierarchy);
+			UnrealVSPackage.Instance.SolutionBuildManager.get_StartupProject(out IVsHierarchy ProjectHierarchy);
 			if (ProjectHierarchy == null)
 			{
 				Logging.WriteLine("CompileSingleFile: ProjectHierarchy not found");
@@ -101,8 +100,7 @@ namespace UnrealVS
 				Logging.WriteLine("CompileSingleFile: StartupProject not found");
 				return false;
 			}
-			Microsoft.VisualStudio.VCProjectEngine.VCProject VCStartupProject = StartupProject.Object as Microsoft.VisualStudio.VCProjectEngine.VCProject;
-			if (VCStartupProject == null)
+			if (!(StartupProject.Object is Microsoft.VisualStudio.VCProjectEngine.VCProject VCStartupProject))
 			{
 				Logging.WriteLine("CompileSingleFile: VCStartupProject not found");
 				return false;
@@ -161,7 +159,7 @@ namespace UnrealVS
 			DTE.Events.BuildEvents.OnBuildBegin += BuildEvents_OnBuildBegin;
 
 			// Create a delegate for handling output messages
-			DataReceivedEventHandler OutputHandler = (Sender, Args) => { if (Args.Data != null) BuildOutputPane.OutputString($"1>  {Args.Data}{Environment.NewLine}"); };
+			void OutputHandler(object Sender, DataReceivedEventArgs Args) { if (Args.Data != null) BuildOutputPane.OutputString($"1>  {Args.Data}{Environment.NewLine}"); }
 
 			// Get the build command line and escape any environment variables that we use
 			string BuildCommandLine = ActiveNMakeTool.BuildCommandLine;

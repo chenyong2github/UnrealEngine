@@ -1,22 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EnvDTE;
+using EnvDTE80;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.OLE.Interop;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.ComponentModel.Design;
 using System.Threading;
-using System.Windows;
-using System.Windows.Forms;
-using Microsoft.VisualStudio;
-using Microsoft.VisualStudio.Shell.Interop;
-using Microsoft.VisualStudio.OLE.Interop;
-using Microsoft.VisualStudio.Shell;
-using EnvDTE;
-using EnvDTE80;
-using MessageBox = System.Windows.Forms.MessageBox;
 using Thread = System.Threading.Thread;
 
 namespace UnrealVS
@@ -32,14 +29,14 @@ namespace UnrealVS
 	}
 
 	// This attribute tells the PkgDef creation utility (CreatePkgDef.exe) that this class is a VS package.
-	[PackageRegistration( UseManagedResourcesOnly = true, AllowsBackgroundLoading = true )]
+	[PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
 
 	// This attribute is used to register the informations needed to show the this package in the Help/About dialog of Visual Studio.
 	[InstalledProductRegistration("#110", "#112", VersionString, IconResourceID = 400)]
 
 	// Adds data for our interface elements defined in UnrealVS.vsct.  The name "Menus.ctmenu" here is arbitrary, but must
 	// match the ItemGroup inside the UnrealVS.csproj MSBuild file (hand-typed.)
-	[ProvideMenuResource( "Menus.ctmenu", 1 )]
+	[ProvideMenuResource("Menus.ctmenu", 1)]
 
 	// Force the package to load whenever a solution exists
 	//[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string, PackageAutoLoadFlags.BackgroundLoad)]
@@ -49,7 +46,7 @@ namespace UnrealVS
 	//[ProvideProfile(typeof (ProfileManager), "UnrealVS", "UnrealVSPackage", 110, 113, false)]
 
 	// GUID for this class.  This needs to match in quite a few places in the project.
-	[Guid( GuidList.UnrealVSPackageString )]
+	[Guid(GuidList.UnrealVSPackageString)]
 
 	// This attribute registers a tool window exposed by this package.
 	[ProvideToolWindow(typeof(BatchBuilderToolWindow))]
@@ -62,10 +59,10 @@ namespace UnrealVS
 	/// with Visual Studio shell and serves as the entry point into our extension
 	/// </summary>
 	public sealed class UnrealVSPackage :
-		AsyncPackage,			// We inherit from AsyncPackage which allows us to become a "plugin" within the Visual Studio shell
-		IVsSolutionEvents,		// This interface allows us to register to be notified of events such as opening a project
+		AsyncPackage,           // We inherit from AsyncPackage which allows us to become a "plugin" within the Visual Studio shell
+		IVsSolutionEvents,      // This interface allows us to register to be notified of events such as opening a project
 		IVsUpdateSolutionEvents,// Allows us to register to be notified of events such as active config changes
-		IVsSelectionEvents,		// Allows us to be notified when the startup project has changed to a different project
+		IVsSelectionEvents,     // Allows us to be notified when the startup project has changed to a different project
 		IVsHierarchyEvents,     // Allows us to be notified when a hierarchy (the startup project) has had properties changed
 		IVsPersistSolutionProps, // Allows us to read props added to the solution to determine if the solution is a unreal solution
 		IDisposable
@@ -83,54 +80,43 @@ namespace UnrealVS
 
 		/// Called when a new startup project is set in Visual Studio
 		public delegate void OnStartupProjectChangedDelegate(Project NewStartupProject);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnStartupProjectChangedDelegate OnStartupProjectChanged;
 
 		/// Called when a project is opened or created in Visual Studio
 		public delegate void OnProjectOpenedDelegate(Project OpenedProject);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnProjectOpenedDelegate OnProjectOpened;
 
 		/// Called right before a project is closed
 		public delegate void OnProjectClosedDelegate(Project ClosedProject);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnProjectClosedDelegate OnProjectClosed;
 
 		/// Called when the startup project is edited in Visual Studio
 		public delegate void OnStartupProjectPropertyChangedDelegate(UInt32 itemid, Int32 propid, UInt32 flags);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009")]
 		public event OnStartupProjectPropertyChangedDelegate OnStartupProjectPropertyChanged;
 
 		/// Called right after a solution is opened
 		public delegate void OnSolutionOpenedDelegate();
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnSolutionOpenedDelegate OnSolutionOpened;
 
 		/// Called right before/after a solution is closed
 		public delegate void OnSolutionClosedDelegate();
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnSolutionClosedDelegate OnSolutionClosing;
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnSolutionClosedDelegate OnSolutionClosed;
 
 		/// Called when the active project config changes for any project
 		public delegate void OnStartupProjectConfigChangedDelegate(Project Project);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009")]
 		public event OnStartupProjectConfigChangedDelegate OnStartupProjectConfigChanged;
 
 		/// Called when a build/update action begins
 		public delegate void OnBuildBeginDelegate(out int Cancel);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009")]
 		public event OnBuildBeginDelegate OnBuildBegin;
 
 		/// Called when a build/update action completes
 		public delegate void OnBuildDoneDelegate(bool bSucceeded, bool bModified, bool bWasCancelled);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage( "Microsoft.Design", "CA1009" )]
 		public event OnBuildDoneDelegate OnBuildDone;
 
 		/// Called when the UIContext changes
 		public delegate void OnUIContextChangedDelegate(uint CmdUICookie, bool bActive);
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009")]
 		public event OnUIContextChangedDelegate OnUIContextChanged;
 
 		/** Public Fields & Properties */
@@ -142,7 +128,7 @@ namespace UnrealVS
 		}
 
 		/// Visual Studio menu command service
-		public IMenuCommandService MenuCommandService	{ get; private set; }
+		public IMenuCommandService MenuCommandService { get; private set; }
 
 		/// Visual Studio solution build manager interface.  This is used to change the active startup
 		/// Project, among other things.  We expose public access to the solution build manager through
@@ -208,8 +194,8 @@ namespace UnrealVS
 			await JoinableTaskFactory.SwitchToMainThreadAsync(cancellationToken);
 
 			// Grab the MenuCommandService
-			MenuCommandService = await GetServiceAsync( typeof( IMenuCommandService ) ) as OleMenuCommandService;
-			
+			MenuCommandService = await GetServiceAsync(typeof(IMenuCommandService)) as OleMenuCommandService;
+
 			// Get access to Visual Studio's DTE object.  This object has various hooks into the Visual Studio
 			// shell that are useful for writing extensions.
 			DTE = await GetServiceAsync(typeof(DTE)) as DTE;
@@ -266,9 +252,11 @@ namespace UnrealVS
 		{
 			// Create a "ticker" on a background thread that ticks the package on the UI thread
 			Interlocked.Exchange(ref bCancelTicker, 0);
-			Ticker = new Thread(TickAsyncMain);
-			Ticker.Priority = ThreadPriority.Lowest;
-			Ticker.Start();			
+			Ticker = new Thread(TickAsyncMain)
+			{
+				Priority = ThreadPriority.Lowest
+			};
+			Ticker.Start();
 		}
 
 		private void StopTicker()
@@ -288,10 +276,10 @@ namespace UnrealVS
 			{
 				while (true)
 				{
-					if (bCancelTicker != 0) return; 
+					if (bCancelTicker != 0) return;
 					ThreadHelper.Generic.BeginInvoke(Tick);
 
-					if (bCancelTicker != 0) return; 
+					if (bCancelTicker != 0) return;
 					Thread.Sleep(TickPeriod);
 				}
 			}
@@ -317,7 +305,7 @@ namespace UnrealVS
 		}
 
 		/// IDispose pattern lets us clean up our stuff!
-		protected override void Dispose( bool disposing )
+		protected override void Dispose(bool disposing)
 		{
 			if (Ticker != null && Ticker.IsAlive)
 			{
@@ -334,30 +322,29 @@ namespace UnrealVS
 			// Clean up singleton instance
 			PrivateInstance = null;
 
-			CommandLineEditor = null;
 			StartupProjectSelector = null;
 			BatchBuilder = null;
 			QuickBuilder = null;
 
-			if(CompileSingleFile != null)
-			{
-				CompileSingleFile.Dispose();
-				CompileSingleFile = null;
-			}
-			
+			CompileSingleFile?.Dispose();
+			CompileSingleFile = null;
+
+			CommandLineEditor?.Dispose();
+			CommandLineEditor = null;
+
 			// No longer want solution events
-			if( SolutionEventsHandle != 0 )
+			if (SolutionEventsHandle != 0)
 			{
-				SolutionManager.UnadviseSolutionEvents( SolutionEventsHandle );
+				SolutionManager.UnadviseSolutionEvents(SolutionEventsHandle);
 				SolutionEventsHandle = 0;
 			}
 			SolutionManager = null;
 
 			// No longer want selection events
-			if( SelectionEventsHandle != 0 )
+			if (SelectionEventsHandle != 0)
 			{
-				SelectionManager.UnadviseSelectionEvents( SelectionEventsHandle );
-				SelectionEventsHandle = 0;	
+				SelectionManager.UnadviseSelectionEvents(SelectionEventsHandle);
+				SelectionEventsHandle = 0;
 			}
 			SelectionManager = null;
 
@@ -401,7 +388,7 @@ namespace UnrealVS
 		/// The package's options page
 		public UnrealVsOptions OptionsPage
 		{
-			get { return (UnrealVsOptions) GetDialogPage(typeof (UnrealVsOptions)); }
+			get { return (UnrealVsOptions)GetDialogPage(typeof(UnrealVsOptions)); }
 		}
 
 		/// <summary>
@@ -412,14 +399,16 @@ namespace UnrealVS
 		/// <param name="OnExit">Optional callback whent he program exits</param>
 		/// <param name="OutputHandler">If supplied, std-out and std-error will be redirected to this function and no shell window will be created</param>
 		/// <returns>The newly-created process, or null if it wasn't able to start.  Exceptions are swallowed, but a debug output string is emitted on errors</returns>
-		public System.Diagnostics.Process LaunchProgram( string ProgramFile, string Arguments, EventHandler OnExit = null, DataReceivedEventHandler OutputHandler = null, bool bWaitForCompletion=false )
+		public static System.Diagnostics.Process LaunchProgram(string ProgramFile, string Arguments, EventHandler OnExit = null, DataReceivedEventHandler OutputHandler = null, bool bWaitForCompletion = false)
 		{
 			// Create the action's process.
-			ProcessStartInfo ActionStartInfo = new ProcessStartInfo();
-			ActionStartInfo.FileName = ProgramFile;
-			ActionStartInfo.Arguments = Arguments;
+			ProcessStartInfo ActionStartInfo = new ProcessStartInfo
+			{
+				FileName = ProgramFile,
+				Arguments = Arguments
+			};
 
-			if( OutputHandler != null )
+			if (OutputHandler != null)
 			{
 				ActionStartInfo.RedirectStandardInput = true;
 				ActionStartInfo.RedirectStandardOutput = true;
@@ -440,16 +429,18 @@ namespace UnrealVS
 
 			try
 			{
-				ActionProcess = new System.Diagnostics.Process();
-				ActionProcess.StartInfo = ActionStartInfo;
+				ActionProcess = new System.Diagnostics.Process
+				{
+					StartInfo = ActionStartInfo
+				};
 
-				if( OnExit != null )
+				if (OnExit != null)
 				{
 					ActionProcess.EnableRaisingEvents = true;
 					ActionProcess.Exited += OnExit;
 				}
 
-				if( ActionStartInfo.RedirectStandardOutput )
+				if (ActionStartInfo.RedirectStandardOutput)
 				{
 					ActionProcess.EnableRaisingEvents = true;
 					ActionProcess.OutputDataReceived += OutputHandler;
@@ -459,7 +450,7 @@ namespace UnrealVS
 				// Launch the program
 				ActionProcess.Start();
 
-				if( ActionStartInfo.RedirectStandardOutput )
+				if (ActionStartInfo.RedirectStandardOutput)
 				{
 					ActionProcess.BeginOutputReadLine();
 					ActionProcess.BeginErrorReadLine();
@@ -473,7 +464,7 @@ namespace UnrealVS
 					}
 				}
 			}
-			catch( Exception Ex)
+			catch (Exception Ex)
 			{
 				// Couldn't launch program
 				Logging.WriteLine("Couldn't launch program: " + ActionStartInfo.FileName);
@@ -566,91 +557,82 @@ namespace UnrealVS
 		/// IVsSolutionEvents implementation
 		///
 
-		int IVsSolutionEvents.OnAfterCloseSolution( object pUnkReserved )
+		int IVsSolutionEvents.OnAfterCloseSolution(object pUnkReserved)
 		{
 			UpdateUnrealLoadedStatus();
 
-			if (OnSolutionClosed != null)
+			OnSolutionClosed?.Invoke();
+
+			return VSConstants.S_OK;
+		}
+
+		int IVsSolutionEvents.OnAfterLoadProject(IVsHierarchy pStubHierarchy, IVsHierarchy pRealHierarchy)
+		{
+			return VSConstants.S_OK;
+		}
+
+		int IVsSolutionEvents.OnAfterOpenProject(IVsHierarchy pHierarchy, int fAdded)
+		{
+			// This function is called after a Visual Studio project is opened (or a new project is created.)
+
+			// Get the actual Project object from the IVsHierarchy object that was supplied
+			var OpenedProject = Utils.HierarchyObjectToProject(pHierarchy);
+			Utils.OnProjectListChanged();
+			if (OpenedProject != null && OnProjectOpened != null)
 			{
-				OnSolutionClosed();
+				LoadedProjectPaths.Add(OpenedProject.FullName);
+				OnProjectOpened(OpenedProject);
 			}
 
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnAfterLoadProject( IVsHierarchy pStubHierarchy, IVsHierarchy pRealHierarchy )
-		{
-			return VSConstants.S_OK;
-		}
-
-		int IVsSolutionEvents.OnAfterOpenProject( IVsHierarchy pHierarchy, int fAdded )
-		{
-			// This function is called after a Visual Studio project is opened (or a new project is created.)
-
-			// Get the actual Project object from the IVsHierarchy object that was supplied
-			var OpenedProject = Utils.HierarchyObjectToProject( pHierarchy );
-			Utils.OnProjectListChanged();
-			if (OpenedProject != null && OnProjectOpened != null)
-			{
-				LoadedProjectPaths.Add(OpenedProject.FullName);
-                OnProjectOpened(OpenedProject);
-            }
-
-		    return VSConstants.S_OK;
-		}
-
-		int IVsSolutionEvents.OnAfterOpenSolution( object pUnkReserved, int fNewSolution )
+		int IVsSolutionEvents.OnAfterOpenSolution(object pUnkReserved, int fNewSolution)
 		{
 			UpdateUnrealLoadedStatus();
 
 			StartTicker();
 
-            if (OnSolutionOpened != null)
-            {
-                OnSolutionOpened();
-            }
+			OnSolutionOpened?.Invoke();
 
-		    return VSConstants.S_OK;
+			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnBeforeCloseProject( IVsHierarchy pHierarchy, int fRemoved )
+		int IVsSolutionEvents.OnBeforeCloseProject(IVsHierarchy pHierarchy, int fRemoved)
 		{
 			// This function is called after a Visual Studio project is closed
 
 			// Get the actual Project object from the IVsHierarchy object that was supplied
-			var ClosedProject = Utils.HierarchyObjectToProject( pHierarchy );
+			var ClosedProject = Utils.HierarchyObjectToProject(pHierarchy);
 			if (ClosedProject != null && OnProjectClosed != null)
-            {
+			{
 				LoadedProjectPaths.Remove(ClosedProject.FullName);
-                OnProjectClosed(ClosedProject);
-            }
+				OnProjectClosed(ClosedProject);
+			}
 
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnBeforeCloseSolution( object pUnkReserved )
+		int IVsSolutionEvents.OnBeforeCloseSolution(object pUnkReserved)
 		{
 			StopTicker();
 
-            if (OnSolutionClosing != null)
-            {
-                OnSolutionClosing();
-            }
+			OnSolutionClosing?.Invoke();
 
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnBeforeUnloadProject( IVsHierarchy pRealHierarchy, IVsHierarchy pStubHierarchy )
+		int IVsSolutionEvents.OnBeforeUnloadProject(IVsHierarchy pRealHierarchy, IVsHierarchy pStubHierarchy)
 		{
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnQueryCloseProject( IVsHierarchy pHierarchy, int fRemoving, ref int pfCancel )
+		int IVsSolutionEvents.OnQueryCloseProject(IVsHierarchy pHierarchy, int fRemoving, ref int pfCancel)
 		{
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnQueryCloseSolution( object pUnkReserved, ref int pfCancel )
+		int IVsSolutionEvents.OnQueryCloseSolution(object pUnkReserved, ref int pfCancel)
 		{
 			if (BatchBuilder.IsBusy)
 			{
@@ -660,7 +642,7 @@ namespace UnrealVS
 			return VSConstants.S_OK;
 		}
 
-		int IVsSolutionEvents.OnQueryUnloadProject( IVsHierarchy pRealHierarchy, ref int pfCancel )
+		int IVsSolutionEvents.OnQueryUnloadProject(IVsHierarchy pRealHierarchy, ref int pfCancel)
 		{
 			return VSConstants.S_OK;
 		}
@@ -670,24 +652,21 @@ namespace UnrealVS
 		/// IVsSelectionEvents implementation
 		///
 
-		int IVsSelectionEvents.OnCmdUIContextChanged( uint dwCmdUICookie, int fActive )
+		int IVsSelectionEvents.OnCmdUIContextChanged(uint dwCmdUICookie, int fActive)
 		{
-			if (OnUIContextChanged != null)
-			{
-				OnUIContextChanged(dwCmdUICookie, fActive != 0);
-			}
+			OnUIContextChanged?.Invoke(dwCmdUICookie, fActive != 0);
 
 			return VSConstants.S_OK;
 		}
 
-		int IVsSelectionEvents.OnElementValueChanged( uint elementid, object varValueOld, object varValueNew )
+		int IVsSelectionEvents.OnElementValueChanged(uint elementid, object varValueOld, object varValueNew)
 		{
 			// This function is called when selection changes in various Visual Studio tool windows
 			// and sub-systems.
 
 			// Handle startup project changes
-	        if( elementid == (uint)VSConstants.VSSELELEMID.SEID_StartupProject )
-            {
+			if (elementid == (uint)VSConstants.VSSELELEMID.SEID_StartupProject)
+			{
 				// If we are registered to a project hierarchy for events, unregister
 				var OldStartupProjectHierarchy = (IVsHierarchy)varValueOld;
 				if (OldStartupProjectHierarchy != null && ProjectHierarchyEventsHandle != 0)
@@ -700,10 +679,10 @@ namespace UnrealVS
 
 				// Incoming hierarchy object could be null (if no startup project is set yet, or during shutdown.)
 				var NewStartupProjectHierarchy = (IVsHierarchy)varValueNew;
-				if( NewStartupProjectHierarchy != null )
+				if (NewStartupProjectHierarchy != null)
 				{
 					// Get the actual Project object from the IVsHierarchy object that was supplied
-					NewStartupProject = Utils.HierarchyObjectToProject( NewStartupProjectHierarchy );
+					NewStartupProject = Utils.HierarchyObjectToProject(NewStartupProjectHierarchy);
 
 					if (NewStartupProject != null)
 					{
@@ -716,16 +695,16 @@ namespace UnrealVS
 				{
 					OnStartupProjectChanged(NewStartupProject);
 				}
-            }
+			}
 
 			return VSConstants.S_OK;
 		}
 
 		int IVsSelectionEvents.OnSelectionChanged(IVsHierarchy pHierOld, uint itemidOld, IVsMultiItemSelect pMISOld,
-		                                          ISelectionContainer pSCOld, IVsHierarchy pHierNew, uint itemidNew,
-		                                          IVsMultiItemSelect pMISNew, ISelectionContainer pSCNew)
+												  ISelectionContainer pSCOld, IVsHierarchy pHierNew, uint itemidNew,
+												  IVsMultiItemSelect pMISNew, ISelectionContainer pSCNew)
 		{
-    		return VSConstants.S_OK;
+			return VSConstants.S_OK;
 		}
 
 
@@ -738,10 +717,7 @@ namespace UnrealVS
 
 		Int32 IVsHierarchyEvents.OnPropertyChanged(UInt32 itemid, Int32 propid, UInt32 flags)
 		{
-			if (OnStartupProjectPropertyChanged != null)
-			{
-				OnStartupProjectPropertyChanged(itemid, propid, flags);
-			}
+			OnStartupProjectPropertyChanged?.Invoke(itemid, propid, flags);
 			return VSConstants.S_OK;
 		}
 
@@ -766,7 +742,7 @@ namespace UnrealVS
 		}
 
 
-#region IVsPersistSolutionProps
+		#region IVsPersistSolutionProps
 		int IVsPersistSolutionProps.SaveUserOptions(IVsSolutionPersistence pPersistence)
 		{
 			return VSConstants.S_OK;
@@ -807,8 +783,7 @@ namespace UnrealVS
 			if (!string.Equals(pszKey, GuidList.UnrealVSPackageString, StringComparison.InvariantCultureIgnoreCase))
 				return VSConstants.S_OK;
 
-			object availablePlatformsObject;
-			pPropBag.Read("AvailablePlatforms", out availablePlatformsObject, null, (uint)VarEnum.VT_BSTR, pPropBag);
+			pPropBag.Read("AvailablePlatforms", out object availablePlatformsObject, null, (uint)VarEnum.VT_BSTR, pPropBag);
 
 			string[] availablePlatforms = null;
 			if (availablePlatformsObject != null)
@@ -830,25 +805,19 @@ namespace UnrealVS
 			return VSConstants.S_OK;
 		}
 
-#endregion
+		#endregion
 
 		// IVsUpdateSolutionEvents Interface
 
 		public int UpdateSolution_Begin(ref int pfCancelUpdate)
 		{
-			if (OnBuildBegin != null)
-			{
-				OnBuildBegin(out pfCancelUpdate);
-			}
+			OnBuildBegin?.Invoke(out pfCancelUpdate);
 			return VSConstants.S_OK;
 		}
 
 		public int UpdateSolution_Done(int fSucceeded, int fModified, int fCancelCommand)
 		{
-			if (OnBuildDone != null)
-			{
-				OnBuildDone(fSucceeded != 0, fModified != 0, fCancelCommand != 0);
-			}
+			OnBuildDone?.Invoke(fSucceeded != 0, fModified != 0, fCancelCommand != 0);
 			return VSConstants.S_OK;
 		}
 
@@ -867,8 +836,7 @@ namespace UnrealVS
 			// This function is called after a Visual Studio project has its active config changed
 
 			// Check whether the project is the current startup project
-			IVsHierarchy StartupProjectHierarchy;
-			SolutionBuildManager.get_StartupProject(out StartupProjectHierarchy);
+			SolutionBuildManager.get_StartupProject(out IVsHierarchy StartupProjectHierarchy);
 			if (StartupProjectHierarchy != null && StartupProjectHierarchy == pIVsHierarchy)
 			{
 				// Get the actual Project object from the IVsHierarchy object that was supplied
@@ -889,15 +857,14 @@ namespace UnrealVS
 				return;
 			}
 
-			string SolutionDirectory, UserOptsFile;
-			SolutionManager.GetSolutionInfo(out SolutionDirectory, out _SolutionFilepath, out UserOptsFile);
+			SolutionManager.GetSolutionInfo(out string SolutionDirectory, out _SolutionFilepath, out string UserOptsFile);
 
 			// if ReadProps found a valud UE solution we do not need to check these legacy definitions of a solution
 			if (_IsUESolutionLoaded.HasValue)
 				return;
 
 			// Legacy paths for determing if a solution is a unreal solution by checking for tags & solution name.
-			var SolutionLines = new string[0];
+			string[] SolutionLines = Array.Empty<string>();
 			try
 			{
 				SolutionLines = File.ReadAllLines(_SolutionFilepath);
@@ -970,24 +937,22 @@ namespace UnrealVS
 		private static DTE2 GetDTE2ForCurrentInstance(DTE DTE)
 		{
 			// Find the ROT entry for visual studio running under current process.
-			IRunningObjectTable Rot;
-			NativeMethods.GetRunningObjectTable(0, out Rot);
-			IEnumMoniker EnumMoniker;
-			Rot.EnumRunning(out EnumMoniker);
-			EnumMoniker.Reset();
-			uint Fetched = 0;
-			IMoniker[] Moniker = new IMoniker[1];
-			while (EnumMoniker.Next(1, Moniker, out Fetched) == 0)
+			int HResult = NativeMethods.GetRunningObjectTable(0, out IRunningObjectTable Rot);
+			if (HResult == 0)
 			{
-				object ComObject;
-				Rot.GetObject(Moniker[0], out ComObject);
-				DTE2 CandidateDTE2 = ComObject as DTE2;
-
-				if (CandidateDTE2 != null)
+				Rot.EnumRunning(out IEnumMoniker EnumMoniker);
+				EnumMoniker.Reset();
+				IMoniker[] Moniker = new IMoniker[1];
+				while (EnumMoniker.Next(1, Moniker, out _) == 0)
 				{
-					if (CandidateDTE2.DTE == DTE)
+					Rot.GetObject(Moniker[0], out object ComObject);
+
+					if (ComObject is DTE2 CandidateDTE2)
 					{
-						return CandidateDTE2;
+						if (CandidateDTE2.DTE == DTE)
+						{
+							return CandidateDTE2;
+						}
 					}
 				}
 			}

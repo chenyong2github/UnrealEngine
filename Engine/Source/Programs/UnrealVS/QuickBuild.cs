@@ -10,9 +10,6 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms.VisualStyles;
 
 namespace UnrealVS
 {
@@ -23,7 +20,7 @@ namespace UnrealVS
 	class QuickBuildMenuCommand : OleMenuCommand
 	{
 		/// The function used to select the range of commands handled by this object
-		private Predicate<int> OnMatchItem;
+		private readonly Predicate<int> OnMatchItem;
 
 		/// <summary>
 		/// Create a QuickBuildMenuCommand with a delegate for determining which command numbers it handles
@@ -32,12 +29,7 @@ namespace UnrealVS
 		public QuickBuildMenuCommand(CommandID InDynamicStartCommandId, Predicate<int> InOnMatchItem, EventHandler InOnInvokedDynamicItem, EventHandler InOnBeforeQueryStatusDynamicItem)
 			: base(InOnInvokedDynamicItem, null /*changeHandler*/, InOnBeforeQueryStatusDynamicItem, InDynamicStartCommandId)
 		{
-			if (InOnMatchItem == null)
-			{
-				throw new ArgumentNullException("InOnMatchItem");
-			}
-
-			OnMatchItem = InOnMatchItem;
+			OnMatchItem = InOnMatchItem ?? throw new ArgumentNullException("InOnMatchItem");
 		}
 
 		/// <summary>
@@ -115,14 +107,10 @@ namespace UnrealVS
 			var MenuCommand = (QuickBuildMenuCommand)sender;
 
 			// Get the project clicked in the solution explorer by accessing the current selection and converting to a Project if possible.
-			IntPtr HierarchyPtr, SelectionContainerPtr;
-			uint ProjectItemId;
-			IVsMultiItemSelect MultiItemSelect;
-			UnrealVSPackage.Instance.SelectionManager.GetCurrentSelection(out HierarchyPtr, out ProjectItemId, out MultiItemSelect, out SelectionContainerPtr);
+			UnrealVSPackage.Instance.SelectionManager.GetCurrentSelection(out IntPtr HierarchyPtr, out uint ProjectItemId, out IVsMultiItemSelect MultiItemSelect, out IntPtr SelectionContainerPtr);
 			if (HierarchyPtr == null) return;
 
-			IVsHierarchy SelectedHierarchy = Marshal.GetTypedObjectForIUnknown(HierarchyPtr, typeof(IVsHierarchy)) as IVsHierarchy;
-			if (SelectedHierarchy == null) return;
+			if (!(Marshal.GetTypedObjectForIUnknown(HierarchyPtr, typeof(IVsHierarchy)) is IVsHierarchy SelectedHierarchy)) return;
 
 			var SelectedProject = Utils.HierarchyObjectToProject(SelectedHierarchy);
 			if (SelectedProject == null) return;
@@ -173,7 +161,7 @@ namespace UnrealVS
 
 		/** constants */
 
-		private const int ProjectQuickBuildMenuID = 0x1410;		// must match the values in the vsct file
+		private const int ProjectQuickBuildMenuID = 0x1410;     // must match the values in the vsct file
 
 		/** fields */
 
@@ -183,7 +171,7 @@ namespace UnrealVS
 
 		/// Hide/shows the while Quick Build menu tree
 		private static bool bIsActive = false;
-		
+
 		/// List of submenus and their details - must match the values in the vsct file
 		private readonly SubMenu[] SubMenus = new[]
 		{
@@ -248,7 +236,7 @@ namespace UnrealVS
 			QuickBuildCommand = new OleMenuCommand(null, null, OnQuickBuildQuery, new CommandID(GuidList.UnrealVSCmdSet, ProjectQuickBuildMenuID));
 			QuickBuildCommand.BeforeQueryStatus += OnQuickBuildQuery;
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(QuickBuildCommand);
-			
+
 			// configuration sub-menus
 			foreach (var SubMenu in SubMenus)
 			{
@@ -275,8 +263,7 @@ namespace UnrealVS
 		/// </summary>
 		private void UpdateActiveState()
 		{
-			int bIsBuilding;
-			UnrealVSPackage.Instance.SelectionManager.IsCmdUIContextActive(SolutionBuildingUIContextCookie, out bIsBuilding);
+			UnrealVSPackage.Instance.SelectionManager.IsCmdUIContextActive(SolutionBuildingUIContextCookie, out int bIsBuilding);
 			bIsActive = bIsBuilding == 0;
 		}
 
