@@ -1424,7 +1424,7 @@ void UChaosVehicleMovementComponent::UpdateMassProperties(FBodyInstance* BodyIns
 				InertiaTensor.Y *= this->InertiaTensorScale.Y * MassRatio;
 				InertiaTensor.Z *= this->InertiaTensorScale.Z * MassRatio;
 
-				if (bCenterOfMassOverride)
+				if (bEnableCenterOfMassOverride)
 				{
 					FTransform COMTransform = FPhysicsInterface::GetComTransformLocal_AssumesLocked(Actor);
 					COMTransform.SetTranslation(CenterOfMassOverride + BodyInstance->COMNudge);

@@ -809,12 +809,12 @@ public:
 	 * Enable to override the calculated COM position with your own fixed value - this prevents the vehicle handling changing when the asset changes
 	 */
 	UPROPERTY(EditAnywhere, Category = VehicleSetup)
-	bool bCenterOfMassOverride;
+	bool bEnableCenterOfMassOverride;
 
 	/**
 	 * The center of mass override value, this value overrides the calculated COM and the COM offset value in the mesh is also ignored.
 	 */
-	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (EditCondition = "bCentreOfMassOverride"))
+	UPROPERTY(EditAnywhere, Category = VehicleSetup, meta = (EditCondition = "bEnableCenterOfMassOverride"))
 	FVector CenterOfMassOverride;
 
 	/** Chassis width used for drag force computation (cm)*/
