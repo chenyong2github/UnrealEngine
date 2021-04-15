@@ -538,6 +538,10 @@ protected:
 	void OnEditorSelectionChanged(UObject* NewSelection);
 	void OnEditorSelectNone();
 
+
+	/** Handles the notification when a world is going through GC to clean up any modes pending deactivation. */
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
+
 	virtual void DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
 
 	void ForEachEdMode(TFunctionRef<bool(UEdMode*)> InCalllback) const;

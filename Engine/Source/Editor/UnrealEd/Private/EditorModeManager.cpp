@@ -90,6 +90,8 @@ FEditorModeTools::FEditorModeTools()
 		// This binding ensures the mode is destroyed if the type is unregistered outside of normal shutdown process
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().AddRaw(this, &FEditorModeTools::OnModeUnregistered);
 	}
+
+	FWorldDelegates::OnWorldCleanup.AddRaw(this, &FEditorModeTools::OnWorldCleanup);
 }
 
 FEditorModeTools::~FEditorModeTools()
@@ -864,6 +866,15 @@ void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPale
 	}	
 }
 
+void FEditorModeTools::OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+{
+	UWorld* World = GetWorld();
+	if (InWorld == World)
+	{
+		DeactivateAllModesPendingDeletion();
+	}
+}
+
 void FEditorModeTools::RemoveAllDelegateHandlers()
 {
 	if (GEditor)
@@ -872,6 +883,8 @@ void FEditorModeTools::RemoveAllDelegateHandlers()
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnEditorModeUnregistered().RemoveAll(this);
 	}
 
+	FWorldDelegates::OnWorldCleanup.RemoveAll(this);
+	
 	// For now, check that UObjects are even valid, because the level editor has a global static mode tools
 	if (UObjectInitialized())
 	{
