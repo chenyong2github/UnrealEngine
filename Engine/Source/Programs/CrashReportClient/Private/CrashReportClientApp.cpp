@@ -439,6 +439,10 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 
 	// @note: This API is only partially implemented on Mac OS and Linux.
 	FProcHandle ProcessHandle = FPlatformProcess::OpenProcess(Pid);
+	if (!ProcessHandle.IsValid())
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/OpenProcessFail"));
+	}
 
 	// First init the static crash context state
 	FPlatformCrashContext::InitializeFromContext(
@@ -1089,7 +1093,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					// that the timeout in the crashing process waiting for CRC to reply 'continue' is too short.
 					if (!bCrashedThreadCallstackAvailable)
 					{
-						FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Report/NoPCallstack")));
+						FDiagnosticLogger::Get().LogEvent(TEXT("Report/NoPCallstack"));
 					}
 
 #if CRASH_REPORT_WITH_RECOVERY
