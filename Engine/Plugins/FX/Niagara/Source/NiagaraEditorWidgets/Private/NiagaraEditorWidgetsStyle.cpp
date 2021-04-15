@@ -92,6 +92,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.Stack.ItemText", StackItemText);
 	
+	FTextBlockStyle OverviewStackItemText = FTextBlockStyle(CategoryText)
+		.SetFont(NormalFont);
+	Style->Set("NiagaraEditor.OverviewStack.ItemText", OverviewStackItemText);
+
 	FEditableTextBoxStyle StackEditableItemText = FEditableTextBoxStyle(NormalEditableTextBox)
 		.SetFont(NormalFont);
 

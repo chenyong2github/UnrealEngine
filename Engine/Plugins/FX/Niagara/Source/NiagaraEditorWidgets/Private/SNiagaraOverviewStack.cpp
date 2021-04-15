@@ -381,7 +381,7 @@ private:
 				.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 				[
 					SNew(STextBlock)
-					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.OverviewStack.ItemText")
 					.Text(LOCTEXT("SetVariablesPrefix", "Set:"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
@@ -415,7 +415,7 @@ private:
 			}
 			else
 			{
-				NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.Stack.ItemText"));
+				NameTextBlock->SetTextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.OverviewStack.ItemText"));
 			}
 		}
 	}
