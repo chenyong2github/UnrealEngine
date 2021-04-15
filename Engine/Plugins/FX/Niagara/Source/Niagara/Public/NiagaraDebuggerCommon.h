@@ -443,14 +443,14 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables", DisplayName="Show Particles Attributes With System"))
 	bool bShowParticlesVariablesWithSystem = false;
 
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (InlineEditConditionToggle))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables"))
 	bool bUseMaxParticlesToDisplay = true;
 
 	/**
 	When enabled, the maximum number of particles to show information about.
 	When disabled all particles will show attributes, this can result in poor performance & potential OOM on some platforms.
 	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bShowParticleVariables && bUseMaxParticlesToDisplay", UIMin="1", ClampMin="1"))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles", meta = (EditCondition = "bUseMaxParticlesToDisplay && bShowParticleVariables", UIMin="1", ClampMin="1"))
 	int32 MaxParticlesToDisplay = 32;
 
 	UPROPERTY()
