@@ -234,7 +234,7 @@ namespace Metasound
 			}
 			else if (NumChannels == 2)
 			{
-				return FString::Printf(TEXT("In %i %s"), InputIndex, (ChannelIndex == 0) ? "L" : "R");
+				return FString::Printf(TEXT("In %i %s"), InputIndex, (ChannelIndex == 0) ? TEXT("L") : TEXT("R"));
 			}
 
 			return FString::Printf(TEXT("In %i, %i"), InputIndex, ChannelIndex);
