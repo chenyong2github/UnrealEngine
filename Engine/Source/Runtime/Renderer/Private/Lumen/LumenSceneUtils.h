@@ -288,12 +288,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWFeedbackBufferAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, RWFeedbackBuffer)
-	SHADER_PARAMETER(uint32, FeedbackBufferSize)
-	SHADER_PARAMETER(uint32, FeedbackBufferTileWrapMask)
-	SHADER_PARAMETER(FIntPoint, FeedbackBufferTileJitter)
-	SHADER_PARAMETER(float, FeedbackResLevelBias)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWSurfaceCacheFeedbackBufferAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint2>, RWSurfaceCacheFeedbackBuffer)
+	SHADER_PARAMETER(uint32, SurfaceCacheFeedbackBufferSize)
+	SHADER_PARAMETER(uint32, SurfaceCacheFeedbackBufferTileWrapMask)
+	SHADER_PARAMETER(FIntPoint, SurfaceCacheFeedbackBufferTileJitter)
+	SHADER_PARAMETER(float, SurfaceCacheFeedbackResLevelBias)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FinalLightingAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IrradianceAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, IndirectIrradianceAtlas)
@@ -322,11 +322,11 @@ public:
 	FRDGTextureRef EmissiveAtlas;
 	FRDGTextureRef DepthAtlas;
 	FRDGTextureRef VoxelLighting;
-	FRDGBufferUAVRef FeedbackBufferAllocatorUAV;
-	FRDGBufferUAVRef FeedbackBufferUAV;
-	uint32 FeedbackBufferSize;
-	uint32 FeedbackBufferTileWrapMask;
-	FIntPoint FeedbackBufferTileJitter;
+	FRDGBufferUAVRef SurfaceCacheFeedbackBufferAllocatorUAV;
+	FRDGBufferUAVRef SurfaceCacheFeedbackBufferUAV;
+	uint32 SurfaceCacheFeedbackBufferSize;
+	uint32 SurfaceCacheFeedbackBufferTileWrapMask;
+	FIntPoint SurfaceCacheFeedbackBufferTileJitter;
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;

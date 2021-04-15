@@ -42,12 +42,12 @@ Texture2D DepthAtlas;
 #endif
 
 #if SURFACE_CACHE_FEEDBACK
-	RWStructuredBuffer<uint> RWFeedbackBufferAllocator;
-	RWStructuredBuffer<uint2> RWFeedbackBuffer;
-	uint FeedbackBufferSize;
-	uint FeedbackBufferTileWrapMask;
-	uint2 FeedbackBufferTileJitter;
-	float FeedbackResLevelBias;
+	RWStructuredBuffer<uint> RWSurfaceCacheFeedbackBufferAllocator;
+	RWStructuredBuffer<uint2> RWSurfaceCacheFeedbackBuffer;
+	uint SurfaceCacheFeedbackBufferSize;
+	uint SurfaceCacheFeedbackBufferTileWrapMask;
+	uint2 SurfaceCacheFeedbackBufferTileJitter;
+	float SurfaceCacheFeedbackResLevelBias;
 #endif
 
 #ifndef VISIBILITY_ONLY_TRACE
@@ -836,7 +836,7 @@ FSurfaceCacheSample ComputeSurfaceCacheSample(FLumenCardData Card, uint CardInde
 	{
 		// Compute optimal res level, based on the cone width (SampleRadius)
 		float SampleResolution = max(Card.LocalExtent.x, Card.LocalExtent.y) / max(SampleRadius, 1.0f);
-		uint DesiredResLevel = clamp(log2(SampleResolution) + FeedbackResLevelBias, MIN_RES_LEVEL, MAX_RES_LEVEL);
+		uint DesiredResLevel = clamp(log2(SampleResolution) + SurfaceCacheFeedbackResLevelBias, MIN_RES_LEVEL, MAX_RES_LEVEL);
 
 		uint2 LevelSizeInPages = GetSizeInPages(Card, DesiredResLevel);
 		uint2 LocalPageCoord = CardUV * LevelSizeInPages;
@@ -1099,18 +1099,17 @@ float4 SampleLumenMeshCardsWithWeight(uint2 ScreenCoord, uint DFObjectIndex, flo
 
 	#if SURFACE_CACHE_FEEDBACK
 	// Write every n-th element
-	if (all((ScreenCoord & FeedbackBufferTileWrapMask) == FeedbackBufferTileJitter)
-
-		&& FeedbackBufferSize > 0 
+	if (all((ScreenCoord & SurfaceCacheFeedbackBufferTileWrapMask) == SurfaceCacheFeedbackBufferTileJitter)
+		&& SurfaceCacheFeedbackBufferSize > 0
 		&& StochasticCardSample.Weight > 0.1f
 		&& StochasticCardSample.PackedFeedback.x > 0)
 	{
-		uint FeedbackBufferWriteOffset = 0;
-		InterlockedAdd(RWFeedbackBufferAllocator[0], 1, FeedbackBufferWriteOffset);
+		uint WriteOffset = 0;
+		InterlockedAdd(RWSurfaceCacheFeedbackBufferAllocator[0], 1, WriteOffset);
 
-		if (FeedbackBufferWriteOffset < FeedbackBufferSize)
+		if (WriteOffset < SurfaceCacheFeedbackBufferSize)
 		{
-			RWFeedbackBuffer[FeedbackBufferWriteOffset] = StochasticCardSample.PackedFeedback;
+			RWSurfaceCacheFeedbackBuffer[WriteOffset] = StochasticCardSample.PackedFeedback;
 		}
 	}
 	#endif

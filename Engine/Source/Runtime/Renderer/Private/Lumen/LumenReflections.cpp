@@ -604,7 +604,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	// Disable feedback buffer for reflections if needed
 	if (GLumenReflectionsSurfaceCacheFeedback == 0)
 	{
-		TracingInputs.FeedbackBufferSize = 0;
+		TracingInputs.SurfaceCacheFeedbackBufferSize = 0;
 	}
 
 	FRDGTextureDesc TraceRadianceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));

@@ -10,43 +10,43 @@
 #include "Lumen.h"
 #include "DeferredShadingRenderer.h"
 
-int32 GLumenSceneFeedback = 1;
-FAutoConsoleVariableRef CVarLumenSceneFeedback(
-	TEXT("r.LumenScene.Feedback"),
-	GLumenSceneFeedback,
+int32 GLumenSurfaceCacheFeedback = 1;
+FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(
+	TEXT("r.LumenSurfaceCache.Feedback"),
+	GLumenSurfaceCacheFeedback,
 	TEXT("Whether to use surface cache feedback to selectively map higher quality surface cache pages."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneFeedbackTileSize = 16;
-FAutoConsoleVariableRef CVarLumenSceneFeedbackTileSize(
-	TEXT("r.LumenScene.FeedbackTileSize"),
-	GLumenSceneFeedbackTileSize,
-	TEXT("One feedback element will be writen out per tile. Aligned to a power of two."),
+int32 GLumenSurfaceCacheFeedbackTileSize = 16;
+FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
+	TEXT("r.LumenSurfaceCache.FeedbackTileSize"),
+	GLumenSurfaceCacheFeedbackTileSize,
+	TEXT("One surface cache feedback element will be writen out per tile. Aligned to a power of two."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneFeedbackResLevelBias = -1.0f;
-FAutoConsoleVariableRef CVarLumenSceneFeedbackResLevelBias(
-	TEXT("r.LumenScene.FeedbackResLevelBias"),
-	GLumenSceneFeedbackResLevelBias,
+float GLumenSurfaceCacheFeedbackResLevelBias = -1.0f;
+FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
+	TEXT("r.LumenSurfaceCache.FeedbackResLevelBias"),
+	GLumenSurfaceCacheFeedbackResLevelBias,
 	TEXT("Bias resolution of on demand surface cache pages."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenSceneFeedbackFeedbackMinPageHits = 16;
-FAutoConsoleVariableRef CVarLumenSceneFeedbackMinPageHits(
-	TEXT("r.LumenScene.FeedbackMinPageHits"),
-	GLumenSceneFeedbackFeedbackMinPageHits,
+float GLumenSurfaceCacheFeedbackFeedbackMinPageHits = 16;
+FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackMinPageHits(
+	TEXT("r.LumenSurfaceCache.FeedbackMinPageHits"),
+	GLumenSurfaceCacheFeedbackFeedbackMinPageHits,
 	TEXT("Min number of page hits to demand a new page."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneFeedbackMaxUniqueElements = 1024;
-FAutoConsoleVariableRef CVarLumenSceneFeedbackUniqueElements(
-	TEXT("r.LumenScene.FeedbackMaxUnqiueElements"),
-	GLumenSceneFeedbackMaxUniqueElements,
-	TEXT("Limit of unique feedback elements. Used to resize buffers."),
+int32 GLumenSurfaceCacheFeedbackMaxUniqueElements = 1024;
+FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackUniqueElements(
+	TEXT("r.LumenSurfaceCache.FeedbackMaxUnqiueElements"),
+	GLumenSurfaceCacheFeedbackMaxUniqueElements,
+	TEXT("Limit of unique surface cache feedback elements. Used to resize buffers."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -60,7 +60,7 @@ namespace Lumen
 
 uint32 Lumen::GetFeedbackBufferTileSize()
 {
-	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenSceneFeedbackTileSize, 1, 256));
+	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenSurfaceCacheFeedbackTileSize, 1, 256));
 }
 
 uint32 Lumen::GetFeedbackBufferTileWrapMask()
@@ -79,7 +79,7 @@ uint32 Lumen::GetFeedbackBufferSize()
 
 uint32 Lumen::GetCompactedFeedbackBufferSize()
 {
-	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenSceneFeedbackMaxUniqueElements, 1, 16 * 1024));
+	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(GLumenSurfaceCacheFeedbackMaxUniqueElements, 1, 16 * 1024));
 }
 
 FLumenSurfaceCacheFeedback::FLumenSurfaceCacheFeedback()
@@ -227,7 +227,7 @@ IMPLEMENT_GLOBAL_SHADER(FCompactFeedbackHashTableCS, "/Engine/Private/Lumen/Lume
 
 
 void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
-	const FViewInfo& View, 
+	const FViewInfo& View,
 	FRDGBuilder& GraphBuilder,
 	FLumenSurfaceCacheFeedback::FFeedbackResources& FeedbackResources)
 {
@@ -239,7 +239,6 @@ void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Submit Lumen surface cache feedback");
 
-	const uint32 FeedbackBufferSize = Lumen::GetFeedbackBufferSize();
 	const uint32 CompactedFeedbackBufferSize = Lumen::GetCompactedFeedbackBufferSize();
 	const uint32 HashTableSize = 2 * CompactedFeedbackBufferSize;
 	const uint32 HashTableIndexWrapMask = HashTableSize - 1;
@@ -389,7 +388,7 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 
 	FRHIGPUBufferReadback* ReadbackBuffer = SurfaceCacheFeedback.GetLatestReadbackBuffer();
 
-	if (ReadbackBuffer && GLumenSceneFeedback != 0)
+	if (ReadbackBuffer && GLumenSurfaceCacheFeedback != 0)
 	{
 		const uint32 CompactedFeedbackBufferSize = Lumen::GetCompactedFeedbackBufferSize();
 		const uint32* FeedbackData = nullptr;
@@ -416,7 +415,7 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 
 			const uint32 PageHitNum = (PackedB >> 16) & 0xFFFF;
 
-			if (PageHitNum > GLumenSceneFeedbackFeedbackMinPageHits 
+			if (PageHitNum > GLumenSurfaceCacheFeedbackFeedbackMinPageHits
 				&& CardIndex < Cards.Num() 
 				&& Cards.IsAllocated(CardIndex))
 			{
@@ -488,10 +487,10 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 	const bool bLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-	if (bLumenActive && GLumenSceneFeedback != 0)
+	if (bLumenActive && GLumenSurfaceCacheFeedback != 0)
 	{
-		extern int32 GVisualizeLumenSceneFeedback;
-		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneFeedback != 0;
+		extern int32 GVisualizeLumenSceneSurfaceCacheFeedback;
+		const bool bVisualizeUsesFeedback = ViewFamily.EngineShowFlags.VisualizeLumenScene && GVisualizeLumenSceneSurfaceCacheFeedback != 0;
 
 		extern int32 GLumenReflectionsSurfaceCacheFeedback;
 		const bool bReflectionsUseFeedback = Lumen::UseHardwareRayTracedReflections() && GLumenReflectionsSurfaceCacheFeedback != 0;

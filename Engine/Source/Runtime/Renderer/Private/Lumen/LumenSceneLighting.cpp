@@ -113,22 +113,22 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 	if (LumenSceneData.SurfaceCacheFeedbackResources.Buffer)
 	{
-		FeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator, PF_R32_UINT);
-		FeedbackBufferUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.Buffer, PF_R32G32_UINT);
-		FeedbackBufferSize = LumenSceneData.SurfaceCacheFeedbackResources.BufferSize;
-		FeedbackBufferTileJitter = LumenSceneData.SurfaceCacheFeedback.GetFeedbackBufferTileJitter();
-		FeedbackBufferTileWrapMask = Lumen::GetFeedbackBufferTileWrapMask();
+		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.BufferAllocator, PF_R32_UINT);
+		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(LumenSceneData.SurfaceCacheFeedbackResources.Buffer, PF_R32G32_UINT);
+		SurfaceCacheFeedbackBufferSize = LumenSceneData.SurfaceCacheFeedbackResources.BufferSize;
+		SurfaceCacheFeedbackBufferTileJitter = LumenSceneData.SurfaceCacheFeedback.GetFeedbackBufferTileJitter();
+		SurfaceCacheFeedbackBufferTileWrapMask = Lumen::GetFeedbackBufferTileWrapMask();
 	}
 	else
 	{
 		FRDGBufferDesc DummyBufferDesc(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1));
 		FRDGBufferRef DummyFeedbackBuffer = GraphBuilder.CreateBuffer(DummyBufferDesc, TEXT("Lumen.DummySurfaceCacheFeedback"));
 
-		FeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
-		FeedbackBufferUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
-		FeedbackBufferSize = 0;
-		FeedbackBufferTileJitter = FIntPoint(0, 0);
-		FeedbackBufferTileWrapMask = 0;
+		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
+		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
+		SurfaceCacheFeedbackBufferSize = 0;
+		SurfaceCacheFeedbackBufferTileJitter = FIntPoint(0, 0);
+		SurfaceCacheFeedbackBufferTileWrapMask = 0;
 	}
 }
 
@@ -171,13 +171,13 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 	TracingParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_MultiFrame);
 
-	extern float GLumenSceneFeedbackResLevelBias;
-	TracingParameters.RWFeedbackBufferAllocator = TracingInputs.FeedbackBufferAllocatorUAV;
-	TracingParameters.RWFeedbackBuffer = TracingInputs.FeedbackBufferUAV;
-	TracingParameters.FeedbackBufferSize = TracingInputs.FeedbackBufferSize;
-	TracingParameters.FeedbackBufferTileJitter = TracingInputs.FeedbackBufferTileJitter;
-	TracingParameters.FeedbackBufferTileWrapMask = TracingInputs.FeedbackBufferTileWrapMask;
-	TracingParameters.FeedbackResLevelBias = GLumenSceneFeedbackResLevelBias;
+	extern float GLumenSurfaceCacheFeedbackResLevelBias;
+	TracingParameters.RWSurfaceCacheFeedbackBufferAllocator = TracingInputs.SurfaceCacheFeedbackBufferAllocatorUAV;
+	TracingParameters.RWSurfaceCacheFeedbackBuffer = TracingInputs.SurfaceCacheFeedbackBufferUAV;
+	TracingParameters.SurfaceCacheFeedbackBufferSize = TracingInputs.SurfaceCacheFeedbackBufferSize;
+	TracingParameters.SurfaceCacheFeedbackBufferTileJitter = TracingInputs.SurfaceCacheFeedbackBufferTileJitter;
+	TracingParameters.SurfaceCacheFeedbackBufferTileWrapMask = TracingInputs.SurfaceCacheFeedbackBufferTileWrapMask;
+	TracingParameters.SurfaceCacheFeedbackResLevelBias = GLumenSurfaceCacheFeedbackResLevelBias;
 
 	TracingParameters.FinalLightingAtlas = TracingInputs.FinalLightingAtlas;
 	TracingParameters.IrradianceAtlas = TracingInputs.IrradianceAtlas;

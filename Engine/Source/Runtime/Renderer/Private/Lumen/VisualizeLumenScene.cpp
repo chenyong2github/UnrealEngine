@@ -82,11 +82,11 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenSceneFeedback = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneFeedback(
-	TEXT("r.Lumen.Visualize.Feedback"),
-	GVisualizeLumenSceneFeedback,
-	TEXT("Whether visualization should write feedback requests into the feedback buffer."),
+int32 GVisualizeLumenSceneSurfaceCacheFeedback = 1;
+FAutoConsoleVariableRef CVarVisualizeLumenSceneSurfaceCacheFeedback(
+	TEXT("r.Lumen.Visualize.SurfaceCacheFeedback"),
+	GVisualizeLumenSceneSurfaceCacheFeedback,
+	TEXT("Whether visualization should write surface cache feedback requests into the feedback buffer."),
 	ECVF_RenderThreadSafe
 );
 
@@ -474,7 +474,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceMeshSDFs>(bTraceMeshSDFs);
 				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenScreenProbeGather::UseRadianceCache(View));
-				PermutationVector.Set<FVisualizeLumenSceneCS::FSurfaceCacheFeedback>(TracingInputs.FeedbackBufferUAV != nullptr && GVisualizeLumenSceneFeedback != 0);
+				PermutationVector.Set<FVisualizeLumenSceneCS::FSurfaceCacheFeedback>(TracingInputs.SurfaceCacheFeedbackBufferUAV != nullptr && GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
 				auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);
