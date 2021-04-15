@@ -69,23 +69,19 @@ private:
 class CORE_API FMemStackBase //-V1062
 {
 public:
-#if ( PLATFORM_WINDOWS && defined(__clang__) )
-	FMemStackBase()			// @todo clang: parameterless constructor is needed to prevent an ICE in clang
-		: FMemStackBase(1)	// https://llvm.org/bugs/show_bug.cgi?id=28137
-	{
-	}
 
-	FMemStackBase(int32 InMinMarksToAlloc)
-#else
-	FMemStackBase(int32 InMinMarksToAlloc = 1)
-#endif
+	FMemStackBase()
 		: Top(nullptr)
 		, End(nullptr)
 		, TopChunk(nullptr)
 		, TopMark(nullptr)
 		, NumMarks(0)
-		, MinMarksToAlloc(InMinMarksToAlloc)
 	{
+	}
+
+	FMemStackBase(int unused) : FMemStackBase()
+	{
+		// @todo : remove uses of this constructor
 	}
 
 	~FMemStackBase()
@@ -105,8 +101,6 @@ public:
 		checkSlow(AllocSize>=0);
 		checkSlow((Alignment&(Alignment-1))==0);
 		checkSlow(Top<=End);
-		checkSlow(NumMarks >= MinMarksToAlloc);
-
 
 		// Try to get memory from the current chunk.
 		uint8* Result = Align( Top, Alignment );
@@ -136,7 +130,7 @@ public:
 
 	FORCEINLINE void Flush()
 	{
-		check(!NumMarks && !MinMarksToAlloc);
+		check(!NumMarks);
 		FreeChunks(nullptr);
 	}
 	FORCEINLINE int32 GetNumMarks()
@@ -192,8 +186,6 @@ private:
 	/** The number of marks on this stack. */
 	int32 NumMarks;
 
-	/** Used for a checkSlow. Most stacks require a mark to allocate. Command lists don't because they never mark, only flush*/
-	int32 MinMarksToAlloc;
 };
 
 
