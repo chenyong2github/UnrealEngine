@@ -2,8 +2,10 @@
 #include "SInterchangeGraphInspectorWindow.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailsView.h"
 #include "IDocumentation.h"
+#include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
