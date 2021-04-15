@@ -305,7 +305,7 @@ public:
 
 	void Release();
 
-	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);
+	void UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives);
 
 
 	void Begin(FRHICommandListImmediate& RHICmdList, uint32 NumPrimitives, uint32 NumPrimitiveUpdates);

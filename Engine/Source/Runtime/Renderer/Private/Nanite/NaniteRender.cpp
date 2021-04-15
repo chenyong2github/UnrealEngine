@@ -2005,7 +2005,7 @@ void FNaniteMaterialTables::Release()
 	HitProxyTableDataBuffer.Release();
 }
 
-void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives, uint32 InNumPrimitiveUpdates)
+void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 NumPrimitives)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
@@ -2016,7 +2016,6 @@ void FNaniteMaterialTables::UpdateBufferState(FRDGBuilder& GraphBuilder, uint32 
 #if WITH_EDITOR
 	check(NumHitProxyTableUpdates == 0);
 #endif
-	NumPrimitiveUpdates = InNumPrimitiveUpdates;
 
 	TArray<FRHITransitionInfo, TInlineAllocator<2>> UAVs;
 
@@ -2046,7 +2045,7 @@ void FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 
 	LLM_SCOPE_BYTAG(Nanite);
 
-	check(NumPrimitiveUpdates == InNumPrimitiveUpdates);
+	check(NumPrimitiveUpdates == 0);
 	check(NumDepthTableUpdates == 0);
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
 #if WITH_EDITOR
