@@ -51,4 +51,9 @@ bool FDisplayClusterConfigurationModule::SaveConfig(const UDisplayClusterConfigu
 	return FDisplayClusterConfigurationMgr::Get().SaveConfig(Config, FilePath);
 }
 
+bool FDisplayClusterConfigurationModule::ConfigAsString(const UDisplayClusterConfigurationData* Config, FString& OutString) const
+{
+	return FDisplayClusterConfigurationMgr::Get().ConfigAsString(Config, OutString);
+}
+
 IMPLEMENT_MODULE(FDisplayClusterConfigurationModule, DisplayClusterConfiguration);

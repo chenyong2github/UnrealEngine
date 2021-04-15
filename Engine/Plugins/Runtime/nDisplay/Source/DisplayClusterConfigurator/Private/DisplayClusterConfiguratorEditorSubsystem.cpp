@@ -114,6 +114,11 @@ bool UDisplayClusterConfiguratorEditorSubsystem::SaveConfig(UDisplayClusterConfi
 	return false;
 }
 
+bool UDisplayClusterConfiguratorEditorSubsystem::ConfigAsString(UDisplayClusterConfigurationData* InConfiguratorEditorData, FString& OutString) const
+{
+	return IDisplayClusterConfiguration::Get().ConfigAsString(InConfiguratorEditorData, OutString);
+}
+
 bool UDisplayClusterConfiguratorEditorSubsystem::RenameAssets(const TWeakObjectPtr<UObject>& InAsset, const FString& InNewPackagePath, const FString& InNewName)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));

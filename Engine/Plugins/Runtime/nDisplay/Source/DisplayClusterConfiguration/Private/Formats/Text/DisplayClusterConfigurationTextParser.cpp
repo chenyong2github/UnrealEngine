@@ -40,6 +40,12 @@ bool FDisplayClusterConfigurationTextParser::SaveData(const UDisplayClusterConfi
 	return false;
 }
 
+bool FDisplayClusterConfigurationTextParser::AsString(const UDisplayClusterConfigurationData* ConfigData, FString& OutString)
+{
+	UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("Export to text based format is not supported. Use json exporter."));
+	return false;
+}
+
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::ConvertDataToInternalTypes()
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);

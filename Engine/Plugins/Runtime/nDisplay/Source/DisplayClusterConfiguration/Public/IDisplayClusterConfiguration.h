@@ -60,4 +60,14 @@ public:
 	* @return true if succeeded
 	*/
 	virtual bool SaveConfig(const UDisplayClusterConfigurationData* Config, const FString& FilePath) = 0;
+
+	/**
+	* Converts configuration data to string
+	*
+	* @param Config - Configuration data
+	* @param OutString - String to contain the configuration data
+	*
+	* @return true if succeeded
+	*/
+	virtual bool ConfigAsString(const UDisplayClusterConfigurationData* Config, FString& OutString) const = 0;
 };
