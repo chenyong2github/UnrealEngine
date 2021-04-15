@@ -507,16 +507,32 @@ void ShaderYield()
 #define FLATTEN
 #endif
 
-#ifndef ALLOW_UAV_CONDITION	
-#define ALLOW_UAV_CONDITION	
+#ifndef ALLOW_UAV_CONDITION
+#define ALLOW_UAV_CONDITION
 #endif
 
 #ifndef INVARIANT
-#define INVARIANT										
+#define INVARIANT
 #endif
 
 #ifndef ENABLE_RE_Z
 #define ENABLE_RE_Z
+#endif
+
+#ifndef COMPILER_SUPPORTS_NOINLINE
+#define COMPILER_SUPPORTS_NOINLINE 0
+#endif
+
+// Informs compiler we want a subroutine created, which can be used to 
+// decrease register pressure in certain situations. Code is kept separate,
+// and a set number of registers are used on each call. Should only be used
+// with extensive profiling, as the default inlining behavior is usually best.
+// DXIL:  https://github.com/microsoft/DirectXShaderCompiler/blob/master/tools/clang/test/HLSLFileCheck/hlsl/functions/attribute/noinline.hlsl
+// SPIRV: https://www.khronos.org/registry/spir-v/specs/unified1/SPIRV.html (DontInline)
+#if COMPILER_SUPPORTS_NOINLINE
+#define NOINLINE [noinline]
+#else
+#define NOINLINE
 #endif
 
 #ifndef EARLYDEPTHSTENCIL
