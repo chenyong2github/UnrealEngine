@@ -25,6 +25,7 @@
 #include "PostProcess/PostProcessing.h"
 #include "RayTracingGeometryManager.h"
 #include "RayTracingDefinitions.h"
+#include "PathTracingDefinitions.h"
 #include "ScreenPass.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader

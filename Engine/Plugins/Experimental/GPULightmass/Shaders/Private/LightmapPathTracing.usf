@@ -391,7 +391,7 @@ void PathTracingKernel(
 				int LightId;
 				float LightPickPdf = 0;
 
-				SelectLight(RandSample.x * LightPickingCdfSum, LightPickingCdf, LightId, LightPickPdf);
+				SelectLight(RandSample.x * LightPickingCdfSum, SceneLightCount, LightPickingCdf, LightId, LightPickPdf);
 
 				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 

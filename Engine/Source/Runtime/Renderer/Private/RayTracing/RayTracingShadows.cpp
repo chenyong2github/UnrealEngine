@@ -6,7 +6,6 @@
 #if RHI_RAYTRACING
 
 #include "ClearQuad.h"
-#include "PathTracingUniformBuffers.h"
 #include "SceneRendering.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
