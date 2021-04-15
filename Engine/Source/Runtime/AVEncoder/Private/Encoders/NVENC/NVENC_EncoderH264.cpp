@@ -242,7 +242,7 @@ namespace AVEncoder
 	}
 
 #if PLATFORM_WINDOWS
-	void WindowsError(LPTSTR lpszFunction)
+	void WindowsError(const TCHAR* lpszFunction)
 	{
 		// Retrieve the system error message for the last-error code
 
@@ -260,11 +260,9 @@ namespace AVEncoder
 			(LPTSTR)&lpMsgBuf,
 			0, NULL);
 
-		lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
 		UE_LOG(LogVideoEncoder, Error, TEXT("%s failed with error %d: %s"), lpszFunction, dw, lpMsgBuf);
 
 		LocalFree(lpMsgBuf);
-		LocalFree(lpDisplayBuf);
 	}
 #endif
 
@@ -323,8 +321,7 @@ namespace AVEncoder
 			else if (WaitResult == WAIT_FAILED)
 			{
 				// HACK to fix warning in clang
-				LPTSTR string = L"WaitForMultipleObjects";
-				WindowsError(string);
+				WindowsError(TEXT("WaitForMultipleObjects"));
 			}
 		}
 #else

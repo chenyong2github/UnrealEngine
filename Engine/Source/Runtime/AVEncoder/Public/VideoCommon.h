@@ -34,11 +34,12 @@ THIRD_PARTY_INCLUDES_END
 //
 #if PLATFORM_XBOXONE
 
+THIRD_PARTY_INCLUDES_START
 #include "XboxCommonAllowPlatformTypes.h"
 #include "XboxCommonPreApi.h"
 #include <d3d11_x.h>
 #include <d3d12_x.h>
-#include <d3dcompiler_x.h>
+// #include <d3dcompiler_x.h> // is this needed by anything?
 #include <d3dx12_x.h>
 #include <mftransform.h>
 #include <mfapi.h>
@@ -48,6 +49,7 @@ THIRD_PARTY_INCLUDES_END
 #include <mfreadwrite.h>
 #include "XboxCommonPostApi.h"
 #include "XboxCommonHidePlatformTypes.h"
+THIRD_PARTY_INCLUDES_END
 
 #endif  // PLATFORM_XBOXONE
 
