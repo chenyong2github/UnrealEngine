@@ -90,7 +90,11 @@ void UNiagaraStackModuleItem::Initialize(FRequiredEntryData InRequiredEntryData,
 
 FText UNiagaraStackModuleItem::GetDisplayName() const
 {
-	return FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
+	if (DisplayNameCache.IsSet() == false)
+	{
+		DisplayNameCache = FunctionCallNode->GetNodeTitle(ENodeTitleType::ListView);
+	}
+	return DisplayNameCache.GetValue();
 }
 
 UObject* UNiagaraStackModuleItem::GetDisplayedObject() const
@@ -129,6 +133,7 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 	bCanRefresh = false;
 	bCanMoveAndDeleteCache.Reset();
 	bIsScratchModuleCache.Reset();
+	DisplayNameCache.Reset();
 
 	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
 	{

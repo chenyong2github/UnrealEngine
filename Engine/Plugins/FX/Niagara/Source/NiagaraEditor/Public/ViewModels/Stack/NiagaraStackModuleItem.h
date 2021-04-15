@@ -130,6 +130,7 @@ private:
 	UNiagaraNodeOutput* OutputNode;
 	UNiagaraNodeFunctionCall* FunctionCallNode;
 	mutable TOptional<bool> bCanMoveAndDeleteCache;
+	mutable TOptional<FText> DisplayNameCache;
 	bool bIsEnabled;
 	bool bCanRefresh;
 
