@@ -247,7 +247,6 @@ namespace AVEncoder
 		// Retrieve the system error message for the last-error code
 
 		LPVOID lpMsgBuf;
-		LPVOID lpDisplayBuf;
 		DWORD dw = GetLastError();
 
 		FormatMessage(
