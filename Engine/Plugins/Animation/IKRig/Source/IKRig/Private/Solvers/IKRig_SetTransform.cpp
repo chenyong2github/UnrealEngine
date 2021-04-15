@@ -1,21 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
-#include "Solvers/TransformSolver.h"
+#include "Solvers/IKRig_SetTransform.h"
 #include "IKRigDataTypes.h"
 #include "IKRigSkeleton.h"
 
-UTransformSolver::UTransformSolver()
-{
-	Effector.Goal = "DefaultGoal";
-}
 
-void UTransformSolver::Initialize(const FIKRigSkeleton& IKRigSkeleton)
+void UIKRig_SetTransform::Initialize(const FIKRigSkeleton& IKRigSkeleton)
 {
 	BoneIndex = IKRigSkeleton.GetBoneIndexFromName(Effector.Bone);
 }
 
-void UTransformSolver::Solve(
+void UIKRig_SetTransform::Solve(
 	FIKRigSkeleton& IKRigSkeleton,
 	const FIKRigGoalContainer& Goals,
 	FControlRigDrawInterface* InOutDrawInterface)
@@ -30,18 +25,18 @@ void UTransformSolver::Solve(
 
 	if (bEnablePosition)
 	{
-		CurrentTransform.SetLocation(OutGoal.Position);
+		CurrentTransform.SetLocation(OutGoal.FinalBlendedPosition);
 	}
 	
 	if (bEnableRotation)
 	{
-		CurrentTransform.SetRotation(OutGoal.Rotation.Quaternion());
+		CurrentTransform.SetRotation(OutGoal.FinalBlendedRotation);
 	}
 
 	IKRigSkeleton.PropagateGlobalPoseBelowBone(BoneIndex);
 }
 
-void UTransformSolver::CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const
+void UIKRig_SetTransform::AddGoalsInSolver(TArray<FIKRigEffectorGoal>& OutGoals) const
 {
-	OutGoals.Add(Effector);
+	AddGoalToArrayNoDuplicates(Effector,OutGoals);
 }

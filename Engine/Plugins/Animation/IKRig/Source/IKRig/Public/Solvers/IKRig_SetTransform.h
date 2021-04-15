@@ -3,26 +3,25 @@
 #pragma once
 
 #include "IKRigSolver.h"
-#include "TransformSolver.generated.h"
+
+#include "IKRig_SetTransform.generated.h"
 
 
 UCLASS(EditInlineNew)
-class IKRIG_API UTransformSolver : public UIKRigSolver
+class IKRIG_API UIKRig_SetTransform : public UIKRigSolver
 {
 	GENERATED_BODY()
 
-	UTransformSolver();
-
 public:
-
+	
+	UPROPERTY(EditAnywhere, Category = "Solver")
+	FIKRigEffectorGoal Effector;
+	
 	UPROPERTY(EditAnywhere, Category = "Solver")
 	bool bEnablePosition = true;
 
 	UPROPERTY(EditAnywhere, Category = "Solver")
 	bool bEnableRotation = true;
-
-	UPROPERTY(EditAnywhere, Category = "Solver")
-	FIKRigEffectorGoal Effector;
 
 protected:
 	
@@ -31,7 +30,7 @@ protected:
 		FIKRigSkeleton& IKRigSkeleton, 
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) override;
-	virtual void CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const override;
+	virtual void AddGoalsInSolver(TArray<FIKRigEffectorGoal>& OutGoals) const override;
 
 private:
 	

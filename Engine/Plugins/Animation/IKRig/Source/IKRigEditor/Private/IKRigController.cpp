@@ -88,7 +88,7 @@ FIKRigSkeleton& UIKRigController::GetSkeleton() const
 // SOLVERS
 //
 
-UIKRigSolver* UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass)
+UIKRigSolver* UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolverClass) const
 {
 	if (!IKRigDefinition)
 	{
@@ -102,6 +102,8 @@ UIKRigSolver* UIKRigController::AddSolver(TSubclassOf<UIKRigSolver> InIKRigSolve
 	check(NewSolver);
 
 	IKRigDefinition->Solvers.Add(NewSolver);
+	IKRigDefinition->bEffectorGoalsDirty = true;
+	
 	return NewSolver;
 }
 
@@ -116,7 +118,7 @@ UIKRigSolver* UIKRigController::GetSolver(int32 Index) const
 	return ValidSolver ? IKRigDefinition->Solvers[Index] : nullptr;
 }
 
-void UIKRigController::RemoveSolver(UIKRigSolver* SolverToDelete)
+void UIKRigController::RemoveSolver(UIKRigSolver* SolverToDelete) const
 {
 	if (!(IKRigDefinition && SolverToDelete))
 	{
@@ -127,6 +129,7 @@ void UIKRigController::RemoveSolver(UIKRigSolver* SolverToDelete)
 	IKRigDefinition->Modify();
 
 	IKRigDefinition->Solvers.Remove(SolverToDelete);
+	IKRigDefinition->bEffectorGoalsDirty = true;
 }
 
 UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSetting> NewSettingType) const
@@ -149,14 +152,14 @@ UIKRigBoneSetting* UIKRigController::AddBoneSetting(TSubclassOf<UIKRigBoneSettin
 // GOALS
 //
 
-void UIKRigController::GetGoalNames(TArray<FIKRigEffectorGoal>& OutGoals) const
+TArray<FIKRigEffectorGoal>* UIKRigController::GetGoalNames() const
 {
 	if (!IKRigDefinition)
 	{
-		return;
+		return nullptr;
 	}
 
-	IKRigDefinition->GetGoalNamesFromSolvers(OutGoals);
+	return &IKRigDefinition->GetEffectorGoals();
 }
 
 void UIKRigController::RenameGoal(const FName& OldName, const FName& NewName) const
@@ -173,6 +176,8 @@ void UIKRigController::RenameGoal(const FName& OldName, const FName& NewName) co
 	{
 		Solver->RenameGoal(OldName, NewName);
 	}
+
+	IKRigDefinition->bEffectorGoalsDirty = true;
 }
 
 #undef LOCTEXT_NAMESPACE

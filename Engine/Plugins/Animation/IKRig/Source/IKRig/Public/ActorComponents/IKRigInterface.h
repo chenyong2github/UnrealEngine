@@ -19,7 +19,7 @@ class IIKGoalCreatorInterface
 
 public:
 	
-	/** Provide a Goal container for callers to read from.*/
+	/** Add your own goals to the OutGoals map (careful not to remove existing goals in the map!)*/
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category=IKRigGoals)
-    void GetIKGoals(TMap<FName, FIKRigGoal>& OutGoals);
+    void AddIKGoals(TMap<FName, FIKRigGoal>& OutGoals);
 };

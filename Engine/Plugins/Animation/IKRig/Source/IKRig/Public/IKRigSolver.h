@@ -4,26 +4,13 @@
 
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "IKRigDataTypes.h"
 #include "IKRigSolver.generated.h"
 
 
 struct FControlRigDrawInterface;
 struct FIKRigGoalContainer;
 struct FIKRigSkeleton;
-
-USTRUCT()
-struct IKRIG_API FIKRigEffectorGoal
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
-	FName Goal;
-
-	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
-	FName Bone;
-
-	bool operator==(const FIKRigEffectorGoal& Other) const { return Goal == Other.Goal; }
-};
 
 inline uint32 GetTypeHash(FIKRigEffectorGoal ObjectRef) { return GetTypeHash(ObjectRef.Goal); }
 
@@ -47,14 +34,18 @@ public:
 		const FIKRigGoalContainer& Goals,
 		FControlRigDrawInterface* InOutDrawInterface) PURE_VIRTUAL("Solve");
 
-	/** override CollectGoalNames() to tell the processor which goals to collect for this solver
+	/** override AddGoalsInSolver() to tell other systems what goals this rig definition uses
 	 * NOTE: only ADD to OutGoals, do not reset or remove */
-	virtual void CollectGoalNames(TSet<FIKRigEffectorGoal>& OutGoals) const PURE_VIRTUAL("CollectGoalNames");
+	virtual void AddGoalsInSolver(TArray<FIKRigEffectorGoal>& OutGoals) const PURE_VIRTUAL("AddGoalsInSolver");
 
 	#if WITH_EDITOR
 	/** override RenameGoal() when UI renames a goal, you can auto-update any effectors
 	 * that were previously mapped to the old goal name. */
 	virtual void RenameGoal(const FName& OldName, const FName& NewName) {};
 	#endif // WITH_EDITOR
+
+protected:
+	
+	static void AddGoalToArrayNoDuplicates(const FIKRigEffectorGoal& GoalToAdd, TArray<FIKRigEffectorGoal>& OutGoals);
 };
 

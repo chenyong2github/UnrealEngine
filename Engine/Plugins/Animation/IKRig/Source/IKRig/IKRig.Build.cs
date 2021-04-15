@@ -18,7 +18,7 @@ public class IKRig : ModuleRules
 				"AnimationCore", 
 				"AnimGraphRuntime",
 				
-				"FullBodyIK"
+				"PBIK"
 			}
 			);
 
@@ -27,6 +27,8 @@ public class IKRig : ModuleRules
 			{
 				"ControlRig",
 				"Core",
+				
+				"PBIK"
 			}
 			);
 

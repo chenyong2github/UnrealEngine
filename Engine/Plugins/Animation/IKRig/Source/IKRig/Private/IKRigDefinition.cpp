@@ -17,32 +17,69 @@ FBoneChain* FRetargetDefinition::GetBoneChainByName(FName ChainName)
 	return nullptr;
 }
 
-void UIKRigDefinition::GetGoalNamesFromSolvers(TArray<FIKRigEffectorGoal>& OutGoalNames) const
+TArray<FIKRigEffectorGoal>& UIKRigDefinition::GetEffectorGoals()
 {
-	TSet<FIKRigEffectorGoal> GoalNames;
+	UpdateGoalNameArray();
+	return EffectorGoals;
+}
+
+#if WITH_EDITOR
+void UIKRigDefinition::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// update list of goal names whenever a solver is modified
+	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
+	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UIKRigDefinition, Solvers)))
+	{
+		bEffectorGoalsDirty = true;
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
+FName UIKRigDefinition::GetBoneNameForGoal(const FName& GoalName)
+{
+	UpdateGoalNameArray();
+	
+	for (const FIKRigEffectorGoal& EffectorGoal : EffectorGoals)
+	{
+		if (EffectorGoal.Goal == GoalName)
+		{
+			return EffectorGoal.Bone;
+		}
+	}
+	
+	return NAME_None;
+}
+
+FName UIKRigDefinition::GetGoalName(int32 GoalIndex)
+{
+	UpdateGoalNameArray();
+	
+	if (!EffectorGoals.IsValidIndex(GoalIndex))
+	{
+		return NAME_None;
+	}
+
+	return EffectorGoals[GoalIndex].Goal;
+}
+
+void UIKRigDefinition::UpdateGoalNameArray()
+{
+	if (!bEffectorGoalsDirty)
+	{
+		return;	
+	}
+	
+	EffectorGoals.Reset();
 	for (UIKRigSolver* Solver : Solvers)
 	{
 		if (Solver)
 		{
-			Solver->CollectGoalNames(GoalNames);
+			Solver->AddGoalsInSolver(EffectorGoals);
 		}
 	}
 
-	// user code needs to use indices, so we bake set into an array
-	OutGoalNames = GoalNames.Array();
+	bEffectorGoalsDirty = false;
 }
 
-FName UIKRigDefinition::GetBoneNameForGoal(FName GoalName) const
-{
-	TArray<FIKRigEffectorGoal> AllGoalNames;
-	GetGoalNamesFromSolvers(AllGoalNames);
-	for (const FIKRigEffectorGoal& Names : AllGoalNames)
-	{
-		if (Names.Goal == GoalName)
-		{
-			return Names.Bone;
-		}
-	}
-
-	return NAME_None;
-}

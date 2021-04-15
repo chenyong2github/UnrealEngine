@@ -30,8 +30,8 @@ public:
 	FIKRigSkeleton& GetSkeleton() const;
 
 	//** solvers */
-	UIKRigSolver* AddSolver(TSubclassOf<UIKRigSolver> InSolverClass);
-	void RemoveSolver(UIKRigSolver* SolverToDelete);
+	UIKRigSolver* AddSolver(TSubclassOf<UIKRigSolver> InSolverClass) const;
+	void RemoveSolver(UIKRigSolver* SolverToDelete) const;
 	UIKRigSolver* GetSolver(int32 Index) const;
 	int32 GetNumSolvers() const;
 
@@ -40,7 +40,7 @@ public:
 
 	//** goals */
 	void RenameGoal(const FName& OldName, const FName& NewName) const;
-	void GetGoalNames(TArray<FIKRigEffectorGoal>& OutGoals) const;
+	TArray<FIKRigEffectorGoal>* GetGoalNames() const;
 	DECLARE_MULTICAST_DELEGATE(FGoalModified);
 	FGoalModified OnGoalModified;
 

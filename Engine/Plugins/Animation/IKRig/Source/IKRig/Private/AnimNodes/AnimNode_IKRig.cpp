@@ -162,15 +162,10 @@ void FAnimNode_IKRig::PreUpdate(const UAnimInstance* InAnimInstance)
 {
 	// pull all the goals out of any goal creators on the owning actor
 	// this is done on the main thread because we're talking to actor components here
-	GoalsFromGoalCreators.Empty();
+	GoalsFromGoalCreators.Reset();
 	for (IIKGoalCreatorInterface* GoalCreator : GoalCreators)
 	{
-		TMap<FName, FIKRigGoal> OutGoals;
-		GoalCreator->GetIKGoals_Implementation(OutGoals);
-		for (const TPair<FName, FIKRigGoal>& GoalPair : OutGoals)
-		{
-			GoalsFromGoalCreators.Add(GoalPair);
-		}
+		GoalCreator->AddIKGoals_Implementation(GoalsFromGoalCreators);
 	}
 }
 
@@ -181,8 +176,7 @@ bool FAnimNode_IKRig::RebuildGoalList()
 		return false;
 	}
 	
-	TArray<FIKRigEffectorGoal> AllGoalNamesInIKRig;
-	RigDefinitionAsset->GetGoalNamesFromSolvers(AllGoalNamesInIKRig);
+	const TArray<FIKRigEffectorGoal>& AllGoalNamesInIKRig = RigDefinitionAsset->GetEffectorGoals();
 	const int32 NumGoalsInRig = AllGoalNamesInIKRig.Num();
 	if (Goals.Num() != NumGoalsInRig)
 	{
@@ -201,15 +195,10 @@ FName FAnimNode_IKRig::GetGoalName(int32 Index) const
 {
 	if (RigDefinitionAsset)
 	{
-		TArray<FIKRigEffectorGoal> Names;
-		RigDefinitionAsset->GetGoalNamesFromSolvers(Names);
-		if (Names.IsValidIndex(Index))
-		{
-			return Names[Index].Goal;
-		}
+		return RigDefinitionAsset->GetGoalName(Index);
 	}
 
-	return FName(TEXT("Invalid"));
+	return NAME_None;
 }
 
 void FAnimNode_IKRig::Update_AnyThread(const FAnimationUpdateContext& Context)

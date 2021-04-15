@@ -6,10 +6,11 @@
 #include "UObject/Object.h"
 #include "IKRigBoneSetting.h"
 #include "IKRigSkeleton.h"
+#include "IKRigDataTypes.h"
 
 #include "IKRigDefinition.generated.h"
 
-struct FIKRigEffectorGoal;
+
 class UIKRigSolver;
 
 USTRUCT(Blueprintable)
@@ -92,13 +93,26 @@ public:
 	FRetargetDefinition RetargetDefinition;
 
 	/** get a list of all goal names used in the solvers */
-	void GetGoalNamesFromSolvers(TArray<FIKRigEffectorGoal>& OutGoalNames) const;
+	TArray<FIKRigEffectorGoal>& GetEffectorGoals();
 
 	/** get bone associated with a given goal */
-	FName GetBoneNameForGoal(FName GoalName) const;
+	FName GetBoneNameForGoal(const FName& GoalName);
+
+	/** get name of goal at given index. */
+	FName GetGoalName(int32 GoalIndex);
+
+	// UObject interface
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	// end UObject interface
 
 private:
+
+	UPROPERTY(Transient)
+	TArray<FIKRigEffectorGoal> EffectorGoals;
+	bool bEffectorGoalsDirty = true;
+	void UpdateGoalNameArray();
 	
 	friend class UIKRigController;
 };
-

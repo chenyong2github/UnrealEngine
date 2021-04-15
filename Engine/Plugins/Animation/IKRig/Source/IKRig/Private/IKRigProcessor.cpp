@@ -23,36 +23,35 @@ void UIKRigProcessor::Initialize(UIKRigDefinition* InRigDefinition)
 	Skeleton = InRigDefinition->Skeleton; // trivial copy assignment operator for POD
 
 	// initialize goal names based on solvers
-	TArray<FIKRigEffectorGoal> GoalNames;
-	InRigDefinition->GetGoalNamesFromSolvers(GoalNames);
-	GoalContainer.InitializeGoalsFromNames(GoalNames);
-	for (const FIKRigEffectorGoal& GoalName : GoalNames)
+	TArray<FIKRigEffectorGoal>& EffectorGoals = InRigDefinition->GetEffectorGoals();
+	GoalContainer.InitializeGoalsFromNames(EffectorGoals);
+	for (const FIKRigEffectorGoal& EffectorGoal : EffectorGoals)
 	{
 		FGoalBone NewGoalBone;
-		NewGoalBone.BoneName = GoalName.Goal;
-		NewGoalBone.BoneIndex = Skeleton.GetBoneIndexFromName(GoalName.Bone);
+		NewGoalBone.BoneName = EffectorGoal.Bone;
+		NewGoalBone.BoneIndex = Skeleton.GetBoneIndexFromName(EffectorGoal.Bone);
 
 		// validate that the skeleton we are trying to solve this goal on contains the bone the goal expects
 		if (NewGoalBone.BoneIndex == INDEX_NONE)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s has a Goal, '%s' that references an unknown bone, '%s'. Cannot evaluate."),
-				*GetName(), *GoalName.Goal.ToString(), *GoalName.Bone.ToString());
+				*GetName(), *EffectorGoal.Goal.ToString(), *EffectorGoal.Bone.ToString());
 			return;
 		}
 
 		// validate that there is not already a different goal, with the same name, that is using a different bone
 		// (all goals with the same name must reference the same bone within a single IK Rig)
-		if (const FGoalBone* Bone = GoalBones.Find(GoalName.Goal))
+		if (const FGoalBone* Bone = GoalBones.Find(EffectorGoal.Goal))
 		{
 			if (Bone->BoneName != NewGoalBone.BoneName)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("IK Rig, %s has a Goal, '%s' that references different bones in different solvers, '%s' and '%s'. Cannot evaluate."),
-                *GetName(), *GoalName.Goal.ToString(), *Bone->BoneName.ToString(), *NewGoalBone.BoneName.ToString());
+                *GetName(), *EffectorGoal.Goal.ToString(), *Bone->BoneName.ToString(), *NewGoalBone.BoneName.ToString());
 				return;
 			}
 		}
 		
-		GoalBones.Add(GoalName.Goal, NewGoalBone);
+		GoalBones.Add(EffectorGoal.Goal, NewGoalBone);
 	}
 
 	// create copies of all the solvers in the IK rig
@@ -99,29 +98,18 @@ void UIKRigProcessor::SetIKGoal(const FIKRigGoal& InGoal)
 void UIKRigProcessor::Solve()
 {
 	check(bInitialized);
-	
-	DrawInterface.Reset();
 
 	// blend goals towards input pose by alpha
-	for (TPair<FName, FIKRigGoal>& GoalPair : GoalContainer.Goals)
-	{
-		FIKRigGoal& Goal = GoalPair.Value;
-		const FGoalBone& GoalBone = GoalBones[Goal.Name];
-		const FTransform& InputPoseBoneTransform = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex];
-		Goal.Position = FMath::Lerp(
-			InputPoseBoneTransform.GetTranslation(),
-			Goal.Position,
-			Goal.PositionAlpha);
-		Goal.Rotation = FQuat::FastLerp(
-			InputPoseBoneTransform.GetRotation(),
-			Goal.Rotation.Quaternion(),
-			Goal.RotationAlpha).Rotator();
-	}
+	BlendGoalsByAlpha();
 
 	// run all the solvers
+	DrawInterface.Reset();
 	for (UIKRigSolver* Solver : Solvers)
 	{
-		Solver->Solve(Skeleton, GoalContainer, &DrawInterface);
+		if (Solver->bEnabled)
+		{
+			Solver->Solve(Skeleton, GoalContainer, &DrawInterface);
+		}
 	}
 
 	// make sure rotations are normalized coming out
@@ -154,4 +142,31 @@ bool UIKRigProcessor::GetBoneForGoal(FName GoalName, FGoalBone& OutBone) const
 		return true;
 	}
 	return false;
+}
+
+void UIKRigProcessor::BlendGoalsByAlpha()
+{
+	for (TPair<FName, FIKRigGoal>& GoalPair : GoalContainer.Goals)
+	{
+		if (!GoalBones.Contains(GoalPair.Key))
+		{
+			// user is changing goals after initialization
+			// not necessarily a bad thing, but new goal names won't work until re-init
+			continue;
+		}
+		
+		FIKRigGoal& Goal = GoalPair.Value;
+		const FGoalBone& GoalBone = GoalBones[Goal.Name];
+		const FTransform& InputPoseBoneTransform = Skeleton.CurrentPoseGlobal[GoalBone.BoneIndex];
+		
+		Goal.FinalBlendedPosition = FMath::Lerp(
+            InputPoseBoneTransform.GetTranslation(),
+            Goal.Position,
+            Goal.PositionAlpha);
+		
+		Goal.FinalBlendedRotation = FQuat::FastLerp(
+            InputPoseBoneTransform.GetRotation(),
+            Goal.Rotation.Quaternion(),
+            Goal.RotationAlpha);
+	}
 }

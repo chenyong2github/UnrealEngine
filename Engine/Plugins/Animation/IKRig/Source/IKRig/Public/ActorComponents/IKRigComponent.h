@@ -55,7 +55,7 @@ public:
 
 	// BEGIN IIKRigGoalCreator interface
 	/** Called from the IK Rig Anim node to obtain all the goals that have been set on this actor.*/
-	void GetIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) { OutGoals = GoalContainer.Goals; };
+	void AddIKGoals_Implementation(TMap<FName, FIKRigGoal>& OutGoals) override { OutGoals.Append(GoalContainer.Goals); };
 	// END IIKRigGoalCreator interface
 
 private:

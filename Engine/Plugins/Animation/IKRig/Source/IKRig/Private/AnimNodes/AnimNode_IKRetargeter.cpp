@@ -33,6 +33,7 @@ void FAnimNode_IKRetargeter::Evaluate_AnyThread(FPoseContext& Output)
 
 	if (!bIsInitialized)
 	{
+		Output.ResetToRefPose();
 		return;
 	}
 
@@ -138,7 +139,7 @@ void FAnimNode_IKRetargeter::InitializeRetargetData(const UAnimInstance* InAnimI
 		const_cast<UAnimInstance*>(InAnimInstance));
 	
 	// made it!
-	bIsInitialized = true;
+	bIsInitialized = CurrentlyUsedRetargeter->bIsLoadedAndValid;
 }
 
 void FAnimNode_IKRetargeter::CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent)
@@ -188,4 +189,9 @@ void FAnimNode_IKRetargeter::CopyBoneTransformsFromSource(USkeletalMeshComponent
 
 	// ref skeleton is need for parent index lookups later, so store it now
 	CurrentlyUsedSourceMesh = SourceMeshComp->SkeletalMesh;
+}
+
+USkeletalMeshComponent* FAnimNode_IKRetargeter::GetSourceMesh() const
+{
+	return nullptr;
 }

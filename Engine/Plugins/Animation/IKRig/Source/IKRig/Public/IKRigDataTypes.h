@@ -13,6 +13,25 @@
 struct FIKRigEffectorGoal;
 struct FIKRigHierarchy;
 
+USTRUCT()
+struct IKRIG_API FIKRigEffectorGoal
+{
+	GENERATED_BODY()
+
+	FIKRigEffectorGoal()
+        : Goal("DefaultGoal"),
+          Bone(NAME_None)
+	{
+	}
+
+	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
+	FName Goal;
+
+	UPROPERTY(EditAnywhere, Category = FIKRigEffector)
+	FName Bone;
+
+	bool operator==(const FIKRigEffectorGoal& Other) const { return Goal == Other.Goal; }
+};
 
 USTRUCT(Blueprintable)
 struct IKRIG_API FIKRigGoal
@@ -39,19 +58,29 @@ struct IKRIG_API FIKRigGoal
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FIKRigGoal, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float RotationAlpha;
 
+	UPROPERTY(Transient)
+	FVector FinalBlendedPosition;
+
+	UPROPERTY(Transient)
+	FQuat FinalBlendedRotation;
+
 	FIKRigGoal()
     : Name(NAME_None),
 	Position(ForceInitToZero),
     Rotation(FRotator::ZeroRotator),
     PositionAlpha(1.f),
-    RotationAlpha(0.0f){}
+    RotationAlpha(0.0f),
+	FinalBlendedPosition(ForceInitToZero),
+	FinalBlendedRotation(FQuat::Identity){}
 	
 	FIKRigGoal(const FName& GoalName)
     : Name(GoalName),
 	Position(ForceInitToZero),
     Rotation(FRotator::ZeroRotator),
     PositionAlpha(1.f),
-    RotationAlpha(0.0f){}
+    RotationAlpha(0.0f),
+	FinalBlendedPosition(ForceInitToZero),
+    FinalBlendedRotation(FQuat::Identity){}
 
 	FIKRigGoal(
         const FName& Name,
@@ -63,12 +92,14 @@ struct IKRIG_API FIKRigGoal
           Position(Position),
           Rotation(Rotation.Rotator()),
           PositionAlpha(PositionAlpha),
-          RotationAlpha(RotationAlpha){}
+          RotationAlpha(RotationAlpha),
+		  FinalBlendedPosition(Position),
+		  FinalBlendedRotation(Rotation){}
 
 	FString ToString() const
 	{
 		return FString::Printf(TEXT("Name=%s, Pos=(%s, Alpha=%3.3f), Rot=(%s, Alpha=%3.3f)"),
-			*Name.ToString(), *Position.ToString(), PositionAlpha, *Rotation.ToString(), RotationAlpha);
+			*Name.ToString(), *FinalBlendedPosition.ToString(), PositionAlpha, *FinalBlendedRotation.ToString(), RotationAlpha);
 	}
 };
 

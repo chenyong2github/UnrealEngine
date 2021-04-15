@@ -30,16 +30,19 @@ struct FEffector
 
 	FBone* Bone;
 	TWeakPtr<FPinConstraint> Pin;
-	
-	float DistToSubRootOrig;
 	FRigidBody* ParentSubRoot = nullptr;
+	float LengthOfChainInInputPose;
 
 	float TransformAlpha;
 	float StrengthAlpha;
 
 	FEffector(FBone* InBone);
 
-	void SetGoal(const FVector InPositionGoal, const FQuat& InRotationGoal, float InTransformAlpha, float InStrengthAlpha);
+	void SetGoal(
+		const FVector& InPositionGoal,
+		const FQuat& InRotationGoal,
+		float InTransformAlpha,
+		float InStrengthAlpha);
 
 	void UpdateFromInputs();
 
@@ -49,7 +52,7 @@ struct FEffector
 } // namespace
 
 USTRUCT()
-struct FPBIKSolverSettings
+struct PBIK_API FPBIKSolverSettings
 {
 	GENERATED_BODY()
 
@@ -69,7 +72,7 @@ struct FPBIKSolverSettings
 
 
 USTRUCT()
-struct FPBIKSolver
+struct PBIK_API FPBIKSolver
 {
 	GENERATED_BODY()
 
@@ -129,7 +132,7 @@ private:
 
 	bool InitBodies();
 
-	void InitConstraints();
+	bool InitConstraints();
 
 	void AddBodyForBone(PBIK::FBone* Bone);
 

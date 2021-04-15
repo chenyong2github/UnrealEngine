@@ -15,6 +15,10 @@ struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
 	/** The Skeletal Mesh Component to retarget animation from. Assumed to be animated and tick BEFORE this anim instance.*/
 	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinShownByDefault))
 	TWeakObjectPtr<USkeletalMeshComponent> SourceMeshComponent = nullptr;
+
+	/** Map of chain names to per-chain retarget settings (can be modified at runtime).*/
+	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinShownByDefault))
+	TMap<FName, FIKRetargetChainSettings> ChainSettings;
 	
 	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
 	UPROPERTY(EditAnywhere, Category = Settings)
@@ -24,6 +28,14 @@ struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bEnableIK = true;
 
+	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bAutoFindSourceMeshByTag = false;
+
+	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition="bAutoFindSourceMeshByTag"))
+	FName SourceMeshComponentTag = "RetargetSource";
+	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
@@ -35,9 +47,11 @@ struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
 	// End of FAnimNode_Base interface
 
 private:
+	
 	void EnsureInitialized(const UAnimInstance* InAnimInstance);
 	void InitializeRetargetData(const UAnimInstance* InAnimInstance);
 	void CopyBoneTransformsFromSource(USkeletalMeshComponent* TargetMeshComponent);
+	USkeletalMeshComponent* GetSourceMesh() const;
 
 	// indicates that all prerequisites are met and node is ready to operate
 	UPROPERTY(Transient)
@@ -53,5 +67,4 @@ private:
 
 	// cached transforms, copied on the game thread
 	TArray<FTransform> SourceMeshComponentSpaceBoneTransforms;
-	TArray<FTransform> TargetMeshComponentSpaceBoneTransforms;
 };

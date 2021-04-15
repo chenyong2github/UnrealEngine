@@ -11,6 +11,53 @@
 
 #include "IKRetargeter.generated.h"
 
+USTRUCT(Blueprintable)
+struct IKRIG_API FIKRetargetChainSettings
+{
+	GENERATED_BODY()
+
+	/** Range -1 to 1. Default 0. Rotates chain away or towards the midline (positive values will raise arms upwards). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
+	float AbductionOffset = 0.0f;
+
+	/** Range -1 to 1. Default 0. Rotates chain forward (+) and backward (-) relative to facing direction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
+	float SwingOffset = 0.0f;
+
+	/** Range -1 to 1. Default 0. Rotates the chain along an axis from the start to the end of the chain.
+	*  At -1 the chain is rotated laterally 90 degrees. At +1 the chain is rotated medially 90 degrees. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "1.0", UIMin = "-1.0", UIMax = "1.0"))
+	float TwistOffset = 0.0f;
+
+	/** Range -1 to 2. Default 0. Brings IK effector closer (-) or further (+) from origin of chain.
+	*  At -1 the end is on top of the origin. At +2 the end is fully extended twice the length of the chain. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Offsets, meta = (ClampMin = "-1.0", ClampMax = "2.0", UIMin = "-1.0", UIMax = "2.0"))
+	float Extension = 0.0f;
+
+	/** Range 0 to 1. Default 0. Allow the chain to stretch by translating to reach the IK goal locations.
+	*  At 0 the chain will not stretch at all. At 1 the chain will be allowed to stretch double it's full length to reach IK. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Stretch, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float StretchTolerance = 0.0f;
+
+	/** Range 0 to 1. Default is 1.0. Blend IK effector at the end of this chain towards the original position
+	 *  on the source skeleton (0.0) or the position on the retargeted target skeleton (1.0). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float IkToSourceOrTarget = 1.0f;
+	
+	/** When true, the source IK position is calculated relative to a source bone and applied relative to a target bone. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode)
+	bool bIkRelativeToSourceBone = false;
+	
+	/** A bone in the SOURCE skeleton that the IK location is relative to. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
+	FName IkRelativeSourceBone;
+	
+	/** A bone in the TARGET skeleton that the IK location is relative to.
+	 * This is usually the same bone as the source skeleton, but may have a different name in the target skeleton. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
+	FName IkRelativeTargetBone;	
+};
+
 struct FRetargetSkeleton
 {
 	TArray<FName> BoneNames;

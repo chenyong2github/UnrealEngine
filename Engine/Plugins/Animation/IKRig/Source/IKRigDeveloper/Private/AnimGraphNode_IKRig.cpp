@@ -71,10 +71,7 @@ void UAnimGraphNode_IKRig::CustomizePinData(UEdGraphPin* Pin, FName SourceProper
 void UAnimGraphNode_IKRig::PostLoad()
 {
 	Super::PostLoad();
-
-	// resize global transforms
 	Node.RebuildGoalList();
-	// I can't reconstruct here
 }
 
 void UAnimGraphNode_IKRig::PreloadRequiredAssets()

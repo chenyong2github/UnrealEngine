@@ -87,6 +87,9 @@ public:
 	
 private:
 
+	/** Update the final pos/rot of all the goals based on their alpha values. */
+	void BlendGoalsByAlpha();
+
 	/** solving disabled until this flag is true */
 	bool bInitialized = false;
 
