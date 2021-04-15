@@ -1267,6 +1267,14 @@ void FSequencerDisplayNode::BuildOrganizeContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("MoveToFolder", "Move to Folder"),
 			LOCTEXT("MoveToFolderTooltip", "Move the selected nodes to a folder"),
 			FNewMenuDelegate::CreateSP(&GetSequencer(), &FSequencer::BuildAddSelectedToFolderMenu));
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("RemoveFromFolder", "Remove from Folder"),
+			LOCTEXT("RemoveFromFolderTooltip", "Remove selected nodes from their folders"),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(&GetSequencer(), &FSequencer::RemoveSelectedNodesFromFolders),
+				FCanExecuteAction::CreateLambda( [this] { return GetSequencer().GetSelectedNodesInFolders().Num() > 0; } )));
 	}
 }
 

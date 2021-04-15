@@ -549,9 +549,11 @@ public:
 
 	/** @return The list of nodes which must be moved to move the current selected nodes */
 	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesToMove();
+	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesInFolders();
 
 	/** Called when a user executes the move to new folder menu item */
 	void MoveSelectedNodesToNewFolder();
+	void RemoveSelectedNodesFromFolders();
 	void MoveNodeToFolder(TSharedRef<FSequencerDisplayNode> NodeToMove, UMovieSceneFolder* DestinationFolder);
 	void MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder);
 
