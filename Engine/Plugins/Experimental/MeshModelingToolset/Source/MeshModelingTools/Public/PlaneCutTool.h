@@ -71,7 +71,8 @@ class MESHMODELINGTOOLS_API UPlaneCutToolProperties : public UInteractiveToolPro
 	GENERATED_BODY()
 
 public:
-	UPlaneCutToolProperties();
+	UPlaneCutToolProperties()
+	{}
 
 	/** Snap the cut plane to the world grid */
 	UPROPERTY(EditAnywhere, Category = Snapping)
@@ -83,21 +84,32 @@ public:
 
 	/** If true, both halves of the cut are computed */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bKeepBothHalves;
+	bool bKeepBothHalves = false;
 
 	/** If keeping both halves, separate the two pieces by this amount */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bKeepBothHalves == true", UIMin = "0", ClampMin = "0") )
-	float SpacingBetweenHalves;
+	float SpacingBetweenHalves = 0;
+
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowPreview = true;
 
 	/** If true, the cut surface is filled with simple planar hole fill surface(s) */
 	UPROPERTY(EditAnywhere, Category = Options)
-	bool bFillCutHole;
+	bool bFillCutHole = true;
 
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bShowPreview;
+	/** If true, will attempt to fill cut holes even if they're ill-formed (e.g. because they connect to pre-existing holes in the geometry) */
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "bFillCutHole", EditConditionHides))
+	bool bFillSpans = false;
+};
 
-	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay)
-	bool bFillSpans;
+
+
+UENUM()
+enum class EPlaneCutToolActions
+{
+	NoAction,
+	Cut,
+	FlipPlane
 };
 
 
@@ -176,13 +188,24 @@ protected:
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
+
+	/// Action buttons.
+	/// Note these set a flag to call the action later (in OnTick)
+	/// Otherwise, the actions in undo history will end up being generically named by an outer UI handler transaction
+
 	/** Cut with the current plane without exiting the tool */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Cut"))
-	void Cut();
+	void Cut()
+	{
+		PendingAction = EPlaneCutToolActions::Cut;
+	}
 
 	/** Flip the cutting plane */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Flip Plane"))
-	void FlipPlane();
+	void FlipPlane()
+	{
+		PendingAction = EPlaneCutToolActions::FlipPlane;
+	}
 
 protected:
 
@@ -201,6 +224,8 @@ protected:
 	static const int IgnoreSnappingModifier = 1;
 	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
 
+	EPlaneCutToolActions PendingAction = EPlaneCutToolActions::NoAction;
+
 	UPROPERTY()
 	UTransformGizmo* PlaneTransformGizmo;
 
@@ -209,6 +234,9 @@ protected:
 
 	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
 	void MeshChanged();
+
+	void DoCut();
+	void DoFlipPlane();
 
 	void SetupPreviews();
 

@@ -81,15 +81,6 @@ UInteractiveTool* UPlaneCutToolBuilder::BuildTool(const FToolBuilderState& Scene
  * Tool
  */
 
-UPlaneCutToolProperties::UPlaneCutToolProperties() :
-	bKeepBothHalves(false),
-	SpacingBetweenHalves(1),
-	bFillCutHole(true),
-	bShowPreview(true),
-	bFillSpans(false)
-{
-}
-
 UPlaneCutTool::UPlaneCutTool()
 {
 	CutPlaneOrigin = FVector::ZeroVector;
@@ -267,7 +258,7 @@ void UPlaneCutTool::SetupPreviews()
 }
 
 
-void UPlaneCutTool::FlipPlane()
+void UPlaneCutTool::DoFlipPlane()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("FlipPlaneTransactionName", "Flip Plane"));
 
@@ -280,7 +271,7 @@ void UPlaneCutTool::FlipPlane()
 }
 
 
-void UPlaneCutTool::Cut()
+void UPlaneCutTool::DoCut()
 {
 	if (!CanAccept())
 	{
@@ -403,6 +394,20 @@ void UPlaneCutTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UPlaneCutTool::OnTick(float DeltaTime)
 {
+	if (PendingAction != EPlaneCutToolActions::NoAction)
+	{
+		if (PendingAction == EPlaneCutToolActions::Cut)
+		{
+			DoCut();
+		}
+		else if (PendingAction == EPlaneCutToolActions::FlipPlane)
+		{
+			DoFlipPlane();
+		}
+
+		PendingAction = EPlaneCutToolActions::NoAction;
+	}
+
 	if (PlaneTransformGizmo != nullptr)
 	{
 		PlaneTransformGizmo->bSnapToWorldGrid =
