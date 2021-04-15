@@ -31,7 +31,7 @@ class UMoviePipelineExecutorShot;
 class UMoviePipelineSetting;
 class UTexture;
 
-typedef TTuple<TFuture<bool>, FString, UMoviePipelineExecutorShot*, FMoviePipelinePassIdentifier> FMoviePipelineOutputFuture;
+typedef TTuple<TFuture<bool>, MoviePipeline::FMoviePipelineOutputFutureData> FMoviePipelineOutputFuture;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinishedNative, UMoviePipeline*, bool);
 DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineWorkFinishedNative, FMoviePipelineOutputData);
@@ -175,7 +175,7 @@ public:
 #if WITH_EDITOR
 	void AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha);
 #endif
-	void AddOutputFuture(TFuture<bool>&& OutputFuture, const FString& InFilePath, const FMoviePipelinePassIdentifier InPassIdentifier);
+	void AddOutputFuture(TFuture<bool>&& OutputFuture, const MoviePipeline::FMoviePipelineOutputFutureData& InData);
 
 	void ProcessOutstandingFinishedFrames();
 	void ProcessOutstandingFutures();
