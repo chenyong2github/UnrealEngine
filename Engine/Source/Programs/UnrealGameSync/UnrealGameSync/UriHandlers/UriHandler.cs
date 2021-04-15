@@ -295,9 +295,14 @@ namespace UnrealGameSync
 			}
 		}
 
+		public static string CurrentProcessFilePath
+		{
+			get { return Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName); }
+		}
+
 		static List<RegistrySetting> GetRegistrySettings()
 		{
-			string ApplicationPath = Assembly.GetExecutingAssembly().Location;
+			string ApplicationPath = CurrentProcessFilePath;
 
 			List<RegistrySetting> Keys = new List<RegistrySetting>();
 			Keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS", null, "URL:UGS Protocol"));
