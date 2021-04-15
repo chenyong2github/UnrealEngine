@@ -27,11 +27,6 @@
 #include "../EyeAdaptationCommon.ush"
 #include "../LightShaderParameters.ush"
 
-#if COMPILE_SIGNAL_COLOR_SH
-	#include "../QuasiRandom.ush"
-#endif
-
-
 #if !defined(CONFIG_SIGNAL_PROCESSING)
 	#error Missing CONFIG_SIGNAL_PROCESSING
 
@@ -77,6 +72,8 @@ float4 LightPositionAndRadius[MAX_SIGNAL_BATCH_SIZE];
 float4 LightDirectionAndLength[MAX_SIGNAL_BATCH_SIZE];
 float HitDistanceToWorldBluringRadius[MAX_SIGNAL_BATCH_SIZE];
 uint LightType[MAX_SIGNAL_BATCH_SIZE];
+
+uint FrameIndex;
 
 #if SHADER_PARAMETERS_HAS_SOURCETEXTURE
 Texture2D UnusedLightSourceTexture;
@@ -681,13 +678,12 @@ float GetSamplePenumbra(FSSDSignalSample Sample)
 FSSDSphericalHarmonicRGB ComputeSampleColorSH(FSSDSampleSceneInfos SampleSceneMetadata, FSSDSignalSample Sample, uint2 NeighborPixelCoord)
 {
 	const uint SamplesPerPixel = 1;
-	FQuasiRandom QuasiRandom;
-	QuasiRandom_Initialize(QuasiRandom, NeighborPixelCoord, 0, SamplesPerPixel);
-	QuasiRandom_Update(QuasiRandom, /* SampleIndex = */ 0, SamplesPerPixel);
+	RandomSequence RandSequence;
+	RandomSequence_Initialize(RandSequence, NeighborPixelCoord, /* SampleIndex */ 0,  FrameIndex, SamplesPerPixel);
 
-	float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
-	float4 TangentDirection = CosineSampleHemisphere(RandSample.yz);
+	float4 TangentDirection = CosineSampleHemisphere(RandSample);
 	float3 WorldDirection = TangentToWorld(TangentDirection.xyz, GetWorldNormal(SampleSceneMetadata));
 
 	#if SPHERICAL_HARMONIC_ORDER == 2

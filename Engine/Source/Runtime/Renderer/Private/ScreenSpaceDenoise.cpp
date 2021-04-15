@@ -13,8 +13,6 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "SceneTextureParameters.h"
-#include "BlueNoise.h"
-#include "Halton.h"
 #include "Lumen/LumenSceneRendering.h"
 
 
@@ -876,10 +874,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TileClassificationTexture)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-	
-	SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
-	SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
-	SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
+
+	SHADER_PARAMETER(uint32, FrameIndex)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDSignalSRVs, )
@@ -1653,30 +1649,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		CommonParameters.BufferUVBilinearCorrection.Y = (0.5f * PixelPositionToFullResPixel - FullResPixelOffset.Y) / float(FullResBufferExtent.Y);
 	}
 
-	#if RHI_RAYTRACING
-	if (Settings.SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion)
-	{
-		uint32 IterationCount = Settings.MaxInputSPP;
-		uint32 SequenceCount = 1;
-		uint32 DimensionCount = 24;
-
-		FScene* Scene = static_cast<FScene*>(View.Family->Scene);
-
-		FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, View.ViewState ? (View.ViewState->FrameIndex % 1024) : 0);
-		FHaltonIteration HaltonIteration;
-		InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
-
-		FHaltonPrimes HaltonPrimes;
-		InitializeHaltonPrimes(Scene->HaltonPrimesResource, HaltonPrimes);
-
-		FBlueNoise BlueNoise;
-		InitializeBlueNoise(BlueNoise);
-		
-		CommonParameters.HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		CommonParameters.HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		CommonParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	}
-	#endif // RHI_RAYTRACING
+	CommonParameters.FrameIndex = View.ViewState ? View.ViewState->FrameIndex : 0;
 
 	// Setup all the metadata to do spatial convolution.
 	FSSDConvolutionMetaData ConvolutionMetaData;

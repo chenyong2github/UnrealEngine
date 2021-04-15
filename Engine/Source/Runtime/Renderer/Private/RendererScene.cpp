@@ -1086,8 +1086,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	{
 		RayTracingDynamicGeometryCollection = new FRayTracingDynamicGeometryCollection();
 	}
-
-	BeginInitResource(&HaltonPrimesResource);
 #endif
 
 	World->UpdateParameterCollectionInstances(false, false);
@@ -1155,9 +1153,6 @@ FScene::~FScene()
 
 	delete RayTracingDynamicGeometryCollection;
 	RayTracingDynamicGeometryCollection = nullptr;
-
-	BeginReleaseResource(&HaltonPrimesResource);
-
 #endif // RHI_RAYTRACING
 
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("Leaking %d FPrimitiveSceneInfo instances."), RemovedPrimitiveSceneInfos.Num()); // Ensure UpdateAllPrimitiveSceneInfos() is called before destruction.

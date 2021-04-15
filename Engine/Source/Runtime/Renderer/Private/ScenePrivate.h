@@ -52,7 +52,6 @@
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "RayTracing/RayTracingScene.h"
-#include "Halton.h"
 #endif
 #include "Nanite/NaniteRender.h"
 #include "Lumen/LumenViewState.h"
@@ -2878,8 +2877,6 @@ public:
 
 #if RHI_RAYTRACING
 	class FRayTracingDynamicGeometryCollection* RayTracingDynamicGeometryCollection;
-	FHaltonSequence HaltonSequence;
-	FHaltonPrimesResource HaltonPrimesResource;
 #endif
 
 	/** Initialization constructor. */
