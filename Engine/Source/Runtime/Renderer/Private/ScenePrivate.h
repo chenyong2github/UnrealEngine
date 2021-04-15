@@ -3103,7 +3103,7 @@ public:
 	virtual void ApplyWorldOffset(FVector InOffset) override;
 
 	virtual void OnLevelAddedToWorld(FName InLevelName, UWorld* InWorld, bool bIsLightingScenario) override;
-	virtual void OnLevelRemovedFromWorld(UWorld* InWorld, bool bIsLightingScenario) override;
+	virtual void OnLevelRemovedFromWorld(FName LevelRemovedName, UWorld* InWorld, bool bIsLightingScenario) override;
 
 	virtual bool HasAnyLights() const override 
 	{ 
@@ -3281,6 +3281,13 @@ private:
 	 * @param	InLevelName		Level name
 	 */
 	void OnLevelAddedToWorld_RenderThread(FName InLevelName);
+
+	/**
+	 * Notification from game thread that level was removed from a world
+	 *
+	 * @param	InLevelName		Level name
+	 */
+	void OnLevelRemovedFromWorld_RenderThread(FName InLevelName);
 
 	void ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSceneInfo);
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);

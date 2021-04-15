@@ -793,6 +793,12 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 		return false;
 	}
 
+	// if primitive requires component level to be visible
+	if (bRequiresVisibleLevelToRender && !bIsComponentLevelVisible)
+	{
+		return false;
+	}
+
 	// After checking for VR/Desktop Edit mode specific actors, check for Editor vs. Game
 	if(View->Family->EngineShowFlags.Editor)
 	{
@@ -828,12 +834,6 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 			|| (!View->bIsGameView && View->Family->EngineShowFlags.Game && !DrawInEditor)	// ..."G" mode in editor viewport. covers the case when the primitive must be rendered for the voxelization pass, but the user has chosen to hide the primitive from view.
 #endif
 			)
-		{
-			return false;
-		}
-
-		// if primitive requires component level to be visible
-		if (bRequiresVisibleLevelToRender && !bIsComponentLevelVisible)
 		{
 			return false;
 		}
@@ -913,6 +913,12 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 			}
 		}
 #endif	//#if WITH_EDITOR
+
+		// if primitive requires component level to be visible
+		if (bRequiresVisibleLevelToRender && !bIsComponentLevelVisible)
+		{
+			return false;
+		}
 
 		if (DrawInVirtualTextureOnly(View->Family->EngineShowFlags.Editor) && !View->bIsVirtualTexture)
 		{

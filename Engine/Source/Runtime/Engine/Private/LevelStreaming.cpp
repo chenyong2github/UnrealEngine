@@ -615,15 +615,34 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 	case ECurrentState::MakingInvisible:
 		if (ensure(LoadedLevel))
 		{
-			// Hide loaded level, incrementally if necessary
-			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld());
-
-			// Inform the scene once we have finished making the level invisible
-			if (!LoadedLevel->bIsVisible)
+			auto RemoveLevelFromScene = [World, this]()
 			{
 				if (World->Scene)
 				{
-					World->Scene->OnLevelRemovedFromWorld(World, LoadedLevel->bIsLightingScenario);
+					World->Scene->OnLevelRemovedFromWorld(LoadedLevel->GetOutermost()->GetFName(), World, LoadedLevel->bIsLightingScenario);
+				}
+			};
+
+			const bool bWasVisible = LoadedLevel->bIsVisible;
+
+			// Hide loaded level, incrementally if necessary
+			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld());
+
+			// Hide loaded level immediately if bRequireFullVisibilityToRender is set
+			const bool LevelBecameInvisible = bWasVisible && !LoadedLevel->bIsVisible;
+			if (LoadedLevel->bRequireFullVisibilityToRender && LevelBecameInvisible)
+			{
+				RemoveLevelFromScene();
+			}
+
+			// If the level is now hidden & all components have been removed from the world
+			const bool LevelWasRemovedFromWorld = !LoadedLevel->bIsVisible && !LoadedLevel->bIsBeingRemoved;
+			if (LevelWasRemovedFromWorld)
+			{
+				// Remove level from scene if we haven't done it already
+				if (!LoadedLevel->bRequireFullVisibilityToRender)
+				{
+					RemoveLevelFromScene();
 				}
 
 				CurrentState = ECurrentState::LoadedNotVisible;
