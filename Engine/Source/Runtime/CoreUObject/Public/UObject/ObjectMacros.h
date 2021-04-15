@@ -1306,7 +1306,7 @@ namespace UM
 		/// [PropertyMetadata] (Internal use only) Used for the latent action manager to track where it's re-entry should be
 		LatentCallbackTarget,
 
-		/// [PropertyMetadata] Causes FString and FName properties to have a limited set of options generated dynamically, e.g. meta=(GetOptions="FuncName")
+		/// [PropertyMetadata] Causes FString and FName properties to have a limited set of options generated dynamically, e.g. meta=(GetOptions="FuncName"). Supports external static function references via "Module.Class.Function" syntax.
 		///
 		/// UFUNCTION()
 		/// TArray<FString> FuncName() const; // Always return string array even if FName property.

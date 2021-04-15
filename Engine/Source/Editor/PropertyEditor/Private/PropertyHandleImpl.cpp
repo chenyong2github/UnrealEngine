@@ -2883,11 +2883,25 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 	}
 	else if (const TCHAR* MetaDataKey = PropertyEditorHelpers::GetPropertyOptionsMetaDataKey(Property))
 	{
-		const FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(MetaDataKey);
+		FString GetOptionsFunctionName = Property->GetOwnerProperty()->GetMetaData(MetaDataKey);
 		if (!GetOptionsFunctionName.IsEmpty())
 		{
 			TArray<UObject*> OutObjects;
 			GetOuterObjects(OutObjects);
+
+			// Check for external function references
+			if (GetOptionsFunctionName.Contains(TEXT(".")))
+			{
+				OutObjects.Empty();
+				UFunction* GetOptionsFunction = FindObject<UFunction>(nullptr, *GetOptionsFunctionName, true);
+
+				if (ensureMsgf(GetOptionsFunction && GetOptionsFunction->HasAnyFunctionFlags(EFunctionFlags::FUNC_Static), TEXT("Invalid GetOptions: %s"), *GetOptionsFunctionName))
+				{
+					UObject* GetOptionsCDO = GetOptionsFunction->GetOuterUClass()->GetDefaultObject();
+					GetOptionsFunction->GetName(GetOptionsFunctionName);
+					OutObjects.Add(GetOptionsCDO);
+				}
+			}
 
 			if (OutObjects.Num() > 0)
 			{
