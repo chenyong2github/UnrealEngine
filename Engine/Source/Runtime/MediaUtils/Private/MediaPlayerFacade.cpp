@@ -1180,6 +1180,19 @@ void FMediaPlayerFacade::FBlockOnRange::SetRange(const TRange<FTimespan>& NewRan
 }
 
 
+bool FMediaPlayerFacade::FBlockOnRange::IsSet() const
+{
+	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Facade->Player);
+	check(CurrentPlayer.IsValid());
+
+	if (!RangeIsDirty)
+	{
+		return !BlockOnRange.IsEmpty();
+	}
+	return (!CurrentTimeRange.IsEmpty() && CurrentPlayer->GetControls().CanControl(EMediaControl::BlockOnFetch));
+}
+
+
 const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() const
 {
 	TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CurrentPlayer(Facade->Player);
@@ -1198,6 +1211,15 @@ const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() co
 		BlockOnRange = TRange<FMediaTimeStamp>::Empty();
 		CurrentPlayer->GetControls().SetBlockingPlaybackHint(false);
 		return BlockOnRange;
+	}
+
+	EMediaState PlayerState = CurrentPlayer->GetControls().GetState();
+	if (PlayerState != EMediaState::Paused && PlayerState != EMediaState::Playing)
+	{
+		// Return an empty range. Note that the "isSet()" method will still report a set block - so all code will remain in "external clock" mode,
+		// but no samples will be requested (and no actual blocking should take place)
+		static auto EmptyRange(TRange<FMediaTimeStamp>::Empty());
+		return EmptyRange;
 	}
 
 	FTimespan Duration(CurrentPlayer->GetControls().GetDuration());
@@ -1226,12 +1248,14 @@ const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() co
 			return BlockOnRange;
 		}
 
+
+		float Rate = Facade->GetUnpausedRate();
+
 		// Modulo on the time to get it into media's range
 		// (assumes zero-start-time)
 		Start = WrappedModulo(Start, Duration);
 		End = WrappedModulo(End, Duration);
 
-		float Rate = Facade->GetUnpausedRate();
 
 		// Detect any non-monotonic movement of the range...
 		if (!LastBlockOnRange.IsEmpty())
@@ -1239,7 +1263,7 @@ const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() co
 			if (Rate >= 0.0f)
 			{
 				FTimespan LastStart = WrappedModulo(LastBlockOnRange.GetLowerBoundValue(), Duration);
-				if (LastStart > Start)
+				if ((LastStart > Start) || ((LastStart == Start) && (LastBlockOnRange.GetLowerBoundValue() < CurrentTimeRange.GetLowerBoundValue())))
 				{
 					++OnBlockSeqIndex;
 				}
@@ -1247,7 +1271,7 @@ const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() co
 			else
 			{
 				FTimespan LastEnd = WrappedModulo(LastBlockOnRange.GetUpperBoundValue(), Duration);
-				if (LastEnd < End)
+				if ((LastEnd < End) || ((LastEnd == End) && (LastBlockOnRange.GetUpperBoundValue() > CurrentTimeRange.GetUpperBoundValue())))
 				{
 					--OnBlockSeqIndex;
 				}
@@ -1725,7 +1749,12 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 		}
 	}
 
-	if (Event == EMediaEvent::SeekCompleted)
+	if ((Event == EMediaEvent::PlaybackEndReached) ||
+		(Event == EMediaEvent::TracksChanged))
+	{
+		Flush();
+	}
+	else if (Event == EMediaEvent::SeekCompleted)
 	{
 		if (!Player.IsValid() || Player->FlushOnSeekCompleted())
 		{
@@ -2099,7 +2128,7 @@ void FMediaPlayerFacade::PreSampleProcessingTimeHandling()
 	if (!bHaveActiveAudio)
 	{
 		// No external clock? (blocking)
-		if (BlockOnRange.GetRange().IsEmpty())
+		if (!BlockOnRange.IsSet())
 		{
 			// Do we have a current timestamp estimation?
 			if (!NextEstVideoTimeAtFrameStart.IsValid())
@@ -2126,7 +2155,7 @@ void FMediaPlayerFacade::PostSampleProcessingTimeHandling(FTimespan DeltaTime)
 	if (!bHaveActiveAudio)
 	{
 		// No external clock? (blocking)
-		if (BlockOnRange.GetRange().IsEmpty())
+		if (!BlockOnRange.IsSet())
 		{
 			// Move video frame start estimate forward
 			// (the initial NextEstVideoTimeAtFrameStart will never be valid if no video is present)
@@ -2260,7 +2289,7 @@ bool FMediaPlayerFacade::GetCurrentPlaybackTimeRange(TRange<FMediaTimeStamp> & T
 		//
 		// No Audio (no data and/or no sink)
 		//
-		if (BlockOnRange.GetRange().IsEmpty())
+		if (!BlockOnRange.IsSet())
 		{
 			//
 			// Internal clock (DT based)
@@ -2598,6 +2627,7 @@ bool FMediaPlayerFacade::ProcessVideoSamples(IMediaSamples& Samples, const TRang
 			FScopeLock Lock(&LastTimeValuesCS);
 			CurrentFrameVideoTimeStamp = SampleTimeRange.GetLowerBoundValue();
 			LastVideoSampleProcessedTimeRange = SampleTimeRange;
+
 			return true;
 		}
 	}
@@ -2665,7 +2695,7 @@ void FMediaPlayerFacade::ReceiveMediaEvent(EMediaEvent Event)
 				check(CurrentPlayer->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2));
 
 				// Only do this if we do not block on time ranges
-				if (!BlockOnRange.GetRange().IsEmpty())
+				if (BlockOnRange.IsSet())
 				{
 					// We do not purge as we do not need max perf, but max reliability to actually get certain frames
 					return;

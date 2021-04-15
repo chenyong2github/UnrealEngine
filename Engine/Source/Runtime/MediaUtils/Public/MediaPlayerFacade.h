@@ -718,11 +718,6 @@ protected:
 	 */
 	bool BlockOnFetch() const;
 
-	/**
-	 * Internal setup for blocking time ranges
-	 */
-	void SetBlockOnTimeRangeInternal(const TRange<FTimespan>& TimeRange);
-
 	/** Flush all media sample sinks & player plugin. */
 	void Flush(bool bExcludePlayer = false);
 
@@ -842,6 +837,7 @@ private:
 		void SetRange(const TRange<FTimespan> & NewRange);
 
 		const TRange<FMediaTimeStamp> & GetRange() const;
+		bool IsSet() const;
 
 		void Flush();
 
