@@ -435,7 +435,7 @@ template <> struct TIsPODType<FBoolAnnotation> { enum { Value = true }; };
 * FUObjectAnnotationSparseBool is a specialization of FUObjectAnnotationSparse for bools, slow, temporary, editor only, external 
 * or other low priority bools about UObjects.
 *
-* @todo UE4 this should probably be reimplemented from scratch as a TSet instead of essentially a map to a value that is always true anyway.
+* @todo UE this should probably be reimplemented from scratch as a TSet instead of essentially a map to a value that is always true anyway.
 **/
 class FUObjectAnnotationSparseBool : private FUObjectAnnotationSparse<FBoolAnnotation,true>
 {

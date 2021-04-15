@@ -3,7 +3,7 @@
 #pragma once
 
 /*=============================================================================
-	Object.h: Direct base class for all UE4 objects
+	Object.h: Direct base class for all UE objects
 =============================================================================*/
 
 #include "CoreMinimal.h"
@@ -43,7 +43,7 @@ namespace ECastCheckedType
 };
 
 /** 
- * The base class of all UE4 objects. The type of an object is defined by its UClass.
+ * The base class of all UE objects. The type of an object is defined by its UClass.
  * This provides support functions for creating and using objects, and virtual functions that should be overridden in child classes.
  * 
  * @see https://docs.unrealengine.com/en-us/Programming/UnrealArchitecture/Objects
@@ -425,7 +425,7 @@ private:
 	 * Test the selection state of a UObject
 	 *
 	 * @return		true if the object is selected, false otherwise.
-	 * @todo UE4 this doesn't belong here, but it doesn't belong anywhere else any better
+	 * @todo UE	 this doesn't belong here, but it doesn't belong anywhere else any better
 	 */
 	virtual bool IsSelectedInEditor() const;
 
@@ -903,7 +903,7 @@ public:
 	 * Test the selection state of a UObject
 	 *
 	 * @return		true if the object is selected, false otherwise.
-	 * @todo UE4 this doesn't belong here, but it doesn't belong anywhere else any better
+	 * @todo UE this doesn't belong here, but it doesn't belong anywhere else any better
 	 */
 	bool IsSelected() const;
 

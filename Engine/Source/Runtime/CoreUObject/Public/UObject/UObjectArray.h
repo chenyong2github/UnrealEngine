@@ -1014,7 +1014,7 @@ public:
 		 */
 		FORCEINLINE bool Advance()
 		{
-			//@todo UE4 check this for LHS on Index on consoles
+			//@todo UE check this for LHS on Index on consoles
 			FUObjectItem* NextObject = nullptr;
 			CurrentObject = nullptr;
 			while(++Index < Array.GetObjectArrayNum())

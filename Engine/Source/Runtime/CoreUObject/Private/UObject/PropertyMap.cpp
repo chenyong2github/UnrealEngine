@@ -15,7 +15,7 @@
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
 
-namespace UE4MapProperty_Private
+namespace UEMapProperty_Private
 {
 	/**
 	 * Checks if any of the pairs in the map compare equal to the one passed.
@@ -283,7 +283,7 @@ bool FMapProperty::Identical(const void* A, const void* B, uint32 PortFlags) con
 		return false;
 	}
 
-	return UE4MapProperty_Private::IsPermutation(MapHelperA, MapHelperB, PortFlags);
+	return UEMapProperty_Private::IsPermutation(MapHelperA, MapHelperB, PortFlags);
 }
 
 void FMapProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
@@ -888,7 +888,7 @@ void FMapProperty::DestroyValueInternal(void* Data) const
 	FScriptMapHelper MapHelper(this, Data);
 	MapHelper.EmptyValues();
 
-	//@todo UE4 potential double destroy later from this...would be ok for a script map, but still
+	//@todo UE potential double destroy later from this...would be ok for a script map, but still
 	((FScriptMap*)Data)->~FScriptMap();
 }
 

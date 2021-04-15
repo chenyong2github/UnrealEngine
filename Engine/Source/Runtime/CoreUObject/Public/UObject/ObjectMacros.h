@@ -19,7 +19,7 @@ typedef	uint64 ScriptPointerType;
 
 
 #if PLATFORM_VTABLE_AT_END_OF_CLASS
-#error "not supported in UE4"
+#error "not supported in UE"
 #endif
 
 #if HACK_HEADER_GENERATOR 

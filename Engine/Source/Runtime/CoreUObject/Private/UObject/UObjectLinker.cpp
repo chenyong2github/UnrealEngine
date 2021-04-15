@@ -13,7 +13,7 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogUObjectLinker, Log, All);
 
-//@todo UE4 Console - Check that the mapping of UObjects to linkers is sparse and that we aren't spending a ton of time with these lookups.
+//@todo UE Console - Check that the mapping of UObjects to linkers is sparse and that we aren't spending a ton of time with these lookups.
 
 struct FLinkerIndexPair
 {

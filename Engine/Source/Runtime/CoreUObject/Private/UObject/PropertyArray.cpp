@@ -656,7 +656,7 @@ void FArrayProperty::DestroyValueInternal( void* Dest ) const
 	FScriptArrayHelper ArrayHelper(this, Dest);
 	ArrayHelper.EmptyValues();
 
-	//@todo UE4 potential double destroy later from this...would be ok for a script array, but still
+	//@todo UE potential double destroy later from this...would be ok for a script array, but still
 	ArrayHelper.DestroyContainer_Unsafe();
 }
 bool FArrayProperty::PassCPPArgsByRef() const

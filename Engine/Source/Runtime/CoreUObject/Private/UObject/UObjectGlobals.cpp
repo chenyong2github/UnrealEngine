@@ -1356,7 +1356,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 			Linker->FlushCache();
 		}
 
-		// With UE4 and single asset per package, we load so many packages that some platforms will run out
+		// With UE and single asset per package, we load so many packages that some platforms will run out
 		// of file handles. So, this will close the package, but just things like bulk data loading will
 		// fail, so we only currently do this when loading on consoles.
 		// The only exception here is when we're in the middle of async loading where we can't reset loaders yet. This should only happen when
@@ -2346,7 +2346,7 @@ void NotifyConstructedDuringAsyncLoading(UObject* Object, bool bSubObject);
 * For object overwrites, the class may want to persist some info over the re-initialize
 * this is only used for classes in the script compiler
 **/
-//@todo UE4 this is clunky
+//@todo UE this is clunky
 static FRestoreForUObjectOverwrite* ObjectRestoreAfterInitProps = NULL;  
 
 COREUOBJECT_API bool GOutputCookingWarnings = false;
@@ -2607,7 +2607,7 @@ UObject* StaticAllocateObject
 	return Obj;
 }
 
-//@todo UE4 - move this stuff to UnObj.cpp or something
+//@todo UE - move this stuff to UnObj.cpp or something
 
 void UObject::PostReinitProperties()
 {

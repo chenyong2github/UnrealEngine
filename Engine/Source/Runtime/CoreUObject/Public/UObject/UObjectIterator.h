@@ -335,7 +335,7 @@ protected:
 	 */
 	FORCEINLINE bool Advance()
 	{
-		//@todo UE4 check this for LHS on Index on consoles
+		//@todo UE check this for LHS on Index on consoles
 		while(++Index < ObjectArray.Num())
 		{
 			if (GetObject())

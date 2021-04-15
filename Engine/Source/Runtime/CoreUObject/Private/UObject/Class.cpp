@@ -1033,7 +1033,7 @@ void UStruct::InitializeStruct(void* InDest, int32 ArrayDim/* = 1*/) const
 
 	int32 Stride = GetStructureSize();
 
-	//@todo UE4 optimize
+	//@todo UE optimize
 	FMemory::Memzero(Dest, 1 * Stride);
 
 	for (FProperty* Property = PropertyLink; Property; Property = Property->PropertyLinkNext)
@@ -3087,7 +3087,7 @@ void UScriptStruct::InitializeStruct(void* InDest, int32 ArrayDim) const
 
 	int32 Stride = GetStructureSize();
 
-	//@todo UE4 optimize
+	//@todo UE optimize
 	FMemory::Memzero(Dest, ArrayDim * Stride);
 
 	int32 InitializedSize = 0;

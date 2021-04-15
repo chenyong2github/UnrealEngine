@@ -1646,7 +1646,7 @@ struct FTestUninitializedScriptStructMembersTest
 };
 
 /**
- * Direct base class for all UE4 objects
+ * Direct base class for all UE objects
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\Object.h
  */
 UCLASS(abstract, noexport)

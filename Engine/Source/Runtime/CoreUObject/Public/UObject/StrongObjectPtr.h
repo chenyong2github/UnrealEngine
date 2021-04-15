@@ -7,7 +7,7 @@
 #include "Templates/PointerIsConvertibleFromTo.h"
 #include "Templates/UniquePtr.h"
 
-namespace UE4StrongObjectPtr_Private
+namespace UEStrongObjectPtr_Private
 {
 	class FInternalReferenceCollector : public FGCObject
 	{
@@ -47,7 +47,7 @@ namespace UE4StrongObjectPtr_Private
 
 		virtual FString GetReferencerName() const override
 		{
-			return "UE4StrongObjectPtr_Private::FInternalReferenceCollector";
+			return "UEStrongObjectPtr_Private::FInternalReferenceCollector";
 		}
 
 	private:
@@ -149,7 +149,7 @@ public:
 			else
 			{
 				// Lazily create the ReferenceCollector to allow TStrongObjectPtr to be used during static initialization
-				ReferenceCollector = MakeUnique<UE4StrongObjectPtr_Private::FInternalReferenceCollector>(InNewObject);
+				ReferenceCollector = MakeUnique<UEStrongObjectPtr_Private::FInternalReferenceCollector>(InNewObject);
 			}
 		}
 		else
@@ -166,7 +166,7 @@ public:
 	}
 
 private:
-	TUniquePtr<UE4StrongObjectPtr_Private::FInternalReferenceCollector> ReferenceCollector;
+	TUniquePtr<UEStrongObjectPtr_Private::FInternalReferenceCollector> ReferenceCollector;
 };
 
 template <typename LHSObjectType, typename RHSObjectType>

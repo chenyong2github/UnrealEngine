@@ -94,7 +94,7 @@ enum class EPropertyObjectReferenceType : uint32
 };
 ENUM_CLASS_FLAGS(EPropertyObjectReferenceType);
 
-namespace UE4Property_Private { class FProperty_DoNotUse; }
+namespace UEProperty_Private { class FProperty_DoNotUse; }
 
 /**
  * Helper class that calculates the maximum stack entry size required by Garbage Collector Token Stream for each class 
@@ -254,7 +254,7 @@ private:
 
 protected:
 	friend class FMapProperty;
-	friend class UE4Property_Private::FProperty_DoNotUse;
+	friend class UEProperty_Private::FProperty_DoNotUse;
 
 	/** Set the alignment offset for this property - added for FMapProperty */
 	void SetOffset_Internal(int32 NewOffset);
@@ -945,7 +945,7 @@ public:
 	static const TCHAR* ReadToken( const TCHAR* Buffer, FStringBuilderBase& Out, bool DottedNames = false);
 };
 
-namespace UE4Property_Private
+namespace UEProperty_Private
 {
 	/** FProperty methods FOR INTERNAL USE ONLY -- only authorized users should be making use of this. -- DO NOT USE! */
 	class FProperty_DoNotUse
@@ -1871,7 +1871,7 @@ class COREUOBJECT_API FUInt64Property : public TProperty_Numeric<uint64>
 	Aliases for implicitly-sized integer properties.
 -----------------------------------------------------------------------------*/
 
-namespace UE4Types_Private
+namespace UETypes_Private
 {
 	template <typename IntType> struct TIntegerPropertyMapping;
 
@@ -1885,8 +1885,8 @@ namespace UE4Types_Private
 	template <> struct TIntegerPropertyMapping<uint64> { typedef FUInt64Property Type; };
 }
 
-typedef UE4Types_Private::TIntegerPropertyMapping<signed int>::Type UUnsizedIntProperty;
-typedef UE4Types_Private::TIntegerPropertyMapping<unsigned int>::Type UUnsizedFIntProperty;
+typedef UETypes_Private::TIntegerPropertyMapping<signed int>::Type UUnsizedIntProperty;
+typedef UETypes_Private::TIntegerPropertyMapping<unsigned int>::Type UUnsizedFIntProperty;
 
 
 /*-----------------------------------------------------------------------------

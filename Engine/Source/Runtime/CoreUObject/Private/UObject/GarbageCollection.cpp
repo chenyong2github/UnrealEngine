@@ -1578,7 +1578,7 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, float TimeLimit)
 			FUObjectItem* ObjectItem = GUnreachableObjects[GObjCurrentPurgeObjectIndex];
 			checkSlow(ObjectItem);
 
-			//@todo UE4 - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
+			//@todo UE - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
 
 			check(ObjectItem->IsUnreachable());
 			{
@@ -2124,7 +2124,7 @@ bool UnhashUnreachableObjects(bool bUseTimeLimit, float TimeLimit)
 
 	while (GUnrechableObjectIndex < GUnreachableObjects.Num())
 	{
-		//@todo UE4 - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
+		//@todo UE - A prefetch was removed here. Re-add it. It wasn't right anyway, since it was ten items ahead and the consoles on have 8 prefetch slots
 
 		FUObjectItem* ObjectItem = GUnreachableObjects[GUnrechableObjectIndex++];
 		{
@@ -2221,7 +2221,7 @@ void UObject::CallAddReferencedObjects(FReferenceCollector& Collector)
 void UObject::AddReferencedObjects(UObject* This, FReferenceCollector& Collector)
 {
 #if WITH_EDITOR
-	//@todo UE4 - This seems to be required and it should not be. Seems to be related to the texture streamer.
+	//@todo UE - This seems to be required and it should not be. Seems to be related to the texture streamer.
 	FLinkerLoad* LinkerLoad = This->GetLinker();
 	if (LinkerLoad)
 	{

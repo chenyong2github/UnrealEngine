@@ -13,7 +13,7 @@
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
 
-namespace UE4SetProperty_Private
+namespace UESetProperty_Private
 {
 	/**
 	 * Checks if any of the elements in the set compare equal to the one passed.
@@ -242,7 +242,7 @@ bool FSetProperty::Identical(const void* A, const void* B, uint32 PortFlags) con
 		return false;
 	}
 
-	return UE4SetProperty_Private::IsPermutation(SetHelperA, SetHelperB, PortFlags);
+	return UESetProperty_Private::IsPermutation(SetHelperA, SetHelperB, PortFlags);
 }
 
 void FSetProperty::GetPreloadDependencies(TArray<UObject*>& OutDeps)
@@ -763,7 +763,7 @@ void FSetProperty::DestroyValueInternal(void* Data) const
 	FScriptSetHelper SetHelper(this, Data);
 	SetHelper.EmptyElements();
 
-	//@todo UE4 potential double destroy later from this...would be ok for a script set, but still
+	//@todo UE potential double destroy later from this...would be ok for a script set, but still
 	((FScriptSet*)Data)->~FScriptSet();
 }
 
