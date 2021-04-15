@@ -32,7 +32,7 @@ inline const TCHAR* QueryResultToString(ESymbolQueryResult Result)
 		TEXT("Pending..."),
 		TEXT("Ok"),
 		TEXT("Not loaded"),
-		TEXT("Mismatch"),
+		TEXT("Version mismatch"),
 		TEXT("Not found")
 	};
 	static_assert(UE_ARRAY_COUNT(DisplayStrings) == (uint8) ESymbolQueryResult::StatusNum, "Missing QueryResult");
@@ -48,18 +48,22 @@ inline const TCHAR* QueryResultToString(ESymbolQueryResult Result)
 struct FResolvedSymbol
 {
 	std::atomic<ESymbolQueryResult> Result;
+	const TCHAR* Module;
 	const TCHAR* Name;
-	const TCHAR* FileAndLine;
-
+	const TCHAR* File;
+	uint16 Line;
+	
 	inline ESymbolQueryResult GetResult() const
 	{
 		return Result.load(std::memory_order_acquire);
 	}
 
-	FResolvedSymbol(ESymbolQueryResult InResult, const TCHAR* InName, const TCHAR* InFileAndLine) 
+	FResolvedSymbol(ESymbolQueryResult InResult, const TCHAR* InModule, const TCHAR* InName, const TCHAR* InFile, uint16 InLine) 
 		: Result(InResult)
+		, Module(InModule)
 		, Name(InName)
-		, FileAndLine(InFileAndLine)
+		, File(InFile)
+		, Line(InLine)
 	{}
 };
 

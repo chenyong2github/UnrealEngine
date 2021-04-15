@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemAllocTable.h"
+#include "CallstackFormatting.h"
 
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SToolTip.h"
@@ -520,9 +521,7 @@ void FMemAllocTable::AddDefaultColumns()
 					const FMemoryAlloc* Alloc = MemAllocNode.GetMemAlloc();
 					if (Alloc)
 					{
-						static const TCHAR* NotAvailable = TEXT("N/A");
-						const TCHAR* Value = NotAvailable;
-
+						static FString NotAvailable = TEXT("Unknown callstack");
 						const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
 
 						if (Callstack)
@@ -531,18 +530,12 @@ void FMemAllocTable::AddDefaultColumns()
 							const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num() - 1));
 							check(Frame != nullptr);
 
-							const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
-							if (Result == TraceServices::ESymbolQueryResult::OK)
-							{
-								Value = Frame->Symbol->Name;
-							}
-							else
-							{
-								Value = TraceServices::QueryResultToString(Result);
-							}
+							TStringBuilder<1024> Str;
+							FormatStackFrame(*Frame, Str, EStackFrameFormatFlags::Module);
+							return FTableCellValue(FText::FromString(FString(Str)));
 						}
 
-						return FTableCellValue(Value);
+						return FTableCellValue(FText::FromString(NotAvailable));
 					}
 				}
 
@@ -552,7 +545,7 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FFunctionValueGetter>();
 		Column.SetValueGetter(Getter);
 
-		class FunctionValueFormatter : public FCStringValueFormatterAsText
+		class FunctionValueFormatter : public FTextValueFormatter
 		{
 		public:
 			virtual TSharedPtr<IToolTip> GetCustomTooltip(const FTableColumn& Column, const FBaseTreeNode& Node) const override

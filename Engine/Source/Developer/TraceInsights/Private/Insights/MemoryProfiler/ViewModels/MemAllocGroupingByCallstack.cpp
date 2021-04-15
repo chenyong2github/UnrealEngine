@@ -2,6 +2,7 @@
 
 #include "MemAllocGroupingByCallstack.h"
 #include "TraceServices/Model/Callstack.h"
+#include "CallstackFormatting.h"
 
 // Insights
 #include "Insights/MemoryProfiler/ViewModels/MemAllocNode.h"
@@ -176,20 +177,9 @@ FName FMemAllocGroupingByCallstack::GetGroupName(const TraceServices::FStackFram
 
 FText FMemAllocGroupingByCallstack::GetGroupTooltip(const TraceServices::FStackFrame* Frame) const
 {
-	const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
-	if (Result == TraceServices::ESymbolQueryResult::OK)
-	{
-		return FText::Format(LOCTEXT("CallstackFrameTooltipFmt1", "Callstack Frame\n\t{0}\n\t{1}\n\t{2}"),
-			FText::FromString(FString::Printf(TEXT("0x%X"), Frame->Addr)),
-			FText::FromString(FString(Frame->Symbol->Name)),
-			FText::FromString(FString(Frame->Symbol->FileAndLine)));
-	}
-	else
-	{
-		return FText::Format(LOCTEXT("CallstackFrameTooltipFmt2", "Callstack Frame\n\t{0}\n\t{1}"),
-			FText::FromString(FString::Printf(TEXT("0x%X"), Frame->Addr)),
-			FText::FromString(FString(TraceServices::QueryResultToString(Result))));
-	}
+	TStringBuilder<1024> String;
+	FormatStackFrame(*Frame, String, EStackFrameFormatFlags::Module | EStackFrameFormatFlags::FileAndLine);
+	return FText::FromString(FString(String));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

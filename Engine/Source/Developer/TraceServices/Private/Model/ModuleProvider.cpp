@@ -106,7 +106,7 @@ const FResolvedSymbol* TModuleProvider<SymbolProvider>::GetSymbol(uint64 Address
 		{
 			return SymbolCache[Address];
 		}
-		ResolvedSymbol = &Symbols.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr);
+		ResolvedSymbol = &Symbols.EmplaceBack(ESymbolQueryResult::Pending, nullptr, nullptr, nullptr, 0);
 		SymbolCache.Add(Address, ResolvedSymbol);
 	}
 

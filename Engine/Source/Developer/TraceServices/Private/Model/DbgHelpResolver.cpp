@@ -177,10 +177,12 @@ void FDbgHelpResolver::Stop()
 }
 
 /////////////////////////////////////////////////////////////////////
-void FDbgHelpResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine)
+void FDbgHelpResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line)
 {
+	Symbol->Module = Module;
 	Symbol->Name = Name;
-	Symbol->FileAndLine = FileAndLine;
+	Symbol->File = File;
+	Symbol->Line = Line;
 	Symbol->Result.store(Result, std::memory_order_release);
 }
 
@@ -189,6 +191,15 @@ void FDbgHelpResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target)
 {
 	check(Target);
 
+	const FModuleEntry* Module = GetModuleForAddress(Address);
+	if (!Module)
+	{
+		++SymbolsFailed;
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, GUnknownModuleTextDbgHelp,
+		                     GUnknownModuleTextDbgHelp, GUnknownModuleTextDbgHelp, 0);
+		return;
+	}
+	
 	uint8 InfoBuffer[sizeof(SYMBOL_INFO) + (MaxNameLen * sizeof(char) + 1)];
 	SYMBOL_INFO* Info = (SYMBOL_INFO*)InfoBuffer;
 	Info->SizeOfStruct = sizeof(SYMBOL_INFO);
@@ -198,14 +209,13 @@ void FDbgHelpResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target)
 	if (!SymFromAddr((HANDLE)Handle, Address, NULL, Info))
 	{
 		++SymbolsFailed;
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, GUnknownModuleTextDbgHelp, GUnknownModuleTextDbgHelp);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextDbgHelp,
+		                     GUnknownModuleTextDbgHelp, 0);
 		return;
 	}
 
-	TStringBuilder<256> SymbolName;
-	SymbolName << ANSI_TO_TCHAR(Info->Name);
-	const TCHAR* SymbolNameStr = Session.StoreString(FStringView(SymbolName));
-
+	const TCHAR* SymbolNameStr = Session.StoreString(ANSI_TO_TCHAR(Info->Name));
+	
 	// Find the source file and line
 	DWORD  dwDisplacement;
 	IMAGEHLP_LINE Line;
@@ -214,16 +224,14 @@ void FDbgHelpResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target)
 	if (!SymGetLineFromAddr((HANDLE)Handle, Address, &dwDisplacement, &Line))
 	{
 		++SymbolsFailed;
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, SymbolNameStr, GUnknownModuleTextDbgHelp);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::OK, Module->Name, SymbolNameStr, GUnknownModuleTextDbgHelp, 0);
 		return;
 	}
-
-	TStringBuilder<256> FileAndLine;
-	FileAndLine << ANSI_TO_TCHAR(Line.FileName) << TEXT(" (") << uint32(Line.LineNumber) << TEXT(")");
-	const TCHAR* FileAndLineStr = Session.StoreString(FStringView(FileAndLine));
+	
+	const TCHAR* SymbolFileStr = Session.StoreString(ANSI_TO_TCHAR(Line.FileName));
 	
 	++SymbolsResolved;
-	UpdateResolvedSymbol(Target, ESymbolQueryResult::OK, SymbolNameStr, FileAndLineStr);
+	UpdateResolvedSymbol(Target, ESymbolQueryResult::OK, Module->Name, SymbolNameStr, SymbolFileStr, Line.LineNumber);
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -255,21 +263,15 @@ bool FDbgHelpResolver::LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* 
 
 
 /////////////////////////////////////////////////////////////////////
-const TCHAR* FDbgHelpResolver::GetModuleNameForAddress(uint64 Address) const
+const FDbgHelpResolver::FModuleEntry* FDbgHelpResolver::GetModuleForAddress(uint64 Address) const
 {
 	const int32 EntryIdx = Algo::LowerBoundBy(LoadedModules, Address, [](const FModuleEntry& Entry) { return Entry.Base; }) - 1;
 	if (EntryIdx < 0 || EntryIdx >= LoadedModules.Num())
 	{
-		return GUnknownModuleTextDbgHelp;
+		return nullptr;
 	}
 
-	const FModuleEntry& Entry = LoadedModules[EntryIdx];
-	if (Address > (Entry.Base + Entry.Size))
-	{
-		return GUnknownModuleTextDbgHelp;
-	}
-
-	return Entry.Name;
+	return &LoadedModules[EntryIdx];
 }
 
 

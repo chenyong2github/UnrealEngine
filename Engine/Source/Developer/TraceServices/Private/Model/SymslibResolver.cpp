@@ -231,10 +231,12 @@ FSymslibResolver::FModuleEntry* FSymslibResolver::GetModuleForAddress(uint64 Add
 	return SortedModules[EntryIdx];
 }
 
-void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine)
+void FSymslibResolver::UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line)
 {
+	Symbol->Module = Module;
 	Symbol->Name = Name;
-	Symbol->FileAndLine = FileAndLine;
+	Symbol->File = File;
+	Symbol->Line = Line;
 	Symbol->Result.store(Result, std::memory_order_release);
 }
 
@@ -277,7 +279,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	if (!PlatformFile->FileExists(Module->Path))
 	{
-		UE_LOG(LogSymslib, Error, TEXT("File '%s' does not exist"), Module->Path);
+		UE_LOG(LogSymslib, Warning, TEXT("File '%s' does not exist"), Module->Path);
 		return EModuleStatus::Failed;
 	}
 
@@ -285,7 +287,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 	IMappedFileHandle* ImageFileHandle = PlatformFile->OpenMapped(Module->Path);
 	if (ImageFileHandle == nullptr)
 	{
-		UE_LOG(LogSymslib, Error, TEXT("Failed to open '%s'"), Module->Path);
+		UE_LOG(LogSymslib, Warning, TEXT("Failed to open '%s'"), Module->Path);
 		return EModuleStatus::Failed;
 	}
 	IMappedFileRegion* ImageFileRegion = ImageFileHandle->MapRegion(0, ImageFileHandle->GetFileSize());
@@ -348,7 +350,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	if (SYMS_RESULT_FAIL(Result))
 	{
-		UE_LOG(LogSymslib, Warning, TEXT("Could not read debug files for '%s'"), Module->Path);
+		UE_LOG(LogSymslib, Display, TEXT("No debug information for '%s'"), Module->Path);
 		return EModuleStatus::Failed;
 	}
 
@@ -385,7 +387,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 
 	const uint32 SymbolCount = syms_get_proc_count(ModuleInstance); // get symbol count
 	const uint32 LineCount = syms_get_line_count(ModuleInstance); // get line count
-	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s', %u symbols and %u lines."), Module->Name, SymbolCount, LineCount);
+	UE_LOG(LogSymslib, Display, TEXT("Loaded symbols for '%s' at base 0x%016x, %u symbols and %u lines."), Module->Name, Module->Base, SymbolCount, LineCount);
 
 	return EModuleStatus::Loaded;
 }
@@ -407,7 +409,8 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	FModuleEntry* Module = GetModuleForAddress(Address);
 	if (!Module)
 	{
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib);
+		UE_LOG(LogSymslib, Warning, TEXT("No module mapped to address 0x%016x."), Address);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	}
 
@@ -421,10 +424,10 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	switch (Status)
 	{
 	case EModuleStatus::Failed:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Module->Name, GUnknownModuleTextSymsLib);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotLoaded, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	case EModuleStatus::VersionMismatch:
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Module->Name, GUnknownModuleTextSymsLib);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::Mismatch, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0);
 		return false;
 	default:
 		break;
@@ -436,7 +439,7 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	// Find procedure and source file for address
 	if (!syms_proc_from_va(Module->Instance, Address, &Proc) || !syms_va_to_src(Module->Instance, Address, &File))
 	{
-		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, Module->Name, GUnknownModuleTextSymsLib, GUnknownModuleTextSymsLib, 0); 
 		return false;
 	}
 
@@ -454,18 +457,17 @@ bool FSymslibResolver::ResolveSymbol(uint64 Address, FResolvedSymbol* Target, FS
 	syms_read_strref(Module->Instance, &File.file.name, SourceFile, sizeof(SourceFile) - 1);
 	check(SourceFile[MaxStringSize - 1] == 0);
 
-	TStringBuilder<1024> FileAndLine;
-	FileAndLine << ANSI_TO_TCHAR(SourceFile) << TEXT("(") << File.line.ln << TEXT(")");
-
 	const TCHAR* SymbolNamePersistent =  StringAllocator.Store(ANSI_TO_TCHAR(SymbolName));
-	const TCHAR* FileAndLinePersistent = StringAllocator.Store(FileAndLine);
+	const TCHAR* SourceFilePersistent = StringAllocator.Store(ANSI_TO_TCHAR(SourceFile));
 
 	// Store the strings and update the target data
 	UpdateResolvedSymbol(
 		Target,
 		ESymbolQueryResult::OK,
+		Module->Name,
 		SymbolNamePersistent,
-		FileAndLinePersistent
+		SourceFilePersistent,
+		File.line.ln
 	);
 
 	return true;

@@ -58,11 +58,11 @@ private:
 	void FreeSyms() const;
 	virtual uint32 Run() override;
 	virtual void Stop() override;
-	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine);
+	static void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Module, const TCHAR* Name, const TCHAR* File, uint16 Line);
 
 	void ResolveSymbol(uint64 Address, FResolvedSymbol* Target);
 	bool LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* Path);
-	const TCHAR* GetModuleNameForAddress(uint64 Address) const;
+	const FModuleEntry* GetModuleForAddress(uint64 Address) const;
 
 	FCriticalSection ModulesCs;
 	TArray<FModuleEntry> LoadedModules;

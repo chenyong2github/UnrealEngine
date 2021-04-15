@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryAlloc.h"
+#include "CallstackFormatting.h"
 
 namespace Insights
 {
@@ -27,28 +28,22 @@ FMemoryAlloc::~FMemoryAlloc()
 
 FText FMemoryAlloc::GetFullCallstack() const
 {
-	FString Tooltip;
+	TStringBuilder<1024> Tooltip;
 	if (Callstack)
 	{
 		check(Callstack->Num() > 0);
-		for (uint32 Index = 0; Index < Callstack->Num(); ++Index)
+		const uint32 FramesNum = Callstack->Num();
+		for (uint32 Index = 0; Index < FramesNum; ++Index)
 		{
 			const TraceServices::FStackFrame* Frame = Callstack->Frame(Index);
 			check(Frame != nullptr);
 
-			const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
-			if (Result == TraceServices::ESymbolQueryResult::OK)
+			FormatStackFrame(*Frame, Tooltip, EStackFrameFormatFlags::Module | EStackFrameFormatFlags::FileAndLine);
+			if (Index != (FramesNum - 1))
 			{
-				Tooltip.Appendf(TEXT("%s\n"), Frame->Symbol->Name);
-			}
-			else
-			{
-				Tooltip.Appendf(TEXT("%s\n"), QueryResultToString(Result));
+				Tooltip << TEXT("\n");
 			}
 		}
-
-		// Remove the last "\n"
-		Tooltip.RemoveAt(Tooltip.Len() - 1, 1, false);
 	}
 
 	if (Tooltip.Len() == 0)
@@ -56,7 +51,7 @@ FText FMemoryAlloc::GetFullCallstack() const
 		Tooltip.Append(TEXT("N/A"));
 	}
 
-	return FText::FromString(Tooltip);
+	return FText::FromString(FString(Tooltip));
 }
 
 } // namespace Insights
