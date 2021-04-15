@@ -186,7 +186,11 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 				DrawOptions
 			);
 
-			InRHICmdList.EndRenderPass();
+			// FSlateRHIRenderingPolicy::DrawElements can close the render pass on its own sometimes, so don't do it again.
+			if (InRHICmdList.IsInsideRenderPass())
+			{
+				InRHICmdList.EndRenderPass();
+			}
 		}
 	}
 
