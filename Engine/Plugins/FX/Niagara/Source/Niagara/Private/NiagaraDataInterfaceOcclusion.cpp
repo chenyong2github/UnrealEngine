@@ -189,33 +189,4 @@ void UNiagaraDataInterfaceOcclusion::QueryOcclusionFactorCircleGPU(FVectorVMCont
 
 // ------------------------------------------------------------
 
-struct FNiagaraDataInterfaceParametersCS_OcclusionQuery : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_OcclusionQuery, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		PassUniformBuffer.Bind(ParameterMap, FSceneTextureUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		//-Note: Scene textures will not exist in the Mobile rendering path
-		TUniformBufferRef<FSceneTextureUniformParameters> SceneTextureUniformParams = GNiagaraViewDataManager.GetSceneTextureUniformParameters();
-		check(!PassUniformBuffer.IsBound() || SceneTextureUniformParams);
-		SetUniformBufferParameter(RHICmdList, ComputeShaderRHI, PassUniformBuffer, SceneTextureUniformParams);
-	}
-
-private:
-	/** The SceneDepthTexture parameter for depth buffer query. */
-	LAYOUT_FIELD(FShaderUniformBufferParameter, PassUniformBuffer);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_OcclusionQuery);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceOcclusion, FNiagaraDataInterfaceParametersCS_OcclusionQuery);
-
 #undef LOCTEXT_NAMESPACE

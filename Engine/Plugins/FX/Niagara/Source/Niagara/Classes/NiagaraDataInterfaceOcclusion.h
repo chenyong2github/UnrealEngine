@@ -12,9 +12,6 @@ class NIAGARA_API UNiagaraDataInterfaceOcclusion : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	//UObject Interface End

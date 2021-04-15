@@ -24,6 +24,7 @@ class FSceneRenderTargets;
 class FSceneView;
 class FSceneViewFamily;
 class FSceneTextureUniformParameters;
+class FMobileSceneTextureUniformParameters;
 class FGlobalDistanceFieldParameterData;
 struct FMeshBatch;
 struct FSynthBenchmarkResults;
@@ -558,6 +559,7 @@ public:
 	FRHICommandListImmediate* RHICmdList = nullptr;
 	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
+	TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTexturesUniformParams;
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams = nullptr;
 	void* Uid = nullptr; // A unique identifier for the view.
 };

@@ -44,6 +44,7 @@ public:
 		SceneNormalTexture = Params.NormalTexture;
 		SceneVelocityTexture = Params.VelocityTexture;
 		SceneTexturesUniformParams = Params.SceneTexturesUniformParams;
+		MobileSceneTexturesUniformParams = Params.MobileSceneTexturesUniformParams;
 	}
 
 	FRHITexture2D* GetSceneDepthTexture() { return SceneDepthTexture; }
@@ -51,6 +52,7 @@ public:
 	FRHITexture2D* GetSceneVelocityTexture() { return SceneVelocityTexture; }
 	FRHIUniformBuffer* GetViewUniformBuffer() { return ViewUniformBuffer; }
 	TUniformBufferRef<FSceneTextureUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
+	TUniformBufferRef<FMobileSceneTextureUniformParameters> GetMobileSceneTextureUniformParameters() { return MobileSceneTexturesUniformParams; }
 
 	virtual void InitDynamicRHI() override;
 
@@ -63,6 +65,7 @@ private:
 	FRHIUniformBuffer* ViewUniformBuffer = nullptr;
 
 	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams;
+	TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTexturesUniformParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;
 	FDelegateHandle PostOpaqueDelegateHandle;
 };
