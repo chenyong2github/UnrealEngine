@@ -76,7 +76,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingImageDataType == VRSImage_Palette;
+		return FDataDrivenShaderPlatformInfo::GetSupportsVariableRateShading(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
