@@ -137,16 +137,6 @@ private:
 	* @param OutArray	Array to populate with the considered pins
 	*/
 	void GetPinsToConsider(TArray<UEdGraphPin*>& OutArray) const;
-
-	/**
-	* Convert the given pin to the new pin type. If the new type is wildcard then break 
-	* all connections and reset the node. Invalidates tooltips upon completion. 
-	* This function is to be used by the context menu and includes a transaction. 
-	* 
-	* @param PinToChange		The Pin to convert
-	* @param NewPinType			The pin's new type
-	*/
-	void ConvertPinType(UEdGraphPin* PinToChange, const FEdGraphPinType NewPinType);
 	
 	/**
 	* Build the context menu to convert the given pin to a different type. 
@@ -157,15 +147,6 @@ private:
 	* @param ContextPin		The pin to convert
 	*/
 	void CreateConversionSubMenu(UToolMenu* Menu, UEdGraphPin* ContextPin) const;
-
-	/**
-	* Returns true if the given pin can be converted via the context menu to another type
-	*
-	* @param Pin		The pin to consider
-	*
-	* @return bool		True if a conversion is possible
-	*/
-	bool CanConvertPinType(const UEdGraphPin* Pin) const;
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;
@@ -183,4 +164,23 @@ public:
 	BLUEPRINTGRAPH_API UEdGraphPin* GetOutputPin() const;
 
 	const FName GetOperationName() const { return OperationName; }
+
+	/**
+	* Convert the given pin to the new pin type. If the new type is wildcard then break 
+	* all connections and reset the node. Invalidates tooltips upon completion. 
+	* This function is to be used by the context menu and includes a transaction. 
+	* 
+	* @param PinToChange		The Pin to convert
+	* @param NewPinType			The pin's new type
+	*/
+	BLUEPRINTGRAPH_API void ConvertPinType(UEdGraphPin* PinToChange, const FEdGraphPinType NewPinType);
+
+	/**
+	* Returns true if the given pin can be converted via the context menu to another type
+	*
+	* @param Pin		The pin to consider
+	*
+	* @return bool		True if a conversion is possible
+	*/
+	BLUEPRINTGRAPH_API bool CanConvertPinType(const UEdGraphPin* Pin) const;
 };

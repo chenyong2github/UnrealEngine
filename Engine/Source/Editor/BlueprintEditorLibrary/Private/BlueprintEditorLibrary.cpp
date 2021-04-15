@@ -199,6 +199,23 @@ void UBlueprintEditorLibrary::UpgradeOperatorNodes(UBlueprint* Blueprint)
 	Blueprint->GetAllGraphs(AllGraphs);
 	Blueprint->Modify();
 
+	/**
+	* Used to help us restore the default values of any pins that may have changed their types
+	* during replacement. 
+	*/
+	struct FRestoreDefaultsHelper
+	{
+		FEdGraphPinType PinType {};
+
+		FString DefaultValue = TEXT("");
+
+		TObjectPtr<UObject> DefaultObject = nullptr;
+
+		FText DefaultTextValue = FText::GetEmpty();
+	};
+
+	TMap<FName, FRestoreDefaultsHelper> PinTypeMap;
+
 	for (UEdGraph* Graph : AllGraphs)
 	{
 		check(Graph);
@@ -207,6 +224,8 @@ void UBlueprintEditorLibrary::UpgradeOperatorNodes(UBlueprint* Blueprint)
 
 		for (int32 i = Graph->Nodes.Num() - 1; i >= 0; --i)
 		{
+			PinTypeMap.Reset();
+			
 			// Not every function that we want to upgrade is a CommunicativeBinaryOpNode
 			// Some are just regular CallFunction nodes; Vector + Float is an example of this
 			if (UK2Node_CallFunction* OldOpNode = Cast<UK2Node_CallFunction>(Graph->Nodes[i]))
@@ -222,6 +241,21 @@ void UBlueprintEditorLibrary::UpgradeOperatorNodes(UBlueprint* Blueprint)
 				if (!FTypePromotion::IsFunctionPromotionReady(Func) || OldOpNode->IsA<UK2Node_PromotableOperator>())
 				{
 					continue;
+				}
+
+				// Keep track of the types of anything with a default value so they can be restored
+				for (UEdGraphPin* Pin : OldOpNode->Pins)
+				{
+					if (Pin->Direction == EGPD_Input && Pin->LinkedTo.IsEmpty())
+					{
+						FRestoreDefaultsHelper RestoreData;
+						RestoreData.PinType = Pin->PinType;
+						RestoreData.DefaultValue = Pin->DefaultValue;
+						RestoreData.DefaultObject = Pin->DefaultObject;
+						RestoreData.DefaultTextValue = Pin->DefaultTextValue;
+
+						PinTypeMap.Add(Pin->GetFName(), RestoreData);
+					}
 				}
 
 				FName OpName = FTypePromotion::GetOpNameFromFunction(Func);
@@ -247,6 +281,22 @@ void UBlueprintEditorLibrary::UpgradeOperatorNodes(UBlueprint* Blueprint)
 				NewOpNode->NodePosY = OldOpNode->NodePosY;
 
 				InternalBlueprintEditorLibrary::ReplaceOldNodeWithNew(OldOpNode, NewOpNode);
+
+				for (const TPair<FName, FRestoreDefaultsHelper>& Pair : PinTypeMap)
+				{
+					const FRestoreDefaultsHelper& OldPinData = Pair.Value;
+
+					if (UEdGraphPin* Pin = NewOpNode->FindPin(Pair.Key))
+					{
+						if (NewOpNode->CanConvertPinType(Pin))
+						{
+							NewOpNode->ConvertPinType(Pin, OldPinData.PinType);
+							Pin->DefaultValue = OldPinData.DefaultValue;
+							Pin->DefaultObject = OldPinData.DefaultObject;
+							Pin->DefaultTextValue = OldPinData.DefaultTextValue;
+						}
+					}
+				}
 
 				// Reset the new node to be wild card if there were no connections to the original node.
 				// This is necessary because replacing the old node will attempt to reconcile any 
