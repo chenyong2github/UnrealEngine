@@ -1609,3 +1609,70 @@ struct FCompareFProjectedShadowInfoBySplitIndex
 	}
 };
 
+/**
+* Shaders used to ouput screen space modulated shadow.
+*/
+class TScreenSpaceModulatedShadowVS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(TScreenSpaceModulatedShadowVS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsMobilePlatform(Parameters.Platform);
+	}
+
+	TScreenSpaceModulatedShadowVS() {}
+	TScreenSpaceModulatedShadowVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundVertexShader(), View.ViewUniformBuffer);
+	}
+};
+
+class TScreenSpaceModulatedShadowPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(TScreenSpaceModulatedShadowPS, Global);
+public:
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsMobilePlatform(Parameters.Platform);
+	}
+
+	TScreenSpaceModulatedShadowPS() {}
+
+	TScreenSpaceModulatedShadowPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		ScreenShadowMaskTexture.Bind(Initializer.ParameterMap, TEXT("ScreenShadowMaskTexture"));
+		ScreenShadowMaskTextureSampler.Bind(Initializer.ParameterMap, TEXT("ScreenShadowMaskTextureSampler"));
+		ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, FRHITexture* ScreenShadowMask, const FLinearColor& ModulatedShadowColor)
+	{
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
+
+		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
+		FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+		SetTextureParameter(RHICmdList, ShaderRHI, ScreenShadowMaskTexture, ScreenShadowMask);
+		SetSamplerParameter(RHICmdList, ShaderRHI, ScreenShadowMaskTextureSampler, SamplerState);
+
+		SetShaderValue(RHICmdList, ShaderRHI, ModulatedShadowColorParameter, ModulatedShadowColor);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ScreenShadowMaskTextureSampler);
+	LAYOUT_FIELD(FShaderParameter, ModulatedShadowColorParameter);
+};

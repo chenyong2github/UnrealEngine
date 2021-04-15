@@ -357,6 +357,24 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
+	// Force to keep depth content when cast modulated shadow.
+	{
+		static const auto ICVarQuality = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShadowQuality"));
+		if (ICVarQuality->GetValueOnRenderThread() > 0 && ViewFamily.EngineShowFlags.DynamicShadows)
+		{
+			for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
+			{
+				const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
+				FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
+				if (LightSceneInfo && LightSceneInfo->bCreatePerObjectShadowsForDynamicObjects)
+				{
+					bKeepDepthContent = true;
+					break;
+				}
+			}
+		}
+	}
+
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(RHICmdList, FeatureLevel);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -837,7 +855,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 		SceneDepth = SceneContext.GetSceneDepthSurface();
 				
-		if (bRequiresMultiPass)
+		if (bRequiresMultiPass || bModulatedShadowsInUse)
 		{	
 			// store targets after opaque so translucency render pass can be restarted
 			ColorTargetAction = ERenderTargetActions::Clear_Store;
@@ -925,7 +943,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		
 	// Split if we need to render translucency in a separate render pass
 	// Split if we need to render pixel projected reflection
-	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass)
+	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass || bModulatedShadowsInUse)
 	{
 		RHICmdList.EndRenderPass();
 	}
@@ -934,7 +952,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 		
 	// Restart translucency render pass if needed
-	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass)
+	if (bRequiresMultiPass || bRequiresPixelProjectedPlanarRelfectionPass || bModulatedShadowsInUse)
 	{
 		check(RHICmdList.IsOutsideRenderPass());
 
@@ -955,10 +973,11 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 		DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_DontStoreDepthStencil;
 		FExclusiveDepthStencil::Type ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
+
 		if (bModulatedShadowsInUse)
 		{
-			// FIXME: modulated shadows write to stencil
-			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadowProjections);
+			RenderModulatedShadowProjections(RHICmdList, View);
 		}
 
 		// The opaque meshes used for mobile pixel projected reflection have to write depth to depth RT, since we only render the meshes once if the quality level is less or equal to BestPerformance 
@@ -998,12 +1017,6 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDecals);
 			RenderDecals(RHICmdList);
-		}
-
-		if (ViewFamily.EngineShowFlags.DynamicShadows)
-		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadowProjections);
-			RenderModulatedShadowProjections(RHICmdList);
 		}
 	}
 	
