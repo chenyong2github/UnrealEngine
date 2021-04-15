@@ -20,24 +20,7 @@
 
 #include "AudioEncoderFactory.h"
 
-// TODO (M84FIX) these includes are probably overkill
-#if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "Windows/PreWindowsApi.h"
-	#include <d3d11.h>
-	#include <mftransform.h>
-	#include <mfapi.h>
-	#include <mferror.h>
-	#include <mfidl.h>
-	#include <codecapi.h>
-	#include <shlwapi.h>
-	#include <mfreadwrite.h>
-	#include <d3d11_1.h>
-	#include <d3d12.h>
-	#include <dxgi1_4.h>
-#include "Windows/PostWindowsApi.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif /* PLATFORM_WINDOWS */
+#include "VideoCommon.h"
 
 DEFINE_LOG_CATEGORY(GameplayMediaEncoder);
 CSV_DEFINE_CATEGORY(GameplayMediaEncoder, true);

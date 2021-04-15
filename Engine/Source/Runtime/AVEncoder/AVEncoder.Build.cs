@@ -27,6 +27,7 @@ public class AVEncoder : ModuleRules
 		PrivateDependencyModuleNames.AddRange(new string[] {
 			"Engine",
 			"nvEncode"
+			// "Amf" // TODO waiting on cross platform Amf encoder
 		});
 
 		PublicDependencyModuleNames.AddRange(new string[] {
@@ -40,7 +41,7 @@ public class AVEncoder : ModuleRules
 			// ... add any modules that your module loads dynamically here ...
 		});
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
 			// d3d to be able to use NVENC
 			PublicSystemLibraries.AddRange(new string[] {
@@ -53,13 +54,9 @@ public class AVEncoder : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			PrivateDependencyModuleNames.Add("CUDA");			
+			PrivateDependencyModuleNames.Add("CUDA");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			// PublicFrameworks.AddRange(new string[] { "CoreAudio", "AudioUnit", "AudioToolbox" });
-		}
-		
+
 		// TEMPORARY: set this to zero for all platforms until CUDA TPS review clears
 		PublicDefinitions.Add("WITH_CUDA=0");
 	}

@@ -5,14 +5,15 @@
 #include "CoreMinimal.h"
 #include "VideoCommon.h"
 
-// TODO (M84FIX) need to break these down to platforms
+#if PLATFORM_LINUX
+#include "CudaModule.h"
+#endif
+
 #if PLATFORM_WINDOWS
 struct ID3D11Device;
 struct ID3D11Texture2D;
 struct ID3D12Device;
 struct ID3D12Resource;
-#elif PLATFORM_LINUX
-#include "CudaModule.h"
 #endif
 
 namespace AVEncoder

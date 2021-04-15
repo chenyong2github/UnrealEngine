@@ -91,6 +91,7 @@ namespace AVEncoder
 			EncoderDevice = Input->GetCUDAEncoderContext();
 			break;
 	#endif
+		case AVEncoder::EVideoFrameFormat::Undefined:
 		default:
 			UE_LOG(LogVideoEncoder, Error, TEXT("Frame format %s is not supported by NVENC_Encoder on this platform."), *ToString(FrameFormat));
 			return false;
@@ -321,7 +322,9 @@ namespace AVEncoder
 			}
 			else if (WaitResult == WAIT_FAILED)
 			{
-				WindowsError(TEXT("WaitForMultipleObjects"));
+				// HACK to fix warning in clang
+				LPTSTR string = L"WaitForMultipleObjects";
+				WindowsError(string);
 			}
 		}
 #else
@@ -409,10 +412,9 @@ namespace AVEncoder
 		EncoderInitParams.version = NV_ENC_INITIALIZE_PARAMS_VER;
 		EncoderInitParams.encodeWidth = EncoderInitParams.darWidth = Width;
 		EncoderInitParams.encodeHeight = EncoderInitParams.darHeight = Height;
-		EncoderInitParams.encodeGUID = NV_ENC_CODEC_H264_GUID;
 
-		//TODO: Commented this out to get builds compiling
-		//EncoderInitParams.presetGUID = NV_ENC_PRESET_LOW_LATENCY_HQ_GUID;
+		EncoderInitParams.encodeGUID = NV_ENC_CODEC_H264_GUID;
+		EncoderInitParams.presetGUID = NV_ENC_PRESET_P4_GUID;
 
 		EncoderInitParams.frameRateNum = Encoder.MaxFramerate;
 		EncoderInitParams.frameRateDen = 1;
@@ -422,16 +424,19 @@ namespace AVEncoder
 		EncoderInitParams.encodeConfig = &EncoderConfig;
 		EncoderInitParams.maxEncodeWidth = 4096;
 		EncoderInitParams.maxEncodeHeight = 4096;
+		EncoderInitParams.tuningInfo = NV_ENC_TUNING_INFO_LOW_LATENCY;
 
 		// load a preset configuration
 		NVENCStruct(NV_ENC_PRESET_CONFIG, PresetConfig);
 		PresetConfig.presetCfg.version = NV_ENC_CONFIG_VER;
-		Result = NVENC.nvEncGetEncodePresetConfig(NVEncoder, EncoderInitParams.encodeGUID, EncoderInitParams.presetGUID, &PresetConfig);
+
+		Result = NVENC.nvEncGetEncodePresetConfigEx(NVEncoder, EncoderInitParams.encodeGUID, EncoderInitParams.presetGUID, EncoderInitParams.tuningInfo, &PresetConfig);
 		if (Result != NV_ENC_SUCCESS)
 		{
 			UE_LOG(LogVideoEncoder, Error, TEXT("Unable to get NvEnc preset config (%s)."), *NVENC.GetErrorString(NVEncoder, Result));
 			return false;
 		}
+		
 		FMemory::Memcpy(&EncoderConfig, &PresetConfig.presetCfg, sizeof(NV_ENC_CONFIG));
 
 		EncoderConfig.profileGUID = NV_ENC_H264_PROFILE_BASELINE_GUID;
@@ -764,6 +769,7 @@ namespace AVEncoder
 			TextureToCompress = InFrame->GetCUDA().EncoderTexture;
 			break;
 	#endif
+		case AVEncoder::EVideoFrameFormat::Undefined:
 		default:
 			break;
 		}
@@ -983,6 +989,7 @@ namespace AVEncoder
 				CreateResourceCUDAARRAY(InBuffer, RegisterParam, TextureSize);
 				break;
 		#endif
+			case AVEncoder::EVideoFrameFormat::Undefined:
 			default:
 				break;
 			}
