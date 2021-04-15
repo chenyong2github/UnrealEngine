@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifndef USE_LIGHT_GRID
-#define USE_LIGHT_GRID 0
+#ifndef USE_PATH_TRACING_LIGHT_GRID
+#define USE_PATH_TRACING_LIGHT_GRID 0
 #endif
 
 #include "/Engine/Shared/PathTracingDefinitions.h"
 
 
-#if USE_LIGHT_GRID
+#if USE_PATH_TRACING_LIGHT_GRID
 // extra shader parameters that must be defined when using the light grid
 uint SceneInfiniteLightCount;
 float3 SceneLightsBoundMin;
@@ -31,12 +31,12 @@ float3 HashToColor(uint H)
 struct FLightLoopCount {
 	uint NumLights;
 	uint NumMISLights;
-#if USE_LIGHT_GRID
+#if USE_PATH_TRACING_LIGHT_GRID
 	uint LightGridOffset;
 #endif
 };
 
-#if USE_LIGHT_GRID
+#if USE_PATH_TRACING_LIGHT_GRID
 
 FLightLoopCount LightGridLookup(float3 WorldPos)
 {
