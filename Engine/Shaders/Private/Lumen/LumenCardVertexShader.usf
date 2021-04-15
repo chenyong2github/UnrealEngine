@@ -26,7 +26,6 @@ struct FLumenCardVSToPS
 
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FLumenCardVSToPS Output
 	)
 {	

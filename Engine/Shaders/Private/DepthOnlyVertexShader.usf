@@ -31,7 +31,6 @@ struct FDepthOnlyVSToPS
 
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FDepthOnlyVSOutput Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -124,8 +123,6 @@ void Main(
 #if USE_RAW_WORLD_POSITION
 	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

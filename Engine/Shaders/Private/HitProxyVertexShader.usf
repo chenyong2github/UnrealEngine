@@ -37,7 +37,6 @@ struct FHitProxyVSToPS
 
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FHitProxyVSOutput Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -79,8 +78,6 @@ void Main(
 #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

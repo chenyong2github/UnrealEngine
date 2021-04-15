@@ -671,10 +671,6 @@ void ApplyPixelDepthOffsetForBasePass(inout FMaterialPixelParameters MaterialPar
 
 #if WRITES_VELOCITY_TO_GBUFFER && !VF_NANITE
 	BasePassInterpolants.VelocityPrevScreenPosition.w += PixelDepthOffset;
-
-	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-		BasePassInterpolants.VelocityScreenPosition.w += PixelDepthOffset;
-	#endif
 #endif
 }
 
@@ -1090,9 +1086,7 @@ void FPixelShaderInOut_MainPS(
 	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
 	{
 		// 2d velocity, includes camera an object motion
-	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-		float3 Velocity = Calculate3DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
-	#elif !VF_NANITE
+	#if !VF_NANITE
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#else
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, MaterialParameters.PrevScreenPosition);

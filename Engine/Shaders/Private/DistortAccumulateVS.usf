@@ -32,7 +32,6 @@ struct FDistortAccumulateVSToPS
 /** transform mesh as normal */
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -99,8 +98,6 @@ void Main(
 #if INSTANCED_STEREO
 	Output.FactoryInterpolants.EyeIndex = EyeIndex;
 #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

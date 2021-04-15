@@ -310,7 +310,6 @@ void Main(
 #if VIRTUAL_SM_ENABLED
 	out nointerpolation uint ViewId : TEXCOORD8,
 #endif
-	OPTIONAL_VertexID
 	out float4 OutPosition : SV_POSITION
 #if VIRTUAL_SM_ENABLED	
 	// OLA-TODO: this collides with instanced stereo, which thankfully is not used with shadow maps, so should be fine, presumably.
@@ -405,8 +404,6 @@ void Main(
 		ViewId = PageInfo.ViewId;
 	}
 #endif // VIRTUAL_SM_ENABLED
-
-	OutputVertexID( OutParameters );
 }
 
 #if IS_FOR_GEOMETRY_SHADER
@@ -414,7 +411,6 @@ void Main(
 // Vertex shader exports must match GS inputs.
 // This is a requirement on some platforms.
 void MainForGS(
-	OPTIONAL_VertexID
 	FVertexFactoryInput Input,
 #if ONEPASS_POINTLIGHT_SHADOW
 	out FShadowDepthVSToGS OutParameters
@@ -437,7 +433,6 @@ void MainForGS(
 
 	Main(Input,
 		OutParameters,
-		OPTIONAL_VertexID_PARAM
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
 		LayerIndex,
 #endif

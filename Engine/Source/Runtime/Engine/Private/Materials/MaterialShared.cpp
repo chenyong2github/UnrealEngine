@@ -1916,11 +1916,6 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.CompilerFlags.Add(CFLAG_UsesExternalTexture);
 	}
 
-	{
-		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
-		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("0"));
-	}
-
 	switch(GetBlendMode())
 	{
 	case BLEND_Opaque:

@@ -368,7 +368,7 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
 
 
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION
-float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryRayTracingInterpolants Interpolants )
+float2 VertexFactoryGetRayTracingTextureCoordinate( FVertexFactoryRayTracingInterpolants Interpolants )
 {
 #if NUM_MATERIAL_TEXCOORDS
 	return Interpolants.InterpolantsVSToPS.TexCoords[0].xy;
@@ -382,7 +382,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryAssignInterpolants(FVertexFactoryR
 	return Input.InterpolantsVSToPS;
 }
 
-FVertexFactoryRayTracingInterpolants VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+FVertexFactoryRayTracingInterpolants VertexFactoryGetRayTracingInterpolants(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
 {
 	FVertexFactoryRayTracingInterpolants Interpolants;
 	
@@ -411,17 +411,6 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 
 	return O;
 }
-
-float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryRayTracingInterpolants Interpolants)
-{
-	half3 TangentToWorld0 = Interpolants.InterpolantsVSToPS.TangentToWorld0.xyz;
-	half4 TangentToWorld2 = Interpolants.InterpolantsVSToPS.TangentToWorld2;
-
-	float3x3 TangentToWorld = AssembleTangentToWorld( TangentToWorld0, TangentToWorld2 );
-	
-	return TangentToWorld;
-}
-
 #endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)

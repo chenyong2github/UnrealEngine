@@ -13,10 +13,8 @@
 // buffer of the same meshes rendered with slightly different float computations.
 // This is a positive number as our z buffer is inverted for better precision.
 
-// for tessellation
-static const float GTessellationDepthBias = 0.001f;
-// for non tessellation: 0.0f as the isolate code should do a good job to prevent this case (can be increased if that is not the case e.g. if the platform ignores the isolate)
-static const float GNonTessellationDepthBias = 0.001f;
+// 0.0f as the isolate code should do a good job to prevent this case (can be increased if that is not the case e.g. if the platform ignores the isolate)
+static const float GDepthBias = 0.001f;
 
 struct FVelocityInterpsVSToPS
 {
@@ -42,7 +40,6 @@ struct FVelocityVSToPS
 #if VERTEXSHADER
 void MainVertexShader(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FVertexOutput Output 
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -134,7 +131,7 @@ void MainVertexShader(
 	}
 
 // Move all geometry a little bit towards the camera (to not get z fighting with existing zbuffer of the same meshes rendered with slightly different float computations).
-    Output.Position.z += View.NumSceneColorMSAASamples > 1 ? GNonTessellationDepthBias * Output.Position.w : 0.0;
+    Output.Position.z += View.NumSceneColorMSAASamples > 1 ? GDepthBias * Output.Position.w : 0.0;
 
 #if INSTANCED_STEREO
 	Output.Interps.FactoryInterpolants.EyeIndex = EyeIndex;

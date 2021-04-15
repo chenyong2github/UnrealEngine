@@ -48,7 +48,6 @@ struct FMeshDecalVSToPS
 /** transform mesh as normal */
 void MainVS(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -85,8 +84,6 @@ void MainVS(
 	// Assuming a reverse z buffer this pushes the near plane a fixed small distance.
 	Output.Position.z += ResolvedView.DecalDepthBias;
 #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

@@ -250,7 +250,7 @@ struct FVertexFactoryRayTracingInterpolants
 	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
 };
 
-float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryRayTracingInterpolants Interpolants )
+float2 VertexFactoryGetRayTracingTextureCoordinate( FVertexFactoryRayTracingInterpolants Interpolants )
 {
 	return float2(0,0);
 }

@@ -31,7 +31,6 @@ struct FHairVisibilityAccumulateVSToPS
 
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 )
 #if HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY && HAIR_STRAND_MESH_FACTORY
@@ -128,8 +127,6 @@ void Main(
 	Output.WorldStrandRadius = 1;
   #endif
 #endif
-
-	OutputVertexID( Output );
 }
 #endif // HAIR_RENDER_MODE == RENDER_MODE_MSAA_VISIBILITY
 

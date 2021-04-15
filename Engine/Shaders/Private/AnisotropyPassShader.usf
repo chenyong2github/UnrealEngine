@@ -28,7 +28,6 @@ struct FAnisotropyPassVSToPS
 #if VERTEXSHADER
 void MainVertexShader(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FVertexOutput Output 
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -113,8 +112,6 @@ void MainVertexShader(
 #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
 	Output.PixelPositionExcludingWPO = WorldPositionExcludingWPO.xyz;
 #endif	
-
-	OutputVertexID( Output );
 }
 #endif // VERTEXSHADER
 

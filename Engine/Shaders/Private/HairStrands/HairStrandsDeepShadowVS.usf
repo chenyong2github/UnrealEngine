@@ -31,7 +31,6 @@ struct FDeepShadowAccumulateVSToPS
 /** transform mesh as normal */
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out VS_OUTPUT_TYPE Output
 )
 {
@@ -83,8 +82,6 @@ void Main(
   #if MESH_RENDER_MODE == MESH_RENDER_DOM
 	Output.HairCoverage = HairCoverage;
   #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

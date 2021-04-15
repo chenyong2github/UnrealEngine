@@ -79,11 +79,6 @@ float2 GetLodBias(uint ComponentIndex)
 #endif
 }
 
-float2 GetSectionTessellationFalloff(uint ComponentIndex)
-{
-	return 0;
-}
-
 /** 
  * Get current Lods for neighbour section instances. 
  *       -Y
@@ -234,11 +229,7 @@ uint GetNumRayTracingDynamicMeshVerticesIndirect()
 
 struct FVertexFactoryInterpolantsVSToPS
 {
-#if NEEDS_VERTEX_FACTORY_INTERPOLATION
-	float4	LayerTexCoord			: TEXCOORD0; // xy == texcoord, zw == tess falloff params
-#else
 	float2	LayerTexCoord			: TEXCOORD0; // xy == texcoord
-#endif
 #if (ES3_1_PROFILE)
 	float2	WeightMapTexCoord		: TEXCOORD1;
 	float4	TransformedTexCoord0	: TEXCOORD2;
@@ -267,11 +258,7 @@ struct FVertexFactoryInterpolantsVSToPS
 
 struct FLandscapeTexCoords
 {
-#if NEEDS_VERTEX_FACTORY_INTERPOLATION
-	float4	LayerTexCoord : TEXCOORD0; // xy == texcoord, zw == tess falloff params
-#else
 	float2	LayerTexCoord : TEXCOORD0; // xy == texcoord
-#endif
 	float2	WeightMapTexCoord;
 #if !(ES3_1_PROFILE)
 	float2	HeightMapTexCoord;
@@ -296,24 +283,13 @@ struct FVertexFactoryRayTracingInterpolants
 };
 
 #if NEEDS_VERTEX_FACTORY_INTERPOLATION
-float2 VertexFactoryGetTextureCoordinateDS( FVertexFactoryRayTracingInterpolants Interpolants )
+float2 VertexFactoryGetRayTracingTextureCoordinate( FVertexFactoryRayTracingInterpolants Interpolants )
 {
 #if (ES3_1_PROFILE)
 	return Interpolants.InterpolantsVSToPS.WeightMapTexCoord.xy;
 #else
 	return Interpolants.InterpolantsVSToPS.WeightHeightMapTexCoord.zw;
 #endif
-}
-
-float VertexFactoryModifyTessellationMultiplier(FVertexFactoryRayTracingInterpolants Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier)
-{		
-	float CurrentDistance = length(CameraLocalWorldPosition);
-	return MaterialTessellationMultiplier * saturate(Interpolants.InterpolantsVSToPS.LayerTexCoord.z - (Interpolants.InterpolantsVSToPS.LayerTexCoord.w * CurrentDistance));
-}
-
-float VertexFactoryModifyTessellationWorldDisplacementMultiplier(FVertexFactoryRayTracingInterpolants Interpolants, float3 CameraLocalWorldPosition, float MaterialTessellationMultiplier, float CurrentTessellationMultiplier)
-{
-	return max(CurrentTessellationMultiplier, 0.001) / max(MaterialTessellationMultiplier, 0.001);// smooth out the application of the displacement based on the current tess multiplier
 }
 #endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
@@ -334,7 +310,6 @@ struct FVertexFactoryIntermediates
 	uint ComponentIndex;
 	float4 LodValues;
 	float2 LodBias;
-	float2 TessellationFalloff;
 };
 
 float3 GetLocalPosition(FVertexFactoryIntermediates Intermediates)
@@ -375,10 +350,6 @@ FLandscapeTexCoords GetLandscapeTexCoords(FVertexFactoryInput Input, FVertexFact
 	FLandscapeTexCoords Result;
 
 	Result.LayerTexCoord.xy = Intermediates.LocalPosition.xy + LandscapeParameters.SubsectionSizeVertsLayerUVPan.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.ww;
-
-#if NEEDS_VERTEX_FACTORY_INTERPOLATION
-	Result.LayerTexCoord.zw = Intermediates.TessellationFalloff;
-#endif
 
 	Result.WeightMapTexCoord = Intermediates.LocalPosition.xy * LandscapeParameters.WeightmapUVScaleBias.xy + LandscapeParameters.WeightmapUVScaleBias.zw + Intermediates.InputPosition.zw * LandscapeParameters.SubsectionOffsetParams.zz;
 
@@ -621,7 +592,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.ComponentIndex = GetComponentLinearIndex();
 	Intermediates.LodValues = GetLodValues(Intermediates.ComponentIndex);
 	Intermediates.LodBias = GetLodBias(Intermediates.ComponentIndex);
-	Intermediates.TessellationFalloff = GetSectionTessellationFalloff(Intermediates.ComponentIndex);
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 	Intermediates.InputPosition = Input.Position;
@@ -819,7 +789,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	return Interpolants;
 }
 
-FVertexFactoryRayTracingInterpolants VertexFactoryGetInterpolantsVSToDS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+FVertexFactoryRayTracingInterpolants VertexFactoryGetRayTracingInterpolants(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
 {
 	FVertexFactoryRayTracingInterpolants Interpolants;
 	
@@ -870,13 +840,6 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 
 	return O;
 }
-
-#if NEEDS_VERTEX_FACTORY_INTERPOLATION
-float3x3 VertexFactoryGetTangentToLocalDS(FVertexFactoryRayTracingInterpolants Interpolants)
-{
-	return AssembleTangentToWorld(Interpolants.TangentToWorld0, Interpolants.TangentToWorld2);
-}
-#endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
 
 #if NUM_VF_PACKED_INTERPOLANTS > 0
 void VertexFactoryPackInterpolants(inout FVertexFactoryInterpolantsVSToPS Interpolants, float4 PackedInterpolants[NUM_VF_PACKED_INTERPOLANTS])

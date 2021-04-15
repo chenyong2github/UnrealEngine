@@ -37,7 +37,6 @@ MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int 
 
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FDebugVSOutput Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -125,8 +124,6 @@ void Main(
 #if INSTANCED_STEREO
 	Output.EyeIndex = EyeIndex;
 #endif
-
-	OutputVertexID( Output );
 }
 
 #endif // VERTEXSHADER

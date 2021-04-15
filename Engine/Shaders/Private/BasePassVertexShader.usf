@@ -25,7 +25,6 @@
 /** Entry point for the base pass vertex shader. */
 void Main(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FBasePassVSOutput Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -221,11 +220,6 @@ void Main(
 
 		// compute the old screen pos with the old world position and the old camera matrix
 		Output.BasePassInterpolants.VelocityPrevScreenPosition = PrevTranslatedWorldPosition; 
-		#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-		Output.BasePassInterpolants.VelocityScreenPosition = ClipSpacePosition;
-		#endif
 	}
 #endif	// WRITES_VELOCITY_TO_GBUFFER
-
-	OutputVertexID( Output );
 }

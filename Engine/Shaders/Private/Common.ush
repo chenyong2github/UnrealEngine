@@ -71,8 +71,6 @@
 
 #include "Definitions.usf"
 
-#define METAL_TESSELLATION_PROFILE ((METAL_PROFILE || METAL_SM5_PROFILE) && USING_TESSELLATION)
-
 #ifndef VELOCITY_ENCODE_DEPTH
 #define VELOCITY_ENCODE_DEPTH 1
 #endif
@@ -635,18 +633,6 @@ MaterialFloat PhongShadingPow(MaterialFloat X, MaterialFloat Y)
 	#define uint4	int4
 #endif
 
-// Optional VertexID - used by tessellation to uniquely identify control points.
-#if USING_TESSELLATION && DISPLACEMENT_ANTICRACK
-	#define OPTIONAL_VertexID			uint VertexID : SV_VertexID,
-	#define OPTIONAL_VertexID_PARAM		VertexID,
-	#define OPTIONAL_VertexID_VS_To_DS	uint VertexID : VS_To_DS_VertexID;
-	#define OutputVertexID( Out ) Out.VertexID = VertexID
-#else // #if USING_TESSELLATION && DISPLACEMENT_ANTICRACK
-	#define OPTIONAL_VertexID
-	#define OPTIONAL_VertexID_PARAM
-	#define OPTIONAL_VertexID_VS_To_DS
-	#define OutputVertexID( Out )
-#endif // #if USING_TESSELLATION && DISPLACEMENT_ANTICRACK
 
 // Helper macro used to interpolate the given member
 #define INTERPOLATE_MEMBER(member) O.member = a.member * aInterp + b.member * bInterp

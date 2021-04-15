@@ -28,7 +28,6 @@ struct FLightMapDensityVSToPS
 #if VERTEXSHADER
 void MainVertexShader(
 	FVertexFactoryInput Input,
-	OPTIONAL_VertexID
 	out FLightMapDensityVSOutput Output
 #if USE_GLOBAL_CLIP_PLANE
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
@@ -59,8 +58,6 @@ void MainVertexShader(
 	OutGlobalClipPlaneDistance = dot(ResolvedView.GlobalClippingPlane, float4(WorldPosition.xyz - ResolvedView.PreViewTranslation.xyz, 1));
 #endif
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
-
-	OutputVertexID( Output );
 }
 #endif
 
