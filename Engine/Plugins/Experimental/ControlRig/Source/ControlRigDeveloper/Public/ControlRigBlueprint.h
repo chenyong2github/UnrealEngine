@@ -249,6 +249,22 @@ public:
 	bool IsFunctionPublic(const FName& InFunctionName) const;
 	void MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic = true);
 
+	// Returns a list of dependencies of this blueprint.
+	// Dependencies are blueprints that contain functions used in this blueprint
+	TArray<UControlRigBlueprint*> GetDependencies(bool bRecursive = false) const;
+
+	// Returns a list of dependents as unresolved soft object pointers.
+	// A dependent is a blueprint which uses a function defined in this blueprint.
+	// This function is not recursive, since it avoids opening the asset.
+	// Use GetDependentBlueprints as an alternative.
+	TArray<FAssetData> GetDependentAssets() const;
+
+	// Returns a list of dependents as resolved blueprints.
+	// A dependent is a blueprint which uses a function defined in this blueprint.
+	// This function loads the dependent assets and can introduce a large cost
+	// depending on the size / count of assets in the project.
+	TArray<UControlRigBlueprint*> GetDependentBlueprints(bool bRecursive = false) const;
+
 	UPROPERTY(EditAnywhere, Category = "User Interface")
 	FRigGraphDisplaySettings RigGraphDisplaySettings;
 

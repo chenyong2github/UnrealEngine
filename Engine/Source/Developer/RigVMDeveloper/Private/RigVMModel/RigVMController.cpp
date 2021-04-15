@@ -1791,6 +1791,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 					if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
 					{
 						FunctionLibrary->FunctionReferences.FindOrAdd(FunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+						FunctionLibrary->MarkPackageDirty();
 					}
 				}
 			}
@@ -3390,6 +3391,7 @@ void URigVMController::SetReferencedFunction(URigVMFunctionReferenceNode* InFunc
 	URigVMFunctionLibrary* NewLibrary = Cast<URigVMFunctionLibrary>(InNewReferencedNode->GetOuter());
 	FRigVMFunctionReferenceArray& NewReferences = NewLibrary->FunctionReferences.FindOrAdd(InNewReferencedNode);
 	NewReferences.FunctionReferences.Add(InFunctionRefNode);
+	NewLibrary->MarkPackageDirty();
 
 	InFunctionRefNode->SetReferencedNode(InNewReferencedNode);
 	
@@ -6214,6 +6216,7 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 	if (URigVMFunctionLibrary* FunctionLibrary = InFunctionDefinition->GetLibrary())
 	{
 		FunctionLibrary->FunctionReferences.FindOrAdd(InFunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+		FunctionLibrary->MarkPackageDirty();
 	}
 
 	for (URigVMPin* SourcePin : InFunctionDefinition->Pins)

@@ -63,6 +63,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< FString > GetReferencePathsForFunction(const FName& InFunctionName);
 
+	// Update the references list for a given reference node
+	void UpdateReferencesForReferenceNode(URigVMFunctionReferenceNode* InReferenceNode);
+
 	// Returns a function that has been previously localized based on the provided function to localize.
 	// We maintain meta data on what functions have been created locally based on which other ones,
 	// and use this method to avoid redundant localizations.

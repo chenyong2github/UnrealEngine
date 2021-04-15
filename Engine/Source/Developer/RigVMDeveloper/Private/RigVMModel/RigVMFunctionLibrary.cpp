@@ -86,6 +86,42 @@ TArray< FString > URigVMFunctionLibrary::GetReferencePathsForFunction(const FNam
 	return Result;
 }
 
+void URigVMFunctionLibrary::UpdateReferencesForReferenceNode(URigVMFunctionReferenceNode* InReferenceNode)
+{
+	if(InReferenceNode->GetOutermost() == GetTransientPackage())
+	{
+		return;
+	}
+	
+	if(URigVMLibraryNode* Function = InReferenceNode->GetReferencedNode())
+	{
+		if(Function->GetOuter() == this)
+		{
+			FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Function);
+			if (ReferencesEntry == nullptr)
+			{
+				Modify();
+				FunctionReferences.Add(Function);
+				ReferencesEntry = FunctionReferences.Find(Function);
+			}
+
+			const FString ReferenceNodePathName = InReferenceNode->GetPathName();
+			for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
+			{
+				const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
+				if(Reference.ToString() == ReferenceNodePathName)
+				{
+					return;
+				}
+			}
+
+			Modify();
+			ReferencesEntry->FunctionReferences.Add(InReferenceNode);
+			MarkPackageDirty();
+		}
+	}
+}
+
 URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize)
 {
 	if(InFunctionToLocalize == nullptr)

@@ -7,6 +7,8 @@
 #include "RigVMNotifications.h"
 #include "Nodes/RigVMVariableNode.h"
 #include "Nodes/RigVMParameterNode.h"
+#include "Nodes/RigVMFunctionEntryNode.h"
+#include "Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMCompiler/RigVMAST.h"
 #include "RigVMGraph.generated.h"
 

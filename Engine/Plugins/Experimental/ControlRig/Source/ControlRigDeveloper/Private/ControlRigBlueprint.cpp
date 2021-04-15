@@ -24,6 +24,7 @@
 #include "Units/Hierarchy/RigUnit_SetBoneTransform.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
+#include "AssetRegistryModule.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -104,6 +105,10 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	HierarchyController = CreateDefaultSubobject<URigHierarchyController>(TEXT("HierarchyController"));
 	HierarchyController->SetHierarchy(Hierarchy);
 	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
+}
+
+UControlRigBlueprint::UControlRigBlueprint()
+{
 }
 
 void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
@@ -526,9 +531,7 @@ void UControlRigBlueprint::PostLoad()
 	}
 
 	// perform backwards compat value upgrades
-	TArray<URigVMGraph*> GraphsToValidate;
-	GraphsToValidate.Add(GetModel());
-	GraphsToValidate.Add(GetLocalFunctionLibrary());
+	TArray<URigVMGraph*> GraphsToValidate = GetAllModels();
 	for (int32 GraphIndex = 0; GraphIndex < GraphsToValidate.Num(); GraphIndex++)
 	{
 		URigVMGraph* GraphToValidate = GraphsToValidate[GraphIndex];
@@ -539,11 +542,6 @@ void UControlRigBlueprint::PostLoad()
 			
 		for(URigVMNode* Node : GraphToValidate->GetNodes())
 		{
-			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
-			{
-				GraphsToValidate.AddUnique(CollapseNode->GetContainedGraph());
-			}
-
 			TArray<URigVMPin*> Pins = Node->GetAllPinsRecursively();
 			for(URigVMPin* Pin : Pins)
 			{
@@ -556,6 +554,20 @@ void UControlRigBlueprint::PostLoad()
 							Controller->SuspendNotifications(true);
 							Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
 							Controller->SuspendNotifications(false);
+						}
+					}
+				}
+			}
+
+			if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+			{
+				if(URigVMLibraryNode* DependencyNode = FunctionReferenceNode->GetReferencedNode())
+				{
+					if(UControlRigBlueprint* DependencyBlueprint = DependencyNode->GetTypedOuter<UControlRigBlueprint>())
+					{
+						if(DependencyBlueprint != this)
+						{
+							DependencyBlueprint->GetLocalFunctionLibrary()->UpdateReferencesForReferenceNode(FunctionReferenceNode);
 						}
 					}
 				}
@@ -1179,6 +1191,115 @@ void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool 
 			}
 		}
 	}
+}
+
+TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependencies(bool bRecursive) const
+{
+	TArray<UControlRigBlueprint*> Dependencies;
+
+	TArray<URigVMGraph*> Graphs = GetAllModels();
+	for(URigVMGraph* Graph : Graphs)
+	{
+		for(URigVMNode* Node : Graph->GetNodes())
+		{
+			if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+			{
+				if(URigVMLibraryNode* LibraryNode = FunctionReferenceNode->GetReferencedNode())
+				{
+					if(UControlRigBlueprint* DependencyBlueprint = LibraryNode->GetTypedOuter<UControlRigBlueprint>())
+					{
+						if(DependencyBlueprint != this)
+						{
+							if(!Dependencies.Contains(DependencyBlueprint))
+							{
+								Dependencies.Add(DependencyBlueprint);
+
+								if(bRecursive)
+								{
+									TArray<UControlRigBlueprint*> ChildDependencies = DependencyBlueprint->GetDependencies(true);
+									for(UControlRigBlueprint* ChildDependency : ChildDependencies)
+									{
+										Dependencies.AddUnique(ChildDependency);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Dependencies;
+}
+
+TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
+{
+	TArray<FAssetData> Dependents;
+	TArray<FName> AssetPaths;
+
+	if(FunctionLibrary)
+	{
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		TArray<URigVMLibraryNode*> Functions = FunctionLibrary->GetFunctions();
+		for(URigVMLibraryNode* Function : Functions)
+		{
+			const FName FunctionName = Function->GetFName();
+			if(IsFunctionPublic(FunctionName))
+			{
+				TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> References = FunctionLibrary->GetReferencesForFunction(FunctionName);
+				for(const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference : References)
+				{
+					const FName AssetPath = Reference.ToSoftObjectPath().GetAssetPathName();
+					if(AssetPath.ToString().StartsWith(TEXT("/Engine/Transient")))
+					{
+						continue;
+					}
+					
+					if(!AssetPaths.Contains(AssetPath))
+					{
+						AssetPaths.Add(AssetPath);
+
+						const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath.ToString());
+						if(AssetData.IsValid())
+						{
+							Dependents.Add(AssetData);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return Dependents;
+}
+
+TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool bRecursive) const
+{
+	TArray<FAssetData> Assets = GetDependentAssets();
+	TArray<UControlRigBlueprint*> Dependents;
+
+	for(const FAssetData& Asset : Assets)
+	{
+		if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(Asset.GetAsset()))
+		{
+			if(!Dependents.Contains(Dependent))
+			{
+				Dependents.Add(Dependent);
+
+				if(bRecursive)
+				{
+					TArray<UControlRigBlueprint*> ParentDependents = Dependent->GetDependentBlueprints(true);
+					for(UControlRigBlueprint* ParentDependent : ParentDependents)
+					{
+						Dependents.AddUnique(ParentDependent);
+					}
+				}
+			}
+		}
+	}
+
+	return Dependents;
 }
 
 void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
