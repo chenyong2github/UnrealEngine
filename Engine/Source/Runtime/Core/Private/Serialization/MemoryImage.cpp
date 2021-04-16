@@ -1076,6 +1076,44 @@ public:
 		return Result.String;
 	}
 
+	const char* RegisterStringUTF8(const char* InStringUTF8, int32 InLength, uint64 InHash)
+	{
+		const char* Result = nullptr;
+		{
+			FReadScopeLock ReadLock(Lock);
+			const FStringEntry* Entry = Entries.Find(InHash);
+			if (Entry)
+			{
+				Result = Entry->String;
+			}
+		}
+
+		if (!Result)
+		{
+			FWriteScopeLock WriteLock(Lock);
+			FStringEntry* Entry = Entries.Find(InHash);
+			if (Entry)
+			{
+				Result = Entry->String;
+			}
+			else
+			{
+				char* InternedString = (char*)MemStack.Alloc(InLength + 1, 4);
+				FMemory::Memcpy(InternedString, InStringUTF8, InLength);
+				InternedString[InLength] = 0;
+
+				const FUTF8ToTCHAR NameTCHAR(InStringUTF8);
+
+				Entry = &Entries.Add(InHash);
+				Entry->String = InternedString;
+				Entry->Name = NameTCHAR.Get();
+				Result = InternedString;
+			}
+		}
+
+		return Result;
+	}
+
 	struct FStringEntry
 	{
 		const char* String = nullptr;
@@ -1178,6 +1216,24 @@ FHashedName::FHashedName(const FName& InName)
 		DebugString.String = FHashedNameRegistry::Get().EmptyString;
 #endif
 	}
+}
+
+FHashedName::FHashedName(const FHashedName& InName) : Hash(InName.Hash)
+{
+#if WITH_EDITORONLY_DATA
+	if (InName.DebugString.String.IsFrozen())
+	{
+		// If the source debug string is frozen, we need to make ourselved an interned unfrozen copy
+		// It's not safe to point directly to the frozen source, as there's no guarantee of its lifetime
+		const char* StringUTF8 = InName.DebugString.String.Get();
+		DebugString.String = FHashedNameRegistry::Get().RegisterStringUTF8(StringUTF8, FCStringAnsi::Strlen(StringUTF8), InName.Hash);
+	}
+	else
+	{
+		// If the source isn't frozen, it must already be interned, safe to copy the pointer directly
+		DebugString.String = InName.DebugString.String;
+	}
+#endif
 }
 
 void FPointerTableBase::SaveToArchive(FArchive& Ar, const FPlatformTypeLayoutParameters& LayoutParams, const void* FrozenObject) const

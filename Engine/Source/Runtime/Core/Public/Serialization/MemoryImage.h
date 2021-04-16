@@ -302,10 +302,10 @@ public:
 	inline bool IsValid() const { return UnfrozenPtr != nullptr; }
 	inline bool IsNull() const { return UnfrozenPtr == nullptr; }
 
-	inline TMemoryImagePtr(T* InPtr = nullptr) : UnfrozenPtr(InPtr) {}
-	inline TMemoryImagePtr(const TMemoryImagePtr<T>& InPtr) : UnfrozenPtr(InPtr.Get()) {}
-	inline TMemoryImagePtr& operator=(T* InPtr) { UnfrozenPtr = InPtr; check((Frozen.OffsetFromThis & AllFlags) == 0u); return *this; }
-	inline TMemoryImagePtr& operator=(const TMemoryImagePtr<T>& InPtr) { UnfrozenPtr = InPtr.Get(); check((Frozen.OffsetFromThis & AllFlags) == 0u); return *this; }
+	inline TMemoryImagePtr(T* InPtr = nullptr) : UnfrozenPtr(InPtr) { check(((uint64)UnfrozenPtr & AllFlags) == 0u); }
+	inline TMemoryImagePtr(const TMemoryImagePtr<T>& InPtr) : UnfrozenPtr(InPtr.Get()) { check(((uint64)UnfrozenPtr & AllFlags) == 0u); }
+	inline TMemoryImagePtr& operator=(T* InPtr) { UnfrozenPtr = InPtr; check(((uint64)UnfrozenPtr & AllFlags) == 0u); return *this; }
+	inline TMemoryImagePtr& operator=(const TMemoryImagePtr<T>& InPtr) { UnfrozenPtr = InPtr.Get(); check(((uint64)UnfrozenPtr & AllFlags) == 0u); return *this; }
 
 	inline ~TMemoryImagePtr() 
 	{
@@ -758,6 +758,7 @@ class FHashedName
 public:
 	inline FHashedName() : Hash(0u) {}
 	CORE_API explicit FHashedName(uint64 InHash);
+	CORE_API FHashedName(const FHashedName& InName);
 	CORE_API FHashedName(const TCHAR* InString);
 	CORE_API FHashedName(const FString& InString);
 	CORE_API FHashedName(const FName& InName);
