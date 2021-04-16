@@ -38,7 +38,7 @@ public:
 	 * In case of extension like asm.1, the return name is the part before the full extension (asm.1)
 	 * The right part of extension must to be a numeric value
 	 *
-	 * @param	InPath	the path of the file
+	 * @param	InFilePath the path of the file
 	 * @param	OutFilename the filename (without extension), minus any path information.
 	 * @param	OutExtension the extension
 	 */
@@ -141,7 +141,7 @@ public:
 	/**
 	 * Validates that the given UV Channel does not contain a degenerated triangle.
 	 *
-	 * @param DSMesh	The DatasmithMesh to validate.
+	 * @param DsMesh	The DatasmithMesh to validate.
 	 * @param Channel	The UV channel to validate, starting at 0
 	 */
 	static bool IsUVChannelValid(const FDatasmithMesh& DsMesh, const int32 Channel);
