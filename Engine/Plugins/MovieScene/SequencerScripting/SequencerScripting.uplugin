@@ -27,7 +27,7 @@
 	"Modules": [
 		{
 			"Name": "SequencerScripting",
-			"Type": "UncookedOnly",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		},
 		{

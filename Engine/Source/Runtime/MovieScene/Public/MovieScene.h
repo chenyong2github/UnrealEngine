@@ -384,7 +384,6 @@ public:
 
 public:
 
-#if WITH_EDITOR
 	/**
 	 * Add a spawnable to this movie scene's list of owned blueprints.
 	 *
@@ -411,8 +410,6 @@ public:
 	 * @return true if anything was removed.
 	 */
 	bool RemoveSpawnable(const FGuid& Guid);
-
-#endif //WITH_EDITOR
 
 	/**
 	 * Attempt to find a spawnable using some custom predicate
