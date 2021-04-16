@@ -104,10 +104,13 @@ bool FDisplayClusterWarpBlend::CalcFrustumContext(const FDisplayClusterWarpEye& 
 	return true;
 }
 
-#if WITH_EDITOR
 bool FDisplayClusterWarpBlend::ExportWarpMapGeometry(FMPCDIGeometryExportData* OutMeshData) const
 {
+#if WITH_EDITOR
 	return OutMeshData ? FDisplayClusterWarpBlendExporter_WarpMap::ExportWarpMap(GeometryContext.GeometryProxy.WarpMap, *OutMeshData) : false;
-}
+#else
+	return false;
 #endif
+}
+
 
