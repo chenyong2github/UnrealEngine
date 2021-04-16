@@ -6851,8 +6851,8 @@ void UCharacterMovementComponent::ApplyImpactPhysicsForces(const FHitResult& Imp
 				}
 
 				Force *= PushForceModificator;
-
-				if (ComponentVelocity.IsNearlyZero())
+				const float ZeroVelocityTolerance = 1.0f;
+				if (ComponentVelocity.IsNearlyZero(ZeroVelocityTolerance))
 				{
 					Force *= InitialPushForceFactor;
 					ImpactComponent->AddImpulseAtLocation(Force, ForcePoint, Impact.BoneName);
