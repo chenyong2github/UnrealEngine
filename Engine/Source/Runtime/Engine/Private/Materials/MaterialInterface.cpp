@@ -38,12 +38,18 @@ UEnum* UMaterialInterface::SamplerTypeEnum = nullptr;
 bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
 {
 	check(Platform != SP_NumPlatforms);
-	return
-		(
-			((IsD3DPlatform(Platform) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
-		)
-		&&
-		GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+
+	bool bPCPlatformSupportsHairStrands = (IsD3DPlatform(Platform) || IsVulkanSM5Platform(Platform));
+	bPCPlatformSupportsHairStrands = bPCPlatformSupportsHairStrands && IsPCPlatform(Platform);
+	bPCPlatformSupportsHairStrands = bPCPlatformSupportsHairStrands && !IsMobilePlatform(Platform);
+
+	bool bConsolePlatformSupportsHairStrands = IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform);
+	bConsolePlatformSupportsHairStrands = bConsolePlatformSupportsHairStrands && FDataDrivenShaderPlatformInfo::GetSupportsHairStrandGeometry(Platform);
+
+	bool bSupportsHairStrands = (bConsolePlatformSupportsHairStrands || bPCPlatformSupportsHairStrands);
+	bSupportsHairStrands = bSupportsHairStrands && GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+
+	return bSupportsHairStrands;
 }
 
 bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)

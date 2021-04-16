@@ -576,7 +576,7 @@ inline bool IsUsingPerPixelDBufferMask(const FStaticShaderPlatform Platform)
 		// Per-pixel DBufferMask optimization is currently only tested and supported on Switch.
 		return true;
 	default:
-		return false;
+		return FDataDrivenShaderPlatformInfo::GetSupportsPerPixelDBufferMask(Platform);
 	}
 }
 

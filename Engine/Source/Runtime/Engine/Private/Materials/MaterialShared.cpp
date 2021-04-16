@@ -733,7 +733,8 @@ bool FMaterial::NeedsGBuffer() const
 {
 	check(IsInParallelRenderingThread());
 
-	if ((IsOpenGLPlatform(GMaxRHIShaderPlatform) || IsSwitchPlatform(GMaxRHIShaderPlatform)) // @todo: TTP #341211
+	if ((IsOpenGLPlatform(GMaxRHIShaderPlatform) || IsSwitchPlatform(GMaxRHIShaderPlatform) // @todo: TTP #341211
+		|| FDataDrivenShaderPlatformInfo::GetOverrideFMaterial_NeedsGBufferEnabled(GMaxRHIShaderPlatform)) 
 		&& !IsMobilePlatform(GMaxRHIShaderPlatform)) 
 	{
 		return true;
