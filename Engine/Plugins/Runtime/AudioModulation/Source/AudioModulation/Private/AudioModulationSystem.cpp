@@ -335,7 +335,8 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::ProcessModulators(const double InElapsed)
 	{
-		check(ProcessingThreadId == 0 || IsInProcessingThread());
+		// The processing thread can get updated between frames. As modulation
+		// processing should be first call in frame, update the threadId accordingly
 		ProcessingThreadId = FPlatformTLS::GetCurrentThreadId();
 
 		int32 CommandsProcessed = 0;

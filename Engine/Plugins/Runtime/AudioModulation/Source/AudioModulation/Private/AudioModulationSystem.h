@@ -17,6 +17,7 @@
 #include "SoundModulationValue.h"
 #include "SoundModulationGenerator.h"
 #include "SoundModulationGeneratorProxy.h"
+#include "Templates/Atomic.h"
 #include "Templates/Function.h"
 
 #if WITH_AUDIOMODULATION
@@ -177,7 +178,7 @@ namespace AudioModulation
 		TQueue<TUniqueFunction<void()>, EQueueMode::Mpsc> ProcessingThreadCommandQueue;
 
 		// Thread modulators are processed on
-		uint32 ProcessingThreadId = 0;
+		TAtomic<uint32> ProcessingThreadId { 0 };
 
 		// Collection of maps with modulator handles to referencing object ids used by externally managing objects
 		FReferencedModulators RefModulators;
