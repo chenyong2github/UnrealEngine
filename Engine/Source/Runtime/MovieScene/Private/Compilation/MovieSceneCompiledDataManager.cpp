@@ -1129,6 +1129,11 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber>         ClampedRangeRoot         = Params.ClampRoot(SequenceToRootTransform.TransformRangeUnwarped(Entry.Range));
 			UMovieSceneSection*          Section                  = Entry.Section;
 
+			if (Section && Track->IsRowEvalDisabled(Section->GetRowIndex()))
+			{
+				continue;
+			}
+
 			if (ClampedRangeRoot.IsEmpty())
 			{
 				continue;
@@ -1242,6 +1247,11 @@ bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSubTrack
 
 	for (UMovieSceneSection* Section : SubTrack->GetAllSections())
 	{
+		if (SubTrack->IsRowEvalDisabled(Section->GetRowIndex()))
+		{
+			continue;
+		}
+
 		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Section);
 		if (!SubSection)
 		{
@@ -1338,6 +1348,11 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 	{
 		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Entry.Section);
 		if (!SubSection || SubSection->GetSequence() == nullptr)
+		{
+			continue;
+		}
+
+		if (SubTrack->IsRowEvalDisabled(SubSection->GetRowIndex()))
 		{
 			continue;
 		}

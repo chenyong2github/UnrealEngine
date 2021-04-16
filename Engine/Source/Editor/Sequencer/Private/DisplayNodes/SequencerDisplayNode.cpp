@@ -791,10 +791,22 @@ bool FSequencerDisplayNode::IsDimmed() const
 		// If the node is a track node, we can use the cached value in UMovieSceneTrack
 		if (GetType() == ESequencerNode::Track)
 		{
-			UMovieSceneTrack* Track = static_cast<const FSequencerTrackNode*>(this)->GetTrack();
-			if (Track && Track->IsEvalDisabled())
+			const FSequencerTrackNode* TrackNode = static_cast<const FSequencerTrackNode*>(this);
+			UMovieSceneTrack* Track = TrackNode->GetTrack();
+
+			if (Track)
 			{
-				bDimLabel = true;
+				if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+				{
+					if (Track->IsRowEvalDisabled(TrackNode->GetRowIndex()))
+					{
+						bDimLabel = true;
+					}
+				}
+				else if (Track->IsEvalDisabled())
+				{
+					bDimLabel = true;
+				}
 			}
 		}
 		else

@@ -7146,7 +7146,7 @@ void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPat
 		TArray<FString> PathsToRename;
 		for (const FString& NodePath : MovieScene->GetSoloNodes())
 		{
-			if (NodePath.StartsWith(PathPrefix))
+			if (NodePath.StartsWith(PathPrefix) && NodePath != NewPath)
 			{
 				PathsToRename.Add(NodePath);
 			}
@@ -7166,7 +7166,7 @@ void FSequencer::OnNodePathChanged(const FString& OldPath, const FString& NewPat
 		PathsToRename.Empty();
 		for (const FString& NodePath : MovieScene->GetMuteNodes())
 		{
-			if (NodePath.StartsWith(PathPrefix))
+			if (NodePath.StartsWith(PathPrefix) && NodePath != NewPath)
 			{
 				PathsToRename.Add(NodePath);
 			}
