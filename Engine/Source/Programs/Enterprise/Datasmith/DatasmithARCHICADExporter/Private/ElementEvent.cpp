@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ElementEvent.h"
-#include "TAssValueName.h"
+#include "Utils/TAssValueName.h"
+#include "Menus.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -49,13 +50,13 @@ GSErrCode FElementEvent::Initialize()
 	GSErrCode GSErr = ACAPI_Notify_CatchNewElement(nullptr, ElementEventCB);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FElementEvent::Initialize - ACAPI_Notify_CatchNewElement error=%d\n", GSErr);
+		UE_AC_DebugF("FElementEvent::Initialize - ACAPI_Notify_CatchNewElement error=%s\n", GetErrorName(GSErr));
 	}
 
 	GSErr = ACAPI_Notify_InstallElementObserver(ElementEventCB);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FElementEvent::Initialize - ACAPI_Notify_InstallElementObserver error=%d\n", GSErr);
+		UE_AC_DebugF("FElementEvent::Initialize - ACAPI_Notify_InstallElementObserver error=%s\n", GetErrorName(GSErr));
 	}
 
 	return GSErr;
@@ -129,6 +130,7 @@ GSErrCode FElementEvent::Event(const API_NotifyElementType& ElemType)
 						 ElemUUID.ToCStr().Get());
 			break;
 	}
+	FMenus::PostDoSnapshot();
 	return NoError;
 }
 

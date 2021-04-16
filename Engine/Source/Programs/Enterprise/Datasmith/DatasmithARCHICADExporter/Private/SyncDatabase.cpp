@@ -5,8 +5,10 @@
 #include "MaterialsDatabase.h"
 #include "TexturesCache.h"
 #include "ElementID.h"
-#include "ElementTools.h"
+#include "Utils/ElementTools.h"
 #include "GeometryUtil.h"
+#include "Utils/3DElement2String.h"
+#include "Utils/Element2String.h"
 
 #include "DatasmithUtils.h"
 
@@ -80,9 +82,9 @@ void FSyncDatabase::Synchronize(const FSyncContext& InSyncContext)
 	{
 		CameraSyncData = new FSyncData::FCamera(FSyncData::FCamera::CurrentViewGUID, 0);
 		CameraSyncData->SetParent(&GetSceneSyncData());
-		CameraSyncData->MarkAsExisting();
 		CameraSyncData->MarkAsModified();
 	}
+	CameraSyncData->MarkAsExisting();
 
 	CleanAfterScan();
 
@@ -177,12 +179,16 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 			return false; // No change : Same name (hash) --> Same mesh
 		}
 
-		FMapHashToMeshInfo::iterator Older = HashToMeshInfo.find(Handle->Get()->GetName());
-		UE_AC_Assert(Older != HashToMeshInfo.end());
-		if (--Older->second.Count == 0)
 		{
-			Scene->RemoveMesh(Older->second.Mesh);
-			HashToMeshInfo.erase(Older);
+			GS::Guard< GS::Lock > lck(HashToMeshInfoAccesControl);
+
+			FMapHashToMeshInfo::iterator Older = HashToMeshInfo.find(Handle->Get()->GetName());
+			UE_AC_Assert(Older != HashToMeshInfo.end());
+			if (--Older->second.Count == 0)
+			{
+				Scene->RemoveMesh(Older->second.Mesh);
+				HashToMeshInfo.erase(Older);
+			}
 		}
 		Handle->Reset();
 	}
@@ -196,13 +202,16 @@ bool FSyncDatabase::SetMesh(TSharedPtr< IDatasmithMeshElement >*	   Handle,
 
 	if (InMesh.IsValid())
 	{
-		FMeshInfo& MeshInfo = HashToMeshInfo[InMesh->GetName()];
-		if (!MeshInfo.Mesh.IsValid())
 		{
-			MeshInfo.Mesh = InMesh;
-			Scene->AddMesh(InMesh);
+			GS::Guard< GS::Lock > lck(HashToMeshInfoAccesControl);
+			FMeshInfo&			  MeshInfo = HashToMeshInfo[InMesh->GetName()];
+			if (!MeshInfo.Mesh.IsValid())
+			{
+				MeshInfo.Mesh = InMesh;
+				Scene->AddMesh(InMesh);
+			}
+			++MeshInfo.Count;
 		}
-		++MeshInfo.Count;
 		*Handle = InMesh;
 	}
 
@@ -257,8 +266,8 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 
 #if UE_AC_DO_TRACE && 1
 		// Get the name of the element (To help debugging)
-		GS::UniString ElemenInfo;
-		FElementTools::GetInfoString(ElementGuid, &ElemenInfo);
+		GS::UniString ElementInfo;
+		FElementTools::GetInfoString(ElementGuid, &ElementInfo);
 
 	#if 0
 		// Print element info in debugger view
@@ -274,7 +283,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 		{
 #if UE_AC_DO_TRACE && 1
 			UE_AC_TraceF("FSynchronizer::ScanElements - EmptyBox for %s \"%s\" %d %s", ElementID.GetTypeName(),
-						 ElemenInfo.ToUtf8(), IndexElement, APIGuidToString(ElementGuid).ToUtf8());
+						 ElementInfo.ToUtf8(), IndexElement, APIGuidToString(ElementGuid).ToUtf8());
 #endif
 			continue; // Object is invisible (hidden layer or cutting plane)
 		}
@@ -295,7 +304,7 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 		FSyncData*& SyncData = GetSyncData(APIGuid2GSGuid(ElementID.ElementHeader.guid));
 		if (SyncData == nullptr)
 		{
-			SyncData = new FSyncData::FElement(APIGuid2GSGuid(ElementID.ElementHeader.guid));
+			SyncData = new FSyncData::FElement(APIGuid2GSGuid(ElementID.ElementHeader.guid), InSyncContext);
 		}
 		ElementID.SyncData = SyncData;
 		SyncData->Update(ElementID);
@@ -318,38 +327,50 @@ UInt32 FSyncDatabase::ScanElements(const FSyncContext& InSyncContext)
 	return ModifiedCount;
 }
 
+#if defined(DEBUG) && 0
+	#define UE_AC_DO_TRACE_LIGHTS 1
+#else
+	#define UE_AC_DO_TRACE_LIGHTS 0
+#endif
+
 // Scan all lights of this element
 void FSyncDatabase::ScanLights(const FElementID& InElementID)
 {
-	ModelerAPI::Light Light;
-	//	API_Component3D	API_Light;
-
 	GS::Int32 LightsCount = InElementID.Element3D.GetLightCount();
-	for (GS::Int32 LightIndex = 1; LightIndex < LightsCount; ++LightIndex)
+	if (LightsCount > 0)
 	{
-		InElementID.Element3D.GetLight(LightIndex, &Light);
-		ModelerAPI::Light::Type LightType = Light.GetType();
-		if (LightType == ModelerAPI::Light::DirectionLight || LightType == ModelerAPI::Light::SpotLight ||
-			LightType == ModelerAPI::Light::PointLight)
-		{
-			API_Guid	LightId = CombineGuid(InElementID.ElementHeader.guid, GuidFromMD5(LightIndex));
-			FSyncData*& SyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(LightId));
-			if (SyncData == nullptr)
-			{
-				SyncData = new FSyncData::FLight(APIGuid2GSGuid(LightId), LightIndex);
-				SyncData->SetParent(InElementID.SyncData);
-				SyncData->MarkAsExisting();
-				SyncData->MarkAsModified();
-			}
-			FSyncData::FLight& LightSyncData = static_cast< FSyncData::FLight& >(*SyncData);
+#if UE_AC_DO_TRACE_LIGHTS
+		UE_AC_TraceF("%s", FElement2String::GetElementAsShortString(InElementID.ElementHeader.guid).c_str());
+		UE_AC_TraceF("%s", FElement2String::GetParametersAsString(InElementID.ElementHeader.guid).c_str());
+		UE_AC_TraceF("%s", F3DElement2String::ElementLight2String(InElementID.Element3D).c_str());
+#endif
+		ModelerAPI::Light Light;
 
-			const float		  InnerConeAngle = float(Light.GetFalloffAngle1() * 180.0f / PI);
-			const float		  OuterConeAngle = float(Light.GetFalloffAngle2() * 180.0f / PI);
-			ModelerAPI::Color color = Light.GetColor();
-			FLinearColor	  LinearColor(float(color.red), float(color.green), float(color.blue));
-			LightSyncData.SetValues(LightType, InnerConeAngle, OuterConeAngle, LinearColor);
-			LightSyncData.Placement(FGeometryUtil::GetTranslationVector(Light.GetPosition()),
-									FGeometryUtil::GetRotationQuat(Light.GetDirection()));
+		for (GS::Int32 LightIndex = 1; LightIndex <= LightsCount; ++LightIndex)
+		{
+			InElementID.Element3D.GetLight(LightIndex, &Light);
+			ModelerAPI::Light::Type LightType = Light.GetType();
+			if (LightType == ModelerAPI::Light::DirectionLight || LightType == ModelerAPI::Light::SpotLight ||
+				LightType == ModelerAPI::Light::PointLight)
+			{
+				API_Guid	LightId = CombineGuid(InElementID.ElementHeader.guid, GuidFromMD5(LightIndex));
+				FSyncData*& SyncData = FSyncDatabase::GetSyncData(APIGuid2GSGuid(LightId));
+				if (SyncData == nullptr)
+				{
+					SyncData = new FSyncData::FLight(APIGuid2GSGuid(LightId), LightIndex);
+					SyncData->SetParent(InElementID.SyncData);
+					SyncData->MarkAsModified();
+				}
+				FSyncData::FLight& LightSyncData = static_cast< FSyncData::FLight& >(*SyncData);
+				LightSyncData.MarkAsExisting();
+
+				const float	 InnerConeAngle = float(Light.GetFalloffAngle1() * 180.0f / PI);
+				const float	 OuterConeAngle = float(Light.GetFalloffAngle2() * 180.0f / PI);
+				FLinearColor LightColor = ACRGBColorToUELinearColor(Light.GetColor());
+				LightSyncData.SetValues(LightType, InnerConeAngle, OuterConeAngle, LightColor);
+				LightSyncData.Placement(FGeometryUtil::GetTranslationVector(Light.GetPosition()),
+										FGeometryUtil::GetRotationQuat(Light.GetDirection()));
+			}
 		}
 	}
 }

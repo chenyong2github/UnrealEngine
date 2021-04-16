@@ -2,8 +2,8 @@
 
 #include "Export.h"
 #include "ResourcesIDs.h"
-#include "Error.h"
-#include "AutoChangeDatabase.h"
+#include "Utils/Error.h"
+#include "Utils/AutoChangeDatabase.h"
 #include "Exporter.h"
 
 #include "exp.h"
@@ -43,7 +43,7 @@ GSErrCode FExport::Initialize()
 	GSErrCode GSErr = ACAPI_Install_FileTypeHandler3D(kDatasmithFileRefCon, SaveToDatasmithFile);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FExport::Initialize - ACAPI_Install_FileTypeHandler3D error=%d\n", GSErr);
+		UE_AC_DebugF("FExport::Initialize - ACAPI_Install_FileTypeHandler3D error=%s\n", GetErrorName(GSErr));
 	}
 	return GSErr;
 }

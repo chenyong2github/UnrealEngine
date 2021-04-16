@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialsDatabase.h"
+#include "Utils/AutoChangeDatabase.h"
 
 #include "ModelMaterial.hpp"
 #include "Texture.hpp"
@@ -13,6 +14,294 @@
 
 BEGIN_NAMESPACE_UE_AC
 
+class FMaterialInfo
+{
+  public:
+	FMaterialInfo(FMaterialsDatabase::FMaterialSyncData* IOMaterialSyncData)
+		: SyncData(*IOMaterialSyncData)
+	{
+	}
+
+	void Init(const FSyncContext& SyncContext, const API_Component3D& CUmat, const FMaterialKey& MaterialKey);
+
+	void UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElement >& DSMaterial);
+
+	bool	bIdIsSynthetized = false;
+	FString DatasmithId;
+	FString DatasmithLabel;
+
+	double Rotation = 0.0; // Rotation angle
+	double InvXSize = 1.0; // Used to compute uv
+	double InvYSize = 1.0; // Used to compute uv
+	bool   bMirrorX = false;
+	bool   bMirrorY = false;
+
+	bool			  bTwoSide = false;
+	float			  Opacity = 0.0f;
+	float			  SpecularReflection = 0.0f;
+	ModelerAPI::Color SurfaceColor;
+	ModelerAPI::Color EmissiveColor;
+
+	const FTexturesCache::FTexturesCacheElem* Texture = nullptr;
+	FMaterialsDatabase::FMaterialSyncData&	  SyncData;
+};
+
+void FMaterialInfo::Init(const FSyncContext& SyncContext, const API_Component3D& CUmat, const FMaterialKey& MaterialKey)
+{
+	// Get modeler material
+	ModelerAPI::AttributeIndex IndexMaterial(ModelerAPI::AttributeIndex::MaterialIndex, MaterialKey.ACMaterialIndex);
+	ModelerAPI::Material	   AcMaterial;
+	SyncContext.GetModel().GetMaterial(IndexMaterial, &AcMaterial);
+	ModelerAPI::AttributeIndex IndexTexture;
+	AcMaterial.GetTextureIndex(IndexTexture);
+	GS::Int32 textureIndex = IndexTexture.GetOriginalModelerIndex();
+	if (MaterialKey.ACTextureIndex != kInvalidMaterialIndex)
+	{
+		textureIndex = MaterialKey.ACTextureIndex;
+	}
+
+	if (SyncData.MaterialId == APINULLGuid)
+	{
+		API_Guid MatGuid = CUmat.umat.mater.head.guid;
+		if (MatGuid == APINULLGuid)
+		{
+			bIdIsSynthetized = true;
+			// Simulate a Guid from material name and properties
+			MD5::Generator g;
+			std::string	   name(CUmat.umat.mater.head.uniStringNamePtr->ToUtf8());
+			g.Update(name.c_str(), (unsigned int)name.size());
+			const char* p1 = (const char*)&CUmat.umat.mater.mtype;
+			g.Update(p1, (unsigned int)((const char*)&CUmat.umat.mater.texture - p1));
+			MD5::FingerPrint fp;
+			g.Finish(fp);
+			MatGuid = Fingerprint2API_Guid(fp);
+			if (textureIndex > 0)
+			{
+				// Add the texture finderprint
+				MatGuid = CombineGuid(MatGuid,
+									  SyncContext.GetTexturesCache().GetTexture(SyncContext, textureIndex).Fingerprint);
+			}
+			UE_AC_VerboseF("Simulate Guid for material %d, %s Guid=%s\n", MaterialKey.ACMaterialIndex,
+						   DisplayName.ToUtf8(), APIGuidToString(MatGuid).ToUtf8());
+		}
+		SyncData.MaterialId = APIGuid2GSGuid(MatGuid);
+		SyncData.MaterialIndex = CUmat.umat.mater.head.index;
+	}
+
+	DatasmithId = GSStringToUE(SyncData.MaterialId.ToUniString());
+	DatasmithLabel = GSStringToUE((*CUmat.umat.mater.head.uniStringNamePtr));
+
+	// If the material use a texture
+	if (textureIndex > 0)
+	{
+		// Add the texture info to SyncDatabase
+		Texture = &SyncContext.GetTexturesCache().GetTexture(SyncContext, textureIndex);
+
+		Rotation = AcMaterial.GetTextureRotationAngle();
+		InvXSize = Texture->InvXSize;
+		InvYSize = Texture->InvYSize;
+		bMirrorX = Texture->bMirrorX;
+		bMirrorY = Texture->bMirrorY;
+
+		if (MaterialKey.ACTextureIndex != kInvalidMaterialIndex)
+		{
+			GS::UniString fingerprint = APIGuidToString(Texture->Fingerprint);
+
+			DatasmithId += TEXT("_");
+			DatasmithId += GSStringToUE(fingerprint);
+
+			DatasmithLabel += GSStringToUE(fingerprint);
+			DatasmithLabel += "_";
+			DatasmithLabel += GSStringToUE(Texture->TextureLabel);
+		}
+	}
+
+	if (MaterialKey.Sided == kDoubleSide)
+	{
+		DatasmithId += TEXT("_DS");
+		DatasmithLabel += TEXT("_DS");
+	}
+
+	Opacity = 1.0f - (float)AcMaterial.GetTransparency();
+	SurfaceColor = AcMaterial.GetSurfaceColor();
+	SpecularReflection = (float)AcMaterial.GetSpecularReflection();
+	EmissiveColor = AcMaterial.GetEmissionColor();
+	bTwoSide = MaterialKey.Sided == kDoubleSide;
+}
+
+void FMaterialInfo::UpdateMaterial(const TSharedPtr< IDatasmithUEPbrMaterialElement >& DSMaterial)
+{
+	bool bRemoveAllExpressions = true;
+	DSMaterial->ResetExpressionGraph(bRemoveAllExpressions);
+	DSMaterial->SetLabel(*DatasmithLabel);
+
+	const bool bIsTransparent = Opacity != 1.0;
+	bool	   bHasAphaMask = false;
+
+	if (Texture != nullptr)
+	{
+		IDatasmithMaterialExpressionTexture* BaseTextureExpression =
+			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
+		BaseTextureExpression->SetTexturePathName(GSStringToUE(APIGuidToString(Texture->Fingerprint)));
+		BaseTextureExpression->SetName(GSStringToUE(Texture->TextureLabel));
+		BaseTextureExpression->ConnectExpression(DSMaterial->GetBaseColor());
+
+		if (PIVOT_0_5_0_5 != 0 || InvXSize != 1.0 || InvYSize != 1.0 || bMirrorX || bMirrorY || Rotation != 0.0)
+		{
+			IDatasmithMaterialExpressionFunctionCall* UVEditExpression =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+			UVEditExpression->SetFunctionPathName(TEXT("/DatasmithContent/Materials/UVEdit.UVEdit"));
+			UVEditExpression->ConnectExpression(BaseTextureExpression->GetInputCoordinate());
+
+			// Mirror
+			IDatasmithMaterialExpressionBool* MirrorUFlag =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
+			MirrorUFlag->SetName(TEXT("Mirror U"));
+			MirrorUFlag->GetBool() = bMirrorX;
+
+			MirrorUFlag->ConnectExpression(*UVEditExpression->GetInput(3));
+
+			IDatasmithMaterialExpressionBool* MirrorVFlag =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
+			MirrorVFlag->SetName(TEXT("Mirror V"));
+			MirrorVFlag->GetBool() = bMirrorY;
+
+			MirrorVFlag->ConnectExpression(*UVEditExpression->GetInput(4));
+
+			// Tiling
+			IDatasmithMaterialExpressionColor* TilingValue =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			TilingValue->SetName(TEXT("UV Tiling"));
+			TilingValue->GetColor() = FLinearColor(float(InvXSize), float(InvYSize), 0.0f);
+
+			TilingValue->ConnectExpression(*UVEditExpression->GetInput(2));
+
+			IDatasmithMaterialExpressionColor* OffsetValue =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			OffsetValue->SetName(TEXT("UV Offset"));
+#if PIVOT_0_5_0_5
+			OffsetValue->GetColor() = FLinearColor(-0.5f, -0.5f, 0.0f);
+#else
+			OffsetValue->GetColor() = FLinearColor(0.0f, 0.0f, 0.0f);
+#endif
+
+			OffsetValue->ConnectExpression(*UVEditExpression->GetInput(7));
+
+			IDatasmithMaterialExpressionColor* TilingPivot =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			TilingPivot->SetName(TEXT("Tiling Pivot"));
+			TilingPivot->GetColor() = FLinearColor(0.0f, 0.0f, 0.f);
+
+			TilingPivot->ConnectExpression(*UVEditExpression->GetInput(1));
+
+			// Rotation
+			if (!FMath::IsNearlyZero(Rotation))
+			{
+				IDatasmithMaterialExpressionScalar* RotationValue =
+					DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				RotationValue->SetName(TEXT("W Rotation"));
+				double intPart;
+				float  Rot = float(modf(Rotation * -(1.0 / PI), &intPart) * 0.5);
+				RotationValue->GetScalar() = Rot;
+
+				RotationValue->ConnectExpression(*UVEditExpression->GetInput(6));
+
+				IDatasmithMaterialExpressionColor* RotationPivot =
+					DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				RotationPivot->SetName(TEXT("Rotation Pivot"));
+#if PIVOT_0_5_0_5
+				RotationPivot->GetColor() = FLinearColor(0.5f, 0.5f, 0.0f);
+#else
+				RotationPivot->GetColor() = FLinearColor(0.0f, 0.0f, 0.0f);
+#endif
+				RotationPivot->ConnectExpression(*UVEditExpression->GetInput(5));
+			}
+
+			IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinateExpression =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >();
+			TextureCoordinateExpression->SetCoordinateIndex(0);
+			TextureCoordinateExpression->ConnectExpression(*UVEditExpression->GetInput(0));
+		}
+		if (Texture->bHasAlpha && Texture->bAlphaIsTransparence && bIsTransparent)
+		{
+			IDatasmithMaterialExpressionGeneric* MultiplyExpression =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			MultiplyExpression->SetExpressionName(TEXT("Multiply"));
+			MultiplyExpression->SetName(TEXT("Multiply Expression"));
+
+			IDatasmithMaterialExpressionScalar* OpacityExpression =
+				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+			OpacityExpression->GetScalar() = Opacity;
+			OpacityExpression->SetName(TEXT("Opacity"));
+
+			IDatasmithExpressionInput* MultiplyInputA = MultiplyExpression->GetInput(0);
+			IDatasmithExpressionInput* MultiplyInputB = MultiplyExpression->GetInput(1);
+
+			MultiplyExpression->ConnectExpression(DSMaterial->GetOpacity());
+
+			BaseTextureExpression->ConnectExpression(*MultiplyInputA, 4);
+			OpacityExpression->ConnectExpression(*MultiplyInputB);
+		}
+		else if (Texture->bHasAlpha && Texture->bAlphaIsTransparence)
+		{
+			BaseTextureExpression->ConnectExpression(DSMaterial->GetOpacity(), 4);
+		}
+	}
+	else
+	{
+		// Diffuse color
+		IDatasmithMaterialExpressionColor* DiffuseExpression =
+			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+		if (DiffuseExpression != nullptr)
+		{
+			DiffuseExpression->GetColor() = ACRGBColorToUELinearColor(SurfaceColor);
+			DiffuseExpression->SetName(TEXT("Base Color"));
+			DiffuseExpression->ConnectExpression(DSMaterial->GetBaseColor());
+		}
+	}
+
+	// Specular color
+	IDatasmithMaterialExpressionScalar* specularExpression =
+		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+	specularExpression->GetScalar() = SpecularReflection;
+	specularExpression->SetName(TEXT("Specular"));
+	specularExpression->ConnectExpression(DSMaterial->GetSpecular());
+
+	// Emissive color
+	IDatasmithMaterialExpressionColor* EmissiveExpression =
+		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+	EmissiveExpression->GetColor() = ACRGBColorToUELinearColor(EmissiveColor);
+	EmissiveExpression->SetName(TEXT("Emissive Color"));
+	EmissiveExpression->ConnectExpression(DSMaterial->GetEmissiveColor());
+
+	// Opacity
+	if (!bHasAphaMask && bIsTransparent)
+	{
+		IDatasmithMaterialExpressionScalar* OpacityExpression =
+			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		OpacityExpression->GetScalar() = Opacity;
+		OpacityExpression->SetName(TEXT("Opacity"));
+		OpacityExpression->ConnectExpression(DSMaterial->GetOpacity());
+	}
+
+	if (bTwoSide)
+	{
+		DSMaterial->SetTwoSided(bTwoSide);
+	}
+
+	// Metallic
+	float Metallic = 0.0;
+	if (DatasmithLabel.Contains(TEXT("Metal")))
+	{
+		Metallic = 1.0;
+	}
+	IDatasmithMaterialExpressionScalar* MetallicExpression =
+		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+	MetallicExpression->GetScalar() = Metallic;
+	MetallicExpression->SetName(TEXT("Metallic"));
+	MetallicExpression->ConnectExpression(DSMaterial->GetMetallic());
+}
+
 // Constructor
 FMaterialsDatabase::FMaterialsDatabase() {}
 
@@ -23,6 +312,62 @@ FMaterialsDatabase::~FMaterialsDatabase() {}
 void FMaterialsDatabase::Clear()
 {
 	MapMaterials.clear();
+	MaterialsNamesSet.clear();
+}
+
+// Return true if at least one material have been modified
+bool FMaterialsDatabase::CheckModify()
+{
+	FAutoChangeDatabase changeDB(APIWind_3DModelID);
+
+	for (MapSyncData::iterator Iter = MapMaterials.begin(); Iter != MapMaterials.end(); ++Iter)
+	{
+		if (Iter->second.CheckModify(Iter->first))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Scan all material and update modified ones
+void FMaterialsDatabase::UpdateModified(const FSyncContext& SyncContext)
+{
+	for (MapSyncData::iterator Iter = MapMaterials.begin(); Iter != MapMaterials.end(); ++Iter)
+	{
+		Iter->second.Update(SyncContext, Iter->first);
+	}
+}
+
+// Return true if the material have been modified
+bool FMaterialsDatabase::FMaterialSyncData::CheckModify(const FMaterialKey& MaterialKey)
+{
+	if (!bIsDuplicate && !bIdIsSynthetized && MaterialIndex != kInvalidMaterialIndex)
+	{
+		API_Attribute MaterialAttibute;
+		Zap(&MaterialAttibute);
+		MaterialAttibute.header.typeID = API_MaterialID;
+		MaterialAttibute.header.index = MaterialIndex;
+		GSErrCode GSErr = ACAPI_Attribute_Get(&MaterialAttibute);
+		if (GSErr == NoError)
+		{
+			if (MaterialAttibute.header.modiTime == 0)
+			{
+				MaterialAttibute.header.modiTime = 1;
+			}
+			if (LastModificationStamp != MaterialAttibute.header.modiTime)
+			{
+				return true;
+			}
+		}
+		else
+		{
+			UE_AC_DebugF("FMaterialsDatabase::FMaterialSyncData::CheckModify - ACAPI_Attribute_Search error=%s\n",
+						 GetErrorName(GSErr));
+		}
+	}
+
+	return false;
 }
 
 const FMaterialsDatabase::FMaterialSyncData& FMaterialsDatabase::GetMaterial(const FSyncContext& SyncContext,
@@ -46,212 +391,111 @@ const FMaterialsDatabase::FMaterialSyncData& FMaterialsDatabase::GetMaterial(con
 	FMaterialsDatabase::FMaterialSyncData& material = MapMaterials[MaterialKey];
 	if (!material.bIsInitialized)
 	{
-		InitMaterial(SyncContext, MaterialKey, &material);
+		material.Init(SyncContext, MaterialKey);
 	}
 
 	return material;
 }
 
-void FMaterialsDatabase::InitMaterial(const FSyncContext& SyncContext, const FMaterialKey& MaterialKey,
-									  FMaterialSyncData* Material)
+void FMaterialsDatabase::FMaterialSyncData::Init(const FSyncContext& SyncContext, const FMaterialKey& MaterialKey)
 {
-	if (Material->bIsInitialized)
+	if (bIsInitialized)
 	{
 		return;
 	}
-	Material->bIsInitialized = true;
+	bIsInitialized = true;
 
-	// Get modeler material
-	ModelerAPI::AttributeIndex IndexMaterial(ModelerAPI::AttributeIndex::MaterialIndex, MaterialKey.ACMaterialIndex);
-	ModelerAPI::Material	   AcMaterial;
-	SyncContext.GetModel().GetMaterial(IndexMaterial, &AcMaterial);
-	ModelerAPI::AttributeIndex IndexTexture;
-	AcMaterial.GetTextureIndex(IndexTexture);
-	GS::Int32 textureIndex = IndexTexture.GetOriginalModelerIndex();
-	if (MaterialKey.ACTextureIndex != kInvalidMaterialIndex)
-	{
-		textureIndex = MaterialKey.ACTextureIndex;
-	}
-
-	// Get 3D DB material (for guid and ModiTime)
 	GS::UniString	DisplayName;
 	API_Component3D CUmat;
-	BNZeroMemory(&CUmat, sizeof(CUmat));
+	Zap(&CUmat);
 	CUmat.header.typeID = API_UmatID;
 	CUmat.header.index = MaterialKey.ACMaterialIndex;
 	CUmat.umat.mater.head.uniStringNamePtr = &DisplayName;
-	UE_AC_TestGSError(ACAPI_3D_GetComponent(&CUmat));
-	API_Guid MatGuid = CUmat.umat.mater.head.guid;
-	if (MatGuid == APINULLGuid)
+	GSErrCode GSErr = ACAPI_3D_GetComponent(&CUmat);
+	if (GSErr == NoError)
 	{
-		// Simulate a Guid from material name and properties
-		MD5::Generator g;
-		std::string	   name(DisplayName.ToUtf8());
-		g.Update(name.c_str(), (unsigned int)name.size());
-		const char* p1 = (const char*)&CUmat.umat.mater.mtype;
-		g.Update(p1, (unsigned int)((const char*)&CUmat.umat.mater.texture - p1));
-		MD5::FingerPrint fp;
-		g.Finish(fp);
-		MatGuid = Fingerprint2API_Guid(fp);
-		if (textureIndex > 0)
+		LastModificationStamp = CUmat.umat.mater.head.modiTime;
+
+		FMaterialInfo MaterialInfo(this);
+
+		MaterialInfo.Init(SyncContext, CUmat, MaterialKey);
+		bIdIsSynthetized = MaterialInfo.bIdIsSynthetized;
+		DatasmithId = MaterialInfo.DatasmithId;
+		DatasmithLabel = MaterialInfo.DatasmithLabel;
+		bHasTexture = MaterialInfo.Texture != nullptr;
+
+		FMaterialsDatabase::SetMaterialsNames& MaterialsNamesSet = SyncContext.GetMaterialsDatabase().MaterialsNamesSet;
+		if (MaterialsNamesSet.find(DatasmithId) != MaterialsNamesSet.end())
 		{
-			// Add the texture finderprint
-			MatGuid =
-				CombineGuid(MatGuid, SyncContext.GetTexturesCache().GetTexture(SyncContext, textureIndex).Fingerprint);
+			bIsDuplicate = true;
+			return; // An identical material already exist (Can happen for simulated Guid)
 		}
-		UE_AC_VerboseF("Simulate Guid for material %d, %s Guid=%s\n", MaterialKey.ACMaterialIndex, DisplayName.ToUtf8(),
-					   APIGuidToString(MatGuid).ToUtf8());
+		MaterialsNamesSet.insert(DatasmithId);
+
+		Element = FDatasmithSceneFactory::CreateUEPbrMaterial(*MaterialInfo.DatasmithId);
+		MaterialInfo.UpdateMaterial(Element);
 	}
-	Material->MaterialId = APIGuid2GSGuid(MatGuid);
-	Material->DatasmithId = GSStringToUE(APIGuidToString(MatGuid));
-
-	Material->bHasTexture = false;
-	Material->CosAngle = 1;
-	Material->SinAngle = 0;
-	Material->InvXSize = 1;
-	Material->InvYSize = 1;
-
-	// If the material use a texture
-	const FTexturesCache::FTexturesCacheElem* texture = nullptr;
-	if (textureIndex > 0)
+	else
 	{
-		// Add the texture info to SyncDatabase
-		texture = &SyncContext.GetTexturesCache().GetTexture(SyncContext, textureIndex);
-
-		Material->bHasTexture = true;
-
-		Material->CosAngle = cos(AcMaterial.GetTextureRotationAngle());
-		Material->SinAngle = sin(AcMaterial.GetTextureRotationAngle());
-		Material->InvXSize = texture->InvXSize;
-		Material->InvYSize = texture->InvYSize;
-
-		if (MaterialKey.ACTextureIndex != kInvalidMaterialIndex)
+		// Set a gray diffuse color
+		MaterialId.Generate();
+		bIdIsSynthetized = true;
+		DatasmithId = GSStringToUE(MaterialId.ToUniString());
+		DatasmithLabel = FString(TEXT("Invalid material index"));
+		Element = FDatasmithSceneFactory::CreateUEPbrMaterial(*DatasmithId);
+		Element->SetLabel(*DatasmithLabel);
 		{
-			GS::UniString fingerprint = APIGuidToString(texture->Fingerprint);
-
-			Material->DatasmithId += TEXT("_");
-			Material->DatasmithId += GSStringToUE(fingerprint);
-
-			DisplayName += fingerprint;
-			DisplayName += "_";
-			DisplayName += texture->TextureLabel;
+			IDatasmithMaterialExpressionColor* DiffuseExpression =
+				Element->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			if (DiffuseExpression != nullptr)
+			{
+				DiffuseExpression->GetColor() = FLinearColor(0.5f, 0.5f, 0.5f);
+				DiffuseExpression->SetName(TEXT("Base Color"));
+				DiffuseExpression->ConnectExpression(Element->GetBaseColor());
+			}
 		}
 	}
-	Material->DatasmithLabel = GSStringToUE(DisplayName);
+	SyncContext.GetScene().AddMaterial(Element);
+}
 
-	if (MaterialKey.Sided == kDoubleSide)
-	{
-		Material->DatasmithId += TEXT("_DS");
-		Material->DatasmithLabel += TEXT("_DS");
-	}
-
-	if (Material->Element.IsValid())
+// Return true if the material have been modified
+void FMaterialsDatabase::FMaterialSyncData::Update(const FSyncContext& SyncContext, const FMaterialKey& MaterialKey)
+{
+	if (bIsDuplicate)
 	{
 		return;
 	}
 
-	TSharedRef< IDatasmithUEPbrMaterialElement > DSMaterial =
-		FDatasmithSceneFactory::CreateUEPbrMaterial(*Material->DatasmithId);
-	Material->Element = DSMaterial;
-	DSMaterial->SetLabel(*Material->DatasmithLabel);
-
-	const float opacity = 1.0f - (float)AcMaterial.GetTransparency();
-	const bool	bIsTransparent = opacity != 1.0;
-
-	bool bHasAphaMask = false;
-
-	if (texture != nullptr)
+	// Get 3D DB material
+	GS::UniString	DisplayName;
+	API_Component3D CUmat;
+	Zap(&CUmat);
+	CUmat.header.typeID = API_UmatID;
+	CUmat.header.index = MaterialKey.ACMaterialIndex;
+	CUmat.umat.mater.head.uniStringNamePtr = &DisplayName;
+	GSErrCode GSErr = ACAPI_3D_GetComponent(&CUmat);
+	if (GSErr == NoError)
 	{
-		IDatasmithMaterialExpressionTexture* BaseTextureExpression =
-			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
-		BaseTextureExpression->SetTexturePathName(GSStringToUE(APIGuidToString(texture->Fingerprint)));
-		BaseTextureExpression->SetName(GSStringToUE(texture->TextureLabel));
-		BaseTextureExpression->ConnectExpression(DSMaterial->GetBaseColor());
-
-		if (texture->bHasAlpha && texture->bAlphaIsTransparence && bIsTransparent)
+		if (CUmat.umat.mater.head.modiTime == 0)
 		{
-			IDatasmithMaterialExpressionGeneric* MultiplyExpression =
-				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
-			MultiplyExpression->SetExpressionName(TEXT("Multiply"));
-			MultiplyExpression->SetName(TEXT("Multiply Expression"));
-
-			IDatasmithMaterialExpressionScalar* OpacityExpression =
-				DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-			OpacityExpression->GetScalar() = opacity;
-			OpacityExpression->SetName(TEXT("Opacity"));
-
-			IDatasmithExpressionInput* MultiplyInputA = MultiplyExpression->GetInput(0);
-			IDatasmithExpressionInput* MultiplyInputB = MultiplyExpression->GetInput(1);
-
-			MultiplyExpression->ConnectExpression(DSMaterial->GetOpacity());
-
-			BaseTextureExpression->ConnectExpression(*MultiplyInputA, 4);
-			OpacityExpression->ConnectExpression(*MultiplyInputB);
+			CUmat.umat.mater.head.modiTime = 1;
 		}
-		else if (texture->bHasAlpha && texture->bAlphaIsTransparence)
+		if (LastModificationStamp != CUmat.umat.mater.head.modiTime)
 		{
-			BaseTextureExpression->ConnectExpression(DSMaterial->GetOpacity(), 4);
+			LastModificationStamp = CUmat.umat.mater.head.modiTime;
+
+			FMaterialInfo MaterialInfo(this);
+			MaterialInfo.Init(SyncContext, CUmat, MaterialKey);
+			DatasmithLabel = MaterialInfo.DatasmithLabel;
+			bHasTexture = MaterialInfo.Texture != nullptr;
+			MaterialInfo.UpdateMaterial(Element);
 		}
 	}
 	else
 	{
-		// Diffuse color
-		const ModelerAPI::Color			   surfaceColor = AcMaterial.GetSurfaceColor();
-		IDatasmithMaterialExpressionColor* DiffuseExpression =
-			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
-		if (DiffuseExpression != nullptr)
-		{
-			DiffuseExpression->GetColor() = FColor((uint8)(surfaceColor.red * 255), (uint8)(surfaceColor.green * 255),
-												   (uint8)(surfaceColor.blue * 255));
-			DiffuseExpression->SetName(TEXT("Base Color"));
-			DiffuseExpression->ConnectExpression(DSMaterial->GetBaseColor());
-		}
+		UE_AC_DebugF("FMaterialsDatabase::FMaterialSyncData::Update - ACAPI_3D_GetComponent error=%s\n",
+					 GetErrorName(GSErr));
 	}
-
-	// Specular color
-	IDatasmithMaterialExpressionScalar* specularExpression =
-		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-	specularExpression->GetScalar() = (float)AcMaterial.GetSpecularReflection();
-	specularExpression->SetName(TEXT("Specular"));
-	specularExpression->ConnectExpression(DSMaterial->GetSpecular());
-
-	// Emissive color
-	const ModelerAPI::Color			   EmissiveColor = AcMaterial.GetEmissionColor();
-	IDatasmithMaterialExpressionColor* EmissiveExpression =
-		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
-	EmissiveExpression->GetColor() =
-		FColor((uint8)(EmissiveColor.red * 255), (uint8)(EmissiveColor.green * 255), (uint8)(EmissiveColor.blue * 255));
-	EmissiveExpression->SetName(TEXT("Emissive Color"));
-	EmissiveExpression->ConnectExpression(DSMaterial->GetEmissiveColor());
-
-	// Opacity
-	if (!bHasAphaMask && bIsTransparent)
-	{
-		IDatasmithMaterialExpressionScalar* OpacityExpression =
-			DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-		OpacityExpression->GetScalar() = opacity;
-		OpacityExpression->SetName(TEXT("Opacity"));
-		OpacityExpression->ConnectExpression(DSMaterial->GetOpacity());
-	}
-
-	if (MaterialKey.Sided == kDoubleSide)
-	{
-		DSMaterial->SetTwoSided(true);
-	}
-
-	// Metallic
-	float metallic = 0.0;
-	if (DisplayName.Contains("Metal"))
-	{
-		metallic = 1.0;
-	}
-	IDatasmithMaterialExpressionScalar* MetallicExpression =
-		DSMaterial->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
-	MetallicExpression->GetScalar() = metallic;
-	MetallicExpression->SetName(TEXT("Metallic"));
-	MetallicExpression->ConnectExpression(DSMaterial->GetMetallic());
-
-	SyncContext.GetScene().AddMaterial(DSMaterial);
 }
 
 END_NAMESPACE_UE_AC

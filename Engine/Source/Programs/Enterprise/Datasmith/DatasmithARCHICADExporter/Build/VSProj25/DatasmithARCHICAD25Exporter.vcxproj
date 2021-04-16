@@ -69,7 +69,6 @@
       </PrecompiledHeader>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName)-Debug.pdb</ProgramDataBaseFileName>
-      <BrowseInformation>true</BrowseInformation>
       <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
       <CallingConvention>FastCall</CallingConvention>
       <CompileAs>CompileAsCpp</CompileAs>
@@ -132,7 +131,6 @@ popd
       </PrecompiledHeader>
       <ObjectFileName>$(IntDir)</ObjectFileName>
       <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
-      <BrowseInformation>true</BrowseInformation>
       <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
       <CallingConvention>FastCall</CallingConvention>
       <CompileAs>CompileAsCpp</CompileAs>
@@ -179,39 +177,24 @@ popd
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\Private\3DElement2String.h" />
-    <ClInclude Include="..\..\Private\APIEnvir.h" />
-    <ClInclude Include="..\..\Private\AutoChangeDatabase.h" />
     <ClInclude Include="..\..\Private\Commander.h" />
     <ClInclude Include="..\..\Private\DatasmithHashTools.h" />
-    <ClInclude Include="..\..\Private\Element2String.h" />
     <ClInclude Include="..\..\Private\ElementEvent.h" />
-    <ClInclude Include="..\..\Private\ElementTools.h" />
     <ClInclude Include="..\..\Private\Export.h" />
     <ClInclude Include="..\..\Private\Exporter.h" />
     <ClInclude Include="..\..\Private\GeometryUtil.h" />
-    <ClInclude Include="..\..\Private\LocalizeTools.h" />
     <ClInclude Include="..\..\Private\Menus.h" />
     <ClInclude Include="..\..\Private\MetaData.h" />
     <ClInclude Include="..\..\Private\Options.h" />
     <ClInclude Include="..\..\Private\Palette.h" />
-    <ClInclude Include="..\..\Private\Pasteboard.h" />
     <ClInclude Include="..\..\Private\ProjectEvent.h" />
-    <ClInclude Include="..\..\Private\SaverReader.h" />
-    <ClInclude Include="..\..\Private\SceneValidator.h" />
-    <ClInclude Include="..\..\Private\ShellOpenDocument.h" />
+    <ClInclude Include="..\..\Private\ReportWindow.h" />
     <ClInclude Include="..\..\Private\StatsCounter.h" />
     <ClInclude Include="..\..\Private\Synchronizer.h" />
-    <ClInclude Include="..\..\Private\TAssValueName.h" />
-    <ClInclude Include="..\..\Private\AddonTools.h" />
-    <ClInclude Include="..\..\Private\CurrentOS.h" />
-    <ClInclude Include="..\..\Private\DebugTools.h" />
     <ClInclude Include="..\..\Private\LoadDatasmithDlls.h" />
-    <ClInclude Include="..\..\Private\WarningsDisabler.h" />
     <ClInclude Include="..\..\Private\ResourcesIDs.h" />
     <ClInclude Include="..\..\Private\Element2StaticMesh.h" />
     <ClInclude Include="..\..\Private\ElementID.h" />
-    <ClInclude Include="..\..\Private\Error.h" />
     <ClInclude Include="..\..\Private\MaterialsDatabase.h" />
     <ClInclude Include="..\..\Private\Preferences.h" />
     <ClInclude Include="..\..\Private\Progression.h" />
@@ -219,17 +202,33 @@ popd
     <ClInclude Include="..\..\Private\SyncData.h" />
     <ClInclude Include="..\..\Private\SyncDatabase.h" />
     <ClInclude Include="..\..\Private\TexturesCache.h" />
+    <ClInclude Include="..\..\Private\Utils\3DElement2String.h" />
+    <ClInclude Include="..\..\Private\Utils\AddonTools.h" />
+    <ClInclude Include="..\..\Private\Utils\APIEnvir.h" />
+    <ClInclude Include="..\..\Private\Utils\AutoChangeDatabase.h" />
+    <ClInclude Include="..\..\Private\Utils\CurrentOS.h" />
+    <ClInclude Include="..\..\Private\Utils\DebugTools.h" />
+    <ClInclude Include="..\..\Private\Utils\Element2String.h" />
+    <ClInclude Include="..\..\Private\Utils\ElementTools.h" />
+    <ClInclude Include="..\..\Private\Utils\Error.h" />
+    <ClInclude Include="..\..\Private\Utils\IdleTask.h" />
+    <ClInclude Include="..\..\Private\Utils\LocalizeTools.h" />
+    <ClInclude Include="..\..\Private\Utils\Pasteboard.h" />
+    <ClInclude Include="..\..\Private\Utils\ResourcesUtils.h" />
+    <ClInclude Include="..\..\Private\Utils\SaverReader.h" />
+    <ClInclude Include="..\..\Private\Utils\SceneValidator.h" />
+    <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h" />
+    <ClInclude Include="..\..\Private\Utils\TAssValueName.h" />
+    <ClInclude Include="..\..\Private\Utils\TimeStat.h" />
+    <ClInclude Include="..\..\Private\Utils\ViewEvent.h" />
+    <ClInclude Include="..\..\Private\Utils\ViewState.h" />
+    <ClInclude Include="..\..\Private\Utils\WarningsDisabler.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\Private\3DElement2String.cpp" />
     <ClCompile Include="..\..\Private\AddOn.cpp" />
-    <ClCompile Include="..\..\Private\AutoChangeDatabase.cpp" />
     <ClCompile Include="..\..\Private\Commander.cpp" />
     <ClCompile Include="..\..\Private\DatasmithHashTools.cpp" />
-    <ClCompile Include="..\..\Private\Element2String.cpp" />
     <ClCompile Include="..\..\Private\ElementEvent.cpp" />
-    <ClCompile Include="..\..\Private\ElementTools.cpp" />
-    <ClCompile Include="..\..\Private\Error.cpp" />
     <ClCompile Include="..\..\Private\Export.cpp" />
     <ClCompile Include="..\..\Private\Exporter.cpp" />
     <ClCompile Include="..\..\Private\GeometryUtil.cpp" />
@@ -237,26 +236,36 @@ popd
     <ClCompile Include="..\..\Private\MetaData.cpp" />
     <ClCompile Include="..\..\Private\Options.cpp" />
     <ClCompile Include="..\..\Private\Palette.cpp" />
-    <ClCompile Include="..\..\Private\Pasteboard.cpp" />
     <ClCompile Include="..\..\Private\Preferences.cpp" />
     <ClCompile Include="..\..\Private\ProjectEvent.cpp" />
-    <ClCompile Include="..\..\Private\SceneValidator.cpp" />
+    <ClCompile Include="..\..\Private\ReportWindow.cpp" />
     <ClCompile Include="..\..\Private\Synchronizer.cpp" />
-    <ClCompile Include="..\..\Private\TAssValueName.cpp" />
-    <ClCompile Include="..\..\Private\LocalizeTools.cpp" />
-    <ClCompile Include="..\..\Private\AddonTools.cpp" />
-    <ClCompile Include="..\..\Private\DebugTools.cpp" />
     <ClCompile Include="..\..\Private\LoadDatasmithDlls.cpp" />
-    <ClCompile Include="..\..\Private\WinOS.cpp" />
     <ClCompile Include="..\..\Private\Element2StaticMesh.cpp" />
     <ClCompile Include="..\..\Private\ElementID.cpp" />
     <ClCompile Include="..\..\Private\MaterialsDatabase.cpp" />
     <ClCompile Include="..\..\Private\Progression.cpp" />
-    <ClCompile Include="..\..\Private\ShellOpenDocument.cpp" />
     <ClCompile Include="..\..\Private\SyncContext.cpp" />
     <ClCompile Include="..\..\Private\SyncData.cpp" />
     <ClCompile Include="..\..\Private\SyncDatabase.cpp" />
     <ClCompile Include="..\..\Private\TexturesCache.cpp" />
+    <ClCompile Include="..\..\Private\Utils\3DElement2String.cpp" />
+    <ClCompile Include="..\..\Private\Utils\AddonTools.cpp" />
+    <ClCompile Include="..\..\Private\Utils\AutoChangeDatabase.cpp" />
+    <ClCompile Include="..\..\Private\Utils\DebugTools.cpp" />
+    <ClCompile Include="..\..\Private\Utils\Element2String.cpp" />
+    <ClCompile Include="..\..\Private\Utils\ElementTools.cpp" />
+    <ClCompile Include="..\..\Private\Utils\Error.cpp" />
+    <ClCompile Include="..\..\Private\Utils\IdleTask.cpp" />
+    <ClCompile Include="..\..\Private\Utils\LocalizeTools.cpp" />
+    <ClCompile Include="..\..\Private\Utils\Pasteboard.cpp" />
+    <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp" />
+    <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp" />
+    <ClCompile Include="..\..\Private\Utils\TAssValueName.cpp" />
+    <ClCompile Include="..\..\Private\Utils\TimeStat.cpp" />
+    <ClCompile Include="..\..\Private\Utils\ViewEvent.cpp" />
+    <ClCompile Include="..\..\Private\Utils\ViewState.cpp" />
+    <ClCompile Include="..\..\Private\Utils\WinOS.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="..\..\Resources\RINT\DatasmithARCHICADExporter.grc">
@@ -345,7 +354,7 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
     <Library Include="..\..\..\..\..\..\..\..\..\..\..\..\Program Files\GRAPHISOFT\API Development Kit 25\Support\Modules\RS\Win\RSImp.LIB" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\Private\macOS.mm" />
+    <None Include="..\..\Private\Utils\MacOS.mm" />
     <None Include="..\..\Resources\RFIX\Images\MenuIcon_18x18.svg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

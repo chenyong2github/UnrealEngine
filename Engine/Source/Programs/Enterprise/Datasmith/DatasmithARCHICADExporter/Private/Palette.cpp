@@ -2,9 +2,9 @@
 
 #include "Palette.h"
 #include "Preferences.h"
-#include "TAssValueName.h"
+#include "Utils/TAssValueName.h"
 #include "ResourcesIDs.h"
-#include "Error.h"
+#include "Utils/Error.h"
 //#include "CSynchronizer.hpp"
 #include "Commander.h"
 #include "Menus.h"
@@ -17,6 +17,8 @@ BEGIN_NAMESPACE_UE_AC
 enum
 {
 	kDial_Snapshot = 1,
+	kDial_StartLiveLink,
+	kDial_PauseLiveLink,
 	kDial_Connections,
 	kDial_Export3D,
 	kDial_Messages,
@@ -61,6 +63,7 @@ void FPalette::Unregister()
 		{
 			UE_AC_DebugF("FPalette::Unregister - ACAPI_UnregisterModelessWindow failed err(%d)\n", GSErr);
 		}
+		bPaletteRegistered = false;
 	}
 }
 
@@ -103,7 +106,7 @@ bool FPalette::Is3DCurrenWindow()
 	GSErrCode GSErr = ACAPI_Database(APIDb_GetCurrentWindowID, &WindowInfo);
 	if (GSErr != NoError)
 	{
-		UE_AC_DebugF("FPalette::Is3DCurrenWindow - APIDb_GetCurrentWindowID error=%d\n", GSErr);
+		UE_AC_DebugF("FPalette::Is3DCurrenWindow - APIDb_GetCurrentWindowID error=%s\n", GetErrorName(GSErr));
 	}
 	return WindowInfo.typeID == APIWind_3DModelID;
 }
@@ -120,6 +123,14 @@ void FPalette::WindowChanged()
 	}
 #endif
 	//	FMenus::SetMenuItemStatus(kStrListMenuItemSync, 1, bIs3DView);
+}
+
+// LiveLink status changed
+void FPalette::LiveLinkChanged()
+{
+	bool bLiveLinkEnabled = FCommander::IsLiveLinkEnabled();
+	DGSetItemVisible(CurrentPalette->DialId, kDial_StartLiveLink, !bLiveLinkEnabled);
+	DGSetItemVisible(CurrentPalette->DialId, kDial_PauseLiveLink, bLiveLinkEnabled);
 }
 
 // Delete palette
@@ -174,6 +185,8 @@ FPalette::FPalette()
 		//        }
 		SetPaletteMenuTexts(true, true);
 		Save2Pref(); // save the dialog settings
+
+		LiveLinkChanged();
 	}
 }
 
@@ -310,6 +323,10 @@ short FPalette::DlgCallBack(short Message, short DialID, short Item, DGMessageDa
 					case kDial_Snapshot:
 						FCommander::DoSnapshot();
 						break;
+					case kDial_StartLiveLink:
+					case kDial_PauseLiveLink:
+						FCommander::ToggleLiveLink();
+						break;
 					case kDial_Connections:
 						FCommander::ShowConnectionsDialog();
 						break;
@@ -364,7 +381,7 @@ void FPalette::SetPaletteMenuTexts(bool PaletteIsOn, bool PaletteIsVisible)
 	GS::UniString ItemStr(GetGSName(PaletteIsOn ? kName_HidePalette : kName_ShowPalette));
 	FMenus::SetMenuItemText(kStrListMenuItemPalette, 1, ItemStr);
 
-	FMenus::SetMenuItemStatus(kStrListMenuItemPalette, 1, PaletteIsVisible);
+	FMenus::SetMenuItemStatus(kStrListMenuItemPalette, 1, !PaletteIsVisible, API_MenuItemDisabled);
 }
 
 void FPalette::ShowHide(bool ByUserFromMenu, bool BeginHide)
