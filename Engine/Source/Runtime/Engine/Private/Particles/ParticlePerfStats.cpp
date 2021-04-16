@@ -203,17 +203,24 @@ void FParticlePerfStatsManager::Reset()
 	}
 	#endif
 
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 	{
 		FScopeLock ScopeLock(&FParticlePerfStatsManager::ComponentToPerfStatsGuard);
 		for (TObjectIterator<UFXSystemComponent> CompIt; CompIt; ++CompIt)
 		{
-#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 			CompIt->ParticlePerfStats = nullptr;
-#endif
 			CompIt->RecreateRenderState_Concurrent();
 		}
 		ComponentToPerfStats.Empty();
 	}
+#else
+	{
+		for (TObjectIterator<UFXSystemComponent> CompIt; CompIt; ++CompIt)
+		{
+			CompIt->RecreateRenderState_Concurrent();
+		}
+	}
+#endif
 }
 
 void FParticlePerfStatsManager::Tick()
