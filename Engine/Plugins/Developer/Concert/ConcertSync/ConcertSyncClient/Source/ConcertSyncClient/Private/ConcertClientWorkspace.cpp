@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertClientWorkspace.h"
+#include "Algo/AllOf.h"
 #include "ConcertClientTransactionManager.h"
 #include "ConcertClientPackageManager.h"
 #include "ConcertClientLockManager.h"
 #include "IConcertClientPackageBridge.h"
 #include "IConcertClient.h"
+#include "IConcertClientWorkspace.h"
 #include "IConcertModule.h"
 #include "IConcertSession.h"
 #include "IConcertFileSharingService.h"
@@ -687,7 +689,7 @@ void FConcertClientWorkspace::OnEndFrame()
 {
 	SCOPED_CONCERT_TRACE(FConcertClientWorkspace_OnEndFrame);
 
-	if (bFinalizeWorkspaceSyncRequested)
+	if (CanFinalize())
 	{
 		bFinalizeWorkspaceSyncRequested = false;
 
@@ -965,6 +967,28 @@ void FConcertClientWorkspace::SetIgnoreOnRestoreFlagForEmittedActivities(bool bI
 		// will be seen as 'should restore' by the system.
 		bPendingStopIgnoringActivityOnRestore = true;
 	}
+}
+
+bool FConcertClientWorkspace::CanFinalize() const
+{
+	return bFinalizeWorkspaceSyncRequested && Algo::AllOf(CanFinalizeDelegates, [](const TTuple<FName,FCanFinalizeWorkspaceDelegate>& Pair)
+		{
+			if (Pair.Get<1>().IsBound())
+			{
+				return Pair.Get<1>().Execute();
+			}
+			return true;
+		});
+}
+
+void FConcertClientWorkspace::AddWorkspaceFinalizeDelegate(FName InDelegateName, FCanFinalizeWorkspaceDelegate InDelegate)
+{
+	CanFinalizeDelegates.FindOrAdd(InDelegateName, MoveTemp(InDelegate));
+}
+
+void FConcertClientWorkspace::RemoveWorkspaceFinalizeDelegate(FName InDelegateName)
+{
+	CanFinalizeDelegates.Remove(InDelegateName);
 }
 
 #undef LOCTEXT_NAMESPACE

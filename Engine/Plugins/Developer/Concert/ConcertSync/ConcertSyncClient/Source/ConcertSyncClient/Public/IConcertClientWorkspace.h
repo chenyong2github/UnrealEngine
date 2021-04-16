@@ -12,6 +12,7 @@ class ISourceControlProvider;
 class IConcertClientSession;
 class IConcertClientDataStore;
 
+DECLARE_DELEGATE_RetVal(bool, FCanFinalizeWorkspaceDelegate);
 DECLARE_MULTICAST_DELEGATE(FOnWorkspaceSynchronized);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActivityAddedOrUpdated, const FConcertClientInfo&/*InClientInfo*/, const FConcertSyncActivity&/*InActivity*/, const FStructOnScope&/*InActivitySummary*/);
 
@@ -175,7 +176,23 @@ public:
 	 * @return the delegate called every time the workspace is synced.
 	 */
 	virtual FOnWorkspaceSynchronized& OnWorkspaceSynchronized() = 0;
-	
+
+	/**
+	 * This delegate allows user to defer the finalization of a sync workspace. This is for situtations where multiple
+	 * client nodes need to be finalized at the same point in time.  The delegate function should return true when workspace
+	 * synchronization is allowed and it will be called on OnEndFrame() of the tick loop.
+	 *
+	 * @param InDelegateName the identifier for the provided delegate.
+	 * @param InDelegate the delegate to use to query if finalize workspace
+	 */
+	virtual void AddWorkspaceFinalizeDelegate(FName InDelegateName, FCanFinalizeWorkspaceDelegate InDelegate) = 0;
+
+	/**
+	   Remove the attached named delegate for workspace finalization.
+	   @param InDelegateName identifying name for the delegate.
+	 */
+	virtual void RemoveWorkspaceFinalizeDelegate(FName InDelegateName) = 0;
+
 	/**
 	 * @return the key/value store shared by all clients.
 	 */

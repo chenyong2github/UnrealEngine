@@ -53,7 +53,12 @@ public:
 	virtual bool IsAssetModifiedByOtherClients(const FName& AssetName, int32* OutOtherClientsWithModifNum, TArray<FConcertClientInfo>* OutOtherClientsWithModifInfo, int32 OtherClientsWithModifMaxFetchNum) const override;
 	virtual void SetIgnoreOnRestoreFlagForEmittedActivities(bool bIgnore) override;
 
+	virtual void AddWorkspaceFinalizeDelegate(FName InDelegateName, FCanFinalizeWorkspaceDelegate InDelegate) override;
+	virtual void RemoveWorkspaceFinalizeDelegate(FName InDelegateName) override;
+
 private:
+	bool CanFinalize() const;
+
 	/** Bind the workspace to this session. */
 	void BindSession(TSharedPtr<FConcertSyncClientLiveSession> InLiveSession, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge);
 
@@ -168,6 +173,9 @@ private:
 	 * wasn't required to reconstruct the state of a level.
 	 */
 	bool IsTransactionEventPartiallySynced(const FConcertSyncTransactionEvent& TransactionEvent) const;
+
+	/** */
+	TMap<FName, FCanFinalizeWorkspaceDelegate> CanFinalizeDelegates;
 
 	/** */
 	TUniquePtr<FConcertClientTransactionManager> TransactionManager;
