@@ -16,8 +16,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace BufferOwnerPrivate { struct FSharedOps; }
-namespace BufferOwnerPrivate { struct FWeakOps; }
+namespace UE::SharedBuffer::Private { struct FSharedOps; }
+namespace UE::SharedBuffer::Private { struct FWeakOps; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,6 +39,8 @@ namespace BufferOwnerPrivate { struct FWeakOps; }
  * of the buffer to be deferred.
  *
  * A derived type must call SetIsOwned from its constructor if they own (or will own) the buffer.
+ * A derived type must call SetIsImmutable from its constructor if they want the buffer to become
+ * permanently immutable after it is stored in FSharedBuffer, forcing MoveToUnique() to clone it.
  * A derived type must call SetIsMaterialized from its constructor, unless it implements deferred
  * materialization by overriding MaterializeBuffer.
  */
@@ -46,6 +48,7 @@ class FBufferOwner
 {
 private:
 	enum class EBufferOwnerFlags : uint8;
+	FRIEND_ENUM_CLASS_FLAGS(EBufferOwnerFlags);
 
 protected:
 	FBufferOwner() = default;
@@ -81,6 +84,9 @@ protected:
 	inline bool IsOwned() const;
 	inline void SetIsOwned();
 
+	inline bool IsImmutable() const;
+	inline void SetIsImmutable();
+
 	inline void Materialize();
 	inline bool IsMaterialized() const;
 	inline void SetIsMaterialized();
@@ -88,12 +94,18 @@ protected:
 	inline uint32 GetTotalRefCount() const;
 
 private:
-	static uint32 GetSharedRefCount(uint64 RefCountsAndFlags) { return uint32(RefCountsAndFlags >> 0) & 0x7fffffff; }
-	static uint64 SetSharedRefCount(uint32 RefCount) { return uint64(RefCount) << 0; }
-	static uint32 GetWeakRefCount(uint64 RefCountsAndFlags) { return uint32(RefCountsAndFlags >> 31) & 0x7fffffff; }
-	static uint64 SetWeakRefCount(uint32 RefCount) { return uint64(RefCount) << 31; }
-	static EBufferOwnerFlags GetFlags(uint64 RefCountsAndFlags) { return EBufferOwnerFlags(RefCountsAndFlags >> 62); }
-	static uint64 SetFlags(EBufferOwnerFlags Flags) { return uint64(Flags) << 62; }
+	static constexpr uint32 RefCountMask = 0x3fffffff;
+
+	static constexpr inline uint32 GetTotalRefCount(uint64 RefCountsAndFlags);
+	static constexpr inline uint32 GetSharedRefCount(uint64 RefCountsAndFlags) { return uint32(RefCountsAndFlags >> 0) & RefCountMask; }
+	static constexpr inline uint64 SetSharedRefCount(uint32 RefCount) { return uint64(RefCount) << 0; }
+	static constexpr inline uint32 GetWeakRefCount(uint64 RefCountsAndFlags) { return uint32(RefCountsAndFlags >> 30) & RefCountMask; }
+	static constexpr inline uint64 SetWeakRefCount(uint32 RefCount) { return uint64(RefCount) << 30; }
+	static constexpr inline EBufferOwnerFlags GetFlags(uint64 RefCountsAndFlags) { return EBufferOwnerFlags(RefCountsAndFlags >> 60); }
+	static constexpr inline uint64 SetFlags(EBufferOwnerFlags Flags) { return uint64(Flags) << 60; }
+
+	/** Returns whether this has one total reference, is owned, and is not immutable. */
+	inline bool IsUniqueOwnedMutable() const;
 
 	inline void AddSharedReference();
 	inline void ReleaseSharedReference();
@@ -104,8 +116,8 @@ private:
 	friend class FUniqueBuffer;
 	friend class FSharedBuffer;
 	friend class FWeakSharedBuffer;
-	friend struct BufferOwnerPrivate::FSharedOps;
-	friend struct BufferOwnerPrivate::FWeakOps;
+	friend struct UE::SharedBuffer::Private::FSharedOps;
+	friend struct UE::SharedBuffer::Private::FWeakOps;
 
 private:
 	void* Data = nullptr;
@@ -115,7 +127,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace BufferOwnerPrivate
+namespace UE::SharedBuffer::Private
 {
 
 struct FSharedOps final
@@ -186,7 +198,7 @@ private:
 	FBufferOwner* Owner = nullptr;
 };
 
-} // BufferOwnerPrivate
+} // UE::SharedBuffer::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -202,15 +214,15 @@ class FUniqueBuffer
 {
 public:
 	/** Make an uninitialized owned buffer of the specified size. */
-	UE_NODISCARD CORE_API static FUniqueBuffer Alloc(uint64 Size);
+	[[nodiscard]] CORE_API static FUniqueBuffer Alloc(uint64 Size);
 
 	/** Make an owned clone of the input. */
-	UE_NODISCARD CORE_API static FUniqueBuffer Clone(FMemoryView View);
-	UE_NODISCARD CORE_API static FUniqueBuffer Clone(const void* Data, uint64 Size);
+	[[nodiscard]] CORE_API static FUniqueBuffer Clone(FMemoryView View);
+	[[nodiscard]] CORE_API static FUniqueBuffer Clone(const void* Data, uint64 Size);
 
 	/** Make a non-owned view of the input. */
-	UE_NODISCARD CORE_API static FUniqueBuffer MakeView(FMutableMemoryView View);
-	UE_NODISCARD CORE_API static FUniqueBuffer MakeView(void* Data, uint64 Size);
+	[[nodiscard]] CORE_API static FUniqueBuffer MakeView(FMutableMemoryView View);
+	[[nodiscard]] CORE_API static FUniqueBuffer MakeView(void* Data, uint64 Size);
 
 	/**
 	 * Make an owned buffer by taking ownership of the input.
@@ -219,7 +231,7 @@ public:
 	 */
 	template <typename DeleteFunctionType,
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>()))* = nullptr>
-	UE_NODISCARD static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
+	[[nodiscard]] static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
 
 	/**
 	 * Make an owned buffer by taking ownership of the input.
@@ -228,7 +240,7 @@ public:
 	 */
 	template <typename DeleteFunctionType,
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))* = nullptr>
-	UE_NODISCARD static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
+	[[nodiscard]] static inline FUniqueBuffer TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
 
 	/** Construct a null unique buffer. */
 	FUniqueBuffer() = default;
@@ -246,36 +258,36 @@ public:
 	CORE_API void Reset();
 
 	/** Returns a pointer to the start of the buffer. */
-	UE_NODISCARD inline void* GetData() { return Owner ? Owner->GetData() : nullptr; }
-	UE_NODISCARD inline const void* GetData() const { return Owner ? Owner->GetData() : nullptr; }
+	[[nodiscard]] inline void* GetData() { return Owner ? Owner->GetData() : nullptr; }
+	[[nodiscard]] inline const void* GetData() const { return Owner ? Owner->GetData() : nullptr; }
 
 	/** Returns the size of the buffer in bytes. */
-	UE_NODISCARD inline uint64 GetSize() const { return Owner ? Owner->GetSize() : 0; }
+	[[nodiscard]] inline uint64 GetSize() const { return Owner ? Owner->GetSize() : 0; }
 
 	/** Returns a view of the buffer. */
-	UE_NODISCARD inline FMutableMemoryView GetView() { return FMutableMemoryView(GetData(), GetSize()); }
-	UE_NODISCARD inline FMemoryView GetView() const { return FMemoryView(GetData(), GetSize()); }
-	UE_NODISCARD inline operator FMutableMemoryView() { return GetView(); }
-	UE_NODISCARD inline operator FMemoryView() const { return GetView(); }
+	[[nodiscard]] inline FMutableMemoryView GetView() { return FMutableMemoryView(GetData(), GetSize()); }
+	[[nodiscard]] inline FMemoryView GetView() const { return FMemoryView(GetData(), GetSize()); }
+	[[nodiscard]] inline operator FMutableMemoryView() { return GetView(); }
+	[[nodiscard]] inline operator FMemoryView() const { return GetView(); }
 
 	/** Returns true if this points to a buffer owner. */
-	UE_NODISCARD inline explicit operator bool() const { return !IsNull(); }
+	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
 
 	/**
 	 * Returns true if this does not point to a buffer owner.
 	 *
 	 * A null buffer is always owned, materialized, and empty.
 	 */
-	UE_NODISCARD inline bool IsNull() const { return Owner.IsNull(); }
+	[[nodiscard]] inline bool IsNull() const { return Owner.IsNull(); }
 
 	/** Returns true if this keeps the referenced buffer alive. */
-	UE_NODISCARD inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
+	[[nodiscard]] inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
 
 	/** Returns a buffer that is owned, by cloning if not owned. */
-	UE_NODISCARD CORE_API FUniqueBuffer MakeOwned() &&;
+	[[nodiscard]] CORE_API FUniqueBuffer MakeOwned() &&;
 
 	/** Returns true if the referenced buffer has been materialized. */
-	UE_NODISCARD inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
+	[[nodiscard]] inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
 
 	/**
 	 * Materialize the buffer by making its data and size available.
@@ -289,19 +301,19 @@ public:
 	 *
 	 * Steals the buffer owner from the unique buffer.
 	 */
-	UE_NODISCARD CORE_API FSharedBuffer MoveToShared();
+	[[nodiscard]] CORE_API FSharedBuffer MoveToShared();
 
 	friend class FSharedBuffer;
 
 private:
-	explicit FUniqueBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner);
+	using FOwnerPtrType = UE::SharedBuffer::Private::TBufferOwnerPtr<UE::SharedBuffer::Private::FSharedOps>;
 
-	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>;
+	explicit FUniqueBuffer(FOwnerPtrType&& SharedOwner);
 
-	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FUniqueBuffer& Buffer) { return Buffer.Owner; }
-	inline friend OwnerPtrType ToPrivateOwnerPtr(FUniqueBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
+	inline friend const FOwnerPtrType& ToPrivateOwnerPtr(const FUniqueBuffer& Buffer) { return Buffer.Owner; }
+	inline friend FOwnerPtrType ToPrivateOwnerPtr(FUniqueBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
 
-	OwnerPtrType Owner;
+	FOwnerPtrType Owner;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -315,18 +327,18 @@ class FSharedBuffer
 {
 public:
 	/** Make an owned clone of the input. */
-	UE_NODISCARD CORE_API static FSharedBuffer Clone(FMemoryView View);
-	UE_NODISCARD CORE_API static FSharedBuffer Clone(const void* Data, uint64 Size);
+	[[nodiscard]] CORE_API static FSharedBuffer Clone(FMemoryView View);
+	[[nodiscard]] CORE_API static FSharedBuffer Clone(const void* Data, uint64 Size);
 
 	/** Make a non-owned view of the input. */
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View);
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(FMemoryView View);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size);
 
 	/** Make a view of the input within its outer buffer. Ownership matches OuterBuffer. */
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View, FSharedBuffer&& OuterBuffer);
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(FMemoryView View, const FSharedBuffer& OuterBuffer);
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, FSharedBuffer&& OuterBuffer);
-	UE_NODISCARD CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, const FSharedBuffer& OuterBuffer);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(FMemoryView View, FSharedBuffer&& OuterBuffer);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(FMemoryView View, const FSharedBuffer& OuterBuffer);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, FSharedBuffer&& OuterBuffer);
+	[[nodiscard]] CORE_API static FSharedBuffer MakeView(const void* Data, uint64 Size, const FSharedBuffer& OuterBuffer);
 
 	/**
 	 * Make an owned buffer by taking ownership of the input.
@@ -335,7 +347,7 @@ public:
 	 */
 	template <typename DeleteFunctionType,
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>()))* = nullptr>
-	UE_NODISCARD static inline FSharedBuffer TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
+	[[nodiscard]] static inline FSharedBuffer TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
 
 	/**
 	 * Make an owned buffer by taking ownership of the input.
@@ -344,7 +356,7 @@ public:
 	 */
 	template <typename DeleteFunctionType,
 		decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))* = nullptr>
-	UE_NODISCARD static inline FSharedBuffer TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
+	[[nodiscard]] static inline FSharedBuffer TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction);
 
 	/** Construct a null shared buffer. */
 	FSharedBuffer() = default;
@@ -356,34 +368,34 @@ public:
 	CORE_API void Reset();
 
 	/** Returns a pointer to the start of the buffer. */
-	UE_NODISCARD inline const void* GetData() const { return Owner ? Owner->GetData() : nullptr; }
+	[[nodiscard]] inline const void* GetData() const { return Owner ? Owner->GetData() : nullptr; }
 
 	/** Returns the size of the buffer in bytes. */
-	UE_NODISCARD inline uint64 GetSize() const { return Owner ? Owner->GetSize() : 0; }
+	[[nodiscard]] inline uint64 GetSize() const { return Owner ? Owner->GetSize() : 0; }
 
 	/** Returns a view of the buffer. */
-	UE_NODISCARD inline FMemoryView GetView() const { return FMemoryView(GetData(), GetSize()); }
-	UE_NODISCARD inline operator FMemoryView() const { return GetView(); }
+	[[nodiscard]] inline FMemoryView GetView() const { return FMemoryView(GetData(), GetSize()); }
+	[[nodiscard]] inline operator FMemoryView() const { return GetView(); }
 
 	/** Returns true if this points to a buffer owner. */
-	UE_NODISCARD inline explicit operator bool() const { return !IsNull(); }
+	[[nodiscard]] inline explicit operator bool() const { return !IsNull(); }
 
 	/**
 	 * Returns true if this does not point to a buffer owner.
 	 *
 	 * A null buffer is always owned, materialized, and empty.
 	 */
-	UE_NODISCARD inline bool IsNull() const { return Owner.IsNull(); }
+	[[nodiscard]] inline bool IsNull() const { return Owner.IsNull(); }
 
 	/** Returns true if this keeps the referenced buffer alive. */
-	UE_NODISCARD inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
+	[[nodiscard]] inline bool IsOwned() const { return !Owner || Owner->IsOwned(); }
 
 	/** Returns a buffer that is owned, by cloning if not owned. */
-	UE_NODISCARD CORE_API FSharedBuffer MakeOwned() const &;
-	UE_NODISCARD CORE_API FSharedBuffer MakeOwned() &&;
+	[[nodiscard]] CORE_API FSharedBuffer MakeOwned() const &;
+	[[nodiscard]] CORE_API FSharedBuffer MakeOwned() &&;
 
 	/** Returns true if the referenced buffer has been materialized. */
-	UE_NODISCARD inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
+	[[nodiscard]] inline bool IsMaterialized() const { return !Owner || Owner->IsMaterialized(); }
 
 	/**
 	 * Materialize the buffer by making its data and size available.
@@ -398,21 +410,22 @@ public:
 	 * Steals the buffer owner from the shared buffer if this is the last reference to it, otherwise
 	 * clones the shared buffer to guarantee unique ownership. A non-owned buffer is always cloned.
 	 */
-	UE_NODISCARD CORE_API FUniqueBuffer MoveToUnique();
+	[[nodiscard]] CORE_API FUniqueBuffer MoveToUnique();
 
 	friend class FUniqueBuffer;
 	friend class FWeakSharedBuffer;
 
 private:
-	explicit FSharedBuffer(BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>&& SharedOwner);
-	explicit FSharedBuffer(const BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>& WeakOwner);
+	using FOwnerPtrType = UE::SharedBuffer::Private::TBufferOwnerPtr<UE::SharedBuffer::Private::FSharedOps>;
+	using FWeakOwnerPtrType = UE::SharedBuffer::Private::TBufferOwnerPtr<UE::SharedBuffer::Private::FWeakOps>;
 
-	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FSharedOps>;
+	explicit FSharedBuffer(FOwnerPtrType&& SharedOwner);
+	explicit FSharedBuffer(const FWeakOwnerPtrType& WeakOwner);
 
-	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FSharedBuffer& Buffer) { return Buffer.Owner; }
-	inline friend OwnerPtrType ToPrivateOwnerPtr(FSharedBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
+	inline friend const FOwnerPtrType& ToPrivateOwnerPtr(const FSharedBuffer& Buffer) { return Buffer.Owner; }
+	inline friend FOwnerPtrType ToPrivateOwnerPtr(FSharedBuffer&& Buffer) { return MoveTemp(Buffer.Owner); }
 
-	OwnerPtrType Owner;
+	FOwnerPtrType Owner;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -438,14 +451,14 @@ public:
 	CORE_API void Reset();
 
 	/** Convert this to a shared buffer if it has any remaining shared references. */
-	UE_NODISCARD CORE_API FSharedBuffer Pin() const;
+	[[nodiscard]] CORE_API FSharedBuffer Pin() const;
 
 private:
-	using OwnerPtrType = BufferOwnerPrivate::TBufferOwnerPtr<BufferOwnerPrivate::FWeakOps>;
+	using FWeakOwnerPtrType = UE::SharedBuffer::Private::TBufferOwnerPtr<UE::SharedBuffer::Private::FWeakOps>;
 
-	inline friend const OwnerPtrType& ToPrivateOwnerPtr(const FWeakSharedBuffer& Buffer) { return Buffer.Owner; }
+	inline friend const FWeakOwnerPtrType& ToPrivateOwnerPtr(const FWeakSharedBuffer& Buffer) { return Buffer.Owner; }
 
-	OwnerPtrType Owner;
+	FWeakOwnerPtrType Owner;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -478,7 +491,7 @@ template<> struct TIsWeakPointerType<FWeakSharedBuffer> { enum { Value = true };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace BufferOwnerPrivate
+namespace UE::SharedBuffer::Private
 {
 
 template <typename DeleteFunctionType>
@@ -493,6 +506,12 @@ public:
 		SetIsOwned();
 	}
 
+	explicit TBufferOwnerDeleteFunction(const void* Data, uint64 Size, DeleteFunctionType&& InDeleteFunction)
+		: TBufferOwnerDeleteFunction(const_cast<void*>(Data), Size, Forward<DeleteFunctionType>(InDeleteFunction))
+	{
+		SetIsImmutable();
+	}
+
 private:
 	virtual void FreeBuffer() final
 	{
@@ -502,15 +521,15 @@ private:
 	std::decay_t<DeleteFunctionType> DeleteFunction;
 };
 
-} // BufferOwnerPrivate
+} // UE::SharedBuffer::Private
 
 template <typename DeleteFunctionType,
 	decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>()))*>
 inline FUniqueBuffer FUniqueBuffer::TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction)
 {
-	return TakeOwnership(Data, Size, [Delete=Forward<DeleteFunctionType>(DeleteFunction)](void* InData, uint64 InSize)
+	return TakeOwnership(Data, Size, [Delete = Forward<DeleteFunctionType>(DeleteFunction)](void* InData, uint64 InSize)
 	{
-		Delete(InData);
+		Invoke(Delete, InData);
 	});
 }
 
@@ -518,7 +537,7 @@ template <typename DeleteFunctionType,
 	decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))*>
 inline FUniqueBuffer FUniqueBuffer::TakeOwnership(void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction)
 {
-	using OwnerType = BufferOwnerPrivate::TBufferOwnerDeleteFunction<DeleteFunctionType>;
+	using OwnerType = UE::SharedBuffer::Private::TBufferOwnerDeleteFunction<DeleteFunctionType>;
 	return FUniqueBuffer(new OwnerType(Data, Size, Forward<DeleteFunctionType>(DeleteFunction)));
 }
 
@@ -526,9 +545,9 @@ template <typename DeleteFunctionType,
 	decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>()))*>
 inline FSharedBuffer FSharedBuffer::TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction)
 {
-	return TakeOwnership(Data, Size, [Delete=Forward<DeleteFunctionType>(DeleteFunction)](void* InData, uint64 InSize)
+	return TakeOwnership(Data, Size, [Delete = Forward<DeleteFunctionType>(DeleteFunction)](void* InData, uint64 InSize)
 	{
-		Delete(InData);
+		Invoke(Delete, InData);
 	});
 }
 
@@ -536,8 +555,8 @@ template <typename DeleteFunctionType,
 	decltype(Invoke(std::declval<DeleteFunctionType>(), std::declval<void*>(), std::declval<uint64>()))*>
 inline FSharedBuffer FSharedBuffer::TakeOwnership(const void* Data, uint64 Size, DeleteFunctionType&& DeleteFunction)
 {
-	using OwnerType = BufferOwnerPrivate::TBufferOwnerDeleteFunction<DeleteFunctionType>;
-	return FSharedBuffer(new OwnerType(const_cast<void*>(Data), Size, Forward<DeleteFunctionType>(DeleteFunction)));
+	using OwnerType = UE::SharedBuffer::Private::TBufferOwnerDeleteFunction<DeleteFunctionType>;
+	return FSharedBuffer(new OwnerType(Data, Size, Forward<DeleteFunctionType>(DeleteFunction)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -546,8 +565,11 @@ enum class FBufferOwner::EBufferOwnerFlags : uint8
 {
 	None         = 0,
 	Owned        = 1 << 0,
-	Materialized = 1 << 1,
+	Immutable    = 1 << 1,
+	Materialized = 1 << 2,
 };
+
+ENUM_CLASS_FLAGS(FBufferOwner::EBufferOwnerFlags);
 
 inline FBufferOwner::FBufferOwner(void* InData, uint64 InSize)
 	: Data(InData)
@@ -585,12 +607,22 @@ inline void FBufferOwner::SetBuffer(void* InData, uint64 InSize)
 
 inline bool FBufferOwner::IsOwned() const
 {
-	return (uint8(GetFlags(ReferenceCountsAndFlags)) & uint8(EBufferOwnerFlags::Owned)) != 0;
+	return EnumHasAnyFlags(GetFlags(ReferenceCountsAndFlags.load(std::memory_order_relaxed)), EBufferOwnerFlags::Owned);
 }
 
 inline void FBufferOwner::SetIsOwned()
 {
 	ReferenceCountsAndFlags.fetch_or(SetFlags(EBufferOwnerFlags::Owned));
+}
+
+inline bool FBufferOwner::IsImmutable() const
+{
+	return EnumHasAnyFlags(GetFlags(ReferenceCountsAndFlags.load(std::memory_order_relaxed)), EBufferOwnerFlags::Immutable);
+}
+
+inline void FBufferOwner::SetIsImmutable()
+{
+	ReferenceCountsAndFlags.fetch_or(SetFlags(EBufferOwnerFlags::Immutable));
 }
 
 inline void FBufferOwner::Materialize()
@@ -604,7 +636,7 @@ inline void FBufferOwner::Materialize()
 
 inline bool FBufferOwner::IsMaterialized() const
 {
-	return (uint8(GetFlags(ReferenceCountsAndFlags)) & uint8(EBufferOwnerFlags::Materialized)) != 0;
+	return EnumHasAnyFlags(GetFlags(ReferenceCountsAndFlags.load(std::memory_order_relaxed)), EBufferOwnerFlags::Materialized);
 }
 
 inline void FBufferOwner::SetIsMaterialized()
@@ -614,17 +646,28 @@ inline void FBufferOwner::SetIsMaterialized()
 
 inline uint32 FBufferOwner::GetTotalRefCount() const
 {
-	const uint64 Value = ReferenceCountsAndFlags.load(std::memory_order_relaxed);
-	const uint32 SharedRefCount = GetSharedRefCount(Value);
+	return GetTotalRefCount(ReferenceCountsAndFlags.load(std::memory_order_relaxed));
+}
+
+constexpr inline uint32 FBufferOwner::GetTotalRefCount(const uint64 RefCountsAndFlags)
+{
+	const uint32 SharedRefCount = GetSharedRefCount(RefCountsAndFlags);
 	// A non-zero SharedRefCount adds 1 to WeakRefCount to keep the owner alive.
 	// Subtract that extra reference when it is present to return an accurate count.
-	return GetWeakRefCount(Value) + SharedRefCount - !!SharedRefCount;
+	return GetWeakRefCount(RefCountsAndFlags) + SharedRefCount - !!SharedRefCount;
+}
+
+inline bool FBufferOwner::IsUniqueOwnedMutable() const
+{
+	const uint64 RefCountsAndFlags = ReferenceCountsAndFlags.load(std::memory_order_relaxed);
+	return GetTotalRefCount(RefCountsAndFlags) == 1 &&
+		(GetFlags(RefCountsAndFlags) & (EBufferOwnerFlags::Owned | EBufferOwnerFlags::Immutable)) == EBufferOwnerFlags::Owned;
 }
 
 inline void FBufferOwner::AddSharedReference()
 {
 	const uint64 PreviousValue = ReferenceCountsAndFlags.fetch_add(SetSharedRefCount(1), std::memory_order_relaxed);
-	checkSlow(GetSharedRefCount(PreviousValue) < 0x7fffffff);
+	checkSlow(GetSharedRefCount(PreviousValue) < RefCountMask);
 	if (GetSharedRefCount(PreviousValue) == 0)
 	{
 		AddWeakReference();
@@ -663,7 +706,7 @@ inline bool FBufferOwner::TryAddSharedReference()
 inline void FBufferOwner::AddWeakReference()
 {
 	const uint64 PreviousValue = ReferenceCountsAndFlags.fetch_add(SetWeakRefCount(1), std::memory_order_relaxed);
-	checkSlow(GetWeakRefCount(PreviousValue) < 0x7fffffff);
+	checkSlow(GetWeakRefCount(PreviousValue) < RefCountMask);
 }
 
 inline void FBufferOwner::ReleaseWeakReference()
@@ -678,7 +721,7 @@ inline void FBufferOwner::ReleaseWeakReference()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace BufferOwnerPrivate
+namespace UE::SharedBuffer::Private
 {
 
 template <typename FOps>
@@ -807,11 +850,11 @@ inline bool TBufferOwnerPtr<FOps>::operator!=(const TBufferOwnerPtr<FOtherOps>& 
 	return Owner != Ptr.Owner;
 }
 
-} // BufferOwnerPrivate
+} // UE::SharedBuffer::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace BufferOwnerPrivate
+namespace UE::SharedBuffer::Private
 {
 
 template <typename T, typename Allocator>
@@ -835,13 +878,13 @@ private:
 	TArray<T, Allocator> Array;
 };
 
-} // BufferOwnerPrivate
+} // UE::SharedBuffer::Private
 
 /** Construct a shared buffer by taking ownership of an array. */
 template <typename T, typename Allocator>
-UE_NODISCARD inline FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)
+[[nodiscard]] inline FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)
 {
-	return FSharedBuffer(new BufferOwnerPrivate::TBufferOwnerTArray<T, Allocator>(MoveTemp(Array)));
+	return FSharedBuffer(new UE::SharedBuffer::Private::TBufferOwnerTArray<T, Allocator>(MoveTemp(Array)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
