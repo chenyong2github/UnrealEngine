@@ -306,7 +306,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 				bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 				if (!bSucceeded)
 				{
-					UE_LOG(LogTexture, Error, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
+					UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
 				}
 			}
 			else
@@ -396,7 +396,7 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 			bSucceeded = !bInlineMips || DerivedData->TryInlineMipData(BuildSettingsPerLayer[0].LODBiasWithCinematicMips, &Texture);
 			if (!bSucceeded)
 			{
-				UE_LOG(LogTexture, Error, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
+				UE_LOG(LogTexture, Display, TEXT("Failed to put and then read back mipmap data from DDC for %s"), *Texture.GetPathName());
 			}
 		}
 		else
