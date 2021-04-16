@@ -1581,6 +1581,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.PathTracingFilterWidth = Src.PathTracingFilterWidth;
 		}
 
+		if (Src.bOverride_PathTracingEnableEmissive)
+		{
+			Dest.PathTracingEnableEmissive = Src.PathTracingEnableEmissive;
+		}
+
 
 		if (Src.bOverride_DepthOfFieldBladeCount)
 		{

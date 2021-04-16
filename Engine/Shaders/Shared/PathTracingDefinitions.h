@@ -7,6 +7,10 @@
 #define PATHTRACER_COHERENT_TILE_SHIFT		3
 #define PATHTRACER_COHERENT_TILE_SIZE		(1 << PATHTRACER_COHERENT_TILE_SHIFT)
 
+// Constants for 'SamplerType'
+#define PATHTRACER_SAMPLER_DEFAULT			0
+#define PATHTRACER_SAMPLER_ERROR_DIFFUSION	1
+#define PATHTRACER_SAMPLER_COHERENT			2
 
 // Constants for the 'Flags' field of FPathTracingLight
 #define PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK				(7 << 0)	// Which lighting channel is this light assigned to?
