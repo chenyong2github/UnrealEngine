@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
+	[Obsolete("VivoxVoiceChat is deprecated from 4.27 onwards")]
 	public class VivoxVoiceChat : ModuleRules
 	{
 		public VivoxVoiceChat(ReadOnlyTargetRules Target) : base(Target)
