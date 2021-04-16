@@ -87,6 +87,38 @@ namespace StaticMeshCompilingManagerImpl
 FStaticMeshCompilingManager::FStaticMeshCompilingManager()
 	: Notification(LOCTEXT("StaticMeshes", "Static Meshes"))
 {
+	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FStaticMeshCompilingManager::OnPostReachabilityAnalysis);
+}
+
+void FStaticMeshCompilingManager::OnPostReachabilityAnalysis()
+{
+	if (GetNumRemainingMeshes())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshCompilingManager::CancelUnreachableMeshes);
+
+		TArray<UStaticMesh*> PendingStaticMeshes;
+		PendingStaticMeshes.Reserve(GetNumRemainingMeshes());
+
+		for (auto Iterator = RegisteredStaticMesh.CreateIterator(); Iterator; ++Iterator)
+		{
+			UStaticMesh* StaticMesh = Iterator->GetEvenIfUnreachable();
+			if (StaticMesh && StaticMesh->IsUnreachable())
+			{
+				UE_LOG(LogStaticMesh, Verbose, TEXT("Cancelling static mesh %s async compilation because it's being garbage collected"), *StaticMesh->GetName());
+
+				if (StaticMesh->TryCancelAsyncTasks())
+				{
+					Iterator.RemoveCurrent();
+				}
+				else
+				{
+					PendingStaticMeshes.Add(StaticMesh);
+				}
+			}
+		}
+
+		FinishCompilation(PendingStaticMeshes);
+	}
 }
 
 EQueuedWorkPriority FStaticMeshCompilingManager::GetBasePriority(UStaticMesh* InStaticMesh) const
@@ -131,15 +163,7 @@ void FStaticMeshCompilingManager::Shutdown()
 			if (WeakStaticMesh.IsValid())
 			{
 				UStaticMesh* StaticMesh = WeakStaticMesh.Get();
-				if (!StaticMesh->IsAsyncTaskComplete())
-				{
-					if (StaticMesh->AsyncTask->Cancel())
-					{
-						StaticMesh->AsyncTask.Reset();
-					}
-				}
-
-				if (StaticMesh->AsyncTask)
+				if (!StaticMesh->TryCancelAsyncTasks())
 				{
 					PendingStaticMeshes.Add(StaticMesh);
 				}
@@ -148,6 +172,8 @@ void FStaticMeshCompilingManager::Shutdown()
 
 		FinishCompilation(PendingStaticMeshes);
 	}
+
+	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
 }
 
 bool FStaticMeshCompilingManager::IsAsyncStaticMeshCompilationEnabled() const
@@ -178,10 +204,17 @@ void FStaticMeshCompilingManager::PostCompilation(TArrayView<UStaticMesh* const>
 
 		for (UStaticMesh* StaticMesh : InStaticMeshes)
 		{
-			AssetsData.Emplace(StaticMesh);
+			// Do not broadcast an event for unreachable objects
+			if (!StaticMesh->IsUnreachable())
+			{
+				AssetsData.Emplace(StaticMesh);
+			}
 		}
 
-		FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
+		if (AssetsData.Num())
+		{
+			FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
+		}
 	}
 }
 
@@ -195,8 +228,6 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 		check(IsInGameThread());
 		TRACE_CPUPROFILER_EVENT_SCOPE(PostCompilation);
 
-		UE_LOG(LogStaticMesh, Verbose, TEXT("Refreshing static mesh %s because it is ready"), *StaticMesh->GetName());
-
 		FObjectCacheContextScope ObjectCacheScope;
 
 		// The scope is important here to destroy the FStaticMeshAsyncBuildScope before broadcasting events
@@ -204,6 +235,14 @@ void FStaticMeshCompilingManager::PostCompilation(UStaticMesh* StaticMesh)
 			// Acquire the async task locally to protect against re-entrance
 			TUniquePtr<FStaticMeshAsyncBuildTask> LocalAsyncTask = MoveTemp(StaticMesh->AsyncTask);
 			LocalAsyncTask->EnsureCompletion();
+
+			// Do not do anything else if the staticmesh is being garbage collected
+			if (StaticMesh->IsUnreachable())
+			{
+				return;
+			}
+
+			UE_LOG(LogStaticMesh, Verbose, TEXT("Refreshing static mesh %s because it is ready"), *StaticMesh->GetName());
 
 			FStaticMeshAsyncBuildScope AsyncBuildScope(StaticMesh);
 
@@ -315,7 +354,7 @@ void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* cons
 				return StaticMesh->AsyncTask.Get();
 			}
 
-			TStrongObjectPtr<UStaticMesh> StaticMesh;
+			UStaticMesh* StaticMesh;
 			FName GetName() override { return StaticMesh->GetOutermost()->GetFName(); }
 		};
 
@@ -328,7 +367,7 @@ void FStaticMeshCompilingManager::FinishCompilation(TArrayView<UStaticMesh* cons
 			LogStaticMesh,
 			[this](AsyncCompilationHelpers::ICompilable* Object)
 			{
-				UStaticMesh* StaticMesh = static_cast<FCompilableStaticMesh*>(Object)->StaticMesh.Get();
+				UStaticMesh* StaticMesh = static_cast<FCompilableStaticMesh*>(Object)->StaticMesh;
 				PostCompilation(StaticMesh);
 				RegisteredStaticMesh.Remove(StaticMesh);
 			}

@@ -1845,13 +1845,6 @@ public:
 	FStaticMeshCompilationContext& operator=(FStaticMeshCompilationContext&&) = default;
 
 	bool bShouldComputeExtendedBounds = false;
-
-	// Prevent the garbage collection of the static mesh's package while the async compilation is in progress.
-	// This may happen because we allow garbage collection of UStaticMesh to be initiated even in the presence of
-	// an async operation in order to cancel it if possible. In that case, we need to wait until the async operation
-	// is fully cancelled before trying to destroy the UPackage otherwise the bulk data of the static mesh could
-	// become inaccessible while the async operation is still using it.
-	TStrongObjectPtr<UPackage> StaticMeshOwner;
 };
 
 class FStaticMeshPostLoadContext : public FStaticMeshCompilationContext

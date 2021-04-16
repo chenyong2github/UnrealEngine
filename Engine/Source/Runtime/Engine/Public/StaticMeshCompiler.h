@@ -84,6 +84,9 @@ private:
 
 	void PostCompilation(TArrayView<UStaticMesh* const> InStaticMeshes);
 	void PostCompilation(UStaticMesh* StaticMesh);
+
+	void OnPostReachabilityAnalysis();
+	FDelegateHandle PostReachabilityAnalysisHandle;
 };
 
 #endif // #if WITH_EDITOR

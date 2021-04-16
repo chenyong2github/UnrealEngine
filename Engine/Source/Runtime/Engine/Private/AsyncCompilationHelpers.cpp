@@ -96,8 +96,9 @@ namespace AsyncCompilationHelpers
 		uint64 StartTime = FPlatformTime::Cycles64();
 		TOptional<FScopedSlowTask> SlowTask;
 
-		// Do not create a progress during PostLoad as TickSlate could endup calling too many things
-		if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+		// Do not create a progress during PostLoad or garbage collect as ticking slate might
+		// introduce too many unwanted side effects
+		if (!FUObjectThreadContext::Get().IsRoutingPostLoad && !GIsGarbageCollecting)
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("AssetType"), AssetType.ToLower());
