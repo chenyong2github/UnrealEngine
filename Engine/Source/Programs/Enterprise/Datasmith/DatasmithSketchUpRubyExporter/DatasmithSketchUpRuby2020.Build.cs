@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.IO;
+using Tools.DotNETCommon;
 
 namespace UnrealBuildTool.Rules
 {
