@@ -12,10 +12,11 @@ from switchboard.devices.unreal.uassetparser import UassetParser
 from .ndisplay_monitor_ui import nDisplayMonitorUI
 from .ndisplay_monitor    import nDisplayMonitor
 
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 
 import os, traceback, json, socket, struct, fnmatch
 from pathlib import Path
+import concurrent.futures
 
 
 class AddnDisplayDialog(AddDeviceDialog):
@@ -130,6 +131,8 @@ class AddnDisplayDialog(AddDeviceDialog):
         config_names = []
         config_paths = []
 
+        assets = []
+
         for dirpath, _, files in os.walk(configs_path):
             for name in files:
                 if not name.lower().endswith(('.uasset','.cfg','.ndisplay')):
@@ -141,21 +144,53 @@ class AddnDisplayDialog(AddDeviceDialog):
 
                     # Since .uasset is generic a asset container, only add assets of the right config class
                     if ext.lower() == '.uasset':
-                        try:
-                            aparser = UassetParser(config_path, allowUnversioned=True)
-
-                            for assetdata in aparser.aregdata:
-                                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
-                                    config_names.append(name)
-                                    config_paths.append(config_path)
-                                    break
-                        except:
-                            # Not logging the exception here since the parser only accepts 4.27+ assets,
-                            # so the rejection rate will generate a lot of spam
-                            pass
+                        assets.append({'name': name, 'path': config_path})
                     else:
                         config_names.append(name)
                         config_paths.append(config_path)     
+
+        # process the assets in a multi-threaded fashion
+
+        # show a progress bar if it is taking more a trivial amount of time
+        progressDiag = QtWidgets.QProgressDialog('Parsing assets...','Cancel', 0, 0, parent=self)
+        progressDiag.setWindowTitle('nDisplay Config Finder')
+        progressDiag.setModal(True)
+        progressDiag.setMinimumDuration(1000) # time before it shows up
+        progressDiag.setRange(0,len(assets))
+        progressDiag.setCancelButton(None)
+        progressDiag.setWindowFlag(QtCore.Qt.FramelessWindowHint) # Looks much better without the window frame
+
+        def validateConfigAsset(asset):
+            ''' Returns the asset if it is an nDisplay config '''
+            aparser = UassetParser(asset['path'], allowUnversioned=True)
+            for assetdata in aparser.aregdata:
+                if assetdata.ObjectClassName == 'DisplayClusterBlueprint':
+                    return asset
+            raise ValueError
+
+        numThreads = 8
+        doneAssetCount = 0
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=numThreads) as executor:
+            futures = [executor.submit(validateConfigAsset, asset) for asset in assets]
+
+            for future in concurrent.futures.as_completed(futures):
+
+                #update progress bar
+                doneAssetCount += 1
+                progressDiag.setValue(doneAssetCount)
+
+                # get the future result and add to list of config names and paths
+                try:
+                    asset = future.result()
+                    if asset['name'] not in config_names:
+                        config_names.append(asset['name'])
+                        config_paths.append(asset['path'])
+                except:
+                    pass
+
+        # close progress bar window
+        progressDiag.close()
 
         # collect the found config files into the itemDatas list
 
