@@ -134,20 +134,17 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		return UGameViewportClient::Draw(InViewport, SceneCanvas);
 	}
 
+	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
 	IDisplayClusterViewportManager& ViewportManager = DCRenderDevice->GetViewportManager();
 
-	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
-
-	// Update local node viewports (update\create\delete)
-	if(!ViewportManager.UpdateConfiguration(DCRenderDevice->GetRenderFrameMode(), DisplayCluster.GetConfigMgr()->GetLocalNodeId(), DisplayCluster.GetGameMgr()->GetRootActor()))
-	{
-		return UGameViewportClient::Draw(InViewport, SceneCanvas);
-	}
-
+	// Update local node viewports (update\create\delete) and build new render frame
 	FDisplayClusterRenderFrame RenderFrame;
-	if (!ViewportManager.BeginNewFrame(InViewport, RenderFrame) || (RenderFrame.DesiredNumberOfViews == 0))
+	if(ViewportManager.UpdateConfiguration(DCRenderDevice->GetRenderFrameMode(), DisplayCluster.GetConfigMgr()->GetLocalNodeId(), DisplayCluster.GetGameMgr()->GetRootActor()) == false
+		|| ViewportManager.BeginNewFrame(InViewport, RenderFrame) == false
+		|| RenderFrame.DesiredNumberOfViews == 0)
 	{
-		return UGameViewportClient::Draw(InViewport, SceneCanvas);
+		// skip rendering: Can't build render frame
+		return;
 	}
 
 	// update total number of views for this frame (in multiple families)
