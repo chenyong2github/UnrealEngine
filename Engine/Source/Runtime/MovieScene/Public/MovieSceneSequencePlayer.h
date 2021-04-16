@@ -52,7 +52,7 @@ struct FMovieSceneSequenceLoopCount
 	/** Serialize this count from an int */
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot );
 
-	/** Number of times to loop playback. -1 for infinite, else the number of times to loop before stopping */
+	/** Whether or not to loop playback. If Loop Exactly is chosen, you can specify the number of times to loop */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Playback", meta=(UIMin=1, DisplayName="Loop"))
 	int32 Value;
 };
