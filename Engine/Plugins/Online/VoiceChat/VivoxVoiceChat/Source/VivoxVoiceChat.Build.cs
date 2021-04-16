@@ -5,7 +5,6 @@ using System.IO;
 
 namespace UnrealBuildTool.Rules
 {
-	[Obsolete("VivoxVoiceChat is deprecated from 4.27 onwards")]
 	public class VivoxVoiceChat : ModuleRules
 	{
 		public VivoxVoiceChat(ReadOnlyTargetRules Target) : base(Target)
@@ -45,6 +44,8 @@ namespace UnrealBuildTool.Rules
 					}
 				);
 			}
+
+			PrivateDefinitions.Add("VIVOXVOICECHAT_PACKAGE");
 		}
 	}
 }
