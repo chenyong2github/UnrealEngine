@@ -2405,20 +2405,6 @@ float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Paramete
 %s;
 }
 
-half3 GetMaterialWorldDisplacement(FMaterialTessellationParameters Parameters)
-{
-%s;
-}
-
-half GetMaterialMaxDisplacement()
-{
-	return 0.0f;
-}
-
-half GetMaterialTessellationMultiplier(FMaterialTessellationParameters Parameters)
-{
-%s;
-}
 
 // .rgb:SubsurfaceColor, .a:SSProfileId in 0..1 range
 half4 GetMaterialSubsurfaceDataRaw(FPixelMaterialInputs PixelMaterialInputs)

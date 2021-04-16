@@ -373,8 +373,6 @@ void FDatasmithMaterialExpressions::GetTextureSamplersFunc(UMaterialFunction* Ma
 	ExpressionInputs.Add(&Attrib->OpacityMask);
 	ExpressionInputs.Add(&Attrib->Normal);
 	ExpressionInputs.Add(&Attrib->WorldPositionOffset);
-	ExpressionInputs.Add(&Attrib->WorldDisplacement);
-	ExpressionInputs.Add(&Attrib->TessellationMultiplier);
 	ExpressionInputs.Add(&Attrib->SubsurfaceColor);
 	ExpressionInputs.Add(&Attrib->ClearCoat);
 	ExpressionInputs.Add(&Attrib->ClearCoatRoughness);
@@ -923,8 +921,6 @@ EMaterialProperty FDatasmithMaterialExpressions::DatasmithTextureSlotToMaterialP
 	case EDatasmithTextureSlot::OPACITYMASK:			return MP_OpacityMask;
 	case EDatasmithTextureSlot::NORMAL:					return MP_Normal;
 	case EDatasmithTextureSlot::WORLDPOSITIONOFFSET:	return MP_WorldPositionOffset;
-	case EDatasmithTextureSlot::DISPLACE:				return MP_WorldDisplacement;
-	case EDatasmithTextureSlot::TESSELLATIONMULTIPLIER:	return MP_TessellationMultiplier;
 	case EDatasmithTextureSlot::SUBSURFACECOLOR:		return MP_SubsurfaceColor;
 	case EDatasmithTextureSlot::COATSPECULAR:			return MP_CustomData0;
 	case EDatasmithTextureSlot::COATROUGHNESS:			return MP_CustomData1;
@@ -986,12 +982,6 @@ FExpressionInput* FDatasmithMaterialExpressions::GetMaterialOrFunctionSlot( UObj
 			break;
 		case EDatasmithTextureSlot::WORLDPOSITIONOFFSET:
 			ExpressionInput = &Attrib->WorldPositionOffset;
-			break;
-		case EDatasmithTextureSlot::DISPLACE:
-			ExpressionInput = &Attrib->WorldDisplacement;
-			break;
-		case EDatasmithTextureSlot::TESSELLATIONMULTIPLIER:
-			ExpressionInput = &Attrib->TessellationMultiplier;
 			break;
 		case EDatasmithTextureSlot::SUBSURFACECOLOR:
 			ExpressionInput = &Attrib->SubsurfaceColor;
@@ -2124,68 +2114,6 @@ void FDatasmithMaterialExpressions::CreateParallaxOffset(UObject* UnrealMatOrFun
 	}
 }
 
-void FDatasmithMaterialExpressions::ModulateDisplacement(UObject* UnrealMatOrFunc, double Amount, int32 SubDivisions)
-{
-	UMaterial* UnrealMaterial = Cast< UMaterial >( UnrealMatOrFunc );
-
-	UMaterialFunction* Func = Cast< UMaterialFunction >( UnrealMatOrFunc );
-
-	UMaterialExpressionMakeMaterialAttributes* Attrib = nullptr;
-	if (Func)
-	{
-		Attrib = FindOrAddAttributesFromMatFunc(Func);
-	}
-
-	UMaterialExpression* ToBeConnected = nullptr;
-	if (UnrealMaterial)
-	{
-		ToBeConnected = UnrealMaterial->WorldDisplacement.Expression;
-	}
-
-	if (Attrib)
-	{
-		ToBeConnected = Attrib->WorldDisplacement.Expression;
-	}
-
-	if (ToBeConnected == nullptr)
-	{
-		return;
-	}
-
-	UMaterialExpression* VertexWsExpr = CreateMaterialExpression<UMaterialExpressionVertexNormalWS>(UnrealMatOrFunc);
-
-	UMaterialExpression* SubDivExpr = Constant(UnrealMatOrFunc, SubDivisions);
-
-	if (UnrealMaterial)
-	{
-		UnrealMaterial->TessellationMultiplier.Expression = SubDivExpr;
-	}
-
-	if (Attrib)
-	{
-		Attrib->TessellationMultiplier.Expression = SubDivExpr;
-	}
-
-	UMaterialExpression* MultiplyWs = Multiply(UnrealMatOrFunc, ToBeConnected, 0.0, VertexWsExpr, 0.0);
-
-	if (ToBeConnected->Outputs.Num() > 1) // use red in case of colored Texture
-	{
-		ToBeConnected->ConnectExpression(MultiplyWs->GetInput(0), 1);
-	}
-
-	UMaterialExpression* multiplyamount = Multiply(UnrealMatOrFunc, MultiplyWs, 0.0, nullptr, Amount);
-
-	if (UnrealMaterial)
-	{
-		UnrealMaterial->WorldDisplacement.Expression = multiplyamount;
-	}
-
-	if (Attrib)
-	{
-		Attrib->WorldDisplacement.Expression = multiplyamount;
-	}
-}
-
 void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Package, const TSharedPtr< IDatasmithShaderElement >& ShaderElement, const FDatasmithAssetsImportContext& AssetsContext,
 																UObject* UnrealMaterial)
 {
@@ -2513,8 +2441,6 @@ void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Pack
 			AddTextureExpression(DisplaceTexture, ShaderElement->GetDisplaceTextureSampler(), 0.0, 0.0, UnrealMaterial, EDatasmithTextureSlot::DISPLACE);
 		}
 	}
-
-	ModulateDisplacement(UnrealMaterial, ShaderElement->GetDisplace(), ShaderElement->GetDisplaceSubDivision());
 }
 
 UMaterialExpressionMaterialFunctionCall* FDatasmithMaterialExpressions::BlendFunctions(UMaterial* UnrealMaterial, const FDatasmithAssetsImportContext& AssetsContext,

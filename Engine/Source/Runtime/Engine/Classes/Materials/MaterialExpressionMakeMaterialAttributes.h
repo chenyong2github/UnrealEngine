@@ -48,12 +48,6 @@ class UMaterialExpressionMakeMaterialAttributes : public UMaterialExpression
 	FExpressionInput WorldPositionOffset;
 
 	UPROPERTY()
-	FExpressionInput WorldDisplacement;
-
-	UPROPERTY()
-	FExpressionInput TessellationMultiplier;
-
-	UPROPERTY()
 	FExpressionInput SubsurfaceColor;
 
 	UPROPERTY()

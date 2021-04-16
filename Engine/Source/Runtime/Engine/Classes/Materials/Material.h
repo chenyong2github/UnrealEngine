@@ -434,14 +434,6 @@ public:
 	FVectorMaterialInput WorldPositionOffset;
 
 #if WITH_EDITORONLY_DATA
-	/** Offset in world space applied to tessellated vertices. */
-	UPROPERTY()
-	FVectorMaterialInput WorldDisplacement;
-
-	/** Multiplies the tessellation factors applied when a tessellation mode is set. */
-	UPROPERTY()
-	FScalarMaterialInput TessellationMultiplier;
-
 	/** Inner material color, only used for ShadingModel=Subsurface */
 	UPROPERTY()
 	FColorMaterialInput SubsurfaceColor;

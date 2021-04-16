@@ -247,7 +247,6 @@ void FGLTFMaterialElement::Finalize()
 	ConnectInput(Opacity, MaterialExpressions, Material->Opacity);
 	ConnectInput(Refraction, MaterialExpressions, Material->Refraction);
 	ConnectInput(Normal, MaterialExpressions, Material->Normal);
-	ConnectInput(WorldDisplacement, MaterialExpressions, Material->WorldDisplacement);
 	ConnectInput(AmbientOcclusion, MaterialExpressions, Material->AmbientOcclusion);
 
 	UMaterialEditingLibrary::LayoutMaterialExpressions(Material);

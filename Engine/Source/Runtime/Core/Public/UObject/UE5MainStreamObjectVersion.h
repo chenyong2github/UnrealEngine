@@ -106,6 +106,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix to the Cubic smoothing, plus introduction of new smoothing types
         BlendSpaceSmoothingImprovements,
 
+		// Removing Tessellation parameters from Materials
+		RemovingTessellationParameters,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

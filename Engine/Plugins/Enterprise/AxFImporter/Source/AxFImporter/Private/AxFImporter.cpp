@@ -1446,23 +1446,6 @@ private:
 					Connect(Material->OpacityMask, DitherTemporalAA);
 				}
 			}
-
-			if (ExpressionHeight)
-			{
-				UMaterialExpressionVertexNormalWS* VertexNormalWS = CreateMaterialExpression<UMaterialExpressionVertexNormalWS>();
-
-				UMaterialExpressionScalarParameter* DisplacementScale = CreateMaterialExpression<UMaterialExpressionScalarParameter>();
-				DisplacementScale->DefaultValue = 1.0f;
-				DisplacementScale->ParameterName = FName(TEXT("Displacement Scale"));
-				
-				Connect(Material->WorldDisplacement, Mul(VertexNormalWS, Mul(ExpressionHeight, DisplacementScale)));
-
-				UMaterialExpressionScalarParameter* TessellationMultiplier = CreateMaterialExpression<UMaterialExpressionScalarParameter>();
-				TessellationMultiplier->DefaultValue = 1.0f;
-				TessellationMultiplier->ParameterName = FName(TEXT("Tessellation Multiplier"));
-
-				Connect(Material->TessellationMultiplier, TessellationMultiplier);
-			}
 		}
 
 		void SetTextureDiffuseColor(FProcessedTextureSource Source) override

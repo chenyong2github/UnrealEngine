@@ -4253,7 +4253,6 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 			case MP_Specular:
 			case MP_Roughness:
 			case MP_Anisotropy:
-			case MP_TessellationMultiplier:
 			case MP_CustomData0:
 			case MP_CustomData1:
 			case MP_AmbientOcclusion:
@@ -4265,7 +4264,6 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 				return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:
-			case MP_WorldDisplacement:
 			case MP_EmissiveColor:
 			case MP_BaseColor:
 			case MP_SubsurfaceColor:

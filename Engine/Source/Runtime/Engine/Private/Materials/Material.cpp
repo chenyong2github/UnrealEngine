@@ -240,17 +240,6 @@ int32 FMaterialResource::CompilePropertyAndSetMaterialProperty(EMaterialProperty
 			}
 			break;
 
-		case MP_WorldDisplacement:
-			if (Compiler->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
-			{
-				Ret = MaterialInterface->CompileProperty(Compiler, Property);
-			}
-			else
-			{
-				Ret = FMaterialAttributeDefinitionMap::CompileDefaultExpression(Compiler, Property);
-			}
-			break;
-
 		case MP_MaterialAttributes:
 			Ret = MaterialInterface->CompileProperty(Compiler, Property);
 			break;
@@ -3419,7 +3408,7 @@ void UMaterial::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITOR
 
-	static_assert(MP_MAX == 33, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
+	static_assert(MP_MAX == 31, "New material properties must have DoMaterialAttributeReorder called on them to ensure that any future reordering of property pins is correctly applied.");
 
 	if (Ar.UEVer() < VER_UE4_MATERIAL_MASKED_BLENDMODE_TIDY)
 	{
@@ -3665,7 +3654,6 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 
 		// STRATA_TODO for mateiral conversion
 		//  - WorldPositionOffset can remain on the end point node
-		//  - WorldDisplacement and TessellationMultiplier are going to be removed and should be ignored?
 		//  - ShadingModel
 		//  - Refraction
 		//  - PixelDepthOffset
@@ -4047,38 +4035,37 @@ void UMaterial::PostLoad()
 #if WITH_EDITORONLY_DATA
 	const int32 UEVer = GetLinkerUEVersion();
 	const int32 RenderObjVer = GetLinkerCustomVersion(FRenderingObjectVersion::GUID);
+	const int32 UE5MainVer = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
-	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&BaseColor, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Metallic, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Specular, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Roughness, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Anisotropy, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Normal, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Tangent, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&EmissiveColor, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Opacity, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&OpacityMask, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&WorldPositionOffset, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&WorldDisplacement, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&TessellationMultiplier, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&SubsurfaceColor, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&ClearCoat, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&ClearCoatRoughness, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&AmbientOcclusion, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&Refraction, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[0], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[1], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[2], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[3], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[4], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[5], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[6], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&CustomizedUVs[7], UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&PixelDepthOffset, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UEVer, RenderObjVer);
-	DoMaterialAttributeReorder(&FrontMaterial, UEVer, RenderObjVer);
+	DoMaterialAttributeReorder(&DiffuseColor_DEPRECATED, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&SpecularColor_DEPRECATED, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&BaseColor, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Metallic, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Specular, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Roughness, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Anisotropy, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Normal, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Tangent, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&EmissiveColor, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Opacity, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&OpacityMask, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&WorldPositionOffset, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&SubsurfaceColor, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&ClearCoat, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&ClearCoatRoughness, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&AmbientOcclusion, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&Refraction, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[0], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[1], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[2], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[3], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[4], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[5], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[6], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&CustomizedUVs[7], UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&PixelDepthOffset, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&ShadingModelFromMaterialExpression, UEVer, RenderObjVer, UE5MainVer);
+	DoMaterialAttributeReorder(&FrontMaterial, UEVer, RenderObjVer, UE5MainVer);
 #endif // WITH_EDITORONLY_DATA
 
 	if (!IsDefaultMaterial())
@@ -5727,8 +5714,6 @@ bool UMaterial::GetExpressionInputDescription(EMaterialProperty InProperty, FMat
 	case MP_Normal: SetMaterialInputDescription(Normal, false, OutDescription); return true;
 	case MP_Tangent: SetMaterialInputDescription(Tangent, false, OutDescription); return true;
 	case MP_WorldPositionOffset: SetMaterialInputDescription(WorldPositionOffset, false, OutDescription); return true;
-	case MP_WorldDisplacement: SetMaterialInputDescription(WorldDisplacement, false, OutDescription); return true;
-	case MP_TessellationMultiplier: SetMaterialInputDescription(TessellationMultiplier, false, OutDescription); return true;
 	case MP_SubsurfaceColor: SetMaterialInputDescription(SubsurfaceColor, false, OutDescription); return true;
 	case MP_CustomData0: SetMaterialInputDescription(ClearCoat, false, OutDescription); return true;
 	case MP_CustomData1: SetMaterialInputDescription(ClearCoatRoughness, false, OutDescription); return true;
@@ -6300,7 +6285,6 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_Specular:				return Specular.CompileWithDefault(Compiler, Property);
 		case MP_Roughness:				return Roughness.CompileWithDefault(Compiler, Property);
 		case MP_Anisotropy:				return Anisotropy.CompileWithDefault(Compiler, Property);
-		case MP_TessellationMultiplier:	return TessellationMultiplier.CompileWithDefault(Compiler, Property);
 		case MP_CustomData0:			return ClearCoat.CompileWithDefault(Compiler, Property);
 		case MP_CustomData1:			return ClearCoatRoughness.CompileWithDefault(Compiler, Property);
 		case MP_AmbientOcclusion:		return AmbientOcclusion.CompileWithDefault(Compiler, Property);
@@ -6311,7 +6295,6 @@ int32 UMaterial::CompilePropertyEx( FMaterialCompiler* Compiler, const FGuid& At
 		case MP_Normal:					return Normal.CompileWithDefault(Compiler, Property);
 		case MP_Tangent:				return Tangent.CompileWithDefault(Compiler, Property);
 		case MP_WorldPositionOffset:	return WorldPositionOffset.CompileWithDefault(Compiler, Property);
-		case MP_WorldDisplacement:		return WorldDisplacement.CompileWithDefault(Compiler, Property);
 		case MP_PixelDepthOffset:		return PixelDepthOffset.CompileWithDefault(Compiler, Property);
 		case MP_ShadingModel:			return ShadingModelFromMaterialExpression.CompileWithDefault(Compiler, Property);
 		case MP_FrontMaterial:			return FrontMaterial.CompileWithDefault(Compiler, Property);
@@ -6775,10 +6758,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_CustomData1:
 		Active = ShadingModels.HasAnyShadingModel({ MSM_ClearCoat, MSM_Eye });
-		break;
-	case MP_TessellationMultiplier:
-	case MP_WorldDisplacement:
-		Active = false;
 		break;
 	case MP_EmissiveColor:
 		// Emissive is always active, even for light functions and post process materials, 

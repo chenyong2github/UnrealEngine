@@ -164,8 +164,6 @@ enum EMaterialProperty
 	MP_Normal UMETA(DisplayName = "Normal"),
 	MP_Tangent UMETA(DisplayName = "Tangent"),
 	MP_WorldPositionOffset UMETA(Hidden),
-	MP_WorldDisplacement UMETA(Hidden),
-	MP_TessellationMultiplier UMETA(Hidden),
 	MP_SubsurfaceColor UMETA(DisplayName = "Subsurface"),
 	MP_CustomData0 UMETA(Hidden),
 	MP_CustomData1 UMETA(Hidden),

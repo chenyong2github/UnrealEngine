@@ -2316,7 +2316,7 @@ namespace Generator
 			    Function, TEXT("normal"), EFunctionInputType::FunctionInput_Vector3, NewMaterialExpressionFunctionCall(Function, StateNormal, {}));
 
 			UMaterialExpressionMakeMaterialAttributes* BSDF =
-			    NewMaterialExpressionMakeMaterialAttributes(Function, Tint, {}, 0.0f, {}, {}, {}, {}, Normal, {}, {}, {}, Tint);
+			    NewMaterialExpressionMakeMaterialAttributes(Function, Tint, {}, 0.0f, {}, {}, {}, {}, Normal, {}, Tint);
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}
@@ -3695,22 +3695,20 @@ namespace Generator
 			                                                {BlendBreak, 6},     // OpacityMask
 			                                                {LayerBreak, 7},     // Normal purely from the layer
 			                                                {BlendBreak, 8},     // WorldPositionOffset,
-			                                                {BlendBreak, 9},     // WorldDisplacement
-			                                                {BlendBreak, 10},    // TessellationMultiplier
-			                                                {BlendBreak, 11},    // SubsurfaceColor,
+			                                                {BlendBreak, 9},    // SubsurfaceColor,
 			                                                ClearCoat,           // ClearCoat
 			                                                ClearCoatRoughness,  // ClearCoatRoughness
-			                                                {BlendBreak, 14},    // AmbientOcclusion,
-			                                                {BlendBreak, 15},    // Refraction
-			                                                {BlendBreak, 16},    // CustomizedUVs0
-			                                                {BlendBreak, 17},    // CustomizedUVs1
-			                                                {BlendBreak, 18},    // CustomizedUVs2
-			                                                {BlendBreak, 19},    // CustomizedUVs3
-			                                                {BlendBreak, 20},    // CustomizedUVs4
-			                                                {BlendBreak, 21},    // CustomizedUVs5
-			                                                {BlendBreak, 22},    // CustomizedUVs6
-			                                                {BlendBreak, 23},    // CustomizedUVs7
-			                                                {BlendBreak, 24});   // PixelDepthOffset
+			                                                {BlendBreak, 12},    // AmbientOcclusion,
+			                                                {BlendBreak, 13},    // Refraction
+			                                                {BlendBreak, 14},    // CustomizedUVs0
+			                                                {BlendBreak, 15},    // CustomizedUVs1
+			                                                {BlendBreak, 16},    // CustomizedUVs2
+			                                                {BlendBreak, 17},    // CustomizedUVs3
+			                                                {BlendBreak, 18},    // CustomizedUVs4
+			                                                {BlendBreak, 19},    // CustomizedUVs5
+			                                                {BlendBreak, 20},    // CustomizedUVs6
+			                                                {BlendBreak, 21},    // CustomizedUVs7
+			                                                {BlendBreak, 22});   // PixelDepthOffset
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}
@@ -4873,9 +4871,7 @@ namespace Generator
 			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 19}, {BreakTrue, 19}),
 			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 20}, {BreakTrue, 20}),
 			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 21}, {BreakTrue, 21}),
-			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 22}, {BreakTrue, 22}),
-			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 23}, {BreakTrue, 23}),
-			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 24}, {BreakTrue, 24}));
+			                                                NewMaterialExpressionIfEqual(Function, Value, 0.0f, {BreakFalse, 22}, {BreakTrue, 22}));
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}
@@ -4904,22 +4900,20 @@ namespace Generator
 			                                                                                              OpacityMask,   // OpacityMask
 			                                                                                              {Break, 7},    // Normal
 			                                                                                              {Break, 8},    // WorldPositionOffset
-			                                                                                              {Break, 9},    // WorldDisplacement
-			                                                                                              {Break, 10},   // TessellationMultiplier
-			                                                                                              {Break, 11},   // SubsurfaceColor
-			                                                                                              {Break, 12},   // ClearCoat
-			                                                                                              {Break, 13},   // ClearCoatRoughness
-			                                                                                              {Break, 14},   // AmbientOcclusion
-			                                                                                              {Break, 15},   // Refraction
-			                                                                                              {Break, 16},   // CustomizedUVs0
-			                                                                                              {Break, 17},   // CustomizedUVs1
-			                                                                                              {Break, 18},   // CustomizedUVs2
-			                                                                                              {Break, 19},   // CustomizedUVs3
-			                                                                                              {Break, 20},   // CustomizedUVs4
-			                                                                                              {Break, 21},   // CustomizedUVs5
-			                                                                                              {Break, 22},   // CustomizedUVs6
-			                                                                                              {Break, 23},   // CustomizedUVs7
-			                                                                                              {Break, 24});  // PixelDepthOffset
+			                                                                                              {Break, 9},   // SubsurfaceColor
+			                                                                                              {Break, 10},   // ClearCoat
+			                                                                                              {Break, 11},   // ClearCoatRoughness
+			                                                                                              {Break, 12},   // AmbientOcclusion
+			                                                                                              {Break, 13},   // Refraction
+			                                                                                              {Break, 14},   // CustomizedUVs0
+			                                                                                              {Break, 15},   // CustomizedUVs1
+			                                                                                              {Break, 16},   // CustomizedUVs2
+			                                                                                              {Break, 17},   // CustomizedUVs3
+			                                                                                              {Break, 18},   // CustomizedUVs4
+			                                                                                              {Break, 19},   // CustomizedUVs5
+			                                                                                              {Break, 20},   // CustomizedUVs6
+			                                                                                              {Break, 21},   // CustomizedUVs7
+			                                                                                              {Break, 22});  // PixelDepthOffset
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}
@@ -4948,22 +4942,20 @@ namespace Generator
 			                                                {MaterialBreak, 6},    // OpacityMask
 			                                                {MaterialBreak, 7},    // Normal
 			                                                {MaterialBreak, 8},    // WorldPositionOffset,
-			                                                {MaterialBreak, 9},    // WorldDisplacement
-			                                                {MaterialBreak, 10},   // TessellationMultiplier
-			                                                {MaterialBreak, 11},   // SubsurfaceColor,
-			                                                {MaterialBreak, 12},   // ClearCoat
-			                                                {MaterialBreak, 13},   // ClearCoatRoughness
-			                                                {MaterialBreak, 14},   // AmbientOcclusion,
+			                                                {MaterialBreak, 9},   // SubsurfaceColor,
+			                                                {MaterialBreak, 10},   // ClearCoat
+			                                                {MaterialBreak, 11},   // ClearCoatRoughness
+			                                                {MaterialBreak, 12},   // AmbientOcclusion,
 			                                                Refraction,            // Refraction
-			                                                {MaterialBreak, 16},   // CustomizedUVs0
-			                                                {MaterialBreak, 17},   // CustomizedUVs1
-			                                                {MaterialBreak, 18},   // CustomizedUVs2
-			                                                {MaterialBreak, 19},   // CustomizedUVs3
-			                                                {MaterialBreak, 20},   // CustomizedUVs4
-			                                                {MaterialBreak, 21},   // CustomizedUVs5
-			                                                {MaterialBreak, 22},   // CustomizedUVs6
-			                                                {MaterialBreak, 23},   // CustomizedUVs7
-			                                                {MaterialBreak, 24});  // PixelDepthOffset
+			                                                {MaterialBreak, 14},   // CustomizedUVs0
+			                                                {MaterialBreak, 15},   // CustomizedUVs1
+			                                                {MaterialBreak, 16},   // CustomizedUVs2
+			                                                {MaterialBreak, 17},   // CustomizedUVs3
+			                                                {MaterialBreak, 18},   // CustomizedUVs4
+			                                                {MaterialBreak, 19},   // CustomizedUVs5
+			                                                {MaterialBreak, 20},   // CustomizedUVs6
+			                                                {MaterialBreak, 21},   // CustomizedUVs7
+			                                                {MaterialBreak, 22});  // PixelDepthOffset
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}
@@ -4990,22 +4982,20 @@ namespace Generator
 			                                                {MaterialBreak, 6},    // OpacityMask
 			                                                {MaterialBreak, 7},    // Normal
 			                                                {MaterialBreak, 8},    // WorldPositionOffset,
-			                                                {MaterialBreak, 9},    // WorldDisplacement
-			                                                {MaterialBreak, 10},   // TessellationMultiplier
 			                                                SubsurfaceColor,       // SubsurfaceColor,
-			                                                {MaterialBreak, 12},   // ClearCoat
-			                                                {MaterialBreak, 13},   // ClearCoatRoughness
-			                                                {MaterialBreak, 14},   // AmbientOcclusion,
-			                                                {MaterialBreak, 15},   // Refraction
-			                                                {MaterialBreak, 16},   // CustomizedUVs0
-			                                                {MaterialBreak, 17},   // CustomizedUVs1
-			                                                {MaterialBreak, 18},   // CustomizedUVs2
-			                                                {MaterialBreak, 19},   // CustomizedUVs3
-			                                                {MaterialBreak, 20},   // CustomizedUVs4
-			                                                {MaterialBreak, 21},   // CustomizedUVs5
-			                                                {MaterialBreak, 22},   // CustomizedUVs6
-			                                                {MaterialBreak, 23},   // CustomizedUVs7
-			                                                {MaterialBreak, 24});  // PixelDepthOffset
+			                                                {MaterialBreak, 10},   // ClearCoat
+			                                                {MaterialBreak, 11},   // ClearCoatRoughness
+			                                                {MaterialBreak, 12},   // AmbientOcclusion,
+			                                                {MaterialBreak, 13},   // Refraction
+			                                                {MaterialBreak, 14},   // CustomizedUVs0
+			                                                {MaterialBreak, 15},   // CustomizedUVs1
+			                                                {MaterialBreak, 16},   // CustomizedUVs2
+			                                                {MaterialBreak, 17},   // CustomizedUVs3
+			                                                {MaterialBreak, 18},   // CustomizedUVs4
+			                                                {MaterialBreak, 19},   // CustomizedUVs5
+			                                                {MaterialBreak, 20},   // CustomizedUVs6
+			                                                {MaterialBreak, 21},   // CustomizedUVs7
+			                                                {MaterialBreak, 22});  // PixelDepthOffset
 
 			NewMaterialExpressionFunctionOutput(Function, TEXT("bsdf"), BSDF);
 		}

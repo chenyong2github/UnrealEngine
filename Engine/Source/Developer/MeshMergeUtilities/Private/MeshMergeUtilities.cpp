@@ -598,8 +598,6 @@ EFlattenMaterialProperties FMeshMergeUtilities::NewToOldProperty(int32 NewProper
 		EFlattenMaterialProperties::NumFlattenMaterialProperties,
 		EFlattenMaterialProperties::NumFlattenMaterialProperties,
 		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
-		EFlattenMaterialProperties::NumFlattenMaterialProperties,
 		EFlattenMaterialProperties::AmbientOcclusion
 	};
 	

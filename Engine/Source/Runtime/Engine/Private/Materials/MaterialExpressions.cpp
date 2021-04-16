@@ -9,6 +9,7 @@
 #include "Misc/Guid.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Misc/App.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -774,14 +775,21 @@ void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 	SCOPED_LOADTIMER(UMaterialExpression::Serialize);
 	Super::Serialize(Record);
 
-	Record.GetUnderlyingArchive().UsingCustomVersion(FRenderingObjectVersion::GUID);
+	FArchive& Archive = Record.GetUnderlyingArchive();
+
+	Archive.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Archive.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
+	const int32 UEVer = Archive.UEVer();
+	const int32 RenderVer = Archive.CustomVer(FRenderingObjectVersion::GUID);
+	const int32 UE5Ver = Archive.CustomVer(FUE5MainStreamObjectVersion::GUID);
+
 	const TArray<FExpressionInput*> Inputs = GetInputs();
 	for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
 	{
 		FExpressionInput* Input = Inputs[InputIndex];
-		DoMaterialAttributeReorder(Input, Record.GetUnderlyingArchive().UEVer(), Record.GetUnderlyingArchive().CustomVer(FRenderingObjectVersion::GUID));
+		DoMaterialAttributeReorder(Input, UEVer, RenderVer, UE5Ver);
 	}
 #endif // WITH_EDITORONLY_DATA
 }
@@ -5720,7 +5728,7 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	int32 Ret = INDEX_NONE;
 	UMaterialExpression* Expression = nullptr;
 
- 	static_assert(MP_MAX == 33, 
+ 	static_assert(MP_MAX == 31, 
 		"New material properties should be added to the end of the inputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttributeReorder().\
@@ -5741,8 +5749,6 @@ int32 UMaterialExpressionMakeMaterialAttributes::Compile(class FMaterialCompiler
 	case MP_Normal: Ret = Normal.Compile(Compiler); Expression = Normal.Expression; break;
 	case MP_Tangent: Ret = Tangent.Compile(Compiler); Expression = Tangent.Expression; break;
 	case MP_WorldPositionOffset: Ret = WorldPositionOffset.Compile(Compiler); Expression = WorldPositionOffset.Expression; break;
-	case MP_WorldDisplacement: Ret = WorldDisplacement.Compile(Compiler); Expression = WorldDisplacement.Expression; break;
-	case MP_TessellationMultiplier: Ret = TessellationMultiplier.Compile(Compiler); Expression = TessellationMultiplier.Expression; break;
 	case MP_SubsurfaceColor: Ret = SubsurfaceColor.Compile(Compiler); Expression = SubsurfaceColor.Expression; break;
 	case MP_CustomData0: Ret = ClearCoat.Compile(Compiler); Expression = ClearCoat.Expression; break;
 	case MP_CustomData1: Ret = ClearCoatRoughness.Compile(Compiler); Expression = ClearCoatRoughness.Expression; break;
@@ -5829,7 +5835,7 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 
 	MenuCategories.Add(ConstructorStatics.NAME_MaterialAttributes);
 	
- 	static_assert(MP_MAX == 33, 
+ 	static_assert(MP_MAX == 31, 
 		"New material properties should be added to the end of the outputs for this expression. \
 		The order of properties here should match the material results pins, the make material attriubtes node inputs and the mapping of IO indices to properties in GetMaterialPropertyFromInputOutputIndex().\
 		Insertions into the middle of the properties or a change in the order of properties will also require that existing data is fixed up in DoMaterialAttriubtesReorder().\
@@ -5847,8 +5853,6 @@ UMaterialExpressionBreakMaterialAttributes::UMaterialExpressionBreakMaterialAttr
 	Outputs.Add(FExpressionOutput(TEXT("Normal"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("WorldPositionOffset"), 1, 1, 1, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT("WorldDisplacement"), 1, 1, 1, 1, 0));
-	Outputs.Add(FExpressionOutput(TEXT("TessellationMultiplier"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("SubsurfaceColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("ClearCoat"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("ClearCoatRoughness"), 1, 1, 0, 0, 0));
@@ -5890,8 +5894,6 @@ void UMaterialExpressionBreakMaterialAttributes::Serialize(FStructuredArchive::F
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // Normal
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // Tangent
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // WorldPositionOffset
-		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // WorldDisplacement
-		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // TessellationMultiplier
 		Outputs[OutputIndex].SetMask(1, 1, 1, 1, 0); ++OutputIndex; // SubsurfaceColor
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // ClearCoat
 		Outputs[OutputIndex].SetMask(1, 1, 0, 0, 0); ++OutputIndex; // ClearCoatRoughness 
@@ -5927,24 +5929,22 @@ static void BuildPropertyToIOIndexMap()
 		PropertyToIOIndexMap.Add(MP_Normal,					8);
 		PropertyToIOIndexMap.Add(MP_Tangent,				9);
 		PropertyToIOIndexMap.Add(MP_WorldPositionOffset,	10);
-		PropertyToIOIndexMap.Add(MP_WorldDisplacement,		11);
-		PropertyToIOIndexMap.Add(MP_TessellationMultiplier, 12);
-		PropertyToIOIndexMap.Add(MP_SubsurfaceColor,		13);
-		PropertyToIOIndexMap.Add(MP_CustomData0,			14);
-		PropertyToIOIndexMap.Add(MP_CustomData1,			15);
-		PropertyToIOIndexMap.Add(MP_AmbientOcclusion,		16);
-		PropertyToIOIndexMap.Add(MP_Refraction,				17);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs0,			18);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs1,			19);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs2,			20);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs3,			21);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs4,			22);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs5,			23);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs6,			24);
-		PropertyToIOIndexMap.Add(MP_CustomizedUVs7,			25);
-		PropertyToIOIndexMap.Add(MP_PixelDepthOffset,		26);
-		PropertyToIOIndexMap.Add(MP_ShadingModel,			27);
-		PropertyToIOIndexMap.Add(MP_FrontMaterial,			28);
+		PropertyToIOIndexMap.Add(MP_SubsurfaceColor,		11);
+		PropertyToIOIndexMap.Add(MP_CustomData0,			12);
+		PropertyToIOIndexMap.Add(MP_CustomData1,			13);
+		PropertyToIOIndexMap.Add(MP_AmbientOcclusion,		14);
+		PropertyToIOIndexMap.Add(MP_Refraction,				15);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs0,			16);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs1,			17);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs2,			18);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs3,			19);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs4,			20);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs5,			21);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs6,			22);
+		PropertyToIOIndexMap.Add(MP_CustomizedUVs7,			23);
+		PropertyToIOIndexMap.Add(MP_PixelDepthOffset,		24);
+		PropertyToIOIndexMap.Add(MP_ShadingModel,			25);
+		PropertyToIOIndexMap.Add(MP_FrontMaterial,			26);
 	}
 }
 

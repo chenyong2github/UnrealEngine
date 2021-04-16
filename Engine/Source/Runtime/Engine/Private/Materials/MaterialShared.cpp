@@ -8,6 +8,7 @@
 #include "Stats/StatsMisc.h"
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Misc/App.h"
 #include "UObject/UObjectHash.h"
 #include "LocalVertexFactory.h"
@@ -4081,7 +4082,7 @@ bool UMaterialInterface::IsTextureReferencedByProperty(EMaterialProperty InPrope
 //Reorder the output index for any FExpressionInput connected to a UMaterialExpressionBreakMaterialAttributes.
 //If the order of pins in the material results or the make/break attributes nodes changes 
 //then the OutputIndex stored in any FExpressionInput coming from UMaterialExpressionBreakMaterialAttributes will be wrong and needs reordering.
-void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UEVer, int32 RenderObjVer)
+void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UEVer, int32 RenderObjVer, int32 UE5MainVer)
 {
 	if( Input && Input->Expression && Input->Expression->IsA(UMaterialExpressionBreakMaterialAttributes::StaticClass()) )
 	{
@@ -4123,6 +4124,20 @@ void DoMaterialAttributeReorder(FExpressionInput* Input, int32 UEVer, int32 Rend
 			if (OutputIdx >= 8)
 			{
 				++Input->OutputIndex;
+			}
+		}
+
+		if (UE5MainVer < FUE5MainStreamObjectVersion::RemovingTessellationParameters)
+		{
+			// Removing MP_WorldDisplacement (11) and MP_TessellationMultiplier (12)
+			if (Input->OutputIndex == 11 || Input->OutputIndex == 12)
+			{
+				Input->Expression = nullptr;
+				Input->ExpressionName = NAME_None;
+			}
+			else if (Input->OutputIndex >= 13)
+			{
+				Input->OutputIndex -= 2;
 			}
 		}
 	}
@@ -4308,8 +4323,6 @@ void FMaterialAttributeDefinitionMap::InitializeAttributeMap()
 
 	// Advanced attributes
 	Add(FGuid(0xF905F895, 0xD5814314, 0x916D2434, 0x8C40CE9E), TEXT("WorldPositionOffset"),		MP_WorldPositionOffset,		MCT_Float3,	FVector4(0,0,0,0),	SF_Vertex);
-	Add(FGuid(0x2091ECA2, 0xB59248EE, 0x8E2CD578, 0xD371926D), TEXT("WorldDisplacement"),		MP_WorldDisplacement,		MCT_Float3,	FVector4(0,0,0,0),	SF_Domain);
-	Add(FGuid(0xA0119D44, 0xC456450D, 0x9C39C933, 0x1F72D8D1), TEXT("TessellationMultiplier"),	MP_TessellationMultiplier,	MCT_Float,	FVector4(1,0,0,0),	SF_Hull);
 	Add(FGuid(0x5B8FC679, 0x51CE4082, 0x9D777BEE, 0xF4F72C44), TEXT("SubsurfaceColor"),			MP_SubsurfaceColor,			MCT_Float3,	FVector4(1,1,1,0),	SF_Pixel);
 	Add(FGuid(0x9E502E69, 0x3C8F48FA, 0x94645CFD, 0x28E5428D), TEXT("ClearCoat"),				MP_CustomData0,				MCT_Float,	FVector4(1,0,0,0),	SF_Pixel);
 	Add(FGuid(0xBE4F2FFD, 0x12FC4296, 0xB0124EEA, 0x12C28D92), TEXT("ClearCoatRoughness"),		MP_CustomData1,				MCT_Float,	FVector4(.1,0,0,0),	SF_Pixel);
@@ -4426,10 +4439,6 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 		return LOCTEXT("Tangent", "Tangent");
 	case MP_WorldPositionOffset:
 		return Material->IsUIMaterial() ? LOCTEXT("ScreenPosition", "Screen Position") : LOCTEXT("WorldPositionOffset", "World Position Offset");
-	case MP_WorldDisplacement:
-		return LOCTEXT("WorldDisplacement", "World Displacement");
-	case MP_TessellationMultiplier:
-		return LOCTEXT("TessellationMultiplier", "Tessellation Multiplier");
 	case MP_SubsurfaceColor:
 		if (Material->MaterialDomain == MD_Volume)
 		{
