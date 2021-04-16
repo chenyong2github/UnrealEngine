@@ -10,7 +10,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 
 #define RANDSEQ_UNROLL_SOBOL 0 // unrolling sobol sampler doesn't seem to pay off in the path tracer
 
-#define USE_LIGHT_GRID	1
+#define USE_PATH_TRACING_LIGHT_GRID	1
 
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
