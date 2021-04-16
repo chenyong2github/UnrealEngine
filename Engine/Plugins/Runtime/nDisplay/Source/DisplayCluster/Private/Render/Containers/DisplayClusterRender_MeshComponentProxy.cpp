@@ -8,6 +8,78 @@
 TGlobalResource<FDisplayClusterMeshVertexDeclaration> GDisplayClusterMeshVertexDeclaration;
 
 //*************************************************************************
+//* FDisaplyClusterMeshComponentProxyData
+//*************************************************************************
+class FDisplayClusterRender_MeshComponentProxyData
+{
+public:
+	TArray<uint32> IndexData;
+
+	TArray<FDisplayClusterMeshVertex> VertexData;
+
+	uint32 NumTriangles = 0;
+	uint32 NumVertices = 0;
+
+public:
+	FDisplayClusterRender_MeshComponentProxyData(const UStaticMeshComponent& InMeshComponent)
+	{
+		check(IsInGameThread());
+
+		UStaticMesh* StaticMesh = InMeshComponent.GetStaticMesh();
+		if (StaticMesh)
+		{
+			const FStaticMeshLODResources& SrcMeshResource = StaticMesh->GetLODForExport(0);
+
+			const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
+			const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
+			const FRawStaticIndexBuffer& IndexBuffer = SrcMeshResource.IndexBuffer;
+
+			NumTriangles = IndexBuffer.GetNumIndices() / 3; // Now by default no triangle strip supported
+			NumVertices = VertexBuffer.GetNumVertices();
+
+			IndexBuffer.GetCopy(IndexData);
+
+			VertexData.AddZeroed(NumVertices);
+			for (uint32 i = 0; i < NumVertices; i++)
+			{
+				VertexData[i].Position = VertexPosition.VertexPosition(i);
+				VertexData[i].UV = VertexBuffer.GetVertexUV(i, 0);
+
+				// Use channel 1 as default source for chromakey custom markers UV
+				VertexData[i].UV_Chromakey = VertexBuffer.GetVertexUV(i, (SrcMeshResource.GetNumTexCoords() > 1) ? 1 : 0);
+			}
+		}
+	}
+
+	FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
+	{
+		check(IsInGameThread());
+
+		bool bUseChromakeyUV = InMeshGeometry.ChromakeyUV.Num() > 0;
+
+		NumTriangles = InMeshGeometry.Triangles.Num() / 3; // No triangle strip supported by default
+		NumVertices = InMeshGeometry.Vertices.Num();
+
+		VertexData.AddZeroed(NumVertices);
+		for (uint32 i = 0; i < NumVertices; i++)
+		{
+			VertexData[i].Position = InMeshGeometry.Vertices[i];
+			VertexData[i].UV = InMeshGeometry.UV[i];
+
+			// Use channel 1 as default source for chromakey custom markers UV
+			VertexData[i].UV_Chromakey = bUseChromakeyUV ? InMeshGeometry.ChromakeyUV[i] : InMeshGeometry.UV[i];
+		}
+
+		int Idx = 0;
+		IndexData.AddZeroed(InMeshGeometry.Triangles.Num());
+		for (const int32& It : InMeshGeometry.Triangles)
+		{
+			IndexData[Idx++] = (uint32)It;
+		}
+	}
+};
+
+//*************************************************************************
 //* FDisplayClusterRender_MeshComponentProxy
 //*************************************************************************
 FDisplayClusterRender_MeshComponentProxy::FDisplayClusterRender_MeshComponentProxy()
@@ -15,6 +87,8 @@ FDisplayClusterRender_MeshComponentProxy::FDisplayClusterRender_MeshComponentPro
 
 FDisplayClusterRender_MeshComponentProxy::FDisplayClusterRender_MeshComponentProxy(const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
 {
+	check(IsInGameThread());
+
 	UpdateDeffered(InMeshGeometry);
 }
 
@@ -54,6 +128,8 @@ bool  FDisplayClusterRender_MeshComponentProxy::FinishRender_RenderThread(FRHICo
 
 void FDisplayClusterRender_MeshComponentProxy::AssignMeshRefs(UStaticMeshComponent* MeshComponent, USceneComponent* OriginComponent)
 {
+	check(IsInGameThread());
+
 	// Update Origin component ref
 	OriginComponentRef.SetSceneComponent(OriginComponent);
 	MeshComponentRef.SetComponentRef(MeshComponent);
@@ -64,6 +140,8 @@ void FDisplayClusterRender_MeshComponentProxy::AssignMeshRefs(UStaticMeshCompone
 
 const FStaticMeshLODResources* FDisplayClusterRender_MeshComponentProxy::GetWarpMeshLodResource(int LodIndex) const
 {
+	check(IsInGameThread());
+
 	UStaticMeshComponent* MeshComponent = MeshComponentRef.GetOrFindMeshComponent();
 	if (MeshComponent != nullptr)
 	{
@@ -81,135 +159,76 @@ void FDisplayClusterRender_MeshComponentProxy::UpdateDefferedRef()
 {
 	check(IsInGameThread());
 
+	UStaticMeshComponent* StaticMeshComponent = MeshComponentRef.GetOrFindMeshComponent();
+	if (StaticMeshComponent)
+	{
+		FDisplayClusterRender_MeshComponentProxyData* NewProxyData = new FDisplayClusterRender_MeshComponentProxyData(*StaticMeshComponent);
+
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRender_UpdateMeshComponentProxyRHI)(
-		[pMeshComponentRef = new FDisplayClusterRender_MeshComponentRef(MeshComponentRef), pMeshComponentProxy = this](FRHICommandListImmediate& RHICmdList)
+		[NewProxyData, pMeshComponentProxy = this](FRHICommandListImmediate& RHICmdList)
 	{
 		// Update RHI
-		pMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, pMeshComponentRef->GetOrFindMeshComponent());
-		delete pMeshComponentRef;
+			pMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, NewProxyData);
+			delete NewProxyData;
 	});
+}
 }
 
 void FDisplayClusterRender_MeshComponentProxy::UpdateDeffered(const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
 {
 	check(IsInGameThread());
 
+	FDisplayClusterRender_MeshComponentProxyData* NewProxyData = new FDisplayClusterRender_MeshComponentProxyData(InMeshGeometry);
+
 	ENQUEUE_RENDER_COMMAND(DisplayClusterRender_UpdateMeshComponentProxyRHI)(
-		[pMeshGeometryRef = new FDisplayClusterRender_MeshGeometry(InMeshGeometry), pMeshComponentProxy = this](FRHICommandListImmediate& RHICmdList)
+		[NewProxyData, pMeshComponentProxy = this](FRHICommandListImmediate& RHICmdList)
 	{
 		// Update RHI
-		pMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, pMeshGeometryRef);
-		delete pMeshGeometryRef;
+		pMeshComponentProxy->UpdateRHI_RenderThread(RHICmdList, NewProxyData);
+		delete NewProxyData;
 	});
 }
 
-void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterRender_MeshGeometry* InMeshGeometry)
+void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterRender_MeshComponentProxyData* InMeshData)
 {
 	check(IsInRenderingThread());
+	check(InMeshData);
 
 	VertexBufferRHI.SafeRelease();
 	IndexBufferRHI.SafeRelease();
 
-	NumTriangles = NumVertices = 0;
-
-	if (InMeshGeometry)
-	{
-		bool bUseChromakeyUV = InMeshGeometry->ChromakeyUV.Num() > 0;
-
-		NumTriangles = InMeshGeometry->Triangles.Num() / 3; // No triangle strip supported by default
-		NumVertices = InMeshGeometry->Vertices.Num();
+	NumTriangles = InMeshData->NumTriangles;
+	NumVertices = InMeshData->NumVertices;
 
 		uint32 Usage = BUF_ShaderResource | BUF_Static;
 
 		// Create Vertex buffer RHI:
 		{
 		FRHIResourceCreateInfo CreateInfo;
-		VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDisplayClusterMeshVertex) * NumVertices, Usage, CreateInfo);
-		}
+		size_t VertexDataSize = sizeof(FDisplayClusterMeshVertex) * NumVertices;
 
-		// Initialize vertex buffer
+		VertexBufferRHI = RHICreateVertexBuffer(VertexDataSize, Usage, CreateInfo);
+		FDisplayClusterMeshVertex* DestVertexData = reinterpret_cast<FDisplayClusterMeshVertex*>(RHILockVertexBuffer(VertexBufferRHI, 0, VertexDataSize, RLM_WriteOnly));
+		if (DestVertexData)
 		{
-			void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FDisplayClusterMeshVertex) * NumVertices, RLM_WriteOnly);
-			FDisplayClusterMeshVertex* pVertices = reinterpret_cast<FDisplayClusterMeshVertex*>(VoidPtr);
-			for (uint32 i = 0; i < NumVertices; i++)
-		{
-				FDisplayClusterMeshVertex& Vertex = pVertices[i];
-
-				Vertex.Position = InMeshGeometry->Vertices[i];
-				Vertex.UV = InMeshGeometry->UV[i];
-
-				// Use channel 1 as default source for chromakey custom markers UV
-				Vertex.UV_Chromakey = bUseChromakeyUV ? InMeshGeometry->ChromakeyUV[i] : InMeshGeometry->UV[i];
-		}
+			FPlatformMemory::Memcpy(DestVertexData, InMeshData->VertexData.GetData(), VertexDataSize);
 		RHIUnlockVertexBuffer(VertexBufferRHI);
 		}
+	}
 
 		// Create Index buffer RHI:
 		{
 			FRHIResourceCreateInfo CreateInfo;
-			IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), sizeof(uint32) * InMeshGeometry->Triangles.Num(), Usage, CreateInfo);
-		}
+		size_t IndexDataSize = sizeof(uint32) * InMeshData->IndexData.Num();
 
-		// Initialize index buffer
-		{
-			void* VoidPtr2 = RHILockIndexBuffer(IndexBufferRHI, 0, sizeof(uint32) * InMeshGeometry->Triangles.Num(), RLM_WriteOnly);
-			uint32* pIndices = reinterpret_cast<uint32*>(VoidPtr2);
-			int Idx = 0;
+		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), IndexDataSize, Usage, CreateInfo);
 
-			for (int32& It : InMeshGeometry->Triangles)
+		uint32* DestIndexData = reinterpret_cast<uint32*>(RHILockIndexBuffer(IndexBufferRHI, 0, IndexDataSize, RLM_WriteOnly));
+		if(DestIndexData)
 			{
-				pIndices[Idx++] = (uint32)It;
-			}
-
+			FPlatformMemory::Memcpy(DestIndexData, InMeshData->IndexData.GetData(), IndexDataSize);
 			RHIUnlockIndexBuffer(IndexBufferRHI);
 		}
 	}
 }
 
-void FDisplayClusterRender_MeshComponentProxy::UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, UStaticMeshComponent* InMeshComponent)
-{
-	check(IsInRenderingThread());
-
-	VertexBufferRHI.SafeRelease();
-	IndexBufferRHI.SafeRelease();
-
-	NumTriangles = NumVertices = 0;
-
-	if (InMeshComponent)
-	{
-		UStaticMesh* StaticMesh = InMeshComponent->GetStaticMesh();
-		if (StaticMesh)
-		{
-			const FStaticMeshLODResources& SrcMeshResource = StaticMesh->GetLODForExport(0);
-
-			const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
-			const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
-			const FRawStaticIndexBuffer&   IndexBuffer = SrcMeshResource.IndexBuffer;
-
-			NumTriangles = IndexBuffer.GetNumIndices() / 3; // Now by default no triangle strip supported
-			NumVertices = VertexBuffer.GetNumVertices();
-
-			// Copy Index buffer RHI
-			IndexBufferRHI = IndexBuffer.IndexBufferRHI;
-
-			// Create Vertex buffer RHI:
-			FRHIResourceCreateInfo CreateInfo;
-			VertexBufferRHI = RHICreateVertexBuffer(sizeof(FDisplayClusterMeshVertex) * NumVertices, BUF_Dynamic, CreateInfo);
-
-			// Initialize vertex from mesh source streams
-			void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FDisplayClusterMeshVertex) * NumVertices, RLM_WriteOnly);
-			FDisplayClusterMeshVertex* pVertices = reinterpret_cast<FDisplayClusterMeshVertex*>(VoidPtr);
-			for (uint32 i = 0; i < NumVertices; i++)
-			{
-				FDisplayClusterMeshVertex& Vertex = pVertices[i];
-				Vertex.Position = VertexPosition.VertexPosition(i);
-				Vertex.UV           = VertexBuffer.GetVertexUV(i, 0);
-
-				// Use channel 1 as default source for chromakey custom markers UV
-				Vertex.UV_Chromakey = VertexBuffer.GetVertexUV(i, (SrcMeshResource.GetNumTexCoords() > 1) ? 1 : 0);
-			}
-
-			RHIUnlockVertexBuffer(VertexBufferRHI);
-		}
-	}
-};

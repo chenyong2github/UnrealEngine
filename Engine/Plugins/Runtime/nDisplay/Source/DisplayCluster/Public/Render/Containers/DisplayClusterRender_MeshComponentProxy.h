@@ -10,6 +10,7 @@
 #include "Render/Containers/DisplayClusterRender_MeshComponentRef.h"
 
 struct FStaticMeshLODResources;
+class FDisplayClusterRender_MeshComponentProxyData;
 
 class DISPLAYCLUSTER_API FDisplayClusterRender_MeshComponentProxy
 {
@@ -28,10 +29,8 @@ public:
 	bool BeginRender_RenderThread(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit) const;
 	bool FinishRender_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
-
 protected:
-	void UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, UStaticMeshComponent* InMeshComponent);
-	void UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, class FDisplayClusterRender_MeshGeometry* InMeshGeometry);
+	void UpdateRHI_RenderThread(FRHICommandListImmediate& RHICmdList, FDisplayClusterRender_MeshComponentProxyData* InMeshData);
 
 public:
 	// Reference containers:
