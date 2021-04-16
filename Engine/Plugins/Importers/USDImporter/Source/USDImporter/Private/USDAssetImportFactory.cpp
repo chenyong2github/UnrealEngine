@@ -37,9 +37,9 @@ UDEPRECATED_UUSDAssetImportFactory::UDEPRECATED_UUSDAssetImportFactory(const FOb
 	// Factory is deprecated
 	ImportPriority = -1;
 
-	Formats.Add(TEXT("usd;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usda;Universal Scene Descriptor files"));
-	Formats.Add(TEXT("usdc;Universal Scene Descriptor files"));
+	Formats.Add(TEXT("usd;Universal Scene Description files"));
+	Formats.Add(TEXT("usda;Universal Scene Description files"));
+	Formats.Add(TEXT("usdc;Universal Scene Description files"));
 }
 
 UObject* UDEPRECATED_UUSDAssetImportFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, const FString& Filename, const TCHAR* Parms, FFeedbackContext* Warn, bool& bOutOperationCanceled)

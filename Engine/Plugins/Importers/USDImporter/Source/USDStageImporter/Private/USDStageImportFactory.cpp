@@ -33,7 +33,7 @@ UUsdStageImportFactory::UUsdStageImportFactory(const FObjectInitializer& ObjectI
 
 	for ( const FString& Extension : UnrealUSDWrapper::GetAllSupportedFileFormats() )
 	{
-		Formats.Add( FString::Printf( TEXT( "%s; Universal Scene Descriptor files" ), *Extension ) );
+		Formats.Add( FString::Printf( TEXT( "%s; Universal Scene Description files" ), *Extension ) );
 	}
 }
 
