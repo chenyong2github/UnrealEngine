@@ -30,7 +30,6 @@ PathTracingRayGenShader.usf: Reference path tracing
 uint Iteration;
 uint TemporalSeed;
 uint MaxSamples;
-uint UseErrorDiffusion;
 uint MaxBounces;
 uint MaxSSSBounces;
 
@@ -41,9 +40,9 @@ uint MISMode;
 
 uint ApproximateCaustics;
 uint EnableCameraBackfaceCulling;
-uint SkipDirectLighting;
-uint SkipEmissive;
-uint CoherentSampling;
+uint EnableDirectLighting;
+uint EnableEmissive;
+uint SamplerType;
 uint VisualizeLightGrid;
 float MaxPathIntensity;
 float MaxNormalBias;
@@ -57,17 +56,17 @@ uint SceneVisibleLightCount;
 
 void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 {
-	if (MaxPathIntensity > 0)
+	// User asked for path contributions to be clamped to reduce fireflies.
+	// This puts an upper bound on variance within the pixel at the expense of bias
+	float MaxPathRadiance = max3(PathRadiance.x, PathRadiance.y, PathRadiance.z);
+	if (MaxPathRadiance > MaxPathIntensity)
 	{
-		// User asked for path contributions to be clamped to reduce fireflies.
-		// Depending on how aggressive this value is, the image could be quite biased
-		TotalRadiance += min(PathRadiance, MaxPathIntensity);
+		// adjust sample while keeping color
+		PathRadiance *= MaxPathIntensity / MaxPathRadiance;
 	}
-	else
-	{
-		// Just average values directly
-		TotalRadiance += PathRadiance;
-	}
+
+	// accumulate into the total
+	TotalRadiance += PathRadiance;
 }
 
 FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
@@ -490,16 +489,16 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	uint2 DispatchDim = DispatchRaysDimensions().xy;
 
 	// shuffle the pixels around so the ones that share a seed land in the same warp
-	uint2 LaunchIndex = (CoherentSampling ? Reorder(DispatchIdx, DispatchDim) : DispatchIdx) + View.ViewRectMin.xy + TileOffset.xy;
+	uint2 LaunchIndex = (SamplerType == PATHTRACER_SAMPLER_COHERENT ? Reorder(DispatchIdx, DispatchDim) : DispatchIdx) + View.ViewRectMin.xy + TileOffset.xy;
 
 	// Initialize random sequence 
 	RandomSequence RandSequence;
 
-	uint2 RandPixel = CoherentSampling
+	uint2 RandPixel = SamplerType == PATHTRACER_SAMPLER_COHERENT
 		? (DispatchIdx / PATHTRACER_COHERENT_TILE_SIZE)	// unique seed within small squares of the shuffled sub-images
 		//? (DispatchIdx * PATHTRACER_COHERENT_TILE_SIZE) / DispatchDim // unique seed per sub-image
 		: LaunchIndex; // unique seed per pixel
-	if (UseErrorDiffusion)
+	if (SamplerType == PATHTRACER_SAMPLER_ERROR_DIFFUSION)
 	{
 		// z-sampler init
 		RandomSequence_Initialize(RandSequence, RandPixel, Iteration, TemporalSeed - Iteration, MaxSamples);
@@ -544,8 +543,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 #endif
 		const bool bIsCameraRay = Bounce == 0;
 		const bool bIsLastBounce = Bounce == MaxBounces;
-		const bool bIncludeEmissive = (SkipDirectLighting == 0 || Bounce > 1) &&
-									  (SkipEmissive       == 0 || bIsCameraRay);
+		const bool bIncludeEmissive = (EnableDirectLighting != 0 || Bounce > 1) &&
+									  (EnableEmissive       != 0 || bIsCameraRay);
 		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
@@ -590,7 +589,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		// Does this material require NEE? (will be false if MaterialPdf is always +inf)
 		const bool bIsNeeValid = IsNeeValidMaterial(Payload);
 
-		const bool bDoLightLoop = SkipDirectLighting == 0 || Bounce > 0;
+		const bool bDoLightLoop = EnableDirectLighting != 0 || Bounce > 0;
 
 		float LightPickingCdfSum = 0;
 
