@@ -120,7 +120,7 @@ MOVIESCENE_API FFrameNumber UpgradeLegacyMovieSceneTime(UObject* ErrorContext, F
 #endif
 
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if defined(_MSC_VER)
 	#define UE_MOVIESCENE_TODO_IMPL(x) __pragma (x)
 #else
 	#define UE_MOVIESCENE_TODO_IMPL(x) _Pragma (#x)
