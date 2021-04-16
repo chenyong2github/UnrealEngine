@@ -350,6 +350,20 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bIsHlslcc : 1;
 	uint32 bSupportsVariableRateShading : 1;
 	uint32 NumberOfComputeThreads : 10;
+	uint32 bWaterUsesSimpleForwardShading : 1;
+	uint32 bNeedsToSwitchVerticalAxisOnMobileOpenGL : 1;
+	uint32 bSupportsHairStrandGeometry : 1;
+	uint32 bSupportsDOFHybridScattering : 1;
+	uint32 bNeedsExtraMobileFrames : 1;
+	uint32 bSupportsHZBOcclusion : 1;
+	uint32 bSupportsWaterIndirectDraw : 1;
+	uint32 bSupportsAsyncPipelineCompilation : 1;
+	uint32 bSupportsManualVertexFetch : 1;
+	uint32 bRequiresReverseCullingOnMobile : 1;
+	uint32 bOverrideFMaterial_NeedsGBufferEnabled : 1;
+	uint32 bSupportsMobileDistanceField : 1;
+
+		
 #if WITH_EDITOR
 	FText FriendlyName;
 #endif
@@ -623,6 +637,66 @@ public:
 	static FORCEINLINE_DEBUGGABLE const uint32 GetNumberOfComputeThreads(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].NumberOfComputeThreads;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetWaterUsesSimpleForwardShading(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bWaterUsesSimpleForwardShading;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetNeedsToSwitchVerticalAxisOnMobileOpenGL(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bNeedsToSwitchVerticalAxisOnMobileOpenGL;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsHairStrandGeometry(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsHairStrandGeometry;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsDOFHybridScattering(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsDOFHybridScattering;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetNeedsExtraMobileFrames(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bNeedsExtraMobileFrames;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsHZBOcclusion(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsHZBOcclusion;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsWaterIndirectDraw(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsWaterIndirectDraw;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsAsyncPipelineCompilation(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsAsyncPipelineCompilation;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsManualVertexFetch(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsManualVertexFetch;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetRequiresReverseCullingOnMobile(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bRequiresReverseCullingOnMobile;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetOverrideFMaterial_NeedsGBufferEnabled(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bOverrideFMaterial_NeedsGBufferEnabled;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const uint32 GetSupportsMobileDistanceField(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsMobileDistanceField;
 	}
 
 #if WITH_EDITOR
@@ -1510,7 +1584,7 @@ inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 /** Whether the shader platform corresponds to the ES3.1/Metal/Vulkan feature level. */
 inline bool IsMobilePlatform(const EShaderPlatform Platform)
 {
-	return 
+	return
 		Platform == SP_METAL || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_TVOS
 		|| Platform == SP_PCD3D_ES3_1
 		|| Platform == SP_OPENGL_PCES3_1 || Platform == SP_OPENGL_ES3_1_ANDROID
@@ -1741,7 +1815,8 @@ inline bool RHINeedsToSwitchVerticalAxis(const FStaticShaderPlatform Platform)
 
 	// ES3.1 need to flip when rendering to an RT that will be post processed
 	return IsOpenGLPlatform(Platform) && IsMobilePlatform(Platform) && !IsPCPlatform(Platform) && !IsMetalMobilePlatform(Platform) && !IsVulkanPlatform(Platform)
-		   && Platform != SP_SWITCH && Platform != SP_SWITCH_FORWARD;
+			&& Platform != SP_SWITCH && Platform != SP_SWITCH_FORWARD
+			&& FDataDrivenShaderPlatformInfo::GetNeedsToSwitchVerticalAxisOnMobileOpenGL(Platform);
 }
 
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatform Platform)
