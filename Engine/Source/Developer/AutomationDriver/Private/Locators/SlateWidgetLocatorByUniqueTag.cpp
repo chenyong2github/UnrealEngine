@@ -54,8 +54,9 @@ public:
 			const FArrangedWidget& Candidate = State.Path.Widgets.Last();
 
 			const bool bAllow3DWidgets = true;
+			const bool bUpdateVisibilityAttributes = true;
 			FArrangedChildren ArrangedChildren(VisibilityFilter, bAllow3DWidgets);
-			Candidate.Widget->ArrangeChildren(Candidate.Geometry, ArrangedChildren);
+			Candidate.Widget->ArrangeChildren(Candidate.Geometry, ArrangedChildren, bUpdateVisibilityAttributes);
 
 			for (int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex)
 			{

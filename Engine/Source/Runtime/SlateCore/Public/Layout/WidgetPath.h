@@ -8,7 +8,6 @@
 #include "Layout/ArrangedWidget.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SWindow.h"
-#include "Layout/ArrangedChildren.h"
 
 /** Matches widgets against InWidget */
 struct FWidgetMatcher

@@ -27,36 +27,44 @@ public:
 public:
 	/** @return the instance associated to the SWidget (if it exists). */
 	static FSlateAttributeMetaData* FindMetaData(const SWidget& OwningWidget);
+
+	enum class EInvalidationPermission : uint8
+	{
+		/** Invalidate the widget if it's needed and it's construction phase is completed. */
+		AllowInvalidationIfConstructed,
+		/** Invalidate the widget if it's needed. */
+		AllowInvalidation,
+		/** Cache the invalidation. On any future update, if it's needed, invalidate the widget. */
+		DelayInvalidation,
+		/** Never invalidate the widget. */
+		DenyInvalidation,
+		/** Never invalidate the widget and clear any delayed invalidation. */
+		DenyAndClearDelayedInvalidation,
+	};
+
 	/**
 	 * Update all the attributes.
-	 * Invalidate the widget if it has finished its construction phase.
+	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateAttributes(SWidget& OwningWidget);
+	static void UpdateAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
 	 * Update attributes that are mark to be updated when the widget is collapsed.
-	 * Invalidate the widget if it has finished its construction phase.
+	 * These attributes are usually responsible to change visibility of the widget.
+	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateCollapsedAttributes(SWidget& OwningWidget);
+	static void UpdateCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
 	 * Update attributes that are mark to be updated when the widget is NOT collapsed.
-	 * Invalidate the widget if it has finished its construction phase.
+	 * These attributes usually do not change the visibility of the widget.
+	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateExpandedAttributes(SWidget& OwningWidget);
+	static void UpdateExpandedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
-	 * Update attributes that are mark to be updated when the widget is collapsed.
-	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
+	 * Update the children attributes that are mark to be updated when the widget is collapsed.
+	 * These attributes are usually responsible to change visibility of the widget.
+	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
-	/**
-	 * Update attributes that are mark to be updated when the widget is collapsed.
-	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
-	 */
-	static void UpdateCollapsedAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
-	/**
-	 * Update attributes that are mark to be updated when the widget is NOT collapsed.
-	 * @param bAllowInvalidation if we should allow the widget to be invalidated.
-	 */
-	static void UpdateExpandedAttributes(SWidget& OwningWidget, bool bAllowInvalidation);
+	static void UpdateChildrenCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const
@@ -92,7 +100,7 @@ private:
 	};
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, bool bAllowInvalidation);
+	void UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, EInvalidationPermission InvaldiationStyle);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const
@@ -156,6 +164,11 @@ private:
 	};
 
 	TArray<FGetterItem, TInlineAllocator<4>> Attributes;
+	//~ There is a possibility that the widget has a CachedInvalidationReason and a parent become collapsed.
+	//~The invalidation will probably never get executed but
+	//~1. The widget is collapsed indirectly, so we do not care if it's invalidated.
+	//~2. The parent widget will clear this widget PersistentState.
+	EInvalidateWidgetReason CachedInvalidationReason = EInvalidateWidgetReason::None;
 	bool bHasUpdatedManuallyFlagToReset = false;
 	uint8 CollaspedAttributeCounter = 0;
 };

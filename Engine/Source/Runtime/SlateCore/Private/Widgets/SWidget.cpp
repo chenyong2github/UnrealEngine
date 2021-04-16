@@ -664,7 +664,7 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 	{
 		if (HasRegisteredSlateAttribute() && IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation)
 		{
-			FSlateAttributeMetaData::UpdateAttributes(*this);
+			FSlateAttributeMetaData::UpdateAttributes(*this, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 		}
 		Prepass_Internal(InLayoutScaleMultiplier);
 	}
@@ -1605,11 +1605,19 @@ float SWidget::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultipl
 	return 1.0f;
 }
 
-void SWidget::ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
+void SWidget::ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, bool bUpdateAttributes) const
 {
 #if WITH_VERY_VERBOSE_SLATE_STATS
 	SCOPED_NAMED_EVENT(SWidget_ArrangeChildren, FColor::Black);
 #endif
+
+	if (bUpdateAttributes)
+	{
+		// Update the Widgets visibility before getting the ArrangeChildren
+		//const-casting for TSlateAttribute has the same behavior as previously with TAttribute. The const was hidden from the user.
+		FSlateAttributeMetaData::UpdateChildrenCollapsedAttributes(const_cast<SWidget&>(*this), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation);
+	}
+
 	OnArrangeChildren(AllottedGeometry, ArrangedChildren);
 }
 
@@ -1643,7 +1651,7 @@ void SWidget::Prepass_Internal(float InLayoutScaleMultiplier)
 void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChildren)
 {
 	const int32 NumChildren = MyChildren->Num();
-	for (int32 ChildIndex = 0; ChildIndex < MyChildren->Num(); ++ChildIndex)
+	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 	{
 		const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
 			? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
@@ -1654,14 +1662,14 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 		const bool bUpdateAttributes = Child->HasRegisteredSlateAttribute() && Child->IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
 		if (bUpdateAttributes)
 		{
-			FSlateAttributeMetaData::UpdateCollapsedAttributes(Child.Get());
+			FSlateAttributeMetaData::UpdateCollapsedAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 		}
 
 		if (Child->GetVisibility() != EVisibility::Collapsed)
 		{
 			if (bUpdateAttributes)
 			{
-				FSlateAttributeMetaData::UpdateExpandedAttributes(Child.Get());
+				FSlateAttributeMetaData::UpdateExpandedAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 			}
 			// Recur: Descend down the widget tree.
 			Child->Prepass_Internal(ChildLayoutScaleMultiplier);

@@ -22,8 +22,9 @@ template<typename MatchRuleType>
 bool FWidgetPath::SearchForWidgetRecursively( const MatchRuleType& MatchRule, const FArrangedWidget& InCandidate, FArrangedChildren& OutReversedPath, EVisibility VisibilityFilter )
 {
 	const bool bAllow3DWidgets = true;
+	const bool bUpdateVisibilityAttributes = true;
 	FArrangedChildren ArrangedChildren(VisibilityFilter, bAllow3DWidgets);
-	InCandidate.Widget->ArrangeChildren( InCandidate.Geometry, ArrangedChildren );
+	InCandidate.Widget->ArrangeChildren( InCandidate.Geometry, ArrangedChildren, bUpdateVisibilityAttributes );
 
 	for( int32 ChildIndex = 0; ChildIndex < ArrangedChildren.Num(); ++ChildIndex )
 	{
@@ -48,8 +49,9 @@ template<typename MatchRuleType>
 bool FWidgetPath::SearchForWidgetRecursively_Reverse( const MatchRuleType& MatchRule, const FArrangedWidget& InCandidate, FArrangedChildren& OutReversedPath, EVisibility VisibilityFilter )
 {
 	const bool bAllow3DWidgets = true;
+	const bool bUpdateVisibilityAttributes = true;
 	FArrangedChildren ArrangedChildren(VisibilityFilter, bAllow3DWidgets);
-	InCandidate.Widget->ArrangeChildren( InCandidate.Geometry, ArrangedChildren );
+	InCandidate.Widget->ArrangeChildren( InCandidate.Geometry, ArrangedChildren, bUpdateVisibilityAttributes );
 
 	for( int32 ChildIndex = ArrangedChildren.Num()-1; ChildIndex >=0 ; --ChildIndex )
 	{

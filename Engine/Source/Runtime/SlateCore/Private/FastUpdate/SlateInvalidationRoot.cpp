@@ -691,14 +691,14 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 						if (!InvalidationWidget.Visibility.IsCollapseIndirectly())
 						{
 							// if my parent is not collapse, then update my visible state
-							FSlateAttributeMetaData::UpdateCollapsedAttributes(*WidgetPtr);
+							FSlateAttributeMetaData::UpdateCollapsedAttributes(*WidgetPtr, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidation);
 							if (!InvalidationWidget.Visibility.IsCollapsed())
 							{
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 								ensureAlwaysMsgf(!GSlateInvalidationRootVerifySlateAttribute || InvalidationWidget.bDebug_AttributeUpdated == false, TEXT("Attribute should only be updated once per frame."));
 								InvalidationWidget.bDebug_AttributeUpdated = true;
 #endif
-								FSlateAttributeMetaData::UpdateExpandedAttributes(*WidgetPtr);
+								FSlateAttributeMetaData::UpdateExpandedAttributes(*WidgetPtr, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidation);
 							}
 						}
 					}

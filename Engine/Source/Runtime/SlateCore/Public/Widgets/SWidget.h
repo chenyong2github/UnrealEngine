@@ -848,11 +848,16 @@ public:
 	 * ArrangeChildren function.
 	 * Compute the Geometry of all the children and add populate the ArrangedChildren list with their values.
 	 * Each type of Layout panel should arrange children based on desired behavior.
+	 * 
+	 * Optionally, update the collapsed attributes (attributes that affect the visibility) of the children before executing the virtual ArrangeChildren function.
+	 * The visibility attribute is updated once per frame (see SlatePrepass).
+	 * Use the option when you are calling ArrangeChildren outside of the regular SWidget Paint/Tick.
 	 *
 	 * @param AllottedGeometry    The geometry allotted for this widget by its parent.
 	 * @param ArrangedChildren    The array to which to add the WidgetGeometries that represent the arranged children.
+	 * @param bUpdateAttributes   Update the collapsed attributes.
 	 */
-	void ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const;
+	void ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, bool bUpdateAttributes = false) const;
 
 	/**
 	 * Every widget that has children must implement this method. This allows for iteration over the Widget's

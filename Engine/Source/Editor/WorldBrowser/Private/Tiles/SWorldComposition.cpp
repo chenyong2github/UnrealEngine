@@ -595,7 +595,8 @@ protected:
 		}
 
 		FArrangedChildren ArrangedChildren(EVisibility::Visible);
-		ArrangeChildren(MyGeometry, ArrangedChildren);
+		const bool bUpdateVisibilityAttributes = true;
+		ArrangeChildren(MyGeometry, ArrangedChildren, bUpdateVisibilityAttributes);
 
 		const int32 NodeUnderMouseIndex = SWidget::FindChildUnderMouse( ArrangedChildren, MouseEvent );
 		if (NodeUnderMouseIndex != INDEX_NONE)

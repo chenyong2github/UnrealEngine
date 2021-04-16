@@ -4,6 +4,7 @@
 #include "Layout/ArrangedChildren.h"
 #include "SlateGlobals.h"
 #include "Layout/WidgetPath.h"
+#include "Types/SlateAttributeMetaData.h"
 
 
 DECLARE_CYCLE_STAT( TEXT("FindPathToWidget"), STAT_FindPathToWidget, STATGROUP_Slate );
@@ -101,6 +102,8 @@ bool FSlateWindowHelper::FindPathToWidget( const TArray<TSharedRef<SWindow>>& Wi
 		OutWidgetPath.Widgets.SetFilter(VisibilityFilter);
 		while (true)
 		{
+			// Update the Widgets visibility before getting the ArrangeChildren
+			FSlateAttributeMetaData::UpdateCollapsedAttributes(*CurWidget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation);
 			EVisibility CurWidgetVisibility = CurWidget->GetVisibility();
 			if (OutWidgetPath.Widgets.Accepts(CurWidgetVisibility))
 			{

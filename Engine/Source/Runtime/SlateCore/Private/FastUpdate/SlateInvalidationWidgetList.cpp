@@ -276,12 +276,12 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 		{
 			if (!NewVisibility.IsCollapseIndirectly())
 			{
-				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get(), false);
+				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
 				NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
 
 				if (!NewVisibility.IsCollapsed())
 				{
-					FSlateAttributeMetaData::UpdateExpandedAttributes(Widget.Get(), false);
+					FSlateAttributeMetaData::UpdateExpandedAttributes(Widget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DenyAndClearDelayedInvalidation);
 					NewVisibility.SetVisibility(ParentVisibility, Widget->GetVisibility());
 					bUpdateSlateAttribute = true;
 				}
