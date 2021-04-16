@@ -370,9 +370,11 @@ void FVulkanUniformBufferUploader::ApplyUniformBufferPatching(bool bNeedAbort)
 		for (int i = 0; i < PatchCount; i++)
 		{
 			FUniformBufferPatchInfo& PatchInfo = BufferPatchInfos[i];
-			ensureMsgf(PatchInfo.SourceBuffer != NULL, TEXT("PatchInfo.SourceBuffer can't be null"));
-			FVulkanEmulatedUniformBuffer* Emulate = (FVulkanEmulatedUniformBuffer*)PatchInfo.SourceBuffer;
-			FMemory::Memcpy(PatchInfo.DestBufferAddress, Emulate->ConstantData.GetData() + PatchInfo.SourceOffsetInFloats * sizeof(float), PatchInfo.SizeInFloats * sizeof(float));
+			if (ensureMsgf(PatchInfo.SourceBuffer != NULL, TEXT("PatchInfo.SourceBuffer can't be null")))
+			{
+				FVulkanEmulatedUniformBuffer* Emulate = (FVulkanEmulatedUniformBuffer*)PatchInfo.SourceBuffer;
+				FMemory::Memcpy(PatchInfo.DestBufferAddress, Emulate->ConstantData.GetData() + PatchInfo.SourceOffsetInFloats * sizeof(float), PatchInfo.SizeInFloats * sizeof(float));
+			}
 		}
 	}
 
