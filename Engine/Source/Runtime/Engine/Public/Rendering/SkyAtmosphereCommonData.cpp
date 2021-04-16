@@ -142,7 +142,7 @@ FLinearColor FAtmosphereSetup::GetTransmittanceAtGroundLevel(const FVector& SunD
 		if (TMax > 0.0f)
 		{
 			const float SampleCount = 15.0f;
-			const float SampleStep = 1.0f / 15.0f;
+			const float SampleStep = 1.0f / SampleCount;
 			const float SampleLength = SampleStep * TMax;
 			for (float SampleT = 0.0f; SampleT < 1.0f; SampleT += SampleStep)
 			{

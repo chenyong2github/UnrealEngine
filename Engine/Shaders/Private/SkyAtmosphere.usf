@@ -994,7 +994,8 @@ void RenderSkyAtmosphereRayMarchingPS(
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		SVPos, WorldPos, WorldDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
-		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
+		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, 
+		View.AtmosphereLightIlluminanceOuterSpace[0].rgb, View.AtmosphereLightIlluminanceOuterSpace[1].rgb,
 		AerialPespectiveViewDistanceScale);
 
 	PreExposedL += ss.L * LuminanceScale;
@@ -1250,7 +1251,8 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		float4(PixPos, 0.0f, 1.0f), WorldPos, WorldDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
-		AtmosphereLightDirection0, AtmosphereLightDirection1, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
+		AtmosphereLightDirection0, AtmosphereLightDirection1,
+		View.AtmosphereLightIlluminanceOuterSpace[0].rgb, View.AtmosphereLightIlluminanceOuterSpace[1].rgb,
 		AerialPespectiveViewDistanceScale);
 
 	SkyViewLutUAV[int2(PixPos)] = ss.L;
@@ -1266,8 +1268,8 @@ RWTexture2D<float3> DistantSkyLightLutUAV;
 //Buffer<float4> UniformSphereSamplesBuffer;
 float4 AtmosphereLightDirection0;
 float4 AtmosphereLightDirection1;
-float4 AtmosphereLightColor0;
-float4 AtmosphereLightColor1;
+float4 AtmosphereLightIlluminanceOuterSpace0;
+float4 AtmosphereLightIlluminanceOuterSpace1;
 float DistantSkyLightSampleAltitude;
 
 groupshared float3 GroupSkyLuminanceSamples[THREADGROUP_SIZE*THREADGROUP_SIZE];
@@ -1305,7 +1307,8 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance(
 		float4(PixPos, 0.0f, 1.0f), SamplePos, SampleDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
-		AtmosphereLightDirection0.xyz, AtmosphereLightDirection1.xyz, AtmosphereLightColor0.rgb, AtmosphereLightColor1.rgb,
+		AtmosphereLightDirection0.xyz, AtmosphereLightDirection1.xyz, 
+		AtmosphereLightIlluminanceOuterSpace0.rgb, AtmosphereLightIlluminanceOuterSpace1.rgb,
 		AerialPespectiveViewDistanceScale);
 
 	GroupSkyLuminanceSamples[LinearIndex] = ss.L * SkyAtmosphere.SkyLuminanceFactor;
@@ -1494,7 +1497,8 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	SingleScatteringResult ss = IntegrateSingleScatteredLuminance( 
 		float4(PixPos, 0.0f, 1.0f), RayStartWorldPos, WorldDir,
 		Ground, Sampling, DeviceZ, MieRayPhase,
-		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, View.AtmosphereLightColor[0].rgb, View.AtmosphereLightColor[1].rgb,
+		View.AtmosphereLightDirection[0].xyz, View.AtmosphereLightDirection[1].xyz, 
+		View.AtmosphereLightIlluminanceOuterSpace[0].rgb, View.AtmosphereLightIlluminanceOuterSpace[1].rgb,
 		AerialPespectiveViewDistanceScale,
 		tMaxMax);
 
@@ -1563,7 +1567,8 @@ void RenderSkyAtmosphereDebugPS(
 			SingleScatteringResult SS = IntegrateSingleScatteredLuminance(
 				SVPos, WorldPos, WorldDir,
 				Ground, Sampling, DeviceZ, MieRayPhase,
-				View.AtmosphereLightDirection[0].xyz, NullLightDirection, View.AtmosphereLightColor[0].rgb, NullLightIlluminance,
+				View.AtmosphereLightDirection[0].xyz, NullLightDirection, 
+				View.AtmosphereLightIlluminanceOuterSpace[0].rgb, NullLightIlluminance,
 				AerialPespectiveViewDistanceScale);
 			OutLuminance = float4(SS.L, 0.0f);
 			return;
@@ -1603,7 +1608,8 @@ void RenderSkyAtmosphereDebugPS(
 		SingleScatteringResult SS = IntegrateSingleScatteredLuminance(
 			SVPos, WorldPos, WorldDir,
 			Ground, Sampling, DeviceZ, MieRayPhase,
-			LightDir, NullLightDirection, View.AtmosphereLightColor[0].rgb, NullLightIlluminance,
+			LightDir, NullLightDirection, 
+			View.AtmosphereLightIlluminanceOuterSpace[0].rgb, NullLightIlluminance,
 			AerialPespectiveViewDistanceScale);
 
 		OutLuminance = float4(SS.L, 0.0f);

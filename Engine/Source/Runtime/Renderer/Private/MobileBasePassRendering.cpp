@@ -233,11 +233,7 @@ void SetupMobileDirectionalLightUniformParameters(
 	FLightSceneInfo* Light = Scene.MobileDirectionalLights[ChannelIdx];
 	if (Light)
 	{
-		Params.DirectionalLightColor = Light->Proxy->GetColor() / PI;
-		if (Light->Proxy->IsUsedAsAtmosphereSunLight())
-		{
-			Params.DirectionalLightColor *= Light->Proxy->GetTransmittanceFactor();
-		}
+		Params.DirectionalLightColor = Light->Proxy->GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance() / PI;
 		Params.DirectionalLightDirectionAndShadowTransition = FVector4(-Light->Proxy->GetDirection(), 0.f);
 
 		const FVector2D FadeParams = Light->Proxy->GetDirectionalLightDistanceFadeParameters(FeatureLevel, Light->IsPrecomputedLightingValid(), SceneView.MaxShadowCascades);

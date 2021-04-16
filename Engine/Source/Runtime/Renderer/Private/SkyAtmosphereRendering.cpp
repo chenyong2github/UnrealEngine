@@ -419,17 +419,20 @@ void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, ui
 	const bool bAtmosphereAffectsSunIlluminance = true;
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereProxy = SkyAtmosphere.GetSkyAtmosphereSceneProxy();
 	const FVector AtmosphereLightDirection = SkyAtmosphereProxy.GetAtmosphereLightDirection(AtmosphereLightIndex, -AtmosphereLight.Proxy->GetDirection());
-	FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetAtmosphereSetup().GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
-	FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetTransmittanceAtZenith() : FLinearColor(FLinearColor::White);
+	const FLinearColor TransmittanceTowardSun = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetAtmosphereSetup().GetTransmittanceAtGroundLevel(AtmosphereLightDirection) : FLinearColor(FLinearColor::White);
 
-	FLinearColor SunZenithIlluminance = AtmosphereLight.Proxy->GetColor();
-	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
-	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
+	// TODO: when the AtmosphericFog is gone, we hsould be able to remove this, as well as TransmittanceAtZenith on the SkyAtmosphereProxy.
+	const FLinearColor TransmittanceAtZenithFinal = bAtmosphereAffectsSunIlluminance ? SkyAtmosphereProxy.GetTransmittanceAtZenith() : FLinearColor(FLinearColor::White);
+
+	const FLinearColor SunZenithIlluminanceOnGround = AtmosphereLight.Proxy->GetColor();
+	const FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminanceOnGround / TransmittanceAtZenithFinal;
+	const FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(AtmosphereLight, SunOuterSpaceIlluminance);
 
 	// We always set the transmittance on the proxy. Shaders using atmospheric light color then have to decide which sun illuminance to use (without or with transmittance).
 	// We also set whether or not the light should apply the simple transmittance computed on CPU during lighting pass. If per pixel transmittance is enabled, it should not be done.
-	const bool bApplyAtmosphereTransmittanceToLightShaderParam = !AtmosphereLight.Proxy->GetUsePerPixelAtmosphereTransmittance();
-	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance, bApplyAtmosphereTransmittanceToLightShaderParam);
+	const bool bPerPixelTransmittanceEnabled = AtmosphereLight.Proxy->GetUsePerPixelAtmosphereTransmittance();
+
+	AtmosphereLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, SunOuterSpaceIlluminance, SunDiskOuterSpaceLuminance, bPerPixelTransmittanceEnabled);
 }
 
 
@@ -533,8 +536,8 @@ void FScene::ResetAtmosphereLightsProperties()
 		if (Light)
 		{
 			FLinearColor LightZenithIlluminance = Light->Proxy->GetColor();
-			const bool bApplyAtmosphereTransmittanceToLightShaderParam = true;
-			Light->Proxy->SetAtmosphereRelatedProperties(FLinearColor::White, GetLightDiskLuminance(*Light, LightZenithIlluminance), bApplyAtmosphereTransmittanceToLightShaderParam);
+			const bool bPerPixelTransmittanceEnabled = false;
+			Light->Proxy->SetAtmosphereRelatedProperties(FLinearColor::White, LightZenithIlluminance, GetLightDiskLuminance(*Light, LightZenithIlluminance), bPerPixelTransmittanceEnabled);
 		}
 	}
 }
@@ -786,8 +789,8 @@ public:
 		SHADER_PARAMETER_SRV(Buffer<float4>, UniformSphereSamplesBuffer)
 		SHADER_PARAMETER(FVector4, AtmosphereLightDirection0)
 		SHADER_PARAMETER(FVector4, AtmosphereLightDirection1)
-		SHADER_PARAMETER(FLinearColor, AtmosphereLightColor0)
-		SHADER_PARAMETER(FLinearColor, AtmosphereLightColor1)
+		SHADER_PARAMETER(FLinearColor, AtmosphereLightIlluminanceOuterSpace0)
+		SHADER_PARAMETER(FLinearColor, AtmosphereLightIlluminanceOuterSpace1)
 		SHADER_PARAMETER(float, DistantSkyLightSampleAltitude)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1328,7 +1331,6 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 
 		FRenderDistantSkyLightLutCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
-		PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 		TShaderMapRef<FRenderDistantSkyLightLutCS> ComputeShader(GlobalShaderMap, PermutationVector);
 
 		FRenderDistantSkyLightLutCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderDistantSkyLightLutCS::FParameters>();
@@ -1346,22 +1348,22 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		if (Light0)
 		{
 			PassParameters->AtmosphereLightDirection0 = -Light0->Proxy->GetDirection();
-			PassParameters->AtmosphereLightColor0 = Light0->Proxy->GetColor();
+			PassParameters->AtmosphereLightIlluminanceOuterSpace0 = Light0->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
 		{
 			PassParameters->AtmosphereLightDirection0 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
-			PassParameters->AtmosphereLightColor0 = FLinearColor::Black;
+			PassParameters->AtmosphereLightIlluminanceOuterSpace0 = FLinearColor::Black;
 		}
 		if (Light1)
 		{
 			PassParameters->AtmosphereLightDirection1 = -Light1->Proxy->GetDirection();
-			PassParameters->AtmosphereLightColor1 = Light1->Proxy->GetColor();
+			PassParameters->AtmosphereLightIlluminanceOuterSpace1 = Light1->Proxy->GetOuterSpaceIlluminance();
 		}
 		else
 		{
 			PassParameters->AtmosphereLightDirection1 = FVector4(0.0f, 0.0f, 1.0f, 1.0f);
-			PassParameters->AtmosphereLightColor1 = FLinearColor::Black;
+			PassParameters->AtmosphereLightIlluminanceOuterSpace1 = FLinearColor::Black;
 		}
 		PassParameters->DistantSkyLightSampleAltitude = CVarSkyAtmosphereDistantSkyLightLUTAltitude.GetValueOnAnyThread();
 

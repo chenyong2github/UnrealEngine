@@ -1771,8 +1771,8 @@ void FAtmosphericFogSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLight) c
 	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
 	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation  
 
-	const bool bApplyAtmosphereTransmittanceToLightShaderParam = true;
-	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance, bApplyAtmosphereTransmittanceToLightShaderParam);
+	const bool bPerPixelTransmittanceEnabled = false;
+	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun, SunOuterSpaceIlluminance, SunDiskOuterSpaceLuminance, bPerPixelTransmittanceEnabled);
 }
 
 /** Initialization constructor. */

@@ -219,7 +219,7 @@ FLightShaderParameters FDirectionalLightRenderState::GetLightShaderParameters() 
 	LightParameters.Position = FVector::ZeroVector;
 	LightParameters.InvRadius = 0.0f;
 	// TODO: support SkyAtmosphere
-	// LightParameters.Color = FVector(GetColor() * AtmosphereTransmittanceFactor);
+	// LightParameters.Color = FVector(GetColor() * SkyAtmosphereTransmittanceToLight);
 	LightParameters.Color = FVector(Color);
 	LightParameters.FalloffExponent = 0.0f;
 

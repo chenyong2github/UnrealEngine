@@ -213,19 +213,25 @@ public:
 	FVector LightShaftOverrideDirection;
 
 	/**
-	 * The atmosphere transmittance to apply on the illuminance
+	 * Whether or not the light uses per pixel transmittance, driving the fact that should apply the simple transmittance computed on CPU during lighting pass. 
+	 * If per pixel transmittance is enabled, it should not be done to avoid double transmittance contribution (transmittance will be applied on GPU).
 	 */
-	FLinearColor AtmosphereTransmittanceFactor;
-	/**
-	 * Whether or not the light should apply the simple transmittance computed on CPU during lighting pass. 
-	 * If per pixel transmittance is enabled, it should not be done to avoid double transmittance contribution.
-	 */
-	bool bApplyAtmosphereTransmittanceToLightShaderParam;
+	bool bPerPixelTransmittanceEnabled;
 
 	/**
 	 * The luminance of the sun disk in space (function of the sun illuminance and solid angle)
 	 */
 	FLinearColor SunDiscOuterSpaceLuminance;
+
+	/**
+	 * The light outer space illuminance used to feed the SkyAtmosphere simulation
+	 */
+	FLinearColor SunOuterSpaceIlluminance;
+
+	/**
+	 * The atmosphere transmittance from ground to current light direction.
+	 */
+	FLinearColor TransmittanceTowardSun;
 
 	/** 
 	 * Radius of the whole scene dynamic shadow centered on the viewer, which replaces the precomputed shadows based on distance from the camera.  
@@ -289,9 +295,10 @@ public:
 		OcclusionMaskDarkness(Component->OcclusionMaskDarkness),
 		OcclusionDepthRange(Component->OcclusionDepthRange),
 		LightShaftOverrideDirection(Component->LightShaftOverrideDirection),
-		AtmosphereTransmittanceFactor(FLinearColor::White),
-		bApplyAtmosphereTransmittanceToLightShaderParam(true),
+		bPerPixelTransmittanceEnabled(false),
 		SunDiscOuterSpaceLuminance(FLinearColor::White),
+		SunOuterSpaceIlluminance(FLinearColor::White),
+		TransmittanceTowardSun(FLinearColor::White),
 		DynamicShadowCascades(Component->DynamicShadowCascades > 0 ? Component->DynamicShadowCascades : 0),
 		CascadeDistributionExponent(Component->CascadeDistributionExponent),
 		CascadeTransitionFraction(Component->CascadeTransitionFraction),
@@ -372,8 +379,7 @@ public:
 		LightParameters.InvRadius = 0.0f;
 		LightParameters.FalloffExponent = 0.0f;
 
-		// We only apply transmittance in some cases. For instance if transmittance is evaluated per pixel, no apply it to the light illuminance.
-		LightParameters.Color = FVector(GetColor() * (bApplyAtmosphereTransmittanceToLightShaderParam ? AtmosphereTransmittanceFactor : FLinearColor::White));
+		LightParameters.Color = FVector(GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance());
 
 		LightParameters.Direction = -GetDirection();
 		LightParameters.Tangent = -GetDirection();
@@ -530,11 +536,12 @@ public:
 		return DoesPlatformSupportDistanceFieldShadowing(GShaderPlatformForFeatureLevel[InFeatureLevel]) && (bCreateWithCSM || bCreateWithoutCSM);
 	}
 
-	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance, bool bApplyAtmosphereTransmittanceToLightShaderParamIn) override
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSunIn, FLinearColor SunOuterSpaceIlluminanceIn, FLinearColor SunOuterSpaceLuminance, bool bPerPixelTransmittanceEnabledIn) override
 	{
-		AtmosphereTransmittanceFactor = TransmittanceFactor;
+		TransmittanceTowardSun = TransmittanceTowardSunIn;
 		SunDiscOuterSpaceLuminance = SunOuterSpaceLuminance;
-		bApplyAtmosphereTransmittanceToLightShaderParam = bApplyAtmosphereTransmittanceToLightShaderParamIn;
+		SunOuterSpaceIlluminance = SunOuterSpaceIlluminanceIn;
+		bPerPixelTransmittanceEnabled = bPerPixelTransmittanceEnabledIn;
 	}
 
 	virtual FLinearColor GetOuterSpaceLuminance() const override
@@ -542,9 +549,41 @@ public:
 		return SunDiscOuterSpaceLuminance;
 	}
 
-	virtual FLinearColor GetTransmittanceFactor() const override
+	virtual FLinearColor GetOuterSpaceIlluminance() const override
 	{
-		return AtmosphereTransmittanceFactor;
+		return GetColor();
+	}
+
+	virtual FLinearColor GetAtmosphereTransmittanceTowardSun() const override
+	{
+		return TransmittanceTowardSun;
+	}
+
+	virtual FLinearColor GetSunIlluminanceOnGroundPostTransmittance() const override
+	{
+		return GetOuterSpaceIlluminance() * GetAtmosphereTransmittanceTowardSun();
+	}
+
+	virtual bool GetPerPixelTransmittanceEnabled() const override
+	{
+		return bPerPixelTransmittanceEnabled;
+	}
+
+	virtual FLinearColor GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance() const override
+	{
+		if (IsUsedAsAtmosphereSunLight())
+		{
+			// We only apply transmittance in some cases. For instance if transmittance is evaluated per pixel, we do not apply it to the light illuminance.
+			if (bPerPixelTransmittanceEnabled)
+			{
+				return FVector(GetOuterSpaceIlluminance());
+			}
+			else
+			{
+				return FVector(GetOuterSpaceIlluminance() * GetAtmosphereTransmittanceTowardSun());
+			}
+		}
+		return GetColor();
 	}
 
 	virtual float GetSunLightHalfApexAngleRadian() const override

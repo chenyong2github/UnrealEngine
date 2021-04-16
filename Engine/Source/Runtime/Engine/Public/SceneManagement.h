@@ -1521,9 +1521,13 @@ public:
 	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
 	inline uint8 GetAtmosphereSunLightIndex() const { return AtmosphereSunLightIndex; }
 	inline FLinearColor GetAtmosphereSunDiskColorScale() const { return AtmosphereSunDiskColorScale; }
-	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance, bool bApplyAtmosphereTransmittanceToLightShaderParamIn) {}
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceTowardSun, FLinearColor SunOuterSpaceIlluminance, FLinearColor SunOuterSpaceLuminance, bool bPerPixelTransmittanceEnabled) {}
 	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
-	virtual FLinearColor GetTransmittanceFactor() const { return FLinearColor::White; }
+	virtual FLinearColor GetOuterSpaceIlluminance() const { return GetColor(); }
+	virtual FLinearColor GetAtmosphereTransmittanceTowardSun() const { return FLinearColor::White; }
+	virtual FLinearColor GetSunIlluminanceOnGroundPostTransmittance() const { return GetColor(); }
+	virtual FLinearColor GetSunIlluminanceAccountingForSkyAtmospherePerPixelTransmittance() const { return GetColor(); }
+	virtual bool GetPerPixelTransmittanceEnabled() const { return false; }
 	static float GetSunOnEarthHalfApexAngleRadian() 
 	{ 
 		const float SunOnEarthApexAngleDegree = 0.545f;	// Apex angle == angular diameter

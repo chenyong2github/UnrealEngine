@@ -612,7 +612,7 @@ float4 GetAtmosphericFog(float3 ViewPosition, float3 ViewVector, float SceneDept
 
 	// Decay color
 	float3 OriginalColor = Sun + GroundColor + InscatterColor;
-	OriginalColor = View.AtmosphericFogSunPower * ShadowFactor * View.AtmosphereLightColor[0].rgb * OriginalColor;
+	OriginalColor = View.AtmosphericFogSunPower * ShadowFactor * View.AtmosphereLightIlluminanceOnGround[0].rgb * OriginalColor;
 	float4 OutColor = float4(OriginalColor, lerp(saturate(Attenuation.r * View.AtmosphericFogDensityScale - View.AtmosphericFogDensityOffset), 1.f, (1.f - DistanceRatio)) );
 	return OutColor;
 }

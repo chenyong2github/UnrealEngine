@@ -528,18 +528,18 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		//
 
 #if CLOUD_PER_SAMPLE_ATMOSPHERE_TRANSMITTANCE 
-		const float3 Light0Illuminance = ResolvedView.AtmosphereLightColor[0].rgb;
+		const float3 Light0Illuminance = ResolvedView.AtmosphereLightIlluminanceOuterSpace[0].rgb;
 #else
-		const float3 Light0Illuminance = ResolvedView.AtmosphereLightColorGlobalPostTransmittance[0].rgb;
+		const float3 Light0Illuminance = ResolvedView.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].rgb;
 #endif
 		const float3 Light0IlluminanceFinal = Light0Illuminance * (RenderVolumetricCloudParameters.EnableAtmosphericLightsSampling ? RenderVolumetricCloudParameters.AtmosphericLightCloudScatteredLuminanceScale[0].rgb : float3(0.0f, 0.0f, 0.0f));
 		const float3 Light0Direction = ResolvedView.AtmosphereLightDirection[0].xyz;
 
 #if CLOUD_SAMPLE_SECOND_LIGHT
 #if CLOUD_PER_SAMPLE_ATMOSPHERE_TRANSMITTANCE 
-		const float3 Light1Illuminance = ResolvedView.AtmosphereLightColor[1].rgb;
+		const float3 Light1Illuminance = ResolvedView.AtmosphereLightIlluminanceOuterSpace[1].rgb;
 #else
-		const float3 Light1Illuminance = ResolvedView.AtmosphereLightColorGlobalPostTransmittance[1].rgb;
+		const float3 Light1Illuminance = ResolvedView.AtmosphereLightIlluminanceOnGroundPostTransmittance[1].rgb;
 #endif
 		const float3 Light1IlluminanceFinal = Light1Illuminance * (RenderVolumetricCloudParameters.EnableAtmosphericLightsSampling ? RenderVolumetricCloudParameters.AtmosphericLightCloudScatteredLuminanceScale[1].rgb : float3(0.0f, 0.0f, 0.0f));
 		const float3 Light1Direction = ResolvedView.AtmosphereLightDirection[1].xyz;

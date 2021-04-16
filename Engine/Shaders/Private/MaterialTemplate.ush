@@ -1256,7 +1256,7 @@ float3 MaterialExpressionAtmosphericLightVector(FMaterialPixelParameters Paramet
 float3 MaterialExpressionAtmosphericLightColor(FMaterialPixelParameters Parameters)
 {
 #if MATERIAL_ATMOSPHERIC_FOG
-	return ResolvedView.AtmosphereLightColor[0].rgb;
+	return ResolvedView.AtmosphereLightIlluminanceOnGroundPostTransmittance[0].rgb;
 #else
 	return float3(0.f, 0.f, 0.f);
 #endif
@@ -1272,7 +1272,7 @@ float3 MaterialExpressionSkyAtmosphereLightIlluminance(FMaterialPixelParameters 
 		PlanetCenterToWorldPos, ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
 		View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
 
-	return ResolvedView.AtmosphereLightColor[LightIndex].rgb * TransmittanceToLight;
+	return ResolvedView.AtmosphereLightIlluminanceOuterSpace[LightIndex].rgb * TransmittanceToLight;
 #else
 	return float3(0.0f, 0.0f, 0.0f);
 #endif
