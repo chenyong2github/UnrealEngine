@@ -63,6 +63,8 @@ public:
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	// End of FEditorUndoClient
 
+	void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect);
+
 	void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture);
 
 private:

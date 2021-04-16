@@ -97,6 +97,15 @@ void FDisplayClusterConfiguratorViewCluster::FillContextMenu(FMenuBuilder& MenuB
 	}
 	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("Visibility", LOCTEXT("VisibilitySection", "Visibility"));
+	{
+		MenuBuilder.AddMenuEntry(TreeViewCommands.ShowSelected);
+		MenuBuilder.AddMenuEntry(TreeViewCommands.HideSelected);
+		MenuBuilder.AddMenuEntry(TreeViewCommands.ShowSelectedOnly);
+		MenuBuilder.AddMenuEntry(TreeViewCommands.ShowAll);
+	}
+	MenuBuilder.EndSection();
+
 	if (SelectedTreeItems.Num() == 1)
 	{
 		UObject* SelectedObject = SelectedTreeItems[0]->GetObject();
@@ -161,6 +170,29 @@ void FDisplayClusterConfiguratorViewCluster::BindPinnableCommands(FUICommandList
 		ConfiguratorCommands.AddNewViewport,
 		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::AddNewViewport, DefaultPresetSize),
 		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanAddNewViewport)
+	);
+
+	CommandList.MapAction(
+		TreeViewCommands.ShowSelected,
+		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::ShowSelected),
+		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanShowSelected)
+	);
+
+	CommandList.MapAction(
+		TreeViewCommands.HideSelected,
+		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::HideSelected),
+		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanHideSelected)
+	);
+
+	CommandList.MapAction(
+		TreeViewCommands.ShowSelectedOnly,
+		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::ShowSelectedOnly),
+		FCanExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::CanShowSelectedOnly)
+	);
+
+	CommandList.MapAction(
+		TreeViewCommands.ShowAll,
+		FExecuteAction::CreateSP(this, &FDisplayClusterConfiguratorViewCluster::ShowAll)
 	);
 
 	CommandList.MapAction(
@@ -382,6 +414,92 @@ void FDisplayClusterConfiguratorViewCluster::SetAsMaster()
 			{
 				Transaction.Cancel();
 			}
+		}
+	}
+}
+
+void FDisplayClusterConfiguratorViewCluster::HideSelected()
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : SelectedTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			TreeItem->SetItemHidden(true);
+		}
+	}
+}
+
+bool FDisplayClusterConfiguratorViewCluster::CanHideSelected() const
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : SelectedTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FDisplayClusterConfiguratorViewCluster::ShowSelected()
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : SelectedTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			TreeItem->SetItemHidden(false);
+		}
+	}
+}
+
+bool FDisplayClusterConfiguratorViewCluster::CanShowSelected() const
+{
+	return CanHideSelected();
+}
+
+void FDisplayClusterConfiguratorViewCluster::ShowSelectedOnly()
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> AllTreeItems = ViewTree->GetAllItemsFlattened();
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> SelectedTreeItems = ViewTree->GetSelectedItems();
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : AllTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			TreeItem->SetItemHidden(true);
+		}
+	}
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : SelectedTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			TreeItem->SetItemHidden(false);
+		}
+	}
+}
+
+bool FDisplayClusterConfiguratorViewCluster::CanShowSelectedOnly() const
+{
+	return CanHideSelected();
+}
+
+void FDisplayClusterConfiguratorViewCluster::ShowAll()
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> AllTreeItems = ViewTree->GetAllItemsFlattened();
+
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> TreeItem : AllTreeItems)
+	{
+		if (TreeItem->CanHideItem())
+		{
+			TreeItem->SetItemHidden(false);
 		}
 	}
 }

@@ -17,6 +17,7 @@ struct FOutputMappingSettings
 	bool bLockViewports;
 	bool bLockClusterNodes;
 	bool bZoomToSelectedClusterItems;
+	bool bTintSelectedViewports;
 	float ViewScale;
 
 	FOutputMappingSettings() :
@@ -29,6 +30,7 @@ struct FOutputMappingSettings
 		bLockViewports(false),
 		bLockClusterNodes(false),
 		bZoomToSelectedClusterItems(true),
+		bTintSelectedViewports(true),
 		ViewScale(1.0f)
 	{ }
 };
@@ -94,6 +96,8 @@ public:
 	virtual FOnOutputMappingBuilt& GetOnOutputMappingBuiltDelegate() = 0;
 	virtual FDelegateHandle RegisterOnOutputMappingBuilt(const FOnOutputMappingBuiltDelegate& Delegate) = 0;
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) = 0;
+
+	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
 
 	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) = 0;
 };

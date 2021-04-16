@@ -22,8 +22,12 @@ public:
 	void SetEnabled(bool bIsEnabled);
 
 	//~ Begin FDisplayClusterConfiguratorTreeItem Interface
+	virtual void OnSelection() override;
+
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;
 	virtual void DeleteItem() const override;
+	virtual bool CanHideItem() const override { return true; }
+	virtual void SetItemHidden(bool bIsHidden) { SetVisible(!bIsHidden); }
 
 	virtual FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void HandleDragEnter(const FDragDropEvent& DragDropEvent) override;

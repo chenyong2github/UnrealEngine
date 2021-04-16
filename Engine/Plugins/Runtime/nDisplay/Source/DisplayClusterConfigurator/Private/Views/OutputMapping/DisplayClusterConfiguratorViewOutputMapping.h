@@ -40,6 +40,8 @@ public:
 	virtual const FNodeAlignmentSettings& GetNodeAlignmentSettings() const override { return NodeAlignmentSettings; }
 	virtual FNodeAlignmentSettings& GetNodeAlignmentSettings() override { return NodeAlignmentSettings; }
 
+	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) override;
+
 	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) override;
 	//~ End IDisplayClusterConfiguratorView Interface
 

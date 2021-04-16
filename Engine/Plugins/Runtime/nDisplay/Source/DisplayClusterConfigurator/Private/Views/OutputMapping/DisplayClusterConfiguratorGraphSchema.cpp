@@ -15,7 +15,7 @@
 FDisplayClusterConfiguratorSchemaAction_NewNode::FDisplayClusterConfiguratorSchemaAction_NewNode() :
 	FEdGraphSchemaAction(),
 	ItemType(EClusterItemType::ClusterNode),
-	PresetSize()
+	PresetSize(FVector2D::ZeroVector)
 { }
 
 FDisplayClusterConfiguratorSchemaAction_NewNode::FDisplayClusterConfiguratorSchemaAction_NewNode(EClusterItemType InItemType, FVector2D InPresetSize, FText InDescription, FText InTooltip) :

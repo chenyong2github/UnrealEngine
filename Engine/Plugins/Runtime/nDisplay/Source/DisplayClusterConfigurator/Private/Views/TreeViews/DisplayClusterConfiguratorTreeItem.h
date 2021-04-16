@@ -31,7 +31,7 @@ public:
 
 public:
 	//~ Begin IDisplayClusterConfiguratorItem Interface
-	virtual void OnSelection() override;
+	virtual void OnSelection() override { }
 	virtual UObject* GetObject() const override { return ObjectToEdit.Get(); }
 	virtual bool IsSelected() override;
 	//~ End IDisplayClusterConfiguratorItem Interface
@@ -54,6 +54,8 @@ public:
 	virtual bool CanDeleteItem() const override;
 	virtual void DeleteItem() const override { }
 	bool CanDuplicateItem() const override;
+	virtual bool CanHideItem() const override { return false; }
+	virtual void SetItemHidden(bool bIsHidden) { }
 
 	virtual void OnItemDoubleClicked() override {}
 	virtual void OnMouseEnter() override {}

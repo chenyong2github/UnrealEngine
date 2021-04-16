@@ -74,6 +74,14 @@ void FDisplayClusterConfiguratorViewOutputMapping::UnregisterOnOutputMappingBuil
 	OnOutputMappingBuilt.Remove(DelegateHandle);
 }
 
+void FDisplayClusterConfiguratorViewOutputMapping::FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect)
+{
+	if (GraphEditor.IsValid())
+	{
+		GraphEditor->FindAndSelectObjects(ObjectsToSelect);
+	}
+}
+
 void FDisplayClusterConfiguratorViewOutputMapping::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
 {
 	if (GraphEditor.IsValid())
@@ -103,6 +111,7 @@ void FDisplayClusterConfiguratorViewOutputMapping::BindCommands()
 	MAP_TOGGLE_COMMAND(Commands.ToggleLockClusterNodesInHosts, OutputMappingSettings.bKeepClusterNodesInHosts);
 	MAP_TOGGLE_COMMAND(Commands.ToggleLockViewports, OutputMappingSettings.bLockViewports);
 	MAP_TOGGLE_COMMAND(Commands.ToggleLockClusterNodes, OutputMappingSettings.bLockClusterNodes);
+	MAP_TOGGLE_COMMAND(Commands.ToggleTintViewports, OutputMappingSettings.bTintSelectedViewports);
 	MAP_TOGGLE_COMMAND(Commands.ToggleZoomToSelectedItems, OutputMappingSettings.bZoomToSelectedClusterItems);
 
 	MAP_TOGGLE_COMMAND(Commands.ToggleAdjacentEdgeSnapping, NodeAlignmentSettings.bSnapAdjacentEdges);
@@ -120,6 +129,7 @@ void FDisplayClusterConfiguratorViewOutputMapping::LoadSettings()
 	LOAD_SETTING(Bool, OutputMappingSettings.bKeepClusterNodesInHosts);
 	LOAD_SETTING(Bool, OutputMappingSettings.bLockViewports);
 	LOAD_SETTING(Bool, OutputMappingSettings.bLockClusterNodes);
+	LOAD_SETTING(Bool, OutputMappingSettings.bTintSelectedViewports);
 	LOAD_SETTING(Float, OutputMappingSettings.ViewScale);
 
 	int32 EnumSetting = 0;
@@ -145,6 +155,7 @@ void FDisplayClusterConfiguratorViewOutputMapping::SaveSettings()
 	SAVE_SETTING(Bool, OutputMappingSettings.bKeepClusterNodesInHosts);
 	SAVE_SETTING(Bool, OutputMappingSettings.bLockViewports);
 	SAVE_SETTING(Bool, OutputMappingSettings.bLockClusterNodes);
+	SAVE_SETTING(Bool, OutputMappingSettings.bTintSelectedViewports);
 	SAVE_SETTING(Float, OutputMappingSettings.ViewScale);
 	
 	int32 EnumSetting = (int32)HostArrangementSettings.ArrangementType;

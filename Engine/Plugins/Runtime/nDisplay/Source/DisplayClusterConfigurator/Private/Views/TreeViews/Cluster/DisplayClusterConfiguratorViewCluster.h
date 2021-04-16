@@ -56,6 +56,17 @@ private:
 	void RenameSelectedNode();
 	bool CanRenameSelectedNode() const;
 
+	void HideSelected();
+	bool CanHideSelected() const;
+
+	void ShowSelected();
+	bool CanShowSelected() const;
+
+	void ShowSelectedOnly();
+	bool CanShowSelectedOnly() const;
+
+	void ShowAll();
+
 	void SetAsMaster();
 	bool CanSetAsMaster() const;
 

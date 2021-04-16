@@ -187,6 +187,22 @@ TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> FDisplayClusterConfigura
 	return ViewTree->GetSelectedItems();
 }
 
+void FDisplayClusterConfiguratorViewTree::FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect)
+{
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> AllItems = ViewTree->GetAllItemsFlattened();
+	TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> ItemsToSelect;
+
+	for (const TSharedPtr<IDisplayClusterConfiguratorTreeItem>& Item : AllItems)
+	{
+		if (ObjectsToSelect.Contains(Item->GetObject()))
+		{
+			ItemsToSelect.Add(Item);
+		}
+	}
+
+	SetSelectedItems(ItemsToSelect);
+}
+
 TSharedPtr<IDisplayClusterConfiguratorTreeItem> FDisplayClusterConfiguratorViewTree::GetHoveredItem() const
 {
 	return HoveredTreeItemPtr.Pin();

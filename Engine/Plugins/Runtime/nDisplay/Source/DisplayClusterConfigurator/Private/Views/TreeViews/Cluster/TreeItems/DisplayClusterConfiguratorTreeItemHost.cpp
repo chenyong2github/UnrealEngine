@@ -45,7 +45,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemHost::GenerateWidgetForCo
 		return SAssignNew(VisibilityButton, SButton)
 			.ContentPadding(0)
 			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this cluster node and its child viewports in the Output Mapping editor"))
+			.ToolTipText(LOCTEXT("VisibilityButton_Tooltip", "Hides or shows this host and its children in the Output Mapping editor"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnVisibilityButtonClicked)
@@ -60,7 +60,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemHost::GenerateWidgetForCo
 		return SAssignNew(EnabledButton, SButton)
 			.ContentPadding(0)
 			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this cluster node and its child viewports in the Output Mapping editor"))
+			.ToolTipText(LOCTEXT("EnabledButton_Tooltip", "Enables or disables this host and its children in the Output Mapping editor"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.OnClicked(this, &FDisplayClusterConfiguratorTreeItemHost::OnEnabledButtonClicked)
@@ -185,6 +185,26 @@ FName FDisplayClusterConfiguratorTreeItemHost::GetAttachName() const
 	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
 	FName AttachName = *FDisplayClusterConfiguratorClusterUtils::GetAddressForHost(Host);
 	return AttachName;
+}
+
+
+void FDisplayClusterConfiguratorTreeItemHost::SetItemHidden(bool bIsHidden)
+{
+	UDisplayClusterConfigurationHostDisplayData* Host = GetObjectChecked<UDisplayClusterConfigurationHostDisplayData>();
+
+	// Use SaveToTransactionBuffer to avoid marking the package as dirty
+	SaveToTransactionBuffer(Host, false);
+	Host->bIsVisible = !bIsHidden;
+
+	// Set the visible state of this host's children to match it.
+	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
+	{
+		TSharedPtr<FDisplayClusterConfiguratorTreeItemClusterNode> ClusterNodeTreeItem = StaticCastSharedPtr<FDisplayClusterConfiguratorTreeItemClusterNode>(Child);
+		if (ClusterNodeTreeItem.IsValid())
+		{
+			ClusterNodeTreeItem->SetVisible(Host->bIsVisible);
+		}
+	}
 }
 
 void FDisplayClusterConfiguratorTreeItemHost::FillItemColumn(TSharedPtr<SHorizontalBox> Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)
