@@ -39,7 +39,7 @@ public:
 	// FUserOnlineAccountApple
 
 	explicit FUserOnlineAccountApple(const FString& InUserId = FString(), const FString& InAuthToken = FString())
-		: UserIdPtr(new FUniqueNetIdApple(InUserId))
+		: UserIdPtr(FUniqueNetIdApple::Create(InUserId))
 		, AuthToken(InAuthToken)
 	{
 	}

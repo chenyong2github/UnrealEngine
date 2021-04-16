@@ -326,7 +326,7 @@ FUniqueNetIdPtr FOnlineIdentityApple::CreateUniquePlayerId(uint8* Bytes, int32 S
 		if (StrLen > 0)
 		{
 			FString StrId((TCHAR*)Bytes);
-			return MakeShareable(new FUniqueNetIdApple(StrId));
+			return FUniqueNetIdApple::Create(StrId);
 		}
 	}
 
@@ -335,7 +335,7 @@ FUniqueNetIdPtr FOnlineIdentityApple::CreateUniquePlayerId(uint8* Bytes, int32 S
 
 FUniqueNetIdPtr FOnlineIdentityApple::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdApple(Str));
+	return FUniqueNetIdApple::Create(Str);
 }
 
 FString FOnlineIdentityApple::GetPlayerNickname(int32 LocalUserNum) const
