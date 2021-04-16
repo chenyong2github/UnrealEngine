@@ -19,7 +19,7 @@
 
 namespace
 {
-	void WriteSignalToFunctionChannelData(FDMXFunctionChannelData& MutableChannelData, const FFrameNumber& FrameNumber, const TArray<uint8>& UniverseData)
+	void WriteSignalToFunctionChannelData(FDMXFunctionChannelData& MutableChannelData, const FFrameNumber& FrameNumber, const TArray<uint8>& UniverseData, bool bNormalizedValues)
 	{
 		check(UniverseData.Num() == DMX_UNIVERSE_SIZE);
 
@@ -199,6 +199,7 @@ FDMXFixtureFunctionChannel* FDMXFunctionChannelData::TryGetFunctionChannel(const
 FDMXAsyncDMXRecorder::FDMXAsyncDMXRecorder(UDMXLibrary* InDMXLibrary, UMovieSceneDMXLibrarySection* InMovieSceneDMXLibrarySection)
 	: DMXLibrary(InDMXLibrary)
 	, MovieSceneDMXLibrarySection(InMovieSceneDMXLibrarySection)
+	, bRecordNormalizedValues(true)
 	, RecordStartTime(0.0)
 	, RecordStartFrame()
 	, TickResolution()
@@ -211,6 +212,8 @@ FDMXAsyncDMXRecorder::FDMXAsyncDMXRecorder(UDMXLibrary* InDMXLibrary, UMovieScen
 	// Create Function Channel Data structs from the available channels.
 	if (IsValid(DMXLibrary) && IsValid(MovieSceneDMXLibrarySection))
 	{
+		bRecordNormalizedValues = InMovieSceneDMXLibrarySection->bUseNormalizedValues;
+
 		for (FDMXFixturePatchChannel& FixturePatchChannel : MovieSceneDMXLibrarySection->GetMutableFixturePatchChannels())
 		{
 			UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.Reference.GetFixturePatch();
@@ -392,7 +395,7 @@ void FDMXAsyncDMXRecorder::Update()
 				const FDMXSignalSharedRef& Signal = SignalToLocalUniverseKvp.Key;
 				FFrameNumber FrameNumber = GetFrameNumberFromSignal(Signal);
 
-				WriteSignalToFunctionChannelData(MutableChannelData, GetFrameNumberFromSignal(Signal), Signal->ChannelData);
+				WriteSignalToFunctionChannelData(MutableChannelData, GetFrameNumberFromSignal(Signal), Signal->ChannelData, bRecordNormalizedValues);
 			}
 
 			// Patches are sorted by universe ID ascending. 

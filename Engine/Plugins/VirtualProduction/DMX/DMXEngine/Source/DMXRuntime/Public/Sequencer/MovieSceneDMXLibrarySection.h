@@ -166,6 +166,16 @@ public:
 	/** Refreshes the channels. Useful e.g. when underlying DMX Library changes */
 	void RefreshChannels();
 
+	/** 
+	 * If true, all values are interpreted as normalized values (0.0 to 1.0) 
+	 * and are mapped to the actual value range of a patch automatically. 
+	 * 
+	 * If false, values are interpreted as absolute values, depending on the data type of a patch:
+	 * 0-255 for 8bit, 0-65'536 for 16bit, 0-16'777'215 for 24bit. 32bit is not fully supported in this mode.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Movie Scene")
+	bool bUseNormalizedValues;
+
 	/** Adds a single patch to the section */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
 	void AddFixturePatch(UDMXEntityFixturePatch* InPatch);
@@ -237,20 +247,16 @@ public:
 	/** Precaches data for playback */
 	void RebuildPlaybackCache() const;
 
-	/** Returns the precached channels that need initialization only (one time evaluation) */
-	const TArray<FDMXCachedFunctionChannelInfo>& GetChannelsToInitializeOnly() const { return CachedChannelsToInitialize; }
-
-	/** Returns the precached channels that need continous evaluation */
-	const TArray<FDMXCachedFunctionChannelInfo>& GetChannelsToEvaluate() const { return CachedChannelsToEvaluate; }
-
-	/** Returns the precached output ports */
-	const TSet<FDMXOutputPortSharedRef>& GetCachedOutputPorts() const { return CachedOutputPorts; };
+	/** Evaluates DMX at given fame time and sends it */
+	void EvaluateAndSendDMX(const FFrameTime& FrameTime) const;
 
 protected:
+	/** Sends DMX for channels that need initialization (one time evaluation) only */
+	void SendDMXForChannelsToInitialize() const;
+
 	/** Update the displayed Patches and Function channels in the section */
 	void UpdateChannelProxy(bool bResetDefaultChannelValues = false);
-	
-protected:
+
 	/** The Fixture Patches being controlled by this section and their respective chosen mode */
 	UPROPERTY()
 	TArray<FDMXFixturePatchChannel> FixturePatchChannels;
@@ -261,8 +267,12 @@ protected:
 	 */
 	bool bIsRecording;
 
+	//////////////////////
 	// Cache
 private:	
+	/** If true, dmx for channels that need initialization needs be sent */
+	mutable bool bNeedsInitialization;
+
 	/** Cached channel info for functions that need initialization (one time evaluation) only */
 	mutable TArray<FDMXCachedFunctionChannelInfo> CachedChannelsToInitialize;
 
