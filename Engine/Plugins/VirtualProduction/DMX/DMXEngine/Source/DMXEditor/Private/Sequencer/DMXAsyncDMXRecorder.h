@@ -129,11 +129,11 @@ private:
 	/** Returns the frame number from a signal */
 	FFrameNumber GetFrameNumberFromSignal(const FDMXSignalSharedRef& Signal) const;
 
-	/** Raw listener for the relevant ports */
-	TSet<TSharedRef<FDMXRawListener>> RawListeners;
-
 	/** Processes newly received data */
 	void Update();
+
+	/** Raw listener for the relevant ports */
+	TSet<TSharedRef<FDMXRawListener>> RawListeners;
 
 	/** Cache used during recording */
 	TMap<FDMXSignalSharedRef, int32 /** LocalUniverseID */> SignalToLocalUniverseMap;
@@ -143,6 +143,9 @@ private:
 
 	/** The library section to record, gc'ed */
 	UMovieSceneDMXLibrarySection* MovieSceneDMXLibrarySection;
+
+	/** If true, records normalized values */
+	bool bRecordNormalizedValues;
 
 	/** The time the recording started */
 	double RecordStartTime;
