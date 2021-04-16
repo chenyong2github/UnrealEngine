@@ -1379,8 +1379,7 @@ void FVulkanSurface::SetInitialImageState(FVulkanCommandListContext& Context, Vk
 	FVulkanCmdBuffer* CmdBuffer = Context.GetCommandBufferManager()->GetUploadCmdBuffer();
 	ensure(CmdBuffer->IsOutsideRenderPass());
 
-	uint32 NumLayers = ViewType == VK_IMAGE_VIEW_TYPE_CUBE ? 6 : 1;
-	VkImageSubresourceRange SubresourceRange = FVulkanPipelineBarrier::MakeSubresourceRange(FullAspectMask, 0, NumMips, 0, NumLayers);
+	VkImageSubresourceRange SubresourceRange = FVulkanPipelineBarrier::MakeSubresourceRange(FullAspectMask);
 
 	VkImageLayout CurrentLayout;
 	if (bClear)
