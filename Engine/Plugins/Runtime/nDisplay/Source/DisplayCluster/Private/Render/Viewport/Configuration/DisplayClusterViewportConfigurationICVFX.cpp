@@ -23,11 +23,13 @@
 class FDisplayClusterViewportConfigurationCameraViewport
 {
 public:
-	FDisplayClusterViewportConfigurationCameraViewport(FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, UCameraComponent* const InCameraComponent, const FString InCameraId, const UDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings)
+	FDisplayClusterViewportConfigurationCameraViewport(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, UCameraComponent* const InCameraComponent, const FString InCameraId, const UDisplayClusterConfigurationICVFX_CameraSettings& InCameraSettings)
 		: ConfigurationICVFX(InConfigurationICVFX)
 		, CameraComponent(InCameraComponent)
 		, CameraId(InCameraId)
 		, CameraSettings(InCameraSettings)
+		, Local2WorldTransform(InLocal2WorldTransform)
+
 	{
 		check(CameraComponent);
 		check(CameraId.IsEmpty() == false);
@@ -180,7 +182,7 @@ public:
 		}
 
 		//@todo handle error
-		return true;
+		return false;
 	}
 
 	void GetCameraDataICVFX(FDisplayClusterShaderParameters_ICVFX::FCameraSettings& OutCameraSettings) const
@@ -189,8 +191,8 @@ public:
 
 		OutCameraSettings.SoftEdge = CameraSettings.SoftEdge;
 
-		OutCameraSettings.CameraViewRotation = CameraViewRotation;
-		OutCameraSettings.CameraViewLocation = CameraViewLocation;
+		OutCameraSettings.CameraViewRotation = Local2WorldTransform.InverseTransformRotation(CameraViewRotation.Quaternion()).Rotator();
+		OutCameraSettings.CameraViewLocation = Local2WorldTransform.InverseTransformPosition(CameraViewLocation);
 
 		OutCameraSettings.CameraPrjMatrix = CameraPrjMatrix;
 
@@ -275,6 +277,8 @@ private:
 	const FString CameraId;
 
 	const UDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings;
+
+	const FTransform Local2WorldTransform;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -284,16 +288,16 @@ private:
 class FDisplayClusterViewportConfigurationCameraICVFX
 {
 public:
-	FDisplayClusterViewportConfigurationCameraICVFX(FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_CineCameraComponent* const InCameraComponent)
+	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_CineCameraComponent* const InCameraComponent)
 		: ConfigurationICVFX(InConfigurationICVFX)
-		, CameraViewport(InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
+		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
 		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(*(InCameraComponent->GetCameraSettingsICVFX()), ConfigurationICVFX.StageSettings))
 		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
 	{}
 
-	FDisplayClusterViewportConfigurationCameraICVFX(class FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_RefCineCameraComponent* const InCameraComponent)
+	FDisplayClusterViewportConfigurationCameraICVFX(const FTransform& InLocal2WorldTransform, class FDisplayClusterViewportConfigurationICVFX& InConfigurationICVFX, class UDisplayClusterICVFX_RefCineCameraComponent* const InCameraComponent)
 		: ConfigurationICVFX(InConfigurationICVFX)
-		, CameraViewport(InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
+		, CameraViewport(InLocal2WorldTransform, InConfigurationICVFX, InCameraComponent->GetCameraComponent(), InCameraComponent->GetCameraUniqueId(), *(InCameraComponent->GetCameraSettingsICVFX()))
 		, ChromakeySettings(DisplayClusterViewportConfigurationHelpers::GetCameraChromakeySettings(*(InCameraComponent->GetCameraSettingsICVFX()), ConfigurationICVFX.StageSettings))
 		, CameraMotionBlurParameters(InCameraComponent->GetMotionBlurParameters())
 	{}
@@ -633,6 +637,9 @@ void FDisplayClusterViewportConfigurationICVFX::ImplFinishReallocateViewports()
 
 void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras(TArray<FDisplayClusterViewportConfigurationCameraICVFX*>& OutCameras)
 {
+	USceneComponent* OriginComp = RootActor.GetRootComponent();
+	const FTransform& Local2WorldTransform = OriginComp->GetComponentTransform();
+
 	for (UActorComponent* ActorComponentIt : RootActor.GetComponents())
 	{
 		FDisplayClusterViewportConfigurationCameraICVFX* NewCamera = nullptr;
@@ -643,14 +650,14 @@ void FDisplayClusterViewportConfigurationICVFX::ImplGetCameras(TArray<FDisplayCl
 			UDisplayClusterICVFX_CineCameraComponent* CineCameraComponent = Cast<UDisplayClusterICVFX_CineCameraComponent>(ActorComponentIt);
 			if (CineCameraComponent && CineCameraComponent->IsShouldUseICVFX())
 			{
-				NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(*this, CineCameraComponent);
+				NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(Local2WorldTransform, *this, CineCameraComponent);
 			}
 			else
 			{
 				UDisplayClusterICVFX_RefCineCameraComponent* RefCineCameraComponent = Cast<UDisplayClusterICVFX_RefCineCameraComponent>(ActorComponentIt);
 				if (RefCineCameraComponent && RefCineCameraComponent->IsShouldUseICVFX())
 				{
-					NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(*this, RefCineCameraComponent);
+					NewCamera = new FDisplayClusterViewportConfigurationCameraICVFX(Local2WorldTransform, *this, RefCineCameraComponent);
 				}
 			}
 		}
