@@ -11,26 +11,6 @@ UDisplayClusterICVFX_RefCineCameraComponent::UDisplayClusterICVFX_RefCineCameraC
 	IncameraSettings = CreateDefaultSubobject<UDisplayClusterConfigurationICVFX_CameraSettings>(TEXT("IncameraSettings"));
 }
 
-UCameraComponent* UDisplayClusterICVFX_RefCineCameraComponent::GetCameraComponent() const
-{
-	if (CineCameraActor != nullptr)
-	{
-		return CineCameraActor->GetCameraComponent();
-	}
-
-	return nullptr;
-}
-
-FString UDisplayClusterICVFX_RefCineCameraComponent::GetCameraUniqueId() const
-{
-	if (CineCameraActor != nullptr)
-	{
-		return CineCameraActor->GetFName().ToString();
-	}
-
-	return FString();
-}
-
 FDisplayClusterViewport_CameraMotionBlur UDisplayClusterICVFX_RefCineCameraComponent::GetMotionBlurParameters()
 {
 	FDisplayClusterViewport_CameraMotionBlur OutParameters;

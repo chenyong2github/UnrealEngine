@@ -27,23 +27,45 @@ public:
 	UDisplayClusterConfigurationICVFX_CameraSettings* IncameraSettings;
 
 	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
-	ACineCameraActor* CineCameraActor = nullptr;
+	TSoftObjectPtr<ACineCameraActor> CineCameraActor;
 
 public:
 	FDisplayClusterViewport_CameraMotionBlur GetMotionBlurParameters();
 
 	bool IsShouldUseICVFX() const
 	{
-		return (CineCameraActor != nullptr) && IncameraSettings->bEnable;
+		return IncameraSettings->bEnable && IsCineCameraActorValid();
 	}
 
 	// Return unique camera name
-	FString GetCameraUniqueId() const;
+	FString GetCameraUniqueId() const
+	{
+		if (IsCineCameraActorValid())
+		{
+			return CineCameraActor->GetFName().ToString();
+		}
+
+		return FString();
+	}
 
 	const UDisplayClusterConfigurationICVFX_CameraSettings* GetCameraSettingsICVFX() const
 	{
 		return IncameraSettings;
 	}
 
-	class UCameraComponent* GetCameraComponent() const;
+	class UCameraComponent* GetCameraComponent() const
+	{
+		if (IsCineCameraActorValid())
+		{
+			return CineCameraActor->GetCameraComponent();
+		}
+
+		return nullptr;
+	}
+
+private:
+	bool IsCineCameraActorValid() const
+	{
+		return CineCameraActor.IsValid() && !CineCameraActor.IsNull();
+	}
 };
