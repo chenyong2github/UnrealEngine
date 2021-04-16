@@ -11,6 +11,7 @@
 
 namespace TraceServices
 {
+	struct FLogCategoryInfo;
 	struct FLogMessageInfo;
 	class ILogProvider;
 }
@@ -73,6 +74,7 @@ public:
 	int32 GetNumTexts() const { return TimeMarkerTexts.Num(); }
 
 	// FBaseTimingTrack
+	virtual void PreUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void Update(const ITimingTrackUpdateContext& Context) override;
 	virtual void PostUpdate(const ITimingTrackUpdateContext& Context) override;
 	virtual void Draw(const ITimingTrackDrawContext& Context) const override;
@@ -80,6 +82,8 @@ public:
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
+	double Snap(double Time, double SnapTolerance);
 
 private:
 	void ResetCache()
@@ -91,11 +95,14 @@ private:
 	void UpdateTrackNameAndHeight();
 	void UpdateDrawState(const FTimingTrackViewport& Viewport);
 
+	void UpdateBookmarkCategory();
+
 private:
 	TArray<FTimeMarkerBoxInfo> TimeMarkerBoxes;
 	TArray<FTimeMarkerTextInfo> TimeMarkerTexts;
 
 	bool bUseOnlyBookmarks; // If true, uses only bookmarks; otherwise it uses all log messages.
+	const TraceServices::FLogCategoryInfo* BookmarkCategory;
 
 	FTrackHeader Header;
 

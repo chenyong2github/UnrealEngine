@@ -2244,9 +2244,18 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			if (HasMouseCapture())
 			{
 				bIsDragging = true;
+				double Time = Viewport.SlateUnitsToTime(MousePosition.X);
+
+				// Snap to markers.
+				const bool bSnapTimeMarkers = MarkersTrack->IsVisible();
+				if (bSnapTimeMarkers)
+				{
+					const double SnapTolerance = 5.0 / Viewport.GetScaleX(); // +/- 5 pixels
+					Time = MarkersTrack->Snap(Time, SnapTolerance);
+				}
 
 				TSharedRef<Insights::FTimeMarker> ScrubbingTimeMarker = TimeRulerTrack->GetScrubbingTimeMarker();
-				ScrubbingTimeMarker->SetTime(Viewport.SlateUnitsToTime(MousePosition.X));
+				ScrubbingTimeMarker->SetTime(Time);
 				RaiseTimeMarkerChanging(ScrubbingTimeMarker);
 			}
 		}

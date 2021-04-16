@@ -15,6 +15,8 @@
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
 
+#include <limits>
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "MarkersTimingTrack"
@@ -30,6 +32,7 @@ FMarkersTimingTrack::FMarkersTimingTrack()
 	//, TimeMarkerBoxes()
 	//, TimeMarkerTexts()
 	, bUseOnlyBookmarks(true)
+	, BookmarkCategory(nullptr)
 	, Header(*this)
 	, NumLogMessages(0)
 	, NumDrawBoxes(0)
@@ -57,6 +60,7 @@ void FMarkersTimingTrack::Reset()
 	TimeMarkerTexts.Reset();
 
 	bUseOnlyBookmarks = true;
+	BookmarkCategory = nullptr;
 
 	Header.Reset();
 	Header.SetIsInBackground(true);
@@ -87,6 +91,16 @@ void FMarkersTimingTrack::UpdateTrackNameAndHeight()
 	}
 
 	Header.UpdateSize();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
+{
+	if (!BookmarkCategory)
+	{
+		UpdateBookmarkCategory();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -283,6 +297,89 @@ void FMarkersTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double FMarkersTimingTrack::Snap(double Time, const double SnapTolerance)
+{
+	if (bUseOnlyBookmarks && !BookmarkCategory)
+	{
+		return Time;
+	}
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session)
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
+
+		double SnapTime = std::numeric_limits<double>::infinity();
+		double SnapDistance = std::numeric_limits<double>::infinity();
+
+		if (bUseOnlyBookmarks)
+		{
+			LogProvider.EnumerateMessages(
+				Time - SnapTolerance,
+				Time + SnapTolerance,
+				[&SnapTime, &SnapDistance, Time, this](const TraceServices::FLogMessageInfo& Message)
+				{
+					if (Message.Category == BookmarkCategory)
+					{
+						double Distance = FMath::Abs(Message.Time - Time);
+						if (Distance < SnapDistance)
+						{
+							SnapDistance = Distance;
+							SnapTime = Message.Time;
+						}
+					}
+				});
+		}
+		else
+		{
+			LogProvider.EnumerateMessages(
+				Time - SnapTolerance,
+				Time + SnapTolerance,
+				[&SnapTime, &SnapDistance, Time, this](const TraceServices::FLogMessageInfo& Message)
+				{
+					double Distance = FMath::Abs(Message.Time - Time);
+					if (Distance < SnapDistance)
+					{
+						SnapDistance = Distance;
+						SnapTime = Message.Time;
+					}
+				});
+		}
+
+		if (SnapDistance < SnapTolerance)
+		{
+			Time = SnapTime;
+		}
+	}
+
+	return Time;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FMarkersTimingTrack::UpdateBookmarkCategory()
+{
+	BookmarkCategory = nullptr;
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session)
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::ILogProvider& LogProvider = TraceServices::ReadLogProvider(*Session.Get());
+
+		LogProvider.EnumerateCategories([this](const TraceServices::FLogCategoryInfo& Category)
+		{
+			if (FCString::Strcmp(Category.Name, TEXT("LogBookmark")) == 0)
+			{
+				BookmarkCategory = &Category;
+			}
+		});
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FTimeMarkerTrackBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -327,17 +424,15 @@ void FTimeMarkerTrackBuilder::AddLogMessage(const TraceServices::FLogMessageInfo
 	}
 
 	check(Message.Category != nullptr);
-	//check(Message.Category->Name != nullptr);
-
-	const TCHAR* CategoryName = Message.Category->Name != nullptr ? Message.Category->Name : TEXT("");
-
-	if (!Track.bUseOnlyBookmarks || FCString::Strcmp(CategoryName, TEXT("LogBookmark")) == 0)
+	if (!Track.bUseOnlyBookmarks || Message.Category == Track.BookmarkCategory)
 	{
 		float X = Viewport.TimeToSlateUnitsRounded(Message.Time);
 		if (X < 0.0f)
 		{
 			X = -1.0f;
 		}
+
+		const TCHAR* CategoryName = Message.Category->Name != nullptr ? Message.Category->Name : TEXT("");
 		AddTimeMarker(X, Message.Index, Message.Verbosity, CategoryName, Message.Message);
 	}
 }
