@@ -15,7 +15,7 @@
 #include "AssetTypeActions_IKRigDefinition.h"
 #include "AssetTypeActions_IKRetargeter.h"
 #include "IKRigDefinition.h"
-#include "AnimMode/IKRigEditMode.h"
+#include "IKRigEditMode.h"
 
 IMPLEMENT_MODULE(FIKRigEditor, IKRigEditor)
 
