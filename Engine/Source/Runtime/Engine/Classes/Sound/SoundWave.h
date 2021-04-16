@@ -61,7 +61,8 @@ struct FStreamedAudioChunk
 	/** Serialization. */
 	void Serialize(FArchive& Ar, UObject* Owner, int32 ChunkIndex);
 
-	void GetCopy(void** OutChunkData);
+	/**  returns false if data retrieval failed */
+	bool GetCopy(void** OutChunkData);
 
 	/** Size of the chunk of data in bytes including zero padding */
 	int32 DataSize = 0;

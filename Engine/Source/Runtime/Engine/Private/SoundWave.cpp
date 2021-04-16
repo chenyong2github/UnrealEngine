@@ -186,7 +186,7 @@ void FStreamedAudioChunk::Serialize(FArchive& Ar, UObject* Owner, int32 ChunkInd
 #endif // #if WITH_EDITORONLY_DATA
 }
 
-void FStreamedAudioChunk::GetCopy(void** OutChunkData)
+bool FStreamedAudioChunk::GetCopy(void** OutChunkData)
 {
 	if (!CachedDataPtr)
 	{
@@ -205,8 +205,13 @@ void FStreamedAudioChunk::GetCopy(void** OutChunkData)
 		}
 	}
 
-	// todo: expose as shared ptr(?)
-	FMemory::Memcpy(*OutChunkData, CachedDataPtr, DataSize);
+	if (CachedDataPtr)
+	{
+		FMemory::Memcpy(*OutChunkData, CachedDataPtr, DataSize);
+		return true;
+	}
+
+	return false;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -3245,6 +3250,7 @@ void FSoundWaveProxy::EnsureZerothChunkIsLoaded()
 		return;
 	}
 
+// #if WITH_EDITOR
 #ifdef WITH_EDITOR
 	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
 	uint8* TempChunkBuffer = nullptr;
@@ -3260,7 +3266,7 @@ void FSoundWaveProxy::EnsureZerothChunkIsLoaded()
 #else // WITH_EDITOR
 	// Otherwise, the zeroth chunk is cooked out to SharedRuntimeData::RunningPlatformData, and we just need to retrieve it.
 	check(GetNumChunks() > 0);
-	FStreamedAudioChunk& ZerothChunk = GetChunk(0);
+	const FStreamedAudioChunk& ZerothChunk = GetChunk(0);
 	// Some sanity checks to ensure that the bulk size set up
 	UE_CLOG(ZerothChunk.BulkData.GetBulkDataSize() != ZerothChunk.DataSize, LogAudio, Warning, TEXT("Bulk data serialized out had a mismatched size with the DataSize field. Soundwave: %s Bulk Data Reported Size: %d Bulk Data Actual Size: %ld"), *GetFullName(), ZerothChunk.DataSize, ZerothChunk.BulkData.GetBulkDataSize());
 
@@ -3300,7 +3306,7 @@ const FStreamedAudioChunk& FSoundWaveProxy::GetChunk(uint32 ChunkIndex) const
 
 	check((ChunkIndex < (uint32)GetNumChunks()));
 	check(RunningPlatformData.IsValid());
-	return RunningPlatformData->Chunks[ChunkIndex];
+ 	return RunningPlatformData->Chunks[ChunkIndex];
 }
 
 int32 FSoundWaveProxy::GetChunkFromDDC(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded)
