@@ -2358,7 +2358,7 @@ bool FCEFWebBrowserWindow::CanSupportAcceleratedPaint()
 	return false; // 32-bit windows doesn't have the accelerated rendering patches applied, it can be done if needed
 #endif
 #elif PLATFORM_MAC
-	return true;
+	return false; // Needs RHI support for the CreateSharedHandleTexture call
 #else
 	return false;
 #endif
