@@ -105,6 +105,11 @@ namespace Electra
 				return Index >= 0 && Index < StringToIterate.Len();
 			}
 
+			const TCHAR* GetRemainder() const
+			{
+				return &StringToIterate[Index];
+			}
+
 			/** Returns an index to the current element. */
 			int32 GetIndex() const
 			{

@@ -33,7 +33,8 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 		XLink_URLQuery,
 		XLink_InitializationSet,
 		Callback,
-		Segment
+		Segment,
+		TimeSync
 	};
 	const TCHAR* const GetRequestTypeName() const
 	{
@@ -49,6 +50,7 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 			case ELoadType::XLink_InitializationSet:return TEXT("remote InitializationSet");
 			case ELoadType::Callback:				return TEXT("Callback");
 			case ELoadType::Segment:				return TEXT("Segment");
+			case ELoadType::TimeSync:				return TEXT("Time sync");
 			default:								return TEXT("<unknown>");
 		}
 	}
@@ -61,6 +63,7 @@ struct FMPDLoadRequestDASH : public IHTTPResourceRequestObject
 	FMPDLoadRequestDASH() : LoadType(ELoadType::MPD) {}
 	FString			URL;	// For xlink requests this could be "urn:mpeg:dash:resolve-to-zero:2013" indicating removal of the element.
 	FString			Range;
+	FString			Verb;
 	TArray<HTTP::FHTTPHeader> Headers;
 	FTimeValue		ExecuteAtUTC;
 

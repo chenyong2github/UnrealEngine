@@ -9,34 +9,10 @@
 namespace Electra
 {
 
-	class IURLParser
-	{
-	public:
-		static IURLParser* Create();
-		virtual ~IURLParser() = default;
-
-		virtual UEMediaError ParseURL(const FString& URL) = 0;
-
-		virtual bool IsAbsoluteURL() const = 0;
-
-		virtual FString GetPath() const = 0;
-		virtual void GetPathComponents(TArray<FString>& OutPathComponents) const = 0;
-
-		virtual FString ResolveWith(const FString& RelativeURL) = 0;
-
-		virtual FString GetURL() const = 0;
-
-	protected:
-		IURLParser() = default;
-		IURLParser(const IURLParser&) = delete;
-	};
-
-
-
-
 	class FURL_RFC3986
 	{
 	public:
+		// Parses the given URL.
 		bool Parse(const FString& InURL);
 		// Returns the scheme, if present. Does not include the :// sequence.
 		FString GetScheme() const;
@@ -55,9 +31,9 @@ namespace Electra
 		// Returns the path as individual components. Like GetPath() the components will have escape sequences already decoded.
 		void GetPathComponents(TArray<FString>& OutPathComponents) const;
 		// Resolves a relative URL against this one.
-		void ResolveWith(const FString& InChildURL);
+		FURL_RFC3986& ResolveWith(const FString& InChildURL);
 		// Resolves this URL (which should be relative) against the specified URL.
-		void ResolveAgainst(const FString& InParentURL);
+		FURL_RFC3986& ResolveAgainst(const FString& InParentURL);
 
 		// Appends or prepends additional query parameters.
 		void AddQueryParameters(const FString& InQueryParameters, bool bAppend);
@@ -94,6 +70,16 @@ namespace Electra
 
 		void Empty();
 		void Swap(FURL_RFC3986& Other);
+		inline bool IsColonSeparator(TCHAR c)
+		{ return c == TCHAR(':'); }
+		inline bool IsPathSeparator(TCHAR c)
+		{ return c == TCHAR('/'); }
+		inline bool IsQuerySeparator(TCHAR c)
+		{ return c == TCHAR('?'); }
+		inline bool IsFragmentSeparator(TCHAR c)
+		{ return c == TCHAR('#'); }
+		inline bool IsQueryOrFragmentSeparator(TCHAR c)
+		{ return IsQuerySeparator(c) || IsFragmentSeparator(c); }
 
 		bool ParseAuthority(StringHelpers::FStringIterator& it);
 		bool ParseHostAndPort(StringHelpers::FStringIterator& it);
@@ -104,9 +90,9 @@ namespace Electra
 
 		FString GetAuthority() const;
 		void ResolveWith(const FURL_RFC3986& Other);
-		void RebuildPathFromComponents(const TArray<FString>& Components, bool bAddLeadingSlash, bool bAddTrailingSlash);
-		void AppendPath(const FString& InPathToAppend);
-		void RemoveDotComponents();
+		void BuildPathFromSegments(const TArray<FString>& Components, bool bAddLeadingSlash, bool bAddTrailingSlash);
+		void MergePath(const FString& InPathToMerge);
+		void RemoveDotSegments();
 	};
 
 
