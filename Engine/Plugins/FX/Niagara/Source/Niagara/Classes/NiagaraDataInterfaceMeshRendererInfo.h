@@ -22,13 +22,12 @@ class NIAGARA_API UNiagaraDataInterfaceMeshRendererInfo : public UNiagaraDataInt
 public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
-	~UNiagaraDataInterfaceMeshRendererInfo();
-
 	UNiagaraMeshRendererProperties* GetMeshRenderer() const { return MeshRenderer; }
 
 	//UObject Interface
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
 #if WITH_EDITOR	
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
