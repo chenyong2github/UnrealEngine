@@ -2048,11 +2048,12 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Fire post-reachability analysis hooks
 		FCoreUObjectDelegates::PostReachabilityAnalysis.Broadcast();
 
-		{			
-			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
-
+		{
 			GatherUnreachableObjects(bForceSingleThreadedGC);
 			NotifyUnreachableObjects(GUnreachableObjects);
+
+			// This needs to happen after GatherUnreachableObjects since GatherUnreachableObjects can mark more (clustered) objects as unreachable
+			FGCArrayPool::Get().ClearWeakReferences(bPerformFullPurge);
 
 			if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
 			{
