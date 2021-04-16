@@ -3547,8 +3547,6 @@ public:
 		bLoadingObject = bIsLoading;
 	}
 
-	const TMap<UObject*, UObject*> GetReplaceMap() const { return ReplaceMap; }
-
 private:
 	/**
 	 * Returns whether this instancing graph has a valid destination root.
@@ -3636,11 +3634,6 @@ private:
 	 * Maps the source (think archetype) to the destination (think instance)
 	 */
 	TMap<class UObject*,class UObject*>			SourceToDestinationMap;
-
-	/**
-	* Maps instanced objects that need to have references updated
-	*/
-	TMap<UObject*, UObject*> ReplaceMap;
 };
 
 // UFunction interface.
