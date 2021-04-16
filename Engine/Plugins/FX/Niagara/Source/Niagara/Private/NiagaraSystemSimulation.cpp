@@ -364,6 +364,7 @@ struct FNiagaraSystemInstanceFinalizeTask
 	FNiagaraSystemInstanceFinalizeTask(FNiagaraSystemSimulation* InSystemSimulation, FNiagaraSystemTickBatch& InBatch)
 		: SystemSimulation(InSystemSimulation)
 		, Batch(InBatch)
+		, TickHandlingMode(SystemSimulation->GetGPUTickHandlingMode())
 	{
 #if DO_CHECK
 		DebugCounter = 0;
@@ -386,7 +387,7 @@ struct FNiagaraSystemInstanceFinalizeTask
 	{
 		check(CurrentThread == ENamedThreads::GameThread);
 
-		if(SystemSimulation->GetGPUTickHandlingMode() == ENiagaraGPUTickHandlingMode::GameThreadBatched)
+		if ( TickHandlingMode == ENiagaraGPUTickHandlingMode::GameThreadBatched )
 		{
 			TArray<FNiagaraGPUSystemTick, TInlineAllocator<NiagaraSystemTickBatchSize>> GPUTicks;
 			GPUTicks.Reserve(Batch.Num());
@@ -439,6 +440,7 @@ struct FNiagaraSystemInstanceFinalizeTask
 
 	FNiagaraSystemSimulation* SystemSimulation = nullptr;
 	FNiagaraSystemTickBatch Batch;
+	ENiagaraGPUTickHandlingMode TickHandlingMode = ENiagaraGPUTickHandlingMode::None;
 #if DO_CHECK
 	std::atomic<int> DebugCounter;
 #endif
