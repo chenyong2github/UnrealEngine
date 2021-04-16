@@ -844,8 +844,12 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), ParamFlags | PayloadFlags);
 
+	
 	if (!IsRunningCommandlet())
 	{
+		TArray<FString> Blacklist;
+		Blacklist.Emplace(TEXT("/Niagara/Enums/ENiagaraCoordinateSpace.ENiagaraCoordinateSpace"));
+		
 		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 		check(Settings);
 		TArray<FSoftObjectPath> TotalStructAssets;
@@ -862,6 +866,9 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		for (FSoftObjectPath AssetRef : TotalStructAssets)
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+
+			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+				continue;
 
 			UObject* Obj = AssetRef.ResolveObject();
 			if (Obj == nullptr)
@@ -907,6 +914,10 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
 			UObject* Obj = AssetRef.ResolveObject();
+
+			if (Blacklist.Contains(AssetRefPathNamePreResolve.ToString()))
+				continue;
+
 			if (Obj == nullptr)
 			{
 				Obj = AssetRef.TryLoad();
