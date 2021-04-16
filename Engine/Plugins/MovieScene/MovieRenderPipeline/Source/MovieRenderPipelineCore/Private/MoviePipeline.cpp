@@ -1131,7 +1131,10 @@ void UMoviePipeline::ExpandShot(UMoviePipelineExecutorShot* InShot, const int32 
 	{
 		// We expand on the pre-pass so that we have the correct number of frames set up in our datastructures before we reach each shot so that metrics
 		// work as expected.
-		InShot->ShotInfo.TotalOutputRangeMaster = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeMaster, -LeftDeltaTicksUserPoV, RightDeltaTicks);
+		FFrameNumber LeftHandleTicks = FFrameRate::TransformTime(FFrameTime(InNumHandleFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+		FFrameNumber RightHandleTicks = FFrameRate::TransformTime(FFrameTime(InNumHandleFrames), FrameMetrics.FrameRate, FrameMetrics.TickResolution).CeilToFrame().Value;
+
+		InShot->ShotInfo.TotalOutputRangeMaster = UE::MovieScene::DilateRange(InShot->ShotInfo.TotalOutputRangeMaster, -LeftHandleTicks, RightHandleTicks);
 	}
 }
 
