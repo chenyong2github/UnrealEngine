@@ -12,14 +12,19 @@ using namespace Chaos;
 
 FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	const FPBDParticles& Particles,
+	const int32 InParticleOffset,
+	const int32 InParticleCount,
 	const TMap<int32, TSet<int32>>& PointToNeighbors,
+	const TConstArrayView<FReal>& StiffnessMultipliers,
 	const int32 MaxNumTetherIslands,
-	const FReal InStiffness,
+	const FVec2& InStiffness,
 	const FReal LimitScale,
 	const EMode InMode)
 	: TethersView(Tethers)
-	, Stiffness(InStiffness)
+	, Stiffness(StiffnessMultipliers, InStiffness, InParticleCount)
 	, Mode(InMode)
+	, ParticleOffset(InParticleOffset)
+	, ParticleCount(InParticleCount)
 {
 	switch (Mode)
 	{
@@ -251,11 +256,9 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
 	Seeds.Reserve(Nodes.Num() / 10);  // Start at 10% seeds to minimize this array's reallocation
 
 	int32 NumDynamicNodes = 0;
-	int32 Offset = TNumericLimits<int32>::Max();
 
 	for (const int32 Node : Nodes)
 	{
-		Offset = FMath::Min(Offset, Node);
 		if (Particles.InvM(Node) == (FReal)0.)
 		{
 			const TSet<int32>& Neighbors = PointToNeighbors[Node];
@@ -314,7 +317,7 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
 		Queue.Heapify(LessPredicate);  // Turn the array into a priority queue
 
 		// Initiate the graph progression
-		VisitedNodes[Seed - Offset] = true;
+		VisitedNodes[Seed - ParticleOffset] = true;
 		Queue.HeapPush(Seed, LessPredicate);
 
 		do
@@ -322,7 +325,7 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
 			int32 ParentNode;
 			Queue.HeapPop(ParentNode, LessPredicate, false);
 
-			check(VisitedNodes[ParentNode - Offset]);
+			check(VisitedNodes[ParentNode - ParticleOffset]);
 
 			const FReal ParentDistance = (ParentNode != Seed) ? GeodesicDistances[TVec2<int32>(Seed, ParentNode)] : (FReal)0.;
 
@@ -348,9 +351,9 @@ void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
 					GeodesicDistance = NewDistance;
 
 					// Progress to this node position if it hasn't yet been visited
-					if (!VisitedNodes[NeighborNode - Offset])
+					if (!VisitedNodes[NeighborNode - ParticleOffset])
 					{
-						VisitedNodes[NeighborNode - Offset] = true;
+						VisitedNodes[NeighborNode - ParticleOffset] = true;
 
 						Queue.HeapPush(NeighborNode, LessPredicate);
 
