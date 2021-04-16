@@ -1,9 +1,9 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from switchboard.config import CONFIG
 
+from switchboard.config import CONFIG
 from PySide2 import QtCore, QtWidgets
 
-import os
+import os, sys, subprocess, shlex, pathlib
 
 
 class AddConfigDialog(QtWidgets.QDialog):
@@ -70,8 +70,117 @@ class AddConfigDialog(QtWidgets.QDialog):
         layout.addWidget(self.button_box)
 
         self.setLayout(layout)
-
         self.setMinimumWidth(450)
+
+        self.populate_initial_best_project_guess()
+
+    def find_upstream_path_with_name(self, path, name, includeSiblings=False):
+        ''' Goes up the folder chain until it finds the desired name, optionally considering sibling folders
+        '''
+        # ensure we have a pathlib.PurePath object
+        path = pathlib.PurePath(path)
+
+        # if the folder name coincides, we're done
+        if path.name == name:
+            return str(path)
+
+        # If including siblings, check those as well.
+        if includeSiblings:
+            if name in next(os.walk(path.parent))[1]:
+                return str(path.parent/name)
+
+        # detect if we already reached the root folder
+        if path == path.parent:
+            raise FileNotFoundError(f'Could not find {name} in path')
+
+        # go one up, recursively
+        return self.find_upstream_path_with_name(path.parent, name, includeSiblings)
+
+    def populate_initial_best_project_guess(self):
+        ''' Populates the editor and project with a best guess based on the running processes '''
+
+        # perform the detection
+        editors,projects = self.detect_running_projects()
+
+        editorfolder = ''
+        projectpath = ''
+        
+        # find a suitable candidate
+        for idx, editor in enumerate(editors):
+            try:
+                editorfolder = self.find_upstream_path_with_name(editor, "Engine")
+            except FileNotFoundError:
+                continue
+
+            projectpath = projects[idx]
+
+            # prefer when we have both editor and project paths
+            if editorfolder and projectpath:
+                break
+
+        # If process detection didn't work, try to find the Engine associated with the running Switchboard
+        if not editorfolder:
+            try:
+                editorfolder = self.find_upstream_path_with_name(os.path.abspath(__file__), "Engine")
+            except FileNotFoundError:
+                pass
+
+        # If we detected an engine, populate from it.
+        if editorfolder:
+            self.engine_dir_line_edit.setText(editorfolder)
+            self.uproject_line_edit.setText(projectpath)
+
+        # Suggest the config name based on the project name
+        if projectpath:
+            self.name_line_edit.setText(pathlib.PurePath(projectpath).stem)
+
+
+    def detect_running_projects(self):
+        ''' Detects a running UnrealEngine editor and its project '''
+
+        editors = []
+        projects = []
+
+        # Not detecting Debug runs since it is not common and would increase detection time
+        # At some point this might need UE6Editor added.
+        UEnames = ['UE4Editor', 'UE5Editor']
+
+        if sys.platform.startswith('win'):
+            for UEname in UEnames:
+                # Windows UE Editors will have .exe extension
+                UEname += '.exe'
+
+                # Relying on wmic for this. Another option is to use psutil which is cross-platform, and slower.
+                cmd = f'wmic process where caption="{UEname}" get commandline'
+
+                for line in subprocess.check_output(cmd).decode().splitlines():
+                    if UEname.lower() not in line.lower():
+                        continue
+                    
+                    # split the cmdline as a list of the original arguments
+                    try:
+                        argv = shlex.split(line)
+                    except ValueError:
+                        continue
+
+                    # There should be at least 2 arguments, the executable and the project.
+                    if len(argv) < 2:
+                        continue
+                    
+                    editorpath = argv[0]
+                    projectpath = argv[1]
+
+                    if editorpath.lower().endswith(UEname.lower()):
+                        editors.append(editorpath)
+                    else:
+                        editors.append('')
+
+                    if projectpath.lower().endswith('.uproject'):
+                        projects.append(projectpath)
+                    else:
+                        projects.append('')
+
+        return editors,projects
 
     def p4_settings(self):
         settings = {}
@@ -87,6 +196,16 @@ class AddConfigDialog(QtWidgets.QDialog):
 
     def on_uproject_changed(self, text):
         self.uproject = os.path.normpath(text)
+
+        # Update the Engine directory with a best guess, if it is empty
+    
+        # Try going up the path until you find Engine in a sibling folder. This will custom build p4 setups
+        if not self.engine_dir_line_edit.text():
+            try:
+                self.engine_dir_line_edit.setText(self.find_upstream_path_with_name(self.uproject, 'Engine', includeSiblings=True))
+            except FileNotFoundError:
+                pass
+
         self.update_button_box()
 
     def on_browse_uproject_path(self, uproject_search_path):
