@@ -2,7 +2,9 @@
 
 #pragma once
 
+#ifndef VIVOXVOICECHAT_PACKAGE
 UE_STATIC_DEPRECATE(4.27, true, "VivoxVoiceChat is deprecated from UE 4.27, and scheduled for removal in UE 5.00.");
+#endif
 
 #include "CoreMinimal.h"
 
