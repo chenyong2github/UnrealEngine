@@ -89,7 +89,9 @@ private:
 	FCriticalSection SymbolsQueueLock;
 	TArray<FQueuedAddress, TInlineAllocator<QueuedAddressLength>> ResolveQueue;
 	std::atomic<uint32> TasksInFlight;
-
+	FGraphEventRef CleanupTask;
+	std::atomic<bool> CancelTasks;
+	
 	struct FMappedFileAndRegion
 	{
 		IMappedFileHandle* Handle;
