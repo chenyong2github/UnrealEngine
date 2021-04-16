@@ -1299,6 +1299,7 @@ void FNiagaraSystemSimulation::WaitForInstancesTickComplete(bool bEnsureComplete
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSystemSim_ForceWaitForAsync);
 		ensureAlwaysMsgf(!bEnsureComplete, TEXT("NiagaraSystemSimulation(%s) AllWorkCompleteGraphEvent is not completed."), *GetSystem()->GetPathName());
+		WaitForConcurrentTickComplete(false);
 
 		int32 SystemInstanceIndex = 0;
 		while ( SystemInstanceIndex < SystemInstances.Num() )
