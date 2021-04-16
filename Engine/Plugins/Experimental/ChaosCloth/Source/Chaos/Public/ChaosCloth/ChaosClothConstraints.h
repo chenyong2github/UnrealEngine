@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Chaos/Vector.h"
 #include "Containers/ContainersFwd.h"
 #include "Templates/SharedPointer.h"
