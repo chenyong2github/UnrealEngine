@@ -7121,6 +7121,18 @@ bool URigVMController::CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunct
 		}
 	}
 
+	if(IsDependencyCyclicDelegate.IsBound())
+	{
+		if(IsDependencyCyclicDelegate.Execute(Graph, InFunctionDefinition))
+		{
+			if(bReportErrors)
+			{
+				ReportAndNotifyError(TEXT("Function is not available for placement in this graph host due to dependency cycles."));
+			}
+			return false;
+		}
+	}
+
 	URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
 	while (ParentLibraryNode)
 	{

@@ -1019,6 +1019,30 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 		return false;
 	});
 
+	Controller->IsDependencyCyclicDelegate.BindLambda([WeakThis](UObject* InDependentObject, UObject* InDependencyObject) -> bool
+	{
+	    if(InDependentObject == nullptr || InDependencyObject == nullptr)
+	    {
+	        return false;
+	    }
+
+		UControlRigBlueprint* DependentBlueprint = InDependentObject->GetTypedOuter<UControlRigBlueprint>();
+		UControlRigBlueprint* DependencyBlueprint = InDependencyObject->GetTypedOuter<UControlRigBlueprint>();
+
+		if(DependentBlueprint == nullptr || DependencyBlueprint == nullptr)
+		{
+			return false;
+		}
+
+		if(DependentBlueprint == DependencyBlueprint)
+		{
+			return false;
+		}
+
+		const TArray<UControlRigBlueprint*> DependencyDependencies = DependencyBlueprint->GetDependencies(true);
+		return DependencyDependencies.Contains(DependentBlueprint);
+	});
+
 #if WITH_EDITOR
 
 	// this sets up three delegates:
