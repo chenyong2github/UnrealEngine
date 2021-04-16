@@ -16,6 +16,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "IOpenExrRTTIModule.h"
 #include "Modules/ModuleManager.h"
+#include "MoviePipelineUtils.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "OpenEXR/include/ImfChannelList.h"
@@ -446,6 +447,11 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 			FString FilePathFormatString = OutputDirectory / FileNameFormatString;
 			GetPipeline()->ResolveFilenameFormatArguments(FilePathFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
+			if (FPaths::IsRelative(FinalFilePath))
+			{
+				FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+			}
+
 			// Create a deterministic clipname by removing frame numbers, file extension, and any trailing .'s
 			UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
@@ -460,6 +466,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 
 		int32 LayerIndex = 0;
 		bool bRequiresTransparentOutput = false;
+		int32 ShotIndex = 0;
 		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 		{
 			if (RenderPassData.Value->GetSize() != Resolutions[Index])
@@ -478,6 +485,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 				// Only check the main image pass for transparent output since that's generally considered the 'preview'.
 				FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 				bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
+				ShotIndex = Payload->SampleState.OutputState.ShotIndex;
 				MultiLayerImageTask->OverscanPercentage = Payload->SampleState.OverscanPercentage;
 			}
 			else
@@ -493,9 +501,15 @@ void UMoviePipelineImageSequenceOutput_EXR::OnReceiveImageDataImpl(FMoviePipelin
 			LayerIndex++;
 		}
 
-		ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
+		MoviePipeline::FMoviePipelineOutputFutureData OutputData;
+		OutputData.Shot = GetPipeline()->GetActiveShotList()[ShotIndex];
+		OutputData.PassIdentifier = FMoviePipelinePassIdentifier(TEXT("")); // exrs put all the render passes internally so this resolves to a ""
+		OutputData.FilePath = FinalFilePath;
+		GetPipeline()->AddOutputFuture(ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask)), OutputData);
+
 #if WITH_EDITOR
 		GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bRequiresTransparentOutput);
 #endif
+
 	}
 }

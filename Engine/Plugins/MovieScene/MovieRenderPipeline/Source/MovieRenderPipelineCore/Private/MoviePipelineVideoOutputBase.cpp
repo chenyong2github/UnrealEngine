@@ -11,6 +11,7 @@
 #include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformTime.h"
+#include "MoviePipelineUtils.h"
 
 void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk)
 {

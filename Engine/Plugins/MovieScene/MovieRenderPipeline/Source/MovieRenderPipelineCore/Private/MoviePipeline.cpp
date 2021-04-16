@@ -466,6 +466,10 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			// will be set when the render is canceled early
 			LevelSequenceActor->GetSequencePlayer()->Stop();
 			RestoreTargetSequenceToOriginalState();
+
+			// Ensure all of our Futures have been converted to the GeneratedOutputData. This has to happen
+			// after finalize finishes, because the futures won't be available until actually written to disk.
+			ProcessOutstandingFutures();
 	
 			BeginExport();
 		}
