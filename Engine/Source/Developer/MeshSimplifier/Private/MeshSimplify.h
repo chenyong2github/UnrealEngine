@@ -115,6 +115,7 @@ template< typename T, uint32 NumAttributes >
 TMeshSimplifier<T, NumAttributes>::TMeshSimplifier( const T* Verts, uint32 NumVerts, const uint32* Indexes, uint32 NumIndexes )
 	: edgeHash( 1 << FMath::Min( 16u, FMath::FloorLog2( NumVerts ) ) )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TMeshSimplifier::TMeshSimplifier);
 	vertFlagLock = 0;
 	triFlagLock = 0;
 
@@ -1290,6 +1291,7 @@ void TMeshSimplifier<T, NumAttributes>::UpdateEdges()
 template< typename T, uint32 NumAttributes >
 float TMeshSimplifier<T, NumAttributes>::SimplifyMesh( float maxErrorLimit, int minTris, int minVerts )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TMeshSimplifier::SimplifyMesh);
 	TSimpVert<T>* v;
 	TSimpEdge<T>* e;
 
