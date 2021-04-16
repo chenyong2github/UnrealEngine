@@ -13,7 +13,7 @@
 #endif
 
 #if WITH_EDITOR
-static FLevelInstanceID EditLevelInstanceID = InvalidLevelInstanceID;
+static FLevelInstanceID EditLevelInstanceID;
 #endif
 
 ULevelStreamingLevelInstanceEditor::ULevelStreamingLevelInstanceEditor(const FObjectInitializer& ObjectInitializer)

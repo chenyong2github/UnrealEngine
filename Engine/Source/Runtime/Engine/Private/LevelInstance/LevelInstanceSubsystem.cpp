@@ -12,7 +12,7 @@
 #include "EngineUtils.h"
 #include "LevelInstancePrivate.h"
 #include "LevelUtils.h"
-#include "Misc/HashBuilder.h"
+#include "Hash/CityHash.h"
 
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceEditorLevelStreaming.h"
@@ -89,23 +89,21 @@ ALevelInstance* ULevelInstanceSubsystem::GetLevelInstance(FLevelInstanceID Level
 	return nullptr;
 }
 
-FLevelInstanceID ULevelInstanceSubsystem::ComputeLevelInstanceID(ALevelInstance* LevelInstanceActor) const
+FLevelInstanceID::FLevelInstanceID(ULevelInstanceSubsystem* LevelInstanceSubsystem, ALevelInstance* LevelInstanceActor)
 {
-	FLevelInstanceID LevelInstanceID = InvalidLevelInstanceID;
-	FHashBuilder HashBuilder;
-	ForEachLevelInstanceAncestorsAndSelf(LevelInstanceActor, [&HashBuilder](const ALevelInstance* AncestorOrSelf)
-	{
-		HashBuilder << AncestorOrSelf->GetLevelInstanceActorGuid();
-		return true;
-	});
-	LevelInstanceID = HashBuilder.GetHash();
-	return LevelInstanceID;
+	LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(LevelInstanceActor, [this](const ALevelInstance* AncestorOrSelf)
+		{
+			Guids.Add(AncestorOrSelf->GetLevelInstanceActorGuid());
+			return true;
+		});
+	check(!Guids.IsEmpty());
+	Hash = CityHash64((const char*)Guids.GetData(), Guids.Num() * sizeof(FGuid));
 }
 
 FLevelInstanceID ULevelInstanceSubsystem::RegisterLevelInstance(ALevelInstance* LevelInstanceActor)
 {
-	FLevelInstanceID LevelInstanceID = ComputeLevelInstanceID(LevelInstanceActor);
-	check(LevelInstanceID != InvalidLevelInstanceID);
+	FLevelInstanceID LevelInstanceID(this, LevelInstanceActor);
+	check(LevelInstanceID.IsValid());
 	ALevelInstance*& Value = RegisteredLevelInstances.FindOrAdd(LevelInstanceID);
 	check(GIsReinstancing || Value == nullptr || Value == LevelInstanceActor);
 	Value = LevelInstanceActor;
@@ -369,7 +367,7 @@ void ULevelInstanceSubsystem::Tick()
 		UpdateStreamingState();
 
 		// Begin editing the pending LevelInstance when loads complete
-		if (PendingLevelInstanceToEdit != InvalidLevelInstanceID && !LevelInstancesToLoadOrUpdate.Num())
+		if (PendingLevelInstanceToEdit.IsValid() && !LevelInstancesToLoadOrUpdate.Num())
 		{
 			if (ALevelInstance** LevelInstanceActor = RegisteredLevelInstances.Find(PendingLevelInstanceToEdit))
 			{
@@ -1361,8 +1359,8 @@ bool ULevelInstanceSubsystem::CanCommitLevelInstance(const ALevelInstance* Level
 void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr)
 {
 	check(CanEditLevelInstance(LevelInstanceActor));
-	const bool bWasPendingEdit = PendingLevelInstanceToEdit != InvalidLevelInstanceID;
-	PendingLevelInstanceToEdit = InvalidLevelInstanceID;
+	const bool bWasPendingEdit = PendingLevelInstanceToEdit.IsValid();
+	PendingLevelInstanceToEdit = FLevelInstanceID();
 		
 	FScopedSlowTask SlowTask(0, LOCTEXT("BeginEditLevelInstance", "Loading Level Instance for edit..."), !GetWorld()->IsGameWorld());
 	SlowTask.MakeDialog();

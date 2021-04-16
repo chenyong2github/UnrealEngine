@@ -10,7 +10,7 @@
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "Misc/HashBuilder.h"
+#include "Hash/CityHash.h"
 
 template<class LayerNameContainer>
 TSet<const UDataLayer*> GetDataLayers(UWorld* InWorld, const LayerNameContainer& DataLayerNames)
@@ -173,7 +173,7 @@ FActorContainerInstance::FActorContainerInstance(const UActorDescContainer* InCo
 	: FActorContainerInstance(0, FTransform::Identity, FBox(ForceInit), TSet<FName>(), EContainerClusterMode::Partitioned, InContainer, TSet<FGuid>(), InActorDescViewMap)
 {}
 
-FActorContainerInstance::FActorContainerInstance(uint32 InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TSet<FGuid> InChildContainers, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
+FActorContainerInstance::FActorContainerInstance(uint64 InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TSet<FGuid> InChildContainers, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap)
 	: ID(InID)
 	, Transform(InTransform)
 	, Bounds(InBounds)
@@ -278,7 +278,7 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 	}
 }
 
-void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* Container, const TSet<FName>& DataLayers, FBox& ParentBounds)
+void FActorClusterContext::CreateContainerInstanceRecursive(uint64 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* Container, const TSet<FName>& DataLayers, FBox& ParentBounds)
 {
 	InstanceCountHint += Container->GetActorDescCount();
 		
@@ -299,8 +299,8 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTr
 			// Add Child Container Guid so we can discard the actor later
 			ChildContainers.Add(ActorDescView.GetGuid());
 
-			FHashBuilder ChildContainerHashBuilder(ID);
-			ChildContainerHashBuilder << ActorDescView.GetGuid();
+			FGuid ActorGuid = ActorDescView.GetGuid();
+			uint64 Hash = CityHash64WithSeed((const char*)&ActorGuid, sizeof(ActorGuid), ID);
 			
 			TSet<FName> ChildDataLayers;
 			ChildDataLayers.Reserve(DataLayers.Num() + ActorDescView.GetDataLayers().Num());
@@ -311,7 +311,7 @@ void FActorClusterContext::CreateContainerInstanceRecursive(uint32 ID, const FTr
 			}
 			// Always inherite parent container DataLayers
 			ChildDataLayers.Append(DataLayers);
-			CreateContainerInstanceRecursive(ChildContainerHashBuilder.GetHash(), OutTransform * Transform, OutClusterMode, OutContainer, ChildDataLayers, Bounds);
+			CreateContainerInstanceRecursive(Hash, OutTransform * Transform, OutClusterMode, OutContainer, ChildDataLayers, Bounds);
 		}
 		else
 		{

@@ -23,7 +23,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, uint32 InContainerID, const FTransform& InContainerTransform, FName InContainerPackage)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, uint64 InContainerID, const FTransform& InContainerTransform, FName InContainerPackage)
 #if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
@@ -51,7 +51,7 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 * ID of the owning container instance
 	 */
 	UPROPERTY()
-	uint32 ContainerID;
+	uint64 ContainerID;
 
 	/** 
 	 * Transform of the owning container instance
@@ -119,7 +119,7 @@ class UWorldPartitionRuntimeCell : public UObject
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
 	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
-	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
+	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint64 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
 	// Cook methods

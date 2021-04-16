@@ -202,7 +202,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 	ActorPackages.Reserve(InActorPackages.Num());
 
 	// Levels to Load with actors to duplicate
-	TMap<uint32, TArray<FWorldPartitionRuntimeCellObjectMapping*>> PackagesToDuplicate;
+	TMap<uint64, TArray<FWorldPartitionRuntimeCellObjectMapping*>> PackagesToDuplicate;
 	check(!bLoadForPlay || InOutInstancingContext);
 
 	for (FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : InActorPackages)
@@ -290,7 +290,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 
 			if (LoadedPackage)
 			{
-				FName DuplicatePackageName(*FString::Printf(TEXT("%s_%08x"), *LoadedPackage->GetName(), LevelInstanceID));
+				FName DuplicatePackageName(*FString::Printf(TEXT("%s_%016llx"), *LoadedPackage->GetName(), LevelInstanceID));
 				UPackage* DuplicatedPackage = InPackageCache.FindPackage(DuplicatePackageName);
 				UWorld* DuplicatedWorld = nullptr;
 
@@ -325,7 +325,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 					AActor* DuplicatedActor = FindObject<AActor>(DuplicatedWorld->PersistentLevel, *ActorName);
 					check(DuplicatedActor);
 
-					DuplicatedActor->Rename(*FString::Printf(TEXT("%s_%08x"), *DuplicatedActor->GetName(), Mapping->ContainerID), InDestLevel, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
+					DuplicatedActor->Rename(*FString::Printf(TEXT("%s_%016llx"), *DuplicatedActor->GetName(), Mapping->ContainerID), InDestLevel, REN_NonTransactional | REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors);
 					USceneComponent* RootComponent = DuplicatedActor->GetRootComponent();
 					
 					FLevelUtils::FApplyLevelTransformParams TransformParams(nullptr, Mapping->ContainerTransform);

@@ -22,11 +22,9 @@
 ALevelInstance::ALevelInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
-	, CachedLevelInstanceID(InvalidLevelInstanceID)
 	, bGuardLoadUnload(false)
 	, bEditLockLocation(false)
 #endif
-	, LevelInstanceID(InvalidLevelInstanceID)
 {
 	RootComponent = CreateDefaultSubobject<ULevelInstanceComponent>(TEXT("Root"));
 	RootComponent->Mobility = EComponentMobility::Static;
@@ -115,7 +113,7 @@ void ALevelInstance::PostUnregisterAllComponents()
 		}
 
 		// To avoid processing PostUnregisterAllComponents multiple times (BP Recompile is one use case)
-		LevelInstanceID = InvalidLevelInstanceID;
+		LevelInstanceID = FLevelInstanceID();
 	}
 
 }
@@ -166,7 +164,7 @@ bool ALevelInstance::IsLevelInstancePathValid() const
 
 bool ALevelInstance::HasValidLevelInstanceID() const
 {
-	return LevelInstanceID != InvalidLevelInstanceID;
+	return LevelInstanceID.IsValid();
 }
 
 const FLevelInstanceID& ALevelInstance::GetLevelInstanceID() const
@@ -305,7 +303,7 @@ void ALevelInstance::PostEditUndoInternal()
 		}
 	}
 
-	CachedLevelInstanceID = InvalidLevelInstanceID;
+	CachedLevelInstanceID = FLevelInstanceID();
 	CachedWorldAsset.Reset();
 
 	if (ULevelInstanceComponent* LevelInstanceComponent = Cast<ULevelInstanceComponent>(GetRootComponent()))

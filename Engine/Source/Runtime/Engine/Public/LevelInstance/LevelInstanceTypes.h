@@ -3,13 +3,39 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Guid.h"
 #include "LevelInstanceTypes.generated.h"
 
 // FLevelInstanceID is a runtime unique id that is computed from the Hash of LevelInstance Actor Guid and all its ancestor LevelInstance Actor Guids.
 // Resulting in a different ID for all instances whether they load the same level or not.
-using FLevelInstanceID = uint32;
+struct FLevelInstanceID
+{
+	FLevelInstanceID() {}
+	FLevelInstanceID(class ULevelInstanceSubsystem* LevelInstanceSubsystem, class ALevelInstance* Actor);
 
-static constexpr FLevelInstanceID InvalidLevelInstanceID = 0;
+	inline friend uint32 GetTypeHash(const FLevelInstanceID& Key)
+	{
+		return ::GetTypeHash(Key.GetHash());
+	}
+
+	inline bool operator!=(const FLevelInstanceID& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	inline bool operator==(const FLevelInstanceID& Other) const
+	{
+		return Hash == Other.Hash && Guids == Other.Guids;
+	}
+
+	inline bool IsValid() const { return !Guids.IsEmpty(); }
+
+	inline uint64 GetHash() const { return Hash; }
+
+private:
+	uint64 Hash = 0;
+	TArray<FGuid> Guids;
+};
 
 UENUM()
 enum class ELevelInstanceCreationType : uint8
