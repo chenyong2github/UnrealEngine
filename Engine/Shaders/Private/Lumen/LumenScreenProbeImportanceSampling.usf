@@ -274,7 +274,7 @@ float4 ImportanceSamplingHistoryScreenPositionScaleBias;
 float4 ImportanceSamplingHistoryUVMinMax;
 float ImportanceSamplingHistoryDistanceThreshold;
 float PrevInvPreExposure;
-Texture2D HistoryScreenProbeSceneDepth;
+Texture2D<uint> HistoryScreenProbeSceneDepth;
 Texture2D<float3> HistoryScreenProbeRadiance;
 Texture2D VelocityTexture;
 
@@ -365,7 +365,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 					{
 						uint2 HistoryScreenProbeCoord = clamp(UnclampedHistoryScreenProbeCoord + float2(X, Y), float2(0, 0), float2(ScreenProbeViewSize - 1));
 
-						float HistoryDepth = HistoryScreenProbeSceneDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
+						float HistoryDepth = GetScreenProbeDepth(HistoryScreenProbeCoord, HistoryScreenProbeSceneDepth);
 						float PositionWeight = ComputeHistoryWeightBasedOnPosition(WorldPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
 						float HistoryWeight = EffectiveHistoryWeight * PositionWeight;
 

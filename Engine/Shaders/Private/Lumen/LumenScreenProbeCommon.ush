@@ -75,9 +75,14 @@ float2 GetProbeTexelCenter(uint2 ScreenTileCoord)
 }
 
 // Note: Returns negative depth for invalid probe
-float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord)
+float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord, Texture2D<uint> ProbeSceneDepthTexture)
 {
 	return asfloat(ScreenProbeSceneDepth[ScreenProbeAtlasCoord]);
+}
+
+float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord)
+{
+	return GetScreenProbeDepth(ScreenProbeAtlasCoord, ScreenProbeSceneDepth);
 }
 
 uint GetNumAdaptiveScreenProbes()
