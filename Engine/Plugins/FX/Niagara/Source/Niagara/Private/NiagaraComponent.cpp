@@ -3211,9 +3211,12 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		return;
 	}
 
-	if ( PoolingMethod != ENCPoolMethod::None )
+	if (FNiagaraUtilities::LogVerboseWarnings())
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("SetAsset called on pooled component '%s' Before '%s' New '%s', pleased fix calling code to not do this."), *GetFullNameSafe(this), *GetFullNameSafe(Asset), * GetFullNameSafe(InAsset));
+		if ( PoolingMethod != ENCPoolMethod::None )
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("SetAsset called on pooled component '%s' Before '%s' New '%s', pleased fix calling code to not do this."), *GetFullNameSafe(this), *GetFullNameSafe(Asset), * GetFullNameSafe(InAsset));
+		}
 	}
 
 #if WITH_EDITOR

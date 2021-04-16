@@ -1282,7 +1282,7 @@ void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)
 
 void FNiagaraWorldManager::PrimePoolForAllSystems()
 {
-	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld() && !World->bIsTearingDown)
 	{
 		//Prime the pool for all currently loaded systems.
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
@@ -1297,7 +1297,7 @@ void FNiagaraWorldManager::PrimePoolForAllSystems()
 
 void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
 {
-	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld() && !World->bIsTearingDown)
 	{
 		ComponentPool->PrimePool(System, World);
 	}

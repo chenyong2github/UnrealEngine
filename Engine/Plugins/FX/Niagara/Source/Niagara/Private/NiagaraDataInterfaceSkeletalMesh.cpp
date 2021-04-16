@@ -2062,7 +2062,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			}
 
 			//-TODO: If the DI does not use unfiltered bones we can skip adding them here...
-			TStringBuilder<256> MissingBones;
+			TStringBuilder<256> MissingFilteredBones;
 
 			FilteredAndUnfilteredBones.Reserve(RefSkel.GetNum());
 
@@ -2072,11 +2072,14 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				const int32 Bone = RefSkel.FindBoneIndex(BoneName);
 				if (Bone == INDEX_NONE)
 				{
-					if (MissingBones.Len() > 0)
+					if ( FNiagaraUtilities::LogVerboseWarnings() )
 					{
-						MissingBones.Append(TEXT(", "));
+						if (MissingFilteredBones.Len() > 0)
+						{
+							MissingFilteredBones.Append(TEXT(", "));
+						}
+						MissingFilteredBones.Append(BoneName.ToString());
 					}
-					MissingBones.Append(BoneName.ToString());
 				}
 				else
 				{
@@ -2111,9 +2114,9 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				}
 			}
 
-			if (MissingBones.Len() > 0)
+			if (MissingFilteredBones.Len() > 0)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from bones that don't exist in it's skeleton. Mesh(%s) Bones(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingBones.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from filtered bones that don't exist in it's skeleton. Mesh(%s) Bones(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingFilteredBones.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
 			}
 		}
 		else
@@ -2156,22 +2159,25 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				FilteredSocketTransforms[i].Append(FilteredSocketTransforms[0]);
 			}
 
-			TStringBuilder<512> MissingSockets;
-			for (FName SocketName : FilteredSockets)
+			if ( FNiagaraUtilities::LogVerboseWarnings() )
 			{
-				if (Mesh->FindSocket(SocketName) == nullptr)
+				TStringBuilder<512> MissingSockets;
+				for (FName SocketName : FilteredSockets)
 				{
-					if (MissingSockets.Len() != 0)
+					if (Mesh->FindSocket(SocketName) == nullptr)
 					{
-						MissingSockets.Append(TEXT(", "));
+						if (MissingSockets.Len() != 0)
+						{
+							MissingSockets.Append(TEXT(", "));
+						}
+						MissingSockets.Append(SocketName.ToString());
 					}
-					MissingSockets.Append(SocketName.ToString());
 				}
-			}
 
-			if (MissingSockets.Len() > 0)
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from sockets that don't exist in it's skeleton. Mesh(%s) Sockets(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingSockets.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				if (MissingSockets.Len() > 0)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Skeletal Mesh Data Interface is trying to sample from filtered sockets that don't exist in it's skeleton. Mesh(%s) Sockets(%s) System(%s)"), *GetFullNameSafe(Mesh), MissingSockets.ToString(), *GetFullNameSafe(SystemInstance->GetSystem()));
+				}
 			}
 		}
 

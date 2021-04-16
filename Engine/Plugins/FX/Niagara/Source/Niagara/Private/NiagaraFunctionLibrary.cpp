@@ -425,7 +425,7 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(UN
 	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
 	if (!SkeletalMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
+		UE_LOG(LogNiagara, Warning, TEXT("UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent: Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -443,7 +443,7 @@ void UNiagaraFunctionLibrary::SetSkeletalMeshDataInterfaceSamplingRegions(UNiaga
 	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
 	if (!SkeletalMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
+		UE_LOG(LogNiagara, Warning, TEXT("UNiagaraFunctionLibrary::SetSkeletalMeshDataInterfaceSamplingRegions: Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
