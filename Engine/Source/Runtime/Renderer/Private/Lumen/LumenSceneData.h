@@ -291,15 +291,12 @@ struct FLumenPageTableEntry
 class FSurfaceCacheRequest
 {
 public:
-	int32 LumenPrimitiveIndex = -1;
-	int32 LumenInstanceIndex = -1;
-
-	// High res page
 	int32 CardIndex = -1;
 	uint16 ResLevel = 0;
-	uint16 LocalPageIndex = 0;
-
+	uint16 LocalPageIndex = UINT16_MAX;
 	float Distance = 0.0f;
+
+	bool IsLockedMip() const { return LocalPageIndex == UINT16_MAX; }
 };
 
 union FVirtualPageIndex
@@ -378,7 +375,9 @@ public:
 	FLumenSurfaceCacheFeedback::FFeedbackResources SurfaceCacheFeedbackResources;
 
 	bool bFinalLightingAtlasContentsValid;
-	int32 NumMeshCardsToAddToSurfaceCache = 0;
+	int32 NumMeshCardsToAdd = 0;
+	int32 NumLockedCardsToUpdate = 0;
+	int32 NumHiResPagesToAdd = 0;
 
 	bool bTrackAllPrimitives;
 	TArray<FPrimitiveSceneInfo*> PendingAddOperations;

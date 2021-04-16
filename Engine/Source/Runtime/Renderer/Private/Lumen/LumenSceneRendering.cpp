@@ -148,11 +148,19 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenScenePrimitivesPerPacket = 256;
-FAutoConsoleVariableRef CVarLumenScenePrimitivePerPacket(
-	TEXT("r.LumenScene.PrimitivesPerPacket"),
-	GLumenScenePrimitivesPerPacket,
-	TEXT("How many primitives to process per single Lumen packet."),
+int32 GLumenScenePrimitivesPerTask = 128;
+FAutoConsoleVariableRef CVarLumenScenePrimitivePerTask(
+	TEXT("r.LumenScene.PrimitivesPerTask"),
+	GLumenScenePrimitivesPerTask,
+	TEXT("How many primitives to process per single surface cache update task."),
+	ECVF_RenderThreadSafe
+);
+
+int32 GLumenSceneMeshCardsPerTask = 128;
+FAutoConsoleVariableRef CVarLumenSceneMeshCardsPerTask(
+	TEXT("r.LumenScene.MeshCardsPerTask"),
+	GLumenSceneMeshCardsPerTask,
+	TEXT("How many mesh cards to process per single surface cache update task."),
 	ECVF_RenderThreadSafe
 );
 
@@ -892,124 +900,49 @@ void AddCardCaptureDraws(const FScene* Scene,
 	}
 }
 
-class FSurfaceCacheRemove
+struct FMeshCardsAdd
 {
-public:
+	int32 LumenPrimitiveIndex;
+	int32 LumenInstanceIndex;
+	float DistanceSquared;
+};
+
+struct FMeshCardsRemove
+{
 	int32 LumenPrimitiveIndex;
 	int32 LumenInstanceIndex;
 };
 
-
-class FCardAllocationOutput
+struct FCardAllocationOutput
 {
-public:
 	bool bVisible = false;
 	int32 ResLevel = -1;
 };
 
-void ComputeCardAllocation(const FLumenCard& CardData, FVector ViewOrigin, float MaxDistanceFromCamera, FCardAllocationOutput& Out)
-{
-	const FVector CardSpaceViewOrigin = CardData.TransformWorldPositionToCardLocal(ViewOrigin);
-	const FBox CardBox(-CardData.LocalExtent, CardData.LocalExtent);
-
-	const float TexelDensityScale = GetCardCameraDistanceTexelDensityScale();
-	const float ViewerDistance = FMath::Max(FMath::Sqrt(CardBox.ComputeSquaredDistanceToPoint(CardSpaceViewOrigin)), 1.0f);
-
-	FVector FaceLocalExtent = CardData.LocalExtent;
-
-	// Compute resolution based on its largest extent
-	float MaxExtent = FMath::Max(FaceLocalExtent.X, FaceLocalExtent.Y);
-	float MaxProjectedSize = FMath::Min(TexelDensityScale * MaxExtent * CardData.ResolutionScale / ViewerDistance, GLumenSceneCardMaxTexelDensity * MaxExtent);
-
-	if (GLumenSceneCardFixedDebugTexelDensity > 0)
-	{
-		MaxProjectedSize = GLumenSceneCardFixedDebugTexelDensity * MaxExtent;
-	}
-
-	const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
-	const int32 ResLevel = FMath::FloorLog2(MaxSnappedRes);
-	
-	Out.bVisible = ViewerDistance < MaxDistanceFromCamera && MaxSnappedRes >= Lumen::MinCardResolution;
-	Out.ResLevel = ResLevel;
-}
-
-struct FLumenSurfaceCacheUpdatePacket
+/**
+ * Loop over Lumen primitives and output FMeshCards adds and removes
+ */
+struct FLumenSurfaceCacheUpdatePrimitivesTask
 {
 public:
-	FLumenSurfaceCacheUpdatePacket(
+	FLumenSurfaceCacheUpdatePrimitivesTask(
 		const TArray<FLumenPrimitive>& InLumenPrimitives,
-		const TSparseSpanArray<FLumenMeshCards>& InLumenMeshCards,
-		const TSparseSpanArray<FLumenCard>& InLumenCards,
 		FVector InViewOrigin,
 		float InMaxDistanceFromCamera,
 		int32 InFirstLumenPrimitiveIndex,
 		int32 InNumPrimitivesPerPacket)
 		: LumenPrimitives(InLumenPrimitives)
-		, LumenMeshCards(InLumenMeshCards)
-		, LumenCards(InLumenCards)
 		, ViewOrigin(InViewOrigin)
 		, FirstLumenPrimitiveIndex(InFirstLumenPrimitiveIndex)
 		, NumPrimitivesPerPacket(InNumPrimitivesPerPacket)
 		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
 		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
-		, MaxTexelDensity(GLumenSceneCardMaxTexelDensity)
 	{
 	}
 
 	// Output
-	TArray<FSurfaceCacheRequest> SurfaceCacheRequests;
-	TArray<FSurfaceCacheRemove> SurfaceCacheRemoves;
-
-	void UpdateLumenInstance(int32 PrimitiveIndex, int32 InstanceIndex, int32 MeshCardsIndex, float DistanceSquared)
-	{
-		float UpdatePriority = 0.0f;
-
-		if (MeshCardsIndex >= 0)
-		{
-			const FLumenMeshCards& MeshCardsInstance = LumenMeshCards[MeshCardsIndex];
-
-			for (uint32 CardIndex = MeshCardsInstance.FirstCardIndex; CardIndex < MeshCardsInstance.FirstCardIndex + MeshCardsInstance.NumCards; ++CardIndex)
-			{
-				const FLumenCard& LumenCard = LumenCards[CardIndex];
-
-				FCardAllocationOutput CardAllocation;
-				ComputeCardAllocation(LumenCard, ViewOrigin, MaxDistanceFromCamera, CardAllocation);
-
-				if (LumenCard.bVisible != CardAllocation.bVisible)
-				{
-					UpdatePriority += 1.0f;
-				}
-				else if (LumenCard.bVisible && CardAllocation.bVisible && LumenCard.DesiredLockedResLevel != CardAllocation.ResLevel)
-				{
-					// Make reallocation less important than capturing new cards.
-					const float ResLevelDelta = FMath::Abs((int32)LumenCard.DesiredLockedResLevel - CardAllocation.ResLevel);
-					UpdatePriority += FMath::Clamp((ResLevelDelta + 1.0f) / 3.0f, 0.0f, 1.0f);
-				}
-			}
-
-			// Normalize priority
-			if (MeshCardsInstance.NumCards > 0.0f)
-			{
-				UpdatePriority *= 1.0f / MeshCardsInstance.NumCards;
-			}
-		}
-		else
-		{
-			// Spawn mesh cards
-			UpdatePriority = 1.0f;
-		}
-
-		if (UpdatePriority > 0.0f)
-		{
-			const float Distance = FMath::Sqrt(DistanceSquared);
-
-			FSurfaceCacheRequest Request;
-			Request.LumenPrimitiveIndex = PrimitiveIndex;
-			Request.LumenInstanceIndex = InstanceIndex;
-			Request.Distance = FMath::Max(0.0f, Distance + 2500.0f * (1.0f - UpdatePriority));
-			SurfaceCacheRequests.Add(Request);
-		}
-	}
+	TArray<FMeshCardsAdd> MeshCardsAdds;
+	TArray<FMeshCardsRemove> MeshCardsRemoves;
 
 	void AnyThreadTask()
 	{
@@ -1034,16 +967,23 @@ public:
 					DistanceSquared = ComputeSquaredDistanceFromBoxToPoint(LumenInstance.WorldSpaceBoundingBox.Min, LumenInstance.WorldSpaceBoundingBox.Max, ViewOrigin);
 					MaxCardResolution = (TexelDensityScale * LumenInstanceMaxCardExtent) / FMath::Sqrt(FMath::Max(DistanceSquared, 1.0f)) + 0.01f;
 
-					if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f && LumenInstance.bValidMeshCards)
+					if (DistanceSquared <= MaxDistanceSquared && MaxCardResolution >= 2.0f)
 					{
-						UpdateLumenInstance(PrimitiveIndex, InstanceIndex, LumenInstance.MeshCardsIndex, DistanceSquared);
+						if (LumenInstance.MeshCardsIndex == -1 && LumenInstance.bValidMeshCards)
+						{
+							FMeshCardsAdd Add;
+							Add.LumenPrimitiveIndex = PrimitiveIndex;
+							Add.LumenInstanceIndex = InstanceIndex;
+							Add.DistanceSquared = DistanceSquared;
+							MeshCardsAdds.Add(Add);
+						}
 					}
 					else if (LumenInstance.MeshCardsIndex >= 0)
 					{
-						FSurfaceCacheRemove Remove;
+						FMeshCardsRemove Remove;
 						Remove.LumenPrimitiveIndex = PrimitiveIndex;
 						Remove.LumenInstanceIndex = InstanceIndex;
-						SurfaceCacheRemoves.Add(Remove);
+						MeshCardsRemoves.Add(Remove);
 					}
 				}
 			}
@@ -1055,10 +995,10 @@ public:
 
 					if (LumenInstance.MeshCardsIndex >= 0)
 					{
-						FSurfaceCacheRemove Remove;
+						FMeshCardsRemove Remove;
 						Remove.LumenPrimitiveIndex = PrimitiveIndex;
 						Remove.LumenInstanceIndex = InstanceIndex;
-						SurfaceCacheRemoves.Add(Remove);
+						MeshCardsRemoves.Add(Remove);
 					}
 				}
 			}
@@ -1066,11 +1006,115 @@ public:
 	}
 
 	const TArray<FLumenPrimitive>& LumenPrimitives;
-	const TSparseSpanArray<FLumenMeshCards>& LumenMeshCards;
-	const TSparseSpanArray<FLumenCard>& LumenCards;
 	FVector ViewOrigin;
 	int32 FirstLumenPrimitiveIndex;
 	int32 NumPrimitivesPerPacket;
+	float MaxDistanceFromCamera;
+	float TexelDensityScale;
+};
+
+struct FSurfaceCacheRemove
+{
+public:
+	int32 LumenCardIndex;
+};
+
+/**
+ * Loop over Lumen mesh cards and output card updates
+ */
+struct FLumenSurfaceCacheUpdateMeshCardsTask
+{
+public:
+	FLumenSurfaceCacheUpdateMeshCardsTask(
+		const TSparseSpanArray<FLumenMeshCards>& InLumenMeshCards,
+		const TSparseSpanArray<FLumenCard>& InLumenCards,
+		FVector InViewOrigin,
+		float InMaxDistanceFromCamera,
+		int32 InFirstMeshCardsIndex,
+		int32 InNumMeshCardsPerPacket)
+		: LumenMeshCards(InLumenMeshCards)
+		, LumenCards(InLumenCards)
+		, ViewOrigin(InViewOrigin)
+		, FirstMeshCardsIndex(InFirstMeshCardsIndex)
+		, NumMeshCardsPerPacket(InNumMeshCardsPerPacket)
+		, MaxDistanceFromCamera(InMaxDistanceFromCamera)
+		, TexelDensityScale(GetCardCameraDistanceTexelDensityScale())
+		, MaxTexelDensity(GLumenSceneCardMaxTexelDensity)
+	{
+	}
+
+	// Output
+	TArray<FSurfaceCacheRequest> SurfaceCacheRequests;
+	TArray<int32> CardsToHide;
+
+	void AnyThreadTask()
+	{
+		const int32 LastLumenMeshCardsIndex = FMath::Min(FirstMeshCardsIndex + NumMeshCardsPerPacket, LumenMeshCards.Num());
+		const float MaxDistanceSquared = MaxDistanceFromCamera * MaxDistanceFromCamera;
+
+		for (int32 MeshCardsIndex = FirstMeshCardsIndex; MeshCardsIndex < LastLumenMeshCardsIndex; ++MeshCardsIndex)
+		{
+			if (LumenMeshCards.IsAllocated(MeshCardsIndex))
+			{
+				const FLumenMeshCards& MeshCardsInstance = LumenMeshCards[MeshCardsIndex];
+
+				for (uint32 CardIndex = MeshCardsInstance.FirstCardIndex; CardIndex < MeshCardsInstance.FirstCardIndex + MeshCardsInstance.NumCards; ++CardIndex)
+				{
+					const FLumenCard& LumenCard = LumenCards[CardIndex];
+
+					const FVector CardSpaceViewOrigin = LumenCard.TransformWorldPositionToCardLocal(ViewOrigin);
+					const FBox CardBox(-LumenCard.LocalExtent, LumenCard.LocalExtent);
+
+					const float ViewerDistance = FMath::Max(FMath::Sqrt(CardBox.ComputeSquaredDistanceToPoint(CardSpaceViewOrigin)), 1.0f);
+
+					// Compute resolution based on its largest extent
+					float MaxExtent = FMath::Max(LumenCard.LocalExtent.X, LumenCard.LocalExtent.Y);
+					float MaxProjectedSize = FMath::Min(TexelDensityScale * MaxExtent * LumenCard.ResolutionScale / ViewerDistance, GLumenSceneCardMaxTexelDensity * MaxExtent);
+
+					if (GLumenSceneCardFixedDebugTexelDensity > 0)
+					{
+						MaxProjectedSize = GLumenSceneCardFixedDebugTexelDensity * MaxExtent;
+					}
+
+					const int32 MaxSnappedRes = FMath::RoundUpToPowerOfTwo(FMath::Min(FMath::TruncToInt(MaxProjectedSize), GetCardMaxResolution()));
+					const int32 ResLevel = FMath::FloorLog2(MaxSnappedRes);
+
+					const bool bVisible = ViewerDistance < MaxDistanceFromCamera&& MaxSnappedRes >= Lumen::MinCardResolution;
+
+					if (!bVisible && LumenCard.bVisible)
+					{
+						CardsToHide.Add(CardIndex);
+					}
+					else if (bVisible && ResLevel != LumenCard.DesiredLockedResLevel)
+					{
+						float Distance = ViewerDistance;
+
+						if (LumenCard.bVisible && LumenCard.DesiredLockedResLevel != ResLevel)
+						{
+							// Make reallocation less important than capturing new cards
+							const float ResLevelDelta = FMath::Abs((int32)LumenCard.DesiredLockedResLevel - ResLevel);
+							Distance += (1.0f - FMath::Clamp((ResLevelDelta + 1.0f) / 3.0f, 0.0f, 1.0f)) * 2500.0f;
+						}
+
+						FSurfaceCacheRequest Request;
+						Request.ResLevel = ResLevel;
+						Request.CardIndex = CardIndex;
+						Request.LocalPageIndex = UINT16_MAX;
+						Request.Distance = Distance;
+						SurfaceCacheRequests.Add(Request);
+
+						ensure(Request.IsLockedMip());
+					}
+				}
+			}
+		}
+	}
+
+	const TSparseSpanArray<FLumenMeshCards>& LumenMeshCards;
+	const TSparseSpanArray<FLumenCard>& LumenCards;
+	FVector ViewOrigin;
+	int32 FirstMeshCardsIndex;
+	int32 NumMeshCardsPerPacket;
 	float MaxDistanceFromCamera;
 	float TexelDensityScale;
 	float MaxTexelDensity;
@@ -1119,107 +1163,89 @@ void ProcessLumenSurfaceCacheRequests(
 	{
 		const FSurfaceCacheRequest& Request = SurfaceCacheRequests[RequestIndex];
 
-		if (Request.CardIndex >= 0)
+		if (Request.IsLockedMip())
 		{
+			// Update low-res locked (always resident) pages
 			FLumenCard& Card = LumenSceneData.Cards[Request.CardIndex];
 
-			if (Card.MinAllocatedResLevel >= 0 && Request.ResLevel > Card.MinAllocatedResLevel)
+			if (!Card.bVisible)
 			{
-				HiResPagesToMap.Add(FVirtualPageIndex(Request.CardIndex, Request.ResLevel, Request.LocalPageIndex));
+				Card.bVisible = true;
+				LumenSceneData.CardIndicesToUpdateInBuffer.Add(Request.CardIndex);
+			}
+
+			if (Card.bVisible && Card.DesiredLockedResLevel != Request.ResLevel)
+			{
+				Card.DesiredLockedResLevel = Request.ResLevel;
+				uint8 NewLockedAllocationResLevel = Request.ResLevel;
+
+				// Free previous MinAllocatedResLevel
+				LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MinAllocatedResLevel);
+
+				// Free anything lower res than the new res level
+				LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, NewLockedAllocationResLevel - 1);
+
+				// Make room for the new physical allocations
+				bool bCanAlloc = true;
+				while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false))
+				{
+					if (!LumenSceneData.EvictOldestAllocation(/*bForceEvict*/ true, DirtyCards))
+					{
+						bCanAlloc = false;
+						break;
+					}
+				}
+
+				// Try to decrease resolution if allocation still can't be made
+				while (!bCanAlloc && NewLockedAllocationResLevel > Lumen::MinResLevel)
+				{
+					--NewLockedAllocationResLevel;
+					bCanAlloc = LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false);
+				}
+
+				if (bCanAlloc)
+				{
+					const bool bLockPages = true;
+
+					LumenSceneData.ReallocVirtualSurface(Card, Request.CardIndex, NewLockedAllocationResLevel, bLockPages);
+
+					// Map and update all pages
+					FLumenSurfaceMipMap& MipMap = Card.GetMipMap(Card.MinAllocatedResLevel);
+					for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
+					{
+						const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
+						FLumenPageTableEntry& PageTableEntry = LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
+						ensure(PageTableEntry.IsMapped());
+
+						const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
+
+						CardPagesToRender.Add(FCardPageRenderData(
+							MainView,
+							Card,
+							PageTableEntry.CardUVRect,
+							PageTableEntry.PhysicalAtlasRect,
+							MeshCardsElement.CapturePrimitive,
+							MeshCardsElement.CaptureInstanceIndex,
+							Request.CardIndex,
+							PageIndex));
+
+						LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+					}
+				}
+
+				DirtyCards.Add(Request.CardIndex);
 			}
 		}
 		else
 		{
-			// Spawn surface cache if required
-			FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[Request.LumenPrimitiveIndex];
-			FLumenPrimitiveInstance& LumenPrimitiveInstance = LumenPrimitive.Instances[Request.LumenInstanceIndex];
-
-			LumenSceneData.AddMeshCards(Request.LumenPrimitiveIndex, Request.LumenInstanceIndex);
-
-			// Update low-res locked (always resident) pages
-			if (LumenPrimitiveInstance.MeshCardsIndex >= 0)
+			// Hi-Res
+			if (LumenSceneData.Cards.IsAllocated(Request.CardIndex))
 			{
-				const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[LumenPrimitiveInstance.MeshCardsIndex];
+				FLumenCard& Card = LumenSceneData.Cards[Request.CardIndex];
 
-				for (uint32 CardIndex = MeshCardsElement.FirstCardIndex; CardIndex < MeshCardsElement.FirstCardIndex + MeshCardsElement.NumCards; ++CardIndex)
+				if (Card.bVisible && Card.MinAllocatedResLevel >= 0 && Request.ResLevel > Card.MinAllocatedResLevel)
 				{
-					FLumenCard& Card = LumenSceneData.Cards[CardIndex];
-
-					FCardAllocationOutput CardAllocation;
-					ComputeCardAllocation(Card, LumenSceneCameraOrigin, MaxCardUpdateDistanceFromCamera, CardAllocation);
-
-					if (Card.bVisible != CardAllocation.bVisible)
-					{
-						Card.bVisible = CardAllocation.bVisible;
-						if (!Card.bVisible)
-						{
-							LumenSceneData.RemoveCardFromAtlas(CardIndex);
-						}
-						else
-						{
-							LumenSceneData.CardIndicesToUpdateInBuffer.Add(CardIndex);
-						}
-					}
-
-					if (Card.bVisible && Card.DesiredLockedResLevel != CardAllocation.ResLevel)
-					{
-						Card.DesiredLockedResLevel = CardAllocation.ResLevel;
-						uint8 NewLockedAllocationResLevel = CardAllocation.ResLevel;
-
-						// Free previous MinAllocatedResLevel
-						LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, Card.MinAllocatedResLevel);
-
-						// Free anything lower res than the new res level
-						LumenSceneData.FreeVirtualSurface(Card, Card.MinAllocatedResLevel, NewLockedAllocationResLevel - 1);
-
-						// Make room for the new physical allocations
-						bool bCanAlloc = true;
-						while (!LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false))
-						{
-							if (!LumenSceneData.EvictOldestAllocation(/*bForceEvict*/ true, DirtyCards))
-							{
-								bCanAlloc = false;
-								break;
-							}
-						}
-
-						// Try to decrease resolution if allocation still can't be made
-						while (!bCanAlloc && NewLockedAllocationResLevel > Lumen::MinResLevel)
-						{
-							--NewLockedAllocationResLevel;
-							bCanAlloc = LumenSceneData.IsPhysicalSpaceAvailable(Card, NewLockedAllocationResLevel, /*bSinglePage*/ false);
-						}
-
-						if (bCanAlloc)
-						{
-							const bool bLockPages = true;
-
-							LumenSceneData.ReallocVirtualSurface(Card, CardIndex, NewLockedAllocationResLevel, bLockPages);
-
-							// Map and update all pages
-							FLumenSurfaceMipMap& MipMap = Card.GetMipMap(Card.MinAllocatedResLevel);
-							for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
-							{
-								const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
-								FLumenPageTableEntry& PageTableEntry = LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
-								ensure(PageTableEntry.IsMapped());
-
-								CardPagesToRender.Add(FCardPageRenderData(
-									MainView,
-									Card,
-									PageTableEntry.CardUVRect,
-									PageTableEntry.PhysicalAtlasRect,
-									MeshCardsElement.CapturePrimitive,
-									MeshCardsElement.CaptureInstanceIndex,
-									CardIndex,
-									PageIndex));
-
-								LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
-							}
-						}
-
-						DirtyCards.Add(CardIndex);
-					}
+					HiResPagesToMap.Add(FVirtualPageIndex(Request.CardIndex, Request.ResLevel, Request.LocalPageIndex));
 				}
 			}
 		}
@@ -1286,6 +1312,167 @@ void ProcessLumenSurfaceCacheRequests(
 	}
 }
 
+void UpdateSurfaceCachePrimitives(
+	FLumenSceneData& LumenSceneData,
+	FVector LumenSceneCameraOrigin,
+	float MaxCardUpdateDistanceFromCamera)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCachePrimitives);
+
+	const int32 NumPrimitivesPerTask = FMath::Max(GLumenScenePrimitivesPerTask, 1);
+	const int32 NumTasks = FMath::DivideAndRoundUp(LumenSceneData.LumenPrimitives.Num(), GLumenScenePrimitivesPerTask);
+
+	TArray<FLumenSurfaceCacheUpdatePrimitivesTask, SceneRenderingAllocator> Tasks;
+	Tasks.Reserve(NumTasks);
+
+	for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+	{
+		Tasks.Emplace(
+			LumenSceneData.LumenPrimitives,
+			LumenSceneCameraOrigin,
+			MaxCardUpdateDistanceFromCamera,
+			TaskIndex * NumPrimitivesPerTask,
+			NumPrimitivesPerTask);
+	}
+
+	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance();
+
+	ParallelFor(Tasks.Num(),
+		[&Tasks](int32 Index)
+		{
+			Tasks[Index].AnyThreadTask();
+		},
+		!bExecuteInParallel);
+
+	TArray<FMeshCardsAdd, SceneRenderingAllocator> MeshCardsAdds;
+
+	for (int32 TaskIndex = 0; TaskIndex < Tasks.Num(); ++TaskIndex)
+	{
+		const FLumenSurfaceCacheUpdatePrimitivesTask& Task = Tasks[TaskIndex];
+		LumenSceneData.NumMeshCardsToAdd += Task.MeshCardsAdds.Num();
+
+		// Append requests to the global array
+		{
+			MeshCardsAdds.Reserve(MeshCardsAdds.Num() + Task.MeshCardsAdds.Num());
+
+			for (int32 RequestIndex = 0; RequestIndex < Task.MeshCardsAdds.Num(); ++RequestIndex)
+			{
+				MeshCardsAdds.Add(Task.MeshCardsAdds[RequestIndex]);
+			}
+		}
+
+		for (const FMeshCardsRemove& MeshCardsRemove : Task.MeshCardsRemoves)
+		{
+			FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[MeshCardsRemove.LumenPrimitiveIndex];
+			FLumenPrimitiveInstance& LumenPrimitiveInstance = LumenPrimitive.Instances[MeshCardsRemove.LumenInstanceIndex];
+
+			LumenSceneData.RemoveMeshCards(LumenPrimitive, LumenPrimitiveInstance);
+		}
+	}
+
+	if (MeshCardsAdds.Num() > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SortAdds);
+
+		struct FSortBySmallerDistance
+		{
+			FORCEINLINE bool operator()(const FMeshCardsAdd& A, const FMeshCardsAdd& B) const
+			{
+				return A.DistanceSquared < B.DistanceSquared;
+			}
+		};
+
+		MeshCardsAdds.Sort(FSortBySmallerDistance());
+	}
+
+	const int32 MeshCardsToAddPerFrame = 2 * GetMaxLumenSceneCardCapturesPerFrame();
+
+	for (int32 MeshCardsIndex = 0; MeshCardsIndex < FMath::Min(MeshCardsAdds.Num(), MeshCardsToAddPerFrame); ++MeshCardsIndex)
+	{
+		const FMeshCardsAdd& MeshCardsAdd = MeshCardsAdds[MeshCardsIndex];
+		LumenSceneData.AddMeshCards(MeshCardsAdd.LumenPrimitiveIndex, MeshCardsAdd.LumenInstanceIndex);
+	}
+}
+
+void UpdateSurfaceCacheMeshCards(
+	FLumenSceneData& LumenSceneData,
+	FVector LumenSceneCameraOrigin,
+	float MaxCardUpdateDistanceFromCamera,
+	TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMeshCards);
+
+	const int32 NumMeshCardsPerTask = FMath::Max(GLumenSceneMeshCardsPerTask, 1);
+	const int32 NumTasks = FMath::DivideAndRoundUp(LumenSceneData.MeshCards.Num(), NumMeshCardsPerTask);
+
+	TArray<FLumenSurfaceCacheUpdateMeshCardsTask, SceneRenderingAllocator> Tasks;
+	Tasks.Reserve(NumTasks);
+
+	for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+	{
+		Tasks.Emplace(
+			LumenSceneData.MeshCards,
+			LumenSceneData.Cards,
+			LumenSceneCameraOrigin,
+			MaxCardUpdateDistanceFromCamera,
+			TaskIndex * NumMeshCardsPerTask,
+			NumMeshCardsPerTask);
+	}
+
+	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance();
+
+	ParallelFor(Tasks.Num(),
+		[&Tasks](int32 Index)
+		{
+			Tasks[Index].AnyThreadTask();
+		},
+		!bExecuteInParallel);
+
+	for (int32 TaskIndex = 0; TaskIndex < Tasks.Num(); ++TaskIndex)
+	{
+		const FLumenSurfaceCacheUpdateMeshCardsTask& Task = Tasks[TaskIndex];
+		LumenSceneData.NumLockedCardsToUpdate += Task.SurfaceCacheRequests.Num();
+
+		// Append requests to the global array
+		{
+			SurfaceCacheRequests.Reserve(SurfaceCacheRequests.Num() + Task.SurfaceCacheRequests.Num());
+
+			for (int32 RequestIndex = 0; RequestIndex < Task.SurfaceCacheRequests.Num(); ++RequestIndex)
+			{
+				SurfaceCacheRequests.Add(Task.SurfaceCacheRequests[RequestIndex]);
+			}
+		}
+
+		for (int32 CardIndex : Task.CardsToHide)
+		{
+			FLumenCard& Card = LumenSceneData.Cards[CardIndex];
+
+			if (Card.bVisible)
+			{
+				LumenSceneData.RemoveCardFromAtlas(CardIndex);
+				Card.bVisible = false;
+			}
+		}
+	}
+
+	LumenSceneData.UpdateSurfaceCacheFeedback(LumenSceneCameraOrigin, SurfaceCacheRequests);
+
+	if (SurfaceCacheRequests.Num() > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SortRequests);
+
+		struct FSortBySmallerDistance
+		{
+			FORCEINLINE bool operator()(const FSurfaceCacheRequest& A, const FSurfaceCacheRequest& B) const
+			{
+				return A.Distance < B.Distance;
+			}
+		};
+
+		SurfaceCacheRequests.Sort(FSortBySmallerDistance());
+	}
+}
+
 void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
@@ -1324,7 +1511,9 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			GLumenSceneForceEvict = 0;
 		}
 
-		LumenSceneData.NumMeshCardsToAddToSurfaceCache = 0;
+		LumenSceneData.NumMeshCardsToAdd = 0;
+		LumenSceneData.NumLockedCardsToUpdate = 0;
+		LumenSceneData.NumHiResPagesToAdd = 0;
 
 		if (LumenSceneData.bDebugClearAllCachedState || bReallocateAtlas)
 		{
@@ -1342,92 +1531,18 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(FillCardPagesToRender);
 
-			TArray<FLumenSurfaceCacheUpdatePacket, SceneRenderingAllocator> Packets;
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PrepareSurfaceCacheUpdate);
-
-				const int32 NumPrimitivesPerPacket = FMath::Max(GLumenScenePrimitivesPerPacket, 1);
-				const int32 NumPackets = FMath::DivideAndRoundUp(LumenSceneData.LumenPrimitives.Num(), NumPrimitivesPerPacket);
-
-				Packets.Reserve(NumPackets);
-
-				for (int32 PacketIndex = 0; PacketIndex < NumPackets; ++PacketIndex)
-				{
-					Packets.Emplace(
-						LumenSceneData.LumenPrimitives,
-						LumenSceneData.MeshCards,
-						LumenSceneData.Cards,
-						LumenSceneCameraOrigin,
-						MaxCardUpdateDistanceFromCamera,
-						PacketIndex * NumPrimitivesPerPacket,
-						NumPrimitivesPerPacket);
-				}
-			}
-
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(RunPrepareSurfaceCacheUpdate);
-				const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance();
-
-				ParallelFor(Packets.Num(),
-					[&Packets](int32 Index)
-					{
-						Packets[Index].AnyThreadTask();
-					},
-					!bExecuteInParallel
-				);
-			}
-
 			TArray<FSurfaceCacheRequest, SceneRenderingAllocator> SurfaceCacheRequests;
 
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(PacketResults);
+			UpdateSurfaceCachePrimitives(
+				LumenSceneData,
+				LumenSceneCameraOrigin,
+				MaxCardUpdateDistanceFromCamera);
 
-				for (int32 PacketIndex = 0; PacketIndex < Packets.Num(); ++PacketIndex)
-				{
-					const FLumenSurfaceCacheUpdatePacket& Packet = Packets[PacketIndex];
-					LumenSceneData.NumMeshCardsToAddToSurfaceCache += Packet.SurfaceCacheRequests.Num();
-
-					SurfaceCacheRequests.Reserve(Packet.SurfaceCacheRequests.Num());
-
-					for (int32 RequestIndex = 0; RequestIndex < Packet.SurfaceCacheRequests.Num(); ++RequestIndex)
-					{
-						SurfaceCacheRequests.Add(Packet.SurfaceCacheRequests[RequestIndex]);
-					}
-				}
-			}
-
-			LumenSceneData.UpdateSurfaceCacheFeedback(LumenSceneCameraOrigin, SurfaceCacheRequests);
-
-			if (SurfaceCacheRequests.Num() > 0)
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(SortRequests);
-
-				struct FSortBySmallerDistance
-				{
-					FORCEINLINE bool operator()(const FSurfaceCacheRequest& A, const FSurfaceCacheRequest& B) const
-					{
-						return A.Distance < B.Distance;
-					}
-				};
-
-				SurfaceCacheRequests.Sort(FSortBySmallerDistance());
-			}
-
-			// Remove all mesh cards which became invisible
-			for (int32 PacketIndex = 0; PacketIndex < Packets.Num(); ++PacketIndex)
-			{
-				const FLumenSurfaceCacheUpdatePacket& Packet = Packets[PacketIndex];
-
-				for (int32 RemoveIndex = 0; RemoveIndex < Packet.SurfaceCacheRemoves.Num(); ++RemoveIndex)
-				{
-					const FSurfaceCacheRemove& MeshCardsRemove = Packet.SurfaceCacheRemoves[RemoveIndex];
-					FLumenPrimitive& LumenPrimitive = LumenSceneData.LumenPrimitives[MeshCardsRemove.LumenPrimitiveIndex];
-					FLumenPrimitiveInstance& LumenPrimitiveInstance = LumenPrimitive.Instances[MeshCardsRemove.LumenInstanceIndex];
-
-					LumenSceneData.RemoveMeshCards(LumenPrimitive, LumenPrimitiveInstance);
-				}
-			}
+			UpdateSurfaceCacheMeshCards(
+				LumenSceneData,
+				LumenSceneCameraOrigin,
+				MaxCardUpdateDistanceFromCamera,
+				SurfaceCacheRequests);
 
 			ProcessLumenSurfaceCacheRequests(
 				MainView,
@@ -1859,8 +1974,34 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 				InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
 
+				uint32 NumPages = 0;
+				uint32 NumDraws = 0;
+				uint32 NumInstances = 0;
+				uint32 NumTris = 0;
+
+				// Compute some stats about non Nanite meshes which are captured
+				#if RDG_EVENTS != RDG_EVENTS_NONE
+				{
+					for (FCardPageRenderData& CardPageRenderData : CardPagesToRender)
+					{
+						if (CardPageRenderData.NumMeshDrawCommands > 0)
+						{
+							NumPages += 1;
+							NumDraws += CardPageRenderData.NumMeshDrawCommands;
+
+							for (int32 DrawCommandIndex = CardPageRenderData.StartMeshDrawCommandIndex; DrawCommandIndex < CardPageRenderData.StartMeshDrawCommandIndex + CardPageRenderData.NumMeshDrawCommands; ++DrawCommandIndex)
+							{
+								const FMeshDrawCommand* MeshDrawCommand = LumenCardRenderer.MeshDrawCommands[DrawCommandIndex].MeshDrawCommand;
+								NumInstances += MeshDrawCommand->NumInstances;
+								NumTris += MeshDrawCommand->NumPrimitives * MeshDrawCommand->NumInstances;
+							}
+						}
+					}
+				}
+				#endif
+
 				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("MeshCardCapture"),
+					RDG_EVENT_NAME("MeshCardCapture Pages:%u Draws:%u Instances:%u Tris:%u", NumPages, NumDraws, NumInstances, NumTris),
 					PassParameters,
 					ERDGPassFlags::Raster,
 					[this, Scene = Scene, PrimitiveIdVertexBuffer, SharedView, &CardPagesToRender, PassParameters](FRHICommandList& RHICmdList)

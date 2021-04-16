@@ -386,6 +386,8 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCacheFeedback);
 
+	NumHiResPagesToAdd = 0;
+
 	FRHIGPUBufferReadback* ReadbackBuffer = SurfaceCacheFeedback.GetLatestReadbackBuffer();
 
 	if (ReadbackBuffer && GLumenSurfaceCacheFeedback != 0)
@@ -457,6 +459,10 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin,
 					Request.LocalPageIndex = PageIndex.LocalPageIndex;
 					Request.Distance = Distance;
 					SurfaceCacheRequests.Add(Request);
+
+					ensure(!Request.IsLockedMip());
+
+					++NumHiResPagesToAdd;
 				}
 			}
 		}
