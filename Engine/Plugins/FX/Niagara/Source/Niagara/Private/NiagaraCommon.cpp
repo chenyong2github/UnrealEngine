@@ -45,6 +45,15 @@ static FAutoConsoleVariableRef CVarMaxStatRecordedFrames(
     ECVF_Default
 );
 
+static int32 GNiagaraLogVerboseWarnings = WITH_EDITOR ? 1 : 0;
+static FAutoConsoleVariableRef CVarNiagaraLogVerboseWarnings(
+	TEXT("fx.Niagara.LogVerboseWarnings"),
+	GNiagaraLogVerboseWarnings,
+	TEXT("Enable to output more verbose warnings to the log file, these are considered dismissable warnings but may provide information when debugging.\n")
+	TEXT("Default is enabled in editor builds and disabled in non editor builds.\n"),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 FString FNiagaraTypeHelper::ToString(const uint8* ValueData, const UObject* StructOrEnum)
@@ -792,6 +801,13 @@ void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmit
 }
 
 //////////////////////////////////////////////////////////////////////////
+
+#if !NO_LOGGING
+bool FNiagaraUtilities::LogVerboseWarnings()
+{
+	return GNiagaraLogVerboseWarnings != 0;
+}
+#endif
 
 bool FNiagaraUtilities::AllowGPUParticles(EShaderPlatform ShaderPlatform)
 {

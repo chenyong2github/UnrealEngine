@@ -1094,6 +1094,13 @@ namespace FNiagaraUtilities
 		return SupportsComputeShaders(ShaderPlatform);
 	}
 
+	// When enabled log more information for the end user
+#if NO_LOGGING
+	bool LogVerboseWarnings() { return false; }
+#else
+	bool LogVerboseWarnings();
+#endif
+
 	// Whether GPU particles are currently allowed. Could change depending on config and runtime switches.
 	bool AllowGPUParticles(EShaderPlatform ShaderPlatform);
 
