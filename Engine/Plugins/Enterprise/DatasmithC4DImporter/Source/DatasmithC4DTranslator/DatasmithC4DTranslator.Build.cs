@@ -61,6 +61,11 @@ namespace UnrealBuildTool.Rules
 				PublicDefinitions.Add("_MELANGE_SDK_");
 				PrivateDependencyModuleNames.Add("MelangeSDK");
 			}
+
+			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Clang)
+			{
+				PublicDefinitions.Add("WITH_CLANG_COMPILER");
+			}
 		}
 	}
 }
