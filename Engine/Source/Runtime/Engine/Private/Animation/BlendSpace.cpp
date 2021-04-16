@@ -1676,9 +1676,16 @@ FVector UBlendSpace::FilterInput(FBlendFilter* Filter, const FVector& BlendInput
 	UpdateFilterParams(Filter);
 #endif
 	FVector FilteredBlendInput;
-	FilteredBlendInput.X = Filter->FilterPerAxis[0].UpdateAndGetFilteredData(BlendInput.X, DeltaTime);
-	FilteredBlendInput.Y = Filter->FilterPerAxis[1].UpdateAndGetFilteredData(BlendInput.Y, DeltaTime);
-	FilteredBlendInput.Z = Filter->FilterPerAxis[2].UpdateAndGetFilteredData(BlendInput.Z, DeltaTime);
+	for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+	{
+		if (BlendParameters[AxisIndex].bWrapInput)
+		{
+			Filter->FilterPerAxis[AxisIndex].WrapToValue(
+				BlendInput[AxisIndex], BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min);
+		}
+		FilteredBlendInput[AxisIndex] = Filter->FilterPerAxis[AxisIndex].UpdateAndGetFilteredData(
+			BlendInput[AxisIndex], DeltaTime);
+	}
 	return FilteredBlendInput;
 }
 

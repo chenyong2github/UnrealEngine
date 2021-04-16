@@ -142,6 +142,37 @@ void FFIRFilterTimeBased::RefreshValidFilters()
 	}
 }
 
+void FFIRFilterTimeBased::WrapToValue(float Input, float Range)
+{
+	if (Range <= 0.0f)
+	{
+		return;
+	}
+	float HalfRange = Range / 2.0f;
+
+	switch (InterpolationType)
+	{
+	case BSIT_ExponentialDecay:
+	case BSIT_SpringDamper:
+	{
+		if (FilterWindow.Num() != 0)
+		{
+			FilterWindow[0].Input = FMath::Wrap(FilterWindow[0].Input, Input - HalfRange, Input + HalfRange);
+		}
+	}
+	break;
+	default:
+	{
+		for (int32 Index = 0; Index != FilterWindow.Num() ; ++Index)
+		{
+			FilterWindow[Index].Input = FMath::Wrap(FilterWindow[Index].Input, Input - HalfRange, Input + HalfRange);
+		}
+	}
+	break;
+	}
+}
+
+
 float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime)
 {
 	if (DeltaTime > KINDA_SMALL_NUMBER)

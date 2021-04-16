@@ -146,6 +146,10 @@ public:
 
 	// This adds Input to the stack representing an update of DeltaTime, and returns the new filtered value. 
 	float UpdateAndGetFilteredData(float Input, float DeltaTime);
+
+	// Wraps the internal state by steps of Range so that it is as close as possible to Input
+	void WrapToValue(float Input, float Range);
+
 	bool IsValid() const { return WindowDuration > 0.f; }
 	float LastOutput;
 
