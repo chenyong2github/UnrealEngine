@@ -4,8 +4,11 @@
 
 #include "IRemoteControlProtocolModule.h"
 #include "IStructureDetailsView.h"
+#include "PropertyEditorModule.h"
 #include "RemoteControlProtocolBinding.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 
