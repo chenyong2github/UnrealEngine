@@ -248,12 +248,12 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, UTextureRend
 				}
 			}
 
-			//Compute blended center shift to apply on top of blended displacement map
+			//Compute blended principal point to apply on top of blended displacement map
 			FIntrinsicMapPoint InterpPoint;
 			LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
 
 			//Draw resulting displacement map for evaluation point
-			Params.CenterShift = InterpPoint.Parameters.CenterShift;
+			Params.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
 			bSuccess = LensFileRendering::DrawBlendedDisplacementMap(OutDisplacementMap
 				, Params
 				, TextureOne
@@ -264,7 +264,7 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, UTextureRend
 			//If everything has went well, update output overscan
 			if (bSuccess)
 			{
-				OutDistortionData.OverscanFactor = ComputeOverscan(BlendedData, Params.CenterShift);
+				OutDistortionData.OverscanFactor = ComputeOverscan(BlendedData, Params.PrincipalPoint);
 			}
 		}
 		else
@@ -276,7 +276,7 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, UTextureRend
 	return bSuccess;
 }
 
-float ULensFile::ComputeOverscan(const FDistortionData& DerivedData, FVector2D CenterShift) const
+float ULensFile::ComputeOverscan(const FDistortionData& DerivedData, FVector2D PrincipalPoint) const
 {
 	static const TArray<FVector2D> UndistortedUVs
 	{
@@ -301,7 +301,7 @@ float ULensFile::ComputeOverscan(const FDistortionData& DerivedData, FVector2D C
 	for (int32 Index = 0; Index < UndistortedUVs.Num(); ++Index)
 	{
 		const FVector2D& UndistortedUV = UndistortedUVs[Index];
-		const FVector2D& DistortedUV = DerivedData.DistortedUVs[Index] + (CenterShift - FVector2D(0.5f, 0.5f)) * 2.0f;
+		const FVector2D& DistortedUV = DerivedData.DistortedUVs[Index] + (PrincipalPoint - FVector2D(0.5f, 0.5f)) * 2.0f;
 		const float OverscanX = (UndistortedUV.X != 0.5f) ? (DistortedUV.X - 0.5f) / (UndistortedUV.X - 0.5f) : 1.0f;
 		const float OverscanY = (UndistortedUV.Y != 0.5f) ? (DistortedUV.Y - 0.5f) / (UndistortedUV.Y - 0.5f) : 1.0f;
 		OverscanFactors.Add(FMath::Max(OverscanX, OverscanY));

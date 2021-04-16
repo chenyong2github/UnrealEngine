@@ -29,7 +29,7 @@ class FDisplacementMapBlendPS : public FGlobalShader
 		SHADER_PARAMETER(float, DeltaMaxX)
 		SHADER_PARAMETER(float, DeltaMinY)
 		SHADER_PARAMETER(float, DeltaMaxY)
-		SHADER_PARAMETER(FVector2D, CenterShift)
+		SHADER_PARAMETER(FVector2D, PrincipalPoint)
 		SHADER_PARAMETER(FIntPoint, OutputTextureExtent)
         SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceTextureOne)
         SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SourceTextureTwo)
@@ -83,7 +83,7 @@ namespace LensFileRendering
 			PassParameters->OutputTextureExtent = OutputTexture->Desc.Extent;
 			PassParameters->SourceTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(); 
 			PassParameters->SourceTextureOne = TextureOne;
-			PassParameters->CenterShift = BlendParams.CenterShift;
+			PassParameters->PrincipalPoint = BlendParams.PrincipalPoint;
 
 			//Setup parameters based on blending type
 			FDisplacementMapBlendPS::FPermutationDomain PermutationVector;

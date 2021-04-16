@@ -9,8 +9,7 @@ bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
 {
 	return ((DistortionInfo.Parameters == Other.DistortionInfo.Parameters)
 		&& (PrincipalPoint == Other.PrincipalPoint)
- 		&& (SensorDimensions == Other.SensorDimensions)
- 		&& (FocalLength == Other.FocalLength));
+ 		&& (FxFy == Other.FxFy));
 	return false;
 }
 
@@ -36,26 +35,6 @@ void ULensDistortionModelHandlerBase::Update(const FLensDistortionState& InNewSt
 	UpdateInternal(InNewState);
 }
 
-void ULensDistortionModelHandlerBase::UpdateCameraSettings(FVector2D InSensorDimensions, float InFocalLength)
-{
-	// Will need to revisit this init logic once we move to arbitrary lens model support 
-	if (!DistortionPostProcessMID || !DisplacementMapMID)
-	{
-		InitDistortionMaterials();
-	}
-
-	// Check for duplicate updates. If the new camera settings are equivalent to the current camera settings, there is nothing to update. 
-	if ((CurrentState.SensorDimensions == InSensorDimensions) && (CurrentState.FocalLength == InFocalLength))
-	{
-		return;
-	}
-
-	CurrentState.SensorDimensions = InSensorDimensions;
-	CurrentState.FocalLength = InFocalLength;
-
-	UpdateInternal(CurrentState);
-}
-
 void ULensDistortionModelHandlerBase::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -75,7 +54,7 @@ void ULensDistortionModelHandlerBase::PostInitProperties()
 		}
 
 		DisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortedUVDisplacementMap")));
-		DisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+		DisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
 		DisplacementMapRT->ClearColor = FLinearColor::Gray;
 		DisplacementMapRT->bAutoGenerateMips = false;
 		DisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);

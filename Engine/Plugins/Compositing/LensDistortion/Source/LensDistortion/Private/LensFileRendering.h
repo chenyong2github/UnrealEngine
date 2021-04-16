@@ -31,8 +31,8 @@ struct FDisplacementMapBlendingParams
 	float DeltaMinY = 0.0f;
 	float DeltaMaxY = 0.0f;
 
-	/** Center shift parameter to offset resulting map */
-	FVector2D CenterShift = { 0.5f, 0.5f };
+	/** Image center parameter to compute center shift needed to offset resulting map */
+	FVector2D PrincipalPoint = { 0.5f, 0.5f };
 };
 
 namespace LensFileRendering

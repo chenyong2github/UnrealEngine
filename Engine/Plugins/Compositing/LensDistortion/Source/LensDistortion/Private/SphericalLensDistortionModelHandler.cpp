@@ -14,14 +14,13 @@ void USphericalLensDistortionModelHandler::InitializeHandler()
 FVector2D USphericalLensDistortionModelHandler::ComputeDistortedUV(const FVector2D& InUndistortedUV) const
 {
 	// These distances cannot be zero in real-life. If they are, the current distortion state must be bad
-	if ((CurrentState.FocalLength == 0) || (CurrentState.SensorDimensions.X == 0) | (CurrentState.SensorDimensions.Y == 0))
+	if ((CurrentState.FxFy.X == 0.0f) || (CurrentState.FxFy.Y == 0.0f))
 	{
 		return InUndistortedUV;
 	}
 
-	const FVector2D NormalizedFocalLength = FVector2D(CurrentState.FocalLength, CurrentState.FocalLength) / CurrentState.SensorDimensions;
-
-	FVector2D NormalizedDistanceFromImageCenter = (InUndistortedUV - CurrentState.PrincipalPoint) / NormalizedFocalLength;
+	FVector2D NormalizedDistanceFromImageCenter = (InUndistortedUV - CurrentState.PrincipalPoint) / CurrentState.FxFy;
+	const FVector2D OriginalDistance = NormalizedDistanceFromImageCenter;
 
 	// Iterative approach to distort an undistorted UV using coefficients that were designed to undistort
 	for (int32 Index = 0; Index < 2; ++Index)
@@ -45,11 +44,11 @@ FVector2D USphericalLensDistortionModelHandler::ComputeDistortedUV(const FVector
 		}
 		else
 		{
-			NormalizedDistanceFromImageCenter = (NormalizedDistanceFromImageCenter - TangentialDistortion) / RadialDistortion;
+			NormalizedDistanceFromImageCenter = (OriginalDistance - TangentialDistortion) / RadialDistortion;
 		}
 	}
 
-	const FVector2D DistortedUV = (NormalizedDistanceFromImageCenter * NormalizedFocalLength) + FVector2D(0.5f, 0.5f);
+	const FVector2D DistortedUV = (NormalizedDistanceFromImageCenter * CurrentState.FxFy) + FVector2D(0.5f, 0.5f);
 	return DistortedUV;
 }
 
@@ -77,10 +76,6 @@ void USphericalLensDistortionModelHandler::UpdateMaterialParameters()
 	// Update the material parameters
 	if (DisplacementMapMID)
 	{
-		DisplacementMapMID->SetScalarParameterValue("sensor_w_mm", CurrentState.SensorDimensions.X);
-		DisplacementMapMID->SetScalarParameterValue("sensor_h_mm", CurrentState.SensorDimensions.Y);
-		DisplacementMapMID->SetScalarParameterValue("fl_mm", CurrentState.FocalLength);
-
 		DisplacementMapMID->SetScalarParameterValue("k1", SphericalParameters.K1);
 		DisplacementMapMID->SetScalarParameterValue("k2", SphericalParameters.K2);
 		DisplacementMapMID->SetScalarParameterValue("k3", SphericalParameters.K3);
@@ -90,7 +85,8 @@ void USphericalLensDistortionModelHandler::UpdateMaterialParameters()
 		DisplacementMapMID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
 		DisplacementMapMID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
 
-		DisplacementMapMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
+		DisplacementMapMID->SetScalarParameterValue("fx", CurrentState.FxFy.X);
+		DisplacementMapMID->SetScalarParameterValue("fy", CurrentState.FxFy.Y);
 	}
 
 	if (DistortionPostProcessMID)
