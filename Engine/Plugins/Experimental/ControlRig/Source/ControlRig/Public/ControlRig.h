@@ -200,7 +200,7 @@ public:
 			DynamicHierarchy = nullptr;
 		}
 		
-		if(DynamicHierarchy == nullptr)
+		if(DynamicHierarchy == nullptr && !IsGarbageCollecting())
 		{
 			DynamicHierarchy = NewObject<URigHierarchy>(this);
 			if (!HasAnyFlags(RF_ClassDefaultObject))

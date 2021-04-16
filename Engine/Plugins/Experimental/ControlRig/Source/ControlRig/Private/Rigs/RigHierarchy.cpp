@@ -1046,10 +1046,13 @@ URigHierarchyController* URigHierarchy::GetController(bool bCreateIfNeeded)
 	{
 		if(UObject* Outer = GetOuter())
 		{
-			URigHierarchyController* Controller = NewObject<URigHierarchyController>(Outer);
-			Controller->SetHierarchy(this);
-			LastControllerPtr = Controller;
-			return Controller;
+			if(!IsGarbageCollecting())
+			{
+				URigHierarchyController* Controller = NewObject<URigHierarchyController>(Outer);
+				Controller->SetHierarchy(this);
+				LastControllerPtr = Controller;
+				return Controller;
+			}
 		}
 	}
 	return nullptr;
