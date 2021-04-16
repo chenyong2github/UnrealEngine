@@ -32,13 +32,7 @@ protected:
 	/** Updates the port from the output port config customized here */
 	void UpdatePort();
 
-	/** Called when the communication type changed */
-	void OnCommunicationTypeChanged();
-
 private:
-	/** Handle for the bLoopbackToEngine property */
-	TSharedPtr<IPropertyHandle> LoopbackToEngineHandle;
-
 	/** Handle for the customized FDMXOutputPortConfig struct */
 	TSharedPtr<IPropertyHandle> StructPropertyHandle;
 };

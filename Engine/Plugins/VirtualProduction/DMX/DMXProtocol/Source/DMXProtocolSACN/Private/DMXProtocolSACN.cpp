@@ -155,7 +155,7 @@ TSharedPtr<IDMXSender> FDMXProtocolSACN::RegisterOutputPort(const TSharedRef<FDM
 	TSharedPtr<FDMXProtocolSACNSender> Sender;
 	if (!Sender.IsValid())
 	{
-		if (CommunicationType == EDMXCommunicationType::Broadcast)
+		if (CommunicationType == EDMXCommunicationType::Multicast)
 		{
 			Sender = FindExistingMulticastSender(NetworkInterfaceAddress);
 			
@@ -225,7 +225,7 @@ void FDMXProtocolSACN::UnregisterOutputPort(const TSharedRef<FDMXOutputPort, ESP
 
 bool FDMXProtocolSACN::IsCausingLoopback(EDMXCommunicationType InCommunicationType)
 {
-	return false;
+	return InCommunicationType == EDMXCommunicationType::Multicast;
 }
 
 TSharedPtr<FDMXProtocolSACNSender> FDMXProtocolSACN::FindExistingMulticastSender(const FString& NetworkInterfaceAddress) const

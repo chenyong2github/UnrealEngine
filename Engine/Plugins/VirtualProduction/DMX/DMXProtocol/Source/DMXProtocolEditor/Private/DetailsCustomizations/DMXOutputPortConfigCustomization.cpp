@@ -35,12 +35,6 @@ void FDMXOutputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHa
 
 	StructPropertyHandle = InStructPropertyHandle;
 
-	// Handle property changes of the communication type, to set bLookbackToEngine according to if the protocol IsCausingLoopback 
-	LoopbackToEngineHandle = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, bLoopbackToEngine));
-
-	FSimpleDelegate OnCommunicationTypeChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged);
-	StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXOutputPortConfig, CommunicationType))->SetOnPropertyValueChanged(OnCommunicationTypeChangedDelegate);
-
 	// Update corresponding port on property changes
 	FSimpleDelegate UpdatePortDelegate = FSimpleDelegate::CreateSP(this, &FDMXOutputPortConfigCustomization::UpdatePort);
 	StructPropertyHandle->SetOnChildPropertyValueChanged(UpdatePortDelegate);
@@ -94,17 +88,6 @@ void FDMXOutputPortConfigCustomization::UpdatePort()
 			}
 		}
 	}
-}
-
-void FDMXOutputPortConfigCustomization::OnCommunicationTypeChanged()
-{
-	check(LoopbackToEngineHandle.IsValid());
-
-	EDMXCommunicationType CommunicationType = GetCommunicationType();
-	IDMXProtocolPtr Protocol = GetProtocolChecked();
-	bool bCommunicationTypeCausesExternalLoopback = Protocol->IsCausingLoopback(CommunicationType);
-
-	LoopbackToEngineHandle->SetValue(!bCommunicationTypeCausesExternalLoopback);
 }
 
 #undef LOCTEXT_NAMESPACE
