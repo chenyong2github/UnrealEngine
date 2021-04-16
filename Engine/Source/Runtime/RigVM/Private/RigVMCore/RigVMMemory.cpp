@@ -115,8 +115,10 @@ bool FRigVMRegisterOffset::Serialize(FArchive& Ar)
 			{
 				CachedSegmentPath = SegmentPath;
 			}
-			else if (ParentScriptStruct != nullptr && !SegmentPath.IsEmpty())
+			else if (ParentScriptStruct != nullptr)
 			{
+				// if segment path is empty, it implies that the register offset refers to an element in a struct array
+				// so segments also need to be recalculated
 				int32 InitialOffset = ArrayIndex * ParentScriptStruct->GetStructureSize();
 				FRigVMRegisterOffset TempOffset(ParentScriptStruct, SegmentPath, InitialOffset, ElementSize);
 				if (TempOffset.GetSegments().Num() == Segments.Num())
@@ -291,7 +293,8 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 
 	Segments.Add(InInitialOffset);
 
-	if (!InSegmentPath.IsEmpty() || InScriptStruct != nullptr)
+	// if segment path is not empty, it implies that the register offset refers to a sub-property in a struct pin
+	if (!InSegmentPath.IsEmpty())
 	{
 		ensure(!InSegmentPath.IsEmpty());
 		check(InScriptStruct)
@@ -309,6 +312,16 @@ FRigVMRegisterOffset::FRigVMRegisterOffset(UScriptStruct* InScriptStruct, const 
 			{
 				Type = ERigVMRegisterType::String;
 			}
+		}
+	}
+	else
+	{
+		// if segment path is empty, it implies that the register offset refers to an element in a struct array
+		if (ParentScriptStruct)
+		{
+			ScriptStruct = ParentScriptStruct;
+			Type = ERigVMRegisterType::Struct;
+			CPPType = *ScriptStruct->GetStructCPPName();
 		}
 	}
 
@@ -568,6 +581,25 @@ bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 				}
 			}
 			UpdateRegisters();
+
+			for (int32 RegisterOffsetIndex = 0; RegisterOffsetIndex < RegisterOffsets.Num(); RegisterOffsetIndex++)
+			{
+				FRigVMRegisterOffset& RegisterOffset = RegisterOffsets[RegisterOffsetIndex];
+
+				UScriptStruct* ScriptStruct = RegisterOffset.GetScriptStruct();
+				if (ScriptStruct)
+				{
+					RegisterOffset.SetElementSize(ScriptStruct->GetStructureSize());
+				}
+				if (RegisterOffset.GetType() == ERigVMRegisterType::Name)
+				{
+					RegisterOffset.SetElementSize(sizeof(FName));
+				}
+				else if (RegisterOffset.GetType() == ERigVMRegisterType::String)
+				{
+					RegisterOffset.SetElementSize(sizeof(FString));
+				}
+			}
 
 			// once the register memory is allocated we can construt its contents.
 			for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
@@ -1600,7 +1632,7 @@ int32 FRigVMMemoryContainer::GetOrAddRegisterOffset(int32 InRegisterIndex, UScri
 		InElementSize = (int32)Registers[InRegisterIndex].ElementSize;
 	}
 
-	FRigVMRegisterOffset Offset(InSegmentPath.IsEmpty() ? nullptr : InScriptStruct, InSegmentPath, InInitialOffset, InElementSize);
+	FRigVMRegisterOffset Offset(InScriptStruct, InSegmentPath, InInitialOffset, InElementSize);
 	int32 ExistingIndex = RegisterOffsets.Find(Offset);
 	if (ExistingIndex == INDEX_NONE)
 	{
