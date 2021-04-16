@@ -92,7 +92,6 @@ UObjectBase* FUObjectAllocator::AllocateUObject(int32 Size, int32 Alignment, boo
  */
 void FUObjectAllocator::FreeUObject(UObjectBase *Object) const
 {
-	check(!IsLoading());
 	check(Object);
 	// Only free memory if it was allocated directly from allocator and not from permanent object pool.
 	if( ResidesInPermanentPool(Object) == false )
