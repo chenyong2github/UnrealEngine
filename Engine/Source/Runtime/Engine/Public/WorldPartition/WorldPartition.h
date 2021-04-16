@@ -93,6 +93,8 @@ private:
 		
 	void FlushStreaming();
 
+	void OnGCPostReachabilityAnalysis();
+
 	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnPrePIEEnded(bool bWasSimulatingInEditor);
