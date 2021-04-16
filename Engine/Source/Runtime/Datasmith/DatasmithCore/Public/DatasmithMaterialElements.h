@@ -133,7 +133,7 @@ public:
 	virtual void SetUTiling( float InUTiling ) = 0;
 
 	virtual float GetVTiling() const = 0;
-	virtual void SetVTiling( float InCoordinateIndex ) = 0;
+	virtual void SetVTiling( float InVTiling ) = 0;
 };
 
 class IDatasmithMaterialExpressionFlattenNormal : public IDatasmithMaterialExpression
