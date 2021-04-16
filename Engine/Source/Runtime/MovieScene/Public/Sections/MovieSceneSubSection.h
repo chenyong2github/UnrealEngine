@@ -50,7 +50,7 @@ public:
 	 * @return The sequence.
 	 * @see SetSequence
 	 */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	UMovieSceneSequence* GetSequence() const;
 
 	/**
@@ -91,7 +91,7 @@ public:
 	 * @param Sequence The sequence to play.
 	 * @see GetSequence
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetSequence(UMovieSceneSequence* Sequence);
 
 	/** Prime this section as the one and only recording section */

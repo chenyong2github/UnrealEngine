@@ -30,7 +30,7 @@ public:
 	 * @param TimeUnit	Should the time be returned in Display Rate frames (possibly with a sub-frame value) or in Tick Resolution with no sub-frame values?
 	 * @return			The time of this key which combines both the frame number and the sub-frame it is on. Sub-frame will be zero if you request Tick Resolution.	
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Time (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Get Time (Object Path)"))
 	virtual FFrameTime GetTime(ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) const override { return GetTimeFromChannel(KeyHandle, OwningSequence, TimeUnit); }
 	
 	/**
@@ -39,14 +39,14 @@ public:
 	 * @param SubFrame		If using Display Rate time, what is the sub-frame this should go to? Clamped [0-1), and ignored with when TimeUnit is set to Tick Resolution. 
 	 * @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Time (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Set Time (Object Path)"))
 	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	 * Gets the value for this key from the owning channel.
 	 * @return	The object for this key.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Value (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Get Value (Object Path)"))
 	UObject* GetValue() const
 	{
 		FMovieSceneObjectPathChannelKeyValue Value = GetValueFromChannel(KeyHandle);
@@ -57,7 +57,7 @@ public:
 	 * Sets the value for this key, reflecting it in the owning channel.
 	 * @param InNewValue	The new object for this key.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Value (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Set Value (Object Path)"))
 	void SetValue(UObject* InNewValue)
 	{
 		FMovieSceneObjectPathChannelKeyValue ReferenceKey = FMovieSceneObjectPathChannelKeyValue(InNewValue);
@@ -78,7 +78,7 @@ public:
 	 * @param	TimeUnit 		Is the specified InTime in Display Rate frames or Tick Resolution.
 	 * @return	The key that was created with the specified values at the specified time.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Add Key (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Add Key (Object Path)"))
 	UMovieSceneScriptingObjectPathKey* AddKey(const FFrameNumber InTime, UObject* NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate)
 	{
 		FMovieSceneObjectPathChannelKeyValue ReferenceKey = FMovieSceneObjectPathChannelKeyValue(NewValue);
@@ -88,7 +88,7 @@ public:
 	/**
 	 * Removes the specified key. Does nothing if the key is not specified or the key belongs to another channel.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Remove Key (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Remove Key (Object Path)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
 		RemoveKeyFromChannel(ChannelHandle, Key);
@@ -99,7 +99,7 @@ public:
 	 * @return	An array of UMovieSceneScriptingObjectPathKey contained by this channel.
 	 *			Returns all keys even if clipped by the owning section's boundaries or outside of the current sequence play range.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Keys (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Get Keys (Object Path)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
 		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
@@ -109,7 +109,7 @@ public:
 	 * Set this channel's default value that should be used when no keys are present.
 	 * Sets bHasDefaultValue to true automatically.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Default (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Set Default (Object Path)"))
 	void SetDefault(UObject* InDefaultValue)
 	{
 		FMovieSceneObjectPathChannel* Channel = ChannelHandle.Get();
@@ -135,7 +135,7 @@ public:
 	 * Get this channel's default value that will be used when no keys are present. Only a valid
 	 * value when HasDefault() returns true.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Default (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Get Default (Object Path)"))
 	UObject* GetDefault() const
 	{
 		// FMovieSceneObjectPathChannelKeyValue doesn't implement GetDefault via TOptional, so we're wrapping this function by hand as well.
@@ -153,7 +153,7 @@ public:
 	/**
 	 * Remove this channel's default value causing the channel to have no effect where no keys are present
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Remove Default (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Remove Default (Object Path)"))
 	void RemoveDefault()
 	{
 		// FMovieSceneObjectPathChannelKeyValue doesn't implement RemoveDefault, instead it implements ClearDefault(). Wrapping this function by hand,
@@ -170,7 +170,7 @@ public:
 	/**
 	* @return Does this channel have a default value set?
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Has Default (Object Path)"))
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene | Keys", meta = (DisplayName = "Has Default (Object Path)"))
 	bool HasDefault() const
 	{
 		return GetDefault() != nullptr;

@@ -36,16 +36,16 @@ class MOVIESCENETRACKS_API UMovieSceneLevelVisibilitySection
 
 public:
 
-	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	ELevelVisibility GetVisibility() const;
 
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetVisibility(ELevelVisibility InVisibility);
 
-	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const TArray<FName>& GetLevelNames() const { return LevelNames; }
 
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetLevelNames(const TArray<FName>& InLevelNames) { LevelNames = InLevelNames; }
 
 private:

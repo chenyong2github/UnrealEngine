@@ -171,29 +171,29 @@ public:
 	void AddFixturePatch(UDMXEntityFixturePatch* InPatch);
 
 	/** Adds all patches to the secion */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void AddFixturePatches(const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs);
 
 	/** Remove all Functions of a Fixture Patch */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void RemoveFixturePatch(UDMXEntityFixturePatch* InPatch);
 
 	/** Remove all Functions of a Fixture Patch, searching it by name */
 	void RemoveFixturePatch(const FName& InPatchName);
 	
 	/** Check if this Section animates a Fixture Patch's Functions */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool ContainsFixturePatch(UDMXEntityFixturePatch* InPatch) const;
 
 	/** Sets the active mode for a Fixture Patch */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetFixturePatchActiveMode(UDMXEntityFixturePatch* InPatch, int32 InActiveMode);
 
 	/**
 	 * Toggle the visibility and evaluation of a Fixture Patch's Function.
 	 * When invisible, the Function won't send its data to DMX Protocol.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void ToggleFixturePatchChannel(UDMXEntityFixturePatch* InPatch, int32 InChannelIndex);
 
 	/**
@@ -204,18 +204,18 @@ public:
 	void ToggleFixturePatchChannel(const FName& InPatchName, const FName& InChannelName);
 
 	/** Returns whether a Fixture Patch's Function curve channel is currently enabled */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	bool GetFixturePatchChannelEnabled(UDMXEntityFixturePatch* InPatch, int32 InChannelIndex) const;
 
 	/** Get a list of the Fixture Patches being animated by this Section */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	TArray<UDMXEntityFixturePatch*> GetFixturePatches() const;
 
 	/** Returns the channel for specified patch or nullptr if the patch is not in use */
 	FDMXFixturePatchChannel* GetPatchChannel(UDMXEntityFixturePatch* Patch);
 
 	/** Get the list of animated Fixture Patches and their curve channels */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	int32 GetNumPatches() const { return FixturePatchChannels.Num(); }
 
 	const TArray<FDMXFixturePatchChannel>& GetFixturePatchChannels() const { return FixturePatchChannels; }
