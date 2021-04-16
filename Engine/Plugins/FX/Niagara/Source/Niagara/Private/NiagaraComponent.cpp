@@ -934,6 +934,16 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 
 void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScalabilityCull)
 {
+	// Handle component ticking correct
+	struct FScopedComponentTickEnabled
+	{
+		FScopedComponentTickEnabled(UNiagaraComponent* InComponent) : Component(InComponent) {}
+		~FScopedComponentTickEnabled() { Component->SetComponentTickEnabled(bTickEnabled); }
+		UNiagaraComponent* Component = nullptr;
+		bool bTickEnabled = false;
+	};
+	FScopedComponentTickEnabled ScopedComponentTickEnabled(this);
+
 	bAwaitingActivationDueToNotReady = false;
 
 	// Reset our local bounds on reset
@@ -957,7 +967,6 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		{
 			UE_LOG(LogNiagara, Warning, TEXT("Failed to activate Niagara Component due to missing or invalid asset! (%s)"), *GetFullName());
 		}
-		SetComponentTickEnabled(false);
 		return;
 	}
 
@@ -1003,7 +1012,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	{
 		bAwaitingActivationDueToNotReady = true;
 		bActivateShouldResetWhenReady = bReset;
-		SetComponentTickEnabled(true);
+		ScopedComponentTickEnabled.bTickEnabled = true;
 		return;
 	}
 
@@ -1037,9 +1046,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		return;
 	}
 
-	Super::Activate(bReset);
-
-	//UE_LOG(LogNiagara, Log, TEXT("Activate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
+	// We can't call 'Super::Activate(bReset);' as this will enable the component tick
+	if (bReset || ShouldActivate() == true)
+	{
+		SetActiveFlag(true);
+		OnComponentActivated.Broadcast(this, bReset);
+	}
 	
 	// Auto attach if requested
 	const bool bWasAutoAttached = bDidAutoAttach;
@@ -1108,12 +1120,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 		PrimaryComponentTick.TickGroup = FMath::Max(GNiagaraSoloTickEarly ? TG_PrePhysics : TG_DuringPhysics, SoloTickGroup);
 		PrimaryComponentTick.EndTickGroup = GNiagaraSoloAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : ETickingGroup(PrimaryComponentTick.TickGroup);
 
-		/** We only need to tick the component if we require solo mode. */
-		SetComponentTickEnabled(true);
-	}
-	else
-	{
-		SetComponentTickEnabled(false);
+		// Solo instances require the component tick to be enabled
+		ScopedComponentTickEnabled.bTickEnabled = true;
 	}
 }
 
