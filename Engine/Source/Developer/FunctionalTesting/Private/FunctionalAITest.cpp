@@ -86,7 +86,7 @@ void AFunctionalAITestBase::StartTest()
 
 bool AFunctionalAITestBase::IsReady_Implementation()
 {
-	return Super::IsReady_Implementation() && IsNavMeshReady();
+	return Super::IsReady_Implementation() && (bWaitForNavMesh == false || IsNavMeshReady());
 }
 
 void AFunctionalAITestBase::OnTimeout()
