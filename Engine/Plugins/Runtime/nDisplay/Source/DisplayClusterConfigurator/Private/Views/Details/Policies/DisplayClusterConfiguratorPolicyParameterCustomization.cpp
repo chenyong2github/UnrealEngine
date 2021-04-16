@@ -46,7 +46,6 @@ FPolicyParameterInfo::FPolicyParameterInfo(
 	ConfigurationViewportPtr = InConfigurationViewport;
 
 	BlueprintEditorPtrCached = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(InBlueprint);
-	check(BlueprintEditorPtrCached);
 
 	if (InInitialValue)
 	{
@@ -171,8 +170,14 @@ FPolicyParameterInfoComponentCombo::FPolicyParameterInfoComponentCombo(
 	TSubclassOf<UActorComponent> InComponentClass) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, {}, nullptr)
 {
 	ComponentType = InComponentClass;
-	ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(BlueprintEditorPtrCached->GetPreviewActor());
-	CreateParameterValues(RootActor);
+	if (BlueprintEditorPtrCached)
+	{
+		// BlueprintEditorPtrCached can be null when remote control is interfacing with the world instance details panel. At this stage
+		// there isn't a blueprint editor available. Normally this customization is hidden here but remote control seems to trigger it.
+		
+		ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(BlueprintEditorPtrCached->GetPreviewActor());
+		CreateParameterValues(RootActor);
+	}
 }
 
 void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRootActor* RootActor)

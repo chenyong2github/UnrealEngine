@@ -50,19 +50,23 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 		TArray<TWeakObjectPtr<UObject>> ObjectsBeingEdited = InLayoutBuilder.GetSelectedObjects();
 		check(ObjectsBeingEdited.Num() > 0);
 		ObjectBeingEdited = ObjectsBeingEdited[0].Get();
-
-		if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(ObjectBeingEdited))
+		
+		for (UObject* Owner = ObjectBeingEdited; Owner; Owner = Owner->GetOuter())
 		{
-			RootActorPtr = RootActor;
-			check(RootActorPtr.IsValid());
+			if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Owner))
+			{
+				RootActorPtr = RootActor;
+				break;
+			}
 		}
 	}
 	
 	if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited))
 	{
 		ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(BPEditor->AsShared());
-		check(ToolkitPtr.IsValid());
 	}
+
+	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
 	
 	LayoutBuilder = &InLayoutBuilder;
 	NDisplayCategory = &LayoutBuilder->EditCategory("nDisplay", FText::GetEmpty());
