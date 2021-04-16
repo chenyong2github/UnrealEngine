@@ -34,14 +34,6 @@ TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
 	ECVF_RenderThreadSafe
 );
 
-
-TAutoConsoleVariable<int32> CVarPathTracingUseErrorDiffusion(
-	TEXT("r.PathTracing.UseErrorDiffusion"),
-	0,
-	TEXT("Enables an experimental sampler that diffuses visible error in screen space. This generally produces better results when the target sample count can be reached. (default = 0 (disabled))"),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	TEXT("r.PathTracing.MISMode"),
 	2,
@@ -98,10 +90,10 @@ TAutoConsoleVariable<int32> CVarPathTracingApproximateCaustics(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarPathTracingSkipEmissive(
-	TEXT("r.PathTracing.SkipEmissive"),
-	0,
-	TEXT("When non-zero, the path tracer will skip emissive results after the first bounce. (default = 0 (off))"),
+TAutoConsoleVariable<int32> CVarPathTracingEnableEmissive(
+	TEXT("r.PathTracing.EnableEmissive"),
+	-1,
+	TEXT("Indicates if emissive materials should contribute to scene lighting (default = -1 (inherit from PostProcessVolume)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -121,12 +113,14 @@ TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarPathTracingCoherentSampling(
-	TEXT("r.PathTracing.CoherentSampling"),
-	0,
-	TEXT("When non-zero, share pixel seeds to improve coherence of execution on the GPU. This trades some correlation across the image in exchange for better performance.\n")
-	TEXT("0: off (default)\n")
-	TEXT("1: on\n"),
+// See PATHTRACER_SAMPLER_* defines
+TAutoConsoleVariable<int32> CVarPathTracingSamplerType(
+	TEXT("r.PathTracing.SamplerType"),
+	PATHTRACER_SAMPLER_DEFAULT,
+	TEXT("Controls the way the path tracer generates its random numbers\n")
+	TEXT("0: use a different high quality random sequence per pixel\n")
+	TEXT("1: optimize the random sequence across pixels to lower error at the target sample count\n")
+	TEXT("2: share random seeds across pixels to improve coherence of execution on the GPU. This trades some correlation across the image in exchange for better performance.\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -183,15 +177,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, Iteration)
 	SHADER_PARAMETER(uint32, TemporalSeed)
 	SHADER_PARAMETER(uint32, MaxSamples)
-	SHADER_PARAMETER(uint32, UseErrorDiffusion)
 	SHADER_PARAMETER(uint32, MaxBounces)
 	SHADER_PARAMETER(uint32, MaxSSSBounces)
 	SHADER_PARAMETER(uint32, MISMode)
 	SHADER_PARAMETER(uint32, ApproximateCaustics)
 	SHADER_PARAMETER(uint32, EnableCameraBackfaceCulling)
-	SHADER_PARAMETER(uint32, SkipDirectLighting)
-	SHADER_PARAMETER(uint32, SkipEmissive)
-	SHADER_PARAMETER(uint32, CoherentSampling)
+	SHADER_PARAMETER(uint32, EnableDirectLighting)
+	SHADER_PARAMETER(uint32, EnableEmissive)
+	SHADER_PARAMETER(uint32, SamplerType)
 	SHADER_PARAMETER(uint32, VisualizeLightGrid)
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
@@ -201,7 +194,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
-	PathTracingData.SkipDirectLighting = false;
+	PathTracingData.EnableDirectLighting = true;
 	int32 MaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
 	if (MaxBounces < 0)
 	{
@@ -217,7 +210,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 	else
 	{
-		PathTracingData.SkipDirectLighting = true;
+		PathTracingData.EnableDirectLighting = false;
 		if (View.Family->EngineShowFlags.GlobalIllumination)
 		{
 			// skip direct lighting, but still do the full bounces
@@ -235,11 +228,16 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
 	uint32 VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
-	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
+	if (PathTracingData.MaxPathIntensity <= 0)
+	{
+		// no clamping required - set to an impossible value
+		PathTracingData.MaxPathIntensity = std::numeric_limits<float>::infinity();
+	}
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
-	PathTracingData.CoherentSampling = CVarPathTracingCoherentSampling.GetValueOnRenderThread();
-	PathTracingData.SkipEmissive = CVarPathTracingSkipEmissive.GetValueOnRenderThread();
+	PathTracingData.SamplerType = CVarPathTracingSamplerType.GetValueOnRenderThread();
+	int32 EnableEmissive = CVarPathTracingEnableEmissive.GetValueOnRenderThread();
+	PathTracingData.EnableEmissive = EnableEmissive < 0 ? View.FinalPostProcessSettings.PathTracingEnableEmissive : EnableEmissive;
 	PathTracingData.VisualizeLightGrid = CVarPathTracingLightGridVisualize.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
@@ -292,14 +290,6 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 		PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
 	}
 
-	// Changing sampler requires starting over
-	static uint32 PreviousUseErrorDiffusion = PathTracingData.UseErrorDiffusion;
-	if (PreviousUseErrorDiffusion != PathTracingData.UseErrorDiffusion)
-	{
-		NeedInvalidation = true;
-		PreviousUseErrorDiffusion = PathTracingData.UseErrorDiffusion;
-	}
-
 	// Changing approximate caustics requires starting over
 	static uint32 PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
 	if (PreviousApproximateCaustics != PathTracingData.ApproximateCaustics)
@@ -324,28 +314,28 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 		PreviousBackfaceCulling = PathTracingData.EnableCameraBackfaceCulling;
 	}
 
-	// Changing direct lighting skipping requires starting over
-	static uint32 PreviousSkipDirectLighting = PathTracingData.SkipDirectLighting;
-	if (PreviousSkipDirectLighting != PathTracingData.SkipDirectLighting)
+	// Changing direct lighting requires starting over
+	static uint32 PreviousEnableDirectLighting = PathTracingData.EnableDirectLighting;
+	if (PreviousEnableDirectLighting != PathTracingData.EnableDirectLighting)
 	{
 		NeedInvalidation = true;
-		PreviousSkipDirectLighting = PathTracingData.SkipDirectLighting;
+		PreviousEnableDirectLighting = PathTracingData.EnableDirectLighting;
 	}
 
-	// Changing skip emissive requires starting over
-	static uint32 PreviousSkipEmissive = PathTracingData.SkipEmissive;
-	if (PreviousSkipEmissive != PathTracingData.SkipEmissive)
+	// Changing enable emissive requires starting over
+	static uint32 PreviousEnableEmissive = PathTracingData.EnableEmissive;
+	if (PreviousEnableEmissive != PathTracingData.EnableEmissive)
 	{
 		NeedInvalidation = true;
-		PreviousSkipEmissive = PathTracingData.SkipEmissive;
+		PreviousEnableEmissive = PathTracingData.EnableEmissive;
 	}
 
-	// Changing coherent sampling requires starting over
-	static uint32 PreviousCoherentSampling = PathTracingData.CoherentSampling;
-	if (PreviousCoherentSampling != PathTracingData.CoherentSampling)
+	// Changing sampler type requires starting over
+	static uint32 PreviousSamplerType = PathTracingData.SamplerType;
+	if (PreviousSamplerType != PathTracingData.SamplerType)
 	{
 		NeedInvalidation = true;
-		PreviousCoherentSampling = PathTracingData.CoherentSampling;
+		PreviousSamplerType = PathTracingData.SamplerType;
 	}
 
 	// Changing visualization mode requires starting over
@@ -1267,7 +1257,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PassParameters->PathTracingData = PathTracingData;
 		// upload sky/lights data
 		SetLightParameters(GraphBuilder, PassParameters, Scene, View, UseMISCompensation);
-		if (PathTracingData.SkipDirectLighting)
+		if (PathTracingData.EnableDirectLighting == 0)
 		{
 			PassParameters->SceneVisibleLightCount = 0;
 		}
