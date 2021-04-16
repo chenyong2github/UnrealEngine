@@ -12,7 +12,6 @@
 #include "RHIResources.h"
 #include "UniformBuffer.h"
 #include "RayGenShaderUtils.h"
-#include "PathTracingUniformBuffers.h"
 #include "SceneTextureParameters.h"
 #include "ScreenSpaceDenoise.h"
 #include "ClearQuad.h"
@@ -24,6 +23,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingDeferredMaterials.h"
 #include "RayTracingTypes.h"
+#include "PathTracingDefinitions.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),

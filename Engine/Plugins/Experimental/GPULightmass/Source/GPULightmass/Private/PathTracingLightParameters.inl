@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "RayTracingDefinitions.h"
+#include "PathTracingDefinitions.h"
+
 template<typename PassParameterType>
 void SetupPathTracingLightParameters(
 	const GPULightmass::FLightSceneRenderState& LightScene,

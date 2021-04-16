@@ -5,7 +5,6 @@
 #include "GPULightmassCommon.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
-#include "PathTracingUniformBuffers.h"
 #include "RayTracing/RayTracingSkyLight.h"
 #include "SceneView.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
