@@ -415,6 +415,10 @@ void UStaticMesh::BeginBuildInternal(FStaticMeshBuildContext* Context)
 			// Release the property now that it contains valid values to avoid game-thread stalls while we do the rest async
 			ReleaseAsyncProperty(EStaticMeshAsyncProperties::ExtendedBounds);
 		}
+		else
+		{
+			Context->bShouldComputeExtendedBounds = true;
+		}
 	}
 }
 
