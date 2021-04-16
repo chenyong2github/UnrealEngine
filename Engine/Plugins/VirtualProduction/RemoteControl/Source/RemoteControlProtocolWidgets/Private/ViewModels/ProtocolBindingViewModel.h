@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+#include "EditorUndoClient.h"
 #include "IRemoteControlProtocol.h"
 #include "RemoteControlProtocolBinding.h"
 #include "UObject/WeakFieldPtr.h"
