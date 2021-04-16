@@ -271,6 +271,23 @@ bool UMovieSceneTrack::FixRowIndices()
 	return bFixesMade;
 }
 
+bool UMovieSceneTrack::IsRowEvalDisabled(int32 RowIndex) const
+{
+	return RowsDisabled.Contains(RowIndex);
+}
+
+void UMovieSceneTrack::SetRowEvalDisabled(bool bEvalDisabled, int32 RowIndex)
+{
+	if (bEvalDisabled)
+	{
+		RowsDisabled.AddUnique(RowIndex);
+	}
+	else
+	{
+		RowsDisabled.Remove(RowIndex);
+	}
+}
+
 FGuid UMovieSceneTrack::FindObjectBindingGuid() const
 {
 	const UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();

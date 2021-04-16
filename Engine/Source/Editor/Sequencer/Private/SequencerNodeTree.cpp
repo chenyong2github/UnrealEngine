@@ -308,13 +308,25 @@ TSharedRef<FSequencerFolderNode> FSequencerNodeTree::CreateOrUpdateFolder(UMovie
 	FolderNode->TreeSerialNumber = SerialNumber;
 
 	// Create the hierarchy for any child bindings
+	TArray<FGuid> ChildObjectBindingsToRemove;
 	for (const FGuid& ID : Folder->GetChildObjectBindings())
 	{
+		if (!AllBindings.Contains(ID))
+		{
+			ChildObjectBindingsToRemove.Add(ID);
+			continue;
+		}
+
 		TSharedPtr<FSequencerObjectBindingNode> Binding = FindOrCreateObjectBinding(ID, AllBindings, ChildToParentBinding, OutChildToParentMap);
 		if (Binding.IsValid())
 		{
 			OutChildToParentMap->Add(Binding.Get(), FolderNode);
 		}
+	}
+
+	for (const FGuid& ID : ChildObjectBindingsToRemove)
+	{
+		Folder->RemoveChildObjectBinding(ID);
 	}
 
 	// Create the hierarchy for any master tracks
@@ -482,36 +494,33 @@ void FSequencerNodeTree::Update()
 	OnUpdatedDelegate.Broadcast();
 }
 
-FSequencerDisplayNode* FSequencerNodeTree::GetNodeAtPath(const FString& NodePath) const
+FSequencerDisplayNode* FindNodeWithPath(FSequencerDisplayNode* InNode, const FString& NodePath)
 {
-	TArray<FString> NodePathParts;
-	int32 PathLen = NodePath.ParseIntoArray(NodePathParts, TEXT("."));
-
-	FSequencerDisplayNode* Node = &RootNode.Get();
-
-	int32 PathIdx = 0;
-	while (PathIdx < PathLen)
+	if (!InNode)
 	{
-		FString& PathPart = NodePathParts[PathIdx];
-		bool bChildFound = false;
-		for (auto ChildNode : Node->GetChildNodes())
-		{
-			if (ChildNode->GetNodeName().ToString().Equals(PathPart))
-			{
-				bChildFound = true;
-				++PathIdx;
-				Node = &ChildNode.Get();
-				break;
-			}
-		}
-		
-		if (!bChildFound)
-		{
-			return nullptr;
-		}
+		return nullptr;
 	}
 
-	return Node;
+	if (InNode->GetPathName() == NodePath)
+	{
+		return InNode;
+	}
+
+	for (TSharedRef<FSequencerDisplayNode> ChildNode: InNode->GetChildNodes())
+	{
+		FSequencerDisplayNode* FoundNode = FindNodeWithPath(&ChildNode.Get(), NodePath);
+		if (FoundNode)
+		{
+			return FoundNode;
+		}
+	}
+	return nullptr;
+}
+
+
+FSequencerDisplayNode* FSequencerNodeTree::GetNodeAtPath(const FString& NodePath) const
+{
+	return FindNodeWithPath(&RootNode.Get(), NodePath);
 }
 
 TSharedRef<ISequencerTrackEditor> FSequencerNodeTree::FindOrAddTypeEditor( UMovieSceneTrack* InTrack )
@@ -679,7 +688,7 @@ bool FSequencerNodeTree::IsTrackLevelFilterActive(const FString& LevelName) cons
 bool FSequencerNodeTree::IsNodeSolo(const FSequencerDisplayNode* InNode) const
 {
 	const TArray<FString>& SoloNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSoloNodes();
-	const FString NodePath = InNode->GetBaseNode()->GetPathName();
+	const FString NodePath = InNode->GetPathName();
 
 	if (SoloNodes.Contains(NodePath))
 	{
@@ -715,7 +724,7 @@ bool FSequencerNodeTree::IsSelectedNodesSolo() const
 	bool bIsSolo = true;
 	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
 	{
-		if (!SoloNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		if (!SoloNodes.Contains(Node->GetPathName()))
 		{
 			bIsSolo = false;
 			break;
@@ -747,7 +756,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 	bool bIsSolo = true;
 	for (const TSharedRef<const FSequencerDisplayNode> Node : Sequencer.GetSelection().GetSelectedOutlinerNodes())
 	{
-		if (!SoloNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		if (!SoloNodes.Contains(Node->GetPathName()))
 		{
 			bIsSolo = false;
 			break;
@@ -760,7 +769,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 
 	for (const TSharedRef<const FSequencerDisplayNode> Node : Sequencer.GetSelection().GetSelectedOutlinerNodes())
 	{
-		FString NodePath = Node->GetBaseNode()->GetPathName();
+		FString NodePath = Node->GetPathName();
 		if (bIsSolo)
 		{
 			// If we're currently solo, unsolo
@@ -779,7 +788,7 @@ void FSequencerNodeTree::ToggleSelectedNodesSolo()
 bool FSequencerNodeTree::IsNodeMute(const FSequencerDisplayNode* InNode) const
 {
 	const TArray<FString>& MuteNodes = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMuteNodes();
-	const FString NodePath = InNode->GetBaseNode()->GetPathName();
+	const FString NodePath = InNode->GetPathName();
 
 	if (MuteNodes.Contains(NodePath))
 	{
@@ -810,7 +819,7 @@ bool FSequencerNodeTree::IsSelectedNodesMute() const
 	bool bIsMute = true;
 	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
 	{
-		if (!MuteNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		if (!MuteNodes.Contains(Node->GetPathName()))
 		{
 			bIsMute = false;
 			break;
@@ -842,7 +851,7 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 	bool bIsMute = true;
 	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
 	{
-		if (!MuteNodes.Contains(Node->GetBaseNode()->GetPathName()))
+		if (!MuteNodes.Contains(Node->GetPathName()))
 		{
 			bIsMute = false;
 			break;
@@ -855,7 +864,7 @@ void FSequencerNodeTree::ToggleSelectedNodesMute()
 
 	for (const TSharedRef<const FSequencerDisplayNode> Node : SelectedNodes)
 	{
-		FString NodePath = Node->GetBaseNode()->GetPathName();
+		FString NodePath = Node->GetPathName();
 		if (bIsMute)
 		{
 			// If we're currently Mute, unMute

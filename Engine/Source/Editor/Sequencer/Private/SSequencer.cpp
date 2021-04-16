@@ -3021,15 +3021,27 @@ void SSequencer::UpdateLayoutTree()
 			{
 				if (Node->GetType() == ESequencerNode::Track)
 				{
-					UMovieSceneTrack* Track = static_cast<FSequencerTrackNode&>(Node.Get()).GetTrack();
+					FSequencerTrackNode& TrackNode = static_cast<FSequencerTrackNode&>(Node.Get());
+					UMovieSceneTrack* Track = TrackNode.GetTrack();
 					bool bDisableEval = NodeTree->IsNodeMute(&Node.Get()) || (bHasSoloNodes && !NodeTree->IsNodeSolo(&Node.Get()));
-					if (bDisableEval != Track->IsEvalDisabled())
+					if (TrackNode.GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
 					{
-						Track->Modify();
-						Track->SetEvalDisabled(bDisableEval);
-						bAnyChanged = true;
+						if (bDisableEval != Track->IsRowEvalDisabled(TrackNode.GetRowIndex()))
+						{
+							Track->Modify();
+							Track->SetRowEvalDisabled(bDisableEval, TrackNode.GetRowIndex());
+							bAnyChanged = true;
+						}
 					}
-					
+					else
+					{
+						if (bDisableEval != Track->IsEvalDisabled())
+						{
+							Track->Modify();
+							Track->SetEvalDisabled(bDisableEval);
+							bAnyChanged = true;
+						}	
+					}
 				}
 			}
 			if (bAnyChanged)
