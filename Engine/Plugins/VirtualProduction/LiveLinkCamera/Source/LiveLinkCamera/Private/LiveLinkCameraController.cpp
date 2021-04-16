@@ -343,22 +343,19 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 	{
 		if (LensFile != nullptr)
 		{
-			// Update the lens distortion handler with the evaluated data from the lens file
-			FLensDistortionState DistortionState;
-
-			// The sensor dimensions must be the original dimensions of the source camera (with no overscan applied)
-			DistortionState.SensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
-			DistortionState.FocalLength = CineCameraComponent->CurrentFocalLength;
-			
 			if (LensFile->DataMode == ELensDataMode::Parameters)
 			{
+				// Update the lens distortion handler with the evaluated data from the lens file
+				FLensDistortionState DistortionState;
+
 				FDistortionInfo DistortionInfo;
 				FIntrinsicParameters IntrinsicParams;
 				LensFile->EvaluateDistortionParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, DistortionInfo);
 				LensFile->EvaluateIntrinsicParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, IntrinsicParams);
 
 				DistortionState.DistortionInfo = MoveTemp(DistortionInfo);
-				DistortionState.PrincipalPoint = MoveTemp(IntrinsicParams.CenterShift);
+				DistortionState.PrincipalPoint = IntrinsicParams.PrincipalPoint;
+				DistortionState.FxFy = IntrinsicParams.FxFy;
 
 				LensDistortionHandler->Update(DistortionState);
 			}
@@ -371,17 +368,12 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 				LensDistortionHandler->UpdateOverscanFactor(DistortionData.OverscanFactor);
 			}
 		}
-		else
-		{
-			const FVector2D SensorDimensions(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
-			LensDistortionHandler->UpdateCameraSettings(SensorDimensions, CineCameraComponent->CurrentFocalLength);
-		}
 
 		NewDistortionMID = LensDistortionHandler->GetDistortionMID();
 
-		// Get the computed overscan factor and scale the camera's sensor dimensions to simulate a wider FOV
 		if (bApplyDistortion)
 		{
+			// Scale the camera's FOV by an overscan factor
 			const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
 			const float OverscanSensorWidth = CineCameraComponent->Filmback.SensorWidth * OverscanFactor;
 			const float OverscanFOV = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / (2.0f * UndistortedFocalLength)));

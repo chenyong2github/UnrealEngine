@@ -40,7 +40,7 @@ public:
 	TArray<FVector2D> DistortedUVs;
 
 	/** Estimated overscan factor based on distortion to have distorted cg covering full size */
-	UPROPERTY(EditAnywhere, Category = "Nodal Point")
+	UPROPERTY(EditAnywhere, Category = "Distortion")
 	float OverscanFactor = 1.0f;
 };
 
@@ -170,7 +170,7 @@ private:
 };
 
 /**
- * A data point associating focus and zoom to center shift
+ * A data point associating focus and zoom to the principal point (image center)
  */
 USTRUCT(BlueprintType)
 struct LENSDISTORTION_API FIntrinsicMapPoint
@@ -291,8 +291,8 @@ protected:
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
 	void UpdateDerivedData();
 
-	/** Returns the overscan factor based on distorted UV and center shift */
-	float ComputeOverscan(const FDistortionData& DerivedData, FVector2D CenterShift) const;
+	/** Returns the overscan factor based on distorted UV and image center */
+	float ComputeOverscan(const FDistortionData& DerivedData, FVector2D PrincipalPoint) const;
 	
 public:
 
@@ -308,7 +308,7 @@ public:
 	UPROPERTY(EditAnywhere, Category="FIZ map", meta = (EditCondition = "DataMode == ELensDataMode::Parameters"))
 	TArray<FDistortionMapPoint> DistortionMapping;
 
-	/** Mapping between FIZ data and intrinsic parameters (focal length, center shift) */
+	/** Mapping between FIZ data and intrinsic parameters (fx/fy and principal point) */
 	UPROPERTY(EditAnywhere, Category="FIZ map")
 	TArray<FIntrinsicMapPoint> IntrinsicMapping;
 

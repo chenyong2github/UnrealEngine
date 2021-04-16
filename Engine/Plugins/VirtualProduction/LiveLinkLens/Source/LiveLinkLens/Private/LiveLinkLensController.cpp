@@ -35,10 +35,7 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 
 				DistortionState.DistortionInfo = FrameData->DistortionInfo;
 				DistortionState.PrincipalPoint = FrameData->PrincipalPoint;
-
-				// The sensor dimensions must be the original dimensions of the source camera (with no overscan applied)
-				DistortionState.SensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
-				DistortionState.FocalLength = CineCameraComponent->CurrentFocalLength;
+				DistortionState.FxFy = FrameData->FxFy;
 
 				LensDistortionHandler->Update(DistortionState);
 

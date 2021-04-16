@@ -36,9 +36,6 @@ void ACompositingCaptureBase::UpdateDistortion()
 
 		if (LensDistortionHandler)
 		{
-			// Update the lens distortion state based on the current sensor dimensions and focal length of the target camera
-			LensDistortionHandler->UpdateCameraSettings(FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight), CineCameraComponent->CurrentFocalLength);
-
 			// Get the current distortion MID from the lens distortion handler, and if it has changed, remove the old MID from the scene capture's post process materials
 			UMaterialInstanceDynamic* NewDistortionMID = LensDistortionHandler->GetDistortionMID();
 			if (LastDistortionMID != NewDistortionMID)

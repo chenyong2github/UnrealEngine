@@ -12,7 +12,7 @@ float DeltaMinX;
 float DeltaMaxX;
 float DeltaMinY;
 float DeltaMaxY;
-float2 CenterShift;
+float2 PrincipalPoint;
 uint2 OutputTextureExtent;
 Texture2D SourceTextureOne;
 Texture2D SourceTextureTwo;
@@ -47,6 +47,6 @@ void BlendPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 
 #endif
 	
-	float2 CenterShiftDelta = CenterShift - float2(0.5f, 0.5f);
-	OutColor = BlendedColor + float4(CenterShiftDelta.xy, CenterShiftDelta.xy);
+	float2 CenterShift = PrincipalPoint - float2(0.5f, 0.5f);
+	OutColor = BlendedColor + float4(CenterShift.xy, CenterShift.xy);
 }

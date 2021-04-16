@@ -21,17 +21,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
 	FDistortionInfo DistortionInfo;
 
-	/** Normalized center of the image, in the range [0.0f, 1.0f] */
+	/** Normalized distance from the center of projection to the image plane */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion")
+	FVector2D FxFy = FVector2D(1.0f, (16.0f / 9.0f));
+
+	/** Normalized center of the image, in the range [0.0f, 1.0f] */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Distortion", meta = (DisplayName = "Image Center"))
 	FVector2D PrincipalPoint = FVector2D(0.5f, 0.5f);
-
-	/** Width and height of the camera's sensor, in millimeters */
-	UPROPERTY(BlueprintReadWrite, Category = "Distortion")
-	FVector2D SensorDimensions = FVector2D(23.76f, 13.365f);
-
-	/** Focal length of the camera, in millimeters */
-	UPROPERTY(BlueprintReadWrite, Category = "Distortion")
-	float FocalLength = 35.0f;
 
 public:
 	bool operator==(const FLensDistortionState& Other) const;
@@ -53,10 +49,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
 	void Update(const FLensDistortionState& InNewState);
 
-	/** Update the camera settings of the lens distortion state, recompute the overscan factor, and set all material parameters */
-	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	void UpdateCameraSettings(FVector2D InSensorDimensions, float InFocalLength);
-
 	/** Get the UV displacement map that was drawn during the last call to Update() */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
 	UTextureRenderTarget2D* GetUVDisplacementMap() const { return DisplacementMapRT; }
@@ -73,7 +65,7 @@ public:
 	/** Get the current distortion state (the lens model and properties that mathematically represent the distortion characteristics */
 	FLensDistortionState GetCurrentDistortionState() const { return CurrentState; }
 
-	/** Get the computed overscan factor needed to scale the camera's sensor dimensions */
+	/** Get the computed overscan factor needed to scale the camera's FOV */
 	float GetOverscanFactor() const { return OverscanFactor; }
 
 	/** Get the post-process MID for the currently specified lens model */
@@ -85,11 +77,8 @@ public:
 	/** Get the normalized center of projection of the image, in the range [0.0f, 1.0f] */
 	FVector2D GetPrincipalPoint() const { return CurrentState.PrincipalPoint; }
 
-	/** Get the width and height of the camera's sensor, in millimeters */
-	FVector2D GetSensorDimensions() const { return CurrentState.SensorDimensions; }
-
 	/** Get the focal length of the camera, in millimeters */
-	float GetFocalLength() const { return CurrentState.FocalLength; }
+	FVector2D GetFxFy() const { return CurrentState.FxFy; }
 
 	/** Updates overscan factor and applies to material instances */
 	void UpdateOverscanFactor(float OverscanFactor);
@@ -116,21 +105,20 @@ protected:
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	void UpdateInternal(const FLensDistortionState& InNewState);
 
-public:
-	/** Dynamically created post-process material instance for the currently specified lens model */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
-	UMaterialInstanceDynamic* DistortionPostProcessMID = nullptr;
-
 protected:
 	/** Lens Model describing how to interpret the distortion parameters */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Distortion")
 	TSubclassOf<ULensModel> LensModelClass;
 
+	/** Dynamically created post-process material instance for the currently specified lens model */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
+	UMaterialInstanceDynamic* DistortionPostProcessMID = nullptr;
+
 	/** Current state as set by the most recent call to Update() */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
 	FLensDistortionState CurrentState;
 
-	/** Computed overscan factor needed to scale the camera's sensor dimensions (read-only) */
+	/** Computed overscan factor needed to scale the camera's FOV (read-only) */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
 	float OverscanFactor = 1.0f;
 
