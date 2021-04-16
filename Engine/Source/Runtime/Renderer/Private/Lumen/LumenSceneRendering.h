@@ -48,6 +48,9 @@ public:
 	TArray<FNaniteCommandInfo, SceneRenderingAllocator> NaniteCommandInfos;
 	float NaniteLODScaleFactor = 1.0f;
 
+	// Non-Nanite mesh instance ranges to draw
+	TArray<uint32, SceneRenderingAllocator> InstanceRuns;
+
 	FCardPageRenderData(const FViewInfo& InMainView,
 		FLumenCard& InCardData,
 		FVector4 InCardUVRect,

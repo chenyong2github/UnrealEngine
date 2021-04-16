@@ -879,8 +879,17 @@ void AddCardCaptureDraws(const FScene* Scene,
 							MeshDrawCommand = &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 						}
 
-						FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+						CardPageRenderData.InstanceRuns.Reset();
 
+						if (MeshDrawCommand->NumInstances > 1 && CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag >= 0)
+						{
+							// Render only a single specified instance
+							CardPageRenderData.InstanceRuns.Add(CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag);
+							CardPageRenderData.InstanceRuns.Add(CardPageRenderData.PrimitiveInstanceIndexOrMergedFlag);
+						}
+
+						FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+						
 						NewVisibleMeshDrawCommand.Setup(
 							MeshDrawCommand,
 							PrimitiveSceneInfo->GetIndex(),
@@ -889,7 +898,9 @@ void AddCardCaptureDraws(const FScene* Scene,
 							CachedMeshDrawCommand.MeshFillMode,
 							CachedMeshDrawCommand.MeshCullMode,
 							CachedMeshDrawCommand.Flags,
-							CachedMeshDrawCommand.SortKey);
+							CachedMeshDrawCommand.SortKey,
+							CardPageRenderData.InstanceRuns.Num() > 0 ? CardPageRenderData.InstanceRuns.GetData() : nullptr,
+							CardPageRenderData.InstanceRuns.Num() / 2);
 
 						VisibleMeshCommands.Add(NewVisibleMeshDrawCommand);
 						PrimitiveIds.Add(PrimitiveSceneInfo->GetIndex());
@@ -1991,9 +2002,28 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 							for (int32 DrawCommandIndex = CardPageRenderData.StartMeshDrawCommandIndex; DrawCommandIndex < CardPageRenderData.StartMeshDrawCommandIndex + CardPageRenderData.NumMeshDrawCommands; ++DrawCommandIndex)
 							{
-								const FMeshDrawCommand* MeshDrawCommand = LumenCardRenderer.MeshDrawCommands[DrawCommandIndex].MeshDrawCommand;
-								NumInstances += MeshDrawCommand->NumInstances;
-								NumTris += MeshDrawCommand->NumPrimitives * MeshDrawCommand->NumInstances;
+								const FVisibleMeshDrawCommand& VisibleDrawCommand = LumenCardRenderer.MeshDrawCommands[DrawCommandIndex];
+								const FMeshDrawCommand* MeshDrawCommand = VisibleDrawCommand.MeshDrawCommand;
+
+								uint32 NumInstancesPerDraw = 0;
+
+								// Count number of instances to draw
+								if (VisibleDrawCommand.NumRuns)
+								{
+									for (int32 InstanceRunIndex = 0; InstanceRunIndex < VisibleDrawCommand.NumRuns; ++InstanceRunIndex)
+									{
+										const int32 FirstInstance = VisibleDrawCommand.RunArray[InstanceRunIndex * 2 + 0];
+										const int32 LastInstance = VisibleDrawCommand.RunArray[InstanceRunIndex * 2 + 1];
+										NumInstancesPerDraw += LastInstance - FirstInstance + 1;
+									}
+								}
+								else
+								{
+									NumInstancesPerDraw += MeshDrawCommand->NumInstances;
+								}
+
+								NumInstances += NumInstancesPerDraw;
+								NumTris += MeshDrawCommand->NumPrimitives * NumInstancesPerDraw;
 							}
 						}
 					}
