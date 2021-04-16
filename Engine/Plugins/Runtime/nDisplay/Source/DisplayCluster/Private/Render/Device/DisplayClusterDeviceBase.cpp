@@ -80,36 +80,6 @@ bool FDisplayClusterDeviceBase::Initialize()
 		return false;
 	}
 
-	/*
-	// Get local node configuration
-	const UDisplayClusterConfigurationClusterNode* LocalNode = GDisplayCluster->GetPrivateConfigMgr()->GetLocalNode();
-	if (!LocalNode)
-	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't get configuration data for current cluster node"));
-		return false;
-	}
-
-	ADisplayClusterRootActor* const RootActor = IDisplayCluster::Get().GetGameMgr()->GetRootActor();
-	if(RootActor == nullptr)
-	{ 
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't get RootActor for current cluster node"));
-		return false;
-	}
-
-	FString LocalNodeId = IDisplayCluster::Get().GetConfigMgr()->GetLocalNodeId();
-	if (!GetViewportManager().UpdateConfiguration(GetRenderFrameMode(), LocalNodeId, RootActor))
-	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Invalid cluster node configuration"));
-		return false;
-	}
-
-	if (GetViewportManager().GetViewports().Num() < 1)
-	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("No viewports created. At least one must present."));
-		return false;
-	}
-	*/
-
 	return true;
 }
 

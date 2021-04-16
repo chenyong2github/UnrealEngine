@@ -26,7 +26,8 @@ public:
 	{}
 
 public:
-	void SetRootActor(ADisplayClusterRootActor* InRootActorPtr);
+	// Return true, if root actor ref changed
+	bool SetRootActor(ADisplayClusterRootActor* InRootActorPtr);
 	ADisplayClusterRootActor* GetRootActor() const;
 
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const

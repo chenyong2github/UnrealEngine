@@ -24,14 +24,22 @@
 // FDisplayClusterViewportConfiguration
 ///////////////////////////////////////////////////////////////////
 
-void FDisplayClusterViewportConfiguration::SetRootActor(ADisplayClusterRootActor* InRootActorPtr)
+bool FDisplayClusterViewportConfiguration::SetRootActor(ADisplayClusterRootActor* InRootActorPtr)
 {
 	check(IsInGameThread());
 	check(InRootActorPtr);
 
-	// Update root actor reference:
-	RootActorRef.ResetSceneActor();
-	RootActorRef.SetSceneActor(InRootActorPtr);
+	if (GetRootActor() != InRootActorPtr)
+	{
+		// Update root actor reference:
+		RootActorRef.ResetSceneActor();
+		RootActorRef.SetSceneActor(InRootActorPtr);
+
+		// return true, if changed
+		return true;
+	}
+
+	return false;
 }
 
 ADisplayClusterRootActor* FDisplayClusterViewportConfiguration::GetRootActor() const

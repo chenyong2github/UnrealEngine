@@ -31,25 +31,42 @@
 //          FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
 #if WITH_EDITOR
-bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, UWorld* PreviewWorld, class ADisplayClusterRootActor* InRootActorPtr)
+bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* InPreviewConfiguration, UWorld* InPreviewWorld, ADisplayClusterRootActor* InRootActorPtr)
 {
-	if (CurrentScene != PreviewWorld)
+	if (InRootActorPtr && InPreviewConfiguration)
 	{
-		// Handle end current scene
-		if (CurrentScene)
+		bool bIsRootActorChanged = Configuration->SetRootActor(InRootActorPtr);
+
+		if (CurrentScene != InPreviewWorld)
 		{
-			EndScene();
+			// Handle end current scene
+			if (CurrentScene)
+			{
+				EndScene();
+			}
+
+			// no preview scene, disable preview
+			if (InPreviewWorld == nullptr)
+			{
+				return false;
+			}
+
+			// Handle begin new scene
+			StartScene(InPreviewWorld);
+		}
+		else
+		{
+			// When the root actor changes, we have to ResetScene() to reinitialize the internal references of the projection policy.
+			if (bIsRootActorChanged)
+			{
+				ResetScene();
+			}
 		}
 
-		// Handle begin new scene
-		if (PreviewWorld)
-		{
-			StartScene(PreviewWorld);
-		}
+		return Configuration->UpdatePreviewConfiguration(InPreviewConfiguration);
 	}
 
-	Configuration->SetRootActor(InRootActorPtr);
-	return Configuration->UpdatePreviewConfiguration(PreviewConfiguration);
+	return false;
 }
 
 bool FDisplayClusterViewportManager::RenderPreview(class FDisplayClusterRenderFrame& InPreviewRenderFrame)

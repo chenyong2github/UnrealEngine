@@ -144,6 +144,8 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 {
 	if (PreviewViewportManager.IsValid())
 	{
+		check(PreviewSettings);
+
 		//@todo: make correct GUI implementation for preview settings UObject (special widged in configurator bp, etc)
 		// now just copy RootActor properties to UObject::PreviewSettings
 		{
@@ -169,10 +171,10 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 			if (PreviewWorld)
 			{
 				// Update preview viewports from settings
-				PreviewViewportManager->UpdatePreviewConfiguration(PreviewSettings, PreviewWorld, this);
-
 				FDisplayClusterRenderFrame PreviewRenderFrame;
-				if (PreviewViewportManager->BeginNewFrame(nullptr, PreviewRenderFrame) || (PreviewRenderFrame.DesiredNumberOfViews == 0))
+				if(PreviewViewportManager->UpdatePreviewConfiguration(PreviewSettings, PreviewWorld, this)
+				&& PreviewViewportManager->BeginNewFrame(nullptr, PreviewRenderFrame)
+				&& PreviewRenderFrame.DesiredNumberOfViews > 0)
 				{
 					PreviewViewportManager->RenderPreview(PreviewRenderFrame);
 					// Send event about RTT changed

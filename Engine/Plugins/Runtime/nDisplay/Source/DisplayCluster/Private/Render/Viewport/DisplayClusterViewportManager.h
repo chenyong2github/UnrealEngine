@@ -46,6 +46,7 @@ public:
 	/** Game thread funcs */
 	virtual void StartScene(UWorld* World) override;
 	virtual void EndScene() override;
+			void ResetScene();
 
 	virtual bool IsSceneOpened() const override;
 

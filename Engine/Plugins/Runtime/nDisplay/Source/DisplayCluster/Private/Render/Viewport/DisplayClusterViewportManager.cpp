@@ -86,13 +86,33 @@ void FDisplayClusterViewportManager::EndScene()
 	CurrentScene = nullptr;
 }
 
-
-bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, class ADisplayClusterRootActor* InRootActorPtr)
+void FDisplayClusterViewportManager::ResetScene()
 {
-	Configuration->SetRootActor(InRootActorPtr);
-	if (Configuration->UpdateConfiguration(InRenderMode, InClusterNodeId))
+	check(IsInGameThread());
+
+	for (FDisplayClusterViewport* Viewport : Viewports)
 	{
-		return true;
+		if (Viewport)
+		{
+			Viewport->HandleEndScene();
+			Viewport->HandleStartScene();
+		}
+	}
+}
+
+bool FDisplayClusterViewportManager::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId, ADisplayClusterRootActor* InRootActorPtr)
+{
+	if (InRootActorPtr)
+	{
+		bool bIsRootActorChanged = Configuration->SetRootActor(InRootActorPtr);
+
+		// When the root actor changes, we have to ResetScene() to reinitialize the internal references of the projection policy.
+		if (bIsRootActorChanged)
+		{
+			ResetScene();
+		}
+
+		return Configuration->UpdateConfiguration(InRenderMode, InClusterNodeId);
 	}
 
 	return false;
