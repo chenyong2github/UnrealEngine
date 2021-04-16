@@ -344,7 +344,9 @@ public:
 
 	const TSharedPtr<FBaseTimingTrack> GetTrackAt(float InPosX, float InPosY) const;
 
-	const TArray<ITimingEventRelation*>& GetCurrentRelations() const { return CurrentRelations; }
+	const TArray<TUniquePtr<ITimingEventRelation>>& GetCurrentRelations() const { return CurrentRelations; }
+	void AddRelation(TUniquePtr<ITimingEventRelation>& Relation) { CurrentRelations.Add(MoveTemp(Relation)); }
+	void ClearRelations();
 
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
@@ -628,6 +630,6 @@ protected:
 
 	TSharedPtr<FUICommandList> CommandList;
 
-	TArray<ITimingEventRelation*> CurrentRelations;
+	TArray<TUniquePtr<ITimingEventRelation>> CurrentRelations;
 	bool bShowEventRelations = true;
 };

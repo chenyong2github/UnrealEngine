@@ -9,6 +9,13 @@
 // Insights
 #include "Insights/InsightsManager.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "Insights/ViewModels/TaskGraphRelation.h"
+
+namespace TraceServices
+{
+	struct FTaskInfo;
+	class ITasksProvider;
+}
 
 namespace Insights
 {
@@ -28,6 +35,8 @@ struct FTaskGraphProfilerTabs
 class FTaskGraphProfilerManager : public TSharedFromThis<FTaskGraphProfilerManager>, public IInsightsComponent
 {
 public:
+	typedef TFunction<void(double /*SourceTimestamp*/, uint32 /*SourceThreadId*/, double /*TargetTimestamp*/, uint32 /*TargetThreadId*/, FTaskGraphRelation::ETaskGraphRelationType /*Type*/)> AddRelationCallback;
+
 	/** Creates the Memory Profiler manager, only one instance can exist. */
 	FTaskGraphProfilerManager(TSharedRef<FUICommandList> InCommandList);
 
@@ -63,11 +72,16 @@ public:
 
 	void OnSessionChanged();
 
+	void GetTaskRelations(double Time, uint32 ThreadId, AddRelationCallback Callback);
+	void GetTaskRelations(uint32 TaskId, AddRelationCallback Callback);
+
 private:
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
 
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
+
+	void GetTaskRelations(const TraceServices::FTaskInfo* Task, const TraceServices::ITasksProvider* TasksProvider, AddRelationCallback Callback);
 
 private:
 	bool bIsInitialized;

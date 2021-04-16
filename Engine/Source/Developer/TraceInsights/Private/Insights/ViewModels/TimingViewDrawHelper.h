@@ -196,7 +196,7 @@ public:
 
 	void EndDrawTracks() const;
 
-	void DrawRelations(const TArray<ITimingEventRelation*> Relations, ITimingEventRelation::EDrawFilter Filter) const;
+	void DrawRelations(const TArray<TUniquePtr<ITimingEventRelation>>& Relations, ITimingEventRelation::EDrawFilter Filter) const;
 
 	//////////////////////////////////////////////////
 

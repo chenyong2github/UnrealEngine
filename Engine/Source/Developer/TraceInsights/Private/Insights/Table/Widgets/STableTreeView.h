@@ -197,7 +197,7 @@ protected:
 	void TreeView_OnSelectionChanged(FTableTreeNodePtr SelectedItem, ESelectInfo::Type SelectInfo);
 
 	/** Called by STreeView when a tree item is double clicked. */
-	void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode);
+	virtual void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode);
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Tree View - Table Row
@@ -388,6 +388,8 @@ protected:
 	void SetExpandValueForChildGroups(FBaseTreeNode* InRoot, int32 InMaxExpandedNodes, int32 MaxDepthToExpand, bool InValue);
 	void CountNumNodesPerDepthRec(FBaseTreeNode* InRoot, TArray<int32>& InOutNumNodesPerDepth, int32 InDepth, int32 InMaxDepth, int InMaxNodes) const;
 	void SetExpandValueForChildGroupsRec(FBaseTreeNode* InRoot, int32 InDepth, int32 InMaxDepth, bool InValue);
+
+	virtual void ExtendMenu(FMenuBuilder& Menu) {}
 
 protected:
 	/** Table view model. */

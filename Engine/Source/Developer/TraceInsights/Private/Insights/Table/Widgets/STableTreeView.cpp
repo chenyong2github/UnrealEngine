@@ -438,6 +438,8 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 
 	MenuBuilder.EndSection();
 
+	ExtendMenu(MenuBuilder);
+
 	MenuBuilder.BeginSection("Misc", LOCTEXT("ContextMenu_Header_Misc", "Miscellaneous"));
 	{
 		MenuBuilder.AddMenuEntry

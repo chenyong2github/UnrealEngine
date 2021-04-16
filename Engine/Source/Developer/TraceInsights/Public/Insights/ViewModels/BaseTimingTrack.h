@@ -94,7 +94,7 @@ public:
 	virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const = 0;
 	virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const = 0;
 	virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const = 0;
-	virtual const TArray<ITimingEventRelation*>& GetCurrentRelations() const = 0;
+	virtual const TArray<TUniquePtr<ITimingEventRelation>>& GetCurrentRelations() const = 0;
 	virtual double GetCurrentTime() const = 0;
 	virtual float GetDeltaTime() const = 0;
 };
@@ -254,9 +254,9 @@ public:
 	// Called back from the timing view when an event is copied to the clipboard with Ctrl+C.
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const {}
 
-	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<ITimingEventRelation*>& Dependencies) const {}
+	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<TUniquePtr<ITimingEventRelation>>& Dependencies) const {}
 
-	virtual void SolveEventRelations(const TArray<ITimingEventRelation*>& Dependencies) const {}
+	virtual void SolveEventRelations(const TArray<TUniquePtr<ITimingEventRelation>>& Dependencies) const {}
 
 	// Returns number of text lines needed to display the debug string.
 	//TODO: virtual int GetDebugStringLineCount() const { return 0; }

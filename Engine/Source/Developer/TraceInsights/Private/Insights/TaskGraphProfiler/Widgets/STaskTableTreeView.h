@@ -9,6 +9,8 @@
 #include "Insights/TaskGraphProfiler/ViewModels/TaskTable.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
 
+class FMenuBuilder;
+
 namespace Insights
 {
 
@@ -81,8 +83,12 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	virtual void TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode) override;
+
 protected:
 	virtual void InternalCreateGroupings() override;
+
+	virtual void ExtendMenu(FMenuBuilder& MenuBuilder) override;
 
 private:
 	void ApplyColumnConfig(const TArrayView<FColumnConfig>& Preset);
@@ -95,6 +101,9 @@ private:
 	FText TimestampOptions_GetSelectionText() const;
 	FText TimestampOptions_GetText(ETimestampOptions InOption) const;
 	bool TimestampOptions_IsEnabled() const;
+
+	bool ContextMenu_GoToTask_CanExecute() const;
+	void ContextMenu_GoToTask_Execute();
 
 private:
 	double QueryStartTime = 0.0f;

@@ -3,6 +3,7 @@
 #include "STaskTableTreeView.h"
 
 #include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
 #include "Styling/CoreStyle.h"
 #include "TraceServices/AnalysisService.h"
@@ -16,6 +17,8 @@
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/Widgets/STimingProfilerWindow.h"
+#include "Insights/Widgets/STimingView.h"
 
 #include <limits>
 
@@ -46,8 +49,11 @@ public:
 	PRAGMA_DISABLE_OPTIMIZATION
 	virtual void RegisterCommands() override
 	{
+		UI_COMMAND(Command_GoToTask, "Go To Task", "Pan and zoom to the task in Timing View.", EUserInterfaceActionType::Button, FInputChord());
 	}
 	PRAGMA_ENABLE_OPTIMIZATION
+
+	TSharedPtr<FUICommandInfo> Command_GoToTask;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -77,9 +83,29 @@ void STaskTableTreeView::Construct(const FArguments& InArgs, TSharedPtr<Insights
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void STaskTableTreeView::ExtendMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.BeginSection("Node", LOCTEXT("ContextMenu_Header_Task", "Task"));
+
+	{
+		MenuBuilder.AddMenuEntry
+		(
+			FTaskTableTreeViewCommands::Get().Command_GoToTask,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
+		);
+	}
+
+	MenuBuilder.EndSection();
+}
+
 void STaskTableTreeView::AddCommmands()
 {
 	FTaskTableTreeViewCommands::Register();
+
+	CommandList->MapAction(FTaskTableTreeViewCommands::Get().Command_GoToTask, FExecuteAction::CreateSP(this, &STaskTableTreeView::ContextMenu_GoToTask_Execute), FCanExecuteAction::CreateSP(this, &STaskTableTreeView::ContextMenu_GoToTask_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,6 +391,71 @@ FText STaskTableTreeView::TimestampOptions_GetText(ETimestampOptions InOption) c
 bool STaskTableTreeView::TimestampOptions_IsEnabled() const
 {
 	return !bIsUpdateRunning;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STaskTableTreeView::ContextMenu_GoToTask_CanExecute() const
+{
+	return TreeView->GetNumItemsSelected() == 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::ContextMenu_GoToTask_Execute()
+{
+	TArray<FTableTreeNodePtr> SelectedItems;
+	TreeView->GetSelectedItems(SelectedItems);
+
+	if (SelectedItems.Num() != 1)
+	{
+		return;
+	}
+
+	FTaskNodePtr SelectedTask = StaticCastSharedPtr<FTaskNode>(SelectedItems[0]);
+
+	TSharedPtr<STimingProfilerWindow> TimingWindow = FTimingProfilerManager::Get()->GetProfilerWindow();
+	if (!TimingWindow.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<STimingView> TimingView = TimingWindow->GetTimingView();
+	if (!TimingView.IsValid())
+	{
+		return;
+	}
+
+	TimingView->ClearRelations();
+
+	auto AddRelation = [&TimingView](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, FTaskGraphRelation::ETaskGraphRelationType Type)
+	{
+		if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
+		{
+			return;
+		}
+
+		TUniquePtr<ITimingEventRelation> Relation = MakeUnique<FTaskGraphRelation>(SourceTimestamp, SourceThreadId, TargetTimestamp, TargetThreadId, Type);
+
+		TimingView->AddRelation(Relation);
+	};
+
+	FTaskGraphProfilerManager::Get()->GetTaskRelations(SelectedTask->GetTask()->GetId(), AddRelation);
+
+	double Duration = (SelectedTask->GetTask()->GetFinishedTimestamp() - SelectedTask->GetTask()->GetCreatedTimestamp()) * 1.5;
+	TimingView->ZoomOnTimeInterval(SelectedTask->GetTask()->GetCreatedTimestamp() - Duration * 0.15, Duration);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STaskTableTreeView::TreeView_OnMouseButtonDoubleClick(FTableTreeNodePtr TreeNode)
+{
+	if (!TreeNode->IsGroup())
+	{
+		ContextMenu_GoToTask_Execute();
+	}
+
+	STableTreeView::TreeView_OnMouseButtonDoubleClick(TreeNode);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

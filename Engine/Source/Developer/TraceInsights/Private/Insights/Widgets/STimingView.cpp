@@ -644,7 +644,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
 		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
-		virtual const TArray<ITimingEventRelation*>& GetCurrentRelations() const override { return TimingView->GetCurrentRelations(); }
+		virtual const TArray<TUniquePtr<ITimingEventRelation>>& GetCurrentRelations() const override { return TimingView->GetCurrentRelations(); }
 		virtual double GetCurrentTime() const override { return CurrentTime; }
 		virtual float GetDeltaTime() const override { return DeltaTime; }
 
@@ -4192,17 +4192,19 @@ bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
 
 void STimingView::UpdateEventRelations()
 {
-	for (ITimingEventRelation* Relation : CurrentRelations)
-	{
-		delete Relation;
-	}
-
-	CurrentRelations.Empty();
+	ClearRelations();
 
 	if (bShowEventRelations && SelectedEvent.IsValid())
 	{
 		SelectedEvent->GetTrack()->GetEventRelations(*SelectedEvent, CurrentRelations);
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ClearRelations()
+{
+	CurrentRelations.Empty();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

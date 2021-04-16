@@ -40,6 +40,8 @@ public:
 	uint32 GetNumPrerequisites() const { return NumPrerequisites; }
 	uint32 GetNumSubsequents() const { return NumSubsequents; }
 
+	uint32 GetId() const { return Id; }
+
 private:
 	uint32 Id;
 

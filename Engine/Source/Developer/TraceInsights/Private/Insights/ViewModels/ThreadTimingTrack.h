@@ -160,8 +160,8 @@ public:
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
-	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<ITimingEventRelation*>& Relations) const override;
-	virtual void SolveEventRelations(const TArray<ITimingEventRelation*>& Relations) const override;
+	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<TUniquePtr<ITimingEventRelation>>& Relations) const override;
+	virtual void SolveEventRelations(const TArray<TUniquePtr<ITimingEventRelation>>& Relations) const override;
 
 protected:
 	virtual bool HasCustomFilter() const override;
