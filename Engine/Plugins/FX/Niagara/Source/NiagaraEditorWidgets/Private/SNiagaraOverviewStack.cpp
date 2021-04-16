@@ -721,7 +721,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.HeightOverride(IconSize.Y);
 		}
 
-		Content = SNew(SHorizontalBox)
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox)
 			// Indent content
 			+ SHorizontalBox::Slot()
 			.Padding(0, 1, 2, 1)
@@ -742,12 +742,18 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
             .Padding(6, 0, 9, 0)
             [
                 SNew(SNiagaraStackRowPerfWidget, Item)
-            ]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.ButtonColorAndOpacity(FLinearColor::Transparent)
+            ];
+
+		// Debug draw 
+		UNiagaraStackModuleItem* StackModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
+			
+		if (StackModuleItem && StackModuleItem->GetModuleNode().ContainsDebugSwitch())
+		{
+			ContentBox->AddSlot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.ButtonColorAndOpacity(FLinearColor::Transparent)
 				.ForegroundColor(FLinearColor::Transparent)
 				.ToolTipText(LOCTEXT("EnableDebugDrawCheckBoxToolTip", "Enable or disable debug drawing for this item."))
 				.OnClicked(this, &SNiagaraOverviewStack::ToggleModuleDebugDraw, StackItem)
@@ -755,9 +761,12 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 					SNew(SImage)
 					.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
 				]
-			]
-			// Enabled checkbox
-			+ SHorizontalBox::Slot()
+				];
+		}
+
+
+		// Enabled checkbox
+		ContentBox->AddSlot()
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			.Padding(3, 0, 0, 0)
@@ -768,6 +777,8 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				.IsChecked_UObject(StackItem, &UNiagaraStackEntry::GetIsEnabled)
 				.OnCheckedChanged_UObject(StackItem, &UNiagaraStackItem::SetIsEnabled)
 			];
+
+		Content = ContentBox;
 	}
 	else if (Item->IsA<UNiagaraStackItemGroup>())
 	{

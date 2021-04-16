@@ -143,6 +143,9 @@ public:
 	/** Attempts to find the input pin for a static switch with the given name in the internal script graph. Returns nullptr if no such pin can be found. */
 	UEdGraphPin* FindStaticSwitchInputPin(const FName& VariableName) const;
 
+	/** checks to see if this called function contains any debug switches */
+	NIAGARAEDITOR_API bool ContainsDebugSwitch() const;
+
 	/** Tries to rename this function call to a new name.  The actual name that gets applied might be different due to conflicts with existing
 		nodes with the same name. */
 	void SuggestName(FString SuggestedName, bool bForceSuggestion = false);

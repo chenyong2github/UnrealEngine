@@ -24,6 +24,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -1343,6 +1344,34 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindStaticSwitchInputPin(const FName& Var
 		}
 	}
 	return nullptr;
+}
+
+bool UNiagaraNodeFunctionCall::ContainsDebugSwitch() const
+{
+	UNiagaraGraph* CalledGraph = GetCalledGraph();
+	if (CalledGraph)
+	{
+		TArray<UNiagaraNodeStaticSwitch*> Switches;
+		CalledGraph->GetNodesOfClass<UNiagaraNodeStaticSwitch>(Switches);
+		for (const auto& Switch : Switches)
+		{
+			if (Switch->IsDebugSwitch())
+			{
+				return true;
+			}
+		}
+
+		TArray<UNiagaraNodeFunctionCall*> FunctionCalls;
+		CalledGraph->GetNodesOfClass<UNiagaraNodeFunctionCall>(FunctionCalls);
+		for (const auto& Function : FunctionCalls)
+		{
+			if (Function->ContainsDebugSwitch())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName, bool bForceSuggestion)
