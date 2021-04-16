@@ -382,6 +382,22 @@ enum class ENiagaraExecutionState : uint32
 	Num UMETA(Hidden)
 };
 
+UENUM()
+enum class ENiagaraCoordinateSpace : uint32
+{
+	/** Use the coordinate space specified by the Emitter*/
+	Simulation,
+	/** Use the world coordinate space*/
+	World,
+	/** Use the local coordinate space*/
+	Local,
+
+	// insert new states before
+	//NewEnumerator0 = 0 UMETA(Hidden),
+	//NewEnumerator1 = 1 UMETA(Hidden),
+	//NewEnumerator2 = 2 UMETA(Hidden)
+};
+
 
 
 USTRUCT()
@@ -1079,6 +1095,7 @@ public:
 	static UScriptStruct* GetHalfVec4Struct() { return HalfVec4Struct; }
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
+	static UEnum* GetCoordinateSpaceEnum() { return CoordinateSpaceEnum; }
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
@@ -1159,6 +1176,7 @@ private:
 	static UEnum* ScriptUsageEnum;
 	static UEnum* ScriptContextEnum;
 	static UEnum* ExecutionStateEnum;
+	static UEnum* CoordinateSpaceEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;

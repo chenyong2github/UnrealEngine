@@ -36,6 +36,22 @@ void UNiagaraNode::PostLoad()
 	{
 		SetFlags(RF_Transactional);
 	}
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+		check(Schema);
+
+		const FNiagaraTypeDefinition PinType = Schema->PinToTypeDefinition(Pin);
+		if (PinType.GetEnum() == FNiagaraTypeDefinition::GetCoordinateSpaceEnum())
+		{
+			int32 EnumIndex = PinType.GetEnum()->GetIndexByNameString(Pin->DefaultValue, EGetByNameFlags::None);
+			if (EnumIndex != INDEX_NONE )
+			{
+				Pin->DefaultValue = PinType.GetEnum()->GetNameStringByIndex(EnumIndex);
+			}
+		}
+	}
 }
 
 bool UNiagaraNode::NestedPropertiesAppendCompileHash(const void* Container, const UStruct* Struct, EFieldIteratorFlags::SuperClassFlags IteratorFlags, const FString& BaseName, FNiagaraCompileHashVisitor* InVisitor) const

@@ -336,6 +336,8 @@ struct FNiagaraComputeExecutionContext
 	void DirtyDataInterfaces();
 	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
+	bool OptionalContexInit(FNiagaraSystemInstance* ParentSystemInstance);
+
 	void PostTick();
 
 	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);

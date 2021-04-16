@@ -1502,6 +1502,24 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			return;
 		}
 	}
+
+	if (GetSystem()->NeedsGPUContextInitForDataInterfaces())
+	{
+		for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
+		{
+			FNiagaraEmitterInstance& Sim = Simulation.Get();
+			if (Sim.IsDisabled())
+			{
+				continue;
+			}
+
+			if (Sim.GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Sim.GetGPUContext())
+			{
+				Sim.GetGPUContext()->OptionalContexInit(this);
+			}
+		}
+	}
+	
 }
 
 void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSimulate)

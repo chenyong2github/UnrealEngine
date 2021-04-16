@@ -207,6 +207,8 @@ struct FNiagaraCodeChunk
 	FString SymbolName;
 	/** Format definition for incorporating SourceChunks into the final code for this chunk. */
 	FString Definition;
+	/** Original constant data*/
+	FNiagaraVariable Original;
 	/** The returned data type of this chunk. */
 	FNiagaraTypeDefinition Type;
 	/** If this chunk should declare it's symbol name. */
@@ -251,6 +253,7 @@ struct FNiagaraCodeChunk
 			Mode == Other.Mode &&
 			Type == Other.Type &&
 			bDecl == Other.bDecl &&
+			Original == Other.Original &&
 			SourceChunks == Other.SourceChunks;
 	}
 };
@@ -526,7 +529,7 @@ public:
 	virtual void Select(class UNiagaraNodeSelect* SelectNode, int32 Selector, const TArray<FNiagaraVariable>& OutputVariables, TMap<int32, TArray<int32>>& Options, TArray<int32>& Outputs);
 	
 
-	void WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin);
+	void WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin, bool bEmitMessageOnFailure, FNiagaraCompileEventSeverity FailureSeverity, const FString& Prefix = FString());
 
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
 	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin, FString ShortDescription = FString(), bool bDismissable = false);
