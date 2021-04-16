@@ -299,6 +299,7 @@ public:
 	FORCEINLINE_DEBUGGABLE ERigVMRegisterType GetType() const { return Type; }
 	FORCEINLINE_DEBUGGABLE FName GetCPPType() const { return CPPType; }
 	uint16 GetElementSize() const;
+	void SetElementSize(uint16 InElementSize) { ElementSize = InElementSize; };
 	UScriptStruct* GetScriptStruct() const;
 
 private:
@@ -594,11 +595,8 @@ public:
 	FORCEINLINE_DEBUGGABLE FRigVMOperand GetOperand(int32 InRegisterIndex, const FString& InSegmentPath = FString(), int32 InArrayElement = INDEX_NONE)
 	{
 		ensure(Registers.IsValidIndex(InRegisterIndex));
-		UScriptStruct* ScriptStruct = nullptr;
-		if (!InSegmentPath.IsEmpty())
-		{
-			ScriptStruct = GetScriptStruct(InRegisterIndex);
-		}
+		// Register offset must hold on to the ScriptStruct such that it can recalculate the struct size after cook
+		UScriptStruct* ScriptStruct = GetScriptStruct(InRegisterIndex);
 
 		int32 InitialOffset = 0;
 		int32 ElementSize = 0;
