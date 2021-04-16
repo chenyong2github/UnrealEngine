@@ -21,7 +21,7 @@ namespace Chaos
 		/**
 		 * Weightmap constructor. 
 		 */
-		FPBDStiffness(
+		inline FPBDStiffness(
 			const TConstArrayView<FReal>& Multipliers,
 			const FVec2& InWeightedValue,
 			int32 ParticleCount,
