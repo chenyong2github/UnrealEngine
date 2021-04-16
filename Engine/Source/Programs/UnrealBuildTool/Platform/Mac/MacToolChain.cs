@@ -1167,7 +1167,7 @@ namespace UnrealBuildTool
 			// The script is deleted after it's executed so it's empty when we start appending link commands for the next executable.
 			FileItem FixDylibDepsScript = FileItem.GetItemByFileReference(FileReference.Combine(LinkEnvironment.LocalShadowDirectory, "FixDylibDependencies.sh"));
 
-			FixDylibAction.CommandArguments = "-c 'chmod +x \"" + FixDylibDepsScript.AbsolutePath + "\"; \"" + FixDylibDepsScript.AbsolutePath + "\"; if [[ $? -ne 0 ]]; then exit 1; fi; ";
+			FixDylibAction.CommandArguments = "-c \"chmod +x \\\"" + FixDylibDepsScript.AbsolutePath + "\\\"; \\\"" + FixDylibDepsScript.AbsolutePath + "\\\"; if [[ $? -ne 0 ]]; then exit 1; fi; ";
 
 			// Make sure this action is executed after all the dylibs and the main executable are created
 
@@ -1181,8 +1181,8 @@ namespace UnrealBuildTool
 
 			FileItem OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(LinkEnvironment.LocalShadowDirectory, Path.GetFileNameWithoutExtension(Executable.AbsolutePath) + ".link"));
 
-			FixDylibAction.CommandArguments += "echo \"Dummy\" >> \"" + OutputFile.AbsolutePath + "\"";
-			FixDylibAction.CommandArguments += "'";
+			FixDylibAction.CommandArguments += "echo Dummy >> \\\"" + OutputFile.AbsolutePath + "\\\"";
+			FixDylibAction.CommandArguments += "\"";
 
 			FixDylibAction.ProducedItems.Add(OutputFile);
 
@@ -1243,7 +1243,7 @@ namespace UnrealBuildTool
 			Contents = Contents.Replace("\n", Environment.NewLine);
 
 			Utils.WriteFileIfChanged(DsymShellFile, Contents, StringComparison.InvariantCultureIgnoreCase);
-			GenDebugAction.CommandArguments = string.Format("-c 'chmod +x \"{0}\"; \"{0}\"'", DsymShellFileItem.AbsolutePath);
+			GenDebugAction.CommandArguments = string.Format("-c \"chmod +x \\\"{0}\\\"; \\\"{0}\\\"\"", DsymShellFileItem.AbsolutePath);
 
 			if (LinkEnvironment.bIsCrossReferenced)
 			{
@@ -1302,7 +1302,7 @@ namespace UnrealBuildTool
 
 			FileItem TargetItem = FileItem.GetItemByPath(TargetPath);
 
-			CopyAction.CommandArguments = string.Format("-c 'cp -f -R \"{0}\" \"{1}\"; touch -c \"{2}\"'", SourcePath, Path.GetDirectoryName(TargetPath).Replace('\\', '/') + "/", TargetPath.Replace('\\', '/'));
+			CopyAction.CommandArguments = string.Format("-c \"cp -f -R \\\"{0}\\\" \\\"{1}\\\"; touch -c \\\"{2}\\\"\"", SourcePath, Path.GetDirectoryName(TargetPath).Replace('\\', '/') + "/", TargetPath.Replace('\\', '/'));
 			CopyAction.PrerequisiteItems.Add(Executable);
 			CopyAction.ProducedItems.Add(TargetItem);
 			CopyAction.bShouldOutputStatusDescription = Resource.bShouldLog;
