@@ -192,7 +192,7 @@ public:
 	) override
 	{
 		check(&InMesh != &OutReducedMesh);	// can't reduce in-place
-
+		TRACE_CPUPROFILER_EVENT_SCOPE(FQuadricSimplifierMeshReduction::ReduceMeshDescription);
 		const uint32 NumTexCoords = MAX_STATIC_TEXCOORDS;
 		int32 InMeshNumTexCoords = 1;
 		

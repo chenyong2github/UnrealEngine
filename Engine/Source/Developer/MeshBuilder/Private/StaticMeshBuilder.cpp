@@ -93,6 +93,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 	for (int32 LodIndex = 0; LodIndex < NumSourceModels; ++LodIndex)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build LOD");
 		SlowTask.EnterProgressFrame(1);
 		FScopedSlowTask BuildLODSlowTask(3);
 		BuildLODSlowTask.EnterProgressFrame(1);
@@ -161,6 +162,8 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		//Reduce LODs
 		if (bUseReduction)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build - Reduce LOD");
+			
 			float OverlappingThreshold = LODBuildSettings.bRemoveDegenerates ? THRESH_POINTS_ARE_SAME : 0.0f;
 			FOverlappingCorners OverlappingCorners;
 			FStaticMeshOperations::FindOverlappingCorners(OverlappingCorners, MeshDescriptions[BaseReduceLodIndex], OverlappingThreshold);
@@ -324,24 +327,29 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		BuildAllBufferOptimizations(StaticMeshLOD, LODBuildSettings, CombinedIndices, bNeeds32BitIndices, StaticMeshBuildVertices);
 	} //End of LOD for loop
 
-	// Calculate the bounding box.
-	FBox BoundingBox(ForceInit);
-	FPositionVertexBuffer& BasePositionVertexBuffer = StaticMeshRenderData.LODResources[0].VertexBuffers.PositionVertexBuffer;
-	for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
 	{
-		BoundingBox += BasePositionVertexBuffer.VertexPosition(VertexIndex);
-	}
-	BoundingBox.GetCenterAndExtents(StaticMeshRenderData.Bounds.Origin, StaticMeshRenderData.Bounds.BoxExtent);
+		TRACE_CPUPROFILER_EVENT_SCOPE_STR("FStaticMeshBuilder::Build - Calculate Bounds");
 
-	// Calculate the bounding sphere, using the center of the bounding box as the origin.
-	StaticMeshRenderData.Bounds.SphereRadius = 0.0f;
-	for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
-	{
-		StaticMeshRenderData.Bounds.SphereRadius = FMath::Max(
-			(BasePositionVertexBuffer.VertexPosition(VertexIndex) - StaticMeshRenderData.Bounds.Origin).Size(),
-			StaticMeshRenderData.Bounds.SphereRadius
-		);
+		// Calculate the bounding box.
+		FBox BoundingBox(ForceInit);
+		FPositionVertexBuffer& BasePositionVertexBuffer = StaticMeshRenderData.LODResources[0].VertexBuffers.PositionVertexBuffer;
+		for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
+		{
+			BoundingBox += BasePositionVertexBuffer.VertexPosition(VertexIndex);
+		}
+		BoundingBox.GetCenterAndExtents(StaticMeshRenderData.Bounds.Origin, StaticMeshRenderData.Bounds.BoxExtent);
+
+		// Calculate the bounding sphere, using the center of the bounding box as the origin.
+		StaticMeshRenderData.Bounds.SphereRadius = 0.0f;
+		for (uint32 VertexIndex = 0; VertexIndex < BasePositionVertexBuffer.GetNumVertices(); VertexIndex++)
+		{
+			StaticMeshRenderData.Bounds.SphereRadius = FMath::Max(
+                (BasePositionVertexBuffer.VertexPosition(VertexIndex) - StaticMeshRenderData.Bounds.Origin).Size(),
+                StaticMeshRenderData.Bounds.SphereRadius
+            );
+		}
 	}
+	
 
 	return true;
 }
