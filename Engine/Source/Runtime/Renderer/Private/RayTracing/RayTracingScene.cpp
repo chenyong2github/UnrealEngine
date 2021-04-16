@@ -132,9 +132,6 @@ void FRayTracingScene::Reset()
 
 	Instances.Reset();
 	GeometriesToBuild.Reset();
-#ifdef DO_CHECK
-	GeometriesToValidate.Reset();
-#endif
 
 	BuildScratchBuffer = nullptr;
 }

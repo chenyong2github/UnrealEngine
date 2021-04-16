@@ -17,9 +17,9 @@ public:
 		FRayTracingDynamicGeometryUpdateParams Params,
 		uint32 PrimitiveId 
 	);
-	uint64 GetSharedBufferGenerationID() const { return SharedBufferGenerationID; }
 
-	void BeginUpdate();
+	// Starts an update batch and returns the current shared buffer generation ID which is used for validation.
+	int64 BeginUpdate();
 	void DispatchUpdates(FRHIComputeCommandList& ParentCmdList);
 	void EndUpdate(FRHICommandListImmediate& RHICmdList);
 
@@ -37,7 +37,7 @@ private:
 
 	// Generation ID when the shared vertex buffers have been reset. The current generation ID is stored in the FRayTracingGeometry to keep track
 	// if the vertex buffer data is still valid for that frame - validated before generation the TLAS
-	uint64 SharedBufferGenerationID = 0;
+	int64 SharedBufferGenerationID = 0;
 };
 
 #endif // RHI_RAYTRACING

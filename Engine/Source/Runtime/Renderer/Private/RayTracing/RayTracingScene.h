@@ -67,11 +67,6 @@ public:
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 
-#ifdef DO_CHECK
-	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
-	TSet<const FRayTracingGeometry*> GeometriesToValidate;
-#endif
-
 	FRayTracingAccelerationStructureSize SizeInfo = {};
 
 	FRDGBufferRef BuildScratchBuffer;

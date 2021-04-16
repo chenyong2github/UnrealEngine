@@ -101,7 +101,7 @@ FRayTracingDynamicGeometryCollection::~FRayTracingDynamicGeometryCollection()
 	VertexPositionBuffers.Empty();
 }
 
-void FRayTracingDynamicGeometryCollection::BeginUpdate()
+int64 FRayTracingDynamicGeometryCollection::BeginUpdate()
 {
 	// Clear working arrays - keep max size allocated
 	DispatchCommands.Empty(DispatchCommands.Max());
@@ -116,6 +116,8 @@ void FRayTracingDynamicGeometryCollection::BeginUpdate()
 
 	// Increment generation ID used for validation
 	SharedBufferGenerationID++;
+
+	return SharedBufferGenerationID;
 }
 
 void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(

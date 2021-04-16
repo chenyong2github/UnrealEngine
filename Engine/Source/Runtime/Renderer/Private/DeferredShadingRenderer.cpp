@@ -791,7 +791,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 		const bool bParallelMeshBatchSetup = GRayTracingParallelMeshBatchSetup && FApp::ShouldUseThreadingForPerformance();
 
-		Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
+		const int64 SharedBufferGenerationID = Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
 
 		struct FRayTracingMeshBatchWorkItem
 		{
@@ -891,6 +891,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 			FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 			TempRayTracingInstances.Reset();
+			MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate.Reset();
+
 			SceneProxy->GetDynamicRayTracingInstances(MaterialGatheringContext, TempRayTracingInstances);
 
 			for (auto DynamicRayTracingGeometryUpdate : MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate)
@@ -904,26 +906,37 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				);
 			}
 
-			MaterialGatheringContext.DynamicRayTracingGeometriesToUpdate.Reset();
-
 			if (TempRayTracingInstances.Num() > 0)
 			{
 				for (FRayTracingInstance& Instance : TempRayTracingInstances)
 				{
-					// If geometry still has pending build request then add to list which requires a force build
-					if (Instance.Geometry->HasPendingBuildRequest())
+					const FRayTracingGeometry* Geometry = Instance.Geometry;
+
+					if (!ensureMsgf(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers
+						|| Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID,
+						TEXT("GenerationID %lld, but expected to be %lld or %lld. Geometry debug name: '%s'. ")
+						TEXT("When shared vertex buffers are used, the contents is expected to be written every frame. ")
+						TEXT("Possibly AddDynamicMeshBatchForGeometryUpdate() was not called for this geometry."),
+						Geometry->DynamicGeometrySharedBufferGenerationID, SharedBufferGenerationID, FRayTracingGeometry::NonSharedVertexBuffers,
+						*Geometry->Initializer.DebugName.ToString()))
 					{
-						RayTracingScene.GeometriesToBuild.Add(Instance.Geometry);
+						continue;
+					}
+
+					// If geometry still has pending build request then add to list which requires a force build
+					if (Geometry->HasPendingBuildRequest())
+					{
+						RayTracingScene.GeometriesToBuild.Add(Geometry);
 					}
 
 					// Thin geometries like hair don't have material, as they only support shadow at the moment.
-					if (!ensureMsgf(Instance.GetMaterials().Num() == Instance.Geometry->Initializer.Segments.Num() ||
-						(Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.GetMaterials().Num() == 1) ||
+					if (!ensureMsgf(Instance.GetMaterials().Num() == Geometry->Initializer.Segments.Num() ||
+						(Geometry->Initializer.Segments.Num() == 0 && Instance.GetMaterials().Num() == 1) ||
 						(Instance.GetMaterials().Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0),
 						TEXT("Ray tracing material assignment validation failed for geometry '%s'. "
-							"Instance.GetMaterials().Num() = %d, Instance.Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
-						*Instance.Geometry->Initializer.DebugName.ToString(), Instance.GetMaterials().Num(),
-						Instance.Geometry->Initializer.Segments.Num(), Instance.Mask))
+							"Instance.GetMaterials().Num() = %d, Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
+						*Geometry->Initializer.DebugName.ToString(), Instance.GetMaterials().Num(),
+						Geometry->Initializer.Segments.Num(), Instance.Mask))
 					{
 						continue;
 					}
@@ -931,7 +944,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					const uint32 InstanceIndex = RayTracingScene.Instances.Num();
 
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
-					RayTracingInstance.GeometryRHI = Instance.Geometry->RayTracingGeometryRHI;
+					RayTracingInstance.GeometryRHI = Geometry->RayTracingGeometryRHI;
 					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 					RayTracingInstance.Mask = Instance.Mask;
 					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
@@ -961,13 +974,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 							RayTracingInstance.TransformsView = Instance.InstanceTransformsView;
 						}
 					}
-
-				#if DO_CHECK
-					if (Instance.Geometry->DynamicGeometrySharedBufferGenerationID != FRayTracingGeometry::NonSharedVertexBuffers)
-					{
-						RayTracingScene.GeometriesToValidate.Add(Instance.Geometry);
-					}
-				#endif // DO_CHECK
 
 					if (bParallelMeshBatchSetup)
 					{
@@ -1202,18 +1208,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	}
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
-
-#ifdef DO_CHECK
-	// Validate all the ray tracing geometries lifetimes
-	int64 SharedBufferGenerationID = (int64)Scene->GetRayTracingDynamicGeometryCollection()->GetSharedBufferGenerationID();
-	for (const FRayTracingGeometry* Geometry : RayTracingScene.GeometriesToValidate)
-	{
-		checkf(Geometry->DynamicGeometrySharedBufferGenerationID == FRayTracingGeometry::NonSharedVertexBuffers 
-			|| Geometry->DynamicGeometrySharedBufferGenerationID == SharedBufferGenerationID,
-			TEXT("GenerationID %lld, but expected to be %lld or %lld"), 
-			Geometry->DynamicGeometrySharedBufferGenerationID, SharedBufferGenerationID, FRayTracingGeometry::NonSharedVertexBuffers);
-	}
-#endif // DO_CHECK
 
 	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
 	TArray<FRHIRayTracingShader*> RayGenShaders;
