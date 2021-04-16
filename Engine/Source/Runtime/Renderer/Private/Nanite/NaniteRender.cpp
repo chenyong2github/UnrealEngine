@@ -2853,9 +2853,15 @@ void AddPass_Rasterize(
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
 			RasterPassParameters,
-			ERDGPassFlags::Raster,
-			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader](FRHICommandListImmediate& RHICmdList)
+			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
+			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, bMainPass](FRHICommandListImmediate& RHICmdList)
 		{
+			FRHIRenderPassInfo RPInfo;
+			RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
+			RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
+			RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
+			RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
+			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: Rasterize") : TEXT("Post Pass: Rasterize"));
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -2879,6 +2885,7 @@ void AddPass_Rasterize(
 
 			RHICmdList.SetStreamSource( 0, nullptr, 0 );
 			RHICmdList.DrawPrimitiveIndirect(RasterPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), 16);
+			RHICmdList.EndRenderPass();
 		});
 	}
 

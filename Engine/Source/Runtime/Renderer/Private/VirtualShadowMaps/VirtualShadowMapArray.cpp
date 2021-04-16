@@ -1846,12 +1846,20 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("RenderVirtualShadowMapsHw"),
 				PassParameters,
-				ERDGPassFlags::Raster,
+				ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 				[this, ProjectedShadowInfo , &MeshCommandPass, PassParameters, ShadowDepthPassParameters, ViewRect](FRHICommandList& RHICmdList)
 				{
+					FRHIRenderPassInfo RPInfo;
+					RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
+					RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
+					RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
+					RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
+					RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderVirtualShadowMapsHw"));
+
 					RHICmdList.SetViewport( ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min( ViewRect.Max.X, 32767 ), FMath::Min( ViewRect.Max.Y, 32767 ), 1.0f );
 
 					MeshCommandPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
+					RHICmdList.EndRenderPass();
 				});
 		}
 
