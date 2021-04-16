@@ -59,7 +59,8 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	bUseBendingElements = false;
 	bUseSelfCollisions = (ClothConfig.SelfCollisionRadius > 0.f && ClothConfig.SelfCollisionStiffness > 0.f);
 
-	StrainLimitingStiffness = FMath::Clamp(ClothConfig.TetherStiffness, 0.f, 1.f);
+	TetherStiffness.Low = FMath::Clamp(ClothConfig.TetherStiffness, 0.f, 1.f);
+	TetherStiffness.High = 1.f;
 	LimitScale = FMath::Clamp(ClothConfig.TetherLimit, 0.01f, 10.f);
 	ShapeTargetStiffness = 0.f;
 
@@ -159,6 +160,13 @@ void UChaosClothConfig::PostLoad()
 	if (FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddfictitiousforces)
 	{
 		FictitiousAngularScale = 0.f;  // Maintain early behavior with no fictitious forces
+	}
+
+	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddTetherStiffnessWeightMap)
+	{
+		// Note: Unlike AnimDriveStiffness, Low is updated here, because there was no existing weight map before this version
+		TetherStiffness.Low = FMath::Clamp(FMath::Loge(StrainLimitingStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
+		TetherStiffness.High = 0.f;
 	}
 #endif  // #if WITH_EDITORONLY_DATA
 }

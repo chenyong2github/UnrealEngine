@@ -128,13 +128,18 @@ public:
 	float VolumeStiffness = 0.f;
 
 	/**
-	 * The strain limiting stiffness of the long range attachment constraints (aka tether stiffness).
+	 * The tethers' stiffness of the long range attachment constraints.
 	 * The long range attachment connects each of the cloth particles to its closest fixed point with a spring constraint.
 	 * This can be used to compensate for a lack of stretch resistance when the iterations count is kept low for performance reasons.
-	 * Can lead to an unnatural pull string puppet like behavior. Use 0 to disable.
+	 * Can lead to an unnatural pull string puppet like behavior.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Tether Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 * Use 0, 0 to disable.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float StrainLimitingStiffness = 0.5f;
+	FChaosClothWeightedValue TetherStiffness = { 1.f, 1.f };
 
 	/** The limit scale of the long range attachment constraints (aka tether limit). */
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "1.", UIMax = "1.1", ClampMin = "0.01", ClampMax = "10"))
@@ -279,6 +284,9 @@ public:
 
 	UPROPERTY()
 	float AnimDriveSpringStiffness_DEPRECATED = 0.f;
+
+	UPROPERTY()
+	float StrainLimitingStiffness_DEPRECATED = 0.5f;
 #endif
 };
 

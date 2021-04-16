@@ -15,10 +15,23 @@ using namespace Chaos;
 void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*/, const TArray<int32>& ConstraintIndices) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
-	for (const int32 ConstraintIndex : ConstraintIndices)
+	if (!Stiffness.HasWeightMap())
 	{
-		const FTether& Tether = Tethers[ConstraintIndex];
-		Particles.P(Tether.End) += Stiffness * Tether.GetDelta(Particles);
+		const FReal ExpStiffnessValue = (FReal)Stiffness;
+		for (const int32 ConstraintIndex : ConstraintIndices)
+		{
+			const FTether& Tether = Tethers[ConstraintIndex];
+			Particles.P(Tether.End) += Stiffness[Tether.End - ParticleOffset] * Tether.GetDelta(Particles);
+		}
+	}
+	else
+	{
+		for (const int32 ConstraintIndex : ConstraintIndices)
+		{
+			const FTether& Tether = Tethers[ConstraintIndex];
+			const FReal ExpStiffnessValue = Stiffness[Tether.End - ParticleOffset];
+			Particles.P(Tether.End) += Stiffness[Tether.End - ParticleOffset] * Tether.GetDelta(Particles);
+		}
 	}
 }
 
@@ -26,28 +39,44 @@ void FPBDLongRangeConstraints::Apply(FPBDParticles& Particles, const FReal /*Dt*
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_LongRange);
 
-	if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
+	if (!Stiffness.HasWeightMap())
 	{
+		const float ExpStiffnessValue = (float)Stiffness;
 #if INTEL_ISPC
-		// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
-		TethersView.RangeFor([this, &Particles](TArray<FTether>& InTethers, int32 Offset, int32 Range)
-			{
-				ispc::ApplyLongRangeConstraints(
-					(ispc::FVector*)Particles.GetP().GetData(),
-					(ispc::FTether*)(InTethers.GetData() + Offset),
-					Stiffness,
-					Range - Offset);
-			});
+		if (bRealTypeCompatibleWithISPC && bChaos_LongRange_ISPC_Enabled)
+		{
+			// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
+			TethersView.RangeFor([this, &Particles, ExpStiffnessValue](TArray<FTether>& InTethers, int32 Offset, int32 Range)
+				{
+					ispc::ApplyLongRangeConstraints(
+						(ispc::FVector*)Particles.GetP().GetData(),
+						(ispc::FTether*)(InTethers.GetData() + Offset),
+						ExpStiffnessValue,
+						Range - Offset);
+				});
+		}
+		else
 #endif
+		{
+			// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
+			static const int32 MinParallelSize = 500;
+			TethersView.ParallelFor([this, &Particles, ExpStiffnessValue](TArray<FTether>& InTethers, int32 Index)
+				{
+					const FTether& Tether = InTethers[Index];
+					Particles.P(Tether.End) += ExpStiffnessValue * Tether.GetDelta(Particles);
+				}, MinParallelSize);
+		}
 	}
 	else
 	{
-		// Run particles in parallel, and rangesin sequence to avoid a race condition when updating the same particle from different tethers
+		// TODO: ISPC implementation
+
+		// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
 		static const int32 MinParallelSize = 500;
 		TethersView.ParallelFor([this, &Particles](TArray<FTether>& InTethers, int32 Index)
 			{
 				const FTether& Tether = InTethers[Index];
-				Particles.P(Tether.End) += Stiffness * Tether.GetDelta(Particles);
+				Particles.P(Tether.End) += Stiffness[Tether.End - ParticleOffset] * Tether.GetDelta(Particles);
 			}, MinParallelSize);
 	}
 }

@@ -384,7 +384,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->AreaStiffness,
 		ClothConfig->VolumeStiffness,
 		ClothConfig->bUseThinShellVolumeConstraints,
-		ClothConfig->StrainLimitingStiffness,
+		TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 		ClothConfig->LimitScale,
 		ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
@@ -745,7 +745,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->AreaStiffness,
 			ClothConfig->VolumeStiffness,
 			ClothConfig->bUseThinShellVolumeConstraints,
-			ClothConfig->StrainLimitingStiffness,
+			TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 			ClothConfig->LimitScale,
 			ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
