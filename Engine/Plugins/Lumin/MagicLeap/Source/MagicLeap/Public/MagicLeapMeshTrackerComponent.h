@@ -59,7 +59,7 @@ public:
 	int32 GetNumQueuedBlockUpdates();
 
 	/** IMagicLeapMeshBlockSelectorInterface */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap", meta = (ScriptName = "MeshTrackerSelectMeshBlocks", DisplayName = "Mesh Tracker Select Mesh Blocks"))
 	void SelectMeshBlocks(const FMagicLeapTrackingMeshInfo& NewMeshInfo, TArray<FMagicLeapMeshBlockRequest>& RequestedMesh);
 	virtual void SelectMeshBlocks_Implementation(const FMagicLeapTrackingMeshInfo& NewMeshInfo, TArray<FMagicLeapMeshBlockRequest>& RequestedMesh) override;
 

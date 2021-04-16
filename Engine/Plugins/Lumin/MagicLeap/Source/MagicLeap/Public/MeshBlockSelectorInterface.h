@@ -22,6 +22,6 @@ public:
 	 * @param NewMeshInfo Information on the latest mesh blocks available.
 	 * @param RequestedMesh output array containing details of blocks for whom the mesh should be requested.
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category="Meshing|MagicLeap", meta = (ScriptName = "MeshBlockSelectorSelectMeshBlocks", DisplayName = "Mesh Block Selector Select Mesh Blocks"))
 	void SelectMeshBlocks(const FMagicLeapTrackingMeshInfo& NewMeshInfo, TArray<FMagicLeapMeshBlockRequest>& RequestedMesh);
 };
