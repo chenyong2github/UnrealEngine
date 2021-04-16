@@ -232,8 +232,6 @@ FNaniteAttributeData GetAttributeData(
 	uint DecodeInfoOffset = Cluster.PageBaseAddress + Cluster.DecodeInfoOffset;
 	uint AttributeDataOffset = Cluster.PageBaseAddress + Cluster.AttributeOffset;
 
-	const uint MaxAttributeBits = CalculateMaxAttributeBits(NumTexCoordInterpolators);
-
 	// Unpack normal
 #if USE_UNCOMPRESSED_VERTEX_DATA
 	uint3 ReadOffset = AttributeDataOffset + TriIndices * Cluster.BitsPerAttribute / 8;
@@ -242,6 +240,8 @@ FNaniteAttributeData GetAttributeData(
 	float3 TangentZ2 = asfloat(ClusterPageData.Load3(ReadOffset.z));
 	ReadOffset += 12;
 #else
+	const uint MaxAttributeBits = CalculateMaxAttributeBits(NumTexCoordInterpolators);
+
 	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
 	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
 	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
@@ -254,6 +254,7 @@ FNaniteAttributeData GetAttributeData(
 	float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
 	float3 TangentZ2 = UnpackNormal(NormalBits2, NORMAL_QUANTIZATION_BITS);
 #endif
+
 	float3 TangentZ = normalize(Barycentrics.UVW.x * TangentZ0 + Barycentrics.UVW.y * TangentZ1 + Barycentrics.UVW.z * TangentZ2);
 
 	// Decode vertex color
@@ -292,20 +293,21 @@ FNaniteAttributeData GetAttributeData(
 	}
 #endif
 
+	// Protect against case where Nanite max UV count is lower than what the material may define.
 	if (NumTexCoordInterpolators > 0)
 	{
 		UNROLL
-		for (uint TexCoordIndex = 0; TexCoordIndex < NumTexCoordInterpolators; ++TexCoordIndex)
+		for (uint TexCoordIndex = 0; TexCoordIndex < MAX_NANITE_UVS; ++TexCoordIndex)
 		{
-			// Protect against case where Nanite max UV count is lower than what the material may define.
-			if (TexCoordIndex < MAX_NANITE_UVS)
+			// Make sure we're within our interpolator range
+			if (TexCoordIndex < NumTexCoordInterpolators)
 			{
-#if USE_UNCOMPRESSED_VERTEX_DATA
+			#if USE_UNCOMPRESSED_VERTEX_DATA
 				float2 TexCoord0 = asfloat(ClusterPageData.Load2(ReadOffset.x));
 				float2 TexCoord1 = asfloat(ClusterPageData.Load2(ReadOffset.y));
 				float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
 				ReadOffset += 8;
-#else
+			#else
 				uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
 
 				uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
@@ -316,7 +318,7 @@ FNaniteAttributeData GetAttributeData(
 				float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
 				float2 TexCoord1 = UnpackTexCoord(Bits1_UV, UVRange);
 				float2 TexCoord2 = UnpackTexCoord(Bits2_UV, UVRange);
-#endif
+			#endif
 
 				float2 TexCoord10 = TexCoord1 - TexCoord0;
 				float2 TexCoord20 = TexCoord2 - TexCoord0;
