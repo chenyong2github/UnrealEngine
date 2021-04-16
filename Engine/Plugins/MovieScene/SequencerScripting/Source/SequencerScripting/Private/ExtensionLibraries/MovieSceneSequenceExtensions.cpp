@@ -444,7 +444,10 @@ FTimecode UMovieSceneSequenceExtensions::GetTimecodeSource(UMovieSceneSequence* 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
+#if WITH_EDITORONLY_DATA
 		return MovieScene->TimecodeSource.Timecode;
+#endif
+		return FTimecode();
 	}
 	else
 	{
@@ -681,6 +684,7 @@ TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequen
 {
 	TArray<UMovieSceneFolder*> Result;
 
+#if WITH_EDITORONLY_DATA
 	if (Sequence)
 	{
 		UMovieScene* Scene = Sequence->GetMovieScene();
@@ -689,6 +693,7 @@ TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequen
 			Result = Scene->GetRootFolders();
 		}
 	}
+#endif
 
 	return Result;
 }
@@ -697,6 +702,7 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 {
 	UMovieSceneFolder* NewFolder = nullptr;
 	
+#if WITH_EDITORONLY_DATA
 	if (Sequence)
 	{
 		UMovieScene* MovieScene = Sequence->GetMovieScene();
@@ -708,6 +714,7 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 			MovieScene->GetRootFolders().Add(NewFolder);
 		}
 	}
+#endif
 
 	return NewFolder;
 }
@@ -809,20 +816,25 @@ int32 UMovieSceneSequenceExtensions::FindNextMarkedFrame(UMovieSceneSequence* Se
 
 void UMovieSceneSequenceExtensions::SetReadOnly(UMovieSceneSequence* Sequence, bool bInReadOnly)
 {
+#if WITH_EDITORONLY_DATA
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
 		MovieScene->SetReadOnly(bInReadOnly);
 	}
+#endif
 }
 
 bool UMovieSceneSequenceExtensions::IsReadOnly(UMovieSceneSequence* Sequence)
 {
+#if WITH_EDITORONLY_DATA
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
+
 		return MovieScene->IsReadOnly();
 	}
+#endif
 
 	return false;
 }
