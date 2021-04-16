@@ -95,6 +95,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickCount(0)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
+, bNeedsGPUContextInitForDataInterfaces(false)
 , bHasAnyGPUEmitters(false)
 , bNeedsSortedSignificanceCull(false)
 , ActiveInstances(0)
@@ -1514,9 +1515,30 @@ void UNiagaraSystem::UpdatePostCompileDIInfo()
 {
 	bHasSystemScriptDIsWithPerInstanceData = false;
 	UserDINamesReadInSystemScripts.Empty();
+	bNeedsGPUContextInitForDataInterfaces = false;
 
 	CheckDICompileInfo(SystemSpawnScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
 	CheckDICompileInfo(SystemUpdateScript->GetVMExecutableData().DataInterfaceInfo, bHasSystemScriptDIsWithPerInstanceData, UserDINamesReadInSystemScripts);
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+	{
+		if (EmitterHandle.GetIsEnabled() == false || !EmitterHandle.GetInstance())
+		{
+			continue;
+		}
+		if (EmitterHandle.GetInstance()->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			UNiagaraScript* GPUScript = EmitterHandle.GetInstance()->GetGPUComputeScript();
+			if (GPUScript)
+			{
+				FNiagaraVMExecutableData& VMData = GPUScript->GetVMExecutableData();
+				if (VMData.IsValid() && VMData.bNeedsGPUContextInit)
+				{
+					bNeedsGPUContextInitForDataInterfaces = true;
+				}
+			}
+		}
+	}
 }
 
 void UNiagaraSystem::UpdateDITickFlags()

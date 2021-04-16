@@ -540,6 +540,7 @@ UClass* FNiagaraTypeDefinition::UTextureClass;
 UClass* FNiagaraTypeDefinition::UTextureRenderTargetClass;
 
 UEnum* FNiagaraTypeDefinition::ExecutionStateEnum;
+UEnum* FNiagaraTypeDefinition::CoordinateSpaceEnum;
 UEnum* FNiagaraTypeDefinition::SimulationTargetEnum;
 UEnum* FNiagaraTypeDefinition::ExecutionStateSourceEnum;
 UEnum* FNiagaraTypeDefinition::ScriptUsageEnum;
@@ -680,6 +681,7 @@ void FNiagaraTypeDefinition::Init()
 	ScalarStructs.Add(FloatStruct);
 	ScalarStructs.Add(HalfStruct);
 
+	CoordinateSpaceEnum = StaticEnum<ENiagaraCoordinateSpace>();
 	ExecutionStateEnum = StaticEnum<ENiagaraExecutionState>();
 	ExecutionStateSourceEnum = StaticEnum<ENiagaraExecutionStateSource>();
 	SimulationTargetEnum = StaticEnum<ENiagaraSimTarget>();
@@ -829,6 +831,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
+	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(CoordinateSpaceEnum), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);
 
 	UScriptStruct* SpawnInfoStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraSpawnInfo"));

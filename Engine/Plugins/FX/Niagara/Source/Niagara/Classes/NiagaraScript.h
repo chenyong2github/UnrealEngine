@@ -397,6 +397,9 @@ public:
 	UPROPERTY()
 	uint32 bReadsSignificanceIndex : 1;
 
+	UPROPERTY()
+	uint32 bNeedsGPUContextInit : 1;
+
 	void SerializeData(FArchive& Ar, bool bDDCData);
 	
 	bool IsValid() const;
@@ -829,7 +832,7 @@ public:
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
 
 	template<typename T>
-	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar) const
+	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar, const FNiagaraParameterStore* FallbackParameterStore = nullptr) const
 	{
 		for (const FNiagaraCompilerTag& Tag : CachedScriptVM.CompileTags)
 		{
@@ -842,6 +845,11 @@ public:
 				else if (const int32* Offset = RapidIterationParameters.FindParameterOffset(FNiagaraVariableBase(Tag.Variable.GetType(), *Tag.StringValue)))
 				{
 					return TOptional<T>(*(T*)RapidIterationParameters.GetParameterData(*Offset));
+				}
+				else if (FallbackParameterStore)
+				{
+					if (const int32* OffsetAlternate = FallbackParameterStore->FindParameterOffset(FNiagaraVariableBase(Tag.Variable.GetType(), *Tag.StringValue)))
+						return TOptional<T>(*(T*)FallbackParameterStore->GetParameterData(*OffsetAlternate));
 				}
 			}
 		}

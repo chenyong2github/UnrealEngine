@@ -94,6 +94,7 @@ FNiagaraVMExecutableData::FNiagaraVMExecutableData()
 	, CompileTime(0.0f)
 #endif
 	, bReadsSignificanceIndex(false)
+	, bNeedsGPUContextInit(false)
 {
 }
 
@@ -2538,6 +2539,20 @@ void UNiagaraScript::SyncAliases(const TMap<FString, FString>& RenameMap)
 			if (NewVar.GetName() != Var.GetName())
 			{
 				RapidIterationParameters.RenameParameter(Var, NewVar.GetName());
+			}
+		}
+	}
+
+	// Now handle any compile tags overall..
+	{
+		for (int32 i = 0; i < GetVMExecutableData().CompileTags.Num(); i++)
+		{
+			const FString& Name = GetVMExecutableData().CompileTags[i].StringValue;
+			if (Name.Len())
+			{
+				FNiagaraVariable NewVar = FNiagaraVariable::ResolveAliases(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Name), RenameMap);
+				if (NewVar.GetName() != *Name)
+					GetVMExecutableData().CompileTags[i].StringValue = NewVar.GetName().ToString();
 			}
 		}
 	}

@@ -473,6 +473,7 @@ public:
 	bool HasSystemScriptDIsWithPerInstanceData() const;
 	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
+	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
 
 	const TArray<FName>& GetUserDINamesReadInSystemScripts() const;
 
@@ -648,6 +649,10 @@ protected:
 
 	UPROPERTY()
 	bool bHasSystemScriptDIsWithPerInstanceData;
+
+	UPROPERTY()
+	bool bNeedsGPUContextInitForDataInterfaces;
+
 
 	UPROPERTY()
 	TArray<FName> UserDINamesReadInSystemScripts;
