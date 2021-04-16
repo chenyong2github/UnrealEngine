@@ -84,7 +84,7 @@ bool ADisplayClusterRootActor::IsRunningGameOrPIE() const
 		return World && World->IsPlayInEditor();
 #else
 		return true;
-#endif;
+#endif
 	}
 
 	return true;
