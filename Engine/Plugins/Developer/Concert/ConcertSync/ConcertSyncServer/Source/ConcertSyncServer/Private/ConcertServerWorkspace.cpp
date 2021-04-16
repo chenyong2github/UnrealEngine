@@ -704,6 +704,7 @@ bool FConcertServerWorkspace::UnlockWorkspaceResources(const TArray<FName>& InRe
 
 	int32 ReleasedLockCount = 0;
 	FConcertResourceLockEvent LockEvent{ InLockEndpointId, {}, EConcertResourceLockType::Unlock };
+	TArray<FName> ToRemove;
 	for (const FName& ResourceName : InResourceNames)
 	{
 		const FLockOwner Owner = LockedResources->FindRef(ResourceName);
@@ -715,7 +716,7 @@ bool FConcertServerWorkspace::UnlockWorkspaceResources(const TArray<FName>& InRe
 				{
 					LockEvent.ResourceNames.Add(ResourceName);
 				}
-				LockedResources->Remove(ResourceName);
+				ToRemove.AddUnique(ResourceName);
 			}
 			++ReleasedLockCount;
 		}
@@ -723,6 +724,11 @@ bool FConcertServerWorkspace::UnlockWorkspaceResources(const TArray<FName>& InRe
 		{
 			OutFailedRessources->Add(ResourceName, Owner.EndpointId);
 		}
+	}
+
+	for (const FName& ResourceName : ToRemove)
+	{
+		LockedResources->Remove(ResourceName);
 	}
 
 	// Add lock activity and notify for non-temporary locks
