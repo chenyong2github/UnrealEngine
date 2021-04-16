@@ -15,8 +15,9 @@ public class Lobby : ModuleRules
 			);
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[] { 
+			new string[] {
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"Engine",
 				"OnlineSubsystem",

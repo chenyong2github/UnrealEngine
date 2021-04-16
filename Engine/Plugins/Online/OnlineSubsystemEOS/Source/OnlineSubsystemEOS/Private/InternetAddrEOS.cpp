@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InternetAddrEOS.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemEOSTypes.h"
 
 DEFINE_LOG_CATEGORY(LogSocketSubsystemEOS);

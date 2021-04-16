@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "Interfaces/OnlineUserCloudInterface.h"
 #include "Interfaces/OnlineSharedCloudInterface.h"

@@ -5,7 +5,7 @@
 // UE4 includes
 
 #include "CoreMinimal.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 
 // Module includes
 #include "Interfaces/OnlinePurchaseInterface.h"

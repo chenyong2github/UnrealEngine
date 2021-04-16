@@ -25,7 +25,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Brush.h"
 #include "UObject/LinkerLoad.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"

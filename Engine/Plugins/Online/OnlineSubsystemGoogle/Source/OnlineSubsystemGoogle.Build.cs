@@ -16,6 +16,7 @@ public class OnlineSubsystemGoogle : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"ApplicationCore",
 				"HTTP",

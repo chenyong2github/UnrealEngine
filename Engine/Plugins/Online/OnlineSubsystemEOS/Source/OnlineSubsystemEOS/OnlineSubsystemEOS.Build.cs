@@ -18,6 +18,7 @@ public class OnlineSubsystemEOS : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"Engine",
 				"Sockets",

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Chat/SocialChatChannel.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineGroupsInterface.h"
 #include "SocialGroupChannel.generated.h"
 

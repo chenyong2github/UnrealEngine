@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineMessageInterface.h"
 
 class IOnlineSubsystem;

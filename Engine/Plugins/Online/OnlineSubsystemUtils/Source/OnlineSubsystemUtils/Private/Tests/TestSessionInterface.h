@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
 #include "Containers/Ticker.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSessionSettings.h"

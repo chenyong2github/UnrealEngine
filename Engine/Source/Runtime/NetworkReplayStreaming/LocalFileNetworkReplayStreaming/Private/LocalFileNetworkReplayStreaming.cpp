@@ -10,7 +10,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Misc/ConfigCacheIni.h"
 

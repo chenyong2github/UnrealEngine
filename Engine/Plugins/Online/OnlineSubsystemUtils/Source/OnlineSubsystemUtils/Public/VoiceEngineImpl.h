@@ -18,7 +18,7 @@
 #include "DSP/MultithreadedPatching.h"
 
 #include "VoicePacketImpl.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 
 class IOnlineSubsystem;
 class IVoiceDecoder;

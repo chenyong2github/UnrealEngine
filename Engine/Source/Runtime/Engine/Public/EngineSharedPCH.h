@@ -304,7 +304,7 @@
 #include "UObject/GCObject.h"
 #include "Serialization/BulkData.h"
 #include "UObject/Package.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Linker.h"

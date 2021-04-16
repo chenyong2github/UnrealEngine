@@ -2179,7 +2179,7 @@ bool GameProjectUtils::GenerateConfigFiles(const FProjectInformation& InProjectI
 		}
 
 		FileContents += LINE_TERMINATOR;
-		FileContents += TEXT("[CoreUObject]") LINE_TERMINATOR;
+		FileContents += TEXT("[CoreOnline]") LINE_TERMINATOR;
 		FileContents += TEXT("bEnableThreadSafeUniqueNetIds=True") LINE_TERMINATOR;
 
 		if (WriteOutputFile(DefaultEngineIniFilename, FileContents, OutFailReason))

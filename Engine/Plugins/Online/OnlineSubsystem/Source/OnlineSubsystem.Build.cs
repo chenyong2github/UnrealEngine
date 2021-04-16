@@ -11,6 +11,7 @@ public class OnlineSubsystem : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Json",
+				"CoreOnline",
 				"SignalProcessing"
 			}
 		);
@@ -24,13 +25,10 @@ public class OnlineSubsystem : ModuleRules
 		// OnlineSubsystem cannot depend on Engine!
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
-				"Core", 
+				"Core",
 				"CoreUObject",
-				"ImageCore",
 				"Sockets",
 				"JsonUtilities",
-				"AudioMixerCore",
-				"SignalProcessing",
 			}
 		);
 	}

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineStats.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"

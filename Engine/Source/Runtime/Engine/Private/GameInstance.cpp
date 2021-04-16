@@ -11,7 +11,7 @@
 #include "Engine/World.h"
 #include "AI/NavigationSystemBase.h"
 #include "Misc/Paths.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Engine/Console.h"

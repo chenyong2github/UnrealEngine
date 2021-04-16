@@ -2,7 +2,7 @@
 
 #include "Net/NUTUtilNet.h"
 
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "Engine/Engine.h"
 #include "PacketHandlers/StatelessConnectHandlerComponent.h"

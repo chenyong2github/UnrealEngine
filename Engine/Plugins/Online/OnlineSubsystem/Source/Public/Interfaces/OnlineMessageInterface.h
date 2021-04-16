@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "OnlineKeyValuePair.h"
-#include "UObject/CoreOnlineFwd.h"
+#include "Online/CoreOnlineFwd.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
 

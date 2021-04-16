@@ -4,7 +4,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameMode.h"
 #include "Kismet/GameplayStatics.h"
-#include "UObject/CoreOnlineFwd.h"
+#include "Online/CoreOnlineFwd.h"
 #include "OnlineSubsystemUtils.h"
 #include "OnlineSubsystemSessionSettings.h"
 

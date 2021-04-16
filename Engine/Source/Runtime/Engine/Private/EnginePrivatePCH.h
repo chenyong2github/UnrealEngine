@@ -278,7 +278,7 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "UObject/TextProperty.h"
 #include "Misc/PackageName.h"
 #include "UObject/ObjectResource.h"

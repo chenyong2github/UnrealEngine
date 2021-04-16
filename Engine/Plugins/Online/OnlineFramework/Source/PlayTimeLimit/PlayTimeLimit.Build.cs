@@ -12,6 +12,7 @@ public class PlayTimeLimit : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 			}
 		);

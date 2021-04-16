@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "Interfaces/OnlineLeaderboardInterface.h"
 
 #if WITH_DEV_AUTOMATION_TESTS

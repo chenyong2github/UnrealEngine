@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineSubsystemSteamTypes.h"
 #include "OnlineSessionSettings.h"
 #include "OnlineSessionInterfaceSteam.h"

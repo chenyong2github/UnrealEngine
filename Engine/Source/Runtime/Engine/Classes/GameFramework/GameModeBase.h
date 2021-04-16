@@ -10,7 +10,7 @@
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Info.h"
 #include "Engine/ServerStatReplicator.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "GameFramework/PlayerController.h"
 #include "GameModeBase.generated.h"
 

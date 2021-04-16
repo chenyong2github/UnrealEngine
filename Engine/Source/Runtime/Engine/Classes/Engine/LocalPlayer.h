@@ -12,7 +12,7 @@
 #include "Engine/EngineTypes.h"
 #include "Input/Reply.h"
 #include "Engine/GameViewportClient.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "SceneTypes.h"
 #include "Engine/Player.h"
 #include "GameFramework/OnlineReplStructs.h"

@@ -10,7 +10,7 @@
 #include "PlayTimeLimitUser.h"
 #include "PlayTimeLimitUserMock.h"
 
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 
 // FPlayTimeLimitImpl
 FPlayTimeLimitImpl::FPlayTimeLimitImpl()

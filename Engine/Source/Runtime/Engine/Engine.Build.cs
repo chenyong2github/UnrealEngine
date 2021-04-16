@@ -66,6 +66,7 @@ public class Engine : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"NetCore",
 				"ApplicationCore",

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/CoreOnline.h"
+#include "Online/CoreOnline.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineSubsystemPackage.h"
 #include "DSP/MultithreadedPatching.h"

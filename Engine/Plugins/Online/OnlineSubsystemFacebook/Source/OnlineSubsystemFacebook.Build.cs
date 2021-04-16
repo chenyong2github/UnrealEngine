@@ -16,6 +16,7 @@ public class OnlineSubsystemFacebook : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
 				"Core",
+				"CoreOnline",
 				"CoreUObject",
 				"ApplicationCore",
 				"HTTP",

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
-#include "UObject/CoreOnlineFwd.h"
+#include "Online/CoreOnlineFwd.h"
 
 
 struct FAvatarInfo : public TSharedFromThis<FAvatarInfo>
