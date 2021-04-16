@@ -470,8 +470,8 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 ///////	if (InStream->PlaylistType == FManifestHLSInternal::FMediaStream::EPlaylistType::VOD || InStream->PlaylistType == FManifestHLSInternal::FMediaStream::EPlaylistType::Event)
 
 
-	TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-	UrlBuilder->ParseURL(InPlaylist->Internal.PlaylistLoadRequest.URL);
+	FURL_RFC3986 UrlBuilder;
+	UrlBuilder.Parse(InPlaylist->Internal.PlaylistLoadRequest.URL);
 	TSharedPtrTS<FStreamSegmentRequestHLSfmp4>	Req(new FStreamSegmentRequestHLSfmp4);
 	Req->StreamType 	= StreamType;
 	Req->StreamUniqueID = StreamUniqueID;
@@ -664,7 +664,7 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 			Req->LocalIndex 			   = SelectedSegmentIndex;
 			Req->bIsPrefetch			   = SegmentList[SelectedSegmentIndex].bIsPrefetch;
 			Req->bIsEOSSegment  		   = false;
-			Req->URL					   = UrlBuilder->ResolveWith(SegmentList[SelectedSegmentIndex].URI);
+			Req->URL					   = FURL_RFC3986(UrlBuilder).ResolveWith(SegmentList[SelectedSegmentIndex].URI).Get();
 			Req->FirstAUTimeOffset  	   = searchTime - SegmentList[SelectedSegmentIndex].AbsoluteDateTime;
 			Req->InitSegmentInfo		   = SegmentList[SelectedSegmentIndex].InitSegmentInfo;
 			Req->LicenseKeyInfo 		   = SegmentList[SelectedSegmentIndex].DRMKeyInfo;
@@ -831,13 +831,13 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 
 			VideoPlaylist->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 
-			TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-			UrlBuilder->ParseURL(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+			FURL_RFC3986 UrlBuilder;
+			UrlBuilder.Parse(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 			FPlaylistLoadRequestHLS Req;
 			Req.LoadType			   = FPlaylistLoadRequestHLS::ELoadType::First;
 			Req.InternalUniqueID	   = ActiveVideoUniqueID;
 			Req.RequestedAtTime 	   = SessionServices->GetSynchronizedUTCTime()->GetTime();
-			Req.URL 				   = UrlBuilder->ResolveWith(VideoPlaylist->GetURL());
+			Req.URL 				   = FURL_RFC3986(UrlBuilder).ResolveWith(VideoPlaylist->GetURL()).Get();
 			Req.AdaptationSetUniqueID  = VideoPlaylist->Internal.AdaptationSetUniqueID;
 			Req.RepresentationUniqueID = VideoPlaylist->Internal.RepresentationUniqueID;
 			Req.CDN 				   = VideoPlaylist->Internal.CDN;
@@ -850,13 +850,13 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 
 			AudioPlaylist->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 
-			TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-			UrlBuilder->ParseURL(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+			FURL_RFC3986 UrlBuilder;
+			UrlBuilder.Parse(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 			FPlaylistLoadRequestHLS Req;
 			Req.LoadType			   = FPlaylistLoadRequestHLS::ELoadType::First;
 			Req.InternalUniqueID	   = ActiveAudioUniqueID;
 			Req.RequestedAtTime 	   = SessionServices->GetSynchronizedUTCTime()->GetTime();
-			Req.URL 				   = UrlBuilder->ResolveWith(AudioPlaylist->GetURL());
+			Req.URL 				   = FURL_RFC3986(UrlBuilder).ResolveWith(AudioPlaylist->GetURL()).Get();
 			Req.AdaptationSetUniqueID  = AudioPlaylist->Internal.AdaptationSetUniqueID;
 			Req.RepresentationUniqueID = AudioPlaylist->Internal.RepresentationUniqueID;
 			Req.CDN 				   = AudioPlaylist->Internal.CDN;
@@ -1020,13 +1020,13 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
 
 			Playlist->Internal.LoadState = FManifestHLSInternal::FPlaylistBase::FInternal::ELoadState::Pending;
 
-			TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
-			UrlBuilder->ParseURL(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
+			FURL_RFC3986 UrlBuilder;
+			UrlBuilder.Parse(InternalManifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
 			FPlaylistLoadRequestHLS Req;
 			Req.LoadType			   = FPlaylistLoadRequestHLS::ELoadType::First;
 			Req.InternalUniqueID	   = ForStreamID;
 			Req.RequestedAtTime 	   = SessionServices->GetSynchronizedUTCTime()->GetTime();
-			Req.URL 				   = UrlBuilder->ResolveWith(Playlist->GetURL());
+			Req.URL 				   = UrlBuilder.ResolveWith(Playlist->GetURL()).Get();
 			Req.AdaptationSetUniqueID  = Playlist->Internal.AdaptationSetUniqueID;
 			Req.RepresentationUniqueID = Playlist->Internal.RepresentationUniqueID;
 			Req.CDN 				   = Playlist->Internal.CDN;

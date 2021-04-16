@@ -63,6 +63,7 @@ private:
 	void OnHTTPResourceRequestComplete(TSharedPtrTS<FHTTPResourceRequest> InRequest);
 
 	FErrorDetail GetXMLResponseString(FString& OutXMLString, FResourceLoadRequestPtr FromRequest);
+	FErrorDetail GetResponseString(FString& OutString, FResourceLoadRequestPtr FromRequest);
 
 	void StartWorkerThread();
 	void StopWorkerThread();
@@ -71,6 +72,8 @@ private:
 	void HandleCompletedRequests(const FTimeValue& TimeNow);
 	void HandleStaticRequestCompletions(const FTimeValue& TimeNow);
 	void CheckForMPDUpdate();
+
+	void TriggerTimeSynchronization();
 
 	void PostError(const FErrorDetail& Error);
 	void PostError(const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
@@ -88,6 +91,9 @@ private:
 	void ManifestUpdateDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 	void InitialMPDXLinkElementDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 
+	void Timesync_httphead_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
+	void Timesync_httpxsdate_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
+	void Timesync_httpiso_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
 
 	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MPDURL;
@@ -118,6 +124,29 @@ private:
 	FErrorDetail											LastErrorDetail;
 
 	TSharedPtrTS<FManifestDASH>								PlayerManifest;
+
+	// Time synchronization.
+	TArray<TSharedPtrTS<FDashMPD_DescriptorType>>			AttemptedTimesyncDescriptors;
+	bool													bTimeSyncInProgress = false;
+	bool													bInitialTimeSyncedToMPDDateTimeHeader = false;
+
+	// Warnings
+	bool													bWarnedAboutNoUTCTimingElements = false;
+	bool													bWarnedAboutUnsupportedUTCTimingElement = false;
+};
+
+
+namespace DASHTimingSources
+{
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_httphead2014 = TEXT("urn:mpeg:dash:utc:http-head:2014");
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpxsdate2014 = TEXT("urn:mpeg:dash:utc:http-xsdate:2014");
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpiso2014 = TEXT("urn:mpeg:dash:utc:http-iso:2014");
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_direct2014 = TEXT("urn:mpeg:dash:utc:direct:2014");
+/* not currently supported
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpntp2014 = TEXT("urn:mpeg:dash:utc:http-ntp:2014");
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_ntp2014 = TEXT("urn:mpeg:dash:utc:ntp:2014");
+    const TCHAR* const Scheme_urn_mpeg_dash_utc_sntp2014 = TEXT("urn:mpeg:dash:utc:sntp:2014");
+*/
 };
 
 
@@ -412,6 +441,134 @@ void FPlaylistReaderDASH::RequestMPDUpdate(bool bForcedUpdate)
 }
 
 
+void FPlaylistReaderDASH::TriggerTimeSynchronization()
+{
+	if (bTimeSyncInProgress)
+	{
+		return;
+	}
+
+	// Time sync is only necessary when there is either an MPD@availabilityStartTime or MPD@type is dynamic.
+	if (Manifest.IsValid() && (Manifest->UsesAST() || !Manifest->IsStaticType()))
+	{
+		TSharedPtrTS<FDashMPD_MPDType> MPDRoot = Manifest->GetMPDRoot();
+		if (MPDRoot.IsValid())
+		{
+			bool bFoundSupportedElement = false;
+			FString MPDDocumentURL = MPDRoot->GetDocumentURL();
+			const TArray<TSharedPtrTS<FDashMPD_DescriptorType>>& UTCTimings = MPDRoot->GetUTCTimings();
+
+			// Emit a one-time only warning if there is no <UTCTiming> element in the MPD when there should be.
+			if (UTCTimings.Num() == 0 && !bWarnedAboutNoUTCTimingElements)
+			{
+				bWarnedAboutNoUTCTimingElements = true;
+				LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No <UTCTiming> element found in MPD. This could result in playback failures. For detailed validation of your MPD please use https://conformance.dashif.org/")));
+			}
+
+			/*
+				We go over the UTC timing elements in two passes.
+				In the first we look only for the (discouraged) urn:mpeg:dash:utc:direct:2014 scheme because
+				if it is available we can set it immediately. Its value is baked into the manifest and is therefore
+				only really valid right at the time the MPD was fetched.
+				If we try other schemes first that involve a network request and those fail then there will have
+				passed that much time that the hardcoded value in the MPD will no longer make sense to associate
+				with the current system time.
+			*/
+			for(int32 i=0; i<UTCTimings.Num(); ++i)
+			{
+				if (UTCTimings[i]->GetSchemeIdUri().Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
+				{
+					FTimeValue DirectTime;
+					if (ISO8601::ParseDateTime(DirectTime, UTCTimings[i]->GetValue()) == UEMEDIA_ERROR_OK)
+					{
+						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+						// Remove this timing element. It can not be used indefinitely and we best get rid of it now.
+						MPDRoot->RemoveUTCTimingElement(UTCTimings[i]);
+						--i;
+					}
+					bFoundSupportedElement = true;
+				}
+			}
+			// 2nd pass. Use the more appropriate timing elements.
+			for(int32 i=0; i<UTCTimings.Num(); ++i)
+			{
+				auto GetRequestURL = [MPDDocumentURL](FString ListOfURLs, int32 Index) -> FString
+				{
+					TArray<FString> URLs;
+					ListOfURLs.ParseIntoArrayWS(URLs);
+					if (Index < URLs.Num())
+					{
+						TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
+						FString URL, RequestHeader;
+						FTimeValue UrlATO;
+						DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDDocumentURL, OutBaseURLs, URLs[Index]);
+						return URL;
+					}
+					return FString();
+				};
+
+
+				const FString& SchemeIdUri = UTCTimings[i]->GetSchemeIdUri();
+				const FString& Value = UTCTimings[i]->GetValue();
+
+				TSharedPtrTS<FMPDLoadRequestDASH> TimeSyncRequest;
+				// Check for supported schemes. They appear in the manifest in the order the author has prioritized them.
+				if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
+				{
+					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+					TimeSyncRequest->URL = GetRequestURL(Value, 0);
+					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpxsdate_Completed);
+				}
+				else if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014))
+				{
+					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+					TimeSyncRequest->URL = GetRequestURL(Value, 0);
+					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpiso_Completed);
+				}
+				else if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
+				{
+					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
+					TimeSyncRequest->URL = GetRequestURL(Value, 0);
+					TimeSyncRequest->Verb = TEXT("HEAD");
+					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httphead_Completed);
+				}
+				else
+				{
+					// Not supported.
+				}
+
+				// When a request has been set up, enqueue it and leave the loop.
+				if (TimeSyncRequest.IsValid())
+				{
+					bTimeSyncInProgress = true;
+					AttemptedTimesyncDescriptors.Emplace(UTCTimings[i]);
+					EnqueueResourceRequest(MoveTemp(TimeSyncRequest));
+					bFoundSupportedElement = true;
+					break;
+				}
+			}
+			// Warn once when there is no UTCTiming element we support.
+			if (!bFoundSupportedElement && !bWarnedAboutUnsupportedUTCTimingElement)
+			{
+				bWarnedAboutUnsupportedUTCTimingElement = true;
+				if (!bInitialTimeSyncedToMPDDateTimeHeader)
+				{
+					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD. This could result in playback failures.")));
+				}
+				else
+				{
+					LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("No supported <UTCTiming> element found in MPD, but time was synchronized to the MPD's HTTP response Date header. This may not be accurate enough.")));
+				}
+			}
+		}
+	}
+}
+
+
+
 void FPlaylistReaderDASH::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
@@ -488,7 +645,7 @@ void FPlaylistReaderDASH::ExecutePendingRequests(const FTimeValue& TimeNow)
 				ActiveRequests.Push(Request);
 
 				Request->Request = MakeSharedTS<FHTTPResourceRequest>();
-				Request->Request->URL(Request->URL).Range(Request->Range).Headers(Request->Headers).Object(Request);
+				Request->Request->URL(Request->URL).Verb(Request->Verb).Range(Request->Range).Headers(Request->Headers).Object(Request);
 				// Set up timeouts and also accepted encodings depending on the type of request.
 				SetupRequestTimeouts(Request);
 				Request->Request->AllowStaticQuery(IAdaptiveStreamingPlayerResourceRequest::EPlaybackResourceType::Playlist);
@@ -717,6 +874,20 @@ FErrorDetail FPlaylistReaderDASH::GetXMLResponseString(FString& OutXMLString, FR
 }
 
 
+FErrorDetail FPlaylistReaderDASH::GetResponseString(FString& OutString, FResourceLoadRequestPtr FromRequest)
+{
+	if (FromRequest.IsValid() && FromRequest->Request.IsValid())
+	{
+		TSharedPtrTS<IElectraHttpManager::FReceiveBuffer> ResponseBuffer = FromRequest->Request->GetResponseBuffer();
+		int32 NumResponseBytes = ResponseBuffer->Buffer.Num();
+		const uint8* ResponseBytes = (const uint8*)ResponseBuffer->Buffer.GetLinearReadData();
+		FString UTF8Text(NumResponseBytes, (TCHAR*)FUTF8ToTCHAR((const ANSICHAR*)ResponseBytes, NumResponseBytes).Get());
+		OutString = MoveTemp(UTF8Text);
+	}
+	return FErrorDetail();
+}
+
+
 void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess)
 {
 	if (bSuccess)
@@ -739,7 +910,7 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		FString EffectiveURL = ConnInfo->EffectiveURL;
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
-			if (ConnInfo->ResponseHeaders[i].Header == "Date")
+			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date")))
 			{
 				// Parse the header
 				FTimeValue DateFromHeader;
@@ -750,8 +921,9 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 				}
 				// The MPD 'FetchTime' is the time at which the request to get the MPD was made to the server.
 				FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
+				bInitialTimeSyncedToMPDDateTimeHeader = true;
 			}
-			else if (ConnInfo->ResponseHeaders[i].Header == "ETag")
+			else if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag")))
 			{
 				ETag = ConnInfo->ResponseHeaders[i].Value;
 			}
@@ -780,6 +952,7 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 					NewManifest->TransformIntoEpicEvent();
 				}
 				Manifest = NewManifest;
+				TriggerTimeSynchronization();
 				PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
 
 				// Check if the MPD defines an @minimumUpdatePeriod
@@ -855,9 +1028,10 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 		FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
-			if (ConnInfo->ResponseHeaders[i].Header == "ETag")
+			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag")))
 			{
 				ETag = ConnInfo->ResponseHeaders[i].Value;
+				break;
 			}
 		}
 		MostRecentMPDUpdateTime = FetchTime;
@@ -899,6 +1073,8 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 					Manifest = NewManifest;
 					// Also update in the external manifest we handed out to the player.
 					PlayerManifest->UpdateInternalManifest(Manifest);
+
+					TriggerTimeSynchronization();
 
 					// Check if the new MPD also defines an @minimumUpdatePeriod
 					FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
@@ -975,6 +1151,74 @@ void FPlaylistReaderDASH::InitialMPDXLinkElementDownloadCompleted(FResourceLoadR
 }
 
 
+void FPlaylistReaderDASH::Timesync_httphead_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
+{
+	if (bSuccess)
+	{
+		const HTTP::FConnectionInfo* ConnInfo = Request->GetConnectionInfo();
+		if (ConnInfo)
+		{
+			for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
+			{
+				if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("Date")))
+				{
+					// Parse the header
+					FTimeValue DateFromHeader;
+					UEMediaError DateParseError = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
+					if (DateParseError == UEMEDIA_ERROR_OK && DateFromHeader.IsValid())
+					{
+						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DateFromHeader);
+					}
+					break;
+				}
+			}
+		}
+	}
+	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
+	AttemptedTimesyncDescriptors.Empty();
+	bTimeSyncInProgress = false;
+}
+
+void FPlaylistReaderDASH::Timesync_httpxsdate_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
+{
+	if (bSuccess)
+	{
+		FString Response;
+		if (GetResponseString(Response, Request).IsOK())
+		{
+			FTimeValue DirectTime;
+			// Note: Yes, this is a bit weird, but the xs:dateTime format is actually exactly the same as ISO-8601
+			//       so it is not clear why there is a distinction made in the UTCTiming scheme.
+			//       We keep the different callback handlers here though for completeness sake.
+			if (ISO8601::ParseDateTime(DirectTime, Response) == UEMEDIA_ERROR_OK)
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+			}
+		}
+	}
+	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
+	AttemptedTimesyncDescriptors.Empty();
+	bTimeSyncInProgress = false;
+}
+
+void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
+{
+	if (bSuccess)
+	{
+		FString Response;
+		if (GetResponseString(Response, Request).IsOK())
+		{
+			FTimeValue DirectTime;
+			if (ISO8601::ParseDateTime(DirectTime, Response) == UEMEDIA_ERROR_OK)
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+			}
+		}
+	}
+	// Presently we do not try another time sync method if this one has failed. Clear out what we have attempted so far and be done with it.
+	AttemptedTimesyncDescriptors.Empty();
+	bTimeSyncInProgress = false;
+}
 
 } // namespace Electra
 

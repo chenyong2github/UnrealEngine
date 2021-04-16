@@ -1659,6 +1659,11 @@ public:
 	void SetFetchTime(const FTimeValue& InFetchTime)		{ FScopeLock Lock(&UpdateLock); FetchTime = InFetchTime; }
 	FString GetETag() const									{ return ETag; }
 	void SetETag(const FString& InETag)						{ ETag = InETag; }
+	void RemoveUTCTimingElement(TSharedPtrTS<FDashMPD_DescriptorType> TimingElement)
+	{
+		FScopeLock lock(&UpdateLock);
+		UTCTimings.Remove(TimingElement);
+	}
 
 	// Methods to manipulate the presentation type.
 	void LockAccess()											{ UpdateLock.Lock(); }

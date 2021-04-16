@@ -1,103 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utilities/URLParser.h"
-#include "Utilities/URI.h"
-#include "Utilities/StringHelpers.h"
 
 
 namespace Electra
 {
-
-	class FURLParser : public IURLParser
-	{
-	public:
-		FURLParser();
-		virtual ~FURLParser();
-
-		virtual UEMediaError ParseURL(const FString& URL) override;
-		virtual bool IsAbsoluteURL() const override;
-		virtual FString GetPath() const override;
-		virtual void GetPathComponents(TArray<FString>& OutPathComponents) const override;
-
-		virtual FString ResolveWith(const FString& RelativeURL) override;
-
-		virtual FString GetURL() const
-		{
-			return CurrentURL;
-		}
-
-	private:
-		Utilities::FURI* URLHelper;
-		FString CurrentURL;
-	};
-
-
-	IURLParser* IURLParser::Create()
-	{
-		return new FURLParser;
-	}
-
-
-
-	FURLParser::FURLParser()
-		: URLHelper(nullptr)
-	{
-	}
-
-	FURLParser::~FURLParser()
-	{
-		delete URLHelper;
-	}
-
-	UEMediaError FURLParser::ParseURL(const FString& URL)
-	{
-		delete URLHelper;
-		URLHelper = new Utilities::FURI(Utilities::FURI::Parse(URL));
-		if (!URLHelper->IsValid())
-		{
-			return UEMEDIA_ERROR_FORMAT_ERROR;
-		}
-		CurrentURL = URL;
-		return UEMEDIA_ERROR_OK;
-	}
-
-	bool FURLParser::IsAbsoluteURL() const
-	{
-		if (URLHelper)
-		{
-			return URLHelper->Scheme.Len() > 0;
-		}
-		return false;
-	}
-
-
-	FString FURLParser::GetPath() const
-	{
-		return URLHelper ? URLHelper->Path : FString();
-	}
-
-	void FURLParser::GetPathComponents(TArray<FString>& OutPathComponents) const
-	{
-		OutPathComponents.Empty();
-		if (URLHelper)
-		{
-			static const FString kTextSlash(TEXT("/"));
-			StringHelpers::SplitByDelimiter(OutPathComponents, URLHelper->Path, kTextSlash);
-		}
-	}
-
-	FString FURLParser::ResolveWith(const FString& RelativeURL)
-	{
-		if (URLHelper)
-		{
-			CurrentURL = URLHelper->Resolve(Utilities::FURI::Parse(RelativeURL)).Format();
-		}
-		return CurrentURL;
-	}
-
-	/***************************************************************************************************************************************************/
-	/***************************************************************************************************************************************************/
-	/***************************************************************************************************************************************************/
 
 	static inline void _SwapStrings(FString& a, FString& b)
 	{
@@ -135,30 +42,64 @@ namespace Electra
 		{
 			return true;
 		}
-		StringHelpers::FStringIterator it(InURL);
-		if (*it != TCHAR('/') && *it != TCHAR('.') && *it != TCHAR('?') && *it != TCHAR('#'))
+		// Not handling URNs here.
+		if (InURL.StartsWith(TEXT("urn:")))
 		{
+			return false;
+		}
+		/*
+		RFC 3986, section 3: Syntax components
+
+				 foo://example.com:8042/over/there?name=ferret#nose
+				 \_/   \______________/\_________/ \_________/ \__/
+				  |           |            |            |        |
+			   scheme     authority       path        query   fragment
+		*/
+		StringHelpers::FStringIterator it(InURL);
+		if (InURL.StartsWith(TEXT("//")))
+		{
+			it += 2;
+			if (ParseAuthority(it))
+			{
+				return ParsePathAndQueryFragment(it);
+			}
+			return false;
+		}
+		// Check if the URL begins with a path, query or fragment.
+		else if (IsPathSeparator(*it) || IsQueryOrFragmentSeparator(*it) || *it == TCHAR('.'))
+		{
+			return ParsePathAndQueryFragment(it);
+		}
+		else
+		{
+			// If we get a URL without a scheme we will trip over the colon separating host and port, mistaking it for
+			// the scheme delimiter. For our purposes we only handle URLs that have a scheme when they have an authority!
 			FString Component;
-			Component.Empty();
-			while(it && *it != TCHAR(':') && *it != TCHAR('?') && *it != TCHAR('#') && *it != TCHAR('/'))
+			// Parse out the first component up to the delimiting colon, path, query or fragment.
+			while(it && !IsColonSeparator(*it) && !IsQueryOrFragmentSeparator(*it) && !IsPathSeparator(*it))
 			{
 				Component += *it++;
 			}
-			if (it && *it == TCHAR(':'))
+			// If we found the colon we assume it separates the scheme from the authority.
+			if (it && IsColonSeparator(*it))
 			{
 				++it;
 				if (!it)
 				{
-					// Scheme must be followed by authority or path
+					// Cannot just be a scheme with no authority or path.
 					return false;
 				}
+				// Assume we parsed the scheme.
 				Scheme = Component;
-				if (*it == TCHAR('/'))
+				// Does an absolute path ('/') or an authority ('//') follow?
+				if (IsPathSeparator(*it))
 				{
 					++it;
-					if (it && *it == TCHAR('/'))
+					// Authority?
+					if (it && IsPathSeparator(*it))
 					{
 						++it;
+						// Parse out the authority and if successful continue parsing out the path.
 						if (!ParseAuthority(it))
 						{
 							return false;
@@ -166,6 +107,7 @@ namespace Electra
 					}
 					else
 					{
+						// Unwind the absolute path '/' and parse the path.
 						--it;
 					}
 				}
@@ -176,13 +118,10 @@ namespace Electra
 			}
 			else
 			{
+				// Got either '/', '?' or '#' while scanning for the scheme. Rewind the iterator and handle the entire thing as a path with or without query or fragment.
 				it.Reset();
 				return ParsePathAndQueryFragment(it);
 			}
-		}
-		else
-		{
-			return ParsePathAndQueryFragment(it);
 		}
 		return true;
 	}
@@ -229,7 +168,7 @@ namespace Electra
 			}
 			if (Path.Len())
 			{
-				if (Authority.Len() && Path[0] != TCHAR('/'))
+				if (Authority.Len() && !IsPathSeparator(Path[0]))
 				{
 					URL += TEXT("/");
 				}
@@ -363,7 +302,7 @@ namespace Electra
 			Authority += UserInfo;
 			Authority += TEXT("@");
 		}
-		// IPv6 address?
+		// Is the host an IPv6 address that needs to be enclosed in square brackets?
 		int32 DummyPos = 0;
 		if (Host.FindChar(TCHAR(':'), DummyPos))
 		{
@@ -375,6 +314,7 @@ namespace Electra
 		{
 			Authority += Host;
 		}
+		// Need to append a port?
 		if (Port.Len())
 		{
 			Authority += TEXT(":");
@@ -403,21 +343,23 @@ namespace Electra
 	bool FURL_RFC3986::ParseAuthority(StringHelpers::FStringIterator& it)
 	{
 		UserInfo.Empty();
-		FString SubPart;
-		while(it && *it != TCHAR('/') && *it != TCHAR('?') && *it != TCHAR('#'))
+		FString Component;
+		while(it && !IsPathSeparator(*it) && !IsQueryOrFragmentSeparator(*it))
 		{
+			// If there is a user-info delimiter?
 			if (*it == TCHAR('@'))
 			{
-				UserInfo = SubPart;
-				SubPart.Empty();
+				// Yes, what we have gathered so far is the user info. Set it and gather from scratch.
+				UserInfo = Component;
+				Component.Empty();
 			}
 			else
 			{
-				SubPart += *it;
+				Component += *it;
 			}
 			++it;
 		}
-		StringHelpers::FStringIterator SubIt(SubPart);
+		StringHelpers::FStringIterator SubIt(Component);
 		return ParseHostAndPort(SubIt);
 	}
 
@@ -428,7 +370,7 @@ namespace Electra
 			return true;
 		}
 		Host.Empty();
-		// IPv6 adress?
+		// IPv6 adress in [xxx:xxx:xxx] notation?
 		if (*it == TCHAR('['))
 		{
 			++it;
@@ -438,19 +380,19 @@ namespace Electra
 			}
 			if (!it)
 			{
-				// Missing closing ']'
+				// Need to have at least the closing ']'
 				return false;
 			}
 			++it;
 		}
 		else
 		{
-			while(it && *it != TCHAR(':'))
+			while(it && !IsColonSeparator(*it))
 			{
 				Host += *it++;
 			}
 		}
-		if (it && *it == TCHAR(':'))
+		if (it && IsColonSeparator(*it))
 		{
 			++it;
 			Port.Empty();
@@ -466,25 +408,23 @@ namespace Electra
 	{
 		if (it)
 		{
-			if (*it != TCHAR('?') && *it != TCHAR('#'))
+			if (!IsQueryOrFragmentSeparator(*it))
 			{
 				if (!ParsePath(it))
 				{
 					return false;
 				}
 			}
-			if (it && *it == TCHAR('?'))
+			if (it && IsQuerySeparator(*it))
 			{
-				++it;
-				if (!ParseQuery(it))
+				if (!ParseQuery(++it))
 				{
 					return false;
 				}
 			}
-			if (it && *it == TCHAR('#'))
+			if (it && IsFragmentSeparator(*it))
 			{
-				++it;
-				return ParseFragment(it);
+				return ParseFragment(++it);
 			}
 		}
 		return true;
@@ -493,10 +433,11 @@ namespace Electra
 	bool FURL_RFC3986::ParsePath(StringHelpers::FStringIterator& it)
 	{
 		Path.Empty();
-		while(it && *it != TCHAR('?') && *it != TCHAR('#'))
+		while(it && !IsQueryOrFragmentSeparator(*it))
 		{
 			Path += *it++;
 		}
+		// URL decode the path internally.
 		FString Decoded;
 		if (UrlDecode(Decoded, Path))
 		{
@@ -509,7 +450,8 @@ namespace Electra
 	bool FURL_RFC3986::ParseQuery(StringHelpers::FStringIterator& it)
 	{
 		Query.Empty();
-		while(it && *it != TCHAR('#'))
+		// Query is all up to the end or the start of the fragment.
+		while(it && !IsFragmentSeparator(*it))
 		{
 			Query += *it++;
 		}
@@ -518,11 +460,10 @@ namespace Electra
 
 	bool FURL_RFC3986::ParseFragment(StringHelpers::FStringIterator& it)
 	{
-		Fragment.Empty();
-		while(it)
-		{
-			Fragment += *it++;
-		}
+		// Fragment being the last part of the URL extends all the way to the end.
+		Fragment = it.GetRemainder();
+		it.SetToEnd();
+		// URL decode the fragment internally.
 		FString Decoded;
 		if (UrlDecode(Decoded, Fragment))
 		{
@@ -620,20 +561,22 @@ namespace Electra
 	void FURL_RFC3986::GetPathComponents(TArray<FString>& OutPathComponents, const FString& InPath)
 	{
 		TArray<FString> Components;
+		// Split on '/', ignoring resulting empty parts (eg. "a//b" gives ["a", "b"] only instead of ["a", "", "b"] !!
 		InPath.ParseIntoArray(Components, TEXT("/"), true);
 		OutPathComponents.Append(Components);
 	}
 
-	void FURL_RFC3986::ResolveWith(const FString& InChildURL)
+	FURL_RFC3986& FURL_RFC3986::ResolveWith(const FString& InChildURL)
 	{
 		FURL_RFC3986 Other;
 		if (Other.Parse(InChildURL))
 		{
 			ResolveWith(Other);
 		}
+		return *this;
 	}
 
-	void FURL_RFC3986::ResolveAgainst(const FString& InParentURL)
+	FURL_RFC3986& FURL_RFC3986::ResolveAgainst(const FString& InParentURL)
 	{
 		FURL_RFC3986 Parent;
 		if (Parent.Parse(InParentURL))
@@ -641,6 +584,7 @@ namespace Electra
 			Parent.ResolveWith(*this);
 			Swap(Parent);
 		}
+		return *this;
 	}
 	
 	/**
@@ -656,7 +600,7 @@ namespace Electra
 			Port     = Other.Port;
 			Path     = Other.Path;
 			Query    = Other.Query;
-			RemoveDotComponents();
+			RemoveDotSegments();
 		}
 		else
 		{
@@ -667,7 +611,7 @@ namespace Electra
 				Port     = Other.Port;
 				Path     = Other.Path;
 				Query    = Other.Query;
-				RemoveDotComponents();
+				RemoveDotSegments();
 			}
 			else
 			{
@@ -680,15 +624,15 @@ namespace Electra
 				}
 				else
 				{
-					if (Other.Path[0] == TCHAR('/'))
+					if (IsPathSeparator(Other.Path[0]))
 					{
 						Path = Other.Path;
-						RemoveDotComponents();
 					}
 					else
 					{
-						AppendPath(Other.Path);
+						MergePath(Other.Path);
 					}
+					RemoveDotSegments();
 					Query = Other.Query;
 				}
 			}
@@ -696,7 +640,7 @@ namespace Electra
 		Fragment = Other.Fragment;
 	}
 
-	void FURL_RFC3986::RebuildPathFromComponents(const TArray<FString>& Components, bool bAddLeadingSlash, bool bAddTrailingSlash)
+	void FURL_RFC3986::BuildPathFromSegments(const TArray<FString>& Components, bool bAddLeadingSlash, bool bAddTrailingSlash)
 	{
 		Path.Empty();
 		int32 DummyPos = 0;
@@ -704,10 +648,18 @@ namespace Electra
 		{
 			if (i == 0)
 			{
-				if (bAddTrailingSlash)
+				if (bAddLeadingSlash)
 				{
 					Path = TEXT("/");
 				}
+				/*
+					As per RFC 3986 Section 4.2 Relative Reference:
+						A path segment that contains a colon character (e.g., "this:that")
+						cannot be used as the first segment of a relative-path reference, as
+						it would be mistaken for a scheme name.  Such a segment must be
+						preceded by a dot-segment (e.g., "./this:that") to make a relative-
+						path reference.
+				*/
 				else if (Scheme.IsEmpty() && Components[0].FindChar(TCHAR(':'), DummyPos))
 				{
 					Path = TEXT("./");
@@ -725,79 +677,61 @@ namespace Electra
 		}
 	}
 
-	void FURL_RFC3986::AppendPath(const FString& InPathToAppend)
+	void FURL_RFC3986::MergePath(const FString& InPathToMerge)
 	{
-		TArray<FString> Components;
-		TArray<FString> NormalizedComponents;
-		bool bAddLeadingSlash = false;
-		if (!Path.IsEmpty())
+		// RFC 3986 Section 5.2.3. Merge Paths
+		if (Host.Len() && Path.IsEmpty())
 		{
-			GetPathComponents(Components);
-			bool bEndsWithSlash = Path.EndsWith(TEXT("/"));
-			if (!bEndsWithSlash && Components.Num())
-			{
-				Components.Pop();
-			}
-			bAddLeadingSlash = Path[0] == TCHAR('/');
+			Path = TEXT("/");
+			Path += InPathToMerge;
 		}
-		GetPathComponents(Components, InPathToAppend);
-		bAddLeadingSlash = bAddLeadingSlash || (InPathToAppend.Len() && InPathToAppend[0] == TCHAR('/'));
-		bool bHasTrailingSlash = InPathToAppend.Len() && InPathToAppend.EndsWith(TEXT("/"));
-		bool bAddTrailingSlash = false;
-		for(int32 i=0,iMax=Components.Num(); i<iMax; ++i)
+		else
 		{
-			if (Components[i].Equals(TEXT("..")))
+			int32 LastSlashPos = INDEX_NONE;
+			// Is there a '/' somewhere in the current path that's not at the end?
+			if (Path.FindLastChar(TCHAR('/'), LastSlashPos))
 			{
-				bAddTrailingSlash = true;
-				if (NormalizedComponents.Num())
+				if (LastSlashPos != Path.Len()-1)
 				{
-					NormalizedComponents.Pop();
+					Path.LeftInline(LastSlashPos+1);
 				}
+				Path += InPathToMerge;
 			}
-			else if (!Components[i].Equals(TEXT(".")))
+			else
 			{
-				bAddTrailingSlash = false;
-				NormalizedComponents.Add(Components[i]);
-			}
-			else 
-			{
-				bAddTrailingSlash = true;
+				Path = InPathToMerge;
 			}
 		}
-		RebuildPathFromComponents(NormalizedComponents, bAddLeadingSlash, bHasTrailingSlash || bAddTrailingSlash);
 	}
 
-	void FURL_RFC3986::RemoveDotComponents()
+	void FURL_RFC3986::RemoveDotSegments()
 	{
 		if (Path.Len())
 		{
-			bool bHasLeadingSlash = Path[0] == TCHAR('/');
+			TArray<FString> NewSegments;
+			// Remember the current path starting or ending in a slash.
+			bool bHasLeadingSlash = IsPathSeparator(Path[0]);
 			bool bHasTrailingSlash = Path.EndsWith(TEXT("/"));
-			TArray<FString> Components;
-			TArray<FString> NormalizedComponents;
-			GetPathComponents(Components);
-			for(int32 i=0,iMax=Components.Num(); i<iMax; ++i)
+			// Split the path into its segments
+			TArray<FString> Segments;
+			GetPathComponents(Segments);
+			for(int32 i=0; i<Segments.Num(); ++i)
 			{
-				if (Components[i].Equals(TEXT("..")))
+				// For every ".." go up one level.
+				if (Segments[i].Equals(TEXT("..")))
 				{
-					if (NormalizedComponents.Num())
+					if (NewSegments.Num())
 					{
-						if (NormalizedComponents.Last().Equals(TEXT("..")))
-						{
-							NormalizedComponents.Add(Components[i]);
-						}
-						else
-						{
-							NormalizedComponents.Pop();
-						}
+						NewSegments.Pop();
 					}
 				}
-				else if (!Components[i].Equals(TEXT(".")))
+				// Add non- "." segments.
+				else if (!Segments[i].Equals(TEXT(".")))
 				{
-					NormalizedComponents.Add(Components[i]);
+					NewSegments.Add(Segments[i]);
 				}
 			}
-			RebuildPathFromComponents(NormalizedComponents, bHasLeadingSlash, bHasTrailingSlash);
+			BuildPathFromSegments(NewSegments, bHasLeadingSlash, bHasTrailingSlash);
 		}
 	}
 
