@@ -3,18 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
 
 
-class FDMXPIEManager :
-	public TSharedFromThis<FDMXPIEManager>
+class FDMXPIEManager
 {
 public:
 	/** Constructor */
 	FDMXPIEManager();
 
 	/** Destructor */
-	virtual ~FDMXPIEManager();
+	~FDMXPIEManager();
 
 private:
 	/** Called when play in editor starts */

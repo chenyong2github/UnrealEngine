@@ -134,7 +134,6 @@ void FDMXEditor::CreateDefaultCommands()
 	FDMXEditorCommands::Register();
 
 	FDMXEditorModule& DMXEditorModule = FModuleManager::LoadModuleChecked<FDMXEditorModule>("DMXEditor");
-	ToolkitCommands->Append(DMXEditorModule.GetsSharedDMXEditorCommands());
 
 	ToolkitCommands->MapAction(
 		FDMXEditorCommands::Get().AddNewEntityFixtureType,
