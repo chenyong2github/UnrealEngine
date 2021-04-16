@@ -594,6 +594,12 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 
 				if (LoadedLevel->bIsVisible)
 				{
+					if (LoadedLevel->bRequireFullVisibilityToRender)
+					{
+						// Make sure components from this level are made visible
+						LoadedLevel->MarkLevelComponentsRenderStateDirty();
+					}
+
 					// immediately discard previous level
 					DiscardPendingUnloadLevel(World);
 
@@ -632,6 +638,8 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			const bool LevelBecameInvisible = bWasVisible && !LoadedLevel->bIsVisible;
 			if (LoadedLevel->bRequireFullVisibilityToRender && LevelBecameInvisible)
 			{
+				// Make sure components from this level are hidden
+				LoadedLevel->MarkLevelComponentsRenderStateDirty();
 				RemoveLevelFromScene();
 			}
 

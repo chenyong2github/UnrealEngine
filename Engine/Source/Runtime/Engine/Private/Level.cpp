@@ -1372,8 +1372,6 @@ bool ULevel::IncrementalUnregisterComponents(int32 NumComponentsToUnregister)
 	return false;
 }
 
-#if WITH_EDITOR
-
 void ULevel::MarkLevelComponentsRenderStateDirty()
 {
 	for (UModelComponent* ModelComponent : ModelComponents)
@@ -1392,6 +1390,8 @@ void ULevel::MarkLevelComponentsRenderStateDirty()
 		}
 	}
 }
+
+#if WITH_EDITOR
 
 void ULevel::CreateModelComponents()
 {

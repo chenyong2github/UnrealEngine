@@ -866,10 +866,10 @@ public:
 	 */
 	void InvalidateModelGeometry();
 	
-#if WITH_EDITOR
 	/** Marks all level components render state as dirty */
 	ENGINE_API void MarkLevelComponentsRenderStateDirty();
 
+#if WITH_EDITOR
 	/** Called to create ModelComponents for BSP rendering */
 	void CreateModelComponents();
 #endif // WITH_EDITOR
