@@ -30,7 +30,7 @@ public class WebRTC : ModuleRules
 			bShouldUseWebRTC = true;
 		}
 
-		if (Target.Configuration == UnrealTargetConfiguration.Debug)
+		if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 		{
 			ConfigPath = "Debug";
 		}
