@@ -35,6 +35,25 @@ FInstanceRegistry::~FInstanceRegistry()
 {
 }
 
+FInstanceHandle FInstanceRegistry::FindRelatedInstanceHandle(FInstanceHandle InstanceHandle, FMovieSceneSequenceID SequenceID) const
+{
+	checkfSlow(IsHandleValid(InstanceHandle), TEXT("Given instance handle is not valid."));
+	checkfSlow(SequenceID.IsValid(), TEXT("Given sequence ID is not valid."));
+
+	const FSequenceInstance* RootInstance = &GetInstance(InstanceHandle);
+
+	if (SequenceID == MovieSceneSequenceID::Root)
+	{
+		return RootInstance->GetRootInstanceHandle();
+	}
+
+	if (!RootInstance->IsRootSequence())
+	{
+		RootInstance = &GetInstance(RootInstance->GetRootInstanceHandle());
+	}
+	return RootInstance->FindSubInstance(SequenceID);
+}
+
 FInstanceHandle FInstanceRegistry::AllocateRootInstance(IMovieScenePlayer* Player)
 {
 	check(Instances.Num() < 65535);

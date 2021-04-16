@@ -9,6 +9,7 @@
 #include "Evaluation/MovieScenePlayback.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
 #include "EntitySystem/MovieSceneComponentDebug.h"
+#include "MovieSceneSequenceID.h"
 
 
 class UMovieSceneEntitySystemLinker;
@@ -63,6 +64,17 @@ struct FInstanceRegistry
 		checkfSlow(IsHandleValid(InstanceHandle), TEXT("Attempting to access an invalid instance handle."));
 		return Instances[InstanceHandle.InstanceID];
 	}
+
+	/** 
+	 * Finds a (sub)sequence with the given ID somewhere in the hierarchy of the given reference instance
+	 *
+	 * This method will look up the hierarchy root from the given instance handle, and then look for the appropriate sub-instance with the
+	 * given sequence ID.
+	 *
+	 * @param InstanceHandle  The reference instance handle used to locate the relevant sequence hierarchy to explore. Does not have to be a root instance.
+	 * @param SequenceID      An absolute (accumulated) sequence ID to look for in the hierarchy.
+	 */
+	MOVIESCENE_API FInstanceHandle FindRelatedInstanceHandle(FInstanceHandle InstanceHandle, FMovieSceneSequenceID SequenceID) const;
 
 	const FMovieSceneContext& GetContext(FInstanceHandle InstanceHandle) const
 	{
