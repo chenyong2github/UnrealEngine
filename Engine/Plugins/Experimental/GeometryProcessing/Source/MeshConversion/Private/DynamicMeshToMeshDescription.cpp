@@ -627,6 +627,7 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	Builder.SetNumUVLayers(NumUVLayers);
 
 	TArray<TArray<FUVID>> MapUVArray; MapUVArray.SetNum(NumUVLayers);
+	TArray<FUVID> UnsetUVIDs; UnsetUVIDs.Init(INDEX_NONE, NumUVLayers); // UVIDs for unset UVs to share, if needed
 	for (int32 k = 0; k < NumUVLayers; ++k)
 	{
 		const FDynamicMeshUVOverlay* UVOverlay = UVLayers[k];
@@ -768,12 +769,16 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		{ 
 			FUVID UVIDs[3] = {FUVID(-1), FUVID(-1), FUVID(-1)};
 
-			// add zero uvs for unset triangles.  this mimics the old version of this code.
+			// add zero uvs for unset triangles.
 			if (!UVLayers[k]->IsSetTriangle(TriID))
 			{
+				if (UnsetUVIDs[k].GetValue() == INDEX_NONE)
+				{
+					UnsetUVIDs[k] = Builder.AppendUV(FVector2D::ZeroVector, k);
+				}
 				for (int32 j = 0; j < 3; ++j)
-				{ 
-					UVIDs[j] = Builder.AppendUV(FVector2D::ZeroVector, k);
+				{
+					UVIDs[j] = UnsetUVIDs[k];
 				}
 			}
 			else
