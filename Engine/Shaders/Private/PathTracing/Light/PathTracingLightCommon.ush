@@ -7,6 +7,7 @@ LightCommon.usf: Common utility functions for light sampling
 #pragma once
 
 #include "/Engine/Shared/RayTracingTypes.h"
+#include "/Engine/Shared/PathTracingDefinitions.h"
 
 uint SceneLightCount;
 StructuredBuffer<FPathTracingLight> SceneLights;
@@ -56,12 +57,6 @@ FLightSample CreateLightSample(float3 RadianceOverPdf, float Pdf, float3 Directi
 	return Sample;
 }
 
-
-int GetLightId(FMaterialClosestHitPayload RayHitInfo)
-{
-	return -1;
-}
-
 bool IsEnvironmentLight(int LightId)
 {
 	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SKY;
@@ -91,16 +86,6 @@ bool IsSpotLight(int LightId)
 bool IsPhysicalLight(int LightId)
 {
 	return IsEnvironmentLight(LightId);
-}
-
-float3 GetLightUV(int LightId, RayDesc Ray, FMaterialClosestHitPayload RayHitInfo)
-{
-	float3 LightUV = 0.0;
-	if (IsEnvironmentLight(LightId))
-	{
-		LightUV = Ray.Direction;
-	}
-	return LightUV;
 }
 
 float3 GetPosition(int LightId)

@@ -10,6 +10,8 @@ PathTracingRayGenShader.usf: Reference path tracing
 
 #define RANDSEQ_UNROLL_SOBOL 0 // unrolling sobol sampler doesn't seem to pay off in the path tracer
 
+#define USE_LIGHT_GRID	1
+
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
@@ -21,22 +23,45 @@ PathTracingRayGenShader.usf: Reference path tracing
 #include "../ShadingModels.ush"
 #include "./Utilities/PathTracingRandomSequence.ush"
 #include "./Light/PathTracingLightSampling.ush"
+#include "./Light/PathTracingLightGrid.ush"
 #include "./Material/PathTracingMaterialSampling.ush"
 #include "PathTracingCamera.ush"
 
+uint Iteration;
+uint TemporalSeed;
+uint MaxSamples;
+uint UseErrorDiffusion;
+uint MaxBounces;
+uint MaxSSSBounces;
+
+// 0: only Material sampling
+// 1: only Light sampling
+// 2: both Material and Light
+uint MISMode;
+
+uint ApproximateCaustics;
+uint EnableCameraBackfaceCulling;
+uint SkipDirectLighting;
+uint SkipEmissive;
+uint CoherentSampling;
+uint VisualizeLightGrid;
+float MaxPathIntensity;
+float MaxNormalBias;
+float FilterWidth;
 
 RWTexture2D<float4> RadianceTexture;
 RaytracingAccelerationStructure TLAS;
 int3 TileOffset;
 uint SceneVisibleLightCount;
 
+
 void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 {
-	if (PathTracingData.MaxPathIntensity > 0)
+	if (MaxPathIntensity > 0)
 	{
 		// User asked for path contributions to be clamped to reduce fireflies.
 		// Depending on how aggressive this value is, the image could be quite biased
-		TotalRadiance += min(PathRadiance, PathTracingData.MaxPathIntensity);
+		TotalRadiance += min(PathRadiance, MaxPathIntensity);
 	}
 	else
 	{
@@ -47,11 +72,17 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 
 FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
-	const uint RayFlags = IsCameraRay && PathTracingData.EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+	const uint RayFlags = IsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
 	float SelectionWeightSum = 0;
 	float3 PayloadThroughput = PathThroughput;
 	FMaterialClosestHitPayload Payload;
+	if (!IncludeEmission && LastBounce)
+	{
+		Payload.SetMiss();
+		PathThroughput = 0;
+		return Payload;
+	}
 	for (;;)
 	{
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
@@ -260,7 +291,7 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 	float3 SSSColor = GetSubsurfaceColor(Payload);
 	float3 SSSRadius = GetSubsurfaceRadius(Payload);
 
-	if (SimplifySSS || all(SSSRadius == 0) || all(SSSColor == 0) || PathTracingData.MaxSSSBounces == 0)
+	if (SimplifySSS || all(SSSRadius == 0) || all(SSSColor == 0) || MaxSSSBounces == 0)
 	{
 		// if we are running in a context that won't see the SSS directly -- just turn it into diffuse and skip the random walk
 		// we can also skip random walk if the radius or color is 0
@@ -293,7 +324,7 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 	Ray.Origin = Payload.WorldPos;
 	Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, Payload.WorldNormal);
 	Ray.TMin = 0;
-	ApplyPositionBias(Ray, -Payload.WorldNormal, PathTracingData.MaxNormalBias);
+	ApplyPositionBias(Ray, -Payload.WorldNormal, MaxNormalBias);
 
 	// Use the technique detailed in the Hyperion paper (Section 4.4.2)
 	// https://media.disneyanimation.com/uploads/production/publication_asset/177/asset/a.pdf
@@ -309,7 +340,7 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 	const float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
 	SSSRadius *= 2.0; // roughly match parameterization above
 #endif
-	const int MAX_SSS_BOUNCES = PathTracingData.MaxSSSBounces;
+	const int MAX_SSS_BOUNCES = MaxSSSBounces;
 	const float3 SigmaT = 1.0 / SSSRadius;
 	const float3 SigmaS = Albedo * SigmaT;
 	for (int i = 0; i < MAX_SSS_BOUNCES; i++)
@@ -383,7 +414,7 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 				// NOTE: weight and probability cancel out, so no throughput adjustment is needed
 				Ray.Origin += ProbeResult.HitT * Ray.Direction;
 				Ray.Direction = reflect(Ray.Direction, WorldNormal);
-				ApplyPositionBias(Ray, WorldNormal, PathTracingData.MaxNormalBias);
+				ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
 				continue;
 			}
 #endif
@@ -459,24 +490,24 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	uint2 DispatchDim = DispatchRaysDimensions().xy;
 
 	// shuffle the pixels around so the ones that share a seed land in the same warp
-	uint2 LaunchIndex = (PathTracingData.CoherentSampling ? Reorder(DispatchIdx, DispatchDim) : DispatchIdx) + View.ViewRectMin.xy + TileOffset.xy;
+	uint2 LaunchIndex = (CoherentSampling ? Reorder(DispatchIdx, DispatchDim) : DispatchIdx) + View.ViewRectMin.xy + TileOffset.xy;
 
 	// Initialize random sequence 
 	RandomSequence RandSequence;
 
-	uint2 RandPixel = PathTracingData.CoherentSampling
+	uint2 RandPixel = CoherentSampling
 		? (DispatchIdx / PATHTRACER_COHERENT_TILE_SIZE)	// unique seed within small squares of the shuffled sub-images
 		//? (DispatchIdx * PATHTRACER_COHERENT_TILE_SIZE) / DispatchDim // unique seed per sub-image
 		: LaunchIndex; // unique seed per pixel
-	if (PathTracingData.UseErrorDiffusion)
+	if (UseErrorDiffusion)
 	{
 		// z-sampler init
-		RandomSequence_Initialize(RandSequence, RandPixel, PathTracingData.Iteration, PathTracingData.TemporalSeed - PathTracingData.Iteration, PathTracingData.MaxSamples);
+		RandomSequence_Initialize(RandSequence, RandPixel, Iteration, TemporalSeed - Iteration, MaxSamples);
 	}
 	else
 	{
 		// random sobol init
-		RandomSequence_Initialize(RandSequence, RandPixel.x + RandPixel.y * 65536, PathTracingData.TemporalSeed);
+		RandomSequence_Initialize(RandSequence, RandPixel.x + RandPixel.y * 65536, TemporalSeed);
 	}
 
 
@@ -501,25 +532,20 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	float3 PathThroughput = 1.0;
 	float PathRoughness = 0;
 
-	// 0: only Material sampling
-	// 1: only Light sampling
-	// 2: both Material and Light
-	const int MISMode = PathTracingData.MISMode;
-
 	// number of directly visible lights for the first bounce
 	uint NumVisibleLights = SceneVisibleLightCount;
 
-	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
+	for (int Bounce = 0; Bounce <= MaxBounces; Bounce++)
 	{
 #if 0
 		// visualize pixel seeds
-		Radiance = 0.5 + 0.3 * cos(2 * PI * ((StrongIntegerHash(RandPixel.x + StrongIntegerHash(RandPixel.y)) & 0xFFFFFF) * 5.96046447754e-08 + float3(0.0, 0.333, 0.6666)));
+		Radiance = HashToColor(StrongIntegerHash(RandPixel.x + StrongIntegerHash(RandPixel.y)));
 		break;
 #endif
 		const bool bIsCameraRay = Bounce == 0;
-		const bool bIsLastBounce = Bounce == PathTracingData.MaxBounces;
-		const bool bIncludeEmissive = (PathTracingData.SkipDirectLighting == 0 || Bounce > 1) &&
-									  (PathTracingData.SkipEmissive       == 0 || bIsCameraRay);
+		const bool bIsLastBounce = Bounce == MaxBounces;
+		const bool bIncludeEmissive = (SkipDirectLighting == 0 || Bounce > 1) &&
+									  (SkipEmissive       == 0 || bIsCameraRay);
 		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, bIsCameraRay, bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
@@ -531,7 +557,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		// As soon as the path is blurry enough, we can get away with diffuse sampling only
 		const bool bSimplifySSS = PathRoughness >= 0.15;
 
-		if (PathTracingData.ApproximateCaustics)
+		if (ApproximateCaustics)
 		{
 			// modify the payload roughness to minimize difficult caustics
 			// This is inspired by a trick used in the Arnold renderer:
@@ -547,13 +573,24 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			break;
 		}
 
+		FLightLoopCount LightLoopCount = LightGridLookup(Payload.WorldPos);
+
+		// visualize the # of lights
+		if (VisualizeLightGrid)
+		{
+			Radiance = LightGridVisualize(LightLoopCount, VisualizeLightGrid);
+			Radiance *= abs(dot(Payload.WorldNormal, Ray.Direction));
+			Radiance /= View.PreExposure; // cancel out exposure
+			break;
+		}
+
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
 		// Does this material require NEE? (will be false if MaterialPdf is always +inf)
 		const bool bIsNeeValid = IsNeeValidMaterial(Payload);
 
-		const bool bDoLightLoop = PathTracingData.SkipDirectLighting == 0 || Bounce > 0;
+		const bool bDoLightLoop = SkipDirectLighting == 0 || Bounce > 0;
 
 		float LightPickingCdfSum = 0;
 
@@ -567,7 +604,12 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 			bool IsTransmissiveMaterial = ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload);
 
-			LightPickingCdfSum = InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf);
+			for (uint Index = 0, Num = LightLoopCount.NumLights; Index < Num; ++Index)
+			{
+				uint LightIndex = GetLightId(Index, LightLoopCount);
+				LightPickingCdfSum += EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial);
+				LightPickingCdf[Index] = LightPickingCdfSum;
+			}
 
 			if (LightPickingCdfSum > 0)
 			{
@@ -575,9 +617,10 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				int LightId;
 				float LightPickPdf = 0;
 
-				SelectLight(RandSample.x * LightPickingCdfSum, LightPickingCdf, LightId, LightPickPdf);
+				SelectLight(RandSample.x * LightPickingCdfSum, LightLoopCount.NumLights, LightPickingCdf, LightId, LightPickPdf);
 				LightPickPdf /= LightPickingCdfSum;
 
+				LightId = GetLightId(LightId, LightLoopCount);
 				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 
 				LightSample.RadianceOverPdf /= LightPickPdf;
@@ -594,9 +637,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 						LightRay.TMin = 0;
 						LightRay.Direction = LightSample.Direction;
 						LightRay.TMax = LightSample.Distance;
-						ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
+						ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, MaxNormalBias);
 
-						float AvgRoughness = PathTracingData.ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
+						float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
 						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, AvgRoughness);
 					}
@@ -673,9 +716,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		Ray.Direction = MaterialSample.Direction;
 		Ray.TMin = 0;
 		Ray.TMax = POSITIVE_INFINITY;
-		ApplyPositionBias(Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, PathTracingData.MaxNormalBias);
+		ApplyPositionBias(Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, MaxNormalBias);
 
-		if (PathTracingData.ApproximateCaustics)
+		if (ApproximateCaustics)
 		{
 			// enlarge roughness based on the chosen lobe roughness
 			PathRoughness = max(PathRoughness, MaterialSample.Roughness);
@@ -688,8 +731,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
 			// of shadow ray specific logic for transparent shadows or various per light tricks like shadow casting
 			const bool bUseMIS = MISMode == 2 && LightPickingCdfSum > 0;
-			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
+			for (uint Index = 0, Num = LightLoopCount.NumMISLights; Index < Num; ++Index)
 			{
+				uint LightId = GetLightId(Index, LightLoopCount);
 				if ((Payload.PrimitiveLightingChannelMask & GetLightingChannelMask(LightId)) == 0)
 				{
 					// light does not affect the current ray
@@ -706,8 +750,8 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				float3 LightContrib = PathThroughput * LightResult.Radiance;
 				if (bUseMIS)
 				{
-					float PreviousCdfValue = LightId > 0 ? LightPickingCdf[LightId - 1] : 0.0;
-					float LightPickPdf =  (LightPickingCdf[LightId] - PreviousCdfValue) / LightPickingCdfSum;
+					float PreviousCdfValue = Index > 0 ? LightPickingCdf[Index - 1] : 0.0;
+					float LightPickPdf = (LightPickingCdf[Index] - PreviousCdfValue) / LightPickingCdfSum;
 
 					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
 				}
@@ -737,7 +781,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 
 	// Accumulate radiance and update pixel variance
-	uint NumSamples = PathTracingData.Iteration + 1;
+	uint NumSamples = Iteration + 1;
 	float BlendFactor = 1.0 / float(NumSamples);
 	// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
 	float4 OldPixel = NumSamples > 1 ? RadianceTexture[LaunchIndex] : 0;

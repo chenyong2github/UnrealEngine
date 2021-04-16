@@ -28,14 +28,14 @@ float3 EvaluateTexture(int LightId, float2 UV)
 	UV.y = 1 - UV.y; // match orientation with raster path
 	switch (SceneLights[LightId].RectLightTextureIndex)
 	{
-		case 0:  return RectLightTexture_0.SampleLevel(RectLightSampler, UV, 0);
-		case 1:  return RectLightTexture_1.SampleLevel(RectLightSampler, UV, 0);
-		case 2:  return RectLightTexture_2.SampleLevel(RectLightSampler, UV, 0);
-		case 3:  return RectLightTexture_3.SampleLevel(RectLightSampler, UV, 0);
-		case 4:  return RectLightTexture_4.SampleLevel(RectLightSampler, UV, 0);
-		case 5:  return RectLightTexture_5.SampleLevel(RectLightSampler, UV, 0);
-		case 6:  return RectLightTexture_6.SampleLevel(RectLightSampler, UV, 0);
-		case 7:  return RectLightTexture_7.SampleLevel(RectLightSampler, UV, 0);
+		case 0:  return RectLightTexture_0.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 1:  return RectLightTexture_1.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 2:  return RectLightTexture_2.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 3:  return RectLightTexture_3.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 4:  return RectLightTexture_4.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 5:  return RectLightTexture_5.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 6:  return RectLightTexture_6.SampleLevel(RectLightSampler, UV, 0).xyz;
+		case 7:  return RectLightTexture_7.SampleLevel(RectLightSampler, UV, 0).xyz;
 		default: return 1;
 	}
 }
@@ -160,6 +160,10 @@ FLightSample RectLight_SampleLight(
 		GetRectLightBarnCosAngle(LightId),
 		GetRectLightBarnLength(LightId),
 		true /* bComputeVisibleRect */);
+	if (!IsRectVisible(Rect) || dot(Rect.Axis[2], Rect.Origin) < 0)
+	{
+		return NullLightSample();
+	}
 	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
 
 #if USE_RECT_LIGHT_TEXTURES

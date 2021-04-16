@@ -12,6 +12,5 @@
 #include "../RayTracing/RayTracingCommon.ush"
 #include "PathTracingDefinitions.ush"
 
-
 #endif // PATHTRACINGCOMMON_USH_INCLUDED // Workarround for UE-66460
 

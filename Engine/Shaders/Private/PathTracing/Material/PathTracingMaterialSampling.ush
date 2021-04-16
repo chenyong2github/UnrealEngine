@@ -132,7 +132,7 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 			break;
 	}
 
-	// FIXME: could make this more accurate by estimating the directional albedo
+	// TODO: make this more accurate by estimating the directional albedo
 	float3 Albedo = 0;
 	switch (Payload.ShadingModelID)
 	{
