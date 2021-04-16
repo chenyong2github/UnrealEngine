@@ -28,7 +28,10 @@ class FDisplayClusterConfiguratorBlueprintEditor
 {
 
 public:
-	FDisplayClusterConfiguratorBlueprintEditor(): TicksForPreviewRenderCapture(0), bSCSEditorSelecting(false)
+	FDisplayClusterConfiguratorBlueprintEditor() :
+		TicksForPreviewRenderCapture(0),
+		bSCSEditorSelecting(false),
+		bSelectSilently(false)
 	{
 	}
 
@@ -44,7 +47,9 @@ public:
 	//~ End IDisplayClusterConfiguratorBlueprintEditor Interface
 
 	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = true);
-	
+	virtual void SelectAncillaryComponents(const TArray<FString>& ComponentNames);
+	virtual void SelectAncillaryViewports(const TArray<FString>& ComponentNames);
+
 	virtual UDisplayClusterConfigurationData* GetEditorData() const;
 	virtual FDelegateHandle RegisterOnConfigReloaded(const FOnConfigReloadedDelegate& Delegate);
 	virtual void UnregisterOnConfigReloaded(FDelegateHandle DelegateHandle);
@@ -156,6 +161,9 @@ protected:
 private:
 	/** True only during SCS selection change. */
 	bool bSCSEditorSelecting;
+
+	/** Indicates that the current selection change in the SCS is silent, meaning it doesn't broadcast a selection changed event or update the inspector. */
+	bool bSelectSilently;
 	// ~End of SSCS Implementation
 
 protected:

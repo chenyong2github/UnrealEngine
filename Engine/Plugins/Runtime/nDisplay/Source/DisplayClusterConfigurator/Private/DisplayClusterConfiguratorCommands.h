@@ -32,6 +32,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleLockClusterNodesInHosts;
 	TSharedPtr<FUICommandInfo> ToggleLockViewports;
 	TSharedPtr<FUICommandInfo> ToggleLockClusterNodes;
+	TSharedPtr<FUICommandInfo> ToggleTintViewports;
 	TSharedPtr<FUICommandInfo> ZoomToFit;
 	TSharedPtr<FUICommandInfo> BrowseDocumentation;
 

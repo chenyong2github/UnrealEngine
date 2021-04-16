@@ -97,14 +97,6 @@ bool FDisplayClusterConfiguratorTreeItem::IsChildOfRecursive(const TSharedRef<ID
 	return false;
 }
 
-void FDisplayClusterConfiguratorTreeItem::OnSelection()
-{
-	TArray<UObject*> SelectedObjects;
-	SelectedObjects.Add(GetObject());
-
-	ToolkitPtr.Pin()->SelectObjects(SelectedObjects);
-}
-
 bool FDisplayClusterConfiguratorTreeItem::IsSelected()
 {
 	const TArray<UObject*>& SelectedObjects = ToolkitPtr.Pin()->GetSelectedObjects();

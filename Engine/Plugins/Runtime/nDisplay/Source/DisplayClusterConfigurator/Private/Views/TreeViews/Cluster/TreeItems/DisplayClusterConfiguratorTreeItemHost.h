@@ -32,6 +32,8 @@ public:
 	virtual FName GetAttachName() const override;
 
 	virtual bool CanDuplicateItem() const override { return false; }
+	virtual bool CanHideItem() const override { return true; }
+	virtual void SetItemHidden(bool bIsHidden);
 
 protected:
 	virtual void FillItemColumn(TSharedPtr<SHorizontalBox> Box, const TAttribute<FText>& FilterText, FIsSelected InIsSelected) override;

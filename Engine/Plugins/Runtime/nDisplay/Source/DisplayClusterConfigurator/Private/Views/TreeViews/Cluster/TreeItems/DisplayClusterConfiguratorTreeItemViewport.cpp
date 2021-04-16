@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorStyle.h"
+#include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "Views/DragDrop/DisplayClusterConfiguratorValidatedDragDropOp.h"
@@ -41,6 +42,32 @@ void FDisplayClusterConfiguratorTreeItemViewport::SetEnabled(bool bIsEnabled)
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(Viewport, false);
 	Viewport->bIsEnabled = bIsEnabled;
+}
+
+void FDisplayClusterConfiguratorTreeItemViewport::OnSelection()
+{
+	FDisplayClusterConfiguratorTreeItemCluster::OnSelection();
+
+	UDisplayClusterConfigurationViewport* Viewport = GetObjectChecked<UDisplayClusterConfigurationViewport>();
+
+	TArray<FString> AssociatedComponents;
+	if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::simple::Screen))
+	{
+		AssociatedComponents.Add(Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::simple::Screen]);
+	}
+	else if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::mesh::Component))
+	{
+		AssociatedComponents.Add(Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::mesh::Component]);
+	}
+	else if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::camera::Component))
+	{
+		AssociatedComponents.Add(Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::camera::Component]);
+	}
+
+	if (AssociatedComponents.Num())
+	{
+		ToolkitPtr.Pin()->SelectAncillaryComponents(AssociatedComponents);
+	}
 }
 
 TSharedRef<SWidget> FDisplayClusterConfiguratorTreeItemViewport::GenerateWidgetForColumn(const FName& ColumnName, TSharedPtr<ITableRow> TableRow, const TAttribute<FText>& FilterText, FIsSelected InIsSelected)

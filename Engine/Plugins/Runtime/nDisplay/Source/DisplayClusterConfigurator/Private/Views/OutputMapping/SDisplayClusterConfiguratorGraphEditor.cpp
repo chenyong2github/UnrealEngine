@@ -46,6 +46,26 @@ void SDisplayClusterConfiguratorGraphEditor::PostUndo(bool bSuccess)
 	ClearSelectionSet();
 }
 
+void SDisplayClusterConfiguratorGraphEditor::FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect)
+{
+	UDisplayClusterConfiguratorGraph* ConfiguratorGraph = ClusterConfiguratorGraph.Get();
+	check(ConfiguratorGraph != nullptr);
+
+	bSelectionSetDirectly = true;
+	ConfiguratorGraph->ForEachGraphNode([this, &ObjectsToSelect](UDisplayClusterConfiguratorBaseNode* Node)
+	{
+		if (ObjectsToSelect.Contains(Node->GetObject()))
+		{
+			SetNodeSelection(Node, true);
+		}
+		else
+		{
+			SetNodeSelection(Node, false);
+		}
+	});
+	bSelectionSetDirectly = false;
+}
+
 void SDisplayClusterConfiguratorGraphEditor::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
 {
 	UDisplayClusterConfiguratorGraph* ConfiguratorGraph = ClusterConfiguratorGraph.Get();

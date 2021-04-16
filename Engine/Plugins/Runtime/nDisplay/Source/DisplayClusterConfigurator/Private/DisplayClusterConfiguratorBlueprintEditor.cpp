@@ -281,6 +281,76 @@ void FDisplayClusterConfiguratorBlueprintEditor::SelectObjects(TArray<UObject*>&
 	OnObjectSelected.Broadcast();
 }
 
+void FDisplayClusterConfiguratorBlueprintEditor::SelectAncillaryComponents(const TArray<FString>& ComponentNames)
+{
+	bSelectSilently = true;
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	{
+		TArray<UActorComponent*> ComponentsToSelect;
+		for (const FString& ComponentName : ComponentNames)
+		{
+			TArray<UActorComponent*> RootActorComponents;
+			RootActor->GetComponents(RootActorComponents);
+
+			UActorComponent** FoundComponentPtr =  RootActorComponents.FindByPredicate([&ComponentName](UActorComponent* Component)
+			{
+				return Component->GetName() == ComponentName;
+			});
+
+			if (FoundComponentPtr)
+			{
+				FindAndSelectSCSEditorTreeNode(*FoundComponentPtr, true);
+			}
+		}
+	}
+	bSelectSilently = false;
+}
+
+void FDisplayClusterConfiguratorBlueprintEditor::SelectAncillaryViewports(const TArray<FString>& ComponentNames)
+{
+	if (UDisplayClusterConfigurationData* Config = GetConfig())
+	{
+		TArray<UObject*> ViewportsToSelect;
+		for (TPair<FString, UDisplayClusterConfigurationClusterNode*> ClusterNodePair : Config->Cluster->Nodes)
+		{
+			UDisplayClusterConfigurationClusterNode* ClusterNode = ClusterNodePair.Value;
+			for (TPair<FString, UDisplayClusterConfigurationViewport*> ViewportPair : ClusterNode->Viewports)
+			{
+				UDisplayClusterConfigurationViewport* Viewport = ViewportPair.Value;
+
+				FString ComponentName;
+				if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::simple::Screen))
+				{
+					ComponentName = Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::simple::Screen];
+				}
+				else if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::mesh::Component))
+				{
+					ComponentName = Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::mesh::Component];
+				}
+				else if (Viewport->ProjectionPolicy.Parameters.Contains(DisplayClusterProjectionStrings::cfg::camera::Component))
+				{
+					ComponentName = Viewport->ProjectionPolicy.Parameters[DisplayClusterProjectionStrings::cfg::camera::Component];
+				}
+
+				if (ComponentNames.Contains(ComponentName))
+				{
+					ViewportsToSelect.Add(Viewport);
+				}
+			}
+		}
+
+		if (ViewCluster.IsValid())
+		{
+			ViewCluster->FindAndSelectObjects(ViewportsToSelect);
+		}
+
+		if (ViewOutputMapping.IsValid())
+		{
+			ViewOutputMapping->FindAndSelectObjects(ViewportsToSelect);
+		}
+	}
+}
+
 void FDisplayClusterConfiguratorBlueprintEditor::InvalidateViews()
 {
 	OnInvalidateViews.Broadcast();
@@ -975,7 +1045,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 		}
 	}
 
-	if (Inspector.IsValid())
+	if (Inspector.IsValid() && !bSelectSilently)
 	{
 		// Clear the my blueprints selection
 		if (SelectedNodes.Num() > 0)
@@ -986,6 +1056,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 		// Convert the selection set to an array of UObject* pointers
 		FText InspectorTitle = FText::GetEmpty();
 		TArray<UObject*> InspectorObjects;
+		TArray<FString> SelectedComponentNames;
 		bool bShowComponents = true;
 		InspectorObjects.Empty(SelectedNodes.Num());
 		for (FSCSEditorTreeNodePtrType NodePtr : SelectedNodes)
@@ -1013,6 +1084,10 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 					{
 						InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
 						InspectorObjects.Add(EditableComponent);
+
+						FString ComponentName = EditableComponent->GetName();
+						ComponentName.RemoveFromEnd(UActorComponent::ComponentTemplateNameSuffix);
+						SelectedComponentNames.Add(ComponentName);
 					}
 
 					if (ViewportTabContent.IsValid())
@@ -1046,6 +1121,11 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 		SKismetInspector::FShowDetailsOptions Options(InspectorTitle, true);
 		Options.bShowComponents = bShowComponents;
 		Inspector->ShowDetailsForObjects(InspectorObjects, Options);
+
+		if (SelectedComponentNames.Num())
+		{
+			SelectAncillaryViewports(SelectedComponentNames);
+		}
 	}
 }
 

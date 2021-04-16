@@ -223,9 +223,15 @@ bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
 
 FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 {
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMapping = Toolkit->GetViewOutputMapping();
+
 	const bool bIsSelected = GetOwnerPanel()->SelectionManager.SelectedNodes.Contains(GraphNode);
 	const bool bHasImageBackground = BackgroundActiveBrush.GetResourceObject() != nullptr;
 	const bool bIsLocked = IsViewportLocked();
+	const bool bTintBackground = OutputMapping->GetOutputMappingSettings().bTintSelectedViewports;
 
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
 	if (ViewportEdNode->IsOutsideParentBoundary())
@@ -245,7 +251,7 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 	{
 		if (bHasImageBackground)
 		{
-			if (bIsSelected)
+			if (bIsSelected && bTintBackground)
 			{
 				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundImage.Selected");
 			}
@@ -260,7 +266,7 @@ FSlateColor SDisplayClusterConfiguratorViewportNode::GetBackgroundColor() const
 		}
 		else
 		{
-			if (bIsSelected)
+			if (bIsSelected && bTintBackground)
 			{
 				// Selected Case
 				return FDisplayClusterConfiguratorStyle::GetColor("DisplayClusterConfigurator.Node.Viewport.BackgroundColor.Selected");
