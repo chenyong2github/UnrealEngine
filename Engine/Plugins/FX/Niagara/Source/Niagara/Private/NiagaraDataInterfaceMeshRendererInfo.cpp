@@ -304,14 +304,6 @@ UNiagaraDataInterfaceMeshRendererInfo::UNiagaraDataInterfaceMeshRendererInfo(FOb
 	MarkRenderDataDirty();
 }
 
-UNiagaraDataInterfaceMeshRendererInfo::~UNiagaraDataInterfaceMeshRendererInfo()
-{
-	if (MeshRenderer)
-	{
-		FNDIMeshRendererInfo::Release(*MeshRenderer, Info);
-	}
-}
-
 void UNiagaraDataInterfaceMeshRendererInfo::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -337,6 +329,16 @@ void UNiagaraDataInterfaceMeshRendererInfo::PostLoad()
 
 		Info = FNDIMeshRendererInfo::Acquire(*MeshRenderer);
 		MarkRenderDataDirty();
+	}
+}
+
+void UNiagaraDataInterfaceMeshRendererInfo::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (MeshRenderer)
+	{
+		FNDIMeshRendererInfo::Release(*MeshRenderer, Info);
 	}
 }
 
