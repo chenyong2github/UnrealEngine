@@ -203,16 +203,17 @@ void FParticlePerfStatsManager::Reset()
 	}
 	#endif
 
-	#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 	{
 		FScopeLock ScopeLock(&FParticlePerfStatsManager::ComponentToPerfStatsGuard);
 		for (TObjectIterator<UFXSystemComponent> CompIt; CompIt; ++CompIt)
 		{
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 			CompIt->ParticlePerfStats = nullptr;
+#endif
+			CompIt->RecreateRenderState_Concurrent();
 		}
 		ComponentToPerfStats.Empty();
 	}
-	#endif
 }
 
 void FParticlePerfStatsManager::Tick()
@@ -231,12 +232,10 @@ void FParticlePerfStatsManager::Tick()
 			}
 		}
 
-		//Make a copy of the listener shared ptrs to ensure their lifetime. 
-		TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> ListenersGT = Listeners;
 		//Kick off the RT tick for listeners and stats
 		ENQUEUE_RENDER_COMMAND(FParticlePerfStatsListenersRTTick)
 		(
-			[ListenersRT=MoveTemp(ListenersGT)](FRHICommandListImmediate& RHICmdList)
+			[ListenersRT=TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>>(Listeners)](FRHICommandListImmediate& RHICmdList)
 			{
 				for (FParticlePerfStatsListenerPtr Listener : ListenersRT)
 				{
@@ -275,7 +274,6 @@ void FParticlePerfStatsManager::Tick()
 
 		//Reset current frame data
 		{
-			TArray<TWeakObjectPtr<UWorld>> DeadWorlds;
 			FScopeLock ScopeLock(&FParticlePerfStatsManager::WorldToPerfStatsGuard);
 			for (auto it = WorldToPerfStats.CreateIterator(); it; ++it)
 			{
@@ -285,23 +283,17 @@ void FParticlePerfStatsManager::Tick()
 				}
 				else
 				{
-					FreeWorldStatsPool.Add(MoveTemp(it.Value()));//World is dead. Place it's stat back on the pool.
-					DeadWorlds.Add(it.Key());
+					FreeWorldStatsPool.Emplace(it.Value().Release());
 					for (FParticlePerfStatsListenerPtr& Listener : Listeners)
 					{
 						Listener->OnRemoveWorld(it.Key());
 					}
+					it.RemoveCurrent();
 				}				
-			}
-
-			for (TWeakObjectPtr<UWorld>& DeadWorld : DeadWorlds)
-			{
-				WorldToPerfStats.Remove(DeadWorld);
 			}
 		}
 #if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 		{
-			TArray<TWeakObjectPtr<UFXSystemAsset>> DeadSystems;
 			FScopeLock ScopeLock(&FParticlePerfStatsManager::SystemToPerfStatsGuard);
 			for (auto it = SystemToPerfStats.CreateIterator(); it; ++it)
 			{
@@ -311,24 +303,19 @@ void FParticlePerfStatsManager::Tick()
 				}
 				else
 				{
-					FreeSystemStatsPool.Add(MoveTemp(it.Value()));//System is dead. Place it's stat back on the pool.
-					DeadSystems.Add(it.Key());
+					FreeSystemStatsPool.Emplace(it.Value().Release());
 					for (FParticlePerfStatsListenerPtr& Listener : Listeners)
 					{
 						Listener->OnRemoveSystem(it.Key());
 					}
+					it.RemoveCurrent();
 				}
-			}
-			for (TWeakObjectPtr<UFXSystemAsset>& DeadSys : DeadSystems)
-			{
-				SystemToPerfStats.Remove(DeadSys);
 			}
 		}
 #endif
 
 #if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
 		{
-			TArray<TWeakObjectPtr<UFXSystemComponent>> DeadComponents;
 			FScopeLock ScopeLock(&FParticlePerfStatsManager::ComponentToPerfStatsGuard);
 			for (auto it = ComponentToPerfStats.CreateIterator(); it; ++it)
 			{
@@ -338,17 +325,13 @@ void FParticlePerfStatsManager::Tick()
 				}
 				else
 				{
-					FreeComponentStatsPool.Add(MoveTemp(it.Value()));//Component is dead. Place it's stat back on the pool.
-					DeadComponents.Add(it.Key());
+					FreeComponentStatsPool.Emplace(it.Value().Release());
 					for (FParticlePerfStatsListenerPtr& Listener : Listeners)
 					{
 						Listener->OnRemoveComponent(it.Key());
 					}
+					it.RemoveCurrent();
 				}
-			}
-			for (TWeakObjectPtr<UFXSystemComponent>& DeadComp : DeadComponents)
-			{
-				ComponentToPerfStats.Remove(DeadComp);
 			}
 		}
 #endif
