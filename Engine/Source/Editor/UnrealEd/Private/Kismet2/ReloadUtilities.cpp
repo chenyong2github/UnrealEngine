@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/KismetReinstanceUtilities.h"
 #include "Misc/QueuedThreadPool.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
