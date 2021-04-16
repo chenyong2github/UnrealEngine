@@ -18,6 +18,7 @@
 #include "StaticMeshOperations.h"
 
 #if WITH_EDITOR
+#include "Editor.h"
 #include "IMessageLogListing.h"
 #include "Logging/TokenizedMessage.h"
 #include "MessageLogModule.h"
@@ -2023,17 +2024,16 @@ FDatasmithWireTranslator::FDatasmithWireTranslator()
 
 void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-
-	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+#if WITH_EDITOR
+	if (GIsEditor && !GEditor->PlayWorld && !GIsPlayInEditorWorld)
 	{
-		UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(CAD_INTERFACE_UNAVAILABLE));
-	}
-
 #ifdef USE_OPENMODEL
-	if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
-	{
-		OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), TEXT("AliasStudio, Model files") });
-		return;
+		if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
+		{
+			OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("wire"), TEXT("AliasStudio, Model files") });
+			return;
+		}
+#endif
 	}
 #endif
 

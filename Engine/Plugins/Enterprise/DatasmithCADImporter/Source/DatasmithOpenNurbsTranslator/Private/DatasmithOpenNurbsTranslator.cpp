@@ -19,6 +19,7 @@
 #include "Utility/DatasmithMeshHelper.h"
 
 #if WITH_EDITOR
+#include "Editor.h"
 #include "IMessageLogListing.h"
 #include "MessageLogModule.h"
 #endif
@@ -3342,80 +3343,80 @@ TOptional<FMeshDescription> FOpenNurbsTranslatorImpl::GetMeshDescription(TShared
 
 	const FOpenNurbsObjectWrapper& Object = **ObjectPtr;
 
-	ON_wString UUIDString;
-	ON_UuidToString(Object.Attributes.m_uuid, UUIDString);
-	FString UUID(UUIDString.Array());
+ON_wString UUIDString;
+ON_UuidToString(Object.Attributes.m_uuid, UUIDString);
+FString UUID(UUIDString.Array());
 
-	FMeshDescription MeshDescription;
-	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
+FMeshDescription MeshDescription;
+DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	bool bHasNormal = false;
-	bool bIsValid = false;
-	if (Object.ObjectPtr->IsKindOf(&ON_Mesh::m_ON_Mesh_class_rtti))
+bool bHasNormal = false;
+bool bIsValid = false;
+if (Object.ObjectPtr->IsKindOf(&ON_Mesh::m_ON_Mesh_class_rtti))
+{
+	ON_3dVector Offset = GetGeometryOffset(MeshElement);
+	bIsValid = DatasmithOpenNurbsTranslatorUtils::TranslateMesh(ON_Mesh::Cast(Object.ObjectPtr), MeshDescription, bHasNormal, SelectedTranslator->ScalingFactor, Offset);
+}
+else if (Object.ObjectPtr->IsKindOf(&ON_Brep::m_ON_Brep_class_rtti))
+{
+	bIsValid = SelectedTranslator->TranslateBRep(ON_Brep::Cast(Object.ObjectPtr), Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
+}
+else if (const ON_Extrusion* extrusion = ON_Extrusion::Cast(Object.ObjectPtr))
+{
+	if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes)
 	{
 		ON_3dVector Offset = GetGeometryOffset(MeshElement);
-		bIsValid = DatasmithOpenNurbsTranslatorUtils::TranslateMesh(ON_Mesh::Cast(Object.ObjectPtr), MeshDescription, bHasNormal, SelectedTranslator->ScalingFactor, Offset);
-	}
-	else if (Object.ObjectPtr->IsKindOf(&ON_Brep::m_ON_Brep_class_rtti) )
-	{
-		bIsValid = SelectedTranslator->TranslateBRep(ON_Brep::Cast(Object.ObjectPtr), Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
-	}
-	else if (const ON_Extrusion* extrusion = ON_Extrusion::Cast(Object.ObjectPtr))
-	{
-		if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes)
+		if (const ON_Mesh* Mesh = extrusion->m_mesh_cache.Mesh(ON::mesh_type::render_mesh))
 		{
-			ON_3dVector Offset = GetGeometryOffset(MeshElement);
-			if (const ON_Mesh* Mesh = extrusion->m_mesh_cache.Mesh(ON::mesh_type::render_mesh))
+			if (DatasmithOpenNurbsTranslatorUtils::TranslateMesh(Mesh, MeshDescription, bHasNormal, ScalingFactor, Offset))
 			{
-				if (DatasmithOpenNurbsTranslatorUtils::TranslateMesh(Mesh, MeshDescription, bHasNormal, ScalingFactor, Offset))
-				{
-					return MeshDescription;
-				}
-			}
-			else
-			{
-				MissingRenderMeshes.Add(MeshElement->GetLabel());
+				return MeshDescription;
 			}
 		}
-
-		ON_Brep brep;
-		if (extrusion->BrepForm(&brep) != nullptr)
+		else
 		{
-			bIsValid = SelectedTranslator->TranslateBRep(&brep, Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
+			MissingRenderMeshes.Add(MeshElement->GetLabel());
 		}
 	}
-	else if (Object.ObjectPtr->IsKindOf(&ON_Hatch::m_ON_Hatch_class_rtti) )
-	{
-		const ON_Hatch *hatch = ON_Hatch::Cast(Object.ObjectPtr);
-		ON_Brep brep;
-		if (hatch != nullptr && hatch->BrepForm(&brep) != nullptr)
-		{
-			bIsValid = SelectedTranslator->TranslateBRep(&brep, Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
-		}
-	}
-	else if (Object.ObjectPtr->IsKindOf(&ON_PlaneSurface::m_ON_PlaneSurface_class_rtti))
-	{
-		const ON_PlaneSurface *planeSurface = ON_PlaneSurface::Cast(Object.ObjectPtr);
-		ON_Interval xInterval = planeSurface->Extents(0);
-		ON_Interval yInterval = planeSurface->Extents(1);
 
-		// TODO: Create simple plane
-		// 3 --- 2
-		// |     |
-		// |     |
-		// 0 --- 1
-
-		ON_3dVector vec0 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[0] + planeSurface->m_plane.yaxis * yInterval.m_t[0];
-		ON_3dVector vec1 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[1] + planeSurface->m_plane.yaxis * yInterval.m_t[0];
-		ON_3dVector vec2 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[1] + planeSurface->m_plane.yaxis * yInterval.m_t[1];
-		ON_3dVector vec3 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[0] + planeSurface->m_plane.yaxis * yInterval.m_t[1];
-	}
-	else if (Object.ObjectPtr->IsKindOf(&ON_LineCurve::m_ON_LineCurve_class_rtti))
+	ON_Brep brep;
+	if (extrusion->BrepForm(&brep) != nullptr)
 	{
-		// Not supported
+		bIsValid = SelectedTranslator->TranslateBRep(&brep, Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
 	}
+}
+else if (Object.ObjectPtr->IsKindOf(&ON_Hatch::m_ON_Hatch_class_rtti))
+{
+	const ON_Hatch* hatch = ON_Hatch::Cast(Object.ObjectPtr);
+	ON_Brep brep;
+	if (hatch != nullptr && hatch->BrepForm(&brep) != nullptr)
+	{
+		bIsValid = SelectedTranslator->TranslateBRep(&brep, Object.Attributes, MeshDescription, MeshElement, UUID, bHasNormal);
+	}
+}
+else if (Object.ObjectPtr->IsKindOf(&ON_PlaneSurface::m_ON_PlaneSurface_class_rtti))
+{
+	const ON_PlaneSurface* planeSurface = ON_PlaneSurface::Cast(Object.ObjectPtr);
+	ON_Interval xInterval = planeSurface->Extents(0);
+	ON_Interval yInterval = planeSurface->Extents(1);
 
-	return bIsValid ? MoveTemp(MeshDescription) : TOptional< FMeshDescription >();
+	// TODO: Create simple plane
+	// 3 --- 2
+	// |     |
+	// |     |
+	// 0 --- 1
+
+	ON_3dVector vec0 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[0] + planeSurface->m_plane.yaxis * yInterval.m_t[0];
+	ON_3dVector vec1 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[1] + planeSurface->m_plane.yaxis * yInterval.m_t[0];
+	ON_3dVector vec2 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[1] + planeSurface->m_plane.yaxis * yInterval.m_t[1];
+	ON_3dVector vec3 = planeSurface->m_plane.origin + planeSurface->m_plane.xaxis * xInterval.m_t[0] + planeSurface->m_plane.yaxis * yInterval.m_t[1];
+}
+else if (Object.ObjectPtr->IsKindOf(&ON_LineCurve::m_ON_LineCurve_class_rtti))
+{
+	// Not supported
+}
+
+return bIsValid ? MoveTemp(MeshDescription) : TOptional< FMeshDescription >();
 }
 
 void FOpenNurbsTranslatorImpl::SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions)
@@ -3440,7 +3441,15 @@ void FOpenNurbsTranslatorImpl::SetOpenNurbsOptions(const FDatasmithOpenNurbsOpti
 
 void FDatasmithOpenNurbsTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{TEXT("3dm"), TEXT("Rhino file format")});
+#if WITH_EDITOR
+	if (GIsEditor && !GEditor->PlayWorld && !GIsPlayInEditorWorld)
+	{
+		OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{TEXT("3dm"), TEXT("Rhino file format")});
+		return;
+	}
+#endif
+
+	OutCapabilities.bIsEnabled = false;
 }
 
 bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)

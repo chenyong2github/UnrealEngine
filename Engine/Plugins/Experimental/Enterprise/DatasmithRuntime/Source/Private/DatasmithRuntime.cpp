@@ -438,14 +438,14 @@ namespace DatasmithRuntime
 		FDatasmithTranslatableSceneSource TranslatableSceneSource(Source);
 		if (!TranslatableSceneSource.IsTranslatable())
 		{
-			RuntimeActor->LoadedScene = TEXT("Loading failed");
+			RuntimeActor->LoadedScene = Source.GetSourceFileExtension() + TEXT(" file format is not supported");
 			return false;
 		}
 
 		TSharedPtr<IDatasmithTranslator> Translator = TranslatableSceneSource.GetTranslator();
 		if (!Translator.IsValid())
 		{
-			RuntimeActor->LoadedScene = TEXT("Loading failed");
+			RuntimeActor->LoadedScene = Source.GetSourceFileExtension() + TEXT(" file format is not supported");
 			return false;
 		}
 

@@ -37,6 +37,7 @@ public class DatasmithWireTranslator : ModuleRules
 				new string[]
 				{
  					"MessageLog",
+ 					"UnrealEd",
 				}
 			);
 		}
