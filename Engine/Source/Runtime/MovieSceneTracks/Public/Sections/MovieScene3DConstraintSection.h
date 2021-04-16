@@ -23,14 +23,14 @@ class UMovieScene3DConstraintSection
 public:
 
 	/** Gets the constraint binding for this Constraint section */
-	UFUNCTION(BlueprintPure, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	const FMovieSceneObjectBindingID& GetConstraintBindingID() const
 	{
 		return ConstraintBindingID;
 	}
 
 	/** Sets the constraint binding for this Constraint section */
-	UFUNCTION(BlueprintCallable, Category = "Movie Scene Section")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
 	void SetConstraintBindingID(const FMovieSceneObjectBindingID& InConstraintBindingID)
 	{
 		ConstraintBindingID = InConstraintBindingID;

@@ -28,7 +28,7 @@ public:
 	* @param TimeUnit	Should the time be returned in Display Rate frames (possibly with a sub-frame value) or in Tick Resolution with no sub-frame values?
 	* @return			The time of this key which combines both the frame number and the sub-frame it is on. Sub-frame will be zero if you request Tick Resolution.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Time (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Time (Float)"))
 	virtual FFrameTime GetTime(ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) const override { return GetTimeFromChannel(KeyHandle, OwningSequence, TimeUnit); }
 	
 	/**
@@ -37,14 +37,14 @@ public:
 	* @param SubFrame		If using Display Rate time, what is the sub-frame this should go to? Clamped [0-1), and ignored with when TimeUnit is set to Tick Resolution.
 	* @param TimeUnit		Should the NewFrameNumber be interpreted as Display Rate frames or in Tick Resolution?
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Time (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Time (Float)"))
 	void SetTime(const FFrameNumber& NewFrameNumber, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate) { SetTimeInChannel(KeyHandle, OwningSequence, NewFrameNumber, TimeUnit, SubFrame); }
 
 	/**
 	* Gets the value for this key from the owning channel.
 	* @return	The float value this key represents.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Value (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Value (Float)"))
 	float GetValue() const
 	{
 		return GetValueFromChannel(KeyHandle).Value;
@@ -54,7 +54,7 @@ public:
 	* Sets the value for this key, reflecting it in the owning channel.
 	* @param InNewValue	The new float value for this key.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Value (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Value (Float)"))
 	void SetValue(float InNewValue)
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
@@ -66,7 +66,7 @@ public:
 	* Gets the interpolation mode for this key from the owning channel.
 	* @return	Interpolation mode this key uses to interpolate between this key and the next.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	ERichCurveInterpMode GetInterpolationMode() const
 	{
 		return GetValueFromChannel(KeyHandle).InterpMode;
@@ -76,7 +76,7 @@ public:
 	* Sets the interpolation mode for this key, reflecting it in the owning channel.
 	* @param InNewValue	Interpolation mode this key should use to interpolate between this key and the next.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetInterpolationMode(ERichCurveInterpMode InNewValue)
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
@@ -88,7 +88,7 @@ public:
 	* Gets the tangent mode for this key from the owning channel.
 	* @return	Tangent mode that this key is using specifying which tangent values are respected when evaluating.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	ERichCurveTangentMode GetTangentMode() const
 	{
 		return GetValueFromChannel(KeyHandle).TangentMode;
@@ -98,7 +98,7 @@ public:
 	* Sets the tangent mode for this key, reflecting it in the owning channel.
 	* @param InNewValue	Tangent mode that this key should use to specify which tangent values are respected when evaluating. See ERichCurveTangentMode for more details.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetTangentMode(ERichCurveTangentMode InNewValue)
 	{
 		FMovieSceneFloatValue ExistValue = GetValueFromChannel(KeyHandle);
@@ -110,7 +110,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the arriving tangent at this key
 	* @return Arrival Tangent value. Represents the geometric tangents in the form of "tan(y/x)" where y is the key's value and x is the seconds (both relative to key)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	float GetArriveTangent() const
 	{
 		return GetValueFromChannel(KeyHandle).Tangent.ArriveTangent;
@@ -120,7 +120,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the arriving tangent at this key.
 	* @param InNewValue	Represents the geometric tangents in the form of "tan(y/x)" where y is the key's value and x is the seconds (both relative to key)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetArriveTangent(float InNewValue)
 	{
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
@@ -133,7 +133,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the leaving tangent at this key
 	* @return Leaving Tangent value. Represents the geometric tangents in the form of "tan(y/x)" where y is the key's value and x is the seconds (both relative to key)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	float GetLeaveTangent() const
 	{
 		return GetValueFromChannel(KeyHandle).Tangent.LeaveTangent;
@@ -143,7 +143,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the leaving tangent at this key.
 	* @param InNewValue	Represents the geometric tangents in the form of "tan(y/x)" where y is the key's value and x is the seconds (both relative to key)
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetLeaveTangent(float InNewValue)
 	{
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
@@ -156,7 +156,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the tangent weight mode at this key
 	* @return Tangent Weight Mode. See ERichCurveTangentWeightMode for more detail on what each mode does.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	ERichCurveTangentWeightMode GetTangentWeightMode() const
 	{
 		return GetValueFromChannel(KeyHandle).Tangent.TangentWeightMode;
@@ -166,7 +166,7 @@ public:
 	* If Interpolation Mode is RCIM_Cubic, the tangent weight mode at this key.
 	* @param InNewValue	Specifies which tangent weights should be respected when evaluating the key. 
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetTangentWeightMode(ERichCurveTangentWeightMode InNewValue)
 	{
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
@@ -179,7 +179,7 @@ public:
 	* If Tangent Weight Mode is RCTWM_WeightedArrive or RCTWM_WeightedBoth, the weight of the arriving tangent on the left side.
 	* @return Tangent Weight. Represents the length of the hypotenuse in the form of "sqrt(x*x+y*y)" using the same definitions for x and y as tangents.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	float GetArriveTangentWeight() const
 	{
 		return GetValueFromChannel(KeyHandle).Tangent.ArriveTangentWeight;
@@ -189,7 +189,7 @@ public:
 	* If Tangent Weight Mode is RCTWM_WeightedArrive or RCTWM_WeightedBoth, the weight of the arriving tangent on the left side.
 	* @param InNewValue	Specifies the new arriving tangent weight. Represents the length of the hypotenuse in the form of "sqrt(x*x+y*y)" using the same definitions for x and y as tangents.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetArriveTangentWeight(float InNewValue)
 	{
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
@@ -202,7 +202,7 @@ public:
 	* If Tangent Weight Mode is RCTWM_WeightedLeave or RCTWM_WeightedBoth, the weight of the leaving tangent on the right side.
 	* @return Tangent Weight. Represents the length of the hypotenuse in the form of "sqrt(x*x+y*y)" using the same definitions for x and y as tangents.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	float GetLeaveTangentWeight() const
 	{
 		return GetValueFromChannel(KeyHandle).Tangent.LeaveTangentWeight;
@@ -212,7 +212,7 @@ public:
 	* If Tangent Weight Mode is RCTWM_WeightedLeave or RCTWM_WeightedBoth, the weight of the leaving tangent on the right side.
 	* @param InNewValue	Specifies the new leaving tangent weight. Represents the length of the hypotenuse in the form of "sqrt(x*x+y*y)" using the same definitions for x and y as tangents.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetLeaveTangentWeight(float InNewValue)
 	{
 		FMovieSceneFloatValue ExistKeyValue = GetValueFromChannel(KeyHandle);
@@ -236,7 +236,7 @@ public:
 	* @param	InInterpolation	Interpolation method the key should use.
 	* @return	The key that was created with the specified values at the specified time.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Add Key (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Add Key (Float)"))
 	UMovieSceneScriptingFloatKey* AddKey(const FFrameNumber& InTime, float NewValue, float SubFrame = 0.f, ESequenceTimeUnit TimeUnit = ESequenceTimeUnit::DisplayRate, EMovieSceneKeyInterpolation InInterpolation = EMovieSceneKeyInterpolation::Auto)
 	{
 		return AddKeyInChannel(ChannelHandle, OwningSequence, OwningSection, InTime, NewValue, SubFrame, TimeUnit, InInterpolation);
@@ -245,7 +245,7 @@ public:
 	/**
 	* Removes the specified key. Does nothing if the key is not specified or the key belongs to another channel.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Remove Key (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Key (Float)"))
 	virtual void RemoveKey(UMovieSceneScriptingKey* Key)
 	{
 		RemoveKeyFromChannel(ChannelHandle, Key);
@@ -256,7 +256,7 @@ public:
 	* @return	An array of UMovieSceneScriptingFloatKey's contained by this channel.
 	*			Returns all keys even if clipped by the owning section's boundaries or outside of the current sequence play range.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Keys (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Keys (Float)"))
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const override
 	{
 		return GetKeysInChannel(ChannelHandle, OwningSequence, OwningSection);
@@ -265,7 +265,7 @@ public:
 	/**
 	* Returns number of keys in this channel.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Num Keys (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Num Keys (Float)"))
 	int32 GetNumKeys() const
 	{
 		return ChannelHandle.Get() ? ChannelHandle.Get()->GetNumKeys() : 0;
@@ -276,7 +276,7 @@ public:
 	* @return	An array of float's contained by this channel.
 	*			Returns baked keys in the specified range.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Evaluate Keys (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Evaluate Keys (Float)"))
 	TArray<float> EvaluateKeys(FSequencerScriptingRange Range, FFrameRate FrameRate) const
 	{
 		return EvaluateKeysInChannel(ChannelHandle, OwningSequence, Range, FrameRate);
@@ -287,7 +287,7 @@ public:
 	*
 	* @return A range that represents the greatest range of times occupied by this channel, in the sequence's frame resolution
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Compute Effective Range (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Compute Effective Range (Float)"))
 	FSequencerScriptingRange ComputeEffectiveRange() const
 	{
 		return ComputeEffectiveRangeInChannel(ChannelHandle, OwningSequence);
@@ -296,7 +296,7 @@ public:
 	/**
 	* @return Gets the Pre-infinity extrapolation state. See ERichCurveExtrapolation for more detail.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	ERichCurveExtrapolation GetPreInfinityExtrapolation() const
 	{
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -313,7 +313,7 @@ public:
 	* Sets the Pre-infinity extrapolation state. See ERichCurveExtrapolation for more detail.
 	* @param InExtrapolation The new extrapolation mode this key should use for evaluating before this key.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetPreInfinityExtrapolation(ERichCurveExtrapolation InExtrapolation)
 	{
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -329,7 +329,7 @@ public:
 	/**
 	* @return Gets the Post-infinity extrapolation state. See ERichCurveExtrapolation for more detail.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	ERichCurveExtrapolation GetPostInfinityExtrapolation() const
 	{
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -346,7 +346,7 @@ public:
 	* Sets the Post-infinity extrapolation state. See ERichCurveExtrapolation for more detail.
 	* @param InExtrapolation The new extrapolation mode this key should use for evaluating after this key.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys")
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys")
 	void SetPostInfinityExtrapolation(ERichCurveExtrapolation InExtrapolation)
 	{
 		FMovieSceneFloatChannel* Channel = ChannelHandle.Get();
@@ -363,7 +363,7 @@ public:
 	* Set this channel's default value that should be used when no keys are present.
 	* Sets bHasDefaultValue to true automatically.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Set Default (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Set Default (Float)"))
 	void SetDefault(float InDefaultValue)
 	{
 		SetDefaultInChannel(ChannelHandle, OwningSequence, OwningSection, InDefaultValue);
@@ -373,7 +373,7 @@ public:
 	* Get this channel's default value that will be used when no keys are present. Only a valid
 	* value when HasDefault() returns true.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Get Default (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Get Default (Float)"))
 	float GetDefault() const
 	{
 		TOptional<float> DefaultValue = GetDefaultFromChannel(ChannelHandle);
@@ -383,7 +383,7 @@ public:
 	/**
 	* Remove this channel's default value causing the channel to have no effect where no keys are present
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Remove Default (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Remove Default (Float)"))
 	void RemoveDefault()
 	{
 		RemoveDefaultFromChannel(ChannelHandle);
@@ -392,7 +392,7 @@ public:
 	/**
 	* @return Does this channel have a default value set?
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Keys", meta = (DisplayName = "Has Default (Float)"))
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Keys", meta = (DisplayName = "Has Default (Float)"))
 	bool HasDefault() const
 	{
 		return GetDefaultFromChannel(ChannelHandle).IsSet();

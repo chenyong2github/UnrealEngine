@@ -236,7 +236,7 @@ FText UK2Node_GetSequenceBinding::GetTooltipText() const
 
 FText UK2Node_GetSequenceBinding::GetMenuCategory() const
 {
-	return LOCTEXT("NodeCategory", "Sequence");
+	return LOCTEXT("NodeCategory", "Sequencer|Player|Bindings");
 }
 
 FSlateIcon UK2Node_GetSequenceBinding::GetIconAndTint(FLinearColor& OutColor) const
