@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -16,10 +16,16 @@ class FMenus
 	static GSErrCode Initialize();
 
 	// Ename or disable menu item
-	static void SetMenuItemStatus(short InMenu, short InItem, bool InEnabled);
+	static void SetMenuItemStatus(short InMenu, short InItem, bool InSet, GSFlags InFlag);
 
 	// Change the text of an item
 	static void SetMenuItemText(short InMenu, short InItem, const GS::UniString& ItemStr);
+
+	// LiveLink status changed
+	static void LiveLinkChanged();
+
+	// Schedule a Live Link snapshot to be executed from the main thread event loop.
+	static void PostDoSnapshot();
 
   private:
 	// Menu command handler

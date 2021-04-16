@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 #include "SyncDatabase.h"
 #include "SyncData.h"
@@ -58,10 +58,14 @@ class FSyncContext
 	};
 
 	// Constructor
-	FSyncContext(const ModelerAPI::Model& InModel, FSyncDatabase& InSyncDatabase, FProgression* InProgression);
+	FSyncContext(bool bInIsSynchronizer, const ModelerAPI::Model& InModel, FSyncDatabase& InSyncDatabase,
+				 FProgression* InProgression);
 
 	// Destructor
 	~FSyncContext();
+
+	// Return true if it's a synchronizer context
+	bool IsSynchronizer() const { return bIsSynchronizer; }
 
 	// Accessors
 	const ModelerAPI::Model& GetModel() const { return Model; }
@@ -81,6 +85,7 @@ class FSyncContext
 	const ModelerAPI::Model& Model;
 	FProgression*			 Progression;
 	FSyncDatabase&			 SyncDatabase;
+	bool					 bIsSynchronizer = false;
 
   public:
 	Geometry::Point3D ModelOrigin = {0.0, 0.0, 0.0};

@@ -3,14 +3,16 @@
 #include "Commander.h"
 
 #include "ResourcesIDs.h"
-#include "ShellOpenDocument.h"
-#include "AutoChangeDatabase.h"
-#include "Error.h"
-#include "Element2String.h"
-#include "Pasteboard.h"
+#include "Utils/ShellOpenDocument.h"
+#include "Utils/AutoChangeDatabase.h"
+#include "Utils/Error.h"
+#include "Utils/Element2String.h"
+#include "Utils/Pasteboard.h"
 #include "Palette.h"
+#include "Menus.h"
 #include "Synchronizer.h"
 #include "Exporter.h"
+#include "ReportWindow.h"
 
 #include "DatasmithDirectLink.h"
 #include "IDirectLinkUI.h"
@@ -30,6 +32,24 @@ BEGIN_NAMESPACE_UE_AC
 void FCommander::DoSnapshot()
 {
 	DoSnapshotOrExport(nullptr);
+}
+
+static bool bLiveLinkEnabled = false;
+
+void FCommander::ToggleLiveLink()
+{
+	bLiveLinkEnabled = !bLiveLinkEnabled;
+	FMenus::LiveLinkChanged();
+	FPalette::LiveLinkChanged();
+	if (bLiveLinkEnabled)
+	{
+		DoSnapshot();
+	}
+}
+
+bool FCommander::IsLiveLinkEnabled()
+{
+	return bLiveLinkEnabled;
 }
 
 void FCommander::CopySelection2Clipboard()
@@ -99,7 +119,10 @@ void FCommander::Export3DToFile()
 	}
 }
 
-void FCommander::ShowMessagesDialog() {}
+void FCommander::ShowMessagesDialog()
+{
+	FReportWindow::Create();
+}
 
 void FCommander::ShowHidePalette()
 {
@@ -150,6 +173,8 @@ void FCommander::ZapDB()
 	{
 		FSynchronizer::GetCurrent()->Reset("Zap database");
 	}
+	FReportWindow::Delete();
+	FTraceListener::Get().Traces.clear();
 }
 
 void FCommander::DoSnapshotOrExport(const IO::Location* InExportedFile)

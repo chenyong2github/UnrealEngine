@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Synchronizer.h"
-#include "SceneValidator.h"
+#include "MaterialsDatabase.h"
+#include "Commander.h"
+#include "Utils/SceneValidator.h"
+#include "Utils/TimeStat.h"
 
 #include "DatasmithDirectLink.h"
 #include "DatasmithSceneExporter.h"
@@ -70,6 +73,11 @@ FSynchronizer::~FSynchronizer()
 // Delete the database (Usualy because document has changed)
 void FSynchronizer::Reset(const utf8_t* InReason)
 {
+	if (FCommander::IsLiveLinkEnabled())
+	{
+		FCommander::ToggleLiveLink();
+	}
+
 	UE_AC_TraceF("FSynchronizer::Reset - %s\n", InReason);
 	if (SyncDatabase != nullptr)
 	{
@@ -138,6 +146,8 @@ void FSynchronizer::ProjectClosed()
 // Do a snapshot of the model 3D data
 void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 {
+	FTimeStat DoSnapshotStart;
+
 	// Setup our progression
 	bool OutUserCancelled = false;
 	int	 NbPhases = kCommonSetUpLights - kCommonProjectInfos + 1;
@@ -145,6 +155,8 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	++NbPhases;
 #endif
 	FProgression Progression(kStrListProgression, kSyncTitle, NbPhases, FProgression::kSetFlags, &OutUserCancelled);
+
+	ViewState = FViewState();
 
 	// Insure we have a sync database and a snapshot scene
 	if (SyncDatabase == nullptr)
@@ -163,17 +175,29 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 #endif
 	}
 	// Synchronisation context
-	FSyncContext SyncContext(InModel, *SyncDatabase, &Progression);
+	FSyncContext SyncContext(true, InModel, *SyncDatabase, &Progression);
 
 	SyncDatabase->SetSceneInfo();
 
 	SyncDatabase->Synchronize(SyncContext);
 
-	SyncContext.NewPhase(kDebugSaveScene);
-	DumpScene(SyncDatabase->GetScene());
-	FSceneValidator Validator(SyncDatabase->GetScene());
-	Validator.CheckElementsName();
-	Validator.PrintReports(FSceneValidator::kVerbose);
+	FTimeStat DoSnapshotSyncEnd;
+
+	SyncDatabase->GetMaterialsDatabase().UpdateModified(SyncContext);
+
+#ifdef DEBUG
+	if (!FCommander::IsLiveLinkEnabled()) // In Live Link mode we don't do scene dump or validation
+	{
+		SyncContext.NewPhase(kDebugSaveScene);
+		DumpScene(SyncDatabase->GetScene());
+		FSceneValidator Validator(SyncDatabase->GetScene());
+		Validator.CheckElementsName();
+		Validator.CheckDependances();
+		Validator.PrintReports(FSceneValidator::kVerbose);
+	}
+#endif
+
+	FTimeStat DoSnapshotDumpAndValidatorEnd;
 
 	SyncContext.NewPhase(kSyncSnapshot);
 
@@ -185,6 +209,31 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 #endif
 
 	SyncContext.Stats.Print();
+	FTimeStat DoSnapshotEnd;
+	DoSnapshotSyncEnd.PrintDiff("Synchronization", DoSnapshotStart);
+#ifdef DEBUG
+	if (!FCommander::IsLiveLinkEnabled()) // In Live Link mode we don't do scene dump or validation
+	{
+		DoSnapshotDumpAndValidatorEnd.PrintDiff("Dump & Validator", DoSnapshotSyncEnd);
+	}
+#endif
+	DoSnapshotEnd.PrintDiff("DirectLink Update", DoSnapshotDumpAndValidatorEnd);
+	DoSnapshotEnd.PrintDiff("Total DoSnapshot", DoSnapshotStart);
+}
+
+// Live Link related: If view changed shedule an update
+bool FSynchronizer::NeedLiveLinkUpdate() const
+{
+	FViewState CurrentViewState;
+	if (!(ViewState == CurrentViewState))
+	{
+		return true;
+	};
+	if (SyncDatabase != nullptr && SyncDatabase->GetMaterialsDatabase().CheckModify())
+	{
+		return true;
+	}
+	return false;
 }
 
 void FSynchronizer::GetProjectPathAndName(GS::UniString* OutPath, GS::UniString* OutName)

@@ -3,7 +3,7 @@
 #include "Element2StaticMesh.h"
 #include "Synchronizer.h"
 #include "DatasmithHashTools.h"
-#include "3DElement2String.h"
+#include "Utils/3DElement2String.h"
 
 #include "ConvexPolygon.hpp"
 #include "ModelElement.hpp"
@@ -52,12 +52,8 @@ class FElement2StaticMesh::FVertex
 };
 
 // Constructor
-FElement2StaticMesh::FElement2StaticMesh(const FSyncContext&			   InSyncContext,
-										 const Geometry::Transformation3D& InWorld2Local)
-	: World2Local(InWorld2Local)
-	, Matrix(InWorld2Local.GetMatrix())
-	, bIsIdentity(InWorld2Local.IsIdentity())
-	, SyncContext(InSyncContext)
+FElement2StaticMesh::FElement2StaticMesh(const FSyncContext& InSyncContext)
+	: SyncContext(InSyncContext)
 	, bSomeHasTextures(false)
 	, BugsCount(0)
 {
@@ -224,9 +220,12 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 
 		// Rotate texture and size the texture (ideally build a material that implement this functionality)
 		ModelerAPI::TextureCoordinate UV;
-		UV.u = (MatData.CosAngle * AcUV.u - MatData.SinAngle * AcUV.v) * MatData.InvXSize;
-		UV.v = (-MatData.SinAngle * AcUV.u - MatData.CosAngle * AcUV.v) * MatData.InvYSize;
-
+		UV.u = AcUV.u; //(MatData.CosAngle * AcUV.u - MatData.SinAngle * AcUV.v) * MatData.InvXSize;
+		UV.v = -AcUV.v; //(-MatData.SinAngle * AcUV.u - MatData.CosAngle * AcUV.v) * MatData.InvYSize;
+#if PIVOT_0_5_0_5
+		UV.u += 0.5;
+		UV.v += 0.5;
+#endif
 		// Convert Vertex coordinate to texture coordinate.
 		MapUVs::iterator ItUV = UVs.find(UV);
 		if (ItUV == UVs.end())
@@ -327,7 +326,8 @@ void FElement2StaticMesh::InitPolygonMaterial()
 	CurrentTriangle.LocalMatID = (int)LocalMaterialIndex;
 }
 
-void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element& InModelElement)
+void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element&		   InModelElement,
+											 const Geometry::Transformation3D& InWorld2Local)
 {
 #if 0
 	UE_AC_TraceF("Element\n%s\n", F3DElement2String::Element2String(InModelElement).c_str());
@@ -339,14 +339,17 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element& InModelE
 		UE_AC_DebugF("FElement2StaticMesh::AddElementGeometry - Break element found\n");
 	}
 #endif
+	World2Local = InWorld2Local;
+	Matrix = InWorld2Local.GetMatrix();
+	bIsIdentity = InWorld2Local.IsIdentity();
 
 	// Collect geometry from element's bodies
-	GS::Int32 NbBodies = InModelElement.GetMeshBodyCount();
+	GS::Int32 NbBodies = InModelElement.GetTessellatedBodyCount();
 	UE_AC_STAT(SyncContext.Stats.BodiesStats.Inc(NbBodies));
 
 	for (GS::Int32 IndexBody = 1; IndexBody <= NbBodies; IndexBody++)
 	{
-		InModelElement.GetMeshBody(IndexBody, &CurrentBody);
+		InModelElement.GetTessellatedBody(IndexBody, &CurrentBody);
 		bIsSurfaceBody = CurrentBody.IsSurfaceBody();
 		GS::Int32 NbVertices = CurrentBody.GetVertexCount();
 		StartVertex = (int)Vertices.size();

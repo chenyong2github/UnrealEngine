@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AddonTools.h"
+#include "Utils/AddonTools.h"
 
 #include "MaterialsDatabase.h"
 
@@ -30,7 +30,7 @@ class FElement2StaticMesh
 {
   public:
 	// Constructor
-	FElement2StaticMesh(const FSyncContext& InSyncContext, const Geometry::Transformation3D& InWorld2Local);
+	FElement2StaticMesh(const FSyncContext& InSyncContext);
 
 	// Destructor
 	~FElement2StaticMesh();
@@ -40,6 +40,9 @@ class FElement2StaticMesh
 
 	// Collect geometry of the element
 	void AddElementGeometry(const ModelerAPI::Element& InModelElement);
+
+	// Collect geometry of the element
+	void AddElementGeometry(const ModelerAPI::Element& InModelElement, const Geometry::Transformation3D& InWorld2Local);
 
 	// Return the numbers of bugs detected during conversion
 	unsigned int GetBugsCount() const { return BugsCount; }
@@ -106,7 +109,7 @@ class FElement2StaticMesh
 
 	Geometry::Transformation3D World2Local;
 	Geometry::Matrix33		   Matrix;
-	bool					   bIsIdentity = false;
+	bool					   bIsIdentity = true;
 
 	// Working variables
 	bool				 bSomeHasTextures; // True if at least one triangles need uv
