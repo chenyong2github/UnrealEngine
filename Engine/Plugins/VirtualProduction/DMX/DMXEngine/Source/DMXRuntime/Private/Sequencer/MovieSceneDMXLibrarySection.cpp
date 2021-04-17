@@ -322,8 +322,8 @@ void FDMXCachedFunctionChannelInfo::GetMatrixCellChannelsAbsoluteNoSorting(UDMXE
 
 UMovieSceneDMXLibrarySection::UMovieSceneDMXLibrarySection()
 	: bUseNormalizedValues(true)
-	, bNeedsInitialization(true)
 	, bIsRecording(false)
+	, bNeedsInitialization(true)
 {
 	BlendType = EMovieSceneBlendType::Absolute;
 	UpdateChannelProxy();
