@@ -1406,21 +1406,6 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			continue;
 		}
 
-		// Check suggested state
-		bool bSuggested = false;
-		const bool bFoundSuggested = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, bSuggested), bSuggested);
-		if(bFoundSuggested)
-		{
-			if(InFilter.SuggestedFiltering == FGetFilteredScriptAssetsOptions::OnlySuggested && !bSuggested)
-			{
-				continue;
-			}
-			else if(InFilter.SuggestedFiltering == FGetFilteredScriptAssetsOptions::NoSuggested && bSuggested)
-			{
-				continue;
-			}
-		}
-		
 		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);
 	}
 }
@@ -1531,63 +1516,6 @@ ENiagaraScriptLibraryVisibility FNiagaraEditorUtilities::GetScriptAssetVisibilit
 bool FNiagaraEditorUtilities::IsScriptAssetInLibrary(const FAssetData& ScriptAssetData)
 {
 	return GetScriptAssetVisibility(ScriptAssetData) == ENiagaraScriptLibraryVisibility::Library;
-}
-
-TTuple<EScriptSource, FText> FNiagaraEditorUtilities::GetScriptSource(const FAssetData& ScriptAssetData)
-{
-	FString PackagePathLocal ="";
-	FPackageName::TryConvertGameRelativePackagePathToLocalPath(ScriptAssetData.PackagePath.ToString(), PackagePathLocal);
-
-	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir() / TEXT("FX")))
-	{
-		int32 ContentFoundIndex = PackagePathLocal.Find(TEXT("/Content"));
-
-		if(ContentFoundIndex != INDEX_NONE)
-		{
-			FString LeftPart = PackagePathLocal.Left(ContentFoundIndex);
-			bool bFound = LeftPart.FindLastChar('/', ContentFoundIndex);
-
-			if(bFound)
-			{
-				FString PluginName = LeftPart.RightChop(ContentFoundIndex + 1);
-				return TTuple<EScriptSource, FText>(EScriptSource::Niagara, FText::FromString(PluginName));
-			}
-		}
-	}
-	
-	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::EnginePluginsDir()) || FPaths::IsUnderDirectory(PackagePathLocal, FPaths::ProjectPluginsDir()))
-	{
-		int32 ContentFoundIndex = PackagePathLocal.Find(TEXT("/Content"));
-
-		if(ContentFoundIndex != INDEX_NONE)
-		{
-			FString LeftPart = PackagePathLocal.Left(ContentFoundIndex);
-			bool bFound = LeftPart.FindLastChar('/', ContentFoundIndex);
-
-			if(bFound)
-			{
-				FString PluginName = LeftPart.RightChop(ContentFoundIndex + 1);
-				return TTuple<EScriptSource, FText>(EScriptSource::Plugins, FText::FromString(PluginName));
-			}
-		}
-	}
-
-	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::GameDevelopersDir()))
-	{
-		return TTuple<EScriptSource, FText>(EScriptSource::Developer, FText::FromString("Developer"));
-	}
-	
-	if(FPaths::IsUnderDirectory(PackagePathLocal, FPaths::ProjectContentDir()))
-	{
-		return TTuple<EScriptSource, FText>(EScriptSource::Game, FText::FromString("Game"));
-	}		
-
-	return TTuple<EScriptSource, FText>(EScriptSource::Unknown, FText::FromString(""));
-}
-
-FLinearColor FNiagaraEditorUtilities::GetScriptSourceColor(EScriptSource ScriptData)
-{
-	return GetDefault<UNiagaraEditorSettings>()->GetSourceColor(ScriptData);	
 }
 
 NIAGARAEDITOR_API FText FNiagaraEditorUtilities::FormatScriptName(FName Name, bool bIsInLibrary)

@@ -6,7 +6,6 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Views/STreeView.h"
 #include "EditorStyleSet.h"
-//#include "NiagaraActionNode.h"
 
 /** Called to force the item selector to refresh */
 DECLARE_DELEGATE(FRefreshItemSelectorDelegate);
@@ -18,53 +17,21 @@ enum class EItemSelectorClickActivateMode
 };
 
 /** A generic widget for selecting an item from an array of items including optional filtering and categorization. */
-template<typename CategoryType, typename ItemType, typename SectionType = CategoryType>
+template<typename CategoryType, typename ItemType>
 class SItemSelector : public SCompoundWidget
 {
 public:
-	struct FSectionData
-	{
-		enum ESectionType
-		{
-			Tree,
-			List
-		};
-
-		FSectionData()
-		{
-			Type = ESectionType::Tree;
-			bHideSectionIfEmpty = true;
-		}
-
-		FSectionData(ESectionType InType, bool bInHideSectionIfEmpty)
-		: Type(InType)
-		, bHideSectionIfEmpty(bInHideSectionIfEmpty)
-		{
-			
-		}
-
-		ESectionType Type;
-		bool bHideSectionIfEmpty;
-	};
-	
 	DECLARE_DELEGATE_RetVal_OneParam(TArray<CategoryType>, FOnGetCategoriesForItem, const ItemType& /* Item */);
-	DECLARE_DELEGATE_RetVal_OneParam(TArray<SectionType>, FOnGetSectionsForItem, const ItemType& /* Item */);
-	DECLARE_DELEGATE_RetVal_ThreeParams(int32, FOnGetItemWeightForSelection, const ItemType& /* Item */, const TArray<FString>& /* FilterTerms */, const TArray<FString>& /* SanitizedFilterTerms */);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareSectionsForEquality, const SectionType& /* SectionA */, const SectionType& /* SectionB */);
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareSectionsForSorting, const SectionType& /* SectionA */, const SectionType& /* SectionB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareCategoriesForEquality, const CategoryType& /* CategoryA */, const CategoryType& /* CategoryB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareCategoriesForSorting, const CategoryType& /* CategoryA */, const CategoryType& /* CateogoryB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareItemsForEquality, const ItemType& /* ItemA */, const ItemType& /* ItemB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCompareItemsForSorting, const ItemType& /* ItemA */, const ItemType& /* ItemB */);
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnDoesItemMatchFilterText, const FText& /* Filter text */, const ItemType& /* Item */);
-	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateWidgetForSection, const SectionType& /* Section */);
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateWidgetForCategory, const CategoryType& /* Category */);
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOnGenerateWidgetForItem, const ItemType& /* Item */);
 	DECLARE_DELEGATE(FOnSelectionChanged);
-	DECLARE_DELEGATE_RetVal_OneParam(FSectionData, FOnGetSectionData, const SectionType& /* Section */);
 	DECLARE_DELEGATE_OneParam(FOnItemActivated, const ItemType& /* Item */);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesItemPassCustomFilter, const ItemType& /*Item */);
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnDoesSectionPassCustomFilter, const SectionType& /* Section */);
 
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
@@ -72,8 +39,6 @@ public:
 		, _ClickActivateMode(EItemSelectorClickActivateMode::DoubleClick)
 		, _CategoryRowStyle(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row"))
 		, _ClearSelectionOnClick(true)
-		, _HideSingleSection(true)
-		, _ExpandInitially(true)
 	{}
 		/** The items to display in the item selector. */
 		SLATE_ARGUMENT(TArray<ItemType>, Items)
@@ -81,6 +46,7 @@ public:
 		/** The default categories to show in additional to ones generated from the items.
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this argument is supplied. */
 		SLATE_ARGUMENT(TArray<CategoryType>, DefaultCategories)
+
 		/** The default category paths to show in additional to ones generated from the items. 
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this argument is supplied. */
 		SLATE_ARGUMENT(TArray<TArray<CategoryType>>, DefaultCategoryPaths)
@@ -96,20 +62,11 @@ public:
 
 		/** Whether or not the selection should be cleared when an empty area is clicked. */
 		SLATE_ARGUMENT(bool, ClearSelectionOnClick)
-	
+
 		/** An optional delegate to get an array of categories for the specified item. Each category in the returned array represents one level of nested categories. 
 		NOTE: The OnCompareCategoriesForEquality, and OnGenerateWidgetForCategory delegates must be bound if this delegate is bound. */
 		SLATE_EVENT(FOnGetCategoriesForItem, OnGetCategoriesForItem)
 
-		/** An optional delegate to get an array of sections for the specified item. Used to duplicate items across multiple sections. */
-		SLATE_EVENT(FOnGetSectionsForItem, OnGetSectionsForItem)
-	
-		/** An optional delegate to compare two sections for equality which must be supplied when generating sections for items. This equality comparer will be used to collate items into matching categories. */
-		SLATE_EVENT(FOnCompareSectionsForEquality, OnCompareSectionsForEquality)
-
-		/** An optional delegate which determines the sorting for sections. If not bound categories will be ordered by the order they're encountered while processing items. */
-		SLATE_EVENT(FOnCompareSectionsForSorting, OnCompareSectionsForSorting)
-	
 		/** An optional delegate to compare two categories for equality which must be supplied when generating categories for items.  This equality comparer will be used to collate items into matching categories. */
 		SLATE_EVENT(FOnCompareCategoriesForEquality, OnCompareCategoriesForEquality)
 
@@ -125,9 +82,6 @@ public:
 		/** An optional delegate which can be used to filter items available for selection.  If not bound the search box will not be shown. */
 		SLATE_EVENT(FOnDoesItemMatchFilterText, OnDoesItemMatchFilterText)
 
-		/** An optional delegate which generates widgets for sections which can be bound to provide custom section widgets for items. */
-		SLATE_EVENT(FOnGenerateWidgetForSection, OnGenerateWidgetForSection)
-	
 		/** An optional delegate which generates widgets for categories which must be bound when generating categories for items. */
 		SLATE_EVENT(FOnGenerateWidgetForCategory, OnGenerateWidgetForCategory)
 
@@ -140,35 +94,18 @@ public:
 		/** A delegate which is called when the selection changes. */
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
 
-		/** An optional delegate which is used to determine the suggested item of a search. The highest weighted item will be selected. */
-		SLATE_EVENT(FOnGetItemWeightForSelection, OnGetItemWeightForSelection)
-	
 		/** An optional delegate which is called to check if an item should be filtered out by external code. Return false to exclude the item from the view. */
 		SLATE_EVENT(FOnDoesItemPassCustomFilter, OnDoesItemPassCustomFilter)
 
-		/** An optional delegate which is called to check if an entire section should be filtered out by external code. Return false to exclude the item from the view. */
-		SLATE_EVENT(FOnDoesSectionPassCustomFilter, OnDoesSectionPassCustomFilter)
-
-		/** An optional delegate used to determine additional options for sections, such as type (tree or list). */
-		SLATE_EVENT(FOnGetSectionData, OnGetSectionData)
-
-		/** An optional attribute to determine whether we should hide a single section. Used to reparent all children of our sole section to the root. */
-		SLATE_ATTRIBUTE(bool, HideSingleSection)
-	
 		/** An optional array of delegates to refresh the item selector view when executed. */
 		SLATE_ARGUMENT(TArray<FRefreshItemSelectorDelegate*>, RefreshItemSelectorDelegates)
-	
-		/** Whether we want to expand the tree initially or not */
-		SLATE_ARGUMENT(bool, ExpandInitially)
 	SLATE_END_ARGS();
 
 private:
 	enum class EItemSelectorItemViewModelType
 	{
-		Section,
 		Category,
-		Item,
-		Root
+		Item
 	};
 
 	class IItemSelectorItemViewModelUtilities
@@ -179,24 +116,11 @@ private:
 		}
 
 		virtual bool IsFiltering() const = 0;
-		virtual bool IsSearching() const = 0;
-		virtual const FText& GetFilterText() const = 0;
 		virtual bool DoesItemPassFilter(const ItemType& InItem) const = 0;
-		virtual bool DoesSectionPassFilter(const SectionType& InSection) const = 0;
-		virtual int32 GetItemWeightForSelection(const ItemType& Item, const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const = 0;
-		
-		virtual bool CompareSectionsForEquality(const SectionType& SectionA, const SectionType& SectionB) const = 0;
-		virtual const FOnCompareSectionsForSorting& GetOnCompareSectionsForSorting() const = 0;
 		virtual bool CompareCategoriesForEquality(const CategoryType& CategoryA, const CategoryType& CategoryB) const = 0;
 		virtual const FOnCompareCategoriesForSorting& GetOnCompareCategoriesForSorting() const = 0;
 		virtual bool CompareItemsForEquality(const ItemType& ItemA, const ItemType& ItemB) const = 0;
 		virtual const FOnCompareItemsForSorting& GetOnCompareItemsForSorting() const = 0;
-
-		virtual TSharedPtr<class FItemSelectorItemViewModel> GetCurrentSuggestion() const = 0;
-		virtual int32 GetCurrentMaxWeight() const = 0;
-		virtual int32 GetCurrentSuggestionIndex() const = 0;
-		virtual void UpdateCurrentSuggestionIndex(const int32& Index) = 0;
-		virtual void UpdateCurrentMaxWeight(int32 InCurrentWeight) = 0;
 	};
 
 	class FItemSelectorItemViewModel
@@ -227,7 +151,7 @@ private:
 		void GetChildren(TArray<TSharedRef<FItemSelectorItemViewModel>>& OutChildren) const
 		{
 			if (GetItemUtilities()->IsFiltering())
-			{				
+			{
 				TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
 				GetChildrenInternal(Children);
 				for (TSharedRef<FItemSelectorItemViewModel> Child : Children)
@@ -244,11 +168,6 @@ private:
 			}
 		}
 
-		virtual int32 GetItemWeight(const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const
-		{
-			return -1;
-		}
-		
 		virtual bool PassesFilter() const
 		{
 			return true;
@@ -278,12 +197,7 @@ private:
 			return Item;
 		}
 
-		virtual int32 GetItemWeight(const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const override
-		{
-			return this->GetItemUtilities()->GetItemWeightForSelection(Item, FilterTerms, SanitizedFilterTerms);
-		}
-		
-		virtual bool PassesFilter() const override
+		virtual bool PassesFilter() const
 		{
 			return this->GetItemUtilities()->DoesItemPassFilter(Item);
 		}
@@ -330,7 +244,12 @@ private:
 			return NewCategoryViewModel;
 		}
 
-		TSharedPtr<FItemSelectorItemCategoryViewModel> FindCategory(const CategoryType& InCategory)
+		void AddItem(const ItemType& InItem)
+		{
+			ChildItemViewModels.Add(MakeShared<FItemSelectorItemContainerViewModel>(this->GetItemUtilities(), InItem));
+		}
+
+		TSharedPtr<FItemSelectorItemCategoryViewModel> FindChildCategory(const CategoryType& InCategory)
 		{
 			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
 			{
@@ -341,31 +260,7 @@ private:
 			}
 			return TSharedPtr<FItemSelectorItemCategoryViewModel>();
 		}
-		
-		void AddItemDirect(const ItemType& InItem)
-		{
-			ChildItemViewModels.Add(MakeShared<FItemSelectorItemContainerViewModel>(this->GetItemUtilities(), InItem));
-		}
 
-		void FlattenChildren(TArray<TSharedRef<FItemSelectorItemContainerViewModel>>& FilteredFlattenedItems)
-		{
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> const& CategoryViewModel : ChildCategoryViewModels)
-			{
-				if(CategoryViewModel->PassesFilter())
-				{
-					CategoryViewModel->FlattenChildren(FilteredFlattenedItems);
-				}
-			}
-
-			for (TSharedRef<FItemSelectorItemContainerViewModel> const& Item : ChildItemViewModels)
-			{
-				if(Item->PassesFilter())
-				{
-					FilteredFlattenedItems.Add(Item);					
-				}
-			}
-		}
-		
 		void SortChildren()
 		{
 			TSharedRef<IItemSelectorItemViewModelUtilities> Utilities = this->GetItemUtilities();
@@ -391,12 +286,7 @@ private:
 			}
 		}
 
-		virtual int32 GetItemWeight(const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const override
-		{
-			return -1;	
-		}
-		
-		virtual bool PassesFilter() const override
+		virtual bool PassesFilter() const
 		{
 			for (const TSharedRef<FItemSelectorItemContainerViewModel>& ChildItemViewModel : ChildItemViewModels)
 			{
@@ -423,599 +313,93 @@ private:
 		}
 
 	private:
-		CategoryType Category;
+		const CategoryType& Category;
 		TArray<TSharedRef<FItemSelectorItemCategoryViewModel>> ChildCategoryViewModels;
 		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> ChildItemViewModels;
 	};
 
-	class FSectionViewModel : public FItemSelectorItemViewModel
+	class FItemSelectorViewModel : public IItemSelectorItemViewModelUtilities, public TSharedFromThis<FItemSelectorViewModel>
 	{
 	public:
-		FSectionViewModel(TSharedRef<IItemSelectorItemViewModelUtilities> InItemUtilities, const SectionType& InSection)
-			: FItemSelectorItemViewModel(InItemUtilities, EItemSelectorItemViewModelType::Section)
-			, Section(InSection)
-		{
-		}
-
-		void AddItemDirect(const ItemType& InItem)
-		{
-			ChildItemViewModels.Add(MakeShared<FItemSelectorItemContainerViewModel>(this->GetItemUtilities(), InItem));
-		}
-
-		TSharedRef<FItemSelectorItemCategoryViewModel> AddCategory(const CategoryType& InCategory)
-		{
-			TSharedRef<FItemSelectorItemCategoryViewModel> NewCategoryViewModel = MakeShared<FItemSelectorItemCategoryViewModel>(this->GetItemUtilities(), InCategory);
-			ChildCategoryViewModels.Add(NewCategoryViewModel);
-			return NewCategoryViewModel;
-		}
-
-		TSharedPtr<FItemSelectorItemCategoryViewModel> FindCategory(const CategoryType& InCategory)
-		{
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
-			{
-				if (this->GetItemUtilities()->CompareCategoriesForEquality(ChildCategoryViewModel->GetCategory(), InCategory))
-				{
-					return ChildCategoryViewModel;
-				}
-			}
-			return TSharedPtr<FItemSelectorItemCategoryViewModel>();
-		}
-
-		TSharedRef<FItemSelectorItemCategoryViewModel> FindOrAddCategoryDirect(const CategoryType& InCategory)
-		{
-			TSharedPtr<FItemSelectorItemCategoryViewModel> Category = FindCategory(InCategory);
-
-			if(!Category.IsValid())
-			{
-				Category = AddCategory(InCategory);
-			}
-
-			return Category.ToSharedRef();
-		}
-
-		void GetItemViewModelsForItems(const TArray<ItemType>& InItems, TArray<TSharedRef<FItemSelectorItemViewModel>>& OutItemViewModelsForItems)
-		{
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
-			{
-				ChildCategoryViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
-			}
-			for (TSharedRef<FItemSelectorItemContainerViewModel> ChildItemViewModel : ChildItemViewModels)
-			{
-				const ItemType& ChildItem = ChildItemViewModel->GetItem();
-				TSharedRef<IItemSelectorItemViewModelUtilities> MyItemUtilities = this->GetItemUtilities();
-				if (InItems.ContainsByPredicate([ChildItem, MyItemUtilities](const ItemType& Item) { return MyItemUtilities->CompareItemsForEquality(Item, ChildItem); }))
-				{
-					OutItemViewModelsForItems.Add(ChildItemViewModel);
-				}
-			}
-		}
-
-		void FlattenChildren(TArray<TSharedRef<FItemSelectorItemContainerViewModel>>& FilteredFlattenedItems)
-		{
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> const& Category : ChildCategoryViewModels)
-			{
-				if(Category->PassesFilter())
-				{
-					Category->FlattenChildren(FilteredFlattenedItems);
-				}
-			}
-
-			for (TSharedRef<FItemSelectorItemContainerViewModel> const& Item : ChildItemViewModels)
-			{
-				if(Item->PassesFilter())
-				{
-					FilteredFlattenedItems.Add(Item);
-				}
-			}
-		}
-		
-		void SortChildren()
-		{
-			TSharedRef<IItemSelectorItemViewModelUtilities> Utilities = this->GetItemUtilities();
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
-			{
-				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
-				{
-					return Utilities->GetOnCompareCategoriesForSorting().Execute(CategoryViewModelA->GetCategory(), CategoryViewModelB->GetCategory());
-				});
-			}
-
-			if (ChildItemViewModels.Num() > 0 && Utilities->GetOnCompareItemsForSorting().IsBound())
-			{
-				ChildItemViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemContainerViewModel>& ItemViewModelA, const TSharedRef<FItemSelectorItemContainerViewModel>& ItemViewModelB)
-				{
-					return Utilities->GetOnCompareItemsForSorting().Execute(ItemViewModelA->GetItem(), ItemViewModelB->GetItem());
-				});
-			}
-			
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildSectionViewModel : ChildCategoryViewModels)
-			{
-				ChildSectionViewModel->SortChildren();
-			}
-		}
-		
-		const SectionType& GetSection() const
-		{
-			return Section;
-		}
-		
-		virtual int32 GetItemWeight(const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const override
-		{
-			return -1;
-		}
-
-		virtual bool PassesFilter() const override
-		{
-			return this->GetItemUtilities()->DoesSectionPassFilter(Section);
-		}
-
-		virtual void GetChildrenInternal(TArray<TSharedRef<FItemSelectorItemViewModel>>& OutChildren) const override
-		{
-			OutChildren.Append(ChildCategoryViewModels);
-			OutChildren.Append(ChildItemViewModels);
-		}
-
-		TArray<TSharedRef<FItemSelectorItemCategoryViewModel>>& GetChildCategories()
-		{
-			return ChildCategoryViewModels;
-		}
-		
-		TArray<TSharedRef<FItemSelectorItemContainerViewModel>>& GetChildItems()
-		{
-			return ChildItemViewModels;
-		}
-	
-	private:
-		SectionType Section;
-		TArray<TSharedRef<FItemSelectorItemCategoryViewModel>> ChildCategoryViewModels;
-		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> ChildItemViewModels;
-	};
-
-	class FRootViewModel : public FItemSelectorItemViewModel
-	{
-	public:
-		FRootViewModel(TSharedRef<IItemSelectorItemViewModelUtilities> InItemUtilities)
-			: FItemSelectorItemViewModel(InItemUtilities, EItemSelectorItemViewModelType::Root)
-		{
-		}
-
-		void GetItemViewModelsForItems(const TArray<ItemType>& InItems, TArray<TSharedRef<FItemSelectorItemViewModel>>& OutItemViewModelsForItems)
-		{
-			for (TSharedRef<FSectionViewModel> ChildSectionViewModel : ChildSectionViewModels)
-			{
-				ChildSectionViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
-			}
-		}
-
-		TSharedRef<FSectionViewModel> AddSection(const SectionType& InSection)
-		{
-			TSharedRef<FSectionViewModel> SectionViewModel = MakeShared<FSectionViewModel>(this->GetItemUtilities(), InSection);
-			ChildSectionViewModels.Add(SectionViewModel);
-			return SectionViewModel;
-		}
-
-		TSharedRef<FItemSelectorItemCategoryViewModel> AddCategory(const CategoryType& InCategory)
-		{
-			TSharedRef<FItemSelectorItemCategoryViewModel> CategoryViewModel = MakeShared<FItemSelectorItemCategoryViewModel>(this->GetItemUtilities(), InCategory);
-			ChildCategoryViewModels.Add(CategoryViewModel);
-			return CategoryViewModel ;
-		}
-		
-		TSharedPtr<FSectionViewModel> FindSection(const SectionType& InSection)
-		{
-			for (TSharedRef<FSectionViewModel> ChildCategoryViewModel : ChildSectionViewModels)
-			{
-				if (this->GetItemUtilities()->CompareSectionsForEquality(ChildCategoryViewModel->GetSection(), InSection))
-				{
-					return ChildCategoryViewModel;
-				}
-			}
-			return TSharedPtr<FSectionViewModel>();
-		}
-
-		TSharedPtr<FItemSelectorItemCategoryViewModel> FindCategory(const CategoryType& InCategory)
-		{
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
-			{
-				if (this->GetItemUtilities()->CompareCategoriesForEquality(ChildCategoryViewModel->GetCategory(), InCategory))
-				{
-					return ChildCategoryViewModel;
-				}
-			}
-			return TSharedPtr<FItemSelectorItemCategoryViewModel>();
-		}
-
-		TSharedRef<FItemSelectorItemCategoryViewModel> FindOrAddCategoryDirect(const CategoryType& InCategory)
-		{
-			TSharedPtr<FItemSelectorItemCategoryViewModel> Category = FindCategory(InCategory);
-
-			if(!Category.IsValid())
-			{
-				Category = AddCategory(InCategory);
-			}
-
-			return Category.ToSharedRef();
-		}
-
-		void FlattenChildren(TArray<TSharedRef<FItemSelectorItemContainerViewModel>>& FilteredFlattenedItems)
-		{
-			for (TSharedRef<FSectionViewModel> const& Section : ChildSectionViewModels)
-			{
-				if(Section->PassesFilter())
-				{
-					Section->FlattenChildren(FilteredFlattenedItems);
-				}
-			}
-
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> const& Category : ChildCategoryViewModels)
-			{
-				if(Category->PassesFilter())
-				{
-					Category->FlattenChildren(FilteredFlattenedItems);
-				}
-			}
-
-			for (TSharedRef<FItemSelectorItemContainerViewModel> const& Item : ChildItemViewModels)
-			{
-				if(Item->PassesFilter())
-				{
-					FilteredFlattenedItems.Add(Item);
-				}				
-			}
-		}
-		
-		void SortChildren()
-		{
-			TSharedRef<IItemSelectorItemViewModelUtilities> Utilities = this->GetItemUtilities();
-			if (ChildSectionViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
-			{
-				ChildSectionViewModels.Sort([Utilities](const TSharedRef<FSectionViewModel>& SectionViewModelA, const TSharedRef<FSectionViewModel>& SectionViewModelB)
-				{
-					return Utilities->GetOnCompareSectionsForSorting().Execute(SectionViewModelA->GetSection(), SectionViewModelB->GetSection());
-				});
-			}
-
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
-			{
-				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
-				{
-					return Utilities->GetOnCompareCategoriesForSorting().Execute(CategoryViewModelA->GetCategory(), CategoryViewModelB->GetCategory());
-				});
-			}
-
-			if (ChildItemViewModels.Num() > 0 && Utilities->GetOnCompareItemsForSorting().IsBound())
-			{
-				ChildItemViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemContainerViewModel>& ItemViewModelA, const TSharedRef<FItemSelectorItemContainerViewModel>& ItemViewModelB)
-				{
-					return Utilities->GetOnCompareItemsForSorting().Execute(ItemViewModelA->GetItem(), ItemViewModelB->GetItem());
-				});
-			}
-
-			for (TSharedRef<FSectionViewModel> ChildSectionViewModel : ChildSectionViewModels)
-			{
-				ChildSectionViewModel->SortChildren();
-			}
-			
-			for (TSharedRef<FItemSelectorItemCategoryViewModel> ChildCategoryViewModel : ChildCategoryViewModels)
-			{
-				ChildCategoryViewModel->SortChildren();
-			}
-		}
-		
-		virtual int32 GetItemWeight(const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const override
-		{
-			return -1;
-		}
-
-		virtual bool PassesFilter() const override
-		{
-			return true;
-		}
-
-		const TArray<TSharedRef<FSectionViewModel>>& GetSections() const
-		{
-			return ChildSectionViewModels;
-		}
-		
-		void AddItemToRootDirect(const ItemType& Item)
-		{
-			ChildItemViewModels.Add(MakeShared<FItemSelectorItemContainerViewModel>(this->GetItemUtilities(), Item));
-		}
-		
-		void AddCategoryToRoot(const CategoryType& Category)
-		{
-			TSharedRef<FItemSelectorItemCategoryViewModel> NewCategoryViewModel = MakeShared<FItemSelectorItemCategoryViewModel>(this->GetItemUtilities(), Category);
-			ChildCategoryViewModels.Add(NewCategoryViewModel);
-		}
-
-		void ReparentSectionItemsToRoot()
-		{
-			for(auto& ChildSectionViewModel : ChildSectionViewModels)
-			{
-				ChildCategoryViewModels.Append(ChildSectionViewModel->GetChildCategories());
-				ChildItemViewModels.Append(ChildSectionViewModel->GetChildItems());
-			}
-			
-			ChildSectionViewModels.Empty();
-		}
-	
-	public:
-	virtual void GetChildrenInternal(TArray<TSharedRef<FItemSelectorItemViewModel>>& OutChildren) const
-		{
-			OutChildren.Append(ChildSectionViewModels);
-			OutChildren.Append(ChildCategoryViewModels);
-			OutChildren.Append(ChildItemViewModels);
-		}
-	private:
-		TArray<TSharedRef<FSectionViewModel>> ChildSectionViewModels;
-		TArray<TSharedRef<FItemSelectorItemCategoryViewModel>> ChildCategoryViewModels;
-		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> ChildItemViewModels;
-	};
-
-	class FViewModelUtilities : public IItemSelectorItemViewModelUtilities, public TSharedFromThis<FViewModelUtilities>
-	{
-	public:
-		FViewModelUtilities(TArray<ItemType> InItems,
-			TArray<TArray<CategoryType>> InDefaultCategoryPaths,
-			FOnGetCategoriesForItem InOnGetCategoriesForItem, FOnGetSectionsForItem InOnGetSectionsForItem,
-			FOnCompareSectionsForEquality InOnCompareSectionsForEquality, FOnCompareSectionsForSorting InOnCompareSectionsForSorting,
+		FItemSelectorViewModel(TArray<ItemType> InItems, TArray<TArray<CategoryType>> InDefaultCategoryPaths,
+			FOnGetCategoriesForItem InOnGetCategoriesForItem,
 			FOnCompareCategoriesForEquality InOnCompareCategoriesForEquality, FOnCompareCategoriesForSorting InOnCompareCategoriesForSorting,
 			FOnCompareItemsForEquality InOnCompareItemsForEquality, FOnCompareItemsForSorting InOnCompareItemsForSorting,
-			FOnDoesItemMatchFilterText InOnDoesItemMatchFilterText, FOnGetItemWeightForSelection InOnGetItemWeightForSelection, 
-			FOnDoesItemPassCustomFilter InOnDoesItemPassCustomFilter, FOnDoesSectionPassCustomFilter InOnDoesSectionPassCustomFilter,
-			FOnGetSectionData InOnGetSectionData,
-			TAttribute<bool> InHideSingleSection)
+			FOnDoesItemMatchFilterText InOnDoesItemMatchFilterText, FOnDoesItemPassCustomFilter InOnDoesItemPassCustomFilter)
 			: Items(InItems)
 			, DefaultCategoryPaths(InDefaultCategoryPaths)
 			, OnGetCategoriesForItem(InOnGetCategoriesForItem)
-			, OnGetSectionsForItem(InOnGetSectionsForItem)
-			, OnCompareSectionsForEquality(InOnCompareSectionsForEquality)
-			, OnCompareSectionsForSorting(InOnCompareSectionsForSorting)
 			, OnCompareCategoriesForEquality(InOnCompareCategoriesForEquality)
 			, OnCompareCategoriesForSorting(InOnCompareCategoriesForSorting)
 			, OnCompareItemsForEquality(InOnCompareItemsForEquality)
 			, OnCompareItemsForSorting(InOnCompareItemsForSorting)
 			, OnDoesItemMatchFilterText(InOnDoesItemMatchFilterText)
-			, OnGetItemWeightForSelection(InOnGetItemWeightForSelection)
 			, OnDoesItemPassCustomFilter(InOnDoesItemPassCustomFilter)
-			, OnDoesSectionPassCustomFilter(InOnDoesSectionPassCustomFilter)
-			, OnGetSectionData(InOnGetSectionData)
-			, HideSingleSection(InHideSingleSection)
 		{
 		}
 
 		const TArray<TSharedRef<FItemSelectorItemViewModel>>* GetRootItems()
 		{
-			if (RootViewModel.IsValid() == false)
+			if (RootCategoryViewModel.IsValid() == false)
 			{
-				RootViewModel = MakeShared<FRootViewModel>(this->AsShared());
+				RootCategoryViewModel = MakeShared<FItemSelectorItemCategoryViewModel>(this->AsShared(), RootCategory);
 
-				// @todo feedback? Default categories but no section info
 				for (const TArray<CategoryType>& DefaultCategoryPath : DefaultCategoryPaths)
 				{
-					FindOrAddNestedCategoryInRoot(DefaultCategoryPath);
+					AddCategory(DefaultCategoryPath);
 				}
 
 				for (const ItemType& Item : Items)
 				{
-					AddItemRecursive(Item);
+					AddItem(Item);
 				}
 
-				// if we have a single section, do we want to remove it as it needlessly clutters the UI?
-				if (HideSingleSection.Get())
-				{
-					// determine if we are actively displaying only one section
-					int32 PassingSections = 0;
-					for (const TSharedRef<FSectionViewModel>& SectionViewModel : RootViewModel->GetSections())
-					{
-						if (SectionViewModel->PassesFilter())
-						{
-							PassingSections++;
-						}
-					}
-
-					// if we display one section, we reparent it to the root instead to get rid of the widget
-					if (PassingSections == 1)
-					{
-						RootViewModel->ReparentSectionItemsToRoot();
-					}
-					
-				}
-	
-				RootViewModel->SortChildren();
-				RootViewModel->GetChildren(RootTreeCategories);
-				
-				if(IsFiltering())
-				{
-					RootViewModel->FlattenChildren(FilteredFlattenedItems);
-					
-					TArray<FString> FilterTerms;
-					GetFilterText().ToString().ParseIntoArray(FilterTerms, TEXT(" "), true);
-
-					// Generate a list of sanitized versions of the strings
-					TArray<FString> SanitizedFilterTerms;
-					for (int32 iFilters = 0; iFilters < FilterTerms.Num() ; iFilters++)
-					{
-						FString EachString = FName::NameToDisplayString( FilterTerms[iFilters], false );
-						EachString = EachString.Replace( TEXT( " " ), TEXT( "" ) );
-						SanitizedFilterTerms.Add( EachString );
-					}
-
-					for(int32 ItemIndex = 0; ItemIndex < FilteredFlattenedItems.Num(); ItemIndex++)
-					{
-						int32 Weight = FilteredFlattenedItems[ItemIndex]->GetItemWeight(FilterTerms, SanitizedFilterTerms);
-						if(GetCurrentMaxWeight() < Weight)
-						{
-							UpdateCurrentMaxWeight(Weight);
-							UpdateCurrentSuggestionIndex(ItemIndex);
-						}
-					}
-				}
+				RootCategoryViewModel->SortChildren();
+				RootCategoryViewModel->GetChildren(RootTreeCategories);
 			}
-			
 			return &RootTreeCategories;
 		}
-		
-		void GetChildrenRecursive(TArray<TSharedRef<FItemSelectorItemViewModel>>& OutChildren)
-        {
-        	TArray<TSharedRef<FItemSelectorItemViewModel>> ItemsToProcess;
-        	OutChildren.Append(*GetRootItems());
-        	while (ItemsToProcess.Num() > 0)
-        	{
-        		TSharedRef<FItemSelectorItemViewModel> ItemToProcess = ItemsToProcess[0];
-        		OutChildren.Add(ItemToProcess);
-        		ItemsToProcess.RemoveAtSwap(0);
-        		ItemToProcess->GetChildren(ItemsToProcess);
-        	}
-        	
-        }
 
 		void GetItemViewModelsForItems(const TArray<ItemType>& InItems, TArray<TSharedRef<FItemSelectorItemViewModel>>& OutItemViewModelsForItems)
 		{
-			RootViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
+			RootCategoryViewModel->GetItemViewModelsForItems(InItems, OutItemViewModelsForItems);
 		}
 
-		TSharedRef<FSectionViewModel> FindOrAddSection(const SectionType& Section)
+		TSharedRef<FItemSelectorItemCategoryViewModel> AddCategory(const TArray<CategoryType>& CategoryPath)
 		{
-			TSharedPtr<FSectionViewModel> SectionViewModel = RootViewModel->FindSection(Section);
-
-			if(!SectionViewModel.IsValid())
+			TSharedPtr<FItemSelectorItemCategoryViewModel> CurrentCategoryViewModel = RootCategoryViewModel;
+			for (const CategoryType& Category : CategoryPath)
 			{
-				SectionViewModel = RootViewModel->AddSection(Section);
-			}
-
-			return SectionViewModel.ToSharedRef();
-		}
-
-		TSharedPtr<FItemSelectorItemCategoryViewModel> FindOrAddNestedCategoryInRoot(const TArray<CategoryType>& CategoryPath)
-		{
-			TSharedPtr<FItemSelectorItemCategoryViewModel> NewCategoryModel = nullptr;
-
-			if(CategoryPath.Num() > 0)
-			{
-				NewCategoryModel = RootViewModel->FindOrAddCategoryDirect(CategoryPath[0]);	
-			}
-
-			for (int32 CategoryIndex = 1; CategoryIndex < CategoryPath.Num(); CategoryIndex++)
-			{
-				TSharedPtr<FItemSelectorItemCategoryViewModel> ExistingCategoryViewModel = NewCategoryModel->FindCategory(CategoryPath[CategoryIndex]);
+				TSharedPtr<FItemSelectorItemCategoryViewModel> ExistingCategoryViewModel = CurrentCategoryViewModel->FindChildCategory(Category);
 				if (ExistingCategoryViewModel.IsValid())
 				{
-					NewCategoryModel = ExistingCategoryViewModel;
+					CurrentCategoryViewModel = ExistingCategoryViewModel;
 				}
 				else
 				{
-					TSharedRef<FItemSelectorItemCategoryViewModel> NewItemCategoryViewModel = NewCategoryModel->AddCategory(CategoryPath[CategoryIndex]);
-					NewCategoryModel = NewItemCategoryViewModel;
+					TSharedRef<FItemSelectorItemCategoryViewModel> NewItemCategoryViewModel = CurrentCategoryViewModel->AddCategory(Category);
+					CurrentCategoryViewModel = NewItemCategoryViewModel;
 				}
 			}
-			return NewCategoryModel;
+			return CurrentCategoryViewModel.ToSharedRef();
 		}
 
-		TSharedPtr<FItemSelectorItemCategoryViewModel> FindOrAddNestedCategory(TSharedRef<FSectionViewModel>& SectionViewModel, const TArray<CategoryType>& CategoryPath)
+		void AddItem(const ItemType& Item)
 		{
-			TSharedPtr<FItemSelectorItemCategoryViewModel> NewCategoryModel = nullptr;
-
-			if(CategoryPath.Num() > 0)
-			{
-				NewCategoryModel = SectionViewModel->FindOrAddCategoryDirect(CategoryPath[0]);	
-			}
-
-			// iterate over the remaining categories, if any, to find or create the nested category items
-			for (int32 CategoryIndex = 1; CategoryIndex < CategoryPath.Num(); CategoryIndex++)
-			{
-				TSharedPtr<FItemSelectorItemCategoryViewModel> ExistingCategoryViewModel = NewCategoryModel->FindCategory(CategoryPath[CategoryIndex]);
-				if (ExistingCategoryViewModel.IsValid())
-				{
-					NewCategoryModel = ExistingCategoryViewModel;
-				}
-				else
-				{
-					TSharedRef<FItemSelectorItemCategoryViewModel> NewItemCategoryViewModel = NewCategoryModel->AddCategory(CategoryPath[CategoryIndex]);
-					NewCategoryModel = NewItemCategoryViewModel;
-				}
-			}
-			return NewCategoryModel;
-		}
-
-		void AddItemToRoot(const ItemType& Item, const TSharedRef<TArray<CategoryType>> Categories)
-		{
-			TSharedPtr<FItemSelectorItemCategoryViewModel> CategoryViewModel = FindOrAddNestedCategoryInRoot(Categories.Get());
-
-			if(CategoryViewModel.IsValid())
-			{
-				CategoryViewModel->AddItemDirect(Item);
-			}
-			else
-			{
-				RootViewModel->AddItemToRootDirect(Item);
-			}
-		}
-
-		void AddCategoryToRoot(const CategoryType& Category)
-		{
-			RootViewModel->AddCategoryToRoot(Category);
-		}
-		
-		void AddItemRecursive(const ItemType& Item)
-		{
+			// Cache the category array since the category view models hold a const reference to the generated categories and without this they are deleted.
 			TSharedRef<TArray<CategoryType>> ItemCategories = MakeShared<TArray<CategoryType>>();
-			TSharedRef<TArray<SectionType>> Sections = MakeShared<TArray<SectionType>>();
-		
+			ItemCategoriesCache.Add(ItemCategories);
+
 			if (OnGetCategoriesForItem.IsBound())
 			{
 				ItemCategories->Append(OnGetCategoriesForItem.Execute(Item));
 			}
 
-			if(OnGetSectionsForItem.IsBound())
-			{
-				Sections->Append(OnGetSectionsForItem.Execute(Item));
-
-				for(const SectionType& Section : Sections.Get())
-				{
-					FSectionData SectionData;
-
-					// retrieve section data for every section. Use the default if it is not bound
-					if(OnGetSectionData.IsBound())
-					{
-						SectionData = OnGetSectionData.Execute(Section);
-					}
-					
-					TSharedRef<FSectionViewModel> SectionViewModel = FindOrAddSection(Section);
-
-					// If we have a tree section, make use of the item's categories, if any
-					if(SectionData.Type == FSectionData::ESectionType::Tree)
-					{
-						TSharedPtr<FItemSelectorItemCategoryViewModel> ItemCategory = nullptr;
-						if(ItemCategories->Num() > 0)
-						{
-							ItemCategory = FindOrAddNestedCategory(SectionViewModel, ItemCategories.Get());						
-						}
-
-						if(!ItemCategory.IsValid())
-						{
-							SectionViewModel->AddItemDirect(Item);
-						}
-						else
-						{
-							ItemCategory->AddItemDirect(Item);
-						}
-					}
-					// If we have a list section, we just directly add the item to the section
-					else
-					{
-						SectionViewModel->AddItemDirect(Item);
-					}					
-				}
-			}
-			// If we have no sections for an item, we directly parent the item to the root
-			else
-			{
-				AddItemToRoot(Item, ItemCategories);
-			}
+			TSharedRef<FItemSelectorItemCategoryViewModel> ItemCategory = AddCategory(ItemCategories.Get());
+			ItemCategory->AddItem(Item);
 		}
 
-		const FText& GetFilterText() const override
+		const FText& GetFilterText() const
 		{
 			return FilterText;
 		}
@@ -1023,7 +407,8 @@ private:
 		void SetFilterText(FText InFilterText)
 		{
 			FilterText = InFilterText;
-			Refresh(Items, DefaultCategoryPaths);
+			RootTreeCategories.Empty();
+			RootCategoryViewModel->GetChildren(RootTreeCategories);
 		}
 
 		virtual bool IsFiltering() const override
@@ -1032,87 +417,23 @@ private:
 			{
 				return true;
 			}
-			
-			return IsSearching();
+			return FilterText.IsEmptyOrWhitespace() == false;
 		}
 
-		virtual bool IsSearching() const override
-		{
-			return FilterText.IsEmptyOrWhitespace() == false;		
-		}
-
-		virtual int32 GetItemWeightForSelection(const ItemType& InItem, const TArray<FString>& FilterTerms, const TArray<FString> SanitizedFilterTerms) const override
-		{
-			if (OnGetItemWeightForSelection.IsBound())
-			{
-				return OnGetItemWeightForSelection.Execute(InItem, FilterTerms, SanitizedFilterTerms);
-			}
-
-			return 0;
-		}
-		
 		virtual bool DoesItemPassFilter(const ItemType& InItem) const override
 		{
 			bool bPassesFilter = true;
-			
 			if (OnDoesItemPassCustomFilter.IsBound())
 			{
 				bPassesFilter &= OnDoesItemPassCustomFilter.Execute(InItem);
 			}
-			
 			if ((FilterText.IsEmpty() == false) && OnDoesItemMatchFilterText.IsBound())
 			{
 				bPassesFilter &= OnDoesItemMatchFilterText.Execute(FilterText, InItem);
 			}
-			
 			return bPassesFilter;
 		}
 
-		virtual bool DoesSectionPassFilter(const SectionType& InSection) const override
-		{
-			bool bPassesFilter = true;
-
-			if (OnDoesSectionPassCustomFilter.IsBound())
-			{
-				bPassesFilter &= OnDoesSectionPassCustomFilter.Execute(InSection);
-			}
-			
-			FSectionData Data;
-			if(OnGetSectionData.IsBound())
-			{
-				Data = OnGetSectionData.Execute(InSection);
-			}
-
-			// we additionally check if bPassesFilter is true to avoid unnecessary filtering
-			if(Data.bHideSectionIfEmpty && bPassesFilter == true)
-			{
-				const TArray<TSharedRef<FSectionViewModel>>& SectionViewModels = GetSections();
-				for(const TSharedRef<FSectionViewModel>& SectionViewModel : SectionViewModels)
-				{
-					if(CompareSectionsForEquality(SectionViewModel->GetSection(), InSection))
-					{
-						TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
-						// we need to use GetChildren as it checks for passing children
-						SectionViewModel->GetChildren(Children);
-				
-						bPassesFilter &= Children.Num() > 0;
-					}
-				}
-			}
-			
-			return bPassesFilter;
-		}
-
-		virtual bool CompareSectionsForEquality(const SectionType& SectionA, const SectionType& SectionB) const override
-		{
-			return OnCompareSectionsForEquality.Execute(SectionA, SectionB);
-		}
-
-		virtual const FOnCompareSectionsForSorting& GetOnCompareSectionsForSorting() const override
-		{
-			return OnCompareSectionsForSorting;
-		}
-		
 		virtual bool CompareCategoriesForEquality(const CategoryType& CategoryA, const CategoryType& CategoryB) const override
 		{
 			return OnCompareCategoriesForEquality.Execute(CategoryA, CategoryB);
@@ -1143,116 +464,37 @@ private:
 			return OnCompareItemsForSorting.Execute(ItemA, ItemB);
 		}
 
-		virtual TSharedPtr<FItemSelectorItemViewModel> GetCurrentSuggestion() const override
+		void Refresh(const TArray<ItemType>& InItems, const TArray<TArray<CategoryType>>& InDefaultCategoryPaths)
 		{
-			return FilteredFlattenedItems[CurrentSuggestionIndex];
-		}
-
-		virtual int32 GetCurrentSuggestionIndex() const override
-		{
-			return CurrentSuggestionIndex;
-		}
-		
-		virtual int32 GetCurrentMaxWeight() const override
-		{
-			return CurrentWeight;
-		}
-		
-		virtual void UpdateCurrentSuggestionIndex(const int32& Index) override
-		{
-			CurrentSuggestionIndex = Index;
-		}
-		
-		virtual void UpdateCurrentMaxWeight(int32 InCurrentWeight) override
-		{
-			CurrentWeight = InCurrentWeight;
-		}
-
-		const TArray<TSharedRef<FSectionViewModel>>& GetSections() const
-		{
-			return RootViewModel->GetSections();
-		}
-		
-		void Refresh(const TArray<ItemType>& InItems, const TArray<TArray<CategoryType>>& InDefaultCategoryPaths, bool bPreserveExpansion = true)
-		{
-			if (RootViewModel.IsValid())
+			if (RootCategoryViewModel.IsValid())
 			{
-				if(bPreserveExpansion)
-				{
-					//TreeView.Pin()->GetExpandedItems(ExpansionCache);
-				}
-				
-				RootViewModel.Reset();
+				ItemCategoriesCache.Empty();
+				RootCategoryViewModel.Reset();
 				RootTreeCategories.Empty();
-				FilteredFlattenedItems.Empty();
-				CurrentSuggestionIndex = INDEX_NONE;
-				CurrentWeight = INDEX_NONE;
 			}
 			Items = InItems;
 			DefaultCategoryPaths = InDefaultCategoryPaths;
 			GetRootItems();
-
-			if(bPreserveExpansion && ExpansionCache.Num() > 0)
-			{
-				TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
-				GetChildrenRecursive(Children);
-				
-				for(auto& Item : Children)
-				{
-					if(OnCompareCategoriesForEquality.IsBound() && Item->GetType() == EItemSelectorItemViewModelType::Category)
-					{
-						TSharedRef<FItemSelectorItemCategoryViewModel> CategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(Item);
-						for(auto& CacheItem : ExpansionCache)
-						{
-							if(CacheItem->GetType() == EItemSelectorItemViewModelType::Category)
-							{
-								TSharedRef<FItemSelectorItemCategoryViewModel> CachedCategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(Item);
-
-								if(OnCompareCategoriesForEquality.Execute(CategoryViewModel->GetCategory(), CachedCategoryViewModel->GetCategory()))
-								{
-									//TreeView.Pin()->SetItemExpansion(CategoryViewModel, true);																
-								}
-							}
-						}
-					}				
-				}
-			}
 		}
 
-		int32 NumFlattenedItems()
-		{
-			return FilteredFlattenedItems.Num();
-		}
-
-		TSharedPtr<FRootViewModel> GetRootViewModel() { return RootViewModel; }
-	
 	private:
+		CategoryType RootCategory;
+
 		TArray<ItemType> Items;
 		TArray<TArray<CategoryType>> DefaultCategoryPaths;
+		TArray<TSharedRef<TArray<CategoryType>>> ItemCategoriesCache;
 
 		FOnGetCategoriesForItem OnGetCategoriesForItem;
-		FOnGetSectionsForItem OnGetSectionsForItem;
-		FOnCompareSectionsForEquality OnCompareSectionsForEquality;
-		FOnCompareSectionsForSorting OnCompareSectionsForSorting;
 		FOnCompareCategoriesForEquality OnCompareCategoriesForEquality;
 		FOnCompareCategoriesForSorting OnCompareCategoriesForSorting;
 		FOnCompareItemsForEquality OnCompareItemsForEquality;
 		FOnCompareItemsForSorting OnCompareItemsForSorting;
 		FOnDoesItemMatchFilterText OnDoesItemMatchFilterText;
-		FOnGetItemWeightForSelection OnGetItemWeightForSelection;
 		FOnDoesItemPassCustomFilter OnDoesItemPassCustomFilter;
-		FOnDoesSectionPassCustomFilter OnDoesSectionPassCustomFilter;
-		FOnGetSectionData OnGetSectionData;
-		TAttribute<bool> HideSingleSection;
-		
-		int32 CurrentWeight = INDEX_NONE;
-		int32 CurrentSuggestionIndex = INDEX_NONE;
-		TSharedPtr<FRootViewModel> RootViewModel;
-		TArray<TSharedRef<FItemSelectorItemViewModel>> RootTreeCategories;
-		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> FilteredFlattenedItems;
-		FText FilterText;
 
-		TSet<TSharedRef<FItemSelectorItemViewModel>> ExpansionCache;
+		TSharedPtr<FItemSelectorItemCategoryViewModel> RootCategoryViewModel;
+		TArray<TSharedRef<FItemSelectorItemViewModel>> RootTreeCategories;
+		FText FilterText;
 	};
 
 	typedef STableRow<TSharedRef<FItemSelectorItemViewModel>> SItemSelectorTableRow;
@@ -1272,10 +514,10 @@ private:
 			SItemSelectorTableRow::Construct(Arguments,	OwnerTree);
 		}
 
-		// virtual int32 GetIndentLevel() const override
-		// {
-		// 	return 0;
-		// }
+		virtual int32 GetIndentLevel() const override
+		{
+			return 0;
+		}
 	};
 
 public:
@@ -1292,24 +534,16 @@ public:
 		ClickActivateMode = InArgs._ClickActivateMode;
 		CategoryRowStyle = InArgs._CategoryRowStyle;
 		OnGetCategoriesForItem = InArgs._OnGetCategoriesForItem;
-		OnGetSectionsForItem = InArgs._OnGetSectionsForItem;
-		OnCompareSectionsForEquality = InArgs._OnCompareSectionsForEquality;
-		OnCompareSectionsForSorting = InArgs._OnCompareSectionsForSorting;
 		OnCompareCategoriesForEquality = InArgs._OnCompareCategoriesForEquality;
 		OnCompareCategoriesForSorting = InArgs._OnCompareCategoriesForSorting;
 		OnCompareItemsForEquality = InArgs._OnCompareItemsForEquality;
 		OnCompareItemsForSorting = InArgs._OnCompareItemsForSorting;
 		OnDoesItemMatchFilterText = InArgs._OnDoesItemMatchFilterText;
-		OnGetItemWeightForSelection = InArgs._OnGetItemWeightForSelection;
-		OnGenerateWidgetForSection = InArgs._OnGenerateWidgetForSection;
 		OnGenerateWidgetForCategory = InArgs._OnGenerateWidgetForCategory;
 		OnGenerateWidgetForItem = InArgs._OnGenerateWidgetForItem;
 		OnItemActivated = InArgs._OnItemActivated;
 		OnSelectionChanged = InArgs._OnSelectionChanged;
 		OnDoesItemPassCustomFilter = InArgs._OnDoesItemPassCustomFilter;
-		OnDoesSectionPassCustomFilter = InArgs._OnDoesSectionPassCustomFilter;
-		OnGetSectionData = InArgs._OnGetSectionData;
-		HideSingleSection = InArgs._HideSingleSection;
 		bIsSettingSelection = false;
 
 		// Bind the on refresh delegates.
@@ -1317,7 +551,7 @@ public:
 		{
 			if ((*DelegateIt) != nullptr)
 			{
-				(**DelegateIt) = FRefreshItemSelectorDelegate::CreateSP(this, &SItemSelector::RefreshAllItems, false);
+				(**DelegateIt) = FRefreshItemSelectorDelegate::CreateSP(this, &SItemSelector::RefreshAllItems);
 			}
 		}
 
@@ -1325,32 +559,24 @@ public:
 		checkf(DefaultCategoryPaths.Num() == 0 || OnGenerateWidgetForCategory.IsBound(), TEXT("OnGenerateWidgetForCategory must be bound if default categories are supplied."));
 		checkf(OnGetCategoriesForItem.IsBound() == false || OnCompareCategoriesForEquality.IsBound(), TEXT("OnCompareCategoriesForEquality must be bound if OnGenerateCategoriesForItem is bound."));
 		checkf(OnGetCategoriesForItem.IsBound() == false || OnGenerateWidgetForCategory.IsBound(), TEXT("OnGenerateWidgetForCategory must be bound if OnGenerateCategoriesForItem is bound."));
-		checkf(OnGetSectionsForItem.IsBound() == false || OnCompareSectionsForEquality.IsBound(), TEXT("OnCompareSectionsForEquality must be bound if OnGetSectionsForItems is bound."))
-		checkf(OnGetSectionData.IsBound() == false || OnGetSectionsForItem.IsBound(), TEXT("OnGetSectionsForItem must be bound if OnGetListSections is bound."))
 		checkf(OnGenerateWidgetForItem.IsBound(), TEXT("OnGenerateWidgetForItem must be bound"));
 
-		ViewModelUtilities = MakeShared<FViewModelUtilities>(
-            Items,
-            DefaultCategoryPaths, 
-            OnGetCategoriesForItem, OnGetSectionsForItem,
-            OnCompareSectionsForEquality, OnCompareSectionsForSorting, 
-            OnCompareCategoriesForEquality, OnCompareCategoriesForSorting, 
-            OnCompareItemsForEquality, OnCompareItemsForSorting,
-            OnDoesItemMatchFilterText, OnGetItemWeightForSelection, 
-            OnDoesItemPassCustomFilter, OnDoesSectionPassCustomFilter,
-            OnGetSectionData, HideSingleSection);
-		
+		ViewModel = MakeShared<FItemSelectorViewModel>(
+			Items, DefaultCategoryPaths, OnGetCategoriesForItem, 
+			OnCompareCategoriesForEquality, OnCompareCategoriesForSorting, 
+			OnCompareItemsForEquality, OnCompareItemsForSorting,
+			OnDoesItemMatchFilterText, OnDoesItemPassCustomFilter);
+
 		ChildSlot
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			.Padding(0, 0, 0, 5)
-			[	
+			[
 				SAssignNew(SearchBox, SSearchBox)
 				.Visibility(this, &SItemSelector::GetSearchBoxVisibility)
 				.OnTextChanged(this, &SItemSelector::OnSearchTextChanged)
-				.DelayChangeNotificationsWhileTyping(false)
 			]
 			+ SVerticalBox::Slot()
 			.Padding(0)
@@ -1362,19 +588,12 @@ public:
 				.OnMouseButtonClick(this, &SItemSelector::OnMouseClick)
 				.OnMouseButtonDoubleClick(this, &SItemSelector::OnMouseDoubleClick)
 				.OnSelectionChanged(this, &SItemSelector::OnTreeSelectionChanged)
-				.TreeItemsSource(ViewModelUtilities->GetRootItems())
+				.TreeItemsSource(ViewModel->GetRootItems())
 				.ClearSelectionOnClick(InArgs._ClearSelectionOnClick)
 			]
 		];
-		
-		if(InArgs._ExpandInitially)
-		{
-			ExpandTree();
-		}
 
-		ExpandSections();
-
-		SearchBox->SetOnKeyDownHandler(FOnKeyDown::CreateSP(this, &SItemSelector::OnKeyDown));
+		ExpandTree();
 	}
 
 	TArray<ItemType> GetSelectedItems()
@@ -1393,7 +612,7 @@ public:
 		}
 		return SelectedItems;
 	}
-	
+
 	void SetSelectedItems(const TArray<ItemType>& NewSelectedItems)
 	{
 		checkf(OnCompareItemsForEquality.IsBound(), TEXT("OnCompareItemsForEquality event must be handled to use the SetSelectedItems function."));
@@ -1405,7 +624,7 @@ public:
 		else
 		{
 			TArray<TSharedRef<FItemSelectorItemViewModel>> SelectedItemViewModels;
-			ViewModelUtilities->GetItemViewModelsForItems(NewSelectedItems, SelectedItemViewModels);
+			ViewModel->GetItemViewModelsForItems(NewSelectedItems, SelectedItemViewModels);
 			for (TSharedRef<FItemSelectorItemViewModel> SelectedItemViewModel : SelectedItemViewModels)
 			{
 				ItemTree->SetSelection(SelectedItemViewModel);
@@ -1421,15 +640,7 @@ public:
 
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 	{
-		// @Todo Currently keys are hardcoded, change that in the future
-		
-		// Escape dismisses the menu without placing a node
-		if (InKeyEvent.GetKey() == EKeys::Escape)
-		{
-			FSlateApplication::Get().DismissAllMenus();
-			return FReply::Handled();
-		}
-		else if (InKeyEvent.GetKey() == EKeys::Enter && OnItemActivated.IsBound())
+		if (InKeyEvent.GetKey() == EKeys::Enter && OnItemActivated.IsBound())
 		{
 			TArray<TSharedRef<FItemSelectorItemViewModel>> SelectedItemViewModels;
 			ItemTree->GetSelectedItems(SelectedItemViewModels);
@@ -1440,62 +651,12 @@ public:
 				return FReply::Handled();
 			}
 		}
-		else if (!SearchBox->GetText().IsEmpty())
-		{
-			// Needs to be done here in order not to eat up the text navigation key events when list isn't populated
-			if (Items.Num() == 0)
-			{
-				return FReply::Unhandled();
-			}
-		
-			int32 SelectedSuggestion = ViewModelUtilities->GetCurrentSuggestionIndex();
-			
-			if (InKeyEvent.GetKey() == EKeys::Up)
-			{
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(FMath::Max(0, SelectedSuggestion - 1));
-			}
-			else if (InKeyEvent.GetKey() == EKeys::Down)
-			{
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(FMath::Min(ViewModelUtilities->NumFlattenedItems() - 1, SelectedSuggestion + 1));
-			}
-			else if (InKeyEvent.GetKey() == EKeys::PageUp)
-			{
-				const int32 NumItemsInAPage = 15; // arbitrary jump because we can't get at the visible item count from here
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(FMath::Max(0, SelectedSuggestion - NumItemsInAPage));
-			}
-			else if (InKeyEvent.GetKey() == EKeys::PageDown)
-			{
-				const int32 NumItemsInAPage = 15; // arbitrary jump because we can't get at the visible item count from here
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(FMath::Min(ViewModelUtilities->NumFlattenedItems() - 1, SelectedSuggestion + NumItemsInAPage));
-			}
-			else if (InKeyEvent.GetKey() == EKeys::Home && InKeyEvent.IsControlDown())
-			{
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(0);
-			}
-			else if (InKeyEvent.GetKey() == EKeys::End && InKeyEvent.IsControlDown())
-			{
-				ViewModelUtilities->UpdateCurrentSuggestionIndex(ViewModelUtilities->NumFlattenedItems() - 1);
-			}
-			else
-			{
-				return FReply::Unhandled();
-			}
-
-			MarkActiveSuggestion();
-			return FReply::Handled();
-		}
-		else
-		{
-			// When all else fails, it means we haven't filtered the list and we want to handle it as if we were just scrolling through a normal tree view
-			return ItemTree->OnKeyDown(FindChildGeometry(MyGeometry, ItemTree.ToSharedRef()), InKeyEvent);
-		}
-
-		return FReply::Unhandled();
+		return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 	}
 
 	void RefreshItemsAndDefaultCategories(const TArray<ItemType>& InItems, const TArray<TArray<CategoryType>>& InDefaultCategoryPaths)
 	{
-		ViewModelUtilities->Refresh(InItems, InDefaultCategoryPaths);
+		ViewModel->Refresh(InItems, InDefaultCategoryPaths);
 		ExpandTree();
 		ItemTree->RequestTreeRefresh();
 	}
@@ -1517,49 +678,16 @@ public:
 		RefreshItemsAndDefaultCategories(InItems, UnusedDefaultCategoryPaths);
 	}
 
-	void RefreshAllItems(bool bForceExpansion = false)
+	void RefreshAllItems()
 	{
-		ViewModelUtilities->Refresh(Items, DefaultCategoryPaths);
-		// let's manually expand the tree here if we are still searching, as refreshing wipes the tree expansion state
-		if(IsSearching() || bForceExpansion)
-		{
-			ExpandTree();
-		}
-		
+		ViewModel->Refresh(Items, DefaultCategoryPaths);
+		ExpandTree();
 		ItemTree->RequestTreeRefresh();
 	}
 
-	bool IsSearching() const
-	{
-		return ViewModelUtilities->IsSearching();
-	}
-	
-	bool IsFiltering() const
-	{
-		return ViewModelUtilities->IsFiltering();
-	}
-	
 	const FText& GetFilterText() const
 	{
-		return ViewModelUtilities->GetFilterText();
-	}
-
-	TSharedRef<SWidget> GetSearchBox() const
-	{
-		return SearchBox.ToSharedRef();
-	}
-
-	void ExpandTree()
-	{
-		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemsToProcess;
-		ItemsToProcess.Append(*ViewModelUtilities->GetRootItems());
-		while (ItemsToProcess.Num() > 0)
-		{
-			TSharedRef<FItemSelectorItemViewModel> ItemToProcess = ItemsToProcess[0];
-			ItemsToProcess.RemoveAtSwap(0);
-			ItemTree->SetItemExpansion(ItemToProcess, true);
-			ItemToProcess->GetChildren(ItemsToProcess);
-		}
+		return ViewModel->GetFilterText();
 	}
 
 private:
@@ -1568,37 +696,13 @@ private:
 		return OnDoesItemMatchFilterText.IsBound() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	void MarkActiveSuggestion()
-	{
-		if(ViewModelUtilities->GetCurrentSuggestionIndex() != INDEX_NONE && ViewModelUtilities->GetCurrentSuggestionIndex() < ViewModelUtilities->NumFlattenedItems())
-		{
-			ItemTree->SetSelection(ViewModelUtilities->GetCurrentSuggestion().ToSharedRef());
-			ItemTree->RequestScrollIntoView(ViewModelUtilities->GetCurrentSuggestion().ToSharedRef());
-		}
-	}
-
 	void OnSearchTextChanged(const FText& SearchText)
 	{
-		if (ViewModelUtilities->GetFilterText().CompareTo(SearchText) != 0)
+		if (ViewModel->GetFilterText().CompareTo(SearchText) != 0)
 		{
-			if(!SearchText.IsEmpty())
-			{
-				ViewModelUtilities->SetFilterText(SearchText);
-				ExpandTree();
-				MarkActiveSuggestion();
-
-				ItemTree->RequestTreeRefresh();
-			}
-			else
-			{
-				// causes a refresh of items and therefore expansion as well
-				// @todo cache expansion state. Not that easy since item data doesn't live across multiple refreshes.
-				// Even caching off the items doesn't help since their category information gets invalidated as internal cache gets cleared
-				ViewModelUtilities->SetFilterText(SearchText);
-				ExpandSections();
-
-				ItemTree->RequestTreeRefresh();
-			}
+			ViewModel->SetFilterText(SearchText);
+			ExpandTree();
+			ItemTree->RequestTreeRefresh();
 		}
 	}
 
@@ -1611,29 +715,17 @@ private:
 			TSharedRef<FItemSelectorItemCategoryViewModel> ItemCategoryViewModel = StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(Item);
 			return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
 				.Style(CategoryRowStyle)
-				.ShowSelection(true)
+				.ShowSelection(false)
 				[
 					OnGenerateWidgetForCategory.Execute(ItemCategoryViewModel->GetCategory())
 				];
 		}
 		case EItemSelectorItemViewModelType::Item:
 		{
-			TSharedRef<FItemSelectorItemContainerViewModel> ItemViewModel = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(Item);
-			// return SNew(SItemSelectorItemContainerTableRow, OwnerTable)
-				return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
-				.ShowSelection(true)
+			TSharedRef<FItemSelectorItemContainerViewModel> ItemContainerViewModel = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(Item);
+			return SNew(SItemSelectorItemContainerTableRow, OwnerTable)
 				[
-					OnGenerateWidgetForItem.Execute(ItemViewModel->GetItem())
-				];
-		}
-		case EItemSelectorItemViewModelType::Section:
-		{
-			TSharedRef<FSectionViewModel> SectionViewModel = StaticCastSharedRef<FSectionViewModel>(Item);
-			return SNew(STableRow<TSharedRef<FItemSelectorItemViewModel>>, OwnerTable)
-				.Style(CategoryRowStyle)
-				.ShowSelection(false)
-				[
-					OnGenerateWidgetForSection.Execute(SectionViewModel->GetSection())
+					OnGenerateWidgetForItem.Execute(ItemContainerViewModel->GetItem())
 				];
 		}
 		default:
@@ -1658,23 +750,10 @@ private:
 
 	void OnMouseDoubleClick(TSharedRef<FItemSelectorItemViewModel> ItemDoubleClicked)
 	{
-		if (ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Item)
+		if (ClickActivateMode == EItemSelectorClickActivateMode::DoubleClick && OnItemActivated.IsBound() && ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Item)
 		{
-			if (ClickActivateMode == EItemSelectorClickActivateMode::DoubleClick && OnItemActivated.IsBound())
-			{
-				TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(ItemDoubleClicked);
-				OnItemActivated.Execute(ItemContainer->GetItem());
-			}
-		}
-		else if (ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Category || ItemDoubleClicked->GetType() == EItemSelectorItemViewModelType::Section)
-		{
-			TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
-			ItemDoubleClicked->GetChildren(Children);
-
-			if(Children.Num() > 0)
-			{
-				ItemTree->SetItemExpansion(ItemDoubleClicked, !ItemTree->IsItemExpanded(ItemDoubleClicked));
-			}
+			TSharedRef<FItemSelectorItemContainerViewModel> ItemContainer = StaticCastSharedRef<FItemSelectorItemContainerViewModel>(ItemDoubleClicked);
+			OnItemActivated.Execute(ItemContainer->GetItem());
 		}
 	}
 
@@ -1685,45 +764,41 @@ private:
 			OnSelectionChanged.ExecuteIfBound();
 		}
 	}
-	
-	void ExpandSections()
+
+	void ExpandTree()
 	{
-		const TArray<TSharedRef<FSectionViewModel>>& ItemsToProcess = ViewModelUtilities->GetSections();
-		for(const auto& Item : ItemsToProcess)
+		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemsToProcess;
+		ItemsToProcess.Append(*ViewModel->GetRootItems());
+		while (ItemsToProcess.Num() > 0)
 		{
-			ItemTree->SetItemExpansion(Item, true);
+			TSharedRef<FItemSelectorItemViewModel> ItemToProcess = ItemsToProcess[0];
+			ItemsToProcess.RemoveAtSwap(0);
+			ItemTree->SetItemExpansion(ItemToProcess, true);
+			ItemToProcess->GetChildren(ItemsToProcess);
 		}
 	}
 
 private:
 	TArray<ItemType> Items;
 	TArray<TArray<CategoryType>> DefaultCategoryPaths;
-	
+
 	EItemSelectorClickActivateMode ClickActivateMode;
 
 	const FTableRowStyle* CategoryRowStyle;
 
 	FOnGetCategoriesForItem OnGetCategoriesForItem;
-	FOnGetSectionsForItem OnGetSectionsForItem;
 	FOnCompareCategoriesForEquality OnCompareCategoriesForEquality;
 	FOnCompareCategoriesForSorting OnCompareCategoriesForSorting;
-	FOnCompareSectionsForEquality OnCompareSectionsForEquality;
-	FOnCompareSectionsForSorting OnCompareSectionsForSorting;
 	FOnCompareItemsForEquality OnCompareItemsForEquality;
 	FOnCompareItemsForSorting OnCompareItemsForSorting;
 	FOnDoesItemMatchFilterText OnDoesItemMatchFilterText;
-	FOnGetItemWeightForSelection OnGetItemWeightForSelection;
-	FOnGenerateWidgetForSection OnGenerateWidgetForSection;
 	FOnGenerateWidgetForCategory OnGenerateWidgetForCategory;
 	FOnGenerateWidgetForItem OnGenerateWidgetForItem;
 	FOnItemActivated OnItemActivated;
 	FOnSelectionChanged OnSelectionChanged;
 	FOnDoesItemPassCustomFilter OnDoesItemPassCustomFilter;
-	FOnDoesSectionPassCustomFilter OnDoesSectionPassCustomFilter;
-	FOnGetSectionData OnGetSectionData;
-	TAttribute<bool> HideSingleSection;
 
-	TSharedPtr<FViewModelUtilities> ViewModelUtilities;
+	TSharedPtr<FItemSelectorViewModel> ViewModel;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<STreeView<TSharedRef<FItemSelectorItemViewModel>>> ItemTree;
 
