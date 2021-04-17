@@ -191,12 +191,6 @@ private:
 		virtual const FOnCompareCategoriesForSorting& GetOnCompareCategoriesForSorting() const = 0;
 		virtual bool CompareItemsForEquality(const ItemType& ItemA, const ItemType& ItemB) const = 0;
 		virtual const FOnCompareItemsForSorting& GetOnCompareItemsForSorting() const = 0;
-
-		virtual TSharedPtr<class FItemSelectorItemViewModel> GetCurrentSuggestion() const = 0;
-		virtual int32 GetCurrentMaxWeight() const = 0;
-		virtual int32 GetCurrentSuggestionIndex() const = 0;
-		virtual void UpdateCurrentSuggestionIndex(const int32& Index) = 0;
-		virtual void UpdateCurrentMaxWeight(int32 InCurrentWeight) = 0;
 	};
 
 	class FItemSelectorItemViewModel
@@ -752,10 +746,10 @@ private:
 		TArray<TSharedRef<FItemSelectorItemContainerViewModel>> ChildItemViewModels;
 	};
 
-	class FViewModelUtilities : public IItemSelectorItemViewModelUtilities, public TSharedFromThis<FViewModelUtilities>
+	class FItemSelectorViewModel : public IItemSelectorItemViewModelUtilities, public TSharedFromThis<FItemSelectorViewModel>
 	{
 	public:
-		FViewModelUtilities(TArray<ItemType> InItems,
+		FItemSelectorViewModel(TArray<ItemType> InItems,
 			TArray<TArray<CategoryType>> InDefaultCategoryPaths,
 			FOnGetCategoriesForItem InOnGetCategoriesForItem, FOnGetSectionsForItem InOnGetSectionsForItem,
 			FOnCompareSectionsForEquality InOnCompareSectionsForEquality, FOnCompareSectionsForSorting InOnCompareSectionsForSorting,
@@ -1143,29 +1137,29 @@ private:
 			return OnCompareItemsForSorting.Execute(ItemA, ItemB);
 		}
 
-		virtual TSharedPtr<FItemSelectorItemViewModel> GetCurrentSuggestion() const override
+		virtual TSharedPtr<FItemSelectorItemViewModel> GetCurrentSuggestion() const
 		{
 			return FilteredFlattenedItems[CurrentSuggestionIndex];
 		}
 
-		virtual int32 GetCurrentSuggestionIndex() const override
+		virtual int32 GetCurrentSuggestionIndex() const
 		{
 			return CurrentSuggestionIndex;
 		}
 		
-		virtual int32 GetCurrentMaxWeight() const override
+		virtual int32 GetCurrentMaxWeight() const
 		{
-			return CurrentWeight;
+			return CurrentMaxWeight;
 		}
 		
-		virtual void UpdateCurrentSuggestionIndex(const int32& Index) override
+		virtual void UpdateCurrentSuggestionIndex(const int32& Index)
 		{
 			CurrentSuggestionIndex = Index;
 		}
 		
-		virtual void UpdateCurrentMaxWeight(int32 InCurrentWeight) override
+		virtual void UpdateCurrentMaxWeight(int32 InCurrentWeight)
 		{
-			CurrentWeight = InCurrentWeight;
+			CurrentMaxWeight = InCurrentWeight;
 		}
 
 		const TArray<TSharedRef<FSectionViewModel>>& GetSections() const
@@ -1177,6 +1171,7 @@ private:
 		{
 			if (RootViewModel.IsValid())
 			{
+				// todo expansion preservation
 				if(bPreserveExpansion)
 				{
 					//TreeView.Pin()->GetExpandedItems(ExpansionCache);
@@ -1186,12 +1181,13 @@ private:
 				RootTreeCategories.Empty();
 				FilteredFlattenedItems.Empty();
 				CurrentSuggestionIndex = INDEX_NONE;
-				CurrentWeight = INDEX_NONE;
+				CurrentMaxWeight = INDEX_NONE;
 			}
 			Items = InItems;
 			DefaultCategoryPaths = InDefaultCategoryPaths;
 			GetRootItems();
 
+			// todo expansion preservation
 			if(bPreserveExpansion && ExpansionCache.Num() > 0)
 			{
 				TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
@@ -1245,7 +1241,7 @@ private:
 		FOnGetSectionData OnGetSectionData;
 		TAttribute<bool> HideSingleSection;
 		
-		int32 CurrentWeight = INDEX_NONE;
+		int32 CurrentMaxWeight = INDEX_NONE;
 		int32 CurrentSuggestionIndex = INDEX_NONE;
 		TSharedPtr<FRootViewModel> RootViewModel;
 		TArray<TSharedRef<FItemSelectorItemViewModel>> RootTreeCategories;
@@ -1329,7 +1325,7 @@ public:
 		checkf(OnGetSectionData.IsBound() == false || OnGetSectionsForItem.IsBound(), TEXT("OnGetSectionsForItem must be bound if OnGetListSections is bound."))
 		checkf(OnGenerateWidgetForItem.IsBound(), TEXT("OnGenerateWidgetForItem must be bound"));
 
-		ViewModelUtilities = MakeShared<FViewModelUtilities>(
+		ViewModelUtilities = MakeShared<FItemSelectorViewModel>(
             Items,
             DefaultCategoryPaths, 
             OnGetCategoriesForItem, OnGetSectionsForItem,
@@ -1723,7 +1719,7 @@ private:
 	FOnGetSectionData OnGetSectionData;
 	TAttribute<bool> HideSingleSection;
 
-	TSharedPtr<FViewModelUtilities> ViewModelUtilities;
+	TSharedPtr<FItemSelectorViewModel> ViewModelUtilities;
 	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<STreeView<TSharedRef<FItemSelectorItemViewModel>>> ItemTree;
 
