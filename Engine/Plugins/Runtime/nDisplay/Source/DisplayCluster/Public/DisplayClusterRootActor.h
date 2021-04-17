@@ -176,6 +176,14 @@ private:
 	UPROPERTY(VisibleAnywhere, Instanced, DuplicateTransient, Category = "Config Data")
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
+	/**
+	 * The root component for our hierarchy.
+	 * Must have CPF_Edit(such as VisibleDefaultsOnly) on property for Live Link.
+	 * nDisplay details panel will hide this from actually being visible.
+	 */
+	UPROPERTY(VisibleDefaultsOnly, Category = "nDisplay")
+	USceneComponent* DisplayClusterRootComponent;
+	
 	UPROPERTY()
 	UDisplayClusterSyncTickComponent* SyncTickComponent;
 
