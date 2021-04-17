@@ -541,12 +541,17 @@ static void mi_process_done(void) {
   FlsFree(mi_fls_key);            // call thread-done on all threads to prevent dangling callback pointer if statically linked with a DLL; Issue #208
   #endif
   
+  // BEGIN EPIC MOD
+  // We do not repeatedly load/unload modules that statically link with mimalloc,
+  // so we can skip the mi_collect call on exit, significantly reducing the process shutdown time.
+  #if 0
   #if (MI_DEBUG != 0) || !defined(MI_SHARED_LIB)  
   // free all memory if possible on process exit. This is not needed for a stand-alone process
   // but should be done if mimalloc is statically linked into another shared library which
   // is repeatedly loaded/unloaded, see issue #281.
   mi_collect(true /* force */ );
   #endif
+  #endif // END EPIC MOD
 
   if (mi_option_is_enabled(mi_option_show_stats) || mi_option_is_enabled(mi_option_verbose)) {
     mi_stats_print(NULL);

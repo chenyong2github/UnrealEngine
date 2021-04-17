@@ -17,15 +17,13 @@
 /** Value we fill a new memory block with, in UE_BUILD_DEBUG **/
 #define DEBUG_FILL_NEW (0xcd)
 
-// Statically linked tbbmalloc requires tbbmalloc_debug.lib in debug
-#if UE_BUILD_DEBUG && !defined(NDEBUG)	// Use !defined(NDEBUG) to check to see if we actually are linking with Debug third party libraries (bDebugBuildsActuallyUseDebugCRT)
-	#ifndef MIMALLOC_USE_DEBUG
-		#define MIMALLOC_USE_DEBUG 1
-	#endif
-#endif
 THIRD_PARTY_INCLUDES_START
 #include <mimalloc.h>
 THIRD_PARTY_INCLUDES_END
+
+/**
+* Bump after updating mimalloc-static.lib to force-compile Core: 0AEBC50F
+*/
 
 void* FMallocMimalloc::TryMalloc( SIZE_T Size, uint32 Alignment )
 {
