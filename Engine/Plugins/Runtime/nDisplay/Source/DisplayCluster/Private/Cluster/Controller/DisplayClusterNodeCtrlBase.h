@@ -9,7 +9,8 @@ class FDisplayClusterClusterManager;
 class FDisplayClusterServer;
 class IDisplayClusterClient;
 class IDisplayClusterServer;
-
+class FDisplayClusterClusterEventsJsonClient;
+class FDisplayClusterClusterEventsBinaryClient;
 
 
 /**
@@ -23,9 +24,7 @@ class FDisplayClusterNodeCtrlBase
 
 public:
 	FDisplayClusterNodeCtrlBase(const FString& CtrlName, const FString& NodeName);
-
-	virtual ~FDisplayClusterNodeCtrlBase() = 0
-	{ }
+	virtual ~FDisplayClusterNodeCtrlBase();
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +47,9 @@ public:
 	{
 		return ControllerName;
 	}
+
+	virtual void SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) override;
+	virtual void SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -121,4 +123,12 @@ protected:
 private:
 	const FString NodeName;
 	const FString ControllerName;
+
+	// JSON client for sending events outside of the cluster
+	FCriticalSection ExternEventsClientJsonGuard;
+	TUniquePtr<FDisplayClusterClusterEventsJsonClient>   ExternalEventsClientJson;
+
+	// Binary client for sending events outside of the cluster
+	FCriticalSection ExternEventsClientBinaryGuard;
+	TUniquePtr<FDisplayClusterClusterEventsBinaryClient> ExternalEventsClientBinary;
 };

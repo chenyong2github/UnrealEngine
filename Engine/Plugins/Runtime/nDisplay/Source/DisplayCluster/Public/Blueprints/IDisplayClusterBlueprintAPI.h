@@ -91,6 +91,14 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Emit binary cluster event"), Category = "DisplayCluster|Cluster")
 	virtual void EmitClusterEventBinary(const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
 
+	/** Sends JSON cluster event to a specific target (outside of the cluster). */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send JSON event to a specific host"), Category = "DisplayCluster|Cluster")
+	virtual void SendClusterEventJsonTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly) = 0;
+
+	/** Sends binary cluster event to a specific target (outside of the cluster). */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Send binary event to a specific host"), Category = "DisplayCluster|Cluster")
+	virtual void SendClusterEventBinaryTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly) = 0;
+
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Config API
