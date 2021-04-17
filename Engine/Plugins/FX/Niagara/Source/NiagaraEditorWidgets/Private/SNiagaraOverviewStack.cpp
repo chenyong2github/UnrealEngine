@@ -25,7 +25,6 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraNodeAssignment.h"
 #include "Widgets/SNiagaraParameterName.h"
-
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScaleBox.h"
@@ -38,6 +37,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "NiagaraEditorStyle.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
 
@@ -909,8 +909,8 @@ bool SNiagaraOverviewStack::IsModuleDebugDrawEnabled(UNiagaraStackItem* Item) co
 const FSlateBrush* SNiagaraOverviewStack::GetDebugIconBrush(UNiagaraStackItem* Item) const
 {
 	return IsModuleDebugDrawEnabled(Item)? 
-		FEditorStyle::GetBrush(TEXT("Level.VisibleIcon16x")) :
-		FEditorStyle::GetBrush(TEXT("Level.NotVisibleIcon16x"));
+		FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Overview.DebugActive")) :
+		FNiagaraEditorStyle::Get().GetBrush(TEXT("NiagaraEditor.Overview.DebugInactive"));
 }
 
 FReply SNiagaraOverviewStack::ToggleModuleDebugDraw(UNiagaraStackItem* Item)
