@@ -14,6 +14,7 @@
 #include "ScopedTransaction.h"
 #include "Classes/EditorStyleSettings.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraActions"
 

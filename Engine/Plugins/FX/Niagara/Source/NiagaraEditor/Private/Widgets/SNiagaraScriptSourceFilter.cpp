@@ -1,3 +1,4 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SNiagaraScriptSourceFilter.h"
 #include "NiagaraEditorStyle.h"
@@ -218,3 +219,5 @@ ECheckBoxState SNiagaraSourceFilterBox::OnIsFilterActive(EScriptSource Source) c
 {
 	return IsFilterActive(Source) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
+
+#undef LOCTEXT_NAMESPACE
