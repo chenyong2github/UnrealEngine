@@ -188,24 +188,6 @@ void FDisplayClusterConfiguratorModule::RegisterCustomLayouts()
 			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorScreenDetailCustomization::MakeInstance));
 	}
 
-	/* TODO: Scene component customization only handles Tracker IDs, which are relevant to Input. Enable or delete based on Input plugin changes.
-	{
-		const FName LayoutName = UDisplayClusterSceneComponent::StaticClass()->GetFName();
-		RegisteredClassLayoutNames.Add(LayoutName);
-		PropertyModule.RegisterCustomClassLayout(LayoutName,
-			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorSceneComponentDetailCustomization>));
-	}
-	*/
-	
-	{
-		// TODO: Input sync policy needed with Input / VRPN changes?
-
-		const FName LayoutName = UDisplayClusterConfigurationInput::StaticClass()->GetFName();
-		RegisteredClassLayoutNames.Add(LayoutName);
-		PropertyModule.RegisterCustomClassLayout(LayoutName,
-			FOnGetDetailCustomizationInstance::CreateStatic(&FDisplayClusterConfiguratorDetailCustomization::MakeInstance<FDisplayClusterConfiguratorInputDetailCustomization>));
-	}
-	
 	/**
 	 * STRUCTS
 	 */

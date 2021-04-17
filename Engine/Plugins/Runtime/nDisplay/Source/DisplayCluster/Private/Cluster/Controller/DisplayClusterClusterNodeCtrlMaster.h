@@ -27,7 +27,6 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override;
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void GetInputData(TMap<FString, FString>& InputData) override;
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 	virtual void GetNativeInputData(TMap<FString, FString>& EventsData) override;
 
@@ -71,10 +70,6 @@ private:
 	// GetSyncData internals
 	TMap<EDisplayClusterSyncGroup, FEvent*> CachedSyncDataEvents;
 	TMap<EDisplayClusterSyncGroup, TMap<FString, FString>> CachedSyncData;
-
-	// GetInputData internals
-	FEvent* CachedInputDataEvent = nullptr;
-	TMap<FString, FString> CachedInputData;
 
 	// GetEventsData internals
 	FEvent* CachedEventsDataEvent = nullptr;

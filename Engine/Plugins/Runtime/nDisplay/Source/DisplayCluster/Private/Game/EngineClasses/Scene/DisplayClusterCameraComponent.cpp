@@ -16,9 +16,6 @@ UDisplayClusterCameraComponent::UDisplayClusterCameraComponent(const FObjectInit
 	, bSwapEyes(false)
 	, StereoOffset(EDisplayClusterEyeStereoOffset::None)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-
 #if WITH_EDITOR
 	if (GIsEditor)
 	{

@@ -76,53 +76,90 @@ public:
 	// Input API
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Device information
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN axis devices"), Category = "DisplayCluster|Input")
-	virtual int32 GetAxisDeviceAmount() const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN axis devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual int32 GetAxisDeviceAmount() const override
+	{
+		return 0;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN button devices"), Category = "DisplayCluster|Input")
-	virtual int32 GetButtonDeviceAmount() const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN button devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual int32 GetButtonDeviceAmount() const override
+	{
+		return 0;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN tracker devices"), Category = "DisplayCluster|Input")
-	virtual int32 GetTrackerDeviceAmount() const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get amount of VRPN tracker devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual int32 GetTrackerDeviceAmount() const override
+	{
+		return 0;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN axis devices"), Category = "DisplayCluster|Input")
-	virtual void GetAxisDeviceIds(TArray<FString>& DeviceIDs) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN axis devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetAxisDeviceIds(TArray<FString>& DeviceIDs) const override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN button devices"), Category = "DisplayCluster|Input")
-	virtual void GetButtonDeviceIds(TArray<FString>& DeviceIDs) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN button devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetButtonDeviceIds(TArray<FString>& DeviceIDs) const override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of keyboard devices"), Category = "DisplayCluster|Input")
-	virtual void GetKeyboardDeviceIds(TArray<FString>& DeviceIDs) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of keyboard devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetKeyboardDeviceIds(TArray<FString>& DeviceIDs) const override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN tracker devices"), Category = "DisplayCluster|Input")
-	virtual void GetTrackerDeviceIds(TArray<FString>& DeviceIDs) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get IDs of VRPN tracker devices", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetTrackerDeviceIds(TArray<FString>& DeviceIDs) const override
+	{ }
 
 	// Buttons
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN button state"), Category = "DisplayCluster|Input")
-	virtual void GetButtonState(const FString& DeviceID, int32 DeviceChannel, bool& CurrentState, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN button state", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetButtonState(const FString& DeviceID, int32 DeviceChannel, bool& CurrentState, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button pressed"), Category = "DisplayCluster|Input")
-	virtual void IsButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& IsPressedCurrently, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button pressed", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void IsButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& IsPressedCurrently, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button released"), Category = "DisplayCluster|Input")
-	virtual void IsButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& IsReleasedCurrently, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is VRPN button released", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void IsButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& IsReleasedCurrently, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button pressed"), Category = "DisplayCluster|Input")
-	virtual void WasButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& WasPressed, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button pressed", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void WasButtonPressed(const FString& DeviceID, int32 DeviceChannel, bool& WasPressed, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button released"), Category = "DisplayCluster|Input")
-	virtual void WasButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& WasReleased, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Was VRPN button released", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void WasButtonReleased(const FString& DeviceID, int32 DeviceChannel, bool& WasReleased, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
 	// Axes
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN axis value"), Category = "DisplayCluster|Input")
-	virtual void GetAxis(const FString& DeviceID, int32 DeviceChannel, float& Value, bool& IsAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN axis value", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetAxis(const FString& DeviceID, int32 DeviceChannel, float& Value, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
 	// Trackers
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker location"), Category = "DisplayCluster|Input")
-	virtual void GetTrackerLocation(const FString& DeviceID, int32 DeviceChannel, FVector& Location, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker location", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetTrackerLocation(const FString& DeviceID, int32 DeviceChannel, FVector& Location, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker rotation (as quaternion)"), Category = "DisplayCluster|Input")
-	virtual void GetTrackerQuat(const FString& DeviceID, int32 DeviceChannel, FQuat& Rotation, bool& IsChannelAvailable) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get VRPN tracker rotation (as quaternion)", DeprecatedFunction, DeprecationMessage = "VRPN functionality has been moved to LiveLinkVRPN"), Category = "DisplayCluster|Input")
+	virtual void GetTrackerQuat(const FString& DeviceID, int32 DeviceChannel, FQuat& Rotation, bool& IsChannelAvailable) const override
+	{
+		IsChannelAvailable = false;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

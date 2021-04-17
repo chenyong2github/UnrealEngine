@@ -23,7 +23,6 @@ const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_Log(TEXT("Displa
 const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_OutputMapping(TEXT("DisplayClusterConfiguratorTab_OutputMapping"));
 const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_Scene(TEXT("DisplayClusterConfiguratorTab_Scene"));
 const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_Cluster(TEXT("DisplayClusterConfiguratorTab_Cluster"));
-const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_Input(TEXT("DisplayClusterConfiguratorTab_Input")); // TODO: Delete
 const FName FDisplayClusterConfiguratorBlueprintModeBase::TabID_Viewport(TEXT("DisplayClusterConfiguratorTab_Viewport"));
 
 
@@ -118,13 +117,6 @@ TSharedPtr<FTabManager::FLayout> FDisplayClusterConfiguratorEditorConfigurationM
 						FTabManager::NewStack()
 						->SetSizeCoefficient(.5f)
 						->AddTab(TabID_Cluster, ETabState::OpenedTab)
-						->SetHideTabWell(false)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(.3f)
-						->AddTab(TabID_Input, ETabState::ClosedTab)
 						->SetHideTabWell(false)
 					)
 				)

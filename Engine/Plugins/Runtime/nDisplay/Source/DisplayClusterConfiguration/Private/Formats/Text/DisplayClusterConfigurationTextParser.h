@@ -55,8 +55,6 @@ protected:
 	void AddNvidia(const FDisplayClusterConfigurationTextNvidia& InCfgNvidia);
 	void AddNetwork(const FDisplayClusterConfigurationTextNetwork& InCfgNetwork);
 	void AddDebug(const FDisplayClusterConfigurationTextDebug& InCfgDebug);
-	void AddInput(const FDisplayClusterConfigurationTextInput& InCfgInput);
-	void AddInputSetup(const FDisplayClusterConfigurationTextInputSetup& InCfgInputSetup);
 	void AddCustom(const FDisplayClusterConfigurationTextCustom& InCfgCustom);
 
 protected:
@@ -68,8 +66,6 @@ protected:
 	TArray<FDisplayClusterConfigurationTextViewport>    CfgViewports;
 	TArray<FDisplayClusterConfigurationTextProjection>  CfgProjections;
 	TArray<FDisplayClusterConfigurationTextPostprocess> CfgPostprocess;
-	TArray<FDisplayClusterConfigurationTextInput>       CfgInputDevices;
-	TArray<FDisplayClusterConfigurationTextInputSetup>  CfgInputSetupRecords;
 
 	FDisplayClusterConfigurationTextInfo    CfgInfo;
 	FDisplayClusterConfigurationTextGeneral CfgGeneral;

@@ -312,40 +312,12 @@ FText FDisplayClusterConfiguratorViewportDetailCustomization::GetSelectedCameraT
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// Input Detail Customization
-//////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterConfiguratorInputDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
-{
-	Super::CustomizeDetails(InLayoutBuilder);
-	ConfigurationInputPtr = nullptr;
-
-	// Get the Editing object
-	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
-	if (SelectedObjects.Num())
-	{
-		ConfigurationInputPtr = Cast<UDisplayClusterConfigurationInput>(SelectedObjects[0]);
-	}
-	check(ConfigurationInputPtr != nullptr);
-
-	// Add Statistics
-	AddCustomInfoRow(NDisplayCategory, LOCTEXT("ConfigurationSceneComponentAnalogDevicesName", "Analog Devices"), FText::Format(LOCTEXT("ConfigurationSceneComponentAnalogDevicesValue", "{0}"), FText::AsNumber(ConfigurationInputPtr->AnalogDevices.Num())));
-	AddCustomInfoRow(NDisplayCategory, LOCTEXT("ConfigurationSceneComponentButtonDevicesName", "Button Devices"), FText::Format(LOCTEXT("ConfigurationSceneComponentButtonDevicesValue", "{0}"), FText::AsNumber(ConfigurationInputPtr->ButtonDevices.Num())));
-	AddCustomInfoRow(NDisplayCategory, LOCTEXT("ConfigurationSceneComponentKeyboardDevicesName", "Keyboard Devices"), FText::Format(LOCTEXT("ConfigurationSceneComponentKeyboardDevicesValue", "{0}"), FText::AsNumber(ConfigurationInputPtr->KeyboardDevices.Num())));
-	AddCustomInfoRow(NDisplayCategory, LOCTEXT("ConfigurationSceneComponentTrackerDevicesName", "Tracker Devices"), FText::Format(LOCTEXT("ConfigurationSceneComponentTrackerDevicesValue", "{0}"), FText::AsNumber(ConfigurationInputPtr->TrackerDevices.Num())));
-
-	// Expand Array
-	TSharedRef<IPropertyHandle> InputBindingHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationInput, InputBinding));
-	NDisplayCategory->AddProperty(InputBindingHandle).ShouldAutoExpand(true);
-}
-
-//////////////////////////////////////////////////////////////////////////////////////////////
 // Base Scene Component Detail Customization
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder)
 {
 	Super::CustomizeDetails(InLayoutBuilder);
 	SceneComponenPtr = nullptr;
-	NoneOption = MakeShared<FString>("None");
 
 	// Get the Editing object
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = InLayoutBuilder.GetSelectedObjects();
@@ -354,131 +326,6 @@ void FDisplayClusterConfiguratorSceneComponentDetailCustomization::CustomizeDeta
 		SceneComponenPtr = Cast<UDisplayClusterSceneComponent>(SelectedObjects[0]);
 	}
 	check(SceneComponenPtr != nullptr);
-
-	// Hide properties
-	TrackerIdHandle = InLayoutBuilder.GetProperty("TrackerId" /* Protected member */, UDisplayClusterSceneComponent::StaticClass());
-	check(TrackerIdHandle->IsValidHandle());
-	InLayoutBuilder.HideProperty(TrackerIdHandle);
-
-	ResetTrackerIdOptions();
-	AddTrackerIdRow();
-
-	// Hide Location and Rotation if the tracker has been selected
-	TSharedRef<IPropertyHandle> LocationHandle = InLayoutBuilder.GetProperty("RelativeLocation", UDisplayClusterSceneComponent::StaticClass());
-	NDisplayCategory->AddProperty(LocationHandle)
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility)));
-
-	TSharedRef<IPropertyHandle> RotationHandle = InLayoutBuilder.GetProperty("RelativeRotation", UDisplayClusterSceneComponent::StaticClass());
-	NDisplayCategory->AddProperty(RotationHandle)
-		.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility)));
-}
-
-void FDisplayClusterConfiguratorSceneComponentDetailCustomization::ResetTrackerIdOptions()
-{
-	UDisplayClusterConfigurationData* ConfigurationData = GetConfigData();
-	check(ConfigurationData != nullptr);
-	
-	UDisplayClusterSceneComponent* SceneComponent = SceneComponenPtr.Get();
-	check(SceneComponent != nullptr);
-
-	TrackerIdOptions.Empty();
-
-	const FString TrackerId = SceneComponent->GetTrackerId();
-	
-	for (const TPair<FString, UDisplayClusterConfigurationInputDeviceTracker*>& InputDeviceTrackerPair : ConfigurationData->Input->TrackerDevices)
-	{
-		if (!InputDeviceTrackerPair.Key.Equals(TrackerId))
-		{
-			TrackerIdOptions.Add(MakeShared<FString>(InputDeviceTrackerPair.Key));
-		}
-	}
-
-	// Add None option
-	if (!TrackerId.IsEmpty())
-	{
-		TrackerIdOptions.Add(NoneOption);
-	}
-}
-
-TSharedRef<SWidget> FDisplayClusterConfiguratorSceneComponentDetailCustomization::MakeTrackerIdOptionComboWidget(TSharedPtr<FString> InItem)
-{
-	return SNew(STextBlock).Text(FText::FromString(*InItem));
-}
-
-void FDisplayClusterConfiguratorSceneComponentDetailCustomization::OnTrackerIdSelected(TSharedPtr<FString> InTrackerId, ESelectInfo::Type SelectInfo)
-{
-	if (InTrackerId.IsValid())
-	{
-		UDisplayClusterSceneComponent* SceneComponent = SceneComponenPtr.Get();
-		check(SceneComponent != nullptr);
-
-		// Handle empty case
-		if (InTrackerId->Equals(*NoneOption.Get()))
-		{
-			SceneComponent->SetTrackerId("");
-
-		}
-		else
-		{
-			SceneComponent->SetTrackerId(*InTrackerId.Get());
-		}
-
-		// Reset available options
-		ResetTrackerIdOptions();
-		TrackerIdComboBox->ResetOptionsSource(&TrackerIdOptions);
-
-		TrackerIdComboBox->SetIsOpen(false);
-	}
-}
-
-void FDisplayClusterConfiguratorSceneComponentDetailCustomization::AddTrackerIdRow()
-{
-	if (TrackerIdComboBox.IsValid())
-	{
-		return;
-	}
-	
-	NDisplayCategory->AddCustomRow(TrackerIdHandle->GetPropertyDisplayName())
-	.NameContent()
-	[
-		TrackerIdHandle->CreatePropertyNameWidget()
-	]
-	.ValueContent()
-	[
-		SAssignNew(TrackerIdComboBox, SDisplayClusterConfigurationSearchableComboBox)
-		.OptionsSource(&TrackerIdOptions)
-		.OnGenerateWidget(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::MakeTrackerIdOptionComboWidget)
-		.OnSelectionChanged(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::OnTrackerIdSelected)
-		.ContentPadding(2)
-		.MaxListHeight(200.0f)
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(this, &FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetSelectedTrackerIdText)
-		]
-	];
-}
-
-FText FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetSelectedTrackerIdText() const
-{
-	FString SelectedOption = SceneComponenPtr.Get()->GetTrackerId();
-	if (SelectedOption.IsEmpty())
-	{
-		SelectedOption = *NoneOption.Get();
-	}
-	
-	return FText::FromString(SelectedOption);
-}
-
-EVisibility FDisplayClusterConfiguratorSceneComponentDetailCustomization::GetLocationAndRotationVisibility() const
-{
-	const FString SelectedOption = SceneComponenPtr.Get()->GetTrackerId();
-	if (SelectedOption.IsEmpty())
-	{
-		return EVisibility::Visible;
-	}
-
-	return EVisibility::Collapsed;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

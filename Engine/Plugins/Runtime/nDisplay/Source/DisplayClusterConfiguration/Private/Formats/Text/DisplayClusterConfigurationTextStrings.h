@@ -109,50 +109,6 @@ namespace DisplayClusterConfigurationTextStrings
 				// + Id, Loc, Rot, Parent, TrackerId, TrackerCh
 			}
 
-			// Input tokens
-			namespace input
-			{
-				static constexpr auto Header  = TEXT("[input]");
-				static constexpr auto Type    = TEXT("type");
-				static constexpr auto Address = TEXT("addr");
-				static constexpr auto Remap   = TEXT("remap");
-
-				static constexpr auto Right   = TEXT("right");
-				static constexpr auto Front   = TEXT("front");
-				static constexpr auto Up      = TEXT("up");
-
-				static constexpr auto MapX    = TEXT("x");
-				static constexpr auto MapNX   = TEXT("-x");
-				static constexpr auto MapY    = TEXT("y");
-				static constexpr auto MapNY   = TEXT("-y");
-				static constexpr auto MapZ    = TEXT("z");
-				static constexpr auto MapNZ   = TEXT("-z");
-
-				static constexpr auto DeviceTracker  = TEXT("tracker");
-				static constexpr auto DeviceAnalog   = TEXT("analog");
-				static constexpr auto DeviceButtons  = TEXT("buttons");
-				static constexpr auto DeviceKeyboard = TEXT("keyboard");
-
-				static constexpr auto Reflect         = TEXT("reflect");
-				static constexpr auto ReflectNdisplay = TEXT("ndisplay");
-				static constexpr auto ReflectCore     = TEXT("core");
-				static constexpr auto ReflectBoth     = TEXT("both");
-				static constexpr auto ReflectNone     = TEXT("none");
-
-				// + Id
-			}
-
-			// Input Setup tokens
-			namespace inputsetup
-			{
-				static constexpr auto Header  = TEXT("[input_setup]");
-				static constexpr auto Channel = TEXT("ch");
-				static constexpr auto Key     = TEXT("key");
-				static constexpr auto Bind    = TEXT("bind");
-
-				// + Id
-			}
-
 			// General settings tokens
 			namespace general
 			{

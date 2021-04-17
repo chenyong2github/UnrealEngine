@@ -82,9 +82,6 @@ public:
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override
 	{ }
 
-	virtual void GetInputData(TMap<FString, FString>& InputData) override
-	{ }
-
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override
 	{ }
 

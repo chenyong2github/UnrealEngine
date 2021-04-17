@@ -214,28 +214,6 @@ void FDisplayClusterClusterSyncClient::GetSyncData(TMap<FString, FString>& SyncD
 	}
 }
 
-void FDisplayClusterClusterSyncClient::GetInputData(TMap<FString, FString>& InputData)
-{
-	static const TSharedPtr<FDisplayClusterPacketInternal> Request(
-		new FDisplayClusterPacketInternal(
-			DisplayClusterClusterSyncStrings::GetInputData::Name,
-			DisplayClusterClusterSyncStrings::TypeRequest,
-			DisplayClusterClusterSyncStrings::ProtocolName)
-	);
-
-	TSharedPtr<FDisplayClusterPacketInternal> Response;
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay ClusterSyncClient::%s"), *Request->GetName()), CpuChannel);
-		Response = SendRecvPacket(Request);
-	}
-
-	if (Response.IsValid())
-	{
-		// Extract data from response packet
-		InputData = Response->GetTextArgs(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory);
-	}
-}
-
 void FDisplayClusterClusterSyncClient::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 {
 	static const TSharedPtr<FDisplayClusterPacketInternal> Request(

@@ -7,7 +7,6 @@
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterEnums.h"
 #include "Engine/DynamicBlueprintBinding.h"
-#include "Input/IPDisplayClusterInputManager.h"
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "IDisplayClusterConfiguration.h"
@@ -156,12 +155,10 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 	// Store diagnostics settings locally
 	Diagnostics = Config->Diagnostics;
 
-	InputMgr       = GDisplayCluster->GetPrivateInputMgr();
 	ClusterMgr     = GDisplayCluster->GetPrivateClusterMgr();
 	NodeController = ClusterMgr->GetController();
 
 	check(ClusterMgr);
-	check(InputMgr);
 	check(NodeController);
 
 	FOnClusterEventJsonListener GameSyncTransition = FOnClusterEventJsonListener::CreateUObject(this, &UDisplayClusterGameEngine::GameSyncChange);

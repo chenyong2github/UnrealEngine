@@ -40,7 +40,6 @@ public:
 	static const FName TabID_OutputMapping;
 	static const FName TabID_Scene;
 	static const FName TabID_Cluster;
-	static const FName TabID_Input;
 	static const FName TabID_Viewport;
 
 public:

@@ -23,9 +23,6 @@
 UDisplayClusterScreenComponent::UDisplayClusterScreenComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-	
 	Size = SIZE_FROM_CM(FVector2D(100.f, 56.25f));
 
 #if WITH_EDITORONLY_DATA

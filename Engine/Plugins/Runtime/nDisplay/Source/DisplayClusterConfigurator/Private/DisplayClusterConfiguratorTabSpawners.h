@@ -29,13 +29,6 @@ struct FDisplayClusterViewClusterSummoner : public FDisplayClusterViewSummoner
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 };
 
-struct FDisplayClusterViewInputSummoner : public FDisplayClusterViewSummoner
-{
-	FDisplayClusterViewInputSummoner(TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> InHostingApp);
-
-	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
-};
-
 struct FDisplayClusterSCSSummoner : public FDisplayClusterViewSummoner
 {
 	FDisplayClusterSCSSummoner(TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> InHostingApp);

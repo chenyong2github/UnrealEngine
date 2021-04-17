@@ -13,9 +13,6 @@
 UDisplayClusterMeshComponent::UDisplayClusterMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-
 	// Create visual mesh component as a child
 	WarpMeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(FName(*(GetName() + FString("_impl"))));
 	if (WarpMeshComponent)
