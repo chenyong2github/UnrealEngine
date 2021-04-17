@@ -36,7 +36,7 @@ void VisitSubTrackImpl(const FSequenceVisitParams& InParams, UMovieSceneSubTrack
 	{
 		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Entry.Section);
 	
-		if (SubTrack->IsRowEvalDisabled(SubSection->GetRowIndex()) && !InParams.bVisitDisabledSubSequences)
+		if (SubSection && SubTrack->IsRowEvalDisabled(SubSection->GetRowIndex()) && !InParams.bVisitDisabledSubSequences)
 		{
 			continue;
 		}
