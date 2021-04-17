@@ -827,6 +827,12 @@ void SUsdStage::OnStageActorPropertyChanged( UObject* ObjectBeingModified, FProp
 
 void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 {
+	// This may be called when first opening a project, before the our widgets are fully initialized
+	if ( !UsdStageTreeView )
+	{
+		return;
+	}
+
 	const UUsdStageEditorSettings* Settings = GetDefault<UUsdStageEditorSettings>();
 	if ( !Settings || !Settings->bSelectionSynced || bUpdatingViewportSelection )
 	{
