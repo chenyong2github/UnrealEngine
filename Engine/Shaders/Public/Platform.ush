@@ -29,7 +29,7 @@
 #elif COMPILER_VULKAN
 	// Helps with iteration when changing Vulkan shader code generation backend.
 	#include "Platform/Vulkan/VulkanCommon.ush"
-#elif SM6_PROFILE || SM5_PROFILE || SM4_PROFILE
+#elif SM6_PROFILE || SM5_PROFILE
 	#include "Platform/D3D/D3DCommon.ush"
 #endif
 
@@ -91,10 +91,6 @@
 
 #ifndef SM5_PROFILE
 #define SM5_PROFILE 0
-#endif
-
-#ifndef SM4_PROFILE
-#define SM4_PROFILE 0
 #endif
 
 #ifndef OPENGL_PROFILE
@@ -212,9 +208,6 @@
 #elif SM5_PROFILE
 	// SM5 = full dx11 features (high end UE4 rendering)
 	#define FEATURE_LEVEL FEATURE_LEVEL_SM5
-
-#elif SM4_PROFILE
-	#define FEATURE_LEVEL FEATURE_LEVEL_SM4
 
 #elif SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
 	#undef ES3_1_PROFILE
@@ -334,13 +327,13 @@
 // Ideally this would just be enabled for all SM4 and above feature level platforms
 // @todo metal mrt: No reason this can't work with Metal, once cross compiler is fixed
 #ifndef SUPPORTS_INDEPENDENT_SAMPLERS
-#define SUPPORTS_INDEPENDENT_SAMPLERS (SM6_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
+#define SUPPORTS_INDEPENDENT_SAMPLERS (SM6_PROFILE || SM5_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5 || VULKAN_PROFILE)
 #endif
 
 // Whether the platform supports a global clip plane through SV_ClipDistance
 // Ideally this would just be enabled for all SM4 and above feature level platforms, but not tested everywhere yet
 #ifndef PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE
-#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM6_PROFILE || SM5_PROFILE || SM4_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5)
+#define PLATFORM_SUPPORTS_GLOBAL_CLIP_PLANE (PS4_PROFILE || SM6_PROFILE || SM5_PROFILE || METAL_PROFILE || METAL_MRT_PROFILE || METAL_SM5_PROFILE || VULKAN_PROFILE_SM5)
 #endif
 
 // Whether the platform support pixel coverage on MSAA targets (SV_Coverage).
