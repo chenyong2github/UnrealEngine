@@ -366,6 +366,33 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 	}
 }
 
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventJson& Event, bool bMasterOnly)
+{
+	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
+	{
+		if (Controller)
+		{
+			if (IsMaster() || !bMasterOnly)
+			{
+				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+			}
+		}
+	}
+}
+
+void FDisplayClusterClusterManager::SendClusterEventTo(const FString& Address, const int32 Port, const FDisplayClusterClusterEventBinary& Event, bool bMasterOnly)
+{
+	if (CurrentOperationMode == EDisplayClusterOperationMode::Cluster || CurrentOperationMode == EDisplayClusterOperationMode::Editor)
+	{
+		if (Controller)
+		{
+			if (IsMaster() || !bMasterOnly)
+			{
+				Controller->SendClusterEventTo(Address, Port, Event, bMasterOnly);
+			}
+		}
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterClusterManager
