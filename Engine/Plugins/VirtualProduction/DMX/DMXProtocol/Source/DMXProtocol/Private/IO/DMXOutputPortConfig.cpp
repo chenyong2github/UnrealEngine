@@ -20,7 +20,7 @@ FDMXOutputPortConfig::FDMXOutputPortConfig()
 	, NumUniverses(10)
 	, ExternUniverseStart(1)
 	, Priority(100)
-	, PortGuid()
+	, PortGuid(FGuid())
 {
 	// May be called before the protocol module is loaded, at this point we only expect already sanetized structs
 	if (FModuleManager::Get().IsModuleLoaded("DMXProtocol"))
