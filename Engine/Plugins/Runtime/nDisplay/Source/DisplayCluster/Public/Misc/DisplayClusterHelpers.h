@@ -577,7 +577,7 @@ namespace DisplayClusterHelpers
 				FPlane(ma, mb, mc, me),
 				FPlane(0,  0,  md,  0));
 
-			// Invert Z-axis (UE4 uses Z-inverted LHS)
+			// Invert Z-axis (UE uses Z-inverted LHS)
 			static const FMatrix flipZ = FMatrix(
 				FPlane(1, 0, 0, 0),
 				FPlane(0, 1, 0, 0),

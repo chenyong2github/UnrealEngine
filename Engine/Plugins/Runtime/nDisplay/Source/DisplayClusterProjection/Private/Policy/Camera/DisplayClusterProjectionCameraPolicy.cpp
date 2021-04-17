@@ -71,7 +71,7 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(class IDisplayClusterV
 		InOutViewLocation = AssignedCamera->GetComponentLocation();
 		InOutViewRotation = AssignedCamera->GetComponentRotation();
 	}
-	// Otherwise default UE4 camera is used
+	// Otherwise default UE camera is used
 	else
 	{
 		if (InViewport->GetOwner().GetWorld())

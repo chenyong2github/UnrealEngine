@@ -79,7 +79,7 @@ namespace DisplayClusterProjectionStrings
 
 			static constexpr auto FilePFM       = TEXT("pfm");
 			static constexpr auto WorldScale    = TEXT("scale");
-			static constexpr auto UseUnrealAxis = TEXT("ue4space");
+			static constexpr auto UseUnrealAxis = TEXT("ue_space");
 
 			static constexpr auto FileAlpha  = TEXT("alpha");
 			static constexpr auto AlphaGamma = TEXT("alpha_gamma");

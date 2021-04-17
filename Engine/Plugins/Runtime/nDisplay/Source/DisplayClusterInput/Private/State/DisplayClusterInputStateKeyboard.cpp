@@ -5,7 +5,7 @@
 
 
 /*
- * Define global UE4 names for DisplayCluster vrpn keyboard buttons:
+ * Define global UE names for DisplayCluster vrpn keyboard buttons:
  */
 
 const FKey FKeyboardKey::Zero("nDisplayKeyboardZero");

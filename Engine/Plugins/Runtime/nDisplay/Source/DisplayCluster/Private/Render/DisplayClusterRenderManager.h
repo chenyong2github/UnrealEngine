@@ -104,6 +104,6 @@ private:
 	// Internal data access synchronization
 	mutable FCriticalSection CritSecInternals;
 
-	// This flag is used to auto-focus the UE4 window once on start
+	// This flag is used to auto-focus the UE window once on start
 	bool bWasWindowFocused = false;
 };

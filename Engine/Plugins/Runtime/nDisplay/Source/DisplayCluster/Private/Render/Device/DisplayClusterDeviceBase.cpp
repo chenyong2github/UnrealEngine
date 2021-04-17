@@ -564,7 +564,7 @@ void FDisplayClusterDeviceBase::StartFinalPostprocessSettings(struct FPostProces
 {
 	check(IsInGameThread());
 
-	// eSSP_FULL pass reserved for UE4 internal render
+	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL)
 	{
 		IDisplayClusterViewport* pViewport = GetViewportManager().FindViewport(StereoPassType);
@@ -579,7 +579,7 @@ bool FDisplayClusterDeviceBase::OverrideFinalPostprocessSettings(struct FPostPro
 {
 	check(IsInGameThread());
 
-	// eSSP_FULL pass reserved for UE4 internal render
+	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL)
 	{
 		IDisplayClusterViewport* pViewport = GetViewportManager().FindViewport(StereoPassType);
@@ -596,7 +596,7 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 {
 	check(IsInGameThread());
 
-	// eSSP_FULL pass reserved for UE4 internal render
+	// eSSP_FULL pass reserved for UE internal render
 	if (StereoPassType != EStereoscopicPass::eSSP_FULL)
 	{
 		IDisplayClusterViewport* pViewport = GetViewportManager().FindViewport(StereoPassType);

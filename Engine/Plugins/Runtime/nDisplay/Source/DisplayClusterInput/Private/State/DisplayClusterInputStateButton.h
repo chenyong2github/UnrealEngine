@@ -19,13 +19,13 @@ public:
 		NextRepeatTime( 0.0 )
 	{ }
 
-	// Clear all binds to UE4
+	// Clear all binds to UE
 	void Reset()
 	{
 		BindKeys.Empty();
 	}
 
-	// Add new UE4 target to binds array
+	// Add new UE target to binds array
 	bool BindTarget(const FName& NewKey)
 	{
 		if (BindKeys.Contains(NewKey))
@@ -60,11 +60,11 @@ public:
 		bIsPressedState  = bIsPressedNextState;
 	}
 
-	// Send all changes to UE4 core
+	// Send all changes to UE core
 	void UpdateEvents(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, double CurrentTime);
 
 private:
-	// Send button events to UE4 core
+	// Send button events to UE core
 	bool OnButtonPressed(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, bool bIsRepeat);
 	bool OnButtonReleased(FGenericApplicationMessageHandler* MessageHandler, int32 ControllerId, bool bIsRepeat);
 
@@ -73,7 +73,7 @@ private:
 	static float ButtonRepeatDelay;
 
 private:
-	// UE4 bind targets for this channel
+	// UE bind targets for this channel
 	TArray<FName> BindKeys;
 	// Whether we're pressed or not.  While pressed, we will generate repeat presses on a timer
 	bool bIsPressedState;

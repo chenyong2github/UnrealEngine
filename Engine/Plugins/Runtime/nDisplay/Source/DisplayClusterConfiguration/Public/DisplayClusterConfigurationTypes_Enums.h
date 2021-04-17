@@ -23,7 +23,7 @@ enum class EDisplayClusterConfigurationKeyboardReflectionType : uint8
 	None     UMETA(DisplayName = "No reflection"),
 	nDisplay UMETA(DisplayName = "nDisplay buttons only"),
 	Core     UMETA(DisplayName = "UE core keyboard events only"),
-	All      UMETA(DisplayName = "Both nDisplay and UE4 core events")
+	All      UMETA(DisplayName = "Both nDisplay and UE core events")
 };
 
 UENUM()
@@ -169,7 +169,7 @@ enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
 	// Disable multi GPU rendering
 	None         UMETA(DisplayName = "Disabled"),
 
-	// Use default UE4 crossGPU transfer
+	// Use default UE crossGPU transfer
 	Enabled      UMETA(DisplayName = "Enabled"),
 
 	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=true

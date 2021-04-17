@@ -261,7 +261,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::OnAddComponentSelectionChan
 		// We don't want the item to remain selected
 		ClearSelection();
 
-		// The filtered list won't always clear & regenerate. Seems to be a UE4 bug.
+		// The filtered list won't always clear & regenerate. Seems to be a UE bug.
 		{
 			const FText EmptyText;
 			TextFilter->SetFilterText(EmptyText);
