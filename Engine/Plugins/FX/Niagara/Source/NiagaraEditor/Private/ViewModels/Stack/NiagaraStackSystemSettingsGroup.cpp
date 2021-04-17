@@ -30,9 +30,9 @@ public:
 		return NewParameterVariable;
 	}
 
-	virtual FText GetCategory() const override
+	virtual TArray<FString> GetCategories() const override
 	{
-		return FNiagaraEditorUtilities::GetVariableTypeCategory(GetNewParameterVariable());
+		return {FNiagaraEditorUtilities::GetVariableTypeCategory(GetNewParameterVariable()).ToString()};
 	}
 
 	virtual FText GetDisplayName() const override

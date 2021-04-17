@@ -25,6 +25,7 @@ public:
 
 	NIAGARAEDITOR_API void Construct(const FArguments& InArgs);
 
+	// @Todo: Since new menus are making use of the SItemSelector instead of the graph menu, we should get rid of this once we clean up all dependencies
 	NIAGARAEDITOR_API void SetActionMenu(TSharedRef<SGraphActionMenu> InActionMenu);
 
 private:
