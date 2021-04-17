@@ -2238,6 +2238,13 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 	DeprecatedTag = FString::FromInt(bDeprecated);
 	OutTags.Add(FAssetRegistryTag(DeprecatedName, DeprecatedTag, FAssetRegistryTag::TT_Hidden));
 
+	// Suggested
+	bool bSuggested = ScriptData ? ScriptData->bSuggested : false;
+	FName SuggestedName = GET_MEMBER_NAME_CHECKED(FVersionedNiagaraScriptData, bSuggested);
+	FString& SuggestedTag = CustomAssetRegistryTagCache->FindOrAdd(SuggestedName);
+	SuggestedTag = FString::FromInt(bSuggested);
+	OutTags.Add(FAssetRegistryTag(SuggestedName, SuggestedTag, FAssetRegistryTag::TT_Hidden));
+
 	// Add the current custom version to the tags so that tags can be fixed up in the future without having to load
 	// the whole asset.
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
