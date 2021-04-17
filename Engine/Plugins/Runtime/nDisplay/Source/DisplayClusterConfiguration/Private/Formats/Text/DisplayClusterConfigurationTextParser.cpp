@@ -49,7 +49,7 @@ bool FDisplayClusterConfigurationTextParser::AsString(const UDisplayClusterConfi
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::ConvertDataToInternalTypes()
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
-	check(Config && Config->Scene && Config->Input && Config->Cluster);
+	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
 	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Text;
@@ -70,8 +70,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->ParentId       = CfgComp.ParentId;
 			Comp->Location       = CfgComp.Loc * 100;
 			Comp->Rotation       = CfgComp.Rot;
-			Comp->TrackerId      = CfgComp.TrackerId;
-			Comp->TrackerChannel = CfgComp.TrackerCh;
 
 			Config->Scene->Xforms.Emplace(CfgComp.Id, Comp);
 		}
@@ -86,8 +84,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->ParentId       = CfgComp.ParentId;
 			Comp->Location       = CfgComp.Loc * 100;
 			Comp->Rotation       = CfgComp.Rot;
-			Comp->TrackerId      = CfgComp.TrackerId;
-			Comp->TrackerChannel = CfgComp.TrackerCh;
 			// Screen specific
 			Comp->Size = CfgComp.Size;
 
@@ -107,8 +103,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 			Comp->ParentId       = CfgComp.ParentId;
 			Comp->Location       = CfgComp.Loc * 100.f;
 			Comp->Rotation       = CfgComp.Rot;
-			Comp->TrackerId      = CfgComp.TrackerId;
-			Comp->TrackerChannel = CfgComp.TrackerCh;
 			// Camera specific
 			Comp->InterpupillaryDistance = CfgComp.EyeDist;
 			Comp->bSwapEyes              = CfgComp.EyeSwap;
@@ -335,143 +329,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		}
 	}
 
-	// Input devices
-	for (const FDisplayClusterConfigurationTextInput& CfgInputDevice : CfgInputDevices)
-	{
-		// Common parameter - address
-		FString Address;
-		DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Address, Address);
-
-		// Common parameter - channel mapping
-		FString StrRemap;
-		DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Remap, StrRemap);
-		TMap<int32, int32> ChannelRemapping;
-		DisplayClusterHelpers::str::StrToMap<int32, int32>(StrRemap, ChannelRemapping, DisplayClusterStrings::common::ArrayValSeparator, FString(":"));
-
-		// Aarsing analog device
-		if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceAnalog, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			Config->Input->AnalogDevices.Emplace(CfgInputDevice.Id, InputDevice);
-		}
-		// Button device
-		else if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceButtons, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			Config->Input->ButtonDevices.Emplace(CfgInputDevice.Id, InputDevice);
-		}
-		// Keyboard device
-		else if (CfgInputDevice.Type.Equals(FString(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceKeyboard), ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			FString StrReflectionType;
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Reflect, StrReflectionType);
-
-			if (StrReflectionType.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::ReflectNone))
-			{
-				InputDevice->ReflectionType = EDisplayClusterConfigurationKeyboardReflectionType::None;
-			}
-			else if (StrReflectionType.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::ReflectNdisplay))
-			{
-				InputDevice->ReflectionType = EDisplayClusterConfigurationKeyboardReflectionType::nDisplay;
-			}
-			else if (StrReflectionType.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::ReflectCore))
-			{
-				InputDevice->ReflectionType = EDisplayClusterConfigurationKeyboardReflectionType::Core;
-			}
-			else if (StrReflectionType.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::ReflectBoth))
-			{
-				InputDevice->ReflectionType = EDisplayClusterConfigurationKeyboardReflectionType::All;
-			}
-
-			Config->Input->KeyboardDevices.Emplace(CfgInputDevice.Id, InputDevice);
-		}
-		// Tracker device
-		else if (CfgInputDevice.Type.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::DeviceTracker, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::Loc, InputDevice->OriginLocation);
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::Rot, InputDevice->OriginRotation);
-
-			InputDevice->OriginLocation *= 100;
-
-			auto ConvertMapping = [](const FString& StrMapping, EDisplayClusterConfigurationTrackerMapping& OutMapping)
-			{
-				if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapX, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::X;
-				}
-				else if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapNX, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::NX;
-				}
-				else if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapY, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::Y;
-				}
-				else if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapNY, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::NY;
-				}
-				else if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapZ, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::Z;
-				}
-				else if (StrMapping.Equals(DisplayClusterConfigurationTextStrings::cfg::data::input::MapNZ, ESearchCase::IgnoreCase))
-				{
-					OutMapping = EDisplayClusterConfigurationTrackerMapping::NZ;
-				}
-			};
-
-			FString StrMappingFront;
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Front, StrMappingFront);
-			ConvertMapping(StrMappingFront, InputDevice->Front);
-
-			FString StrMappingRight;
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Right, StrMappingRight);
-			ConvertMapping(StrMappingRight, InputDevice->Right);
-
-			FString StrMappingUp;
-			DisplayClusterHelpers::str::ExtractValue(CfgInputDevice.Params, DisplayClusterConfigurationTextStrings::cfg::data::input::Up, StrMappingUp);
-			ConvertMapping(StrMappingUp, InputDevice->Up);
-
-			Config->Input->TrackerDevices.Emplace(CfgInputDevice.Id, InputDevice);
-		}
-	}
-
-	// Input bindings
-	for (const FDisplayClusterConfigurationTextInputSetup& CfgInputBinding : CfgInputSetupRecords)
-	{
-		FDisplayClusterConfigurationInputBinding InputBinding;
-
-		InputBinding.DeviceId = CfgInputBinding.Id;
-		InputBinding.Channel  = CfgInputBinding.Channel;
-		InputBinding.Key      = CfgInputBinding.Key;
-		InputBinding.BindTo   = CfgInputBinding.BindName;
-
-		Config->Input->InputBinding.Add(InputBinding);
-	}
-
 	// Custom parameters
 	Config->CustomParameters = CfgCustom.Params;
 
@@ -568,14 +425,6 @@ void FDisplayClusterConfigurationTextParser::ParseTextLine(const FString& line)
 	{
 		AddDebug(impl_parse<FDisplayClusterConfigurationTextDebug>(line));
 	}
-	else if (line.StartsWith(FString(DisplayClusterConfigurationTextStrings::cfg::data::input::Header)))
-	{
-		AddInput(impl_parse<FDisplayClusterConfigurationTextInput>(line));
-	}
-	else if (line.StartsWith(FString(DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Header)))
-	{
-		AddInputSetup(impl_parse<FDisplayClusterConfigurationTextInputSetup>(line));
-	}
 	else if (line.StartsWith(FString(DisplayClusterConfigurationTextStrings::cfg::data::custom::Header)))
 	{
 		AddCustom(impl_parse<FDisplayClusterConfigurationTextCustom>(line));
@@ -666,18 +515,6 @@ void FDisplayClusterConfigurationTextParser::AddDebug(const FDisplayClusterConfi
 {
 	UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Found debug: %s"), *InCfgDebug.ToString());
 	CfgDebug = InCfgDebug;
-}
-
-void FDisplayClusterConfigurationTextParser::AddInput(const FDisplayClusterConfigurationTextInput& InCfgInput)
-{
-	UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Found input device: %s"), *InCfgInput.ToString());
-	CfgInputDevices.Add(InCfgInput);
-}
-
-void FDisplayClusterConfigurationTextParser::AddInputSetup(const FDisplayClusterConfigurationTextInputSetup& InCfgInputSetup)
-{
-	UE_LOG(LogDisplayClusterConfiguration, Log, TEXT("Found input setup record: %s"), *InCfgInputSetup.ToString());
-	CfgInputSetupRecords.Add(InCfgInputSetup);
 }
 
 void FDisplayClusterConfigurationTextParser::AddCustom(const FDisplayClusterConfigurationTextCustom& InCfgCustom)

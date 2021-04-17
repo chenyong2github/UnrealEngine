@@ -12,7 +12,6 @@ public class DisplayClusterConfiguration : ModuleRules
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"DisplayCluster",
-				"DisplayClusterInput",
 				"DisplayClusterPostprocess",
 				"DisplayClusterProjection",
 				"OpenColorIO",

@@ -5,7 +5,6 @@
 #include "Cluster/DisplayClusterClusterManager.h"
 #include "Config/DisplayClusterConfigManager.h"
 #include "Game/DisplayClusterGameManager.h"
-#include "Input/DisplayClusterInputManager.h"
 #include "Render/DisplayClusterRenderManager.h"
 
 #include "DisplayClusterConfigurationTypes.h"
@@ -26,7 +25,6 @@ FDisplayClusterModule::FDisplayClusterModule()
 	Managers.Add(MgrCluster = new FDisplayClusterClusterManager);
 	Managers.Add(MgrGame    = new FDisplayClusterGameManager);
 	Managers.Add(MgrRender  = new FDisplayClusterRenderManager);
-	Managers.Add(MgrInput   = new FDisplayClusterInputManager);
 }
 
 FDisplayClusterModule::~FDisplayClusterModule()

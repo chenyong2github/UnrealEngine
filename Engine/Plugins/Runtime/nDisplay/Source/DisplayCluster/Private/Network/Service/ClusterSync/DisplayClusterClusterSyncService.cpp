@@ -8,7 +8,6 @@
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Input/IPDisplayClusterInputManager.h"
 
 #include "Cluster/Controller/IDisplayClusterNodeController.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
@@ -176,14 +175,6 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterClusterSyncService::Pro
 		Response->SetTextArgs(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, SyncData);
 		return Response;
 	}
-	else if (ReqName == DisplayClusterClusterSyncStrings::GetInputData::Name)
-	{
-		TMap<FString, FString> InputData;
-		GetInputData(InputData);
-
-		Response->SetTextArgs(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, InputData);
-		return Response;
-	}
 	else if (ReqName == DisplayClusterClusterSyncStrings::GetEventsData::Name)
 	{
 		TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>   JsonEvents;
@@ -249,12 +240,6 @@ void FDisplayClusterClusterSyncService::GetSyncData(TMap<FString, FString>& Sync
 {
 	static IDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
 	NodeController->GetSyncData(SyncData, SyncGroup);
-}
-
-void FDisplayClusterClusterSyncService::GetInputData(TMap<FString, FString>& InputData)
-{
-	static IDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
-	return NodeController->GetInputData(InputData);
 }
 
 void FDisplayClusterClusterSyncService::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)

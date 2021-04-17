@@ -34,21 +34,11 @@ FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 	return FIntRect(FIntPoint(X, Y), FIntPoint(X + W, Y + H));
 }
 
-void UDisplayClusterConfigurationInput::GetObjectsToExport(TArray<UObject*>& OutObjects)
-{
-	Super::GetObjectsToExport(OutObjects);
-	SAVE_MAP(AnalogDevices);
-	SAVE_MAP(ButtonDevices);
-	SAVE_MAP(KeyboardDevices);
-	SAVE_MAP(TrackerDevices);
-}
-
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
 	Scene   = CreateDefaultSubobject<UDisplayClusterConfigurationScene>(TEXT("Scene"));
 	Cluster = CreateDefaultSubobject<UDisplayClusterConfigurationCluster>(TEXT("Cluster"));
 	Cluster->SetFlags(RF_Transactional);
-	Input   = CreateDefaultSubobject<UDisplayClusterConfigurationInput>(TEXT("Input"));
 }
 
 const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNode(const FString& NodeId) const

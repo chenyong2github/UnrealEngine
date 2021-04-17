@@ -53,11 +53,6 @@ namespace DisplayClusterClusterSyncStrings
 		constexpr static auto ArgSyncGroup = "SyncGroup";
 	}
 
-	namespace GetInputData
-	{
-		constexpr static auto Name = "GetInputData";
-	}
-
 	namespace GetEventsData
 	{
 		constexpr static auto Name = "GetEventsData";

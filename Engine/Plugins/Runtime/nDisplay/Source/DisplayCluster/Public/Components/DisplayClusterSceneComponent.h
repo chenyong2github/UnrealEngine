@@ -40,30 +40,8 @@ public:
 public:
 	UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer);
 
-public:
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
-	FString GetTrackerId() const
-	{
-		return TrackerId;
-	}
-
-	void SetTrackerId(const FString& InTrackerId)
-	{
-		TrackerId = InTrackerId;
-	}
-
-	int GetTrackerChannel() const
-	{
-		return TrackerChannel;
-	}
-
-	void SetTrackerChannel(int InTrackerChannel)
-	{
-		TrackerChannel = InTrackerChannel;
-	}
-
 	/** Checks if the component is owned by a Display Cluster Blueprint. */
 	bool DoesComponentBelongToBlueprint() const;
 	
@@ -83,18 +61,6 @@ protected:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "DisplayCluster")
 	FString SyncId;
-
-	/*
-	 * TODO: Delete TrackerId
-	 */
-	UPROPERTY()
-	FString TrackerId;
-
-	/*
-	 * TODO: Delete TrackerChannel
-	 */
-	UPROPERTY()
-	int32 TrackerChannel;
 
 protected:
 	UDisplayClusterConfigurationSceneComponent* ConfigData;

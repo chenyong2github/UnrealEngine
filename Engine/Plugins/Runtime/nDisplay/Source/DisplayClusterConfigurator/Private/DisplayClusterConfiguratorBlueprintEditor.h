@@ -16,7 +16,6 @@ class IDisplayClusterConfiguratorViewOutputMapping;
 class FDisplayClusterConfiguratorViewOutputMapping;
 class FDisplayClusterConfiguratorViewCluster;
 class FDisplayClusterConfiguratorViewScene;
-class FDisplayClusterConfiguratorViewInput;
 class FDisplayClusterConfiguratorToolbar;
 class SDisplayClusterConfiguratorSCSEditorViewport;
 
@@ -68,7 +67,6 @@ public:
 	
 	virtual TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> GetViewOutputMapping() const;
 	virtual TSharedRef<IDisplayClusterConfiguratorViewTree> GetViewCluster() const;
-	virtual TSharedRef<IDisplayClusterConfiguratorViewTree> GetViewInput() const;
 	virtual TSharedRef<IDisplayClusterConfiguratorView> GetViewGeneral() const;
 
 	TSharedPtr<SDockTab> GetViewportTab() const { return ViewportTab; }
@@ -199,7 +197,6 @@ private:
 	TSharedPtr<FDisplayClusterConfiguratorViewGeneral> ViewGeneral;
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;
 	TSharedPtr<FDisplayClusterConfiguratorViewCluster> ViewCluster;
-	TSharedPtr<FDisplayClusterConfiguratorViewInput> ViewInput; // TODO: Delete this after input plugin finished.
 
 	/** Owner of the viewport. */
 	TSharedPtr<SDockTab> ViewportTab;

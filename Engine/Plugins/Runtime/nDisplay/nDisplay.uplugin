@@ -33,14 +33,6 @@
 			]
 		},
 		{
-			"Name": "DisplayClusterInput",
-			"Type": "Runtime",
-			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
-		},
-		{
 			"Name": "DisplayClusterProjection",
 			"Type": "Runtime",
 			"LoadingPhase": "Default",

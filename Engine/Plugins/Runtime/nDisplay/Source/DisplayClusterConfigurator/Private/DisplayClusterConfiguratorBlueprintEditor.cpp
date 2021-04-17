@@ -23,7 +23,6 @@
 #include "Views/General/DisplayClusterConfiguratorViewGeneral.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorViewOutputMapping.h"
 #include "Views/TreeViews/Cluster/DisplayClusterConfiguratorViewCluster.h"
-#include "Views/TreeViews/Input/DisplayClusterConfiguratorViewInput.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewport.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewportClient.h"
 #include "Views/SCSEditor/SDisplayClusterConfiguratorComponentCombo.h"
@@ -399,11 +398,6 @@ TSharedRef<IDisplayClusterConfiguratorViewTree> FDisplayClusterConfiguratorBluep
 	return ViewCluster.ToSharedRef();
 }
 
-TSharedRef<IDisplayClusterConfiguratorViewTree> FDisplayClusterConfiguratorBlueprintEditor::GetViewInput() const
-{
-	return ViewInput.ToSharedRef();
-}
-
 TSharedRef<IDisplayClusterConfiguratorView> FDisplayClusterConfiguratorBlueprintEditor::GetViewGeneral() const
 {
 	return ViewGeneral.ToSharedRef();
@@ -673,7 +667,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged(bool bReadOnl
 	ViewGeneral->SetEnabled(!bReadOnly);
 	ViewOutputMapping->SetEnabled(!bReadOnly);
 	ViewCluster->SetEnabled(!bReadOnly);
-	ViewInput->SetEnabled(!bReadOnly);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName)
@@ -740,12 +733,10 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 	ViewGeneral			= MakeShared<FDisplayClusterConfiguratorViewGeneral>(ThisRef);
 	ViewOutputMapping	= MakeShared<FDisplayClusterConfiguratorViewOutputMapping>(ThisRef);
 	ViewCluster			= MakeShared<FDisplayClusterConfiguratorViewCluster>(ThisRef);
-	ViewInput			= MakeShared<FDisplayClusterConfiguratorViewInput>(ThisRef);
 
 	ViewGeneral->CreateWidget();
 	ViewOutputMapping->CreateWidget();
 	ViewCluster->CreateWidget();
-	ViewInput->CreateWidget();
 
 	// Register delegates
 	UpdateOutputMappingHandle = ViewOutputMapping->RegisterOnOutputMappingBuilt(
@@ -761,7 +752,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 		ViewGeneral->SetEnabled(!bReadOnly);
 		ViewOutputMapping->SetEnabled(!bReadOnly);
 		ViewCluster->SetEnabled(!bReadOnly);
-		ViewInput->SetEnabled(!bReadOnly);
 	}
 	
 	OnConfigReloaded.Broadcast();

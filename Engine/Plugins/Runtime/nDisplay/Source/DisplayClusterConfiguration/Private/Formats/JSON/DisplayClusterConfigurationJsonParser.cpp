@@ -87,7 +87,7 @@ bool FDisplayClusterConfigurationJsonParser::AsString(const UDisplayClusterConfi
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
 {
 	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
-	check(Config && Config->Scene && Config->Input && Config->Cluster);
+	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
 	Config->Meta.DataSource = EDisplayClusterConfigurationDataSource::Json;
@@ -111,8 +111,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->ParentId       = CfgComp.Value.Parent;
 			Comp->Location       = FDisplayClusterConfigurationJsonVector::ToVector(CfgComp.Value.Location) * 100.f;
 			Comp->Rotation       = FDisplayClusterConfigurationJsonRotator::ToRotator(CfgComp.Value.Rotation);
-			Comp->TrackerId      = CfgComp.Value.TrackerId;
-			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 
 			Config->Scene->Xforms.Emplace(CfgComp.Key, Comp);
 		}
@@ -127,8 +125,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->ParentId       = CfgComp.Value.Parent;
 			Comp->Location       = FDisplayClusterConfigurationJsonVector::ToVector(CfgComp.Value.Location) * 100.f;
 			Comp->Rotation       = FDisplayClusterConfigurationJsonRotator::ToRotator(CfgComp.Value.Rotation);
-			Comp->TrackerId      = CfgComp.Value.TrackerId;
-			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 			// Screen specific
 			Comp->Size = FDisplayClusterConfigurationJsonSizeFloat::ToVector(CfgComp.Value.Size);
 
@@ -145,8 +141,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->ParentId       = CfgComp.Value.Parent;
 			Comp->Location       = FDisplayClusterConfigurationJsonVector::ToVector(CfgComp.Value.Location) * 100.f;
 			Comp->Rotation       = FDisplayClusterConfigurationJsonRotator::ToRotator(CfgComp.Value.Rotation);
-			Comp->TrackerId      = CfgComp.Value.TrackerId;
-			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 			// Camera specific
 			Comp->InterpupillaryDistance = CfgComp.Value.InterpupillaryDistance;
 			Comp->bSwapEyes      = CfgComp.Value.SwapEyes;
@@ -165,8 +159,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			Comp->ParentId       = CfgComp.Value.Parent;
 			Comp->Location       = FDisplayClusterConfigurationJsonVector::ToVector(CfgComp.Value.Location) * 100.f;
 			Comp->Rotation       = FDisplayClusterConfigurationJsonRotator::ToRotator(CfgComp.Value.Rotation);
-			Comp->TrackerId      = CfgComp.Value.TrackerId;
-			Comp->TrackerChannel = CfgComp.Value.TrackerChannel;
 			// Mesh specific
 			Comp->AssetPath      = CfgComp.Value.Asset;
 
@@ -275,129 +267,6 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		}
 	}
 
-	for (const auto& CfgInput : CfgJson.Input)
-	{
-		// Common parameter - address
-		FString Address;
-		DisplayClusterHelpers::map::ExtractValue(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::Address, Address);
-
-		// Common parameter - channel mapping
-		TMap<int32, int32> ChannelRemapping;
-		DisplayClusterHelpers::map::ExtractMapFromString(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::Remapping, ChannelRemapping, FString(","), FString(":"));
-
-		if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceAnalog, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceAnalog* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceAnalog>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			Config->Input->AnalogDevices.Emplace(CfgInput.Key, InputDevice);
-
-		}
-		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceButton, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceButton* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceButton>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			Config->Input->ButtonDevices.Emplace(CfgInput.Key, InputDevice);
-		}
-		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceKeyboard, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceKeyboard* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceKeyboard>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-			InputDevice->ReflectionType = EDisplayClusterConfigurationKeyboardReflectionType::None;
-
-			FString ReflectionType;
-			DisplayClusterHelpers::map::ExtractValue(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::ReflectType, ReflectionType);
-			InputDevice->ReflectionType = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationKeyboardReflectionType>(ReflectionType);
-
-			Config->Input->KeyboardDevices.Emplace(CfgInput.Key, InputDevice);
-		}
-		else if (CfgInput.Value.Type.Equals(DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceTracker, ESearchCase::IgnoreCase))
-		{
-			UDisplayClusterConfigurationInputDeviceTracker* InputDevice = NewObject<UDisplayClusterConfigurationInputDeviceTracker>(Config, NAME_None, RF_Transactional);
-			check(InputDevice);
-
-			InputDevice->Address = Address;
-			InputDevice->ChannelRemapping = ChannelRemapping;
-
-			TArray<float> Location;
-			if (DisplayClusterHelpers::map::ExtractArrayFromString(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::OriginLocation, Location))
-			{
-				switch (Location.Num())
-				{
-				case 0:
-					// Nothing to do, a default location will be set
-					break;
-
-				case 3:
-					InputDevice->OriginLocation = FVector(Location[0], Location[1], Location[2]) * 100.f;
-					break;
-
-				default:
-					UE_LOG(LogDisplayClusterConfiguration, Warning, TEXT("Wrong location data for tracker '%s'. Default zero location will be used."), *CfgInput.Key);
-					break;
-				}
-			}
-
-			TArray<float> Rotation;
-			if (DisplayClusterHelpers::map::ExtractArrayFromString(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::OriginRotation, Rotation))
-			{
-				switch (Rotation.Num())
-				{
-				case 0:
-					// Nothing to do, a default location will be set
-					break;
-
-				case 3:
-					InputDevice->OriginRotation = FRotator(Rotation[0], Rotation[1], Rotation[2]);
-					break;
-
-				default:
-					UE_LOG(LogDisplayClusterConfiguration, Warning, TEXT("Wrong rotation data for tracker '%s'. Default zero rotation will be used."), *CfgInput.Key);
-					break;
-				}
-			}
-
-			DisplayClusterHelpers::map::ExtractValueFromString(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::OriginComponent, InputDevice->OriginComponent);
-
-			FString Front;
-			DisplayClusterHelpers::map::ExtractValue(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::Front, Front);
-			InputDevice->Front = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationTrackerMapping>(Front);
-
-			FString Right;
-			DisplayClusterHelpers::map::ExtractValue(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::Right, Right);
-			InputDevice->Right = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationTrackerMapping>(Right);
-
-			FString Up;
-			DisplayClusterHelpers::map::ExtractValue(CfgInput.Value.Parameters, DisplayClusterConfigurationStrings::config::input::devices::Up, Up);
-			InputDevice->Up = DisplayClusterConfigurationJsonHelpers::FromString<EDisplayClusterConfigurationTrackerMapping>(Up);
-
-			Config->Input->TrackerDevices.Emplace(CfgInput.Key, InputDevice);
-		}
-	}
-
-	// Input bindings
-	for (const auto& CfgInputBinding : CfgJson.InputBindings)
-	{
-		FDisplayClusterConfigurationInputBinding InputBinding;
-
-		InputBinding.DeviceId = CfgInputBinding.Device;
-		InputBinding.Channel = DisplayClusterHelpers::map::ExtractValueFromString(CfgInputBinding.Parameters, DisplayClusterConfigurationStrings::config::input::binding::BindChannel, (int32)INDEX_NONE);
-		InputBinding.Key     = DisplayClusterHelpers::map::ExtractValue(CfgInputBinding.Parameters, DisplayClusterConfigurationStrings::config::input::binding::BindKey, FString());
-		InputBinding.BindTo  = DisplayClusterHelpers::map::ExtractValue(CfgInputBinding.Parameters, DisplayClusterConfigurationStrings::config::input::binding::BindTo, FString());
-
-		Config->Input->InputBinding.Add(InputBinding);
-	}
-
 	// Custom parameters
 	Config->CustomParameters = CfgJson.CustomParameters;
 
@@ -411,7 +280,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 
 bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UDisplayClusterConfigurationData* Config)
 {
-	if (!(Config && Config->Scene && Config->Input && Config->Cluster))
+	if (!(Config && Config->Scene && Config->Cluster))
 	{
 		UE_LOG(LogDisplayClusterConfiguration, Error, TEXT("nullptr detected in the configuration data"));
 		return false;
@@ -434,8 +303,6 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			Xform.Parent   = CfgComp.Value->ParentId;
 			Xform.Location = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location / 100.f);
 			Xform.Rotation = FDisplayClusterConfigurationJsonRotator::FromRotator(CfgComp.Value->Rotation);
-			Xform.TrackerId      = CfgComp.Value->TrackerId;
-			Xform.TrackerChannel = CfgComp.Value->TrackerChannel;
 
 			Json.Scene.Xforms.Emplace(CfgComp.Key, Xform);
 		}
@@ -449,8 +316,6 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			Screen.Parent   = CfgComp.Value->ParentId;
 			Screen.Location = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location);
 			Screen.Rotation = FDisplayClusterConfigurationJsonRotator::FromRotator(CfgComp.Value->Rotation);
-			Screen.TrackerId      = CfgComp.Value->TrackerId;
-			Screen.TrackerChannel = CfgComp.Value->TrackerChannel;
 			// Screen specific
 			Screen.Size = FDisplayClusterConfigurationJsonSizeFloat::FromVector(CfgComp.Value->Size);
 
@@ -466,8 +331,6 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			Camera.Parent   = CfgComp.Value->ParentId;
 			Camera.Location = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location / 100.f);
 			Camera.Rotation = FDisplayClusterConfigurationJsonRotator::FromRotator(CfgComp.Value->Rotation);
-			Camera.TrackerId      = CfgComp.Value->TrackerId;
-			Camera.TrackerChannel = CfgComp.Value->TrackerChannel;
 			// Camera specific
 			Camera.InterpupillaryDistance = CfgComp.Value->InterpupillaryDistance;
 			Camera.SwapEyes = CfgComp.Value->bSwapEyes;
@@ -485,8 +348,6 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			Mesh.Parent    = CfgComp.Value->ParentId;
 			Mesh.Location  = FDisplayClusterConfigurationJsonVector::FromVector(CfgComp.Value->Location / 100.f);
 			Mesh.Rotation  = FDisplayClusterConfigurationJsonRotator::FromRotator(CfgComp.Value->Rotation);
-			Mesh.TrackerId      = CfgComp.Value->TrackerId;
-			Mesh.TrackerChannel = CfgComp.Value->TrackerChannel;
 			// Mesh specific
 			Mesh.Asset = CfgComp.Value->AssetPath;
 
@@ -583,100 +444,6 @@ bool FDisplayClusterConfigurationJsonParser::ConvertDataToExternalTypes(const UD
 			// Store new cluster node
 			Json.Cluster.Nodes.Emplace(CfgNode.Key, Node);
 		}
-	}
-
-	// Input
-	{
-		// Analog devices
-		for (const auto& CfgInputAnalog : Config->Input->AnalogDevices)
-		{
-			FDisplayClusterConfigurationJsonInputDevice AnalogDevice;
-
-			AnalogDevice.Type = DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceAnalog;
-			AnalogDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Address, CfgInputAnalog.Value->Address);
-
-			const FString Remapping = DisplayClusterHelpers::str::MapToStr(CfgInputAnalog.Value->ChannelRemapping, DisplayClusterStrings::common::ArrayValSeparator, FString(":"), false);
-			AnalogDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Remapping, Remapping);
-
-			Json.Input.Emplace(CfgInputAnalog.Key, AnalogDevice);
-		}
-
-		// Button devices
-		for (const auto& CfgInputButton : Config->Input->ButtonDevices)
-		{
-			FDisplayClusterConfigurationJsonInputDevice ButtonDevice;
-
-			ButtonDevice.Type = DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceButton;
-			ButtonDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Address, CfgInputButton.Value->Address);
-
-			const FString Remapping = DisplayClusterHelpers::str::MapToStr(CfgInputButton.Value->ChannelRemapping, DisplayClusterStrings::common::ArrayValSeparator, FString(":"), false);
-			ButtonDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Remapping, Remapping);
-
-			Json.Input.Emplace(CfgInputButton.Key, ButtonDevice);
-		}
-
-		// Keyboard devices
-		for (const auto& CfgInputKb : Config->Input->KeyboardDevices)
-		{
-			FDisplayClusterConfigurationJsonInputDevice KbDevice;
-
-			KbDevice.Type = DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceKeyboard;
-			KbDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Address, CfgInputKb.Value->Address);
-
-			const FString Remapping = DisplayClusterHelpers::str::MapToStr(CfgInputKb.Value->ChannelRemapping, DisplayClusterStrings::common::ArrayValSeparator, FString(":"), false);
-			KbDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Remapping, Remapping);
-
-			const FString Reflection = DisplayClusterConfigurationJsonHelpers::ToString< EDisplayClusterConfigurationKeyboardReflectionType>(CfgInputKb.Value->ReflectionType);
-			KbDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::ReflectType, Reflection);
-
-			Json.Input.Emplace(CfgInputKb.Key, KbDevice);
-		}
-
-		// Tracker devices
-		for (const auto& CfgInputTracker : Config->Input->TrackerDevices)
-		{
-			FDisplayClusterConfigurationJsonInputDevice TrackerDevice;
-
-			TrackerDevice.Type = DisplayClusterConfigurationStrings::config::input::devices::VrpnDeviceTracker;
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Address, CfgInputTracker.Value->Address);
-
-			const FString Remapping = DisplayClusterHelpers::str::MapToStr(CfgInputTracker.Value->ChannelRemapping, DisplayClusterStrings::common::ArrayValSeparator, FString(":"), false);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Remapping, Remapping);
-
-			const TArray<float> Location = { CfgInputTracker.Value->OriginLocation.X / 100.f, CfgInputTracker.Value->OriginLocation.Y / 100.f, CfgInputTracker.Value->OriginLocation.Z / 100.f };
-			const FString LocationStr = DisplayClusterHelpers::str::ArrayToStr(Location);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::OriginLocation, LocationStr);
-
-			const TArray<float> Rotation = { CfgInputTracker.Value->OriginRotation.Pitch, CfgInputTracker.Value->OriginRotation.Yaw, CfgInputTracker.Value->OriginRotation.Roll };
-			const FString RotationStr = DisplayClusterHelpers::str::ArrayToStr(Rotation);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::OriginRotation, RotationStr);
-
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::OriginComponent, CfgInputTracker.Value->OriginComponent);
-			
-			const FString Front = DisplayClusterConfigurationJsonHelpers::ToString<EDisplayClusterConfigurationTrackerMapping>(CfgInputTracker.Value->Front);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Front, Front);
-
-			const FString Right = DisplayClusterConfigurationJsonHelpers::ToString<EDisplayClusterConfigurationTrackerMapping>(CfgInputTracker.Value->Right);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Right, Right);
-
-			const FString Up = DisplayClusterConfigurationJsonHelpers::ToString<EDisplayClusterConfigurationTrackerMapping>(CfgInputTracker.Value->Up);
-			TrackerDevice.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::devices::Up, Up);
-
-			Json.Input.Emplace(CfgInputTracker.Key, TrackerDevice);
-		}
-	}
-
-	// Input bindings
-	for (const auto& CfgInputBinding : Config->Input->InputBinding)
-	{
-		FDisplayClusterConfigurationJsonInputBinding InputBinding;
-
-		InputBinding.Device = CfgInputBinding.DeviceId;
-		InputBinding.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::binding::BindChannel, DisplayClusterTypesConverter::template ToString(CfgInputBinding.Channel));
-		InputBinding.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::binding::BindKey,     CfgInputBinding.Key);
-		InputBinding.Parameters.Emplace(DisplayClusterConfigurationStrings::config::input::binding::BindTo,      CfgInputBinding.BindTo);
-
-		Json.InputBindings.Add(InputBinding);
 	}
 
 	// Custom parameters

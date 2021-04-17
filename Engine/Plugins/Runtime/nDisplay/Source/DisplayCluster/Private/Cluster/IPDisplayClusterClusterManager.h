@@ -32,7 +32,6 @@ public:
 	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) = 0;
-	virtual void SyncInput()  = 0;
 	virtual void SyncEvents() = 0;
 	
 	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) = 0;

@@ -81,7 +81,6 @@ public:
 	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) override;
-	virtual void SyncInput()   override;
 	virtual void SyncEvents()  override;
 
 	virtual void ProvideNativeInputData(const TMap<FString, FString>& NativeInputData) override;

@@ -3,7 +3,6 @@
 #include "Components/DisplayClusterSceneComponent.h"
 
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Input/IPDisplayClusterInputManager.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
@@ -26,41 +25,7 @@
 
 UDisplayClusterSceneComponent::UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, TrackerChannel(-1)
 {
-	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
-	PrimaryComponentTick.bCanEverTick = true;
-}
-
-void UDisplayClusterSceneComponent::TickComponent( float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction )
-{
-	// Update transform if attached to a tracker
-	if (!TrackerId.IsEmpty())
-	{
-		const IPDisplayClusterInputManager* const InputMgr = GDisplayCluster->GetPrivateInputMgr();
-		if (InputMgr)
-		{
-			FVector Location;
-			FQuat Rotation;
-			const bool bLocAvail = InputMgr->GetTrackerLocation(TrackerId, TrackerChannel, Location);
-			const bool bRotAvail = InputMgr->GetTrackerQuat(TrackerId, TrackerChannel, Rotation);
-
-			if (bLocAvail && bRotAvail)
-			{
-				Location *= GetWorld()->GetWorldSettings()->WorldToMeters;
-
-				UE_LOG(LogDisplayClusterGame, Verbose, TEXT("%s update from tracker %s:%d - {loc %s} {quat %s}"),
-					*GetName(), *TrackerId, TrackerChannel, *Location.ToString(), *Rotation.ToString());
-
-				// Update transform
-				this->SetRelativeLocationAndRotation(Location, Rotation);
-				// Force child transforms update
-				UpdateChildTransforms(EUpdateTransformFlags::PropagateFromParent);
-			}
-		}
-	}
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
 
 bool UDisplayClusterSceneComponent::DoesComponentBelongToBlueprint() const
@@ -94,9 +59,6 @@ void UDisplayClusterSceneComponent::ApplyConfigurationData()
 	
 	if (ConfigData)
 	{
-		TrackerId = ConfigData->TrackerId;
-		TrackerChannel = ConfigData->TrackerChannel;
-
 		// Take place in hierarchy
 		if (!ConfigData->ParentId.IsEmpty())
 		{

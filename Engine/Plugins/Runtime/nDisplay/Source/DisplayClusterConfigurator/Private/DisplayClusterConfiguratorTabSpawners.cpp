@@ -59,22 +59,6 @@ TSharedRef<SWidget> FDisplayClusterViewClusterSummoner::CreateTabBody(const FWor
 	return BlueprintEditor.Pin()->GetViewCluster()->GetWidget();
 }
 
-FDisplayClusterViewInputSummoner::FDisplayClusterViewInputSummoner(
-	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> InHostingApp) : FDisplayClusterViewSummoner(FDisplayClusterConfiguratorEditorConfigurationMode::TabID_Input, InHostingApp)
-{
-	TabLabel = LOCTEXT("InputTabTitle", "Input");
-	TabIcon = FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.Tabs.Input");
-
-	ViewMenuDescription = LOCTEXT("InputTabDescription", "Input");
-	ViewMenuTooltip = LOCTEXT("Input_ToolTip", "Shows the input");
-}
-
-TSharedRef<SWidget> FDisplayClusterViewInputSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
-{
-	check(BlueprintEditor.IsValid());
-	return BlueprintEditor.Pin()->GetViewInput()->GetWidget();
-}
-
 FDisplayClusterSCSSummoner::FDisplayClusterSCSSummoner(TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> InHostingApp) : FDisplayClusterViewSummoner(FDisplayClusterConfiguratorEditorConfigurationMode::TabID_Scene, InHostingApp)
 {
 	TabLabel = LOCTEXT("ComponentsTabLabel", "Components");

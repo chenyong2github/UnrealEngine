@@ -452,121 +452,6 @@ public:
 };
 
 
-////////////////////////////////////////////////////////////////
-// Input
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDevice
-	: public UDisplayClusterConfigurationData_Base
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString Address;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	TMap<int32, int32> ChannelRemapping;
-};
-
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDeviceAnalog
-	: public UDisplayClusterConfigurationInputDevice
-{
-	GENERATED_BODY()
-};
-
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDeviceButton
-	: public UDisplayClusterConfigurationInputDevice
-{
-	GENERATED_BODY()
-};
-
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDeviceKeyboard
-	: public UDisplayClusterConfigurationInputDevice
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	EDisplayClusterConfigurationKeyboardReflectionType ReflectionType;
-};
-
-UCLASS()
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInputDeviceTracker
-	: public UDisplayClusterConfigurationInputDevice
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FVector  OriginLocation;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FRotator OriginRotation;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString  OriginComponent;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	EDisplayClusterConfigurationTrackerMapping Front;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	EDisplayClusterConfigurationTrackerMapping Right;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	EDisplayClusterConfigurationTrackerMapping Up;
-};
-
-
-USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationInputBinding
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString DeviceId;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	int32 Channel;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString Key;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	FString BindTo;
-};
-
-
-UCLASS(autoexpandcategories = nDisplay)
-class DISPLAYCLUSTERCONFIGURATION_API UDisplayClusterConfigurationInput
-	: public UDisplayClusterConfigurationData_Base
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationInputDeviceAnalog*> AnalogDevices;
-
-	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationInputDeviceButton*> ButtonDevices;
-
-	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationInputDeviceKeyboard*> KeyboardDevices;
-
-	UPROPERTY()
-	TMap<FString, UDisplayClusterConfigurationInputDeviceTracker*> TrackerDevices;
-
-	UPROPERTY(EditAnywhere, Category = nDisplay)
-	TArray<FDisplayClusterConfigurationInputBinding> InputBinding;
-
-protected:
-	virtual void GetObjectsToExport(TArray<UObject*>& OutObjects) override;
-};
-
-
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationDiagnostics
 {
@@ -622,9 +507,6 @@ public:
 
 	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
-
-	UPROPERTY(Export)
-	UDisplayClusterConfigurationInput* Input;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	TMap<FString, FString> CustomParameters;

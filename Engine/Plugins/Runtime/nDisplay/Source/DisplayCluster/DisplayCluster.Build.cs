@@ -7,6 +7,8 @@ public class DisplayCluster : ModuleRules
 {
 	public DisplayCluster(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
+		PublicDefinitions.Add("WITH_OCIO=0");
+
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"ActorLayerUtilities"
@@ -60,25 +62,5 @@ public class DisplayCluster : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
-
-		PublicDefinitions.Add("WITH_OCIO=0");
-
-		// 3rd party dependencies
-		AddThirdPartyDependencies(ROTargetRules);
-	}
-
-	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
-	{
-		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/"));
-
-		string PathLib = string.Empty;
-		string PathInc = string.Empty;
-
-		// VRPN
-		PathLib = Path.Combine(ThirdPartyPath, "VRPN/Lib");
-		PathInc = Path.Combine(ThirdPartyPath, "VRPN/Include");
-		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "vrpn.lib"));
-		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "quat.lib"));
-		PublicIncludePaths.Add(PathInc);
 	}
 }

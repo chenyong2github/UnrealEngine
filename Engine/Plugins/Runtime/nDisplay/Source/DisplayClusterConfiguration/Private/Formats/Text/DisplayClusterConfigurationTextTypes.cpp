@@ -183,14 +183,12 @@ bool FDisplayClusterConfigurationTextPostprocess::DeserializeFromString(const FS
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigurationTextSceneNode::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%s, %s=%s, %s=%d]"),
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%s]"),
 		*FDisplayClusterConfigurationTextBase::ToString(),
 		DisplayClusterConfigurationTextStrings::cfg::data::Id, *Id,
 		DisplayClusterConfigurationTextStrings::cfg::data::ParentId, *ParentId,
 		DisplayClusterConfigurationTextStrings::cfg::data::Loc, *Loc.ToString(),
-		DisplayClusterConfigurationTextStrings::cfg::data::Rot, *Rot.ToString(),
-		DisplayClusterConfigurationTextStrings::cfg::data::scene::TrackerId, *TrackerId,
-		DisplayClusterConfigurationTextStrings::cfg::data::scene::TrackerCh, TrackerCh);
+		DisplayClusterConfigurationTextStrings::cfg::data::Rot, *Rot.ToString());
 }
 
 bool FDisplayClusterConfigurationTextSceneNode::DeserializeFromString(const FString& line)
@@ -199,8 +197,6 @@ bool FDisplayClusterConfigurationTextSceneNode::DeserializeFromString(const FStr
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::ParentId),         ParentId);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::Loc),              Loc);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::Rot),              Rot);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::scene::TrackerId), TrackerId);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::scene::TrackerCh), TrackerCh);
 	return FDisplayClusterConfigurationTextBase::DeserializeFromString(line);
 }
 
@@ -241,55 +237,6 @@ bool FDisplayClusterConfigurationTextCamera::DeserializeFromString(const FString
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::camera::ForceOffset), ForceOffset);
 
 	return FDisplayClusterConfigurationTextSceneNode::DeserializeFromString(line);
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// Input
-//////////////////////////////////////////////////////////////////////////////////////////////
-FString FDisplayClusterConfigurationTextInput::ToString() const
-{
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s={%s}]"),
-		*FDisplayClusterConfigurationTextBase::ToString(),
-		DisplayClusterConfigurationTextStrings::cfg::data::Id, *Id,
-		DisplayClusterConfigurationTextStrings::cfg::data::input::Type, *Type,
-		TEXT("params"), *Params);
-}
-
-bool FDisplayClusterConfigurationTextInput::DeserializeFromString(const FString& line)
-{
-	// Save full string to allow an input device to parse (polymorphic)
-	Params = line;
-
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::Id),           Id);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::input::Type),  Type);
-	DisplayClusterHelpers::str::ExtractMap(line,   FString(DisplayClusterConfigurationTextStrings::cfg::data::input::Remap), ChMap, FString(","), TEXT(":"));
-
-	return FDisplayClusterConfigurationTextBase::DeserializeFromString(line);
-}
-
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// InputSetup
-//////////////////////////////////////////////////////////////////////////////////////////////
-FString FDisplayClusterConfigurationTextInputSetup::ToString() const
-{
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%d, %s=%s, %s=%s]"),
-		*FDisplayClusterConfigurationTextBase::ToString(),
-		DisplayClusterConfigurationTextStrings::cfg::data::Id, *Id,
-		DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Channel, Channel,
-		DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Key, *Key,
-		DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Bind, *BindName);
-}
-
-bool FDisplayClusterConfigurationTextInputSetup::DeserializeFromString(const FString& line)
-{
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::Id), Id);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Channel), Channel);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Key),     Key);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterConfigurationTextStrings::cfg::data::inputsetup::Bind),    BindName);
-
-	return FDisplayClusterConfigurationTextBase::DeserializeFromString(line);
 }
 
 

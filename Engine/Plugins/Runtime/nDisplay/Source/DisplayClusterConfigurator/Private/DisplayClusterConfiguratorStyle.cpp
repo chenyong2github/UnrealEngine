@@ -122,14 +122,6 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 	Style->Set("DisplayClusterConfigurator.TreeItems.Viewport", new IMAGE_BRUSH("TreeItems/SceneComponentScreen_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.TreeItems.Postprocess", new IMAGE_BRUSH("TreeItems/Postprocess_12x", Icon12x12));
 
-	// Input
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputContainer",      new IMAGE_BRUSH("TreeItems/InputContainer_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceAnalog",   new IMAGE_BRUSH("TreeItems/InputDeviceAnalog_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceButton",   new IMAGE_BRUSH("TreeItems/InputDeviceButton_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceKeyboard", new IMAGE_BRUSH("TreeItems/InputDeviceKeyboard_16x", Icon16x16));
-	Style->Set("DisplayClusterConfigurator.TreeItems.InputDeviceTracker",  new IMAGE_BRUSH("TreeItems/InputDeviceTracker_16x", Icon16x16));
-
-
 	// Icons
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowInfo", new IMAGE_BRUSH("OutputMapping/ToggleWindowInfo_16x", Icon16x16));
 	Style->Set("DisplayClusterConfigurator.OutputMapping.ToggleWindowCornerImage", new IMAGE_BRUSH("OutputMapping/CornerImage_16x", Icon16x16));

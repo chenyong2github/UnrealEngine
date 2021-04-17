@@ -166,30 +166,8 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
 
-	virtual void ResetTrackerIdOptions();
-
-protected:
-
-	TSharedRef<SWidget> MakeTrackerIdOptionComboWidget(TSharedPtr<FString> InItem);
-
-	void OnTrackerIdSelected(TSharedPtr<FString> ITrackerId, ESelectInfo::Type SelectInfo);
-
-	void AddTrackerIdRow();
-
-	FText GetSelectedTrackerIdText() const;
-
-	EVisibility GetLocationAndRotationVisibility() const;
-
 protected:
 	TWeakObjectPtr<class UDisplayClusterSceneComponent> SceneComponenPtr;
-
-	TArray< TSharedPtr< FString > >	TrackerIdOptions;
-
-	TSharedPtr<FString>	NoneOption;
-
-	TSharedPtr<IPropertyHandle> TrackerIdHandle;
-
-	TSharedPtr<SDisplayClusterConfigurationSearchableComboBox> TrackerIdComboBox;
 };
 
 struct FDisplayClusterConfiguratorAspectRatioPresetSize

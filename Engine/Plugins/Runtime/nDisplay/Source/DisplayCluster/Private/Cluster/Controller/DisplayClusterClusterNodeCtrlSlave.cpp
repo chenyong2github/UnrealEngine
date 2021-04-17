@@ -57,12 +57,6 @@ void FDisplayClusterClusterNodeCtrlSlave::GetSyncData(TMap<FString, FString>& Sy
 	ClusterSyncClient->GetSyncData(SyncData, SyncGroup);
 }
 
-void FDisplayClusterClusterNodeCtrlSlave::GetInputData(TMap<FString, FString>& InputData)
-{
-	check(ClusterSyncClient);
-	ClusterSyncClient->GetInputData(InputData);
-}
-
 void FDisplayClusterClusterNodeCtrlSlave::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 {
 	check(ClusterSyncClient);

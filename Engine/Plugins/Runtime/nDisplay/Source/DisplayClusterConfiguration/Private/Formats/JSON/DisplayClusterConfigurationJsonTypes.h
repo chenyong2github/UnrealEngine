@@ -218,15 +218,13 @@ struct FDisplayClusterConfigurationJsonSceneComponentXform
 
 public:
 	FDisplayClusterConfigurationJsonSceneComponentXform()
-		: FDisplayClusterConfigurationJsonSceneComponentXform(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), INDEX_NONE)
+		: FDisplayClusterConfigurationJsonSceneComponentXform(FString(), FVector::ZeroVector, FRotator::ZeroRotator)
 	{ }
 
-	FDisplayClusterConfigurationJsonSceneComponentXform(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerChannel)
+	FDisplayClusterConfigurationJsonSceneComponentXform(const FString& InParent, const FVector& InLocation, const FRotator& InRotation)
 		: Parent(InParent)
 		, Location(InLocation)
 		, Rotation(InRotation)
-		, TrackerId(InTrackerId)
-		, TrackerChannel(InTrackerChannel)
 	{ }
 
 public:
@@ -238,12 +236,6 @@ public:
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonRotator Rotation;
-
-	UPROPERTY()
-	FString TrackerId;
-
-	UPROPERTY()
-	int32 TrackerChannel;
 };
 
 USTRUCT()
@@ -254,11 +246,11 @@ struct FDisplayClusterConfigurationJsonSceneComponentCamera
 
 public:
 	FDisplayClusterConfigurationJsonSceneComponentCamera()
-		: FDisplayClusterConfigurationJsonSceneComponentCamera(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), INDEX_NONE, 0.064f, false, DisplayClusterConfigurationStrings::config::scene::camera::CameraStereoOffsetNone)
+		: FDisplayClusterConfigurationJsonSceneComponentCamera(FString(), FVector::ZeroVector, FRotator::ZeroRotator, 0.064f, false, DisplayClusterConfigurationStrings::config::scene::camera::CameraStereoOffsetNone)
 	{ }
 
-	FDisplayClusterConfigurationJsonSceneComponentCamera(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerChannel, float InInterpupillaryDistance, bool bInSwapEyes, FString InStereoOffset)
-		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation, InTrackerId, InTrackerChannel)
+	FDisplayClusterConfigurationJsonSceneComponentCamera(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, float InInterpupillaryDistance, bool bInSwapEyes, FString InStereoOffset)
+		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation)
 		, InterpupillaryDistance(InInterpupillaryDistance)
 		, SwapEyes(bInSwapEyes)
 		, StereoOffset(InStereoOffset)
@@ -283,11 +275,11 @@ struct FDisplayClusterConfigurationJsonSceneComponentScreen
 
 public:
 	FDisplayClusterConfigurationJsonSceneComponentScreen()
-		: FDisplayClusterConfigurationJsonSceneComponentScreen(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), INDEX_NONE, FVector2D::ZeroVector)
+		: FDisplayClusterConfigurationJsonSceneComponentScreen(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FVector2D::ZeroVector)
 	{ }
 
-	FDisplayClusterConfigurationJsonSceneComponentScreen(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerChannel, const FVector2D& InSize)
-		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation, InTrackerId, InTrackerChannel)
+	FDisplayClusterConfigurationJsonSceneComponentScreen(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FVector2D& InSize)
+		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation)
 		, Size(InSize)
 	{ }
 
@@ -304,11 +296,11 @@ struct FDisplayClusterConfigurationJsonSceneComponentMesh
 
 public:
 	FDisplayClusterConfigurationJsonSceneComponentMesh()
-		: FDisplayClusterConfigurationJsonSceneComponentMesh(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString(), INDEX_NONE, FString())
+		: FDisplayClusterConfigurationJsonSceneComponentMesh(FString(), FVector::ZeroVector, FRotator::ZeroRotator, FString())
 	{ }
 
-	FDisplayClusterConfigurationJsonSceneComponentMesh(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FString& InTrackerId, int32 InTrackerChannel, const FString& InAsset)
-		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation, InTrackerId, InTrackerChannel)
+	FDisplayClusterConfigurationJsonSceneComponentMesh(const FString& InParent, const FVector& InLocation, const FRotator& InRotation, const FString& InAsset)
+		: FDisplayClusterConfigurationJsonSceneComponentXform(InParent, InLocation, InRotation)
 		, Asset(InAsset)
 	{ }
 
@@ -437,33 +429,6 @@ public:
 };
 
 USTRUCT()
-struct FDisplayClusterConfigurationJsonInputDevice
-	: public FDisplayClusterConfigurationJsonPolymorphicEntity
-{
-	GENERATED_BODY()
-};
-
-USTRUCT()
-struct FDisplayClusterConfigurationJsonInput
-	: public FDisplayClusterConfigurationJsonPolymorphicEntity
-{
-	GENERATED_BODY()
-};
-
-USTRUCT()
-struct FDisplayClusterConfigurationJsonInputBinding
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY()
-	FString Device;
-
-	UPROPERTY()
-	TMap<FString, FString> Parameters;
-};
-
-USTRUCT()
 struct FDisplayClusterConfigurationJsonCluster
 {
 	GENERATED_BODY()
@@ -517,12 +482,6 @@ public:
 
 	UPROPERTY()
 	FDisplayClusterConfigurationJsonCluster Cluster;
-
-	UPROPERTY()
-	TMap<FString, FDisplayClusterConfigurationJsonInputDevice> Input;
-
-	UPROPERTY()
-	TArray<FDisplayClusterConfigurationJsonInputBinding> InputBindings;
 
 	UPROPERTY()
 	TMap<FString, FString> CustomParameters;

@@ -12,7 +12,6 @@
 
 
 class IPDisplayClusterClusterManager;
-class IPDisplayClusterInputManager;
 class IDisplayClusterNodeController;
 class IDisplayClusterClusterSyncObject;
 class UDisplayClusterConfigurationData;
@@ -63,7 +62,6 @@ private:
 
 private:
 	IPDisplayClusterClusterManager* ClusterMgr = nullptr;
-	IPDisplayClusterInputManager*   InputMgr = nullptr;
 
 	IDisplayClusterNodeController* NodeController = nullptr;
 
