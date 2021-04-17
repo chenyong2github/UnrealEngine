@@ -37,6 +37,6 @@ public:
 	// Sync events
 	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
 
-	// Sync native UE4 input
+	// Sync native UE input
 	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) = 0;
 };

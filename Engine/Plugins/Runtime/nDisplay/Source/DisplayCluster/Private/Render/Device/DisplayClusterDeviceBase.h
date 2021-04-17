@@ -150,7 +150,7 @@ protected:
 	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
 	int32 DesiredNumberOfViews = 0;
 
-	// UE4 main viewport
+	// UE main viewport
 	FViewport* MainViewport = nullptr;
 
 	bool bIsCustomPresentSet = false;

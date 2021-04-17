@@ -246,7 +246,7 @@ bool UDisplayClusterPreviewComponent::IsPreviewAvailable() const
 void UDisplayClusterPreviewComponent::RemovePreviewTexture()
 {
 #if WITH_EDITOR
-	//! FIXme Add/remove texture for UE4 resource collection
+	//! FIXme Add/remove texture for UE resource collection
 
 	//! @todo: add correct RenderTexture delete
 	//! 

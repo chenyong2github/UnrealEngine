@@ -158,7 +158,7 @@ namespace DisplayClusterConfigurationTextStrings
 			{
 				static constexpr auto Header                = TEXT("[general]");
 				static constexpr auto SwapSyncPolicy        = TEXT("swap_sync_policy");
-				static constexpr auto UnrealInputSyncPolicy = TEXT("ue4_input_sync_policy");
+				static constexpr auto UnrealInputSyncPolicy = TEXT("ue_input_sync_policy");
 			}
 
 			namespace nvidia

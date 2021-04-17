@@ -31,20 +31,7 @@ FDisplayClusterModule::FDisplayClusterModule()
 
 FDisplayClusterModule::~FDisplayClusterModule()
 {
-#if 1
 	GDisplayCluster = nullptr;
-#else
-	// WORKAROUND
-	// UE4 does something like that:
-	// 1. inst1 = new FDisplayClusterModule
-	// 2. inst2 = new FDisplayClusterModule
-	// 3. delete inst1
-	// To store valid pointer (inst2) I need the check below.
-	if (GDisplayCluster == this)
-	{
-		GDisplayCluster = nullptr;
-	}
-#endif
 }
 
 

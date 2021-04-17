@@ -18,9 +18,9 @@ auto FDisplayClusterAppExit::ExitTypeToStr(EExitType ExitType)
 	case EExitType::KillImmediately:
 		return TEXT("KILL");
 	case EExitType::NormalSoft:
-		return TEXT("UE4_soft");
+		return TEXT("UE_soft");
 	case EExitType::NormalForce:
-		return TEXT("UE4_force");
+		return TEXT("UE_force");
 	default:
 		return TEXT("unknown");
 	}
@@ -50,17 +50,6 @@ void FDisplayClusterAppExit::ExitApplication(EExitType ExitType, const FString& 
 
 			GLog->Flush();
 
-#if 0
-			if (IsInGameThread())
-			{
-				GLog->FlushThreadedLogs();
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				TGuardValue<bool> GuardMainThreadBlockedOnRenderThread(GMainThreadBlockedOnRenderThread, true);
-#endif
-				FPlatformMisc::PumpMessages(false);
-			}
-#endif
-
 			switch (ExitType)
 			{
 				case EExitType::KillImmediately:
@@ -72,8 +61,6 @@ void FDisplayClusterAppExit::ExitApplication(EExitType ExitType, const FString& 
 
 				case EExitType::NormalSoft:
 				{
-//@todo: This is workaround for exit issue - crash on exit. Need to be checked on new UE versions.
-// <ErrorMessage>Assertion failed: NumRemoved == 1 [File:D:\work\UE4.12.5.build\Engine\Source\Runtime\CoreUObject\Private\UObject\UObjectHash.cpp] [Line: 905] &nl;&nl;</ErrorMessage>
 					FProcHandle hProc = FPlatformProcess::OpenProcess(FPlatformProcess::GetCurrentProcessId());
 					FPlatformProcess::TerminateProc(hProc, true);
 					break;
