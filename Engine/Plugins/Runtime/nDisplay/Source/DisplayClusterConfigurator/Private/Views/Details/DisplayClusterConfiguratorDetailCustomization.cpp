@@ -78,11 +78,12 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 		TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
 		NDisplayCategory->GetDefaultProperties(CategoryProperties);
 
-		for (TSharedRef<IPropertyHandle>& Property : CategoryProperties)
+		for (TSharedRef<IPropertyHandle>& PropertyHandle : CategoryProperties)
 		{
-			if (Property->HasMetaData("nDisplayInstanceOnly"))
+			FProperty* Property = PropertyHandle->GetProperty();
+			if (PropertyHandle->HasMetaData("nDisplayInstanceOnly") || (Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate)))
 			{
-				Property->MarkHiddenByCustomization();
+				PropertyHandle->MarkHiddenByCustomization();
 			}
 		}
 	}

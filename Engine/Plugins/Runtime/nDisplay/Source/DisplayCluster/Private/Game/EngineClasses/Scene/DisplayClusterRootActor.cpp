@@ -45,8 +45,19 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 	, OperationMode(EDisplayClusterOperationMode::Disabled)
 {
 	// Root component
-	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-
+	/*
+	 * We HAVE to store the root component in our own UPROPERTY marked visible.
+	 * Live link has a property which maintains a component reference. Live link sets this
+	 * through their details panel automatically, which unreal validates in
+	 * FComponentReferenceCustomization::IsComponentReferenceValid.
+	 *
+	 * Unreal won't allow native components that don't have CPF_Edit to be set. Luckily
+	 * they search the owning class for a property containing the component.
+	 */
+	{
+		DisplayClusterRootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+		SetRootComponent(DisplayClusterRootComponent);
+	}
 	// A helper component to trigger nDisplay Tick() during Tick phase
 	SyncTickComponent = CreateDefaultSubobject<UDisplayClusterSyncTickComponent>(TEXT("DisplayClusterSyncTick"));
 
