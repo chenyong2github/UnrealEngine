@@ -1169,7 +1169,7 @@ void UBoxReflectionCaptureComponent::UpdatePreviewShape()
 
 float UBoxReflectionCaptureComponent::GetInfluenceBoundingRadius() const
 {
-	return (GetComponentTransform().GetScale3D() + FVector(BoxTransitionDistance)).Size();
+	return GetComponentTransform().GetScale3D().Size();
 }
 
 #if WITH_EDITOR
