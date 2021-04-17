@@ -1509,6 +1509,13 @@ RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel
 	}
 }
 
+RENDERCORE_API bool UseVirtualTextureLightmap(const FStaticFeatureLevel InFeatureLevel, const ITargetPlatform* TargetPlatform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextureLightmap = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(InFeatureLevel, TargetPlatform);
+	return bUseVirtualTextureLightmap;
+}
+
 RENDERCORE_API bool SupportsDesktopTemporalAA(const FStaticShaderPlatform Platform)
 {
 	static auto* MobileTemporalAAMethodCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.TemporalAAMethod"));
