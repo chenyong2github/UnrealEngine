@@ -546,7 +546,7 @@ public:
 	 */
 	void ReleaseAllNodes(bool bIncludePersistent);
 
-	FORCEINLINE bool IsOptimizedForDynamicData() const;
+	bool IsOptimizedForDynamicData() const;
 
 	void OptimizeForDynamicData();
 
