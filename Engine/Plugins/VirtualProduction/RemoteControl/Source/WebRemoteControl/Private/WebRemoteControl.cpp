@@ -600,8 +600,8 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 		const FBlockDelimiters& PropertyValueDelimiters = DeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
 		if (bResetToDefault)
 		{
-			constexpr bool bUseReplicator = true;
-			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator))
+			constexpr bool bAllowIntercept = true;
+			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept))
 			{
 				Response->Code = EHttpServerResponseCodes::Ok;
 			}
@@ -812,9 +812,9 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 		if (SetPropertyRequest.ResetToDefault)
 		{
-			// set a replicator as an extra argument {}
-			constexpr bool bUseReplicator = true;
-			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator);
+			// set interception flag as an extra argument {}
+			constexpr bool bAllowIntercept = true;
+			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept);
 		}
 		else
 		{
@@ -1089,8 +1089,8 @@ bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHt
 
 				if (SetPropertyRequest.ResetToDefault)
 				{
-					constexpr bool bUseReplicator = true;
-					bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bUseReplicator);
+					constexpr bool bAllowIntercept = true;
+					bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept);
 				}
 				else
 				{

@@ -5,21 +5,22 @@ using UnrealBuildTool;
 public class RemoteControl : ModuleRules
 {
 	public RemoteControl(ReadOnlyTargetRules Target) : base(Target)
-    {
+	{
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-                "Core",
-                "CoreUObject",
-            }
-        );
+				"Core",
+				"CoreUObject",
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
-            new string[] {
-            	"Cbor",
+			new string[] {
+				"Cbor",
 				"Engine",
+				"RemoteControlInterception",
 				"Serialization",
 			}
-        );
+		);
 
 		if (Target.bBuildEditor)
 		{

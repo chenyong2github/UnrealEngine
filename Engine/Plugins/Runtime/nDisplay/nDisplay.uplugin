@@ -95,6 +95,14 @@
 			"WhitelistPlatforms": [
 				"Win64"
 			]
+		},
+		{
+			"Name": "DisplayClusterRemoteControlInterceptor",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64"
+			]
 		}
 	],
 	"Plugins": [
@@ -108,6 +116,10 @@
 		},
 		{
 			"Name": "TextureShare",
+			"Enabled": true
+		},
+		{
+			"Name": "RemoteControlInterception",
 			"Enabled": true
 		}
 	]

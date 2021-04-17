@@ -1,18 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IRemoteControlModule.h"
+#include "IRemoteControlInterceptionFeature.h"
+
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
-#include "IRemoteControlReplicator.h"
-#include "IStructSerializerBackend.h"
+#include "Features/IModularFeatures.h"
 #include "Misc/CoreMisc.h"
-#include "RemoteControlPreset.h"
+#include "IStructSerializerBackend.h"
 #include "RemoteControlFieldPath.h"
+#include "RemoteControlInterceptionHelpers.h"
+#include "RemoteControlInterceptionProcessor.h"
+#include "RemoteControlPreset.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Class.h"
 #include "UObject/FieldPath.h"
+
 
 #if WITH_EDITOR
 	#include "ScopedTransaction.h"
@@ -155,6 +160,11 @@ public:
 		{
 			CachePresets();
 		}
+
+		// Instantiate the RCI processor feature on module start
+		RCIProcessor = MakeUnique<FRemoteControlInterceptionProcessor>();
+		// Register the interceptor feature
+		IModularFeatures::Get().RegisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 	}
 
 	virtual void ShutdownModule() override
@@ -164,6 +174,9 @@ public:
 			IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 			AssetRegistry.OnFilesLoaded().RemoveAll(this);
 		}
+
+		// Unregister the interceptor feature on module shutdown
+		IModularFeatures::Get().UnregisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 	}
 	
 	virtual FOnPresetRegistered& OnPresetRegistered() override
@@ -368,29 +381,6 @@ public:
 		return bSuccess;
 	}
 
-	virtual void RegisterReplicator(TSharedRef<IRemoteControlReplicator> InReplicator) override
-	{
-		if (InReplicator->GetName() != NAME_None)
-		{
-			RemoteControlReplicatorSet.Add(InReplicator);
-		}
-	}
-
-	virtual void UnregisterReplicator(FName ReplicatorName) override
-	{
-		if (ReplicatorName != NAME_None)
-		{
-			for (auto Iter = RemoteControlReplicatorSet.CreateIterator(); Iter; ++Iter)
-			{
-				const TSharedPtr<IRemoteControlReplicator>& Replicator = *Iter;
-				if (Replicator->GetName() == ReplicatorName)
-				{
-					Iter.RemoveCurrent();
-				}
-			}
-		}
-	}
-
 	virtual bool GetObjectProperties(const FRCObjectReference& ObjectAccess, IStructSerializerBackend& Backend) override
 	{
 		if (ObjectAccess.IsValid() && ObjectAccess.Access == ERCAccess::READ_ACCESS)
@@ -444,23 +434,34 @@ public:
 		return false;
 	}
 
-	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InReplicatePayload) override
+	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCPayloadType InPayloadType, const TArray<uint8>& InPayload) override
 	{
 		// Check the replication path before apply property values
-		if (InReplicatePayload.Num() != 0 && RemoteControlReplicatorSet.Num() != 0 && ObjectAccess.Object.IsValid())
+		if (InPayload.Num() != 0 && ObjectAccess.Object.IsValid())
 		{
+			// Build interception command
 			FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
-			FRCSetObjectPropertiesReplication ReplicatorReference(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ObjectAccess.Access, InPayloadType, InReplicatePayload);
+			FRCIPropertiesMetadata PropsMetadata(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ToExternal(ObjectAccess.Access), ToExternal(InPayloadType), InPayload);
 
-			bool bIntercept = false;
+			// Initialization
+			IModularFeatures& ModularFeatures = IModularFeatures::Get();
+			const FName InterceptorFeatureName = IRemoteControlInterceptionFeatureInterceptor::GetName();
+			const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
 
-			for (const TSharedPtr<IRemoteControlReplicator>& Replicator : RemoteControlReplicatorSet)
+			// Pass interception command data to all available interceptors
+			bool bShouldApply = false;
+			for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
 			{
-				const ERemoteControlReplicatorFlag ReturnReplicatorFlags = Replicator->InterceptSetObjectProperties(ReplicatorReference);
-				bIntercept |= IRemoteControlReplicator::HasAnyFlags(ReturnReplicatorFlags, RCRF_Intercept);
+				IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
+				if (Interceptor)
+				{
+					// Update response flag
+					bShouldApply |= (Interceptor->SetObjectProperties(PropsMetadata) == ERCIResponse::Apply);
+				}
 			}
 
-			if (bIntercept)
+			// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
+			if (bShouldApply)
 			{
 				return true;
 			}
@@ -532,29 +533,41 @@ public:
 		return false;
 	}
 
-	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bReplicate) override
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess, const bool bAllowIntercept) override
 	{
 		// Check the replication path before reset the property on this instance
-		if (bReplicate && RemoteControlReplicatorSet.Num() != 0 && ObjectAccess.Object.IsValid())
+		if (bAllowIntercept && ObjectAccess.Object.IsValid())
 		{
+			// Build interception command
 			FString PropertyPathString = TFieldPath<FProperty>(ObjectAccess.Property.Get()).ToString();
-			FRCObjectReplication ReplicatorReference(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ObjectAccess.Access);
+			FRCIObjectMetadata ObjectMetadata(ObjectAccess.Object->GetPathName(), PropertyPathString, ObjectAccess.PropertyPathInfo.ToString(), ToExternal(ObjectAccess.Access));
 
-			bool bIntercept = false;
+			// Initialization
+			IModularFeatures& ModularFeatures = IModularFeatures::Get();
+			const FName InterceptorFeatureName = IRemoteControlInterceptionFeatureInterceptor::GetName();
+			const int32 InterceptorsAmount = ModularFeatures.GetModularFeatureImplementationCount(IRemoteControlInterceptionFeatureInterceptor::GetName());
 
-			for (const TSharedPtr<IRemoteControlReplicator>& Replicator : RemoteControlReplicatorSet)
+			// Pass interception command data to all available interceptors
+			bool bShouldApply = false;
+			for (int32 InterceptorIdx = 0; InterceptorIdx < InterceptorsAmount; ++InterceptorIdx)
 			{
-				const ERemoteControlReplicatorFlag ReturnReplicatorFlags = Replicator->InterceptResetObjectProperties(ReplicatorReference);
-				bIntercept |= IRemoteControlReplicator::HasAnyFlags(ReturnReplicatorFlags, RCRF_Intercept);
+				IRemoteControlInterceptionFeatureInterceptor* const Interceptor = static_cast<IRemoteControlInterceptionFeatureInterceptor*>(ModularFeatures.GetModularFeatureImplementation(InterceptorFeatureName, InterceptorIdx));
+				if (Interceptor)
+				{
+					// Update response flag
+					bShouldApply |= (Interceptor->ResetObjectProperties(ObjectMetadata) == ERCIResponse::Apply);
+				}
 			}
 
-			if (bIntercept)
+			// Don't process the RC message if any of interceptors returned ERCIResponse::Intercept
+			if (bShouldApply)
 			{
 				return true;
 			}
 		}
 
-		if (ObjectAccess.IsValid() 
+
+		if (ObjectAccess.IsValid()
 			&& (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
 			UObject* Object = ObjectAccess.Object.Get();
@@ -727,8 +740,8 @@ private:
 	/** Delegate for preset unregistration */
 	FOnPresetUnregistered OnPresetUnregisteredDelegate;
 
-	/** Set of all replicator instances */
-	TSet<TSharedPtr<IRemoteControlReplicator>> RemoteControlReplicatorSet;
+	/** RC Processor feature instance */
+	TUniquePtr<IRemoteControlInterceptionFeatureProcessor> RCIProcessor;
 };
 
 #undef LOCTEXT_NAMESPACE
