@@ -555,9 +555,13 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 		{
 			PPBlendWeightTrack = NewMovieScene->AddTrack<UMovieSceneFloatTrack>(CameraComponentBindingID);
 			PPBlendWeightTrack->SetPropertyNameAndPath(PostProcessBlendWeightPropertyName, PostProcessBlendWeightPropertyName.ToString()); 
+			
 			UMovieSceneFloatSection* PPBlendWeightSection = CastChecked<UMovieSceneFloatSection>(PPBlendWeightTrack->CreateNewSection());
 			PPBlendWeightSection->SetRange(TRange<FFrameNumber>::All());
-			PPBlendWeightSection->GetChannel().SetDefault(CameraAnimToConvert->BasePostProcessBlendWeight);
+
+			FMovieSceneChannelProxy& ChannelProxy = PPBlendWeightSection->GetChannelProxy();
+			ChannelProxy.GetChannel<FMovieSceneFloatChannel>(0)->SetDefault(CameraAnimToConvert->BasePostProcessBlendWeight);
+			
 			PPBlendWeightTrack->AddSection(*PPBlendWeightSection);
 		}
 	}

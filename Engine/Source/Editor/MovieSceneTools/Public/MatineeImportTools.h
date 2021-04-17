@@ -39,7 +39,7 @@ class UMovieSceneVisibilityTrack;
 class UMovieSceneSlomoTrack;
 
 /** Defines how converted Sequence sections are sized */
-enum EMatineeImportSectionRangeMode
+enum class EMatineeImportSectionRangeMode
 {
 	/** Sections are made infinite */
 	All,
