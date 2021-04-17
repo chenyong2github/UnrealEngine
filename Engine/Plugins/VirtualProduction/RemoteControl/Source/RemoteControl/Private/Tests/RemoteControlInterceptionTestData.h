@@ -2,10 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RemoteControlReplicatorTestData.generated.h"
+#include "RemoteControlInterceptionTestData.generated.h"
+
 
 USTRUCT()
-struct FRemoteControlReplicatorCustomStruct
+struct FRemoteControlInterceptionTestStruct
 {
 	GENERATED_BODY()
 
@@ -15,12 +16,13 @@ struct FRemoteControlReplicatorCustomStruct
 	int32 Int32Value = Int32ValueDefault;
 };
 
+
 UCLASS()
-class URemoteControlReplicatorTestObject : public UObject
+class URemoteControlInterceptionTestObject : public UObject
 {
 public:
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "RC")
-	FRemoteControlReplicatorCustomStruct CustomStruct;
+	FRemoteControlInterceptionTestStruct CustomStruct;
 };
