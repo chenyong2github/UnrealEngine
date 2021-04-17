@@ -271,6 +271,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	Style->Set("NiagaraEditor.Module.AddPin", new IMAGE_PLUGIN_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Module.RemovePin", new IMAGE_PLUGIN_BRUSH("Icons/MinusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Scratch", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Yellow));
+
+	// Overview debug icons
+	Style->Set("NiagaraEditor.Overview.DebugActive", new IMAGE_PLUGIN_BRUSH("Icons/OverviewDebugActive", Icon16x16));
+	Style->Set("NiagaraEditor.Overview.DebugInactive", new IMAGE_PLUGIN_BRUSH("Icons/OverviewDebugInactive", Icon16x16));
 	
 	// Emitter details customization
 	Style->Set("NiagaraEditor.MaterialWarningBorder", new BOX_CORE_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f)));
