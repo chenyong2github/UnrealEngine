@@ -1252,10 +1252,10 @@ void USceneCapturer::Tick( float DeltaTime )
 			{
 				// switch to 8 bit/channel
 				TArray<FColor> CombinedAtlas8bit;
+				CombinedAtlas8bit.Empty( CombinedAtlas.Num() );
 				for (FLinearColor& Color : CombinedAtlas)
 				{
-					FColor t = Color.Quantize();
-					CombinedAtlas8bit.Add(t);
+					CombinedAtlas8bit.Add( Color.QuantizeRound() );
 				}
 
 				// save as png 8bit/channel

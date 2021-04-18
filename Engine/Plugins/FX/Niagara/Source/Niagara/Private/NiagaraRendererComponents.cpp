@@ -77,7 +77,7 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 	else if (SourceType == FNiagaraTypeDefinition::GetColorDef() && TargetType == UNiagaraComponentRendererProperties::GetFColorDef())
 	{
 		FLinearColor Data = SourceVariable.GetValue<FLinearColor>();
-		TargetVariable.SetValue<FColor>(Data.Quantize());
+		TargetVariable.SetValue<FColor>(Data.QuantizeRound());
 	}
 	else if (SourceType == FNiagaraTypeDefinition::GetVec3Def() && TargetType == UNiagaraComponentRendererProperties::GetFRotatorDef())
 	{

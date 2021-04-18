@@ -342,6 +342,13 @@ struct FLinearColor
 	{		
 		return R * 0.3f + G * 0.59f + B * 0.11f;
 	}
+	
+	FORCEINLINE float GetLuminance() const 
+	{
+		// duplicate function
+		// @todo remove me
+		return ComputeLuminance();
+	}
 
 	/**
 	 * Returns the maximum value in this color structure
@@ -367,11 +374,6 @@ struct FLinearColor
 	FORCEINLINE float GetMin() const
 	{
 		return FMath::Min( FMath::Min( FMath::Min( R, G ), B ), A );
-	}
-
-	FORCEINLINE float GetLuminance() const 
-	{ 
-		return R * 0.3f + G * 0.59f + B * 0.11f; 
 	}
 
 	FString ToString() const
@@ -535,6 +537,50 @@ public:
 	* Converts temperature in Kelvins of a black body radiator to RGB chromaticity.
 	*/
 	static CORE_API FColor MakeFromColorTemperature( float Temp );
+
+	static uint8 Requantize10to8( int Value10 )
+	{
+		check( Value10 >= 0 && Value10 <= 1023 );
+
+		// Dequantize from 10 bit (Value10/1023.f)
+		// requantize to 8 bit with rounding (GPU convention)
+		//  this is the computation we want :
+		// (int)( (Value10/1023.f)*255.f + 0.5f );
+		// this gives the exactly the same results :
+		int Temp = Value10*255 + (1<<9);
+		int Value8 = (Temp + (Temp >> 10)) >> 10;
+		return (uint8)Value8;
+	}
+	
+	static uint8 Requantize16to8(int Value16)
+	{
+		check( Value16 >= 0 && Value16 <= 65535 );
+
+		// Dequantize x from 16 bit (Value16/65535.f)
+		// then requantize to 8 bit with rounding (GPU convention)
+
+		// matches exactly with :
+		//  (int)( (Value16/65535.f) * 255.f + 0.5f );
+		int Value8 = (Value16*255 + 32895)>>16;
+		return (uint8)Value8;
+	}
+
+	/**
+	* Return 8-bit color Quantized from 10-bit RGB , 2-bit A
+	*/
+	static FColor MakeRequantizeFrom1010102( int R, int G, int B, int A )
+	{
+		check( A >= 0 && A <= 3 );
+
+		// requantize 2 bits to 8 ; could bit-replicate or just table lookup :
+		const uint8 Requantize2to8[4] = { 0, 0x55, 0xAA, 0xFF };
+		return FColor(
+			Requantize10to8(R),
+			Requantize10to8(G),
+			Requantize10to8(B),
+			Requantize2to8[A] );
+
+	}
 
 	/**
 	 *	@return a new FColor based of this color with the new alpha value.

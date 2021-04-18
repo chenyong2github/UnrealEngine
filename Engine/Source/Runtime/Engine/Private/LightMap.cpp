@@ -920,7 +920,7 @@ static void GenerateLightmapMipsAndDilateColor(int32 NumMips, int32 TextureSizeX
 				}
 				else if(Coverage)
 				{
-					DestColor = ( AccumulatedColor / Coverage ).Quantize();
+					DestColor = ( AccumulatedColor / Coverage ).QuantizeRound();
 					DestCoverage = Coverage / (MipFactorX * MipFactorY);
 				}
 				else
@@ -977,7 +977,7 @@ static void GenerateLightmapMipsAndDilateColor(int32 NumMips, int32 TextureSizeX
 
 					if(Coverage)
 					{
-						DestColor = (AccumulatedColor / Coverage).Quantize();
+						DestColor = (AccumulatedColor / Coverage).QuantizeRound();
 						DestCoverage = -1;
 					}
 				}

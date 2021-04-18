@@ -1014,7 +1014,7 @@ namespace
 	// Unpack a quantized vector into the [-1,1]x[-1,1]x[-1,1] cube
 	FVector UnPackQuantizedVector(const FColor& QuantizedNormal)
 	{
-		FVector Vector(QuantizedNormal.R / 256.f, QuantizedNormal.G / 256.f, QuantizedNormal.B / 256.f);
+		FVector Vector(QuantizedNormal.R / 255.f, QuantizedNormal.G / 255.f, QuantizedNormal.B / 255.f);
 
 		Vector = 2.f * Vector - FVector(1., 1., 1.);
 		return Vector;
@@ -1024,7 +1024,7 @@ namespace
 	{
 		FVector Tmp = 0.5 * (Vector + FVector(1., 1., 1.));
 		FLinearColor LinearColor(Tmp);
-		return LinearColor.Quantize();
+		return LinearColor.QuantizeRound();
 	}
 
 	// Specialized version for the normal map. 

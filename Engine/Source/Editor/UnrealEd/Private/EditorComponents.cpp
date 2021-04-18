@@ -635,7 +635,7 @@ void FEditorCommonDrawHelper::DrawOriginAxisLine(FVector* A,FVector* B,float* AX
 	*AX = 0;
 	*BX = 0;
 
-	PDI->DrawLine(*A,*B,FLinearColor(Color.Quantize()),SDPG_World);
+	PDI->DrawLine(*A,*B,Color,SDPG_World);
 }
 
 
