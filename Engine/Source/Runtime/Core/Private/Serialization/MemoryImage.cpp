@@ -1004,7 +1004,7 @@ public:
 		return Instance;
 	}
 
-	FHashedNameRegistry() : MemStack(0)
+	FHashedNameRegistry()
 	{
 		const char NoneString[] = "None";
 		EmptyString = RegisterString(FName(), NoneString, sizeof(NoneString), "", 0u);

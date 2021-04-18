@@ -115,7 +115,7 @@ static bool ShouldCull(const FSlateWindowElementList& ElementList, const FPaintG
 FSlateWindowElementList::FSlateWindowElementList(const TSharedPtr<SWindow>& InPaintWindow)
 	: WeakPaintWindow(InPaintWindow)
 	, RawPaintWindow(InPaintWindow.Get())
-	, MemManager(0)
+	, MemManager()
 #if STATS
 	, MemManagerAllocatedMemory(0)
 #endif

@@ -67,7 +67,7 @@ private:
 		T Alloc;
 	};
 
-	FMemStackBase MemStack{0};
+	FMemStackBase MemStack;
 	TArray<FTrackedAlloc*> TrackedAllocs;
 
 	template <uint32>

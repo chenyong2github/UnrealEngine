@@ -144,7 +144,6 @@ class FRayTracingLocalShaderBindingWriter
 public:
 
 	FRayTracingLocalShaderBindingWriter()
-		: ParameterMemory(0)
 	{}
 
 	FRayTracingLocalShaderBindingWriter(const FRayTracingLocalShaderBindingWriter&) = delete;

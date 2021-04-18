@@ -79,11 +79,6 @@ public:
 	{
 	}
 
-	FMemStackBase(int unused) : FMemStackBase()
-	{
-		// @todo : remove uses of this constructor
-	}
-
 	~FMemStackBase()
 	{
 		check((GIsCriticalError || !NumMarks));

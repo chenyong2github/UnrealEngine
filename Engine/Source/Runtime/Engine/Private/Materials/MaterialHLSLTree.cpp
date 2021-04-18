@@ -12,7 +12,7 @@
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 
-FMaterialHLSLTree::FMaterialHLSLTree() : Allocator(0)
+FMaterialHLSLTree::FMaterialHLSLTree()
 {
 }
 

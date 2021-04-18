@@ -66,7 +66,6 @@ struct FCpuProfilerTraceInternal
 		: public FTlsAutoCleanup
 	{
 		FThreadBuffer()
-			: DynamicScopeNamesMemory(0)
 		{
 		}
 
