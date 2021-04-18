@@ -1103,7 +1103,7 @@ namespace FNiagaraUtilities
 
 	// When enabled log more information for the end user
 #if NO_LOGGING
-	bool LogVerboseWarnings() { return false; }
+	inline bool LogVerboseWarnings() { return false; }
 #else
 	bool LogVerboseWarnings();
 #endif
