@@ -9,6 +9,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SRCProtocolShared.h"
+#include "Widgets/Views/SListView.h"
+
 
 class FProtocolRangeViewModel;
 class FProtocolBindingViewModel;

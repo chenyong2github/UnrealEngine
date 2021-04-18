@@ -2,6 +2,7 @@
 
 #include "RCPropertyContainer.h"
 
+#include "Editor.h"
 #include "RemoteControlProtocolWidgetsModule.h"
 
 namespace PropertyContainers

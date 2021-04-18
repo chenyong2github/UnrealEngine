@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 
 #include "SRCProtocolShared.h"
+#include "ViewModels/ProtocolBindingViewModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 class SRCProtocolRangeList;
 class FProtocolRangeViewModel;
-class FProtocolBindingViewModel;
 
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBinding : public STableRow<TSharedPtr<FProtocolBindingViewModel>>
 {

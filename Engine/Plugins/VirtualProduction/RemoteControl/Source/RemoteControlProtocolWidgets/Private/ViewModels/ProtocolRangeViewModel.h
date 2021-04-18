@@ -6,8 +6,10 @@
 
 #include "ProtocolBindingViewModel.h"
 #include "RemoteControlPreset.h"
+#include "ScopedTransaction.h"
 
 class FProtocolBindingViewModel;
+class IPropertyHandle;
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
 

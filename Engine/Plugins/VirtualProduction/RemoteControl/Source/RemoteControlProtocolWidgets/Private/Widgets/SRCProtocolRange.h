@@ -4,18 +4,20 @@
 
 #include "CoreMinimal.h"
 
-#include "Widgets/Input/SNumericEntryBox.h"
 #include "Serialization/BufferArchive.h"
 
 #include "UObject/StrongObjectPtr.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/SRCProtocolRangeList.h"
 
 class FProtocolBindingViewModel;
 class FProtocolRangeViewModel;
 struct FRemoteControlProtocolMapping;
+class IPropertyRowGenerator;
 class SRemoteControlProtocolWidgetExtension;
 
 class SRCProtocolRange : public STableRow<TSharedPtr<FProtocolRangeViewModel>>

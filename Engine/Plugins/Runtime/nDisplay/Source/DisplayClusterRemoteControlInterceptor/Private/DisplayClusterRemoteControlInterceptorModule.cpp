@@ -4,6 +4,7 @@
 #include "DisplayClusterRemoteControlInterceptorLog.h"
 #include "DisplayClusterRemoteControlInterceptor.h"
 
+#include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
 #include "IRemoteControlInterceptionFeature.h"
 

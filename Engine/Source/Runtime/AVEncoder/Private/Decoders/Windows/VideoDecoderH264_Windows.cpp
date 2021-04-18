@@ -24,6 +24,10 @@
 #include <Microsoft/COMPointer.h>
 #include "MicrosoftCommon.h"
 
+#include "Containers/Queue.h"
+#include "Misc/ScopeLock.h"
+#include "Templates/RefCounting.h"
+
 #include "VideoDecoderCommon.h"
 #include "VideoDecoderAllocationTypes.h"
 #include "VideoDecoderUtilities.h"

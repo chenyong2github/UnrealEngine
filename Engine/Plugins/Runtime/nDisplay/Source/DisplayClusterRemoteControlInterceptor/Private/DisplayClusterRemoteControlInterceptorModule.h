@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleInterface.h"
+#include "Templates/UniquePtr.h"
 
 class IRemoteControlInterceptionFeatureInterceptor;
 

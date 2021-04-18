@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "GeoReferencingEditorBPLibrary.generated.h"
+
 
 UCLASS()
 class GEOREFERENCINGEDITOR_API UGeoReferencingEditorBPLibrary : public UBlueprintFunctionLibrary

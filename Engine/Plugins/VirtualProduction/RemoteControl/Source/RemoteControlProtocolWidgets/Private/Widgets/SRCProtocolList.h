@@ -3,7 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
+
+class ITableRow;
+class SComboButton;
+class STableViewBase;
 
 /** A dropdown list of available protocols */
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolList : public SCompoundWidget

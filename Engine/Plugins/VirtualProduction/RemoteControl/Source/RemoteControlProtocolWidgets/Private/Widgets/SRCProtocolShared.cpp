@@ -2,7 +2,9 @@
 
 #include "SRCProtocolShared.h"
 
+#include "EditorStyleSet.h"
 #include "SlateOptMacros.h"
+#include "Widgets/SBoxPanel.h"
 
 namespace  RemoteControlProtocolWidgetUtils
 {

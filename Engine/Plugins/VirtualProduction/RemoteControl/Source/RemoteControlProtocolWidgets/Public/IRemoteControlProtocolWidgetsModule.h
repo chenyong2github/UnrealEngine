@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 
 class URemoteControlPreset;
+class SWidget;
 
 /** A Remote Control module that provides editor widgets for protocol bindings. */
 class IRemoteControlProtocolWidgetsModule : public IModuleInterface

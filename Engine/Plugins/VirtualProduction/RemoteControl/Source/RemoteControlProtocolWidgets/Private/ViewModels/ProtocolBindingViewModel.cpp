@@ -2,6 +2,7 @@
 
 #include "ViewModels/ProtocolBindingViewModel.h"
 
+#include "Editor.h"
 #include "IRemoteControlProtocolModule.h"
 #include "ProtocolCommandChange.h"
 #include "ProtocolEntityViewModel.h"

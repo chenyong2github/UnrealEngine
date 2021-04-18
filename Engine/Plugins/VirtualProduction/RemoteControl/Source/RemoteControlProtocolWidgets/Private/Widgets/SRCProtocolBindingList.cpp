@@ -3,9 +3,14 @@
 #include "SRCProtocolBindingList.h"
 
 #include "EditorFontGlyphs.h"
+#include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IRemoteControlProtocolModule.h"
 #include "SRCProtocolBinding.h"
 #include "SRCProtocolList.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/SNullWidget.h"
 #include "ViewModels/ProtocolEntityViewModel.h"
 
