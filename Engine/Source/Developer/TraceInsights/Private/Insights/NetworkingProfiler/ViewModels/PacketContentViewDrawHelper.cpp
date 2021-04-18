@@ -256,7 +256,7 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const TraceServices::FNetProfi
 			// Grey threshold is shifted toward black (0.4 instead of 0.5 in test below) due to "area rule":
 			// a large gray surface (background of an event in this case) is perceived lighter than a smaller area (text pixels).
 			// Ref: https://books.google.ro/books?id=0pVr7dhmdWYC
-			const bool bIsDarkColor = (EventColorFill.ComputeLuminance() < 0.4f);
+			const bool bIsDarkColor = (EventColorFill.GetLuminance() < 0.4f);
 
 			DrawState.Texts.AddDefaulted();
 			FPacketContentViewDrawState::FTextPrimitive& DrawText = DrawState.Texts.Last();

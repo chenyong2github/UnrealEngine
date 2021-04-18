@@ -51,7 +51,7 @@ FLinearColor FStaticLightingMesh::SampleBRDF(
 
 	const FLinearColor Diffuse = EvaluateDiffuse(Vertex.TextureCoordinates[0], ElementIndex);
 
-	const float DiffuseIntensity = Diffuse.ComputeLuminance();
+	const float DiffuseIntensity = Diffuse.GetLuminance();
 	
 	// Generate a direction based on the cosine lobe
 	FVector4 TangentPathDirection = GetCosineHemisphereVector(RandomStream);

@@ -78,7 +78,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 		FLinearColor FinalTint = FSequencerSectionPainter::BlendColor(Tint);
 		if (bIsHighlighted && Section.GetRange() != TRange<FFrameNumber>::All())
 		{
-			float Lum = FinalTint.ComputeLuminance() * 0.2f;
+			float Lum = FinalTint.GetLuminance() * 0.2f;
 			FinalTint = FinalTint + FLinearColor(Lum, Lum, Lum, 0.f);
 		}
 

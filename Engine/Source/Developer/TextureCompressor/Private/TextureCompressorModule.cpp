@@ -473,7 +473,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 					}
 				}
 
-				float NewLuminance = SharpenedColor.ComputeLuminance();
+				float NewLuminance = SharpenedColor.GetLuminance();
 
 				// simple 2x2 kernel to compute the color
 				FilteredColor =
@@ -482,7 +482,7 @@ static void GenerateSharpenedMipB8G8R8A8Templ(
 					+ LookupSourceMip<AddressMode>( SourceImageData, SourceX + 0, SourceY + 1 )
 					+ LookupSourceMip<AddressMode>( SourceImageData, SourceX + 1, SourceY + 1 ) ) * 0.25f;
 
-				float OldLuminance = FilteredColor.ComputeLuminance();
+				float OldLuminance = FilteredColor.GetLuminance();
 
 				if ( OldLuminance > 0.001f )
 				{

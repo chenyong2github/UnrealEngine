@@ -268,7 +268,7 @@ void SEnvironmentLightingViewer::Tick(const FGeometry& AllottedGeometry, const d
 					/*|| AtmosphericLight->*/)
 					continue;
 
-				float LightLuminance = AtmosphericLight->GetColoredLightBrightness().ComputeLuminance();
+				float LightLuminance = AtmosphericLight->GetColoredLightBrightness().GetLuminance();
 				if (!SelectedAtmosphericLight ||					// Set it if null
 					SelectedLightLuminance < LightLuminance)		// Or choose the brightest atmospheric light
 				{

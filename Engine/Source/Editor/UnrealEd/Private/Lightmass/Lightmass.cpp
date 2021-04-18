@@ -1046,10 +1046,10 @@ void FLightmassExporter::WriteLights( int32 Channel )
 		for (int32 LightIndex = 0; LightIndex < DirectionalLights.Num(); ++LightIndex)
 		{
 			const UDirectionalLightComponent* Light = DirectionalLights[LightIndex];
-			if (Light->IsUsedAsAtmosphereSunLight() && Light->GetColoredLightBrightness().ComputeLuminance() > AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()])
+			if (Light->IsUsedAsAtmosphereSunLight() && Light->GetColoredLightBrightness().GetLuminance() > AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()])
 			{
 				AtmosphereLights[Light->GetAtmosphereSunLightIndex()] = Light;
-				AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()] = Light->GetColoredLightBrightness().ComputeLuminance();
+				AtmosphereLightsBrightness[Light->GetAtmosphereSunLightIndex()] = Light->GetColoredLightBrightness().GetLuminance();
 			}
 		}
 

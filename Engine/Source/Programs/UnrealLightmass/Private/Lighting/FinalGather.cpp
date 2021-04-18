@@ -753,7 +753,7 @@ public:
 						{
 							const FLightingAndOcclusion RootElementLighting = GetRootValue(ThetaIndex, PhiIndex);
 							const FLinearColor Radiance = RootElementLighting.Lighting + RootElementLighting.StationarySkyLighting;
-							const float RelativeBrightness = Radiance.ComputeLuminance() / AverageBrightness;
+							const float RelativeBrightness = Radiance.GetLuminance() / AverageBrightness;
 
 							for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors); NeighborIndex++)
 							{
@@ -765,7 +765,7 @@ public:
 								if (NeighborTheta >= 0 && NeighborTheta < NumThetaSteps)
 								{
 									const FLightingAndOcclusion NeighborLighting = GetRootValue(NeighborTheta, NeighborPhi);
-									const float NeighborBrightness = (NeighborLighting.Lighting + NeighborLighting.StationarySkyLighting).ComputeLuminance();
+									const float NeighborBrightness = (NeighborLighting.Lighting + NeighborLighting.StationarySkyLighting).GetLuminance();
 									const float NeighborRelativeBrightness = NeighborBrightness / AverageBrightness;
 									MaxRelativeDifference = FMath::Max(MaxRelativeDifference, FMath::Abs(RelativeBrightness - NeighborRelativeBrightness));
 
@@ -891,7 +891,7 @@ public:
 							{
 								const FLightingAndOcclusion ChildLighting = ChildNode->Element.Lighting;
 								const FLinearColor Radiance = ChildLighting.Lighting + ChildLighting.StationarySkyLighting;
-								const float RelativeBrightness = Radiance.ComputeLuminance() / AverageBrightness;
+								const float RelativeBrightness = Radiance.GetLuminance() / AverageBrightness;
 
 								// Only search the axis neighbors past the first depth
 								for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors) / 2; NeighborIndex++)
@@ -902,7 +902,7 @@ public:
 									// Query must be done on the center of the cell
 									const FVector2D NeighborUV = FVector2D(NeighborU, NeighborV) + NodeContext.Size / 4;
 									const FLightingAndOcclusion NeighborLighting = GetValue(NeighborUV);
-									const float NeighborBrightness = (NeighborLighting.Lighting + NeighborLighting.StationarySkyLighting).ComputeLuminance();
+									const float NeighborBrightness = (NeighborLighting.Lighting + NeighborLighting.StationarySkyLighting).GetLuminance();
 									const float NeighborRelativeBrightness = NeighborBrightness / AverageBrightness;
 									MaxRelativeDifference = FMath::Max(MaxRelativeDifference, FMath::Abs(RelativeBrightness - NeighborRelativeBrightness));
 									MaxSkyOcclusionDifference = FMath::Max(MaxSkyOcclusionDifference, FMath::Abs(ChildLighting.UnoccludedSkyVector.SizeSquared() - NeighborLighting.UnoccludedSkyVector.SizeSquared()));

@@ -60,7 +60,7 @@ float FImportanceTexture::ImportanceWeight(FColor Texel, TEnumAsByte<EImportance
 	FLinearColor LinearTexel = (Texture.IsValid() && Texture->SRGB) ? FLinearColor(Texel) : Texel.ReinterpretAsLinear();
 
 	switch (WeightingFunc) {
-	case EImportanceWeight::Luminance:	return LinearTexel.ComputeLuminance();
+	case EImportanceWeight::Luminance:	return LinearTexel.GetLuminance();
 	case EImportanceWeight::Red:		return LinearTexel.R;
 	case EImportanceWeight::Green:		return LinearTexel.G;
 	case EImportanceWeight::Blue:		return LinearTexel.B;

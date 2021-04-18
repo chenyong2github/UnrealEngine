@@ -3724,7 +3724,7 @@ void FScene::ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightS
 	{
 		const uint8 Index = LightSceneInfo->Proxy->GetAtmosphereSunLightIndex();
 		if (!AtmosphereLights[Index] ||																								// Set it if null
-			LightSceneInfo->Proxy->GetColor().ComputeLuminance() > AtmosphereLights[Index]->Proxy->GetColor().ComputeLuminance())	// Or choose the brightest sun light
+			LightSceneInfo->Proxy->GetColor().GetLuminance() > AtmosphereLights[Index]->Proxy->GetColor().GetLuminance())	// Or choose the brightest sun light
 		{
 			AtmosphereLights[Index] = LightSceneInfo;
 		}
@@ -3743,7 +3743,7 @@ void FScene::ProcessAtmosphereLightRemoval_RenderThread(FLightSceneInfo* LightSc
 		for (TSparseArray<FLightSceneInfoCompact>::TConstIterator It(Lights); It; ++It)
 		{
 			const FLightSceneInfoCompact& LightInfo = *It;
-			float LightLuminance = LightInfo.LightSceneInfo->Proxy->GetColor().ComputeLuminance();
+			float LightLuminance = LightInfo.LightSceneInfo->Proxy->GetColor().GetLuminance();
 
 			if (LightInfo.LightSceneInfo != LightSceneInfo
 				&& LightInfo.LightSceneInfo->Proxy->IsUsedAsAtmosphereSunLight() && LightInfo.LightSceneInfo->Proxy->GetAtmosphereSunLightIndex() == Index

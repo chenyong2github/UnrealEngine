@@ -350,7 +350,7 @@ void FSceneRenderer::InitFogConstants()
 				if (SunLight)
 				{
 					View.InscatteringLightDirection = -SunLight->Proxy->GetDirection();
-					View.DirectionalInscatteringColor = FogInfo.DirectionalInscatteringColor * SunLight->Proxy->GetColor().ComputeLuminance();
+					View.DirectionalInscatteringColor = FogInfo.DirectionalInscatteringColor * SunLight->Proxy->GetColor().GetLuminance();
 				}
 				View.bUseDirectionalInscattering = SunLight != nullptr;
 			}

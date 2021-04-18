@@ -2,13 +2,12 @@
 
 #include "ProxyLODMeshAttrTransfer.h"
 #include "ProxyLODBarycentricUtilities.h" // for some of the barycentric stuff
-
+#include "Templates/CheckValueCast.h"
 
 
 template<int Size>
 FColor AverageColor(const FColor(&Colors)[Size])
 {
-	FColor Result;
 	// Accumulate with floats because FColor is only 8-bit
 	float Tmp[4] = { 0,0,0,0 };
 	for (int i = 0; i < Size; ++i)
@@ -18,12 +17,13 @@ FColor AverageColor(const FColor(&Colors)[Size])
 		Tmp[2] += Colors[i].B;
 		Tmp[3] += Colors[i].A;
 	}
-	for (int i = 0; i < Size; ++i) Tmp[i] *= 1.f / float(Size);
-
-	Result.R = Tmp[0];
-	Result.G = Tmp[1];
-	Result.B = Tmp[2];
-	Result.A = Tmp[3];
+	for (int i = 0; i < 4; ++i) Tmp[i] *= 1.f / float(Size);
+	
+	FColor Result;
+	Result.R = TCheckValueCast<uint8>( (int)(0.5f + Tmp[0] ) );
+	Result.G = TCheckValueCast<uint8>( (int)(0.5f + Tmp[1] ) );
+	Result.B = TCheckValueCast<uint8>( (int)(0.5f + Tmp[2] ) );
+	Result.A = TCheckValueCast<uint8>( (int)(0.5f + Tmp[3] ) );
 
 	return Result;
 }
@@ -242,10 +242,10 @@ void ProxyLOD::TransferVertexColors(const FClosestPolyField& SrcPolyField, FMesh
 
 					FLinearColor InterpolatedColor = InterpolateVertexData(Weights, WedgeColors);
 
-					float AveLum = WedgeColors[0].ComputeLuminance() + WedgeColors[1].ComputeLuminance() + WedgeColors[2].ComputeLuminance();
+					float AveLum = WedgeColors[0].GetLuminance() + WedgeColors[1].GetLuminance() + WedgeColors[2].GetLuminance();
 					AveLum /= 3.f;
 
-					float LumTmp = InterpolatedColor.ComputeLuminance();
+					float LumTmp = InterpolatedColor.GetLuminance();
 					if (LumTmp > 1.e-5 && AveLum > 1.e-5)
 					{
 						InterpolatedColor *= AveLum / LumTmp;

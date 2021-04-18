@@ -877,7 +877,7 @@ namespace
 			}
 			else
 			{
-				Result = Color.ComputeLuminance();
+				Result = Color.GetLuminance();
 			}
 
 			return Result;

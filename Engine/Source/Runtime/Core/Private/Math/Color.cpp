@@ -173,7 +173,7 @@ FColor FLinearColor::QuantizeRound() const
  */
 FLinearColor FLinearColor::Desaturate( float Desaturation ) const
 {
-	float Lum = ComputeLuminance();
+	float Lum = GetLuminance();
 	return FMath::Lerp( *this, FLinearColor( Lum, Lum, Lum, 0 ), Desaturation );
 }
 
