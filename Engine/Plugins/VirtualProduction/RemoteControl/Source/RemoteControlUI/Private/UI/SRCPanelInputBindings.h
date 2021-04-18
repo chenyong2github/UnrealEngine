@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 struct FRemoteControlEntity;
+class SBox;
 class SRCPanelExposedEntitiesList;
 struct SRCPanelTreeNode;
 class URemoteControlPreset;

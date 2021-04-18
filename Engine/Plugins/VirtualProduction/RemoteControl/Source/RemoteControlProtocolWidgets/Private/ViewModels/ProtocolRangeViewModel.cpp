@@ -2,6 +2,7 @@
 
 #include "ProtocolRangeViewModel.h"
 
+#include "Editor.h"
 #include "IRemoteControlModule.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"

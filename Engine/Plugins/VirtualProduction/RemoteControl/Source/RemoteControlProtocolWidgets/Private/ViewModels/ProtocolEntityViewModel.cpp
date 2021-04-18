@@ -2,11 +2,13 @@
 
 #include "ProtocolEntityViewModel.h"
 
+#include "Editor.h"
 #include "IRemoteControlProtocol.h"
 #include "IRemoteControlProtocolModule.h"
 #include "ProtocolBindingViewModel.h"
 #include "ProtocolCommandChange.h"
 #include "RemoteControlPreset.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolEntityViewModel"
 

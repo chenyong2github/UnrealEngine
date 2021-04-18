@@ -4,6 +4,8 @@
 
 #include <CoreMinimal.h>
 
+#include "Containers/Queue.h"
+
 #include "VideoDecoderCommon.h"
 #include "VideoDecoderAllocationTypes.h"
 #include "VideoDecoderUtilities.h"

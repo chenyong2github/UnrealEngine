@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorUndoClient.h"
 #include "UObject/WeakFieldPtr.h"
 
 class FProtocolBindingViewModel;

@@ -5,6 +5,7 @@
 #include "SDropTarget.h"
 #include "SRCProtocolRangeList.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SRCProtocolStruct.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"

@@ -2,5 +2,6 @@
 
 #include "RemoteControlInterceptionModule.h"
 
+#include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FRemoteControlInterceptionModule, RemoteControlInterception)

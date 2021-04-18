@@ -5,9 +5,12 @@
 #include "CoreMinimal.h"
 #include "SRCProtocolShared.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/SListView.h"
 
+class ITableRow;
 class SRCProtocolList;
 class SRCProtocolBinding;
+class STableViewBase;
 class FProtocolEntityViewModel;
 class FProtocolBindingViewModel;
 

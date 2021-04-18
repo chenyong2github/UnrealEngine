@@ -7,6 +7,7 @@
 #include "Math/NumericLimits.h"
 #include "MediaPacket.h"
 #include "Misc/Optional.h"
+#include "Templates/RefCounting.h"
 
 class FWmfMp4Writer final
 {

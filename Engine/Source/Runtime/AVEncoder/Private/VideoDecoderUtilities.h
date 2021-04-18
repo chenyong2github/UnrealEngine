@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformProcess.h"
 
 
 namespace AVEncoder

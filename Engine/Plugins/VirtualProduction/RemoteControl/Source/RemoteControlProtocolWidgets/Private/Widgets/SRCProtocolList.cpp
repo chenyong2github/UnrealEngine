@@ -2,8 +2,10 @@
 
 #include "SRCProtocolList.h"
 
-#include "IRemoteControlProtocolModule.h"
 #include "Algo/Transform.h"
+#include "EditorStyleSet.h"
+#include "IRemoteControlProtocolModule.h"
+#include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 
