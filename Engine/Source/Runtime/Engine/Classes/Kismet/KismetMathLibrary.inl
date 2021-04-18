@@ -3562,7 +3562,10 @@ FLinearColor UKismetMathLibrary::RGBLinearToHSV(FLinearColor RGB)
 KISMET_MATH_FORCEINLINE
 FColor UKismetMathLibrary::LinearColor_Quantize(FLinearColor InColor)
 {
-	return InColor.Quantize();
+	// @todo remove LinearColor_Quantize from Kismet?
+	//	QuantizeRound should almost always be used instead
+	// call QuantizeFloor to match old behavior :
+	return InColor.QuantizeFloor();
 }
 
 KISMET_MATH_FORCEINLINE

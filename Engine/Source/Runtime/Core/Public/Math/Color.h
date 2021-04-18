@@ -322,6 +322,7 @@ struct FLinearColor
 	/** backwards compatible Quantize function name, does QuantizeFloor.
 	* @todo deprecate me
 	*/
+	UE_DEPRECATED(5.0,"Most callers of Quantize should have been calling QuantizeRound; to match old behavior use QuantizeFloor")
 	CORE_API FColor Quantize() const;
 
 	/** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion. 
