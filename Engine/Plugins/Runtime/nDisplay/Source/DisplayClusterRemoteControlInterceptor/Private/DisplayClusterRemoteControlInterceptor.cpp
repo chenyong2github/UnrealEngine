@@ -12,6 +12,7 @@
 #include "Serialization/MemoryReader.h"
 #include "UObject/FieldPath.h"
 
+#include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
 
 
