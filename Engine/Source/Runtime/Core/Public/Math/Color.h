@@ -51,6 +51,7 @@ struct FLinearColor
 	/**
 	 * Converts an FColor which is assumed to be in sRGB space, into linear color space.
 	 * @param Color The sRGB color that needs to be converted into linear space.
+	 * to get direct conversion use ReinterpretAsLinear
 	 */
 	CORE_API FLinearColor(const FColor& Color);
 
@@ -81,7 +82,10 @@ struct FLinearColor
 	 * Converts an FColor coming from an observed sRGB output, into a linear color.
 	 * @param Color The sRGB color that needs to be converted into linear space.
 	 */
-	CORE_API static FLinearColor FromSRGBColor(const FColor& Color);
+	CORE_API static FLinearColor FromSRGBColor(const FColor& Color)
+	{
+		return FLinearColor(Color);
+	}
 
 	/**
 	 * Converts an FColor coming from an observed Pow(1/2.2) output, into a linear color.
@@ -302,13 +306,27 @@ struct FLinearColor
 	 */
 	static CORE_API FLinearColor LerpUsingHSV( const FLinearColor& From, const FLinearColor& To, const float Progress );
 
-	/** Quantizes the linear color and returns the result as a FColor.  This bypasses the SRGB conversion. */
+	/** Quantizes the linear color with rounding and returns the result as a FColor.  This bypasses the SRGB conversion. 
+	* QuantizeRound can be dequantized back to linear with FColor::ReinterpretAsLinear (just /255.f)
+	* this matches the GPU U8<->float conversion spec and should be preferred
+	*/
+	CORE_API FColor QuantizeRound() const;
+	
+	/** Quantizes the linear color and returns the result as a FColor.  This bypasses the SRGB conversion.
+	* Uses floor quantization, which does not match the GPU standard conversion.
+	* Restoration to float should be done with a +0.5 bias to restore to centered buckets.
+	* Do NOT use this for graphics or textures or images, use QuantizeRound instead.
+	*/
+	CORE_API FColor QuantizeFloor() const;
+
+	/** backwards compatible Quantize function name, does QuantizeFloor.
+	* @todo deprecate me
+	*/
 	CORE_API FColor Quantize() const;
 
-	/** Quantizes the linear color with rounding and returns the result as a FColor.  This bypasses the SRGB conversion. */
-	CORE_API FColor QuantizeRound() const;
-
-	/** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion and quality as goal. */
+	/** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion. 
+	* Clamps in [0,1] range before conversion.
+	*/
 	CORE_API FColor ToFColor(const bool bSRGB) const;
 
 	/**
@@ -529,7 +547,8 @@ public:
 
 	/**
 	 * Reinterprets the color as a linear color.
-	 *
+	 * This is the correct dequantizer for QuantizeRound.
+	 * This matches the GPU spec conversion for U8<->float
 	 * @return The linear color representation.
 	 */
 	FORCEINLINE FLinearColor ReinterpretAsLinear() const

@@ -8,6 +8,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
 #include "Math/Float16Color.h"
+#include "Templates/CheckValueCast.h"
 
 // Common colors.
 const FLinearColor FLinearColor::White(1.f,1.f,1.f);
@@ -34,18 +35,14 @@ const FColor FColor::Turquoise(26, 188, 156);
 const FColor FColor::Silver(189, 195, 199);
 const FColor FColor::Emerald(46, 204, 113);
 
-/**
-* Helper used by FColor -> FLinearColor conversion. We don't use a lookup table as unlike pow, multiplication is fast.
-*/
-static const float OneOver255 = 1.0f / 255.0f;
-
-//	FColor->FLinearColor conversion.
+// FLinearColor(FColor) does sRGB -> Linear conversion.
+// to get direct conversion use ReinterpretAsLinear
 FLinearColor::FLinearColor(const FColor& Color)
 {
 	R = sRGBToLinearTable[Color.R];
 	G = sRGBToLinearTable[Color.G];
 	B =	sRGBToLinearTable[Color.B];
-	A =	float(Color.A) * OneOver255;
+	A =	float(Color.A) * (1.0f / 255.0f);
 }
 
 FLinearColor::FLinearColor(const FVector& Vector) :
@@ -70,24 +67,13 @@ FLinearColor::FLinearColor(const FFloat16Color& C)
 	A =	C.A.GetFloat();
 }
 
-FLinearColor FLinearColor::FromSRGBColor(const FColor& Color)
-{
-	FLinearColor LinearColor;
-	LinearColor.R = sRGBToLinearTable[Color.R];
-	LinearColor.G = sRGBToLinearTable[Color.G];
-	LinearColor.B =	sRGBToLinearTable[Color.B];
-	LinearColor.A =	float(Color.A) * OneOver255;
-
-	return LinearColor;
-}
-
 FLinearColor FLinearColor::FromPow22Color(const FColor& Color)
 {
 	FLinearColor LinearColor;
 	LinearColor.R = Pow22OneOver255Table[Color.R];
 	LinearColor.G = Pow22OneOver255Table[Color.G];
 	LinearColor.B =	Pow22OneOver255Table[Color.B];
-	LinearColor.A =	float(Color.A) * OneOver255;
+	LinearColor.A =	float(Color.A) * (1.0f / 255.0f);
 
 	return LinearColor;
 }
@@ -112,10 +98,11 @@ FColor FLinearColor::ToRGBE() const
 		int32 Exponent = 1 + (int32)logbf(Primary);
 		const float Scale = ldexpf(1.f, -Exponent + 8);
 
-		Color.R = (uint8)FMath::Clamp(FMath::TruncToInt(R * Scale), 0, 255);
-		Color.G = (uint8)FMath::Clamp(FMath::TruncToInt(G * Scale), 0, 255);
-		Color.B = (uint8)FMath::Clamp(FMath::TruncToInt(B * Scale), 0, 255);
-		Color.A = (uint8)(FMath::Clamp(Exponent,-128,127) + 128);
+		// no clamp needed, should always fit in uint8 :
+		Color.R = TCheckValueCast<uint8>(FMath::TruncToInt(R * Scale));
+		Color.G = TCheckValueCast<uint8>(FMath::TruncToInt(G * Scale));
+		Color.B = TCheckValueCast<uint8>(FMath::TruncToInt(B * Scale));
+		Color.A = TCheckValueCast<uint8>(Exponent + 128);
 	}
 
 	return Color;
@@ -150,6 +137,16 @@ FColor FLinearColor::ToFColor(const bool bSRGB) const
 
 FColor FLinearColor::Quantize() const
 {
+	// @todo deprecate me
+	// change callers to use QuantizeRound mostly, and explicit QuantizeFloor where needed
+	return QuantizeFloor();
+}
+
+FColor FLinearColor::QuantizeFloor() const
+{
+	// Do not use this for graphics or textures or images, they should use QuantizeRound
+	// replicates behavior of old Quantize() which is deprecated
+	// restoration should be done to bucket centers (+0.5 on dequantize)
 	return FColor(
 		(uint8)FMath::Clamp<int32>(FMath::TruncToInt(R*255.f),0,255),
 		(uint8)FMath::Clamp<int32>(FMath::TruncToInt(G*255.f),0,255),

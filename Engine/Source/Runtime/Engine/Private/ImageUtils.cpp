@@ -707,7 +707,6 @@ private:
 	template<typename TSourceColorType>
 	void WriteHDRBits(FArchive& Ar, TSourceColorType* SourceTexels)
 	{
-		const FRandomStream RandomStream(0xA1A1);
 		const int32 NumChannels = 4;
 		const int32 SizeX = Size.X;
 		const int32 SizeY = Size.Y;
@@ -735,9 +734,8 @@ private:
 			for (int32 x = 0; x < SizeX; x++)
 			{
 				FLinearColor LinearColor(*SourceTexels);
-				FColor RGBEColor = ToRGBEDithered(LinearColor, RandomStream);
+				FColor RGBEColor = LinearColor.ToRGBE();
 
-				FLinearColor lintest = RGBEColor.FromRGBE();
 				ScanLine[0].Add(RGBEColor.R);
 				ScanLine[1].Add(RGBEColor.G);
 				ScanLine[2].Add(RGBEColor.B);
@@ -773,38 +771,6 @@ private:
 		{
 			WriteHDRBits(Ar, (FColor*)RawData.GetData());
 		}
-	}
-
-	/**
-	 * Converts from a linear float color to RGBE as outlined in Gregory Ward's Real Pixels article, Graphics Gems II, page 80.
-	 * Implementation details in https://cbloomrants.blogspot.com/2020/06/widespread-error-in-radiance-hdr-rgbe.html
-	 */ 
-	static FColor ToRGBEDithered(const FLinearColor& ColorIN, const FRandomStream& Rand)
-	{
-		const float R = ColorIN.R;
-		const float G = ColorIN.G;
-		const float B = ColorIN.B;
-		const float Primary = FMath::Max3(R, G, B);
-		FColor	ReturnColor;
-
-		if (Primary < 1E-32)
-		{
-			ReturnColor = FColor(0, 0, 0, 0);
-		}
-		else
-		{
-			// The following replaces a call to frexpf, because frexpf would have a warning for an unused return value.
-			// Additionally, this usage of logbf assumes FLT_RADIX == 2
-			int32 Exponent = 1 + (int32)logbf(Primary);
-			const float Scale = ldexpf(1.f, -Exponent + 8);
-
-			ReturnColor.R = FMath::Clamp(FMath::TruncToInt((R * Scale) + Rand.GetFraction()), 0, 255);
-			ReturnColor.G = FMath::Clamp(FMath::TruncToInt((G * Scale) + Rand.GetFraction()), 0, 255);
-			ReturnColor.B = FMath::Clamp(FMath::TruncToInt((B * Scale) + Rand.GetFraction()), 0, 255);
-			ReturnColor.A = FMath::Clamp(FMath::TruncToInt(Exponent), -128, 127) + 128;
-		}
-
-		return ReturnColor;
 	}
 
 	FIntPoint Size;
