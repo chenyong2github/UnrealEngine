@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AsyncCallback.h"
+#include "ChaosVehicleManagerAsyncCallback.h"
 
 #include "ChaosVehicleMovementComponent.h"
 #include "PBDRigidsSolver.h"
@@ -56,12 +56,12 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 	{
 		const FChaosVehicleAsyncInput& VehicleInput = *InputVehiclesBatch[Idx];
 
-		if (VehicleInput.Actor.Proxy == nullptr || VehicleInput.Actor.Proxy->GetPhysicsThreadAPI() == nullptr)
+		if (VehicleInput.Proxy == nullptr || VehicleInput.Proxy->GetPhysicsThreadAPI() == nullptr)
 		{
 			return;
 		}
 
-		auto Handle = VehicleInput.Actor.Proxy->GetPhysicsThreadAPI();
+		auto Handle = VehicleInput.Proxy->GetPhysicsThreadAPI();
 		if (Handle->ObjectState() != Chaos::EObjectStateType::Dynamic)
 		{
 			return;

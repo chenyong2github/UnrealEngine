@@ -55,7 +55,6 @@ FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 void FChaosVehicleManager::RegisterCallbacks()
 {
 	OnPhysScenePreTickHandle = Scene.OnPhysScenePreTick.AddRaw(this, &FChaosVehicleManager::Update);
-	OnPhysSceneStepHandle = Scene.OnPhysSceneStep.AddRaw(this, &FChaosVehicleManager::SubStep);
 	OnPhysScenePostTickHandle = Scene.OnPhysScenePostTick.AddRaw(this, &FChaosVehicleManager::PostUpdate);
 
 	check(AsyncCallback == nullptr);
@@ -65,7 +64,6 @@ void FChaosVehicleManager::RegisterCallbacks()
 void FChaosVehicleManager::UnregisterCallbacks()
 {
 	Scene.OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
-	Scene.OnPhysSceneStep.Remove(OnPhysSceneStepHandle);
 	Scene.OnPhysScenePostTick.Remove(OnPhysScenePostTickHandle);
 
 	if (AsyncCallback)
@@ -184,28 +182,6 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 			Vehicle->FinalizeSimCallbackData(*AsyncInput);
 		}
 	}
-}
-
-void FChaosVehicleManager::SubStep(FPhysScene* PhysScene, float DeltaTime)
-{
-// #TODO: needs a callback from the physics thread during sub-step
-	//if (SubStepCount++ > 0)	//ignore first substep
-	//{
-	//	ParallelUpdateVehicles(DeltaTime);
-	//	//if (UWorld* World = GetWorld())
-	//	//{
-	//	//	for (TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle : Vehicles)
-	//	//	{
-	//	//		if (UPrimitiveComponent* RootPrim = Cast<UPrimitiveComponent>(Vehicle->GetRootComponent()))
-	//	//		{
-	//	//			if (RootPrim->GetBodyInstance() && !Vehicle->IsAsleep())
-	//	//			{
-	//	//				Vehicle->Substep(DeltaTime);
-	//	//			}
-	//	//		}
-	//	//	}
-	//	//}
-	//}
 }
 
 void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)

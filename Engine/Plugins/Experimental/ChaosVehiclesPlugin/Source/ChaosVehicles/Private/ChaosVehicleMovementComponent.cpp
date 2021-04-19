@@ -1670,13 +1670,13 @@ TUniquePtr<FChaosVehicleAsyncOutput> FChaosVehicleDefaultAsyncInput::Simulate(UW
 	//UE_LOG(LogChaos, Warning, TEXT("Vehicle Physics Thread Tick %f"), DeltaSeconds);
 
 	//support nullptr because it allows us to go wide on filling the async inputs
-	if (Actor.Proxy == nullptr)
+	if (Proxy == nullptr)
 	{
 		return Output;
 	}
 
 	// We now have access to the physics representation of the chassis on the physics thread async tick
-	Chaos::FRigidBodyHandle_Internal* Handle = Actor.Proxy->GetPhysicsThreadAPI();
+	Chaos::FRigidBodyHandle_Internal* Handle = Proxy->GetPhysicsThreadAPI();
 
 	// FILL OUTPUT DATA HERE THAT WILL GET PASSED BACK TO THE GAME THREAD
 	Vehicle->VehicleSimulationPT->TickVehicle(World, DeltaSeconds, *this, *Output.Get(), Handle);
@@ -1697,7 +1697,7 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 		{
 			if (auto Handle = BodyInstance->ActorHandle)
 			{
-				CurAsyncInput->Actor.Proxy = Handle;	// vehicles are never static
+				CurAsyncInput->Proxy = Handle;	// vehicles are never static
 
 				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
 				AsyncInput->ControlInputs.ThrottleInput = ThrottleInputRate.CalcControlFunction(ThrottleInput);

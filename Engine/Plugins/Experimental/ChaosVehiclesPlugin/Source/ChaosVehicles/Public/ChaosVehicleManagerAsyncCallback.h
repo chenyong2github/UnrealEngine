@@ -97,9 +97,7 @@ struct FChaosVehicleAsyncInput
 	const EChaosAsyncVehicleDataType Type;
 	UChaosVehicleMovementComponent* Vehicle;
 	
-	union {
-		FSingleParticlePhysicsProxy* Proxy;
-	} Actor;
+	FSingleParticlePhysicsProxy* Proxy;
 
 	/** 
 	* Vehicle simulation running on the Physics Thread
@@ -110,7 +108,7 @@ struct FChaosVehicleAsyncInput
 		: Type(InType)
 		, Vehicle(nullptr)
 	{
-		Actor.Proxy = nullptr;	//indicates async/sync task not needed
+		Proxy = nullptr;	//indicates async/sync task not needed
 	}
 
 	virtual ~FChaosVehicleAsyncInput() = default;

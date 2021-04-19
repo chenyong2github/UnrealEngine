@@ -8,7 +8,7 @@
 #include "Chaos/SimCallbackInput.h"
 #include "Chaos/SimCallbackObject.h"
 #include "Chaos/GeometryParticlesfwd.h"
-#include "AsyncCallback.h"
+#include "ChaosVehicleManagerAsyncCallback.h"
 
 class UChaosTireConfig;
 class UChaosVehicleMovementComponent;
@@ -50,13 +50,7 @@ public:
 	/** Detach this vehicle manager from a FPhysScene (remove delegates, remove from map etc) */
 	void DetachFromPhysScene(FPhysScene* PhysScene);
 
-	/*
-	* Flow:
-	*	Update .. SubStep .. PostUpdate
-	*/
-
 	void Update(FPhysScene* PhysScene, float DeltaTime);
-	void SubStep(FPhysScene* PhysScene, float DeltaTime);
 	void PostUpdate(FChaosScene* PhysScene);
 
 	void ParallelUpdateVehicles(float DeltaSeconds);
@@ -82,7 +76,6 @@ private:
 	TArray<TWeakObjectPtr<UChaosVehicleMovementComponent>> Vehicles;
 
 	FDelegateHandle OnPhysScenePreTickHandle;
-	FDelegateHandle OnPhysSceneStepHandle;
 	FDelegateHandle OnPhysScenePostTickHandle;
 
 	static FDelegateHandle OnPostWorldInitializationHandle;
