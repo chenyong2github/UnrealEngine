@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelSnapshot.h"
+#include "Data/LevelSnapshot.h"
 
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
@@ -135,9 +135,10 @@ namespace
 bool ULevelSnapshot::IsActorDesirableForCapture(const AActor* Actor)
 {
 	// TODO: Create project settings blacklist
-	return DoesActorHaveSupportedClass(Actor)
+	return IsValid(Actor)
+			&& DoesActorHaveSupportedClass(Actor)
 			&& !Actor->IsTemplate()								// Should never happen, but we never want CDOs
-			&& !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
+			// TODO: Temp test for USD && !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
 #if WITH_EDITOR
 			&& Actor->IsEditable()
             && Actor->IsListedInSceneOutliner() 				// Only add actors that are allowed to be selected and drawn in editor
@@ -169,7 +170,7 @@ bool ULevelSnapshot::IsRestorableProperty(const FProperty* Property)
 		&& Property->HasAllPropertyFlags(RequiredFlags);
 }
 
-void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, ULevelSnapshotSelectionSet* SelectionSet)
+void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
 	EnsureWorldInitialised();
 
@@ -191,6 +192,7 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, ULevelSnapshotSel
 
 void ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeLevelSnapshot"), STAT_TakeLevelSnapshot, STATGROUP_LevelSnapshots);
 	if (!ensure(TargetWorld))
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Unable To Snapshot World as World was invalid"));
@@ -245,7 +247,9 @@ bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* S
 
 bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* Property, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const
 {
-	if (!IsRestorableProperty(Property))
+	// Ensure that property's flags are allowed. Skip check collection properties, e.g. FArrayProperty::Inner, etc.: inner properties do not have the same flags.
+	const bool bIsInCollection = FPropertyInfoHelpers::IsPropertyInCollection(Property);
+	if (!bIsInCollection && !IsRestorableProperty(Property))
 	{
 		return true;
 	}
@@ -254,12 +258,15 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 	{
 		void* SnapshotValuePtr = Property->ContainerPtrToValuePtr<void>(SnapshotContainer, i);
 		void* WorldValuePtr = Property->ContainerPtrToValuePtr<void>(WorldContainer, i);
-	
+
+		// Check whether property value points to a subobject
 		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
 			return ShouldConsiderObjectsEquivalent(SerializedData, ObjectProperty, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor);
 		}
 
+
+		// Use our custom equality function for array, set, and map inner properties
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
 			FScriptArrayHelper SnapshotArray(ArrayProperty, SnapshotValuePtr);
@@ -284,19 +291,23 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 		
 		if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 		{
-			// TODO: Check subobjects
+			// TODO: Use custom function. Need to do something similar to UE4MapProperty_Private::IsPermutation
 		}
 
 		if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
 		{
-			// TODO: Check for subobjects
+			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
 		}
-		
+
+
+		// Check whether float is nearly equal instead of exactly equal
 		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
 		{
 			return FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(NumericProperty, SnapshotValuePtr, WorldValuePtr);
 		}
+
 		
+		// Use our custom equality function for struct properties
 		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			for (TFieldIterator<FProperty> FieldIt(StructProperty->Struct); FieldIt; ++FieldIt)
@@ -309,6 +320,7 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 			return true;
 		}
 
+		
 		// Use normal property comparison for all other properties
 		if (!Property->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
 		{
@@ -342,23 +354,52 @@ int32 ULevelSnapshot::GetNumSavedActors() const
 	return bHasLegacyData ? ActorSnapshots.Num() : SerializedData.GetNumSavedActors();
 }
 
-void ULevelSnapshot::ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const
+void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DiffWorld"), STAT_DiffWorld, STATGROUP_LevelSnapshots);
+	if (!ensure(World && HandleMatchedActor.IsBound() && HandleRemovedActor.IsBound() && HandleAddedActor.IsBound()))
+	{
+		return;
+	}
+
 	const bool bHasLegacyData = ActorSnapshots.Num() > 0;
 	if (bHasLegacyData)
 	{
-		for (auto ActorIt = ActorSnapshots.CreateConstIterator(); ActorIt; ++ActorIt)
+		for (auto It = ActorSnapshots.CreateConstIterator(); It; ++It)
 		{
-			HandleOriginalActorPath(ActorIt->Key);
+			HandleMatchedActor.Execute(It->Key);
+		}
+		return;
+	}
+
+	// Find actors that are not present in the snapshot
+	for (ULevel* Level : World->GetLevels())
+	{
+		for (AActor* ActorInLevel : Level->Actors)
+		{
+			// Warning: ActorInLevel can be null
+			if (IsValid(ActorInLevel) && IsActorDesirableForCapture(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel))
+			{
+				HandleAddedActor.Execute(ActorInLevel);
+			}
 		}
 	}
-	else
-	{
-		SerializedData.ForEachOriginalActor([&HandleOriginalActorPath](const FSoftObjectPath& OriginalActorPath)
-        {
-            HandleOriginalActorPath(OriginalActorPath);
-        });
-	}
+
+	// Try to find world actors and call appropriate callback
+	SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor](const FSoftObjectPath& OriginalActorPath)
+    {
+		// TODO: we need to check whether the actor's class was blacklisted in the project settings
+		const bool bWasRemovedFromWorld = OriginalActorPath.ResolveObject() == nullptr;
+		if (bWasRemovedFromWorld)
+		{
+			// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
+			HandleRemovedActor.Execute(OriginalActorPath);
+		}
+		else
+		{
+			HandleMatchedActor.Execute(OriginalActorPath);
+		}
+    });
 }
 
 void ULevelSnapshot::SetSnapshotName(const FName& InSnapshotName)
@@ -452,12 +493,15 @@ void ULevelSnapshot::DestroyWorld()
 	}
 }
 
-void ULevelSnapshot::LegacyApplySnapshotToWorld(ULevelSnapshotSelectionSet* SelectionSet)
+void ULevelSnapshot::LegacyApplySnapshotToWorld(const FPropertySelectionMap& SelectionSet)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplySnapshotToWorld"), STAT_ApplySnapshotToWorld, STATGROUP_LevelSnapshots);
 
+	ULevelSnapshotSelectionSet* LegacySelectionSet = NewObject<ULevelSnapshotSelectionSet>();
+	LegacySelectionSet->AddPropertyMap(SelectionSet);
+	
 	TSet<AActor*> EvaluatedActors;
-	for (const FSoftObjectPath& Path : SelectionSet->GetSelectedWorldObjectPaths())
+	for (const FSoftObjectPath& Path : LegacySelectionSet->GetSelectedWorldObjectPaths())
 	{
 		if (Path.IsValid())
 		{
@@ -484,7 +528,7 @@ void ULevelSnapshot::LegacyApplySnapshotToWorld(ULevelSnapshotSelectionSet* Sele
 				{
 					if (const FLevelSnapshot_Actor* ActorSnapshot = ActorSnapshots.Find(ActorToPass))
 					{
-						ActorSnapshot->DeserializeIntoWorldActor(ActorToPass, SelectionSet);
+						ActorSnapshot->DeserializeIntoWorldActor(ActorToPass, LegacySelectionSet);
 					}
 						
 					EvaluatedActors.Add(ActorToPass);

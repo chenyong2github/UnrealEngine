@@ -2,106 +2,30 @@
 
 #include "Toolkits/LevelSnapshotsEditorToolkit.h"
 
-#include "FilteredResults.h"
-#include "Misc/LevelSnapshotsEditorContext.h"
-#include "LevelSnapshot.h"
-#include "LevelSnapshotsEditorData.h"
+#include "Data/FilteredResults.h"
+#include "Data/LevelSnapshot.h"
+#include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshotsEditorModule.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "LevelSnapshotsFunctionLibrary.h"
-#include "LevelSnapshotsEditorInput.h"
-#include "LevelSnapshotsEditorFilters.h"
-#include "LevelSnapshotsEditorResults.h"
 #include "LevelSnapshotsStats.h"
-#include "SLevelSnapshotsEditorFilters.h"
+#include "Misc/LevelSnapshotsEditorContext.h"
+#include "Views/Filter/LevelSnapshotsEditorFilters.h"
+#include "Views/Filter/SLevelSnapshotsEditorFilters.h"
+#include "Views/Results/LevelSnapshotsEditorResults.h"
+#include "Views/Input/LevelSnapshotsEditorInput.h"
 
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "ToolMenus.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Stats/StatsMisc.h"
-#include "Toolkits/ToolkitManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsToolkit"
 
-namespace
-{
-	const FName AppIdentifier("LevelsnapshotsApp");
-}
-
-/* FToolkitManager keeps a reference to this widget. In turn, the widget keeps FLevelSnapshotsEditorToolkit alive. */
-class SLevelSnapshotsEditorHost : public SCompoundWidget, public IToolkitHost
-{
-public:
-
-	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorHost) {}
-	SLATE_END_ARGS()
-	
-	void Construct(const FArguments& InArgs, const TSharedPtr<FLevelSnapshotsEditorToolkit>& InOwnedEditor, const TSharedPtr<FTabManager>& InTabManager)
-	{
-		OwnedEditor = InOwnedEditor;
-		TabManager = InTabManager;
-	}
-
-	void SetContent(const TSharedRef<FTabManager::FLayout>& Layout, const TSharedPtr<SWindow>& OwningWindow)
-	{
-		ChildSlot
-		[
-			TabManager->RestoreFrom(Layout, OwningWindow).ToSharedRef()
-		];
-	}
-
-	//~ Begin IToolkitHost Interface
-	virtual TSharedRef<SWidget> GetParentWidget() override
-	{
-		return AsShared();
-	}
-	virtual void BringToFront() override
-	{
-		OwnedEditor->BringToFront();
-	}
-	
-	virtual TSharedRef<SDockTabStack> GetTabSpot(const EToolkitTabSpot::Type TabSpot) override
-	{
-		// Nothing
-		return TSharedPtr<SDockTabStack>().ToSharedRef();
-	}
-	virtual TSharedPtr<FTabManager> GetTabManager() const override
-	{
-		return TabManager;
-	}
-	
-	virtual void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) override
-	{
-		Toolkit->RegisterTabSpawners(TabManager.ToSharedRef());
-	}
-	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit) override
-	{
-		Toolkit->UnregisterTabSpawners(TabManager.ToSharedRef());
-		
-		OwnedEditor.Reset();
-		TabManager.Reset();
-	}
-	
-	virtual UWorld* GetWorld() const override
-	{
-		return nullptr;
-	}
-	//~ Begin IToolkitHost Interface
-
-private:
-
-	/* Keeps the editor alive */
-	TSharedPtr<FLevelSnapshotsEditorToolkit> OwnedEditor;
-
-	TSharedPtr<FTabManager> TabManager;
-	
-};
-
+const FName FLevelSnapshotsEditorToolkit::AppIdentifier(TEXT("LevelSnapshotsToolkit"));
 const FName FLevelSnapshotsEditorToolkit::ToolbarTabId(TEXT("LevelsnapshotsToolkit_Toolbar"));
 const FName FLevelSnapshotsEditorToolkit::InputTabID(TEXT("BaseAssetToolkit_Input"));
 const FName FLevelSnapshotsEditorToolkit::FilterTabID(TEXT("BaseAssetToolkit_Filter"));
@@ -128,26 +52,6 @@ void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEdito
 	EditorInput		= MakeShared<FLevelSnapshotsEditorInput>(ViewBuilder.ToSharedRef());
 	EditorFilters	= MakeShared<FLevelSnapshotsEditorFilters>(ViewBuilder.ToSharedRef());
 	EditorResults	= MakeShared<FLevelSnapshotsEditorResults>(ViewBuilder.ToSharedRef());
-
-
-	
-	// Create and show new window
-	MajorTabRoot = SNew(SDockTab)
-        .ContentPadding(0.0f)
-        .TabRole(ETabRole::NomadTab)
-        .Label(LOCTEXT("LevelsnapshotEditorTabTitle", "Level Snapshots"));
-	MajorTabRoot->SetCanCloseTab(SDockTab::FCanCloseTab::CreateRaw(this, &FLevelSnapshotsEditorToolkit::OnRequestClose));
-	
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(MajorTabRoot.ToSharedRef());
-
-	MajorTabRoot->SetContent
-        ( 
-            SAssignNew(StandaloneHost, SLevelSnapshotsEditorHost, SharedThis(this), TabManager)
-        );
-	ToolkitHost = StandaloneHost;
-	// FToolkitManager keeps a reference to this widget. In turn, the widget keeps FLevelSnapshotsEditorToolkit alive.
-	FToolkitManager::Get().RegisterNewToolkit(SharedThis(this));
-
 
 
 	// Create our content
@@ -196,46 +100,25 @@ void FLevelSnapshotsEditorToolkit::Initialize(ULevelSnapshotsEditorData* InEdito
 
 		return Layout;
 	}();
-	StandaloneHost->SetContent(Layout, MajorTabRoot->GetParentWindow());
 
-	
-
-	// Show ourselves
-	ShowEditor();
-}
-
-void FLevelSnapshotsEditorToolkit::ShowEditor()
-{
-	if (ensure(MajorTabRoot.IsValid()))
-	{
-		FName PlaceholderId(TEXT("StandaloneToolkit"));
-		TSharedPtr<FTabManager::FSearchPreference> SearchPreference = MakeShareable(new FTabManager::FRequireClosedTab());
-
-		const TSharedRef<FGlobalTabmanager>& GlobalTabmanager = FGlobalTabmanager::Get();
-		if  (!GlobalTabmanager->FindExistingLiveTab(PlaceholderId))
-		{
-			GlobalTabmanager->InsertNewDocumentTab(PlaceholderId, *SearchPreference, MajorTabRoot.ToSharedRef());
-		}
-
-		BringToFront();
-	}
-}
-
-void FLevelSnapshotsEditorToolkit::BringToFront()
-{
-	TSharedPtr<SWindow> Window = MajorTabRoot->GetParentWindow();
-	if (Window.IsValid())
-	{
-		Window->BringToFront();
-	}
+	const bool bCreateDefaultStandaloneMenu = false;
+	const bool bCreateDefaultToolbar = false;
+	FAssetEditorToolkit::InitAssetEditor(
+			EToolkitMode::Standalone,
+			nullptr,
+			AppIdentifier,
+			Layout,
+			bCreateDefaultToolbar,
+			bCreateDefaultStandaloneMenu,
+			InEditorData
+			);
 }
 
 void FLevelSnapshotsEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
-	const auto& LocalCategories = InTabManager->GetLocalWorkspaceMenuRoot()->GetChildItems();
-	TSharedPtr<FWorkspaceItem> AssetEditorTabsCategory = LocalCategories.Num() > 0 ? LocalCategories[0] : InTabManager->GetLocalWorkspaceMenuRoot();
+	Super::RegisterTabSpawners(InTabManager);
 	
-	InTabManager->RegisterTabSpawner(ToolbarTabId, FOnSpawnTab::CreateSP(this, &FLevelSnapshotsEditorToolkit::SpawnTab_Toolbar))
+	InTabManager->RegisterTabSpawner(ToolbarTabId, FOnSpawnTab::CreateSP(this, &FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar))
         .SetDisplayName(LOCTEXT("ToolbarTab", "Toolbar"))
         .SetGroup(AssetEditorTabsCategory.ToSharedRef());
 	
@@ -254,13 +137,37 @@ void FLevelSnapshotsEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabMana
 
 void FLevelSnapshotsEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
+	Super::UnregisterTabSpawners(InTabManager);
+	
 	InTabManager->UnregisterTabSpawner(ToolbarTabId);
 	InTabManager->UnregisterTabSpawner(InputTabID);
 	InTabManager->UnregisterTabSpawner(FilterTabID);
 	InTabManager->UnregisterTabSpawner(ResultsTabID);
 }
 
-TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Toolbar(const FSpawnTabArgs& Args)
+FText FLevelSnapshotsEditorToolkit::GetToolkitName() const
+{
+	return LOCTEXT("EditorNameKey", "Level Snapshots");
+}
+
+FText FLevelSnapshotsEditorToolkit::GetToolkitToolTipText() const
+{
+	const FName SnapshotName = [this]() -> FName
+	{
+		if (EditorData.IsValid())
+		{
+			const TOptional<ULevelSnapshot*> SelectedSnapshot = EditorData->GetActiveSnapshot();
+			return SelectedSnapshot ? SelectedSnapshot.GetValue()->GetFName() : NAME_None;
+		}
+		return NAME_None;
+	}();
+	
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("SnapshotName"), FText::FromName(SnapshotName));
+	return FText::Format(LOCTEXT("SelectedSnapshotKey", "Selected snapshot: {SnapshotName}"), Arguments);
+}
+
+TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const FSpawnTabArgs& Args)
 {
 	struct Local
 	{
@@ -380,7 +287,7 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawn
 
 FReply FLevelSnapshotsEditorToolkit::OnClickTakeSnapshot()
 {
-	FLevelSnapshotsEditorModule::Get().CallTakeSnapshot();
+	FLevelSnapshotsEditorModule::Get().BuildPathsToSaveSnapshotWithOptionalForm();
 	return FReply::Handled();
 }
 
@@ -407,8 +314,8 @@ FReply FLevelSnapshotsEditorToolkit::OnClickApplyToWorld()
 		}
 		
 		UWorld* World = GEditor->GetEditorWorldContext().World();
-		ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(World, *ActiveLevelSnapshot, EditorData->GetFilterResults()->GetSelectionSet());
-
+		ActiveLevelSnapshot.GetValue()->ApplySnapshotToWorld(World, EditorData->GetFilterResults()->GetPropertiesToRollback());
+ 
 		EditorResults->RefreshResults();
 	}
 	else
@@ -418,17 +325,6 @@ FReply FLevelSnapshotsEditorToolkit::OnClickApplyToWorld()
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
 	return FReply::Handled();
-}
-
-bool FLevelSnapshotsEditorToolkit::OnRequestClose()
-{
-	if (EditorData.IsValid())
-	{
-		EditorData->CleanupAfterEditorClose();
-	}
-
-	FToolkitManager::Get().CloseToolkit( AsShared() );
-	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

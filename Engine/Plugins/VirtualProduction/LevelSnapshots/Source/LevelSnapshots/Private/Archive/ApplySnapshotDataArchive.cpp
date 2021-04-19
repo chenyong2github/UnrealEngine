@@ -1,8 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ApplySnapshotDataArchive.h"
+#include "Archive/ApplySnapshotDataArchive.h"
 
-#include "BaseObjectInfo.h"
+#include "Data/BaseObjectInfo.h"
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsStats.h"
 
@@ -26,10 +26,7 @@ bool FApplySnapshotDataArchive::ShouldSkipProperty(const FProperty* InProperty) 
 	bool bShouldSkipProperty = Super::ShouldSkipProperty(InProperty);
 	if (!bShouldSkipProperty && SelectedProperties)
 	{
-		// We require the const_cast to correctly initialize the TFieldPath even though we are not actually modifying the property
-		const TFieldPath<FProperty> PropertyPath(const_cast<FProperty*>(InProperty));
-		
-		bShouldSkipProperty = !SelectedProperties.GetValue()->SelectedPropertyPaths.Contains(PropertyPath);
+		bShouldSkipProperty = !SelectedProperties.GetValue()->IsPropertySelected(GetSerializedPropertyChain(), InProperty);
 		HandleHiddenCustomSerializedProperty(InProperty, bShouldSkipProperty);
 	}
 
@@ -42,11 +39,11 @@ FApplySnapshotDataArchive::FApplySnapshotDataArchive(const FBaseObjectInfo& InOb
 {
 	SetReadOnlyObjectInfo(InObjectInfo);
 	
-	SetWantBinaryPropertySerialization(false);
-	SetIsTransacting(false);
-	SetIsPersistent(true);
+	Super::SetWantBinaryPropertySerialization(false);
+	Super::SetIsTransacting(false);
+	Super::SetIsPersistent(true);
     
-	SetIsLoading(true);			
+	Super::SetIsLoading(true);			
 }
 
 void FApplySnapshotDataArchive::HandleHiddenCustomSerializedProperty(const FProperty* InProperty, bool& bShouldSkipProperty) const
@@ -90,12 +87,12 @@ void FApplySnapshotDataArchive::HandleHiddenCustomSerializedProperty(const FProp
 	if (bShouldSkipProperty && LastPropertyInChain)
 	{
 		const bool bIsInternalProperty = [LastPropertyInChain, InProperty]()
-		{
-			FStructProperty* LastInChainAsStruct = CastField<FStructProperty>(LastPropertyInChain);
-			if (!LastInChainAsStruct)
-			{
-				return false;
-			}
+        {
+        	const FStructProperty* LastInChainAsStruct = CastField<FStructProperty>(LastPropertyInChain);
+        	if (!LastInChainAsStruct)
+        	{
+        		return false;
+        	}
 
 			UStruct* CurrentStruct = LastInChainAsStruct->Struct;
 			while (CurrentStruct)
@@ -113,23 +110,7 @@ void FApplySnapshotDataArchive::HandleHiddenCustomSerializedProperty(const FProp
 			}
 			return true;
 		}();
-
-		const bool bIsPropertyInCollection = [PropertyChain]()
-		{
-			const bool bCouldBeInCollection = PropertyChain && PropertyChain->GetNumProperties() > 1; 
-			if (bCouldBeInCollection)
-			{
-				FProperty* PossibleCollection = PropertyChain->GetPropertyFromStack(1);
-				return CastField<FArrayProperty>(PossibleCollection) || CastField<FSetProperty>(PossibleCollection) || CastField<FMapProperty>(PossibleCollection);
-			}
-			return false;
-		}();
-		// E.g. UPROPERTY() TArray<FFoo> -> PropertyChain->GetPropertyFromStack(0) = FStructProperty (FFoo) PropertyChain->GetPropertyFromStack(1) -> FArrayProperty
-		// The user who built passed in selected properties may have forgotten to include these internal properties, so we handle it here.
-		const TFieldPath<FProperty> PathOfLastPropertyInChain(bIsPropertyInCollection && ensure(PropertyChain) ? PropertyChain->GetPropertyFromStack(1) : LastPropertyInChain);
-
-		// If InProperty is internal or in a collection, InProperty belongs to the last property in the chain. When deciding whether to skip, we need to check the parent property.
-		const bool bIsSerializingPropertyOfPropertyWeCareAbout = (bIsInternalProperty || bIsPropertyInCollection) && SelectedProperties.GetValue()->SelectedPropertyPaths.Contains(PathOfLastPropertyInChain);
-		bShouldSkipProperty = !bIsSerializingPropertyOfPropertyWeCareAbout;
+		
+		bShouldSkipProperty = !bIsInternalProperty;
 	}
 }

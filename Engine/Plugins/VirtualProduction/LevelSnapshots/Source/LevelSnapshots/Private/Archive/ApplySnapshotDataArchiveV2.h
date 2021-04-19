@@ -14,7 +14,8 @@ class FApplySnapshotDataArchiveV2 : public FSnapshotArchive
 	using Super = FSnapshotArchive;
 public:
 	
-	static void ApplyToWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelection& InSelectionSet);
+	static void ApplyToExistingWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion, const FPropertySelection& InSelectionSet);
+	static void ApplyToRecreatedWorldObject(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, UObject* InDeserializedVersion);
 	
 	//~ Begin FTakeSnapshotArchiveV2 Interface
 	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override;
@@ -25,9 +26,10 @@ public:
 private:
 
 	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelection& InSelectionSet);
+	FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject);
 	
 	/* Immutable list of properties we are supposed to serialise */
-	const FPropertySelection& SelectionSet;
+	TOptional<const FPropertySelection*> SelectionSet;
 	/* A property is removed when we serialise it.
 	 * After serialisation is done, this list tells us which properties are still left to serialise.
 	 */

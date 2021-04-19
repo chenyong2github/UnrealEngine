@@ -20,7 +20,8 @@ struct LEVELSNAPSHOTS_API FComponentSnapshotData
 	bool IsRestoreSupportedForSavedComponent();
 	
 	void DeserializeIntoTransient(FObjectSnapshotData& SerializedComponentData, UActorComponent* ComponentToDeserializeInto, FWorldSnapshotData& WorldData);
-	void DeserializeIntoWorld(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData, const FPropertySelection& PropertySelection);
+	void DeserializeIntoExistingWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData, const FPropertySelection& PropertySelection);
+	void DeserializeIntoRecreatedWorldActor(FObjectSnapshotData& SerializedComponentData, UActorComponent* OriginalComponentToDeserializeInto, UActorComponent* DeserializedComponentCounterpart, FWorldSnapshotData& WorldData);
 
 	/* Describes how the component was created */
 	UPROPERTY()

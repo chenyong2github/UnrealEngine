@@ -9,6 +9,7 @@
 
 class UActorComponent;
 class ULevelSnapshotSelectionSet;
+struct FPropertySelectionMap;
 struct FWorldSnapshotData;
 
 USTRUCT()
@@ -17,14 +18,22 @@ struct LEVELSNAPSHOTS_API FActorSnapshotData
 	GENERATED_BODY()
 
 	static FActorSnapshotData SnapshotActor(AActor* OriginalActor, FWorldSnapshotData& WorldData);
-	void DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, ULevelSnapshotSelectionSet* SelectedProperties);
+	
+	void DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, const FPropertySelectionMap& SelectedProperties);
+	void DeserializeIntoRecreatedWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData);
 
 	TOptional<AActor*> GetPreallocatedIfValidButDoNotAllocate() const;
 	TOptional<AActor*> GetPreallocated(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData) const;
 	TOptional<AActor*> GetDeserialized(UWorld* SnapshotWorld, FWorldSnapshotData& WorldData);
 
+	FSoftClassPath GetActorClass() const;
+
 private:
 
+	using FSerializeActor = TFunction<void(AActor* OriginalActor, AActor* DerserializedActor)>;
+	using FSerializeComponent = TFunction<void(FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)>;
+	
+	void DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent);
 	void DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, TFunction<void(FObjectSnapshotData& SerializedCompData, FComponentSnapshotData&,UActorComponent*, FWorldSnapshotData&)>&& Callback);
 	
 	/* We cache the actor to avoid recreating it all the time */

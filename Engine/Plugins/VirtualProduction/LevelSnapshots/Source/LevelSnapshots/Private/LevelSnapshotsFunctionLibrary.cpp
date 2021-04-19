@@ -12,6 +12,12 @@
 
 ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName, const FString Description)
 {
+	
+	return TakeLevelSnapshot_Internal(WorldContextObject, NewSnapshotName, nullptr, Description);
+}
+
+ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName, UPackage* InPackage, const FString Description)
+{
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeLevelSnapshot"), STAT_TakeLevelSnapshot, STATGROUP_LevelSnapshots);
 	
 	UWorld* TargetWorld = nullptr;
@@ -29,8 +35,8 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject*
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Snapshot taken with no valid World set"));
 		return nullptr;
 	}
-
-	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(GetTransientPackage(), NewSnapshotName);
+	
+	ULevelSnapshot* NewSnapshot = NewObject<ULevelSnapshot>(InPackage ? InPackage : GetTransientPackage(), NewSnapshotName, RF_Public | RF_Standalone);
 	NewSnapshot->SetSnapshotName(NewSnapshotName);
 	NewSnapshot->SetSnapshotDescription(Description);
 	NewSnapshot->SnapshotWorld(TargetWorld);
@@ -52,12 +58,4 @@ void ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(
 		.AllowUnchangedProperties(bAllowUnchangedProperties)
 		.AllowNonEditableProperties(bAllowNonEditableProperties)
 		.ApplyFilterToFindSelectedProperties(MapToAddTo);
-}
-
-void ULevelSnapshotsFunctionLibrary::ApplySnapshotToWorld(UWorld* TargetWorld, ULevelSnapshot* Snapshot, ULevelSnapshotSelectionSet* SelectionSet)
-{
-	if (ensure(Snapshot))
-	{
-		Snapshot->ApplySnapshotToWorld(TargetWorld, SelectionSet);
-	}
 }

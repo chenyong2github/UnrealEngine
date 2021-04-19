@@ -1,21 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SLevelSnapshotsEditorResults.h"
+#include "Views/Results/SLevelSnapshotsEditorResults.h"
 
-#include "EditorStyleSet.h"
-#include "FilteredResults.h"
-#include "IDetailPropertyRow.h"
-#include "IDetailTreeNode.h"
-#include "IPropertyRowGenerator.h"
-#include "LevelSnapshot.h"
+#include "Data/FilteredResults.h"
+#include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsStats.h"
 #include "PropertyInfoHelpers.h"
+#include "PropertySelection.h"
 
 #include "Algo/Find.h"
+#include "EditorStyleSet.h"
 #include "GameFramework/Actor.h"
+#include "IDetailPropertyRow.h"
+#include "IDetailTreeNode.h"
+#include "IPropertyRowGenerator.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Stats/StatsMisc.h"
@@ -590,11 +591,11 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			if (const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(CurrentComponent))
 			{
 				// Get remaining properties after filter
-				if (PropertySelection->SelectedPropertyPaths.Num() > 0)
+				if (!PropertySelection->IsEmpty())
 				{
 					const FLevelSnapshotsEditorResultsRowPtr ComponentPropertyAsRow =
 						BuildComponentRow(
-							CurrentComponent, InCounterpartComponents, PropertyEditorModule, PropertySelection->SelectedPropertyPaths, InDirectParentRow);
+							CurrentComponent, InCounterpartComponents, PropertyEditorModule, PropertySelection->GetSelectedLeafProperties(), InDirectParentRow);
 
 					if (ComponentPropertyAsRow.IsValid())
 					{
@@ -714,10 +715,10 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 			if (const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(WorldComponent))
 			{
 				// Get remaining properties after filter
-				if (PropertySelection->SelectedPropertyPaths.Num() > 0)
+				if (!PropertySelection->IsEmpty())
 				{
 					FLocalComponentLooper::BuildComponentRow(WorldComponent, CounterpartComponents,
-						PropertyEditorModule, PropertySelection->SelectedPropertyPaths, SharedActorGroup);
+						PropertyEditorModule, PropertySelection->GetSelectedLeafProperties(), SharedActorGroup);
 				}
 			}
 		}
@@ -731,13 +732,13 @@ void FLevelSnapshotsEditorResultsRow::GenerateActorGroupChildren(FPropertySelect
 	
 	if (const FPropertySelection* PropertySelection = PropertySelectionMap.GetSelectedProperties(GetWorldObject()))
 	{
-		if (PropertySelection->SelectedPropertyPaths.Num() > 0)
+		if (!PropertySelection->IsEmpty())
 		{
 			const TArray<TFieldPath<FProperty>>& PropertyRowsGenerated = FLocalPropertyLooper::LoopOverProperties(
-				SnapshotRowGenerator, WorldRowGenerator, SharedActorGroup, PropertySelection->SelectedPropertyPaths);
+				SnapshotRowGenerator, WorldRowGenerator, SharedActorGroup, PropertySelection->GetSelectedLeafProperties());
 			
 			// Generate fallback rows for properties not supported by 
-			for (TFieldPath<FProperty> FieldPath : PropertySelection->SelectedPropertyPaths)
+			for (TFieldPath<FProperty> FieldPath : PropertySelection->GetSelectedLeafProperties())
 			{
 				if (!PropertyRowsGenerated.Contains(FieldPath))
 				{
@@ -1113,7 +1114,7 @@ const TSharedPtr<IPropertyRowGenerator>& FLevelSnapshotsEditorResultsRow::GetWor
 	return WorldRowGenerator;
 }
 
-TFieldPath<FProperty> FLevelSnapshotsEditorResultsRow::GetPropertyPath() const
+FProperty* FLevelSnapshotsEditorResultsRow::GetProperty() const
 {
 	if (GetWidgetTypeCustomization() == WidgetType_NoCustomWidget)
 	{
@@ -1124,7 +1125,7 @@ TFieldPath<FProperty> FLevelSnapshotsEditorResultsRow::GetPropertyPath() const
 		{
 			if (FProperty* Property = FirstHandle->GetProperty())
 			{
-				return TFieldPath<FProperty>(Property);
+				return Property;
 			}
 		}
 	}
@@ -1132,11 +1133,30 @@ TFieldPath<FProperty> FLevelSnapshotsEditorResultsRow::GetPropertyPath() const
 	{
 		if (PropertyForCustomization->IsValidLowLevel())
 		{
-			return TFieldPath<FProperty>(PropertyForCustomization);
+			return PropertyForCustomization;
 		}
 	}
 
 	return nullptr;
+}
+
+FLevelSnapshotPropertyChain FLevelSnapshotsEditorResultsRow::GetPropertyChain() const
+{
+	struct Local
+	{
+		static void RecursiveCreateChain(const FLevelSnapshotsEditorResultsRow& This, FLevelSnapshotPropertyChain& Result)
+		{
+			if (FLevelSnapshotsEditorResultsRowPtr Parent = This.GetDirectParentRow())
+			{
+				RecursiveCreateChain(*Parent.Get(), Result);
+				Result.AppendInline(This.GetProperty());
+			}
+		}
+	};
+
+	FLevelSnapshotPropertyChain Result;
+	Local::RecursiveCreateChain(*this, Result);
+	return Result;
 }
 
 const TSharedPtr<IPropertyHandle>& FLevelSnapshotsEditorResultsRow::GetSnapshotPropertyHandle() const
@@ -1542,8 +1562,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 			// Remove it from the map then re-add it if it has checked children
 			SelectionMap.RemoveObjectPropertiesFromMap(Group->GetWorldObject());
 			
-			TArray<TFieldPath<FProperty>> CheckedNodeFieldPaths;
-
+			FPropertySelection CheckedNodeFieldPaths;
 			if (Group->HasCheckedChildren())
 			{
 				TArray<FLevelSnapshotsEditorResultsRowPtr> CheckedChildPropertyNodes;
@@ -1583,7 +1602,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 				{
 					if (ChildRow.IsValid())
 					{
-						CheckedNodeFieldPaths.Add(ChildRow->GetPropertyPath());
+						CheckedNodeFieldPaths.AddProperty(ChildRow->GetPropertyChain());
 					}
 				}
 			}
@@ -1616,11 +1635,7 @@ void SLevelSnapshotsEditorResults::BuildSelectionSetFromSelectedPropertiesInEach
 		}
 	}
 
-	ULevelSnapshotSelectionSet* SelectionSet = NewObject<ULevelSnapshotSelectionSet>();
-
-	SelectionSet->AddPropertyMap(PropertySelectionMap);
-
-	GetEditorDataPtr()->GetFilterResults()->UpdatePropertiesToRollback(SelectionSet);
+	GetEditorDataPtr()->GetFilterResults()->SetPropertiesToRollback(PropertySelectionMap);
 }
 
 const FString& SLevelSnapshotsEditorResults::GetSearchStringFromSearchInputField() const
@@ -1664,8 +1679,9 @@ void SLevelSnapshotsEditorResults::GenerateTreeView()
 
 					if (Key.IsValid())
 					{
-						if (!bHasAnyVisibleProperties && 
-							FilterListData.GetModifiedActorsSelectedProperties().GetSelectedProperties(Key.Get())->SelectedPropertyPaths.Num() > 0)
+						const FPropertySelection* SelectedProperties = FilterListData.GetModifiedActorsSelectedProperties().GetSelectedProperties(Key.Get());
+						if (!bHasAnyVisibleProperties
+							&& ensure(SelectedProperties) && !SelectedProperties->IsEmpty())
 						{
 							bHasAnyVisibleProperties = true;
 							break;

@@ -3,6 +3,7 @@
 #include "AssetTypeActions_LevelSnapshot.h"
 
 #include "LevelSnapshot.h"
+#include "LevelSnapshotsEditorFunctionLibrary.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -37,7 +38,7 @@ void FAssetTypeActions_LevelSnapshot::GetActions(const TArray<UObject*>& InObjec
 						if (UWorld* World = GEditor->GetEditorWorldContext().World())
 						{
 							LevelSnapshotAsset->SnapshotWorld(World);
-
+							ULevelSnapshotsEditorFunctionLibrary::GenerateThumbnailForSnapshotAsset(LevelSnapshotAsset.Get());
 							LevelSnapshotAsset->MarkPackageDirty();
 						}
 					}

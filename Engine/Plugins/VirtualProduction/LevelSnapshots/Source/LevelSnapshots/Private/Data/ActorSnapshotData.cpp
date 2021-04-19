@@ -5,6 +5,7 @@
 #include "ApplySnapshotDataArchiveV2.h"
 #include "LevelSnapshotSelections.h"
 #include "LevelSnapshotsLog.h"
+#include "PropertySelectionMap.h"
 #include "TakeWorldObjectSnapshotArchive.h"
 #include "WorldSnapshotData.h"
 
@@ -37,50 +38,52 @@ FActorSnapshotData FActorSnapshotData::SnapshotActor(AActor* OriginalActor, FWor
 	return Result;
 }
 
-void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, ULevelSnapshotSelectionSet* SelectedProperties)
+void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, const FPropertySelectionMap& SelectedProperties)
 {
-	const TOptional<AActor*> Deserialized = GetDeserialized(SnapshotWorld, WorldData);
-	if (!Deserialized)
+	auto DeserializeActor = [this, &WorldData, &SelectedProperties](AActor* OriginalActor, AActor* DeserializedActor)
 	{
-		UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to serialize into actor %s. Skipping..."), *OriginalActor->GetName());
-		return;
-	}
-	
-	const FPropertySelection* ActorPropertySelection = SelectedProperties->GetSelectedProperties(OriginalActor);
-	if (ActorPropertySelection)
+		const FPropertySelection* ActorPropertySelection = SelectedProperties.GetSelectedProperties(OriginalActor);
+		if (ActorPropertySelection)
+		{
+#if WITH_EDITOR
+			OriginalActor->Modify();
+#endif
+			FApplySnapshotDataArchiveV2::ApplyToExistingWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor, *ActorPropertySelection);
+		}
+	};
+	auto DeserializeComponent = [&SelectedProperties, &WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
+	{
+		const FPropertySelection* ComponentSelectedProperties = SelectedProperties.GetSelectedProperties(Original);
+		if (ComponentSelectedProperties)
+		{		
+#if WITH_EDITOR
+			Original->Modify();
+#endif
+			CompData.DeserializeIntoRecreatedWorldActor(SerializedCompData, Original, Deserialized, WorldData);
+		};
+	};
+
+	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, DeserializeActor, DeserializeComponent);
+}
+
+void FActorSnapshotData::DeserializeIntoRecreatedWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData)
+{
+	auto DeserializeActor = [this, &WorldData](AActor* OriginalActor, AActor* DeserializedActor)
 	{
 #if WITH_EDITOR
 		OriginalActor->Modify();
 #endif
-		FApplySnapshotDataArchiveV2::ApplyToWorldObject(SerializedActorData, WorldData, OriginalActor, *Deserialized, *ActorPropertySelection);
-	}
-
-	TInlineComponentArray<UActorComponent*> DeserializedComponents;
-	Deserialized.GetValue()->GetComponents(DeserializedComponents);
-	DeserializeComponents(OriginalActor, WorldData, [SelectedProperties, &DeserializedComponents](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
-    {
-		const FName OriginalCompName = Comp->GetFName();
-		UActorComponent** DeserializedCompCounterpart = DeserializedComponents.FindByPredicate([OriginalCompName](UActorComponent* Other)
-		{
-			return Other->GetFName() == OriginalCompName;
-		});
-		if (!DeserializedCompCounterpart)
-		{
-			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to find component called %s on temp deserialized snapshot actor. Skipping component..."), *OriginalCompName.ToString())
-			return;
-		}
-		
-		const FPropertySelection* ComponentSelectedProperties = SelectedProperties->GetSelectedProperties(Comp);
-		if (ComponentSelectedProperties)
-		{		
+		FApplySnapshotDataArchiveV2::ApplyToRecreatedWorldObject(SerializedActorData, WorldData, OriginalActor, DeserializedActor);
+	};
+	auto DeserializeComponent = [&WorldData](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Original, UActorComponent* Deserialized)
+	{
 #if WITH_EDITOR
-			Comp->Modify();
+		Original->Modify();
 #endif
-			CompData.DeserializeIntoWorld(SerializedCompData, Comp, *DeserializedCompCounterpart, SharedData, *ComponentSelectedProperties);
-		}
-    });
-
-	OriginalActor->UpdateComponentTransforms();
+		CompData.DeserializeIntoRecreatedWorldActor(SerializedCompData, Original, Deserialized, WorldData);
+	};
+	
+	DeserializeIntoWorldActor(SnapshotWorld, OriginalActor, WorldData, DeserializeActor, DeserializeComponent);
 }
 
 TOptional<AActor*> FActorSnapshotData::GetPreallocatedIfValidButDoNotAllocate() const
@@ -104,7 +107,7 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Template = Cast<AActor>(WorldData.GetClassDefault(TargetClass));
 		ensure(SpawnParams.Template);
-		CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass);
+		CachedSnapshotActor = SnapshotWorld->SpawnActor<AActor>(TargetClass, SpawnParams);
 	}
 	return CachedSnapshotActor.IsValid() ? TOptional<AActor*>(CachedSnapshotActor.Get()) : TOptional<AActor*>();
 }
@@ -134,6 +137,43 @@ TOptional<AActor*> FActorSnapshotData::GetDeserialized(UWorld* SnapshotWorld, FW
 
 	PreallocatedActor->UpdateComponentTransforms();
 	return Preallocated;
+}
+
+FSoftClassPath FActorSnapshotData::GetActorClass() const
+{
+	return ActorClass;
+}
+
+void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor* OriginalActor, FWorldSnapshotData& WorldData, FSerializeActor SerializeActor, FSerializeComponent SerializeComponent)
+{
+	const TOptional<AActor*> Deserialized = GetDeserialized(SnapshotWorld, WorldData);
+	if (!Deserialized)
+	{
+		UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to serialize into actor %s. Skipping..."), *OriginalActor->GetName());
+		return;
+	}
+
+	SerializeActor(OriginalActor, *Deserialized);
+
+	TInlineComponentArray<UActorComponent*> DeserializedComponents;
+	Deserialized.GetValue()->GetComponents(DeserializedComponents);
+	DeserializeComponents(OriginalActor, WorldData, [&SerializeComponent, &DeserializedComponents](FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& CompData, UActorComponent* Comp, FWorldSnapshotData& SharedData)
+    {
+        const FName OriginalCompName = Comp->GetFName();
+        UActorComponent** DeserializedCompCounterpart = DeserializedComponents.FindByPredicate([OriginalCompName](UActorComponent* Other)
+        {
+            return Other->GetFName() == OriginalCompName;
+        });
+        if (!DeserializedCompCounterpart)
+        {
+            UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to find component called %s on temp deserialized snapshot actor. Skipping component..."), *OriginalCompName.ToString())
+        	return;
+        }
+		
+        SerializeComponent(SerializedCompData, CompData, Comp, *DeserializedCompCounterpart);
+    });
+
+	OriginalActor->UpdateComponentTransforms();
 }
 
 void FActorSnapshotData::DeserializeComponents(AActor* IntoActor, FWorldSnapshotData& WorldData, TFunction<void(FObjectSnapshotData& SerializedCompData, FComponentSnapshotData& ComponentMetaData, UActorComponent* ActorComp, FWorldSnapshotData& SharedData)>&& Callback)

@@ -44,7 +44,10 @@ private:
 		 */
 		TArray<FString> AuthoredPathInformation;
 
-		FPropertyContainerContext(FPropertySelection& SelectionToAddTo, UStruct* ContainerClass, void* SnapshotContainer, void* WorldContainer, TArray<FString> AuthoredPathInformation);
+		/* Keeps track of the structs leading to this container */
+		FLevelSnapshotPropertyChain PropertyChain;
+
+		FPropertyContainerContext(FPropertySelection& SelectionToAddTo, UStruct* ContainerClass, void* SnapshotContainer, void* WorldContainer, const TArray<FString>& AuthoredPathInformation, const FLevelSnapshotPropertyChain& PropertyChain);
 	};
 	
 	FApplySnapshotFilter(ULevelSnapshot* Snapshot, AActor* DeserializedSnapshotActor, AActor* WorldActor, const ULevelSnapshotFilter* Filter);
