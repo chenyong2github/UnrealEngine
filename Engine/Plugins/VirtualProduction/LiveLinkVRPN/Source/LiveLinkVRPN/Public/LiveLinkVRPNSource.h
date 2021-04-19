@@ -13,6 +13,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "HAL/Runnable.h"
 
+#include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
 // Disable macro redefinition warning
 #pragma warning(push)
@@ -23,6 +24,7 @@ THIRD_PARTY_INCLUDES_START
 #include "VRPN/vrpn_Tracker.h"
 #pragma warning(pop)
 THIRD_PARTY_INCLUDES_END
+#include "Windows/HideWindowsPlatformTypes.h"
 
 struct ULiveLinkVRPNSettings;
 
