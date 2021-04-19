@@ -97,10 +97,13 @@ void FLevelSnapshotsEditorModule::SetUseCreationForm(bool bInUseCreationForm)
 
 void FLevelSnapshotsEditorModule::RegisterMenus()
 {
-	FToolMenuOwnerScoped OwnerScoped(this);
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Window");
-	FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", NSLOCTEXT("LevelSnapshots", "ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
-	Section.AddMenuEntry("OpenLevelSnapshotsEditor", NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditor", "Level Snapshots Editor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)));
+	if (FSlateApplication::IsInitialized())
+	{
+		FToolMenuOwnerScoped OwnerScoped(this);
+		UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.MainMenu.Window");
+		FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", NSLOCTEXT("LevelSnapshots", "ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowGlobalTabSpawners", EToolMenuInsertType::After));
+		Section.AddMenuEntry("OpenLevelSnapshotsEditor", NSLOCTEXT("LevelSnapshots", "LevelSnapshotsEditor", "Level Snapshots Editor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateRaw(this, &FLevelSnapshotsEditorModule::OpenSnapshotsEditor)));
+	}
 }
 
 bool FLevelSnapshotsEditorModule::RegisterProjectSettings()
