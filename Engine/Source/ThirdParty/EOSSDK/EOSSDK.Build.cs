@@ -8,7 +8,7 @@ using Tools.DotNETCommon;
 public class EOSSDK : ModuleRules
 {
 	// Set this to true to build with EOS.
-	protected bool bBuildWithEOS = true;
+	protected bool bBuildWithEOS = false;
 
 	public string SDKBaseDir
 	{
