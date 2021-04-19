@@ -57,4 +57,12 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Version Updates", meta = (EditCondition = "bUpdateAssetsOnStartup"))
 	bool bDisplayAssetUpdateProgress;
+
+	/** The visual scale of the Xform static mesh */
+	UPROPERTY(config)
+	float VisXformScale;
+
+	/** Whether to show the Xform static mesh */
+	UPROPERTY(config)
+	bool bShowVisXforms;
 };

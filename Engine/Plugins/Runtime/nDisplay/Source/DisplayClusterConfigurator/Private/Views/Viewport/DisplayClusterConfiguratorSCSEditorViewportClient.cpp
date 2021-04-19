@@ -844,13 +844,8 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::InvalidatePreview(bool 
 		return;
 	}
 
-	UBlueprint* Blueprint = BlueprintEditorPtr.Pin()->GetBlueprintObj();
-	check(Blueprint);
-
-	const bool bIsPreviewActorValid = GetPreviewActor() != nullptr;
-
 	// Create or update the Blueprint actor instance in the preview scene
-	BlueprintEditorPtr.Pin()->UpdatePreviewActor(Blueprint, !bIsPreviewActorValid);
+	BlueprintEditorPtr.Pin()->RefreshDisplayClusterPreviewActor();
 
 	Invalidate();
 	RefreshPreviewBounds();
@@ -1030,6 +1025,7 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::SyncShowPreview()
 			if (CorrectShowPreviewValue != Actor->PreviewNodeId)
 			{
 				Actor->PreviewNodeId = CorrectShowPreviewValue;
+				Actor->PreviewSettings->PreviewNodeId = CorrectShowPreviewValue;
 				Actor->UpdatePreviewComponents();
 			}
 		}
@@ -1054,6 +1050,50 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowViewportNames
 bool FDisplayClusterConfiguratorSCSEditorViewportClient::CanToggleViewportNames() const
 {
 	return GetShowPreview();
+}
+
+TOptional<float> FDisplayClusterConfiguratorSCSEditorViewportClient::GetXformGizmoScale() const
+{
+	const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
+	return Settings->VisXformScale;
+}
+
+void FDisplayClusterConfiguratorSCSEditorViewportClient::SetXformGizmoScale(float InScale)
+{
+	UDisplayClusterConfiguratorEditorSettings* Settings = GetMutableDefault<UDisplayClusterConfiguratorEditorSettings>();
+	Settings->VisXformScale = FMath::Max(0.0f, InScale);
+
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	if (BlueprintEditor.IsValid())
+	{
+		BlueprintEditor->UpdateXformGizmos();
+		Invalidate();
+	}
+}
+
+bool FDisplayClusterConfiguratorSCSEditorViewportClient::IsShowingXformGizmos() const
+{
+	const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
+	return Settings->bShowVisXforms;
+}
+
+void FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowXformGizmos()
+{
+	UDisplayClusterConfiguratorEditorSettings* Settings = GetMutableDefault<UDisplayClusterConfiguratorEditorSettings>();
+	Settings->bShowVisXforms = !Settings->bShowVisXforms;
+
+	Settings->PostEditChange();
+	Settings->SaveConfig();
+
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+	if (BlueprintEditor.IsValid())
+	{
+		BlueprintEditor->UpdateXformGizmos();
+		Invalidate();
+	}
 }
 
 void FDisplayClusterConfiguratorSCSEditorViewportClient::BeginTransaction(const FText& Description)

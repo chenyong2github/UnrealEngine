@@ -25,25 +25,12 @@
 
 int32 const SDisplayClusterConfiguratorViewportNode::DefaultZOrder = 300;
 
-SDisplayClusterConfiguratorViewportNode::~SDisplayClusterConfiguratorViewportNode()
-{
-	if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(GraphNode))
-	{
-		ViewportNode->GetOnPreviewUpdated().Unbind();
-	}
-}
-
 void SDisplayClusterConfiguratorViewportNode::Construct(const FArguments& InArgs,
                                                         UDisplayClusterConfiguratorViewportNode* InViewportNode,
                                                         const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
 	SDisplayClusterConfiguratorBaseNode::Construct(SDisplayClusterConfiguratorBaseNode::FArguments(), InViewportNode, InToolkit);
 
-	InViewportNode->GetOnPreviewUpdated().BindLambda([this]()
-	{
-		UpdateGraphNode();
-	});
-	
 	UpdateGraphNode();
 }
 
@@ -57,7 +44,7 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 
 	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
 
-	SetPreviewTexture(ViewportEdNode->GetPreviewTexture());
+	UpdatePreviewTexture();
 
 	GetOrAddSlot( ENodeZone::Center )
 	.HAlign(HAlign_Fill)
@@ -179,6 +166,13 @@ void SDisplayClusterConfiguratorViewportNode::UpdateGraphNode()
 	];
 }
 
+void SDisplayClusterConfiguratorViewportNode::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	SDisplayClusterConfiguratorBaseNode::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	UpdatePreviewTexture();
+}
+
 void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter)
 {
 	if (IsViewportLocked())
@@ -187,25 +181,6 @@ void SDisplayClusterConfiguratorViewportNode::MoveTo(const FVector2D& NewPositio
 	}
 
 	SDisplayClusterConfiguratorBaseNode::MoveTo(NewPosition, NodeFilter);
-}
-
-void SDisplayClusterConfiguratorViewportNode::SetPreviewTexture(UTexture* InTexture)
-{
-	if (InTexture != nullptr)
-	{
-		if (BackgroundActiveBrush.GetResourceObject() != InTexture)
-		{
-			BackgroundActiveBrush = FSlateBrush();
-			BackgroundActiveBrush.SetResourceObject(InTexture);
-			BackgroundActiveBrush.ImageSize.X = InTexture->Resource->GetSizeX();
-			BackgroundActiveBrush.ImageSize.Y = InTexture->Resource->GetSizeY();
-		}
-	}
-	else
-	{
-		// Reset the brush to be empty.
-		BackgroundActiveBrush = FSlateBrush();
-	}
 }
 
 bool SDisplayClusterConfiguratorViewportNode::IsNodeVisible() const
@@ -384,6 +359,32 @@ bool SDisplayClusterConfiguratorViewportNode::IsViewportLocked() const
 EVisibility SDisplayClusterConfiguratorViewportNode::GetLockIconVisibility() const
 {
 	return IsViewportLocked() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SDisplayClusterConfiguratorViewportNode::UpdatePreviewTexture()
+{
+	UDisplayClusterConfiguratorViewportNode* ViewportEdNode = GetGraphNodeChecked<UDisplayClusterConfiguratorViewportNode>();
+	UTexture* CurrentTexture = ViewportEdNode->GetPreviewTexture();
+
+	if (CachedTexture != CurrentTexture)
+	{
+		CachedTexture = CurrentTexture;
+		if (CachedTexture != nullptr)
+		{
+			if (BackgroundActiveBrush.GetResourceObject() != CachedTexture)
+			{
+				BackgroundActiveBrush = FSlateBrush();
+				BackgroundActiveBrush.SetResourceObject(CachedTexture);
+				BackgroundActiveBrush.ImageSize.X = CachedTexture->Resource->GetSizeX();
+				BackgroundActiveBrush.ImageSize.Y = CachedTexture->Resource->GetSizeY();
+			}
+		}
+		else
+		{
+			// Reset the brush to be empty.
+			BackgroundActiveBrush = FSlateBrush();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

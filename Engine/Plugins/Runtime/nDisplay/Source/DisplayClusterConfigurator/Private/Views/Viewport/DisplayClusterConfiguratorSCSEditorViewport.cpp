@@ -14,6 +14,7 @@
 #include "ViewportTabContent.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Slate/SceneViewport.h"
+#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterSCSEditorViewport"
 
@@ -25,8 +26,9 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with the given parameters */
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, TSharedPtr<FDisplayClusterConfiguratorSCSEditorViewportClient> InViewportClient)
 	{
+		ViewportClient = InViewportClient;
 		EditorViewport = InArgs._EditorViewport;
 
 		static const FName DefaultForegroundName("DefaultForeground");
@@ -247,6 +249,44 @@ public:
 
 		ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowPreview);
 		ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().Show3DViewportNames);
+
+		ViewportsMenuBuilder.BeginSection(TEXT("XformGizmo"), LOCTEXT("XformGizmoSection", "Xform"));
+		{
+			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ToggleShowXformGizmos);
+
+			ViewportsMenuBuilder.AddWidget(
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("XformGizmoScale_Label", "Xform Gizmo Scale"))
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Bottom)
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.MinDesiredWidth(64)
+					[
+						SNew(SNumericEntryBox<float>)
+						.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetXformGizmoScale)
+						.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetXformGizmoScale)
+						.MinValue(0)
+						.MaxValue(FLT_MAX)
+						.MinSliderValue(0)
+						.MaxSliderValue(2)
+						.AllowSpin(true)
+					]
+				],
+				FText::GetEmpty()
+			);
+		}
+		ViewportsMenuBuilder.EndSection();
+
 		return ViewportsMenuBuilder.MakeWidget();
 	}
 
@@ -368,6 +408,7 @@ public:
 private:
 	/** Reference to the parent viewport */
 	TWeakPtr<SEditorViewport> EditorViewport;
+	TSharedPtr<FDisplayClusterConfiguratorSCSEditorViewportClient> ViewportClient;
 };
 
 void SDisplayClusterConfiguratorSCSEditorViewport::Construct(const FArguments& InArgs)
@@ -481,7 +522,7 @@ TSharedRef<FEditorViewportClient> SDisplayClusterConfiguratorSCSEditorViewport::
 TSharedPtr<SWidget> SDisplayClusterConfiguratorSCSEditorViewport::MakeViewportToolbar()
 {
 	return
-		SNew(SDisplayClusterConfiguratorSCSEditorViewportToolBar)
+		SNew(SDisplayClusterConfiguratorSCSEditorViewportToolBar, ViewportClient)
 		.EditorViewport(SharedThis(this))
 		.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute());
 }
@@ -542,6 +583,12 @@ void SDisplayClusterConfiguratorSCSEditorViewport::BindCommands()
 		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowViewportNames),
 		FCanExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::CanToggleViewportNames),
 		FIsActionChecked::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetShowViewportNames));
+
+	CommandList->MapAction(
+		Commands.ToggleShowXformGizmos,
+		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowXformGizmos),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::IsShowingXformGizmos));
 	
 	SAssetEditorViewport::BindCommands();
 }

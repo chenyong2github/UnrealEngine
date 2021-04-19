@@ -28,7 +28,6 @@ class FDisplayClusterConfiguratorBlueprintEditor
 
 public:
 	FDisplayClusterConfiguratorBlueprintEditor() :
-		TicksForPreviewRenderCapture(0),
 		bSCSEditorSelecting(false),
 		bSelectSilently(false)
 	{
@@ -78,12 +77,9 @@ public:
 
 	/** Syncs shared properties between viewports. */
 	void SyncViewports();
-	
-	/** Make sure the blueprint preview actor is up to date. */
-	void RefreshDisplayClusterPreviewActor(bool bFullRefresh = false);
 
-	/** Output mapping preview will update the next tick. */
-	void RequestOutputMappingPreviewUpdate();
+	/** Make sure the blueprint preview actor is up to date. */
+	void RefreshDisplayClusterPreviewActor();
 
 	/** Reselects selected objects. Useful if recompiling as sometimes the details panel loses focus. */
 	void ReselectObjects();
@@ -91,18 +87,11 @@ public:
 	/** Restores previously open documents. */
 	void RestoreLastEditedState();
 
-protected:
-	/** Applies preview texture to all output mapping viewport nodes. */
-	void UpdateOutputMappingPreview();
-	
-	/** Clears preview texture from all output mapping viewport nodes. */
-	void CleanupOutputMappingPreview();
+	/** Updates the root actor's xform components to match the editor settings. */
+	void UpdateXformGizmos();
 
 private:
 	TWeakObjectPtr<AActor> CurrentPreviewActor;
-
-	// logic require signed number
-	int16 TicksForPreviewRenderCapture = -1;
 	
 	FDelegateHandle UpdateOutputMappingHandle;
 
@@ -138,7 +127,6 @@ protected:
 	virtual bool IsTickable() const override { return true; }
 	virtual TStatId GetStatId() const override;
 	virtual bool OnRequestClose() override;
-	virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled) override;
 	//~ End FBlueprintEditor Interface
 
 	// SSCS Implementation

@@ -18,10 +18,7 @@ class UDisplayClusterConfiguratorViewportNode final
 {
 	GENERATED_BODY()
 
-	DECLARE_DELEGATE(FOnPreviewUpdated);
-
 public:
-	~UDisplayClusterConfiguratorViewportNode();
 	virtual void Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit) override;
 
 	//~ Begin EdGraphNode Interface
@@ -29,8 +26,6 @@ public:
 	virtual bool CanDuplicateNode() const override { return true; }
 	virtual bool CanUserDeleteNode() const override { return true; }
 	//~ End EdGraphNode Interface
-
-	FOnPreviewUpdated& GetOnPreviewUpdated() { return OnPreviewUpdated; }
 	
 	//~ Begin UDisplayClusterConfiguratorBaseNode Interface
 	virtual bool IsNodeVisible() const override;
@@ -47,13 +42,8 @@ public:
 	const FDisplayClusterConfigurationRectangle& GetCfgViewportRegion() const;
 	bool IsFixedAspectRatio() const;
 
-	void SetPreviewTexture(UTexture* InTexture);
 	UTexture* GetPreviewTexture() const;
 
 private:
 	void OnPostEditChangeChainProperty(const FPropertyChangedChainEvent& PropertyChangedEvent);
-
-private:
-	TWeakObjectPtr<UTexture> PreviewTexture;
-	FOnPreviewUpdated OnPreviewUpdated;
 };

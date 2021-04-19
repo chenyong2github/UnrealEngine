@@ -130,6 +130,31 @@ FRHITexture2D* ADisplayClusterRootActor::GetPreviewRenderTargetableTexture_Rende
 	return nullptr;
 }
 
+float ADisplayClusterRootActor::GetXformGizmoScale() const
+{
+	return XformGizmoScale * EditorViewportXformGizmoScale;
+}
+
+bool ADisplayClusterRootActor::GetXformGizmoVisibility() const
+{
+	return bAreXformGizmosVisible && bEditorViewportXformGizmoVisibility;
+}
+
+void ADisplayClusterRootActor::UpdateXformGizmos()
+{
+	TMap<FString, UDisplayClusterXformComponent*> Xforms;
+	GetAllXforms(Xforms);
+
+	float Scale = GetXformGizmoScale();
+	bool bIsVisible = GetXformGizmoVisibility();
+
+	for (TPair<FString, UDisplayClusterXformComponent*> XformPair : Xforms)
+	{
+		XformPair.Value->SetVisXformScale(Scale);
+		XformPair.Value->SetVisXformVisibility(bIsVisible);
+	}
+}
+
 IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FString& InViewportId) const
 {
 	if (PreviewViewportManager.IsValid())
@@ -203,8 +228,11 @@ void ADisplayClusterRootActor::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			UpdatePreviewComponents();
 		});
 	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, XformGizmoScale) || 
+			 PropertyName == GET_MEMBER_NAME_CHECKED(ADisplayClusterRootActor, bAreXformGizmosVisible))
+	{
+		UpdateXformGizmos();
+	}
 
 	if (bReinitializeActor)
 	{

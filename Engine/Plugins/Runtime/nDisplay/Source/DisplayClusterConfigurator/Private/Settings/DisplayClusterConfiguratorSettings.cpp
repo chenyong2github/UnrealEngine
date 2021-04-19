@@ -15,4 +15,7 @@ UDisplayClusterConfiguratorEditorSettings::UDisplayClusterConfiguratorEditorSett
 	bExportOnSave = false;
 	bUpdateAssetsOnStartup = true;
 	bDisplayAssetUpdateProgress = true;
+
+	VisXformScale = 1.0f;
+	bShowVisXforms = true;
 }

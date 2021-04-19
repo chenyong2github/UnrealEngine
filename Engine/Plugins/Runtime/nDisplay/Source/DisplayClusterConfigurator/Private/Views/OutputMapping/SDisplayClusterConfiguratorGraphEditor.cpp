@@ -66,23 +66,6 @@ void SDisplayClusterConfiguratorGraphEditor::FindAndSelectObjects(const TArray<U
 	bSelectionSetDirectly = false;
 }
 
-void SDisplayClusterConfiguratorGraphEditor::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
-{
-	UDisplayClusterConfiguratorGraph* ConfiguratorGraph = ClusterConfiguratorGraph.Get();
-	check(ConfiguratorGraph != nullptr);
-
-	ConfiguratorGraph->ForEachGraphNode([=](UDisplayClusterConfiguratorBaseNode* Node)
-	{
-		if (UDisplayClusterConfiguratorViewportNode* ViewportNode = Cast<UDisplayClusterConfiguratorViewportNode>(Node))
-		{
-			if (ViewportNode->GetNodeName().Equals(ViewportId) && ViewportNode->GetParent() && ViewportNode->GetParent()->GetNodeName().Equals(NodeId))
-			{
-				ViewportNode->SetPreviewTexture(InTexture);
-			}
-		}
-	});
-}
-
 void SDisplayClusterConfiguratorGraphEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	// If the selection has been set directly in code, don't propagate the selection change to the toolkit.

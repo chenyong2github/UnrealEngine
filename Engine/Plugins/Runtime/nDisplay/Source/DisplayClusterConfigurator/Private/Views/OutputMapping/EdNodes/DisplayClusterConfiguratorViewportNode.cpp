@@ -9,12 +9,9 @@
 #include "Interfaces/Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 
 #include "DisplayClusterConfigurationTypes.h"
-
-
-UDisplayClusterConfiguratorViewportNode::~UDisplayClusterConfiguratorViewportNode()
-{
-	OnPreviewUpdated.Unbind();
-}
+#include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "DisplayClusterRootActor.h"
+#include "Components/DisplayClusterPreviewComponent.h"
 
 void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InNodeName, UObject* InObject, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit)
 {
@@ -83,17 +80,21 @@ bool UDisplayClusterConfiguratorViewportNode::IsFixedAspectRatio() const
 	return CfgViewport->bFixedAspectRatio;
 }
 
-void UDisplayClusterConfiguratorViewportNode::SetPreviewTexture(UTexture* InTexture)
-{
-	PreviewTexture = InTexture;
-	OnPreviewUpdated.ExecuteIfBound();
-}
-
 UTexture* UDisplayClusterConfiguratorViewportNode::GetPreviewTexture() const
 {
-	if (PreviewTexture.IsValid())
+	TSharedPtr<FDisplayClusterConfiguratorBlueprintEditor> Toolkit = ToolkitPtr.Pin();
+	check(Toolkit.IsValid());
+
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(Toolkit->GetPreviewActor()))
 	{
-		return PreviewTexture.Get();
+		UDisplayClusterConfiguratorWindowNode* ParentWindow = GetParentChecked<UDisplayClusterConfiguratorWindowNode>();
+		if (UDisplayClusterPreviewComponent* PreviewComp = RootActor->GetPreviewComponent(ParentWindow->GetNodeName(), GetNodeName()))
+		{
+			if (UTexture2D* Texture = PreviewComp->GetOrCreateRenderTexture2D())
+			{
+				return Texture;
+			}
+		}
 	}
 
 	return nullptr;
