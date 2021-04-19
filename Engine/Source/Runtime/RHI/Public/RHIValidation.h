@@ -796,7 +796,12 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(TextureRHI, CreateInfo);
-		SRV->ViewIdentity = TextureRHI->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
+
+		uint32 Plane = CreateInfo.Format == PF_X24_G8
+			? (uint32)RHIValidation::EResourcePlane::Stencil
+			: (uint32)RHIValidation::EResourcePlane::Common;
+
+		SRV->ViewIdentity = TextureRHI->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, Plane, 1);
 		return SRV;
 	}
 
@@ -1719,7 +1724,12 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture, CreateInfo);
-		SRV->ViewIdentity = Texture->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, uint32(RHIValidation::EResourcePlane::Common), 1);
+
+		uint32 Plane = CreateInfo.Format == PF_X24_G8
+			? (uint32)RHIValidation::EResourcePlane::Stencil
+			: (uint32)RHIValidation::EResourcePlane::Common;
+
+		SRV->ViewIdentity = Texture->GetViewIdentity(CreateInfo.MipLevel, CreateInfo.NumMipLevels, CreateInfo.FirstArraySlice, CreateInfo.NumArraySlices, Plane, 1);
 		return SRV;
 	}
 
