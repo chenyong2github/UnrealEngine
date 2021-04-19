@@ -217,6 +217,40 @@ namespace UE
 				return NameCount;
 			}
 
+			void GetName(const int32 Index, FString& OutName) const
+			{
+				OutName.Empty();
+				//The Class must be initialise properly before we can use it
+				TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributePtr = Attributes.Pin();
+				if (!ensure(AttributePtr.IsValid()))
+				{
+					return;
+				}
+				int32 NameCount = 0;
+				if (!AttributePtr->ContainAttribute(GetKeyCount()))
+				{
+					return;
+				}
+
+				FAttributeStorage::TAttributeHandle<int32> Handle = AttributePtr->GetAttributeHandle<int32>(GetKeyCount());
+				if (!Handle.IsValid())
+				{
+					return;
+				}
+				Handle.Get(NameCount);
+				if (Index >= NameCount)
+				{
+					return;
+				}
+				FAttributeKey DepIndexKey = GetIndexKey(Index);
+				FAttributeStorage::TAttributeHandle<FString> HandleName = AttributePtr->GetAttributeHandle<FString>(DepIndexKey);
+				if (!HandleName.IsValid())
+				{
+					return;
+				}
+				HandleName.Get(OutName);
+			}
+
 			void GetNames(TArray<FString>& OutNames) const
 			{
 				//The Class must be initialise properly before we can use it
@@ -766,6 +800,14 @@ public:
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const;
+
+	/**
+	 * Icon name are simply create by adding "InterchangeIcon_" in front of the specialized type. If there is no special type the function will return NAME_None which will use the default icon.
+	 */
+	virtual FName GetIconName() const
+	{
+		return NAME_None;
+	}
 
 	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 	{

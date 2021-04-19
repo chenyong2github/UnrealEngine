@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"InputCore",
 					"MainFrame",
+					"Projects",
 					"PropertyEditor",
 					"Slate",
 					"SlateCore",

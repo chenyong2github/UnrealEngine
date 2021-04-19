@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
 #include "InterchangeEditorPipelineDetails.h"
+#include "InterchangeEditorPipelineStyle.h"
 #include "InterchangeGraphInspectorPipeline.h"
 #include "InterchangeManager.h"
 #include "Misc/CoreDelegates.h"
@@ -18,6 +19,10 @@ class FInterchangeEditorPipelinesModule : public IInterchangeEditorPipelinesModu
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+private:
+	/** Pointer to the style set to use for the UI. */
+	TSharedPtr<ISlateStyle> InterchangeEditorPipelineStyle = nullptr;
 };
 
 IMPLEMENT_MODULE(FInterchangeEditorPipelinesModule, InterchangeEditorPipelines)
@@ -44,6 +49,11 @@ void FInterchangeEditorPipelinesModule::StartupModule()
 
 	ClassesToUnregisterOnShutdown.Add(UInterchangeBaseNode::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FInterchangeBaseNodeDetailsCustomization::MakeInstance));
+	
+	if (!InterchangeEditorPipelineStyle.IsValid())
+	{
+		InterchangeEditorPipelineStyle = MakeShared<FInterchangeEditorPipelineStyle>();
+	}
 }
 
 
@@ -57,6 +67,8 @@ void FInterchangeEditorPipelinesModule::ShutdownModule()
 			PropertyEditorModule->UnregisterCustomClassLayout(ClassName);
 		}
 	}
+
+	InterchangeEditorPipelineStyle = nullptr;
 }
 
 

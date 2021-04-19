@@ -3,9 +3,9 @@
 
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GameFramework/Actor.h"
 #include "IDetailsView.h"
 #include "IDocumentation.h"
-#include "GameFramework/Actor.h"
 #include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -82,17 +82,27 @@ public:
 	{
 		InterchangeNode = InArgs._InterchangeNode;
 		InterchangeBaseNodeContainer = InArgs._InterchangeBaseNodeContainer;
-
 		//This is suppose to always be valid
 		check(InterchangeNode);
 		check(InterchangeBaseNodeContainer);
 
-		UClass* IconClass = AActor::StaticClass();
-		if (InterchangeNode->GetAssetClass())
+		UClass* IconClass = InterchangeNode->GetAssetClass();
+		const FSlateBrush* TypeIcon = nullptr;
+		FName IconName = InterchangeNode->GetIconName();
+		if (IconClass)
 		{
-			IconClass = InterchangeNode->GetAssetClass();
+			TypeIcon = FSlateIconFinder::FindIconBrushForClass(IconClass);
 		}
-		const FSlateBrush* ClassIcon = FSlateIconFinder::FindIconBrushForClass(IconClass);
+		else if (IconName != NAME_None)
+		{
+			const FSlateIcon SlateIcon = FSlateIconFinder::FindIcon(IconName);
+			TypeIcon = SlateIcon.GetOptionalIcon();
+		}
+		
+		if (!TypeIcon)
+		{
+			TypeIcon = FSlateIconFinder::FindIconBrushForClass(AActor::StaticClass());
+		}
 
 		//Prepare the tooltip
 		FString Tooltip = InterchangeNode->GetDisplayLabel();
@@ -122,8 +132,8 @@ public:
 			.Padding(0.0f, 2.0f, 6.0f, 2.0f)
 			[
 				SNew(SImage)
-				.Image(ClassIcon)
-				.Visibility(ClassIcon != FEditorStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
+				.Image(TypeIcon)
+				.Visibility(TypeIcon != FEditorStyle::GetDefaultBrush() ? EVisibility::Visible : EVisibility::Collapsed)
 			]
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
