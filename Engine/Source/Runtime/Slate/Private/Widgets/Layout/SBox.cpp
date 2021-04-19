@@ -8,7 +8,7 @@
 SLATE_IMPLEMENT_WIDGET(SBox)
 void SBox::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
-	AttributeInitializer.AddMemberAttribute("SlotPadding", STRUCT_OFFSET(PrivateThisType, ChildSlot) + FBoxSlot::GetSlotPaddingAttributeOffset(), FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{ EInvalidateWidgetReason::Layout });
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "SlotPadding", ChildSlot.SlotPaddingAttribute, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, WidthOverride, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HeightOverride, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredWidth, EInvalidateWidgetReason::Layout);

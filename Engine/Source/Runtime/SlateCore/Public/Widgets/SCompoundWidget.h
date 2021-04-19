@@ -102,8 +102,14 @@ protected:
 	/** Disallow public construction */
 	SCompoundWidget();
 
+	struct FCompoundWidgetOneChildSlot : ::FOneSimpleMemberChild
+	{
+		friend SCompoundWidget;
+		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+	};
+
 	/** The slot that contains this widget's descendants.*/
-	FOneSimpleMemberChild ChildSlot;
+	FCompoundWidgetOneChildSlot ChildSlot;
 
 #if WITH_EDITORONLY_DATA
 	UE_DEPRECATED(5.0, "Direct access to ContentScale is now deprecated. Use the setter or getter.")

@@ -65,8 +65,14 @@ protected:
 	FSlateDeprecatedTAttribute<float> DPIScale;
 #endif
 
+	struct FDPIScalerOneChildSlot : ::FOneSimpleMemberChild
+	{
+		friend SDPIScaler;
+		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+	};
+
 	/** The content being scaled. */
-	FOneSimpleMemberChild ChildSlot;
+	FDPIScalerOneChildSlot ChildSlot;
 
 private:
 	/**

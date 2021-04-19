@@ -6,7 +6,7 @@
 SLATE_IMPLEMENT_WIDGET(SDPIScaler)
 void SDPIScaler::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
-	AttributeInitializer.AddMemberAttribute("SlotPadding", STRUCT_OFFSET(PrivateThisType, ChildSlot) + FOneSimpleMemberChild::GetSlotPaddingAttributeOffset(), FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{ EInvalidateWidgetReason::Layout });
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "SlotPadding", ChildSlot.SlotPaddingAttribute, EInvalidateWidgetReason::Layout);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "DPIScale", DPIScaleAttribute, EInvalidateWidgetReason::Prepass);
 }
 
@@ -22,7 +22,6 @@ SDPIScaler::SDPIScaler()
 void SDPIScaler::Construct( const FArguments& InArgs )
 {
 	SetDPIScale(InArgs._DPIScale);
-	DPIScaleAttribute.UpdateNow(*this);
 
 	ChildSlot
 	[
@@ -72,6 +71,7 @@ void SDPIScaler::SetContent(TSharedRef<SWidget> InContent)
 void SDPIScaler::SetDPIScale(TAttribute<float> InDPIScale)
 {
 	DPIScaleAttribute.Assign(*this, MoveTemp(InDPIScale), 1.f);
+	DPIScaleAttribute.UpdateNow(*this);
 }
 
 float SDPIScaler::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const

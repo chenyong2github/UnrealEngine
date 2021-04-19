@@ -24,9 +24,11 @@ class SLATE_API SBox : public SPanel
 	SLATE_DECLARE_WIDGET(SBox, SPanel)
 
 public:
-	class FBoxSlot : public FOneSimpleMemberChild
+
+	class UE_DEPRECATED(5.0, "FBoxSlot is deprecated. Use FSimpleSlot or FOneSimpleMemberChild")
+	FBoxSlot : public FSimpleSlot
 	{
-		using FOneSimpleMemberChild::FOneSimpleMemberChild;
+		using FSimpleSlot::FSimpleSlot;
 	};
 
 	SLATE_BEGIN_ARGS(SBox)
@@ -133,7 +135,12 @@ protected:
 
 protected:
 
-	FBoxSlot ChildSlot;
+	struct FBoxOneChildSlot : ::FOneSimpleMemberChild
+	{
+		friend SBox;
+		using ::FOneSimpleMemberChild::FOneSimpleMemberChild;
+	};
+	FBoxOneChildSlot ChildSlot;
 
 private:
 	/** When specified, ignore the content's desired size and report the.WidthOverride as the Box's desired width. */

@@ -865,12 +865,10 @@ public:
 	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeComparePredicate<>>;
 	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
 
-	static SIZE_T GetSlotPaddingAttributeOffset() { return STRUCT_OFFSET(FOneSimpleMemberChild, SlotPaddingAttribute); }
-
 	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
 	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const { return SlotPaddingAttributeRefType(*(static_cast<const WidgetType*>(FChildren::GetOwner())), SlotPaddingAttribute); }
 
-private:
+protected:
 	SlotPaddingAttributeType SlotPaddingAttribute;
 };
 
