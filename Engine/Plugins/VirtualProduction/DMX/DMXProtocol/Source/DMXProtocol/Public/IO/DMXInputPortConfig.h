@@ -82,6 +82,6 @@ protected:
 	 * Unique identifier, shared with the port instance.
 	 * Note: This needs be BlueprintReadWrite to be accessible to property type customization, but is hidden by customization.
 	 */
-	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config Guid")
+	UPROPERTY(Config, BlueprintReadWrite, EditDefaultsOnly, Category = "Port Config Guid", meta = (IgnoreForMemberInitializationTest))
 	FGuid PortGuid;
 };
