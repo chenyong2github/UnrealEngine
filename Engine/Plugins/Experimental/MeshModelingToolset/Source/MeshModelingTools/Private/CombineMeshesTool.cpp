@@ -229,6 +229,7 @@ void UCombineMeshesTool::CreateNewAsset()
 	AccumulateDMesh.EnableTriangleGroups();
 	AccumulateDMesh.EnableAttributes();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
+	AccumulateDMesh.Attributes()->EnablePrimaryColors();
 	FTransform AccumToWorld(Box.GetCenter());
 	FTransform ToAccum(-Box.GetCenter());
 
@@ -241,7 +242,7 @@ void UCombineMeshesTool::CreateNewAsset()
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
-
+		bool bNeedColorAttr = false;
 		int MatIndexBase = 0;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
@@ -253,6 +254,7 @@ void UCombineMeshesTool::CreateNewAsset()
 			FDynamicMesh3 ComponentDMesh;
 			const FMeshDescription* MeshDescription = MeshDescriptions[ComponentIdx];
 			Converter.Convert(MeshDescription, ComponentDMesh);
+			bNeedColorAttr = bNeedColorAttr || (ComponentDMesh.HasAttributes() && ComponentDMesh.Attributes()->HasPrimaryColors());
 
 			UE::Geometry::FTransform3d XF = (UE::Geometry::FTransform3d)(TargetComponentInterface(ComponentIdx)->GetWorldTransform() * ToAccum);
 			if (XF.GetDeterminant() < 0)
@@ -284,6 +286,11 @@ void UCombineMeshesTool::CreateNewAsset()
 			}
 
 			MatIndexBase += TargetMaterialInterface(ComponentIdx)->GetNumMaterials();
+		}
+
+		if (!bNeedColorAttr)
+		{
+			AccumulateDMesh.Attributes()->DisablePrimaryColors();
 		}
 
 		SlowTask.EnterProgressFrame(1);
@@ -398,6 +405,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	AccumulateDMesh.EnableTriangleGroups();
 	AccumulateDMesh.EnableAttributes();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
+	AccumulateDMesh.Attributes()->EnablePrimaryColors();
 
 	int32 SkipIndex = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : (Targets.Num() - 1);
 	IPrimitiveComponentBackedTarget* UpdateTarget = TargetComponentInterface(SkipIndex);
@@ -419,7 +427,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
-
+		bool bNeedColorAttr = false;
 		int MatIndexBase = 0;
 		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
@@ -430,6 +438,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			FMeshDescriptionToDynamicMesh Converter;
 			FDynamicMesh3 ComponentDMesh;
 			Converter.Convert(MeshDescriptions[ComponentIdx], ComponentDMesh);
+			bNeedColorAttr = bNeedColorAttr || (ComponentDMesh.HasAttributes() && ComponentDMesh.Attributes()->HasPrimaryColors());
 
 			// update material IDs to account for combined material set
 			FDynamicMeshMaterialAttribute* MatAttrib = ComponentDMesh.Attributes()->GetMaterialID();
@@ -465,6 +474,11 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			FDynamicMeshEditor Editor(&AccumulateDMesh);
 			FMeshIndexMappings IndexMapping;
 			Editor.AppendMesh(&ComponentDMesh, IndexMapping);
+		}
+
+		if (!bNeedColorAttr)
+		{
+			AccumulateDMesh.Attributes()->DisablePrimaryColors();
 		}
 
 		SlowTask.EnterProgressFrame(1);

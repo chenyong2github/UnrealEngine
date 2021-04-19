@@ -1411,6 +1411,8 @@ template class DYNAMICMESH_API TDynamicMeshOverlay<int, 2>;
 template class DYNAMICMESH_API TDynamicMeshOverlay<float, 3>;
 template class DYNAMICMESH_API TDynamicMeshOverlay<double, 3>;
 template class DYNAMICMESH_API TDynamicMeshOverlay<int, 3>;
+template class DYNAMICMESH_API TDynamicMeshOverlay<float, 4>;
+template class DYNAMICMESH_API TDynamicMeshOverlay<double, 4>;
 
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<float, 2, FVector2f>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<double, 2, FVector2d>;
@@ -1418,6 +1420,8 @@ template class DYNAMICMESH_API TDynamicMeshVectorOverlay<int, 2, FVector2i>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<float, 3, FVector3f>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<double, 3, FVector3d>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<int, 3, FVector3i>;
+template class DYNAMICMESH_API TDynamicMeshVectorOverlay<float, 4, FVector4f>;
+template class DYNAMICMESH_API TDynamicMeshVectorOverlay<double, 4, FVector4d>;
 
 } // end namespace UE::Geometry
 } // end namespace UE

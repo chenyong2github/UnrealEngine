@@ -22,6 +22,7 @@ protected:
 	FIndexMapi TriangleMap;
 	FIndexMapi GroupMap;
 
+	FIndexMapi ColorMap;
 	TArray<FIndexMapi> UVMaps;
 	TArray<FIndexMapi> NormalMaps;
 
@@ -37,6 +38,7 @@ public:
 		VertexMap.Reset();
 		TriangleMap.Reset();
 		GroupMap.Reset();
+		ColorMap.Reset();
 		for (FIndexMapi& UVMap : UVMaps)
 		{
 			UVMap.Reset();
@@ -78,6 +80,11 @@ public:
 	void SetNormal(int NormalLayer, int FromID, int ToID) { NormalMaps[NormalLayer].Add(FromID, ToID); }
 	int GetNewNormal(int NormalLayer, int FromID) const { return NormalMaps[NormalLayer].GetTo(FromID); }
 	inline bool ContainsNormal(int NormalLayer, int FromID) const { return NormalMaps[NormalLayer].ContainsFrom(FromID); }
+
+	FIndexMapi& GetColorMap() { return ColorMap; }
+	void SetColor( int FromID, int ToID) { ColorMap.Add(FromID, ToID); }
+	int GetNewColor(int FromID) const { return ColorMap.GetTo(FromID); }
+	inline bool ContainsColor(int FromID) const { return ColorMap.ContainsFrom(FromID); }
 
 };
 

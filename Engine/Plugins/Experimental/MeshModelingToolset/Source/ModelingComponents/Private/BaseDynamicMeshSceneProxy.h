@@ -13,6 +13,7 @@ using UE::Geometry::FDynamicMesh3;
 using UE::Geometry::FDynamicMeshAttributeSet;
 using UE::Geometry::FDynamicMeshUVOverlay;
 using UE::Geometry::FDynamicMeshNormalOverlay;
+using UE::Geometry::FDynamicMeshColorOverlay;
 using UE::Geometry::FDynamicMeshMaterialAttribute;
 
 /**
@@ -410,13 +411,14 @@ public:
 		int NumTriangles, TriangleEnumerable Enumerable,
 		const FDynamicMeshUVOverlay* UVOverlay,
 		const FDynamicMeshNormalOverlay* NormalOverlay,
+		const FDynamicMeshColorOverlay* ColorOverlay,
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
 		bool bTrackTriangles = false)
 	{
 		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
 		UVOverlays.Add(UVOverlay);
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh, NumTriangles, Enumerable,
-			UVOverlays, NormalOverlay, TangentsFunc, bTrackTriangles);
+			UVOverlays, NormalOverlay, ColorOverlay, TangentsFunc, bTrackTriangles);
 	}
 
 
@@ -432,6 +434,7 @@ public:
 		int NumTriangles, TriangleEnumerable Enumerable,
 		const TArray<const FDynamicMeshUVOverlay*>& UVOverlays,
 		const FDynamicMeshNormalOverlay* NormalOverlay,
+		const FDynamicMeshColorOverlay* ColorOverlay,
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr,
 		bool bTrackTriangles = false)
 	{
@@ -441,7 +444,7 @@ public:
 			return;
 		}
 
-		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
+		bool bHaveColors = (ColorOverlay != nullptr) && (bIgnoreVertexColors == false);
 
 		int NumVertices = NumTriangles * 3;
 		int NumUVOverlays = UVOverlays.Num();
@@ -473,11 +476,12 @@ public:
 				UVTriangles[k] = (k < NumUVOverlays && UVOverlays[k] != nullptr) ? UVOverlays[k]->GetTriangle(TriangleID) : FIndex3i::Invalid();
 			}
 			FIndex3i TriNormal = (NormalOverlay != nullptr) ? NormalOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
+			FIndex3i TriColor = (ColorOverlay != nullptr) ? ColorOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
 
-			FColor TriColor = ConstantVertexColor;
+			FColor UniformTriColor = ConstantVertexColor;
 			if (bUsePerTriangleColor && PerTriangleColorFunc != nullptr)
 			{
-				TriColor = PerTriangleColorFunc(Mesh, TriangleID);
+				UniformTriColor = PerTriangleColorFunc(Mesh, TriangleID);
 				bHaveColors = false;
 			}
 
@@ -487,7 +491,7 @@ public:
 
 				FVector3f Normal = (NormalOverlay != nullptr && TriNormal[j] != FDynamicMesh3::InvalidID) ?
 					NormalOverlay->GetElement(TriNormal[j]) : Mesh->GetVertexNormal(Tri[j]);
-
+				
 				// either request known tangent, or calculate a nonsense one
 				if (TangentsFunc != nullptr)
 				{
@@ -506,8 +510,10 @@ public:
 					RenderBuffers->StaticMeshVertexBuffer.SetVertexUV(VertIdx, k, (FVector2D)UV);
 				}
 
-				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-					UE::Geometry::ToFColor(Mesh->GetVertexColor(Tri[j])) : TriColor;
+				FColor VertexFColor = (bHaveColors && TriColor[j] != FDynamicMesh3::InvalidID) ?
+					FColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+
+				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = VertexFColor;
 
 				RenderBuffers->IndexBuffer.Indices[TriIdx++] = VertIdx;		// currently TriIdx == VertIdx so we don't really need both...
 				VertIdx++;
@@ -628,6 +634,7 @@ public:
 		const FDynamicMesh3* Mesh,
 		int NumTriangles, TriangleEnumerable Enumerable,
 		FDynamicMeshNormalOverlay* NormalOverlay,
+		FDynamicMeshColorOverlay* ColorOverlay,
 		TFunctionRef<void(int, int, int, const FVector3f&, FVector3f&, FVector3f&)> TangentsFunc,
 		bool bUpdatePositions = true,
 		bool bUpdateNormals = false,
@@ -638,7 +645,7 @@ public:
 			return;
 		}
 
-		bool bHaveColors = Mesh->HasVertexColors() && (bIgnoreVertexColors == false);
+		bool bHaveColors = (ColorOverlay != nullptr) && (bIgnoreVertexColors == false);
 
 		int NumVertices = NumTriangles * 3;
 		check(RenderBuffers->PositionVertexBuffer.GetNumVertices() == NumVertices);
@@ -658,11 +665,12 @@ public:
 			FIndex3i Tri = Mesh->GetTriangle(TriangleID);
 
 			FIndex3i TriNormal = (bUpdateNormals && NormalOverlay != nullptr) ? NormalOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
+			FIndex3i TriColor = (bUpdateColors && ColorOverlay != nullptr) ? ColorOverlay->GetTriangle(TriangleID) : FIndex3i::Zero();
 
-			FColor TriColor = ConstantVertexColor;
+			FColor UniformTriColor = ConstantVertexColor;
 			if (bUpdateColors && bUsePerTriangleColor && PerTriangleColorFunc != nullptr)
 			{
-				TriColor = PerTriangleColorFunc(Mesh, TriangleID);
+				UniformTriColor = PerTriangleColorFunc(Mesh, TriangleID);
 				bHaveColors = false;
 			}
 
@@ -685,8 +693,9 @@ public:
 
 				if (bUpdateColors)
 				{
-					RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-						UE::Geometry::ToFColor(Mesh->GetVertexColor(Tri[j])) : TriColor;
+					FColor VertexFColor = (bHaveColors  && TriColor[j] != FDynamicMesh3::InvalidID) ?
+						FColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+
 				}
 
 				VertIdx++;

@@ -2,7 +2,7 @@
 
 #include "DynamicMeshAttributeSet.h"
 #include "IndexTypes.h"
-#include "Async/ParallelFor.h"
+#include "Async/Async.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -20,7 +20,11 @@ void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
 	{
 		NormalLayers[NormalLayerIndex].Copy(Copy.NormalLayers[NormalLayerIndex]);
 	}
-
+	if (Copy.ColorLayer)
+	{
+		EnablePrimaryColors();
+		ColorLayer->Copy(*(Copy.ColorLayer));
+	}
 	if (Copy.MaterialIDAttrib)
 	{
 		EnableMaterialID();
@@ -64,6 +68,13 @@ bool FDynamicMeshAttributeSet::IsCompact()
 			return false;
 		}
 	}
+	if (HasPrimaryColors())
+	{
+		if (!ColorLayer->IsCompact())
+		{
+			return false;
+		}
+	}
 	
 	// material ID and generic per-element attributes currently cannot be non-compact
 	return true;
@@ -82,6 +93,11 @@ void FDynamicMeshAttributeSet::CompactCopy(const FCompactMaps& CompactMaps, cons
 	for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers(); NormalLayerIndex++)
 	{
 		NormalLayers[NormalLayerIndex].CompactCopy(CompactMaps, Copy.NormalLayers[NormalLayerIndex]);
+	}
+	if (Copy.ColorLayer)
+	{
+		EnablePrimaryColors();
+		ColorLayer->CompactCopy(CompactMaps, *(Copy.ColorLayer));
 	}
 
 	if (Copy.MaterialIDAttrib)
@@ -123,7 +139,10 @@ void FDynamicMeshAttributeSet::CompactInPlace(const FCompactMaps& CompactMaps)
 	{
 		NormalLayers[NormalLayerIndex].CompactInPlace(CompactMaps);
 	}
-
+	if (ColorLayer.IsValid())
+	{
+		ColorLayer->CompactInPlace(CompactMaps);
+	}
 	if (MaterialIDAttrib.IsValid())
 	{
 		MaterialIDAttrib->CompactInPlace(CompactMaps);
@@ -146,18 +165,45 @@ void FDynamicMeshAttributeSet::SplitAllBowties(bool bParallel)
 {
 	int32 UVLayerCount = NumUVLayers();
 	int32 NormalLayerCount = NumNormalLayers();
-
-	ParallelFor(UVLayerCount + NormalLayerCount, [&](int32 idx)
+	
+	TArray<TFuture<void>> Pending;
+	auto ASyncOrRunSplit = [&Pending, bParallel](auto Overlay)->void
 	{
-		if (idx < NormalLayerCount)
-		{
-			GetNormalLayer(idx)->SplitBowties();
+		if (bParallel)
+		{	
+			auto AsyncTask = Async(EAsyncExecution::ThreadPool, [Overlay]() 
+			{
+				Overlay->SplitBowties();
+			});
+			Pending.Add(MoveTemp(AsyncTask));
 		}
 		else
 		{
-			GetUVLayer(idx - NormalLayerCount)->SplitBowties();
+			Overlay->SplitBowties();
 		}
-	}, (bParallel) ? EParallelForFlags::Unbalanced : EParallelForFlags::ForceSingleThread );
+	};
+
+	for (int32 i = 0; i < UVLayerCount; ++i)
+	{	
+		FDynamicMeshUVOverlay* UVLayer = GetUVLayer(i);
+		ASyncOrRunSplit(UVLayer);
+	}
+	for (int32 i = 0; i < NormalLayerCount; ++i)
+	{
+		FDynamicMeshNormalOverlay* NormalLayer = GetNormalLayer(i);
+		ASyncOrRunSplit(NormalLayer);
+	}
+	if (HasPrimaryColors())
+	{
+		FDynamicMeshColorOverlay* Colors = PrimaryColors();
+		ASyncOrRunSplit(Colors);
+	}
+
+	// this array will be empty if bParallel == false
+	for (TFuture<void>& Future : Pending)
+	{
+		Future.Wait();
+	}
 }
 
 
@@ -173,6 +219,14 @@ void FDynamicMeshAttributeSet::EnableMatchingAttributes(const FDynamicMeshAttrib
 	for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers(); NormalLayerIndex++)
 	{
 		NormalLayers[NormalLayerIndex].ClearElements();
+	}
+	if (ToMatch.ColorLayer)
+	{
+		EnablePrimaryColors();
+	}
+	else
+	{
+		DisablePrimaryColors();
 	}
 
 	if (ToMatch.MaterialIDAttrib)
@@ -211,6 +265,10 @@ void FDynamicMeshAttributeSet::Reparent(FDynamicMesh3* NewParent)
 	for (int NormalLayerIndex = 0; NormalLayerIndex < NumNormalLayers(); NormalLayerIndex++)
 	{
 		NormalLayers[NormalLayerIndex].Reparent(NewParent);
+	}
+	if (ColorLayer)
+	{
+		ColorLayer->Reparent(NewParent);
 	}
 
 	if (MaterialIDAttrib)
@@ -284,7 +342,18 @@ void FDynamicMeshAttributeSet::SetNumNormalLayers(int Num)
 	check(NormalLayers.Num() == Num);
 }
 
+void FDynamicMeshAttributeSet::EnablePrimaryColors()
+{
+	if (HasPrimaryColors() == false)
+	{ 
+		ColorLayer = MakeUnique<FDynamicMeshColorOverlay>(ParentMesh);
+	}
+}
 
+void FDynamicMeshAttributeSet::DisablePrimaryColors()
+{
+	ColorLayer.Reset();
+}
 
 int32 FDynamicMeshAttributeSet::NumPolygroupLayers() const
 {
@@ -358,6 +427,11 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
 		}
 	}
 
+	if (ColorLayer && ColorLayer->IsSeamEdge(eid))
+	{
+		return true;
+	}
+	
 	return false;
 }
 
@@ -379,10 +453,14 @@ bool FDynamicMeshAttributeSet::IsSeamEndEdge(int eid) const
 		}
 	}
 
+	if (ColorLayer && ColorLayer->IsSeamEndEdge(eid))
+	{
+		return true;
+	}
 	return false;
 }
 
-bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut) const
+bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const
 {
 	bIsUVSeamOut = false;
 	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
@@ -402,7 +480,12 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& 
 		}
 	}
 
-	return (bIsUVSeamOut || bIsNormalSeamOut);
+	bIsColorSeamOut = false;
+	if (ColorLayer && ColorLayer->IsSeamEdge(EdgeID))
+	{
+		bIsColorSeamOut = true;
+	}
+	return (bIsUVSeamOut || bIsNormalSeamOut || bIsColorSeamOut);
 }
 
 
@@ -421,6 +504,10 @@ bool FDynamicMeshAttributeSet::IsSeamVertex(int VID, bool bBoundaryIsSeam) const
 		{
 			return true;
 		}
+	}
+	if (ColorLayer && ColorLayer->IsSeamVertex(VID, bBoundaryIsSeam))
+	{
+		return true;
 	}
 	return false;
 }
@@ -468,7 +555,10 @@ void FDynamicMeshAttributeSet::OnNewTriangle(int TriangleID, bool bInserted)
 	{
 		NormalLayer.InitializeNewTriangle(TriangleID);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->InitializeNewTriangle(TriangleID);
+	}
 	if (MaterialIDAttrib)
 	{
 		int NewValue = 0;
@@ -495,6 +585,10 @@ void FDynamicMeshAttributeSet::OnRemoveTriangle(int TriangleID)
 	{
 		NormalLayer.OnRemoveTriangle(TriangleID);
 	}
+	if (ColorLayer)
+	{
+		ColorLayer->OnRemoveTriangle(TriangleID);
+	}
 
 	// has no effect on MaterialIDAttrib
 }
@@ -511,7 +605,10 @@ void FDynamicMeshAttributeSet::OnReverseTriOrientation(int TriangleID)
 	{
 		NormalLayer.OnReverseTriOrientation(TriangleID);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnReverseTriOrientation(TriangleID);
+	}
 	// has no effect on MaterialIDAttrib
 }
 
@@ -527,7 +624,10 @@ void FDynamicMeshAttributeSet::OnSplitEdge(const FDynamicMesh3::FEdgeSplitInfo& 
 	{
 		NormalLayer.OnSplitEdge(SplitInfo);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnSplitEdge(SplitInfo);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnSplitEdge(SplitInfo);
@@ -551,7 +651,10 @@ void FDynamicMeshAttributeSet::OnFlipEdge(const FDynamicMesh3::FEdgeFlipInfo & f
 	{
 		NormalLayer.OnFlipEdge(flipInfo);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnFlipEdge(flipInfo);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnFlipEdge(flipInfo);
@@ -576,7 +679,10 @@ void FDynamicMeshAttributeSet::OnCollapseEdge(const FDynamicMesh3::FEdgeCollapse
 	{
 		NormalLayer.OnCollapseEdge(collapseInfo);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnCollapseEdge(collapseInfo);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnCollapseEdge(collapseInfo);
@@ -600,7 +706,10 @@ void FDynamicMeshAttributeSet::OnPokeTriangle(const FDynamicMesh3::FPokeTriangle
 	{
 		NormalLayer.OnPokeTriangle(pokeInfo);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnPokeTriangle(pokeInfo);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnPokeTriangle(pokeInfo);
@@ -624,7 +733,10 @@ void FDynamicMeshAttributeSet::OnMergeEdges(const FDynamicMesh3::FMergeEdgesInfo
 	{
 		NormalLayer.OnMergeEdges(mergeInfo);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnMergeEdges(mergeInfo);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnMergeEdges(mergeInfo);
@@ -648,7 +760,10 @@ void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplit
 	{
 		NormalLayer.OnSplitVertex(SplitInfo, TrianglesToUpdate);
 	}
-
+	if (ColorLayer)
+	{
+		ColorLayer->OnSplitVertex(SplitInfo, TrianglesToUpdate);
+	}
 	if (MaterialIDAttrib)
 	{
 		MaterialIDAttrib->OnSplitVertex(SplitInfo, TrianglesToUpdate);

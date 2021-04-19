@@ -59,8 +59,8 @@ public:
 		}
 		if (Mesh->HasAttributes())
 		{
-			bool bIsUVSeam = false, bIsNormalSeam = false;
-			if (Mesh->Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam))
+			bool bIsUVSeam = false, bIsNormalSeam = false, bIsColorSeam = false;
+			if (Mesh->Attributes()->IsSeamEdge(EdgeIndex, bIsUVSeam, bIsNormalSeam, bIsColorSeam))
 			{
 				if (bIsUVSeam)
 				{
@@ -69,6 +69,10 @@ public:
 				if (bIsNormalSeam)
 				{
 					EdgeType |= (int32)EMeshEdgeType::NormalSeam;
+				}
+				if (bIsColorSeam)
+				{
+					EdgeType |= (int32)EMeshEdgeType::ColorSeam;
 				}
 			}
 		}
@@ -108,12 +112,14 @@ void UMeshElementsVisualizer::OnCreated()
 	Settings->WatchProperty(Settings->bShowBorders, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowUVSeams, [this](bool) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->bShowNormalSeams, [this](bool) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->bShowColorSeams, [this](bool){ bSettingsModified = true; });
 	Settings->WatchProperty(Settings->ThicknessScale, [this](float) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->DepthBias, [this](float) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->WireframeColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->BoundaryEdgeColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->UVSeamColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->NormalSeamColor, [this](FColor) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->ColorSeamColor, [this](FColor) { bSettingsModified = true; });
 	bSettingsModified = false;
 
 	WireframeComponent = NewObject<UMeshWireframeComponent>(GetActor());
@@ -165,11 +171,13 @@ void UMeshElementsVisualizer::UpdateVisibility()
 	WireframeComponent->bEnableBoundaryEdges = Settings->bShowBorders;
 	WireframeComponent->bEnableUVSeams = Settings->bShowUVSeams;
 	WireframeComponent->bEnableNormalSeams = Settings->bShowNormalSeams;
+	WireframeComponent->bEnableColorSeams = Settings->bShowColorSeams;
 
 	WireframeComponent->WireframeColor = Settings->WireframeColor;
 	WireframeComponent->BoundaryEdgeColor = Settings->BoundaryEdgeColor;
 	WireframeComponent->UVSeamColor = Settings->UVSeamColor;
 	WireframeComponent->NormalSeamColor = Settings->NormalSeamColor;
+	WireframeComponent->ColorSeamColor = Settings->ColorSeamColor;
 
 	WireframeComponent->MarkRenderStateDirty();
 }

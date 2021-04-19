@@ -27,13 +27,10 @@ public:
 	/** Should we initialize triangle groups on output mesh */
 	bool bEnableOutputGroups = true;
 
-	/** Should we initialize vertex colors on output mesh */
-	bool bEnableOutputVertexColors = true;
-
 	/** Should we calculate conversion index maps */
 	bool bCalculateMaps = true;
 
-	/** Ignore all mesh attributes (e.g. UV/Normal layers, material groups) */
+	/** Ignore all mesh attributes (e.g. UV/Normal layers, color layer, material groups) */
 	bool bDisableAttributes = false;
 
 

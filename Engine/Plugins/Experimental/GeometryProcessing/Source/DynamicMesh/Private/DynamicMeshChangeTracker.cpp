@@ -154,6 +154,8 @@ template class DYNAMICMESH_API TDynamicMeshAttributeChange<int, 2>;
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<float, 3>;
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<double, 3>;
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<int, 3>;
+template class DYNAMICMESH_API TDynamicMeshAttributeChange<float, 4>;
+template class DYNAMICMESH_API TDynamicMeshAttributeChange<double, 4>;
 
 } // end namespace UE::Geometry
 } // end namespace UE
@@ -399,6 +401,20 @@ void FDynamicMeshAttributeSetChangeTracker::BeginChange()
 		}
 	}
 
+	// initialize Color layer state tracking if needed
+	if (Attribs->HasPrimaryColors())
+	{
+		Change->ColorChange.Emplace();
+		const FDynamicMeshColorOverlay* ColorLayer = Attribs->PrimaryColors();
+		ColorState.MaxElementID = ColorLayer->MaxElementID();
+		ColorState.StartElements.Init(false, ColorState.MaxElementID);
+		ColorState.ChangedElements.Init(false,  ColorState.MaxElementID);
+		for ( int ElemID : ColorLayer->ElementIndicesItr())
+		{
+			ColorState.StartElements[ElemID] = true;
+		}
+	}
+
 	if (Attribs->HasMaterialID())
 	{
 		Change->MaterialIDAttribChange.Emplace();
@@ -454,6 +470,19 @@ void FDynamicMeshAttributeSetChangeTracker::SaveInitialTriangle(int TriangleID)
 			SaveElement(NormTriangle.B, NormalStates[k], NormalLayer, NormalChange);
 			SaveElement(NormTriangle.C, NormalStates[k], NormalLayer, NormalChange);
 			NormalChange.SaveInitialTriangle(NormalLayer, TriangleID);
+		}
+	}
+	if (Change->ColorChange.IsSet())
+	{
+		FDynamicMeshColorChange& ColorChange = *Change->ColorChange;
+		const FDynamicMeshColorOverlay* ColorLayer = Attribs->PrimaryColors();
+		if (ColorLayer->IsSetTriangle(TriangleID))
+		{
+			FIndex3i ColorTriangle = ColorLayer->GetTriangle(TriangleID);
+			SaveElement(ColorTriangle.A, ColorState, ColorLayer, ColorChange);
+			SaveElement(ColorTriangle.B, ColorState, ColorLayer, ColorChange);
+			SaveElement(ColorTriangle.C, ColorState, ColorLayer, ColorChange);
+			ColorChange.SaveInitialTriangle(ColorLayer, TriangleID);
 		}
 	}
 
@@ -541,6 +570,31 @@ void FDynamicMeshAttributeSetChangeTracker::StoreAllFinalTriangles(const TArray<
 		}
 	}
 
+	// store final Color elements for all modified triangles, and final triangles if needed
+	if (Change->ColorChange.IsSet())
+	{
+		FDynamicMeshColorChange& ColorChange = *Change->ColorChange;
+		const FDynamicMeshColorOverlay* ColorLayer = Attribs->PrimaryColors();
+		StoredVertices.Reset();
+
+		for (int tid : TriangleIDs)
+		{
+			if (ColorLayer->IsSetTriangle(tid))
+			{
+				FIndex3i Tri = ColorLayer->GetTriangle(tid);
+				for (int j = 0; j < 3; ++j)
+				{
+					if (StoredVertices.Contains(Tri[j]) == false)
+					{ 
+						ColorChange.StoreFinalElement(ColorLayer, Tri[j]);
+						StoredVertices.Add(Tri[j]);
+					}
+				}
+				ColorChange.StoreFinalTriangle(ColorLayer, tid);
+			}
+		}
+	}
+
 	if (Change->MaterialIDAttribChange.IsSet())
 	{
 		Change->MaterialIDAttribChange->StoreAllFinalTriangles(Attribs->GetMaterialID(), TriangleIDs);
@@ -590,7 +644,11 @@ bool FDynamicMeshAttributeChangeSet::Apply(FDynamicMeshAttributeSet* Attributes,
 	{
 		RegisteredAttributeChanges[k]->Apply(Attributes->GetRegisteredAttribute(k), bRevert);
 	}
-
+	if (ColorChange.IsSet())
+	{
+		FDynamicMeshColorOverlay* ColorLayer = Attributes->PrimaryColors();
+		ColorChange->Apply(ColorLayer, bRevert);
+	}
 	if (MaterialIDAttribChange.IsSet())
 	{
 		MaterialIDAttribChange->Apply(Attributes->GetMaterialID(), bRevert);

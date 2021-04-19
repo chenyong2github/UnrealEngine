@@ -39,6 +39,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization)
 	bool bShowNormalSeams = true;
 
+	/** Should mesh color seam edges be shown */
+	UPROPERTY(EditAnywhere, Category = MeshElementVisualization)
+	bool bShowColorSeams = true;
+
 	/** multiplier on edge thicknesses */
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (UIMin = 0.1, UIMax = 10.0))
 	float ThicknessScale = 1.0;
@@ -59,6 +63,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay)
 	FColor NormalSeamColor = FColor(128, 128, 240);
 
+	/** Color of mesh color seam edges */
+	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay)
+	FColor ColorSeamColor = FColor(46, 204, 113);
+
 	/** depth bias used to slightly shift depth of lines */
 	UPROPERTY(EditAnywhere, Category = MeshElementVisualization, AdvancedDisplay, meta = (UIMin = -2.0, UIMax = 2.0))
 	float DepthBias = 0.2;
@@ -67,7 +75,7 @@ public:
 
 /**
  * UMeshElementsVisualizer is a subclass of UPreviewGeometry that displays mesh elements.
- * Currently supports wireframe, boundary edges, UV seams, and Normal seams.
+ * Currently supports wireframe, boundary edges, UV seams, Normal seams and Color seams.
  *
  * UMeshElementsVisualizer initializes an instance of UMeshElementsVisualizerProperties
  * as its .Settings value, and will watch for changes in these properties.
@@ -107,7 +115,7 @@ public:
 	UPROPERTY()
 	UMeshElementsVisualizerProperties* Settings;
 
-	/** Mesh Wireframe component, draws wireframe, boundaries, UV seams, normal seams */
+	/** Mesh Wireframe component, draws wireframe, boundaries, UV seams, normal seams, color seams */
 	UPROPERTY()
 	UMeshWireframeComponent* WireframeComponent;
 

@@ -94,14 +94,16 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	CombinedSourceMeshes->EnableAttributes();
 	CombinedSourceMeshes->EnableTriangleGroups(0);
 	CombinedSourceMeshes->Attributes()->EnableMaterialID();
+	CombinedSourceMeshes->Attributes()->EnablePrimaryColors();
 	FDynamicMeshEditor AppendEditor(CombinedSourceMeshes.Get());
 
+	bool bNeedColorAttr = false;
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		FDynamicMesh3 ComponentMesh;
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), ComponentMesh);
-
+		bNeedColorAttr = bNeedColorAttr || (ComponentMesh.Attributes()->HasPrimaryColors());
 		// ensure materials and attributes are always enabled
 		ComponentMesh.EnableAttributes();
 		ComponentMesh.Attributes()->EnableMaterialID();
@@ -127,6 +129,10 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 				return WorldTransform.TransformNormal(Normal);
 			}
 			);
+	}
+	if (!bNeedColorAttr)
+	{
+		CombinedSourceMeshes->Attributes()->DisablePrimaryColors();
 	}
 
 	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));

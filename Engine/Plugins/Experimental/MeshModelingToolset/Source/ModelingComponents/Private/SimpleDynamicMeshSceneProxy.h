@@ -108,6 +108,7 @@ public:
 		// find suitable overlays
 		FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->PrimaryUV();
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+		FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
 		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
@@ -130,7 +131,7 @@ public:
 				RenderBuffers->Triangles = Triangles;
 				InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 					Triangles.Num(), Triangles,
-					UVOverlay, NormalOverlay, TangentsFunc);
+					UVOverlay, NormalOverlay, ColorOverlay, TangentsFunc);
 
 				ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeFromDecomposition)(
 					[RenderBuffers](FRHICommandListImmediate& RHICmdList)
@@ -158,6 +159,7 @@ public:
 		// find suitable overlays
 		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
 		const FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
+		const FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 		if (Mesh->HasAttributes())
 		{
 			const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
@@ -167,6 +169,7 @@ public:
 			{
 				UVOverlays[k] = Attributes->GetUVLayer(k);
 			}
+			ColorOverlay = Attributes->PrimaryColors();
 		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
@@ -181,7 +184,7 @@ public:
 
 		InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 			Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-			UVOverlays, NormalOverlay, TangentsFunc);
+			UVOverlays, NormalOverlay, ColorOverlay, TangentsFunc);
 
 		ENQUEUE_RENDER_COMMAND(FSimpleDynamicMeshSceneProxyInitializeSingle)(
 			[RenderBuffers](FRHICommandListImmediate& RHICmdList)
@@ -205,6 +208,7 @@ public:
 		// find suitable overlays
 		const FDynamicMeshMaterialAttribute* MaterialID = Attributes->GetMaterialID();
 		const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
+		const FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
 
 		TArray<const FDynamicMeshUVOverlay*> UVOverlays;
 		UVOverlays.SetNum(Attributes->NumUVLayers());
@@ -271,7 +275,7 @@ public:
 
 				InitializeBuffersFromOverlays(RenderBuffers, Mesh,
 					Triangles.Num(), Triangles,
-					UVOverlays, NormalOverlay, TangentsFunc);
+					UVOverlays, NormalOverlay, ColorOverlay, TangentsFunc);
 
 				RenderBuffers->Triangles = Triangles;
 
@@ -383,7 +387,13 @@ public:
 			check(Mesh->HasAttributes());
 			UVOVerlay = Mesh->Attributes()->PrimaryUV();
 		}
-
+		FDynamicMeshColorOverlay* ColorOverlay = nullptr;
+		if (bColors)
+		{
+			check(Mesh->HasAttributes());
+			ColorOverlay = Mesh->Attributes()->PrimaryColors();
+					
+		}
 		if (bIsSingleBuffer)
 		{
 			check(RenderBufferSets.Num() == 1);
@@ -392,7 +402,7 @@ public:
 			{
 				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 					Mesh->TriangleCount(), Mesh->TriangleIndicesItr(),
-					NormalOverlay, TangentsFunc,
+					NormalOverlay, ColorOverlay, TangentsFunc,
 					bPositions, bNormals, bColors);
 			}
 			if (bUVs)
@@ -422,7 +432,7 @@ public:
 				{
 					UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 						Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
-						NormalOverlay, TangentsFunc,
+						NormalOverlay, ColorOverlay, TangentsFunc,
 						bPositions, bNormals, bColors);
 				}
 				if (bUVs)
@@ -484,7 +494,13 @@ public:
 			check(Mesh->HasAttributes());
 			UVOVerlay = Mesh->Attributes()->PrimaryUV();
 		}
+		FDynamicMeshColorOverlay* ColorOverlay = nullptr;
+		if (bColors)
+		{
+			check(Mesh->HasAttributes());
+			ColorOverlay = Mesh->Attributes()->PrimaryColors();
 
+		}
 		ParallelFor(WhichBuffers.Num(), [&](int idx)
 		{
 			int32 BufferIndex = WhichBuffers[idx];
@@ -498,7 +514,7 @@ public:
 			{
 				UpdateVertexBuffersFromOverlays(Buffers, Mesh,
 					Buffers->Triangles->Num(), Buffers->Triangles.GetValue(),
-					NormalOverlay, TangentsFunc,
+					NormalOverlay, ColorOverlay, TangentsFunc,
 					bPositions, bNormals, bColors);
 			}
 			if (bUVs)

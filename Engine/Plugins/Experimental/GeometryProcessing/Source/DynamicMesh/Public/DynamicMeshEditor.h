@@ -39,6 +39,9 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 	/** New normal overlay elements */
 	TArray<TArray<int32>> NewNormalOverlayElements;
 
+	/** New color overlay elements */
+	TArray<int32> NewColorOverlayElements;
+
 	/** clear this data structure */
 	void Reset()
 	{
@@ -48,6 +51,7 @@ struct DYNAMICMESH_API FDynamicMeshEditResult
 		NewPolygons.Reset();
 		NewGroups.Reset();
 		NewNormalOverlayElements.Reset();
+		NewColorOverlayElements.Reset();
 	}
 
 	/** Flatten the triangle/quad/polygon lists into a single list of all triangles */
@@ -408,7 +412,15 @@ public:
 	 */
 	int FindOrCreateDuplicateNormal(int ElementID, int NormalLayerIndex, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut = nullptr);
 
-
+	/**
+	 * Find "new" color for input color element under Index mapping, or create new if missing
+	 * @param ElementID the source color we want a duplicate of
+	 * @param IndexMaps source/destination mapping of already-duplicated colors
+	 * @param ResultOut any newly created element indices are stored in NewColorOverlayElements here. 
+	 * @return index of duplicate color in given color layer
+	 */
+	int FindOrCreateDuplicateColor(int ElementID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut);
+	
 	/**
 	 * Copy all attribute-layer values from one triangle to another, using the IndexMaps to track and re-use shared attribute values.
 	 * @param FromTriangleID source triangle
@@ -468,7 +480,21 @@ public:
 		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
 		FIndexMapi& UVMapOut);
 
-
+	/**
+	* Append Colors from one attribute overlay to another.
+	* Assumes that AppendMesh has already been appended to Mesh.
+	* Note that this function has no dependency on .Mesh, it could be static
+	* @param AppendMesh mesh that owns FromOverlay attribute overlay
+	* @param FromOverlay Color overlay we want to append from (owned by AppendMesh)
+	* @param ToOverlay Color overlay we want to append to (owned by Mesh)
+	* @param VertexMap map from AppendMesh vertex IDs to vertex IDs applicable to ToOverlay (ie of .Mesh)
+	* @param TriangleMap map from AppendMesh triangle IDs to triangle IDs applicable to ToOverlay (ie of .Mesh)
+	* @param ColorMapOut Mapping from element IDs of FromUVs to new element IDs in ToOverlay
+	*/
+	void AppendColors(const FDynamicMesh3* AppendMesh,
+		const FDynamicMeshColorOverlay* FromOverlay, FDynamicMeshColorOverlay* ToOverlay,
+		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+		FIndexMapi& ColorMapOut);
 
 
 	/**

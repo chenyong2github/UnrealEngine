@@ -113,7 +113,50 @@ public:
 	}
 };
 
+struct FVertexColor
+{
+	int vid;
+	FVector4f Color;
+	bool operator==(const FVertexColor& o) const
+	{
+		return vid == o.vid && Color == o.Color;
+	}
+};
+FORCEINLINE uint32 GetTypeHash(const FVertexColor& Vector)
+{
+	return FCrc::MemCrc32(&Vector, sizeof(Vector));
+}
 
+class FColorWelder
+{
+public:
+	TMap<FVertexColor, int> UniqueVertexColors;
+	FDynamicMeshColorOverlay* ColorOverlay;
+
+	FColorWelder() : ColorOverlay(nullptr)
+	{
+	}
+
+	FColorWelder(FDynamicMeshColorOverlay* ColorOverlayIn)
+	{
+		check(ColorOverlayIn);
+		ColorOverlay = ColorOverlayIn;
+	}
+	int FindOrAddUnique(const FVector4f& Color, int VertexID)
+	{
+		FVertexColor VertColor = { VertexID, Color };
+
+		const int32* FoundIndex = UniqueVertexColors.Find(VertColor);
+		if (FoundIndex != nullptr)
+		{
+			return *FoundIndex;
+		}
+
+		int32 NewIndex = ColorOverlay->AppendElement(&Color.X);
+		UniqueVertexColors.Add(VertColor, NewIndex);
+		return NewIndex;
+	}
+};
 
 
 
@@ -126,7 +169,7 @@ public:
 
 
 void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDynamicMesh3& MeshOut, bool bCopyTangents )
-{
+{ 
 	TriIDMap.Reset();
 	VertIDMap.Reset();
 
@@ -153,15 +196,7 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TVertexInstanceAttributesConstRef<float> InstanceBiTangentSign = Attributes.GetVertexInstanceBinormalSigns();
 
 	TVertexInstanceAttributesConstRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
-	if (bEnableOutputVertexColors && InstanceColors.IsValid())
-	{
-		MeshOut.EnableVertexColors(FVector3f::One());
-	}
-	else
-	{
-		bEnableOutputVertexColors = false;
-	}
-	bool bFoundNonDefaultVertexColor = false;
+
 
 	TPolygonAttributesConstRef<int> PolyGroups =
 		MeshIn->PolygonAttributes().GetAttributesRef<int>(ExtendedMeshAttribute::PolyTriGroups);
@@ -310,18 +345,6 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		
 		TriIDMap[NewTriangleID] = TriangleID;
 	
-		// copy triangle instance colors to per-vertex colors. Currently this just uses last-instance as
-		// we do not support per-triangle-vertex colors.
-		if (bEnableOutputVertexColors)
-		{
-			for (int32 j = 0; j < 3; ++j)
-			{
-				FVector4 InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
-				FVector3f InstanceColor3(InstanceColor4.X, InstanceColor4.Y, InstanceColor4.Z);
-				bFoundNonDefaultVertexColor |= (InstanceColor3 != FVector3f::One());
-				MeshOut.SetVertexColor(VertexIDs[j], InstanceColor3);
-			}
-		}
 	}
 
 	int32 MaxTriID = MeshOut.MaxTriangleID(); // really MaxTriID+1
@@ -329,11 +352,6 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	TriIDMap.SetNum(MaxTriID);
 	
 
-
-	if (bFoundNonDefaultVertexColor == false)
-	{
-		MeshOut.DiscardVertexColors();
-	}
 
 	FDateTime Time_AfterTriangles = FDateTime::Now();
 
@@ -363,12 +381,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		}
 	}
 
-
+	FDynamicMeshColorOverlay* ColorOverlay = nullptr;
 	FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
 	FDynamicMeshNormalOverlay* TangentOverlay = nullptr;
 	FDynamicMeshNormalOverlay* BiTangentOverlay = nullptr;
 	FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
-
 	
 
 	if (!bDisableAttributes)
@@ -402,7 +419,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		{
 			MeshOut.Attributes()->GetUVLayer(i)->InitializeTriangles(MeshOut.MaxTriangleID());
 		}
-	
+
+		if (InstanceColors.IsValid())
+		{
+			MeshOut.Attributes()->EnablePrimaryColors();
+			ColorOverlay = MeshOut.Attributes()->PrimaryColors();
+		}
+
 
 		// always enable Material ID if there are any attributes
 		MeshOut.Attributes()->EnableMaterialID();
@@ -429,6 +452,8 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 
 	if (!bDisableAttributes)
 	{
+		bool bFoundNonDefaultVertexInstanceColor = false;
+
 		// we will weld/populate all the attributes simultaneously, hold on to futures in this array and then Wait for them at the end
 		TArray<TFuture<void>> Pending;
 
@@ -682,6 +707,33 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			Pending.Add(MoveTemp(BiTangentFuture));
 		}
 
+		if (ColorOverlay != nullptr)
+		{
+			auto ColorFuture = Async(EAsyncExecution::ThreadPool, [&]()
+			{
+				const FVector4 DefaultColor4 = InstanceColors.GetDefaultValue();
+
+				FColorWelder ColorWelder(ColorOverlay);
+				for (int32 TriangleID : MeshOut.TriangleIndicesItr())
+				{
+					const FIndex3i Tri = MeshOut.GetTriangle(TriangleID);
+					const FTriData& TriData = AddedTriangles[TriangleID];
+					FIndex3i TriVector;
+					for (int j = 0; j < 3; ++j)
+					{
+						const FVector4 InstanceColor4 = InstanceColors.Get(TriData.TriInstances[j], 0);
+						const FVector4f OverlayColor(InstanceColor4.X, InstanceColor4.Y, InstanceColor4.Z, InstanceColor4.W);
+						TriVector[j] = ColorWelder.FindOrAddUnique(OverlayColor, Tri[j]);
+
+						// need to detect if the vertex instance color actually held any real data..
+						bFoundNonDefaultVertexInstanceColor |= (InstanceColor4 != DefaultColor4);
+					}
+					ColorOverlay->SetTriangle(TriangleID, TriVector);
+				}
+			});
+			Pending.Add(MoveTemp(ColorFuture));
+		}
+
 		if (MaterialIDAttrib != nullptr)
 		{
 			auto MaterialFuture = Async(EAsyncExecution::ThreadPool, [&]()
@@ -720,6 +772,11 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 		for (TFuture<void>& Future : Pending)
 		{
 			Future.Wait();
+		}
+
+		if (!bFoundNonDefaultVertexInstanceColor)
+		{
+			MeshOut.Attributes()->DisablePrimaryColors();
 		}
 	}
 

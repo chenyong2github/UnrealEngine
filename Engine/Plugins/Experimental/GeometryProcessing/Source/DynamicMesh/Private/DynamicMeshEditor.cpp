@@ -1310,6 +1310,22 @@ void FDynamicMeshEditor::CopyAttributes(int FromTriangleID, int ToTriangleID, FM
 			NormalOverlay->SetTriangle(ToTriangleID, ToElemTri);
 		}
 	}
+	
+	if (Mesh->Attributes()->HasPrimaryColors())
+	{
+		FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
+		if (ColorOverlay->IsSetTriangle(FromTriangleID))
+		{
+			FIndex3i FromElemTri = ColorOverlay->GetTriangle(FromTriangleID);
+			FIndex3i ToElemTri = ColorOverlay->GetTriangle(ToTriangleID);
+			for (int j = 0; j < 3; ++j)
+			{
+				int NewElemID = FindOrCreateDuplicateColor(FromElemTri[j], IndexMaps, &ResultOut);
+				ToElemTri[j] = NewElemID;
+			}
+			ColorOverlay->SetTriangle(ToTriangleID, ToElemTri);
+		}
+	}
 
 	if (Mesh->Attributes()->HasMaterialID())
 	{
@@ -1358,6 +1374,22 @@ int FDynamicMeshEditor::FindOrCreateDuplicateNormal(int ElementID, int NormalLay
 	return NewElementID;
 }
 
+
+int FDynamicMeshEditor::FindOrCreateDuplicateColor(int ElementID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult* ResultOut)
+{
+	int NewElementID = IndexMaps.GetNewColor(ElementID);
+	if (NewElementID == IndexMaps.InvalidID())
+	{
+		FDynamicMeshColorOverlay* ColorOverlay = Mesh->Attributes()->PrimaryColors();
+		NewElementID = ColorOverlay->AppendElement(ColorOverlay->GetElement(ElementID));
+		IndexMaps.SetColor(ElementID, NewElementID);
+		if (ResultOut)
+		{
+			ResultOut->NewColorOverlayElements.Add(NewElementID);
+		}
+	}
+	return NewElementID;
+}
 
 
 int FDynamicMeshEditor::FindOrCreateDuplicateVertex(int VertexID, FMeshIndexMappings& IndexMaps, FDynamicMeshEditResult& ResultOut)
@@ -1500,6 +1532,19 @@ void FDynamicMeshEditor::AppendMesh(const FDynamicMesh3* AppendMesh,
 			}
 		}
 
+		if (AppendMesh->Attributes()->HasPrimaryColors() && Mesh->Attributes()->HasPrimaryColors())
+		{
+			const FDynamicMeshColorOverlay* FromColors = AppendMesh->Attributes()->PrimaryColors();
+			FDynamicMeshColorOverlay* ToColors = Mesh->Attributes()->PrimaryColors();
+			if (FromColors != nullptr && ToColors != nullptr)
+			{
+				FIndexMapi& ColorMap = IndexMapsOut.GetColorMap();
+				ColorMap.Reserve(FromColors->ElementCount());
+				AppendColors(AppendMesh, FromColors, ToColors,
+					VertexMap, TriangleMap, ColorMap);
+			}
+		}
+
 		if (AppendMesh->Attributes()->HasMaterialID() && Mesh->Attributes()->HasMaterialID())
 		{
 			const FDynamicMeshMaterialAttribute* FromMaterialIDs = AppendMesh->Attributes()->GetMaterialID();
@@ -1600,6 +1645,34 @@ void FDynamicMeshEditor::AppendUVs(const FDynamicMesh3* AppendMesh,
 	}
 }
 
+void FDynamicMeshEditor::AppendColors(const FDynamicMesh3* AppendMesh,
+	const FDynamicMeshColorOverlay* FromOverlay, FDynamicMeshColorOverlay* ToOverlay,
+	const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+	FIndexMapi& MapOut)
+{
+	// copy over color elements
+	for (int ElemID : FromOverlay->ElementIndicesItr())
+	{
+		int NewElemID = ToOverlay->AppendElement(FromOverlay->GetElement(ElemID));
+		MapOut.Add(ElemID, NewElemID);
+	}
+
+	// now set new triangles
+	for (int TriID : AppendMesh->TriangleIndicesItr())
+	{
+		if (FromOverlay->IsSetTriangle(TriID))
+		{
+			FIndex3i ElemTri = FromOverlay->GetTriangle(TriID);
+			int NewTriID = TriangleMap.GetTo(TriID);
+			for (int j = 0; j < 3; ++j)
+			{
+				ElemTri[j] = FromOverlay->IsElement(ElemTri[j]) ? MapOut.GetTo(ElemTri[j]) : FDynamicMesh3::InvalidID;
+			}
+			ToOverlay->SetTriangle(NewTriID, ElemTri);
+		}
+	}
+}
+
 
 
 
@@ -1649,6 +1722,19 @@ static int AppendTriangleNormalAttribute(const FDynamicMesh3* FromMesh, int From
 	return NewElementID;
 }
 
+// Utility function for ::AppendTriangles()
+static int AppendTriangleColorAttribute(const FDynamicMesh3* FromMesh, int FromElementID, FDynamicMesh3* ToMesh, FMeshIndexMappings& IndexMaps)
+{
+	int NewElementID = IndexMaps.GetNewColor(FromElementID);
+	if (NewElementID == IndexMaps.InvalidID())
+	{
+		const FDynamicMeshColorOverlay* FromOverlay = FromMesh->Attributes()->PrimaryColors();
+		FDynamicMeshColorOverlay* ToOverlay = ToMesh->Attributes()->PrimaryColors();
+		NewElementID = ToOverlay->AppendElement(FromOverlay->GetElement(FromElementID));
+		IndexMaps.SetColor(FromElementID, NewElementID);
+	}
+	return NewElementID;
+}
 
 
 
@@ -1695,6 +1781,24 @@ static void AppendTriangleAttributes(const FDynamicMesh3* FromMesh, int FromTria
 				ToElemTri[j] = NewElemID;
 			}
 			ToNormalOverlay->SetTriangle(ToTriangleID, ToElemTri);
+		}
+	}
+
+	if (FromMesh->Attributes()->HasPrimaryColors() && ToMesh->Attributes()->HasPrimaryColors())
+	{
+		const FDynamicMeshColorOverlay* FromOverlay = FromMesh->Attributes()->PrimaryColors();
+		FDynamicMeshColorOverlay* ToOverlay = ToMesh->Attributes()->PrimaryColors();
+		if (FromOverlay->IsSetTriangle(FromTriangleID))
+		{
+			FIndex3i FromElemTri = FromOverlay->GetTriangle(FromTriangleID);
+			FIndex3i ToElemTri = ToOverlay->GetTriangle(ToTriangleID);
+			for (int j = 0; j < 3; ++j)
+			{
+				check(FromElemTri[j] != FDynamicMesh3::InvalidID);
+				int NewElemID = AppendTriangleColorAttribute(FromMesh, FromElemTri[j], ToMesh, IndexMaps);
+				ToElemTri[j] = NewElemID;
+			}
+			ToOverlay->SetTriangle(ToTriangleID, ToElemTri);
 		}
 	}
 

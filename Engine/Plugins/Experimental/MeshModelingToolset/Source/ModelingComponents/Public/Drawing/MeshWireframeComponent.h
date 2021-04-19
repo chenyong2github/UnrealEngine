@@ -29,7 +29,8 @@ public:
 		MeshBoundary = 1 << 2,
 		UVSeam = 1 << 3,
 		NormalSeam = 1 << 4,
-		GroupBoundary = 1 << 5
+		GroupBoundary = 1 << 5,
+		ColorSeam = 1 << 6
 	};
 
 public:
@@ -80,6 +81,7 @@ public:
  *    - boundary edges
  *    - UV seam edges
  *    - Normal seam edges
+ *    - Color seam edges
  *
  * Client must provide a IMeshWireframeSourceProvider implementation that provides the 
  * edge set, vertices, and edge type
@@ -169,6 +171,18 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = MeshWireframe)
 	float NormalSeamThickness = 2.0f;
+
+
+	// color seam properties
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	bool bEnableColorSeams = true;
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	FColor ColorSeamColor = FColor(46, 204, 113);
+
+	UPROPERTY(EditAnywhere, Category = MeshWireframe)
+	float ColorSeamThickness = 2.0f;
 
 private:
 

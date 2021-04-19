@@ -19,7 +19,8 @@ namespace Geometry
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 /** Standard Normal overlay type - 3-element float */
 typedef TDynamicMeshVectorOverlay<float, 3, FVector3f> FDynamicMeshNormalOverlay;
-
+/** Standard Color overlay type - 4-element float (rbga) */
+typedef TDynamicMeshVectorOverlay<float, 4, FVector4f> FDynamicMeshColorOverlay;
 /** Standard per-triangle integer material ID */
 typedef TDynamicMeshScalarTriangleAttribute<int32> FDynamicMeshMaterialAttribute;
 
@@ -110,7 +111,7 @@ public:
 	virtual bool IsSeamEndEdge(int EdgeID) const;
 
 	/** @return true if the given edge is a seam edge in any overlay */
-	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut) const;
+	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut, bool& bIsColorSeamOut) const;
 
 	/** @return true if the given vertex is a seam vertex in any overlay */
 	virtual bool IsSeamVertex(int VertexID, bool bBoundaryIsSeam = true) const;
@@ -240,6 +241,24 @@ public:
 		return (PrimaryNormals() != nullptr && PrimaryTangents()  != nullptr && PrimaryBiTangents() != nullptr);
 	}
 
+	bool HasPrimaryColors() const
+	{
+		return !!ColorLayer;
+	}
+
+	FDynamicMeshColorOverlay* PrimaryColors()
+	{
+		return ColorLayer.Get();
+	}
+
+	const FDynamicMeshColorOverlay* PrimaryColors() const
+	{
+		return ColorLayer.Get();
+	}
+
+	void EnablePrimaryColors();
+	
+	void DisablePrimaryColors();
 
 	//
 	// Polygroup layers
@@ -327,10 +346,11 @@ public:
 protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;
-
 	
+
 	TIndirectArray<FDynamicMeshUVOverlay> UVLayers;
 	TIndirectArray<FDynamicMeshNormalOverlay> NormalLayers;
+	TUniquePtr<FDynamicMeshColorOverlay> ColorLayer;
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 

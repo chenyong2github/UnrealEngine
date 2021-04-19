@@ -74,6 +74,10 @@ public:
 			{
 				bEdgeIsVisible = true;
 			}
+			else if (((int)EdgeType & (int)IMeshWireframeSource::EMeshEdgeType::ColorSeam) != 0 && Component->bEnableColorSeams)
+			{
+				bEdgeIsVisible = true;
+			}
 
 			if (bEdgeIsVisible)
 			{
@@ -118,6 +122,8 @@ public:
 		float UVSeamThickness = Component->ThicknessScale * Component->UVSeamThickness;
 		FColor NormalSeamColor = FLinearColor::FromSRGBColor(Component->NormalSeamColor).ToFColor(false);
 		float NormalSeamThickness = Component->ThicknessScale * Component->NormalSeamThickness;
+		FColor ColorSeamColor = FLinearColor::FromSRGBColor(Component->ColorSeamColor).ToFColor(false);
+		float ColorSeamThickness = Component->ThicknessScale * Component->ColorSeamThickness;
 
 		float LineDepthBias = Component->LineDepthBias * Component->LineDepthBiasSizeScale;
 
@@ -153,6 +159,11 @@ public:
 				{
 					UseThickness = (bIsBoundaryEdge) ? BoundaryEdgeThickness : NormalSeamThickness;
 					UseColor = NormalSeamColor;
+				}
+				else if (((int)EdgeType & (int)IMeshWireframeSource::EMeshEdgeType::ColorSeam) != 0 && Component->bEnableColorSeams)
+				{
+					UseThickness = (bIsBoundaryEdge) ? BoundaryEdgeThickness : ColorSeamThickness;
+					UseColor = ColorSeamColor;
 				}
 			}
 

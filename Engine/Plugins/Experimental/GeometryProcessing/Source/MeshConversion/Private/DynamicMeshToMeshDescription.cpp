@@ -24,8 +24,8 @@ namespace DynamicMeshToMeshDescriptionConversionHelper
 		{
 			TArrayView<const FVertexInstanceID> InstanceTri = MeshOutArg.GetTriangleVertexInstances(TriangleID);
 
-			int32 MeshInTriIdx = TriangleID.GetValue();   
-
+			int32 MeshInTriIdx = TriangleID.GetValue();
+			
 			FIndex3i OverlayVertIndices = Overlay->GetTriangle(MeshInTriIdx);
 			InstanceAttrib.Set(InstanceTri[0], AttribIndex, OutAttributeType(Overlay->GetElement(OverlayVertIndices.A)));
 			InstanceAttrib.Set(InstanceTri[1], AttribIndex, OutAttributeType(Overlay->GetElement(OverlayVertIndices.B)));
@@ -292,24 +292,34 @@ void FDynamicMeshToMeshDescription::UpdateTangents(const FDynamicMesh3* MeshIn, 
 
 void FDynamicMeshToMeshDescription::UpdateVertexColors(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut)
 {
-	check(MeshIn->IsCompactV() && MeshIn->HasVertexColors());
 
 	FStaticMeshAttributes Attributes(MeshOut);
-	TVertexInstanceAttributesRef<FVector4> InstanceColors = Attributes.GetVertexInstanceColors();
-	bool bIsValidDst = InstanceColors.IsValid();
-	ensureMsgf(bIsValidDst, TEXT("Trying to update colors on a MeshDescription that has no color attributes"));
-	if (bIsValidDst)
+	TVertexInstanceAttributesRef<FVector4> InstanceColorsAttrib = Attributes.GetVertexInstanceColors();
+
+	if (!ensureMsgf(MeshIn->IsCompactT(), TEXT("Trying to update MeshDescription Colors from a non-compact DynamicMesh"))) return;
+	if (!ensureMsgf(MeshIn->TriangleCount() == MeshOut.Triangles().Num(), TEXT("Trying to update MeshDescription Colors from Mesh that does not have same triangle count"))) return;
+	if (!ensureMsgf(MeshIn->HasAttributes() && MeshIn->Attributes()->HasPrimaryColors(), TEXT("Trying to update MeshDescription Colors from a DynamicMesh that has no attribute set at all or has no color data in its attribute set"))) return;
+	if (!ensureMsgf(InstanceColorsAttrib.IsValid(), TEXT("Trying to update colors on a MeshDescription that has no color attributes"))) return;
+	
+	const FDynamicMeshColorOverlay* ColorOverlay = MeshIn->Attributes()->PrimaryColors();
+	
+	const int32 NumTriangles = MeshIn->TriangleCount();
+	for (int32 t = 0; t < NumTriangles; ++t)
 	{
-		check(MeshIn->VertexCount() == MeshOut.Vertices().Num());
-		for (int VertID : MeshIn->VertexIndicesItr())
+		if (!ColorOverlay->IsSetTriangle(t))
 		{
-			FVector3f Color3f = MeshIn->GetVertexColor(VertID);
-			FVector4 Color4(Color3f.X, Color3f.Y, Color3f.Z, 1.0f);
-			for (FVertexInstanceID InstanceID : MeshOut.GetVertexVertexInstanceIDs(FVertexID(VertID)))
-			{
-				InstanceColors.Set(InstanceID, 0, Color4);
-			}
+			continue;
 		}
+	
+		FVector4f TriColors[3];
+		ColorOverlay->GetTriElements(t, TriColors[0], TriColors[1], TriColors[2]);
+		TArrayView<const FVertexInstanceID> InstanceIDs = MeshOut.GetTriangleVertexInstances(FTriangleID(t));
+		for (int32 i = 0; i < 3; ++i)
+		{
+			FVector4 InstanceColor4(TriColors[i].X, TriColors[i].Y, TriColors[i].Z, TriColors[i].W);
+			InstanceColorsAttrib.Set(InstanceIDs[i], 0, InstanceColor4);
+		}
+
 	}
 }
 
@@ -581,10 +591,11 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	// check if we have per-triangle material ID
 	const FDynamicMeshMaterialAttribute* MaterialIDAttrib = (bHasAttributes && MeshIn->Attributes()->HasMaterialID()) ? MeshIn->Attributes()->GetMaterialID() : nullptr;
 
-	// cache tangent space and UV overlay info
+	// cache tangent space and UV and color overlay info
 	const FDynamicMeshNormalOverlay* NormalOverlay = bHasAttributes ? MeshIn->Attributes()->PrimaryNormals() : nullptr;
 	const FDynamicMeshNormalOverlay* TangentOverlay = bHasAttributes ? MeshIn->Attributes()->PrimaryTangents() : nullptr;
 	const FDynamicMeshNormalOverlay* BiTangentOverlay = bHasAttributes ? MeshIn->Attributes()->PrimaryBiTangents() : nullptr;
+	const FDynamicMeshColorOverlay* ColorOverlay = bHasAttributes ? MeshIn->Attributes()->PrimaryColors() : nullptr;
 
 	const int32 NumUVLayers = bHasAttributes ? MeshIn->Attributes()->NumUVLayers() : 0;
 	
@@ -608,7 +619,8 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		bCopyGroupToPolyGroup = true;
 	}
 
-	bool bCopyVertexColors = MeshIn->HasVertexColors();		// always copy when we are baking new mesh? should this be a config option?
+	// always copy when we are baking new mesh? should this be a config option?
+	bool bCopyInstanceColors = (ColorOverlay != nullptr); 
 
 	// disable indexing during the full build of the mesh
 	Builder.SuspendMeshDescriptionIndexing();
@@ -696,7 +708,29 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 	{
 		TangetSpaceInstanceSetter = [](int TriID, FVertexInstanceID TriVertInstances[3]){ return;};
 	}
-
+	TFunction<void(int TriID, FVertexInstanceID TriVertInstances[3])> ColorInstanceSetter;
+	if (bCopyInstanceColors)
+	{
+		ColorInstanceSetter = [ColorOverlay, &Builder](int TriID, FVertexInstanceID TriVertInstances[3])
+		{
+			FIndex3i ColorTri = ColorOverlay->GetTriangle(TriID);
+			for (int32 j = 0; j < 3; ++j)
+			{
+				FVector4 DstColor(1,1,1,1);
+				const FVertexInstanceID CornerInstanceID = TriVertInstances[j];
+				if (ColorOverlay->IsElement(ColorTri[j]))
+				{
+					FVector4f TriVertColor4 = ColorOverlay->GetElement(ColorTri[j]);
+					DstColor = FVector4(TriVertColor4.X, TriVertColor4.Y, TriVertColor4.Z, TriVertColor4.W);
+				}
+				Builder.SetInstanceColor(CornerInstanceID, DstColor);
+			}
+		};
+	}
+	else
+	{
+		ColorInstanceSetter = [](int TriID, FVertexInstanceID TriVertInstances[3]) { return; };
+	}
 
 	// need to know max material index value so we can reserve groups in MeshDescription
 	int32 MaxPolygonGroupID = 0;
@@ -741,15 +775,6 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 			TriVertInstances[j] = Builder.AppendInstance(TriVertex);
 		}
 
-		// copy vertex colors. This writes each color multiple times, but that is not expensive in this context
-		if (bCopyVertexColors)
-		{
-			for (int32 j = 0; j < 3; ++j)
-			{
-				FVector3f Color = MeshIn->GetVertexColor(Triangle[j]);
-				Builder.SetInstanceColor(TriVertInstances[j], FVector4(Color.X, Color.Y, Color.Z, 1.0f));
-			}
-		}
 
 		// transfer material index to MeshDescription polygon group (by convention)
 		FPolygonGroupID UsePolygonGroupID = ZeroPolygonGroupID;
@@ -805,6 +830,10 @@ void FDynamicMeshToMeshDescription::Convert_NoSharedInstances(const FDynamicMesh
 		// NB: only per-instance normals , tangents, bitangent sign are supported in MeshDescription at this time
 		// NB: will need to be updated to follow the pattern used in UVs above when MeshDescription supports shared tangent space elements. 
 		TangetSpaceInstanceSetter(TriID, TriVertInstances);
+
+		// transfer the color overlay to per-instance colors.
+		// NB: will need to be updated to follow the pattern used in UVs above if MeshDescription supports shared color elements
+		ColorInstanceSetter(TriID, TriVertInstances);
 
 
 		if (bCopyGroupToPolyGroup)

@@ -87,6 +87,8 @@ protected:
 typedef TDynamicMeshAttributeChange<float,2> FDynamicMeshUVChange;
 /** Standard Normal overlay change type - 3-element float */
 typedef TDynamicMeshAttributeChange<float,3> FDynamicMeshNormalChange;
+/** Standard Color overlay change type - 4-element float */
+typedef TDynamicMeshAttributeChange<float, 4> FDynamicMeshColorChange;
 /** Standard per-triangle integer attribute change type */
 typedef FDynamicMeshTriangleAttributeChange<int32,1> FDynamicMeshTriGroupChange;
 
@@ -101,6 +103,7 @@ public:
 
 	TArray<FDynamicMeshUVChange> UVChanges;
 	TArray<FDynamicMeshNormalChange> NormalChanges;
+	TOptional<FDynamicMeshColorChange> ColorChange;
 	TOptional<FDynamicMeshTriGroupChange> MaterialIDAttribChange;
 	TArray<FDynamicMeshTriGroupChange> PolygroupChanges;
 	TArray<TUniquePtr<FDynamicMeshAttributeChangeBase>> RegisteredAttributeChanges;
@@ -232,6 +235,7 @@ protected:
 	};
 	TArray<FElementState> UVStates;
 	TArray<FElementState> NormalStates;
+	FElementState ColorState;
 
 	template<typename AttribOverlayType, typename AttribChangeType>
 	void SaveElement(int ElementID, FElementState& State, const AttribOverlayType* Overlay, AttribChangeType& ChangeIn)

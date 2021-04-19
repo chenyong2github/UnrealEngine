@@ -197,6 +197,7 @@ FORCEINLINE uint32 GetTypeHash(const TVertexAttr<AttrType>& Vector)
 template <typename AttrType> struct TOverlayTraits {};
 template<> struct TOverlayTraits<FVector3f> { typedef FDynamicMeshNormalOverlay OverlayType; };
 template<> struct TOverlayTraits<FVector2f> { typedef FDynamicMeshUVOverlay OverlayType; };
+template<> struct TOverlayTraits<FVector4f> { typedef FDynamicMeshColorOverlay OverlayType; };
 
 // Welder used for exact attribute value welding when constructing overlay
 template <typename AttrType>
@@ -246,6 +247,7 @@ public:
 *		typedef SrcTriIDType     TriIDType;
 *		typedef SrcUVIDType      UVIDType;
 *		typedef SrcNormalIDType  NormalIDType;
+*		typedef SrcColorIDType   ColorIDType
 *       typedef SrcWedgeIDType   WedgeIDType;
 *
 *		// accounting.
@@ -275,6 +277,7 @@ public:
 *		FVector3f GetWedgeNormal(WedgeIDType WID) const;
 *		FVector3f GetWedgeTangent(WedgeIDType WID) const;
 *		FVector3f GetWedgeBiTangent(WedgeIDType WID) const;
+*       FVector4f GetWedgeColor(WedgeIDType WID) const;
 * 
 *		// attribute access that exploits shared attributes. 
 *		// each group of shared attributes presents itself as a mesh with its own attribute vertex buffer.
@@ -297,6 +300,9 @@ public:
 *		FVector3f GetBiTangent(NormalIDType ID) const;
 *       bool GetBiTangentTri(const TriIDType& TID, NormalIDType& NID0, NormalIDType& NID1, NormalIDType& NID2) const;
 * 
+*		const TArray<ColorIDType>& GetColorIDs() const;
+*		FVector4f GetColor(ColorIDType ID) const;
+*		bool GetColorTri(const TriIDType& TID, ColorIDType& NID0, ColorIDType& NID1, ColorIDType& NID2) const;
 *	};
 *
 */
@@ -309,6 +315,7 @@ public:
 	using SrcVertIDType   = typename MyBase::SrcVertIDType;
 	using SrcUVIDType     = typename SrcMeshType::UVIDType;
 	using SrcNormalIDType = typename SrcMeshType::NormalIDType;
+	using SrcColorIDType  = typename SrcMeshType::ColorIDType;
 	using SrcWedgeIDType  = typename SrcMeshType::WedgeIDType;
 
 	TToDynamicMesh() :MyBase() {}
@@ -339,7 +346,7 @@ public:
 protected:
 
 
-	// Populates overlays for UVs, Normal, Material ID. Also Tangent and BiTangent if bCopyTangents == true.  
+	// Populates overlays for UVs, Normal, Color, Material ID. Also Tangent and BiTangent if bCopyTangents == true.  
 	// NB: This does not copy any polygroup information.  
 	void PopulateOverlays(FDynamicMesh3& MeshOut, const SrcMeshType& MeshIn, TFunctionRef<int32(const SrcTriIDType& SrcTrID)> MaterialIDFunction, bool bCopyTangents)
 	{
@@ -347,6 +354,7 @@ protected:
 		FDynamicMeshNormalOverlay* NormalOverlay = nullptr;
 		FDynamicMeshNormalOverlay* TangentOverlay = nullptr;
 		FDynamicMeshNormalOverlay* BiTangentOverlay = nullptr;
+		FDynamicMeshColorOverlay*  ColorOverlay = nullptr;
 		FDynamicMeshMaterialAttribute* MaterialIDAttrib = nullptr;
 
 		// only copy tangents if they exist
@@ -383,6 +391,9 @@ protected:
 			MeshOut.Attributes()->GetUVLayer(i)->InitializeTriangles(MeshOut.MaxTriangleID());
 		}
 
+		// create color overlay
+		MeshOut.Attributes()->EnablePrimaryColors();
+		ColorOverlay = MeshOut.Attributes()->PrimaryColors();
 
 		// always enable Material ID if there are any attributes
 		MeshOut.Attributes()->EnableMaterialID();
@@ -451,7 +462,7 @@ protected:
 				{
 					PopulateOverlay<FVector3f, SrcNormalIDType>(
 						BiTangentOverlay,
-						MeshIn.GetTangentIDs(),
+						MeshIn.GetBiTangentIDs(),
 						[&MeshIn](const SrcNormalIDType& NID)->FVector3f { return MeshIn.GetBiTangent(NID); },
 						[&MeshIn](const SrcTriIDType& TriID, SrcNormalIDType& N0, SrcNormalIDType& N1, SrcNormalIDType& N2)->bool {return MeshIn.GetBiTangentTri(TriID, N0, N1, N2); },
 						[&MeshIn](const SrcWedgeIDType& WID)->FVector3f {return MeshIn.GetWedgeBiTangent(WID); },
@@ -461,6 +472,23 @@ protected:
 				});
 			Pending.Add(MoveTemp(BiTangentFuture));
 		}
+		if (ColorOverlay != nullptr)
+		{
+			auto ColorFuture = Async(EAsyncExecution::ThreadPool, [&]()
+				{
+					PopulateOverlay<FVector4f, SrcColorIDType>(
+						ColorOverlay,
+						MeshIn.GetColorIDs(),
+						[&MeshIn](const SrcColorIDType& CID)->FVector4f { return MeshIn.GetColor(CID); },
+						[&MeshIn](const SrcTriIDType& TriID, SrcColorIDType& C0, SrcColorIDType& C1, SrcColorIDType& C2)->bool {return MeshIn.GetColorTri(TriID, C0, C1, C2); },
+						[&MeshIn](const SrcWedgeIDType& WID)->FVector4f {return MeshIn.GetWedgeColor(WID); },
+						[&MeshIn](const SrcTriIDType& TriID, SrcWedgeIDType& WID0, SrcWedgeIDType& WID1, SrcWedgeIDType& WID2)->void { MeshIn.GetWedgeIDs(TriID, WID0, WID1, WID2); }
+					);
+
+				});
+			Pending.Add(MoveTemp(ColorFuture));
+		}
+
 		//populate MaterialID overlay
 		if (MaterialIDAttrib != nullptr)
 		{

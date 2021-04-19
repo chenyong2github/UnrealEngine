@@ -19,6 +19,7 @@ public:
 
 	typedef int32 UVIDType;
 	typedef int32 NormalIDType;
+	typedef int32 ColorIDType;
 
 	FSkeletalMeshLODModelWrapper(const  FSkeletalMeshLODModel& MeshIn, bool bUseDisabledSections) :
 		bIncludeDisabledSections(bUseDisabledSections),
@@ -181,6 +182,11 @@ public:
 		return true;
 	}
 
+	bool HasColors() const
+	{
+		return true;
+	}
+
 	//-- Access to per-wedge attributes --//
 	void GetWedgeIDs(const TriIDType& TriID, WedgeIDType& WID0, WedgeIDType& WID1, WedgeIDType& WID2) const
 	{
@@ -211,6 +217,11 @@ public:
 		return FVector3f(GetWedgeVertexInstance(WID).TangentY);
 	}
 	
+	FVector4f GetWedgeColor(WedgeIDType WID) const
+	{
+		FLinearColor LinearColor = GetWedgeVertexInstance(WID).Color.ReinterpretAsLinear();
+		return FVector4f(LinearColor.R, LinearColor.G, LinearColor.B, LinearColor.A);
+	}
 
 
 	int32 GetMaterialIndex(TriIDType TriID) const
@@ -240,6 +251,10 @@ public:
 	FVector3f GetBiTangent(NormalIDType ID) const {check(0); return FVector3f(); }
 	bool GetBiTangentTri(const TriIDType&, NormalIDType& ID0, NormalIDType& ID1, NormalIDType& ID2) const { ID0 = ID1 = ID2 = NormalIDType(-1); return false; }
 
+	const TArray<int32>& GetColorIDs() const { return EmptyArray; }
+	FVector4f GetColor(ColorIDType ID) const { check(0); return FVector4f(); }
+	bool GetColorTri(const TriIDType&, ColorIDType& ID0, ColorIDType& ID1, ColorIDType& ID2) const { ID0 = ID1 = ID2 = ColorIDType(-1); return false; }
+
 	
 	// -- additional methods, not required by the conversion interface
 	const  FSkeletalMeshLODModel& GetSrcMesh() const
@@ -247,12 +262,6 @@ public:
 		return *Mesh;
 	}
 
-	
-	FLinearColor GetWedgeColor(const WedgeIDType WID) const
-	{
-		const FColor& Color = GetWedgeVertexInstance(WID).Color;
-		return Color.ReinterpretAsLinear();
-	}
 
 private:
 
@@ -319,33 +328,7 @@ void FSkeletalMeshLODModelToDynamicMesh::Convert(const  FSkeletalMeshLODModel* M
 		auto TriToMaterialID = [&ModelWrapper](const int32& SrcTriID)->int32 { return ModelWrapper.GetMaterialIndex(SrcTriID); };
 		SkeletalToDynamicMesh.Convert(MeshOut, ModelWrapper, TriToGroupID, TriToMaterialID, bCopyTangents);						
 	}
-
-	// Special code for vertex colors.  Currently DynamicMesh3 doesn't use an overlay for vertex colors 
-	// thus we do not support per-triangle-vertex colors. 
-	// NB: This just uses last-seen wedge color to define the vertex color.
-	// NB: The "alpha" channel is dropped.
-	if (bEnableOutputVertexColors)
-	{
-		MeshOut.EnableVertexColors(FVector3f::One());
-		bool bFoundNonDefaultVertexColor = false;
-		for (int32 TriangleID : MeshOut.TriangleIndicesItr())
-		{
-			int32 SrcWIDs[3];
-			ModelWrapper.GetWedgeIDs(SkeletalToDynamicMesh.ToSrcTriIDMap[TriangleID], SrcWIDs[0], SrcWIDs[1], SrcWIDs[2]);
-			FIndex3i VIDs = MeshOut.GetTriangle(TriangleID);
-			for (int32 j = 0; j < 3; ++j)
-			{ 
-				FLinearColor WedgeColor = ModelWrapper.GetWedgeColor(SrcWIDs[j]);
-				FVector3f WedgeColor3(WedgeColor); // Color.A is lost here.
-				bFoundNonDefaultVertexColor |= (WedgeColor3 != FVector3f::One());
-				MeshOut.SetVertexColor(VIDs[j], WedgeColor3);
-			}
-		}
-		if (bFoundNonDefaultVertexColor == false)
-		{
-			MeshOut.DiscardVertexColors();
-		}
-	}
+	
 
 	if (!bEnableOutputGroups)
 	{
