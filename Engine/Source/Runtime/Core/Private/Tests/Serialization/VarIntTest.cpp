@@ -3,6 +3,8 @@
 #include "Serialization/VarInt.h"
 
 #include "Misc/AutomationTest.h"
+#include "Serialization/BufferReader.h"
+#include "Serialization/BufferWriter.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -155,7 +157,15 @@ bool FVarIntSerializeTest::RunTest(const FString& Parameters)
 		uint8 Buffer[5];
 		const uint32 WriteByteCount = WriteVarInt(Value, Buffer);
 		uint32 ReadByteCount = 0;
-		return WriteByteCount <= 5 && ReadVarInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+		const bool bBufferPass = WriteByteCount <= 5 && ReadVarInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+
+		uint8 ArBuffer[5];
+		FBufferWriter WriteAr(ArBuffer, 5);
+		WriteVarIntToArchive(WriteAr, Value);
+		FBufferReader ReadAr(ArBuffer, 5, /*bFreeOnClose*/ false);
+		const bool bArchivePass = WriteAr.Tell() == WriteByteCount && ReadVarIntFromArchive(ReadAr) == Value && ReadAr.Tell() == ReadByteCount;
+
+		return bBufferPass && bArchivePass;
 	};
 	TestTrue(TEXT("Read/WriteVarInt(0x0000'0000)"), TestSerializeVarInt32(int32(0x0000'0000)));
 	TestTrue(TEXT("Read/WriteVarInt(0x0000'0001)"), TestSerializeVarInt32(int32(0x0000'0001)));
@@ -185,7 +195,15 @@ bool FVarIntSerializeTest::RunTest(const FString& Parameters)
 		uint8 Buffer[5];
 		const uint32 WriteByteCount = WriteVarUInt(Value, Buffer);
 		uint32 ReadByteCount = 0;
-		return WriteByteCount <= 5 && ReadVarUInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+		const bool bBufferPass = WriteByteCount <= 5 && ReadVarUInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+
+		uint8 ArBuffer[5];
+		FBufferWriter WriteAr(ArBuffer, 5);
+		WriteVarUIntToArchive(WriteAr, Value);
+		FBufferReader ReadAr(ArBuffer, 5, /*bFreeOnClose*/ false);
+		const bool bArchivePass = WriteAr.Tell() == WriteByteCount && ReadVarUIntFromArchive(ReadAr) == Value && ReadAr.Tell() == ReadByteCount;
+
+		return bBufferPass && bArchivePass;
 	};
 	TestTrue(TEXT("Read/WriteVarUInt(0x0000'0000)"), TestSerializeVarUInt32(uint32(0x0000'0000)));
 	TestTrue(TEXT("Read/WriteVarUInt(0x0000'007f)"), TestSerializeVarUInt32(uint32(0x0000'007f)));
@@ -207,7 +225,17 @@ bool FVarIntSerializeTest::RunTest(const FString& Parameters)
 		uint8 Buffer[9];
 		const uint32 WriteByteCount = WriteVarInt(Value, Buffer);
 		uint32 ReadByteCount = 0;
-		return WriteByteCount <= 9 && ReadVarInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+		const bool bBufferPass = WriteByteCount <= 9 && ReadVarInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+
+		uint8 ArBuffer[9];
+		FBufferWriter WriteAr(ArBuffer, 9);
+		SerializeVarInt(WriteAr, Value);
+		FBufferReader ReadAr(ArBuffer, 9, /*bFreeOnClose*/ false);
+		int64 ReadValue;
+		SerializeVarInt(ReadAr, ReadValue);
+		const bool bArchivePass = WriteAr.Tell() == WriteByteCount && ReadValue == Value && ReadAr.Tell() == ReadByteCount;
+
+		return bBufferPass && bArchivePass;
 	};
 	TestTrue(TEXT("Read/WriteVarInt(0x0000'0000'0000'0000)"), TestSerializeVarInt64(int64(0x0000'0000'0000'0000)));
 	TestTrue(TEXT("Read/WriteVarInt(0x0000'0000'0000'0001)"), TestSerializeVarInt64(int64(0x0000'0000'0000'0001)));
@@ -253,7 +281,17 @@ bool FVarIntSerializeTest::RunTest(const FString& Parameters)
 		uint8 Buffer[9];
 		const uint32 WriteByteCount = WriteVarUInt(Value, Buffer);
 		uint32 ReadByteCount = 0;
-		return WriteByteCount <= 9 && ReadVarUInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+		const bool bBufferPass = WriteByteCount <= 9 && ReadVarUInt(Buffer, ReadByteCount) == Value && ReadByteCount == WriteByteCount;
+
+		uint8 ArBuffer[9];
+		FBufferWriter WriteAr(ArBuffer, 9);
+		SerializeVarUInt(WriteAr, Value);
+		FBufferReader ReadAr(ArBuffer, 9, /*bFreeOnClose*/ false);
+		uint64 ReadValue;
+		SerializeVarUInt(ReadAr, ReadValue);
+		const bool bArchivePass = WriteAr.Tell() == WriteByteCount && ReadValue == Value && ReadAr.Tell() == ReadByteCount;
+
+		return bBufferPass && bArchivePass;
 	};
 	TestTrue(TEXT("Read/WriteVarUInt(0x0000'0000'0000'0000)"), TestSerializeVarUInt64(uint64(0x0000'0000'0000'0000)));
 	TestTrue(TEXT("Read/WriteVarUInt(0x0000'0000'0000'007f)"), TestSerializeVarUInt64(uint64(0x0000'0000'0000'007f)));

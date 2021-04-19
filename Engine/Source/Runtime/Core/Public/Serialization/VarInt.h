@@ -198,3 +198,13 @@ FORCEINLINE uint32 WriteVarInt(int64 InValue, void* OutData)
 	const uint64 Value = uint64((InValue >> 63) ^ (InValue << 1));
 	return WriteVarUInt(Value, OutData);
 }
+
+class FArchive;
+
+CORE_API int64 ReadVarIntFromArchive(FArchive& Ar);
+CORE_API void WriteVarIntToArchive(FArchive& Ar, int64 Value);
+CORE_API void SerializeVarInt(FArchive& Ar, int64& Value);
+
+CORE_API uint64 ReadVarUIntFromArchive(FArchive& Ar);
+CORE_API void WriteVarUIntToArchive(FArchive& Ar, uint64 Value);
+CORE_API void SerializeVarUInt(FArchive& Ar, uint64& Value);
