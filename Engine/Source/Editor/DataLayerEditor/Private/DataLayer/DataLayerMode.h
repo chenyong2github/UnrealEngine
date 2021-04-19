@@ -32,7 +32,6 @@ public:
 	};
 
 	FDataLayerMode(const FDataLayerModeParams& Params);
-	virtual ~FDataLayerMode();
 
 	virtual void Rebuild() override;
 	virtual TSharedPtr<SWidget> CreateContextMenu() override;

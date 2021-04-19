@@ -36,7 +36,7 @@ private:
 	void OnDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayer>& ChangedDataLayer, const FName& ChangedProperty);
 	void OnDataLayerBrowserModeChanged(EDataLayerBrowserMode InMode);
 	void FullRefreshEvent();
-	FDataLayerMode* GetDataLayerMode() const;
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
+	TWeakPtr<SDataLayerBrowser> DataLayerBrowser;
 };

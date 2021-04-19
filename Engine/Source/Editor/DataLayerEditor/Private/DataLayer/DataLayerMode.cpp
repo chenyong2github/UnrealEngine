@@ -43,11 +43,6 @@ FDataLayerMode::FDataLayerMode(const FDataLayerModeParams& Params)
 	const_cast<FSharedSceneOutlinerData&>(SceneOutliner->GetSharedData()).CustomDelete = FCustomSceneOutlinerDeleteDelegate::CreateRaw(this, &FDataLayerMode::DeleteItems);
 }
 
-FDataLayerMode::~FDataLayerMode()
-{
-	Hierarchy.Release();
-}
-
 int32 FDataLayerMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const
 {
 	if (Item.IsA<FDataLayerTreeItem>())
