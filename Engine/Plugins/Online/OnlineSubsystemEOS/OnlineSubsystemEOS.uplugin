@@ -41,7 +41,10 @@
 		{
 			"Name": "OnlineSubsystemUtils",
 			"Enabled": true
+		},
+		{
+			"Name": "EOSShared",
+			"Enabled": true
 		}
 	]
-
 }

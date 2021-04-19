@@ -180,7 +180,7 @@ PACKAGE_SCOPE:
 
 	void RegisterLocalPlayers(class FNamedOnlineSession* Session);
 
-	void Init(const char* InBucketId);
+	void Init(const FString& InBucketId);
 
 private:
 	// EOS Lobbies
