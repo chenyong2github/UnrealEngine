@@ -13,7 +13,13 @@
 	"Modules": [
 		{
 			"Name": "EOSShared",
-			"Type": "Runtime"
+			"Type": "Runtime",
+			"WhitelistPlatforms": [
+				"IOS",
+				"Mac",
+				"Win32",
+				"Win64"
+			]
 		}
 	]
 }
