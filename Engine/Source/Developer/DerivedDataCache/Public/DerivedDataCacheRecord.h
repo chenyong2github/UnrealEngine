@@ -46,7 +46,7 @@ public:
 	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
 	virtual FPayloadId AddAttachment(FPayload&& Payload) = 0;
 	virtual FCacheRecord Build() = 0;
-	virtual FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) = 0;
+	virtual FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority) = 0;
 };
 
 FCacheRecordBuilder CreateCacheRecordBuilder(ICacheRecordBuilderInternal* RecordBuilder);
@@ -214,9 +214,9 @@ public:
 	 * Prefer Build() when the value and attachments are added by payload, as compression is already
 	 * complete and BuildAsync() will complete immediately in that case.
 	 */
-	inline FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority)
+	inline FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority)
 	{
-		return RecordBuilder->BuildAsync(MoveTemp(Callback), Priority);
+		return RecordBuilder->BuildAsync(MoveTemp(OnComplete), Priority);
 	}
 
 private:

@@ -4,19 +4,12 @@
 
 #include "Containers/StringFwd.h"
 
-namespace UE
-{
-namespace DerivedData
-{
+namespace UE::DerivedData { class FCacheBucket; }
+namespace UE::DerivedData { class FCacheRecordBuilder; }
+namespace UE::DerivedData { struct FCacheKey; }
 
-class FCacheBucket;
-class FCacheRecordBuilder;
-struct FCacheKey;
-
-namespace Private
+namespace UE::DerivedData::Private
 {
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Implemented in DerivedDataCacheKey.cpp
 FCacheBucket CreateCacheBucket(FStringView Name);
@@ -24,8 +17,4 @@ FCacheBucket CreateCacheBucket(FStringView Name);
 // Implemented in DerivedDataCacheRecord.cpp
 FCacheRecordBuilder CreateCacheRecordBuilder(const FCacheKey& Key);
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-} // Private
-} // DerivedData
-} // UE
+} // UE::DerivedData::Private

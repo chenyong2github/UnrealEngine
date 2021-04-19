@@ -28,7 +28,7 @@ public:
 	FPayloadId AddAttachment(FPayload&& Payload) final;
 
 	FCacheRecord Build() final;
-	FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) final;
+	FRequest BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority) final;
 
 	FCacheKey Key;
 	FCbObject Meta;
@@ -205,9 +205,9 @@ FCacheRecord FCacheRecordBuilderInternal::Build()
 	return CreateCacheRecord(new FCacheRecordInternal(MoveTemp(*this)));
 }
 
-FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority)
+FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority)
 {
-	Callback(Build());
+	OnComplete(Build());
 	return FRequest();
 }
 
