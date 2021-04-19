@@ -499,7 +499,7 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 		}
 		// Ensure actor is not a group if grouping is disabled and that the actor is currently selected
 		if( Actor && !Actor->IsA(AGroupActor::StaticClass()) &&
-			( bAllActors || Actor->IsSelected() ) )
+			( bAllActors || IsObjectSelectedForExport(Context, Actor) ) )
 		{
 			if (Actor->ShouldExport())
 			{
@@ -527,10 +527,6 @@ bool ULevelExporterT3D::ExportText( const FExportObjectInnerContext* Context, UO
 
 				// Restore dynamic delegate bindings.
 				UBlueprintGeneratedClass::BindDynamicDelegates(Actor->GetClass(), Actor);
-			}
-			else if (GEditor)
-			{
-				GEditor->GetSelectedActors()->Deselect( Actor );
 			}
 		}
 	}
@@ -639,7 +635,7 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 	{
 		// Landscape
 		ALandscape* Landscape = Cast<ALandscape>(Level->Actors[iActor]);
-		if( Landscape && ( !bSelectedOnly || Landscape->IsSelected() ) )
+		if( Landscape && ( !bSelectedOnly || IsObjectSelectedForExport(Context, Landscape) ) )
 		{
 			ULandscapeInfo* LandscapeInfo = Landscape ? Landscape->GetLandscapeInfo() : NULL;
 			if( Landscape && LandscapeInfo )
@@ -682,7 +678,7 @@ bool ULevelExporterSTL::ExportText( const FExportObjectInnerContext* Context, UO
 		// Static meshes
 
 		AStaticMeshActor* Actor = Cast<AStaticMeshActor>(Level->Actors[iActor]);
-		if( Actor && ( !bSelectedOnly || Actor->IsSelected() ) && Actor->GetStaticMeshComponent()->GetStaticMesh() && Actor->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData() )
+		if( Actor && ( !bSelectedOnly || IsObjectSelectedForExport(Context, Actor) ) && Actor->GetStaticMeshComponent()->GetStaticMesh() && Actor->GetStaticMeshComponent()->GetStaticMesh()->HasValidRenderData() )
 		{
 			FStaticMeshLODResources& LODModel = Actor->GetStaticMeshComponent()->GetStaticMesh()->GetRenderData()->LODResources[0];
 			FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
@@ -1288,7 +1284,7 @@ bool ULevelExporterLOD::ExportText(const FExportObjectInnerContext* Context, UOb
 	{
 		AActor* Actor = *It;
 		// only export selected actors if the flag is set
-		if( !Actor || (bSelectedOnly && !Actor->IsSelected()))
+		if( !Actor || (bSelectedOnly && !IsObjectSelectedForExport(Context, Actor)))
 		{
 			continue;
 		}
@@ -1475,7 +1471,7 @@ bool ULevelExporterOBJ::ExportText(const FExportObjectInnerContext* Context, UOb
 	{
 		AActor* Actor = *It;
 		// only export selected actors if the flag is set
-		if( !Actor || (bSelectedOnly && !Actor->IsSelected()))
+		if( !Actor || (bSelectedOnly && !IsObjectSelectedForExport(Context, Actor)))
 		{
 			continue;
 		}

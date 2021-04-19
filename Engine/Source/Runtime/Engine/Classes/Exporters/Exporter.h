@@ -292,6 +292,11 @@ class UExporter : public UObject
 	 */
 	ENGINE_API void ExportObjectInner(const class FExportObjectInnerContext* Context, UObject* Object, FOutputDevice& Ar, uint32 PortFlags);
 
+	/**
+	 * Should the given object be considered selected by the current export?
+	 */
+	static ENGINE_API bool IsObjectSelectedForExport(const FExportObjectInnerContext* Context, const UObject* Object);
+
 protected:
 	/**
 	 * Allows the Exporter to export any extra information it would like about each instanced object.

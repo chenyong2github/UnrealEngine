@@ -525,12 +525,8 @@ public:
 
 				if ( bIsValidActor )
 				{
-					// Select actor so it will be processed during the copy
-					if(SelectedActors.Find(TestParentAsActor) == nullptr)
-					{
-						SelectedActors.Add(TestParentAsActor);
-						GSelectedActorAnnotation.Set(TestParentAsActor);
-					}
+					// Track actor so it will be processed during the copy
+					SelectedActors.Add(TestParentAsActor);
 
 					bObjectMustBeCopied = true;
 					break;
@@ -557,17 +553,14 @@ public:
 		}
 	}
 
-	~FDataprepExportObjectInnerContext()
+	virtual bool IsObjectSelected(const UObject* InObj) const override
 	{
-		// Deselect all actors we processed
-		for(AActor* SelectedActor : SelectedActors)
-		{
-			GSelectedActorAnnotation.Clear(SelectedActor);
-		}
+		const AActor* Actor = Cast<AActor>(InObj);
+		return Actor && SelectedActors.Contains(Actor);
 	}
 
 	/** Set of actors marked as selected so they get included in the copy */
-	TSet<AActor*> SelectedActors;
+	TSet<const AActor*> SelectedActors;
 };
 
 void FDataprepEditor::TakeSnapshot()

@@ -551,6 +551,20 @@ FExportObjectInnerContext::FExportObjectInnerContext(const TArray<UObject*>& Obj
 }
 
 
+bool FExportObjectInnerContext::IsObjectSelected(const UObject* InObj) const
+{
+	return InObj->IsSelected();
+}
+
+
+bool UExporter::IsObjectSelectedForExport(const FExportObjectInnerContext* Context, const UObject* Object)
+{
+	return Context
+		? Context->IsObjectSelected(Object)
+		: Object->IsSelected();
+}
+
+
 void UExporter::ExportObjectInner(const FExportObjectInnerContext* Context, UObject* Object, FOutputDevice& Ar, uint32 PortFlags)
 {
 	// indent all the text in here
@@ -908,7 +922,7 @@ FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext()
 	{
 		AActor* Actor = (AActor*)*It;
 		checkSlow(Actor->IsA(AActor::StaticClass()));
-		AddActorInner(Actor);
+		AddSelectedActor(Actor);
 	}
 }
 
@@ -916,14 +930,22 @@ FSelectedActorExportObjectInnerContext::FSelectedActorExportObjectInnerContext(c
 	: FExportObjectInnerContext(false) //call the empty version of the base class
 {
 	// For each selected actor...
-	for (AActor* Actor : InSelectedActors)
+	for (const AActor* Actor : InSelectedActors)
 	{
-		AddActorInner(Actor);
+		AddSelectedActor(Actor);
 	}
 }
 
-void FSelectedActorExportObjectInnerContext::AddActorInner(const AActor* InActor)
+bool FSelectedActorExportObjectInnerContext::IsObjectSelected(const UObject* InObj) const
 {
+	const AActor* Actor = Cast<AActor>(InObj);
+	return Actor && SelectedActors.Contains(Actor);
+}
+
+void FSelectedActorExportObjectInnerContext::AddSelectedActor(const AActor* InActor)
+{
+	SelectedActors.Add(InActor);
+
 	ForEachObjectWithOuter(InActor, [this](UObject* InnerObj)
 	{
 		UObject* OuterObj = InnerObj->GetOuter();

@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 
+class AActor;
+
 /**
  * Encapsulates a map from objects to their direct inners, used by UExporter::ExportObjectInner when exporting objects.
  * Should be recreated before new objects are created within objects that are to be exported!
@@ -35,6 +37,8 @@ public:
 	/**Empty Constructor for derived export contexts */
 	FExportObjectInnerContext(const bool bIgnoredValue) {};
 
+	virtual ~FExportObjectInnerContext() = default;
+
 protected:
 	friend class UExporter;
 
@@ -54,6 +58,11 @@ public:
 	{
 		return ObjectToInnerMap.Find(InObj);
 	}
+
+	/**
+	 * Should the given object be considered selected by the current export?
+	 */
+	virtual bool IsObjectSelected(const UObject* InObj) const;
 };
 
 #if WITH_EDITOR
@@ -61,10 +70,14 @@ class ENGINE_API FSelectedActorExportObjectInnerContext : public FExportObjectIn
 {
 public:
 	FSelectedActorExportObjectInnerContext();
-	explicit FSelectedActorExportObjectInnerContext(const TArray<class AActor*> InSelectedActors);
+	explicit FSelectedActorExportObjectInnerContext(const TArray<AActor*> InSelectedActors);
+
+	virtual bool IsObjectSelected(const UObject* InObj) const override;
 
 private:
-	void AddActorInner(const class AActor* InActor);
+	void AddSelectedActor(const AActor* InActor);
+
+	TSet<const AActor*> SelectedActors;
 };
 #endif
 

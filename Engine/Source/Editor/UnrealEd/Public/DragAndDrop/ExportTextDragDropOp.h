@@ -20,25 +20,12 @@ public:
 	FString ActorExportText;
 	int32 NumActors;
 
-	/** The widget decorator to use */
-	//virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
-	//{
-		
-	//}
-
 	static TSharedRef<FExportTextDragDropOp> New(const TArray<AActor*>& InActors)
 	{
 		TSharedRef<FExportTextDragDropOp> Operation = MakeShareable(new FExportTextDragDropOp);
 
-		for(int32 i=0; i<InActors.Num(); i++)
-		{
-			AActor* Actor = InActors[i];
-
-			GEditor->SelectActor(Actor, true, true);
-		}
-
 		FStringOutputDevice Ar;
-		const FSelectedActorExportObjectInnerContext Context;
+		const FSelectedActorExportObjectInnerContext Context(InActors);
 		UExporter::ExportToOutputDevice( &Context, GWorld, NULL, Ar, TEXT("copy"), 0, PPF_DeepCompareInstances | PPF_ExportsNotFullyQualified);
 		Operation->ActorExportText = Ar;
 		Operation->NumActors = InActors.Num();
