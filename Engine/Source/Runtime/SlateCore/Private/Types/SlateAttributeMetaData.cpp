@@ -184,14 +184,14 @@ TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWi
 }
 
 
-FSlateAttributeMetaData::FGetterItem::FInvalidationDetail FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
+EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationDetail(const SWidget& OwningWidget, EInvalidateWidgetReason Reason) const
 {
 	if (CachedAttributeDescriptorIndex != INDEX_NONE)
 	{
 		const FSlateAttributeDescriptor::FAttribute& DescriptorAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().GetAttributeAtIndex(CachedAttributeDescriptorIndex);
-		return FInvalidationDetail{&DescriptorAttribute.OnInvalidation, DescriptorAttribute.InvalidationReason.Get(OwningWidget)};
+		return DescriptorAttribute.InvalidationReason.Get(OwningWidget);
 	}
-	return FInvalidationDetail{nullptr, Reason};
+	return Reason;
 }
 
 
@@ -218,8 +218,6 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		return;
 	}
 
-	const FSlateAttributeDescriptor::FInvalidationDelegate* OnInvalidationCallback = nullptr;
-
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
 		const int32 FoundIndex = AttributeMetaData->IndexOfAttribute(Attribute);
@@ -227,9 +225,7 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		{
 			FGetterItem& GetterItem = AttributeMetaData->Attributes[FoundIndex];
 			{
-				const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Reason);
-				OnInvalidationCallback = Detail.Get<0>();
-				Reason = Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason;
+				Reason = GetterItem.GetInvalidationDetail(OwningWidget, Reason) | AttributeMetaData->CachedInvalidationReason;
 				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 			}
 
@@ -247,7 +243,6 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 			const FSlateAttributeDescriptor::OffsetType Offset = Private::FindOffet(OwningWidget, Attribute);
 			if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = AttributeDescriptor.FindMemberAttribute(Offset))
 			{
-				OnInvalidationCallback = &FoundAttribute->OnInvalidation;
 				Reason = FoundAttribute->InvalidationReason.Get(OwningWidget) | AttributeMetaData->CachedInvalidationReason;
 				AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 
@@ -276,15 +271,10 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 		if (FSlateAttributeDescriptor::FAttribute const* FoundAttribute = OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset))
 		{
 			Reason = FoundAttribute->InvalidationReason.Get(OwningWidget);
-			OnInvalidationCallback = &FoundAttribute->OnInvalidation;
 		}
 	}
 
 	OwningWidget.Invalidate(Reason);
-	if (OnInvalidationCallback)
-	{
-		OnInvalidationCallback->ExecuteIfBound(OwningWidget);
-	}
 }
 
 
@@ -333,9 +323,6 @@ void FSlateAttributeMetaData::UpdateChildrenCollapsedAttributes(SWidget& OwningW
 
 void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, EInvalidationPermission InvalidationStyle)
 {
-	// List of all the callback we need to execute after the invalidation
-	TArray<const FSlateAttributeDescriptor::FInvalidationDelegate*, TInlineAllocator<8>> AllInvalidationDelegates;
-
 	bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructionCompleted());
 	bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
@@ -384,12 +371,7 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EUpdat
 		GetterItem.bUpdatedThisFrame = Result.bInvalidationRequested;
 		if (Result.bInvalidationRequested && bAllowInvalidation)
 		{
-			const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
-			if (Detail.Get<0>())
-			{
-				AllInvalidationDelegates.Add(Detail.Get<0>());
-			}
-			InvalidationReason |= Detail.Get<1>();
+			InvalidationReason |= GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
 		}
 	}
 
@@ -405,10 +387,6 @@ void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EUpdat
 	if (bInvalidateIfNeeded)
 	{
 		OwningWidget.Invalidate(InvalidationReason | CachedInvalidationReason);
-		for (const FSlateAttributeDescriptor::FInvalidationDelegate* OnInvalidation : AllInvalidationDelegates)
-		{
-			OnInvalidation->ExecuteIfBound(OwningWidget);
-		}
 		CachedInvalidationReason = EInvalidateWidgetReason::None;
 	}
 	else if (InvalidationStyle == EInvalidationPermission::DelayInvalidation)
@@ -437,12 +415,8 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			{
 				if (OwningWidget.IsConstructionCompleted())
 				{
-					const FGetterItem::FInvalidationDetail Detail = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
-					OwningWidget.Invalidate(Detail.Get<1>() | AttributeMetaData->CachedInvalidationReason);
-					if (Detail.Get<0>())
-					{
-						Detail.Get<0>()->ExecuteIfBound(OwningWidget);
-					}
+					EInvalidateWidgetReason Reason = GetterItem.GetInvalidationDetail(OwningWidget, Result.InvalidationReason);
+					OwningWidget.Invalidate(Reason | AttributeMetaData->CachedInvalidationReason);
 					AttributeMetaData->CachedInvalidationReason = EInvalidateWidgetReason::None;
 				}
 

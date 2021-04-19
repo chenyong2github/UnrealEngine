@@ -44,16 +44,6 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescrip
 }
 
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::OnInvalidation(FInvalidationDelegate InCallback)
-{
-	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
-	{
-		Descriptor.Attributes[AttributeIndex].OnInvalidation = MoveTemp(InCallback);
-	}
-	return *this;
-}
-
-
 /** */
 FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor& InDescriptor)
 	: Descriptor(InDescriptor)
@@ -199,12 +189,6 @@ void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName A
 }
 
 
-void FSlateAttributeDescriptor::FInitializer::OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback)
-{
-	Descriptor.OverrideOnInvalidation(AttributeName, OverrideType, MoveTemp(Callback));
-}
-
-
 void FSlateAttributeDescriptor::FInitializer::SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed)
 {
 	FAttribute* Attribute = Descriptor.FindAttribute(AttributeName);
@@ -290,48 +274,6 @@ void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, 
 	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
 	{
 		FoundAttribute->InvalidationReason = MoveTemp(Reason);
-	}
-}
-
-
-void FSlateAttributeDescriptor::OverrideOnInvalidation(FName AttributeName, EInvalidationDelegateOverrideType OverrideType, FInvalidationDelegate Callback)
-{
-	check(!AttributeName.IsNone());
-
-	FAttribute* FoundAttribute = FindAttribute(AttributeName);
-	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute 's' doesn't exist."), *AttributeName.ToString()))
-	{
-		switch(OverrideType)
-		{
-		case EInvalidationDelegateOverrideType::ReplacePrevious:
-			FoundAttribute->OnInvalidation = MoveTemp(Callback);
-			break;
-		case EInvalidationDelegateOverrideType::ExecuteAfterPrevious:
-		case EInvalidationDelegateOverrideType::ExecuteBeforePrevious:
-			if (FoundAttribute->OnInvalidation.IsBound() && Callback.IsBound())
-			{
-				FInvalidationDelegate Previous = FoundAttribute->OnInvalidation;
-				FoundAttribute->OnInvalidation = FInvalidationDelegate::CreateLambda([Previous{MoveTemp(Previous)}, Callback{MoveTemp(Callback)}, OverrideType](SWidget& Widget)
-					{
-						if (OverrideType == EInvalidationDelegateOverrideType::ExecuteBeforePrevious)
-						{
-							Previous.ExecuteIfBound(Widget);
-						}
-						Callback.ExecuteIfBound(Widget);
-						if (OverrideType == EInvalidationDelegateOverrideType::ExecuteAfterPrevious)
-						{
-							Previous.ExecuteIfBound(Widget);
-						}
-					});
-			}
-			else if (Callback.IsBound())
-			{
-				FoundAttribute->OnInvalidation = MoveTemp(Callback);
-			}
-			break;
-		default:
-			check(false);
-		}
 	}
 }
 
