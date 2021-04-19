@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "ActorSnapshot.h"
-#include "PreviewScene.h"
 #include "WorldSnapshotData.h"
 #include "LevelSnapshot.generated.h"
 
@@ -18,6 +17,9 @@ class LEVELSNAPSHOTS_API ULevelSnapshot : public UObject
 	GENERATED_BODY()
 public:
 
+	DECLARE_DELEGATE_OneParam(FActorPathConsumer, const FSoftObjectPath& /*OriginalActorPath*/);
+	DECLARE_DELEGATE_OneParam(FActorConsumer, AActor* /*WorldActor*/);
+
 	/* Should this actor supported for the snapshot system? */
 	static bool IsActorDesirableForCapture(const AActor* Actor);
 	static bool IsComponentDesirableForCapture(const UActorComponent* Component);
@@ -26,7 +28,7 @@ public:
 	
 	
 	/* Applies this snapshot to the given world. We assume the world matches. SelectionSet specifies which properties to roll back. */
-	void ApplySnapshotToWorld(UWorld* TargetWorld, ULevelSnapshotSelectionSet* SelectionSet);
+	void ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet);
 	/* Captures the current state of the given world. */
 	void SnapshotWorld(UWorld* TargetWorld);
 
@@ -44,10 +46,16 @@ public:
 	
 	/* Given an actor path in the world, gets the equivalent actor from the snapshot. */
 	TOptional<AActor*> GetDeserializedActor(const FSoftObjectPath& OriginalActorPath);
-	/* Gets the number of saved actors */
+	
 	int32 GetNumSavedActors() const;
-	/* Iterates all saved actors.*/
-	void ForEachOriginalActor(TFunction<void (const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const;
+	/**
+	 * Compares this snapshot to the world and calls the appropriate callbacks:
+	 * @param World to check in
+	 *	@param HandleMatchedActor Actor exists both in world and snapshot. Receives the original actor path.
+	 *	@param HandleRemovedActor Actor exists in snapshot but not in world. Receives the original actor path.
+	 *	@param HandleAddedActor Actor exists in world but not in snapshot. Receives reference to world actor.
+	 */
+	void DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const;
 
 	
 	
@@ -76,7 +84,7 @@ private:
 	
 	/****************************** Start legacy members ******************************/
 
-	void LegacyApplySnapshotToWorld(ULevelSnapshotSelectionSet* SelectionSet);
+	void LegacyApplySnapshotToWorld(const FPropertySelectionMap& SelectionSet);
 	
 	// Map of Actor Snapshots mapping from the object path to the actual snapshot
 	UPROPERTY(VisibleAnywhere, Category = "Snapshot|Deprecated")

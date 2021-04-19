@@ -12,12 +12,32 @@ EFilterResult::Type ULevelSnapshotFilter::IsPropertyValid(const FIsPropertyValid
 	return EFilterResult::DoNotCare;
 }
 
+EFilterResult::Type ULevelSnapshotFilter::IsDeletedActorValid(const FIsDeletedActorValidParams& Params)
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotFilter::IsAddedActorValid(const FIsAddedActorValidParams& Params)
+{
+	return EFilterResult::DoNotCare;
+}
+
 EFilterResult::Type ULevelSnapshotBlueprintFilter::IsActorValid_Implementation(const FIsActorValidParams& Params) const
 {
 	return EFilterResult::DoNotCare;
 }
 
 EFilterResult::Type ULevelSnapshotBlueprintFilter::IsPropertyValid_Implementation(const FIsPropertyValidParams& Params) const
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsDeletedActorValid_Implementation(const FIsDeletedActorValidParams& Params)
+{
+	return EFilterResult::DoNotCare;
+}
+
+EFilterResult::Type ULevelSnapshotBlueprintFilter::IsAddedActorValid_Implementation(const FIsAddedActorValidParams& Params)
 {
 	return EFilterResult::DoNotCare;
 }

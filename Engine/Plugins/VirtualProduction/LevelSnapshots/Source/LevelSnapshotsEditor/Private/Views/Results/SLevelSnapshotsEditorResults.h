@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "LevelSnapshotsEditorData.h"
+#include "Data/LevelSnapshotsEditorData.h"
 
 #include "IPropertyRowGenerator.h"
 #include "PropertySelectionMap.h"
@@ -21,6 +21,7 @@ class SSplitter;
 class UFilteredResults;
 
 struct FLevelSnapshotsEditorViewBuilder;
+struct FLevelSnapshotPropertyChain;
 struct FPropertySelection;
 struct FPropertySelectionMap;
 
@@ -138,7 +139,8 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	const TSharedPtr<IPropertyRowGenerator>& GetSnapshotRowGenerator() const;
 	const TSharedPtr<IPropertyRowGenerator>& GetWorldRowGenerator() const;
 	
-	TFieldPath<FProperty> GetPropertyPath() const;
+	FProperty* GetProperty() const;
+	FLevelSnapshotPropertyChain GetPropertyChain() const;
 
 	const TSharedPtr<IPropertyHandle>& GetSnapshotPropertyHandle() const;
 	const TSharedPtr<IPropertyHandle>& GetWorldPropertyHandle() const;

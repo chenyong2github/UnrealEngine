@@ -12,14 +12,28 @@ class LEVELSNAPSHOTS_API ULevelSnapshotsEditorProjectSettings : public UObject
 
 public:
 	
-	ULevelSnapshotsEditorProjectSettings(const FObjectInitializer& ObjectInitializer)
-	{
-		bEnableLevelSnapshotsToolbarButton = true;
-		bUseCreationForm = true;
-		RootLevelSnapshotSaveDir.Path = "/Game/LevelSnapshots";
-		LevelSnapshotSaveDir = "{year}-{month}-{day}/{map}";
-		DefaultLevelSnapshotName = "{map}_{user}_{time}";
-	}
+	ULevelSnapshotsEditorProjectSettings(const FObjectInitializer& ObjectInitializer);
+
+	const FString& GetNameOverride() const;
+
+	void SetNameOverride(const FString& InName);
+
+	const FString& GetSaveDirOverride() const;
+
+	void SetSaveDirOverride(const FString& InPath);
+	
+	void ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
+	
+	static void SanitizePathInline(FString& InPath, const bool bSkipForwardSlash);
+
+	/* Removes /?:&\*"<>|%#@^ . from project settings path strings. Optionally the forward slash can be kept so that the user can define a file structure. */
+	void SanitizeAllProjectSettingsPaths(const bool bSkipForwardSlash);
+	
+	static FFormatNamedArguments GetFormatNamedArguments(const FString& InWorldName);
+
+	bool IsNameOverridden() const;
+	
+	bool IsPathOverridden() const;
 
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots", meta = (ConfigRestartRequired = true))
 		bool bEnableLevelSnapshotsToolbarButton;
@@ -27,34 +41,43 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 		bool bUseCreationForm;
 
-	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
+	// Must be a directory in the Game Content folder ("/Game/"). For best results, use the picker.  
+	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots", meta = (RelativeToGameContentDir, ContentDir))
 		FDirectoryPath RootLevelSnapshotSaveDir;
 
 	/** The format to use for the resulting filename. Extension will be added automatically. Any tokens of the form {token} will be replaced with the corresponding value:
-	 * {map}		- The name of the captured map
+	 * {map}		- The name of the captured map or level
 	 * {user}		- The current OS user account name
-	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
-	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
-	 * {date}       - The date in the format of {year}.{month}.{day}
 	 * {year}       - The current year
 	 * {month}      - The current month
 	 * {day}        - The current day
-	 * {time}       - The current time in the format of hours.minutes.seconds
+	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
+	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
+	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
+	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 		FString LevelSnapshotSaveDir;
 
 	/** The format to use for the resulting filename. Extension will be added automatically. Any tokens of the form {token} will be replaced with the corresponding value:
-	 * {map}		- The name of the captured map
+	 * {map}		- The name of the captured map or level
 	 * {user}		- The current OS user account name
-	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
-	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
-	 * {date}       - The date in the format of {year}.{month}.{day}
 	 * {year}       - The current year
 	 * {month}      - The current month
 	 * {day}        - The current day
-	 * {time}       - The current time in the format of hours.minutes.seconds
+	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
+	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
+	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
+	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 		FString DefaultLevelSnapshotName;
+
+private:
+	
+	/* If the user overrides the Save Dir in the creation form, the override will be saved here so it can be recalled. */
+	FString LevelSnapshotSaveDirOverride;
+	
+	/* If the user overrides the Name field in the creation form, the override will be saved here so it can be recalled. */
+	FString LevelSnapshotNameOverride;
 };

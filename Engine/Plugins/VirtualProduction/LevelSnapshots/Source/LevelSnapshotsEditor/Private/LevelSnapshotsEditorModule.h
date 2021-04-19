@@ -24,22 +24,20 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface Interface
 
-	bool GetUseCreationForm() const
-	{
-		return bUseCreationForm;
-	}
+	bool GetUseCreationForm() const;
 
-	void SetUseCreationForm(bool bInUseCreationForm)
-	{
-		bUseCreationForm = bInUseCreationForm;
-	}
+	void SetUseCreationForm(bool bInUseCreationForm);
 
 	void ToggleUseCreationForm()
 	{
 		SetUseCreationForm(!GetUseCreationForm());
 	}
 
-	static void CallTakeSnapshot();
+	void BuildPathsToSaveSnapshotWithOptionalForm() const;
+
+	void HandleFormReply(bool bWasCreateSnapshotPressed, FText InDescription) const;
+
+	void TakeAndSaveSnapshot(const FText& InDescription, const bool bShouldUseOverrides = false) const;
 	
 	static void OpenLevelSnapshotsSettings();
 
@@ -48,6 +46,8 @@ private:
 	void RegisterMenus();
 
 	bool RegisterProjectSettings();
+	bool HandleModifiedProjectSettings();
+	
 	void RegisterEditorToolbar();
 	void MapEditorToolbarActions();
 	void CreateEditorToolbarButton(FToolBarBuilder& Builder);
@@ -63,8 +63,6 @@ private:
 	/* Lives for as long as the UI is open. */
 	TWeakPtr<FLevelSnapshotsEditorToolkit> SnapshotEditorToolkit;
 
-	TSharedPtr<ISettingsSection> LevelSnapshotsProjectSettingsPtr;
-	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingObjectPtr;
-
-	bool bUseCreationForm = false;
+	TSharedPtr<ISettingsSection> ProjectSettingsSectionPtr;
+	TWeakObjectPtr<ULevelSnapshotsEditorProjectSettings> ProjectSettingsObjectPtr;
 };
