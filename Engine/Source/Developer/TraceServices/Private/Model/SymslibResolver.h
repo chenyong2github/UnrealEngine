@@ -4,6 +4,7 @@
 #if PLATFORM_WINDOWS
 
 #include "Async/MappedFileHandle.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Common/PagedArray.h"
 #include "HAL/CriticalSection.h"
 #include "TraceServices/Model/AnalysisSession.h"
