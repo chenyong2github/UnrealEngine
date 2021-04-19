@@ -2307,6 +2307,11 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 		{
 			GenerateAndSubmitGPUTick();
 		}
+
+		if (OnPostTickDelegate.IsBound())
+		{
+			OnPostTickDelegate.Execute();
+		}
 	}
 
 	if (DeferredResetMode != EResetMode::None)
@@ -2315,11 +2320,6 @@ void FNiagaraSystemInstance::FinalizeTick_GameThread(bool bEnqueueGPUTickIfNeede
 		DeferredResetMode = EResetMode::None;
 
 		Reset(ResetMode);
-	}
-
-	if (OnPostTickDelegate.IsBound())
-	{
-		OnPostTickDelegate.Execute();
 	}
 }
 
