@@ -7,6 +7,7 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Engine/SceneCapture2D.h"
 #include "Engine/SceneCaptureCube.h"
 #include "PropertyHandle.h"
