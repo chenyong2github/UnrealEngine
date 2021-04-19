@@ -118,9 +118,9 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			{
 				if (UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>())
 				{
-					if (Settings->Data.HudVerbosity < ENiagaraDebugHudSystemVerbosity::Minimal)
+					if (!Settings->Data.bEnabled)
 					{
-						Settings->Data.HudVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
+						Settings->Data.bEnabled = true;
 						Settings->PostEditChange();
 					}
 				}
