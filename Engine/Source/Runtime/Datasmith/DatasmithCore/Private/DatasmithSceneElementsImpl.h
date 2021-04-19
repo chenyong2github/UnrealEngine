@@ -108,16 +108,49 @@ public:
 	FDatasmithActorElementImpl(const TCHAR* InName, EDatasmithElementType InType);
 
 	virtual FVector GetTranslation() const override { return Translation.Get(Store); }
-	virtual void SetTranslation(float InX, float InY, float InZ) override { SetTranslation( FVector( InX, InY, InZ ) ); }
-	virtual void SetTranslation(const FVector& Value) override { ConvertChildsToRelative(); SetInternalTranslation(Value); ConvertChildsToWorld(); }
+	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetTranslation( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
+	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative) override 
+	{ 
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToRelative();
+		}
+		SetInternalTranslation(Value); 
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToWorld();
+		}
+	}
 
 	virtual FVector GetScale() const override { return Scale.Get(Store); }
-	virtual void SetScale(float InX, float InY, float InZ) override { SetScale( FVector( InX, InY, InZ ) ); }
-	virtual void SetScale(const FVector& Value) override { ConvertChildsToRelative(); SetInternalScale(Value); ConvertChildsToWorld(); }
+	virtual void SetScale(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetScale( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
+	virtual void SetScale(const FVector& Value, bool bKeepChildrenRelative) override
+	{
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToRelative();
+		}
+		SetInternalScale(Value); 
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToWorld();
+		}
+	}
 
 	virtual FQuat GetRotation() const override { return Rotation; }
-	virtual void SetRotation(float InX, float InY, float InZ, float InW) override { SetRotation( FQuat( InX, InY, InZ, InW ) ); }
-	virtual void SetRotation(const FQuat& Value) override { ConvertChildsToRelative(); SetInternalRotation(Value); ConvertChildsToWorld(); }
+	virtual void SetRotation(float InX, float InY, float InZ, float InW, bool bKeepChildrenRelative) override { SetRotation( FQuat( InX, InY, InZ, InW ), bKeepChildrenRelative ); }
+	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative) override 
+	{ 
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToRelative();
+		}
+		SetInternalRotation(Value); 
+		if (bKeepChildrenRelative)
+		{
+			ConvertChildsToWorld();
+		}
+	}
 
 	virtual FTransform GetRelativeTransform() const override;
 
@@ -947,7 +980,7 @@ public:
 	explicit FDatasmithLandscapeElementImpl(const TCHAR* InName)
 		: FDatasmithActorElementImpl(InName, EDatasmithElementType::Landscape)
 	{
-		SetScale( 100.f, 100.f, 100.f );
+		SetScale( 100.f, 100.f, 100.f, true );
 
 		RegisterReferenceProxy(Material,  "Material"  );
 		RegisterReferenceProxy(Heightmap, "Heightmap" );
