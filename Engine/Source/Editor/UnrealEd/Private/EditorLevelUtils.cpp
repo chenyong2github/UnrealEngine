@@ -47,6 +47,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "Components/ModelComponent.h"
 #include "Misc/RuntimeErrors.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HAL/IConsoleManager.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Dialogs/Dialogs.h"
@@ -55,6 +56,12 @@ DEFINE_LOG_CATEGORY(LogLevelTools);
 
 #define LOCTEXT_NAMESPACE "EditorLevelUtils"
 
+static TAutoConsoleVariable<int32>  CVarReflectEditorLevelVisibilityWithGame(
+	TEXT("Editor.ReflectEditorLevelVisibilityWithGame"),
+	0,
+	TEXT("Enables the transaction of game visibility state when editor visibility state changes.\n")
+	TEXT("0 - game state is *not* reflected with editor.\n")
+	TEXT("1 - game state is relfected with editor.\n"), ECVF_Default);
 
 int32 UEditorLevelUtils::MoveActorsToLevel(const TArray<AActor*>& ActorsToMove, ULevelStreaming* DestStreamingLevel, bool bWarnAboutReferences, bool bWarnAboutRenaming)
 {
@@ -1018,6 +1025,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 	}
 	else
 	{
+		const bool bReflectVisibilityToGame = CVarReflectEditorLevelVisibilityWithGame.GetValueOnGameThread() != 0;
 		ULevelStreaming* StreamingLevel = NULL;
 		if (Level->OwningWorld == NULL || Level->OwningWorld->PersistentLevel != Level)
 		{
@@ -1039,8 +1047,12 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 				StreamingLevel->SetFlags(cachedFlags);
 			}
 
-			// Set the visibility state for this streaming level.  
+			// Set the visibility state for this streaming level.
 			StreamingLevel->SetShouldBeVisibleInEditor(bShouldBeVisible);
+			if (bReflectVisibilityToGame)
+			{
+				StreamingLevel->SetShouldBeVisible(bShouldBeVisible);
+			}
 		}
 
 		ULayersSubsystem* Layers = GEditor->GetEditorSubsystem<ULayersSubsystem>();
@@ -1107,7 +1119,6 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 						{
 							bModified = Actor->Modify();
 						}
-						
 						Actor->bHiddenEdLayer = false;
 					}
 
@@ -1132,6 +1143,10 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 					{
 						Actor->UnregisterAllComponents();
 					}
+				}
+				if (bReflectVisibilityToGame)
+				{
+					Actor->SetHidden(Actor->bHiddenEdLevel);
 				}
 			}
 		}
