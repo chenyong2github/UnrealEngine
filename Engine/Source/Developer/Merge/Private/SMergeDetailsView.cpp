@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMergeDetailsView.h"
+#include "IDetailsView.h"
 #include "Widgets/Layout/SSplitter.h"
 
 
