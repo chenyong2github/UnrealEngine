@@ -7,6 +7,8 @@
 #include "OnlineSubsystemImpl.h"
 #include "SocketSubsystemEOS.h"
 
+#include COMPILED_PLATFORM_HEADER(EOSHelpers.h)
+
 DECLARE_STATS_GROUP(TEXT("EOS"), STATGROUP_EOS, STATCAT_Advanced);
 
 #if WITH_EOS_SDK
@@ -39,6 +41,8 @@ typedef TSharedPtr<class FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleF
 class FOnlineUserCloudEOS;
 typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSPtr;
 
+typedef TSharedPtr<FPlatformEOSHelpers, ESPMode::ThreadSafe> FPlatformEOSHelpersPtr;
+
 #ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
 	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
 #endif
@@ -58,6 +62,10 @@ public:
 
 	/** Used to be called before RHIInit() */
 	static void ModuleInit();
+	static void ModuleShutdown();
+
+
+	FPlatformEOSHelpersPtr GetEOSHelpers() { return EOSHelpersPtr; };
 
 // IOnlineSubsystem
 	virtual IOnlineSessionPtr GetSessionInterface() const override;
@@ -177,6 +185,8 @@ PACKAGE_SCOPE:
 	bool bIsPlatformOSS;
 
 	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
+
+	static FPlatformEOSHelpersPtr EOSHelpersPtr;
 
 private:
 	bool PlatformCreate();
