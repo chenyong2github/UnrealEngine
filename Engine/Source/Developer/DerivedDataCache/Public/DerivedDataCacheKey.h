@@ -9,13 +9,6 @@
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
-namespace UE::DerivedData::Private
-{
-
-struct FCacheBucketName { const TCHAR* Name; };
-
-} // UE::DerivedData::Private
-
 namespace UE::DerivedData
 {
 
@@ -61,20 +54,21 @@ public:
 	template <>
 	inline FAnsiStringView ToString<ANSICHAR>() const;
 
-public:
-	// Internal API
-
-	explicit FCacheBucket(Private::FCacheBucketName InName)
-		: Name(InName.Name)
+protected:
+	explicit FCacheBucket(const TCHAR* InName)
+		: Name(InName)
 	{
 	}
 
+	static constexpr int32 LengthOffset = -1;
+	static constexpr int32 LengthOffset8 = -2;
+
 private:
 	/**
-	 * Name in TCHAR followed by UTF-8 in ANSICHAR, both null-terminated.
+	 * Name as TCHAR followed by the name as UTF-8, both null-terminated.
 	 *
-	 * The byte preceding the TCHAR name is the number of UTF-8 code units.
-	 * The byte preceding the UTF-8 name length is the number of TCHAR code units.
+	 * The byte preceding the TCHAR name is the number of TCHAR code units excluding the terminator.
+	 * The byte preceding the TCHAR name length is the number of UTF-8 code units.
 	 */
 	const TCHAR* Name = nullptr;
 };
@@ -110,15 +104,15 @@ inline const FCachePayloadKey FCachePayloadKey::Empty;
 template <>
 inline FStringView FCacheBucket::ToString<TCHAR>() const
 {
-	return Name ? FStringView(Name, reinterpret_cast<const uint8*>(Name)[-2]) : FStringView();
+	return Name ? FStringView(Name, reinterpret_cast<const uint8*>(Name)[LengthOffset]) : FStringView();
 }
 
 template <>
 inline FAnsiStringView FCacheBucket::ToString<ANSICHAR>() const
 {
 	return Name ? FAnsiStringView(
-		reinterpret_cast<const ANSICHAR*>(Name + reinterpret_cast<const uint8*>(Name)[-2] + 1),
-		reinterpret_cast<const uint8*>(Name)[-1]) : FAnsiStringView();
+		reinterpret_cast<const ANSICHAR*>(Name + reinterpret_cast<const uint8*>(Name)[LengthOffset] + 1),
+		reinterpret_cast<const uint8*>(Name)[LengthOffset8]) : FAnsiStringView();
 }
 
 template <typename CharType>
