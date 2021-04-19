@@ -79,7 +79,7 @@ TAutoConsoleVariable<int32> CVarPathTracingMaxSSSBounces(
 TAutoConsoleVariable<float> CVarPathTracingMaxPathIntensity(
 	TEXT("r.PathTracing.MaxPathIntensity"),
 	-1,
-	TEXT("When positive, light paths greater that this amount are clamped to prevent fireflies (default = -1 (off))"),
+	TEXT("When positive, light paths greater that this amount are clamped to prevent fireflies (default = -1 (driven by postprocesing volume))"),
 	ECVF_RenderThreadSafe
 );
 
@@ -93,7 +93,7 @@ TAutoConsoleVariable<int32> CVarPathTracingApproximateCaustics(
 TAutoConsoleVariable<int32> CVarPathTracingEnableEmissive(
 	TEXT("r.PathTracing.EnableEmissive"),
 	-1,
-	TEXT("Indicates if emissive materials should contribute to scene lighting (default = -1 (inherit from PostProcessVolume)"),
+	TEXT("Indicates if emissive materials should contribute to scene lighting (default = -1 (driven by postprocesing volume)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -119,11 +119,13 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplerType(
 	PATHTRACER_SAMPLER_DEFAULT,
 	TEXT("Controls the way the path tracer generates its random numbers\n")
 	TEXT("0: use a different high quality random sequence per pixel\n")
-	TEXT("1: optimize the random sequence across pixels to lower error at the target sample count\n")
+	TEXT("1: optimize the random sequence across pixels to reduce visible error at the target sample count\n")
 	TEXT("2: share random seeds across pixels to improve coherence of execution on the GPU. This trades some correlation across the image in exchange for better performance.\n"),
 	ECVF_RenderThreadSafe
 );
 
+#if 0
+// TODO: re-enable this when multi-gpu is supported again
 // r.PathTracing.GPUCount is read only because ComputeViewGPUMasks results cannot change after UE has been launched
 TAutoConsoleVariable<int32> CVarPathTracingGPUCount(
 	TEXT("r.PathTracing.GPUCount"),
@@ -131,6 +133,7 @@ TAutoConsoleVariable<int32> CVarPathTracingGPUCount(
 	TEXT("Sets the amount of GPUs used for computing the path tracing pass (default = 1 GPU)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
+#endif
 
 TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 	TEXT("r.PathTracing.WiperMode"),
@@ -158,7 +161,7 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridResolution(
 TAutoConsoleVariable<int32> CVarPathTracingLightGridMaxCount(
 	TEXT("r.PathTracing.LightGridMaxCount"),
 	128,
-	TEXT("Controls the maximum number of lights per cell in the 2D light grid (default = 128)\n"),
+	TEXT("Controls the maximum number of lights per cell in the 2D light grid. The minimum of this value and the number of lights in the scene is used. (default = 128)\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -230,8 +233,8 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	if (PathTracingData.MaxPathIntensity <= 0)
 	{
-		// no clamping required - set to an impossible value
-		PathTracingData.MaxPathIntensity = std::numeric_limits<float>::infinity();
+		// cvar clamp disabled, use PPV exposure value instad
+		PathTracingData.MaxPathIntensity = FMath::Pow(2.0f, View.FinalPostProcessSettings.PathTracingMaxPathExposure);
 	}
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 	PathTracingData.EnableCameraBackfaceCulling = CVarPathTracingEnableCameraBackfaceCulling.GetValueOnRenderThread();
@@ -770,16 +773,17 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	PassParameters->SceneVisibleLightCount = 0;
 
 	// Lights
-	TArray<FPathTracingLight> Lights;
-	Lights.Reserve(1 + Scene->Lights.Num());
+	uint32 MaxNumLights = 1 + Scene->Lights.Num(); // upper bound
+	// Allocate from the graph builder so that we don't need to copy the data again when queuing the upload
+	FPathTracingLight* Lights = (FPathTracingLight*) GraphBuilder.Alloc(sizeof(FPathTracingLight) * MaxNumLights, 16);
+	uint32 NumLights = 0;
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
 	const float Inf = std::numeric_limits<float>::infinity();
 	if (PrepareSkyTexture(GraphBuilder, Scene, View, UseMISCompensation, PassParameters))
 	{
 		check(Scene->SkyLight != nullptr);
-		Lights.AddDefaulted();
-		FPathTracingLight& DestLight = Lights.Last();
+		FPathTracingLight& DestLight = Lights[NumLights++];
 		DestLight.Color = FVector(1, 1, 1); // not used (it is folded into the importance table directly)
 		DestLight.Flags = Scene->SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
@@ -816,8 +820,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				continue;
 			}
 
-			Lights.AddDefaulted();
-			FPathTracingLight& DestLight = Lights.Last();
+			FPathTracingLight& DestLight = Lights[NumLights++];
 			uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 			uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
 
@@ -845,7 +848,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		}
 	}
 
-	uint32 NumInfiniteLights = Lights.Num();
+	uint32 NumInfiniteLights = NumLights;
 
 	int32 NextRectTextureIndex = 0;
 
@@ -871,8 +874,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			continue;
 		}
 
-		Lights.AddDefaulted();
-		FPathTracingLight& DestLight = Lights.Last();
+		FPathTracingLight& DestLight = Lights[NumLights++];
 
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
@@ -1015,16 +1017,12 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		PassParameters->RectLightSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
-	PassParameters->SceneLightCount = Lights.Num();
+	PassParameters->SceneLightCount = NumLights;
 	{
-		// Buffer creation needs at least one element
-		if (Lights.Num() == 0)
-		{
-			Lights.AddDefaulted();
-		}
 		// Upload the buffer of lights to the GPU
-		size_t DataSize = sizeof(FPathTracingLight) * Lights.Num();
-		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracer.LightsBuffer"), sizeof(FPathTracingLight), Lights.Num(), Lights.GetData(), DataSize)));
+		uint32 NumCopyLights = FMath::Max(1u, NumLights); // need at least one since zero-sized buffers are not allowed
+		size_t DataSize = sizeof(FPathTracingLight) * NumCopyLights;
+		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracer.LightsBuffer"), sizeof(FPathTracingLight), NumCopyLights, Lights, DataSize, ERDGInitialDataFlags::NoCopy)));
 	}
 
 	if (CVarPathTracingVisibleLights.GetValueOnRenderThread() != 0)
@@ -1081,7 +1079,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	}
 
 
-	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights.GetData(), Lights.Num(), NumInfiniteLights, PassParameters->SceneLights, View);
+	PrepareLightGrid(GraphBuilder, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights, View);
 }
 
 class FPathTracingCompositorPS : public FGlobalShader
