@@ -148,6 +148,11 @@ public:
 	}
 
 	/**
+	 * Get the current cultures in use, optionally including the current language, locale, and any asset groups.
+	 */
+	CORE_API TArray<FCultureRef> GetCurrentCultures(const bool bIncludeLanguage, const bool bIncludeLocale, const bool bIncludeAssetGroups) const;
+
+	/**
 	 * Backup the current culture state to the given snapshot struct.
 	 */
 	CORE_API void BackupCultureState(FCultureStateSnapshot& OutSnapshot) const;
