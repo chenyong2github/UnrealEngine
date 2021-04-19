@@ -131,7 +131,7 @@
 </ForEach>
 
 <!-- PS5 packaging isn't supported by Gauntlet yet :( )-->
-<Property Name="PlatformsToSkipPackaging" Value="Win64+Linux+PS5" />
+<Property Name="PlatformsToSkipPackaging" Value="Win64+Linux" />
 
 <!-- These platforms can't run from loose staged content-->
 <Property Name="PlatformsThatRequirePackaging" Value="Android+iOS" />
