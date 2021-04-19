@@ -251,7 +251,7 @@ void SCommentBubble::UpdateBubble()
 						[
 							SAssignNew(TextBlock, SMultiLineEditableTextBox)
 							.Text(MakeAttributeLambda([this] { return CachedCommentText; }))
-							.Style(FAppStyle::Get(), "Graph.Node.NodeTitleInlineEditableText")
+							.Style(FAppStyle::Get(), "Graph.CommentBubble.EditableText")
 							.HintText( NSLOCTEXT( "CommentBubble", "EditCommentHint", "Click to edit" ))
 							.IsReadOnly(this, &SCommentBubble::IsReadOnly)
 							.SelectAllTextWhenFocused( true )
@@ -409,17 +409,17 @@ void SCommentBubble::OnCommentTextCommitted( const FText& NewText, ETextCommit::
 
 FSlateColor SCommentBubble::GetTextBackgroundColor() const
 {
-	return TextBlock->HasKeyboardFocus() ? FStyleColors::Foreground : SCommentBubbleDefs::TextClearBackground;
+	return TextBlock->HasKeyboardFocus() ? FSlateColor::UseStyle() : SCommentBubbleDefs::TextClearBackground;
 }
 
 FSlateColor SCommentBubble::GetTextForegroundColor() const
 {
-	return TextBlock->HasKeyboardFocus() ? FSlateColor::UseStyle() : ForegroundColor;
+	return FSlateColor::UseStyle();
 }
 
 FSlateColor SCommentBubble::GetReadOnlyTextForegroundColor() const
 {
-	return ForegroundColor;
+	return TextBlock->HasKeyboardFocus() ? FStyleColors::Foreground : FSlateColor::UseStyle();
 }
 
 EVisibility SCommentBubble::GetToggleButtonVisibility() const

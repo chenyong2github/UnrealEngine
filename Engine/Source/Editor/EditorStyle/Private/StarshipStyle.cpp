@@ -3748,6 +3748,10 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 				.SetBackgroundImageHovered(FSlateRoundedBoxBrush(FStyleColors::Foreground, FStyleColors::Hover, 1.0f))
 				.SetBackgroundImageFocused(FSlateRoundedBoxBrush(FStyleColors::Foreground, FStyleColors::Primary, 1.0f))
 				.SetBackgroundImageReadOnly(FSlateRoundedBoxBrush(FStyleColors::Header, FStyleColors::InputOutline, 1.0f))
+				.SetForegroundColor(FStyleColors::Background)
+				.SetBackgroundColor(FStyleColors::White)
+				.SetReadOnlyForegroundColor(FStyleColors::Foreground)
+				.SetFocusedForegroundColor(FStyleColors::Background)
 				.SetScrollBarStyle( ScrollBar );
 			Set( "Graph.Node.NodeTitleEditableText", GraphNodeTitleEditableText );
 
@@ -3762,6 +3766,20 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 				.SetShadowOffset( FVector2D::ZeroVector )
 				.SetShadowColorAndOpacity( FLinearColor(0.f,0.f,0.f, 0.7f) )
 			);
+
+			FEditableTextBoxStyle CommentEditableText = FEditableTextBoxStyle(NormalEditableTextBoxStyle)
+				.SetFont(NormalText.Font)
+				.SetForegroundColor(FStyleColors::Foreground)
+				.SetBackgroundImageNormal(FSlateRoundedBoxBrush(FStyleColors::Foreground, FStyleColors::Secondary, 1.0f))
+				.SetBackgroundImageHovered(FSlateRoundedBoxBrush(FStyleColors::Foreground, FStyleColors::Hover, 1.0f))
+				.SetBackgroundImageFocused(FSlateRoundedBoxBrush(FStyleColors::Foreground, FStyleColors::Primary, 1.0f))
+				.SetBackgroundImageReadOnly(FSlateRoundedBoxBrush(FStyleColors::Header, FStyleColors::InputOutline, 1.0f))
+				.SetForegroundColor(FStyleColors::Background)
+				.SetBackgroundColor(FStyleColors::White)
+				.SetReadOnlyForegroundColor(FSlateColor::UseForeground())
+				.SetFocusedForegroundColor(FStyleColors::White)
+				.SetScrollBarStyle(ScrollBar);
+			Set("Graph.CommentBubble.EditableText", CommentEditableText);
 		
 			FTextBlockStyle GraphCommentBlockTitle = FTextBlockStyle(NormalText)
 				.SetFont( DEFAULT_FONT( "Bold", 18 ) )
