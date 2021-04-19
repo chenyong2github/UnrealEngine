@@ -90,7 +90,10 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
 				const int32 PreviousSize = Collection.Num();
 				if(PreviousSize == Collection.AddUnique(Child))
 				{
-					ParentKeys.Add(Child);
+					if(bRecursive)
+					{
+						ParentKeys.Add(Child);
+					}
 				}
 			}
 		}
