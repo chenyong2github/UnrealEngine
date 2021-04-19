@@ -39,11 +39,13 @@
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "GeometryFlowTypes.h"
 
 #define LOCTEXT_NAMESPACE "UGenerateStaticMeshLODProcess"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+using namespace UE::GeometryFlow;
 
 namespace
 {
@@ -428,7 +430,6 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 			}
 		}
 	}
-	
 
 	// initialize source mesh
 	Generator->SetSourceMesh(this->SourceMesh);

@@ -438,14 +438,6 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	TArray<float> Weights;
 	UpdateThickenWeightMap(Weights);
-
-
-	//FString GraphDump = Graph->DebugDumpGraph([](TSafeSharedPtr<FNode> Node)
-	//{
-	//	return !Node->GetIdentifier().EndsWith("Settings");
-	//});
-	//UE_LOG(LogMeshLODToolset, Display, TEXT("GRAPH:\n%s"), *GraphDump);
-
 }
 
 
@@ -460,7 +452,7 @@ int32 FGenerateMeshLODGraph::AppendTextureBakeNode(const TImageBuilder<FVector4f
 	// add source node
 	NewNode.TexSourceNode = Graph->AddNodeOfType<FTextureImageSourceNode>(FString::Printf(TEXT("TextureSource%d_%s"), NewNode.Index, *NewNode.Identifier));
 
-	// normal map baker
+	// texture baker
 	NewNode.BakeNode = Graph->AddNodeOfType<FBakeMeshTextureImageNode>(FString::Printf(TEXT("BakeTexImage%d_%s"), NewNode.Index, *NewNode.Identifier));
 	ensure(Graph->InferConnection(BakeCacheNode, NewNode.BakeNode) == EGeometryFlowResult::Ok);
 	ensure(Graph->InferConnection(NewNode.TexSourceNode, NewNode.BakeNode) == EGeometryFlowResult::Ok);

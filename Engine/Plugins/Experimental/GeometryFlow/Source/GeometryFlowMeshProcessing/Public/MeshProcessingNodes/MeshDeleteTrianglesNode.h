@@ -47,7 +47,7 @@ public:
 		const FNamedDataMap& DatasIn,
 		FDynamicMesh3& MeshInOut) override
 	{
-		DeleteTrianglesForMesh( DatasIn, MeshInOut);
+		DeleteTrianglesForMesh(DatasIn, MeshInOut);
 	}
 
 

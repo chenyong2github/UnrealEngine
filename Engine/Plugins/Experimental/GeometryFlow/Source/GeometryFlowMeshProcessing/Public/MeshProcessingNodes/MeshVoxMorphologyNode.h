@@ -48,6 +48,12 @@ public:
 
 	void ApplyMorphology(const FDynamicMesh3& MeshIn, const FVoxMorphologyOpSettings& Settings, FDynamicMesh3& MeshOut)
 	{
+		if (Settings.Distance == 0.0f)
+		{
+			MeshOut = MeshIn;
+			return;
+		}
+
 		FAxisAlignedBox3d Bounds = MeshIn.GetBounds();
 		FDynamicMeshAABBTree3 MeshBVTree(&MeshIn);
 

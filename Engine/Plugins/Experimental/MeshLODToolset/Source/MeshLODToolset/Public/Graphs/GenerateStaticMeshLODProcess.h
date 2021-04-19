@@ -69,13 +69,13 @@ struct FGenerateStaticMeshLODProcessSettings
 	// Filter settings
 
 	/** Group layer to use for filtering out detail before processing */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail filter group layer"))
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filter Group Layer"))
 	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
 
 	// Thicken settings
 
 	/** Weight map used during mesh thickening */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken weight map name"))
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken Weight Map"))
 	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
 
 	/** Amount to thicken the mesh prior to Solidifying. The thicken weight map values are multiplied by this value. */
@@ -108,7 +108,7 @@ struct FGenerateStaticMeshLODProcessSettings
 
 	// UV settings
 	/** Maximum number of charts to create in AutoUV */
-	UPROPERTY(EditAnywhere, Category = AutoUV, meta = (DisplayName = "AutoUV Charts", UIMin = 0, UIMax = 1000))
+	UPROPERTY(EditAnywhere, Category = AutoUV, meta = (DisplayName = "Max AutoUV Charts", UIMin = 0, UIMax = 1000))
 	int NumAutoUVCharts = 0;
 
 

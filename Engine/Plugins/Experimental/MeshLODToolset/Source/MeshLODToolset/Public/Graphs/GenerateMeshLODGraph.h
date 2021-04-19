@@ -73,6 +73,8 @@ public:
 
 protected:
 
+	friend class UGenerateStaticMeshLODProcess;
+
 	TUniquePtr<UE::GeometryFlow::FGraph> Graph;
 
 

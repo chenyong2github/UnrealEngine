@@ -79,7 +79,9 @@ public:
 
 
 
-
+///
+///  Gather triangles into sets based on their GroupIDs. Optionally exclude any triangles belonging to specified groups.
+///
 class FMakeTriangleSetsFromGroupsNode : public FMakeTriangleSetsFromMeshNode
 {
 public:
