@@ -118,8 +118,7 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 				if (Actor && 
 					Actor->IsPackageExternal() && 
 					!Actor->IsPendingKill() && 
-					Actor->GetPackage()->IsDirty() &&
-					Actor->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+					!Container->GetActorDesc(Actor->GetActorGuid())) // Actor not on disk yet so not found in container
 				{
 					FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
 					OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
