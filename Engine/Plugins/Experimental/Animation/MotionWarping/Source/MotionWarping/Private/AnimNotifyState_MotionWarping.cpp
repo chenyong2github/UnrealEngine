@@ -14,7 +14,7 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 	FRootMotionModifierHandle Handle = AddRootMotionModifier(MotionWarpingComp, Animation, StartTime, EndTime);
 
 	//@TODO: Temp, to handle the case where the blueprint notify does not return the handle. Will be removed shortly
-	if(!Handle.IsValid())
+	if (!Handle.IsValid())
 	{
 		if (MotionWarpingComp->GetRootMotionModifiers().Num())
 		{
@@ -24,12 +24,24 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 				Handle = Last->GetHandle();
 			}
 		}
+
+		if (!Handle.IsValid())
+		{
+			if (MotionWarpingComp->GetModifiers().Num())
+			{
+				UMotionModifier* Last = MotionWarpingComp->GetModifiers().Last();
+				if (Last && Last->Animation.Get() == Animation && Last->StartTime == StartTime && Last->EndTime == EndTime)
+				{
+					Handle = Last->GetHandle();
+				}
+			}
+		}
 	}
 
 	TSharedPtr<FRootMotionModifier> Modifier = MotionWarpingComp->GetRootMotionModifierByHandle(Handle);
 	if (Modifier.IsValid())
 	{
-		if(!Modifier->OnActivateDelegate.IsBound())
+		if (!Modifier->OnActivateDelegate.IsBound())
 		{
 			Modifier->OnActivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierActivate);
 		}
@@ -43,6 +55,28 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 		{
 			Modifier->OnDeactivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate);
 		}
+
+		return Handle;
+	}
+
+	if (UMotionModifier* RootMotionModifierNew = MotionWarpingComp->GetModifierByHandle(Handle))
+	{
+		if (!RootMotionModifierNew->OnActivateDelegate.IsBound())
+		{
+			RootMotionModifierNew->OnActivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierActivate);
+		}
+
+		if (!RootMotionModifierNew->OnUpdateDelegate.IsBound())
+		{
+			RootMotionModifierNew->OnUpdateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierUpdate);
+		}
+
+		if (!RootMotionModifierNew->OnDeactivateDelegate.IsBound())
+		{
+			RootMotionModifierNew->OnDeactivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate);
+		}
+
+		return Handle;
 	}
 
 	return Handle;
@@ -50,9 +84,20 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 
 FRootMotionModifierHandle UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
 {
-	if (MotionWarpingComp && RootMotionModifierConfig)
+	if (MotionWarpingComp)
 	{
-		return RootMotionModifierConfig->AddRootMotionModifierNew(MotionWarpingComp, Animation, StartTime, EndTime);
+		if (RootMotionModifierConfig)
+		{
+			return RootMotionModifierConfig->AddRootMotionModifierNew(MotionWarpingComp, Animation, StartTime, EndTime);
+		}
+		else if (RootMotionModifier)
+		{
+			UMotionModifier* NewRootMotionModifier = MotionWarpingComp->AddModifierFromTemplate(RootMotionModifier, Animation, StartTime, EndTime);
+			if (NewRootMotionModifier)
+			{
+				return NewRootMotionModifier->GetHandle();
+			}
+		}
 	}
 
 	return FRootMotionModifierHandle::InvalidHandle;

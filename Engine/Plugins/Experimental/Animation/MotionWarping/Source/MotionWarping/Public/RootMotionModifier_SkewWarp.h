@@ -42,3 +42,17 @@ public:
 		FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
 		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier = 1.f);
 };
+
+//////////////////////////////////////////////
+
+UCLASS()
+class MOTIONWARPING_API UMotionModifier_SkewWarp : public UMotionModifier_Warp
+{
+	GENERATED_BODY()
+
+public:
+
+	UMotionModifier_SkewWarp(const FObjectInitializer& ObjectInitializer);
+
+	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
+};

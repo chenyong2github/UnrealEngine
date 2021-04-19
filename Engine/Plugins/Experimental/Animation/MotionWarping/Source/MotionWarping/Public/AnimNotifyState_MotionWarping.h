@@ -9,7 +9,6 @@
 
 class UMotionWarpingComponent;
 class UAnimSequenceBase;
-class URootMotionModifierConfig;
 
 /** AnimNotifyState used to define a motion warping window in the animation */
 UCLASS(meta = (DisplayName = "Motion Warping"))
@@ -23,6 +22,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Config")
 	URootMotionModifierConfig* RootMotionModifierConfig;
+
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Config")
+	UMotionModifier* RootMotionModifier;
 
 	UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer);
 

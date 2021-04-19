@@ -104,6 +104,9 @@ public:
 	/** Returns the list of root motion modifiers */
 	FORCEINLINE const TArray<TSharedPtr<FRootMotionModifier>>& GetRootMotionModifiers() const { return RootMotionModifiers; }
 
+	/** Returns the list of root motion modifiers */
+	FORCEINLINE const TArray<UMotionModifier*>& GetModifiers() const { return Modifiers; }
+
 	/** Find the SyncPoint associated with a specified name */
 	FORCEINLINE const FMotionWarpingSyncPoint* FindSyncPoint(const FName& SyncPointName) const { return SyncPoints.Find(SyncPointName); }
 
@@ -121,11 +124,19 @@ public:
 	/** Add a new modifier */
 	FRootMotionModifierHandle AddRootMotionModifier(TSharedPtr<FRootMotionModifier> Modifier);
 
+	/** Add a new modifier */
+	FRootMotionModifierHandle AddModifier(UMotionModifier* Modifier);
+
 	/** Mark all the modifiers as Disable */
 	void DisableAllRootMotionModifiers();
 
 	/** Finds a RootMotionModifier that matches the supplied Handle */
 	TSharedPtr<FRootMotionModifier> GetRootMotionModifierByHandle(const FRootMotionModifierHandle& Handle) const;
+
+	/** Finds a RootMotionModifier that matches the supplied Handle */
+	UMotionModifier* GetModifierByHandle(const FRootMotionModifierHandle& Handle) const;
+
+	UMotionModifier* AddModifierFromTemplate(UMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 
 protected:
 
@@ -135,6 +146,10 @@ protected:
 
 	/** List of root motion modifiers */
 	TArray<TSharedPtr<FRootMotionModifier>> RootMotionModifiers;
+
+	/** List of root motion modifiers */
+	UPROPERTY(Transient)
+	TArray<UMotionModifier*> Modifiers;
 
 	UPROPERTY(Transient)
 	TMap<FName, FMotionWarpingSyncPoint> SyncPoints;

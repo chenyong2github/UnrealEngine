@@ -446,3 +446,174 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static FRootMotionModifierHandle AddRootMotionModifierScale(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FVector InScale);
 };
+
+///////////////////////////////////////////////////////////////
+
+UCLASS(Abstract, BlueprintType, EditInlineNew)
+class MOTIONWARPING_API UMotionModifier : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Source of the root motion we are warping */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	TWeakObjectPtr<const UAnimSequenceBase> Animation = nullptr;
+
+	/** Start time of the warping window */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	float StartTime = 0.f;
+
+	/** End time of the warping window */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	float EndTime = 0.f;
+
+	/** Previous playback time of the animation */
+	UPROPERTY()
+	float PreviousPosition = 0.f;
+
+	/** Current playback time of the animation */
+	UPROPERTY()
+	float CurrentPosition = 0.f;
+
+	/** Current blend weight of the animation */
+	UPROPERTY()
+	float Weight = 0.f;
+
+	/** Whether this modifier runs before the extracted root motion is converted to world space or after */
+	UPROPERTY()
+	bool bInLocalSpace = false;
+
+	/** Delegate called when this modifier is activated (starts affecting the root motion) */
+	UPROPERTY()
+	FOnRootMotionModifierDelegate OnActivateDelegate;
+
+	/** Delegate called when this modifier updates while active (affecting the root motion) */
+	UPROPERTY()
+	FOnRootMotionModifierDelegate OnUpdateDelegate;
+
+	/** Delegate called when this modifier is deactivated (stops affecting the root motion) */
+	UPROPERTY()
+	FOnRootMotionModifierDelegate OnDeactivateDelegate;
+
+	UMotionModifier(const FObjectInitializer& ObjectInitializer);
+
+	/** Initialize this modifier */
+	void Initialize(UMotionWarpingComponent* OwnerComp);
+
+	/** Called when the state of the modifier changes */
+	virtual void OnStateChanged(ERootMotionModifierState LastState);
+
+	/** Sets the state of the modifier */
+	void SetState(ERootMotionModifierState NewState);
+
+	/** Returns the state of the modifier */
+	FORCEINLINE ERootMotionModifierState GetState() const { return State; }
+
+	/** Returns the handle to identify this modifier */
+	FORCEINLINE const FRootMotionModifierHandle& GetHandle() const { return Handle; }
+
+	/** Returns a pointer to the component that owns this modifier */
+	FORCEINLINE UMotionWarpingComponent* GetOwnerComponent() const { return OwnerComponent.Get(); }
+
+	/** Returns a pointer to the character that owns the component that owns this modifier */
+	class ACharacter* GetCharacterOwner() const;
+
+	virtual void Update();
+	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) { return FTransform::Identity; }
+
+	FORCEINLINE const UAnimSequenceBase* GetAnimation() const { return Animation.Get(); }
+
+private:
+
+	friend UMotionWarpingComponent;
+
+	/** Pointer back to the Component that owns this modifier */
+	UPROPERTY()
+	TWeakObjectPtr<UMotionWarpingComponent> OwnerComponent = nullptr;
+
+	/** Handle to identify this modifier */
+	UPROPERTY()
+	FRootMotionModifierHandle Handle;
+
+	/** Current state */
+	UPROPERTY()
+	ERootMotionModifierState State = ERootMotionModifierState::Waiting;
+};
+
+UCLASS()
+class MOTIONWARPING_API UMotionModifier_Warp : public UMotionModifier
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Name used to find the warp target for this modifier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (ExposeOnSpawn))
+	FName WarpTargetName = NAME_None;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	EWarpPointAnimProvider WarpPointAnimProvider = EWarpPointAnimProvider::None;
+
+	//@TODO: Hide from the UI when Target != Static
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "WarpPointAnimProvider == EWarpPointAnimProvider::Static"))
+	FTransform WarpPointAnimTransform = FTransform::Identity;
+
+	//@TODO: Hide from the UI when Target != Bone
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "WarpPointAnimProvider == EWarpPointAnimProvider::Bone"))
+	FName WarpPointAnimBoneName = NAME_None;
+
+	/** Whether to warp the translation component of the root motion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	bool bWarpTranslation = true;
+
+	/** Whether to ignore the Z component of the translation. Z motion will remain untouched */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpTranslation"))
+	bool bIgnoreZAxis = true;
+
+	/** Whether to warp the rotation component of the root motion */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	bool bWarpRotation = true;
+
+	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	EMotionWarpRotationType RotationType;
+
+	/**
+	 * Allow to modify how fast the rotation is warped.
+	 * e.g if the window duration is 2sec and this is 0.5, the target rotation will be reached in 1sec instead of 2sec
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
+	float WarpRotationTimeMultiplier = 1.f;
+
+	UMotionModifier_Warp(const FObjectInitializer& ObjectInitializer);
+
+	//~ Begin FRootMotionModifier Interface
+	virtual void Update() override;
+	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
+	//~ End FRootMotionModifier Interface
+
+	/** Event called during update if the target transform changes while the warping is active */
+	virtual void OnTargetTransformChanged() {}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	void PrintLog(const FString& Name, const FTransform& OriginalRootMotion, const FTransform& WarpedRootMotion) const;
+#endif
+
+protected:
+
+	FORCEINLINE FVector GetTargetLocation() const { return CachedTargetTransform.GetLocation(); }
+	FORCEINLINE FRotator GetTargetRotator() const { return GetTargetRotation().Rotator(); }
+	FQuat GetTargetRotation() const;
+
+	FQuat WarpRotation(const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds);
+
+	//@TODO: This should be Optional and private
+	UPROPERTY()
+	FTransform CachedTargetTransform = FTransform::Identity;
+
+private:
+
+	/** Cached of the offset from the warp target. Used to calculate the final target transform when a warp target is defined in the animation */
+	TOptional<FTransform> CachedOffsetFromWarpPoint;
+};

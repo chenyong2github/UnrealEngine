@@ -172,9 +172,18 @@ void UMotionWarpingComponent::InitializeComponent()
 
 bool UMotionWarpingComponent::ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
 {
-	return RootMotionModifiers.ContainsByPredicate([=](const TSharedPtr<FRootMotionModifier>& Modifier)
+	// DEPRECATED will be removed shortly
+	if (RootMotionModifiers.ContainsByPredicate([=](const TSharedPtr<FRootMotionModifier>& Modifier)
 		{
 			return (Modifier.IsValid() && Modifier->Animation == Animation && Modifier->StartTime == StartTime && Modifier->EndTime == EndTime);
+		}))
+	{
+		return true;
+	}
+
+	return Modifiers.ContainsByPredicate([=](const UMotionModifier* Modifier)
+		{
+			return (Modifier->Animation == Animation && Modifier->StartTime == StartTime && Modifier->EndTime == EndTime);
 		});
 }
 
@@ -186,6 +195,25 @@ FRootMotionModifierHandle UMotionWarpingComponent::AddRootMotionModifier(TShared
 		Modifier->Initialize(this);
 
 		RootMotionModifiers.Add(Modifier);
+
+		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier added. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
+			GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
+			*GetCharacterOwner()->GetActorLocation().ToString(), *GetCharacterOwner()->GetActorRotation().ToCompactString());
+
+		return Modifier->GetHandle();
+	}
+
+	return FRootMotionModifierHandle::InvalidHandle;
+}
+
+FRootMotionModifierHandle UMotionWarpingComponent::AddModifier(UMotionModifier* Modifier)
+{
+	if (ensureAlways(Modifier))
+	{
+		//@TODO: Move this from here after update all modifiers
+		Modifier->Initialize(this);
+
+		Modifiers.Add(Modifier);
 
 		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier added. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
 			GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
@@ -213,11 +241,36 @@ TSharedPtr<FRootMotionModifier> UMotionWarpingComponent::GetRootMotionModifierBy
 	return TSharedPtr<FRootMotionModifier>(nullptr);
 }
 
+UMotionModifier* UMotionWarpingComponent::GetModifierByHandle(const FRootMotionModifierHandle& Handle) const
+{
+	if (Handle.IsValid())
+	{
+		for (UMotionModifier* RootMotionModifier : Modifiers)
+		{
+			if (RootMotionModifier && RootMotionModifier->GetHandle() == Handle)
+			{
+				return RootMotionModifier;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UMotionWarpingComponent::DisableAllRootMotionModifiers()
 {
+	// DEPRECATED will be removed shortly
 	if (RootMotionModifiers.Num() > 0)
 	{
 		for (TSharedPtr<FRootMotionModifier>& Modifier : RootMotionModifiers)
+		{
+			Modifier->SetState(ERootMotionModifierState::Disabled);
+		}
+	}
+
+	if (Modifiers.Num() > 0)
+	{
+		for (UMotionModifier* Modifier : Modifiers)
 		{
 			Modifier->SetState(ERootMotionModifierState::Disabled);
 		}
@@ -315,6 +368,30 @@ void UMotionWarpingComponent::Update()
 			return false; 
 		});
 	}
+
+	// Update the state of all the modifiers
+	if (Modifiers.Num() > 0)
+	{
+		for (UMotionModifier* Modifier : Modifiers)
+		{
+			Modifier->Update();
+		}
+
+		// Remove the modifiers that has been marked for removal
+		Modifiers.RemoveAll([this](const UMotionModifier* Modifier)
+		{
+			if (Modifier->GetState() == ERootMotionModifierState::MarkedForRemoval)
+			{
+				UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier removed. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
+					GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
+					*GetCharacterOwner()->GetActorLocation().ToString(), *GetCharacterOwner()->GetActorRotation().ToCompactString());
+
+				return true;
+			}
+
+			return false;
+		});
+	}
 }
 
 FTransform UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld(const FTransform& InRootMotion, UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds)
@@ -341,6 +418,15 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld(const FTr
 		}
 	}
 
+	// Apply Local Space Modifiers
+	for (UMotionModifier* Modifier : Modifiers)
+	{
+		if (Modifier->GetState() == ERootMotionModifierState::Active && Modifier->bInLocalSpace)
+		{
+			FinalRootMotion = Modifier->ProcessRootMotion(FinalRootMotion, DeltaSeconds);
+		}
+	}
+
 	return FinalRootMotion;
 }
 
@@ -362,6 +448,15 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 		{
 			//@TODO: Replace with the signature that doesn't receive the comp via param
 			FinalRootMotion = RootMotionModifier->ProcessRootMotion(*this, FinalRootMotion, DeltaSeconds);
+		}
+	}
+
+	// Apply World Space Modifiers
+	for (UMotionModifier* Modifier : Modifiers)
+	{
+		if (Modifier->GetState() == ERootMotionModifierState::Active && !Modifier->bInLocalSpace)
+		{
+			FinalRootMotion = Modifier->ProcessRootMotion(FinalRootMotion, DeltaSeconds);
 		}
 	}
 
@@ -415,6 +510,7 @@ int32 UMotionWarpingComponent::RemoveSyncPoint(FName Name)
 
 bool UMotionWarpingComponent::SetRootMotionModifierDelegatesByHandle(FRootMotionModifierHandle Handle, FOnRootMotionModifierDelegate OnActivate, FOnRootMotionModifierDelegate OnUpdate, FOnRootMotionModifierDelegate OnDeactivate)
 {
+	// DEPRECATED will be removed shortly
 	TSharedPtr<FRootMotionModifier> Modifier = GetRootMotionModifierByHandle(Handle);
 	if (Modifier.IsValid())
 	{
@@ -424,11 +520,20 @@ bool UMotionWarpingComponent::SetRootMotionModifierDelegatesByHandle(FRootMotion
 		return true;
 	}
 
+	if (UMotionModifier* RootMotionModifier = GetModifierByHandle(Handle))
+	{
+		RootMotionModifier->OnActivateDelegate = OnActivate;
+		RootMotionModifier->OnUpdateDelegate = OnUpdate;
+		RootMotionModifier->OnDeactivateDelegate = OnDeactivate;
+		return true;
+	}
+
 	return false;
 }
 
 bool UMotionWarpingComponent::GetAnimationAndTimeRangeForRootMotionModifierByHandle(FRootMotionModifierHandle Handle, UAnimSequenceBase*& OutAnimation, float& OutStartTime, float& OutEndTime) const
 {
+	// DEPRECATED will be removed shortly
 	TSharedPtr<FRootMotionModifier> Modifier = GetRootMotionModifierByHandle(Handle);
 	if (Modifier.IsValid())
 	{
@@ -438,5 +543,32 @@ bool UMotionWarpingComponent::GetAnimationAndTimeRangeForRootMotionModifierByHan
 		return true;
 	}
 
+	if (UMotionModifier* RootMotionModifier = GetModifierByHandle(Handle))
+	{
+		OutAnimation = const_cast<UAnimSequenceBase*>(RootMotionModifier->GetAnimation());
+		OutStartTime = RootMotionModifier->StartTime;
+		OutEndTime = RootMotionModifier->EndTime;
+		return true;
+	}
+
 	return false;
+}
+
+UMotionModifier* UMotionWarpingComponent::AddModifierFromTemplate(UMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime)
+{
+	if (ensureAlways(Template))
+	{
+		FObjectDuplicationParameters Params(Template, this);
+		UMotionModifier* NewRootMotionModifier = CastChecked<UMotionModifier>(StaticDuplicateObjectEx(Params));
+		
+		NewRootMotionModifier->Animation = Animation;
+		NewRootMotionModifier->StartTime = StartTime;
+		NewRootMotionModifier->EndTime = EndTime;
+
+		AddModifier(NewRootMotionModifier);
+
+		return NewRootMotionModifier;
+	}
+
+	return nullptr;
 }

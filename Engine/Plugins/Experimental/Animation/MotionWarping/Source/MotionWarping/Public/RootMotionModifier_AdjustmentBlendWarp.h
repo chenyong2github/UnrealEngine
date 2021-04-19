@@ -128,3 +128,59 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Motion Warping")
 	static void GetIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha);
 };
+
+//////////////////////////////////////////////
+
+UCLASS()
+class MOTIONWARPING_API UMotionModifier_AdjustmentBlendWarp : public UMotionModifier_Warp
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	bool bWarpIKBones = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	TArray<FName> IKBones;
+
+	UMotionModifier_AdjustmentBlendWarp(const FObjectInitializer& ObjectInitializer);
+
+	virtual void OnTargetTransformChanged() override;
+	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
+
+	void GetIKBoneTransformAndAlpha(FName BoneName, FTransform& OutTransform, float& OutAlpha) const;
+
+protected:
+
+	UPROPERTY()
+	FTransform CachedMeshTransform;
+
+	UPROPERTY()
+	FTransform CachedMeshRelativeTransform;
+
+	UPROPERTY()
+	FTransform CachedRootMotion;
+
+	UPROPERTY()
+	FAnimSequenceTrackContainer Result;
+
+	UPROPERTY()
+	float ActualStartTime = 0.f;
+
+	void PrecomputeWarpedTracks();
+
+	FTransform ExtractWarpedRootMotion() const;
+
+	void ExtractBoneTransformAtTime(FTransform& OutTransform, const FName& BoneName, float Time) const;
+	void ExtractBoneTransformAtTime(FTransform& OutTransform, int32 TrackIndex, float Time) const;
+	void ExtractBoneTransformAtFrame(FTransform& OutTransform, int32 TrackIndex, int32 Frame) const;
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	void DrawDebugWarpedTracks(float DrawDuration) const;
+#endif
+
+	static void ExtractMotionDeltaFromRange(const FBoneContainer& BoneContainer, const UAnimSequenceBase* Animation, float StartTime, float EndTime, float SampleRate, FMotionDeltaTrackContainer& OutMotionDeltaTracks);
+
+	static void AdjustmentBlendWarp(const FBoneContainer& BoneContainer, const FCSPose<FCompactPose>& AdditivePose, const FMotionDeltaTrackContainer& MotionDeltaTracks, FAnimSequenceTrackContainer& Output);
+};
