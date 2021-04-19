@@ -62,8 +62,12 @@ struct FEOSPlatformOptions :
 	char EncryptionKeyAnsi[EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN];
 };
 
+FPlatformEOSHelpersPtr FOnlineSubsystemEOS::EOSHelpersPtr;
+
 void FOnlineSubsystemEOS::ModuleInit()
 {
+	EOSHelpersPtr = MakeShareable(new FPlatformEOSHelpers());
+
 	const FName EOSSharedModuleName = TEXT("EOSShared");
 	if (!FModuleManager::Get().IsModuleLoaded(EOSSharedModuleName))
 	{
@@ -82,6 +86,11 @@ void FOnlineSubsystemEOS::ModuleInit()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to initialize the EOS SDK with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(InitResult)));
 		return;
 	}
+}
+
+void FOnlineSubsystemEOS::ModuleShutdown()
+{
+	DESTRUCT_INTERFACE(EOSHelpersPtr);
 }
 
 /** Common method for creating the EOS platform */
@@ -125,7 +134,8 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 	}
 	PlatformOptions.Flags = IsRunningGame() ? OverlayFlags : EOS_PF_DISABLE_OVERLAY;
 	// Make the cache directory be in the user's writable area
-	FString CacheDir = FPlatformProcess::UserDir() / ArtifactName / EOSSettings.CacheDir;
+
+	FString CacheDir = EOSHelpersPtr->PlatformCreateCacheDir(ArtifactName, EOSSettings.CacheDir);
 	FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
 	FCStringAnsi::Strncpy(PlatformOptions.EncryptionKeyAnsi, TCHAR_TO_UTF8(*ArtifactSettings.EncryptionKey), EOS_ENCRYPTION_KEY_MAX_BUFFER_LEN);
 
