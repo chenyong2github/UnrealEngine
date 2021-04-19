@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "Kismet2/CompilerResultsLog.h"
 
+//#pragma optimize("", off)
 
 #define LOCTEXT_NAMESPACE "AnimGraphNode_IKRig"
 const FName UAnimGraphNode_IKRetargeter::AnimModeName(TEXT("IKRig.IKRigEditor.IKRigEditMode"));
@@ -27,8 +28,26 @@ FEditorModeID UAnimGraphNode_IKRetargeter::GetEditorMode() const
 	return AnimModeName;
 }
 
+void UAnimGraphNode_IKRetargeter::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
+{
+	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
+
+	// hide the Source Mesh Component input pin when bAutoFindSourceMeshByTag is true
+	const FString SourceMeshPropertyName = GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, SourceMeshComponent);
+	const FString SourcePropertyString = SourcePropertyName.ToString();
+	if (SourcePropertyString == SourceMeshPropertyName)
+	{
+		Pin->bHidden = Node.bUseAttachedParent;	
+	}
+}
+
 void UAnimGraphNode_IKRetargeter::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
+	const FName PropertyName = (PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None);
+	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, bUseAttachedParent)))
+	{
+		ReconstructNode();
+	}
 }
 
 void UAnimGraphNode_IKRetargeter::PostLoad()
@@ -41,11 +60,13 @@ void UAnimGraphNode_IKRetargeter::ValidateAnimNodeDuringCompilation(USkeleton* F
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
 	// validate source mesh component is not null
-	//if (!Node.SourceMeshComponent.())
-	if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, SourceMeshComponent)))
+	if (!Node.bUseAttachedParent)
 	{
-		MessageLog.Warning(TEXT("@@ is missing an Source Skeletal Mesh Component reference."), this);
-		return;
+		if (!IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_IKRetargeter, SourceMeshComponent)))
+		{
+			MessageLog.Warning(TEXT("@@ is missing a Source Skeletal Mesh Component reference."), this);
+			return;
+		}
 	}
 
 	// validate IK Rig asset has been assigned
@@ -92,6 +113,13 @@ void UAnimGraphNode_IKRetargeter::ValidateAnimNodeDuringCompilation(USkeleton* F
 void UAnimGraphNode_IKRetargeter::PreloadRequiredAssets()
 {
 	Super::PreloadRequiredAssets();
+	
+	if (Node.IKRetargeterAsset)
+	{
+		PreloadObject(Node.IKRetargeterAsset);
+		PreloadObject(Node.IKRetargeterAsset->SourceIKRigAsset);
+		PreloadObject(Node.IKRetargeterAsset->TargetIKRigAsset);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

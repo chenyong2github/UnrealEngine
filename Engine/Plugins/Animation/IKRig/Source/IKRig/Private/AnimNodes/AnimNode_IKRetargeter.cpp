@@ -64,8 +64,26 @@ void FAnimNode_IKRetargeter::PreUpdate(const UAnimInstance* InAnimInstance)
 
 void FAnimNode_IKRetargeter::EnsureInitialized(const UAnimInstance* InAnimInstance)
 {
-	// has a source mesh been plugged in?
-	if (!(SourceMeshComponent.IsValid() && IKRetargeterAsset))
+	// has user supplied a retargeter asset?
+	if (!IKRetargeterAsset)
+	{
+		bIsInitialized = false;
+		return;
+	}
+
+	// if user hasn't explicitly connected a source mesh, optionally use the parent mesh component (if there is one) 
+	if (!SourceMeshComponent.IsValid() && bUseAttachedParent)
+	{
+		USkeletalMeshComponent* TargetMesh = InAnimInstance->GetSkelMeshComponent();
+		USkeletalMeshComponent* ParentComponent = Cast<USkeletalMeshComponent>(TargetMesh->GetAttachParent());
+		if (ParentComponent)
+		{
+			SourceMeshComponent = ParentComponent;
+		}
+	}
+	
+	// has a source mesh been plugged in or found?
+	if (!SourceMeshComponent.IsValid())
 	{
 		bIsInitialized = false;
 		return; // can't do anything if we don't have a source mesh

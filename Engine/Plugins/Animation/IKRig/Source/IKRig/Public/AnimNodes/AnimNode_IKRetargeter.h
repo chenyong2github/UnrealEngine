@@ -16,6 +16,10 @@ struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
 	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinShownByDefault))
 	TWeakObjectPtr<USkeletalMeshComponent> SourceMeshComponent = nullptr;
 
+	/* If SourceMeshComponent is not valid, and if this is true, it will look for attached parent as a source */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta = (NeverAsPin))
+	bool bUseAttachedParent = true;
+
 	/** Map of chain names to per-chain retarget settings (can be modified at runtime).*/
 	UPROPERTY(BlueprintReadWrite, transient, Category=Settings, meta=(PinShownByDefault))
 	TMap<FName, FIKRetargetChainSettings> ChainSettings;
@@ -24,17 +28,9 @@ struct IKRIG_API FAnimNode_IKRetargeter : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, Category = Settings)
 	UIKRetargeter* IKRetargeterAsset = nullptr;
 
-	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
+	/** When false, IK is not applied as part of retargeter. Useful for debugging limb issues suspected to be caused by IK.*/
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bEnableIK = true;
-
-	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bAutoFindSourceMeshByTag = false;
-
-	/** Retarget asset to use. Must define a Source and Target IK Rig compatible with the SourceMeshComponent and current anim instance.*/
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (EditCondition="bAutoFindSourceMeshByTag"))
-	FName SourceMeshComponentTag = "RetargetSource";
 	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
