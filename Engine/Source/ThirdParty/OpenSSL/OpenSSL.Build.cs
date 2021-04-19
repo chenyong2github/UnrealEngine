@@ -12,6 +12,7 @@ public class OpenSSL : ModuleRules
 		string OpenSSL101sPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1_0_1s");
 		string OpenSSL111Path = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1");
 		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
+		string OpenSSL111kPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1k");
 
 		string PlatformSubdir = Target.Platform.ToString();
 		string ConfigFolder = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "Debug" : "Release";
@@ -25,8 +26,21 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
-				Target.Platform == UnrealTargetPlatform.HoloLens)
+		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+		{
+			string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+
+			// Add includes
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
+
+			// Add Libs
+			string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.lib"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.lib"));
+			PublicSystemLibraries.Add("crypt32.lib");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			// Our OpenSSL 1.1.1 libraries are built with zlib compression support
 			PrivateDependencyModuleNames.Add("zlib");
