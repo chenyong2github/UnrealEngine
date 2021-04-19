@@ -3109,7 +3109,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		{
 			if (BitDepth <= 8)
 			{
-				TextureFormat = TSF_G8;
+				TextureFormat =  TSF_G8;
 				Format = ERGBFormat::Gray;
 				BitDepth = 8;
 			}
@@ -3136,11 +3136,24 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			TextureFormat,
 			BitDepth < 16
 		);
-		
-		if (!JpegImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
+
+		// For now this option is opt in via the config files once there is no technical risk this will
+		// become the default path.
+		bool bRetainJpegFormat = false;
+		GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+
+		if (bRetainJpegFormat)
 		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode JPEG."));
-			return false;
+			OutImage.RawData.Append(Buffer, Length);
+			OutImage.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
+		}
+		else
+		{
+			if (!JpegImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
+			{
+				Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode JPEG."));
+				return false;
+			}
 		}
 
 		return true;
@@ -3645,14 +3658,29 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 		UTexture2D* Texture = CreateTexture2D(InParent, Name, Flags);
 		if (Texture)
 		{
-			Texture->Source.Init(
-				Image.SizeX,
-				Image.SizeY,
-				/*NumSlices=*/ 1,
-				Image.NumMips,
-				Image.Format,
-				Image.RawData.GetData()
-			);
+			if (Image.RawDataCompressionFormat == ETextureSourceCompressionFormat::TSCF_None)
+			{
+				Texture->Source.Init(
+					Image.SizeX,
+					Image.SizeY,
+					/*NumSlices=*/ 1,
+					Image.NumMips,
+					Image.Format,
+					Image.RawData.GetData()
+				);
+			}
+			else
+			{
+				Texture->Source.InitWithCompressedSourceData(
+					Image.SizeX,
+					Image.SizeY,
+					Image.NumMips,
+					Image.Format,
+					Image.RawData,
+					Image.RawDataCompressionFormat
+				);
+			}
+
 			Texture->CompressionSettings = Image.CompressionSettings;
 
 			if (ColorSpaceMode == ETextureSourceColorSpace::Auto)

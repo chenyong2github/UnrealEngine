@@ -77,13 +77,13 @@ public:
 		SourceTexture = Texture;
 		TextureSizeX = Texture->Source.GetSizeX();
 		TextureSizeY = Texture->Source.GetSizeY();
-		SourceTextureData = Texture->Source.LockMip(0);
+		SourceTextureData = Texture->Source.LockMipReadOnly(0);
 	}
 
 	UTexture* SourceTexture;
 	int32 TextureSizeX;
 	int32 TextureSizeY;
-	uint8* SourceTextureData;
+	const uint8* SourceTextureData;
 };
 
 template<int RIdx, int GIdx, int BIdx, int AIdx> class SampleNormalMapPixel8 : public NormalMapSamplerBase
@@ -95,7 +95,7 @@ public:
 	FLinearColor DoSampleColor( int32 X, int32 Y )
 	{
 		FLinearColor Result;
-		uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 4);
+		const uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 4);
 
 		const float OneOver255 = 1.0f / 255.0f;
 
@@ -124,7 +124,7 @@ public:
 	FLinearColor DoSampleColor( int32 X, int32 Y )
 	{
 		FLinearColor Result;
-		uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 8);
+		const uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 8);
 
 		const float OneOver65535 = 1.0f / 65535.0f;
 
@@ -150,7 +150,7 @@ public:
 	FLinearColor DoSampleColor( int32 X, int32 Y )
 	{
 		FLinearColor Result;
-		uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 8);
+		const uint8* PixelToSample = SourceTextureData + ((Y * TextureSizeX + X) * 8);
 
 		// this assume the normal map to be in linear (not the case if Photoshop converts a 8bit normalmap to float and saves it as 16bit dds)
 		Result.R = (float)((FFloat16*)PixelToSample)[0];

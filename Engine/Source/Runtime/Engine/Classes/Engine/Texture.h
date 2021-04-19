@@ -132,6 +132,16 @@ enum ETextureSourceFormat
 };
 
 UENUM()
+enum ETextureSourceCompressionFormat
+{
+	TSCF_None	UMETA(DisplayName = "ZLib"),
+	TSCF_PNG	UMETA(DisplayName = "PNG"),
+	TSCF_JPEG	UMETA(DisplayName = "JPEG"),
+
+	TSCF_MAX
+};
+
+UENUM()
 enum ETextureCompressionQuality
 {
 	TCQ_Default = 0		UMETA(DisplayName="Default"),
@@ -250,11 +260,32 @@ struct FTextureSource
 		ETextureSourceFormat NewFormat
 		);
 
+	/**
+	 * Initialize the source data with the given size, number of mips, and format.
+	 * @param NewSizeX - Width of the texture source data.
+	 * @param NewSizeY - Height of the texture source data.
+	 * @param NewNumMips - The number of mips in the texture source data.
+	 * @param NewFormat - The format in which source data is stored.
+	 * @param NewSourceData -The new source data.
+	 * @param NewSourceFormat -The compression format of the new source data.
+	 */
+	ENGINE_API void InitWithCompressedSourceData(
+		int32 NewSizeX,
+		int32 NewSizeY,
+		int32 NewNumMips,
+		ETextureSourceFormat NewFormat,
+		const TArrayView64<uint8> NewSourceData,
+		ETextureSourceCompressionFormat NewSourceFormat
+	);
+
 	/** PNG Compresses the source art if possible or tells the bulk data to zlib compress when it saves out to disk. */
 	ENGINE_API void Compress();
 
 	/** Force the GUID to change even if mip data has not been modified. */
 	void ForceGenerateGuid();
+
+	/** Lock a mip for reading. */
+	ENGINE_API const uint8* LockMipReadOnly(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
 
 	/** Lock a mip for editing. */
 	ENGINE_API uint8* LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex);
@@ -289,6 +320,9 @@ struct FTextureSource
 	/** Returns the unique ID string for this source art. */
 	FString GetIdString() const;
 
+	/** Returns the compression format of the source data in string format for use with the UI. */
+	FString GetSourceCompressionAsString() const;
+
 	/** Trivial accessors. These will only give values for Block0 so may not be correct for UDIM/multi-block textures, use GetBlock() for this case. */
 	FORCEINLINE FGuid GetId() const { return Id; }
 	FORCEINLINE int32 GetSizeX() const { return SizeX; }
@@ -314,6 +348,9 @@ struct FTextureSource
 	}
 
 	FORCEINLINE int64 CalcMipSize(int32 MipIndex) const { return CalcMipSize(0, 0, MipIndex); }
+	/** Lock a mip for reading. */
+	FORCEINLINE const uint8* LockMipReadOnly(int32 MipIndex) { return LockMipReadOnly(0, 0, MipIndex); }
+	/** Lock a mip for editing. */
 	FORCEINLINE uint8* LockMip(int32 MipIndex) { return LockMip(0, 0, MipIndex); }
 	FORCEINLINE void UnlockMip(int32 MipIndex) { UnlockMip(0, 0, MipIndex); }
 
@@ -337,8 +374,22 @@ private:
 	uint8* LockedMipData;
 	/** Number of mips that are locked. */
 	uint32 NumLockedMips;
+
+	enum class ELockState : uint8
+	{
+		None,
+		ReadOnly,
+		ReadWrite
+	};
+	/** The state of any lock being held on the mip data */
+	ELockState LockState;
+
 #if WITH_EDITOR
 
+	// Internal implementation for locking the mip data, called by LockMipReadOnly or LockMip */
+	uint8* LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32 MipIndex, ELockState RequestedLockState);
+	/** Attempt to decompress the source data from Jpeg format. All failures will be logged and result in the method returning false */
+	bool TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule, const void* RawSourceData, int32 MipIndex, TArray64<uint8>& OutRawData);
 	/** Return true if the source art is not png compressed but could be. */
 	bool CanPNGCompress() const;
 	/** Removes source data. */
@@ -395,6 +446,10 @@ private:
 	/** RGBA8 source data is optionally compressed as PNG. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bPNGCompressed;
+
+	/** Compression format that source data is stored as. */
+	UPROPERTY(VisibleAnywhere, Category = TextureSource)
+	TEnumAsByte<enum ETextureSourceCompressionFormat> CompressionFormat;
 
 	/** Uses hash instead of guid to identify content to improve DDC cache hit. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)

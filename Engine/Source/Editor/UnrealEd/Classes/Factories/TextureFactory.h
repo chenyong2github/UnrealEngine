@@ -19,6 +19,8 @@ struct FImportImage
 	int32 SizeX = 0;
 	int32 SizeY = 0;
 	bool SRGB = true;
+	/** Which compression format (if any) that is applied to RawData */
+	ETextureSourceCompressionFormat RawDataCompressionFormat = TSCF_None;
 
 	void Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool InSRGB);
 	void Init2DWithOneMip(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, const void* InData = nullptr);

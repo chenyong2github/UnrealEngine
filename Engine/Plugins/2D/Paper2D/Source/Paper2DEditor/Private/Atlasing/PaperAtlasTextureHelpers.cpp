@@ -33,7 +33,7 @@ bool FPaperAtlasTextureHelpers::ReadSpriteTexture(UTexture* SourceTexture, const
 	if (SourceData.GetFormat() == TSF_BGRA8)
 	{
 		uint32 BytesPerPixel = SourceData.GetBytesPerPixel();
-		uint8* OffsetSource = SourceData.LockMip(0) + (SourceXY.X + SourceXY.Y * SourceData.GetSizeX()) * BytesPerPixel;
+		const uint8* OffsetSource = SourceData.LockMipReadOnly(0) + (SourceXY.X + SourceXY.Y * SourceData.GetSizeX()) * BytesPerPixel;
 		uint8* OffsetDest = TargetBuffer.GetData();
 		CopyTextureData(OffsetSource, OffsetDest, SourceSize.X, SourceSize.Y, BytesPerPixel, SourceData.GetSizeX() * BytesPerPixel, SourceSize.X * BytesPerPixel);
 		SourceData.UnlockMip(0);

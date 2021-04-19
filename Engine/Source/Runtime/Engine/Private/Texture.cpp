@@ -622,7 +622,7 @@ void UTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 		OutTags.Add( FAssetRegistryTag(SourceFileTagName(), AssetImportData->GetSourceData().ToJson(), FAssetRegistryTag::TT_Hidden) );
 	}
 
-	OutTags.Add(FAssetRegistryTag("SourceCompression", Source.IsPNGCompressed() ? TEXT("PNG") : LexToString(NAME_Zlib), FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag("SourceCompression", Source.GetSourceCompressionAsString(), FAssetRegistryTag::TT_Alphabetical));
 	
 	Super::GetAssetRegistryTags(OutTags);
 }
@@ -944,6 +944,7 @@ FStreamableRenderResourceState UTexture::GetResourcePostInitState(FTexturePlatfo
 FTextureSource::FTextureSource()
 	: LockedMipData(NULL)
 	, NumLockedMips(0u)
+	, LockState(ELockState::None)
 #if WITH_EDITOR
 	, bHasHadBulkDataCleared(false)
 #endif
@@ -956,6 +957,7 @@ FTextureSource::FTextureSource()
 	, NumMips(0)
 	, NumLayers(1) // Default to 1 so old data has the correct value
 	, bPNGCompressed(false)
+	, CompressionFormat(TSCF_None)
 	, bGuidIsHash(false)
 	, Format(TSF_Invalid)
 #endif // WITH_EDITORONLY_DATA
@@ -1029,6 +1031,7 @@ void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		TotalBytes += CalcBlockSize(i);
 	}
 
+	checkf(LockState == ELockState::None, TEXT("InitBlocked shouldn't be called in-between LockMip/UnlockMip"));
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* DestData = (uint8*)BulkData.Realloc(TotalBytes);
 	if (InDataPerBlock)
@@ -1074,6 +1077,7 @@ void FTextureSource::InitLayered(
 		TotalBytes += CalcLayerSize(0, i);
 	}
 
+	checkf(LockState == ELockState::None, TEXT("InitLayered shouldn't be called in-between LockMip/UnlockMip"));
 	BulkData.Lock(LOCK_READ_WRITE);
 	uint8* DestData = (uint8*)BulkData.Realloc(TotalBytes);
 	if (NewData)
@@ -1125,8 +1129,44 @@ void FTextureSource::InitCubeWithMipChain(
 	Init(NewSizeX, NewSizeY, 6, NewMipCount, NewFormat);
 }
 
+void FTextureSource::InitWithCompressedSourceData(
+	int32 NewSizeX,
+	int32 NewSizeY,
+	int32 NewNumMips,
+	ETextureSourceFormat NewFormat,
+	const TArrayView64<uint8> NewData,
+	ETextureSourceCompressionFormat NewSourceFormat
+)
+{
+	RemoveSourceData();
+
+	SizeX = NewSizeX;
+	SizeY = NewSizeY;
+
+	NumLayers = 1;
+	NumSlices = 1;
+	NumMips = NewNumMips;
+
+	Format = NewFormat;
+	LayerFormat.SetNum(1, true);
+	LayerFormat[0] = NewFormat;
+	
+	CompressionFormat = NewSourceFormat;
+
+	checkf(LockState == ELockState::None, TEXT("InitWithCompressedSourceData shouldn't be called in-between LockMip/UnlockMip"));
+	BulkData.Lock(LOCK_READ_WRITE);
+	uint8* DestData = (uint8*)BulkData.Realloc(NewData.Num());
+	if (NewData.GetData() != nullptr)
+	{
+		FMemory::Memcpy(DestData, NewData.GetData(), NewData.Num());
+	}
+	BulkData.Unlock();
+}
+
 void FTextureSource::Compress()
 {
+	checkf(LockState == ELockState::None, TEXT("Compress shouldn't be called in-between LockMip/UnlockMip"));
+
 #if WITH_EDITOR
 	FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
 #endif
@@ -1147,24 +1187,48 @@ void FTextureSource::Compress()
 				FMemory::Memcpy(BulkDataPtr, CompressedData.GetData(), CompressedData.Num());
 				BulkData.Unlock();
 				bPNGCompressed = true;
+				CompressionFormat = TSCF_PNG;
 			}
 		}
 	}
 	
-	// If the data is already compressed as a png then we don't need to compress it
-	// again when serializing to disk.
-	BulkData.StoreCompressedOnDisk(bPNGCompressed ? NAME_None : NAME_Zlib);
+	// Disable the internal bulkdata compression if the source data is already compressed
+	BulkData.StoreCompressedOnDisk(CompressionFormat == TSCF_None ? NAME_Zlib : NAME_None);
+}
+
+const uint8* FTextureSource::LockMipReadOnly(int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
+{
+	return LockMipInternal(BlockIndex, LayerIndex, MipIndex, ELockState::ReadOnly);
 }
 
 uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipIndex)
 {
+	return LockMipInternal(BlockIndex, LayerIndex, MipIndex, ELockState::ReadWrite);
+}
+
+uint8* FTextureSource::LockMipInternal(int32 BlockIndex, int32 LayerIndex, int32 MipIndex, ELockState RequestedLockState )
+{
+	checkf(RequestedLockState != ELockState::None, TEXT("Cannot call FTextureSource::LockMipInternal with a RequestedLockState of type ELockState::None"));
+
 	uint8* MipData = NULL;
 	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips)
 	{
 		if (LockedMipData == NULL)
 		{
 			LockedMipData = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
-			if (bPNGCompressed)
+
+			if (CompressionFormat == TSCF_JPEG)
+			{
+				TArray64<uint8> RawData;
+				// Note that the method itself will give warnings on all failure conditions so we 
+				// don't need to handle that here
+				if (TryDecompressJpegData(nullptr, LockedMipData, MipIndex, RawData))
+				{
+					LockedMipData = (uint8*)FMemory::Malloc(RawData.Num());
+					FMemory::Memcpy(LockedMipData, RawData.GetData(), RawData.Num());
+				}
+			}	
+			else if (bPNGCompressed)
 			{
 				bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 				check(Blocks.Num() == 0 && NumLayers == 1 && NumSlices == 1 && bCanPngCompressFormat);
@@ -1200,7 +1264,17 @@ uint8* FTextureSource::LockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 		}
 
 		MipData = LockedMipData + CalcMipOffset(BlockIndex, LayerIndex, MipIndex);
-		++NumLockedMips;
+
+		if (NumLockedMips == 0)
+		{
+			LockState = RequestedLockState;
+		}
+		else
+		{
+			checkf(LockState == RequestedLockState, TEXT("Cannot change the lock type until UnlockMip is called"));
+		}
+
+		++NumLockedMips;		
 	}
 	return MipData;
 }
@@ -1212,28 +1286,53 @@ void FTextureSource::UnlockMip(int32 BlockIndex, int32 LayerIndex, int32 MipInde
 	check(MipIndex < MAX_TEXTURE_MIP_COUNT);
 
 	check(NumLockedMips > 0u);
+	check(LockState != ELockState::None);
+
 	--NumLockedMips;
 	if (NumLockedMips == 0u)
 	{
-		if (bPNGCompressed)
+		// If the source data is stored in a compressed format then we returned a copy when the mip was
+		// locked. We now need to deal with that copy.
+		if (CompressionFormat == TSCF_JPEG || bPNGCompressed)
 		{
-			check(BlockIndex == 0);
-			check(LayerIndex == 0);
-			check(MipIndex == 0);
-			int32 MipSize = CalcMipSize(0, 0, 0);
-			uint8* UncompressedData = (uint8*)BulkData.Realloc(MipSize);
-			FMemory::Memcpy(UncompressedData, LockedMipData, MipSize);
-			FMemory::Free(LockedMipData);
-			bPNGCompressed = false;
+			// If we had a write lock then we need to update the bulkdata with the copy as we have
+			// to assume that it contains changes. This means we will no longer be storing it 
+			// in a compressed format.
+			// If the lock was read only then we can just delete the locked mip data as we know
+			// that there were no changes to the data.
+			if (LockState == ELockState::ReadWrite)
+			{
+				UE_CLOG(CompressionFormat == TSCF_JPEG, LogTexture, Warning, TEXT("Call to FTextureSource::UnlockMip will cause texture source to lose it's jpeg storage format"));
+
+				check(BlockIndex == 0);
+				check(LayerIndex == 0);
+				check(MipIndex == 0);
+				int32 MipSize = CalcMipSize(0, 0, 0);
+				uint8* UncompressedData = (uint8*)BulkData.Realloc(MipSize);
+				FMemory::Memcpy(UncompressedData, LockedMipData, MipSize);
+				FMemory::Free(LockedMipData);
+				bPNGCompressed = false;
+				CompressionFormat = TSCF_None;
+			}
+			else
+			{
+				FMemory::Free(LockedMipData);
+			}
 		}
+
+		LockState = ELockState::None;
 		LockedMipData = NULL;
 		BulkData.Unlock();
+
+		// TODO: Only call this if the LockState was ELockState::ReadWrite
 		ForceGenerateGuid();
 	}
 }
 
 bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, int32 LayerIndex, int32 MipIndex, IImageWrapperModule* ImageWrapperModule)
 {
+	checkf(LockState == ELockState::None, TEXT("GetMipData shouldn't be called in-between LockMip/UnlockMip"));
+
 	bool bSuccess = false;
 	if (BlockIndex < GetNumBlocks() && LayerIndex < NumLayers && MipIndex < NumMips && BulkData.GetBulkDataSize() > 0)
 	{
@@ -1241,7 +1340,11 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		FWriteScopeLock BulkDataExclusiveScope(BulkDataLock.Get());
 #endif
 		void* RawSourceData = BulkData.Lock(LOCK_READ_ONLY);
-		if (bPNGCompressed)
+		if (CompressionFormat == TSCF_JPEG)
+		{
+			bSuccess = TryDecompressJpegData(ImageWrapperModule, RawSourceData, MipIndex, OutMipData);
+		}
+		else if (bPNGCompressed)
 		{
 			bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
 			if (MipIndex == 0 && NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0 && bCanPngCompressFormat)
@@ -1304,6 +1407,7 @@ bool FTextureSource::GetMipData(TArray64<uint8>& OutMipData, int32 BlockIndex, i
 		}
 		BulkData.Unlock();
 	}
+
 	return bSuccess;
 }
 
@@ -1399,6 +1503,56 @@ FString FTextureSource::GetIdString() const
 	return GuidString;
 }
 
+FString FTextureSource::GetSourceCompressionAsString() const
+{
+	// Until we deprecate bPNGCompressed it might not be 100% in sync with CompressionFormat
+	// so if it is set we should use that rather than the enum.
+	if (bPNGCompressed)
+	{
+		return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(ETextureSourceCompressionFormat::TSCF_PNG).ToString();
+	}
+
+	return StaticEnum<ETextureSourceCompressionFormat>()->GetDisplayNameTextByValue(CompressionFormat).ToString();
+}
+
+bool FTextureSource::TryDecompressJpegData(IImageWrapperModule* ImageWrapperModule, const void* RawSourceData, int32 MipIndex, TArray64<uint8>& OutRawData)
+{
+	if (MipIndex == 0 && NumLayers == 1 && NumSlices == 1 && Blocks.Num() == 0)
+	{
+		if (!ImageWrapperModule)
+		{
+			ImageWrapperModule = &FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+		}
+
+		TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule->CreateImageWrapper(EImageFormat::JPEG);
+		if (JpegImageWrapper.IsValid() && JpegImageWrapper->SetCompressed(RawSourceData, BulkData.GetBulkDataSize()))
+		{
+			// The two formats we support for JPEG imports, see UTextureFactory::ImportImage
+			const ERGBFormat JpegFormat = Format == TSF_G8 ? ERGBFormat::Gray : ERGBFormat::BGRA;
+			if (JpegImageWrapper->GetRaw(JpegFormat, 8, OutRawData))
+			{
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed to return uncompressed data"));
+				return false;
+			}
+		}
+		else
+		{
+			UE_LOG(LogTexture, Warning, TEXT("JPEG decompression of source art failed initialization"));
+			return false;
+		}
+	}
+	else
+	{
+		UE_LOG(LogTexture, Warning, TEXT("JPEG compressed source art is in an invalid format MipIndex:(%d) NumLayers:(%d) NumSlices:(%d) NumBlocks:(%d)"),
+			MipIndex, NumLayers, NumSlices, Blocks.Num());
+		return false;
+	}
+}
+
 bool FTextureSource::CanPNGCompress() const
 {
 	bool bCanPngCompressFormat = (Format == TSF_G8 || Format == TSF_G16 || Format == TSF_RGBA8 || Format == TSF_BGRA8 || Format == TSF_RGBA16);
@@ -1411,7 +1565,8 @@ bool FTextureSource::CanPNGCompress() const
 		SizeX > 4 &&
 		SizeY > 4 &&
 		BulkData.GetBulkDataSize() > 0 &&
-		bCanPngCompressFormat)
+		bCanPngCompressFormat &&
+		CompressionFormat == TSCF_None)
 	{
 		return true;
 	}
@@ -1447,6 +1602,7 @@ void FTextureSource::RemoveSourceData()
 	bPNGCompressed = false;
 	LockedMipData = NULL;
 	NumLockedMips = 0u;
+	LockState = ELockState::None;
 	if (BulkData.IsLocked())
 	{
 		BulkData.Unlock();
