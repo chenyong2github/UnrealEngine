@@ -23,6 +23,7 @@
 #include "UObject/CoreObjectVersion.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "UObject/CoreObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -399,6 +400,13 @@ void UBlueprintGeneratedClass::SerializeDefaultObject(UObject* Object, FStructur
 		{
 			CheckAndApplyComponentTemplateOverrides(ClassDefaultObject);
 		}
+	}
+
+	UnderlyingArchive.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if(UnderlyingArchive.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SparseClassDataStructSerialization)
+	{
+		UnderlyingArchive << SparseClassDataStruct;
 	}
 
 #if WITH_EDITORONLY_DATA

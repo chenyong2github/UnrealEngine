@@ -109,6 +109,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Removing Tessellation parameters from Materials
 		RemovingTessellationParameters,
 
+		// Sparse class data serializes its associated structure to allow for BP types to be used
+		SparseClassDataStructSerialization,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

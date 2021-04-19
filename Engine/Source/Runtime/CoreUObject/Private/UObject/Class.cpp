@@ -54,6 +54,7 @@
 #include "UObject/FieldPath.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Math/InterpCurvePoint.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -3630,6 +3631,26 @@ void UClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collecto
 		This->CallAddReferencedObjects(This->ClassDefaultObject, Collector);
 	}
 
+	Collector.AddReferencedObject( This->SparseClassDataStruct, This );
+
+	// Add sparse class data
+	if (This->SparseClassDataStruct && This->SparseClassData)
+	{
+		if (This->SparseClassDataStruct->StructFlags & STRUCT_AddStructReferencedObjects)
+		{
+			This->SparseClassDataStruct->GetCppStructOps()->AddStructReferencedObjects()(This->SparseClassData, Collector);
+		}
+		else
+		{
+			// The iterator will recursively loop through all structs in structs too.
+			for (TPropertyValueIterator<FObjectProperty> It(This->SparseClassDataStruct, This->SparseClassData); It; ++It)
+			{
+				UObject** ObjectPtr = static_cast<UObject**>(const_cast<void*>(It.Value()));
+				Collector.AddReferencedObject(*ObjectPtr);
+			}
+		}
+	}
+	
 	Super::AddReferencedObjects( This, Collector );
 }
 
@@ -4103,6 +4124,16 @@ void UClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	const FString& ClassModuleRelativeIncludePath = GetMetaData(ModuleRelativePathFName);
 	OutTags.Add( FAssetRegistryTag(ModuleRelativePathFName, ClassModuleRelativeIncludePath, FAssetRegistryTag::TT_Alphabetical) );
 #endif
+}
+
+void UClass::GetPreloadDependencies(TArray<UObject*>& OutDeps)
+{
+	Super::GetPreloadDependencies(OutDeps);
+
+	if(SparseClassDataStruct)
+	{
+		OutDeps.Add(SparseClassDataStruct);
+	}
 }
 
 void UClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
@@ -4618,6 +4649,13 @@ void UClass::Serialize( FArchive& Ar )
 
 	if (!Ar.IsLoading() && !Ar.IsSaving())
 	{
+		Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+		if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SparseClassDataStructSerialization)
+		{
+			Ar << SparseClassDataStruct;
+		}
+
 		if (GetSparseClassDataStruct() != nullptr)
 		{
 			SerializeSparseClassData(FStructuredArchiveFromArchive(Ar).GetSlot());
@@ -4709,6 +4747,12 @@ void UClass::SerializeSparseClassData(FStructuredArchive::FSlot Slot)
 	// tell the archive that it's allowed to load data for transient properties
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 
+	// Preload sparse class data struct if required
+	if(SparseClassDataStruct->HasAnyFlags(RF_NeedLoad))
+	{
+		UnderlyingArchive.Preload(SparseClassDataStruct);
+	}
+	
 	// make sure we always have sparse class a sparse class data struct to read from/write to
 	GetOrCreateSparseClassData();
 
@@ -5016,7 +5060,7 @@ void* UClass::CreateSparseClassData()
 	if (SparseClassDataStruct)
 	{
 		SparseClassData = FMemory::Malloc(SparseClassDataStruct->GetStructureSize(), SparseClassDataStruct->GetMinAlignment());
-		SparseClassDataStruct->GetCppStructOps()->Construct(SparseClassData);
+		SparseClassDataStruct->InitializeStruct(SparseClassData);
 	}
 	if (SparseClassData)
 	{
@@ -5040,7 +5084,7 @@ void UClass::CleanupSparseClassData()
 {
 	if (SparseClassData)
 	{
-		SparseClassDataStruct->GetCppStructOps()->Destruct(SparseClassData);
+		SparseClassDataStruct->DestroyStruct(SparseClassData);
 		FMemory::Free(SparseClassData);
 		SparseClassData = nullptr;
 	}
@@ -5056,10 +5100,10 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 { 
 	if (SparseClassDataStruct != InSparseClassDataStruct)
 	{
-		SparseClassDataStruct = InSparseClassDataStruct;
-
 		// the old type and new type may not match when we do a reload so get rid of the old data
 		CleanupSparseClassData();
+
+		SparseClassDataStruct = InSparseClassDataStruct;
 	}
 }
 
@@ -5833,6 +5877,17 @@ bool FStructUtils::TheSameLayout(const UStruct* StructA, const UStruct* StructB,
 			bResult = ArePropertiesTheSame(PropertyA, PropertyB, bCheckPropertiesNames);
 			PropertyA = PropertyA ? PropertyA->PropertyLinkNext : NULL;
 			PropertyB = PropertyB ? PropertyB->PropertyLinkNext : NULL;
+		}
+
+		if(bResult)
+		{
+			// If structs are actually classes, their 'layout' is affected by their sparse class data too 
+			const UClass* ClassA = Cast<UClass>(StructA);
+			const UClass* ClassB = Cast<UClass>(StructB);
+			if(ClassA && ClassB)
+			{
+				bResult = TheSameLayout(ClassA->GetSparseClassDataStruct(), ClassB->GetSparseClassDataStruct(), bCheckPropertiesNames);
+			}
 		}
 	}
 	return bResult;
