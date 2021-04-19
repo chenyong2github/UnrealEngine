@@ -198,9 +198,13 @@ namespace Chaos
 			float Step = (RangeX) / (Graph.Num() - 1);
 			float Start = (InX - BoundsX.X) / Step;
 
-			if (Start < 0.f)
+			if (InX <= BoundsX.X || Start < 0.f)
 			{
 				return Graph[0].Y;
+			}
+			else if (InX >= BoundsX.Y)
+			{
+				return Graph[Graph.Num() - 1].Y;
 			}
 			
 			int StartIndex = (int)Start;

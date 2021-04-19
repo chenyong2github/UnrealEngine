@@ -51,6 +51,8 @@ namespace ChaosTest
 		EXPECT_NEAR(Graph.EvaluateY(50.f), 90.f, Tolerance);
 		EXPECT_NEAR(Graph.EvaluateY(55.f), 90.f, Tolerance);
 		EXPECT_NEAR(Graph.EvaluateY(60.f), 90.f, Tolerance);
+		EXPECT_NEAR(Graph.EvaluateY(1.0E21f), 90.f, Tolerance);
+		EXPECT_NEAR(Graph.EvaluateY(-1.0E21f), 0.f, Tolerance);
 	}
 
 	GTEST_TEST(AllTraits, VehicleTest_CalculateSlipAngle)
