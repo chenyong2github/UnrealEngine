@@ -158,6 +158,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 
 		if (ViewFamily.EngineShowFlags.LightFunctions
 			&& LightSceneInfo
+			&& LightSceneInfo->Proxy
 			// Band-aid fix for extremely rare case that light scene proxy contains NaNs.
 			&& !LightSceneInfo->Proxy->GetDirection().ContainsNaN()
 			&& LightSceneInfo->ShouldRenderLightViewIndependent()
