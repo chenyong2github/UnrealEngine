@@ -237,8 +237,15 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 
 	Controller.OpenBracket(LOCTEXT("StartRecord_Bracket", "Starting Animation Recording"));
 
-	AnimationObject->DeleteNotifyTrackData();
-	Controller.ResetModel();
+	const bool bKeepNotifiesAndCurves = CVarKeepNotifyAndCurvesOnAnimationRecord->GetInt() == 0 ? false : true;
+	if (bKeepNotifiesAndCurves)
+	{
+		Controller.RemoveAllBoneTracks();
+	}
+	else
+	{
+		AnimationObject->ResetAnimation();
+	}
 
 	RecordedCurves.Reset();
 	RecordedTimes.Empty();
@@ -270,8 +277,7 @@ void FAnimationRecorder::ProcessNotifies()
 	if (AnimationObject)
 	{
 		// Copy recorded notify events, animation its notify array should be empty at this point
-		ensure(AnimationObject->Notifies.Num() == 0);
-		AnimationObject->Notifies = RecordedNotifyEvents;
+		AnimationObject->Notifies.Append(RecordedNotifyEvents);
 		
 		// build notify tracks - first find how many tracks we want
 		for (FAnimNotifyEvent& Event : AnimationObject->Notifies)
