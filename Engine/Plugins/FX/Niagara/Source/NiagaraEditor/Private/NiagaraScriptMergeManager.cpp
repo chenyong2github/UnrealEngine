@@ -2330,6 +2330,7 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 	else
 	{
 		UNiagaraScript* FunctionScript = nullptr;
+		FGuid VersionGuid;
 		if (AddModule->GetUsesScratchPadScript())
 		{
 			FunctionScript = ScratchPadAdapter->GetScratchPadScriptForFunctionId(AddModule->GetFunctionCallNode()->NodeGuid);
@@ -2337,9 +2338,10 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddMod
 		else
 		{
 			FunctionScript = AddModule->GetFunctionCallNode()->FunctionScript;
+			VersionGuid = AddModule->GetFunctionCallNode()->SelectedScriptVersion;
 		}
 
-		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex(), AddModule->GetFunctionCallNode()->GetFunctionName());
+		AddedModuleNode = FNiagaraStackGraphUtilities::AddScriptModuleToStack(FunctionScript, TargetOutputNode, AddModule->GetStackIndex(), AddModule->GetFunctionCallNode()->GetFunctionName(), VersionGuid);
 		AddedModuleNode->NodeGuid = AddModule->GetFunctionCallNode()->NodeGuid; // Synchronize the node Guid across runs so that the compile id's sync up.
 		Results.bModifiedGraph = true;
 	}
