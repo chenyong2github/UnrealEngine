@@ -5,6 +5,7 @@
 #include "PrimitiveSceneInfo.h"
 
 FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Instance)
+	: Data(InPlace, NoInit)
 {
 	Setup(GetInstanceUniformShaderParameters(
 		Instance.LocalToWorld,

@@ -11,6 +11,7 @@
 #include "InstanceUniformShaderParameters.h"
 #include "LightmapUniformShaderParameters.h"
 #include "UnifiedBuffer.h"
+#include "Containers/StaticArray.h"
 
 /** 
  * The uniform shader parameters associated with a primitive. 
@@ -282,15 +283,17 @@ struct FPrimitiveSceneShaderData
 	// Must match usf
 	enum { PrimitiveDataStrideInFloat4s = 37 };
 
-	FVector4 Data[PrimitiveDataStrideInFloat4s];
+	TStaticArray<FVector4, PrimitiveDataStrideInFloat4s> Data;
 
 	FPrimitiveSceneShaderData()
+		: Data(InPlace, NoInit)
 	{
 		static_assert(FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s == FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
 		Setup(GetIdentityPrimitiveParameters());
 	}
 
 	explicit FPrimitiveSceneShaderData(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters)
+		: Data(InPlace, NoInit)
 	{
 		Setup(PrimitiveUniformShaderParameters);
 	}

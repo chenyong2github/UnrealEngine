@@ -8,6 +8,7 @@
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
+#include "Containers/StaticArray.h"
 
 #define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS			0x1
 #define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN		0x2
@@ -165,9 +166,10 @@ struct FInstanceSceneShaderData
 	// Must match GetInstanceData() in SceneData.ush
 	enum { InstanceDataStrideInFloat4s = 10 };
 
-	FVector4 Data[InstanceDataStrideInFloat4s];
+	TStaticArray<FVector4, InstanceDataStrideInFloat4s> Data;
 
 	FInstanceSceneShaderData()
+		: Data(InPlace, NoInit)
 	{
 		Setup(GetInstanceUniformShaderParameters(
 			FMatrix::Identity,
@@ -186,6 +188,7 @@ struct FInstanceSceneShaderData
 	}
 
 	explicit FInstanceSceneShaderData(const FInstanceUniformShaderParameters& InstanceUniformShaderParameters)
+		: Data(InPlace, NoInit)
 	{
 		Setup(InstanceUniformShaderParameters);
 	}

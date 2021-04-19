@@ -7,6 +7,7 @@
 #include "RenderResource.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
+#include "Containers/StaticArray.h"
 
 class FLightCacheInterface;
 
@@ -36,9 +37,10 @@ struct FLightmapSceneShaderData
 	// Must match usf
 	enum { LightmapDataStrideInFloat4s = 15 };
 
-	FVector4 Data[LightmapDataStrideInFloat4s];
+	TStaticArray<FVector4, LightmapDataStrideInFloat4s> Data;
 
 	FLightmapSceneShaderData()
+		: Data(InPlace, NoInit)
 	{
 		FPrecomputedLightingUniformParameters ShaderParameters;
 		GetDefaultPrecomputedLightingParameters(ShaderParameters);
@@ -46,6 +48,7 @@ struct FLightmapSceneShaderData
 	}
 
 	explicit FLightmapSceneShaderData(const FPrecomputedLightingUniformParameters& ShaderParameters)
+		: Data(InPlace, NoInit)
 	{
 		Setup(ShaderParameters);
 	}

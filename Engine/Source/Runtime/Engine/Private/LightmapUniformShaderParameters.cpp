@@ -9,6 +9,7 @@
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPrecomputedLightingUniformParameters, "PrecomputedLightingBuffer");
 
 FLightmapSceneShaderData::FLightmapSceneShaderData(const class FLightCacheInterface* LCI, ERHIFeatureLevel::Type FeatureLevel)
+	: Data(InPlace, NoInit)
 {
 	FPrecomputedLightingUniformParameters Parameters;
 	GetPrecomputedLightingParameters(FeatureLevel, Parameters, LCI);

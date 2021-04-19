@@ -80,6 +80,13 @@ public:
 	 */
 	explicit FVector4(EForceInit);
 
+	/**
+	 * Creates an uninitialized new vector.
+	 *
+	 * @param ENoInit Force uninitialized enum.
+	 */
+	FVector4(ENoInit);
+
 public:
 
 	/**
@@ -491,6 +498,11 @@ FORCEINLINE FVector4::FVector4(EForceInit)
 	, W(0.f)
 {
 	DiagnosticCheckNaN();
+}
+
+
+FORCEINLINE FVector4::FVector4(ENoInit)
+{
 }
 
 

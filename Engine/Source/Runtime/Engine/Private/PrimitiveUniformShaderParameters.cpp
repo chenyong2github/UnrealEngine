@@ -48,15 +48,15 @@ void FSinglePrimitiveStructured::UploadToGPU()
 		void* LockedData = nullptr;
 
 		LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
+		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data.GetData(), FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
 		RHIUnlockBuffer(PrimitiveSceneDataBufferRHI);
 
 		LockedData = RHILockBuffer(LightmapSceneDataBufferRHI, 0, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4));
+		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data.GetData(), FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4));
 		RHIUnlockBuffer(LightmapSceneDataBufferRHI);
 
 		LockedData = RHILockBuffer(InstanceSceneDataBufferRHI, 0, FInstanceSceneShaderData::InstanceDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(LockedData, InstanceSceneData.Data, FInstanceSceneShaderData::InstanceDataStrideInFloat4s * sizeof(FVector4));
+		FPlatformMemory::Memcpy(LockedData, InstanceSceneData.Data.GetData(), FInstanceSceneShaderData::InstanceDataStrideInFloat4s * sizeof(FVector4));
 		RHIUnlockBuffer(InstanceSceneDataBufferRHI);
 	}
 
@@ -94,6 +94,7 @@ TGlobalResource<FSinglePrimitiveStructured> GIdentityPrimitiveBuffer;
 TGlobalResource<FSinglePrimitiveStructured> GTilePrimitiveBuffer;
 
 FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy* RESTRICT Proxy)
+	: Data(InPlace, NoInit)
 {
 	bool bHasPrecomputedVolumetricLightmap;
 	FMatrix PreviousLocalToWorld;
