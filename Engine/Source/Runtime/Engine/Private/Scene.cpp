@@ -589,6 +589,7 @@ FPostProcessSettings::FPostProcessSettings()
 	PathTracingSamplesPerPixel = 16384;
 	PathTracingFilterWidth = 3.0f;
 	PathTracingEnableEmissive = 1;
+	PathTracingMaxPathExposure = 30.0f;
 	
 	bMobileHQGaussian = false;
 
@@ -785,6 +786,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_PathTracingSamplesPerPixel(Settings.bOverride_PathTracingSamplesPerPixel)
 	, bOverride_PathTracingFilterWidth(Settings.bOverride_PathTracingFilterWidth)
 	, bOverride_PathTracingEnableEmissive(Settings.bOverride_PathTracingEnableEmissive)
+	, bOverride_PathTracingMaxPathExposure(Settings.bOverride_PathTracingMaxPathExposure)
 
 	, bMobileHQGaussian(Settings.bMobileHQGaussian)
 	, BloomMethod(Settings.BloomMethod)
@@ -969,6 +971,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, PathTracingSamplesPerPixel(Settings.PathTracingSamplesPerPixel)
 	, PathTracingFilterWidth(Settings.PathTracingFilterWidth)
 	, PathTracingEnableEmissive(Settings.PathTracingEnableEmissive)
+	, PathTracingMaxPathExposure(Settings.PathTracingMaxPathExposure)
 
 	, LPVFadeRange(Settings.LPVFadeRange)
 	, LPVDirectionalOcclusionFadeRange(Settings.LPVDirectionalOcclusionFadeRange)
