@@ -36,6 +36,9 @@ class UK2Node_StructMemberSet : public UK2Node_StructOperation
 	virtual class FNodeHandlingFunctor* CreateNodeHandler(class FKismetCompilerContext& CompilerContext) const override;
 	// End of UK2Node interface
 
+	// Helper for AllocateDefaultPins
+	BLUEPRINTGRAPH_API void AllocateExecPins();
+
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title/tooltip */
 	FNodeTextCache CachedTooltip;
