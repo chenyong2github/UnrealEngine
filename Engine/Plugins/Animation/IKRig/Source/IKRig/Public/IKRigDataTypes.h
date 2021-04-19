@@ -68,7 +68,7 @@ struct IKRIG_API FIKRigGoal
     : Name(NAME_None),
 	Position(ForceInitToZero),
     Rotation(FRotator::ZeroRotator),
-    PositionAlpha(1.f),
+    PositionAlpha(0.0f),
     RotationAlpha(0.0f),
 	FinalBlendedPosition(ForceInitToZero),
 	FinalBlendedRotation(FQuat::Identity){}
@@ -77,7 +77,7 @@ struct IKRIG_API FIKRigGoal
     : Name(GoalName),
 	Position(ForceInitToZero),
     Rotation(FRotator::ZeroRotator),
-    PositionAlpha(1.f),
+    PositionAlpha(0.0f),
     RotationAlpha(0.0f),
 	FinalBlendedPosition(ForceInitToZero),
     FinalBlendedRotation(FQuat::Identity){}

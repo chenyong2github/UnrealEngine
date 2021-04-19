@@ -4,6 +4,12 @@
 
 void FIKRigSkeleton::Initialize(const FReferenceSkeleton& RefSkeleton)
 {
+	BoneNames.Reset();
+	ParentIndices.Reset();
+	CurrentPoseGlobal.Reset();
+	CurrentPoseLocal.Reset();
+	RefPoseGlobal.Reset();
+	
 	// copy names and parent indices into local storage
 	for (int32 BoneIndex=0; BoneIndex<RefSkeleton.GetNum(); ++BoneIndex)
 	{
