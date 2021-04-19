@@ -564,10 +564,10 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	}
 
 	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
-		[this, Component](FRHICommandList& RHICmdList)
+		[this, PerInstanceRenderData = Component->PerInstanceRenderData](FRHICommandList& RHICmdList)
 	{
-		if (Component->PerInstanceRenderData != nullptr &&
-			Component->PerInstanceRenderData->InstanceBuffer.GetNumInstances() == Instances.Num())
+		if (PerInstanceRenderData != nullptr &&
+			PerInstanceRenderData->InstanceBuffer.GetNumInstances() == Instances.Num())
 		{
 			FVector4 InstanceTransformVec[3];
 			FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
@@ -575,7 +575,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 
 			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 			{
-				Component->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
+				PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
 					InstanceIndex,
 					InstanceTransformVec,
 					InstanceLightMapAndShadowMapUVBias,
