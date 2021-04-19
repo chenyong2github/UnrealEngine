@@ -2,6 +2,7 @@
 
 #include "NiagaraSystemInstanceController.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Engine/StaticMesh.h"
 
 FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
 	: bNeedsRendererRecache(false)

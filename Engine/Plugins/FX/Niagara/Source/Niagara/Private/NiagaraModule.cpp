@@ -25,6 +25,7 @@
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDebuggerClient.h"
 #include "Particles/FXBudget.h"
+#include "Engine/StaticMesh.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
