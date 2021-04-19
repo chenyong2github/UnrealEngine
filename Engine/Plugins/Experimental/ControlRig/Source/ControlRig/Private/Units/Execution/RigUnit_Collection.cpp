@@ -102,6 +102,8 @@ FRigUnit_CollectionChildren_Execute()
 	Collection = CachedCollection;
 }
 
+#if WITH_EDITOR
+
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 {
 	const FRigElementKey Root = Controller->AddBone(TEXT("Root"), FRigElementKey(), FTransform(FVector(0.f, 0.f, 0.f)), true, ERigBoneType::User);
@@ -136,6 +138,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 
 	return true;
 }
+
+#endif
 
 FRigUnit_CollectionReplaceItems_Execute()
 {
