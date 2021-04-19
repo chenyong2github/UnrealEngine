@@ -187,7 +187,7 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 
 		if (ChildClassObjects.Num() > 0)
 		{
-			TSet<FName> ClassNamesToInclude;
+			TSet<FName> ClassPathsToInclude;
 			if (CollectionFilter)
 			{
 				TArray<FName> ClassPathsForCollections;
@@ -197,12 +197,12 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 					return;
 				}
 
-				ClassNamesToInclude.Append(ClassPathsForCollections);
+				ClassPathsToInclude.Append(ClassPathsForCollections);
 			}
 
 			for (UClass* ChildClassObject : ChildClassObjects)
 			{
-				const bool bPassesInclusiveFilter = ClassNamesToInclude.Num() == 0 || ClassNamesToInclude.Contains(ChildClassObject->GetFName());
+				const bool bPassesInclusiveFilter = ClassPathsToInclude.Num() == 0 || ClassPathsToInclude.Contains(*ChildClassObject->GetPathName());
 				const bool bPassesBlacklistFilter = !ClassBlacklist || ClassBlacklist->PassesFilter(ChildClassObject->GetFName());
 
 				if (bPassesInclusiveFilter && bPassesBlacklistFilter)
