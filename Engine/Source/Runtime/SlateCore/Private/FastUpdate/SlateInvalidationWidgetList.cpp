@@ -138,9 +138,7 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::FixCurrentWidgetInd
 	}
 	else if (bNeedsWidgetFixUp)
 	{
-		AttributeIndex = 0;
-		CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
-		CurrentWidgetSortOrder = FSlateInvalidationWidgetSortOrder::LimitMax();
+		Clear();
 	}
 
 	MoveToWidgetIndexOnNextAdvance = FSlateInvalidationWidgetIndex::Invalid;
@@ -161,8 +159,9 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::Seek(FSlateInvalida
 	}
 	else
 	{
-		CurrentWidgetIndex = SeekTo;
+		CurrentWidgetIndex = FSlateInvalidationWidgetIndex{ (IndexType)SeekTo.ArrayIndex, ArrayNode.ElementIndexList_WidgetWithRegisteredSlateAttribute[AttributeIndex] };
 		CurrentWidgetSortOrder = FSlateInvalidationWidgetSortOrder{ WidgetList, CurrentWidgetIndex };
+		check(WidgetList.IsValidIndex(CurrentWidgetIndex));
 	}
 }
 
@@ -185,16 +184,54 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::Advance()
 		CurrentWidgetIndex = FSlateInvalidationWidgetIndex{ (IndexType)ArrayIndex, ArrayNode.ElementIndexList_WidgetWithRegisteredSlateAttribute[AttributeIndex] };
 		CurrentWidgetSortOrder = (CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid)
 			? FSlateInvalidationWidgetSortOrder{ WidgetList, CurrentWidgetIndex }
-			: FSlateInvalidationWidgetSortOrder::LimitMax();
+		: FSlateInvalidationWidgetSortOrder::LimitMax();
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetAttributeIterator::AdvanceToNextSibling()
+{
+	check(MoveToWidgetIndexOnNextAdvance == FSlateInvalidationWidgetIndex::Invalid);
+
+	const FSlateInvalidationWidgetIndex SeekToIndex = WidgetList.IncrementIndex(WidgetList[CurrentWidgetIndex].LeafMostChildIndex);
+	if (SeekToIndex != FSlateInvalidationWidgetIndex::Invalid)
+	{
+		Seek(SeekToIndex);
+	}
+	else
+	{
+		Clear();
+	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetAttributeIterator::AdvanceToNextParent()
+{
+	check(MoveToWidgetIndexOnNextAdvance == FSlateInvalidationWidgetIndex::Invalid);
+
+	const FSlateInvalidationWidgetIndex ParentIndex = WidgetList[CurrentWidgetIndex].ParentIndex;
+	if (ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
+	{
+		const FSlateInvalidationWidgetIndex SeekToIndex = WidgetList.IncrementIndex(WidgetList[ParentIndex].LeafMostChildIndex);
+		if (SeekToIndex != FSlateInvalidationWidgetIndex::Invalid)
+		{
+			Seek(SeekToIndex);
+		}
+		else
+		{
+			Clear();
+		}
+	}
+	else
+	{
+		Clear();
 	}
 }
 
 
 void FSlateInvalidationWidgetList::FWidgetAttributeIterator::AdvanceArrayIndex(int32 ArrayIndex)
 {
-	AttributeIndex = 0;
-	CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
-	CurrentWidgetSortOrder = FSlateInvalidationWidgetSortOrder::LimitMax();
+	Clear();
 
 	while (ArrayIndex != INDEX_NONE)
 	{
@@ -207,6 +244,14 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::AdvanceArrayIndex(i
 		}
 		ArrayIndex = NewArrayNode.NextArrayIndex;
 	}
+}
+
+
+void FSlateInvalidationWidgetList::FWidgetAttributeIterator::Clear()
+{
+	AttributeIndex = 0;
+	CurrentWidgetIndex = FSlateInvalidationWidgetIndex::Invalid;
+	CurrentWidgetSortOrder = FSlateInvalidationWidgetSortOrder::LimitMax();
 }
 
 
@@ -366,7 +411,7 @@ void FSlateInvalidationWidgetList::BuildWidgetList(TSharedRef<SWidget> InRoot)
 }
 
 
-void FSlateInvalidationWidgetList::_RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex)
+void FSlateInvalidationWidgetList::Internal_RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex)
 {
 	const bool bShouldAddWidget = ShouldBeAdded(Widget);
 	FChildren* ParentChildren = Widget->GetAllChildren();
@@ -462,7 +507,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 			// Find all it's previous children
 			FMemMark Mark2(FMemStack::Get());
 			TArray<FFindChildrenElement, TMemStackAllocator<>> PreviousChildrenWidget;
-			_FindChildren(InvalidationWidget.Index, PreviousChildrenWidget);
+			Internal_FindChildren(InvalidationWidget.Index, PreviousChildrenWidget);
 
 			FChildren* InvalidatedChildren = WidgetPtr->GetAllChildren();
 			check(InvalidatedChildren);
@@ -532,7 +577,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 			{
 				ensureMsgf(ChildToRemoveRange.IsValid(), TEXT("The ChildToRemoveRange should be valid at this point."));
 				Callback.PreChildRemove(ChildToRemoveRange);
-				_RemoveRangeFromSameParent(ChildToRemoveRange);
+				Internal_RemoveRangeFromSameParent(ChildToRemoveRange);
 			}
 			else if (CurrentOperation == EOperation::Cut)
 			{
@@ -550,7 +595,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(const Invalidat
 				SCOPED_NAMED_EVENT(Slate_InvalidationList_ProcessRebuild, FColorList::Blue);
 				FSlateInvalidationWidgetIndex PreviousWidgetIndex = WidgetPtr->GetProxyHandle().GetWidgetIndex();
 				FSlateInvalidationWidgetIndex PreviousLeafMostChildIndex = InvalidationWidget.LeafMostChildIndex;
-				_RebuildWidgetListTree(WidgetPtr->AsShared(), StartChildIndex);
+				Internal_RebuildWidgetListTree(WidgetPtr->AsShared(), StartChildIndex);
 
 
 				const InvalidationWidgetType& NewInvalidationWidget = (*this)[PreviousWidgetIndex];
@@ -614,7 +659,7 @@ namespace InvalidationList
 }
 
 
-void FSlateInvalidationWidgetList::_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const
+void FSlateInvalidationWidgetList::Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const
 {
 	Widgets.Reserve(16);
 	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
@@ -985,7 +1030,7 @@ void FSlateInvalidationWidgetList::UpdateParentLeafIndex(const InvalidationWidge
  * Can use to remove range (B,D) or (C,C) or (C,D) or (E, G) or (F,G) or (B,G).
  * Cannot use (B,E) or (B,C) or (B,F)
  */
-void FSlateInvalidationWidgetList::_RemoveRangeFromSameParent(const FIndexRange Range)
+void FSlateInvalidationWidgetList::Internal_RemoveRangeFromSameParent(const FIndexRange Range)
 {
 	// Fix up Parent's LeafIndex if they are in Range
 	{
@@ -1323,7 +1368,7 @@ void FSlateInvalidationWidgetList::RemoveWidget(const FSlateInvalidationWidgetIn
 		const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
 
 		const FIndexRange Range = { *this, WidgetIndex, InvalidationWidget.LeafMostChildIndex };
-		_RemoveRangeFromSameParent(Range);
+		Internal_RemoveRangeFromSameParent(Range);
 	}
 }
 
@@ -1337,7 +1382,7 @@ void FSlateInvalidationWidgetList::RemoveWidget(const TSharedRef<SWidget> Widget
 		{
 			const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
 			const FIndexRange Range = { *this, WidgetIndex, InvalidationWidget.LeafMostChildIndex };
-			_RemoveRangeFromSameParent(Range);
+			Internal_RemoveRangeFromSameParent(Range);
 		}
 	}
 
@@ -1357,7 +1402,7 @@ TArray<TSharedPtr<SWidget>> FSlateInvalidationWidgetList::FindChildren(const TSh
 
 		FMemMark Mark(FMemStack::Get());
 		TArray<FFindChildrenElement, TMemStackAllocator<>> PreviousChildrenWidget;
-		_FindChildren(WidgetIndex, PreviousChildrenWidget);
+		Internal_FindChildren(WidgetIndex, PreviousChildrenWidget);
 
 		Result.Reserve(PreviousChildrenWidget.Num());
 		for (const FFindChildrenElement& ChildrenElement : PreviousChildrenWidget)
@@ -1624,10 +1669,10 @@ bool FSlateInvalidationWidgetList::VerifyElementIndexList() const
 							, *FReflectionMetaData::GetWidgetDebugInfo(Widget));
 						bResult = false;
 					}
-
-					if (InvalidationWidget.Visibility.IsVisible() && !InvalidationWidget.bDebug_AttributeUpdated)
+					else if (!InvalidationWidget.Visibility.IsCollapsed() && !InvalidationWidget.bDebug_AttributeUpdated)
 					{
 						UE_LOG(LogSlate, Warning, TEXT("The widget '%s' was not updated."), *FReflectionMetaData::GetWidgetDebugInfo(Widget));
+						bResult = false;
 					}
 				}
 			}

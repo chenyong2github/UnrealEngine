@@ -41,12 +41,14 @@ public:
 		, bVisible(InVisibility.IsVisible())
 		, bAncestorCollapse(false)
 		, bCollapse(InVisibility == EVisibility::Collapsed)
+		, FlagPadding(0)
 	{ }
 	FSlateInvalidationWidgetVisibility(FSlateInvalidationWidgetVisibility ParentFlags, EVisibility InVisibility)
 		: bAncestorsVisible(ParentFlags.IsVisible())
 		, bVisible(InVisibility.IsVisible())
 		, bAncestorCollapse(ParentFlags.IsCollapsed())
 		, bCollapse(InVisibility == EVisibility::Collapsed)
+		, FlagPadding(0)
 	{ }
 	FSlateInvalidationWidgetVisibility(const FSlateInvalidationWidgetVisibility& Other) : Flags(Other.Flags) {  }
 	FSlateInvalidationWidgetVisibility& operator=(const FSlateInvalidationWidgetVisibility& Other) { Flags = Other.Flags; return *this; }
@@ -82,8 +84,8 @@ public:
 		return Result;
 	}
 
-	bool operator==(FSlateInvalidationWidgetVisibility Other) const { return Other.CompareFlags == CompareFlags; }
-	bool operator!=(FSlateInvalidationWidgetVisibility Other) const { return Other.CompareFlags != CompareFlags; }
+	bool operator==(FSlateInvalidationWidgetVisibility Other) const { return Other.Flags == Flags; }
+	bool operator!=(FSlateInvalidationWidgetVisibility Other) const { return Other.Flags != Flags; }
 
 private:
 	union
@@ -94,8 +96,8 @@ private:
 			uint8 bVisible : 1;
 			uint8 bAncestorCollapse : 1;	// at least one ancestor is collapse
 			uint8 bCollapse : 1;
+			uint8 FlagPadding : 4;
 		};
-		uint8 CompareFlags : 4;
 		uint8 Flags;
 	};
 };

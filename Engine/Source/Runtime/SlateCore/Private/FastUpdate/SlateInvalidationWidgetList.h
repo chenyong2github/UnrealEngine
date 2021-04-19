@@ -11,6 +11,9 @@
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SWidget.h"
 
+#define UE_SLATE_WITH_INVALIDATIONWIDGETLIST_RANGECHECK UE_BUILD_DEBUG
+
+
 class FSlateInvalidationWidgetList
 {
 	friend struct FSlateInvalidationWidgetSortOrder;
@@ -38,7 +41,9 @@ public:
 			: InclusiveMin(InFrom), InclusiveMax(InEnd)
 			, OrderMin(Self, InFrom), OrderMax(Self, InEnd)
 		{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_RANGECHECK
 			check(OrderMin <= OrderMax);
+#endif
 		}
 		bool Include(FSlateInvalidationWidgetSortOrder Other) const
 		{
@@ -213,11 +218,18 @@ public:
 		/** Advance the iterator to the next valid widget index. */
 		void Advance();
 
+		/** Advance the iterator to the next valid widget index that is a child of this widget. */
+		void AdvanceToNextSibling();
+
+		/** Advance the iterator to the next valid widget index that is a sibling of this widget's parent. */
+		void AdvanceToNextParent();
+
 		/** Is the iterator pointing to a valid widget index. */
 		bool IsValid() const { return CurrentWidgetIndex != FSlateInvalidationWidgetIndex::Invalid; }
 
 	private:
 		void AdvanceArrayIndex(int32 ArrayIndex);
+		void Clear();
 	};
 
 	FWidgetAttributeIterator CreateWidgetAttributeIterator() const
@@ -229,14 +241,18 @@ public:
 	/** Returns reference to element at give index. */
 	InvalidationWidgetType& operator[](const FSlateInvalidationWidgetIndex Index)
 	{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_RANGECHECK
 		check(IsValidIndex(Index));
+#endif
 		return Data[Index.ArrayIndex].ElementList[Index.ElementIndex];
 	}
 
 	/** Returns reference to element at give index. */
 	const InvalidationWidgetType& operator[](const FSlateInvalidationWidgetIndex Index) const
 	{
+#if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_RANGECHECK
 		check(IsValidIndex(Index));
+#endif
 		return Data[Index.ArrayIndex].ElementList[Index.ElementIndex];
 	}
 
@@ -319,7 +335,7 @@ public:
 	bool VerifyElementIndexList() const;
 #endif
 
-private:
+public:
 	bool ShouldDoRecursion(const SWidget* Widget) const
 	{
 		return !Widget->Advanced_IsInvalidationRoot() || IsEmpty();
@@ -328,19 +344,19 @@ private:
 	{
 		return !Widget->Advanced_IsInvalidationRoot() || IsEmpty();
 	}
-	bool ShouldBeAdded(const SWidget* Widget) const
+	static bool ShouldBeAdded(const SWidget* Widget)
 	{
 		return Widget != &(SNullWidget::NullWidget.Get());
 	}
-	bool ShouldBeAdded(const TSharedRef<SWidget>& Widget) const
+	static bool ShouldBeAdded(const TSharedRef<SWidget>& Widget)
 	{
 		return Widget != SNullWidget::NullWidget;
 	}
-	bool ShouldBeAddedToAttributeList(const SWidget* Widget) const
+	static bool ShouldBeAddedToAttributeList(const SWidget* Widget)
 	{
 		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
 	}
-	bool ShouldBeAddedToAttributeList(const TSharedRef<SWidget>& Widget) const
+	static bool ShouldBeAddedToAttributeList(const TSharedRef<SWidget>& Widget)
 	{
 		return Widget->HasRegisteredSlateAttribute() && Widget->IsAttributesUpdatesEnabled();
 	}
@@ -380,10 +396,10 @@ private:
 
 private:
 	FSlateInvalidationWidgetIndex Internal_BuildWidgetList_Recursive(TSharedRef<SWidget>& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile);
-	void _RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex);
+	void Internal_RebuildWidgetListTree(TSharedRef<SWidget> Widget, int32 ChildAtIndex);
 	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
-	void _FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
-	void _RemoveRangeFromSameParent(const FIndexRange Range);
+	void Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
+	void Internal_RemoveRangeFromSameParent(const FIndexRange Range);
 	FCutResult _CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 
 private:

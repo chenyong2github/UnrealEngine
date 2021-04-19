@@ -75,8 +75,9 @@ public:
 	}
 
 	/** Returns and removes the biggest WidgetIndex from the list. */
-	FSlateInvalidationWidgetIndex HeapPop()
+	UE_NODISCARD FSlateInvalidationWidgetIndex HeapPop()
 	{
+		check(Heap.Num() > 0);
 		FSlateInvalidationWidgetIndex Result = Heap.HeapTop().GetWidgetIndex();
 		Heap.HeapPopDiscard(SortPredicate(), false);
 		OwnerList[Result].bContainedByWidgetPreHeap = false;
@@ -86,18 +87,23 @@ public:
 	/** Removes the biggest WidgetIndex from the list. */
 	void HeapPopDiscard()
 	{
+		check(Heap.Num() > 0);
+		FSlateInvalidationWidgetIndex Result = Heap.HeapTop().GetWidgetIndex();
 		Heap.HeapPopDiscard(SortPredicate(), false);
+		OwnerList[Result].bContainedByWidgetPreHeap = false;
 	}
 	
 	/** Returns the biggest WidgetIndex from the list. */
 	inline FSlateInvalidationWidgetIndex HeapPeek() const
 	{
+		check(Heap.Num() > 0);
 		return Heap.HeapTop().GetWidgetIndex();
 	}
 	
 	/** Returns the biggest WidgetIndex from the list. */
 	inline const FElement& HeapPeekElement() const
 	{
+		check(Heap.Num() > 0);
 		return Heap.HeapTop();
 	}
 

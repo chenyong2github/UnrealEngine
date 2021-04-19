@@ -639,54 +639,12 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 				//2.UpdateAttributes of AttributeSortOrder
 				//3.Invalidation ChildOrder of NeedsUpdateSortOrder
 
-				if (AttributeSortOrder == NeedsUpdateSortOrder)
-				{
-					// Process AttributeRegistration invalidation.
-					const FSlateInvalidationWidgetIndex WidgetIndex = WidgetsNeedingPreUpdate->HeapPeek();
-					FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
-					SWidget* WidgetPtr = InvalidationWidget.GetWidget();
-					if (ensureMsgf(WidgetPtr, TEXT("A parent remove this widget. Child order invalidation should have been called before we process this widget.")))
-					{
-						if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
-						{
-#if WITH_SLATE_DEBUGGING
-							if (GSlateInvalidationRootDumpPreInvalidationList)
-							{
-								LogPreInvalidationItem(*FastWidgetPathList, WidgetIndex);
-							}
-#endif
-
-							FastWidgetPathList->ProcessAttributeRegistrationInvalidation(InvalidationWidget);
-							if (WidgetPtr->HasRegisteredSlateAttribute() && WidgetPtr->IsAttributesUpdatesEnabled())
-							{
-								// This should be the next Attribute to update
-								AttributeItt.Seek(InvalidationWidget.Index);
-							}
-							EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration);
-
-							// Do we still need to update this element, if not, then remove it from the update list.
-							if (!Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidationWidget.CurrentInvalidateReason))
-							{
-								WidgetsNeedingPreUpdate->HeapPopDiscard();
-							}
-
-							// Stop and process the next element.
-							continue;
-						}
-					}
-					else
-					{
-						WidgetsNeedingPreUpdate->HeapPopDiscard();
-						continue;
-					}
-				}
-
 				if (AttributeSortOrder <= NeedsUpdateSortOrder)
 				{
 					// Update Attributes
+					//Note the attribute may still be in the list and will get remove in next loop tick. UpdateCollapsedAttributes and UpdateExpandedAttributes won't do anything.
 					FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[AttributeItt.GetCurrentIndex()];
-					SWidget* WidgetPtr = InvalidationWidget.GetWidget();
-					if (ensureMsgf(WidgetPtr, TEXT("A parent remove this widget. Child order invalidation should have been called before we process this widget.")))
+					if (SWidget* WidgetPtr = InvalidationWidget.GetWidget())
 					{
 						if (!InvalidationWidget.Visibility.IsCollapseIndirectly())
 						{
@@ -699,21 +657,31 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 								InvalidationWidget.bDebug_AttributeUpdated = true;
 #endif
 								FSlateAttributeMetaData::UpdateExpandedAttributes(*WidgetPtr, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidation);
+								AttributeItt.Advance();
+							}
+							else
+							{
+								AttributeItt.AdvanceToNextSibling();
 							}
 						}
+						else
+						{
+							AttributeItt.AdvanceToNextParent();
+						}
 					}
-					AttributeItt.Advance();
-					continue; // Do the loop again, in case a ChildOrder invalidation occurred.
+					else
+					{
+						AttributeItt.Advance();
+					}
 				}
-
-				checkf(NeedsUpdateSortOrder < AttributeSortOrder, TEXT("Else case"));
+				else
 				{
 					// Process ChildOrder invalidation.
 
-					const FSlateInvalidationWidgetIndex WidgetIndex = WidgetsNeedingPreUpdate->HeapPop();
+					const FSlateInvalidationWidgetIndex WidgetIndex = WidgetsNeedingPreUpdate->HeapPeek();
 					FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = (*FastWidgetPathList)[WidgetIndex];
-					// It could have been destroyed since then
-					if (InvalidationWidget.GetWidget())
+					// It could have been destroyed
+					if (SWidget* WidgetPtr = InvalidationWidget.GetWidget())
 					{
 #if WITH_SLATE_DEBUGGING
 						if (GSlateInvalidationRootDumpPreInvalidationList)
@@ -722,7 +690,27 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 						}
 #endif
 
-						if (ensureAlways(EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder)))
+						if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
+						{
+							FastWidgetPathList->ProcessAttributeRegistrationInvalidation(InvalidationWidget);
+							EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration);
+
+							// This element was removed or added, seek will assign the correct widget to be ticked next.
+							AttributeItt.Seek(InvalidationWidget.Index);
+							if (FastWidgetPathList->ShouldBeAddedToAttributeList(WidgetPtr))
+							{
+								// Do we still need to update this element, if not, then remove it from the update list.
+								if (!Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidationWidget.CurrentInvalidateReason))
+								{
+									WidgetsNeedingPreUpdate->HeapPopDiscard();
+								}
+
+								// We should update the attribute of this proxy before doing the ChildOrder (if any).
+								continue;
+							}
+						}
+
+						if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder))
 						{
 // Uncomment to see to be able to compare the list before and after when debugging
 #if 0
@@ -753,6 +741,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 							//EnumRemoveFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::ChildOrder);
 						}
 					}
+					WidgetsNeedingPreUpdate->HeapPopDiscard();
 				}
 			}
 		}
