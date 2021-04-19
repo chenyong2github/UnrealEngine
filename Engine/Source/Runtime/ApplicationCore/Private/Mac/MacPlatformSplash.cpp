@@ -54,7 +54,7 @@ static void StartSetSplashText( const SplashTextType::Type InType, const FText& 
 	GSplashScreenText[ InType ] = InText;
 }
 
-@interface UE4SplashView : NSView
+@interface UnrealSplashView : NSView
 {
 }
 
@@ -63,7 +63,7 @@ static void StartSetSplashText( const SplashTextType::Type InType, const FText& 
 
 @end
 
-@implementation UE4SplashView
+@implementation UnrealSplashView
 
 - (void)drawRect: (NSRect)DirtyRect
 {
@@ -291,7 +291,7 @@ void FMacPlatformSplash::Show()
 
 			// Create bordeless window with size from NSImage
 			GSplashWindow = [[FSplashWindow alloc] initWithContentRect: ContentRect styleMask: 0 backing: NSBackingStoreBuffered defer: NO];
-			[GSplashWindow setContentView: [[UE4SplashView alloc] initWithFrame: ContentRect]];
+			[GSplashWindow setContentView: [[UnrealSplashView alloc] initWithFrame: ContentRect]];
 
 			if( GSplashWindow )
 			{

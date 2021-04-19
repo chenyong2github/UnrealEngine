@@ -16,7 +16,7 @@ int32 GMacDisableMouseCoalescing = 1;
 static FAutoConsoleVariableRef CVarMacDisableMouseCoalescing(
 	TEXT("io.Mac.HighPrecisionDisablesMouseCoalescing"),
 	GMacDisableMouseCoalescing,
-	TEXT("If set to true then OS X mouse event coalescing will be disabled while using high-precision mouse mode, to send all mouse events to UE4's event handling routines to reduce apparent mouse lag. (Default: True)"));
+	TEXT("If set to true then OS X mouse event coalescing will be disabled while using high-precision mouse mode, to send all mouse events to Unreal's event handling routines to reduce apparent mouse lag. (Default: True)"));
 
 int32 GMacDisableMouseAcceleration = 0;
 static FAutoConsoleVariableRef CVarMacDisableMouseAcceleration(
