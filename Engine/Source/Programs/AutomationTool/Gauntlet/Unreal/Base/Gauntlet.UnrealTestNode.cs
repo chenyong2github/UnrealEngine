@@ -1157,7 +1157,17 @@ namespace Gauntlet
 						DBConfig.LoadConfig(GetConfiguration().DatabaseConfigPath);
 						IDatabaseDriver<TelemetryData> DB = DBConfig.GetDriver();
 						Log.Verbose("Submitting telemetry data to {0}", DB.ToString());
-						DB.SubmitDataItems(DataRows, Context);
+
+						UnrealTelemetryContext TestContext = new UnrealTelemetryContext();
+						TestContext.SetProperty("ProjectName", Context.BuildInfo.ProjectName);
+						TestContext.SetProperty("Branch", Context.BuildInfo.Branch);
+						TestContext.SetProperty("Changelist", Context.BuildInfo.Changelist);
+						var RoleType = GetConfiguration().GetMainRequiredRole().Type;
+						var Role = Context.GetRoleContext(RoleType);
+						TestContext.SetProperty("Platform", Role.Platform);
+						TestContext.SetProperty("Configuration", string.Format("{0} {1}", RoleType, Role.Configuration));
+
+						DB.SubmitDataItems(DataRows, TestContext);
 					}
 					else
 					{

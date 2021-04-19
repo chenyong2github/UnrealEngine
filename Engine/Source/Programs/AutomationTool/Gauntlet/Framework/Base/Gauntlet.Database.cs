@@ -9,6 +9,15 @@ using AutomationTool;
 
 namespace Gauntlet
 {
+
+	/// <summary>
+	/// Hold information about the telemetry context
+	/// </summary>
+	public interface ITelemetryContext
+	{
+		object GetProperty(string Name);
+	}
+
 	/// <summary>
 	/// Interface to drive Database submission
 	/// </summary>
@@ -20,7 +29,7 @@ namespace Gauntlet
 		/// <param name="DataItems"></param>
 		/// <param name="Context"></param>
 		/// <returns></returns>
-		bool SubmitDataItems(IEnumerable<Data> DataItems, ITestContext Context);
+		bool SubmitDataItems(IEnumerable<Data> DataItems, ITelemetryContext Context);
 	}
 
 	/// <summary>
@@ -50,7 +59,7 @@ namespace Gauntlet
 		/// Format the data for target table based on data type
 		/// </summary>
 		/// <returns></returns>
-		IEnumerable<string> FormatDataForTable(Data InData, ITestContext InContext);
+		IEnumerable<string> FormatDataForTable(Data InData, ITelemetryContext InContext);
 	}
 
 	public class MySQLDriver<Data> : IDatabaseDriver<Data> where Data : class 
@@ -84,7 +93,7 @@ namespace Gauntlet
 			return MySqlHelper.ExecuteScalar(Config.ConfigString, SqlQuery);
 		}
 
-		public bool SubmitDataItems(IEnumerable<Data> DataRows, ITestContext TestContext)
+		public bool SubmitDataItems(IEnumerable<Data> DataRows, ITelemetryContext TestContext)
 		{
 			if (Config is IMySQLConfig<Data> DataConfig)
 			{
@@ -188,7 +197,7 @@ namespace Gauntlet
 		/// Format the data for target table based on data type
 		/// </summary>
 		/// <returns></returns>
-		public abstract IEnumerable<string> FormatDataForTable(Data InData, ITestContext InContext);
+		public abstract IEnumerable<string> FormatDataForTable(Data InData, ITelemetryContext InContext);
 
 	}
 

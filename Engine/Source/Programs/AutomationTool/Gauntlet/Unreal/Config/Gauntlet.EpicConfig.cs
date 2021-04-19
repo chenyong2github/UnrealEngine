@@ -55,29 +55,21 @@ namespace EpicConfig
 		/// Format the data for target table based on data type
 		/// </summary>
 		/// <returns></returns>
-		public override IEnumerable<string> FormatDataForTable(Gauntlet.TelemetryData Data, ITestContext TestContext)
+		public override IEnumerable<string> FormatDataForTable(Gauntlet.TelemetryData Data, ITelemetryContext Context)
 		{
-			if (TestContext is UnrealTestContext Context)
-			{
-				UnrealTestRoleContext Role = Context.RoleContext[UnrealTargetRole.Client];
-				return new List<string>() {
-					Context.BuildInfo.Changelist.ToString(),
-					Environment.MachineName,
-					Context.BuildInfo.Branch,
-					DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-					Context.BuildInfo.ProjectName,
-					Role.Platform.ToString(),
-					Role.Configuration.ToString(),
-					Data.TestName,
-					Data.Context,
-					Data.DataPoint,
-					Data.Measurement.ToString()
-				};
-			}
-			else
-			{
-				throw new AutomationException(string.Format("The Test Context is not UnrealTestContext; '{0}'.", TestContext.GetType().FullName));
-			}
+			return new List<string>() {
+				Context.GetProperty("Changelist").ToString(),
+				Environment.MachineName,
+				Context.GetProperty("Branch").ToString(),
+				DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+				Context.GetProperty("ProjectName").ToString(),
+				Context.GetProperty("Platform").ToString(),
+				Context.GetProperty("Configuration").ToString(),
+				Data.TestName,
+				Data.Context,
+				Data.DataPoint,
+				Data.Measurement.ToString()
+			};
 		}
 	}
 }

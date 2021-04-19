@@ -723,6 +723,46 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Return the list of required roles for the target role
+		/// </summary>
+		/// <param name="InRole"></param>
+		/// <returns></returns>
+		public IEnumerable<UnrealTestRole> GetRequiredRoles(UnrealTargetRole InRole)
+		{
+			if (RequiredRoles.ContainsKey(InRole))
+			{
+				return RequiredRoles[InRole];
+			}
+			return new List<UnrealTestRole>();
+		}
+
+		/// <summary>
+		/// Return the main required role to execute the test.
+		/// </summary>
+		/// <returns></returns>
+		public UnrealTestRole GetMainRequiredRole()
+		{
+			var ClientRoles = GetRequiredRoles(UnrealTargetRole.Client);
+			if (ClientRoles.Any())
+			{
+				return ClientRoles.First();
+			}
+			var ServerRoles = GetRequiredRoles(UnrealTargetRole.Server);
+			if (ServerRoles.Any())
+			{
+				return ServerRoles.First();
+			}
+			var EditorRoles = GetRequiredRoles(UnrealTargetRole.Editor);
+			if (EditorRoles.Any())
+			{
+				return EditorRoles.First();
+			}
+			var RoleEnumerator = RequiredRoles.Values.GetEnumerator();
+			RoleEnumerator.MoveNext();
+			return RoleEnumerator.Current.First();
+		}
+
+		/// <summary>
 		/// 
 		/// </summary>
 		/// <param name="AppConfig"></param>
