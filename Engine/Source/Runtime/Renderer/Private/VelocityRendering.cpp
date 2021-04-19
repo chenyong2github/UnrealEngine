@@ -51,14 +51,16 @@ static TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasksVelocityPass(
 
 DECLARE_GPU_STAT_NAMED(RenderVelocities, TEXT("Render Velocities"));
 
-bool IsParallelVelocity()
+bool IsParallelVelocity(EShaderPlatform ShaderPlatform)
 {
-	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread();
+	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread()
+		// Parallel dispatch is not supported on mobile platform
+		&& !IsMobilePlatform(ShaderPlatform);
 }
 
-bool IsVelocityWaitForTasksEnabled()
+bool IsVelocityWaitForTasksEnabled(EShaderPlatform ShaderPlatform)
 {
-	return IsParallelVelocity() && (CVarRHICmdFlushRenderThreadTasksVelocityPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
+	return IsParallelVelocity(ShaderPlatform) && (CVarRHICmdFlushRenderThreadTasksVelocityPass.GetValueOnRenderThread() > 0 || CVarRHICmdFlushRenderThreadTasks.GetValueOnRenderThread() > 0);
 }
 
 bool IsVelocityMergedWithDepthPass()
@@ -227,7 +229,7 @@ void FSceneRenderer::RenderVelocities(
 		: ERenderTargetLoadAction::EClear;
 
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RenderVelocities);
-	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsVelocityWaitForTasksEnabled());
+	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsVelocityWaitForTasksEnabled(ShaderPlatform));
 
 	const EMeshPass::Type MeshPass = GetMeshPassFromVelocityPass(VelocityPass);
 
@@ -279,7 +281,7 @@ void FSceneRenderer::RenderVelocities(
 
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, VelocityLoadAction);
 
-			if (IsParallelVelocity())
+			if (IsParallelVelocity(ShaderPlatform))
 			{
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("VelocityParallel"),

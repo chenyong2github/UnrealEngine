@@ -1457,10 +1457,12 @@ static void RenderShadowDepthAtlasNanite(
 	}
 }
 
-bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo)
+bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo, EShaderPlatform ShaderPlatform)
 {
 	return GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread()
-		&& (ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread());
+		&& (ProjectedShadowInfo->IsWholeSceneDirectionalShadow() || CVarParallelShadowsNonWholeScene.GetValueOnRenderThread())
+		// Parallel dispatch is not supported on mobile platform
+		&& !IsMobilePlatform(ShaderPlatform);
 }
 
 void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
@@ -1492,7 +1494,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		// Gather our passes here to minimize switching render passes
 		for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
 		{
-			if (IsParallelDispatchEnabled(ProjectedShadowInfo))
+			if (IsParallelDispatchEnabled(ProjectedShadowInfo, ShaderPlatform))
 			{
 				ParallelShadowPasses.Add(ProjectedShadowInfo);
 			}
@@ -1876,7 +1878,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		}
 
 		{
-			const bool bDoParallelDispatch = IsParallelDispatchEnabled(ProjectedShadowInfo);
+			const bool bDoParallelDispatch = IsParallelDispatchEnabled(ProjectedShadowInfo, ShaderPlatform);
 			ProjectedShadowInfo->RenderDepth(GraphBuilder, this, ShadowDepthTexture, bDoParallelDispatch);
 		}
 
@@ -2020,7 +2022,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 				RDG_GPU_MASK_SCOPE(GraphBuilder, GetGPUMaskForShadow(ProjectedShadowInfo));
 				AddClearShadowDepthPass(GraphBuilder, PreshadowCacheTexture, ProjectedShadowInfo);
 
-				const bool bParallelDispatch = IsParallelDispatchEnabled(ProjectedShadowInfo);
+				const bool bParallelDispatch = IsParallelDispatchEnabled(ProjectedShadowInfo, ShaderPlatform);
 				ProjectedShadowInfo->RenderDepth(GraphBuilder, this, PreshadowCacheTexture, bParallelDispatch);
 				ProjectedShadowInfo->bDepthsCached = true;
 			}
