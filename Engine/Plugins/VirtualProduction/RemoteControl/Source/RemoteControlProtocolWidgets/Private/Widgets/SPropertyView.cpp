@@ -5,8 +5,10 @@
 
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Editor.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
+#include "Modules/ModuleManager.h"
 #include "SRCProtocolShared.h"
 #include "Widgets/Layout/SGridPanel.h"
 
