@@ -86,9 +86,10 @@ public:
 	uint32		GUID = 0;
 	int32		MipLevel = 0;
 
-	FUIntVector	QuantizedPosStart = { 0u, 0u, 0u };
-	uint32		QuantizedPosShift;
-	
+	FIntVector	QuantizedPosStart	= { 0u, 0u, 0u };
+	uint32		QuantizedPosShift	= 0u;
+	FIntVector  QuantizedPosBits	= {};
+
 	FVector		MeshBoundsMin;
 	FVector		MeshBoundsDelta;
 
@@ -103,7 +104,7 @@ public:
 	uint32		GeneratingGroupIndex= MAX_uint32;
 
 	TArray<FMaterialRange, TInlineAllocator<4>> MaterialRanges;
-	TArray<FUIntVector>	QuantizedPositions;
+	TArray<FIntVector>	QuantizedPositions;
 
 	FStripDesc		StripDesc;
 	TArray<uint8>	StripIndexData;

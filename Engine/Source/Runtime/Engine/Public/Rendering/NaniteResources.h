@@ -63,8 +63,9 @@
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteDataDecode.ush
 
-#define POSITION_QUANTIZATION_BITS				10
-#define POSITION_QUANTIZATION_MASK 				((1u << POSITION_QUANTIZATION_BITS) - 1u)
+
+#define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteDataDecode.ush
+
 #define NORMAL_QUANTIZATION_BITS				 9
 
 #define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
@@ -172,14 +173,14 @@ FORCEINLINE void SetBits(uint32& Value, uint32 Bits, uint32 NumBits, uint32 Offs
 struct FPackedCluster
 {
 	// Members needed for rasterization
-	FUIntVector	QuantizedPosStart;
-	uint32		PositionOffset;
+	FIntVector	QuantizedPosStart;
+	uint32		NumVerts_PositionOffset;					// NumVerts:9, PositionOffset:23
 
 	FVector		MeshBoundsMin;
-	uint32		IndexOffset;
+	uint32		NumTris_IndexOffset;						// NumTris:8, IndexOffset: 24
 
 	FVector		MeshBoundsDelta;
-	uint32		NumVerts_NumTris_BitsPerIndex_QuantizedPosShift;		// NumVerts:9, NumTris:8, BitsPerIndex:4, QuantizedPosShift:6
+	uint32		BitsPerIndex_QuantizedPosShift_PosBits;		// BitsPerIndex:4, QuantizedPosShift:6, QuantizedPosBits:5.5.5
 	
 	// Members needed for culling
 	FSphere		LODBounds;
@@ -191,29 +192,49 @@ struct FPackedCluster
 	uint32		Flags;
 
 	// Members needed by materials
-	uint32		AttributeOffset_BitsPerAttribute;					// AttributeOffset: 22, BitsPerAttribute: 10
-	uint32		DecodeInfoOffset_NumUVs_ColorMode;					// DecodeInfoOffset: 22, NumUVs: 3, ColorMode: 2
-	uint32		UV_Prec;											// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
+	uint32		AttributeOffset_BitsPerAttribute;			// AttributeOffset: 22, BitsPerAttribute: 10
+	uint32		DecodeInfoOffset_NumUVs_ColorMode;			// DecodeInfoOffset: 22, NumUVs: 3, ColorMode: 2
+	uint32		UV_Prec;									// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
 	uint32		PackedMaterialInfo;
 
 	uint32		ColorMin;
-	uint32		ColorBits;						// R:4, G:4, B:4, A:4
-	uint32		GroupIndex;						// Debug only
+	uint32		ColorBits;									// R:4, G:4, B:4, A:4
+	uint32		GroupIndex;									// Debug only
 	uint32		Pad0;
 
-	uint32		GetNumVerts() const					{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 9, 0); }
-	uint32		GetNumTris() const					{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 8, 9); }
-	uint32		GetBitsPerIndex() const				{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 4, 9+8); }
-	uint32		GetQuantizedPosShift() const		{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 6, 9+8+4); }
+	uint32		GetNumVerts() const						{ return GetBits(NumVerts_PositionOffset, 9, 0); }
+	uint32		GetPositionOffset() const				{ return GetBits(NumVerts_PositionOffset, 23, 9); }
 
-	uint32		GetAttributeOffset() const			{ return GetBits(AttributeOffset_BitsPerAttribute, 22, 0); }
-	void		SetAttributeOffset(uint32 Offset)	{ SetBits(AttributeOffset_BitsPerAttribute, Offset, 22, 0); }
-	uint32		GetBitsPerAttribute() const			{ return GetBits(AttributeOffset_BitsPerAttribute, 10, 22); }
-	void		SetBitsPerAttribute(uint32 Bits)	{ SetBits(AttributeOffset_BitsPerAttribute, Bits, 10, 22); }
+	uint32		GetNumTris() const						{ return GetBits(NumTris_IndexOffset, 8, 0); }
+	uint32		GetIndexOffset() const					{ return GetBits(NumTris_IndexOffset, 24, 8); }
 
-	void		SetDecodeInfoOffset(uint32 Offset)	{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Offset, 22, 0); }
-	void		SetNumUVs(uint32 Num)				{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Num, 3, 22); }
-	void		SetColorMode(uint32 Mode)			{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Mode, 2, 22+3); }
+	uint32		GetBitsPerIndex() const					{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 4, 0); }
+	uint32		GetQuantizedPosShift() const			{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 6, 4); }
+	uint32		GetPosBitsX() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 10); }
+	uint32		GetPosBitsY() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 15); }
+	uint32		GetPosBitsZ() const						{ return GetBits(BitsPerIndex_QuantizedPosShift_PosBits, 5, 20); }
+
+	uint32		GetAttributeOffset() const				{ return GetBits(AttributeOffset_BitsPerAttribute, 22, 0); }
+	uint32		GetBitsPerAttribute() const				{ return GetBits(AttributeOffset_BitsPerAttribute, 10, 22); }
+	
+	void		SetNumVerts(uint32 NumVerts)			{ SetBits(NumVerts_PositionOffset, NumVerts, 9, 0); }
+	void		SetPositionOffset(uint32 Offset)		{ SetBits(NumVerts_PositionOffset, Offset, 23, 9); }
+
+	void		SetNumTris(uint32 NumTris)				{ SetBits(NumTris_IndexOffset, NumTris, 8, 0); }
+	void		SetIndexOffset(uint32 Offset)			{ SetBits(NumTris_IndexOffset, Offset, 24, 8); }
+
+	void		SetBitsPerIndex(uint32 BitsPerIndex)	{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, BitsPerIndex, 4, 0); }
+	void		SetQuantizedPosShift(uint32 PosShift)	{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, PosShift, 6, 4); }
+	void		SetPosBitsX(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 10); }
+	void		SetPosBitsY(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 15); }
+	void		SetPosBitsZ(uint32 NumBits)				{ SetBits(BitsPerIndex_QuantizedPosShift_PosBits, NumBits, 5, 20); }
+
+	void		SetAttributeOffset(uint32 Offset)		{ SetBits(AttributeOffset_BitsPerAttribute, Offset, 22, 0); }
+	void		SetBitsPerAttribute(uint32 Bits)		{ SetBits(AttributeOffset_BitsPerAttribute, Bits, 10, 22); }
+
+	void		SetDecodeInfoOffset(uint32 Offset)		{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Offset, 22, 0); }
+	void		SetNumUVs(uint32 Num)					{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Num, 3, 22); }
+	void		SetColorMode(uint32 Mode)				{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Mode, 2, 22+3); }
 };
 
 struct FPageStreamingState
@@ -339,6 +360,7 @@ struct FResources
 	TArray< uint32 >				HierarchyRootOffsets;
 	TArray< FPageStreamingState >	PageStreamingStates;
 	TArray< uint32 >				PageDependencies;
+	int32							PositionPrecision = 0;
 	bool	bLZCompressed			= false;
 
 	// Runtime State

@@ -401,16 +401,20 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 				uint3 PositionData = SrcPageBuffer.Load3(SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset + SrcCodedVertexIndex * 12);
 				DstPageBuffer.Store3(DstPageBaseOffset + Cluster.PositionOffset + VertexIndex * 12, PositionData);
 #else
-				const uint PositionBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
+				// TODO: simplify once we remove the old quantization code
+				const uint SrcPositionBitsPerVertex = (SrcCluster.PosBits.x + SrcCluster.PosBits.y + SrcCluster.PosBits.z + 7) & ~7u;
+				FBitStreamReaderState InputStream = BitStreamReader_Create(SrcPageBuffer, SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
+				int3 SrcPosition = BitStreamReader_Read3(InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
+				int3 GlobalPosition = (SrcPosition + SrcCluster.QuantizedPosStart) << SrcCluster.QuantizedPosShift;
 
-				uint SrcPositionBits = SrcPageBuffer.Load(SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset + SrcCodedVertexIndex * 4);
-				uint3 SrcPosition = UnpackToUint3(SrcPositionBits, POSITION_QUANTIZATION_BITS);
-				uint3 GlobalPosition = (SrcPosition + SrcCluster.QuantizedPosStart) << SrcCluster.QuantizedPosShift;
-
-				uint3 DstPosition = (GlobalPosition >> Cluster.QuantizedPosShift) - Cluster.QuantizedPosStart;
-				uint DstPositionBits = DstPosition.x | (DstPosition.y << POSITION_QUANTIZATION_BITS) | (DstPosition.z << (2 * POSITION_QUANTIZATION_BITS));
-
-				PutBits(DstPageBuffer, DstPageBaseOffset + Cluster.PositionOffset, VertexIndex* PositionBitsPerVertex, DstPositionBits, PositionBitsPerVertex);
+				int3 DstPosition = (GlobalPosition >> Cluster.QuantizedPosShift) - Cluster.QuantizedPosStart;
+				const uint PositionBitsPerVertex = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
+				FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBuffer, DstPageBaseOffset + Cluster.PositionOffset, VertexIndex * PositionBitsPerVertex);
+				
+				BitStreamWriter_Writer(OutputStream, DstPosition.x, Cluster.PosBits.x, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Writer(OutputStream, DstPosition.y, Cluster.PosBits.y, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Writer(OutputStream, DstPosition.z, Cluster.PosBits.z, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Flush(OutputStream);
 #endif
 			}
 

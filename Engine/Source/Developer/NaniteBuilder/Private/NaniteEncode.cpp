@@ -561,21 +561,24 @@ static uint32 PackMaterialInfo(const Nanite::FCluster& InCluster, TArray<uint32>
 static void PackCluster(Nanite::FPackedCluster& OutCluster, const Nanite::FCluster& InCluster, const FEncodingInfo& EncodingInfo, uint32 NumTexCoords)
 {
 	FMemory::Memzero(OutCluster);
+
 	// 0
-	OutCluster.QuantizedPosStart		= InCluster.QuantizedPosStart;
-	OutCluster.PositionOffset			= 0;
+	OutCluster.QuantizedPosStart = InCluster.QuantizedPosStart;
+	OutCluster.SetNumVerts(InCluster.NumVerts);
+	OutCluster.SetPositionOffset(0);
 
 	// 1
-	OutCluster.MeshBoundsMin			= InCluster.MeshBoundsMin;
-	OutCluster.IndexOffset				= 0;
+	OutCluster.MeshBoundsMin = InCluster.MeshBoundsMin;
+	OutCluster.SetNumTris(InCluster.NumTris);
+	OutCluster.SetIndexOffset(0);
 
 	// 2
-	OutCluster.MeshBoundsDelta			= InCluster.MeshBoundsDelta;
-	check(InCluster.NumVerts < 512);
-	check(InCluster.NumTris < 256);
-	check(EncodingInfo.BitsPerIndex < 16);
-	check(InCluster.QuantizedPosShift < 32);
-	OutCluster.NumVerts_NumTris_BitsPerIndex_QuantizedPosShift = InCluster.NumVerts | (InCluster.NumTris << (9)) | (EncodingInfo.BitsPerIndex << (9 + 8)) | (InCluster.QuantizedPosShift << (9 + 8 + 4));
+	OutCluster.MeshBoundsDelta = InCluster.MeshBoundsDelta;
+	OutCluster.SetBitsPerIndex(EncodingInfo.BitsPerIndex);
+	OutCluster.SetQuantizedPosShift(InCluster.QuantizedPosShift);
+	OutCluster.SetPosBitsX(InCluster.QuantizedPosBits.X);
+	OutCluster.SetPosBitsY(InCluster.QuantizedPosBits.Y);
+	OutCluster.SetPosBitsZ(InCluster.QuantizedPosBits.Z);
 
 	// 3
 	OutCluster.LODBounds				= InCluster.LODBounds;
@@ -656,7 +659,145 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const FHier
 	}
 }
 
-static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBounds& MeshBounds)
+static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters, const FBounds& MeshBounds, const FMeshNaniteSettings& Settings)
+{	
+	// Simple global quantization for EA
+	const int32 MaxPositionQuantizedValue	= (1 << MAX_POSITION_QUANTIZATION_BITS) - 1;
+	
+	int32 PositionPrecision = Settings.PositionPrecision;
+	if (PositionPrecision == MIN_int32)
+	{
+		// Auto: Guess required precision from bounds at leaf level
+		const float MaxSize = MeshBounds.GetExtent().GetMax();
+
+		// Heuristic: We want higher resolution if the mesh is denser.
+		// Use geometric average of cluster size as a proxy for density.
+		// Alternative interpretation: Bit precision is average of what is needed by the clusters.
+		// For roughly uniformly sized clusters this gives results very similar to the old quantization code.
+		double TotalLogSize = 0.0;
+		int32 TotalNum = 0;
+		for (const FCluster& Cluster : Clusters)
+		{
+			if (Cluster.MipLevel == 0)
+			{
+				float ExtentSize = Cluster.Bounds.GetExtent().Size();
+				if (ExtentSize > 0.0)
+				{
+					TotalLogSize += FMath::Log2(ExtentSize);
+					TotalNum++;
+				}
+			}
+		}
+		double AvgLogSize = TotalNum > 0 ? TotalLogSize / TotalNum : 0.0;
+		PositionPrecision = 7 - FMath::RoundToInt(AvgLogSize);
+	}
+
+	float QuantizationScale = FMath::Exp2((float)PositionPrecision);
+
+	// Make sure all clusters are encodable. A large enough cluster could hit the 21bpc limit. If it happens scale back until it fits.
+	for (const FCluster& Cluster : Clusters)
+	{
+		const FBounds& Bounds = Cluster.Bounds;
+		
+		int32 Iterations = 0;
+		while (true)
+		{
+			float MinX = FMath::RoundToFloat(Bounds.Min.X * QuantizationScale);
+			float MinY = FMath::RoundToFloat(Bounds.Min.Y * QuantizationScale);
+			float MinZ = FMath::RoundToFloat(Bounds.Min.Z * QuantizationScale);
+
+			float MaxX = FMath::RoundToFloat(Bounds.Max.X * QuantizationScale);
+			float MaxY = FMath::RoundToFloat(Bounds.Max.Y * QuantizationScale);
+			float MaxZ = FMath::RoundToFloat(Bounds.Max.Z * QuantizationScale);
+
+			if (MinX >= (double)MIN_int32 && MinY >= (double)MIN_int32 && MinZ >= (double)MIN_int32 &&	// MIN_int32/MAX_int32 is not representable in float
+				MaxX <= (double)MAX_int32 && MaxY <= (double)MAX_int32 && MaxZ <= (double)MAX_int32 &&
+				((int32)MaxX - (int32)MinX) <= MaxPositionQuantizedValue && ((int32)MaxY - (int32)MinY) <= MaxPositionQuantizedValue && ((int32)MaxZ - (int32)MinZ) <= MaxPositionQuantizedValue)
+			{
+				break;
+			}
+			
+			QuantizationScale *= 0.5f;
+			PositionPrecision--;
+			check(++Iterations < 100);	// Endless loop?
+		}
+	}
+
+	const float RcpQuantizationScale = 1.0f / QuantizationScale;
+
+	ParallelFor(Clusters.Num(), [&](uint32 ClusterIndex)
+	{
+		FCluster& Cluster = Clusters[ClusterIndex];
+		
+		const uint32 NumClusterVerts = Cluster.NumVerts;
+		const uint32 ClusterShift = Cluster.QuantizedPosShift;
+
+		Cluster.QuantizedPositions.SetNumUninitialized(NumClusterVerts);
+
+		// Quantize positions
+		FIntVector IntClusterMax = { MIN_int32,	MIN_int32, MIN_int32 };
+		FIntVector IntClusterMin = { MAX_int32,	MAX_int32, MAX_int32 };
+
+		for (uint32 i = 0; i < NumClusterVerts; i++)
+		{
+			const FVector Position = Cluster.GetPosition(i);
+
+			FIntVector& IntPosition = Cluster.QuantizedPositions[i];
+			float PosX = FMath::RoundToFloat(Position.X * QuantizationScale);
+			float PosY = FMath::RoundToFloat(Position.Y * QuantizationScale);
+			float PosZ = FMath::RoundToFloat(Position.Z * QuantizationScale);
+
+			IntPosition = FIntVector((int32)PosX, (int32)PosY, (int32)PosZ);
+
+			IntClusterMax.X = FMath::Max(IntClusterMax.X, IntPosition.X);
+			IntClusterMax.Y = FMath::Max(IntClusterMax.Y, IntPosition.Y);
+			IntClusterMax.Z = FMath::Max(IntClusterMax.Z, IntPosition.Z);
+			IntClusterMin.X = FMath::Min(IntClusterMin.X, IntPosition.X);
+			IntClusterMin.Y = FMath::Min(IntClusterMin.Y, IntPosition.Y);
+			IntClusterMin.Z = FMath::Min(IntClusterMin.Z, IntPosition.Z);
+		}
+
+		// Store in minimum number of bits
+		const uint32 NumBitsX = FMath::CeilLogTwo(IntClusterMax.X - IntClusterMin.X + 1);
+		const uint32 NumBitsY = FMath::CeilLogTwo(IntClusterMax.Y - IntClusterMin.Y + 1);
+		const uint32 NumBitsZ = FMath::CeilLogTwo(IntClusterMax.Z - IntClusterMin.Z + 1);
+		check(NumBitsX <= MAX_POSITION_QUANTIZATION_BITS);
+		check(NumBitsY <= MAX_POSITION_QUANTIZATION_BITS);
+		check(NumBitsZ <= MAX_POSITION_QUANTIZATION_BITS);
+
+		for (uint32 i = 0; i < NumClusterVerts; i++)
+		{
+			FIntVector& IntPosition = Cluster.QuantizedPositions[i];
+
+			// Update float position with quantized data
+			Cluster.GetPosition(i) = FVector(IntPosition.X * RcpQuantizationScale, IntPosition.Y * RcpQuantizationScale, IntPosition.Z * RcpQuantizationScale);
+			
+			IntPosition.X -= IntClusterMin.X;
+			IntPosition.Y -= IntClusterMin.Y;
+			IntPosition.Z -= IntClusterMin.Z;
+			check(IntPosition.X >= 0 && IntPosition.X < (1 << NumBitsX));
+			check(IntPosition.Y >= 0 && IntPosition.Y < (1 << NumBitsY));
+			check(IntPosition.Z >= 0 && IntPosition.Z < (1 << NumBitsZ));
+		}
+
+
+		// Update bounds
+		Cluster.Bounds.Min = FVector(IntClusterMin.X * RcpQuantizationScale, IntClusterMin.Y * RcpQuantizationScale, IntClusterMin.Z * RcpQuantizationScale);
+		Cluster.Bounds.Max = FVector(IntClusterMax.X * RcpQuantizationScale, IntClusterMax.Y * RcpQuantizationScale, IntClusterMax.Z * RcpQuantizationScale);
+
+		Cluster.MeshBoundsMin = FVector::ZeroVector;
+		Cluster.MeshBoundsDelta = FVector(RcpQuantizationScale);
+
+		Cluster.QuantizedPosBits = FIntVector(NumBitsX, NumBitsY, NumBitsZ);
+		Cluster.QuantizedPosStart = IntClusterMin;
+		Cluster.QuantizedPosShift = 0;
+
+	} );
+	return PositionPrecision;
+}
+
+#if 0
+static void CalculateQuantizedPositionsOld(TArray< FCluster >& Clusters, const FBounds& MeshBounds, const FMeshNaniteSettings& Settings)
 {
 	// Quantize cluster positions to cluster-local coordinates.
 	auto QuantizeUInt = [](FUIntVector V, uint32 Shift)
@@ -886,6 +1027,7 @@ static void CalculateQuantizedPositions(TArray< FCluster >& Clusters, const FBou
 	UE_LOG(LogStaticMesh, Log, TEXT("Position Quantization Error: Max: %f, Avg: %f, RelAvg: %f\n"), MaxError, TotalError / (3.0 * NumTotalVertices), TotalRelativeError / (3.0 * NumTotalVertices));
 #endif
 }
+#endif
 
 static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& Cluster, bool bHasColors, uint32 NumTexCoords)
 {
@@ -1078,7 +1220,8 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		Info.BitsPerAttribute += TexCoordBitsU + TexCoordBitsV;
 	}
 
-	GpuSizes.Position = (NumClusterVerts * 3 * POSITION_QUANTIZATION_BITS + 31) / 32 * 4;
+	const uint32 PositionBitsPerVertex = Cluster.QuantizedPosBits.X + Cluster.QuantizedPosBits.Y + Cluster.QuantizedPosBits.Z;
+	GpuSizes.Position = (NumClusterVerts * PositionBitsPerVertex + 31) / 32 * 4;
 	GpuSizes.Attribute = (NumClusterVerts * Info.BitsPerAttribute + 31) / 32 * 4;
 #endif
 }
@@ -1102,7 +1245,6 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	const uint32 NumClusterVerts = Cluster.NumVerts;
 	const uint32 NumClusterTris = Cluster.NumTris;
 
-	const FUIntVector QuantizedPosStart = Cluster.QuantizedPosStart;
 	const uint32 ClusterShift = Cluster.QuantizedPosShift;
 
 	VertexRefBitmask.AddZeroed(MAX_CLUSTER_VERTICES / 32);
@@ -1249,10 +1391,11 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 	// Quantize and write positions
 	for (uint32 VertexIndex : UniqueToVertexIndex)
 	{
-		const FUIntVector& QuantizedPosition = Cluster.QuantizedPositions[VertexIndex];
-		uint32 PackedPosition = (QuantizedPosition.Z << (POSITION_QUANTIZATION_BITS * 2)) | (QuantizedPosition.Y << (POSITION_QUANTIZATION_BITS)) | (QuantizedPosition.X << 0);
-
-		BitWriter_Position.PutBits(PackedPosition, 32);
+		const FIntVector& QuantizedPosition = Cluster.QuantizedPositions[VertexIndex];
+		BitWriter_Position.PutBits(QuantizedPosition.X, Cluster.QuantizedPosBits.X);
+		BitWriter_Position.PutBits(QuantizedPosition.Y, Cluster.QuantizedPosBits.Y);
+		BitWriter_Position.PutBits(QuantizedPosition.Z, Cluster.QuantizedPosBits.Z);
+		BitWriter_Position.Flush(1);
 	}
 	BitWriter_Position.Flush(sizeof(uint32));
 
@@ -1659,10 +1802,12 @@ static void WritePages(	FResources& Resources,
 		TArray<uint8>				CombinedAttributeData;
 		TArray<uint32>				MaterialRangeData;
 		TArray<uint16>				CodedVerticesPerCluster;
+		TArray<uint32>				NumVertexBytesPerCluster;
 		TArray<FPackedCluster>		PackedClusters;
 
 		PackedClusters.SetNumUninitialized(Page.NumClusters);
 		CodedVerticesPerCluster.SetNumUninitialized(Page.NumClusters);
+		NumVertexBytesPerCluster.SetNumUninitialized(Page.NumClusters);
 		
 		const uint32 NumPackedClusterDwords = Page.NumClusters * sizeof(FPackedCluster) / sizeof(uint32);
 
@@ -1686,19 +1831,21 @@ static void WritePages(	FResources& Resources,
 				check((GpuSectionOffsets.Index & 3) == 0);
 				check((GpuSectionOffsets.Position & 3) == 0);
 				check((GpuSectionOffsets.Attribute & 3) == 0);
-				PackedCluster.IndexOffset		= GpuSectionOffsets.Index;
-				PackedCluster.PositionOffset	= GpuSectionOffsets.Position;
+				PackedCluster.SetIndexOffset(GpuSectionOffsets.Index);
+				PackedCluster.SetPositionOffset(GpuSectionOffsets.Position);
 				PackedCluster.SetAttributeOffset(GpuSectionOffsets.Attribute);
 				PackedCluster.SetDecodeInfoOffset(GpuSectionOffsets.DecodeInfo);
 				
 				GpuSectionOffsets += EncodingInfo.GpuSizes;
 
+				const uint32 PrevVertexBytes = CombinedPositionData.Num();
 				uint32 NumCodedVertices = 0;
 				EncodeGeometryData(	LocalClusterIndex, Cluster, EncodingInfo, NumTexCoords, 
 									CombinedStripBitmaskData, CombinedIndexData,
 									CombinedVertexRefBitmaskData, CombinedVertexRefData, CombinedPositionData, CombinedAttributeData,
 									UniqueVertices, NumCodedVertices);
 
+				NumVertexBytesPerCluster[LocalClusterIndex] = CombinedPositionData.Num() - PrevVertexBytes;
 				CodedVerticesPerCluster[LocalClusterIndex] = NumCodedVertices;
 			}
 		}
@@ -1863,12 +2010,10 @@ static void WritePages(	FResources& Resources,
 			for (uint32 i = 0; i < Page.NumClusters; i++)
 			{
 				ClusterDiskHeaders[i].PositionDataOffset = PagePointer.Offset();
-#if USE_UNCOMPRESSED_VERTEX_DATA
-				PagePointer.Advance<uint32>(CodedVerticesPerCluster[i] * 3);
-#else
-				PagePointer.Advance<uint32>(CodedVerticesPerCluster[i]);
-#endif
+				PagePointer.Advance<uint8>(NumVertexBytesPerCluster[i]);
 			}
+			check( (PagePointer.GetPtr<uint8>() - PositionData) == CombinedPositionData.Num() * CombinedPositionData.GetTypeSize());
+
 			FMemory::Memcpy(PositionData, CombinedPositionData.GetData(), CombinedPositionData.Num() * CombinedPositionData.GetTypeSize());
 		}
 
@@ -3922,6 +4067,7 @@ static void VerifyClusterContraints( const TArray< FCluster >& Clusters )
 	
 void Encode(
 	FResources& Resources,
+	const FMeshNaniteSettings& Settings,
 	TArray< FCluster >& Clusters,
 	TArray< FClusterGroup >& Groups,
 	const FBounds& MeshBounds,
@@ -3954,7 +4100,7 @@ void Encode(
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build::CalculateQuantizedPositions);
-		CalculateQuantizedPositions( Clusters, MeshBounds );	// Needs to happen after clusters have been constrained and split.
+		Resources.PositionPrecision = CalculateQuantizedPositionsUniformGrid( Clusters, MeshBounds, Settings );	// Needs to happen after clusters have been constrained and split.
 	}
 
 	{

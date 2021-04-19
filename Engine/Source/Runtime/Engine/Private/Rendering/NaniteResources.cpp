@@ -250,6 +250,7 @@ void FResources::Serialize(FArchive& Ar, UObject* Owner)
 		Ar << HierarchyRootOffsets;
 		Ar << PageDependencies;
 		Ar << ImposterAtlas;
+		Ar << PositionPrecision;
 		
 		check(!Ar.IsLoading() || RootClusterPage.Num() == 0 || bLZCompressed == !FPlatformProperties::SupportsHardwareLZDecompression());
 

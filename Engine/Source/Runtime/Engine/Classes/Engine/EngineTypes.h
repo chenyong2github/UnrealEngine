@@ -2978,6 +2978,10 @@ struct FMeshNaniteSettings
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
 	uint8 bEnabled : 1;
 
+	/** Position Precision. Step size is 2^(-PositionPrecision) cm. MIN_int32 is auto. */
+	UPROPERTY(EditAnywhere, Category = NaniteSettings)
+	int32 PositionPrecision;
+
 	/** Percentage of triangles to keep from LOD0. 1.0 = no reduction, 0.0 = no triangles. */
 	UPROPERTY(EditAnywhere, Category = NaniteSettings)
 	float PercentTriangles;
@@ -2985,12 +2989,14 @@ struct FMeshNaniteSettings
 	/** Default settings. */
 	FMeshNaniteSettings()
 	: bEnabled(false)
-	, PercentTriangles(0.01f)
+	, PositionPrecision(MIN_int32)
+	, PercentTriangles(0.0f)
 	{
 	}
 
 	FMeshNaniteSettings(const FMeshNaniteSettings& Other)
 	: bEnabled(Other.bEnabled)
+	, PositionPrecision(Other.PositionPrecision)
 	, PercentTriangles(Other.PercentTriangles)
 	{
 	}
@@ -2998,7 +3004,7 @@ struct FMeshNaniteSettings
 	/** Equality operator. */
 	bool operator==(const FMeshNaniteSettings& Other) const
 	{
-		return bEnabled == Other.bEnabled && PercentTriangles == Other.PercentTriangles;
+		return bEnabled == Other.bEnabled && PositionPrecision == Other.PositionPrecision && PercentTriangles == Other.PercentTriangles;
 	}
 
 	/** Inequality operator. */

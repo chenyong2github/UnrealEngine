@@ -3102,6 +3102,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 
 		// Nanite settings
 		StaticMesh->NaniteSettings.bEnabled = InSettings.bGenerateNaniteEnabledMesh;
+		StaticMesh->NaniteSettings.PositionPrecision = MIN_int32;
 		StaticMesh->NaniteSettings.PercentTriangles = 1.0f;	// For now, assume meshes generated here are low poly enough to be used directly as the nanite proxy.
 
 #if WITH_EDITOR

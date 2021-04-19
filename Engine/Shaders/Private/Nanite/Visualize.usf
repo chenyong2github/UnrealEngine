@@ -260,6 +260,19 @@ void VisualizeCS(uint3 PixelPos : SV_DispatchThreadID)
 		{
 			Result = IntToColor(PrimitiveData.LightmapDataIndex);
 		}
+		else if (VisualizeMode == VISUALIZE_POSITION_BITS)
+		{
+			const uint NumBits = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
+
+			if (NumBits <= 30)
+			{
+				Result = lerp(float4(0.0f, 1.0f, 0.0f, 0.0f), float4(1.0f, 1.0f, 1.0f, 0.0f), NumBits / 30.0f);
+			}
+			else
+			{
+				Result = lerp(float4(1.0f, 1.0f, 1.0f, 1.0f), float4(1.0f, 0.0f, 0.0f, 0.0f), (NumBits - 30) / (float)(3 * 16 - 30));
+			}
+		}
 	}
 	else
 	{

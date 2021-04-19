@@ -659,11 +659,22 @@ public:
 	/** Apply current Nanite settings to the mesh. */
 	void ApplyChanges();
 
+	/** Position Precision range selectable in the UI. */
+	static const int32 DisplayPositionPrecisionMin = -6;
+	static const int32 DisplayPositionPrecisionMax = 13;
+
+	static int32 PositionPrecisionIndexToValue(int32 Index);
+	static int32 PositionPrecisionValueToIndex(int32 Value);
+
+	/** Display string to show in menus. */
+	static FString PositionPrecisionValueToDisplayString(int32 Value);
 private:
 	FReply OnApply();
 
 	ECheckBoxState IsEnabledChecked() const;
 	void OnEnabledChanged(ECheckBoxState NewState);
+
+	void OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
 
 	float GetPercentTriangles() const;
 	void OnPercentTrianglesChanged(float NewValue);
@@ -674,4 +685,6 @@ private:
 	FStaticMeshEditor& StaticMeshEditor;
 
 	FMeshNaniteSettings NaniteSettings;
+
+	TArray<TSharedPtr<FString> > PositionPrecisionOptions;
 };

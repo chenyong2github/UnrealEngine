@@ -29,6 +29,7 @@
 
 #include "Engine/AssetUserData.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "StaticMeshEditorTools.h"
 #include "AssetViewerSettings.h"
 #include "UnrealWidget.h"
 
@@ -799,6 +800,16 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	if (StaticMesh->NaniteSettings.bEnabled)
 	{
 		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NaniteEnabled", "<TextBlock.ShadowedText>Nanite Enabled</> <TextBlock.ShadowedTextWarning>{0}</>"), StaticMeshComponent->bDisplayNaniteProxyMesh ? NSLOCTEXT("UnrealEd", "ShowingNaniteProxy", "(Showing Proxy)") : FText::GetEmpty()), false, true);
+
+		if (StaticMesh->GetRenderData())
+		{
+			const Nanite::FResources& Resources = StaticMesh->GetRenderData()->NaniteResources;
+			if (Resources.RootClusterPage.Num() > 0)
+			{
+				FString Str = FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(Resources.PositionPrecision);
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NanitePositionPrecision", "Position Precision: {0}"), FText::FromString(Str)));
+			}
+		}
 	}
 	else
 	{

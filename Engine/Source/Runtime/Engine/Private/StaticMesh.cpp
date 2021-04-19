@@ -2295,8 +2295,9 @@ void UStaticMesh::PostDuplicate(bool bDuplicateForPIE)
 static void SerializeNaniteSettingsForDDC(FArchive& Ar, FMeshNaniteSettings& NaniteSettings)
 {
 	// Note: this serializer is only used to build the mesh DDC key, no versioning is required
-	Ar << NaniteSettings.PercentTriangles;
 	FArchive_Serialize_BitfieldBool(Ar, NaniteSettings.bEnabled);
+	Ar << NaniteSettings.PositionPrecision;
+	Ar << NaniteSettings.PercentTriangles;
 }
 
 static void SerializeReductionSettingsForDDC(FArchive& Ar, FMeshReductionSettings& ReductionSettings)

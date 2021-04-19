@@ -34,6 +34,7 @@ static FNaniteVisualizationData GNaniteVisualizationData;
 #define VISUALIZE_LIGHTMAP_UV_INDEX					(1 << 20)
 #define VISUALIZE_LIGHTMAP_DATA_INDEX				(1 << 21)
 #define VISUALIZE_HIERARCHY_OFFSET					(1 << 22)
+#define VISUALIZE_POSITION_BITS						(1 << 23)
 
 void FNaniteVisualizationData::Initialize()
 {
@@ -65,6 +66,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("HitProxyID"), LOCTEXT("HitProxyID", "Hit Proxy ID"), FModeType::Advanced, VISUALIZE_HIT_PROXY_DEPTH, true);
 		AddVisualizationMode(TEXT("LightmapUVIndex"), LOCTEXT("LightmapUVIndex", "Lightmap UV Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_UV_INDEX, true);
 		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, VISUALIZE_LIGHTMAP_DATA_INDEX, true);
+		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, VISUALIZE_POSITION_BITS, true);
 
 		ConfigureConsoleCommand();
 

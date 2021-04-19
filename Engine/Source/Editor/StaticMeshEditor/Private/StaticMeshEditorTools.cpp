@@ -4552,6 +4552,12 @@ FNaniteSettingsLayout::FNaniteSettingsLayout(FStaticMeshEditor& InStaticMeshEdit
 	const UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 	NaniteSettings = StaticMesh->NaniteSettings;
+
+	PositionPrecisionOptions.Add(MakeShared<FString>(LOCTEXT("PositionPrecisionAuto", "Auto").ToString()));
+	for (int32 i = DisplayPositionPrecisionMin; i <= DisplayPositionPrecisionMax; i++)
+	{
+		PositionPrecisionOptions.Add(MakeShared<FString>(PositionPrecisionValueToDisplayString(i)));
+	}
 }
 
 FNaniteSettingsLayout::~FNaniteSettingsLayout()
@@ -4590,6 +4596,26 @@ void FNaniteSettingsLayout::AddToDetailsPanel(IDetailLayoutBuilder& DetailBuilde
 			SAssignNew(NaniteEnabledCheck, SCheckBox)
 			.IsChecked(this, &FNaniteSettingsLayout::IsEnabledChecked)
 			.OnCheckStateChanged(this, &FNaniteSettingsLayout::OnEnabledChanged)
+		];
+	}
+
+	{
+		TSharedPtr<STextComboBox> TerminationCriterionCombo;
+		NaniteSettingsCategory.AddCustomRow(LOCTEXT("PositionPrecision", "Position Precision"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.Text(LOCTEXT("PositionPrecision", "Position Precision"))
+			.ToolTipText(LOCTEXT("PositionPrecisionTooltip", "Precision of vertex positions."))
+		]
+		.ValueContent()
+		[
+			SAssignNew(TerminationCriterionCombo, STextComboBox)
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.OptionsSource(&PositionPrecisionOptions)
+			.InitiallySelectedItem(PositionPrecisionOptions[PositionPrecisionValueToIndex(NaniteSettings.PositionPrecision)])
+			.OnSelectionChanged(this, &FNaniteSettingsLayout::OnPositionPrecisionChanged)
 		];
 	}
 
@@ -4664,6 +4690,50 @@ FReply FNaniteSettingsLayout::OnApply()
 	return FReply::Handled();
 }
 
+int32 FNaniteSettingsLayout::PositionPrecisionIndexToValue(int32 Index)
+{
+	check(Index >= 0);
+
+	if (Index == 0)
+	{
+		return MIN_int32;
+	}
+	else
+	{
+		int32 Value = DisplayPositionPrecisionMin + (Index - 1);
+		Value = FMath::Min(Value, DisplayPositionPrecisionMax);
+		return Value;
+	}
+}
+
+int32 FNaniteSettingsLayout::PositionPrecisionValueToIndex(int32 Value)
+{
+	if (Value == MIN_int32)
+	{
+		return 0;
+	}
+	else
+	{
+		Value = FMath::Clamp(Value, DisplayPositionPrecisionMin, DisplayPositionPrecisionMax);
+		return Value - DisplayPositionPrecisionMin + 1;
+	}
+}
+
+FString FNaniteSettingsLayout::PositionPrecisionValueToDisplayString(int32 Value)
+{
+	check(Value != MIN_int32);
+	
+	if(Value <= 0)
+	{
+		return FString::Printf(TEXT("%dcm"), 1 << (-Value));
+	}
+	else
+	{
+		const float fValue = FMath::Exp2((double)-Value);
+		return FString::Printf(TEXT("1/%dcm (%.3gcm)"), 1 << Value, fValue);
+	}
+}
+
 ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
 {
 	return NaniteSettings.bEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -4672,6 +4742,19 @@ ECheckBoxState FNaniteSettingsLayout::IsEnabledChecked() const
 void FNaniteSettingsLayout::OnEnabledChanged(ECheckBoxState NewState)
 {
 	NaniteSettings.bEnabled = NewState == ECheckBoxState::Checked ? true : false;
+}
+
+void FNaniteSettingsLayout::OnPositionPrecisionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo)
+{
+	int32 NewValueInt = PositionPrecisionIndexToValue(PositionPrecisionOptions.Find(NewValue));
+	if (NaniteSettings.PositionPrecision != NewValueInt)
+	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.NaniteSettings"), TEXT("PositionPrecision"), *NewValue.Get());
+		}
+		NaniteSettings.PositionPrecision = NewValueInt;
+	}
 }
 
 float FNaniteSettingsLayout::GetPercentTriangles() const

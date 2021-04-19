@@ -521,14 +521,14 @@ groupshared uint ThreadRemapping[384];
 #define SCRATCH_INITIALIZE_RANGE		112
 #define SCRATCH_TRIANGLE_EXPORT			SCRATCH_INITIALIZE_RANGE
 #define SCRATCH_VERTEX_PACKED			240
-#define SCRATCH_END						496
+#define SCRATCH_END						752
 
 // Have to be updated Manually. Does not support expressions.
 #if CACHE_VERTEX_CLIP_POS
 	#pragma argument(reservelds=5056)						
 #elif !VERTEX_TO_TRIANGLE_MASKS
 	#if CACHE_VERTEX_PACK_POS
-		#pragma argument(reservelds=1984)
+		#pragma argument(reservelds=3008)
 	#else
 		#pragma argument(reservelds=960)
 	#endif
@@ -544,6 +544,11 @@ uint ReadLDS_Byte(uint IndexInBytes, uint OffsetInBytes)
 uint ReadLDS_UInt(uint IndexInDwords, uint OffsetInDwords)
 {
 	return __ds_read_u32(IndexInDwords * 4, OffsetInDwords * 4);
+}
+
+uint2 ReadLDS_UInt2(uint IndexInDwords, uint OffsetInDwords)
+{
+	return UnpackUlongType(__ds_read_b64(IndexInDwords * 4, OffsetInDwords * 4));
 }
 
 uint3 ReadLDS_UInt3( uint IndexInDwords, uint OffsetInDwords )
@@ -564,6 +569,11 @@ void WriteLDS_Byte(uint IndexInBytes, uint Value, uint OffsetInBytes)
 void WriteLDS_UInt(uint IndexInDwords, uint Value, uint OffsetInDwords)
 {
 	__ds_write_u32(IndexInDwords * 4, Value, OffsetInDwords * 4);
+}
+
+void WriteLDS_UInt2(uint IndexInDwords, uint2 Value, uint OffsetInDwords)
+{
+	__ds_write_b64(IndexInDwords * 4, PackUlongType(Value), OffsetInDwords * 4);
 }
 
 void WriteLDS_UInt4(uint IndexInDwords, uint4 Value, uint OffsetInDwords)
@@ -669,9 +679,9 @@ uint GetCompactedTriangle(uint Position, uint Counts[4], uint References[4])
 	return PrefixSum;
 }
 
-float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
+float3 GetClusterPointTranslatedWorld(uint2 PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
 {
-	const float3 PointLocal = UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
+	const float3 PointLocal = UnpackPosition(PackedPos, Cluster);
 
 	const float3 PointRotated = 
 		InstanceData.LocalToWorld[0].xyz * PointLocal.xxx +
@@ -682,7 +692,7 @@ float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FI
 }
 
 
-float4 GetClusterPointClip(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
+float4 GetClusterPointClip(uint2 PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FCluster Cluster)
 {
 	const float3 PointTranslatedWorld = GetClusterPointTranslatedWorld(PackedPos, NaniteView, InstanceData, Cluster);
 	return mul(float4(PointTranslatedWorld, 1), NaniteView.TranslatedWorldToClip);
@@ -744,7 +754,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 #if CACHE_VERTEX_TRANSLATED_WORLD_POS || CACHE_VERTEX_CLIP_POS || CACHE_VERTEX_PACK_POS
 	if (GroupThreadID < Cluster.NumVerts)
 	{
-		const uint PackedPos = GetPackedPosition(GroupThreadID, Cluster);
+		const uint2 PackedPos = GetPackedPosition(GroupThreadID, Cluster);
 #if CACHE_VERTEX_TRANSLATED_WORLD_POS
 		const float3 PointTranslatedWorld = GetClusterPointTranslatedWorld(PackedPos, NaniteView, InstanceData, Cluster);
 		WriteLDS_UInt(GroupThreadID*3, asuint(PointTranslatedWorld.x), SCRATCH_VERTEX_PACKED+0);
@@ -760,7 +770,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	#endif
 		WriteLDS_UInt4(GroupThreadID*4, asuint(PointClip), SCRATCH_VERTEX_PACKED);
 #elif CACHE_VERTEX_PACK_POS
-		WriteLDS_UInt(GroupThreadID, PackedPos, SCRATCH_VERTEX_PACKED);
+		WriteLDS_UInt2(GroupThreadID*2, PackedPos, SCRATCH_VERTEX_PACKED);
 #endif
 	}
 
@@ -804,13 +814,13 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		float4 Point2Clip = asfloat(uint4(ReadLDS_UInt(Point2Offset, SCRATCH_VERTEX_PACKED+0), ReadLDS_UInt(Point2Offset, SCRATCH_VERTEX_PACKED+1), ReadLDS_UInt(Point2Offset, SCRATCH_VERTEX_PACKED+2), ReadLDS_UInt(Point2Offset, SCRATCH_VERTEX_PACKED+3)));
 	#else
 		#if CACHE_VERTEX_PACK_POS
-			const uint Point0Packed = ReadLDS_UInt(TriangleIndices.x, SCRATCH_VERTEX_PACKED);
-			const uint Point1Packed = ReadLDS_UInt(TriangleIndices.y, SCRATCH_VERTEX_PACKED);
-			const uint Point2Packed = ReadLDS_UInt(TriangleIndices.z, SCRATCH_VERTEX_PACKED);
+			const uint2 Point0Packed = ReadLDS_UInt2(TriangleIndices.x * 2, SCRATCH_VERTEX_PACKED);
+			const uint2 Point1Packed = ReadLDS_UInt2(TriangleIndices.y * 2, SCRATCH_VERTEX_PACKED);
+			const uint2 Point2Packed = ReadLDS_UInt2(TriangleIndices.z * 2, SCRATCH_VERTEX_PACKED);
 		#else
-			const uint Point0Packed	= GetPackedPosition(TriangleIndices.x, Cluster);
-			const uint Point1Packed	= GetPackedPosition(TriangleIndices.y, Cluster);
-			const uint Point2Packed	= GetPackedPosition(TriangleIndices.z, Cluster);
+			const uint2 Point0Packed = GetPackedPosition(TriangleIndices.x, Cluster);
+			const uint2 Point1Packed = GetPackedPosition(TriangleIndices.y, Cluster);
+			const uint2 Point2Packed = GetPackedPosition(TriangleIndices.z, Cluster);
 		#endif
 		float4 Point0Clip = GetClusterPointClip(Point0Packed, NaniteView, InstanceData, Cluster);
 		float4 Point1Clip = GetClusterPointClip(Point1Packed, NaniteView, InstanceData, Cluster);
@@ -961,7 +971,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	const uint NewVertexID = GroupThreadID;
 
 #if CACHE_VERTEX_PACK_POS
-	uint PointPacked = 0;
+	uint2 PointPacked = 0;
 #endif
 	uint OldVertexID = 0;
 	if (NewVertexID < Cluster.NumVerts)
@@ -969,7 +979,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		// Pull out new to old vertex thread indirection.
 		OldVertexID = RemapNewToOldVertexID(NewVertexID);
 	#if CACHE_VERTEX_PACK_POS
-		PointPacked = ReadLDS_UInt(OldVertexID, SCRATCH_VERTEX_PACKED);
+		PointPacked = ReadLDS_UInt2(OldVertexID*2, SCRATCH_VERTEX_PACKED);
 	#endif
 	}
 
@@ -1033,7 +1043,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		// Already calculated above
 	#else
 		#if !CACHE_VERTEX_PACK_POS
-			const uint PointPacked = GetPackedPosition(OldVertexID, Cluster);
+			const uint2 PointPacked = GetPackedPosition(OldVertexID, Cluster);
 		#endif
 		float4 PointClip = GetClusterPointClip(PointPacked, NaniteView, InstanceData, Cluster);
 	#endif

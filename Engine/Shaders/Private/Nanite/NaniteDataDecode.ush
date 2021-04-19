@@ -52,7 +52,7 @@
 
 #define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteResources.h
 
-#define POSITION_QUANTIZATION_BITS				10
+#define MAX_POSITION_QUANTIZATION_BITS			21		// (21*3 = 63) < 64								// must match define in NaniteResources.h
 
 #define NUM_CULLING_FLAG_BITS					3														// must match define in NaniteResources.h
 #define CULLING_FLAG_TEST_LOD					0x1
@@ -116,6 +116,7 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #define VISUALIZE_LIGHTMAP_UV_INDEX					(1u << 20u)
 #define VISUALIZE_LIGHTMAP_DATA_INDEX				(1u << 21u)
 #define VISUALIZE_HIERARCHY_OFFSET					(1u << 22u)
+#define VISUALIZE_POSITION_BITS						(1u << 23u)
 
 struct FStats
 {
@@ -158,17 +159,18 @@ struct FCluster
 {
 	uint	PageBaseAddress;
 
-	uint3	QuantizedPosStart;
+	int3	QuantizedPosStart;
+	uint	NumVerts;
 	uint	PositionOffset;
 
 	float3  MeshBoundsMin;
+	uint	NumTris;
 	uint	IndexOffset;
 
 	float3	MeshBoundsDelta;
-	uint	NumVerts;
-	uint	NumTris;
 	uint	BitsPerIndex;
 	uint	QuantizedPosShift;
+	uint3	PosBits;
 
 	float4	LODBounds;
 
@@ -432,16 +434,20 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	Cluster.PageBaseAddress		= 0;
 
 	Cluster.QuantizedPosStart	= ClusterData[0].xyz;
-	Cluster.PositionOffset		= ClusterData[0].w;
+	Cluster.NumVerts			= BitFieldExtractU32(ClusterData[0].w, 9, 0);
+	Cluster.PositionOffset		= BitFieldExtractU32(ClusterData[0].w, 23, 9);
 
 	Cluster.MeshBoundsMin		= asfloat( ClusterData[1].xyz );
-	Cluster.IndexOffset			= ClusterData[1].w;
+	Cluster.NumTris				= BitFieldExtractU32(ClusterData[1].w, 8, 0);
+	Cluster.IndexOffset			= BitFieldExtractU32(ClusterData[1].w, 24, 8);
 
 	Cluster.MeshBoundsDelta		= asfloat( ClusterData[2].xyz );
-	Cluster.NumVerts			= BitFieldExtractU32(ClusterData[2].w, 9, 0);
-	Cluster.NumTris				= BitFieldExtractU32(ClusterData[2].w, 8, 9);
-	Cluster.BitsPerIndex		= BitFieldExtractU32(ClusterData[2].w, 4, 9+8);
-	Cluster.QuantizedPosShift	= BitFieldExtractU32(ClusterData[2].w, 6, 9+8+4);
+	Cluster.BitsPerIndex		= BitFieldExtractU32(ClusterData[2].w, 4, 0);
+	Cluster.QuantizedPosShift	= BitFieldExtractU32(ClusterData[2].w, 6, 4);
+
+	Cluster.PosBits.x			= BitFieldExtractU32(ClusterData[2].w, 5, 10);
+	Cluster.PosBits.y			= BitFieldExtractU32(ClusterData[2].w, 5, 15);
+	Cluster.PosBits.z			= BitFieldExtractU32(ClusterData[2].w, 5, 20);
 
 	Cluster.LODBounds			= asfloat(ClusterData[3]);
 
@@ -559,16 +565,27 @@ void UnpackDbgPixel(
 	DepthInt = Unpacked.y;
 }
 
-float3 UnpackPosition(uint Packed, FCluster Cluster, uint Bits)
+float3 UnpackPosition(uint2 Packed, FCluster Cluster)
 {
-	return (uint3(BitFieldExtractU32(Packed, Bits, 0), BitFieldExtractU32(Packed, Bits, Bits), BitFieldExtractU32(Packed, Bits, 2*Bits)) + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
+	int3 Pos;
+	Pos.x = BitFieldExtractU32(Packed.x, Cluster.PosBits.x, 0);
+
+	Packed.x = BitAlignU32(Packed.y, Packed.x, Cluster.PosBits.x);
+	Packed.y >>= Cluster.PosBits.x;
+	Pos.y = BitFieldExtractU32(Packed.x, Cluster.PosBits.y, 0);
+
+	Packed.x = BitAlignU32(Packed.y, Packed.x, Cluster.PosBits.y);
+	Pos.z = BitFieldExtractU32(Packed.x, Cluster.PosBits.z, 0);
+
+	return (Pos + Cluster.QuantizedPosStart) * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;	// Get rid of MeshBoundsMin/MeshBoundsDelta once we remove of the old quantization.
 }
 
-uint GetPackedPosition(uint VertIndex, FCluster Cluster)
+uint2 GetPackedPosition(uint VertIndex, FCluster Cluster)
 {
-	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
-	FBitStreamReaderState BitStream = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, BitsPerVertex);
-	return BitStreamReader_Read(BitStream, BitsPerVertex, BitsPerVertex);
+	const uint BitsPerVertex = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
+	const uint BitOffset = VertIndex * BitsPerVertex;
+	uint3 Data = ClusterPageData.Load3(Cluster.PageBaseAddress + Cluster.PositionOffset + ((BitOffset >> 5) << 2));
+	return uint2(BitAlignU32(Data.y, Data.x, BitOffset), BitAlignU32(Data.z, Data.y, BitOffset));
 }
 
 float3 DecodePosition(uint VertIndex, FCluster Cluster)
@@ -576,8 +593,8 @@ float3 DecodePosition(uint VertIndex, FCluster Cluster)
 #if USE_UNCOMPRESSED_VERTEX_DATA
 	return asfloat(ClusterPageData.Load3(Cluster.PageBaseAddress + Cluster.PositionOffset + VertIndex * 12));
 #else
-	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
-	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
+	const uint2 PackedPos = GetPackedPosition(VertIndex, Cluster);
+	return UnpackPosition(PackedPos, Cluster);
 #endif
 }
 

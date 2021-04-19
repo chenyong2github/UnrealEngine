@@ -157,6 +157,14 @@ uint2 BitStreamReader_Read2(inout FBitStreamReaderState State, int2 NumBits, int
 	return uint2(ResultX, ResultY);
 }
 
+uint3 BitStreamReader_Read3(inout FBitStreamReaderState State, int3 NumBits, int3 CompileTimeMaxBits)
+{
+	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);
+	uint ResultY = BitStreamReader_Read(State, NumBits.y, CompileTimeMaxBits.y);
+	uint ResultZ = BitStreamReader_Read(State, NumBits.z, CompileTimeMaxBits.z);
+	return uint3(ResultX, ResultY, ResultZ);
+}
+
 uint4 BitStreamReader_Read4(inout FBitStreamReaderState State, int4 NumBits, int4 CompileTimeMaxBits)
 {
 	uint ResultX = BitStreamReader_Read(State, NumBits.x, CompileTimeMaxBits.x);

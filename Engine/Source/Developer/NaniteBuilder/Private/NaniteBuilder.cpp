@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("04AABE46-03A3-44F4-981E-BFEF7EB4CF8D")
+#define NANITE_DERIVEDDATA_VER TEXT("04AABE46-08A3-44F4-981E-0FEF3EB6DF9C")
 
 namespace Nanite
 {
@@ -606,7 +606,7 @@ static bool BuildNaniteData(
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
 
-	Encode( Resources, Clusters, Groups, MeshBounds, NumMeshes, NumTexCoords, bHasColors );
+	Encode( Resources, Settings, Clusters, Groups, MeshBounds, NumMeshes, NumTexCoords, bHasColors );
 
 	uint32 EncodeTime1 = FPlatformTime::Cycles();
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
