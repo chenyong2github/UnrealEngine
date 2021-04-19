@@ -184,4 +184,6 @@ namespace UE { namespace Tasks
 		Task->TryLaunch();
 		return TTask<FResult>{ Task };
 	}
+
+	using FTask = TTask<void>;
 }}

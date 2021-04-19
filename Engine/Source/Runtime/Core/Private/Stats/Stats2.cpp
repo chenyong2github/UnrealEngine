@@ -1369,7 +1369,7 @@ void FThreadStats::WaitForStats()
 
 		if (FPlatformProcess::SupportsMultithreading())
 		{
-			static UE::Tasks::TTask<void> LastFramesEvents[MAX_STAT_LAG];
+			static UE::Tasks::FTask LastFramesEvents[MAX_STAT_LAG];
 		
 			{
 				SCOPE_CYCLE_COUNTER(STAT_WaitForStats);
