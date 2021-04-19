@@ -136,6 +136,31 @@ float3 GetAtmosphericLightTransmittance(in float3 StableLargeWorldPosition, in f
 
 #endif // USE_ATMOSPHERE_TRANSMITTANCE
 
+float3 GetAtmosphereAndCloudAttenuation(float3 StableLargeWorldPosition, float2 ScreenUV)
+{
+	float3 Out = 1;
+
+	#if USE_ATMOSPHERE_TRANSMITTANCE
+	Out *= GetAtmosphericLightTransmittance(StableLargeWorldPosition, ScreenUV, DeferredLightUniforms.Direction.xyz);
+	#endif
+
+	#if USE_CLOUD_TRANSMITTANCE
+	float OutOpticalDepth = 0.0f;
+	Out *= lerp(1.0f, GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
+	#endif
+
+	return Out;
+}
+
+float3 GetStableLargeWorldPosition(float2 SVPos, float DeviceZ)
+{
+	float3 StableLargeWorldPosition = 0;
+	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
+	StableLargeWorldPosition = SvPositionToWorld(float4(SVPos, DeviceZ, 1.0));
+	#endif
+	return StableLargeWorldPosition;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if STRATA_ENABLED
@@ -276,20 +301,7 @@ void DeferredLightPixelMain(
 		const float  Attenuation = ComputeLightProfileMultiplier(DerivedParams.WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 
 		OutColor += (Radiance * Attenuation);
-
-	#if USE_ATMOSPHERE_TRANSMITTANCE || USE_CLOUD_TRANSMITTANCE
-		float DeviceZ = LookupDeviceZ(ScreenUV);
-		float3 StableLargeWorldPosition = SvPositionToWorld(float4(SVPos.xy, DeviceZ, 1.0));
-	#endif
-
-	#if USE_ATMOSPHERE_TRANSMITTANCE
-		OutColor.rgb *= GetAtmosphericLightTransmittance(StableLargeWorldPosition, InputParams.ScreenUV, DeferredLightUniforms.Direction.xyz);
-	#endif
-
-	#if USE_CLOUD_TRANSMITTANCE
-		float OutOpticalDepth = 0.0f;
-		OutColor.rgb *= lerp(1.0f, GetCloudVolumetricShadow(StableLargeWorldPosition, CloudShadowmapWorldToLightClipMatrix, CloudShadowmapFarDepthKm, CloudShadowmapTexture, CloudShadowmapSampler, OutOpticalDepth), CloudShadowmapStrength);
-	#endif
+		OutColor.rgb *= GetAtmosphereAndCloudAttenuation(GetStableLargeWorldPosition(InputParams.PixelPos, LookupDeviceZ(InputParams.ScreenUV)), InputParams.ScreenUV);
 	}
 
 	// RGB:SceneColor Specular and Diffuse
@@ -393,11 +405,11 @@ void DeferredLightPixelMain(
 	float SurfaceShadow = 1.0f;
 	const float4 Radiance = GetDynamicLighting(WorldPosition, CameraVector, HairScreenSpaceData.GBuffer, HairScreenSpaceData.AmbientOcclusion, HairScreenSpaceData.GBuffer.ShadingModelID, LightData, LightAttenuation, Dither, PixelCoord, RectTexture, SurfaceShadow);
 	const float  Attenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+	const float3 AtmosphericTransmittance = GetAtmosphereAndCloudAttenuation(GetStableLargeWorldPosition(ScreenPosition, Sample.Depth), UV);
 
 	const float LocalCoverage = From8bitCoverage(Sample.Coverage8bit);
 
-	// TODO: Add atomspheric contribution
-	OutColor.rgb = Radiance.xyz * Attenuation * LocalCoverage * GetExposure();
+	OutColor.rgb = AtmosphericTransmittance * Radiance.xyz * Attenuation * LocalCoverage * GetExposure();
 	OutColor.a = LocalCoverage;
 }
 #endif
