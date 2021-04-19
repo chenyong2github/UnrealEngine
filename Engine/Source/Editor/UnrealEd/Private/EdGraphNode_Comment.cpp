@@ -164,6 +164,20 @@ TSharedPtr<class INameValidatorInterface> UEdGraphNode_Comment::MakeNameValidato
 	return MakeShareable(new FDummyNameValidator(EValidatorResult::Ok));
 }
 
+bool UEdGraphNode_Comment::IsSelectedInEditor() const
+{
+	if (SelectionState == ESelectionState::Inherited)
+	{
+		return Super::IsSelectedInEditor();
+	}
+	return SelectionState == ESelectionState::Selected;
+}
+
+void UEdGraphNode_Comment::SetSelectionState(const ESelectionState InSelectionState)
+{
+	SelectionState = InSelectionState;
+}
+
 /////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

@@ -420,7 +420,6 @@ protected:
 	enum class ETransactionAnnotationCreationMode : uint8 { DefaultInstance, FindOrCreate };
 	virtual TSharedPtr<ITransactionObjectAnnotation> FactoryTransactionAnnotation(const ETransactionAnnotationCreationMode InCreationMode) const { return nullptr; }
 
-private:
 	/**
 	 * Test the selection state of a UObject
 	 *

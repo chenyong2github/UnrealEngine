@@ -602,7 +602,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
 				if (EdNode)
 				{
-					GSelectedObjectAnnotation.Set(EdNode);
+					EdNode->SetSelectionState(UEdGraphNode_Comment::ESelectionState::Selected);
 				}
 			}
 			break;
@@ -614,7 +614,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode_Comment* EdNode = Cast<UEdGraphNode_Comment>(FindNodeForModelNodeName(ModelNode->GetFName()));
 				if (EdNode)
 				{
-					GSelectedObjectAnnotation.Clear(EdNode);
+					EdNode->SetSelectionState(UEdGraphNode_Comment::ESelectionState::Deselected);
 				}
 			}
 			break;
