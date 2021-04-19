@@ -15,6 +15,9 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "K2Node_Composite.h"
 
+DECLARE_CYCLE_STAT(TEXT("Clone Graph"), EKismetCompilerStats_CloneGraph, STATGROUP_KismetCompiler);
+DECLARE_CYCLE_STAT(TEXT("Clone Graph - Build Backtrack Map"), EKismetCompilerStats_CloneGraph_BuildBackTrackMap, STATGROUP_KismetCompiler);
+
 /////////////////////////////////////////////////////
 // Local namespace
 
@@ -238,6 +241,8 @@ UEdGraphPin* FEdGraphUtilities::GetNetFromPin(UEdGraphPin* Pin)
 // maintaining a mapping from the clone to the source nodes (even across multiple clonings)
 UEdGraph* FEdGraphUtilities::CloneGraph(UEdGraph* InSource, UObject* NewOuter, FCompilerResultsLog* MessageLog, bool bCloningForCompile)
 {
+	BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CloneGraph);
+
 	// Duplicate the graph, keeping track of what was duplicated
 	TMap<UObject*, UObject*> DuplicatedObjectList;
 
@@ -256,6 +261,8 @@ UEdGraph* FEdGraphUtilities::CloneGraph(UEdGraph* InSource, UObject* NewOuter, F
 	// Store backtrack links from each duplicated object to the original source object
 	if (MessageLog != NULL)
 	{
+		BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CloneGraph_BuildBackTrackMap);
+		
 		for (TMap<UObject*, UObject*>::TIterator It(DuplicatedObjectList); It; ++It)
 		{
 			UObject* const Source = It.Key();
