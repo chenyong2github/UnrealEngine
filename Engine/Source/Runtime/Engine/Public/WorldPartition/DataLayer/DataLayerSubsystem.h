@@ -52,6 +52,9 @@ public:
 	void SetDataLayerState(const FActorDataLayer& InDataLayer, EDataLayerState InState);
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayer* GetDataLayer(const FActorDataLayer& InDataLayer) const;
+
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	void SetDataLayerStateByLabel(const FName& InDataLayerLabel, EDataLayerState InState);
 		
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
@@ -65,10 +68,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnDataLayerStateChanged OnDataLayerStateChanged;
+
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayer* GetDataLayerFromLabel(FName InDataLayerLabel) const;
+
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UDataLayer* GetDataLayerFromName(FName InDataLayerName) const;
 	//~ End Blueprint callable functions
 
-	UDataLayer* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
-	UDataLayer* GetDataLayerFromName(const FName& InDataLayerName) const;
 	void SetDataLayerState(const UDataLayer* InDataLayer, EDataLayerState InState);
 	void SetDataLayerStateByName(const FName& InDataLayerName, EDataLayerState InState);
 	EDataLayerState GetDataLayerState(const UDataLayer* InDataLayer) const;

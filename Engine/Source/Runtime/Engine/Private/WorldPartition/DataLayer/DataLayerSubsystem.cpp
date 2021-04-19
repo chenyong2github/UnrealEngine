@@ -86,13 +86,18 @@ void UDataLayerSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
+UDataLayer* UDataLayerSubsystem::GetDataLayer(const FActorDataLayer& InDataLayer) const
+{
+	return GetDataLayerFromName(InDataLayer.Name);
+}
+
+UDataLayer* UDataLayerSubsystem::GetDataLayerFromLabel(FName InDataLayerLabel) const
 {
 	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromLabel(InDataLayerLabel)) : nullptr;
 }
 
-UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(const FName& InDataLayerName) const
+UDataLayer* UDataLayerSubsystem::GetDataLayerFromName(FName InDataLayerName) const
 {
 	const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(GetWorld());
 	return WorldDataLayers ? const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromName(InDataLayerName)) : nullptr;
