@@ -418,29 +418,26 @@ void FDisplayClusterConfiguratorBlueprintEditor::SyncViewports()
 	}
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::RefreshDisplayClusterPreviewActor(bool bFullRefresh)
+void FDisplayClusterConfiguratorBlueprintEditor::RefreshDisplayClusterPreviewActor()
 {
-	UpdatePreviewActor(GetBlueprintObj(), bFullRefresh);
+	AActor* OldPreviewActor = GetPreviewActor();
+	const bool bCreatePreviewActor = OldPreviewActor == nullptr;
 
-	if (ADisplayClusterRootActor* PreviewActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
+	UpdatePreviewActor(GetBlueprintObj(), bCreatePreviewActor);
+
+	AActor* NewPreviewActor = GetPreviewActor();
+	ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(NewPreviewActor);
+
+	// For the new preview actor, update the state of its Xform gizmos to match the
+	// project settings for the display cluster editor
+	UpdateXformGizmos();
+
+	CurrentPreviewActor = NewPreviewActor;
+
+	if (ADisplayClusterRootActor* PreviewActor = Cast<ADisplayClusterRootActor>(NewPreviewActor))
 	{
 		check(LoadedBlueprint.IsValid());
 		PreviewActor->UpdateConfigDataInstance(LoadedBlueprint->GetOrLoadConfig());
-	}
-
-	RequestOutputMappingPreviewUpdate();
-}
-
-
-void FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpdate()
-{
-	//@todo: now RootActor has handling func GetPreviewRenderTargetableTexture_RenderThread(), use it to sync texture surfaces update
-	const int16 MaxTicksToCapture = 2;
-
-	// Only if prev frame copied
-	if (TicksForPreviewRenderCapture <= 0)
-	{
-		TicksForPreviewRenderCapture = MaxTicksToCapture;
 	}
 }
 
@@ -471,50 +468,15 @@ void FDisplayClusterConfiguratorBlueprintEditor::RestoreLastEditedState()
 	}
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::UpdateOutputMappingPreview()
+void FDisplayClusterConfiguratorBlueprintEditor::UpdateXformGizmos()
 {
-	CleanupOutputMappingPreview();
-	
-	if (UDisplayClusterConfigurationData* const Config = GetConfig())
+	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
 	{
-		TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = GetViewOutputMapping();
+		const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 
-		if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
-		{
-			for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
-			{
-				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : NodePair.Value->Viewports)
-				{
-					if (UDisplayClusterPreviewComponent* PreviewComp = RootActor->GetPreviewComponent(NodePair.Key, ViewportPair.Key))
-					{
-						if (UTexture2D* Texture = PreviewComp->GetOrCreateRenderTexture2D())
-						{
-							OutputMappingView->SetViewportPreviewTexture(NodePair.Key, ViewportPair.Key, Texture);
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
-void FDisplayClusterConfiguratorBlueprintEditor::CleanupOutputMappingPreview()
-{
-	if (UDisplayClusterConfigurationData* const Config = GetConfig())
-	{
-		if (!Config->Cluster)
-		{
-			return;
-		}
-		
-		TSharedRef<IDisplayClusterConfiguratorViewOutputMapping> OutputMappingView = GetViewOutputMapping();
-		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& NodePair : Config->Cluster->Nodes)
-		{
-			for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportPair : NodePair.Value->Viewports)
-			{
-				OutputMappingView->SetViewportPreviewTexture(NodePair.Key, ViewportPair.Key, nullptr);
-			}
-		}
+		RootActor->EditorViewportXformGizmoScale = Settings->VisXformScale;
+		RootActor->bEditorViewportXformGizmoVisibility = Settings->bShowVisXforms;
+		RootActor->UpdateXformGizmos();
 	}
 }
 
@@ -737,11 +699,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateWidgets()
 	ViewGeneral->CreateWidget();
 	ViewOutputMapping->CreateWidget();
 	ViewCluster->CreateWidget();
-
-	// Register delegates
-	UpdateOutputMappingHandle = ViewOutputMapping->RegisterOnOutputMappingBuilt(
-		IDisplayClusterConfiguratorViewOutputMapping::FOnOutputMappingBuiltDelegate::CreateSP(this,
-			&FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpdate));
 	
 	FDisplayClusterConfiguratorModule::RegisterOnReadOnly(FOnDisplayClusterConfiguratorReadOnlyChangedDelegate::CreateSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnReadOnlyChanged));
 
@@ -837,32 +794,12 @@ void FDisplayClusterConfiguratorBlueprintEditor::SaveAsset_Execute()
 
 void FDisplayClusterConfiguratorBlueprintEditor::Tick(float DeltaTime)
 {
-	if (TicksForPreviewRenderCapture > 0)
-	{
-		if (--TicksForPreviewRenderCapture == 0)
-		{
-			// Output mapping needs a valid render target which can take more than one frame to capture.
-			UpdateOutputMappingPreview();
-		}
-	}
-
 	AActor* PreviewActor = GetPreviewActor();
 	if (CurrentPreviewActor != PreviewActor || CurrentPreviewActor.IsStale() || PreviewActor == nullptr)
 	{
 		// Create or update preview actor. Parent tick does this but we want to also update the config data and refresh output mapping.
 		// The preview actor can also be out of date after being reinstanced such as from a compile.
-		const bool bFullRefresh = PreviewActor == nullptr;
-		RefreshDisplayClusterPreviewActor(bFullRefresh);
-
-		// Store the current preview to determine if it goes out of date.
-		CurrentPreviewActor = PreviewActor = GetPreviewActor();
-
-		{
-			// Set bindings to auto refresh outputmapping textures.
-			ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(PreviewActor);
-			RootActor->GetOnPreviewGenerated().BindSP(this, &FDisplayClusterConfiguratorBlueprintEditor::RequestOutputMappingPreviewUpdate);
-			RootActor->GetOnPreviewDestroyed().BindSP(this, &FDisplayClusterConfiguratorBlueprintEditor::CleanupOutputMappingPreview);
-		}
+		RefreshDisplayClusterPreviewActor();
 	}
 
 	FBlueprintEditor::Tick(DeltaTime);
@@ -938,24 +875,6 @@ bool FDisplayClusterConfiguratorBlueprintEditor::OnRequestClose()
 	}
 
 	return bShouldClose;
-}
-
-void FDisplayClusterConfiguratorBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint,
-	bool bIsJustBeingCompiled)
-{
-	FBlueprintEditor::OnBlueprintChangedImpl(InBlueprint, bIsJustBeingCompiled);
-
-	{
-		/* Output mapping can contain stale data in certain situations, such as if the BP was structurally modified
-		* and PIE was started without compiling first. In this event the preview actor never regenerates its
-		* preview components until PIE is stopped.
-		*
-		* Cleaning up the output mapping immediately will prevent stale
-		* slate image data and a possible crash, but the output mapping preview may be black until recompiled. */
-		
-		CleanupOutputMappingPreview();
-		RequestOutputMappingPreviewUpdate();
-	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(

@@ -2,6 +2,7 @@
 
 #include "Components/DisplayClusterXformComponent.h"
 
+#include "DisplayClusterRootActor.h"
 #include "Components/StaticMeshComponent.h"
 
 #include "Engine/StaticMesh.h"
@@ -37,7 +38,37 @@ UDisplayClusterXformComponent::UDisplayClusterXformComponent(const FObjectInitia
 #endif
 }
 
+void UDisplayClusterXformComponent::PostInitProperties()
+{
+	Super::PostInitProperties();
+
 #if WITH_EDITOR
+	ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetOuter());
+	float Scale = RootActor ? RootActor->GetXformGizmoScale() : 1;
+	bool bIsVisible = RootActor ? RootActor->GetXformGizmoVisibility() : true;
+
+	SetVisXformScale(Scale);
+	SetVisXformVisibility(bIsVisible);
+#endif
+}
+
+#if WITH_EDITOR
+void UDisplayClusterXformComponent::SetVisXformScale(float InScale)
+{
+	if (VisXformComponent)
+	{
+		VisXformComponent->SetRelativeScale3D(FVector(InScale));
+	}
+}
+
+void UDisplayClusterXformComponent::SetVisXformVisibility(bool bIsVisible)
+{
+	if (VisXformComponent)
+	{
+		VisXformComponent->SetVisibility(bIsVisible);
+	}
+}
+
 void UDisplayClusterXformComponent::SetNodeSelection(bool bSelect)
 {
 	VisXformComponent->bDisplayVertexColors = bSelect;

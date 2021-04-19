@@ -154,6 +154,18 @@ public:
 	 * Requires previews enabled.
 	 */
 	bool CanToggleViewportNames() const;
+
+	/** @return The current xform gizmo scale. */
+	TOptional<float> GetXformGizmoScale() const;
+
+	/** Sets the current xform gizmo scale. */
+	void SetXformGizmoScale(float InScale);
+
+	/** @return Whether xform gizmos are being shown */
+	bool IsShowingXformGizmos() const;
+
+	/** Toggle whether to display xform gizmos or not. */
+	void ToggleShowXformGizmos();
 	
 	/**
 	 * Gets the current preview actor instance.

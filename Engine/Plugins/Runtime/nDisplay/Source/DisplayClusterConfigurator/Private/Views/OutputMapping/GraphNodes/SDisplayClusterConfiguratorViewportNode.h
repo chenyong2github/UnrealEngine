@@ -13,6 +13,7 @@ class IDisplayClusterConfiguratorTreeItem;
 class SImage;
 class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfiguratorViewportNode;
+class UTexture;
 
 class SDisplayClusterConfiguratorViewportNode
 	: public SDisplayClusterConfiguratorBaseNode
@@ -21,8 +22,6 @@ public:
 	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorViewportNode)
 	{}
 	SLATE_END_ARGS()
-
-	~SDisplayClusterConfiguratorViewportNode();
 	
 	void Construct(const FArguments& InArgs,
 		UDisplayClusterConfiguratorViewportNode* InViewportNode,
@@ -30,6 +29,7 @@ public:
 
 	//~ Begin SGraphNode interface
 	virtual void UpdateGraphNode() override;
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter) override;
 	//~ End of SGraphNode interface
 
@@ -39,8 +39,6 @@ public:
 	virtual bool CanNodeOverlapSiblings() const override { return false; }
 	virtual bool CanNodeBeSnapAligned() const override { return true; }
 	//~ End of SDisplayClusterConfiguratorBaseNode interface
-
-	void SetPreviewTexture(UTexture* InTexture);
 
 private:
 	FSlateColor GetBackgroundColor() const;
@@ -56,9 +54,13 @@ private:
 	bool IsViewportLocked() const;
 	EVisibility GetLockIconVisibility() const;
 
+	void UpdatePreviewTexture();
+
 private:
 	FSlateBrush BackgroundActiveBrush;
 	TSharedPtr<SImage> BackgroundImage;
+
+	UTexture* CachedTexture;
 
 public:
 	static const int32 DefaultZOrder;

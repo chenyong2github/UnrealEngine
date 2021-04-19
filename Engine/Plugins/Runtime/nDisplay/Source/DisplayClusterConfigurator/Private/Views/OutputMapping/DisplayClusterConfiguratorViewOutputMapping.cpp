@@ -82,14 +82,6 @@ void FDisplayClusterConfiguratorViewOutputMapping::FindAndSelectObjects(const TA
 	}
 }
 
-void FDisplayClusterConfiguratorViewOutputMapping::SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture)
-{
-	if (GraphEditor.IsValid())
-	{
-		GraphEditor->SetViewportPreviewTexture(NodeId, ViewportId, InTexture);
-	}
-}
-
 void FDisplayClusterConfiguratorViewOutputMapping::RefreshNodePositions()
 {
 	if (GraphObj.IsValid())

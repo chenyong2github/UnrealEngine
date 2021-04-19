@@ -237,6 +237,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
 	UDisplayClusterConfigurationViewportPreview* PreviewSettings;
 
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	float XformGizmoScale = 1.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	bool bAreXformGizmosVisible = true;
+
 private:
 	UPROPERTY(Transient)
 	TMap<FString, UDisplayClusterPreviewComponent*> PreviewComponents;
@@ -248,6 +254,12 @@ private:
 #if WITH_EDITOR
 public:
 	DECLARE_DELEGATE(FOnPreviewUpdated);
+
+	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to scale the xform gizmos independently of the actor's gizmo scale property. */
+	float EditorViewportXformGizmoScale = 1.0f;
+
+	/** If the root actor is being displayed in an editor viewport, this variable allows the viewport to hide the xform gizmos independently of the actor's gizmo visibility flag. */
+	bool bEditorViewportXformGizmoVisibility = true;
 
 private:
 	TUniquePtr<IDisplayClusterViewportManager> PreviewViewportManager;
@@ -290,6 +302,11 @@ public:
 
 	// Request for output preview texture from render thread from PreviewManager renderer
 	FRHITexture2D* GetPreviewRenderTargetableTexture_RenderThread(const FString& ViewportId) const;
+
+	float GetXformGizmoScale() const;
+	bool GetXformGizmoVisibility() const;
+
+	void UpdateXformGizmos();
 
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;

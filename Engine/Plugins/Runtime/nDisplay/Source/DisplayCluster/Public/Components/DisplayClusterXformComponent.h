@@ -22,11 +22,17 @@ public:
 	UDisplayClusterXformComponent(const FObjectInitializer& ObjectInitializer);
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "DisplayCluster")
+	UPROPERTY(transient)
 	UStaticMeshComponent* VisXformComponent = nullptr;
+	
+public:
+	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR 
 public:
+	void SetVisXformScale(float InScale);
+	void SetVisXformVisibility(bool bIsVisible);
+
 	virtual void SetNodeSelection(bool bSelect) override;
 #endif
 };

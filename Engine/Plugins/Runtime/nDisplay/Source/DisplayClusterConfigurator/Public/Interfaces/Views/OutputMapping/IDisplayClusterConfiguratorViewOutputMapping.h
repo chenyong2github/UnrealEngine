@@ -98,6 +98,4 @@ public:
 	virtual void UnregisterOnOutputMappingBuilt(FDelegateHandle DelegateHandle) = 0;
 
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) = 0;
-
-	virtual void SetViewportPreviewTexture(const FString& NodeId, const FString& ViewportId, UTexture* InTexture) = 0;
 };
