@@ -408,6 +408,15 @@ public:
 	virtual void AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId = -1) override final;
 
 	FMeshPassProcessorRenderState PassDrawRenderState;
+
+private:
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material);
 };
 
 FLumenCardNaniteMeshProcessor::FLumenCardNaniteMeshProcessor(
@@ -434,43 +443,74 @@ void FLumenCardNaniteMeshProcessor::AddMeshBatch(
 
 	if (PrimitiveSceneProxy && PrimitiveSceneProxy->ShouldRenderInMainPass() && PrimitiveSceneProxy->AffectsDynamicIndirectLighting() && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(FeatureLevel)))
 	{
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+		const FMaterialRenderProxy* MaterialRenderProxy = MeshBatch.MaterialRenderProxy;
+		while (MaterialRenderProxy)
+		{
+			const FMaterial* Material = MaterialRenderProxy->GetMaterialNoFallback(FeatureLevel);
+			if (Material)
+			{
+				if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *MaterialRenderProxy, *Material))
+				{
+					break;
+				}
+			}
 
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
-		const EBlendMode BlendMode = Material.GetBlendMode();
-
-		check(BlendMode == BLEND_Opaque);
-		check(Material.GetMaterialDomain() == MD_Surface);
-
-		TShaderMapRef<FNaniteMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
-
-		FLumenCardNanitePassShaders PassShaders;
-		PassShaders.VertexShader = VertexShader;
-
-		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
-		PassShaders.PixelShader = Material.GetShader<FLumenCardPS>(VertexFactoryType);
-
-		FMeshMaterialShaderElementData ShaderElementData;
-		ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
-
-		BuildMeshDrawCommands(
-			MeshBatch,
-			BatchElementMask,
-			PrimitiveSceneProxy,
-			MaterialRenderProxy,
-			Material,
-			PassDrawRenderState,
-			PassShaders,
-			FM_Solid,
-			CM_None,
-			FMeshDrawCommandSortKey::Default,
-			EMeshPassFeatures::Default,
-			ShaderElementData
-		);
+			MaterialRenderProxy = MaterialRenderProxy->GetFallback(FeatureLevel);
+		}
 	}
+}
+
+bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material)
+{
+	const EBlendMode BlendMode = Material.GetBlendMode();
+
+	check(BlendMode == BLEND_Opaque);
+	check(Material.GetMaterialDomain() == MD_Surface);
+
+	TShaderMapRef<FNaniteMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
+
+	FLumenCardNanitePassShaders PassShaders;
+	PassShaders.VertexShader = VertexShader;
+
+	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+	FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
+
+	FMaterialShaderTypes ShaderTypes;
+	ShaderTypes.AddShaderType<FLumenCardPS>();
+
+	FMaterialShaders Shaders;
+	if (!Material.TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetPixelShader(PassShaders.PixelShader);
+
+	FMeshMaterialShaderElementData ShaderElementData;
+	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
+
+	BuildMeshDrawCommands(
+		MeshBatch,
+		BatchElementMask,
+		PrimitiveSceneProxy,
+		MaterialRenderProxy,
+		Material,
+		PassDrawRenderState,
+		PassShaders,
+		FM_Solid,
+		CM_None,
+		FMeshDrawCommandSortKey::Default,
+		EMeshPassFeatures::Default,
+		ShaderElementData
+	);
+
+	return true;
 }
 
 FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
