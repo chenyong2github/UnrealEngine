@@ -19,6 +19,7 @@ public class RemoteControlProtocolWidgets : ModuleRules
 			"Projects",
 			"PropertyEditor",
 			"RemoteControl",
+			"RemoteControlCommon",
 			"RemoteControlProtocol",
 			"Slate",
 			"SlateCore",

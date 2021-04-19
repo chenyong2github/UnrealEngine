@@ -4,6 +4,7 @@
 
 #include "Editor.h"
 #include "IRemoteControlModule.h"
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
 

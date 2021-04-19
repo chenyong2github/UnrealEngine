@@ -3,19 +3,21 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "SRCProtocolShared.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 
+class FProtocolEntityViewModel;
+class FProtocolBindingViewModel;
 class ITableRow;
 class SRCProtocolList;
 class SRCProtocolBinding;
 class STableViewBase;
-class FProtocolEntityViewModel;
-class FProtocolBindingViewModel;
+template <typename ItemType> class SListView;
 
 /** The root view for a given entity. A (vertical) list of bindings, where each binding has a protocol. */
-class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBindingList : public SCompoundWidget
+class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBindingList final : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SRCProtocolBindingList)

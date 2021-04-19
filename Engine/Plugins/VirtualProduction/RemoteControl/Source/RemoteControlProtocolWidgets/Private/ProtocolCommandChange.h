@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "RemoteControlPreset.h"
+#include "Misc/Change.h"
 
 template <typename ChangeArgsType>
 class TRemoteControlProtocolCommandChange final : public FCommandChange

@@ -17,6 +17,7 @@ public:
 	static TSharedRef<FProtocolEntityViewModel> Create(URemoteControlPreset* InPreset, const FGuid& InEntityId);
 	virtual ~FProtocolEntityViewModel();
 
+	/** Check if the bound entity type is supported by Protocol Binding */
 	bool CanAddBinding(const FName& InProtocolName, FText& OutMessage) const;
 
 	/** Add a new Protocol Binding */

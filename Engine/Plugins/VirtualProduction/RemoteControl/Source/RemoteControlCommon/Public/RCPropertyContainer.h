@@ -1,11 +1,11 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
-#include "EditorSubsystem.h"
 
 #include "RCPropertyContainer.generated.h"
 
@@ -24,7 +24,7 @@ public:
 
 /** Minimal information needed to lookup a unique property container class */
 USTRUCT()
-struct REMOTECONTROLPROTOCOLWIDGETS_API FRCPropertyContainerKey
+struct REMOTECONTROLCOMMON_API FRCPropertyContainerKey
 {
 	GENERATED_BODY()
 
@@ -40,7 +40,7 @@ inline bool operator!=(const FRCPropertyContainerKey& Lhs, const FRCPropertyCont
 
 /** A subsystem to provide and cache dynamically created PropertyContainer classes. */
 UCLASS()
-class REMOTECONTROLPROTOCOLWIDGETS_API URCPropertyContainerRegistry final : public UEditorSubsystem
+class REMOTECONTROLCOMMON_API URCPropertyContainerRegistry final : public UEditorSubsystem
 {
 	GENERATED_BODY()
 	
@@ -57,5 +57,5 @@ private:
 
 namespace PropertyContainers
 {
-	URCPropertyContainerBase* CreateContainerForProperty(UObject* InOwner, const FProperty* InSrcProperty);
+	REMOTECONTROLCOMMON_API URCPropertyContainerBase* CreateContainerForProperty(UObject* InOwner, const FProperty* InSrcProperty);
 }

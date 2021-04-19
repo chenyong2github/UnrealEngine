@@ -117,17 +117,18 @@ TSharedRef<SWidget> SRCPanelInputBindings::CreateEntityDetailsView()
 void SRCPanelInputBindings::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
 {
 	TSharedPtr<FStructOnScope> SelectedEntityPtr;
+	EExposedFieldType FieldType = EExposedFieldType::Invalid;
 	if (SelectedNode)
 	{
 		if (const TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
 		{
 			if (const TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
 			{
-				if(Field->FieldType == EExposedFieldType::Property)
+				if(Field->FieldType == (FieldType = EExposedFieldType::Property))
 				{
 					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
 				}
-				else if(Field->FieldType == EExposedFieldType::Function)
+				else if(Field->FieldType == (FieldType = EExposedFieldType::Function))
 				{
 					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlField>(Field));
 				}
@@ -154,13 +155,13 @@ void SRCPanelInputBindings::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTre
 	}
 
 	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
-	if(SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName))
+	if(SelectedEntity && SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName))
 	{
-		/** If the SelectedNode is valid, the Preset should be too. */
+		// If the SelectedNode is valid, the Preset should be too.
 		if(ensure(Preset.IsValid()))
 		{
 			IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
-			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId()));	
+			EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
 		}
 	}
 }

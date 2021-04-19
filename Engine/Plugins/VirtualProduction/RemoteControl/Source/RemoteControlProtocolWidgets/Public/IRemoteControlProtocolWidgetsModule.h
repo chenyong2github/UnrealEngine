@@ -4,7 +4,9 @@
 
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
+#include "RemoteControlField.h"
 
+class SWidget;
 class URemoteControlPreset;
 class SWidget;
 
@@ -12,6 +14,6 @@ class SWidget;
 class IRemoteControlProtocolWidgetsModule : public IModuleInterface
 {
 public:
-	/** Creates a widget for the given Preset Field */
-	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId) = 0;
+	/** Creates a widget for the given Preset Field and FieldType */
+	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType = EExposedFieldType::Invalid) = 0;
 };

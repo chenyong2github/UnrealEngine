@@ -5,11 +5,12 @@
 #include "IDetailPropertyRow.h"
 #include "IDetailTreeNode.h"
 #include "IStructureDetailsView.h"
+#include "RCPropertyContainer.h"
 #include "Components/Widget.h"
-#include "ViewModels/RCPropertyContainer.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
 #include "Widgets/SPropertyView.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 

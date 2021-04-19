@@ -3,8 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SSplitter.h"
 
 namespace RemoteControlProtocolWidgetUtils
 {

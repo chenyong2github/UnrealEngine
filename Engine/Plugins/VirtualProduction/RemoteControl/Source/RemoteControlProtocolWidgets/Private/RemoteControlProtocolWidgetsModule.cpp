@@ -18,34 +18,29 @@ IMPLEMENT_MODULE(FRemoteControlProtocolWidgetsModule, RemoteControlProtocolWidge
 
 void FRemoteControlProtocolWidgetsModule::StartupModule()
 {
-	IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	if(AssetRegistry.IsLoadingAssets())
-	{
-		AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlProtocolWidgetsModule::OnAssetsLoaded);
-	}
-	else
-	{
-		OnAssetsLoaded();
-	}
+	// Register Asset Load Event
+	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FRemoteControlProtocolWidgetsModule::OnAssetLoaded);
 }
 
 void FRemoteControlProtocolWidgetsModule::ShutdownModule()
 {
-	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
-	{
-		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
-	}
+	// Unregister Asset Load Event
+	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 }
 
-void FRemoteControlProtocolWidgetsModule::OnAssetsLoaded()
+void FRemoteControlProtocolWidgetsModule::OnAssetLoaded(UObject* InAsset)
 {
-	// Rebinds all protocols (not ideal, current limitation).
-	TArray<TSoftObjectPtr<URemoteControlPreset>> Presets;
-	IRemoteControlModule::Get().GetPresets(Presets);
-
-	for(TSoftObjectPtr<URemoteControlPreset> PresetPtr : Presets)
+	// @note: workaround for a current limitation that requires rebinding protocols on Preset load
+	// Check if asset is a RemoteControlPreset
+	if(URemoteControlPreset* Preset = Cast<URemoteControlPreset>(InAsset))
 	{
-		URemoteControlPreset* Preset = PresetPtr.LoadSynchronous();
+		if(!ensure(IsValid(Preset)))
+		{
+			UE_LOG(LogRemoteControlProtocolWidgets, Error, TEXT("Attempted to load an invalid Preset: %s"), *InAsset->GetFName().ToString());
+			return;
+		}
+		
+		// Iterate over each contained property
 		for(TWeakPtr<FRemoteControlProperty> ExposedProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 		{
 			for(FRemoteControlProtocolBinding& Binding : ExposedProperty.Pin()->ProtocolBinding)
@@ -61,10 +56,12 @@ void FRemoteControlProtocolWidgetsModule::OnAssetsLoaded()
 	}
 }
 
-TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId)
+TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType)
 {
 	check(InPreset);
-	if(InFieldId.IsValid())
+
+	// Currently only supports Properties
+	if(InFieldId.IsValid() && InFieldType == EExposedFieldType::Property)
 	{
 		return SNew(SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
 	}

@@ -6,7 +6,11 @@
 #include "SRCProtocolRange.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
 #include "ViewModels/ProtocolRangeViewModel.h"
+#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 

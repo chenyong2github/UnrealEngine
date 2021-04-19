@@ -101,6 +101,7 @@ void FProtocolEntityViewModel::Initialize()
 	}
 }
 
+// @note: This should closely match RemoteControlProtocolBinding.h
 bool FProtocolEntityViewModel::CanAddBinding(const FName& InProtocolName, FText& OutMessage) const
 {
 	// If no protocols registered
@@ -115,18 +116,25 @@ bool FProtocolEntityViewModel::CanAddBinding(const FName& InProtocolName, FText&
 		return FRemoteControlProtocolBinding::IsRangeTypeSupported<bool>();
 	}
 	
-	if(PropertyClass == FNumericProperty::StaticClass())
+	if(PropertyClass->IsChildOf(FNumericProperty::StaticClass()))
 	{
 		return true;
 	}
 	
-	if(PropertyClass == FStructProperty::StaticClass())
+	if(PropertyClass->IsChildOf(FStructProperty::StaticClass()))
+	{
+		return true;
+	}
+
+	if(PropertyClass->IsChildOf(FArrayProperty::StaticClass())
+		|| PropertyClass->IsChildOf(FSetProperty::StaticClass())
+		|| PropertyClass->IsChildOf(FMapProperty::StaticClass()))
 	{
 		return true;
 	}
 
 	// Remaining should be strings, enums
-	OutMessage = LOCTEXT("UnsupportedType", "Unsupported Type for Protocol Binding");
+	OutMessage = FText::Format(LOCTEXT("UnsupportedType", "Unsupported Type \"{0}\" for Protocol Binding"), PropertyClass->GetDisplayNameText());
 	return false;
 }
 

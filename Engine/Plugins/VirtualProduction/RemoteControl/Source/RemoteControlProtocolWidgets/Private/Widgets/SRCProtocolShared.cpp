@@ -3,10 +3,9 @@
 #include "SRCProtocolShared.h"
 
 #include "EditorStyleSet.h"
-#include "SlateOptMacros.h"
 #include "Widgets/SBoxPanel.h"
 
-namespace  RemoteControlProtocolWidgetUtils
+namespace RemoteControlProtocolWidgetUtils
 {
 	void SConstrainedBox::Construct(const FArguments& InArgs)
 	{

@@ -2,10 +2,12 @@
 
 #include "SRCProtocolStruct.h"
 
+#include "IDetailsView.h"
 #include "IRemoteControlProtocolModule.h"
 #include "IStructureDetailsView.h"
 #include "PropertyEditorModule.h"
 #include "RemoteControlProtocolBinding.h"
+#include "Modules/ModuleManager.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
