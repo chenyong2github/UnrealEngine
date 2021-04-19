@@ -3,11 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FProtocolBindingViewModel;
 
+/** Widget for a given FRemoteControlProtocolEntity implementation. */
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolStruct : public SCompoundWidget
 {
 public:
@@ -18,7 +20,9 @@ public:
 	void Construct(const FArguments& InArgs, const TSharedRef<FProtocolBindingViewModel>& InViewModel);
 
 private:
+	/** ViewModel for a Protocol Binding. */
 	TSharedPtr<FProtocolBindingViewModel> ViewModel;
 
+	/** Creates the widget for the current Protocol Binding implementation struct. */
 	TSharedRef<SWidget> CreateStructureDetailView();
 };

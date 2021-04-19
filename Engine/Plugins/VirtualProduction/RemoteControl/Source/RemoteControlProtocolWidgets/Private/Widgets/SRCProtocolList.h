@@ -11,6 +11,7 @@
 class ITableRow;
 class SComboButton;
 class STableViewBase;
+template <typename ItemType> class SListView;
 
 /** A dropdown list of available protocols */
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolList : public SCompoundWidget
@@ -35,7 +36,7 @@ private:
 	/** List of all available protocol names */
 	TArray<TSharedPtr<FName>> AvailableProtocolNames;
 
-	/** Currently selected protocol name */
+	/** Currently selected protocol name */ 
 	TSharedPtr<FName> SelectedProtocolName;
 	
 	/** ComboButton */

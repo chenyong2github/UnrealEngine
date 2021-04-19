@@ -41,6 +41,11 @@
 			]
 		},
 		{
+			"Name": "RemoteControlCommon",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "RemoteControlUI",
 			"Type": "Editor",
 			"LoadingPhase": "Default"

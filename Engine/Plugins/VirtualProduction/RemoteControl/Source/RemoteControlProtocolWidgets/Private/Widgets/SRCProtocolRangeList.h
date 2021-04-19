@@ -4,16 +4,17 @@
 
 #include "CoreMinimal.h"
 
-
-#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/SRCProtocolShared.h"
 #include "Widgets/Views/SListView.h"
 
-
 class FProtocolRangeViewModel;
 class FProtocolBindingViewModel;
+class SSplitter;
+template <typename ItemType> class SListView;
+class ITableRow;
+class STableViewBase;
 
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolRangeList : public SCompoundWidget
 {
@@ -28,21 +29,28 @@ public:
 	void GetDesiredWidth(float& OutMinDesiredWidth, float& OutMaxDesiredWidth);
 
 private:
+	/** Constructs the header widget with array controls. */
 	TSharedRef<SWidget> ConstructHeader();
-	
+
+	/** Constructs an individual widget per range binding. */
 	TSharedRef<ITableRow> OnGenerateRow(TSharedPtr<FProtocolRangeViewModel> InViewModel, const TSharedRef<STableViewBase>& InOwnerTable) const;
 
+	/** Called when a range mapping is added. */
 	void OnRangeMappingAdded(TSharedRef<FProtocolRangeViewModel> InRangeViewModel) const;
+
+	/** Called when a range mapping is removed. */
 	void OnRangeMappingRemoved(FGuid InRangeId) const;
 
 private:
+	/** Represents an individual protocol binding for an entity. */
 	TSharedPtr<FProtocolBindingViewModel> ViewModel;
-	TSharedPtr<SSplitter> Splitter;
+
+	/** Container widget for all range bindings. */
 	TSharedPtr<SListView<TSharedPtr<FProtocolRangeViewModel>>> ListView;
 	
-	/** Container used by all primary splitters in the details view, so that they move in sync */
+	/** Container used by all primary splitters in the details view, so that they move in sync. */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> PrimaryColumnSizeData;
 
-	/** Container used by all secondary splitters in the details view, so that they move in sync */
+	/** Container used by all secondary splitters in the details view, so that they move in sync. Secondary splitter is used for struct name/value separation. */
 	TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData> SecondaryColumnSizeData;
 };

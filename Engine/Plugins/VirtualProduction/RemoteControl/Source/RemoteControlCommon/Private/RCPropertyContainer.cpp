@@ -1,9 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RCPropertyContainer.h"
 
 #include "Editor.h"
-#include "RemoteControlProtocolWidgetsModule.h"
+#include "RemoteControlCommonModule.h"
 
 namespace PropertyContainers
 {
@@ -60,7 +60,7 @@ URCPropertyContainerBase* URCPropertyContainerRegistry::CreateContainer(UObject*
 	}
 	else
 	{
-		UE_LOG(LogRemoteControlProtocolWidgets, Warning, TEXT("Could not create PropertyContainer found for %s"), *InValueTypeName.ToString());
+		UE_LOG(LogRemoteControlCommon, Warning, TEXT("Could not create PropertyContainer found for %s"), *InValueTypeName.ToString());
 		return nullptr;
 	}
 }

@@ -17,8 +17,9 @@ public:
 	virtual void ShutdownModule() override;
 
 	/** Creates a widget for the given Preset Field */
-	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId) override;
+	virtual TSharedRef<SWidget> GenerateDetailsForEntity(URemoteControlPreset* InPreset, const FGuid& InFieldId, const EExposedFieldType& InFieldType) override;
 
 protected:
-	void OnAssetsLoaded();
+	/** Called when any asset is loaded */
+	void OnAssetLoaded(UObject* InAsset);
 };

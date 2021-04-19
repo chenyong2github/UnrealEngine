@@ -8,6 +8,7 @@
 #include "ProtocolEntityViewModel.h"
 #include "ProtocolRangeViewModel.h"
 #include "RemoteControlPreset.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ProtocolBindingViewModel"
 

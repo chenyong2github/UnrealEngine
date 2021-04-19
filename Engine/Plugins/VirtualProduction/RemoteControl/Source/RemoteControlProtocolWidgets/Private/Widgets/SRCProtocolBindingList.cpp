@@ -4,15 +4,20 @@
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IRemoteControlProtocolModule.h"
 #include "SRCProtocolBinding.h"
 #include "SRCProtocolList.h"
+#include "Delegates/DelegateSignatureImpl.inl"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Types/ISlateMetaData.h"
+#include "ViewModels/ProtocolEntityViewModel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "Widgets/SNullWidget.h"
-#include "ViewModels/ProtocolEntityViewModel.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 

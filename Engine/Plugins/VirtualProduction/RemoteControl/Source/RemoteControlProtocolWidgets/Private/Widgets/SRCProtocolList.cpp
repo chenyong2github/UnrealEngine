@@ -6,6 +6,9 @@
 #include "EditorStyleSet.h"
 #include "IRemoteControlProtocolModule.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STableViewBase.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 

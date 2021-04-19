@@ -7,17 +7,22 @@
 #include "SRCProtocolShared.h"
 #include "ViewModels/ProtocolBindingViewModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
-class SRCProtocolRangeList;
+class FProtocolBindingViewModel;
+class FProtocolBindingViewModel;
 class FProtocolRangeViewModel;
+class FProtocolRangeViewModel;
+class FProtocolRangeViewModel;
+class ITableRow;
+class SRCProtocolRangeList;
+class STableViewBase;
 
 class REMOTECONTROLPROTOCOLWIDGETS_API SRCProtocolBinding : public STableRow<TSharedPtr<FProtocolBindingViewModel>>
 {
 public:
 	SLATE_BEGIN_ARGS(SRCProtocolBinding) 
-	{}	
+	{}
 		SLATE_ARGUMENT(TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>, PrimaryColumnSizeData)
 		SLATE_ARGUMENT(TSharedPtr<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>, SecondaryColumnSizeData)
 	SLATE_END_ARGS()

@@ -2,15 +2,15 @@
 
 #include "SPropertyView.h"
 
-
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Editor.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
-#include "Modules/ModuleManager.h"
 #include "SRCProtocolShared.h"
+#include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SGridPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlProtocolWidgets"
 
@@ -57,12 +57,12 @@ void SPropertyView::Construct(const FArguments& InArgs)
 		Generator->SetStructure(Struct);
 	}
 
-	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SPropertyView::OnPropertyChanged );
+	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP(this, &SPropertyView::OnPropertyChanged);
 
 	if (GEditor)
 	{
 		OnObjectReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &SPropertyView::OnObjectReplaced);
-		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP( this, &SPropertyView::OnObjectTransacted );
+		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddSP(this, &SPropertyView::OnObjectTransacted);
 	}
 
 	Construct();
@@ -207,6 +207,8 @@ void SPropertyView::AddReferencedObjects(FReferenceCollector& InCollector)
 
 void SPropertyView::Refresh()
 {
+	// forces CustomPrepass to be called, recreating widgets ie. for array items. Without this array items won't add/remove.
+	InvalidatePrepass();
 	bRefreshObjectToDisplay = true;
 }
 
@@ -246,7 +248,9 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 			if (FProperty* PropertyToVerify = InPropertyHandle->GetProperty())
 			{
 				FFieldClass* PropertyClass = PropertyToVerify->GetClass();
-				if (PropertyClass == FArrayProperty::StaticClass() || PropertyClass == FSetProperty::StaticClass() || PropertyClass == FMapProperty::StaticClass())
+				if (PropertyClass == FArrayProperty::StaticClass()
+					|| PropertyClass == FSetProperty::StaticClass()
+					|| PropertyClass == FMapProperty::StaticClass())
 				{
 					return !PropertyToVerify->HasAnyPropertyFlags(CPF_DisableEditOnInstance) && PropertyToVerify->HasAnyPropertyFlags(CPF_Edit);
 				}
@@ -294,6 +298,7 @@ void SPropertyView::AddWidgets(const TArray<TSharedRef<IDetailTreeNode>>& InDeta
 				CreateDefaultWidget(FPropertyWidgetCreationArgs(InIndex, NameWidget, ValueWidget, InLeftPadding));
 				InIndex++;
 
+				// @todo: this needs to update when items added/removed from container
 				TArray<TSharedRef<IDetailTreeNode>> Children;
 				ChildNode->GetChildren(Children);
 				if (Children.Num() > 0)
