@@ -339,61 +339,77 @@ const TCHAR* FEntitiesGeometry::GetMeshElementName(int32 MeshIndex)
 	return Meshes[MeshIndex]->DatasmithMesh->GetName();
 }
 
-void FEntitiesGeometry::AddMesh(FExportContext& Context, TSharedPtr<IDatasmithMeshElement>& MeshElementPtr, const TSet<FEntityIDType>& MeshElementMaterialsUsed)
-{
-	TSharedPtr<FDatasmithInstantiatedMesh> Mesh = MakeShared<FDatasmithInstantiatedMesh>();
-	Mesh->DatasmithMesh = MeshElementPtr;
-	Mesh->bIsUsingInheritedMaterial = MeshElementMaterialsUsed.Contains(FMaterial::INHERITED_MATERIAL_ID);
-	Meshes.Add(Mesh);
-
-	// Add the non-inherited materials used by the combined mesh triangles.
-	for (FMaterialIDType MeshMaterialID : MeshElementMaterialsUsed)
-	{
-		if (MeshMaterialID != FMaterial::INHERITED_MATERIAL_ID)
-		{
-			if (FMaterialOccurrence* Material = Context.Materials.RegisterGeometry(MeshMaterialID, this))
-			{
-				int32 SlotId = MeshMaterialID.EntityID; // Triangles assigned Material Ids as SlotIds
-				Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
-			}
-		}
-	}
-}
-
 void ScanSketchUpEntitiesFaces(SUEntitiesRef EntitiesRef, TSet<int32>& ScannedFaceIDSet, TFunctionRef<void(FDatasmithSketchUpMesh& ExtractedMesh)> OnNewExtractedMesh);
 
 void FEntities::UpdateGeometry(FExportContext& Context)
 {
-	// todo: reuse existing Geometry datasmith meshes?
-	// Create geometry(discarding old one if it exists)
-	CleanEntitiesGeometry(Context);
+	if (EntitiesGeometry.IsValid())
+	{
+		Context.Materials.UnregisterGeometry(EntitiesGeometry.Get());
+		// Remove mesh elements from scene
+		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh: EntitiesGeometry->Meshes)
+		{
+			Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
+		}
 
-	EntitiesGeometry = MakeShared<FEntitiesGeometry>();
+	}
+	else
+	{
+		EntitiesGeometry = MakeShared<FEntitiesGeometry>();
+	}
 
 	FDatasmithMeshExporter DatasmithMeshExporter;
+	int32 MeshCount = 0;
 
-	auto ProcessExtractedMesh = [&Context, &DatasmithMeshExporter, this](FDatasmithSketchUpMesh& ExtractedMesh)
+	auto ProcessExtractedMesh = [&Context, &DatasmithMeshExporter, this, &MeshCount](FDatasmithSketchUpMesh& ExtractedMesh)
 	{
 		if (ExtractedMesh.ContainsGeometry())
 		{
 			FDatasmithMesh DatasmithMesh;
 			ExtractedMesh.ConvertMeshToDatasmith(DatasmithMesh);
 
-			FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *FMD5::HashAnsiString(*Definition.GetSketchupSourceGUID()), EntitiesGeometry->Meshes.Num() + 1); // Count meshes from 1
+			FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *FMD5::HashAnsiString(*Definition.GetSketchupSourceGUID()), MeshCount + 1); // Count meshes from 1
 			FString MeshLabel = FDatasmithUtils::SanitizeObjectName(Definition.GetSketchupSourceName());
 
-			TSharedPtr<IDatasmithMeshElement> MeshElementPtr = FDatasmithSceneFactory::CreateMesh( *MeshElementName );
-			DatasmithMeshExporter.ExportToUObject(MeshElementPtr, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
+			TSharedPtr<FDatasmithInstantiatedMesh> Mesh;
+			// Create MeshElement or reuse existing
+			if (MeshCount < EntitiesGeometry->Meshes.Num())
+			{
+				Mesh = EntitiesGeometry->Meshes[MeshCount]; // Reuse existing DatasmithMeshElement
+			}
+			else
+			{
+				Mesh = MakeShared<FDatasmithInstantiatedMesh>();
+				Mesh->DatasmithMesh = FDatasmithSceneFactory::CreateMesh(TEXT(""));
+				EntitiesGeometry->Meshes.Add(Mesh);
+			}
+			MeshCount++;
 
-			// Set the mesh element label used in the Unreal UI.
-			MeshElementPtr->SetLabel(*MeshLabel);
+			Mesh->DatasmithMesh->SetName(*MeshElementName);
+			Mesh->DatasmithMesh->SetLabel(*MeshLabel);
+			Mesh->bIsUsingInheritedMaterial = ExtractedMesh.MeshTriangleMaterialIDSet.Contains(FMaterial::INHERITED_MATERIAL_ID);
 
-			EntitiesGeometry->AddMesh(Context, MeshElementPtr, ExtractedMesh.MeshTriangleMaterialIDSet);
+			// Add the non-inherited materials used by the combined mesh triangles.
+			for (FMaterialIDType MeshMaterialID : ExtractedMesh.MeshTriangleMaterialIDSet)
+			{
+				if (MeshMaterialID != FMaterial::INHERITED_MATERIAL_ID)
+				{
+					if (FMaterialOccurrence* Material = Context.Materials.RegisterGeometry(MeshMaterialID, EntitiesGeometry.Get()))
+					{
+						int32 SlotId = MeshMaterialID.EntityID; // Triangles assigned Material Ids as SlotIds
+						Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
+					}
+				}
+			}
+
+			DatasmithMeshExporter.ExportToUObject(Mesh->DatasmithMesh, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
 		}
 	};
 
 	TSet<int32> FaceIds;
 	ScanSketchUpEntitiesFaces(EntitiesRef, FaceIds, ProcessExtractedMesh);
+
+	EntitiesGeometry->Meshes.SetNum(MeshCount);
 
 	Context.EntitiesObjects.RegisterEntitiesFaces(*this, FaceIds);
 }
@@ -412,19 +428,6 @@ void FEntities::RemoveMeshesFromDatasmithScene(FExportContext& Context)
 	for (TSharedPtr<FDatasmithInstantiatedMesh> Mesh : EntitiesGeometry->Meshes)
 	{
 		Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
-	}
-}
-
-void FEntities::CleanEntitiesGeometry(FExportContext& Context)
-{
-	if (EntitiesGeometry.IsValid())
-	{
-		Context.Materials.UnregisterGeometry(EntitiesGeometry.Get());
-
-		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh : EntitiesGeometry->Meshes)
-		{
-			Context.DatasmithScene->RemoveMesh(Mesh->DatasmithMesh);
-		}
 	}
 }
 
