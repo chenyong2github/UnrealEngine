@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 
 // Enable property tags for enums and structures
-#define UHT_ENABLE_VALUE_PROPERTY_TAG 0
+#define UHT_ENABLE_VALUE_PROPERTY_TAG 1
 
 // Enable property tags for class and interfaces wrapped in porters 
 // DO NOT ENABLE: This does not handle forward declarations.  Also,
