@@ -24,6 +24,7 @@
 #include "SSourceControlDescription.h"
 #include "SourceControlWindows.h"
 #include "SourceControlHelpers.h"
+#include "SourceControlSettings.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -37,6 +38,8 @@
 
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
+
+const FText SSourceControlChangelistsWidget::ChangelistValidatedTag = LOCTEXT("ValidationTag", "#changelist validated");
 
 DEFINE_LOG_CATEGORY_STATIC(LogSourceControlChangelist, All, All);
 
@@ -138,6 +141,23 @@ TSharedRef<SWidget> SSourceControlChangelistsWidget::MakeToolBar()
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Add"));
 
 	return ToolBarBuilder.MakeWidget();
+}
+
+bool SSourceControlChangelistsWidget::HasValidationTag(const FText& InChangelistDescription) const
+{
+	FString DescriptionString = InChangelistDescription.ToString();
+	FString ValidationString = ChangelistValidatedTag.ToString();
+
+	return DescriptionString.Find(ValidationString) != INDEX_NONE;
+}
+
+void SSourceControlChangelistsWidget::EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState) const
+{
+	auto EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+
+	EditChangelistOperation->SetDescription(InNewChangelistDescription);
+	SourceControlProvider.Execute(EditChangelistOperation, InChangelistState->GetChangelist());
 }
 
 void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -490,11 +510,8 @@ void SSourceControlChangelistsWidget::OnEditChangelist()
 		return;
 	}
 
-	auto EditChangelistOperation = ISourceControlOperation::Create<FEditChangelist>();
-	EditChangelistOperation->SetDescription(NewChangelistDescription);
+	EditChangelistDescription(NewChangelistDescription, ChangelistState);
 
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	SourceControlProvider.Execute(EditChangelistOperation, ChangelistState->GetChangelist());
 }
 
 void SSourceControlChangelistsWidget::OnRevertUnchanged()
@@ -684,8 +701,9 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText, ChangelistValidationIconName);
 
 	// Build list of states for the dialog
-	FText ChangelistDescription = ChangelistState->GetDescriptionText();
-	const bool bAskForChangelistDescription = (ChangelistDescription.IsEmptyOrWhitespace());
+	const FText OriginalChangelistDescription = ChangelistState->GetDescriptionText();
+	const bool bAskForChangelistDescription = (OriginalChangelistDescription.IsEmptyOrWhitespace());
+	FText ChangelistDescriptionToSubmit = UpdateChangelistDescriptionToSubmitIfNeeded(bValidationResult, OriginalChangelistDescription, ChangelistState);
 
 	TSharedRef<SWindow> NewWindow = SNew(SWindow)
 		.Title(NSLOCTEXT("SourceControl.ConfirmSubmit", "Title", "Confirm changelist submit"))
@@ -698,7 +716,7 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		SNew(SSourceControlSubmitWidget)
 		.ParentWindow(NewWindow)
 		.Items(ChangelistState->GetFilesStates())
-		.Description(ChangelistDescription)
+		.Description(ChangelistDescriptionToSubmit)
 		.ChangeValidationDescription(ChangelistValidationText)
 		.ChangeValidationIcon(ChangelistValidationIconName)
 		.AllowDescriptionChange(bAskForChangelistDescription)
@@ -745,6 +763,31 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 
 		FSlateNotificationManager::Get().AddNotification(Info);
 	}
+	// If user cancelled or closed the window, we restore the original changelist description
+	else if (HasValidationTag(ChangelistDescriptionToSubmit))
+	{
+		EditChangelistDescription(OriginalChangelistDescription, ChangelistState);
+	}
+}
+
+FText SSourceControlChangelistsWidget::UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InOriginalChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState) const
+{
+	if (bInValidationResult && USourceControlSettings::IsValidationTagEnabled() && (!HasValidationTag(InOriginalChangelistDescription)))
+	{
+		FStringOutputDevice Str;
+
+		Str.SetAutoEmitLineTerminator(true);
+		Str.Log(InOriginalChangelistDescription);
+		Str.Log(ChangelistValidatedTag);
+
+		FText ChangelistDescription = FText::FromString(Str);
+
+		EditChangelistDescription(ChangelistDescription, InChangelistState);
+
+		return ChangelistDescription;
+	}
+
+	return InOriginalChangelistDescription;
 }
 
 bool SSourceControlChangelistsWidget::CanSubmitChangelist()
