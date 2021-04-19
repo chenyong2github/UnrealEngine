@@ -302,7 +302,7 @@ private:
 	struct FLinkedObjects
 	{
 		FLinkedObjects() 
-			: Objects(nullptr)
+			: Objects(InPlace, nullptr)
 		{}
 
 		FRHIGPUMask GPUMask;

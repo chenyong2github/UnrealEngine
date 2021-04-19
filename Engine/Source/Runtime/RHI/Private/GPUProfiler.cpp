@@ -653,7 +653,7 @@ void FGPUProfiler::PopEvent()
 bool FGPUTiming::GIsSupported = false;
 
 /** Frequency for the timing values, in number of ticks per seconds, or 0 if the feature isn't supported. */
-TStaticArray<uint64, MAX_NUM_GPUS> FGPUTiming::GTimingFrequency(0);
+TStaticArray<uint64, MAX_NUM_GPUS> FGPUTiming::GTimingFrequency(InPlace, 0);
 
 /**
 * Two timestamps performed on GPU and CPU at nearly the same time.

@@ -2089,7 +2089,7 @@ struct FImmutableSamplerState
 	using TImmutableSamplers = TStaticArray<FRHISamplerState*, MaxImmutableSamplers>;
 
 	FImmutableSamplerState()
-		: ImmutableSamplers(nullptr)
+		: ImmutableSamplers(InPlace, nullptr)
 	{}
 
 	void Reset()
@@ -2144,8 +2144,8 @@ public:
 		, RasterizerState(nullptr)
 		, DepthStencilState(nullptr)
 		, RenderTargetsEnabled(0)
-		, RenderTargetFormats(PF_Unknown)
-		, RenderTargetFlags(0)
+		, RenderTargetFormats(InPlace, PF_Unknown)
+		, RenderTargetFlags(InPlace, 0)
 		, DepthStencilTargetFormat(PF_Unknown)
 		, DepthStencilTargetFlag(0)
 		, DepthTargetLoadAction(ERenderTargetLoadAction::ENoAction)

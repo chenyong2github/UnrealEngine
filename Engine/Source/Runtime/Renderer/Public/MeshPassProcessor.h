@@ -261,8 +261,8 @@ public:
 			, ImmutableSamplerState
 			, PrimitiveType
 			, 0
-			, FGraphicsPipelineStateInitializer::TRenderTargetFormats(PF_Unknown)
-			, FGraphicsPipelineStateInitializer::TRenderTargetFlags(0)
+			, FGraphicsPipelineStateInitializer::TRenderTargetFormats(InPlace, PF_Unknown)
+			, FGraphicsPipelineStateInitializer::TRenderTargetFlags(InPlace, 0)
 			, PF_Unknown
 			, TexCreate_None
 			, ERenderTargetLoadAction::ENoAction

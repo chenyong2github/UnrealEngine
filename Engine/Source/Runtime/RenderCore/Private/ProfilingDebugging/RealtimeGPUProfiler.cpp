@@ -108,8 +108,8 @@ class FRealtimeGPUProfilerEvent
 {
 public:
 	FRealtimeGPUProfilerEvent(FRHIRenderQueryPool& RenderQueryPool)
-		: StartResultMicroseconds(InvalidQueryResult)
-		, EndResultMicroseconds(InvalidQueryResult)
+		: StartResultMicroseconds(InPlace, InvalidQueryResult)
+		, EndResultMicroseconds(InPlace, InvalidQueryResult)
 		, StartQuery(RenderQueryPool.AllocateQuery())
 		, EndQuery(RenderQueryPool.AllocateQuery())
 		, FrameNumber(-1)
@@ -132,8 +132,8 @@ public:
 
 		Name = NewName;
 		STAT(StatName = NewStatName;)
-		StartResultMicroseconds = TStaticArray<uint64, MAX_NUM_GPUS>(InvalidQueryResult);
-		EndResultMicroseconds = TStaticArray<uint64, MAX_NUM_GPUS>(InvalidQueryResult);
+		StartResultMicroseconds = TStaticArray<uint64, MAX_NUM_GPUS>(InPlace, InvalidQueryResult);
+		EndResultMicroseconds = TStaticArray<uint64, MAX_NUM_GPUS>(InPlace, InvalidQueryResult);
 		FrameNumber = GFrameNumberRenderThread;
 	}
 

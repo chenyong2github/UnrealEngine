@@ -350,9 +350,9 @@ private:
 		// Start, count and allocated count in the Data array for each element in the chunk.
 		// Arranged as SoA for cache optimization, since the most frequent operation is
 		// adding a fixed amount to all the start indices when a value is inserted.
-		TStaticArray<int32, ChunkSize> StartIndex = TStaticArray<int32, ChunkSize>(0);
-		TStaticArray<int32, ChunkSize> Count = TStaticArray<int32, ChunkSize>(0);
-		TStaticArray<int32, ChunkSize> MaxCount = TStaticArray<int32, ChunkSize>(0);
+		TStaticArray<int32, ChunkSize> StartIndex{InPlace, 0};
+		TStaticArray<int32, ChunkSize> Count     {InPlace, 0};
+		TStaticArray<int32, ChunkSize> MaxCount  {InPlace, 0};
 
 		// Specify number of valid elements in this chunk.
 		// Default to maximum number so that we can add chunks in bulk, and all put the final
