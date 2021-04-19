@@ -13,6 +13,8 @@ DECLARE_STATS_GROUP(TEXT("EOS"), STATGROUP_EOS, STATCAT_Advanced);
 
 #include "eos_sdk.h"
 
+class IEOSSDKManager;
+
 class FUserManagerEOS;
 typedef TSharedPtr<class FUserManagerEOS, ESPMode::ThreadSafe> FUserManagerEOSPtr;
 
@@ -57,9 +59,6 @@ public:
 	/** Used to be called before RHIInit() */
 	static void ModuleInit();
 
-	/** Common method for creating the EOS platform */
-	static EOS_PlatformHandle* PlatformCreate();
-
 // IOnlineSubsystem
 	virtual IOnlineSessionPtr GetSessionInterface() const override;
 	virtual IOnlineFriendsPtr GetFriendsInterface() const override;
@@ -103,6 +102,7 @@ PACKAGE_SCOPE:
 	FOnlineSubsystemEOS() = delete;
 	explicit FOnlineSubsystemEOS(FName InInstanceName) :
 		FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
+		, EOSSDKManager(nullptr)
 		, EOSPlatformHandle(nullptr)
 		, AuthHandle(nullptr)
 		, UIHandle(nullptr)
@@ -127,12 +127,16 @@ PACKAGE_SCOPE:
 		, TitleFileInterfacePtr(nullptr)
 		, UserCloudInterfacePtr(nullptr)
 		, bWasLaunchedByEGS(false)
+		, bIsDefaultOSS(false)
+		, bIsPlatformOSS(false)
 	{
 		StopTicker();
 	}
 
 	char ProductNameAnsi[EOS_PRODUCTNAME_MAX_BUFFER_LEN];
 	char ProductVersionAnsi[EOS_PRODUCTVERSION_MAX_BUFFER_LEN];
+
+	IEOSSDKManager* EOSSDKManager;
 
 	/** EOS handles */
 	EOS_HPlatform EOSPlatformHandle;
@@ -173,6 +177,9 @@ PACKAGE_SCOPE:
 	bool bIsPlatformOSS;
 
 	TSharedPtr<FSocketSubsystemEOS, ESPMode::ThreadSafe> SocketSubsystem;
+
+private:
+	bool PlatformCreate();
 };
 
 #else
