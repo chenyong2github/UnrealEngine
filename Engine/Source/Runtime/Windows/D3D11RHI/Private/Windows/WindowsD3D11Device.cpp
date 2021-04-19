@@ -1104,11 +1104,6 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 void FD3D11DynamicRHI::Init()
 {
 	InitD3DDevice();
-#if PLATFORM_DESKTOP
-	GSupportsDepthBoundsTest = (IsRHIDeviceNVIDIA() || IsRHIDeviceAMD());
-#else
-	GSupportsDepthBoundsTest = false;
-#endif
 }
 
 void FD3D11DynamicRHI::PostInit()
@@ -1891,6 +1886,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				Direct3DDeviceIMContext = DeviceCreationReturnedParams.pImmediateContext;
 				AmdSupportedExtensionFlags = DeviceCreationReturnedParams.extensionsSupported;
 				bDeviceCreated = true;
+				UE_LOG(LogD3D11RHI, Log, TEXT("Created device via AGS, feature level %s, supported extensions %x."), GetFeatureLevelString(ActualFeatureLevel), AmdSupportedExtensionFlags);
 			}
 			else
 			{
@@ -1899,9 +1895,11 @@ void FD3D11DynamicRHI::InitD3DDevice()
 				AmdSupportedExtensionFlags = 0;
 				FMemory::Memzero(&AmdInfo, sizeof(AmdInfo));
 				GRHIDeviceIsAMDPreGCNArchitecture = false;				
+				UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to create device via AGS, code %d."), DeviceCreation);
 			}
 
 			GRHISupportsAtomicUInt64 = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_INTRINSIC_ATOMIC_U64) != 0;
+			GSupportsDepthBoundsTest = (AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_DEPTH_BOUNDS_TEST) != 0;
 		}
 #endif //AMD_AGS_API
 
@@ -2026,44 +2024,29 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 
 #if WITH_SLI
-
 		GNumAlternateFrameRenderingGroups = 1;
 
-		if (!bRenderDoc)
-		{
-			if (IsRHIDeviceNVIDIA())
-			{
-				GSupportsDepthBoundsTest = true;
 #ifdef NVAPI_INTERFACE
-				NV_GET_CURRENT_SLI_STATE SLICaps;
-				FMemory::Memzero(SLICaps);
-				SLICaps.version = NV_GET_CURRENT_SLI_STATE_VER;
-				NvAPI_Status SLIStatus = NvAPI_D3D_GetCurrentSLIState(Direct3DDevice, &SLICaps);
-				if (SLIStatus == NVAPI_OK)
-				{
-					if (SLICaps.numAFRGroups > 1)
-					{
-						GNumAlternateFrameRenderingGroups = SLICaps.numAFRGroups;
-						UE_LOG(LogD3D11RHI, Log, TEXT("Detected %i SLI GPUs Setting GNumAlternateFrameRenderingGroups to: %i."), SLICaps.numAFRGroups, GNumAlternateFrameRenderingGroups);
-					}
-				}
-				else
-				{
-					UE_LOG(LogD3D11RHI, Log, TEXT("NvAPI_D3D_GetCurrentSLIState failed: 0x%x"), (int32)SLIStatus);
-				}
-#endif //NVAPI_INTERFACE
-				START_NV_AFTERMATH();
-			}
-			else if (IsRHIDeviceAMD() && AmdAgsContext)
+		if (!bRenderDoc && IsRHIDeviceNVIDIA())
+		{
+			NV_GET_CURRENT_SLI_STATE SLICaps;
+			FMemory::Memzero(SLICaps);
+			SLICaps.version = NV_GET_CURRENT_SLI_STATE_VER;
+			NvAPI_Status SLIStatus = NvAPI_D3D_GetCurrentSLIState(Direct3DDevice, &SLICaps);
+			if (SLIStatus == NVAPI_OK)
 			{
-#ifdef AMD_AGS_API
-				if ((AmdSupportedExtensionFlags & AGS_DX11_EXTENSION_DEPTH_BOUNDS_TEST) != 0)
+				if (SLICaps.numAFRGroups > 1)
 				{
-					GSupportsDepthBoundsTest = true;
+					GNumAlternateFrameRenderingGroups = SLICaps.numAFRGroups;
+					UE_LOG(LogD3D11RHI, Log, TEXT("Detected %i SLI GPUs Setting GNumAlternateFrameRenderingGroups to: %i."), SLICaps.numAFRGroups, GNumAlternateFrameRenderingGroups);
 				}
-#endif //AMD_AGS_API
+			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Log, TEXT("NvAPI_D3D_GetCurrentSLIState failed: 0x%x"), (int32)SLIStatus);
 			}
 		}
+#endif //NVAPI_INTERFACE
 
 		if (GDX11ForcedGPUs > 0)
 		{
@@ -2071,6 +2054,15 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			UE_LOG(LogD3D11RHI, Log, TEXT("r.DX11NumForcedGPUs forcing GNumAlternateFrameRenderingGroups to: %i "), GDX11ForcedGPUs);
 		}
 #endif // WITH_SLI
+
+		if (IsRHIDeviceNVIDIA())
+		{
+			GSupportsDepthBoundsTest = true;
+			if (!bRenderDoc)
+			{
+				START_NV_AFTERMATH();
+			}
+		}
 
 #if INTEL_EXTENSIONS
 		if (IsRHIDeviceIntel() && bAllowVendorDevice)
