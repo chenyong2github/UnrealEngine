@@ -246,9 +246,9 @@ bool FPackagePath::TryFromPackageName(FStringView InPackageName, FPackagePath& O
 
 bool FPackagePath::TryFromPackageName(FName InPackageName, FPackagePath& OutPackagePath)
 {
-	TStringBuilder<256> PackageNameString;
-	InPackageName.AppendString(PackageNameString);
-	return TryFromPackageName(PackageNameString, OutPackagePath);
+	TCHAR Buffer[FName::StringBufferSize];
+	FStringView PackageName(Buffer, InPackageName.ToString(Buffer));
+	return TryFromPackageName(PackageName, OutPackagePath);
 }
 
 bool FPackagePath::TryFromPackageName(const TCHAR* InPackageName, FPackagePath& OutPackagePath)

@@ -1553,7 +1553,7 @@ FName ULevelStreaming::GetWorldAssetPackageFName() const
 {
 	if (!bHasCachedWorldAssetPackageFName)
 	{
-		CachedWorldAssetPackageFName = FName(*FPackageName::ObjectPathToPackageName(WorldAsset.ToString()));
+		CachedWorldAssetPackageFName = WorldAsset.ToSoftObjectPath().GetLongPackageFName();
 		bHasCachedWorldAssetPackageFName = true;
 	}
 	return CachedWorldAssetPackageFName;
@@ -1800,8 +1800,9 @@ bool ULevelStreaming::IsValidStreamingLevel() const
 	const bool PIESession = GetWorld()->WorldType == EWorldType::PIE || GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor);
 	if (!PIESession && !WorldAsset.IsNull())
 	{
-		const FString WorldPackageName = GetWorldAssetPackageName();
-		return FPackageName::DoesPackageExist(WorldPackageName);
+		FName WorldPackageName = GetWorldAssetPackageFName();
+		FPackagePath WorldPackagePath;
+		return FPackagePath::TryFromPackageName(WorldPackageName, /* Out*/ WorldPackagePath) && FPackageName::DoesPackageExist(WorldPackagePath);
 	}
 	return true;
 }

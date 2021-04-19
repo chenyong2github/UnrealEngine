@@ -10,6 +10,7 @@
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/CoreRedirects.h"
 #include "Misc/RedirectCollector.h"
+#include "String/Find.h"
 
 FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
 {
@@ -55,6 +56,14 @@ void FSoftObjectPath::ToString(FStringBuilderBase& Builder) const
 	{
 		Builder << ':' << SubPathString;
 	}
+}
+
+FName FSoftObjectPath::GetLongPackageFName() const
+{
+	TCHAR Buffer[NAME_SIZE];
+	FStringView PlainAssetPath(Buffer, /* len */ AssetPathName.GetPlainNameString(Buffer));
+	int32 DotPos = UE::String::FindFirstChar(PlainAssetPath, '.');
+	return DotPos == INDEX_NONE ? AssetPathName : FName(PlainAssetPath.Left(DotPos));
 }
 
 /** Helper function that adds info about the object currently being serialized when triggering an ensure about invalid soft object path */

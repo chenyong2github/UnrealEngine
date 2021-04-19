@@ -1115,12 +1115,15 @@ bool FPackageName::TryGetMountPointForPath(FStringView InFilePathOrPackageName, 
 		return false;
 	}
 
-	FString PossibleAbsFilePath(FPaths::ConvertRelativePathToFull(FString(InFilePathOrPackageName)));
+	TStringBuilder<256> PossibleAbsFilePath;
+	FPathViews::ToAbsolutePath(InFilePathOrPackageName, PossibleAbsFilePath);
 	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
 	FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
 	for (const auto& Pair : Paths.ContentRootToPath)
 	{
-		FString RootFileAbsPath = FPaths::ConvertRelativePathToFull(Pair.ContentPath);
+		TStringBuilder<256> RootFileAbsPath;
+		FPathViews::ToAbsolutePath(Pair.ContentPath, RootFileAbsPath);
+
 		FStringView RelPath;
 		if (FPathViews::TryMakeChildPathRelativeTo(InFilePathOrPackageName, Pair.RootPath, RelPath))
 		{

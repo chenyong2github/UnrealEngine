@@ -111,6 +111,9 @@ struct COREUOBJECT_API FSoftObjectPath
 		return PackageName;
 	}
 
+	/** Returns /package/path, leaving off the asset name and sub object */
+	FName GetLongPackageFName() const;
+
 	/** Returns assetname string, leaving off the /package/path part and sub object */
 	FString GetAssetName() const
 	{
