@@ -1970,6 +1970,8 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::Serialize);
+
 	if ( Ar.IsTransacting() )
 	{
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
@@ -2101,6 +2103,8 @@ void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescri
 
 void FMeshDescriptionBulkData::LoadMeshDescription( FMeshDescription& MeshDescription )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::LoadMeshDescription);
+
 	MeshDescription.Empty();
 
 	if (BulkData.GetBulkDataSize() > 0)

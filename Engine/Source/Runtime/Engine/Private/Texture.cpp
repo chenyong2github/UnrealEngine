@@ -348,6 +348,8 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	}
 	else if (!GDisableAutomaticTextureMaterialUpdateDependencies)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDependentMaterials);
+
 		// Update any material that uses this texture and must force a recompile of cache resource
 		TArray<UMaterial*> MaterialsToUpdate;
 		TSet<UMaterial*> BaseMaterialsThatUseThisTexture;
@@ -401,6 +403,8 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 #if WITH_EDITORONLY_DATA
 	// any texture that is referencing this texture as AssociatedNormalMap needs to be informed
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateDependentTextures);
+
 		TArray<UTexture*> TexturesThatUseThisTexture;
 
 		for (TObjectIterator<UTexture> It; It; ++It)

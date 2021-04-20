@@ -846,6 +846,7 @@ void FStreamingManagerCollection::Tick( float DeltaTime, bool bProcessEverything
 
 void FStreamingManagerCollection::UpdateResourceStreaming( float DeltaTime, bool bProcessEverything/*=false*/ )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManagerCollection::UpdateResourceStreaming);
 	SetupViewInfos( DeltaTime );
 
 	// only allow this if its not disabled

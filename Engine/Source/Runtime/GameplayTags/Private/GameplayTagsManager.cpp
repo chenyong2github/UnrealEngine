@@ -1960,6 +1960,8 @@ void UGameplayTagsManager::DoneAddingNativeTags()
 	// is initialized (DoneAddingNativeTags is bound to PostEngineInit to cover anything that's skipped).
 	if (GEngine && !bDoneAddingNativeTags)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UGameplayTagsManager::DoneAddingNativeTags);
+
 		UE_CLOG(GAMEPLAYTAGS_VERBOSE, LogGameplayTags, Display, TEXT("UGameplayTagsManager::DoneAddingNativeTags. DelegateIsBound: %d"), (int32)OnLastChanceToAddNativeTags().IsBound());
 		OnLastChanceToAddNativeTags().Broadcast();
 		bDoneAddingNativeTags = true;
