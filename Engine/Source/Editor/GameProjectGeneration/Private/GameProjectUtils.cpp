@@ -233,13 +233,6 @@ namespace
 			TEXT("r.Shadow.Virtual.Enable"),
 			TEXT("1"),
 			true /* ShouldReplaceExistingValue */);
-
-		// and also support for non-nanite VSM, this has an impact on all shadow rendering, which is why this is off for existing projects by default.
-		ConfigValues.Emplace(TEXT("DefaultEngine.ini"),
-			TEXT("/Script/Engine.RendererSettings"),
-			TEXT("r.Shadow.Virtual.NonNaniteVSM"),
-			TEXT("True"),
-			true /* ShouldReplaceExistingValue */);
 	}
 
 	/** Get the configuration values for raytracing if enabled. */

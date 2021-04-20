@@ -367,12 +367,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ToolTip = "Shadow Map Method"))
 	TEnumAsByte<EShadowMapMethod::Type> ShadowMapMethod;
 
-	UPROPERTY(config, EditAnywhere, Category = Shadows, meta = (
-		ConsoleVariable = "r.Shadow.Virtual.NonNaniteVSM", DisplayName = "Support non-Nanite geometry in Virtual Shadow Maps",
-		ToolTip = "Whether to support non-Nanite geometry in Virtual Shadow Maps.  Enabling this incurs a small overhead if Virtual Shadow Maps is not the active Dynamic Shadowing Method.",
-		ConfigRestartRequired = true))
-	uint32 bEnableNonNaniteVSM:1;
-
 	/**
 	 * "Ray Tracing settings."
 	 */

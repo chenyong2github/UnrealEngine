@@ -197,19 +197,6 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
-		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ShadowMapMethod)
-			&& ShadowMapMethod == EShadowMapMethod::VirtualShadowMaps)
-		{
-			if (!bEnableNonNaniteVSM)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("Setting automatically enabled, needs restart.", "Virtual Shadow Maps are most efficient when handling both geometry paths, 'Support non-Nanite geometry in Virtual Shadow Maps' has been automatically enabled.  This requires a restart."));
-
-				bEnableNonNaniteVSM = true;
-
-				UpdateDependentPropertyInConfigFile(this, GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableNonNaniteVSM));
-			}
-		}
-
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, VirtualTextureTileSize))
 		{
 			VirtualTextureTileSize = FMath::RoundUpToPowerOfTwo(VirtualTextureTileSize);
@@ -275,11 +262,6 @@ bool URendererSettings::CanEditChange(const FProperty* InProperty) const
 	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bSupportSkyAtmosphereAffectsHeightFog)))
 	{
 		return ParentVal && bSupportSkyAtmosphere;
-	}
-
-	if ((InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, bEnableNonNaniteVSM)))
-	{
-		return ParentVal && ShadowMapMethod == EShadowMapMethod::VirtualShadowMaps;
 	}
 
 	return ParentVal;

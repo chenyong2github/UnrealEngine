@@ -140,12 +140,12 @@ static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	ECVF_RenderThreadSafe
 );
 
-int32 GEnableNonNaniteVSM = 0;
+int32 GEnableNonNaniteVSM = 1;
 
 FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
 	TEXT("r.Shadow.Virtual.NonNaniteVSM"),
 	GEnableNonNaniteVSM,
-	TEXT("EXPERIMENTAL: Enable support for non-nanite Virtual Shadow Maps, this has some performance impact on regular shadow maps.")
+	TEXT("Enable support for non-nanite Virtual Shadow Maps.")
 	TEXT("Read-only and to be set in a config file (requires restart)."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
