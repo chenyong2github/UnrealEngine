@@ -61,6 +61,33 @@ void SViewport::Construct( const FArguments& InArgs )
 	];
 }
 
+void SViewport::SetViewportInterface(TSharedRef<ISlateViewport> InViewportInterface)
+{
+	if (ViewportInterface != InViewportInterface)
+	{
+		ViewportInterface = InViewportInterface;
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
+}
+
+void SViewport::SetRenderDirectlyToWindow(const bool bInRenderDirectlyToWindow)
+{
+	if (bRenderDirectlyToWindow != bInRenderDirectlyToWindow)
+	{
+		bRenderDirectlyToWindow = bInRenderDirectlyToWindow;
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
+}
+
+void SViewport::SetIgnoreTextureAlpha(const bool bInIgnoreTextureAlpha)
+{
+	if (bIgnoreTextureAlpha != bInIgnoreTextureAlpha)
+	{
+		bIgnoreTextureAlpha = bInIgnoreTextureAlpha;
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
+}
+
 void SViewport::SetActive(bool bActive)
 {
 	// In game environments the viewport is always active
