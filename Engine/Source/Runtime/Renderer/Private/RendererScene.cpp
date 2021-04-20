@@ -3882,26 +3882,25 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 
 			for (int CheckIndex = StartIndex; CheckIndex < RemovedLocalPrimitiveSceneInfos.Num(); CheckIndex++)
 			{
-				checkfSlow(RemovedLocalPrimitiveSceneInfos[CheckIndex]->PackedIndex >= Primitives.Num() - RemovedLocalPrimitiveSceneInfos.Num(), TEXT("Removed item should be at the end"));
+				checkf(RemovedLocalPrimitiveSceneInfos[CheckIndex]->PackedIndex >= Primitives.Num() - RemovedLocalPrimitiveSceneInfos.Num(), TEXT("Removed item should be at the end"));
 			}
 
-			for (int RemoveIndex = StartIndex; RemoveIndex < RemovedLocalPrimitiveSceneInfos.Num(); RemoveIndex++)
-			{
-				int SourceIndex = RemovedLocalPrimitiveSceneInfos[RemoveIndex]->PackedIndex;
-				check(SourceIndex >= (Primitives.Num() - RemovedLocalPrimitiveSceneInfos.Num() + StartIndex));
-				Primitives.Pop();
-				PrimitiveTransforms.Pop();
-				PrimitiveSceneProxies.Pop();
-				PrimitiveBounds.Pop();
-				PrimitiveFlagsCompact.Pop();
-				PrimitiveVisibilityIds.Pop();
-				PrimitiveOcclusionFlags.Pop();
-				PrimitiveComponentIds.Pop();
-				PrimitiveVirtualTextureFlags.Pop();
-				PrimitiveVirtualTextureLod.Pop();
-				PrimitiveOcclusionBounds.Pop();
-				PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num() - 1);
-			}
+			//Remove all items from the location of StartIndex to the end of the arrays.
+			int RemoveCount = RemovedLocalPrimitiveSceneInfos.Num() - StartIndex;
+			int SourceIndex = Primitives.Num() - RemoveCount;
+
+			Primitives.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveTransforms.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveSceneProxies.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveBounds.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveFlagsCompact.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveVisibilityIds.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveOcclusionFlags.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveComponentIds.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveVirtualTextureFlags.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveVirtualTextureLod.RemoveAt(SourceIndex, RemoveCount);
+			PrimitiveOcclusionBounds.RemoveAt(SourceIndex, RemoveCount);
+			PrimitivesNeedingStaticMeshUpdate.RemoveAt(SourceIndex, RemoveCount);
 
 			CheckPrimitiveArrays();
 
