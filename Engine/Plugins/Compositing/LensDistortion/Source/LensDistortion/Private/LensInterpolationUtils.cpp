@@ -20,21 +20,6 @@ namespace LensInterpolationUtils
 	void InterpolateProperty(FProperty* Property, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);
 
 	template<typename Type>
-	Type BilinearBlendValue(float MainCoefficient
-		, float DeltaMinFocus
-		, float DeltaMaxFocus
-		, float DeltaMinZoom
-		, float DeltaMaxZoom
-		, const Type& MinMin
-		, const Type& MinMax
-		, const Type& MaxMin
-		, const Type& MaxMax)
-	{
-		return (MinMin * DeltaMaxFocus * DeltaMaxZoom + MaxMin * DeltaMinFocus * DeltaMaxZoom + MinMax * DeltaMaxFocus * DeltaMinZoom + MaxMax * DeltaMinFocus * DeltaMinZoom) * MainCoefficient;
-	}
-
-
-	template<typename Type>
 	void BilinearInterpolate(const FStructProperty* StructProperty
 		, float MainCoefficient
 		, float DeltaMinFocus
@@ -87,7 +72,9 @@ namespace LensInterpolationUtils
 					FScriptArrayHelper ArrayHelperD(ArrayProperty, FrameDataD);
 					FScriptArrayHelper ArrayHelperResult(ArrayProperty, DataResult);
 
-					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), FMath::Min(ArrayHelperB.Num(), FMath::Min(ArrayHelperC.Num(), FMath::Min(ArrayHelperD.Num(), ArrayHelperResult.Num()))));
+					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), FMath::Min(ArrayHelperB.Num(), FMath::Min(ArrayHelperC.Num(), ArrayHelperD.Num())));
+					ArrayHelperResult.Resize(MinValue);
+
 					for (int32 ArrayIndex = 0; ArrayIndex < MinValue; ++ArrayIndex)
 					{
 						BilinearInterpolateProperty(ArrayProperty->Inner, MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom
@@ -199,12 +186,6 @@ namespace LensInterpolationUtils
 	}
 
 	template<typename Type>
-	Type BlendValue(float InBlendWeight, const Type& A, const Type& B)
-	{
-		return FMath::Lerp(A, B, InBlendWeight);
-	}
-
-	template<typename Type>
 	void Interpolate(const FStructProperty* StructProperty, float InBlendWeight, const void* DataA, const void* DataB, void* DataResult)
 	{
 		const Type* ValuePtrA = StructProperty->ContainerPtrToValuePtr<Type>(DataA);
@@ -234,7 +215,9 @@ namespace LensInterpolationUtils
 					FScriptArrayHelper ArrayHelperB(ArrayProperty, Data1);
 					FScriptArrayHelper ArrayHelperResult(ArrayProperty, DataResult);
 
-					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), FMath::Min(ArrayHelperB.Num(), ArrayHelperResult.Num()));
+					const int32 MinValue = FMath::Min(ArrayHelperA.Num(), ArrayHelperB.Num());
+					ArrayHelperResult.Resize(MinValue);
+
 					for (int32 ArrayIndex = 0; ArrayIndex < MinValue; ++ArrayIndex)
 					{
 						InterpolateProperty(ArrayProperty->Inner, InBlendWeight, ArrayHelperA.GetRawPtr(ArrayIndex), ArrayHelperB.GetRawPtr(ArrayIndex), ArrayHelperResult.GetRawPtr(ArrayIndex));

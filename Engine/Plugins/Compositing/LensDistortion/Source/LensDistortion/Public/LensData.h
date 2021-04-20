@@ -52,8 +52,12 @@ public:
 	FString LensSerialNumber;
 
 	/** Model of the lens (spherical, anamorphic, etc...) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lens Info")
+	TSubclassOf<ULensModel> LensModel;
+
+	/** Width and height of the calibrated camera's sensor, in millimeters */
 	UPROPERTY(EditAnywhere, Category = "Lens Info")
-	TSubclassOf<ULensModel> LensModel = nullptr;
+	FVector2D SensorDimensions = FVector2D(23.76f, 13.365f);
 };
 
 /**

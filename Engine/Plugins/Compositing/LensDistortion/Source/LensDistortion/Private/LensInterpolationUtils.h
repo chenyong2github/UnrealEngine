@@ -48,6 +48,21 @@ namespace LensInterpolationUtils
 		float Zoom = MAX_FLT;
 	};
 
+	template<typename Type>
+	Type BilinearBlendValue(float MainCoefficient
+		, float DeltaMinFocus
+		, float DeltaMaxFocus
+		, float DeltaMinZoom
+		, float DeltaMaxZoom
+		, const Type& MinMin
+		, const Type& MinMax
+		, const Type& MaxMin
+		, const Type& MaxMax)
+	{
+		return (MinMin * DeltaMaxFocus * DeltaMaxZoom + MaxMin * DeltaMinFocus * DeltaMaxZoom + MinMax * DeltaMaxFocus * DeltaMinZoom + MaxMax * DeltaMinFocus * DeltaMinZoom) * MainCoefficient;
+	}
+
+
 	void BilinearInterpolate(const UStruct* InStruct
 		, float MainCoefficient
 		, float DeltaMinFocus
@@ -74,6 +89,12 @@ namespace LensInterpolationUtils
 		, Type* OutFrameData)
 	{
 		BilinearInterpolate(Type::StaticStruct(), MainCoefficient, DeltaMinFocus, DeltaMaxFocus, DeltaMinZoom, DeltaMaxZoom, DataA, DataB, DataC, DataD, OutFrameData);
+	}
+
+	template<typename Type>
+	Type BlendValue(float InBlendWeight, const Type& A, const Type& B)
+	{
+		return FMath::Lerp(A, B, InBlendWeight);
 	}
 	
 	void Interpolate(const UStruct* InStruct, float InBlendWeight, const void* InFrameDataA, const void* InFrameDataB, void* OutFrameData);

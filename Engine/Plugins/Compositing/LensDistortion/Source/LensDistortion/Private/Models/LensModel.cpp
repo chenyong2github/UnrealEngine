@@ -2,6 +2,8 @@
 
 #include "Models/LensModel.h"
 
+
+#include "LensDistortionModelHandlerBase.h"
 #include "Logging/LogMacros.h"
 
 
@@ -26,6 +28,25 @@ uint32 ULensModel::GetNumParameters() const
 	}
 
 	return NumParameters;
+}
+
+TSubclassOf<ULensDistortionModelHandlerBase> ULensModel::GetHandlerClass(TSubclassOf<ULensModel> LensModel)
+{
+	if (LensModel)
+	{
+		// Find all UClasses that derive from ULensDistortionModelHandlerBase
+		for (TObjectIterator<UClass> It; It; ++It)
+		{
+			if (It->IsChildOf(ULensDistortionModelHandlerBase::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
+			{
+				if (It->GetDefaultObject<ULensDistortionModelHandlerBase>()->IsModelSupported(LensModel))
+				{
+					return *It;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 void ULensModel::ToArray_Internal(UScriptStruct* TypeStruct, void* SrcData, TArray<float>& DstArray) const

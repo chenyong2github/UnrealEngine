@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "Engine/TimecodeProvider.h"
 #include "Interfaces/Interface_AssetUserData.h"
+#include "LensDistortionLog.h"
 #include "UObject/UObjectIterator.h"
 
 
@@ -73,18 +74,15 @@ ULensDistortionModelHandlerBase* ULensDistortionSubsystem::FindOrCreateDistortio
 		}
 	}
 
-	// Find all UClasses that derive from ULensDistortionModelHandlerBase
-	for (TObjectIterator<UClass> It; It; ++It)
+	const TSubclassOf<ULensDistortionModelHandlerBase> HandlerClass = ULensModel::GetHandlerClass(LensModelClass);
+	if(HandlerClass)
 	{
-		if (It->IsChildOf(ULensDistortionModelHandlerBase::StaticClass()) && !It->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated))
-		{
-			if (It->GetDefaultObject<ULensDistortionModelHandlerBase>()->IsModelSupported(LensModelClass))
-			{
-				Handler = NewObject<ULensDistortionModelHandlerBase>(Component, *It);
-				Component->AddAssetUserData(Handler);
-				break;
-			}
-		}
+		Handler = NewObject<ULensDistortionModelHandlerBase>(Component, HandlerClass);
+    	Component->AddAssetUserData(Handler);
+	}
+	else
+	{
+		UE_LOG(LogLensDistortion, Verbose, TEXT("Could not create DistortionHandler for LensModel '%s'"), *LensModelClass->GetName());
 	}
 
 	return Handler;

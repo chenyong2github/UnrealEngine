@@ -52,6 +52,27 @@ IMPLEMENT_GLOBAL_SHADER(FDisplacementMapBlendPS, "/Plugin/LensDistortion/Private
 
 namespace LensFileRendering
 {
+	void ClearDisplacementMap(UTextureRenderTarget2D* OutRenderTarget)
+	{
+		if (OutRenderTarget != nullptr)
+		{
+			const FTextureRenderTargetResource* const DestinationTextureResource = OutRenderTarget->GameThread_GetRenderTargetResource();
+
+			ENQUEUE_RENDER_COMMAND(LensFileRendering_ClearDisplacementMap)(
+			[DestinationTextureResource](FRHICommandListImmediate& RHICmdList)
+			{
+				FRDGBuilder GraphBuilder(RHICmdList);
+
+				const FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationTextureResource->TextureRHI, TEXT("OutputDisplacement")));
+
+				FLinearColor NoDistortionColor(0.5f, 0.5f, 0.5f, 0.5f);
+				AddClearRenderTargetPass(GraphBuilder, OutputTexture, NoDistortionColor);
+
+				GraphBuilder.Execute();
+			});
+		}
+	}	
+	
 	bool DrawBlendedDisplacementMap(UTextureRenderTarget2D* OutRenderTarget
 	, const FDisplacementMapBlendingParams& BlendParams
 	, UTextureRenderTarget2D* SourceTextureOne

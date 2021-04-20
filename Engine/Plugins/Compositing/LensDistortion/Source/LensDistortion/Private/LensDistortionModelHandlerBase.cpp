@@ -18,21 +18,16 @@ bool ULensDistortionModelHandlerBase::IsModelSupported(const TSubclassOf<ULensMo
 	return (LensModelClass == ModelToSupport);
 }
 
-void ULensDistortionModelHandlerBase::Update(const FLensDistortionState& InNewState)
+void ULensDistortionModelHandlerBase::SetDistortionState(const FLensDistortionState& InNewState)
 {
-	// Will need to revisit this init logic once we move to arbitrary lens model support 
-	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	// If the new state is equivalent to the current state, there is nothing to update. 
+	if (CurrentState != InNewState)
 	{
-		InitDistortionMaterials();
-	}
+		CurrentState = InNewState;
+		InterpretDistortionParameters();
 
-	// Check for duplicate updates. If the new CurrentState is equivalent to the current CurrentState, there is nothing to update. 
-	if (CurrentState == InNewState)
-	{
-		return;
-	}
-
-	UpdateInternal(InNewState);
+		bIsDirty = true;
+	}	
 }
 
 void ULensDistortionModelHandlerBase::PostInitProperties()
@@ -49,7 +44,7 @@ void ULensDistortionModelHandlerBase::PostInitProperties()
 	{
 		if (LensModelClass)
 		{
-			uint32 NumDistortionParameters = LensModelClass->GetDefaultObject<ULensModel>()->GetNumParameters();
+			const uint32 NumDistortionParameters = LensModelClass->GetDefaultObject<ULensModel>()->GetNumParameters();
 			CurrentState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
 		}
 
@@ -74,17 +69,18 @@ void ULensDistortionModelHandlerBase::PostEditChangeChainProperty(struct FProper
 			InitDistortionMaterials();
 		}
 
-		UpdateInternal(CurrentState);
+		SetDistortionState(CurrentState);
 	}
 }
 #endif	
 
-void ULensDistortionModelHandlerBase::UpdateOverscanFactor(float InOverscanFactor)
+void ULensDistortionModelHandlerBase::SetOverscanFactor(float InOverscanFactor)
 {
 	if (!DistortionPostProcessMID || !DisplacementMapMID)
 	{
 		InitDistortionMaterials();
 	}
+	
 	OverscanFactor = InOverscanFactor;
 	if (DistortionPostProcessMID)
 	{
@@ -125,28 +121,59 @@ float ULensDistortionModelHandlerBase::ComputeOverscanFactor() const
 		OverscanFactors.Add(FMath::Max(OverscanX, OverscanY));
 	}
 
+	float NewOverscan = 1.0f;
 	float* MaxOverscanFactor = Algo::MaxElement(OverscanFactors);
-	if (MaxOverscanFactor == nullptr)
+	if (MaxOverscanFactor != nullptr)
 	{
-		return 1.0f;
+		NewOverscan = FMath::Max(*MaxOverscanFactor, 1.0f);
 	}
-	else
-	{
-		return FMath::Max(*MaxOverscanFactor, 1.0f);
-	}
+
+	return NewOverscan;
 }
 
-void ULensDistortionModelHandlerBase::UpdateInternal(const FLensDistortionState& InNewState)
+TArray<FVector2D> ULensDistortionModelHandlerBase::GetDistortedUVs(TConstArrayView<FVector2D> UndistortedUVs) const
 {
-	CurrentState = InNewState;
+	TArray<FVector2D> DistortedUVs;
+	DistortedUVs.Reserve(UndistortedUVs.Num());
+	for (const FVector2D& UndistortedUV : UndistortedUVs)
+	{
+		const FVector2D DistortedUV = ComputeDistortedUV(UndistortedUV);
+		DistortedUVs.Add(DistortedUV);
+	}
+	return DistortedUVs;
+}
 
-	InterpretDistortionParameters();
-
-	// Recompute the overscan factor using the new state 
-	OverscanFactor = ComputeOverscanFactor();
-
+bool ULensDistortionModelHandlerBase::DrawDisplacementMap(UTextureRenderTarget2D* DestinationTexture)
+{
+	if(DestinationTexture == nullptr)
+	{
+		return false;
+	}
+	
+	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+	
 	UpdateMaterialParameters();
 
 	// Draw the updated displacement map render target 
-	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DisplacementMapRT, DisplacementMapMID);
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DestinationTexture, DisplacementMapMID);
+
+	return true;
+}
+
+void ULensDistortionModelHandlerBase::ProcessCurrentDistortion()
+{
+	if(bIsDirty)
+	{
+		bIsDirty = false;
+
+		InterpretDistortionParameters();
+
+		UpdateMaterialParameters();
+
+		// Draw the updated displacement map render target
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DisplacementMapRT, DisplacementMapMID);
+	}
 }
