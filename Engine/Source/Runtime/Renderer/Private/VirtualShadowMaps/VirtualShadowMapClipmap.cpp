@@ -25,7 +25,7 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 );
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastLevel(
 	TEXT( "r.Shadow.Virtual.Clipmap.LastLevel" ),
-	28,
+	22,
 	TEXT( "Last level of the virtual climap. Indirectly determines radius the clipmap can cover." ),
 	ECVF_RenderThreadSafe
 );
