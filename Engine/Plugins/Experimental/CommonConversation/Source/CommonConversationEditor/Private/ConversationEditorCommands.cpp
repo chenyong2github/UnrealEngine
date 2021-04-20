@@ -9,7 +9,7 @@
 //
 
 FConversationEditorCommonCommands::FConversationEditorCommonCommands()
-	: TCommands<FConversationEditorCommonCommands>("ConversationEditor.Common", LOCTEXT("Common", "Common"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FConversationEditorCommonCommands>("ConversationEditor.Common", LOCTEXT("ComversationEditorCommandsLabel", "Conversation Editor"), NAME_None, FEditorStyle::GetStyleSetName())
 {
 }
 

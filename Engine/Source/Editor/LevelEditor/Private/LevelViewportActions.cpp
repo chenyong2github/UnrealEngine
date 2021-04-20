@@ -193,7 +193,7 @@ void FLevelViewportCommands::HandleNewStat(const FName& InStatName, const FName&
 		if (!FInputBindingManager::Get().FindCommandInContext(this->GetContextName(), InStatName).IsValid() && !GroupCategory.IsEmpty())
 		{
 			// Find or Add the category
-			TArray< FShowMenuCommand >* ShowStatCommands = ShowStatCatCommands.Find(GroupCategory);
+			TArray<FShowMenuCommand>* ShowStatCommands = ShowStatCatCommands.Find(GroupCategory);
 			if (!ShowStatCommands)
 			{
 				// New category means we'll need to resort
@@ -216,7 +216,7 @@ void FLevelViewportCommands::HandleNewStat(const FName& InStatName, const FName&
 				}
 
 				TSharedPtr<FUICommandInfo> StatCommand
-					= FUICommandInfoDecl(this->AsShared(), InStatName, FText::GetEmpty(), DescriptionName)
+					= FUICommandInfoDecl(this->AsShared(), InStatName, DisplayName, DescriptionName)
 					.UserInterfaceType(EUserInterfaceActionType::ToggleButton);
 
 				FLevelViewportCommands::FShowMenuCommand ShowStatCommand(StatCommand, DisplayName);

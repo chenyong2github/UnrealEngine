@@ -16,7 +16,7 @@ public:
 		: TCommands<FDesignerCommands>
 		(
 			TEXT("WidgetDesigner"), // Context name for fast lookup
-			NSLOCTEXT("Contexts", "DesignerCommands", "Common Designer Commands"), // Localized context name for displaying
+			NSLOCTEXT("Contexts", "DesignerCommands", "UMG Designer Commands"), // Localized context name for displaying
 			NAME_None, // Parent
 			FEditorStyle::GetStyleSetName() // Icon Style Set
 		)

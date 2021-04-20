@@ -6,7 +6,7 @@
 #define LOCTEXT_NAMESPACE "MoviePipelineCommands"
 
 FMoviePipelineCommands::FMoviePipelineCommands()
-	: TCommands<FMoviePipelineCommands>("MovieRenderPipeline", LOCTEXT("Common", "Common"), NAME_None, FMovieRenderPipelineStyle::StyleName)
+	: TCommands<FMoviePipelineCommands>("MovieRenderPipeline", LOCTEXT("MoviePipelineCommandsLabel", "Movie Pipeline"), NAME_None, FMovieRenderPipelineStyle::StyleName)
 {
 }
 

@@ -6,7 +6,7 @@
 #define LOCTEXT_NAMESPACE "BehaviorTreeEditorCommands"
 
 FBTCommonCommands::FBTCommonCommands() 
-	: TCommands<FBTCommonCommands>("BTEditor.Common", LOCTEXT("Common", "Common"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FBTCommonCommands>("BTEditor.Common", LOCTEXT("BehaviorTreeCommandLabel", "Behavior Tree"), NAME_None, FEditorStyle::GetStyleSetName())
 {
 }
 

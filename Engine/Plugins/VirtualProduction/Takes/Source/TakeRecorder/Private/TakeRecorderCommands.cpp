@@ -6,7 +6,7 @@
 #define LOCTEXT_NAMESPACE "TakeRecorderCommands"
 
 FTakeRecorderCommands::FTakeRecorderCommands()
-	: TCommands<FTakeRecorderCommands>("TakeRecorder", LOCTEXT("Common", "Common"), NAME_None, FTakeRecorderStyle::StyleName)
+	: TCommands<FTakeRecorderCommands>("TakeRecorder", LOCTEXT("TakeRecorderCommandLabel", "Take Recorder"), NAME_None, FTakeRecorderStyle::StyleName)
 {
 }
 

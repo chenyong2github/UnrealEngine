@@ -6,7 +6,7 @@
 #define LOCTEXT_NAMESPACE "SequenceRecorderCommands"
 
 FSequenceRecorderCommands::FSequenceRecorderCommands()
-	: TCommands<FSequenceRecorderCommands>("SequenceRecorder.Common", LOCTEXT("Common", "Common"), NAME_None, FEditorStyle::GetStyleSetName())
+	: TCommands<FSequenceRecorderCommands>("SequenceRecorder.Common", LOCTEXT("SequenceRecorderCommandsLabel", "Sequence Recorder"), NAME_None, FEditorStyle::GetStyleSetName())
 {
 }
 

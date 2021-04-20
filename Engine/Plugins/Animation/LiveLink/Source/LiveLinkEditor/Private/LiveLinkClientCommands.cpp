@@ -6,7 +6,7 @@
 #define LOCTEXT_NAMESPACE "LiveLinkClientCommands"
 
 FLiveLinkClientCommands::FLiveLinkClientCommands()
-	: TCommands<FLiveLinkClientCommands>("LiveLinkClient.Common", LOCTEXT("Common", "Common"), NAME_None, FName(TEXT("LiveLinkStyle")))
+	: TCommands<FLiveLinkClientCommands>("LiveLinkClient.Common", LOCTEXT("LiveLinkCommandsLabel", "Live Link"), NAME_None, FName(TEXT("LiveLinkStyle")))
 {
 }
 
