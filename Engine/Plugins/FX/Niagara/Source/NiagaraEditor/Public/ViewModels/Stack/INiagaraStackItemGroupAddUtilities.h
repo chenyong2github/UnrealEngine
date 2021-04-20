@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "NiagaraActions.h"
 
 /** Represents a single action for adding an item to a group in the stack. */
 class INiagaraStackItemGroupAddAction
 {
 public:
 	/** Gets the category for this action. */
-	virtual FText GetCategory() const = 0;
+	virtual TArray<FString> GetCategories() const = 0;
 
 	/** Gets the short display name for this action. */
 	virtual FText GetDisplayName() const = 0;
@@ -17,6 +18,24 @@ public:
 
 	/** Gets a space separated string of keywords which expose additional search terms for this action. */
 	virtual FText GetKeywords() const = 0;
+
+	/** Gets a bool that indicates whether this action is suggested or not */
+	virtual bool GetSuggested() const
+	{
+		return false;
+	}
+
+	/** Indicates if this action represents a library action */
+	virtual bool IsInLibrary() const
+	{
+		return true;
+	}
+
+	/** Gets a source data struct that is useful to display additional information about an action */
+	virtual FNiagaraActionSourceData GetSourceData() const
+	{
+		return FNiagaraActionSourceData();
+	}
 
 	virtual ~INiagaraStackItemGroupAddAction() { }
 };

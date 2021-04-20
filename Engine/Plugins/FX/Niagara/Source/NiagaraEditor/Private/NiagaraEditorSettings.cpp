@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorSettings.h"
+
+#include "NiagaraActions.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
 
@@ -32,6 +34,28 @@ UNiagaraEditorSettings::UNiagaraEditorSettings(const FObjectInitializer& ObjectI
 }
 
 #define LOCTEXT_NAMESPACE "NamespaceMetadata"
+
+FLinearColor UNiagaraEditorSettings::GetSourceColor(EScriptSource  Source) const
+{
+	if(Source == EScriptSource::Niagara)
+	{
+		return ActionColors.NiagaraColor;
+	}
+	else if(Source == EScriptSource::Game)
+	{
+		return ActionColors.GameColor;
+	}
+	else if(Source == EScriptSource::Plugins)
+	{
+		return ActionColors.PluginColor;
+	}
+	else if(Source == EScriptSource::Developer)
+	{
+		return ActionColors.DeveloperColor;
+	}
+
+	return FLinearColor(1.f,1.f,1.f,0.3);
+}
 
 void UNiagaraEditorSettings::SetupNamespaceMetadata()
 {
