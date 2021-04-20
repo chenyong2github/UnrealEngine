@@ -61,6 +61,236 @@ FIntPoint GetDesiredPhysicalAtlasSize()
 	return GetDesiredPhysicalAtlasSizeInPages() * Lumen::PhysicalPageSize;
 }
 
+FLumenSurfaceCacheAllocator::FPageBin::FPageBin(FIntPoint InElementSize)
+{
+	ensure(InElementSize.GetMax() <= Lumen::PhysicalPageSize);
+	ElementSize = InElementSize;
+	PageSizeInElements = FIntPoint(Lumen::PhysicalPageSize) / InElementSize;
+}
+
+void FLumenSurfaceCacheAllocator::Init(FIntPoint PageAtlasSizeInPages)
+{
+	PhysicalPageFreeList.SetNum(PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y);
+	for (int32 CoordY = 0; CoordY < PageAtlasSizeInPages.Y; ++CoordY)
+	{
+		for (int32 CoordX = 0; CoordX < PageAtlasSizeInPages.X; ++CoordX)
+		{
+			const int32 PageFreeListIndex = PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y - 1 - (CoordX + PageAtlasSizeInPages.X * CoordY);
+			PhysicalPageFreeList[PageFreeListIndex].X = CoordX;
+			PhysicalPageFreeList[PageFreeListIndex].Y = CoordY;
+		}
+	}
+}
+
+FIntPoint FLumenSurfaceCacheAllocator::AllocatePhysicalAtlasPage()
+{
+	FIntPoint NewPageCoord = FIntPoint(-1, -1);
+
+	if (PhysicalPageFreeList.Num() > 0)
+	{
+		NewPageCoord = PhysicalPageFreeList.Last();
+		PhysicalPageFreeList.Pop();
+	}
+
+	return NewPageCoord;
+}
+
+void FLumenSurfaceCacheAllocator::FreePhysicalAtlasPage(FIntPoint PageCoord)
+{
+	if (PageCoord.X >= 0 && PageCoord.Y >= 0)
+	{
+		PhysicalPageFreeList.Add(PageCoord);
+	}
+}
+
+void FLumenSurfaceCacheAllocator::Allocate(const FLumenPageTableEntry& Page, FAllocation& Allocation)
+{
+	if (Page.IsSubAllocation())
+	{
+		FPageBin* MatchingBin = nullptr;
+
+		for (FPageBin& Bin : PageBins)
+		{
+			if (Bin.ElementSize == Page.SubAllocationSize)
+			{
+				MatchingBin = &Bin;
+				break;
+			}
+		}
+
+		if (!MatchingBin)
+		{
+			PageBins.Add(FPageBin(Page.SubAllocationSize));
+			MatchingBin = &PageBins.Last();
+		}
+
+		FPageBinAllocation* MatchingBinAllocation = nullptr;
+
+		for (FPageBinAllocation& BinAllocation : MatchingBin->BinAllocations)
+		{
+			if (BinAllocation.FreeList.Num() > 0)
+			{
+				MatchingBinAllocation = &BinAllocation;
+				break;
+			}
+		}
+
+		if (!MatchingBinAllocation)
+		{
+			const FIntPoint PageCoord = AllocatePhysicalAtlasPage();
+
+			if (PageCoord.X >= 0 && PageCoord.Y >= 0)
+			{
+				MatchingBin->BinAllocations.AddDefaulted(1);
+
+				FPageBinAllocation& NewBinAllocation = MatchingBin->BinAllocations.Last();
+				NewBinAllocation.PageCoord = PageCoord;
+
+				NewBinAllocation.FreeList.SetNum(MatchingBin->PageSizeInElements.X * MatchingBin->PageSizeInElements.Y);
+				for (int32 ElementsY = 0; ElementsY < MatchingBin->PageSizeInElements.Y; ++ElementsY)
+				{
+					for (int32 ElementsX = 0; ElementsX < MatchingBin->PageSizeInElements.X; ++ElementsX)
+					{
+						NewBinAllocation.FreeList[ElementsX + ElementsY * MatchingBin->PageSizeInElements.X] = FIntPoint(ElementsX, ElementsY);
+					}
+				}
+
+				MatchingBinAllocation = &NewBinAllocation;
+			}
+		}
+
+		if (MatchingBinAllocation)
+		{
+			const FIntPoint ElementCoord = MatchingBinAllocation->FreeList.Last();
+			MatchingBinAllocation->FreeList.Pop();
+
+			const FIntPoint ElementOffset = MatchingBinAllocation->PageCoord * Lumen::PhysicalPageSize + ElementCoord * MatchingBin->ElementSize;
+
+			Allocation.PhysicalPageCoord = MatchingBinAllocation->PageCoord;
+			Allocation.PhysicalAtlasRect.Min = ElementOffset;
+			Allocation.PhysicalAtlasRect.Max = ElementOffset + MatchingBin->ElementSize;
+		}
+	}
+	else
+	{
+		Allocation.PhysicalPageCoord = AllocatePhysicalAtlasPage();
+		Allocation.PhysicalAtlasRect.Min = (Allocation.PhysicalPageCoord + 0) * Lumen::PhysicalPageSize;
+		Allocation.PhysicalAtlasRect.Max = (Allocation.PhysicalPageCoord + 1) * Lumen::PhysicalPageSize;
+	}
+}
+
+void FLumenSurfaceCacheAllocator::Free(const FLumenPageTableEntry& Page)
+{
+	if (Page.IsSubAllocation())
+	{
+		FPageBin* MatchingBin = nullptr;
+		for (FPageBin& Bin : PageBins)
+		{
+			if (Bin.ElementSize == Page.SubAllocationSize)
+			{
+				MatchingBin = &Bin;
+				break;
+			}
+		}
+
+		check(MatchingBin);
+		bool bRemoved = false;
+
+		for (int32 AllocationIndex = 0; AllocationIndex < MatchingBin->BinAllocations.Num(); AllocationIndex++)
+		{
+			FPageBinAllocation& BinAllocation = MatchingBin->BinAllocations[AllocationIndex];
+
+			const FIntPoint ElementCoord = (Page.PhysicalAtlasRect.Min - BinAllocation.PageCoord * Lumen::PhysicalPageSize) / MatchingBin->ElementSize;
+
+			if (ElementCoord.X >= 0
+				&& ElementCoord.Y >= 0
+				&& ElementCoord.X < MatchingBin->PageSizeInElements.X
+				&& ElementCoord.Y < MatchingBin->PageSizeInElements.Y)
+			{
+				BinAllocation.FreeList.Add(ElementCoord);
+
+				if (BinAllocation.FreeList.Num() == MatchingBin->GetNumElements())
+				{
+					FreePhysicalAtlasPage(BinAllocation.PageCoord);
+					MatchingBin->BinAllocations.RemoveAt(AllocationIndex);
+				}
+
+				bRemoved = true;
+				break;
+			}
+		}
+
+		check(bRemoved);
+	}
+	else
+	{
+		FreePhysicalAtlasPage(Page.PhysicalPageCoord);
+	}
+}
+
+/**
+ * Checks if there's enough free memory in the surface cache to allocate entire mip map level of a card (or a single page)
+ */
+bool FLumenSurfaceCacheAllocator::IsSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const
+{
+	FLumenMipMapDesc MipMapDesc;
+
+	Card.GetMipMapDesc(ResLevel, MipMapDesc);
+
+	const int32 ReqSizeInPages = bSinglePage ? 1 : (MipMapDesc.SizeInPages.X * MipMapDesc.SizeInPages.Y);
+
+	if (PhysicalPageFreeList.Num() >= ReqSizeInPages)
+	{
+		return true;
+	}
+
+	// No free pages, but maybe there's some space in one of the existing bins
+	if (MipMapDesc.bSubAllocation)
+	{
+		const FPageBin* MatchingBin = nullptr;
+
+		for (const FPageBin& Bin : PageBins)
+		{
+			if (Bin.ElementSize == MipMapDesc.Resolution)
+			{
+				for (const FPageBinAllocation& BinAllocation : Bin.BinAllocations)
+				{
+					if (BinAllocation.FreeList.Num() > 0)
+					{
+						return true;
+					}
+				}
+
+				break;
+			}
+		}
+	}
+
+	return false;
+}
+
+void FLumenSurfaceCacheAllocator::GetStats(FStats& Stats) const
+{
+	Stats.NumFreePages = PhysicalPageFreeList.Num();
+
+	for (const FPageBin& Bin : PageBins)
+	{
+		uint32 NumFreeElements = 0;
+
+		for (const FPageBinAllocation& BinAllocation : Bin.BinAllocations)
+		{
+			NumFreeElements += BinAllocation.FreeList.Num();
+		}
+
+		const uint32 NumElementsPerPage = Bin.PageSizeInElements.X * Bin.PageSizeInElements.Y;
+		const uint32 NumElements = Bin.BinAllocations.Num() * NumElementsPerPage - NumFreeElements;
+
+		Stats.BinNumPages += Bin.BinAllocations.Num();
+		Stats.BinNumWastedPages += Bin.BinAllocations.Num() - FMath::DivideAndRoundUp(NumElements, NumElementsPerPage);
+		Stats.BinPageFreeTexels += NumFreeElements * Bin.ElementSize.X * Bin.ElementSize.Y;
+	}
+}
+
 void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 {
 	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, LumenUploadPageTable);
@@ -590,32 +820,13 @@ bool FLumenSceneData::UpdateAtlasSize()
 		RemoveAllMeshCards();
 
 		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize();
-
-		const FIntPoint PageAtlasSizeInPages = GetDesiredPhysicalAtlasSizeInPages();
-		PhysicalPageFreeList.SetNum(PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y);
-		for (int32 CoordY = 0; CoordY < PageAtlasSizeInPages.Y; ++CoordY)
-		{
-			for (int32 CoordX = 0; CoordX < PageAtlasSizeInPages.X; ++CoordX)
-			{
-				const int32 PageFreeListIndex = PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y - 1 - (CoordX + PageAtlasSizeInPages.X * CoordY);
-				PhysicalPageFreeList[PageFreeListIndex].X = CoordX;
-				PhysicalPageFreeList[PageFreeListIndex].Y = CoordY;
-			}
-		}
-
+		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages());
 		UnlockedAllocationHeap.Clear();
 
 		return true;
 	}
 
 	return false;
-}
-
-FLumenSceneData::FPageBin::FPageBin(FIntPoint InElementSize)
-{
-	ensure(InElementSize.GetMax() <= Lumen::PhysicalPageSize);
-	ElementSize = InElementSize;
-	PageSizeInElements = FIntPoint(Lumen::PhysicalPageSize) / InElementSize;
 }
 
 void FLumenCard::UpdateMinMaxAllocatedLevel()
@@ -725,78 +936,11 @@ FLumenPageTableEntry& FLumenSceneData::MapSurfaceCachePage(FLumenSurfaceMipMap& 
 
 	if (!PageTableEntry.IsMapped())
 	{
-		if (PageTableEntry.IsSubAllocation())
-		{
-			FPageBin* MatchingBin = nullptr;
+		FLumenSurfaceCacheAllocator::FAllocation Allocation;
+		SurfaceCacheAllocator.Allocate(PageTableEntry, Allocation);
 
-			for (FPageBin& Bin : PageBins)
-			{
-				if (Bin.ElementSize == PageTableEntry.SubAllocationSize)
-				{
-					MatchingBin = &Bin;
-					break;
-				}
-			}
-
-			if (!MatchingBin)
-			{
-				PageBins.Add(FPageBin(PageTableEntry.SubAllocationSize));
-				MatchingBin = &PageBins.Last();
-			}
-
-			FPageBinAllocation* MatchingBinAllocation = nullptr;
-
-			for (FPageBinAllocation& BinAllocation : MatchingBin->BinAllocations)
-			{
-				if (BinAllocation.FreeList.Num() > 0)
-				{
-					MatchingBinAllocation = &BinAllocation;
-					break;
-				}
-			}
-
-			if (!MatchingBinAllocation)
-			{
-				const FIntPoint PageCoord = AllocatePhysicalAtlasPage();
-
-				if (PageCoord.X >= 0 && PageCoord.Y >= 0)
-				{
-					MatchingBin->BinAllocations.AddDefaulted(1);
-
-					FPageBinAllocation& NewBinAllocation = MatchingBin->BinAllocations.Last();
-					NewBinAllocation.PageCoord = PageCoord;
-
-					NewBinAllocation.FreeList.SetNum(MatchingBin->PageSizeInElements.X * MatchingBin->PageSizeInElements.Y);
-					for (int32 ElementsY = 0; ElementsY < MatchingBin->PageSizeInElements.Y; ++ElementsY)
-					{
-						for (int32 ElementsX = 0; ElementsX < MatchingBin->PageSizeInElements.X; ++ElementsX)
-						{
-							NewBinAllocation.FreeList[ElementsX + ElementsY * MatchingBin->PageSizeInElements.X] = FIntPoint(ElementsX, ElementsY);
-						}
-					}
-
-					MatchingBinAllocation = &NewBinAllocation;
-				}
-			}
-
-			if (MatchingBinAllocation)
-			{
-				const FIntPoint ElementCoord = MatchingBinAllocation->FreeList.Last();
-				MatchingBinAllocation->FreeList.Pop();
-
-				const FIntPoint ElementOffset = MatchingBinAllocation->PageCoord * Lumen::PhysicalPageSize + ElementCoord * MatchingBin->ElementSize;
-
-				PageTableEntry.PhysicalPageCoord = MatchingBinAllocation->PageCoord;
-				PageTableEntry.PhysicalAtlasRect.Min = ElementOffset;
-				PageTableEntry.PhysicalAtlasRect.Max = ElementOffset + MatchingBin->ElementSize;
-			}
-		}
-		else
-		{
-			PageTableEntry.PhysicalPageCoord = AllocatePhysicalAtlasPage();
-			PageTableEntry.PhysicalAtlasRect.Min = (PageTableEntry.PhysicalPageCoord + 0) * Lumen::PhysicalPageSize;
-			PageTableEntry.PhysicalAtlasRect.Max = (PageTableEntry.PhysicalPageCoord + 1) * Lumen::PhysicalPageSize;
-		}
+		PageTableEntry.PhysicalPageCoord = Allocation.PhysicalPageCoord;
+		PageTableEntry.PhysicalAtlasRect = Allocation.PhysicalAtlasRect;
 
 		if (PageTableEntry.IsMapped())
 		{
@@ -826,51 +970,7 @@ void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& 
 			UnlockedAllocationHeap.Remove(PageIndex);
 		}
 
-		if (Page.IsSubAllocation())
-		{
-			FPageBin* MatchingBin = nullptr;
-			for (FPageBin& Bin : PageBins)
-			{
-				if (Bin.ElementSize == Page.SubAllocationSize)
-				{
-					MatchingBin = &Bin;
-					break;
-				}
-			}
-
-			check(MatchingBin);
-			bool bRemoved = false;
-
-			for (int32 AllocationIndex = 0; AllocationIndex < MatchingBin->BinAllocations.Num(); AllocationIndex++)
-			{
-				FPageBinAllocation& BinAllocation = MatchingBin->BinAllocations[AllocationIndex];
-
-				const FIntPoint ElementCoord = (Page.PhysicalAtlasRect.Min - BinAllocation.PageCoord * Lumen::PhysicalPageSize) / MatchingBin->ElementSize;
-
-				if (ElementCoord.X >= 0
-					&& ElementCoord.Y >= 0
-					&& ElementCoord.X < MatchingBin->PageSizeInElements.X
-					&& ElementCoord.Y < MatchingBin->PageSizeInElements.Y)
-				{
-					BinAllocation.FreeList.Add(ElementCoord);
-
-					if (BinAllocation.FreeList.Num() == MatchingBin->GetNumElements())
-					{
-						FreePhysicalAtlasPage(BinAllocation.PageCoord);
-						MatchingBin->BinAllocations.RemoveAt(AllocationIndex);
-					}
-
-					bRemoved = true;
-					break;
-				}
-			}
-
-			check(bRemoved);
-		}
-		else
-		{
-			FreePhysicalAtlasPage(Page.PhysicalPageCoord);
-		}
+		SurfaceCacheAllocator.Free(Page);
 
 		Page.PhysicalPageCoord.X = -1;
 		Page.PhysicalPageCoord.Y = -1;
@@ -1005,27 +1105,6 @@ void FLumenSceneData::FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, u
 	}
 }
 
-FIntPoint FLumenSceneData::AllocatePhysicalAtlasPage()
-{
-	FIntPoint NewPageCoord = FIntPoint(-1, -1);
-
-	if (PhysicalPageFreeList.Num() > 0)
-	{
-		NewPageCoord = PhysicalPageFreeList.Last();
-		PhysicalPageFreeList.Pop();
-	}
-
-	return NewPageCoord;
-}
-
-void FLumenSceneData::FreePhysicalAtlasPage(FIntPoint PageCoord)
-{
-	if (PageCoord.X >= 0 && PageCoord.Y >= 0)
-	{
-		PhysicalPageFreeList.Add(PageCoord);
-	}
-}
-
 /**
  * Remove any empty virtual mip allocations, and flatten page search by walking 
  * though the sparse mip maps and reusing lower res resident pages
@@ -1098,47 +1177,6 @@ void FLumenSceneData::UpdateCardMipMapHierarchy(FLumenCard& Card)
 			ParentResLevel = ResLevel;
 		}
 	}
-}
-
-/**
- * Checks if there's enough free memory in the surface cache to allocate entire mip map level of a card (or a single page)
- */
-bool FLumenSceneData::IsPhysicalSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const
-{
-	FLumenMipMapDesc MipMapDesc;
-
-	Card.GetMipMapDesc(ResLevel, MipMapDesc);
-
-	const int32 ReqSizeInPages = bSinglePage ? 1 : (MipMapDesc.SizeInPages.X * MipMapDesc.SizeInPages.Y);
-
-	if (PhysicalPageFreeList.Num() >= ReqSizeInPages)
-	{
-		return true;
-	}
-
-	// No free pages, but maybe there's some space in one of the existing bins
-	if (MipMapDesc.bSubAllocation)
-	{
-		const FPageBin* MatchingBin = nullptr;
-
-		for (const FPageBin& Bin : PageBins)
-		{
-			if (Bin.ElementSize == MipMapDesc.Resolution)
-			{
-				for (const FPageBinAllocation& BinAllocation : Bin.BinAllocations)
-				{
-					if (BinAllocation.FreeList.Num() > 0)
-					{	
-						return true;
-					}
-				}
-
-				break;
-			}
-		}
-	}
-
-	return false;
 }
 
 /**
@@ -1240,31 +1278,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 		}
 	}
 
-	struct FBinStats
-	{
-		uint32 NumPages = 0;
-		uint32 NumWastedPages = 0;
-		uint32 PageFreeTexels = 0;
-	};
-
-	FBinStats BinStats;
-
-	for (const FPageBin& Bin : PageBins)
-	{
-		uint32 NumFreeElements = 0;
-
-		for (const FPageBinAllocation& BinAllocation : Bin.BinAllocations)
-		{
-			NumFreeElements += BinAllocation.FreeList.Num();
-		}
-
-		const uint32 NumElementsPerPage = Bin.PageSizeInElements.X * Bin.PageSizeInElements.Y;
-		const uint32 NumElements = Bin.BinAllocations.Num() * NumElementsPerPage - NumFreeElements;
-
-		BinStats.NumPages += Bin.BinAllocations.Num();
-		BinStats.NumWastedPages += Bin.BinAllocations.Num() - FMath::DivideAndRoundUp(NumElements, NumElementsPerPage);
-		BinStats.PageFreeTexels += NumFreeElements * Bin.ElementSize.X * Bin.ElementSize.Y;
-	}
+	FLumenSurfaceCacheAllocator::FStats AllocatorStats;
+	SurfaceCacheAllocator.GetStats(AllocatorStats);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** LumenScene Stats ***"));
 	UE_LOG(LogRenderer, Log, TEXT("  Mesh SDF Objects: %d"), DistanceFieldSceneData.NumObjectsInBuffer);
@@ -1276,8 +1291,8 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  Visible cards: %d"), NumVisibleCards);
 
 	UE_LOG(LogRenderer, Log, TEXT("*** Surface cache ***"));
-	UE_LOG(LogRenderer, Log, TEXT("  Allocated %d physical pages out of %d"), NumPhysicalPages - PhysicalPageFreeList.Num(), NumPhysicalPages);
-	UE_LOG(LogRenderer, Log, TEXT("  Bin pages: %d, wasted pages: %d, free texels: %.3fM"), BinStats.NumPages, BinStats.NumWastedPages, BinStats.PageFreeTexels / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  Allocated %d physical pages out of %d"), NumPhysicalPages - AllocatorStats.NumFreePages, NumPhysicalPages);
+	UE_LOG(LogRenderer, Log, TEXT("  Bin pages: %d, wasted pages: %d, free texels: %.3fM"), AllocatorStats.BinNumPages, AllocatorStats.BinNumWastedPages, AllocatorStats.BinPageFreeTexels / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  Virtual texels: %.3fM"), SurfaceStats.NumVirtualTexels / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  Locked virtual texels: %.3fM"), SurfaceStats.NumLockedVirtualTexels / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  Physical texels: %.3fM, usage: %.3f%%"), SurfaceStats.NumPhysicalTexels / (1024.0f * 1024.0f), (100.0f * SurfaceStats.NumPhysicalTexels) / (PhysicalAtlasSize.X * PhysicalAtlasSize.Y));

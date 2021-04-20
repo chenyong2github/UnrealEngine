@@ -315,6 +315,67 @@ union FVirtualPageIndex
 	};
 };
 
+/**
+ * Physical page allocator, which routes sub page sized allocations to a bin allocator
+ */
+class FLumenSurfaceCacheAllocator
+{
+public:
+	struct FAllocation
+	{
+		// Allocated physical page data
+		FIntPoint PhysicalPageCoord = FIntPoint(-1, -1);
+
+		// Allows to point to a sub-allocation inside a shared physical page
+		FIntRect PhysicalAtlasRect;
+	};
+
+	struct FStats
+	{
+		uint32 NumFreePages = 0;
+
+		uint32 BinNumPages = 0;
+		uint32 BinNumWastedPages = 0;
+		uint32 BinPageFreeTexels = 0;
+	};
+
+	void Init(FIntPoint PageAtlasSizeInPages);
+	void Allocate(const FLumenPageTableEntry& Page, FAllocation& Allocation);
+	void Free(const FLumenPageTableEntry& Page);
+	bool IsSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const;
+	void GetStats(FStats& Stats) const;
+
+private:
+
+	struct FPageBinAllocation
+	{
+	public:
+		FIntPoint PageCoord;
+		TArray<FIntPoint> FreeList;
+	};
+
+	struct FPageBin
+	{
+		FPageBin(FIntPoint InElementSize);
+
+		int32 GetNumElements() const
+		{
+			return PageSizeInElements.X * PageSizeInElements.Y;
+		}
+
+		FIntPoint ElementSize = FIntPoint(0, 0);
+		FIntPoint PageSizeInElements = FIntPoint(0, 0);
+
+		TArray<FPageBinAllocation, TInlineAllocator<16>> BinAllocations;
+	};
+
+	FIntPoint AllocatePhysicalAtlasPage();
+	void FreePhysicalAtlasPage(FIntPoint PageCoord);
+
+	TArray<FIntPoint> PhysicalPageFreeList;
+	TArray<FPageBin> PageBins;
+};
+
 class FLumenSceneData
 {
 public:
@@ -416,7 +477,10 @@ public:
 
 	void UpdateCardMipMapHierarchy(FLumenCard& Card);
 
-	bool IsPhysicalSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const;
+	bool IsPhysicalSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const
+	{
+		return SurfaceCacheAllocator.IsSpaceAvailable(Card, ResLevel, bSinglePage);
+	}
 
 	void ForceEvictEntireCache();
 	bool EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
@@ -434,38 +498,13 @@ public:
 
 private:
 
-	struct FPageBinAllocation
-	{
-	public:
-		FIntPoint PageCoord;
-		TArray<FIntPoint> FreeList;
-	};
-
-	struct FPageBin
-	{
-		FPageBin(FIntPoint InElementSize);
-
-		int32 GetNumElements() const
-		{
-			return PageSizeInElements.X * PageSizeInElements.Y;
-		}
-
-		FIntPoint ElementSize = FIntPoint(0, 0);
-		FIntPoint PageSizeInElements = FIntPoint(0, 0);
-
-		TArray<FPageBinAllocation, TInlineAllocator<16>> BinAllocations;
-	};
-
 	int32 AddMeshCardsFromBuildData(const FLumenPrimitive& LumenPrimitive, int32 LumenInstanceIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale);
 
-	FIntPoint AllocatePhysicalAtlasPage();
-	void FreePhysicalAtlasPage(FIntPoint PageCoord);
 	void UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex);
 
 	// Virtual surface cache page table
 	FIntPoint PhysicalAtlasSize = FIntPoint(0, 0);
-	TArray<FIntPoint> PhysicalPageFreeList;
-	TArray<FPageBin> PageBins;
+	FLumenSurfaceCacheAllocator SurfaceCacheAllocator;
 	TSparseSpanArray<FLumenPageTableEntry> PageTable;
 	TArray<int32> PageTableIndicesToUpdateInBuffer;
 	FRWByteAddressBuffer PageTableBuffer;
