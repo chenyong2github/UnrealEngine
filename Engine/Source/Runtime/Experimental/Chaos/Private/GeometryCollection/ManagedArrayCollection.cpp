@@ -436,29 +436,6 @@ void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 			}
 		}
 
-		// Material indices are tied to the implicit collision geometry
-		// baking cached assets will strip out the collision geometry
-		// so we copy the indices to an attribute for back access on 
-		// cached only assets. 
-		if (HasGroup("Transform"))
-		{
-			if (HasAttribute("Implicits", "Transform"))
-			{
-				if (!HasAttribute("DefaultMaterialIndex", "Transform"))
-				{
-					TManagedArray<int32>& DefaultMaterialID = AddAttribute<int32>("DefaultMaterialIndex", "Transform");
-
-					typedef TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> FSharedImplicit;
-					TManagedArray<FSharedImplicit>& Implicits = GetAttribute<FSharedImplicit>("Implicits", "Transform");
-					for (int i = 0; i < NumElements("Transform"); i++)
-					{
-						if (Implicits[i])
-							DefaultMaterialID[i] = Implicits[i]->GetMaterialIndex(0);
-					}
-				}
-			}
-		}
-
 #endif
 
 		// strip out GUID Attributes

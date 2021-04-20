@@ -1123,18 +1123,40 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialID;
 	}
 
-	const TManagedArray<FBox>& BoundingBoxes = Collection->BoundingBox;
-
-	const int32 NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+	Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;
+	const int32 NumGeometry = Resource.HierarchyRootOffsets.Num();
 	GeometryNaniteData.SetNumUninitialized(NumGeometry);
 
-	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
+	bool bHasGeometryBoundingBoxes = Collection->HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup) && Collection->NumElements(FGeometryCollection::GeometryGroup)>0;
+	if (bHasGeometryBoundingBoxes)
 	{
-		FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
-		Instance.PrimitiveId = ~uint32(0);
-		Instance.RenderBounds = BoundingBoxes[GeometryIndex];
-		Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
+		const TManagedArray<FBox>& BoundingBoxes = Collection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+		for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
+		{
+			FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
+			Instance.PrimitiveId = ~uint32(0);
+			Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
+			Instance.RenderBounds = BoundingBoxes[GeometryIndex];
+		}
 	}
+	else
+	{
+		const TManagedArray<FBox>& BoundingBoxes = Collection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
+		const TManagedArray<int32>& TransformToGeometry = Collection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+		const int32 NumTransforms = TransformToGeometry.Num();
+		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
+		{
+			const int32 GeometryIndex = TransformToGeometry[TransformIndex];
+			if (GeometryIndex > INDEX_NONE)
+			{
+				FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
+				Instance.PrimitiveId = ~uint32(0);
+				Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
+				Instance.RenderBounds = BoundingBoxes[GeometryIndex];
+			}
+		}
+	}
+
 
 	// Need to specify initial instance list, even with just identity transforms, so that the
 	// GPUScene instance data allocator reserves space for the instances early on. The instance
@@ -1257,6 +1279,7 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 		const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
 		const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
 		const TManagedArray<TSet<int32>>& TransformChildren = Collection->Children;
+		const TManagedArray<int32>& SimulationType = Collection->SimulationType;
 
 		check(NewDynamicData->Transforms.Num() == TransformToGeometryIndices.Num());
 		check(NewDynamicData->Transforms.Num() == TransformChildren.Num());
@@ -1265,7 +1288,8 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 		for (int32 TransformIndex = 0; TransformIndex < NewDynamicData->Transforms.Num(); ++TransformIndex)
 		{
 			const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
-			if (!Collection->IsGeometry(TransformIndex))
+			//if (!Collection->IsGeometry(TransformIndex))
+			if( SimulationType[TransformIndex] != FGeometryCollection::ESimulationTypes::FST_Rigid)
 			{
 				continue;
 			}

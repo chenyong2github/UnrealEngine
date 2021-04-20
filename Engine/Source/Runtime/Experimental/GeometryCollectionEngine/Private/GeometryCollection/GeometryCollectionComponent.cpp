@@ -407,14 +407,26 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 
 		const int32 NumBoxes = BoundingBoxes.Num();
 
-		// #todo(dmp): we could do the bbox transform in parallel with a bit of reformulating		
-		// #todo(dmp):  there are some cases where the calcbounds function is called before the component
-		// has set the global matrices cache while in the editor.  This is a somewhat weak guard against this
-		// to default to just calculating tmp global matrices.  This should be removed or modified somehow
-		// such that we always cache the global matrices and this method always does the correct behavior
-		int32 NumElements = RestCollection->NumElements(FGeometryCollection::TransformGroup);
-		if (NumElements == 0 || GlobalMatrices.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
+		int32 NumElements = HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
+		if (RestCollection->EnableNanite && HackGeometryCollectionPtr->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) && NumElements)
 		{
+			TArray<FMatrix> TmpGlobalMatrices;
+			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
+
+			TManagedArray<FBox>& TransformBounds = HackGeometryCollectionPtr->GetAttribute<FBox>("BoundingBox", "Transform");
+			for (int TransformIndex = 0; TransformIndex < HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup); TransformIndex++)
+			{
+				BoundingBox += TransformBounds[TransformIndex].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
+			}
+		}
+		else if (NumElements == 0 || GlobalMatrices.Num() != RestCollection->NumElements(FGeometryCollection::TransformGroup))
+		{
+			// #todo(dmp): we could do the bbox transform in parallel with a bit of reformulating		
+			// #todo(dmp):  there are some cases where the calcbounds function is called before the component
+			// has set the global matrices cache while in the editor.  This is a somewhat weak guard against this
+			// to default to just calculating tmp global matrices.  This should be removed or modified somehow
+			// such that we always cache the global matrices and this method always does the correct behavior
+
 			TArray<FMatrix> TmpGlobalMatrices;
 			
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
@@ -1164,169 +1176,116 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 	const FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get();
 	check(Collection);
 
-	const int32 NumPoints = Collection->NumElements(FGeometryCollection::VerticesGroup);
-	const TManagedArray<FVector>& Vertex = Collection->Vertex;
-	const TManagedArray<int32>& BoneMap = Collection->BoneMap;
-	const TManagedArray<FVector>& TangentU = Collection->TangentU;
-	const TManagedArray<FVector>& TangentV = Collection->TangentV;
-	const TManagedArray<FVector>& Normal = Collection->Normal;
-	const TManagedArray<FVector2D>& UV = Collection->UV;
-	const TManagedArray<FLinearColor>& Color = Collection->Color;
-	const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
-
-	ConstantData->Vertices = TArray<FVector>(Vertex.GetData(), Vertex.Num());
-	ConstantData->BoneMap = TArray<int32>(BoneMap.GetData(), BoneMap.Num());
-	ConstantData->TangentU = TArray<FVector>(TangentU.GetData(), TangentU.Num());
-	ConstantData->TangentV = TArray<FVector>(TangentV.GetData(), TangentV.Num());
-	ConstantData->Normals = TArray<FVector>(Normal.GetData(), Normal.Num());
-	ConstantData->UVs = TArray<FVector2D>(UV.GetData(), UV.Num());
-	ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
-
-	ConstantData->BoneColors.AddUninitialized(NumPoints);
-	
-	ParallelFor(NumPoints, [&](const int32 InPointIndex)
+	if (!RestCollection->EnableNanite)
 	{
-		const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
-		ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
-	});
+		const int32 NumPoints = Collection->NumElements(FGeometryCollection::VerticesGroup);
+		const TManagedArray<FVector>& Vertex = Collection->Vertex;
+		const TManagedArray<int32>& BoneMap = Collection->BoneMap;
+		const TManagedArray<FVector>& TangentU = Collection->TangentU;
+		const TManagedArray<FVector>& TangentV = Collection->TangentV;
+		const TManagedArray<FVector>& Normal = Collection->Normal;
+		const TManagedArray<FVector2D>& UV = Collection->UV;
+		const TManagedArray<FLinearColor>& Color = Collection->Color;
+		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
 
-	int32 NumIndices = 0;
-	const TManagedArray<FIntVector>& Indices = Collection->Indices;
-	const TManagedArray<int32>& MaterialID = Collection->MaterialID;
-	
-	const TManagedArray<bool>& Visible = GetVisibleArray();  // Use copy on write attribute. The rest collection visible array can be overriden for the convenience of debug drawing the collision volumes
-	const TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
+		ConstantData->Vertices = TArray<FVector>(Vertex.GetData(), Vertex.Num());
+		ConstantData->BoneMap = TArray<int32>(BoneMap.GetData(), BoneMap.Num());
+		ConstantData->TangentU = TArray<FVector>(TangentU.GetData(), TangentU.Num());
+		ConstantData->TangentV = TArray<FVector>(TangentV.GetData(), TangentV.Num());
+		ConstantData->Normals = TArray<FVector>(Normal.GetData(), Normal.Num());
+		ConstantData->UVs = TArray<FVector2D>(UV.GetData(), UV.Num());
+		ConstantData->Colors = TArray<FLinearColor>(Color.GetData(), Color.Num());
 
-	const int32 NumFaceGroupEntries = Collection->NumElements(FGeometryCollection::FacesGroup);
+		ConstantData->BoneColors.AddUninitialized(NumPoints);
 
-	for (int FaceIndex = 0; FaceIndex < NumFaceGroupEntries; ++FaceIndex)
-	{
-		NumIndices += static_cast<int>(Visible[FaceIndex]);
-	}
-
-	ConstantData->Indices.AddUninitialized(NumIndices);
-	for (int IndexIdx = 0, cdx = 0; IndexIdx < NumFaceGroupEntries; ++IndexIdx)
-	{
-		if (Visible[ MaterialIndex[IndexIdx] ])
-		{
-			ConstantData->Indices[cdx++] = Indices[ MaterialIndex[IndexIdx] ];
-		}
-	}
-
-	// We need to correct the section index start point & number of triangles since only the visible ones have been copied across in the code above
-	const int32 NumMaterialSections = Collection->NumElements(FGeometryCollection::MaterialGroup);
-	ConstantData->Sections.AddUninitialized(NumMaterialSections);
-	const TManagedArray<FGeometryCollectionSection>& Sections = Collection->Sections;
-	for (int SectionIndex = 0; SectionIndex < NumMaterialSections; ++SectionIndex)
-	{
-		FGeometryCollectionSection Section = Sections[SectionIndex]; // deliberate copy
-
-		for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].FirstIndex / 3; TriangleIndex++)
-		{
-			if(!Visible[MaterialIndex[TriangleIndex]])
+		ParallelFor(NumPoints, [&](const int32 InPointIndex)
 			{
-				Section.FirstIndex -= 3;
+				const int32 BoneIndex = ConstantData->BoneMap[InPointIndex];
+				ConstantData->BoneColors[InPointIndex] = BoneColors[BoneIndex];
+			});
+
+		int32 NumIndices = 0;
+		const TManagedArray<FIntVector>& Indices = Collection->Indices;
+		const TManagedArray<int32>& MaterialID = Collection->MaterialID;
+
+		const TManagedArray<bool>& Visible = GetVisibleArray();  // Use copy on write attribute. The rest collection visible array can be overriden for the convenience of debug drawing the collision volumes
+		const TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
+
+		const int32 NumFaceGroupEntries = Collection->NumElements(FGeometryCollection::FacesGroup);
+
+		for (int FaceIndex = 0; FaceIndex < NumFaceGroupEntries; ++FaceIndex)
+		{
+			NumIndices += static_cast<int>(Visible[FaceIndex]);
+		}
+
+		ConstantData->Indices.AddUninitialized(NumIndices);
+		for (int IndexIdx = 0, cdx = 0; IndexIdx < NumFaceGroupEntries; ++IndexIdx)
+		{
+			if (Visible[MaterialIndex[IndexIdx]])
+			{
+				ConstantData->Indices[cdx++] = Indices[MaterialIndex[IndexIdx]];
 			}
 		}
 
-		for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].NumTriangles; TriangleIndex++)
+		// We need to correct the section index start point & number of triangles since only the visible ones have been copied across in the code above
+		const int32 NumMaterialSections = Collection->NumElements(FGeometryCollection::MaterialGroup);
+		ConstantData->Sections.AddUninitialized(NumMaterialSections);
+		const TManagedArray<FGeometryCollectionSection>& Sections = Collection->Sections;
+		for (int SectionIndex = 0; SectionIndex < NumMaterialSections; ++SectionIndex)
 		{
-			if(!Visible[MaterialIndex[Sections[SectionIndex].FirstIndex / 3 + TriangleIndex]])
+			FGeometryCollectionSection Section = Sections[SectionIndex]; // deliberate copy
+
+			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].FirstIndex / 3; TriangleIndex++)
 			{
-				Section.NumTriangles--;
-			}
-		}
-
-		ConstantData->Sections[SectionIndex] = MoveTemp(Section);
-	}
-	ConstantData->NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
-	ConstantData->LocalBounds = LocalBounds;
-
-	// store the index buffer and render sections for the base unfractured mesh
-	const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
-	const TManagedArray<int32>&	FaceStart = Collection->FaceStart;
-	const TManagedArray<int32>&	FaceCount = Collection->FaceCount;
-	
-	const int32 NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
-	TArray<FIntVector> BaseMeshIndices;
-	TArray<int32> BaseMeshOriginalFaceIndices;	
-
-	BaseMeshIndices.Reserve(NumFaces);
-	BaseMeshOriginalFaceIndices.Reserve(NumFaces);
-
-	// add all visible external faces to the original geometry index array
-	// #note:  This is a stopgap because the original geometry array is broken
-	for (int FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
-	{
-		// only add visible external faces.  MaterialID that is even is an external material
-		if (Visible[FaceIndex] && MaterialID[FaceIndex] % 2 == 0)
-		{
-			BaseMeshIndices.Add(Indices[FaceIndex]);
-			BaseMeshOriginalFaceIndices.Add(FaceIndex);
-		}				
-	}
-
-	// We should always have external faces of a geometry collection
-	ensure(BaseMeshIndices.Num() > 0);
-
-	// #todo(dmp): we should eventually get this working where we use geometry nodes
-	// that signify original unfractured geometry.  For now, this system is broken.
-	/*
-	for (int i = 0; i < Collection->NumElements(FGeometryCollection::TransformGroup); ++i)
-	{
-		const FGeometryCollectionBoneNode &CurrBone = BoneHierarchy[i];
-
-		// root node could be parent geo
-		if (CurrBone.Parent == INDEX_NONE)
-		{
-			int32 GeometryIndex = TransformToGeometryIndex[i];
-
-			// found geometry associated with base mesh root node
-			if (GeometryIndex != INDEX_NONE)
-			{				
-				int32 CurrFaceStart = FaceStart[GeometryIndex];
-				int32 CurrFaceCount = FaceCount[GeometryIndex];
-			
-				// add all the faces to the original geometry face array
-				for (int face = CurrFaceStart; face < CurrFaceStart + CurrFaceCount; ++face)
+				if (!Visible[MaterialIndex[TriangleIndex]])
 				{
-					BaseMeshIndices.Add(Indices[face]);
-					BaseMeshOriginalFaceIndices.Add(face);
+					Section.FirstIndex -= 3;
 				}
-
-				// build an array of mesh sections
-				ConstantData->HasOriginalMesh = true;				
 			}
-			else
+
+			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].NumTriangles; TriangleIndex++)
 			{
-				// all the direct decedents of the root node with no geometry are original geometry
-				for (int32 CurrChild : CurrBone.Children)
-				{					
-					int32 GeometryIndex = TransformToGeometryIndex[CurrChild];
-					if (GeometryIndex != INDEX_NONE)
-					{
-						// original geo static mesh					
-						int32 CurrFaceStart = FaceStart[GeometryIndex];
-						int32 CurrFaceCount = FaceCount[GeometryIndex];
-
-						// add all the faces to the original geometry face array
-						for (int face = CurrFaceStart; face < CurrFaceStart + CurrFaceCount; ++face)
-						{
-							BaseMeshIndices.Add(Indices[face]);
-							BaseMeshOriginalFaceIndices.Add(face);
-						}
-
-						ConstantData->HasOriginalMesh = true;
-					}					
+				if (!Visible[MaterialIndex[Sections[SectionIndex].FirstIndex / 3 + TriangleIndex]])
+				{
+					Section.NumTriangles--;
 				}
+			}
+
+			ConstantData->Sections[SectionIndex] = MoveTemp(Section);
+		}
+		ConstantData->NumTransforms = Collection->NumElements(FGeometryCollection::TransformGroup);
+		ConstantData->LocalBounds = LocalBounds;
+
+		// store the index buffer and render sections for the base unfractured mesh
+		const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
+		const TManagedArray<int32>& FaceStart = Collection->FaceStart;
+		const TManagedArray<int32>& FaceCount = Collection->FaceCount;
+
+		const int32 NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
+		TArray<FIntVector> BaseMeshIndices;
+		TArray<int32> BaseMeshOriginalFaceIndices;
+
+		BaseMeshIndices.Reserve(NumFaces);
+		BaseMeshOriginalFaceIndices.Reserve(NumFaces);
+
+		// add all visible external faces to the original geometry index array
+		// #note:  This is a stopgap because the original geometry array is broken
+		for (int FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
+		{
+			// only add visible external faces.  MaterialID that is even is an external material
+			if (Visible[FaceIndex] && MaterialID[FaceIndex] % 2 == 0)
+			{
+				BaseMeshIndices.Add(Indices[FaceIndex]);
+				BaseMeshOriginalFaceIndices.Add(FaceIndex);
 			}
 		}
+
+		// We should always have external faces of a geometry collection
+		ensure(BaseMeshIndices.Num() > 0);
+
+		ConstantData->OriginalMeshSections = Collection->BuildMeshSections(BaseMeshIndices, BaseMeshOriginalFaceIndices, ConstantData->OriginalMeshIndices);
 	}
-	*/
-
-
-	ConstantData->OriginalMeshSections = Collection->BuildMeshSections(BaseMeshIndices, BaseMeshOriginalFaceIndices, ConstantData->OriginalMeshIndices);
-
+	
 	TArray<FMatrix> RestMatrices;
 	GeometryCollectionAlgo::GlobalMatrices(RestCollection->GetGeometryCollection()->Transform, RestCollection->GetGeometryCollection()->Parent, RestMatrices);
 
@@ -1510,121 +1469,7 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 						}
 					}
 				}
-
 				DynamicData->Transforms = GlobalMatrices;
-
-				/**********************************************************************************************************************************************************************************/
-				// Capture all events for the given time
-			
-				if(false)
-				{
-					// clear events on the solver
-					Chaos::FPhysicsSolver *Solver = GetSolver(*this);
-					
-					if (Solver)
-					{
-#if TODO_REPLACE_SOLVER_LOCK
-						Chaos::FSolverWriteLock ScopedWriteLock(Solver);
-#endif
-
-#if TODO_REIMPLEMENT_EVENTS_DATA_ARRAYS
-						//////////////////////////////////////////////////////////////////////////
-						// Temporary workaround for writing on multiple threads.
-						// The following is called wide from the render thread to populate
-						// Niagara data from a cache without invoking a solver directly
-						//
-						// The above write lock guarantees we can safely write to these buffers
-						//
-						// TO BE REFACTORED
-						// #TODO BG
-						//////////////////////////////////////////////////////////////////////////
-						Chaos::FPhysicsSolver::FAllCollisionData *CollisionDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllCollisionData*>(Solver->GetAllCollisions_FromSequencerCache_NEEDSLOCK());
-						Chaos::FPhysicsSolver::FAllBreakingData *BreakingDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllBreakingData*>(Solver->GetAllBreakings_FromSequencerCache_NEEDSLOCK());
-						Chaos::FPhysicsSolver::FAllTrailingData *TrailingDataToWriteTo = const_cast<Chaos::FPhysicsSolver::FAllTrailingData*>(Solver->GetAllTrailings_FromSequencerCache_NEEDSLOCK());
-
-						if (!FMath::IsNearlyEqual(CollisionDataToWriteTo->TimeCreated, DesiredCacheTime))
-						{
-							CollisionDataToWriteTo->AllCollisionsArray.Empty();
-							CollisionDataToWriteTo->TimeCreated = DesiredCacheTime;
-						}
-
-						int32 Index = CacheParameters.TargetCache->GetData()->FindLastKeyBefore(CurrentCacheTime);
-						const FRecordedFrame *RecordedFrame = &CacheParameters.TargetCache->GetData()->Records[Index];				
-
-						if (RecordedFrame && PhysicsProxy && !EventsPlayed[Index])
-						{
-							EventsPlayed[Index] = true;
-
-							// Collisions
-							if (RecordedFrame->Collisions.Num() > 0)
-							{							
-								for (int32 Idx = 0; Idx < RecordedFrame->Collisions.Num(); ++Idx)
-								{
-									// Check if the particle is still kinematic
-									int32 NewIdx = CollisionDataToWriteTo->AllCollisionsArray.Add(Chaos::FCollidingData());
-									Chaos::FCollidingData& AllCollisionsDataArrayItem = CollisionDataToWriteTo->AllCollisionsArray[NewIdx];
-
-									AllCollisionsDataArrayItem.Location = RecordedFrame->Collisions[Idx].Location;
-									AllCollisionsDataArrayItem.AccumulatedImpulse = RecordedFrame->Collisions[Idx].AccumulatedImpulse;
-									AllCollisionsDataArrayItem.Normal = RecordedFrame->Collisions[Idx].Normal;
-									AllCollisionsDataArrayItem.Velocity1 = RecordedFrame->Collisions[Idx].Velocity1;
-									AllCollisionsDataArrayItem.Velocity2 = RecordedFrame->Collisions[Idx].Velocity2;
-									AllCollisionsDataArrayItem.AngularVelocity1 = RecordedFrame->Collisions[Idx].AngularVelocity1;
-									AllCollisionsDataArrayItem.AngularVelocity2 = RecordedFrame->Collisions[Idx].AngularVelocity2;
-									AllCollisionsDataArrayItem.Mass1 = RecordedFrame->Collisions[Idx].Mass1;
-									AllCollisionsDataArrayItem.Mass2 = RecordedFrame->Collisions[Idx].Mass2;
-#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
-									AllCollisionsDataArrayItem.ParticleIndex = RecordedFrame->Collisions[Idx].ParticleIndex;
-#endif
-									AllCollisionsDataArrayItem.LevelsetIndex = RecordedFrame->Collisions[Idx].LevelsetIndex;
-									AllCollisionsDataArrayItem.ParticleIndexMesh = RecordedFrame->Collisions[Idx].ParticleIndexMesh;
-									AllCollisionsDataArrayItem.LevelsetIndexMesh = RecordedFrame->Collisions[Idx].LevelsetIndexMesh;
-								}
-							}
-
-							// Breaking
-							if (RecordedFrame->Breakings.Num() > 0)
-							{
-								for (int32 Idx = 0; Idx < RecordedFrame->Breakings.Num(); ++Idx)
-								{
-									// Check if the particle is still kinematic							
-									int32 NewIdx = BreakingDataToWriteTo->AllBreakingsArray.Add(Chaos::FBreakingData());
-									Chaos::FBreakingData& AllBreakingsDataArrayItem = BreakingDataToWriteTo->AllBreakingsArray[NewIdx];
-
-									AllBreakingsDataArrayItem.Location = RecordedFrame->Breakings[Idx].Location;
-									AllBreakingsDataArrayItem.Velocity = RecordedFrame->Breakings[Idx].Velocity;
-									AllBreakingsDataArrayItem.AngularVelocity = RecordedFrame->Breakings[Idx].AngularVelocity;
-									AllBreakingsDataArrayItem.Mass = RecordedFrame->Breakings[Idx].Mass;
-#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
-									AllBreakingsDataArrayItem.ParticleIndex = RecordedFrame->Breakings[Idx].ParticleIndex;
-#endif
-									AllBreakingsDataArrayItem.ParticleIndexMesh = RecordedFrame->Breakings[Idx].ParticleIndexMesh;
-								}
-							}
-
-							// Trailing
-							if (RecordedFrame->Trailings.Num() > 0)
-							{
-								for (FSolverTrailingData Trailing : RecordedFrame->Trailings)
-								{
-									// Check if the particle is still kinematic
-									int32 NewIdx = TrailingDataToWriteTo->AllTrailingsArray.Add(Chaos::FTrailingData());
-									Chaos::FTrailingData& AllTrailingsDataArrayItem = TrailingDataToWriteTo->AllTrailingsArray[NewIdx];
-
-									AllTrailingsDataArrayItem.Location = Trailing.Location;
-									AllTrailingsDataArrayItem.Velocity = Trailing.Velocity;
-									AllTrailingsDataArrayItem.AngularVelocity = Trailing.AngularVelocity;
-									AllTrailingsDataArrayItem.Mass = Trailing.Mass;
-#if TODO_CONVERT_GEOMETRY_COLLECTION_PARTICLE_INDICES_TO_PARTICLE_POINTERS
-									AllTrailingsDataArrayItem.ParticleIndex = Trailing.ParticleIndex;
-#endif
-									AllTrailingsDataArrayItem.ParticleIndexMesh = Trailing.ParticleIndexMesh;
-								}
-							}
-						}
-#endif
-					}
-				}								
 			}
 
 			// check if transforms at start of this tick are the same as what is calculated from the cache

@@ -238,6 +238,9 @@ public:
 	/** Remove embedded geometry exemplars with indices matching the sorted removal list. */
 	void RemoveExemplars(const TArray<int32>& SortedRemovalIndices);
 
+	/** Produce a deep copy of GeometryCollection member, stripped of data unecessary for gameplay. */
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GenerateMinimalGeometryCollection() const;
+
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
 	bool bManualDataCreate;
@@ -295,6 +298,9 @@ public:
 	/**
 	* Enable support for Nanite.
 	*/
+	UPROPERTY(EditAnywhere, Category = "Nanite")
+	bool bStripOnCook;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Nanite")
 	bool EnableNanite;
 
@@ -399,6 +405,7 @@ public:
 private:
 #if WITH_EDITOR
 	void CreateSimulationDataImp(bool bCopyFromDDC);
+
 #endif
 
 private:

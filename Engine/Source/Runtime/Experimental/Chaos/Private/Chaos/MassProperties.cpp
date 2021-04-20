@@ -15,9 +15,9 @@ namespace Chaos
 
 		// Extract Eigenvalues
 		FReal OffDiagSize = FMath::Square(Inertia.M[1][0]) + FMath::Square(Inertia.M[2][0]) + FMath::Square(Inertia.M[2][1]);
-		FReal Trace = (Inertia.M[0][0] + Inertia.M[1][1] + Inertia.M[2][2]) / 3;
+		double Trace = (Inertia.M[0][0] + Inertia.M[1][1] + Inertia.M[2][2]) / 3;
 
-		if (!ensure(Trace > SMALL_NUMBER))
+		if (Trace <= SMALL_NUMBER)
 		{
 			// Tiny inertia - numerical instability would follow. We should not get this unless we have bad input.
 			return FRotation3::FromElements(FVec3(0), 1);

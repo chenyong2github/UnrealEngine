@@ -34,6 +34,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionInternal, Log, All);
 
+bool GeometryCollectionAssetForceStripOnCook = false;
+FAutoConsoleVariableRef CVarGeometryCollectionBypassPhysicsAttributes(
+	TEXT("p.GeometryCollectionAssetForceStripOnCook"),
+	GeometryCollectionAssetForceStripOnCook,
+	TEXT("Bypass the construction of simulation properties when all bodies are simply cached. for playback."));
+
+
 #if ENABLE_COOK_STATS
 namespace GeometryCollectionCookStats
 {
@@ -55,6 +62,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, MaxClusterLevel(100)
 	, DamageThreshold({ 250.0 })
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
+	, bStripOnCook(false)
 	, EnableNanite(false)
 	, CollisionType(ECollisionTypeEnum::Chaos_Volumetric)
 	, ImplicitType(EImplicitTypeEnum::Chaos_Implicit_Box)
@@ -75,6 +83,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	InvalidateCollection();
 #if WITH_EDITOR
 	SimulationDataGuid = StateGuid;
+	bStripOnCook = GeometryCollectionAssetForceStripOnCook;
 #endif
 }
 
@@ -314,7 +323,7 @@ bool UGeometryCollection::HasVisibleGeometry() const
 {
 	if(ensureMsgf(GeometryCollection.IsValid(), TEXT("Geometry Collection %s has an invalid internal collection")))
 	{
-		return GeometryCollection->HasVisibleGeometry();
+		return ( (EnableNanite && NaniteData) || GeometryCollection->HasVisibleGeometry());
 	}
 
 	return false;
@@ -407,11 +416,33 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Chaos::FChaosArchive ChaosAr(Ar);
 
+	// The Geometry Collection we will be archiving. This may be replaced with a transient, stripped back Geometry Collection if we are cooking.
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> ArchiveGeometryCollection = GeometryCollection;
+
+	bool bIsCookedOrCooking = Ar.IsCooking();
+	if (bIsCookedOrCooking && Ar.IsSaving())
+	{
+#if WITH_EDITOR
+		if (bStripOnCook && EnableNanite && NaniteData)
+		{
+			// If this is a cooked archive, we strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
+			ArchiveGeometryCollection = GenerateMinimalGeometryCollection();
+		}
+#endif
+	}
+
 #if WITH_EDITOR
 	//Early versions did not have tagged properties serialize first
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::GeometryCollectionInDDC)
 	{
-		GeometryCollection->Serialize(ChaosAr);
+		if (Ar.IsLoading())
+		{
+			GeometryCollection->Serialize(ChaosAr);
+		}
+		else
+		{
+			ArchiveGeometryCollection->Serialize(ChaosAr);
+		}
 	}
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::AddedTimestampedGeometryComponentCache)
@@ -447,7 +478,6 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 		}
 	}
 
-	bool bIsCookedOrCooking = Ar.IsCooking();
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) >= FDestructionObjectVersion::GeometryCollectionInDDC)
 	{
 		Ar << bIsCookedOrCooking;
@@ -462,31 +492,38 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 			CreateSimulationDataImp(/*bCopyFromDDC=*/false);	//make sure content is built before saving
 		}
 #endif
-		GeometryCollection->Serialize(ChaosAr);
+		if (Ar.IsLoading())
+		{
+			GeometryCollection->Serialize(ChaosAr);
+		}
+		else
+		{
+			ArchiveGeometryCollection->Serialize(ChaosAr);
+		}
 
 		// Fix up the type change for implicits here, previously they were unique ptrs, now they're shared
-		TManagedArray<TUniquePtr<Chaos::FImplicitObject>>* OldAttr = GeometryCollection->FindAttributeTyped<TUniquePtr<Chaos::FImplicitObject>>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
-		TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>* NewAttr = GeometryCollection->FindAttributeTyped<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
-		if(OldAttr)
+		TManagedArray<TUniquePtr<Chaos::FImplicitObject>>* OldAttr = ArchiveGeometryCollection->FindAttributeTyped<TUniquePtr<Chaos::FImplicitObject>>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+		TManagedArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>* NewAttr = ArchiveGeometryCollection->FindAttributeTyped<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+		if (OldAttr)
 		{
-			if(!NewAttr)
+			if (!NewAttr)
 			{
-				NewAttr = &GeometryCollection->AddAttribute<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
+				NewAttr = &ArchiveGeometryCollection->AddAttribute<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>>(FGeometryDynamicCollection::SharedImplicitsAttribute, FTransformCollection::TransformGroup);
 
 				const int32 NumElems = GeometryCollection->NumElements(FTransformCollection::TransformGroup);
-				for(int32 Index = 0; Index < NumElems; ++Index)
+				for (int32 Index = 0; Index < NumElems; ++Index)
 				{
 					(*NewAttr)[Index] = TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>((*OldAttr)[Index].Release());
 				}
 			}
 
-			GeometryCollection->RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+			ArchiveGeometryCollection->RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 		}
 	}
 
 	if (Ar.CustomVer(FDestructionObjectVersion::GUID) < FDestructionObjectVersion::GroupAndAttributeNameRemapping)
 	{
-		GeometryCollection->UpdateOldAttributeNames();
+		ArchiveGeometryCollection->UpdateOldAttributeNames();
 		InvalidateCollection();
 #if WITH_EDITOR
 		CreateSimulationData();
@@ -516,6 +553,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 			NaniteData->Serialize(ChaosAr, this);
 		}
 	}
+
 
 #if WITH_EDITOR
 	//for all versions loaded, make sure sim data is up to date
@@ -702,6 +740,81 @@ TUniquePtr<FGeometryCollectionNaniteData> UGeometryCollection::CreateNaniteData(
 	return NaniteData;
 }
 
+TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::GenerateMinimalGeometryCollection() const
+{
+	TMap<FName, TSet<FName>> SkipList;
+	static TSet<FName> GeometryGroups{ FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup, FGeometryCollection::FacesGroup };
+	if (bStripOnCook)
+	{
+		// Remove all geometry
+		//static TSet<FName> GeometryGroups{ FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup, FGeometryCollection::FacesGroup, FGeometryCollection::MaterialGroup };
+		for (const FName& GeometryGroup : GeometryGroups)
+		{
+			TSet<FName>& SkipAttributes = SkipList.Add(GeometryGroup);
+			SkipAttributes.Append(GeometryCollection->AttributeNames(GeometryGroup));
+		}
+	}
+
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> DuplicateGeometryCollection(new FGeometryCollection());
+	DuplicateGeometryCollection->AddAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
+	DuplicateGeometryCollection->AddAttribute<FVector>("InertiaTensor", FGeometryCollection::TransformGroup);
+	DuplicateGeometryCollection->AddAttribute<float>("Mass", FGeometryCollection::TransformGroup);
+	DuplicateGeometryCollection->AddAttribute<FTransform>("MassToLocal", FGeometryCollection::TransformGroup);
+	DuplicateGeometryCollection->AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(
+		FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
+	DuplicateGeometryCollection->CopyMatchingAttributesFrom(*GeometryCollection, &SkipList);
+	// If we've removed all geometry, we need to make sure any references to that geometry are removed.
+	// We also need to resize geometry groups to ensure that they are empty.
+	if (bStripOnCook)
+	{
+		TManagedArray<int32>& TransformToGeometryIndex = DuplicateGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FTransformCollection::TransformGroup);
+
+		//
+		// Copy the bounds to the TransformGroup.
+		//  @todo(nanite.bounds) : Rely on Nanite bounds in the component instead and dont copy here
+		//
+		if (!DuplicateGeometryCollection->HasAttribute("BoundingBox", "Transform"))
+		{
+			DuplicateGeometryCollection->AddAttribute<FBox>("BoundingBox", "Transform");
+		}
+
+		if (!DuplicateGeometryCollection->HasAttribute("NaniteIndex", "Transform"))
+		{
+			DuplicateGeometryCollection->AddAttribute<FBox>("NaniteIndex", "Transform");
+		}
+
+		int32 NumTransforms = GeometryCollection->NumElements(FGeometryCollection::TransformGroup);
+		TManagedArray<int32>& NaniteIndex = DuplicateGeometryCollection->GetAttribute<int32>("NaniteIndex", "Transform");
+		TManagedArray<FBox>& TransformBounds = DuplicateGeometryCollection->GetAttribute<FBox>("BoundingBox", "Transform");
+		TManagedArray<FBox>& GeometryBounds = GeometryCollection->GetAttribute<FBox>("BoundingBox", "Geometry");
+
+		NaniteIndex.Fill(INDEX_NONE);
+		for (int TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+		{
+			NaniteIndex[TransformIndex] = TransformToGeometryIndex[TransformIndex];
+			int32 GeometryIndex = TransformToGeometryIndex[TransformIndex];
+			if (GeometryIndex != INDEX_NONE)
+			{
+				TransformBounds[TransformIndex] = GeometryBounds[GeometryIndex];
+			}
+			else
+			{
+				TransformBounds[TransformIndex].Init();
+			}
+		}
+
+		//
+		//  Clear the geometry and the transforms connection to it. 
+		//
+		//TransformToGeometryIndex.Fill(INDEX_NONE);
+		for (const FName& GeometryGroup : GeometryGroups)
+		{
+			DuplicateGeometryCollection->EmptyGroup(GeometryGroup);
+		}
+	}
+	return DuplicateGeometryCollection;
+}
+
 #endif
 
 void UGeometryCollection::InitResources()
@@ -810,12 +923,15 @@ void UGeometryCollection::EnsureDataIsCooked(bool bInitResources)
 	if (StateGuid != LastBuiltGuid)
 	{
 		CreateSimulationDataImp(/*bCopyFromDDC=*/ true);
-		
+
 		if (FApp::CanEverRender() && bInitResources)
 		{
-			NaniteData->InitResources(this);
+			// If there is no geometry in the collection, we leave Nanite data alone.
+			if (GeometryCollection->NumElements(FGeometryCollection::GeometryGroup) > 0)
+			{
+				NaniteData->InitResources(this);
+			}
 		}
-
 		LastBuiltGuid = StateGuid;
 	}
 }
