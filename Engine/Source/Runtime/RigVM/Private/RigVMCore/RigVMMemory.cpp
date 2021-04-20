@@ -1822,27 +1822,36 @@ void FRigVMMemoryContainer::UpdateRegisters()
 
 		if (Alignment != 0)
 		{
-			uint8* Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
-
-			if (Register.AlignmentBytes > 0)
+			// no need to adjust for alignment if nothing is allocated
+			if (!Register.IsDynamic() && Register.ElementCount == 0)
 			{
-				if (!IsAligned(Pointer, Alignment))
-				{
-					Data.RemoveAt(Register.GetFirstAllocatedByte(), Register.AlignmentBytes);
-					AlignmentShift -= Register.AlignmentBytes;
-					Register.ByteIndex -= Register.AlignmentBytes;
-					Register.AlignmentBytes = 0;
-					Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
-				}
+				continue;
 			}
 
-			while (!IsAligned(Pointer, Alignment))
+			if (ensure(Data.IsValidIndex(Register.GetWorkByteIndex())))
 			{
-				Data.InsertZeroed(Register.GetFirstAllocatedByte(), 1);
-				Register.AlignmentBytes++;
-				Register.ByteIndex++;
-				AlignmentShift++;
-				Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
+				uint8* Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
+
+				if (Register.AlignmentBytes > 0)
+				{
+					if (!IsAligned(Pointer, Alignment))
+					{
+						Data.RemoveAt(Register.GetFirstAllocatedByte(), Register.AlignmentBytes);
+						AlignmentShift -= Register.AlignmentBytes;
+						Register.ByteIndex -= Register.AlignmentBytes;
+						Register.AlignmentBytes = 0;
+						Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
+					}
+				}
+
+				while (!IsAligned(Pointer, Alignment))
+				{
+					Data.InsertZeroed(Register.GetFirstAllocatedByte(), 1);
+					Register.AlignmentBytes++;
+					Register.ByteIndex++;
+					AlignmentShift++;
+					Pointer = (uint8*)(&(Data[Register.GetWorkByteIndex()]));
+				}
 			}
 		}
 	}
