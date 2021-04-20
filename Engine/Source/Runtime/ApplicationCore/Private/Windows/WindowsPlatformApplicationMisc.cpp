@@ -109,12 +109,19 @@ static void WinPumpMessages()
 
 void FWindowsPlatformApplicationMisc::PumpMessages(bool bFromMainLoop)
 {
-	TSharedPtr<void> RevertGlobalFlag;
-	if (!GPumpingMessages)
+	const bool bSetPumpingMessages = !GPumpingMessages;
+	if (bSetPumpingMessages)
 	{
 		GPumpingMessages = true;
-		RevertGlobalFlag = MakeShareable<void>(nullptr, [](auto) {GPumpingMessages = false; });
 	}
+
+	ON_SCOPE_EXIT
+	{
+		if (bSetPumpingMessages)
+		{
+			GPumpingMessages = false;
+		}
+	};
 
 	if (!bFromMainLoop)
 	{
