@@ -59,9 +59,9 @@ namespace ChaosTest {
 		
 	}
 
-	TYPED_TEST(AllEvolutions, JointPlasticity_UnderAngularPlasticityThreshold)
+	GTEST_TEST(AllEvolutions, JointPlasticity_UnderAngularPlasticityThreshold)
 	{
-		JointPlasticity_UnderAngularPlasticityThreshold<TypeParam>();
+		JointPlasticity_UnderAngularPlasticityThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 
@@ -116,9 +116,9 @@ namespace ChaosTest {
 
 	}
 
-	TYPED_TEST(AllEvolutions, JointPlasticity_OverAngularPlasticityThreshold)
+	GTEST_TEST(AllEvolutions, JointPlasticity_OverAngularPlasticityThreshold)
 	{
-		JointPlasticity_OverAngularPlasticityThreshold<TypeParam>();
+		JointPlasticity_OverAngularPlasticityThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 
@@ -171,9 +171,9 @@ namespace ChaosTest {
 
 	}
 
-	TYPED_TEST(AllEvolutions, JointPlasticity_UnderLinearPlasticityThreshold)
+	GTEST_TEST(AllEvolutions, JointPlasticity_UnderLinearPlasticityThreshold)
 	{
-		JointPlasticity_UnderLinearPlasticityThreshold<TypeParam>();
+		JointPlasticity_UnderLinearPlasticityThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 
@@ -226,9 +226,9 @@ namespace ChaosTest {
 		EXPECT_TRUE(Test.SOAs.GetDynamicParticles().X(0).Z > 0.f);
 	}
 
-	TYPED_TEST(AllEvolutions, JointPlasticity_OverLinearPlasticityThreshold)
+	GTEST_TEST(AllEvolutions, JointPlasticity_OverLinearPlasticityThreshold)
 	{
-		JointPlasticity_OverLinearPlasticityThreshold<TypeParam>();
+		JointPlasticity_OverLinearPlasticityThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 
