@@ -112,6 +112,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Sparse class data serializes its associated structure to allow for BP types to be used
 		SparseClassDataStructSerialization,
 
+		// PackedLevelInstance bounds fix
+		PackedLevelInstanceBoundsFix,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

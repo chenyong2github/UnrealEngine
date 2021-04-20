@@ -650,12 +650,17 @@ bool ALevelInstance::IsLockLocation() const
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const
 {
 	FBox Box = Super::GetComponentsBoundingBox(bNonColliding, bIncludeFromChildActors);
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
+	
+	// Add Level Bounds
+	if (SupportsLoading())
 	{
-		FBox LevelInstanceBounds;
-		if(LevelInstanceSubsystem->GetLevelInstanceBounds(this, LevelInstanceBounds))
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
-			Box += LevelInstanceBounds;
+			FBox LevelInstanceBounds;
+			if (LevelInstanceSubsystem->GetLevelInstanceBounds(this, LevelInstanceBounds))
+			{
+				Box += LevelInstanceBounds;
+			}
 		}
 	}
 

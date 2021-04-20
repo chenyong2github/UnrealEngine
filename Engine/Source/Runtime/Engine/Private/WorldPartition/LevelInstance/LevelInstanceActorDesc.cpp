@@ -7,8 +7,10 @@
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 FLevelInstanceActorDesc::FLevelInstanceActorDesc()
 	: DesiredRuntimeBehavior(ELevelInstanceRuntimeBehavior::Embedded)
@@ -69,6 +71,7 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 {
 	FWorldPartitionActorDesc::Serialize(Ar);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Ar << LevelPackage << LevelInstanceTransform;
 
@@ -79,19 +82,15 @@ void FLevelInstanceActorDesc::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		if (!LevelPackage.IsNone())
-		{
-			FBox LevelBounds;
-			if (ULevel::GetLevelBoundsFromPackage(LevelPackage, LevelBounds))
-			{
-				FVector LevelBoundsLocation;
-				LevelBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+		const bool bFixupOldVersion = (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::PackedLevelInstanceBoundsFix) && 
+									  (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::PackedLevelInstanceBoundsFix);
 
-				//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
-				const FVector BoundsMin = BoundsLocation - BoundsExtent;
-				const FVector BoundsMax = BoundsLocation + BoundsExtent;
-				const FBox NewBounds = FBox(BoundsMin, BoundsMax).TransformBy(LevelInstanceTransform);
-				NewBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+		if (!LevelPackage.IsNone() && (GetActorClass()->GetDefaultObject<ALevelInstance>()->SupportsLoading() || bFixupOldVersion))
+		{
+			FBox OutBounds;
+			if (ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(LevelInstanceTransform, LevelPackage, OutBounds))
+			{
+				OutBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
 			}
 		}
 	}

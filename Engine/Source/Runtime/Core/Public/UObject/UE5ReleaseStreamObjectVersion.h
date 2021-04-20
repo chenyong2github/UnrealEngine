@@ -39,6 +39,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// PackedLevelInstance version
 		PackedLevelInstanceVersion,
 
+		// PackedLevelInstance bounds fix
+		PackedLevelInstanceBoundsFix,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

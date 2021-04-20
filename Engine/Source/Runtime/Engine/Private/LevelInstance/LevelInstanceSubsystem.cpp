@@ -482,10 +482,27 @@ bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ALevelInstance* Level
 	}
 	else if(LevelInstanceActor->IsLevelInstancePathValid())
 	{
-		if (ULevel::GetLevelBoundsFromPackage(FName(*LevelInstanceActor->GetWorldAssetPackage()), OutBounds))
-		{
-			return true;
-		}
+		return GetLevelInstanceBoundsFromPackage(LevelInstanceActor->GetActorTransform(), FName(*LevelInstanceActor->GetWorldAssetPackage()), OutBounds);
+	}
+
+	return false;
+}
+
+bool ULevelInstanceSubsystem::GetLevelInstanceBoundsFromPackage(const FTransform& InstanceTransform, FName LevelPackage, FBox& OutBounds)
+{
+	FBox LevelBounds;
+	if (ULevel::GetLevelBoundsFromPackage(LevelPackage, LevelBounds))
+	{
+		FVector LevelBoundsLocation;
+		FVector BoundsLocation;
+		FVector BoundsExtent;
+		LevelBounds.GetCenterAndExtents(BoundsLocation, BoundsExtent);
+
+		//@todo_ow: This will result in a new BoundsExtent that is larger than it should. To fix this, we would need the Object Oriented BoundingBox of the actor (the BV of the actor without rotation)
+		const FVector BoundsMin = BoundsLocation - BoundsExtent;
+		const FVector BoundsMax = BoundsLocation + BoundsExtent;
+		OutBounds = FBox(BoundsMin, BoundsMax).TransformBy(InstanceTransform);
+		return true;
 	}
 
 	return false;
