@@ -40,7 +40,7 @@ static FAutoConsoleVariableRef CVarHairBindingValidationEnable(TEXT("r.HairStran
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(FHairGroupInstance* Instance);
+EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(const FHairGroupInstance* Instance);
 
 const FLinearColor GetHairGroupDebugColor(int32 GroupIt)
 {
@@ -257,154 +257,6 @@ inline int32 GetMaterialIndexWithFallback(int32 SlotIndex)
 	return SlotIndex != INDEX_NONE ? SlotIndex : 0;
 }
 
-struct FHairCardsVertexFactories
-{
-	struct FInstanceFactory
-	{
-		TArray<FHairCardsVertexFactory> VertexFactories0;
-		TArray<FHairCardsVertexFactory> VertexFactories1;
-		TArray<int32> LODMapping;
-	};
-	TArray<FInstanceFactory> Instances;
-
-	FHairCardsVertexFactories()
-	{
-	}
-
-	~FHairCardsVertexFactories()
-	{
-		BeginReleaseResource();
-	}
-
-	void AddInstances(TArray<FHairGroupInstance*> In, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel)
-	{
-		FeatureLevel = InFeatureLevel;
-		ShaderPlatform = InShaderPlatform;
-		Instances.Reserve(Instances.Num());
-		for (uint32 InstanceIt = 0, InstanceCount = In.Num(); InstanceIt < InstanceCount; ++InstanceIt)
-		{
-			FInstanceFactory& Out = Instances.AddDefaulted_GetRef();
-			InternalAddInstance(Out, In[InstanceIt], InstanceIt);
-		}
-	}
-
-	void InternalAddInstance(FInstanceFactory& Out, FHairGroupInstance* Instance, uint32 GroupIndex)
-	{
-		const uint32 LODCount = Instance->Cards.LODs.Num();
-
-		Out.VertexFactories0.Empty(LODCount);
-		Out.VertexFactories1.Empty(LODCount);
-		for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
-		{
-			int32 LODIndirectIndex = -1;
-			if (Instance->Cards.IsValid(LODIt))
-			{
-				LODIndirectIndex = Out.VertexFactories0.Num();
-				new (Out.VertexFactories0) FHairCardsVertexFactory(Instance, GroupIndex, LODIt, 0u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
-				new (Out.VertexFactories1) FHairCardsVertexFactory(Instance, GroupIndex, LODIt, 1u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
-
-			}
-			else if (Instance->Meshes.IsValid(LODIt))
-			{
-				LODIndirectIndex = Out.VertexFactories0.Num();
-				new (Out.VertexFactories0) FHairCardsVertexFactory(Instance, GroupIndex, LODIt, 0u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
-				new (Out.VertexFactories1) FHairCardsVertexFactory(Instance, GroupIndex, LODIt, 1u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
-
-			}
-			Out.LODMapping.Add(LODIndirectIndex);
-		}
-	}
-
-	const FHairCardsVertexFactory* GetVertexFactory(uint32 GroupIndex, uint32 LODIndex, bool bIsCurrent0, EHairGeometryType GeometryType) const
-	{
-		const FHairCardsVertexFactory* Out = nullptr;
-		if (bIsCurrent0)
-		{
-			if (GroupIndex < uint32(Instances.Num()) && LODIndex < uint32(Instances[GroupIndex].LODMapping.Num()))
-			{
-				const int32 IndirectLODIndex = Instances[GroupIndex].LODMapping[LODIndex];
-				if (IndirectLODIndex != -1)
-				{
-					Out = &Instances[GroupIndex].VertexFactories0[IndirectLODIndex];
-				}
-			}
-		}
-		else
-		{
-			if (GroupIndex < uint32(Instances.Num()) && LODIndex < uint32(Instances[GroupIndex].LODMapping.Num()))
-			{
-				const int32 IndirectLODIndex = Instances[GroupIndex].LODMapping[LODIndex];
-				if (IndirectLODIndex != -1)
-				{
-					Out = &Instances[GroupIndex].VertexFactories1[IndirectLODIndex];
-				}
-			}
-		}
-
-		// Sanity check
-		if (Out)
-		{
-			check(Out->Data.GeometryType == GeometryType);
-		}
-
-		return Out;
-	}
-
-	void BeginInitResource()
-	{
-		for (FInstanceFactory& Instance : Instances)
-		{
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories0)
-			{
-				::BeginInitResource(&VertexFactory);
-			}
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories1)
-			{
-				::BeginInitResource(&VertexFactory);
-			}
-		}
-	}
-
-	void BeginReleaseResource()
-	{
-		for (FInstanceFactory& Instance : Instances)
-		{
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories0)
-			{
-				::BeginReleaseResource(&VertexFactory);
-			}
-			Instance.VertexFactories0.Empty();
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories1)
-			{
-				::BeginReleaseResource(&VertexFactory);
-			}
-			Instance.VertexFactories1.Empty();
-		}
-		Instances.Empty();
-	}
-
-	void ReleaseResources()
-	{
-		for (FInstanceFactory& Instance : Instances)
-		{
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories0)
-			{
-				VertexFactory.ReleaseResource();
-			}
-			Instance.VertexFactories0.Empty();
-			for (FHairCardsVertexFactory& VertexFactory : Instance.VertexFactories1)
-			{
-				VertexFactory.ReleaseResource();
-			}
-			Instance.VertexFactories1.Empty();
-		}
-		Instances.Empty();
-	}
-
-	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
-	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
-};
-
 static EHairGeometryType ToHairGeometryType(EGroomGeometryType Type)
 {
 	switch (Type)
@@ -440,7 +292,6 @@ public:
 
 	FHairStrandsSceneProxy(UGroomComponent* Component)
 		: FPrimitiveSceneProxy(Component)
-		, StrandsVertexFactory(Component->HairGroupInstances, GetScene().GetFeatureLevel(), "FStrandsHairSceneProxy")
 		, MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 	{
 		// Forcing primitive uniform as we don't support robustly GPU scene data
@@ -459,15 +310,10 @@ public:
 			bAlwaysHasVelocity = true;
 		}
 
-		FHairStrandsVertexFactory::FDataType StrandsVFData;
-		StrandsVFData.Instances = Component->HairGroupInstances;
-		CardsAndMeshesVertexFactories.AddInstances(Component->HairGroupInstances, Component->GetScene()->GetShaderPlatform(), Component->GetScene()->GetFeatureLevel());
-
 		check(Component->HairGroupInstances.Num());
 
-		GroomLODSelection = Component->GroomAsset->LODSelectionType;
-
-		const EShaderPlatform Platform = GetScene().GetShaderPlatform();
+		const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+		const EShaderPlatform ShaderPlatform = GetScene().GetShaderPlatform();
 
 		const int32 GroupCount = Component->GroomAsset->GetNumHairGroups();
 		check(Component->GroomAsset->HairGroupsData.Num() == Component->HairGroupInstances.Num());
@@ -484,6 +330,40 @@ public:
 			HairInstance->bForceCards = Component->bUseCards;
 			HairInstance->bUpdatePositionOffset = Component->RegisteredMeshComponent != nullptr;
 			HairInstance->bCastShadow = Component->CastShadow;
+
+			if (HairInstance->Strands.IsValid() && HairInstance->Strands.VertexFactory == nullptr)
+			{
+				HairInstance->Strands.VertexFactory = new FHairStrandsVertexFactory(HairInstance, FeatureLevel, "FStrandsHairSceneProxy");
+			}
+
+			if (HairInstance->Cards.IsValid())
+			{
+				const uint32 LODCount = HairInstance->Cards.LODs.Num();
+				for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+				{
+					if (HairInstance->Cards.IsValid(LODIt))
+					{
+						if (HairInstance->Cards.LODs[LODIt].VertexFactory[0] == nullptr) HairInstance->Cards.LODs[LODIt].VertexFactory[0] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 0u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
+						if (HairInstance->Cards.LODs[LODIt].VertexFactory[1] == nullptr) HairInstance->Cards.LODs[LODIt].VertexFactory[1] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 1u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
+					}
+				}
+			}
+
+			if (HairInstance->Meshes.IsValid())
+			{
+				const uint32 LODCount = HairInstance->Meshes.LODs.Num();
+
+				for (uint32 LODIt = 0; LODIt < LODCount; ++LODIt)
+				{
+					if (HairInstance->Meshes.IsValid(LODIt))
+					{
+						if (HairInstance->Meshes.LODs[LODIt].VertexFactory[0] == nullptr) HairInstance->Meshes.LODs[LODIt].VertexFactory[0] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 0u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
+						if (HairInstance->Meshes.LODs[LODIt].VertexFactory[1] == nullptr) HairInstance->Meshes.LODs[LODIt].VertexFactory[1] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 1u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
+
+					}
+				}
+			}
+
 			{
 				FHairGroup& OutGroupData = HairGroups.AddDefaulted_GetRef();
 				OutGroupData.bIsVsibible = bIsVisible;
@@ -532,14 +412,14 @@ public:
 			}
 
 			// Material - Strands
-			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform))
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, ShaderPlatform))
 			{
 				const int32 SlotIndex = Component->GroomAsset->GetMaterialIndex(Component->GroomAsset->HairGroupsRendering[GroupIt].MaterialSlotName);
 				HairInstance->Strands.Material = Component->GetMaterial(GetMaterialIndexWithFallback(SlotIndex), EHairGeometryType::Strands, true);
 			}
 
 			// Material - Cards
-			if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform))
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, ShaderPlatform))
 			{
 				uint32 CardsLODIndex = 0;
 				for (const FHairGroupData::FCards::FLOD& LOD : InGroupData.Cards.LODs)
@@ -563,7 +443,7 @@ public:
 			}
 
 			// Material - Meshes
-			if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, Platform))
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, ShaderPlatform))
 			{
 				uint32 MeshesLODIndex = 0;
 				for (const FHairGroupData::FMeshes::FLOD& LOD : InGroupData.Meshes.LODs)
@@ -586,22 +466,6 @@ public:
 				}
 			}
 		}
-
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards, Platform) || IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, Platform))
-		{
-			CardsAndMeshesVertexFactories.BeginInitResource();
-		}
-
-		FHairStrandsVertexFactory* LocalStrandsVertexFactory = &StrandsVertexFactory;
-		ENQUEUE_RENDER_COMMAND(InitHairStrandsVertexFactory)(
-			[Platform, LocalStrandsVertexFactory, StrandsVFData](FRHICommandListImmediate& RHICmdList)
-		{
-			if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Platform))
-			{
-				LocalStrandsVertexFactory->SetData(StrandsVFData);
-				LocalStrandsVertexFactory->InitResource();
-			}
-		});
 	}
 
 	virtual ~FHairStrandsSceneProxy()
@@ -652,9 +516,6 @@ public:
 				Instance->Release();
 			}
 		}
-
-		CardsAndMeshesVertexFactories.ReleaseResources();
-		StrandsVertexFactory.ReleaseResource();
 	}
 
 	virtual void OnTransformChanged() override
@@ -884,9 +745,7 @@ public:
 			{
 				return nullptr;
 			}
-			const bool bIsDynamic  = Instance->Meshes.LODs[IntLODIndex].DeformedResource != nullptr;
-			const bool bIsCurrent0 = bIsDynamic ? Instance->Meshes.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0 : true;
-			VertexFactory = (FVertexFactory*)CardsAndMeshesVertexFactories.GetVertexFactory(GroupIndex, IntLODIndex, bIsCurrent0, GeometryType);
+			VertexFactory = (FVertexFactory*)Instance->Meshes.LODs[IntLODIndex].GetVertexFactory();
 			check(VertexFactory);
 			HairVertexCount = Instance->Meshes.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
 			MaxVertexIndex = HairVertexCount;
@@ -902,9 +761,7 @@ public:
 				return nullptr;
 			}
 
-			const bool bIsDynamic  = Instance->Cards.LODs[IntLODIndex].DeformedResource != nullptr;
-			const bool bIsCurrent0 = bIsDynamic ? Instance->Cards.LODs[IntLODIndex].DeformedResource->CurrentIndex == 0 : true;
-			VertexFactory = (FVertexFactory*)CardsAndMeshesVertexFactories.GetVertexFactory(GroupIndex, IntLODIndex, bIsCurrent0, GeometryType);
+			VertexFactory = (FVertexFactory*)Instance->Cards.LODs[IntLODIndex].GetVertexFactory();
 			check(VertexFactory);
 			HairVertexCount = Instance->Cards.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
 			MaxVertexIndex = HairVertexCount;
@@ -916,7 +773,7 @@ public:
 		}
 		else // if (GeometryType == EHairGeometryType::Strands)
 		{
-			VertexFactory = (FVertexFactory*)&StrandsVertexFactory;
+			VertexFactory = (FVertexFactory*)Instance->Strands.VertexFactory;
 			HairVertexCount = Instance->Strands.RestResource->GetVertexCount();
 			MaxVertexIndex = HairVertexCount * 6;
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
@@ -997,15 +854,11 @@ public:
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override
 	{
-		TArray<FHairGroupInstance*> Instances = StrandsVertexFactory.GetData().Instances;
-
 		bool bUseCardsOrMesh = false;
-		const uint32 GroupCount = Instances.Num();
-		for (uint32 GroupIt = 0; GroupIt < GroupCount; ++GroupIt)
+		for (FHairGroupInstance* Instance : HairGroupInstances)
 		{
-			check(Instances[GroupIt]->GetRefCount());
-			const EHairGeometryType GeometryType = Instances[GroupIt]->GeometryType;
-			const FHairGroup& GroupData = HairGroups[GroupIt];
+			check(Instance->GetRefCount());
+			const EHairGeometryType GeometryType = Instance->GeometryType;
 			bUseCardsOrMesh = bUseCardsOrMesh || GeometryType == EHairGeometryType::Cards || GeometryType == EHairGeometryType::Meshes;
 		}
 
@@ -1039,9 +892,6 @@ public:
 
 private:
 	uint32 ComponentId = 0;
-	EHairLODSelectionType GroomLODSelection = EHairLODSelectionType::Cpu;
-	FHairStrandsVertexFactory StrandsVertexFactory;
-	FHairCardsVertexFactories CardsAndMeshesVertexFactories; // One factory per instance, per LOD, and per buffer type (current/previous)
 	FMaterialRelevance MaterialRelevance;
 	UMaterialInterface* Strands_DebugMaterial = nullptr;
 	int32* PredictedLODIndex = nullptr;
@@ -2132,9 +1982,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				}
 
 				HairGroupInstance->Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].SimRootResources;
-
 				HairGroupInstance->Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Guides.RestRootResource, EHairStrandsResourcesType::Guides);
-				BeginInitResource(HairGroupInstance->Guides.DeformedRootResource);
 			}
 
 			// Lazy allocation of the guide resources
@@ -2143,8 +1991,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 			// If guides are allocated, deformed resources are always needs since they are either used with simulation, or RBF deformation. Both are dynamics, and require deformed positions
 			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, HairGroupInstance->Guides.RestResource->PositionOffset, EHairStrandsResourcesType::Guides);
-			BeginInitResource(HairGroupInstance->Guides.DeformedResource);
-
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Guides.RestResource->PositionOffset;
 			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Guides.RestResource->PositionOffset;
 
@@ -2211,7 +2057,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				{
 					// Allocate dynamic raytracing resources (owned by the groom component/instance)
 					HairGroupInstance->Strands.RenRaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.Data);
-					BeginInitResource(HairGroupInstance->Strands.RenRaytracingResource);
 					HairGroupInstance->Strands.RenRaytracingResourceOwned = true;
 				}
 				else
@@ -2236,15 +2081,12 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 				HairGroupInstance->Strands.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].RenRootResources;
 				HairGroupInstance->Strands.DeformedRootResource = new FHairStrandsDeformedRootResource(HairGroupInstance->Strands.RestRootResource, EHairStrandsResourcesType::Strands);
-				BeginInitResource(HairGroupInstance->Strands.DeformedRootResource);
 			}
 
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
 			if (bNeedDynamicResources)
 			{
 				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, HairGroupInstance->Strands.RestResource->PositionOffset, EHairStrandsResourcesType::Strands);
-				BeginInitResource(HairGroupInstance->Strands.DeformedResource);
-
 				// Initialize deformed position relative position offset to the rest pose offset
 				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Strands.RestResource->PositionOffset;
 				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Strands.RestResource->PositionOffset;
@@ -2312,7 +2154,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				if (bNeedDeformedPositions)
 				{
 					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.Data.RenderData, false);
-					BeginInitResource(InstanceLOD.DeformedResource);
 				}
 
 				#if RHI_RAYTRACING
@@ -2322,7 +2163,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					{
 						// Allocate dynamic raytracing resources (owned by the groom component/instance)
 						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data);
-						BeginInitResource(InstanceLOD.RaytracingResource);
 						InstanceLOD.RaytracingResourceOwned = true;
 					}
 					else
@@ -2356,13 +2196,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 						InstanceLOD.Guides.RestRootResource = LocalBindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex];
 						InstanceLOD.Guides.DeformedRootResource = new FHairStrandsDeformedRootResource(InstanceLOD.Guides.RestRootResource, EHairStrandsResourcesType::Cards);
-						BeginInitResource(InstanceLOD.Guides.DeformedRootResource);
 					}
 
 					InstanceLOD.Guides.RestResource = LOD.Guides.RestResource;
 					{
 						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, InstanceLOD.Guides.RestResource->PositionOffset, EHairStrandsResourcesType::Cards);
-						BeginInitResource(InstanceLOD.Guides.DeformedResource);
 
 						// Initialize deformed position relative position offset to the rest pose offset
 						InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current) = InstanceLOD.Guides.RestResource->PositionOffset;
@@ -2390,7 +2228,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				if (bNeedDeformedPositions)
 				{
 					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.Data.RenderData, true);
-					BeginInitResource(InstanceLOD.DeformedResource);
 				}
 
 				#if RHI_RAYTRACING
@@ -2400,7 +2237,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					{
 						// Allocate dynamic raytracing resources (owned by the groom component/instance)
 						InstanceLOD.RaytracingResource = new FHairStrandsRaytracingResource(*InstanceLOD.Data);
-						BeginInitResource(InstanceLOD.RaytracingResource);
 						InstanceLOD.RaytracingResourceOwned = true;
 					}
 					else
@@ -2493,6 +2329,8 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 				#if WITH_EDITOR
 				LocalInstance->Strands.DebugAttributeBuffer.Release();
 				#endif
+
+				InternalResourceRelease(LocalInstance->Strands.VertexFactory);
 			}
 
 			// Cards
@@ -2511,6 +2349,9 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 							InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].RaytracingResource);
 						}
 						#endif
+
+						InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].VertexFactory[0]);
+						InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].VertexFactory[1]);
 					}
 				}
 			}
@@ -2529,6 +2370,9 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 							InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].RaytracingResource);
 						}
 						#endif
+
+						InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].VertexFactory[0]);
+						InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].VertexFactory[1]);
 					}
 				}
 			}

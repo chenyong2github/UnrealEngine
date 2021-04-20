@@ -258,8 +258,14 @@ void FHairCardsVertexFactory::Copy(const FHairCardsVertexFactory& Other)
 	BeginUpdateResourceRHI(this);
 }
 
-void FHairCardsVertexFactory::InitRHI()
+void FHairCardsVertexFactory::InitResources()
 {
+	if (bIsInitialized)
+		return;
+
+	FVertexFactory::InitResource(); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
+
+	bIsInitialized = true;
 	bNeedsDeclaration = true;
 	// We create different streams based on feature level
 	check(HasValidFeatureLevel());
@@ -327,6 +333,11 @@ void FHairCardsVertexFactory::InitRHI()
 			HairInstance->Meshes.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Meshes, bManualFetch);
 		}
 	}
+}
+
+void FHairCardsVertexFactory::InitRHI()
+{
+	// Nothing as the initialization is done when needed
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairCardsVertexFactory, SF_Vertex,		FHairCardsVertexFactoryShaderParameters);

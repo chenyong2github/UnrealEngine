@@ -16,6 +16,8 @@
 #include "GroomGeometryCache.h"
 #include "HAL/IConsoleManager.h"
 #include "SceneView.h"
+#include "HairCardsVertexFactory.h"
+#include "HairStrandsVertexFactory.h"
 
 static int32 GHairStrandsMinLOD = 0;
 static FAutoConsoleVariableRef CVarGHairStrandsMinLOD(TEXT("r.HairStrands.MinLOD"), GHairStrandsMinLOD, TEXT("Clamp the min hair LOD to this value, preventing to reach lower/high-quality LOD."), ECVF_Scalability);
@@ -508,7 +510,7 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 	}
 }
 
-static void RunHairLODSelection(const FHairStrandsInstances& Instances, const TArray<const FSceneView*> Views)
+static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsInstances& Instances, const TArray<const FSceneView*> Views)
 {
 	EShaderPlatform ShaderPlatform = EShaderPlatform::SP_NumPlatforms;
 	if (Views.Num() > 0)
@@ -611,6 +613,47 @@ static void RunHairLODSelection(const FHairStrandsInstances& Instances, const TA
 			GeometryType = EHairGeometryType::NoneGeometry;
 		}
 
+		// Lazy allocation of resources
+		// Note: Allocation will only be done if the resources it not yet initialized.
+		if (Instance->Guides.Data)
+		{
+			if (Instance->Guides.DeformedRootResource)	Instance->Guides.DeformedRootResource->Allocate(GraphBuilder);
+			if (Instance->Guides.DeformedResource)		Instance->Guides.DeformedResource->Allocate(GraphBuilder);
+		}
+
+		if (GeometryType == EHairGeometryType::Meshes)
+		{
+			FHairGroupInstance::FMeshes::FLOD& InstanceLOD = Instance->Meshes.LODs[IntLODIndex];
+
+			if (InstanceLOD.DeformedResource)	InstanceLOD.DeformedResource->Allocate(GraphBuilder);
+			#if RHI_RAYTRACING
+			if (InstanceLOD.RaytracingResource)	InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
+			#endif
+
+			InstanceLOD.GetVertexFactory()->InitResources();
+		}
+		else if (GeometryType == EHairGeometryType::Cards)
+		{
+			FHairGroupInstance::FCards::FLOD& InstanceLOD = Instance->Cards.LODs[IntLODIndex];
+
+			if (InstanceLOD.DeformedResource)				InstanceLOD.DeformedResource->Allocate(GraphBuilder);
+			if (InstanceLOD.Guides.DeformedRootResource)	InstanceLOD.Guides.DeformedRootResource->Allocate(GraphBuilder);
+			if (InstanceLOD.Guides.DeformedResource)		InstanceLOD.Guides.DeformedResource->Allocate(GraphBuilder);
+			#if RHI_RAYTRACING
+			if (InstanceLOD.RaytracingResource)				InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
+			#endif
+			InstanceLOD.GetVertexFactory()->InitResources();
+		}
+		else if (GeometryType == EHairGeometryType::Strands)
+		{
+			if (Instance->Strands.DeformedRootResource)	Instance->Strands.DeformedRootResource->Allocate(GraphBuilder);
+			if (Instance->Strands.DeformedResource)		Instance->Strands.DeformedResource->Allocate(GraphBuilder);
+			#if RHI_RAYTRACING
+			if (Instance->Strands.RenRaytracingResource)Instance->Strands.RenRaytracingResource->Allocate(GraphBuilder);
+			#endif
+			Instance->Strands.VertexFactory->InitResources();
+		}
+
 		Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
 		Instance->HairGroupPublicData->SetLODIndex(LODIndex);
 		Instance->HairGroupPublicData->SetLODBias(0);
@@ -621,7 +664,6 @@ static void RunHairLODSelection(const FHairStrandsInstances& Instances, const TA
 		Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 		Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
 		Instance->Strands.bIsCullingEnabled = bCullingEnable;
-
 	}
 }
 
@@ -724,7 +766,9 @@ void ProcessHairStrandsBookmark(
 				*Parameters.Instances,
 				Parameters.AllViews);
 		}
+		check(GraphBuilder);
 		RunHairLODSelection(
+			*GraphBuilder,
 			*Parameters.Instances,
 			Parameters.AllViews);
 	}

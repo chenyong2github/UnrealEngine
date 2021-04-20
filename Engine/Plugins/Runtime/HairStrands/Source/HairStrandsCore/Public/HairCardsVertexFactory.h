@@ -52,6 +52,8 @@ public:
 	*/
 	void Copy(const FHairCardsVertexFactory& Other);
 
+	void InitResources();
+
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -59,6 +61,7 @@ public:
 	FDataType Data;
 protected:
 
+	bool bIsInitialized = false;
 
 	struct FDebugName
 	{

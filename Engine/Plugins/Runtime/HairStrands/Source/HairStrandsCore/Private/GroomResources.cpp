@@ -312,6 +312,44 @@ void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuf
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
+FHairCommonResource::FHairCommonResource(EHairStrandsAllocationType InAllocationType, bool bInUseRenderGraph):
+bUseRenderGraph(bInUseRenderGraph),
+bIsInitialized(false),
+AllocationType(InAllocationType)
+{
+}
+
+void FHairCommonResource::InitRHI()
+{
+	if (bIsInitialized || AllocationType == EHairStrandsAllocationType::Deferred || GUsingNullRHI) { return; }
+
+	if (bUseRenderGraph)
+	{
+		FMemMark Mark(FMemStack::Get());
+		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+		FRDGBuilder GraphBuilder(RHICmdList);
+		InternalAllocate(GraphBuilder);
+		GraphBuilder.Execute();
+	}
+	else
+	{
+		InternalAllocate();
+	}
+	bIsInitialized = true;
+}
+
+void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder)
+{
+	if (bIsInitialized) { return; }
+
+	check(AllocationType == EHairStrandsAllocationType::Deferred);
+	FRenderResource::InitResource(); // Call RenderResource InitResource() so that the resources is marked as initialized
+	InternalAllocate(GraphBuilder);
+	bIsInitialized = true;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
 void FHairCardIndexBuffer::InitRHI()
 {
 	const uint32 DataSizeInBytes = FHairCardsIndexFormat::SizeInByte * Indices.Num();
@@ -324,6 +362,7 @@ void FHairCardIndexBuffer::InitRHI()
 }
 
 FHairCardsRestResource::FHairCardsRestResource(const FHairCardsDatas::FRenderData& InRenderData, uint32 InVertexCount, uint32 InPrimitiveCount) :
+	FHairCommonResource(EHairStrandsAllocationType::Immediate, false),
 	RestPositionBuffer(),
 	RestIndexBuffer(InRenderData.Indices),
 	VertexCount(InVertexCount),
@@ -335,7 +374,7 @@ FHairCardsRestResource::FHairCardsRestResource(const FHairCardsDatas::FRenderDat
 
 }
 
-void FHairCardsRestResource::InitRHI()
+void FHairCardsRestResource::InternalAllocate()
 {
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
 	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("Hair.CardsRest_PositionBuffer"));
@@ -373,6 +412,7 @@ void FHairCardsRestResource::ReleaseResource()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 FHairCardsProceduralResource::FHairCardsProceduralResource(const FHairCardsProceduralDatas::FRenderData& InRenderData, const FIntPoint& InAtlasResolution, const FHairCardsVoxel& InVoxel):
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	CardBoundCount(InRenderData.ClusterBounds.Num()),
 	AtlasResolution(InAtlasResolution),
 	AtlasRectBuffer(),
@@ -387,13 +427,8 @@ FHairCardsProceduralResource::FHairCardsProceduralResource(const FHairCardsProce
 	CardVoxel = InVoxel;
 }
 
-void FHairCardsProceduralResource::InitRHI()
+void FHairCardsProceduralResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateVertexBufferRDG<FHairCardsAtlasRectFormat>(GraphBuilder, RenderData.CardsRect, AtlasRectBuffer, TEXT("Hair.CardsProcedural_AtlasRectBuffer"), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairCardsDimensionFormat>(GraphBuilder, RenderData.CardsLengths, LengthBuffer, TEXT("Hair.CardsProcedural_LengthBuffer"), EHairResourceUsageType::Static);
 
@@ -407,8 +442,6 @@ void FHairCardsProceduralResource::InitRHI()
 
 	InternalCreateVertexBufferRDG<FHairCardsStrandsPositionFormat>(GraphBuilder, RenderData.CardsStrandsPositions, CardsStrandsPositions, TEXT("Hair.CardsProcedural_CardsStrandsPositions"), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairCardsStrandsAttributeFormat>(GraphBuilder, RenderData.CardsStrandsAttributes, CardsStrandsAttributes, TEXT("Hair.CardsProcedural_CardsStrandsAttributes"), EHairResourceUsageType::Static);
-
-	GraphBuilder.Execute();
 }
 
 void FHairCardsProceduralResource::ReleaseRHI()
@@ -430,16 +463,12 @@ void FHairCardsProceduralResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairCardsDeformedResource::FHairCardsDeformedResource(const FHairCardsDatas::FRenderData& HairCardsRenderData, bool bInInitializedData) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	RenderData(HairCardsRenderData), bInitializedData(bInInitializedData)
 {}
 
-void FHairCardsDeformedResource::InitRHI()
+void FHairCardsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
@@ -451,7 +480,6 @@ void FHairCardsDeformedResource::InitRHI()
 		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("Hair.CardsDeformed_Position0"), EHairResourceUsageType::Dynamic);
 		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("Hair.CardsDeformed_Position1"), EHairResourceUsageType::Dynamic);
 	}
-	GraphBuilder.Execute();
 }
 
 void FHairCardsDeformedResource::ReleaseRHI()
@@ -463,6 +491,7 @@ void FHairCardsDeformedResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesDatas::FRenderData& InRenderData, uint32 InVertexCount, uint32 InPrimitiveCount) :
+	FHairCommonResource(EHairStrandsAllocationType::Immediate, false),
 	RestPositionBuffer(),
 	IndexBuffer(InRenderData.Indices),
 	VertexCount(InVertexCount),
@@ -475,7 +504,7 @@ FHairMeshesRestResource::FHairMeshesRestResource(const FHairMeshesDatas::FRender
 	check(IndexBuffer.Indices.Num() > 0);
 }
 
-void FHairMeshesRestResource::InitRHI()
+void FHairMeshesRestResource::InternalAllocate()
 {
 	// These resources are kept as regular (i.e., non-RDG resources) as they need to be bound at the input assembly stage by the Vertex declaraction which requires FVertexBuffer type
 	CreateBuffer<FHairCardsPositionFormat>(RenderData.Positions, RestPositionBuffer, TEXT("Hair.MeshesRest_Positions"));
@@ -510,16 +539,12 @@ void FHairMeshesRestResource::ReleaseResource()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairMeshesDeformedResource::FHairMeshesDeformedResource(const FHairMeshesDatas::FRenderData& HairMeshesData, bool bInInitializedData) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	RenderData(HairMeshesData), bInitializedData(bInInitializedData)
 {}
 
-void FHairMeshesDeformedResource::InitRHI()
+void FHairMeshesDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
@@ -531,8 +556,6 @@ void FHairMeshesDeformedResource::InitRHI()
 		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[0], TEXT("Hair.MeshesDeformed_Positions0"), EHairResourceUsageType::Dynamic);
 		InternalCreateVertexBufferRDG<FHairCardsPositionFormat>(GraphBuilder, VertexCount, DeformedPositionBuffer[1], TEXT("Hair.MeshesDeformed_Positions1"), EHairResourceUsageType::Dynamic);
 	}
-
-	GraphBuilder.Execute();
 }
 
 void FHairMeshesDeformedResource::ReleaseRHI()
@@ -544,16 +567,12 @@ void FHairMeshesDeformedResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestResource::FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& InPositionOffset, EHairStrandsResourcesType InCurveType) :
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	PositionBuffer(), AttributeBuffer(), MaterialBuffer(), PositionOffset(InPositionOffset), RenderData(HairStrandRenderData), CurveType(InCurveType)
 {}
 
-void FHairStrandsRestResource::InitRHI()
+void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateVertexBufferRDG<FHairStrandsPositionFormat>(GraphBuilder, RenderData.Positions, PositionBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionBuffer), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, RenderData.Attributes, AttributeBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_AttributeBuffer), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairStrandsMaterialFormat>(GraphBuilder, RenderData.Materials, MaterialBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_MaterialBuffer), EHairResourceUsageType::Static);
@@ -561,8 +580,6 @@ void FHairStrandsRestResource::InitRHI()
 	TArray<FVector4> RestOffset;
 	RestOffset.Add(PositionOffset);
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, RestOffset, PositionOffsetBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRest_PositionOffsetBuffer), EHairResourceUsageType::Static, ERDGInitialDataFlags::None);
-	
-	GraphBuilder.Execute();
 }
 
 void AddHairTangentPass(
@@ -605,16 +622,12 @@ void FHairStrandsRestResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsDeformedResource::FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInInitializedData, const FVector& InDefaultOffset, EHairStrandsResourcesType InCurveType) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	RenderData(HairStrandRenderData), bInitializedData(bInInitializedData), DefaultOffset(InDefaultOffset), CurveType(InCurveType)
 {}
 
-void FHairStrandsDeformedResource::InitRHI()
+void FHairStrandsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	const uint32 VertexCount = RenderData.Positions.Num();
 	if (bInitializedData)
 	{
@@ -632,8 +645,6 @@ void FHairStrandsDeformedResource::InitRHI()
 	DefaultOffsets.Add(DefaultOffset);
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[0], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer0), EHairResourceUsageType::Dynamic);
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer1), EHairResourceUsageType::Dynamic);
-
-	GraphBuilder.Execute();
 }
 
 void FHairStrandsDeformedResource::ReleaseRHI()
@@ -675,26 +686,20 @@ void FHairStrandsClusterCullingData::Serialize(FArchive& Ar)
 	Ar << PackedClusterInfos;
 }
 
-FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& InData)
-: Data(InData) 
+FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& InData): 
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	Data(InData) 
 {
 
 }
 
-void FHairStrandsClusterCullingResource::InitRHI()
+void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateStructuredBufferRDG(GraphBuilder, Data.PackedClusterInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterInfo::Packed), ClusterInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterInfoBuffer"), EHairResourceUsageType::Static);
 	InternalCreateStructuredBufferRDG(GraphBuilder, Data.ClusterLODInfos, sizeof(FHairStrandsClusterCullingData::FHairClusterLODInfo), ClusterLODInfoBuffer, TEXT("Hair.StrandsClusterCulling_ClusterLODInfoBuffer"), EHairResourceUsageType::Static);
 
 	InternalCreateVertexBufferRDG(GraphBuilder, Data.ClusterVertexIds, PF_R32_UINT, ClusterVertexIdBuffer, TEXT("Hair.StrandsClusterCulling_ClusterVertexIds"), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG(GraphBuilder, Data.VertexToClusterIds, PF_R32_UINT, VertexToClusterIdBuffer, TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), EHairResourceUsageType::Static);
-
-	GraphBuilder.Execute();
 }
 
 void FHairStrandsClusterCullingResource::ReleaseRHI()
@@ -708,12 +713,14 @@ void FHairStrandsClusterCullingResource::ReleaseRHI()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsRootData& InRootData, EHairStrandsResourcesType InCurveType) :
-RootData(InRootData), CurveType(InCurveType)
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
+	RootData(InRootData), CurveType(InCurveType)
 {
 	PopulateFromRootData();
 }
 
 FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples, EHairStrandsResourcesType InCurveType):
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	RootData(HairStrandsDatas, LODCount, NumSamples), CurveType(InCurveType)
 {
 	PopulateFromRootData();
@@ -733,15 +740,10 @@ void FHairStrandsRestRootResource::PopulateFromRootData()
 	}
 }
 
-void FHairStrandsRestRootResource::InitRHI()
+void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	if (RootData.VertexToCurveIndexBuffer.Num() > 0)
 	{
-		if (GUsingNullRHI) { return; }
-		FMemMark Mark(FMemStack::Get());
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		FRDGBuilder GraphBuilder(RHICmdList);
-
 		InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_VertexToCurveIndexBuffer), EHairResourceUsageType::Static);
 		InternalCreateVertexBufferRDG<FHairStrandsRootPositionFormat>(GraphBuilder, RootData.RootPositionBuffer, RootPositionBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_RootPositionBuffer), EHairResourceUsageType::Static);
 		InternalCreateVertexBufferRDG<FHairStrandsRootNormalFormat>(GraphBuilder, RootData.RootNormalBuffer, RootNormalBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_RootNormalBuffer), EHairResourceUsageType::Static);
@@ -802,7 +804,6 @@ void FHairStrandsRestRootResource::InitRHI()
 				InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, CPUData.SampleCount, GPUData.RestSamplePositionsBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_RestSamplePositionsBuffer), EHairResourceUsageType::Dynamic);
 			}
 		}
-		GraphBuilder.Execute();
 	}
 }
 
@@ -834,13 +835,16 @@ void FHairStrandsRestRootResource::ReleaseRHI()
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairStrandsDeformedRootResource::FHairStrandsDeformedRootResource(EHairStrandsResourcesType InCurveType):CurveType(InCurveType)
+FHairStrandsDeformedRootResource::FHairStrandsDeformedRootResource(EHairStrandsResourcesType InCurveType):
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
+	CurveType(InCurveType)
 {
 
 }
 
 FHairStrandsDeformedRootResource::FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources, EHairStrandsResourcesType InCurveType):
-CurveType(InCurveType)
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
+	CurveType(InCurveType)
 {
 	check(InRestResources);
 	uint32 LODIndex = 0;
@@ -856,13 +860,8 @@ CurveType(InCurveType)
 	}
 }
 
-void FHairStrandsDeformedRootResource::InitRHI()
+void FHairStrandsDeformedRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	if (RootCount > 0)
 	{
 		for (FLOD& LOD : LODs)
@@ -876,7 +875,6 @@ void FHairStrandsDeformedRootResource::InitRHI()
 			InternalCreateVertexBufferRDG<FHairStrandsMeshTrianglePositionFormat>(GraphBuilder, RootCount, LOD.DeformedRootTrianglePosition2Buffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRootDeformed_DeformedRootTrianglePosition2Buffer), EHairResourceUsageType::Dynamic);
 		}
 	}
-	GraphBuilder.Execute();
 }
 
 void FHairStrandsDeformedRootResource::ReleaseRHI()
@@ -1027,6 +1025,7 @@ void FHairStrandsRootData::Reset()
 /////////////////////////////////////////////////////////////////////////////////////////
 
 FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas::FRenderData& InterpolationRenderData, const FHairStrandsDatas& SimDatas) :
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	Interpolation0Buffer(), Interpolation1Buffer(), RenderData(InterpolationRenderData)
 {
 	const uint32 RootCount = SimDatas.GetNumCurves();
@@ -1042,17 +1041,11 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(const FHair
 	}
 }
 
-void FHairStrandsInterpolationResource::InitRHI()
+void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateVertexBufferRDG<FHairStrandsInterpolation0Format>(GraphBuilder, RenderData.Interpolation0, Interpolation0Buffer, TEXT("Hair.StrandsInterpolation_Interpolation0Buffer"), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairStrandsInterpolation1Format>(GraphBuilder, RenderData.Interpolation1, Interpolation1Buffer, TEXT("Hair.StrandsInterpolation_Interpolation1Buffer"), EHairResourceUsageType::Static);
 	InternalCreateVertexBufferRDG<FHairStrandsRootIndexFormat>(GraphBuilder, SimRootPointIndex, SimRootPointIndexBuffer, TEXT("Hair.StrandsInterpolation_SimRootPointIndex"), EHairResourceUsageType::Static);
-	GraphBuilder.Execute();
 	//SimRootPointIndex.SetNum(0);
 }
 
@@ -1089,19 +1082,14 @@ void FHairCardsInterpolationDatas::Reset()
 }
 
 FHairCardsInterpolationResource::FHairCardsInterpolationResource(const FHairCardsInterpolationDatas::FRenderData& InterpolationRenderData) :
+	FHairCommonResource(EHairStrandsAllocationType::Immediate),
 	InterpolationBuffer(), RenderData(InterpolationRenderData)
 {
 }
 
-void FHairCardsInterpolationResource::InitRHI()
+void FHairCardsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateVertexBufferRDG<FHairCardsInterpolationFormat>(GraphBuilder, RenderData.Interpolation, InterpolationBuffer, TEXT("Hair.CardsInterpolation_InterpolationBuffer"), EHairResourceUsageType::Static);
-	GraphBuilder.Execute();
 }
 
 void FHairCardsInterpolationResource::ReleaseRHI()
@@ -1115,26 +1103,23 @@ void FHairCardsInterpolationResource::ReleaseRHI()
 // RT geometry is built to for a cross around the fiber.
 // 4 triangles per hair vertex => 12 vertices per hair vertex
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsDatas& InData) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	PositionBuffer(), VertexCount(InData.GetNumPoints()*12)  
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsDatas& InData) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	PositionBuffer(), VertexCount(InData.Cards.GetNumVertices())
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshesDatas& InData) :
+	FHairCommonResource(EHairStrandsAllocationType::Deferred),
 	PositionBuffer(), VertexCount(InData.Meshes.GetNumVertices())
 {}
 
-void FHairStrandsRaytracingResource::InitRHI()
+void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	if (GUsingNullRHI) { return; }
-	FMemMark Mark(FMemStack::Get());
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	FRDGBuilder GraphBuilder(RHICmdList);
-
 	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("Hair.StrandsRaytracing_PositionBuffer"), EHairResourceUsageType::Dynamic);
-	GraphBuilder.Execute();
 }
 
 void FHairStrandsRaytracingResource::ReleaseRHI()

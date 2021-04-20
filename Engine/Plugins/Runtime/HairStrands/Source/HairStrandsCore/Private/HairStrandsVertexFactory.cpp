@@ -68,7 +68,7 @@ inline float GetHairDensity(const FHairGroupPublicData::FVertexFactoryInput& VFI
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(FHairGroupInstance* Instance);
+FHairGroupPublicData::FVertexFactoryInput ComputeHairStrandsVertexInputData(const FHairGroupInstance* Instance);
 
 class FHairStrandsVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
@@ -135,11 +135,7 @@ public:
 	) const
 	{
 		const FHairStrandsVertexFactory* VF = static_cast<const FHairStrandsVertexFactory*>(VertexFactory);
-
-		const FHairGroupPublicData* GroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(BatchElement.VertexFactoryUserData);
-		check(GroupPublicData);
-		const uint64 GroupIndex = GroupPublicData->GetGroupIndex();
-		const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(VF->Data.Instances[GroupIndex]);
+		const FHairGroupPublicData::FVertexFactoryInput VFInput = ComputeHairStrandsVertexInputData(VF->Data.Instance);
 
 		VFS_BindParam(ShaderBindings, PositionBuffer, GetPositionSRV(VFInput));
 		VFS_BindParam(ShaderBindings, PreviousPositionBuffer, GetPreviousPositionSRV(VFInput));
@@ -159,6 +155,7 @@ public:
 		FShaderResourceViewRHIRef CulledDispatchVertexIdsSRV = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
 		FShaderResourceViewRHIRef CulledCompactedRadiusScaleBufferSRV = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
 
+		const FHairGroupPublicData* GroupPublicData = VF->Data.Instance->HairGroupPublicData;
 		const bool bCulling = GroupPublicData->GetCullingResultAvailable();
 		if (bCulling)
 		{
@@ -227,8 +224,14 @@ void FHairStrandsVertexFactory::Copy(const FHairStrandsVertexFactory& Other)
 	BeginUpdateResourceRHI(this);
 }
 
-void FHairStrandsVertexFactory::InitRHI()
+void FHairStrandsVertexFactory::InitResources()
 {
+	if (bIsInitialized)
+		return;
+
+	FVertexFactory::InitResource(); //Call VertexFactory/RenderResources::InitResource() to mark the resource as initialized();
+
+	bIsInitialized = true;
 	bNeedsDeclaration = false;
 	bSupportsManualVertexFetch = true;
 
@@ -264,6 +267,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Compute,		
 #if RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_RayHitGroup,	FHairStrandsVertexFactoryShaderParameters);
 #endif
+
+void FHairStrandsVertexFactory::InitRHI()
+{
+	// Nothing as the initialize runs only on first use
+}
 
 void FHairStrandsVertexFactory::ReleaseRHI()
 {

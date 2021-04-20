@@ -10,6 +10,8 @@
 #include "HairStrandsInterface.h"
 
 class UMeshComponent;
+class FHairCardsVertexFactory;
+class FHairStrandsVertexFactory;
 
 // @hair_todo: pack card ID + card UV in 32Bits alpha channel's of the position buffer:
 //  * 10/10 bits for UV -> max 1024/1024 rect resolution
@@ -101,6 +103,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FHairGroupInstanceModifer Modifier;
 
 		UMaterialInterface* Material = nullptr;
+		FHairStrandsVertexFactory* VertexFactory = nullptr;
 	} Strands;
 
 	//////////////////////////////////////////////////////////////////////////////////////////
@@ -132,6 +135,13 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 
 			UMaterialInterface* Material = nullptr;
 			FHairCardsUniformBuffer UniformBuffer[2];
+			FHairCardsVertexFactory* VertexFactory[2] = { nullptr, nullptr };
+			FHairCardsVertexFactory* GetVertexFactory() const
+			{
+				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
+				return VertexFactory[Index];
+			} 
+
 		};
 		TArray<FLOD> LODs;
 	} Cards;
@@ -159,6 +169,12 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 
 			UMaterialInterface* Material = nullptr;
 			FHairCardsUniformBuffer UniformBuffer[2];
+			FHairCardsVertexFactory* VertexFactory[2] = { nullptr, nullptr };
+			FHairCardsVertexFactory* GetVertexFactory() const 
+			{
+				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
+				return VertexFactory[Index];
+			}
 		};
 		TArray<FLOD> LODs;
 	} Meshes;

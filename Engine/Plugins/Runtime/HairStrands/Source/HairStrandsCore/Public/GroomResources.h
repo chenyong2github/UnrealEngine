@@ -23,15 +23,38 @@ enum class EHairStrandsResourcesType : uint8
 	Cards		// Guides used for deforming the cards geometry (which is different from the simulation guides)
 };
 
+enum class EHairStrandsAllocationType : uint8
+{
+	Immediate,	// Resources are allocated immediately
+	Deferred	// Resources allocation is deferred to first usage
+};
+
+/* Hair resouces which whom allocation can be deferred */
+struct FHairCommonResource : public FRenderResource
+{
+	/** Build the hair strands resource */
+	FHairCommonResource(EHairStrandsAllocationType AllocationType, bool bUseRenderGraph=true);
+
+	/* Init the buffer */
+	virtual void InitRHI() override;
+	void Allocate(FRDGBuilder& GraphBuilder);
+	virtual void InternalAllocate() {};
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {};
+
+	bool bUseRenderGraph = true;
+	bool bIsInitialized = false;
+	EHairStrandsAllocationType AllocationType = EHairStrandsAllocationType::Deferred;
+};
+
 /* Render buffers for root deformation for dynamic meshes */
-struct FHairStrandsRestRootResource : public FRenderResource
+struct FHairStrandsRestRootResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData, EHairStrandsResourcesType CurveType);
 	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -104,14 +127,14 @@ struct FHairStrandsRestRootResource : public FRenderResource
 };
 
 /* Render buffers for root deformation for dynamic meshes */
-struct FHairStrandsDeformedRootResource : public FRenderResource
+struct FHairStrandsDeformedRootResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsDeformedRootResource(EHairStrandsResourcesType CurveType);
 	FHairStrandsDeformedRootResource(const FHairStrandsRestRootResource* InRestResources, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -172,13 +195,13 @@ struct FHairStrandsDeformedRootResource : public FRenderResource
 };
 
 /* Render buffers that will be used for rendering */
-struct FHairStrandsRestResource : public FRenderResource
+struct FHairStrandsRestResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsRestResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, const FVector& PositionOffset, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -227,13 +250,13 @@ struct FHairStrandsRestResource : public FRenderResource
 	inline uint32 GetVertexCount() const { return RenderData.Positions.Num() / FHairStrandsPositionFormat::ComponentCount; }
 };
 
-struct FHairStrandsDeformedResource : public FRenderResource
+struct FHairStrandsDeformedResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsDeformedResource(const FHairStrandsDatas::FRenderData& HairStrandRenderData, bool bInitializeData, const FVector& InDefaultOffset, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -294,12 +317,12 @@ struct FHairStrandsDeformedResource : public FRenderResource
 	//bool NeedsToUpdateTangent();
 };
 
-struct FHairStrandsClusterCullingResource : public FRenderResource
+struct FHairStrandsClusterCullingResource : public FHairCommonResource
 {
 	FHairStrandsClusterCullingResource(const FHairStrandsClusterCullingData& Data);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -331,13 +354,13 @@ struct FHairStrandsClusterCullingResource : public FRenderResource
 	const FHairStrandsClusterCullingData Data;
 };
 
-struct FHairStrandsInterpolationResource : public FRenderResource
+struct FHairStrandsInterpolationResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsInterpolationResource(const FHairStrandsInterpolationDatas::FRenderData& InterpolationRenderData, const FHairStrandsDatas& SimDatas);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -367,7 +390,7 @@ struct FHairStrandsInterpolationResource : public FRenderResource
 };
 
 #if RHI_RAYTRACING
-struct FHairStrandsRaytracingResource : public FRenderResource
+struct FHairStrandsRaytracingResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsRaytracingResource(const FHairStrandsDatas& HairStrandsDatas);
@@ -375,7 +398,7 @@ struct FHairStrandsRaytracingResource : public FRenderResource
 	FHairStrandsRaytracingResource(const FHairMeshesDatas& InData);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -416,7 +439,7 @@ public:
 };
 
 /* Render buffers that will be used for rendering */
-struct FHairCardsRestResource : public FRenderResource
+struct FHairCardsRestResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairCardsRestResource(const FHairCardsDatas::FRenderData& HairCardsRenderData, uint32 VertexCount, uint32 PrimitiveCount);
@@ -425,7 +448,7 @@ struct FHairCardsRestResource : public FRenderResource
 	virtual void ReleaseResource() override;
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate() override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -471,13 +494,13 @@ struct FHairCardsRestResource : public FRenderResource
 };
 
 /* Render buffers that will be used for rendering */
-struct FHairCardsProceduralResource : public FRenderResource
+struct FHairCardsProceduralResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairCardsProceduralResource(const FHairCardsProceduralDatas::FRenderData& HairCardsRenderData, const FIntPoint& AtlasResolution, const FHairCardsVoxel& InVoxel);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -512,13 +535,13 @@ struct FHairCardsProceduralResource : public FRenderResource
 	const FHairCardsProceduralDatas::FRenderData& RenderData;
 };
 
-struct FHairCardsDeformedResource : public FRenderResource
+struct FHairCardsDeformedResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairCardsDeformedResource(const FHairCardsDatas::FRenderData& HairStrandRenderData, bool bInitializeData);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -588,13 +611,13 @@ struct HAIRSTRANDSCORE_API FHairCardsInterpolationDatas
 
 FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationDatas& CardInterpData);
 
-struct FHairCardsInterpolationResource : public FRenderResource
+struct FHairCardsInterpolationResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairCardsInterpolationResource(const FHairCardsInterpolationDatas::FRenderData& InterpolationRenderData);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -620,7 +643,7 @@ struct FHairCardsInterpolationResource : public FRenderResource
 // Meshes
 
 /* Render buffers that will be used for rendering */
-struct FHairMeshesRestResource : public FRenderResource
+struct FHairMeshesRestResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairMeshesRestResource(const FHairMeshesDatas::FRenderData& HairMeshesRenderData, uint32 VertexCount, uint32 PrimitiveCount);
@@ -629,7 +652,7 @@ struct FHairMeshesRestResource : public FRenderResource
 	virtual void ReleaseResource() override;
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate() override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
@@ -675,13 +698,13 @@ struct FHairMeshesRestResource : public FRenderResource
 
 
 /* Render buffers that will be used for rendering */
-struct FHairMeshesDeformedResource : public FRenderResource
+struct FHairMeshesDeformedResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairMeshesDeformedResource(const FHairMeshesDatas::FRenderData& HairMeshesRenderData, bool bInInitializedData);
 
 	/* Init the buffer */
-	virtual void InitRHI() override;
+	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 
 	/* Release the buffer */
 	virtual void ReleaseRHI() override;
