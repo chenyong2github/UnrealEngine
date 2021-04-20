@@ -2610,6 +2610,10 @@ public:
 	TArray<FPrimitiveVirtualTextureLodInfo> PrimitiveVirtualTextureLod;
 	/**  Packed bit array of primitives that are always visible. */
 	TBitArray<> PrimitivesAlwaysVisible;
+#if RHI_RAYTRACING
+	/** Packed array of ray tracing primitive caching flags*/
+	TArray<ERayTracingPrimitiveFlags> PrimitiveRayTracingFlags;
+#endif
 
 #if WITH_EDITOR
 	/** Packed bit array of primitives which are selected in the editor. */

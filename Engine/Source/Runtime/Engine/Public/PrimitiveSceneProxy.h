@@ -119,6 +119,29 @@ public:
 
 extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
 
+enum class ERayTracingPrimitiveFlags : uint8
+{
+	// Visibility flags
+	// This type of geometry is not supported in ray tracing and all proxies will be excluded
+	// If a proxy decides to return UnsupportedProxyType it must be consistent across all proxies of this type
+	UnsupportedProxyType = 0 << 0,
+	// This scene proxy will be excluded, because it decides to be invisible in ray tracing (probably due to other flags)
+	Excluded = 1 << 0,
+
+	// Caching flags
+	// Fully dynamic (the ray tracing representation of this scene proxy will be polled every frame)
+	Dynamic = 1 << 1,
+	// Ray tracing mesh commmands generated from this proxy's materials can be cached
+	CacheMeshCommands = 1 << 2,
+	// Instances from this proxy can be cached
+	CacheInstances = 1 << 3,
+
+	// Misc flags
+	// Static meshes with multiple LODs will want to select a LOD index based on screen size
+	ComputeLOD = 1 << 4
+};
+ENUM_CLASS_FLAGS(ERayTracingPrimitiveFlags);
+
 /**
  * Encapsulates the data which is mirrored to render a UPrimitiveComponent parallel to the game thread.
  * This is intended to be subclassed to support different primitive types.  
@@ -222,6 +245,7 @@ public:
 	virtual void GetShadowShapes(TArray<FCapsuleShape>& CapsuleShapes) const {}
 
 #if RHI_RAYTRACING
+	// TODO: remove these individual functions in favor of ERayTracingPrimitiveFlags
 	virtual bool IsRayTracingRelevant() const { return false; }
 	virtual bool IsRayTracingStaticRelevant() const { return false; }
 
@@ -232,6 +256,12 @@ public:
 	{
 		return static_cast<TArray<FRayTracingGeometry*>&&>(RayTracingGeometries);
 	}
+
+	/** 
+	 * Gathers static ray tracing primitives from this proxy. 
+	 * Fields of the instances can be partially filled, depending on what is desired to be cached, which is described in the returned flags
+	 */
+	ENGINE_API virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& OutRayTracingInstance);
 #endif // RHI_RAYTRACING
 
 	/** Collects occluder geometry for software occlusion culling */

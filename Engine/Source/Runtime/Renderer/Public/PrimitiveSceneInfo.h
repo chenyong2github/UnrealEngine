@@ -351,6 +351,10 @@ public:
 	TArray<TArray<int32, TInlineAllocator<2>>> CachedRayTracingMeshCommandIndicesPerLOD;
 
 	TArray<uint64> CachedRayTracingMeshCommandsHashPerLOD;
+	// TODO: this should be placed in FRayTracingScene and we have a pointer/handle here. It's here for now for PoC
+	FRayTracingGeometryInstance CachedRayTracingInstance;
+	TArray<FMatrix> CachedRayTracingInstanceLocalTransforms;
+	TArray<FMatrix> CachedRayTracingInstanceWorldTransforms;
 
 	struct FStaticMeshOrCommandIndex
 	{
@@ -593,6 +597,15 @@ private:
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometry*> RayTracingGeometries;
+
+	/** Creates cached ray tracing representations for all meshes. */
+	static void CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+
+	/** Removes cached ray tracing representations for all meshes. */
+	void RemoveCachedRayTracingPrimitives();
+
+	/** Updates cached transforms in CachedRayTracingInstance */
+	void UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld);
 #endif
 };
 

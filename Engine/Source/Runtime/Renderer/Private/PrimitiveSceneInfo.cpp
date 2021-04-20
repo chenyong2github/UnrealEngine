@@ -690,6 +690,121 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 #endif
 }
 
+#if RHI_RAYTRACING
+void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+{
+	// This path is mutually exclusive with the old path (used by normal static meshes) and is only used by Nanite proxies now.
+	// TODO: move normal static meshes to this path, but needs testing to not break FN
+	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
+	{
+		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
+
+		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
+		FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
+		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState);
+
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+		{
+			FRayTracingInstance CachedRayTracingInstance;
+			ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
+
+			// Write flags
+			Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
+
+			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && !EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
+			{
+				// Legacy path for static meshes.
+				// TODO: convert them to this new path
+				Flags = ERayTracingPrimitiveFlags::ComputeLOD | ERayTracingPrimitiveFlags::CacheMeshCommands;
+				continue;
+			}
+
+			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
+			{
+				// TODO: LOD w/ screen size support. Probably needs another array parallel to OutRayTracingInstances
+				// We assume it is exactly 1 LOD now (true for Nanite proxies)
+				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(1);
+				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(1);
+
+				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(1);
+				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(1);
+
+				for (FMeshBatch& Mesh : CachedRayTracingInstance.Materials)
+				{
+					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
+
+					// The material section must emit a command. Otherwise, it should have been excluded earlier
+					check(CommandContext.CommandIndex >= 0);
+
+					uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
+					Hash <<= 1;
+					Hash ^= Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+
+					SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
+					CommandContext.CommandIndex = -1;
+				}
+			}
+
+			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
+			{
+				// Cache a copy of local transforms so that they can be updated in the future
+				// TODO: this is actually not needed for static meshes with non-movable mobility (except in editor)
+				SceneInfo->CachedRayTracingInstanceLocalTransforms = CachedRayTracingInstance.InstanceTransforms;
+
+				// TODO: allocate from FRayTracingScene & do better low-level caching
+				SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
+				SceneInfo->CachedRayTracingInstanceWorldTransforms.Empty();
+				SceneInfo->CachedRayTracingInstanceWorldTransforms.AddUninitialized(CachedRayTracingInstance.NumTransforms);
+				SceneInfo->UpdateCachedRayTracingInstanceTransforms(SceneInfo->Proxy->GetLocalToWorld());
+				SceneInfo->CachedRayTracingInstance.TransformsView = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
+
+				check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.GetTransforms().Num()));
+
+				SceneInfo->CachedRayTracingInstance.UserData.SetNumUninitialized(1);
+				SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
+				// At this point (in AddToScene()) PrimitiveIndex has been set
+				check(SceneInfo->GetIndex() != INDEX_NONE);
+				SceneInfo->CachedRayTracingInstance.UserData[0] = (uint32)SceneInfo->GetIndex();
+				SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
+				SceneInfo->CachedRayTracingInstance.bForceOpaque = CachedRayTracingInstance.bForceOpaque;
+				SceneInfo->CachedRayTracingInstance.bDoubleSided = CachedRayTracingInstance.bDoubleSided;
+
+			}
+
+		}
+	}
+}
+
+void FPrimitiveSceneInfo::RemoveCachedRayTracingPrimitives()
+{
+	if (IsRayTracingEnabled())
+	{
+		for (auto& CachedRayTracingMeshCommandIndices : CachedRayTracingMeshCommandIndicesPerLOD)
+		{
+			for (auto CommandIndex : CachedRayTracingMeshCommandIndices)
+			{
+				if (CommandIndex >= 0)
+				{
+					Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands.RemoveAt(CommandIndex);
+				}
+			}
+		}
+
+		CachedRayTracingMeshCommandIndicesPerLOD.Empty();
+
+		CachedRayTracingMeshCommandsHashPerLOD.Empty();
+	}
+}
+
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld)
+{
+	for (int32 Index = 0; Index < CachedRayTracingInstanceLocalTransforms.Num(); Index++)
+	{
+		CachedRayTracingInstanceWorldTransforms[Index] = CachedRayTracingInstanceLocalTransforms[Index] * NewPrimitiveLocalToWorld;
+	}
+}
+#endif
+
 void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bAddToStaticDrawLists)
 {
 	LLM_SCOPE(ELLMTag::StaticMesh);
@@ -733,6 +848,9 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 	{
 		CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
 		CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+	#if RHI_RAYTRACING
+		CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+	#endif
 	}
 }
 
@@ -1068,6 +1186,9 @@ void FPrimitiveSceneInfo::RemoveStaticMeshes()
 	StaticMeshRelevances.Empty();
 	RemoveCachedMeshDrawCommands();
 	RemoveCachedNaniteDrawCommands();
+#if RHI_RAYTRACING
+	RemoveCachedRayTracingPrimitives();
+#endif
 }
 
 void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
@@ -1219,6 +1340,9 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 	{
 		CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
 		CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+	#if RHI_RAYTRACING
+		CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+	#endif
 	}
 }
 

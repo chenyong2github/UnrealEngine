@@ -986,6 +986,48 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 	RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
 }
+
+ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)
+{
+	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances || !(IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()))
+	{
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	RayTracingInstance.Geometry = RayTracingGeometry;
+
+	const int32 InstanceCount = Instances.Num();
+	RayTracingInstance.InstanceTransforms.SetNumUninitialized(InstanceCount);
+	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	{
+		const FPrimitiveInstance& Instance = Instances[InstanceIndex];
+		// LocalToWorld multiplication will be done when added to FScene, and re-done when doing UpdatePrimitiveTransform
+		RayTracingInstance.InstanceTransforms[InstanceIndex] = Instance.InstanceToLocal;
+	}
+	RayTracingInstance.NumTransforms = InstanceCount;
+
+	RayTracingInstance.Materials.Reserve(MaterialSections.Num());
+	const int32 LODIndex = 0;
+	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	{
+		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
+		FMeshBatch& MeshBatch = RayTracingInstance.Materials.AddDefaulted_GetRef();
+		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		MeshBatch.MaterialRenderProxy = MaterialSection.Material->GetRenderProxy();
+		MeshBatch.bWireframe = false;
+		MeshBatch.SegmentIndex = SectionIndex;
+		MeshBatch.LODIndex = LODIndex;
+	}
+
+	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials);
+
+	RayTracingInstance.Mask = MaskAndFlags.Mask;
+	RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;
+	RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
+
+	return ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
+}
+
 #endif // RHI_RAYTRACING
 
 const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const

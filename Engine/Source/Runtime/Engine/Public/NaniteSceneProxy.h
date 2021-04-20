@@ -112,8 +112,9 @@ public:
 
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const { return true; }
-	virtual bool IsRayTracingStaticRelevant() const { return false; }
+	virtual bool IsRayTracingStaticRelevant() const { return true; }
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
+	virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance) override;
 #endif
 
 	virtual uint32 GetMemoryFootprint() const override;

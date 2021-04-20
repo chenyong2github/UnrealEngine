@@ -634,6 +634,9 @@ void FScene::CheckPrimitiveArrays(int MaxTypeOffsetIndex)
 #if WITH_EDITOR
 	check(Primitives.Num() == PrimitivesSelected.Num());
 #endif
+#if RHI_RAYTRACING
+	check(Primitives.Num() == PrimitiveRayTracingFlags.Num());
+#endif
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 
 #if UE_BUILD_DEBUG
@@ -3894,6 +3897,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 						#if WITH_EDITOR
 							TBitArraySwapElements(PrimitivesSelected, DestIndex, SourceIndex);
 						#endif
+						#if RHI_RAYTRACING
+							TArraySwapElements(PrimitiveRayTracingFlags, DestIndex, SourceIndex);
+						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
 							GPUScene.AddPrimitiveToUpdate(SourceIndex);
@@ -3945,6 +3951,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitivesAlwaysVisible.RemoveAt(PrimitivesAlwaysVisible.Num() - 1);
 			#if WITH_EDITOR
 				PrimitivesSelected.RemoveAt(PrimitivesSelected.Num() - 1);
+			#endif
+			#if RHI_RAYTRACING
+				PrimitiveRayTracingFlags.Pop();
 			#endif
 				PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num() - 1);
 			}
@@ -4008,6 +4017,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 		#if WITH_EDITOR
 			PrimitivesSelected.Reserve(PrimitivesSelected.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		#endif
+		#if RHI_RAYTRACING
+			PrimitiveRayTracingFlags.Reserve(PrimitiveRayTracingFlags.Num() + AddedLocalPrimitiveSceneInfos.Num());
+		#endif
 			PrimitivesNeedingStaticMeshUpdate.Reserve(PrimitivesNeedingStaticMeshUpdate.Num() + AddedLocalPrimitiveSceneInfos.Num());
 		}
 
@@ -4039,6 +4051,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				PrimitivesAlwaysVisible.Add(PrimitiveSceneInfo->Proxy->IsAlwaysVisible());
 			#if WITH_EDITOR
 				PrimitivesSelected.Add(PrimitiveSceneInfo->Proxy->IsSelected());
+			#endif
+			#if RHI_RAYTRACING
+				PrimitiveRayTracingFlags.AddZeroed();
 			#endif
 				PrimitivesNeedingStaticMeshUpdate.Add(false);
 
@@ -4122,6 +4137,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 							TBitArraySwapElements(PrimitivesAlwaysVisible, DestIndex, SourceIndex);
 						#if WITH_EDITOR
 							TBitArraySwapElements(PrimitivesSelected, DestIndex, SourceIndex);
+						#endif
+						#if RHI_RAYTRACING
+							TArraySwapElements(PrimitiveRayTracingFlags, DestIndex, SourceIndex);
 						#endif
 							TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -4270,6 +4288,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 			DistanceFieldSceneData.UpdatePrimitive(PrimitiveSceneInfo);
 			LumenSceneData->UpdatePrimitive(PrimitiveSceneInfo);
+		#if RHI_RAYTRACING
+			PrimitiveSceneInfo->UpdateCachedRayTracingInstanceTransforms(LocalToWorld);
+		#endif
 
 			// If the primitive has static mesh elements, it should have returned true from ShouldRecreateProxyOnUpdateTransform!
 			check(!(bUpdateStaticDrawLists && PrimitiveSceneInfo->StaticMeshes.Num()));

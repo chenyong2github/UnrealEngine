@@ -1071,3 +1071,25 @@ bool FPrimitiveSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sectio
 }
 
 #endif // WITH_EDITORONLY_DATA
+
+#if RHI_RAYTRACING
+ERayTracingPrimitiveFlags FPrimitiveSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& OutRayTracingInstance)
+{
+	const bool bIsProxyTypeRayTracingRelevant = IsRayTracingRelevant();
+	if (!IsRayTracingRelevant())
+	{
+		// The entire proxy type will be skipped. Make sure IsRayTracingRelevant() only depends on proxy type (vtable)
+		return ERayTracingPrimitiveFlags::UnsupportedProxyType;
+	}
+
+	const bool bShouldBeVisibleInRayTracing = IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame();
+	if (!bShouldBeVisibleInRayTracing)
+	{
+		// Exclude this proxy
+		return ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	// Visible in ray tracing. Default to fully dynamic (no caching)
+	return ERayTracingPrimitiveFlags::Dynamic;
+}
+#endif
