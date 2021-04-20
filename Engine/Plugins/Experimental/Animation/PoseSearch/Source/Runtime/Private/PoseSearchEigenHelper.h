@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #if UE_BUILD_DEBUG && WITH_EDITOR
 #define UE_POSE_SEARCH_EIGEN_DEBUG 1
 #endif
