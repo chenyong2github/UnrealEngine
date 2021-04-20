@@ -707,20 +707,12 @@ FPropertyAccess::Result FPropertyValueImpl::SetValueAsString( const FString& InV
 
 		FString Value = InValue;
 
-		// Strip any leading underscores and spaces from names.
+		// Strip any leading spaces from names.
 		if( NodeProperty && NodeProperty->IsA( FNameProperty::StaticClass() ) )
 		{
 			while ( true )
 			{
-				if ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) )
-				{
-					// Strip leading underscores.
-					do
-					{
-						Value.RightInline( Value.Len()-1, false);
-					} while ( Value.StartsWith( TEXT("_"), ESearchCase::CaseSensitive ) );
-				}
-				else if ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) )
+				if ( Value.StartsWith( TEXT(" "), ESearchCase::CaseSensitive) )
 				{
 					// Strip leading spaces.
 					do
