@@ -24,6 +24,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 #include "Containers/Ticker.h"
 #include "Features/IModularFeatures.h"
@@ -655,7 +656,9 @@ void FPythonScriptPlugin::InitializePython()
 		}
 #endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 7
 
+		Py_IgnoreEnvironmentFlag = 1; // 1 so Python doesn't inherit its environment variables into our embedded interpreter
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 4
+		Py_IsolatedFlag = 1; // 1 so Python doesn't add the user scripts and site-packages paths into our embedded interpreter
 		Py_SetStandardStreamEncoding("utf-8", nullptr);
 #endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 4
 		Py_SetProgramName(PyProgramName.GetData());
@@ -745,6 +748,13 @@ void FPythonScriptPlugin::InitializePython()
 		for (const FDirectoryPath& AdditionalPath : GetDefault<UPythonScriptPluginSettings>()->AdditionalPaths)
 		{
 			PyUtil::AddSystemPath(FPaths::ConvertRelativePathToFull(AdditionalPath.Path));
+		}
+
+		TArray<FString> SystemEnvPaths;
+		FPlatformMisc::GetEnvironmentVariable(TEXT("UE_PYTHONPATH")).ParseIntoArray(SystemEnvPaths, FPlatformMisc::GetPathVarDelimiter());
+		for (const FString& SystemEnvPath : SystemEnvPaths)
+		{
+			PyUtil::AddSystemPath(SystemEnvPath);
 		}
 
 		FPackageName::OnContentPathMounted().AddRaw(this, &FPythonScriptPlugin::OnContentPathMounted);
