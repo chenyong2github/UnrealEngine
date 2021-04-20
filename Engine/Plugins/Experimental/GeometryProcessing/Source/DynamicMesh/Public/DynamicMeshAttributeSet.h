@@ -405,6 +405,10 @@ protected:
 			bValid = GetUVLayer(UVLayerIndex)->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
 		}
 		bValid = PrimaryNormals()->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		if (ColorLayer)
+		{
+			bValid = ColorLayer->CheckValidity(bAllowNonmanifold, FailMode) && bValid;
+		}
 		if (MaterialIDAttrib)
 		{
 			bValid = MaterialIDAttrib->CheckValidity(bAllowNonmanifold, FailMode) && bValid;

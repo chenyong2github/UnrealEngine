@@ -25,6 +25,10 @@ void FDynamicMeshAttributeSet::Copy(const FDynamicMeshAttributeSet& Copy)
 		EnablePrimaryColors();
 		ColorLayer->Copy(*(Copy.ColorLayer));
 	}
+	else
+	{
+		DisablePrimaryColors();
+	}
 	if (Copy.MaterialIDAttrib)
 	{
 		EnableMaterialID();
@@ -98,6 +102,10 @@ void FDynamicMeshAttributeSet::CompactCopy(const FCompactMaps& CompactMaps, cons
 	{
 		EnablePrimaryColors();
 		ColorLayer->CompactCopy(CompactMaps, *(Copy.ColorLayer));
+	}
+	else
+	{
+		DisablePrimaryColors();
 	}
 
 	if (Copy.MaterialIDAttrib)
