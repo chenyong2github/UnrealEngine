@@ -103,14 +103,16 @@ void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBui
 {
 	Resouces.BufferSize = Lumen::GetFeedbackBufferSize();
 
-	FRDGBufferDesc BufferDesc(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, Resouces.BufferSize));
-	FRDGBufferDesc BufferAllocatorDesc(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), Resouces.BufferSize));
+	Resouces.BufferAllocator = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1),
+		TEXT("Lumen.FeedbackAllocator"));
 
-	Resouces.BufferAllocator = GraphBuilder.CreateBuffer(BufferDesc, TEXT("Lumen.FeedbackAllocator"));
-	Resouces.Buffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("Lumen.Feedback"));	
+	Resouces.Buffer = GraphBuilder.CreateBuffer( 
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, Resouces.BufferSize),
+		TEXT("Lumen.Feedback"));	
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.BufferAllocator, PF_R32_UINT), 0);
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.Buffer, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.Buffer, PF_R32G32_UINT), 0);
 }
 
 
