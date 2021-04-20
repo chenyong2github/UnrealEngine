@@ -46,7 +46,7 @@ UENUM()
 enum class EEdgeLoopInsertionMode
 {
 	/** Existing groups will be deleted and new triangles will be created for the new groups. 
-	 Keeps topology simple but breaks non-planar groups and loses the UV's. */
+	 Keeps topology simple but breaks non-planar groups. */
 	Retriangulate,
 
 	/** Keeps existing triangles and cuts them to create a new path. May result in fragmented triangles over time.*/

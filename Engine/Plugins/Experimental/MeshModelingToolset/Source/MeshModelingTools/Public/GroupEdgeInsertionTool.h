@@ -36,7 +36,7 @@ UENUM()
 enum class EGroupEdgeInsertionMode
 {
 	/** Existing groups will be deleted and new triangles will be created for the new groups.
-	 Keeps topology simple but breaks non-planar groups and loses the UV's. */
+	 Keeps topology simple but breaks non-planar groups. */
 	Retriangulate,
 
 	/** Keeps existing triangles and cuts them to create a new path. May result in fragmented triangles over time.*/
@@ -51,7 +51,7 @@ class MESHMODELINGTOOLS_API UGroupEdgeInsertionProperties : public UInteractiveT
 public:
 	/** Determines how group edges are added to the geometry */
 	UPROPERTY(EditAnywhere, Category = InsertEdge)
-	EGroupEdgeInsertionMode InsertionMode = EGroupEdgeInsertionMode::PlaneCut;
+	EGroupEdgeInsertionMode InsertionMode = EGroupEdgeInsertionMode::Retriangulate;
 
 	UPROPERTY(EditAnywhere, Category = InsertEdge)
 	bool bWireframe = true;
