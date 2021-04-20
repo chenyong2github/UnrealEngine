@@ -94,6 +94,7 @@ namespace Metasound
 					GeneralCategoryBuilder.AddProperty(MajorVersionHandle);
 					GeneralCategoryBuilder.AddProperty(MinorVersionHandle);
 
+					DetailLayout.HideCategory("Advanced");
 					DetailLayout.HideCategory("Analysis");
 					DetailLayout.HideCategory("Attenuation");
 					DetailLayout.HideCategory("Effects");
