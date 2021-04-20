@@ -13,6 +13,8 @@ class FSlateWindowElementList;
 
 class SLATE_API SSpacer : public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SSpacer, SLeafWidget)
+
 public:
 
 	SLATE_BEGIN_ARGS( SSpacer )
@@ -24,11 +26,7 @@ public:
 		SLATE_ATTRIBUTE( FVector2D, Size )
 	SLATE_END_ARGS()
 
-	SSpacer()
-	{
-		SetCanTick(false);
-		bCanSupportFocus = false;
-	}
+	SSpacer();
 
 	/**
 	 * Construct this widget
@@ -43,20 +41,26 @@ public:
 
 	FVector2D GetSize() const
 	{
+		if (bIsSpacerSizeBound)
+		{
+			SSpacer& MutableSelf = const_cast<SSpacer&>(*this);
+			MutableSelf.SpacerSize.UpdateNow(MutableSelf);
+		}
 		return SpacerSize.Get();
 	}
 
 	void SetSize( TAttribute<FVector2D> InSpacerSize )
 	{
-		SpacerSize = InSpacerSize;
-		Invalidate(EInvalidateWidgetReason::Layout);
+		bIsSpacerSizeBound = InSpacerSize.IsBound();
+		SpacerSize.Assign(*this, InSpacerSize);
 	}
 
 protected:
-	// Begin SWidget overrides.
+	//~ Begin SWidget overrides.
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	// End SWidget overrides.
+	//~ End SWidget overrides.
 
 private:
-	TAttribute<FVector2D> SpacerSize;
+	TSlateAttribute<FVector2D> SpacerSize;
+	bool bIsSpacerSizeBound;
 };
