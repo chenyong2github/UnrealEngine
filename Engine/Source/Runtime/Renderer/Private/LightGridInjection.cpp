@@ -872,7 +872,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 					SceneTextures,
 					LightSceneInfo,
 					ForwardScreenSpaceShadowMask.Target,
-					true, true);
+					true, true, false);
 			}
 
 			AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMask.Target, ForwardScreenSpaceShadowMask.Resolve, FResolveParams());

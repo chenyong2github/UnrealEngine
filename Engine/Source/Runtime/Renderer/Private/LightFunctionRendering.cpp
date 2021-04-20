@@ -234,11 +234,12 @@ bool FDeferredShadingSceneRenderer::RenderLightFunction(
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture,
 	bool bLightAttenuationCleared,
-	bool bProjectingForForwardShading)
+	bool bProjectingForForwardShading,
+	bool bUseHairStrands)
 {
 	if (ViewFamily.EngineShowFlags.LightFunctions)
 	{
-		return RenderLightFunctionForMaterial(GraphBuilder, SceneTextures, LightSceneInfo, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetLightFunctionMaterial(), bLightAttenuationCleared, bProjectingForForwardShading, false);
+		return RenderLightFunctionForMaterial(GraphBuilder, SceneTextures, LightSceneInfo, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetLightFunctionMaterial(), bLightAttenuationCleared, bProjectingForForwardShading, false, bUseHairStrands);
 	}
 	
 	return false;
@@ -249,11 +250,12 @@ bool FDeferredShadingSceneRenderer::RenderPreviewShadowsIndicator(
 	const FMinimalSceneTextures& SceneTextures,
 	const FLightSceneInfo* LightSceneInfo,
 	FRDGTextureRef ScreenShadowMaskTexture,
-	bool bLightAttenuationCleared)
+	bool bLightAttenuationCleared,
+	bool bUseHairStrands)
 {
 	if (GEngine->PreviewShadowsIndicatorMaterial)
 	{
-		return RenderLightFunctionForMaterial(GraphBuilder, SceneTextures, LightSceneInfo, ScreenShadowMaskTexture, GEngine->PreviewShadowsIndicatorMaterial->GetRenderProxy(), bLightAttenuationCleared, false, true);
+		return RenderLightFunctionForMaterial(GraphBuilder, SceneTextures, LightSceneInfo, ScreenShadowMaskTexture, GEngine->PreviewShadowsIndicatorMaterial->GetRenderProxy(), bLightAttenuationCleared, false, true, bUseHairStrands);
 	}
 
 	return false;
@@ -292,7 +294,8 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 	const FMaterialRenderProxy* MaterialProxy,
 	bool bLightAttenuationCleared,
 	bool bProjectingForForwardShading,
-	bool bRenderingPreviewShadowsIndicator)
+	bool bRenderingPreviewShadowsIndicator,
+	bool bUseHairStrands)
 {
 	check(ScreenShadowMaskTexture);
 	check(LightSceneInfo);
@@ -326,7 +329,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 				RDG_EVENT_NAME("LightFunction Material=%s", *MaterialForRendering->GetFriendlyName()),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[&View, LightSceneInfo, LightSceneProxy, MaterialProxyForRendering, MaterialForRendering, MaterialShaders, bLightAttenuationCleared, bProjectingForForwardShading, bRenderingPreviewShadowsIndicator](FRHICommandList& RHICmdList)
+				[&View, LightSceneInfo, LightSceneProxy, MaterialProxyForRendering, MaterialForRendering, MaterialShaders, bLightAttenuationCleared, bProjectingForForwardShading, bRenderingPreviewShadowsIndicator, bUseHairStrands](FRHICommandList& RHICmdList)
 			{
 				FSphere LightBounds = LightSceneProxy->GetBoundingSphere();
 
@@ -399,6 +402,11 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 
 					// Set the light's scissor rectangle.
 					LightSceneProxy->SetScissorRect(RHICmdList, View, View.ViewRect);
+					if (bUseHairStrands)
+					{
+						FIntRect TotalRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, View.HairStrandsViewData.MacroGroupDatas);
+						LightSceneProxy->SetScissorRect(RHICmdList, View, TotalRect);
+					}
 
 					// Render a bounding light sphere.
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
