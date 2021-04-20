@@ -2065,10 +2065,9 @@ namespace AutomationTool
 			}
 		}
 
-		private String SelectDefaultEditorTarget(List<string> AvailableEditorTargets)
+		private void SelectDefaultEditorTarget(List<string> AvailableEditorTargets, ref string EditorTarget)
 		{
 			string DefaultEditorTarget;
-			string EditorTarget = null;
 
 			if (EngineConfigs[BuildHostPlatform.Current.Platform].GetString("/Script/BuildSettings.BuildSettings", "DefaultEditorTarget", out DefaultEditorTarget))
 			{
@@ -2086,10 +2085,11 @@ namespace AutomationTool
 					throw new AutomationException("Project contains multiple editor targets but no DefaultEditorTarget is set in the [/Script/BuildSettings.BuildSettings] section of DefaultEngine.ini");
 				}
 
-				EditorTarget = AvailableEditorTargets.First();
+				if (AvailableEditorTargets.Count > 0)
+				{
+					EditorTarget = AvailableEditorTargets.First();
+				}
 			}
-
-			return EditorTarget;
 		}
 
 		private void AutodetectSettings(bool bReset)
@@ -2202,7 +2202,7 @@ namespace AutomationTool
 				}
 
 				// Find the editor target name
-				EditorTarget = SelectDefaultEditorTarget(TargetNamesOfType(TargetType.Editor));
+				SelectDefaultEditorTarget(TargetNamesOfType(TargetType.Editor), ref EditorTarget);
 			}
 			else if (!CommandUtils.IsNullOrEmpty(Properties.Targets))
 			{
@@ -2229,7 +2229,7 @@ namespace AutomationTool
 					GameTarget = AvailableGameTargets.First();
 				}
 
-				EditorTarget = SelectDefaultEditorTarget(AvailableEditorTargets);
+				SelectDefaultEditorTarget(AvailableEditorTargets, ref EditorTarget);
 
 				if (AvailableServerTargets.Count > 0 && (DedicatedServer || Cook || CookOnTheFly)) // only if server is needed
 				{
