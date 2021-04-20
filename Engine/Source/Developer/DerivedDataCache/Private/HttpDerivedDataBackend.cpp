@@ -1510,24 +1510,31 @@ private:
 	{
 		while (Request)
 		{
-			if (ShouldAbortForShutdown())
+			// Make sure that whether we early exit or execute past the end of this scope that
+			// the request is released back to the pool.
 			{
-				return;
-			}
-
-			while (FQueuedEntry* Entry = QueuedPuts.Pop())
-			{
-				Request->Reset();
-				PerformPut(Request, *Entry->Namespace, *Entry->Bucket, *Entry->CacheKey, Entry->Data, UsageStats);
-				delete Entry;
+				ON_SCOPE_EXIT
+				{
+					Pool->ReleaseRequestToPool(Request);
+				};
 
 				if (ShouldAbortForShutdown())
 				{
 					return;
 				}
-			}
 
-			Pool->ReleaseRequestToPool(Request);
+				while (FQueuedEntry* Entry = QueuedPuts.Pop())
+				{
+					Request->Reset();
+					PerformPut(Request, *Entry->Namespace, *Entry->Bucket, *Entry->CacheKey, Entry->Data, UsageStats);
+					delete Entry;
+
+					if (ShouldAbortForShutdown())
+					{
+						return;
+					}
+				}
+			}
 
 			// An entry may have been queued while the request was being released.
 			if (QueuedPuts.IsEmpty())
