@@ -206,7 +206,7 @@ private:
 	/** This variable is static because in StaticImportObject() the type of the factory is not known. */
 	static bool bSuppressImportOverwriteDialog;
 
-    /** force overwriting the existing texture without the dialog box */
+	/** Force overwriting the existing texture without the dialog box */
 	static bool bForceOverwriteExistingSettings;
 
 	/**
@@ -221,8 +221,20 @@ private:
 	*/
 	static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn);
 
+	/** Flags to be used when calling ImportImage */
+	enum class EImageImportFlags
+	{
+		/** No options selected */
+		None						= 0,
+		/** Allows textures to be imported with dimensions that are not to the power of two */
+		AllowNonPowerOfTwo			= 1 << 0,
+		/** Allows the return of texture data in it's original compressed format, if this occurs then FImportImage::RawDataCompressionFormat will contain the returned format. */
+		AllowReturnOfCompressedData	= 1 << 1
+	};
+	FRIEND_ENUM_CLASS_FLAGS(EImageImportFlags);
+
 	/** Import image file into generic image struct, may be easily copied to FTextureSource */
-	bool ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, bool bAllowNonPowerOfTwo, FImportImage& OutImage);
+	bool ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, EImageImportFlags Flags, FImportImage& OutImage);
 
 	/** used by CreateTexture() */
 	UTexture* ImportTexture(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, const TCHAR* Type, const uint8*& Buffer, const uint8* BufferEnd, FFeedbackContext* Warn);
@@ -235,3 +247,5 @@ private:
 	/** Texture settings from the automated importer that should be applied to the new texture */
 	TSharedPtr<class FJsonObject> AutomatedImportSettings;
 };
+
+ENUM_CLASS_FLAGS(UTextureFactory::EImageImportFlags);

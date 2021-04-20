@@ -3003,9 +3003,11 @@ void* FImportImage::GetMipData(int32 InMipIndex)
 	return &RawData[Offset];
 }
 
-bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, bool bAllowNonPowerOfTwo, FImportImage& OutImage)
+bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackContext* Warn, EImageImportFlags Flags, FImportImage& OutImage)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTextureFactory::ImportImage)
+
+	const bool bAllowNonPowerOfTwo = EnumHasAllFlags(Flags, EImageImportFlags::AllowNonPowerOfTwo);
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
@@ -3136,11 +3138,13 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			TextureFormat,
 			BitDepth < 16
 		);
-
-		// For now this option is opt in via the config files once there is no technical risk this will
-		// become the default path.
+		
 		bool bRetainJpegFormat = false;
-		GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+		if (EnumHasAllFlags(Flags, EImageImportFlags::AllowReturnOfCompressedData))
+		{
+			// For now this option is opt in via the config files once there is no technical risk this will become the default path.
+			GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+		}	
 
 		if (bRetainJpegFormat)
 		{
@@ -3558,16 +3562,17 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 	ETextureSourceFormat Format = TSF_Invalid;
 	TextureCompressionSettings TCSettings = TC_MAX;
 	bool bSRGB = false;
+	
+	// UDIM requires each page to be power-of-2 and be uncompressed
+	const EImageImportFlags ImportFlags = EImageImportFlags::None;
+
 	for (const auto& It : UDIMIndexToFile)
 	{
 		const FString& TexturePath = It.Value;
 		if (FFileHelper::LoadFileToArray(TextureData, *TexturePath))
 		{
-			// UDIM requires each page to be power-of-2
-			const bool bAllowNonPowerOfTwo = false;
-
 			FImportImage Image;
-			if (ImportImage(TextureData.GetData(), TextureData.Num(), Warn, bAllowNonPowerOfTwo, Image))
+			if (ImportImage(TextureData.GetData(), TextureData.Num(), Warn, ImportFlags, Image))
 			{
 				if (Format == TSF_Invalid)
 				{
@@ -3649,11 +3654,18 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	// Validate it.
 	const int32 Length = BufferEnd - Buffer;
 
+	// We want to allow certain texture types to potentially return the compressed data rather than raw uncompressed
+	EImageImportFlags ImportFlags = EImageImportFlags::AllowReturnOfCompressedData;
+	if (bAllowNonPowerOfTwo)
+	{
+		ImportFlags |= EImageImportFlags::AllowNonPowerOfTwo;
+	}
+
 	//
 	// Generic 2D Image
 	//
 	FImportImage Image;
-	if (ImportImage(Buffer, Length, Warn, bAllowNonPowerOfTwo, Image))
+	if (ImportImage(Buffer, Length, Warn, ImportFlags, Image))
 	{
 		UTexture2D* Texture = CreateTexture2D(InParent, Name, Flags);
 		if (Texture)
