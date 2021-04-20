@@ -877,8 +877,7 @@ bool FHLSLMaterialTranslator::Translate()
 		bAllowCodeChunkGeneration = false;
 
 		bUsesEmissiveColor = IsMaterialPropertyUsed(MP_EmissiveColor, Chunk[MP_EmissiveColor], FLinearColor(0, 0, 0, 0), 3);
-		bUsesPixelDepthOffset = (AllowPixelDepthOffset(Platform) && IsMaterialPropertyUsed(MP_PixelDepthOffset, Chunk[MP_PixelDepthOffset], FLinearColor(0, 0, 0, 0), 1))
-			|| (Domain == MD_DeferredDecal && Material->GetDecalBlendMode() == DBM_Volumetric_DistanceFunction);
+		bUsesPixelDepthOffset = (AllowPixelDepthOffset(Platform) && IsMaterialPropertyUsed(MP_PixelDepthOffset, Chunk[MP_PixelDepthOffset], FLinearColor(0, 0, 0, 0), 1));
 
 		bool bUsesWorldPositionOffsetCurrent = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[MP_WorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
 		bool bUsesWorldPositionOffsetPrevious = IsMaterialPropertyUsed(MP_WorldPositionOffset, Chunk[CompiledMP_PrevWorldPositionOffset], FLinearColor(0, 0, 0, 0), 3);
@@ -1022,15 +1021,6 @@ bool FHLSLMaterialTranslator::Translate()
 			{
 				Errorf(TEXT("Strata materials must be an opaque or translucent surface, or a volume."));
 			}
-		}
-
-		bool bDBufferAllowed = IsUsingDBuffers(Platform);
-		bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
-
-		if (bDBufferBlendMode && !bDBufferAllowed)
-		{
-			// Error feedback for when the decal would not be displayed due to project settings
-			Errorf(TEXT("DBuffer decal blend modes are only supported when the 'DBuffer Decals' Rendering Project setting is enabled."));
 		}
 
 		if (Domain == MD_DeferredDecal && BlendMode != BLEND_Translucent)
@@ -5325,14 +5315,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	const bool bVirtualTexture = TextureType == MCT_TextureVirtual;
 	if (bVirtualTexture)
 	{
-		if (Material->GetMaterialDomain() == MD_DeferredDecal)
-		{
-			if (Material->GetDecalBlendMode() == DBM_Volumetric_DistanceFunction)
-			{
-				return Errorf(TEXT("Sampling a virtual texture is currently only supported inside a volumetric decal."));
-			}
-		}
-		else if (Material->GetMaterialDomain() != MD_Surface)
+		if (Material->GetMaterialDomain() != MD_Surface && Material->GetMaterialDomain() != MD_DeferredDecal)
 		{
 			return Errorf(TEXT("Sampling a virtual texture is currently only supported inside surface and decal shaders."));
 		}
@@ -6050,10 +6033,10 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 		bool bRequiresSM5 = (SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_AmbientOcclusion);
 
 		if(bDBuffer)
-		{
+	{
 			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_WorldNormal))
-			{
-				// Note: For DBuffer decals: CustomDepth and CustomStencil are only available if r.CustomDepth.Order = 0
+		{
+			// Note: For DBuffer decals: CustomDepth and CustomStencil are only available if r.CustomDepth.Order = 0
 				Errorf(TEXT("DBuffer decals (MaterialDomain=DeferredDecal and DecalBlendMode is using DBuffer) can only access SceneDepth, CustomDepth, CustomStencil, and WorldNormal"));
 			}
 		}
@@ -6062,13 +6045,13 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_AmbientOcclusion))
 			{
 				Errorf(TEXT("Decals (MaterialDomain=DeferredDecal) can only access WorldNormal, AmbientOcclusion, SceneDepth, CustomDepth, CustomStencil"));
-			}
+		}
 
-			if (SceneTextureId == PPI_WorldNormal && Material->HasNormalConnected())
-			{
-					// GBuffer can only relate to WorldNormal here.
-				Errorf(TEXT("Decals that read WorldNormal cannot output to normal at the same time"));
-			}
+		if (SceneTextureId == PPI_WorldNormal && Material->HasNormalConnected())
+		{
+			// GBuffer can only relate to WorldNormal here.
+			Errorf(TEXT("Decals that read WorldNormal cannot output to normal at the same time"));
+		}
 		}
 
 		if (bRequiresSM5)

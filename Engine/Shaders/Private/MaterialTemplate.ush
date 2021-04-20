@@ -2351,7 +2351,7 @@ half GetMaterialOpacityRaw(FPixelMaterialInputs PixelMaterialInputs)
 	return PixelMaterialInputs.Opacity;
 }
 
-#if MATERIALBLENDING_MASKED || (DECAL_BLEND_MODE == DECALBLENDMODEID_VOLUMETRIC)
+#if MATERIALBLENDING_MASKED
 // Returns the material mask value generated from the material expressions.
 // Use GetMaterialMask() to get the value altered depending on the material blend mode.
 half GetMaterialMaskInputRaw(FPixelMaterialInputs PixelMaterialInputs)

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DecalRenderingShared.h
-=============================================================================*/
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,23 +7,22 @@
 #include "DecalRenderingCommon.h"
 
 class FDeferredDecalProxy;
+class FMaterial;
+class FMaterialRenderProxy;
 class FScene;
 class FViewInfo;
-struct FShaderCompilerEnvironment;
-struct FMaterialShaderPermutationParameters;
 
 /**
- * Compact decal data for rendering
+ * Compact deferred decal data for rendering.
  */
 struct FTransientDecalRenderData
 {
 	const FMaterialRenderProxy* MaterialProxy;
 	const FMaterial* MaterialResource;
 	const FDeferredDecalProxy* DecalProxy;
+	FDecalBlendDesc DecalBlendDesc;
 	float FadeAlpha;
 	float ConservativeRadius;
-	EDecalBlendMode FinalDecalBlendMode;
-	bool bHasNormal;
 
 	FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy* InDecalProxy, float InConservativeRadius);
 };
@@ -35,17 +30,12 @@ struct FTransientDecalRenderData
 typedef TArray<FTransientDecalRenderData, SceneRenderingAllocator> FTransientDecalRenderDataList;
 
 /**
- * Shared decal functionality for deferred and forward shading
+ * Shared deferred decal functionality.
  */
-struct FDecalRendering
+namespace DecalRendering
 {
-	static FMatrix ComputeComponentToClipMatrix(const FViewInfo& View, const FMatrix& DecalComponentToWorld);
-	static void SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FMatrix& FrustumComponentToClip);
-	static bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals);
-	static void SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FTransientDecalRenderData& DecalData, EDecalRenderStage DecalRenderStage, const FMatrix& FrustumComponentToClip);
-
-	// Set common compilation environment parameters for decal shaders (FDeferredDecalPS, FMeshDecalsPS, etc.)
-	static void SetDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static void SetEmissiveDBufferDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
-	static FRHIBlendState* GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal);
+	FMatrix ComputeComponentToClipMatrix(const FViewInfo& View, const FMatrix& DecalComponentToWorld);
+	void SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FMatrix& FrustumComponentToClip);
+	bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals);
+	void SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FTransientDecalRenderData& DecalData, EDecalRenderStage DecalRenderStage, const FMatrix& FrustumComponentToClip);
 };

@@ -63,7 +63,7 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
 
 		// When using DBuffer, feedback buffer is blending using decal opacity for opaque objects
 		// This way we avoid overwriting values already written to feedback buffer while rendering dbuffer decals
-#if MATERIALBLENDING_ANY_TRANSLUCENT || DECAL_PROJECTION || (USE_DBUFFER && MATERIALDECALRESPONSEMASK)
+#if MATERIALBLENDING_ANY_TRANSLUCENT || IS_DECAL || (USE_DBUFFER && MATERIALDECALRESPONSEMASK)
 
 		// Stochastic alpha testing
 #if MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
@@ -73,7 +73,7 @@ void FinalizeVirtualTextureFeedback(in FVirtualTextureFeedbackParams Params, flo
 #else
 		// Opacity values smaller/larger than the reciprocal of the downscale factor get clamped so at least one pixel will resolve
 		const float VTDownscaleEpsilon = 1.0f / VIRTUAL_TEXTURE_FEEDBACK_FACTOR;
-		#if DECAL_PROJECTION
+		#if IS_DECAL
 			const float MaxAlpha = VT_FEEDBACK_DECAL_MAX_OPACITY;
 		#else
 			const float MaxAlpha = 1.0f - VTDownscaleEpsilon;

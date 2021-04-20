@@ -108,7 +108,7 @@ void Main(
 		half3 Normal = GetMaterialNormalRaw(PixelMaterialInputs);
 		half3 Emissive = GetMaterialEmissiveRaw(PixelMaterialInputs);
 		half Opacity = GetMaterialOpacityRaw(PixelMaterialInputs);
-#if MATERIALBLENDING_MASKED || (DECAL_BLEND_MODE == DECALBLENDMODEID_VOLUMETRIC)
+#if MATERIALBLENDING_MASKED
 		half Mask = GetMaterialMask(PixelMaterialInputs);
 		clip(GetMaterialMask(PixelMaterialInputs));
 #endif

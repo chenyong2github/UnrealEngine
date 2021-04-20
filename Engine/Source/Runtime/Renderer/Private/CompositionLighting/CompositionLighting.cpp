@@ -514,7 +514,7 @@ void ProcessBeforeBasePass(
 			if (bDBuffer)
 			{
 				FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, &DBufferTextures);
-				AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_BeforeBasePass);
+				AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeBassPass);
 			}
 
 			if (bNeedSSAO)
@@ -574,21 +574,16 @@ void ProcessAfterBasePass(
 
 	FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, nullptr);
 
-	if (ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.ShaderComplexity)
-	{
-		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_AfterBasePass);
-	}
-
 	if (bDoDecal && IsUsingGBuffers(View.GetShaderPlatform()))
 	{
-		// decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
-		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_BeforeLighting);
+		// Decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
+		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeLighting);
 	}
 
 	if (bDoDecal && !IsSimpleForwardShadingEnabled(View.GetShaderPlatform()))
 	{
 		// DBuffer decals with emissive component
-		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_Emissive);
+		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::Emissive);
 	}
 
 	// Forward shading SSAO is applied before the base pass using only the depth buffer.
@@ -621,7 +616,7 @@ void ProcessAfterBasePass(
 				AmbientOcclusion = AddPostProcessingGTAOPostAsync(GraphBuilder, View, Parameters, GTAOHorizons, FinalTarget);
 
 				ensureMsgf(
-					FDecalRendering::BuildVisibleDecalList(*(FScene*)View.Family->Scene, View, DRS_AmbientOcclusion, nullptr) == false,
+					DecalRendering::BuildVisibleDecalList(*(FScene*)View.Family->Scene, View, EDecalRenderStage::AmbientOcclusion, nullptr) == false,
 					TEXT("Ambient occlusion decals are not supported with Async compute SSAO."));
 			}
 			else
@@ -640,7 +635,7 @@ void ProcessAfterBasePass(
 				if (bDoDecal)
 				{
 					DecalPassTextures.ScreenSpaceAO = AmbientOcclusion.Texture;
-					AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, DRS_AmbientOcclusion);
+					AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::AmbientOcclusion);
 				}
 			}
 		}

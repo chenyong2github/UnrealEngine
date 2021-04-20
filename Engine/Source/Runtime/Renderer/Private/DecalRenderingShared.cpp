@@ -29,8 +29,7 @@ FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, cons
 	MaterialProxy = InDecalProxy->DecalMaterial->GetRenderProxy();
 	MaterialResource = &MaterialProxy->GetMaterialWithFallback(InScene.GetFeatureLevel(), MaterialProxy);
 	check(MaterialProxy && MaterialResource);
-	bHasNormal = MaterialResource->HasNormalConnected();
-	FinalDecalBlendMode = FDecalRenderingCommon::ComputeFinalDecalBlendMode(InScene.GetShaderPlatform(), (EDecalBlendMode)MaterialResource->GetDecalBlendMode(), bHasNormal);
+	DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(InScene.GetShaderPlatform(), MaterialResource);
 }
 
 /**
@@ -71,27 +70,23 @@ IMPLEMENT_SHADER_TYPE(,FDeferredDecalVS,TEXT("/Engine/Private/DeferredDecal.usf"
 class FDeferredDecalPS : public FMaterialShader
 {
 	DECLARE_SHADER_TYPE(FDeferredDecalPS,Material);
-public:
 
-	/**
-	  * Makes sure only shaders for materials that are explicitly flagged
-	  * as 'UsedAsDeferredDecal' in the Material Editor gets compiled into
-	  * the shader cache.
-	  */
+public:
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal;
+		return (Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal) &&
+			DecalRendering::GetBaseRenderStage(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters)) != EDecalRenderStage::None;
 	}
 
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FDecalRendering::SetDecalCompilationEnvironment(Parameters, OutEnvironment);
+		DecalRendering::ModifyCompilationEnvironment(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters), EDecalRenderStage::None, OutEnvironment);
 	}
 
 	FDeferredDecalPS() {}
-	FDeferredDecalPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FMaterialShader(Initializer)
+	FDeferredDecalPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMaterialShader(Initializer)
 	{
 		SvPositionToDecal.Bind(Initializer.ParameterMap,TEXT("SvPositionToDecal"));
 		DecalToWorld.Bind(Initializer.ParameterMap,TEXT("DecalToWorld"));
@@ -180,494 +175,262 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FDeferredDecalPS,TEXT("/Engine/Private/DeferredD
 class FDeferredDecalEmissivePS : public FDeferredDecalPS
 {
 	DECLARE_SHADER_TYPE(FDeferredDecalEmissivePS, Material);
+
 public:
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return FDeferredDecalPS::ShouldCompilePermutation(Parameters)
-			&& Parameters.MaterialParameters.bHasEmissiveColorConnected
-			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, (EDecalBlendMode)Parameters.MaterialParameters.DecalBlendMode, Parameters.MaterialParameters.bHasNormalConnected));
+		return (Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal) &&
+			DecalRendering::IsCompatibleWithRenderStage(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters), EDecalRenderStage::Emissive);
 	}
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FDeferredDecalPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		DecalRendering::ModifyCompilationEnvironment(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters), EDecalRenderStage::Emissive, OutEnvironment);
 	}
 
 	FDeferredDecalEmissivePS() {}
-	FDeferredDecalEmissivePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FDeferredDecalPS(Initializer)
+	FDeferredDecalEmissivePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FDeferredDecalPS(Initializer)
 	{}
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeferredDecalEmissivePS, TEXT("/Engine/Private/DeferredDecal.usf"), TEXT("MainPS"), SF_Pixel);
 
-bool FDecalRendering::BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals)
+class FDeferredDecalAmbientOcclusionPS : public FDeferredDecalPS
 {
-	QUICK_SCOPE_CYCLE_COUNTER(BuildVisibleDecalList);
+	DECLARE_SHADER_TYPE(FDeferredDecalAmbientOcclusionPS, Material);
 
-	if (OutVisibleDecals)
+public:
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		OutVisibleDecals->Empty(Scene.Decals.Num());
+		return (Parameters.MaterialParameters.MaterialDomain == MD_DeferredDecal) &&
+			DecalRendering::IsCompatibleWithRenderStage(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters), EDecalRenderStage::AmbientOcclusion);
+	}
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		DecalRendering::ModifyCompilationEnvironment(DecalRendering::ComputeDecalBlendDesc(Parameters.Platform, Parameters.MaterialParameters), EDecalRenderStage::AmbientOcclusion, OutEnvironment);
 	}
 
-	const float FadeMultiplier = CVarDecalFadeScreenSizeMultiplier.GetValueOnRenderThread();
-	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
+	FDeferredDecalAmbientOcclusionPS() {}
+	FDeferredDecalAmbientOcclusionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FDeferredDecalPS(Initializer)
+	{}
+};
 
-	const bool bIsPerspectiveProjection = View.IsPerspectiveProjection();
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeferredDecalAmbientOcclusionPS, TEXT("/Engine/Private/DeferredDecal.usf"), TEXT("MainPS"), SF_Pixel);
 
-	// Build a list of decals that need to be rendered for this view in SortedDecals
-	for (const FDeferredDecalProxy* DecalProxy : Scene.Decals)
+namespace DecalRendering
+{
+	bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals)
 	{
-		if (!DecalProxy->DecalMaterial || !DecalProxy->DecalMaterial->IsValidLowLevelFast())
+		QUICK_SCOPE_CYCLE_COUNTER(BuildVisibleDecalList);
+
+		if (OutVisibleDecals)
 		{
-			continue;
+			OutVisibleDecals->Empty(Scene.Decals.Num());
 		}
 
-		bool bIsShown = true;
-
-		if (!DecalProxy->IsShown(&View))
+		// Don't draw for shader complexity mode.
+		// todo: Handle shader complexity mode for deferred decal.
+		if (View.Family->EngineShowFlags.ShaderComplexity)
 		{
-			bIsShown = false;
+			return false;
 		}
 
-		const FMatrix ComponentToWorldMatrix = DecalProxy->ComponentTrans.ToMatrixWithScale();
+		const float FadeMultiplier = CVarDecalFadeScreenSizeMultiplier.GetValueOnRenderThread();
+		const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 
-		// can be optimized as we test against a sphere around the box instead of the box itself
-		const float ConservativeRadius = FMath::Sqrt(
-				ComponentToWorldMatrix.GetScaledAxis(EAxis::X).SizeSquared() +
-				ComponentToWorldMatrix.GetScaledAxis(EAxis::Y).SizeSquared() +
-				ComponentToWorldMatrix.GetScaledAxis(EAxis::Z).SizeSquared());
+		const bool bIsPerspectiveProjection = View.IsPerspectiveProjection();
 
-		// can be optimized as the test is too conservative (sphere instead of OBB)
-		if(ConservativeRadius < SMALL_NUMBER || !View.ViewFrustum.IntersectSphere(ComponentToWorldMatrix.GetOrigin(), ConservativeRadius))
+		// Build a list of decals that need to be rendered for this view in SortedDecals
+		for (const FDeferredDecalProxy* DecalProxy : Scene.Decals)
 		{
-			bIsShown = false;
-		}
-
-		if (bIsShown)
-		{
-			FTransientDecalRenderData Data(Scene, DecalProxy, ConservativeRadius);
-			
-			// filter out decals with blend modes that are not supported on current platform
-			if (FDecalRenderingCommon::IsBlendModeSupported(ShaderPlatform, Data.FinalDecalBlendMode))
+			if (!DecalProxy->DecalMaterial || !DecalProxy->DecalMaterial->IsValidLowLevelFast())
 			{
-				if (bIsPerspectiveProjection && Data.DecalProxy->FadeScreenSize != 0.0f)
+				continue;
+			}
+
+			bool bIsShown = true;
+
+			if (!DecalProxy->IsShown(&View))
+			{
+				bIsShown = false;
+			}
+
+			const FMatrix ComponentToWorldMatrix = DecalProxy->ComponentTrans.ToMatrixWithScale();
+
+			// can be optimized as we test against a sphere around the box instead of the box itself
+			const float ConservativeRadius = FMath::Sqrt(
+					ComponentToWorldMatrix.GetScaledAxis(EAxis::X).SizeSquared() +
+					ComponentToWorldMatrix.GetScaledAxis(EAxis::Y).SizeSquared() +
+					ComponentToWorldMatrix.GetScaledAxis(EAxis::Z).SizeSquared());
+
+			// can be optimized as the test is too conservative (sphere instead of OBB)
+			if(ConservativeRadius < SMALL_NUMBER || !View.ViewFrustum.IntersectSphere(ComponentToWorldMatrix.GetOrigin(), ConservativeRadius))
+			{
+				bIsShown = false;
+			}
+
+			if (bIsShown)
+			{
+				FTransientDecalRenderData Data(Scene, DecalProxy, ConservativeRadius);
+			
+				if (IsCompatibleWithRenderStage(Data.DecalBlendDesc, DecalRenderStage))
 				{
-					float Distance = (View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).Size();
-					float Radius = ComponentToWorldMatrix.GetMaximumAxisScale();
-					float CurrentScreenSize = ((Radius / Distance) * FadeMultiplier);
-
-					// fading coefficient needs to increase with increasing field of view and decrease with increasing resolution
-					// FadeCoeffScale is an empirically determined constant to bring us back roughly to fraction of screen size for FadeScreenSize
-					const float FadeCoeffScale = 600.0f;
-					float FOVFactor = ((2.0f/View.ViewMatrices.GetProjectionMatrix().M[0][0]) / View.ViewRect.Width()) * FadeCoeffScale;
-					float FadeCoeff = Data.DecalProxy->FadeScreenSize * FOVFactor;
-					float FadeRange = FadeCoeff * 0.5f;
-
-					float Alpha = (CurrentScreenSize - FadeCoeff) / FadeRange;
-					Data.FadeAlpha = FMath::Min(Alpha, 1.0f);
-				}
-
-				EDecalRenderStage LocalDecalRenderStage = FDecalRenderingCommon::ComputeRenderStage(ShaderPlatform, Data.FinalDecalBlendMode);
-
-				const bool bShouldRender = Data.FadeAlpha > 0.0f &&
-					FDecalRenderingCommon::IsCompatibleWithRenderStage(
-						ShaderPlatform,
-						DecalRenderStage,
-						LocalDecalRenderStage,
-						Data.FinalDecalBlendMode,
-						Data.MaterialResource);
-
-				// we could do this test earlier to avoid the decal intersection but getting DecalBlendMode also costs
-				if (View.Family->EngineShowFlags.ShaderComplexity || bShouldRender)
-				{
-					if (!OutVisibleDecals)
+					if (bIsPerspectiveProjection && Data.DecalProxy->FadeScreenSize != 0.0f)
 					{
-						return true;
+						float Distance = (View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).Size();
+						float Radius = ComponentToWorldMatrix.GetMaximumAxisScale();
+						float CurrentScreenSize = ((Radius / Distance) * FadeMultiplier);
+
+						// fading coefficient needs to increase with increasing field of view and decrease with increasing resolution
+						// FadeCoeffScale is an empirically determined constant to bring us back roughly to fraction of screen size for FadeScreenSize
+						const float FadeCoeffScale = 600.0f;
+						float FOVFactor = ((2.0f/View.ViewMatrices.GetProjectionMatrix().M[0][0]) / View.ViewRect.Width()) * FadeCoeffScale;
+						float FadeCoeff = Data.DecalProxy->FadeScreenSize * FOVFactor;
+						float FadeRange = FadeCoeff * 0.5f;
+
+						float Alpha = (CurrentScreenSize - FadeCoeff) / FadeRange;
+						Data.FadeAlpha = FMath::Min(Alpha, 1.0f);
 					}
-					OutVisibleDecals->Add(Data);
+
+					const bool bShouldRender = Data.FadeAlpha > 0.0f;
+
+					if (bShouldRender)
+					{
+						if (!OutVisibleDecals)
+						{
+							return true;
+						}
+						OutVisibleDecals->Add(Data);
+					}
 				}
 			}
 		}
-	}
 
-	if (!OutVisibleDecals)
-	{
+		if (!OutVisibleDecals)
+		{
+			return false;
+		}
+
+		if (OutVisibleDecals->Num() > 0)
+		{
+			// Sort by sort order to allow control over composited result
+			// Then sort decals by state to reduce render target switches
+			// Also sort by component since Sort() is not stable
+			struct FCompareFTransientDecalRenderData
+			{
+				FORCEINLINE bool operator()(const FTransientDecalRenderData& A, const FTransientDecalRenderData& B) const
+				{
+					if (B.DecalProxy->SortOrder != A.DecalProxy->SortOrder)
+					{ 
+						return A.DecalProxy->SortOrder < B.DecalProxy->SortOrder;
+					}
+					if (B.DecalBlendDesc.bWriteNormal != A.DecalBlendDesc.bWriteNormal)
+					{
+						// bWriteNormal here has priority because we want to render decals that output normals before those could read normals.
+						// Also this is the only flag that can trigger a change of EDecalRenderTargetMode inside a single EDecalRenderStage, and we batch according to this.
+						return B.DecalBlendDesc.bWriteNormal < A.DecalBlendDesc.bWriteNormal; // < so that those outputting normal are first.
+					}
+					if (B.DecalBlendDesc.Packed != A.DecalBlendDesc.Packed)
+					{
+						// Sorting by the FDecalBlendDesc contents will reduce blend state changes.
+						return (int32)B.DecalBlendDesc.Packed < (int32)A.DecalBlendDesc.Packed;
+					}
+					if (B.MaterialProxy != A.MaterialProxy)
+					{
+						// Batch decals with the same material together
+						return B.MaterialProxy < A.MaterialProxy;
+					}
+					return (PTRINT)B.DecalProxy->Component < (PTRINT)A.DecalProxy->Component;
+				}
+			};
+
+			// Sort decals by blend mode to reduce render target switches
+			OutVisibleDecals->Sort(FCompareFTransientDecalRenderData());
+
+			return true;
+		}
+
 		return false;
 	}
 
-	if (OutVisibleDecals->Num() > 0)
+	FMatrix ComputeComponentToClipMatrix(const FViewInfo& View, const FMatrix& DecalComponentToWorld)
 	{
-		// Sort by sort order to allow control over composited result
-		// Then sort decals by state to reduce render target switches
-		// Also sort by component since Sort() is not stable
-		struct FCompareFTransientDecalRenderData
-		{
-			FORCEINLINE bool operator()(const FTransientDecalRenderData& A, const FTransientDecalRenderData& B) const
-			{
-				if (B.DecalProxy->SortOrder != A.DecalProxy->SortOrder)
-				{ 
-					return A.DecalProxy->SortOrder < B.DecalProxy->SortOrder;
-				}
-				// bHasNormal here is more important then blend mode because we want to render every decals that output normals before those that read normal.
-				if (B.bHasNormal != A.bHasNormal)
-				{
-					return B.bHasNormal < A.bHasNormal; // < so that those outputting normal are first.
-				}
-				if (B.FinalDecalBlendMode != A.FinalDecalBlendMode)
-				{
-					return (int32)B.FinalDecalBlendMode < (int32)A.FinalDecalBlendMode;
-				}
-				// Batch decals with the same material together
-				if (B.MaterialProxy != A.MaterialProxy)
-				{
-					return B.MaterialProxy < A.MaterialProxy;
-				}
-				return (PTRINT)B.DecalProxy->Component < (PTRINT)A.DecalProxy->Component;
-			}
-		};
-
-		// Sort decals by blend mode to reduce render target switches
-		OutVisibleDecals->Sort(FCompareFTransientDecalRenderData());
-
-		return true;
+		FMatrix ComponentToWorldMatrixTrans = DecalComponentToWorld.ConcatTranslation(View.ViewMatrices.GetPreViewTranslation());
+		return ComponentToWorldMatrixTrans * View.ViewMatrices.GetTranslatedViewProjectionMatrix();
 	}
 
-	return false;
-}
-
-FMatrix FDecalRendering::ComputeComponentToClipMatrix(const FViewInfo& View, const FMatrix& DecalComponentToWorld)
-{
-	FMatrix ComponentToWorldMatrixTrans = DecalComponentToWorld.ConcatTranslation(View.ViewMatrices.GetPreViewTranslation());
-	return ComponentToWorldMatrixTrans * View.ViewMatrices.GetTranslatedViewProjectionMatrix();
-}
-
-void FDecalRendering::SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View,
-	const FTransientDecalRenderData& DecalData, EDecalRenderStage DecalRenderStage, const FMatrix& FrustumComponentToClip)
-{
-	const FMaterialShaderMap* MaterialShaderMap = DecalData.MaterialResource->GetRenderingThreadShaderMap();
-	const EDebugViewShaderMode DebugViewMode = View.Family->GetDebugViewShaderMode();
-
-	// When in shader complexity, decals get rendered as emissive even though there might not be emissive decals.
-	// FDeferredDecalEmissivePS might not be available depending on the decal blend mode.
-	TShaderRef<FDeferredDecalPS> PixelShader = (DecalRenderStage == DRS_Emissive && DebugViewMode == DVSM_None)
-		? TShaderRef<FDeferredDecalPS>(MaterialShaderMap->GetShader<FDeferredDecalEmissivePS>())
-		: MaterialShaderMap->GetShader<FDeferredDecalPS>();
-
-	TShaderMapRef<FDeferredDecalVS> VertexShader(View.ShaderMap);
-
+	void SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View,
+		const FTransientDecalRenderData& DecalData, EDecalRenderStage DecalRenderStage, const FMatrix& FrustumComponentToClip)
 	{
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		const FMaterialShaderMap* MaterialShaderMap = DecalData.MaterialResource->GetRenderingThreadShaderMap();
+		const EDebugViewShaderMode DebugViewMode = View.Family->GetDebugViewShaderMode();
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-		PixelShader->SetParameters(RHICmdList, View, DecalData.MaterialProxy, *DecalData.DecalProxy, DecalData.FadeAlpha);
-	}
-
-	// SetUniformBufferParameter() need to happen after the shader has been set otherwise a DebugBreak could occur.
-
-	// we don't have the Primitive uniform buffer setup for decals (later we want to batch)
-	{
-		auto& PrimitiveVS = VertexShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
-		auto& PrimitivePS = PixelShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
-
-		// uncomment to track down usage of the Primitive uniform buffer
-		//	check(!PrimitiveVS.IsBound());
-		//	check(!PrimitivePS.IsBound());
-
-		// to prevent potential shader error (UE-18852 ElementalDemo crashes due to nil constant buffer)
-		SetUniformBufferParameter(RHICmdList, VertexShader.GetVertexShader(), PrimitiveVS, GIdentityPrimitiveUniformBuffer);
-
-		if (DebugViewMode == DVSM_None)
+		// When in shader complexity, decals get rendered as emissive even though there might not be emissive decals.
+		// FDeferredDecalEmissivePS might not be available depending on the decal blend mode.
+		TShaderRef<FDeferredDecalPS> PixelShader;
+		if (DecalRenderStage == EDecalRenderStage::Emissive || DebugViewMode != DVSM_None)
 		{
-			SetUniformBufferParameter(RHICmdList, PixelShader.GetPixelShader(), PrimitivePS, GIdentityPrimitiveUniformBuffer);
+			PixelShader = TShaderRef<FDeferredDecalPS>(MaterialShaderMap->GetShader<FDeferredDecalEmissivePS>());
 		}
-	}
-
-	VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
-
-	// Set stream source after updating cached strides
-	RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
-}
-
-void FDecalRendering::SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FMatrix& FrustumComponentToClip)
-{
-	TShaderMapRef<FDeferredDecalVS> VertexShader(View.ShaderMap);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
-}
-
-// @return e.g. 1+2+4 means DBufferA(1) + DBufferB(2) + DBufferC(4) is used
-static uint8 ComputeDBufferMRTMask(EDecalBlendMode DecalBlendMode)
-{
-	switch (DecalBlendMode)
-	{
-	case DBM_DBuffer_AlphaComposite:
-		return 1 + 4; // AlphaComposite mode does not touch normals (DBufferB)
-	case DBM_DBuffer_ColorNormalRoughness:
-		return 1 + 2 + 4;
-	case DBM_DBuffer_Emissive:
-	case DBM_DBuffer_EmissiveAlphaComposite:
-	case DBM_DBuffer_Color:
-		return 1;
-	case DBM_DBuffer_ColorNormal:
-		return 1 + 2;
-	case DBM_DBuffer_ColorRoughness:
-		return 1 + 4;
-	case DBM_DBuffer_Normal:
-		return 2;
-	case DBM_DBuffer_NormalRoughness:
-		return 2 + 4;
-	case DBM_DBuffer_Roughness:
-		return 4;
-	}
-
-	return 0;
-}
-
-void FDecalRendering::SetDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-{
-	const bool bHasNormalConnected = Parameters.MaterialParameters.bHasNormalConnected;
-	EDecalBlendMode FinalDecalBlendMode = FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, (EDecalBlendMode)Parameters.MaterialParameters.DecalBlendMode, bHasNormalConnected);
-	EDecalRenderStage DecalRenderStage = FDecalRenderingCommon::ComputeRenderStage(Parameters.Platform, FinalDecalBlendMode);
-	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = FDecalRenderingCommon::ComputeRenderTargetMode(Parameters.Platform, FinalDecalBlendMode, bHasNormalConnected);
-	uint32 RenderTargetCount = FDecalRenderingCommon::ComputeRenderTargetCount(Parameters.Platform, RenderTargetMode);
-
-	uint32 DecalOutputNormal = (RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferNoNormal || RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal) ? 0 : 1;
-	OutEnvironment.SetDefine(TEXT("DECAL_OUTPUT_NORMAL"), DecalOutputNormal);
-
-	// avoid using the index directly, better use DECALBLENDMODEID_VOLUMETRIC, DECALBLENDMODEID_STAIN, ...
-	OutEnvironment.SetDefine(TEXT("DECAL_BLEND_MODE"), (uint32)FinalDecalBlendMode);
-	OutEnvironment.SetDefine(TEXT("DECAL_PROJECTION"), 1);
-	OutEnvironment.SetDefine(TEXT("DECAL_RENDERTARGET_COUNT"), RenderTargetCount);
-	OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE"), (uint32)DecalRenderStage);
-
-	uint8 bDBufferMask = ComputeDBufferMRTMask(FinalDecalBlendMode);
-
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERA"), (bDBufferMask & 0x1) != 0);
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERB"), (bDBufferMask & 0x2) != 0);
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), (bDBufferMask & 0x4) != 0);
-	// define so that we know to output the proper MRTs in the derived defines.
-	OutEnvironment.SetDefine(TEXT("IS_DECAL"), 1);
-
-	if (IsDBufferDecalBlendMode(FinalDecalBlendMode))
-	{
-		OutEnvironment.SetDefine(TEXT("IS_DBUFFER_DECAL"), 1);
-	}
-}
-
-void FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-{
-	OutEnvironment.SetDefine(TEXT("DECAL_OUTPUT_NORMAL"), 0);
-	OutEnvironment.SetDefine(TEXT("DECAL_BLEND_MODE"), (uint32)DBM_DBuffer_Emissive);
-	OutEnvironment.SetDefine(TEXT("DECAL_RENDERTARGET_COUNT"), 1);
-	OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE"), (uint32)DRS_Emissive);
-
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERA"), 0);
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERB"), 0);
-	OutEnvironment.SetDefine(TEXT("MATERIAL_DBUFFERC"), 0);
-}
-
-extern FRHIBlendState* MobileForward_GetDecalBlendState(EDecalBlendMode DecalBlendMode);
-extern FRHIBlendState* MobileDeferred_GetDecalBlendState(EDecalBlendMode DecalBlendMode, bool bHasNormal);
-
-// @param RenderState 0:before BasePass, 1:before lighting, (later we could add "after lighting" and multiply)
-FRHIBlendState* FDecalRendering::GetDecalBlendState(const ERHIFeatureLevel::Type SMFeatureLevel, EDecalRenderStage InDecalRenderStage, EDecalBlendMode DecalBlendMode, bool bHasNormal)
-{
-	if (InDecalRenderStage == DRS_Mobile)
-	{
-		if (IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(SMFeatureLevel)))
+		else if (DecalRenderStage == EDecalRenderStage::AmbientOcclusion)
 		{
-			return MobileDeferred_GetDecalBlendState(DecalBlendMode, bHasNormal);
+			PixelShader = TShaderRef<FDeferredDecalPS>(MaterialShaderMap->GetShader<FDeferredDecalAmbientOcclusionPS>());
 		}
 		else
 		{
-			return MobileForward_GetDecalBlendState(DecalBlendMode);
+			PixelShader = MaterialShaderMap->GetShader<FDeferredDecalPS>();
 		}
-	}
-	
-	if (InDecalRenderStage == DRS_BeforeBasePass)
-	{
-		// before base pass (for DBuffer decals)
+
+		TShaderMapRef<FDeferredDecalVS> VertexShader(View.ShaderMap);
+
 		{
-			// As we set the opacity in the shader we don't need to set different frame buffer blend modes but we like to hint to the driver that we
-			// don't need to output there. We also could replace this with many SetRenderTarget calls but it might be slower (needs to be tested).
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			switch (DecalBlendMode)
-			{
-			case DBM_DBuffer_AlphaComposite:
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_One,  BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_One,  BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_ColorNormalRoughness:
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_Color:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_ColorNormal:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_ColorRoughness:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_Normal:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_NormalRoughness:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			case DBM_DBuffer_Roughness:
-				// we can optimize using less MRT later
-				return TStaticBlendState<
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,
-					CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha,
-					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One // DBuffer mask
-				>::GetRHI();
-
-			default:
-				// the decal type should not be rendered in this pass - internal error
-				check(0);
-				return nullptr;
-			}
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			PixelShader->SetParameters(RHICmdList, View, DecalData.MaterialProxy, *DecalData.DecalProxy, DecalData.FadeAlpha);
 		}
-	}
-	else if (InDecalRenderStage == DRS_AfterBasePass)
-	{
-		ensure(DecalBlendMode == DBM_Volumetric_DistanceFunction);
 
-		return TStaticBlendState<>::GetRHI();
-	}
-	else if (InDecalRenderStage == DRS_AmbientOcclusion)
-	{
-		ensure(DecalBlendMode == DBM_AmbientOcclusion);
+		// SetUniformBufferParameter() need to happen after the shader has been set otherwise a DebugBreak could occur.
 
-		return TStaticBlendState<CW_RED, BO_Add, BF_DestColor, BF_Zero>::GetRHI();
-	}
-	else
-	{
-		// before lighting (for non DBuffer decals)
-
-		switch (DecalBlendMode)
+		// we don't have the Primitive uniform buffer setup for decals (later we want to batch)
 		{
-		case DBM_Translucent:
-			// @todo: Feature Level 10 does not support separate blends modes for each render target. This could result in the
-			// translucent and stain blend modes looking incorrect when running in this mode.
-			if (GSupportsSeparateRenderTargetBlendState)
+			auto& PrimitiveVS = VertexShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
+			auto& PrimitivePS = PixelShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
+
+			// uncomment to track down usage of the Primitive uniform buffer
+			//	check(!PrimitiveVS.IsBound());
+			//	check(!PrimitivePS.IsBound());
+
+			// to prevent potential shader error (UE-18852 ElementalDemo crashes due to nil constant buffer)
+			SetUniformBufferParameter(RHICmdList, VertexShader.GetVertexShader(), PrimitiveVS, GIdentityPrimitiveUniformBuffer);
+
+			if (DebugViewMode == DVSM_None)
 			{
-				if (bHasNormal)
-				{
-					return TStaticBlendState<
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
-					>::GetRHI();
-				}
-				else
-				{
-					return TStaticBlendState<
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
-					>::GetRHI();
-				}
+				SetUniformBufferParameter(RHICmdList, PixelShader.GetPixelShader(), PrimitivePS, GIdentityPrimitiveUniformBuffer);
 			}
-
-		case DBM_Stain:
-			if (GSupportsSeparateRenderTargetBlendState)
-			{
-				if (bHasNormal)
-				{
-					return TStaticBlendState<
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Normal
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-						CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
-					>::GetRHI();
-				}
-				else
-				{
-					return TStaticBlendState<
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One,	// Emissive
-						CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-						CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One		// BaseColor
-					>::GetRHI();
-				}
-			}
-
-		case DBM_Normal:
-			return TStaticBlendState< CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha >::GetRHI();
-
-
-		case DBM_Emissive:
-		case DBM_DBuffer_Emissive:
-			return TStaticBlendState< CW_RGB, BO_Add, BF_SourceAlpha, BF_One >::GetRHI();
-
-		case DBM_DBuffer_EmissiveAlphaComposite:
-			return TStaticBlendState< CW_RGB, BO_Add, BF_One, BF_One >::GetRHI();
-
-		case DBM_AlphaComposite:
-			if (GSupportsSeparateRenderTargetBlendState)
-			{
-				return TStaticBlendState<
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Emissive
-					CW_RGB, BO_Add, BF_Zero, BF_One, BO_Add, BF_Zero, BF_One,				// Normal
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One,	// Metallic, Specular, Roughness
-					CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One	// BaseColor
-				>::GetRHI();
-			}
-		default:
-			// the decal type should not be rendered in this pass - internal error
-			check(0);
-			return nullptr;
 		}
+
+		VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
+
+		// Set stream source after updating cached strides
+		RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
+	}
+
+	void SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FMatrix& FrustumComponentToClip)
+	{
+		TShaderMapRef<FDeferredDecalVS> VertexShader(View.ShaderMap);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		VertexShader->SetParameters(RHICmdList, FrustumComponentToClip);
 	}
 }

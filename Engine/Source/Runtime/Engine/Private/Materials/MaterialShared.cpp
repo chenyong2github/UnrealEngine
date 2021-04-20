@@ -38,7 +38,6 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
 #include "Engine/RendererSettings.h"
-#include "DecalRenderingCommon.h"
 #include "ExternalTexture.h"
 #include "ShaderCodeLibrary.h"
 #include "HAL/FileManager.h"
@@ -873,8 +872,7 @@ bool FMaterial::MaterialMayModifyMeshPosition() const
 {
 	// Conservative estimate when called before material translation has occurred. 
 	// This function is only intended for use in deciding whether or not shader permutations are required.
-	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasMaterialAttributesConnected()
-		|| (GetMaterialDomain() == MD_DeferredDecal && GetDecalBlendMode() == DBM_Volumetric_DistanceFunction);
+	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasMaterialAttributesConnected();
 }
 
 bool FMaterial::MaterialUsesPixelDepthOffset() const
@@ -2011,18 +2009,6 @@ void FMaterial::SetupMaterialEnvironment(
 	if (IsUsingFullPrecision())
 	{
 		OutEnvironment.CompilerFlags.Add(CFLAG_UseFullPrecisionInPS);
-	}
-
-	if(GetMaterialDomain() == MD_DeferredDecal)
-	{
-		// to compare against DECAL_BLEND_MODE, we can expose more if needed
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_VOLUMETRIC"), (uint32)DBM_Volumetric_DistanceFunction);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_STAIN"), (uint32)DBM_Stain);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_NORMAL"), (uint32)DBM_Normal);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_EMISSIVE"), (uint32)DBM_Emissive);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_TRANSLUCENT"), (uint32)DBM_Translucent);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_AO"), (uint32)DBM_AmbientOcclusion);
-		OutEnvironment.SetDefine(TEXT("DECALBLENDMODEID_ALPHACOMPOSITE"), (uint32)DBM_AlphaComposite);
 	}
 
 	switch(GetMaterialDomain())

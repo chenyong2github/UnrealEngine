@@ -3,11 +3,12 @@
 #pragma once
 
 #include "RenderGraph.h"
-#include "DecalRenderingCommon.h"
+#include "SceneView.h"
 
-class FViewInfo;
-
+enum class EDecalRenderStage : uint8;
+enum class EDecalRenderTargetMode : uint8;
 struct FSceneTextures;
+class FViewInfo;
 
 bool IsDBufferEnabled(const FSceneViewFamily& ViewFamily, EShaderPlatform ShaderPlatform);
 
@@ -38,19 +39,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDBufferParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 FDBufferParameters GetDBufferParameters(FRDGBuilder& GraphBuilder, const FDBufferTextures& DBufferTextures, EShaderPlatform ShaderPlatform);
-
-inline bool IsWritingToGBufferA(FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
-{
-	return RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal
-		|| RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal
-		|| RenderTargetMode == FDecalRenderingCommon::RTM_GBufferNormal;
-}
-
-inline bool IsWritingToDepth(FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
-{
-	return RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal
-		|| RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal;
-}
 
 struct FDeferredDecalPassTextures
 {
@@ -96,7 +84,7 @@ END_SHADER_PARAMETER_STRUCT()
 void GetDeferredDecalPassParameters(
 	const FViewInfo& View,
 	const FDeferredDecalPassTextures& DecalPassTextures,
-	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
+	EDecalRenderTargetMode RenderTargetMode,
 	FDeferredDecalPassParameters& PassParameters);
 
 void RenderMeshDecals(
