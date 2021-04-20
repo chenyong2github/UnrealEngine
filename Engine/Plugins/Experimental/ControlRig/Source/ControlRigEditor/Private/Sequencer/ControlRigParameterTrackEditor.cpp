@@ -1793,23 +1793,41 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 
 FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEditor::FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp)
 {
-
-	bool bCreateHandleIfMissing = false;
+	const bool bCreateHandleIfMissing = false;
 	FName CreatedFolderName = NAME_None;
 
 	FFindOrCreateHandleResult Result;
-	bool bHandleWasValid = GetSequencer()->GetHandleToObject(InComp, false).IsValid();
-
+	bool bHandleWasValid = GetSequencer()->GetHandleToObject(InComp, bCreateHandleIfMissing).IsValid();
 
 	Result.Handle = GetSequencer()->GetHandleToObject(InComp, bCreateHandleIfMissing, CreatedFolderName);
 	Result.bWasCreated = bHandleWasValid == false && Result.Handle.IsValid();
 
+	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
+
+	// Prioritize a control rig parameter track on this component
+	if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Result.Handle, NAME_None))
+	{
+		return Result;
+	}
+
+	// If the owner has a control rig parameter track, let's use it
+	UObject* OwnerObject = InComp->GetOwner();
+	FGuid OwnerHandle = GetSequencer()->GetHandleToObject(OwnerObject, bCreateHandleIfMissing);
+	bHandleWasValid = OwnerHandle.IsValid();
+	if (OwnerHandle.IsValid())
+	{
+		if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), OwnerHandle, NAME_None))
+		{
+			Result.Handle = OwnerHandle;
+			Result.bWasCreated = bHandleWasValid == false && Result.Handle.IsValid();
+			return Result;
+		}
+	}
+
+	// If the component handle doesn't exist, let's use the owner handle
 	if (Result.Handle.IsValid() == false)
 	{
-		UObject* OwnerObject = InComp->GetOwner();
-		bHandleWasValid = GetSequencer()->GetHandleToObject(OwnerObject, false).IsValid();
-
-		Result.Handle = GetSequencer()->GetHandleToObject(OwnerObject, bCreateHandleIfMissing, CreatedFolderName);
+		Result.Handle = OwnerHandle;
 		Result.bWasCreated = bHandleWasValid == false && Result.Handle.IsValid();
 
 	}
