@@ -395,9 +395,8 @@ public:
 
 	/** Log caching statistics.
 	 *
-	 * @param bForceLogIgnoringTimeInverval - this function is called often, so not every invocation normally will actually log the stats. This parameter being true bypasses this pacing.
 	 */
-	void LogCachingStats(bool bForceLogIgnoringTimeInverval = false);
+	void LogCachingStats();
 
 	inline int32 GetNumPendingJobs(EShaderCompileJobPriority InPriority) const
 	{
@@ -909,6 +908,7 @@ public:
 	ENGINE_API void RegisterCompiledShaders(uint32 NumPermutations, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString = FString(""));
 	ENGINE_API const TSparseArray<ShaderCompilerStats>& GetShaderCompilerStats() { return CompileStats; }
 	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
+	ENGINE_API void WriteStatSummary();
 
 private:
 	FCriticalSection CompileStatsLock;
@@ -1178,6 +1178,11 @@ public:
 	 */
 	ENGINE_API void Shutdown();
 
+	/**
+	 * Prints stats related to shader compilation to the log.
+	 * @param bForceLogIgnoringTimeInverval - this function is called often, so not every invocation normally will actually log the stats. This parameter being true bypasses this pacing.
+	 */
+	ENGINE_API void PrintStats(bool bForceLogIgnoringTimeInverval = false);
 
 	/** 
 	 * Processes completed asynchronous shader maps, and assigns them to relevant materials.
