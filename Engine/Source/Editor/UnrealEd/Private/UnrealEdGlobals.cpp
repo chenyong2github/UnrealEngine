@@ -89,6 +89,8 @@ void CheckAndMaybeGoToVRModeInternal(const bool bIsImmersive)
 
 int32 EditorInit( IEngineLoop& EngineLoop )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(EditorInit);
+
 	// Create debug exec.	
 	GDebugToolExec = new FDebugToolExec;
 
@@ -203,6 +205,8 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 int32 EditorReinit()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(EditorReinit);
+
 	// Are we in immersive mode?
 	const bool bIsImmersive = FPaths::IsProjectFilePathSet() && FParse::Param(FCommandLine::Get(), TEXT("immersive"));
 	// Do final set up on the editor frame and show it
