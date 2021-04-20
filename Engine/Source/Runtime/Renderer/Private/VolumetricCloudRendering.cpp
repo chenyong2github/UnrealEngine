@@ -496,6 +496,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER(int32, VirtualShadowMapId0)
 //	SHADER_PARAMETER_STRUCT(FBlueNoise, BlueNoise)
 	SHADER_PARAMETER(FUintVector4, TracingCoordToZbufferCoordScaleBias)
+	SHADER_PARAMETER(FUintVector4, SceneDepthTextureMinMaxCoord)
 	SHADER_PARAMETER(uint32, NoiseFrameIndexModPattern)
 	SHADER_PARAMETER(int32, OpaqueIntersectionMode)
 	SHADER_PARAMETER(uint32, VolumetricRenderTargetMode)
@@ -1831,9 +1832,29 @@ static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudP
 
 	FRenderVolumetricCloudGlobalParameters& VolumetricCloudParams = *GraphBuilder.AllocParameters<FRenderVolumetricCloudGlobalParameters>();
 	SetupDefaultRenderVolumetricCloudGlobalParameters(GraphBuilder, VolumetricCloudParams, CloudInfo, MainView);
-	VolumetricCloudParams.SceneDepthTexture = CloudRC.SceneDepthZ;
 
 	VolumetricCloudParams.SceneDepthTexture = CloudRC.SceneDepthZ;
+	if (CloudRC.bShouldViewRenderVolumetricRenderTarget && MainView.ViewState)
+	{
+		FVolumetricRenderTargetViewStateData& VRT = MainView.ViewState->VolumetricCloudRenderTarget;
+		const uint32 VolumetricReconstructRTDownsampleFactor = VRT.GetVolumetricReconstructRTDownsampleFactor();
+
+		// Use the main view to get the target rect. The clouds are reconstructed at the same resolution as the depth buffer read when tracing.
+		VolumetricCloudParams.SceneDepthTextureMinMaxCoord = FUintVector4(
+			MainView.ViewRect.Min.X / VolumetricReconstructRTDownsampleFactor,
+			MainView.ViewRect.Min.Y / VolumetricReconstructRTDownsampleFactor,
+			(MainView.ViewRect.Max.X - 1) / VolumetricReconstructRTDownsampleFactor,
+			(MainView.ViewRect.Max.Y - 1) / VolumetricReconstructRTDownsampleFactor);
+	}
+	else
+	{
+		VolumetricCloudParams.SceneDepthTextureMinMaxCoord = FUintVector4(
+			MainView.ViewRect.Min.X,
+			MainView.ViewRect.Min.Y,
+			(MainView.ViewRect.Max.X - 1),
+			(MainView.ViewRect.Max.Y - 1));
+	}
+
 	VolumetricCloudParams.Light0Shadow = CloudRC.LightShadowShaderParams0;
 	VolumetricCloudParams.VirtualShadowMapId0 = CloudRC.VirtualShadowMapId0;
 	VolumetricCloudParams.CloudShadowTexture0 = CloudRC.VolumetricCloudShadowTexture[0];
