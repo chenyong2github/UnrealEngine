@@ -472,10 +472,8 @@ bool FAssetRenameManager::FixReferencesAndRename(const TArray<FAssetRenameData>&
 			else
 			{
 				// Perform the rename, leaving redirectors only for assets which need them
-				PerformAssetRename(AssetsToRename);
-
-				// Save all packages that were referencing any of the assets that were moved without redirectors
-				SaveReferencingPackages(ReferencingPackagesToSave);
+				// Also save all packages that were referencing any of the assets that were moved without redirectors
+				PerformAssetRename(AssetsToRename, ReferencingPackagesToSave);
 
 				// Issue post rename event
 				AssetPostRenameEvent.Broadcast(AssetsAndNames);
@@ -1374,6 +1372,11 @@ bool FAssetRenameManager::CheckPackageForSoftObjectReferences(UPackage* Package,
 
 void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferencers>& AssetsToRename) const
 {
+	PerformAssetRename(AssetsToRename, TArray<UPackage*>());
+}
+
+void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferencers>& AssetsToRename, const TArray<UPackage*>& ReferencingPackagesToSave) const
+{
 	const FText AssetRenameSlowTask = LOCTEXT("AssetRenameSlowTask", "Renaming Assets");
 	GWarn->BeginSlowTask(AssetRenameSlowTask, true);
 
@@ -1388,7 +1391,7 @@ void FAssetRenameManager::PerformAssetRename(TArray<FAssetRenameDataWithReferenc
 	FEditorFileUtils::GetDirtyWorldPackages(DirtyPackagesToCheckForSoftReferences);
 	FEditorFileUtils::GetDirtyContentPackages(DirtyPackagesToCheckForSoftReferences);
 
-	TArray<UPackage*> PackagesToSave;
+	TArray<UPackage*> PackagesToSave = ReferencingPackagesToSave;
 	TArray<UPackage*> PotentialPackagesToDelete;
 	for (int32 AssetIdx = 0; AssetIdx < AssetsToRename.Num(); ++AssetIdx)
 	{

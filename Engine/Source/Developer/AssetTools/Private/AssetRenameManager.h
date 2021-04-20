@@ -110,6 +110,9 @@ private:
 	/** Performs the asset rename after the user has selected to proceed */
 	void PerformAssetRename(TArray<FAssetRenameDataWithReferencers>& AssetsToRename) const;
 
+	/** Performs the asset rename after the user has selected to proceed, also saving the provided referencing packages at the same time */
+	void PerformAssetRename(TArray<FAssetRenameDataWithReferencers>& AssetsToRename, const TArray<UPackage*>& ReferencingPackagesToSave) const;
+
 	/** Saves all the referencing packages and updates SCC state */
 	void SaveReferencingPackages(const TArray<UPackage*>& ReferencingPackagesToSave) const;
 
