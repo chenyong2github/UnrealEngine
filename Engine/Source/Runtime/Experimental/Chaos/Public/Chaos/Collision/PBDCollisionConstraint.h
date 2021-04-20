@@ -269,8 +269,10 @@ namespace Chaos
 			const bool bInUseManifold)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial0, Transform1, Base::FType::SinglePoint, ShapesType)
 			, CullDistance(InCullDistance)
-			, bUseManifold(bInUseManifold)
-		{}
+			, bUseManifold(false)
+		{
+			bUseManifold = bInUseManifold && CanUseManifold(Particle0, Particle1);
+		}
 
 		static typename Base::FType StaticType() { return Base::FType::SinglePoint; };
 
@@ -320,6 +322,10 @@ namespace Chaos
 			, CullDistance(InCullDistance)
 			, bUseManifold(false)
 		{}
+
+		// Whether we can use manifolds for the given partices. Manifolds do not work well with Joints and PBD
+		// because the bodies may be moved (and especially rotated) a lot in the solver and this can make the manifold extremely inaccurate
+		bool CanUseManifold(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1) const;
 
 		bool AreMatchingContactPoints(const FContactPoint& A, const FContactPoint& B, FReal& OutScore) const;
 		int32 FindManifoldPoint(const FContactPoint& ContactPoint) const;

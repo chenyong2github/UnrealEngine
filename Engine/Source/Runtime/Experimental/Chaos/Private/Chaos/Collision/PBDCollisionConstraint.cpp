@@ -377,4 +377,11 @@ namespace Chaos
 
 		return ManifoldPoint;
 	}
+
+	bool FRigidBodyPointContactConstraint::CanUseManifold(FGeometryParticleHandle* Particle0, FGeometryParticleHandle* Particle1) const
+	{
+		// Do not use manifolds when a body is connected by a joint to another. Manifolds do not work when the bodies may be moved
+		// and rotated by significant amounts and joints can do that.
+		return (Particle0->ParticleConstraints().Num() == 0) && (Particle1->ParticleConstraints().Num() == 0);
+	}
 }
