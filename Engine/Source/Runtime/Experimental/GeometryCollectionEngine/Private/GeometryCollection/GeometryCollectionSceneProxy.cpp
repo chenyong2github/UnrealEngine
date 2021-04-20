@@ -1167,7 +1167,6 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		FPrimitiveInstance& Instance = Instances[GeometryIndex];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal.SetIdentity();
-		Instance.LocalToInstance.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
 		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
 		Instance.LocalBounds = Instance.RenderBounds;
@@ -1260,7 +1259,6 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 		FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
 
 		Instance.InstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
-		Instance.LocalToInstance	= Instance.LocalToWorld.Inverse();
 		Instance.LocalToWorld		= Instance.InstanceToLocal;
 		Instance.PrimitiveId		= NaniteData.PrimitiveId;
 		Instance.RenderBounds		= NaniteData.RenderBounds;
@@ -1299,7 +1297,6 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 			FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
 
 			Instance.InstanceToLocal	= NewDynamicData->Transforms[TransformIndex];
-			Instance.LocalToInstance	= Instance.LocalToWorld.Inverse();
 			Instance.LocalToWorld		= Instance.InstanceToLocal;
 			Instance.PrimitiveId		= NaniteData.PrimitiveId;
 			Instance.RenderBounds		= NaniteData.RenderBounds;

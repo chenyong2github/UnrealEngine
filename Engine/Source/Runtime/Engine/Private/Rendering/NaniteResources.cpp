@@ -520,7 +520,6 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.PrimitiveId = ~uint32(0);
 	Instance.InstanceToLocal.SetIdentity();
-	Instance.LocalToInstance.SetIdentity();
 	Instance.LocalToWorld.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
@@ -556,7 +555,6 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		}
 
 		Instance.LocalToWorld = Instance.InstanceToLocal;
-		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
 		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);

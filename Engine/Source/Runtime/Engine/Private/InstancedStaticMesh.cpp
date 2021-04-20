@@ -1268,8 +1268,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 				Instance.PrevInstanceToLocal = InstancePrevTransform.ToMatrixWithScale();
 			}
 
-			// GPUCULL_TODO: not sure this is needed either - might be better to delegate to later anyway since inverse can then be threaded, plus some platforms might not need it at all.
-			Instance.LocalToInstance = Instance.InstanceToLocal.Inverse();
 			// Filled in during GPU Scene update...
 			Instance.LocalToWorld.SetIdentity();
 			Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();

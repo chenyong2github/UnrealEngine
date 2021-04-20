@@ -5662,7 +5662,6 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 		FPrimitiveInstance& Instance = Instances[0];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal.SetIdentity();
-		Instance.LocalToInstance.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
 		Instance.RenderBounds = GetLocalBounds();
 		Instance.LocalBounds = Instance.RenderBounds;

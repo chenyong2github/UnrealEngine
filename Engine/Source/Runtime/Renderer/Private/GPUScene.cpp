@@ -233,7 +233,6 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	// provided by the proxy. However, this is a lot of work before we can just enable it in the base proxy class.
 	DummyInstance.InstanceToLocal = FMatrix::Identity;
 	DummyInstance.PrevInstanceToLocal = FMatrix::Identity;
-	DummyInstance.LocalToInstance = FMatrix::Identity;
 	DummyInstance.LocalToWorld = FMatrix::Identity;
 	DummyInstance.PrevLocalToWorld = FMatrix::Identity;
 	DummyInstance.NonUniformScale = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
