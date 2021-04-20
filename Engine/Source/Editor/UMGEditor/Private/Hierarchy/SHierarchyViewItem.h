@@ -330,6 +330,7 @@ protected:
 private:
 	FWidgetReference Item;
 	bool bEditing;
+	bool bNameTextValid;
 };
 
 /**

@@ -92,7 +92,7 @@ public:
 };
 
 bool FWidgetBlueprintEditorUtils::VerifyWidgetRename(TSharedRef<class FWidgetBlueprintEditor> BlueprintEditor, FWidgetReference Widget, const FText& NewName, FText& OutErrorMessage)
-{
+{	
 	if (NewName.IsEmptyOrWhitespace())
 	{
 		OutErrorMessage = LOCTEXT("EmptyWidgetName", "Empty Widget Name");
@@ -226,15 +226,15 @@ bool FWidgetBlueprintEditorUtils::RenameWidget(TSharedRef<FWidgetBlueprintEditor
 		// Rename Preview before renaming the template widget so the preview widget can be found
 		UWidget* WidgetPreview = BlueprintEditor->GetReferenceFromTemplate(Widget).GetPreview();
 		if(WidgetPreview)
-		{
-			WidgetPreview->SetDisplayLabel(NewDisplayName);
+		{			
+			WidgetPreview->SetDisplayLabel(NewNameStr);
 			WidgetPreview->Rename(*NewNameStr);
 		}
 
 		if (!WidgetPreview || WidgetPreview != Widget)
 		{
 			// Find and update all variable references in the graph
-			Widget->SetDisplayLabel(NewDisplayName);
+			Widget->SetDisplayLabel(NewNameStr);
 			Widget->Rename(*NewNameStr);
 		}
 

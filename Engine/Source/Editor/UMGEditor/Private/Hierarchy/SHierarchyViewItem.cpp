@@ -1054,6 +1054,7 @@ FHierarchyWidget::FHierarchyWidget(FWidgetReference InItem, TSharedPtr<FWidgetBl
 	: FHierarchyModel(InBlueprintEditor)
 	, Item(InItem)
 	, bEditing(false)
+	, bNameTextValid(false)
 {
 }
 
@@ -1209,13 +1210,18 @@ FReply FHierarchyWidget::HandleAcceptDrop(const FDragDropEvent& DragDropEvent, E
 }
 
 bool FHierarchyWidget::OnVerifyNameTextChanged(const FText& InText, FText& OutErrorMessage)
-{
-	return FWidgetBlueprintEditorUtils::VerifyWidgetRename(BlueprintEditor.Pin().ToSharedRef(), Item, InText, OutErrorMessage);
+{	
+	 bNameTextValid = FWidgetBlueprintEditorUtils::VerifyWidgetRename(BlueprintEditor.Pin().ToSharedRef(), Item, InText, OutErrorMessage);
+	 return bNameTextValid;
 }
 
 void FHierarchyWidget::OnNameTextCommited(const FText& InText, ETextCommit::Type CommitInfo)
 {
-	FWidgetBlueprintEditorUtils::RenameWidget(BlueprintEditor.Pin().ToSharedRef(), Item.GetTemplate()->GetFName(), InText.ToString());
+	if (CommitInfo == ETextCommit::OnEnter || bNameTextValid)
+	{
+		FWidgetBlueprintEditorUtils::RenameWidget(BlueprintEditor.Pin().ToSharedRef(), Item.GetTemplate()->GetFName(), InText.ToString());
+	}
+	bNameTextValid = false;
 }
 
 void FHierarchyWidget::GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children)
