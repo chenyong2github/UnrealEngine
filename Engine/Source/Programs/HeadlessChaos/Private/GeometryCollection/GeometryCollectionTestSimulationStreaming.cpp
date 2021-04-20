@@ -52,7 +52,7 @@ namespace GeometryCollectionTest
 				// todo: this is crashing
 				UnitTest.Solver->RegisterObject(Collection->PhysObject);
 				UnitTest.Solver->AddDirtyProxy(Collection->PhysObject);
-				Collection->PhysObject->Initialize();
+				Collection->PhysObject->Initialize(UnitTest.Solver->GetEvolution());
 			}
 		}
 		
@@ -98,7 +98,7 @@ namespace GeometryCollectionTest
 				// todo: this is crashing
 				UnitTest.Solver->RegisterObject(Collection->PhysObject);
 				UnitTest.Solver->AddDirtyProxy(Collection->PhysObject);
-				Collection->PhysObject->Initialize();
+				Collection->PhysObject->Initialize(UnitTest.Solver->GetEvolution());
 			}
 		}
 		
@@ -159,7 +159,7 @@ namespace GeometryCollectionTest
 				// todo: this is crashing
 				UnitTest.Solver->RegisterObject(Collection->PhysObject);
 				UnitTest.Solver->AddDirtyProxy(Collection->PhysObject);
-				Collection->PhysObject->Initialize();
+				Collection->PhysObject->Initialize(UnitTest.Solver->GetEvolution());
 			}
 		}
 	
