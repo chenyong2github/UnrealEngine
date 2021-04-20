@@ -1542,53 +1542,64 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 			FString String = CurveModel->GetLongDisplayName().ToString();
 			StringArray.SetNum(0);
 			String.ParseIntoArray(StringArray, TEXT("."));
-			if (StringArray.Num()  > 2)
+			if (StringArray.Num() > 2)
 			{
 				//Not great but it should always be the third name
 				FName ControlName(*StringArray[2]);
 				ControlRig->SelectControl(ControlName, bDisplayed);
 				if (bDisplayed)
 				{
-					DisplayedChannels.Add(FCurveModel->GetChannelHandle());
+					DisplayedControls.Add(ControlName);
 				}
 				else
 				{
-					UnDisplayedChannels.Add(FCurveModel->GetChannelHandle());
+					UnDisplayedControls.Add(ControlName);
 				}
-
 			}
 			else
 			{
 				UE_LOG(LogControlRigEditor, Display, TEXT("Could not find Rig Control From FCurveModel::LongName"));
 			}
-		}
-		if(bCurveDisplayTickIsPending == false)
-		{
-			bCurveDisplayTickIsPending = true;
-			GEditor->GetTimerManager()->SetTimerForNextTick([MovieSection, this]()
-			{
-				if (DisplayedChannels.Num() > 0 || UnDisplayedChannels.Num() > 0)
-				{
-					TGuardValue<bool> Guard(bIsDoingSelection, true);
 
-					bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
-					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
-					if (UnDisplayedChannels.Num() > 0)
+			if (bCurveDisplayTickIsPending == false)
+			{
+				bCurveDisplayTickIsPending = true;
+				GEditor->GetTimerManager()->SetTimerForNextTick([MovieSection, bDisplayed, this]()
+				{
+
+					if (DisplayedControls.Num() > 0 || UnDisplayedControls.Num() > 0)
 					{
-						GetSequencer()->SelectByChannels(MovieSection, UnDisplayedChannels, false, false);
-					}
-					if (DisplayedChannels.Num() > 0)
-					{
-						GetSequencer()->SelectByChannels(MovieSection, DisplayedChannels, false, true);
-					}
-					GetSequencer()->RefreshTree();
-					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
-				}
-				UnDisplayedChannels.SetNum(0);
-				DisplayedChannels.SetNum(0);
-				bCurveDisplayTickIsPending = false;
-			});
-			
+						TGuardValue<bool> Guard(bIsDoingSelection, true);
+						UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(MovieSection);
+						bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
+						GetSequencer()->SuspendSelectionBroadcast();
+						GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
+						if (UnDisplayedControls.Num() > 0)
+						{
+							for (const FName& ControlName : UnDisplayedControls)
+							{
+								SelectSequencerNodeInSection(ParamSection, ControlName, false);
+							}
+							UnDisplayedControls.Empty();
+						}
+						if (DisplayedControls.Num() > 0)
+						{
+							for (const FName& ControlName : DisplayedControls)
+							{
+								SelectSequencerNodeInSection(ParamSection, ControlName, true);
+							}
+							DisplayedControls.Empty();
+						}
+						GetSequencer()->ResumeSelectionBroadcast(); //need to resume first so when we refreh the tree we do the Selection.Tick, which since syncing is off won't 
+																	//mess up the curve editor.
+						GetSequencer()->RefreshTree();
+						GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
+					};
+					bCurveDisplayTickIsPending = false;
+	
+				});
+
+			}
 		}
 		
 	}
@@ -1805,6 +1816,39 @@ FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEdito
 	return Result;
 }
 
+void FControlRigParameterTrackEditor::SelectSequencerNodeInSection(UMovieSceneControlRigParameterSection* ParamSection, const FName& ControlName, bool bSelected)
+{
+	if (ParamSection)
+	{
+		FChannelMapInfo* pChannelIndex = ParamSection->ControlChannelMap.Find(ControlName);
+		if (pChannelIndex != nullptr)
+		{
+			if (pChannelIndex->ParentControlIndex == INDEX_NONE)
+			{
+				GetSequencer()->SelectByNthCategoryNode(ParamSection, pChannelIndex->ControlIndex, bSelected);
+			}
+			else
+			{
+				const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+
+				FMovieSceneChannelProxy& ChannelProxy = ParamSection->GetChannelProxy();
+				for (const FMovieSceneChannelEntry& Entry : ParamSection->GetChannelProxy().GetAllEntries())
+				{
+					const FName ChannelTypeName = Entry.GetChannelTypeName();
+					if (pChannelIndex->ChannelTypeName == ChannelTypeName || (ChannelTypeName == FloatChannelTypeName && pChannelIndex->ChannelTypeName == NAME_None))
+					{
+						FMovieSceneChannelHandle Channel = ChannelProxy.MakeHandle(ChannelTypeName, pChannelIndex->ChannelIndex);
+						TArray<FMovieSceneChannelHandle> Channels;
+						Channels.Add(Channel);
+						GetSequencer()->SelectByChannels(ParamSection, Channels, false, bSelected);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
 
 void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
 {
@@ -1850,43 +1894,11 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
 		if (Track)
 		{
-			float Weight = 1.0f;
-			TArray<IKeyArea> KeyAreas;
-			TArray<FString> StringArray;
 			GetSequencer()->SuspendSelectionBroadcast();
-
 			for (UMovieSceneSection* Section : Track->GetAllSections())
 			{
 				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Section);
-				if (ParamSection)
-				{
-					FChannelMapInfo* pChannelIndex = ParamSection->ControlChannelMap.Find(Control.Name);
-					if (pChannelIndex != nullptr)
-					{
-						if (pChannelIndex->ParentControlIndex == INDEX_NONE)
-						{
-							GetSequencer()->SelectByNthCategoryNode(Section, pChannelIndex->ControlIndex, bSelected);
-						}
-						else
-						{
-							const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
-
-							FMovieSceneChannelProxy& ChannelProxy = Section->GetChannelProxy();
-							for (const FMovieSceneChannelEntry& Entry : Section->GetChannelProxy().GetAllEntries())
-							{
-								const FName ChannelTypeName = Entry.GetChannelTypeName();
-								if (pChannelIndex->ChannelTypeName == ChannelTypeName || (ChannelTypeName == FloatChannelTypeName && pChannelIndex->ChannelTypeName == NAME_None))
-								{
-									FMovieSceneChannelHandle Channel = ChannelProxy.MakeHandle(ChannelTypeName, pChannelIndex->ChannelIndex);
-									TArray<FMovieSceneChannelHandle> Channels;
-									Channels.Add(Channel);
-									GetSequencer()->SelectByChannels(Section, Channels, false, bSelected);
-									break;
-								}
-							}
-						}
-					}
-				}
+				SelectSequencerNodeInSection(ParamSection,Control.Name, bSelected);
 			}
 			GetSequencer()->ResumeSelectionBroadcast();
 
