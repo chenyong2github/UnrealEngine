@@ -15,6 +15,8 @@
 class SLATE_API SColorGradingWheel
 	: public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SColorGradingWheel, SLeafWidget)
+
 public:
 
 	DECLARE_DELEGATE_OneParam(FOnColorGradingWheelMouseCapture, const FLinearColor&);
@@ -32,10 +34,8 @@ public:
 		/** The current color selected by the user. */
 		SLATE_ATTRIBUTE(FLinearColor, SelectedColor)
 		
-		/** The current color selected by the user. */
 		SLATE_ATTRIBUTE(int32, DesiredWheelSize)
 
-		/** The current color selected by the user. */
 		SLATE_ATTRIBUTE(float, ExponentDisplacement)
 		
 		/** Invoked when the mouse is pressed and a capture begins. */
@@ -50,6 +50,7 @@ public:
 	SLATE_END_ARGS()
 	
 public:
+	SColorGradingWheel();
 
 	/**
 	 * Construct this widget.
@@ -85,15 +86,26 @@ protected:
 	 */
 	bool ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bProcessWhenOutsideColorWheel);
 
+	/** */
+	void SetSelectedColorAttribute(TAttribute<FLinearColor> InSelectedColor);
+
+	/** */
+	void SetDesiredWheelSizeAttribute(TAttribute<int32> InDesiredWheelSize);
+
+	/** */
+	void SetExponentDisplacementAttribute(TAttribute<float> InExponentDisplacement);
+
+	/** @return an attribute reference of SelectedColor */
+	TSlateAttributeRef<FLinearColor> GetSelectedColorAttribute() const { return TSlateAttributeRef<FLinearColor>(*this, SelectedColorAttribute); }
+
+	/** @return an attribute reference of DesiredWheelSize */
+	TSlateAttributeRef<int32> GetDesiredWheelSizeAttribute() const { return TSlateAttributeRef<int32>(*this, DesiredWheelSizeAttribute); }
+
+	/** @return an attribute reference of ExponentDisplacement */
+	TSlateAttributeRef<float> GetExponentDisplacementAttribute() const { return TSlateAttributeRef<float>(*this, ExponentDisplacementAttribute); }
+
 	/** The color wheel image to show. */
 	const FSlateBrush* Image;
-	
-	/** The current color selected by the user. */
-	TAttribute< FLinearColor > SelectedColor;
-	
-	TAttribute< int32 > DesiredWheelSize;
-
-	TAttribute<float> ExponentDisplacement;
 
 	/** The color selector image to show. */
 	const FSlateBrush* SelectorImage;
@@ -106,4 +118,31 @@ protected:
 
 	/** Invoked when a new value is selected on the color wheel. */
 	FOnColorGradingWheelValueChanged OnValueChanged;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Direct access to SelectedColor is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<FLinearColor> SelectedColor;
+	UE_DEPRECATED(5.0, "Direct access to DesiredWheelSize is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<int32> DesiredWheelSize;
+	UE_DEPRECATED(5.0, "Direct access to DesiredSizeOverride is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<float> ExponentDisplacement;
+#endif
+
+private:
+	/** The current color selected by the user. */
+	TSlateAttribute<FLinearColor> SelectedColorAttribute;
+
+	TSlateAttribute<int32> DesiredWheelSizeAttribute;
+	TSlateAttribute<float> ExponentDisplacementAttribute;
+
+	/** Flags used to check if the SlateAttribute is set. */
+	union
+	{
+		struct
+		{
+			uint8 bIsAttributeDesiredWheelSizeSet : 1;
+			uint8 bIsAttributeExponentDisplacementSet : 1;
+		};
+		uint8 Union_IsAttributeSet;
+	};
 };

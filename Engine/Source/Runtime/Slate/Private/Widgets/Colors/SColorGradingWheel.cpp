@@ -4,7 +4,21 @@
 #include "Rendering/RenderingCommon.h"
 #include "Rendering/DrawElements.h"
 
+SLATE_IMPLEMENT_WIDGET(SColorGradingWheel)
+void SColorGradingWheel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "SelectedColor", SelectedColorAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "DesiredWheelSize", DesiredWheelSizeAttribute, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "ExponentDisplacement", ExponentDisplacementAttribute, EInvalidateWidgetReason::Paint);
+}
 
+SColorGradingWheel::SColorGradingWheel()
+	: SelectedColorAttribute(*this)
+	, DesiredWheelSizeAttribute(*this)
+	, ExponentDisplacementAttribute(*this)
+	, Union_IsAttributeSet(0)
+{
+}
 
 /* SColorGradingWheel methods
  *****************************************************************************/
@@ -13,12 +27,43 @@ void SColorGradingWheel::Construct(const FArguments& InArgs)
 {
 	Image = FCoreStyle::Get().GetBrush("ColorGradingWheel.HueValueCircle");
 	SelectorImage = FCoreStyle::Get().GetBrush("ColorGradingWheel.Selector");
-	SelectedColor = InArgs._SelectedColor;
-	DesiredWheelSize = InArgs._DesiredWheelSize;
-	ExponentDisplacement = InArgs._ExponentDisplacement;
+	SetSelectedColorAttribute(InArgs._SelectedColor);
+	SetDesiredWheelSizeAttribute(InArgs._DesiredWheelSize);
+	SetExponentDisplacementAttribute(InArgs._ExponentDisplacement);
 	OnMouseCaptureBegin = InArgs._OnMouseCaptureBegin;
 	OnMouseCaptureEnd = InArgs._OnMouseCaptureEnd;
 	OnValueChanged = InArgs._OnValueChanged;
+}
+
+void SColorGradingWheel::SetSelectedColorAttribute(TAttribute<FLinearColor> InSelectedColor)
+{
+	SelectedColorAttribute.Assign(*this, MoveTemp(InSelectedColor));
+}
+
+void SColorGradingWheel::SetDesiredWheelSizeAttribute(TAttribute<int32> InDesiredWheelSize)
+{
+	const bool bDesiredWheelSizeSetChanged = (bIsAttributeDesiredWheelSizeSet != InDesiredWheelSize.IsSet());
+	bIsAttributeDesiredWheelSizeSet = InDesiredWheelSize.IsSet();
+	const bool bAttributeWasAssgined = DesiredWheelSizeAttribute.Assign(*this, MoveTemp(InDesiredWheelSize));
+
+	// If the assign didn't invalidate the widget but the attribute set changed, then invalidate the widget.
+	if (bDesiredWheelSizeSetChanged && !bAttributeWasAssgined)
+	{
+		Invalidate(EInvalidateWidgetReason::Layout);
+	}
+}
+
+void SColorGradingWheel::SetExponentDisplacementAttribute(TAttribute<float> InExponentDisplacement)
+{
+	const bool bExponentDisplacementSetChanged = (bIsAttributeExponentDisplacementSet != InExponentDisplacement.IsSet());
+	bIsAttributeExponentDisplacementSet = InExponentDisplacement.IsSet();
+	const bool bAttributeWasAssgined = ExponentDisplacementAttribute.Assign(*this, MoveTemp(InExponentDisplacement), 1.f);
+
+	// If the assign didn't invalidate the widget but the attribute set changed, then invalidate the widget.
+	if (bExponentDisplacementSetChanged && !bAttributeWasAssgined)
+	{
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
 }
 
 
@@ -27,9 +72,9 @@ void SColorGradingWheel::Construct(const FArguments& InArgs)
 
 FVector2D SColorGradingWheel::ComputeDesiredSize(float) const
 {
-	if (DesiredWheelSize.IsSet())
+	if (bIsAttributeDesiredWheelSizeSet)
 	{
-		int32 CachedDesiredWheelSize = DesiredWheelSize.Get();
+		int32 CachedDesiredWheelSize = DesiredWheelSizeAttribute.Get();
 		return FVector2D(CachedDesiredWheelSize, CachedDesiredWheelSize);
 	}
 	return Image->ImageSize;
@@ -46,11 +91,19 @@ FReply SColorGradingWheel::OnMouseButtonDown(const FGeometry& MyGeometry, const 
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		OnMouseCaptureBegin.ExecuteIfBound(SelectedColor.Get());
+		if (OnMouseCaptureBegin.IsBound())
+		{
+			SelectedColorAttribute.UpdateNow(*this);
+			OnMouseCaptureBegin.Execute(SelectedColorAttribute.Get());
+		}
 
 		if (!ProcessMouseAction(MyGeometry, MouseEvent, false))
 		{
-			OnMouseCaptureEnd.ExecuteIfBound(SelectedColor.Get());
+			if (OnMouseCaptureEnd.IsBound())
+			{
+				SelectedColorAttribute.UpdateNow(*this);
+				OnMouseCaptureEnd.Execute(SelectedColorAttribute.Get());
+			}
 			return FReply::Unhandled();
 		}
 
@@ -65,7 +118,11 @@ FReply SColorGradingWheel::OnMouseButtonUp(const FGeometry& MyGeometry, const FP
 {
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HasMouseCapture())
 	{
-		OnMouseCaptureEnd.ExecuteIfBound(SelectedColor.Get());
+		if (OnMouseCaptureEnd.IsBound())
+		{
+			SelectedColorAttribute.UpdateNow(*this);
+			OnMouseCaptureEnd.Execute(SelectedColorAttribute.Get());
+		}
 
 		return FReply::Handled().ReleaseMouseCapture();
 	}
@@ -94,9 +151,9 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 	const FVector2D& SelectorSize = SelectorImage->ImageSize;
 	FVector2D CircleSize = AllottedGeometry.GetLocalSize() - SelectorSize;
 	FVector2D AllottedGeometrySize = AllottedGeometry.GetLocalSize();
-	if (DesiredWheelSize.IsSet())
+	if (bIsAttributeDesiredWheelSizeSet)
 	{
-		int32 CachedDesiredWheelSize = DesiredWheelSize.Get();
+		int32 CachedDesiredWheelSize = DesiredWheelSizeAttribute.Get();
 		CircleSize.X = (float)CachedDesiredWheelSize - SelectorSize.X;
 		CircleSize.Y = (float)CachedDesiredWheelSize - SelectorSize.Y;
 		AllottedGeometrySize.X = CachedDesiredWheelSize;
@@ -130,12 +187,12 @@ int32 SColorGradingWheel::OnPaint(const FPaintArgs& Args, const FGeometry& Allot
 
 FVector2D SColorGradingWheel::CalcRelativePositionFromCenter() const
 {
-	float Hue = SelectedColor.Get().R;
-	float Saturation = SelectedColor.Get().G;
-	if (ExponentDisplacement.IsSet() && ExponentDisplacement.Get() != 1.0f && !FMath::IsNearlyEqual(ExponentDisplacement.Get(), 0.0f, 0.00001f))
+	float Hue = SelectedColorAttribute.Get().R;
+	float Saturation = SelectedColorAttribute.Get().G;
+	if (bIsAttributeExponentDisplacementSet && ExponentDisplacementAttribute.Get() != 1.0f && !FMath::IsNearlyEqual(ExponentDisplacementAttribute.Get(), 0.0f, 0.00001f))
 	{
 		//Use log curve to set the distance G value
-		Saturation = FMath::Pow(Saturation, 1.0f / ExponentDisplacement.Get());
+		Saturation = FMath::Pow(Saturation, 1.0f / ExponentDisplacementAttribute.Get());
 	}
 	float Angle = Hue / 180.0f * PI;
 	float Radius = Saturation;
@@ -147,9 +204,10 @@ FVector2D SColorGradingWheel::CalcRelativePositionFromCenter() const
 bool SColorGradingWheel::ProcessMouseAction(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bProcessWhenOutsideColorWheel)
 {
 	FVector2D GeometrySize = MyGeometry.GetLocalSize();
-	if (DesiredWheelSize.IsSet())
+	if (bIsAttributeDesiredWheelSizeSet)
 	{
-		int32 CachedDesiredWheelSize = DesiredWheelSize.Get();
+		DesiredWheelSizeAttribute.UpdateNow(*this);
+		int32 CachedDesiredWheelSize = DesiredWheelSizeAttribute.Get();
 		GeometrySize.X = CachedDesiredWheelSize;
 		GeometrySize.Y = CachedDesiredWheelSize;
 	}
@@ -167,14 +225,15 @@ bool SColorGradingWheel::ProcessMouseAction(const FGeometry& MyGeometry, const F
 			Angle += 2.0f * PI;
 		}
 
-		FLinearColor NewColor = SelectedColor.Get();
+		SelectedColorAttribute.UpdateNow(*this);
+		FLinearColor NewColor = SelectedColorAttribute.Get();
 		{
 			NewColor.R = Angle * 180.0f * INV_PI;
 			float LinearRadius = FMath::Min(RelativeRadius, 1.0f);
-			if (ExponentDisplacement.IsSet() && ExponentDisplacement.Get() != 1.0f)
+			if (bIsAttributeExponentDisplacementSet && ExponentDisplacementAttribute.Get() != 1.0f)
 			{
 				//Use log curve to set the distance G value
-				float LogDistance = FMath::Pow(LinearRadius, ExponentDisplacement.Get());
+				float LogDistance = FMath::Pow(LinearRadius, ExponentDisplacementAttribute.Get());
 				NewColor.G = LogDistance;
 			}
 			else

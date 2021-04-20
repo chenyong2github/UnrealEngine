@@ -5,6 +5,31 @@
 #include "Styling/CoreStyle.h"
 
 
+SLATE_IMPLEMENT_WIDGET(SColorBlock)
+void SColorBlock::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, Color, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, AlphaBackgroundBrush, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, GradientCornerRadius, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, ColorBlockSize, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, AlphaDisplayMode, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, ColorIsHSV, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, ShowBackgroundForAlpha, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, bUseSRGB, EInvalidateWidgetReason::Paint);
+}
+
+SColorBlock::SColorBlock()
+	: Color(*this)
+	, AlphaBackgroundBrush(*this)
+	, GradientCornerRadius(*this)
+	, ColorBlockSize(*this)
+	, AlphaDisplayMode(*this)
+	, ColorIsHSV(*this)
+	, ShowBackgroundForAlpha(*this)
+	, bUseSRGB(*this)
+{
+}
+
 /**
  * Construct this widget
  *
@@ -12,15 +37,15 @@
  */
 void SColorBlock::Construct(const FArguments& InArgs)
 {
-	Color = InArgs._Color;
-	AlphaBackgroundBrush = InArgs._AlphaBackgroundBrush;
-	GradientCornerRadius = InArgs._CornerRadius;
-	ColorIsHSV = InArgs._ColorIsHSV;
-	AlphaDisplayMode = InArgs._AlphaDisplayMode;
-	ShowBackgroundForAlpha = InArgs._ShowBackgroundForAlpha;
+	Color.Assign(*this, InArgs._Color);
+	AlphaBackgroundBrush.Assign(*this, InArgs._AlphaBackgroundBrush);
+	GradientCornerRadius.Assign(*this, InArgs._CornerRadius, FVector4(0.0f));
+	ColorBlockSize.Assign(*this, InArgs._Size);
 	MouseButtonDownHandler = InArgs._OnMouseButtonDown;
-	bUseSRGB = InArgs._UseSRGB;
-	ColorBlockSize = InArgs._Size;
+	AlphaDisplayMode.Assign(*this, InArgs._AlphaDisplayMode);
+	ColorIsHSV.Assign(*this, InArgs._ColorIsHSV);
+	ShowBackgroundForAlpha.Assign(*this, InArgs._ShowBackgroundForAlpha);
+	bUseSRGB.Assign(*this, InArgs._UseSRGB);
 }
 
 int32 SColorBlock::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -64,7 +89,7 @@ int32 SColorBlock::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 		MoveTemp(GradientStops),
 		(AllottedGeometry.GetLocalSize().X > AllottedGeometry.GetLocalSize().Y) ? Orient_Vertical : Orient_Horizontal,
 		DrawEffects,
-		GradientCornerRadius.Get(FVector4(0.0f))
+		GradientCornerRadius.Get()
 	);
 
 

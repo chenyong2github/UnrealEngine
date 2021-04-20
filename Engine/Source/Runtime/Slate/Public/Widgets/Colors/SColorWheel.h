@@ -43,6 +43,7 @@ public:
 	SLATE_END_ARGS()
 	
 public:
+	SColorWheel();
 
 	/**
 	 * Construct this widget.
@@ -84,7 +85,7 @@ private:
 	const FSlateBrush* Image;
 	
 	/** The current color selected by the user. */
-	TAttribute< FLinearColor > SelectedColor;
+	TSlateAttribute<FLinearColor, EInvalidateWidgetReason::Paint> SelectedColor;
 
 	/** The color selector image to show. */
 	const FSlateBrush* SelectorImage;

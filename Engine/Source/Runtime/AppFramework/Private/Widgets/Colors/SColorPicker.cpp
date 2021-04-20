@@ -881,7 +881,7 @@ TSharedRef<SWidget> SColorPicker::MakeColorSlider( EColorPickerChannels Channel 
 				.EndColor(this, &SColorPicker::HandleColorSliderEndColor, Channel)
 				.StartColor(this, &SColorPicker::HandleColorSliderStartColor, Channel)
 				.Orientation(Orient_Horizontal)
-				.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
+				//.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB)
 		]
 
 	+ SOverlay::Slot()
@@ -930,8 +930,8 @@ TSharedRef<SWidget> SColorPicker::MakeColorSpinBox( EColorPickerChannels Channel
 		GradientWidget = SNew(SSimpleGradient)
 			.StartColor(this, &SColorPicker::GetGradientStartColor, Channel)
 			.EndColor(this, &SColorPicker::GetGradientEndColor, Channel)
-			.HasAlphaBackground(Channel == EColorPickerChannels::Alpha)
-			.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB);
+			.HasAlphaBackground(Channel == EColorPickerChannels::Alpha);
+			//.UseSRGB(SharedThis(this), &SColorPicker::HandleColorPickerUseSRGB);
 	}
 	
 	// create spin box

@@ -7,6 +7,8 @@
 
 
 SComplexGradient::SComplexGradient()
+	: GradientColors(*this)
+	, DesiredSizeOverride(*this)
 {
 	SetCanTick(false);
 }
@@ -16,10 +18,10 @@ SComplexGradient::SComplexGradient()
 
 void SComplexGradient::Construct( const FArguments& InArgs )
 {
-	DesiredSizeOverride = InArgs._DesiredSizeOverride;
-	GradientColors = InArgs._GradientColors;
-	bHasAlphaBackground = InArgs._HasAlphaBackground.Get();
-	Orientation = InArgs._Orientation.Get();
+	DesiredSizeOverride.Assign(*this, InArgs._DesiredSizeOverride);
+	GradientColors.Assign(*this, InArgs._GradientColors);
+	bHasAlphaBackground = InArgs._HasAlphaBackground;
+	Orientation = InArgs._Orientation;
 }
 
 

@@ -4,6 +4,9 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 
+SColorWheel::SColorWheel()
+	: SelectedColor(*this)
+{}
 
 /* SColorWheel methods
  *****************************************************************************/
@@ -12,7 +15,7 @@ void SColorWheel::Construct(const FArguments& InArgs)
 {
 	Image = FCoreStyle::Get().GetBrush("ColorWheel.HueValueCircle");
 	SelectorImage = FCoreStyle::Get().GetBrush("ColorWheel.Selector");
-	SelectedColor = InArgs._SelectedColor;
+	SelectedColor.Assign(*this, InArgs._SelectedColor);
 
 	OnMouseCaptureBegin = InArgs._OnMouseCaptureBegin;
 	OnMouseCaptureEnd = InArgs._OnMouseCaptureEnd;
@@ -138,6 +141,7 @@ bool SColorWheel::ProcessMouseAction(const FGeometry& MyGeometry, const FPointer
 			Angle += 2.0f * PI;
 		}
 
+		SelectedColor.UpdateNow(*this);
 		FLinearColor NewColor = SelectedColor.Get();
 		{
 			NewColor.R = Angle * 180.0f * INV_PI;

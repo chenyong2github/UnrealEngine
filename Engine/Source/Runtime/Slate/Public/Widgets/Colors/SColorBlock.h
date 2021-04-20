@@ -24,6 +24,8 @@ enum class EColorBlockAlphaDisplayMode : uint8
 
 class SLATE_API SColorBlock : public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SColorBlock, SLeafWidget)
+
 public:
 
 	SLATE_BEGIN_ARGS(SColorBlock)
@@ -77,6 +79,9 @@ public:
 
 	SLATE_END_ARGS()
 
+public:
+	SColorBlock();
+
 	/**
 	 * Construct this widget
 	 *
@@ -91,29 +96,29 @@ private:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 
 	void MakeSection(TArray<FSlateGradientStop>& OutGradientStops, FVector2D StartPt, FVector2D EndPt, FLinearColor Color, const FWidgetStyle& InWidgetStyle, bool bIgnoreAlpha) const;
+
 private:
-
 	/** The color to display for this color block */
-	TAttribute<FLinearColor> Color;
+	TSlateAttribute<FLinearColor> Color;
 
-	TAttribute<const FSlateBrush*> AlphaBackgroundBrush;
+	TSlateAttribute<const FSlateBrush*> AlphaBackgroundBrush;
 
-	TAttribute<FVector4> GradientCornerRadius;
+	TSlateAttribute<FVector4> GradientCornerRadius;
 
-	/** Whether the color displayed is HSV or not */
-	TAttribute<bool> ColorIsHSV;
-
-	/** Whether to ignore alpha entirely from the input color */
-	TAttribute<EColorBlockAlphaDisplayMode> AlphaDisplayMode;
-
-	/** Whether to display a background for viewing opacity. Irrelevant if ignoring alpha */
-	TAttribute<bool> ShowBackgroundForAlpha;
-
-	/** Whether to display sRGB color */
-	TAttribute<bool> bUseSRGB;
+	TSlateAttribute<FVector2D> ColorBlockSize;
 
 	/** A handler to activate when the mouse is pressed. */
 	FPointerEventHandler MouseButtonDownHandler;
 
-	TAttribute<FVector2D> ColorBlockSize;
+	/** Whether to ignore alpha entirely from the input color */
+	TSlateAttribute<EColorBlockAlphaDisplayMode> AlphaDisplayMode;
+
+	/** Whether the color displayed is HSV or not */
+	TSlateAttribute<bool> ColorIsHSV;
+
+	/** Whether to display a background for viewing opacity. Irrelevant if ignoring alpha */
+	TSlateAttribute<bool> ShowBackgroundForAlpha;
+
+	/** Whether to display sRGB color */
+	TSlateAttribute<bool> bUseSRGB;
 };

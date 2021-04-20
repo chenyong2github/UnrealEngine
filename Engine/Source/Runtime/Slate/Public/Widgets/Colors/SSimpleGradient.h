@@ -23,7 +23,6 @@ public:
 			, _EndColor(FLinearColor(1.0f, 1.0f, 1.0f))
 			, _HasAlphaBackground(false)
 			, _Orientation(Orient_Vertical)
-			, _UseSRGB(true)
 		{ }
 
 		/** The leftmost gradient color */
@@ -39,9 +38,15 @@ public:
 		SLATE_ATTRIBUTE(EOrientation, Orientation)
 
 		/** Whether to display sRGB color */
-		SLATE_ATTRIBUTE(bool, UseSRGB)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		UE_DEPRECATED(5.0, "UseSRGB is unused")
+		SLATE_ARGUMENT_DEFAULT(bool, UseSRGB) = true;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_END_ARGS()
+
+public:
+	SSimpleGradient();
 
 	/**
 	 * Constructs the widget
@@ -59,17 +64,14 @@ protected:
 private:
 
 	/** The leftmost gradient color */
-	TAttribute<FLinearColor> StartColor;
+	TSlateAttribute<FLinearColor, EInvalidateWidgetReason::Paint> StartColor;
 
 	/** The rightmost gradient color */
-	TAttribute<FLinearColor> EndColor;
+	TSlateAttribute<FLinearColor, EInvalidateWidgetReason::Paint> EndColor;
 
 	/** Whether a checker background is displayed for alpha viewing */
 	bool bHasAlphaBackground;
 	
 	/** Horizontal or vertical gradient */
 	EOrientation Orientation;
-
-	/** Whether to display sRGB color */
-	TAttribute<bool> UseSRGB;
 };

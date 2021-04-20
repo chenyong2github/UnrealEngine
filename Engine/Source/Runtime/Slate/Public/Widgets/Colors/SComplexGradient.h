@@ -30,10 +30,10 @@ public:
 		SLATE_ATTRIBUTE(TArray<FLinearColor>, GradientColors)
 
 		/** Whether a checker background is displayed for alpha viewing */
-		SLATE_ATTRIBUTE(bool, HasAlphaBackground)
+		SLATE_ARGUMENT(bool, HasAlphaBackground)
 		
 		/** Horizontal or vertical gradient */
-		SLATE_ATTRIBUTE(EOrientation, Orientation)
+		SLATE_ARGUMENT(EOrientation, Orientation)
 
 		/** When specified use this as the gradients desired size */
 		SLATE_ATTRIBUTE(TOptional<FVector2D>, DesiredSizeOverride)
@@ -58,10 +58,10 @@ protected:
 private:
 
 	/** The colors used in the gradient. */
-	TAttribute<TArray<FLinearColor>> GradientColors;
+	TSlateAttribute<TArray<FLinearColor>, EInvalidateWidgetReason::Paint> GradientColors;
 
-	/** Optiona override for desired size */
-	TAttribute<TOptional<FVector2D>> DesiredSizeOverride;
+	/** Optional override for desired size */
+	TSlateAttribute<TOptional<FVector2D>, EInvalidateWidgetReason::Layout> DesiredSizeOverride;
 
 	/** Whether a checker background is displayed for alpha viewing. */
 	bool bHasAlphaBackground;

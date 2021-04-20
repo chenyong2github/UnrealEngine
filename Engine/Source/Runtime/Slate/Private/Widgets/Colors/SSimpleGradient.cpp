@@ -5,14 +5,22 @@
 #include "Styling/CoreStyle.h"
 #include "Application/SlateWindowHelper.h"
 
+/* SSimpleGradient implementation
+ *****************************************************************************/
+SSimpleGradient::SSimpleGradient()
+	: StartColor(*this)
+	, EndColor(*this)
+{
+	SetCanTick(false);
+}
 
 /* SSimpleGradient interface
  *****************************************************************************/
 
 void SSimpleGradient::Construct( const FArguments& InArgs )
 {
-	StartColor = InArgs._StartColor;
-	EndColor = InArgs._EndColor;
+	StartColor.Assign(*this, InArgs._StartColor);
+	EndColor.Assign(*this, InArgs._EndColor);
 	bHasAlphaBackground = InArgs._HasAlphaBackground.Get();
 	Orientation = InArgs._Orientation.Get();
 }
