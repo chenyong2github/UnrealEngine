@@ -2132,8 +2132,7 @@ namespace Chaos
 					const FReal R1 = Implicit0.BoundingBox().OriginRadius();
 					const FReal R2 = Implicit1.BoundingBox().OriginRadius();
 					const FReal SeparationSq = (WorldTransform1.GetTranslation() - WorldTransform0.GetTranslation()).SizeSquared();
-					const FReal CullDistanceSq = CullDistance * CullDistance;
-					if ((SeparationSq - FMath::Square(R1 + R2)) > CullDistanceSq)
+					if (SeparationSq > FMath::Square(R1 + R2 + CullDistance))
 					{
 						return;
 					}
@@ -2395,8 +2394,7 @@ namespace Chaos
 						const FReal R1 = Implicit0->BoundingBox().OriginRadius();
 						const FReal R2 = Implicit1->BoundingBox().OriginRadius();
 						const FReal SeparationSq = (WorldTransform1.GetTranslation() - WorldTransform0.GetTranslation()).SizeSquared();
-						const FReal CullDistanceSq = CullDistance * CullDistance;
-						if ((SeparationSq - FMath::Square(R1 + R2)) > CullDistanceSq)
+						if (SeparationSq > FMath::Square(R1 + R2 + CullDistance))
 						{
 							return;
 						}

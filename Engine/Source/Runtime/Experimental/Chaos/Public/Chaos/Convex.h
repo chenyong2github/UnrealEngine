@@ -457,7 +457,7 @@ namespace Chaos
 
 			if (InMargin == 0.0f)
 			{
-				return GetVertex(InMargin);
+				return GetVertex(VertexIndex);
 			}
 
 			// Get any 3 planes that contribute to this vertex
@@ -482,14 +482,37 @@ namespace Chaos
 				}
 			}
 
-			return FVec3(0);
+			// If we get here, the convex hull is malformed. Try to handle it anyway 
+			// @todo(chaos): track down the invalid hull issue
+
+			if (NumVertexPlanes(VertexIndex) == 2)
+			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const int32 PlaneIndex1 = GetVertexPlane(VertexIndex, 1);
+				const FVec3 NewPlaneX = GetVertex(VertexIndex);
+				const FVec3 NewPlaneN0 = Planes[PlaneIndex0].Normal();
+				const FVec3 NewPlaneN1 = Planes[PlaneIndex1].Normal();
+				const FVec3 NewPlaneN = (NewPlaneN0 + NewPlaneN1).GetSafeNormal();
+				return NewPlaneX - (InMargin * NewPlaneN);
+			}
+
+			if (NumVertexPlanes(VertexIndex) == 1)
+			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const FVec3 NewPlaneX = GetVertex(VertexIndex);
+				const FVec3 NewPlaneN = Planes[PlaneIndex0].Normal();
+				return NewPlaneX - (InMargin * NewPlaneN);
+			}
+
+			// Ok now we really are done...just return the outer vertex and duck
+			return GetVertex(VertexIndex);
 		}
 
 		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale) const
 		{
 			if (InMargin == 0.0f)
 			{
-				return GetVertex(InMargin) * Scale;
+				return GetVertex(VertexIndex) * Scale;
 			}
 
 			// Get any 3 planes that contribute to this vertex
@@ -528,7 +551,30 @@ namespace Chaos
 				}
 			}
 
-			return FVec3(0);
+			// If we get here, the convex hull is malformed. Try to handle it anyway 
+			// @todo(chaos): track down the invalid hull issue
+
+			if (NumVertexPlanes(VertexIndex) == 2)
+			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const int32 PlaneIndex1 = GetVertexPlane(VertexIndex, 1);
+				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
+				const FVec3 NewPlaneN0 = (Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal();
+				const FVec3 NewPlaneN1 = (Planes[PlaneIndex1].Normal() / Scale).GetUnsafeNormal();
+				const FVec3 NewPlaneN = (NewPlaneN0 + NewPlaneN1).GetSafeNormal();
+				return NewPlaneX - (InMargin * NewPlaneN);
+			}
+
+			if (NumVertexPlanes(VertexIndex) == 1)
+			{
+				const int32 PlaneIndex0 = GetVertexPlane(VertexIndex, 0);
+				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
+				const FVec3 NewPlaneN = (Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal();
+				return NewPlaneX - (InMargin * NewPlaneN);
+			}
+
+			// Ok now we really are done...just return the outer vertex and duck
+			return GetVertex(VertexIndex) * Scale;
 		}
 
 	public:
