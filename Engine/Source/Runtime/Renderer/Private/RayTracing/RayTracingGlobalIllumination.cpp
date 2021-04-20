@@ -24,6 +24,7 @@
 #include "RayTracingDeferredMaterials.h"
 #include "RayTracingTypes.h"
 #include "PathTracingDefinitions.h"
+#include "PathTracing.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),
@@ -244,30 +245,29 @@ DECLARE_GPU_STAT_NAMED(RayTracingGIBruteForce, TEXT("Ray Tracing GI: Brute Force
 DECLARE_GPU_STAT_NAMED(RayTracingGIFinalGather, TEXT("Ray Tracing GI: Final Gather"));
 DECLARE_GPU_STAT_NAMED(RayTracingGICreateGatherPoints, TEXT("Ray Tracing GI: Create Gather Points"));
 
-RENDERER_API void SetupLightParameters(
-	const FScene& Scene,
-	const FViewInfo& View, FRDGBuilder& GraphBuilder, FRDGBufferSRV** OutLightBuffer, uint32* OutLightCount)
+static void SetupLightParameters(
+	FScene* Scene,
+	const FViewInfo& View, FRDGBuilder& GraphBuilder,
+	FRDGBufferSRV** OutLightBuffer, uint32* OutLightCount, FPathTracingSkylight* SkylightParameters)
 {
 	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 	unsigned LightCount = 0;
 
 	// Get the SkyLight color
 
-	FSkyLightSceneProxy* SkyLight = Scene.SkyLight;
-	FVector SkyLightColor = FVector(0.0f, 0.0f, 0.0f);
-	uint32 SkyLightTransmission = 0;
-	if (SkyLight && SkyLight->bAffectGlobalIllumination && CVarRayTracingGlobalIlluminationSkyLight.GetValueOnRenderThread())
-	{
-		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
-		SkyLightTransmission = SkyLight->bTransmission;
-	}
+	FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
+
+	const bool bUseMISCompensation = false; // RTGI doesn't use MIS
+	const bool bUseSkylightCaching = true; // re-use the skylight texture if possible
+	const bool bSkylightEnabled = SkyLight && SkyLight->bAffectGlobalIllumination && CVarRayTracingGlobalIlluminationSkyLight.GetValueOnRenderThread() != 0;
 
 	// Prepend SkyLight to light buffer (if it is active)
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, bSkylightEnabled, bUseMISCompensation, bUseSkylightCaching, SkylightParameters))
 	{
 		FPathTracingLight& DestLight = Lights[LightCount];
 
-		DestLight.Color = SkyLightColor;
-		DestLight.Flags = SkyLightTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		DestLight.Color = FVector(1.0f, 1.0f, 1.0f);
+		DestLight.Flags = SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		// SkyLight does not have a LightingChannelMask
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
@@ -276,8 +276,8 @@ RENDERER_API void SetupLightParameters(
 	}
 
 	
-	uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
-	for (auto Light : Scene.Lights)
+	const uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
+	for (auto Light : Scene->Lights)
 	{
 		if (LightCount >= MaxLightCount) break;
 
@@ -368,21 +368,6 @@ RENDERER_API void SetupLightParameters(
 	}
 }
 
-void SetupGlobalIlluminationSkyLightParameters(
-	const FScene& Scene,
-	FSkyLightData* SkyLightData)
-{
-	FSkyLightSceneProxy* SkyLight = Scene.SkyLight;
-
-	SetupSkyLightParameters(Scene, SkyLightData);
-
-	// Override the Sky Light color if it should not affect global illumination
-	if (SkyLight && !SkyLight->bAffectGlobalIllumination)
-	{
-		SkyLightData->Color = FVector(0.0f);
-	}
-}
-
 int32 GetRayTracingGlobalIlluminationSamplesPerPixel(const FViewInfo& View)
 {
 	int32 SamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
@@ -462,7 +447,7 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, TransmissionProfilesLinearSampler)
@@ -522,7 +507,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 		// Light data
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 
 		// Shading data
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -589,7 +574,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalSh
 		// Light data
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
 
 		// Shading data
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -840,7 +825,7 @@ void CopyGatherPassParameters(
 
 	NewParameters->SceneLights = PassParameters.SceneLights;
 	NewParameters->SceneLightCount = PassParameters.SceneLightCount;
-	NewParameters->SkyLight = PassParameters.SkyLight;
+	NewParameters->SkylightParameters = PassParameters.SkylightParameters;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
 	NewParameters->SSProfilesTexture = PassParameters.SSProfilesTexture;
@@ -881,7 +866,7 @@ void CopyGatherPassParameters(
 
 	NewParameters->SceneLightCount = PassParameters.SceneLightCount;
 	NewParameters->SceneLights = PassParameters.SceneLights;
-	NewParameters->SkyLight = PassParameters.SkyLight;
+	NewParameters->SkylightParameters = PassParameters.SkylightParameters;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
 	NewParameters->SSProfilesTexture = PassParameters.SSProfilesTexture;
@@ -929,9 +914,6 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 		MaxShadowDistance = FMath::Max(0.0, 0.99 * Scene->SkyLight->SkyDistanceThreshold);
 	}
 
-	FSkyLightData SkyLightParameters;
-	SetupGlobalIlluminationSkyLightParameters(*Scene, &SkyLightParameters);
-
 	FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRayTracingGlobalIlluminationCreateGatherPointsRGS::FParameters>();
 	PassParameters->SampleIndex = SampleIndex;
 	PassParameters->GatherSamplesPerPixel = GatherSamples;
@@ -955,9 +937,8 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 	// Light data
-	SetupLightParameters(*Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
+	SetupLightParameters(Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount, &PassParameters->SkylightParameters);
 	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);
 
 	// Shading data
 	TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*)GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList));
@@ -1254,9 +1235,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 		MaxShadowDistance = FMath::Max(0.0, 0.99 * Scene->SkyLight->SkyDistanceThreshold);
 	}
 
-	FSkyLightData SkyLightParameters;
-	SetupGlobalIlluminationSkyLightParameters(*Scene, &SkyLightParameters);
-
 	FGlobalIlluminationRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalIlluminationRGS::FParameters>();
 	PassParameters->SamplesPerPixel = RayTracingGISamplesPerPixel;
 	int32 CVarRayTracingGlobalIlluminationMaxBouncesValue = CVarRayTracingGlobalIlluminationMaxBounces.GetValueOnRenderThread();
@@ -1278,9 +1256,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
 	PassParameters->TLAS = View.GetRayTracingSceneViewChecked();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	SetupLightParameters(*Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
+	SetupLightParameters(Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount, &PassParameters->SkylightParameters);
 	PassParameters->SceneTextures = SceneTextures;
-	PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	// TODO: should be converted to RDG
 	TRefCountPtr<IPooledRenderTarget> SubsurfaceProfileRT((IPooledRenderTarget*) GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList));
