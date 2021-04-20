@@ -160,6 +160,12 @@ struct FMaterialCachedParameters
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
 
+	bool GetScalarParameterSliderMinMax(const FMemoryImageMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const;
+	bool IsScalarParameterUsedAsAtlasPosition(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const;
+	bool IsVectorParameterUsedAsChannelMask(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
+	bool GetVectorParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+	bool GetTextureParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
+
 	UPROPERTY()
 	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];
 

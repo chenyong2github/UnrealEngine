@@ -757,6 +757,98 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 	}
 }
 
+bool FMaterialCachedParameters::GetScalarParameterSliderMinMax(const FMemoryImageMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
+{
+#if WITH_EDITORONLY_DATA
+	if (ScalarMinMaxValues.Num() != 0)
+	{
+		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
+		if (ParameterIndex != INDEX_NONE)
+		{
+			OutSliderMin = ScalarMinMaxValues[ParameterIndex].X;
+			OutSliderMax = ScalarMinMaxValues[ParameterIndex].Y;
+			return true;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	return false;
+}
+
+bool FMaterialCachedParameters::IsScalarParameterUsedAsAtlasPosition(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const
+{
+#if WITH_EDITORONLY_DATA
+	if (ScalarCurveValues.Num() != 0)
+	{
+		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
+		if (ParameterIndex != INDEX_NONE)
+		{
+			UCurveLinearColor* Curve = ScalarCurveValues[ParameterIndex];
+			UCurveLinearColorAtlas* Atlas = ScalarCurveAtlasValues[ParameterIndex];
+			if (Curve && Atlas)
+			{
+				OutCurve = Curve;
+				OutAtlas = Atlas;
+				OutValue = true;
+			}
+			else
+			{
+				OutValue = false;
+			}
+			return true;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	return false;
+}
+
+bool FMaterialCachedParameters::IsVectorParameterUsedAsChannelMask(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue) const
+{
+#if WITH_EDITORONLY_DATA
+	if (VectorUsedAsChannelMaskValues.Num() != 0)
+	{
+		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
+		if (ParameterIndex != INDEX_NONE)
+		{
+			OutValue = VectorUsedAsChannelMaskValues[ParameterIndex];
+			return true;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	return false;
+}
+
+bool FMaterialCachedParameters::GetVectorParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+#if WITH_EDITORONLY_DATA
+	if (VectorChannelNameValues.Num() != 0)
+	{
+		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
+		if (ParameterIndex != INDEX_NONE)
+		{
+			OutValue = VectorChannelNameValues[ParameterIndex];
+			return true;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	return false;
+}
+
+bool FMaterialCachedParameters::GetTextureParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
+{
+#if WITH_EDITORONLY_DATA
+	if (TextureChannelNameValues.Num() != 0)
+	{
+		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
+		if (ParameterIndex != INDEX_NONE)
+		{
+			OutValue = TextureChannelNameValues[ParameterIndex];
+			return true;
+		}
+	}
+#endif // WITH_EDITORONLY_DATA
+	return false;
+}
+
 void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InCachedExpressionData)
 {
 	Parameters = MoveTemp(InCachedExpressionData.Parameters);

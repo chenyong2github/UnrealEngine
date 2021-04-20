@@ -2267,23 +2267,7 @@ bool UMaterial::IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParame
 {
 	if (CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (Index != INDEX_NONE)
-		{
-			UCurveLinearColor* Curve = CachedExpressionData->Parameters.ScalarCurveValues[Index];
-			UCurveLinearColorAtlas* Atlas = CachedExpressionData->Parameters.ScalarCurveAtlasValues[Index];
-			if (Curve && Atlas)
-			{
-				OutCurve = TSoftObjectPtr<UCurveLinearColor>(FSoftObjectPath(Curve->GetPathName()));
-				OutAtlas = TSoftObjectPtr<UCurveLinearColorAtlas>(FSoftObjectPath(Atlas->GetPathName()));
-				OutValue = true;
-			}
-			else
-			{
-				OutValue = false;
-			}
-			return true;
-		}
+		return CachedExpressionData->Parameters.IsScalarParameterUsedAsAtlasPosition(ParameterInfo, OutValue, OutCurve, OutAtlas);
 	}
 
 	return false;
@@ -2293,13 +2277,7 @@ bool UMaterial::GetScalarParameterSliderMinMax(const FHashedMaterialParameterInf
 {
 	if (CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (Index != INDEX_NONE)
-		{
-			OutSliderMin = CachedExpressionData->Parameters.ScalarMinMaxValues[Index].X;
-			OutSliderMax = CachedExpressionData->Parameters.ScalarMinMaxValues[Index].Y;
-			return true;
-		}
+		return CachedExpressionData->Parameters.GetScalarParameterSliderMinMax(ParameterInfo, OutSliderMin, OutSliderMax);
 	}
 
 	return false;
@@ -2411,12 +2389,7 @@ bool UMaterial::IsVectorParameterUsedAsChannelMask(const FHashedMaterialParamete
 {
 	if (CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (Index != INDEX_NONE)
-		{
-			OutValue = CachedExpressionData->Parameters.VectorUsedAsChannelMaskValues[Index];
-			return true;
-		}
+		return CachedExpressionData->Parameters.IsVectorParameterUsedAsChannelMask(ParameterInfo, OutValue);
 	}
 	return false;
 }
@@ -2425,12 +2398,7 @@ bool UMaterial::GetVectorParameterChannelNames(const FHashedMaterialParameterInf
 {
 	if (CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (Index != INDEX_NONE)
-		{
-			OutValue = CachedExpressionData->Parameters.VectorChannelNameValues[Index];
-			return true;
-		}
+		return CachedExpressionData->Parameters.GetVectorParameterChannelNames(ParameterInfo, OutValue);
 	}
 	return false;
 }
@@ -2661,12 +2629,7 @@ bool UMaterial::GetTextureParameterChannelNames(const FHashedMaterialParameterIn
 {
 	if (CachedExpressionData)
 	{
-		const int32 Index = CachedExpressionData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
-		if (Index != INDEX_NONE)
-		{
-			OutValue = CachedExpressionData->Parameters.TextureChannelNameValues[Index];
-			return true;
-		}
+		return CachedExpressionData->Parameters.GetTextureParameterChannelNames(ParameterInfo, OutValue);
 	}
 	return false;
 }
