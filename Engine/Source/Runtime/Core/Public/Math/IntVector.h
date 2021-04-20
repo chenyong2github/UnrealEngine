@@ -843,7 +843,7 @@ FORCEINLINE int32& FIntVector4::operator[](int32 ComponentIndex)
 
 FORCEINLINE bool FIntVector4::operator==(const FIntVector4& Other) const
 {
-	return X == Other.X && Y == Other.Y && Z == Other.Z;
+	return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
 }
 
 
