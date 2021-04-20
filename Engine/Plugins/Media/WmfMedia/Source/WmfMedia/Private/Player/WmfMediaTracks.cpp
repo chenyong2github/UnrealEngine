@@ -510,8 +510,8 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 	FTimespan LoopDiff = CachedDuration * 0.5f;
 	float CurrentOverlap = 0.0f;
 	IMediaSamples::EFetchBestSampleResult Result = IMediaSamples::EFetchBestSampleResult::NoSample;
-	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange %f %f seek:%f"),
-		TimeRangeLow.GetTotalSeconds(), TimeRangeHigh.GetTotalSeconds(),
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange %f:%d %f:%d seek:%f"),
+		TimeRangeLow.GetTotalSeconds(), TimeRange.GetLowerBoundValue().SequenceIndex, TimeRangeHigh.GetTotalSeconds(), TimeRange.GetUpperBoundValue().SequenceIndex,
 		SeekTimeOptional.IsSet() ? SeekTimeOptional->GetTotalSeconds() : -1.0f);
 
 	// Loop over our samples.
@@ -523,8 +523,8 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 		{
 			FTimespan SampleStartTime = Sample->GetTime().Time;
 			FTimespan SampleEndTime = SampleStartTime + Sample->GetDuration();
-			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange looking at sample %f %f"),
-				SampleStartTime.GetTotalSeconds(), SampleEndTime.GetTotalSeconds());
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange looking at sample %f:%d %f"),
+				SampleStartTime.GetTotalSeconds(), Sample->GetTime().SequenceIndex, SampleEndTime.GetTotalSeconds());
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 			// Are we waiting for the sample from a seek?
