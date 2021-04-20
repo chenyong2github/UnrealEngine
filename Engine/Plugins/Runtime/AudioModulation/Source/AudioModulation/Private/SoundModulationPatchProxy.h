@@ -73,7 +73,10 @@ namespace AudioModulation
 		/** Function used to mix patch inputs together */
 		Audio::FModulationMixFunction MixFunction;
 
-		FModulationPatchSettings() = default;
+		FModulationPatchSettings()
+			: MixFunction(Audio::FModulationParameter::GetDefaultMixFunction())
+		{
+		}
 
 		FModulationPatchSettings(const FSoundControlModulationPatch& InPatch, Audio::FDeviceId InDeviceId)
 			: bBypass(InPatch.bBypass)
@@ -82,6 +85,10 @@ namespace AudioModulation
 			{
 				DefaultOutputValue = InPatch.OutputParameter->Settings.ValueNormalized;
 				MixFunction = InPatch.OutputParameter->GetMixFunction();
+			}
+			else
+			{
+				MixFunction = Audio::FModulationParameter::GetDefaultMixFunction();
 			}
 
 			for (const FSoundControlModulationInput& Input : InPatch.Inputs)
@@ -100,6 +107,10 @@ namespace AudioModulation
 			if (USoundModulationParameter* Parameter = InPatch.PatchSettings.OutputParameter)
 			{
 				MixFunction = Parameter->GetMixFunction();
+			}
+			else
+			{
+				MixFunction = Audio::FModulationParameter::GetDefaultMixFunction();
 			}
 
 			for (const FSoundControlModulationInput& Input : InPatch.PatchSettings.Inputs)
