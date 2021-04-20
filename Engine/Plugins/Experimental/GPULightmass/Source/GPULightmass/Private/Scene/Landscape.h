@@ -59,8 +59,6 @@ public:
 	TUniquePtr<TUniformBuffer<FLandscapeUniformShaderParameters>> LandscapeUniformShaderParameters;
 	TArray<TUniformBuffer<FLandscapeFixedGridUniformShaderParameters>> LandscapeFixedGridUniformShaderParameters;
 
-	TUniformBufferRef<FPrimitiveUniformShaderParameters> UniformBuffer;
-
 	TArray<FMeshBatch> GetMeshBatchesForGBufferRendering(int32 LODIndex);
 };
 

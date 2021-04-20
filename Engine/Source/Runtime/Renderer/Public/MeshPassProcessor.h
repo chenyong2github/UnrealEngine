@@ -1799,7 +1799,7 @@ private:
 	EMeshPass::Type PassType;
 };
 
-extern void SubmitMeshDrawCommands(
+RENDERER_API extern void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
 	FRHIBuffer* PrimitiveIdsBuffer,

@@ -110,7 +110,6 @@ TArray<FMeshBatch> FLandscapeRenderState::GetMeshBatchesForGBufferRendering(int3
 	BatchElementParams.CurrentLOD = LODIndex;
 
 	BatchElement.UserData = &BatchElementParams;
-	BatchElement.PrimitiveUniformBuffer = UniformBuffer;
 	BatchElement.IndexBuffer = SharedBuffers->IndexBuffers[LODIndex];
 	BatchElement.NumPrimitives = FMath::Square((SubsectionSizeVerts >> LODIndex) - 1) * FMath::Square(NumSubsections) * 2;
 	BatchElement.FirstIndex = 0;

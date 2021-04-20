@@ -219,7 +219,7 @@ private:
 	void WaitForMeshPassSetupTask() const;
 };
 
-extern void SortAndMergeDynamicPassMeshDrawCommands(
+RENDERER_API extern void SortAndMergeDynamicPassMeshDrawCommands(
 	ERHIFeatureLevel::Type FeatureLevel,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,

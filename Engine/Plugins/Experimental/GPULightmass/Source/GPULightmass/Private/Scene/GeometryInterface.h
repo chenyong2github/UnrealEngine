@@ -91,6 +91,11 @@ public:
 		return this->Elements[GeometryInstanceRef.GetElementIdChecked()];
 	}
 
+	bool Contains(const FGeometryInstanceRenderStateRef& GeometryInstanceRef) const
+	{
+		return &GeometryInstanceRef.Collection == this;
+	}
+
 	virtual FGeometryRenderState& Get(int32 ElementId) override
 	{
 		return this->Elements[ElementId];

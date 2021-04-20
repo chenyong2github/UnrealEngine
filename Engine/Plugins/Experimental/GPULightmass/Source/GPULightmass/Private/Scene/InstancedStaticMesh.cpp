@@ -165,7 +165,6 @@ TArray<FMeshBatch> FInstanceGroupRenderState::GetMeshBatchesForGBufferRendering(
 		MeshBatchElement.PrimitiveIdMode = PrimID_DynamicPrimitiveShaderData;
 
 		MeshBatchElement.InstancedLODIndex = LODIndex;
-		MeshBatchElement.PrimitiveUniformBuffer = UniformBuffer;
 		MeshBatch.LODIndex = LODIndex;
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
@@ -175,7 +174,7 @@ TArray<FMeshBatch> FInstanceGroupRenderState::GetMeshBatchesForGBufferRendering(
 		{
 			MeshBatch.MaterialRenderProxy = ComponentUObject->GetMaterial(Section.MaterialIndex)->GetRenderProxy();
 
-			if (CoordsForCulling.MipLevel == -1)
+			if (true || CoordsForCulling.MipLevel == -1)
 			{
 				// No culling, should be for ray tracing scene
 				MeshBatchElement.UserIndex = 0;

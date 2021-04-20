@@ -18,7 +18,6 @@ public:
 	FBufferRHIRef InstanceOriginBuffer;
 	FBufferRHIRef InstanceTransformBuffer;
 	FBufferRHIRef InstanceLightmapBuffer;
-	TUniformBufferRef<FPrimitiveUniformShaderParameters> UniformBuffer;
 
 	TArray<FIntPoint> LODPerInstanceLightmapSize;
 

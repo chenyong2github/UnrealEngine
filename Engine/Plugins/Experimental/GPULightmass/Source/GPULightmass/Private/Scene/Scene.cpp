@@ -16,7 +16,6 @@
 #include "LightmapRenderer.h"
 #include "VolumetricLightmap.h"
 #include "GPUScene.h"
-#include "RayTracingDynamicGeometryCollection.h"
 #include "Lightmass/LightmassImportanceVolume.h"
 #include "Logging/MessageLog.h"
 #include "Misc/ConfigCacheIni.h"
@@ -1069,31 +1068,6 @@ void FScene::AddGeometryInstanceFromComponent(UInstancedStaticMeshComponent* InC
 
 		FInstanceGroupRenderStateRef InstanceRenderStateRef = RenderState.InstanceGroupRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
-		InstanceRenderStateRef->UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(GetPrimitiveUniformShaderParameters(
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->ActorPosition,
-			InstanceRenderStateRef->WorldBounds,
-			InstanceRenderStateRef->LocalBounds,
-			InstanceRenderStateRef->LocalBounds,
-			false,
-			false,
-			false,
-			false,
-			false,
-			false,
-			0b111,
-			0,
-			INDEX_NONE,
-			INDEX_NONE,
-			/* bOutputVelocity = */ false,
-			nullptr,
-			/* bCastContactShadow = */ true,
-			INDEX_NONE,
-			0,
-			/* bCastShadow = */ true
-		), UniformBuffer_MultiFrame);
-
 		for (int32 LODIndex = 0; LODIndex < InstanceLightmapRenderStateInitializers.Num(); LODIndex++)
 		{
 			FLightmapRenderState::Initializer& Initializer = InstanceLightmapRenderStateInitializers[LODIndex];
@@ -1189,7 +1163,6 @@ void FScene::RemoveGeometryInstanceFromComponent(UInstancedStaticMeshComponent* 
 		[ElementId, &RenderState = RenderState](FRHICommandListImmediate&) mutable
 	{
 		RenderState.InstanceGroupRenderStates.Elements[ElementId].InstancedRenderData->ReleaseResources(nullptr, nullptr);
-		RenderState.InstanceGroupRenderStates.Elements[ElementId].UniformBuffer.SafeRelease();
 
 		for (FLightmapRenderStateRef& Lightmap : RenderState.InstanceGroupRenderStates.Elements[ElementId].LODLightmapRenderStates)
 		{
@@ -1360,31 +1333,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 
 		FLandscapeRenderStateRef InstanceRenderStateRef = RenderState.LandscapeRenderStates.Emplace(MoveTemp(InstanceRenderState));
 
-		InstanceRenderStateRef->UniformBuffer = TUniformBufferRef<FPrimitiveUniformShaderParameters>::CreateUniformBufferImmediate(GetPrimitiveUniformShaderParameters(
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->LocalToWorld,
-			InstanceRenderStateRef->ActorPosition,
-			InstanceRenderStateRef->WorldBounds,
-			InstanceRenderStateRef->LocalBounds,
-			InstanceRenderStateRef->LocalBounds,
-			false,
-			false,
-			false,
-			false,
-			false,
-			false,
-			0b111,
-			0,
-			INDEX_NONE,
-			INDEX_NONE,
-			/* bOutputVelocity = */ false,
-			nullptr,
-			/* bCastContactShadow = */ true,
-			INDEX_NONE,
-			0,
-			/* bCastShadow = */ true
-		), UniformBuffer_MultiFrame);
-
 		int32 MaxLOD = 0;
 		InstanceRenderStateRef->LandscapeFixedGridUniformShaderParameters.AddDefaulted(MaxLOD + 1);
 		for (int32 LodIndex = 0; LodIndex <= MaxLOD; ++LodIndex)
@@ -1515,89 +1463,9 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 			}
 		}
 
-#if 1
-#if RHI_RAYTRACING
-		if (IsRayTracingEnabled())
-		{
-			// For DynamicGeometryCollection
-			FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
-
-			for (int32 SubY = 0; SubY < InstanceRenderStateRef->NumSubsections; SubY++)
-			{
-				for (int32 SubX = 0; SubX < InstanceRenderStateRef->NumSubsections; SubX++)
-				{
-					const int8 SubSectionIdx = SubX + SubY * InstanceRenderStateRef->NumSubsections;
-
-					int32 LodSubsectionSizeVerts = InstanceRenderStateRef->SubsectionSizeVerts;
-					uint32 NumPrimitives = FMath::Square(LodSubsectionSizeVerts - 1) * 2;
-
-					FRayTracingGeometryInitializer GeometryInitializer;
-					GeometryInitializer.IndexBuffer = InstanceRenderStateRef->SharedBuffers->ZeroOffsetIndexBuffers[0]->IndexBufferRHI;
-					GeometryInitializer.TotalPrimitiveCount = NumPrimitives;
-					GeometryInitializer.GeometryType = RTGT_Triangles;
-					GeometryInitializer.bFastBuild = false;
-					GeometryInitializer.bAllowUpdate = false;
-
-					FRayTracingGeometrySegment Segment;
-					Segment.VertexBuffer = nullptr;
-					Segment.VertexBufferStride = sizeof(FVector);
-					Segment.VertexBufferElementType = VET_Float3;
-					Segment.MaxVertices = NumPrimitives*3;
-					Segment.NumPrimitives = NumPrimitives;
-					GeometryInitializer.Segments.Add(Segment);
-
-					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx] = MakeUnique<FLandscapeRenderState::FLandscapeSectionRayTracingState>();
-					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry.SetInitializer(GeometryInitializer);
-					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry.InitResource();
-
-					FRayTracingDynamicGeometryCollection DynamicGeometryCollection;
-
-					TArray<FMeshBatch> MeshBatches = InstanceRenderStateRef->GetMeshBatchesForGBufferRendering(0);
-
-					FLandscapeVertexFactoryMVFParameters UniformBufferParams;
-					UniformBufferParams.SubXY = FIntPoint(SubX, SubY);
-					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->UniformBuffer = FLandscapeVertexFactoryMVFUniformBufferRef::CreateUniformBufferImmediate(UniformBufferParams, UniformBuffer_SingleFrame);
-
-					FLandscapeBatchElementParams& BatchElementParams = *(FLandscapeBatchElementParams*)MeshBatches[0].Elements[0].UserData;
-					BatchElementParams.LandscapeVertexFactoryMVFUniformBuffer = InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->UniformBuffer;
-
-					MeshBatches[0].Elements[0].IndexBuffer = InstanceRenderStateRef->SharedBuffers->ZeroOffsetIndexBuffers[0];
-					MeshBatches[0].Elements[0].FirstIndex = 0;
-					MeshBatches[0].Elements[0].NumPrimitives = NumPrimitives;
-					MeshBatches[0].Elements[0].MinVertexIndex = 0;
-					MeshBatches[0].Elements[0].MaxVertexIndex = 0;
-
-					FRayTracingDynamicGeometryUpdateParams UpdateParams
-					{
-						MeshBatches,
-						false,
-						(uint32)FMath::Square(LodSubsectionSizeVerts),
-						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
-						(uint32)FMath::Square(LodSubsectionSizeVerts - 1) * 2,
-						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->Geometry,
-						&InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer,
-						false
-					};
-
-					DynamicGeometryCollection.AddDynamicMeshBatchForGeometryUpdate(
-						InstanceRenderStateRef->ComponentUObject->GetWorld()->Scene->GetRenderScene(),
-						nullptr,
-						nullptr,
-						UpdateParams,
-						0
-					);
-
-					DynamicGeometryCollection.DispatchUpdates(RHICmdList);
-
-					// Landscape VF doesn't really use the vertex buffer in HitGroupSystemParameters
-					// We can release after all related RHI cmds get dispatched onto the cmd list
-					InstanceRenderStateRef->SectionRayTracingStates[SubSectionIdx]->RayTracingDynamicVertexBuffer.Release();
-				}
-			}
-		}
-#endif
-#endif
 		RenderState.LightmapRenderer->BumpRevision();
+
+		RenderState.CachedRayTracingScene.Reset();
 	});
 
 	bNeedsVoxelization = true;
@@ -1687,6 +1555,8 @@ void FScene::RemoveGeometryInstanceFromComponent(ULandscapeComponent* InComponen
 		RenderState.LandscapeRenderStates.RemoveAt(ElementId);
 
 		RenderState.LightmapRenderer->BumpRevision();
+
+		RenderState.CachedRayTracingScene.Reset();
 	});
 
 	bNeedsVoxelization = true;

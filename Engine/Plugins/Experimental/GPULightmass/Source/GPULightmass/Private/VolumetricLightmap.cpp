@@ -272,8 +272,10 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 			};
 		}
 
-		for (FInstanceGroupRenderState& InstanceGroup : Scene->InstanceGroupRenderStates.Elements)
+		for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene->InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
 		{
+			FInstanceGroupRenderState& InstanceGroup = Scene->InstanceGroupRenderStates.Elements[InstanceGroupIndex];
+
 			bool bIntersectsAnyImportanceVolume = false;
 
 			for (FBox ImportanceVolume : ImportanceVolumes)
@@ -291,13 +293,15 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 			for (auto& MeshBatch : MeshBatches)
 			{
+				MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex;
 				MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
 			};
 		}
 
-
-		for (FLandscapeRenderState& Landscape : Scene->LandscapeRenderStates.Elements)
+		for (int32 LandscapeIndex = 0; LandscapeIndex < Scene->LandscapeRenderStates.Elements.Num(); LandscapeIndex++)
 		{
+			FLandscapeRenderState& Landscape = Scene->LandscapeRenderStates.Elements[LandscapeIndex];
+
 			bool bIntersectsAnyImportanceVolume = false;
 
 			for (FBox ImportanceVolume : ImportanceVolumes)
@@ -315,6 +319,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 			for (auto& MeshBatch : MeshBatches)
 			{
+				MeshBatch.Elements[0].DynamicPrimitiveShaderDataIndex = Scene->StaticMeshInstanceRenderStates.Elements.Num() + Scene->InstanceGroupRenderStates.Elements.Num() + LandscapeIndex;
 				MeshProcessor.AddMeshBatch(MeshBatch, ~0ull, nullptr);
 			};
 		}
