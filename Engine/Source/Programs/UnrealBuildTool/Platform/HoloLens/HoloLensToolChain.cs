@@ -415,8 +415,8 @@ namespace UnrealBuildTool
 				Arguments.Add("/OPT:NOICF");
 			}
 
-			// Enable incremental linking if wanted.
-			if (LinkEnvironment.bUseIncrementalLinking)
+			// Enable incremental linking if wanted. ( avoid /INCREMENTAL getting ignored (LNK4075) due to /LTCG, /RELEASE, and /OPT:ICF )
+			if (LinkEnvironment.bUseIncrementalLinking && LinkEnvironment.Configuration != CppConfiguration.Shipping)
 			{
 				Arguments.Add("/INCREMENTAL");
 			}
