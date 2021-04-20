@@ -1115,7 +1115,6 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	PipelineInfo.pStages = ShaderStages;
 	// main_00000000_00000000
 	ANSICHAR EntryPoints[ShaderStage::NumStages][24];
-	bool bHasTessellation = false;
 	for (int32 ShaderStage = 0; ShaderStage < ShaderStage::NumStages; ++ShaderStage)
 	{
 		if (!PSO->ShaderModules[ShaderStage])
@@ -1127,7 +1126,6 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		ShaderStages[PipelineInfo.stageCount].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		VkShaderStageFlagBits Stage = UEFrequencyToVKStageBit(ShaderStage::GetFrequencyForGfxStage(CurrStage));
 		ShaderStages[PipelineInfo.stageCount].stage = Stage;
-		bHasTessellation = bHasTessellation || ((Stage & (VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT | VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)) != 0);
 		ShaderStages[PipelineInfo.stageCount].module = PSO->ShaderModules[CurrStage];
 		Shaders[ShaderStage]->GetEntryPoint(EntryPoints[PipelineInfo.stageCount], 24);
 		ShaderStages[PipelineInfo.stageCount].pName = EntryPoints[PipelineInfo.stageCount];
@@ -1192,15 +1190,6 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	DynamicStatesEnabled[DynamicState.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BOUNDS;
 
 	PipelineInfo.pDynamicState = &DynamicState;
-
-	VkPipelineTessellationStateCreateInfo TessState;
-	if (bHasTessellation)
-	{
-		ZeroVulkanStruct(TessState, VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO);
-		PipelineInfo.pTessellationState = &TessState;
-		check(InputAssembly.topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST);
-		TessState.patchControlPoints = GfxEntry->ControlPoints;
-	}
 
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;
 	double BeginTime = FPlatformTime::Seconds();
@@ -1363,110 +1352,55 @@ FVulkanLayout* FVulkanPipelineStateCacheManager::FindOrAddLayout(const FVulkanDe
 	return Layout;
 }
 
-static inline VkPrimitiveTopology UEToVulkanTopologyType(const FVulkanDevice* InDevice, EPrimitiveType PrimitiveType, bool bHasTessellation, uint16& OutControlPoints)
+static inline VkPrimitiveTopology UEToVulkanTopologyType(const FVulkanDevice* InDevice, EPrimitiveType PrimitiveType, uint16& OutControlPoints)
 {
-	if (bHasTessellation)
+	OutControlPoints = 0;
+	switch (PrimitiveType)
 	{
-		switch (PrimitiveType)
-		{
-		case PT_TriangleList:
-			// This is the case for tessellation without AEN or other buffers, so just flip to 3 CPs
-			OutControlPoints = 3;
-			return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-		case PT_1_ControlPointPatchList:
-		case PT_2_ControlPointPatchList:
-		case PT_3_ControlPointPatchList:
-		case PT_4_ControlPointPatchList:
-		case PT_5_ControlPointPatchList:
-		case PT_6_ControlPointPatchList:
-		case PT_7_ControlPointPatchList:
-		case PT_8_ControlPointPatchList:
-		case PT_9_ControlPointPatchList:
-		case PT_10_ControlPointPatchList:
-		case PT_12_ControlPointPatchList:
-		case PT_13_ControlPointPatchList:
-		case PT_14_ControlPointPatchList:
-		case PT_15_ControlPointPatchList:
-		case PT_16_ControlPointPatchList:
-		case PT_17_ControlPointPatchList:
-		case PT_18_ControlPointPatchList:
-		case PT_19_ControlPointPatchList:
-		case PT_20_ControlPointPatchList:
-		case PT_22_ControlPointPatchList:
-		case PT_23_ControlPointPatchList:
-		case PT_24_ControlPointPatchList:
-		case PT_25_ControlPointPatchList:
-		case PT_26_ControlPointPatchList:
-		case PT_27_ControlPointPatchList:
-		case PT_28_ControlPointPatchList:
-		case PT_29_ControlPointPatchList:
-		case PT_30_ControlPointPatchList:
-		case PT_31_ControlPointPatchList:
-		case PT_32_ControlPointPatchList:
-			OutControlPoints = (PrimitiveType - PT_1_ControlPointPatchList + 1);
-			checkf(
-				OutControlPoints <= InDevice->GetLimits().maxTessellationPatchSize,
-				TEXT("OutControlPoints (%d) exceeded limit of maximal patch size (%d)"),
-				OutControlPoints,
-				InDevice->GetLimits().maxTessellationPatchSize
-			);
-			return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-		default:
-			checkf(false, TEXT("Unsupported tessellation EPrimitiveType %d; probably missing a case in FStaticMeshSceneProxy::GetMeshElement()!"), (uint32)PrimitiveType);
-			break;
-		}
-		OutControlPoints = 0;
-	}
-	else
-	{
-		OutControlPoints = 0;
-		switch (PrimitiveType)
-		{
-		case PT_PointList:
-			return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
-		case PT_LineList:
-			return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-		case PT_TriangleList:
-			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-		case PT_TriangleStrip:
-			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
-		case PT_1_ControlPointPatchList:
-		case PT_2_ControlPointPatchList:
-		case PT_3_ControlPointPatchList:
-		case PT_4_ControlPointPatchList:
-		case PT_5_ControlPointPatchList:
-		case PT_6_ControlPointPatchList:
-		case PT_7_ControlPointPatchList:
-		case PT_8_ControlPointPatchList:
-		case PT_9_ControlPointPatchList:
-		case PT_10_ControlPointPatchList:
-		case PT_12_ControlPointPatchList:
-		case PT_13_ControlPointPatchList:
-		case PT_14_ControlPointPatchList:
-		case PT_15_ControlPointPatchList:
-		case PT_16_ControlPointPatchList:
-		case PT_17_ControlPointPatchList:
-		case PT_18_ControlPointPatchList:
-		case PT_19_ControlPointPatchList:
-		case PT_20_ControlPointPatchList:
-		case PT_22_ControlPointPatchList:
-		case PT_23_ControlPointPatchList:
-		case PT_24_ControlPointPatchList:
-		case PT_25_ControlPointPatchList:
-		case PT_26_ControlPointPatchList:
-		case PT_27_ControlPointPatchList:
-		case PT_28_ControlPointPatchList:
-		case PT_29_ControlPointPatchList:
-		case PT_30_ControlPointPatchList:
-		case PT_31_ControlPointPatchList:
-		case PT_32_ControlPointPatchList:
-			OutControlPoints = (PrimitiveType - PT_1_ControlPointPatchList + 1);
-			checkf(false, TEXT("Missing tessellation shaders, however tried to use EPrimitiveType %d (%d control points)"), (uint32)PrimitiveType, OutControlPoints);
-			break;
-		default:
-			checkf(false, TEXT("Unsupported EPrimitiveType %d"), (uint32)PrimitiveType);
-			break;
-		}
+	case PT_PointList:
+		return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+	case PT_LineList:
+		return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	case PT_TriangleList:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	case PT_TriangleStrip:
+		return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+	case PT_1_ControlPointPatchList:
+	case PT_2_ControlPointPatchList:
+	case PT_3_ControlPointPatchList:
+	case PT_4_ControlPointPatchList:
+	case PT_5_ControlPointPatchList:
+	case PT_6_ControlPointPatchList:
+	case PT_7_ControlPointPatchList:
+	case PT_8_ControlPointPatchList:
+	case PT_9_ControlPointPatchList:
+	case PT_10_ControlPointPatchList:
+	case PT_12_ControlPointPatchList:
+	case PT_13_ControlPointPatchList:
+	case PT_14_ControlPointPatchList:
+	case PT_15_ControlPointPatchList:
+	case PT_16_ControlPointPatchList:
+	case PT_17_ControlPointPatchList:
+	case PT_18_ControlPointPatchList:
+	case PT_19_ControlPointPatchList:
+	case PT_20_ControlPointPatchList:
+	case PT_22_ControlPointPatchList:
+	case PT_23_ControlPointPatchList:
+	case PT_24_ControlPointPatchList:
+	case PT_25_ControlPointPatchList:
+	case PT_26_ControlPointPatchList:
+	case PT_27_ControlPointPatchList:
+	case PT_28_ControlPointPatchList:
+	case PT_29_ControlPointPatchList:
+	case PT_30_ControlPointPatchList:
+	case PT_31_ControlPointPatchList:
+	case PT_32_ControlPointPatchList:
+		OutControlPoints = (PrimitiveType - PT_1_ControlPointPatchList + 1);
+		checkf(false, TEXT("Missing tessellation shaders, however tried to use EPrimitiveType %d (%d control points)"), (uint32)PrimitiveType, OutControlPoints);
+		break;
+	default:
+		checkf(false, TEXT("Unsupported EPrimitiveType %d"), (uint32)PrimitiveType);
+		break;
 	}
 
 	return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
@@ -1526,10 +1460,8 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 
 	OutGfxEntry->UseAlphaToCoverage = PSOInitializer.NumSamples > 1 && BlendState->Initializer.bUseAlphaToCoverage ? 1 : 0;
 
-	const bool bHasTessellation = (PSOInitializer.BoundShaderState.DomainShaderRHI != nullptr);
-
 	OutGfxEntry->RasterizationSamples = PSOInitializer.NumSamples;
-	OutGfxEntry->Topology = (uint32)UEToVulkanTopologyType(Device, PSOInitializer.PrimitiveType, bHasTessellation, OutGfxEntry->ControlPoints);
+	OutGfxEntry->Topology = (uint32)UEToVulkanTopologyType(Device, PSOInitializer.PrimitiveType, OutGfxEntry->ControlPoints);
 	uint32 NumRenderTargets = PSOInitializer.ComputeNumValidRenderTargets();
 	
 	if (PSOInitializer.SubpassHint == ESubpassHint::DeferredShadingSubpass && PSOInitializer.SubpassIndex >= 2)

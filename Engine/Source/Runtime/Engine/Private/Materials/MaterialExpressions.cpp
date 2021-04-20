@@ -6563,8 +6563,6 @@ int32 UMaterialExpressionBlendMaterialAttributes::Compile(class FMaterialCompile
 	switch (AttributeFrequency)
 	{
 	case SF_Vertex:	BlendType = VertexAttributeBlendType;	break;
-	case SF_Hull:	BlendType = VertexAttributeBlendType;	break;
-	case SF_Domain:	BlendType = VertexAttributeBlendType;	break;
 	case SF_Pixel:	BlendType = PixelAttributeBlendType;	break;
 	default:
 		return Compiler->Errorf(TEXT("Attribute blending for shader frequency %i not implemented."), AttributeFrequency);

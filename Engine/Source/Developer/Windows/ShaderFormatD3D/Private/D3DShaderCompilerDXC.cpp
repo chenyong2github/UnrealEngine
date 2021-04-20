@@ -468,8 +468,6 @@ static ShaderConductor::ShaderStage ToDXCShaderStage(EShaderFrequency Frequency)
 	case SF_Vertex:		return ShaderConductor::ShaderStage::VertexShader;
 	case SF_Pixel:		return ShaderConductor::ShaderStage::PixelShader;
 	case SF_Geometry:	return ShaderConductor::ShaderStage::GeometryShader;
-	case SF_Hull:		return ShaderConductor::ShaderStage::HullShader;
-	case SF_Domain:		return ShaderConductor::ShaderStage::DomainShader;
 	case SF_Compute:	return ShaderConductor::ShaderStage::ComputeShader;
 	default:			return ShaderConductor::ShaderStage::NumShaderStages;
 	}
@@ -514,8 +512,7 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 	bool bDumpDebugInfo, ELanguage Language, FShaderCompilerOutput& Output)
 {
 	bool bResult = true;
-	const bool bUsingTessellation = Input.IsUsingTessellation();
-	if (bUsingTessellation || bIsRayTracingShader)
+	if (bIsRayTracingShader)
 	{
 		bResult = false;
 	}

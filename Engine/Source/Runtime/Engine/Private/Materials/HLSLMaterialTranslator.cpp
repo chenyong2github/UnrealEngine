@@ -7552,7 +7552,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 	}
 		
 	{ // validation
-		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Domain && ShaderFrequency != SF_Vertex)
+		if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute && ShaderFrequency != SF_Vertex)
 		{
 			return NonPixelShaderExpressionError();
 		}
@@ -7598,15 +7598,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			check(AWComponent == 0);
 			if (DestCoordBasis == MCB_World)
 			{
-				if (ShaderFrequency == SF_Domain)
-				{
-					// domain shader uses a prescale value to preserve scaling factor on WorldTransform	when sampling a displacement map
-					CodeStr = FString(TEXT("TransformTangent<TO>World_PreScaled(Parameters, <A>.xyz)"));
-				}
-				else
-				{
-					CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.TangentToWorld))");
-				}
+				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.TangentToWorld))");
 			}
 			// else use MCB_World as intermediary basis
 			break;
@@ -8115,11 +8107,6 @@ int32 FHLSLMaterialTranslator::AntialiasedTextureMask(int32 Tex, int32 UV, float
 
 int32 FHLSLMaterialTranslator::DepthOfFieldFunction(int32 Depth, int32 FunctionValueIndex)
 {
-	if (ShaderFrequency == SF_Hull)
-	{
-		return Errorf(TEXT("Invalid node DepthOfFieldFunction used in hull shader input!"));
-	}
-
 	if (Depth == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -9223,7 +9210,7 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 		}
 		Code.ReplaceInline(TEXT("\n"), TEXT("\r\n"), ESearchCase::CaseSensitive);
 
-		FString ParametersType = ShaderFrequency == SF_Vertex ? TEXT("Vertex") : (ShaderFrequency == SF_Domain ? TEXT("Tessellation") : TEXT("Pixel"));
+		FString ParametersType = ShaderFrequency == SF_Vertex ? TEXT("Vertex") : TEXT("Pixel");
 
 		FMaterialCustomExpressionEntry& Entry = CustomExpressions.AddDefaulted_GetRef();
 		CustomEntry = &Entry;

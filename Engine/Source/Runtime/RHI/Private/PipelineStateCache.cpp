@@ -33,10 +33,6 @@ static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 		^ GetTypeHash(Input.MeshShaderRHI)
 		^ GetTypeHash(Input.AmplificationShaderRHI)
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		^ GetTypeHash(Input.HullShaderRHI)
-		^ GetTypeHash(Input.DomainShaderRHI)
-#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		^ GetTypeHash(Input.GeometryShaderRHI)
 #endif
@@ -109,16 +105,6 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	if (Init.BoundShaderState.AmplificationShaderRHI)
 	{
 		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), *Init.BoundShaderState.AmplificationShaderRHI->ShaderName);
-	}
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	if(Init.BoundShaderState.HullShaderRHI)
-	{
-		UE_LOG(LogRHI, Error, TEXT("Hull: %s"), *Init.BoundShaderState.HullShaderRHI->ShaderName);
-	}
-	if(Init.BoundShaderState.DomainShaderRHI)
-	{
-		UE_LOG(LogRHI, Error, TEXT("Domain: %s"), *Init.BoundShaderState.DomainShaderRHI->ShaderName);
 	}
 #endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS

@@ -487,8 +487,6 @@ void FRHICommandSetLocalUniformBuffer<TRHIShader>::Execute(FRHICommandListBase& 
 	}
 }
 template struct FRHICommandSetLocalUniformBuffer<FRHIVertexShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIHullShader>;
-template struct FRHICommandSetLocalUniformBuffer<FRHIDomainShader>;
 template struct FRHICommandSetLocalUniformBuffer<FRHIGeometryShader>;
 template struct FRHICommandSetLocalUniformBuffer<FRHIPixelShader>;
 template struct FRHICommandSetLocalUniformBuffer<FRHIComputeShader>;

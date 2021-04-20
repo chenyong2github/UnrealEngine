@@ -748,10 +748,6 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, Item.GraphicsDesc.FragmentShader);
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("GeometryShader"));
 				PrintShaders(InverseMap, Item.GraphicsDesc.GeometryShader);
-				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("HullShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.HullShader);
-				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("DomainShader"));
-				PrintShaders(InverseMap, Item.GraphicsDesc.DomainShader);
 				break;
 			case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
 				UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("RayTracingShader"));
@@ -797,7 +793,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	{ 
 		NumExamined++;
 		
-		static_assert(SF_Vertex == 0 && SF_Compute == 7, "Shader Frequencies have changed, please update");
+		static_assert(SF_Vertex == 0 && SF_Compute == 5, "Shader Frequencies have changed, please update");
 		TArray<int32> StableShadersPerSlot[SF_NumFrequencies];
 		bool ActivePerSlot[SF_NumFrequencies] = { false };
 
@@ -814,8 +810,6 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			ActivePerSlot[SF_Amplification] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.AmplificationShader, StableShadersPerSlot[SF_Amplification], OutAnyActiveButMissing);
 			ActivePerSlot[SF_Pixel] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.FragmentShader, StableShadersPerSlot[SF_Pixel], OutAnyActiveButMissing);
 			ActivePerSlot[SF_Geometry] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.GeometryShader, StableShadersPerSlot[SF_Geometry], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Hull] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, StableShadersPerSlot[SF_Hull], OutAnyActiveButMissing);
-			ActivePerSlot[SF_Domain] = GetStableShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, StableShadersPerSlot[SF_Domain], OutAnyActiveButMissing);
 		}
 		else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
 		{
@@ -842,8 +836,6 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.AmplificationShader, TEXT("AmplificationShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
-				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
-				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 			}
 			else if (Item.Type == FPipelineCacheFileFormatPSO::DescriptorType::RayTracing)
 			{
@@ -921,8 +913,6 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.AmplificationShader, TEXT("AmplificationShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.FragmentShader, TEXT("FragmentShader"));
 				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.GeometryShader, TEXT("GeometryShader"));
-				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.HullShader, TEXT("HullShader"));
-				PrintShaders(InverseMap, StableShaderKeyIndexTable, Item.GraphicsDesc.DomainShader, TEXT("DomainShader"));
 
 				continue;
 			}
@@ -1018,7 +1008,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		}
 		for (const FPermutation& Perm : Item.Permutations)
 		{
-			// because it is a CSV, and for backward compat, compute shaders will just be a zeroed graphics desc with the shader in the hull shader slot.
+			// because it is a CSV, and for backward compat, compute shaders will just be a zeroed graphics desc with the shader in the mesh shader slot.
 			FString PSOLine = Item.PSO->CommonToString();
 			PSOLine += TEXT(",");
 			if (Item.PSO->Type == FPipelineCacheFileFormatPSO::DescriptorType::Compute)
@@ -1029,7 +1019,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				for (int32 SlotIndex = 0; SlotIndex < SF_Compute; SlotIndex++)  // SF_Compute here because the stablepc.csv file format does not have a compute slot
 				{
 					check(!Item.ActivePerSlot[SlotIndex]); // none of these should be active for a compute shader
-					if (SlotIndex == SF_Hull)
+					if (SlotIndex == SF_Mesh)
 					{
 						FStableShaderKeyAndValue ShaderKeyAndValue = StableShaderKeyIndexTable[Perm.Slots[SF_Compute]];
 						ShaderKeyAndValue.OutputHash = FSHAHash(); // Saved output hash needs to be zeroed so that BuildPSOSC can use this entry even if shaders code changes in future builds
@@ -1214,12 +1204,10 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 			return;
 		}
 
-		// For backward compatibility, compute shaders are stored as a zeroed graphics desc with the shader in the hull shader slot.
+		// For backward compatibility, compute shaders are stored as a zeroed graphics desc with the shader in the mesh shader slot.
 		static FName NAME_SF_Vertex("SF_Vertex");
 		static FName NAME_SF_Mesh("SF_Mesh");
 		static FName NAME_SF_Amplification("SF_Amplification");
-		static FName NAME_SF_Hull("SF_Hull");
-		static FName NAME_SF_Domain("SF_Domain");
 		static FName NAME_SF_Pixel("SF_Pixel");
 		static FName NAME_SF_Geometry("SF_Geometry");
 		static FName NAME_SF_Compute("SF_Compute");
@@ -1250,14 +1238,6 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 			else if (Shader.TargetFrequency == NAME_SF_Amplification)
 			{
 				AdjustedSlotIndex = SF_Amplification;
-			}
-			else if (Shader.TargetFrequency == NAME_SF_Hull)
-			{
-				AdjustedSlotIndex = SF_Hull;
-			}
-			else if (Shader.TargetFrequency == NAME_SF_Domain)
-			{
-				AdjustedSlotIndex = SF_Domain;
 			}
 			else if (Shader.TargetFrequency == NAME_SF_Pixel)
 			{
@@ -1344,12 +1324,6 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 			case SF_Geometry:
 				PSO.GraphicsDesc.GeometryShader = Match;
 				break;
-			case SF_Hull:
-				PSO.GraphicsDesc.HullShader = Match;
-				break;
-			case SF_Domain:
-				PSO.GraphicsDesc.DomainShader = Match;
-				break;
 			case SF_Compute:
 				PSO.ComputeDesc.ComputeShader = Match;
 				break;
@@ -1375,9 +1349,7 @@ static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName,
 				PSO.GraphicsDesc.MeshShader == FSHAHash() &&
 				PSO.GraphicsDesc.AmplificationShader == FSHAHash() &&
 				PSO.GraphicsDesc.FragmentShader == FSHAHash() &&
-				PSO.GraphicsDesc.GeometryShader == FSHAHash() &&
-				PSO.GraphicsDesc.HullShader == FSHAHash() &&
-				PSO.GraphicsDesc.DomainShader == FSHAHash());
+				PSO.GraphicsDesc.GeometryShader == FSHAHash());
 		}
 		else if (PSO.Type == FPipelineCacheFileFormatPSO::DescriptorType::Graphics)
 		{
@@ -2066,9 +2038,7 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 							TestItem.GraphicsDesc.MeshShader == Item.GraphicsDesc.MeshShader &&
 							TestItem.GraphicsDesc.AmplificationShader == Item.GraphicsDesc.AmplificationShader &&
 							TestItem.GraphicsDesc.FragmentShader == Item.GraphicsDesc.FragmentShader &&
-							TestItem.GraphicsDesc.GeometryShader == Item.GraphicsDesc.GeometryShader &&
-							TestItem.GraphicsDesc.HullShader == Item.GraphicsDesc.HullShader &&
-							TestItem.GraphicsDesc.DomainShader == Item.GraphicsDesc.DomainShader
+							TestItem.GraphicsDesc.GeometryShader == Item.GraphicsDesc.GeometryShader
 							)
 						{
 							bMatchedKept = true;

@@ -332,8 +332,6 @@ void FD3D11DynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 	// Shader changed so all resource tables are dirty
 	DirtyUniformBuffers[SF_Vertex] = 0xffff;
 	DirtyUniformBuffers[SF_Pixel] = 0xffff;
-	DirtyUniformBuffers[SF_Hull] = 0xffff;
-	DirtyUniformBuffers[SF_Domain] = 0xffff;
 	DirtyUniformBuffers[SF_Geometry] = 0xffff;
 
 	// Shader changed.  All UB's must be reset by high level code to match other platforms anway.

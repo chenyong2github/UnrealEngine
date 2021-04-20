@@ -80,8 +80,6 @@ void FAtmosphereShaderTextureParameters::Bind(const FShaderParameterMap& Paramet
 	template void FAtmosphereShaderTextureParameters::Set< TRHIShader >( FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FSceneView& View ) const;
 
 IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIVertexShader);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIHullShader);
-IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIDomainShader);
 IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIGeometryShader);
 IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIPixelShader);
 IMPLEMENT_ATMOSPHERE_TEXTURE_PARAM_SET(FRHIComputeShader);

@@ -353,7 +353,7 @@ void FD3D12StateCacheBase::SetScissorRects(uint32 Count, const D3D12_RECT* const
 
 inline bool ShouldSkipStage(uint32 Stage)
 {
-	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShaders) || Stage == SF_Hull || Stage == SF_Domain;
+	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShaders);
 }
 
 template <ED3D12PipelineType PipelineType>

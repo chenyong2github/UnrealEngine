@@ -47,8 +47,6 @@ public:
 	FORCEINLINE FRHIMeshShader*     GetMeshShader() const   { return MeshShader; }
 	FORCEINLINE FRHIAmplificationShader*   GetAmplificationShader() const   { return AmplificationShader; }
 	FORCEINLINE FRHIPixelShader*    GetPixelShader() const    { return PixelShader; }
-	FORCEINLINE FRHIHullShader*     GetHullShader() const     { return nullptr; }
-	FORCEINLINE FRHIDomainShader*   GetDomainShader() const   { return nullptr; }
 	FORCEINLINE FRHIGeometryShader* GetGeometryShader() const { return GeometryShader; }
 
 	/**
@@ -214,8 +212,6 @@ public:
 	FORCEINLINE FRHIMeshShader*     GetMeshShader() const     { return Key.GetMeshShader(); }
 	FORCEINLINE FRHIAmplificationShader* GetAmplificationShader() const { return Key.GetAmplificationShader(); }
 	FORCEINLINE FRHIPixelShader*    GetPixelShader() const    { return Key.GetPixelShader(); }
-	FORCEINLINE FRHIHullShader*     GetHullShader() const     { return Key.GetHullShader(); }
-	FORCEINLINE FRHIDomainShader*   GetDomainShader() const   { return Key.GetDomainShader(); }
 	FORCEINLINE FRHIGeometryShader* GetGeometryShader() const { return Key.GetGeometryShader(); }
 
 	/**

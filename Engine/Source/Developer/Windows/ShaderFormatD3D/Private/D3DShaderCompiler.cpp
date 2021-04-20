@@ -99,10 +99,6 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return USE_SHADER_MODEL_6_6 ? TEXT("ms_6_6") : TEXT("ms_6_5");
 		case SF_Amplification:
 			return USE_SHADER_MODEL_6_6 ? TEXT("as_6_6") : TEXT("as_6_5");
-		case SF_Hull:
-			return USE_SHADER_MODEL_6_6 ? TEXT("hs_6_6") : TEXT("hs_6_5");
-		case SF_Domain:
-			return USE_SHADER_MODEL_6_6 ? TEXT("ds_6_6") : TEXT("ds_6_5");
 		case SF_Geometry:
 			return USE_SHADER_MODEL_6_6 ? TEXT("gs_6_6") : TEXT("gs_6_5");
 		case SF_Compute:
@@ -127,10 +123,6 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return bForceSM6 ? TEXT("ps_6_0") : TEXT("ps_5_0");
 		case SF_Vertex:
 			return bForceSM6 ? TEXT("vs_6_0") : TEXT("vs_5_0");
-		case SF_Hull:
-			return bForceSM6 ? TEXT("hs_6_0") : TEXT("hs_5_0");
-		case SF_Domain:
-			return bForceSM6 ? TEXT("ds_6_0") : TEXT("ds_5_0");
 		case SF_Geometry:
 			return bForceSM6 ? TEXT("gs_6_0") : TEXT("gs_5_0");
 		case SF_Compute:

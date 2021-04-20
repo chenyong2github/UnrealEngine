@@ -25,23 +25,21 @@ enum EShaderFrequency : uint8
 	SF_Vertex			= 0,
 	SF_Mesh				= 1,
 	SF_Amplification	= 2,
-	SF_Hull				= 3,
-	SF_Domain			= 4,
-	SF_Pixel			= 5,
-	SF_Geometry			= 6,
-	SF_Compute			= 7,
-	SF_RayGen			= 8,
-	SF_RayMiss			= 9,
-	SF_RayHitGroup		= 10,
-	SF_RayCallable		= 11,
+	SF_Pixel			= 3,
+	SF_Geometry			= 4,
+	SF_Compute			= 5,
+	SF_RayGen			= 6,
+	SF_RayMiss			= 7,
+	SF_RayHitGroup		= 8,
+	SF_RayCallable		= 9,
 
-	SF_NumFrequencies	= 12,
+	SF_NumFrequencies	= 10,
 
 	// Number of standard shader frequencies for graphics pipeline (excluding compute)
-	SF_NumGraphicsFrequencies = 7,
+	SF_NumGraphicsFrequencies = 5,
 
 	// Number of standard shader frequencies (including compute)
-	SF_NumStandardFrequencies = 8,
+	SF_NumStandardFrequencies = 6,
 
 	SF_NumBits			= 4,
 };
@@ -1410,8 +1408,6 @@ enum ERHIResourceType
 	RRT_BlendState,
 	RRT_VertexDeclaration,
 	RRT_VertexShader,
-	RRT_HullShader,
-	RRT_DomainShader,
 	RRT_PixelShader,
 	RRT_GeometryShader,
 	RRT_ComputeShader,
@@ -1999,8 +1995,6 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	case SF_Vertex:			String = TEXT("SF_Vertex"); break;
 	case SF_Mesh:			String = TEXT("SF_Mesh"); break;
 	case SF_Amplification:	String = TEXT("SF_Amplification"); break;
-	case SF_Hull:			String = TEXT("SF_Hull"); break;
-	case SF_Domain:			String = TEXT("SF_Domain"); break;
 	case SF_Geometry:		String = TEXT("SF_Geometry"); break;
 	case SF_Pixel:			String = TEXT("SF_Pixel"); break;
 	case SF_Compute:		String = TEXT("SF_Compute"); break;
@@ -2043,10 +2037,4 @@ inline bool IsRayTracingShaderFrequency(EShaderFrequency Frequency)
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
 #else
 	#define GEOMETRY_SHADER(GeometryShader)	nullptr
-#endif
-
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	#define TESSELLATION_SHADER(HullOrDomainShader)	(HullOrDomainShader)
-#else
-	#define TESSELLATION_SHADER(HullOrDomainShader)	nullptr
 #endif

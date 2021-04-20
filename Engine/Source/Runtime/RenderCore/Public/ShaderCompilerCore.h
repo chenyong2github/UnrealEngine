@@ -307,12 +307,6 @@ struct FShaderCompilerInput
 
 	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input);
 
-	bool IsUsingTessellation() const
-	{
-		// no more tessellation in UE5
-		return false;
-	}
-
 	bool IsRayTracingShader() const
 	{
 		return IsRayTracingShaderFrequency(Target.GetFrequency());

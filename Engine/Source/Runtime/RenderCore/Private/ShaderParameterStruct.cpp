@@ -229,8 +229,6 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	switch (Type->GetFrequency())
 	{
 	case SF_Vertex:
-	case SF_Hull:
-	case SF_Domain:
 	case SF_Pixel:
 	case SF_Geometry:
 	case SF_Compute:

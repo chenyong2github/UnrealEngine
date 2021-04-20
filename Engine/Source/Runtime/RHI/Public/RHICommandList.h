@@ -621,8 +621,6 @@ protected:
 	FORCEINLINE void ValidateBoundShader(FRHIVertexShader* ShaderRHI) { checkSlow(BoundShaderInput.VertexShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIPixelShader* ShaderRHI) { checkSlow(BoundShaderInput.PixelShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIGeometryShader* ShaderRHI) { checkSlow(BoundShaderInput.GeometryShaderRHI == ShaderRHI); }
-	FORCEINLINE void ValidateBoundShader(FRHIHullShader* ShaderRHI) { checkSlow(BoundShaderInput.HullShaderRHI == ShaderRHI); }
-	FORCEINLINE void ValidateBoundShader(FRHIDomainShader* ShaderRHI) { checkSlow(BoundShaderInput.DomainShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIComputeShader* ShaderRHI) { checkSlow(BoundComputeShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIMeshShader* ShaderRHI) { checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIAmplificationShader* ShaderRHI) { checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); }
@@ -635,8 +633,6 @@ protected:
 		case SF_Vertex: checkSlow(BoundShaderInput.VertexShaderRHI == ShaderRHI); break;
 		case SF_Mesh: checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); break;
 		case SF_Amplification: checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); break;
-		case SF_Hull: checkSlow(BoundShaderInput.HullShaderRHI == ShaderRHI); break;
-		case SF_Domain: checkSlow(BoundShaderInput.DomainShaderRHI == ShaderRHI); break;
 		case SF_Pixel: checkSlow(BoundShaderInput.PixelShaderRHI == ShaderRHI); break;
 		case SF_Geometry: checkSlow(BoundShaderInput.GeometryShaderRHI == ShaderRHI); break;
 		default: checkfSlow(false, TEXT("Unexpected graphics shader type %d"), ShaderRHI->GetFrequency());
@@ -2879,8 +2875,6 @@ public:
 	inline FRHIVertexShader* GetBoundVertexShader() const { return BoundShaderInput.VertexShaderRHI; }
 	inline FRHIMeshShader* GetBoundMeshShader() const { return BoundShaderInput.MeshShaderRHI; }
 	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.AmplificationShaderRHI; }
-	inline FRHIHullShader* GetBoundHullShader() const { return BoundShaderInput.HullShaderRHI; }
-	inline FRHIDomainShader* GetBoundDomainShader() const { return BoundShaderInput.DomainShaderRHI; }
 	inline FRHIPixelShader* GetBoundPixelShader() const { return BoundShaderInput.PixelShaderRHI; }
 	inline FRHIGeometryShader* GetBoundGeometryShader() const { return BoundShaderInput.GeometryShaderRHI; }
 
@@ -4010,18 +4004,6 @@ public:
 		return GDynamicRHI->CreateAmplificationShader_RenderThread(*this, Code, Hash);
 	}
 	
-	FORCEINLINE FHullShaderRHIRef CreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-	{
-		LLM_SCOPE(ELLMTag::Shaders);
-		return GDynamicRHI->CreateHullShader_RenderThread(*this, Code, Hash);
-	}
-	
-	FORCEINLINE FDomainShaderRHIRef CreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-	{
-		LLM_SCOPE(ELLMTag::Shaders);
-		return GDynamicRHI->CreateDomainShader_RenderThread(*this, Code, Hash);
-	}
-	
 	FORCEINLINE FGeometryShaderRHIRef CreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 	{
 		LLM_SCOPE(ELLMTag::Shaders);
@@ -5054,16 +5036,6 @@ FORCEINLINE FMeshShaderRHIRef RHICreateMeshShader(TArrayView<const uint8> Code, 
 FORCEINLINE FAmplificationShaderRHIRef RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateAmplificationShader(Code, Hash);
-}
-
-FORCEINLINE FHullShaderRHIRef RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateHullShader(Code, Hash);
-}
-
-FORCEINLINE FDomainShaderRHIRef RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().CreateDomainShader(Code, Hash);
 }
 
 FORCEINLINE FGeometryShaderRHIRef RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash)

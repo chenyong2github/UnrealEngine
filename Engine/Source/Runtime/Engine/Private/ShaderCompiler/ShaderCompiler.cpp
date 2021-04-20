@@ -4634,8 +4634,6 @@ void GlobalBeginCompileShader(
 	// Add the appropriate definitions for the shader frequency.
 	{
 		Input.Environment.SetDefine(TEXT("PIXELSHADER"), Target.Frequency == SF_Pixel);
-		Input.Environment.SetDefine(TEXT("DOMAINSHADER"), Target.Frequency == SF_Domain);
-		Input.Environment.SetDefine(TEXT("HULLSHADER"), Target.Frequency == SF_Hull);
 		Input.Environment.SetDefine(TEXT("VERTEXSHADER"), Target.Frequency == SF_Vertex);
 		Input.Environment.SetDefine(TEXT("MESHSHADER"), Target.Frequency == SF_Mesh);
 		Input.Environment.SetDefine(TEXT("AMPLIFICATIONSHADER"), Target.Frequency == SF_Amplification);

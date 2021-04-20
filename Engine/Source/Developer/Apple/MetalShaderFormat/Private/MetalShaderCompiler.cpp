@@ -812,8 +812,6 @@ static const EHlslShaderFrequency FrequencyTable[] =
 	HSF_VertexShader,
 	HSF_InvalidFrequency,
 	HSF_InvalidFrequency,
-	HSF_HullShader,
-	HSF_DomainShader,
 	HSF_PixelShader,
 	HSF_InvalidFrequency,
 	HSF_ComputeShader

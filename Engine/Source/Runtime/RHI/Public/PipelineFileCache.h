@@ -154,8 +154,6 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		FSHAHash VertexShader;
 		FSHAHash FragmentShader;
 		FSHAHash GeometryShader;
-		FSHAHash HullShader;
-		FSHAHash DomainShader;
 		FSHAHash MeshShader;
 		FSHAHash AmplificationShader;
 

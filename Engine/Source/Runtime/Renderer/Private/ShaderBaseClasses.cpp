@@ -332,8 +332,6 @@ void FMaterialShader::SetParameters(
 	);
 
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIVertexShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIHullShader);
-IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIDomainShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIGeometryShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIPixelShader);
 IMPLEMENT_MATERIAL_SHADER_SetParameters(FRHIComputeShader);

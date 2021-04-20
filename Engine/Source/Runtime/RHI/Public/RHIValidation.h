@@ -152,20 +152,6 @@ public:
 	}
 
 	// FlushType: Wait RHI Thread
-	virtual FHullShaderRHIRef RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsTessellation(GMaxRHIShaderPlatform));
-		return RHI->RHICreateHullShader(Code, Hash);
-	}
-
-	// FlushType: Wait RHI Thread
-	virtual FDomainShaderRHIRef RHICreateDomainShader(TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsTessellation(GMaxRHIShaderPlatform));
-		return RHI->RHICreateDomainShader(Code, Hash);
-	}
-
-	// FlushType: Wait RHI Thread
 	virtual FGeometryShaderRHIRef RHICreateGeometryShader(TArrayView<const uint8> Code, const FSHAHash& Hash) override final
 	{
 		check(RHISupportsGeometryShaders(GMaxRHIShaderPlatform));
@@ -295,13 +281,11 @@ public:
 	}
 
 	/**
-	* Creates a bound shader state instance which encapsulates a decl, vertex shader, hull shader, domain shader and pixel shader
+	* Creates a bound shader state instance which encapsulates a decl, vertex shader and pixel shader
 	* CAUTION: Even though this is marked as threadsafe, it is only valid to call from the render thread or the RHI thread. It need not be threadsafe unless the RHI support parallel translation.
 	* CAUTION: Platforms that support RHIThread but don't actually have a threadsafe implementation must flush internally with FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList()); when the call is from the render thread
 	* @param VertexDeclaration - existing vertex decl
 	* @param VertexShader - existing vertex shader
-	* @param HullShader - existing hull shader
-	* @param DomainShader - existing domain shader
 	* @param GeometryShader - existing geometry shader
 	* @param PixelShader - existing pixel shader
 	*/
@@ -1415,18 +1399,6 @@ public:
 	{
 		check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 		return RHI->CreateComputeShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FHullShaderRHIRef CreateHullShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsTessellation(GMaxRHIShaderPlatform));
-		return RHI->CreateHullShader_RenderThread(RHICmdList, Code, Hash);
-	}
-
-	virtual FDomainShaderRHIRef CreateDomainShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash) override final
-	{
-		check(RHISupportsTessellation(GMaxRHIShaderPlatform));
-		return RHI->CreateDomainShader_RenderThread(RHICmdList, Code, Hash);
 	}
 
 	virtual void* LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush = true) override final

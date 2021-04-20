@@ -26,8 +26,6 @@
 DECLARE_ISBOUNDSHADER(VertexShader)
 DECLARE_ISBOUNDSHADER(PixelShader)
 DECLARE_ISBOUNDSHADER(GeometryShader)
-DECLARE_ISBOUNDSHADER(HullShader)
-DECLARE_ISBOUNDSHADER(DomainShader)
 */
 
 #if 0//DO_CHECK
@@ -2643,8 +2641,6 @@ void FOpenGLDynamicRHI::CommitGraphicsResourceTablesInner()
 	PendingState.bAnyDirtyGraphicsUniformBuffers = false;
 	PendingState.DirtyUniformBuffers[SF_Vertex] = 0;
 	PendingState.DirtyUniformBuffers[SF_Pixel] = 0;
-	PendingState.DirtyUniformBuffers[SF_Hull] = 0;
-	PendingState.DirtyUniformBuffers[SF_Domain] = 0;
 	PendingState.DirtyUniformBuffers[SF_Geometry] = 0;
 }
 

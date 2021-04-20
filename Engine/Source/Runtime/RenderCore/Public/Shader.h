@@ -923,16 +923,6 @@ public:
 	{
 		return static_cast<FRHIPixelShader*>(GetRHIShaderBase(SF_Pixel));
 	}
-	/** @return the shader's hull shader */
-	inline FRHIHullShader* GetHullShader() const
-	{
-		return static_cast<FRHIHullShader*>(GetRHIShaderBase(SF_Hull));
-	}
-	/** @return the shader's domain shader */
-	inline FRHIDomainShader* GetDomainShader() const
-	{
-		return static_cast<FRHIDomainShader*>(GetRHIShaderBase(SF_Domain));
-	}
 	/** @return the shader's geometry shader */
 	inline FRHIGeometryShader* GetGeometryShader() const
 	{

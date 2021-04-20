@@ -474,8 +474,6 @@ GLenum GLFrequencyTable[] =
 	GL_VERTEX_SHADER,	// SF_Vertex
 	GLenum(0), // SF_Mesh
 	GLenum(0), // SF_Amplification
-	GL_TESS_CONTROL_SHADER,	 // SF_Hull
-	GL_TESS_EVALUATION_SHADER, // SF_Domain
 	GL_FRAGMENT_SHADER, // SF_Pixel
 	GL_GEOMETRY_SHADER,	// SF_Geometry
 	GL_COMPUTE_SHADER,  // SF_Compute
@@ -564,8 +562,6 @@ static ANSICHAR TranslateFrequencyToCrossCompilerPrefix(int32 Frequency)
 	{
 		case SF_Vertex: return 'v';
 		case SF_Pixel: return 'p';
-		case SF_Hull: return 'h';
-		case SF_Domain: return 'd';
 		case SF_Geometry: return 'g';
 		case SF_Compute: return 'c';
 	}
@@ -633,12 +629,6 @@ void FOpenGLFrontend::BuildShaderOutput(
 		break;
 	case SF_Geometry:
 		Header.FrequencyMarker = 0x4753;
-		break;
-	case SF_Hull:
-		Header.FrequencyMarker = 0x4853;
-		break;
-	case SF_Domain:
-		Header.FrequencyMarker = 0x4453;
 		break;
 	case SF_Compute:
 		Header.FrequencyMarker = 0x4353;
@@ -2213,8 +2203,6 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		HSF_VertexShader,
 		HSF_InvalidFrequency,
 		HSF_InvalidFrequency,
-		bIsSM5 ? HSF_HullShader : HSF_InvalidFrequency,
-		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
 		HSF_GeometryShader,
 		RHISupportsComputeShaders(Input.Target.GetPlatform()) ? HSF_ComputeShader : HSF_InvalidFrequency

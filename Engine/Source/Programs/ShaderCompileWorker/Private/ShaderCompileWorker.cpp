@@ -894,14 +894,6 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 			{
 				Frequency = SF_Amplification;
 			}
-			else if (!FCString::Strcmp(*Token, TEXT("hs")))
-			{
-				Frequency = SF_Hull;
-			}
-			else if (!FCString::Strcmp(*Token, TEXT("ds")))
-			{
-				Frequency = SF_Domain;
-			}
 			else if (!FCString::Strcmp(*Token, TEXT("gs")))
 			{
 				Frequency = SF_Geometry;

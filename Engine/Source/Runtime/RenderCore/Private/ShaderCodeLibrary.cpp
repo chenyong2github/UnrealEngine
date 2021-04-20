@@ -2620,24 +2620,6 @@ FPixelShaderRHIRef FShaderCodeLibrary::CreatePixelShader(EShaderPlatform Platfor
 	return nullptr;
 }
 
-FHullShaderRHIRef FShaderCodeLibrary::CreateHullShader(EShaderPlatform Platform, const FSHAHash& Hash)
-{
-	if (FShaderLibrariesCollection::Impl)
-	{
-		return FHullShaderRHIRef(FShaderLibrariesCollection::Impl->CreateShader(SF_Hull, Hash));
-	}
-	return nullptr;
-}
-
-FDomainShaderRHIRef FShaderCodeLibrary::CreateDomainShader(EShaderPlatform Platform, const FSHAHash& Hash)
-{
-	if (FShaderLibrariesCollection::Impl)
-	{
-		return FDomainShaderRHIRef(FShaderLibrariesCollection::Impl->CreateShader(SF_Domain, Hash));
-	}
-	return nullptr;
-}
-
 FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform Platform, const FSHAHash& Hash)
 {
 	if (FShaderLibrariesCollection::Impl)

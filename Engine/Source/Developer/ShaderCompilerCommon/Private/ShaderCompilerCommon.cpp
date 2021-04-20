@@ -1228,8 +1228,6 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	case SF_Vertex:			Text += TEXT(" -vs"); break;
 	case SF_Mesh:			Text += TEXT(" -ms"); break;
 	case SF_Amplification:	Text += TEXT(" -as"); break;
-	case SF_Hull:			Text += TEXT(" -hs"); break;
-	case SF_Domain:			Text += TEXT(" -ds"); break;
 	case SF_Geometry:		Text += TEXT(" -gs"); break;
 	case SF_Pixel:			Text += TEXT(" -ps"); break;
 	case SF_Compute:		Text += TEXT(" -cs"); break;
@@ -1289,8 +1287,6 @@ static FString CreateShaderConductorCommandLine(const FShaderCompilerInput& Inpu
 	case SF_Vertex:			Stage = TEXT("vs"); break;
 	case SF_Pixel:			Stage = TEXT("ps"); break;
 	case SF_Geometry:		Stage = TEXT("gs"); break;
-	case SF_Hull:			Stage = TEXT("hs"); break;
-	case SF_Domain:			Stage = TEXT("ds"); break;
 	case SF_Compute:		Stage = TEXT("cs"); break;
 	default:				return FString();
 	}
@@ -1434,14 +1430,6 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 			case SF_Geometry:
 				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".geom");
 				CompilerCommand += TEXT(" -g");
-			break;
-			case SF_Hull:
-				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".tesc");
-				CompilerCommand += TEXT(" -t");
-			break;
-			case SF_Domain:
-				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".tese");
-				CompilerCommand += TEXT(" -e");
 			break;
 			case SF_Compute:
 				GLSLSourceFile += bVulkanSpirV ? TEXT(".spv") : TEXT(".comp");
@@ -1777,8 +1765,6 @@ namespace CrossCompiler
 		TEXT("Vertex"),
 		TEXT("Mesh"),
 		TEXT("Amplification"),
-		TEXT("Hull"),
-		TEXT("Domain"),
 		TEXT("Pixel"),
 		TEXT("Geometry"),
 		TEXT("Compute"),

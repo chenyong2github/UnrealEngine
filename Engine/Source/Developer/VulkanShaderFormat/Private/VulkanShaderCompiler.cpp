@@ -2251,8 +2251,7 @@ static bool CompileWithShaderConductor(
 {
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
-	const bool bUsingTessellation = Input.IsUsingTessellation();
-	const bool bRewriteHlslSource = !bUsingTessellation;
+	const bool bRewriteHlslSource = true;
 	const bool bDebugDump = CompilerInfo.bDebugDump;
 
 	CrossCompiler::FShaderConductorContext CompilerContext;
@@ -2338,8 +2337,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		HSF_VertexShader,
 		HSF_InvalidFrequency,
 		HSF_InvalidFrequency,
-		bIsSM5 ? HSF_HullShader : HSF_InvalidFrequency,
-		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
 		bIsSM5 ? HSF_GeometryShader : HSF_InvalidFrequency,
 		HSF_ComputeShader

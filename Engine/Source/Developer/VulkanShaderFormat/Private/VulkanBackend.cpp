@@ -710,8 +710,6 @@ static inline ShaderStage::EStage GetDescriptorSetForStage(_mesa_glsl_parser_tar
 	case fragment_shader:					return ShaderStage::GetStageForFrequency(SF_Pixel);
 	case compute_shader:					return ShaderStage::GetStageForFrequency(SF_Compute);
 	case geometry_shader:					return ShaderStage::GetStageForFrequency(SF_Geometry);
-	case tessellation_evaluation_shader:	return ShaderStage::GetStageForFrequency(SF_Domain);
-	case tessellation_control_shader:		return ShaderStage::GetStageForFrequency(SF_Hull);
 	default: check(0);	break;	// NOT IMPLEMENTED!
 	}
 
