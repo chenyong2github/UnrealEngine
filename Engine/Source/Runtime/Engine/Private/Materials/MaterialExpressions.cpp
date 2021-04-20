@@ -727,7 +727,7 @@ void UMaterialExpression::CopyMaterialExpressions(const TArray<UMaterialExpressi
 
 void UMaterialExpression::Serialize(FStructuredArchive::FRecord Record)
 {
-	SCOPED_LOADTIMER(UMaterialExpression::Serialize);
+	SCOPED_LOADTIMER(UMaterialExpression_Serialize);
 	Super::Serialize(Record);
 
 	Record.GetUnderlyingArchive().UsingCustomVersion(FRenderingObjectVersion::GUID);
@@ -753,7 +753,7 @@ void UMaterialExpression::PostInitProperties()
 
 void UMaterialExpression::PostLoad()
 {
-	SCOPED_LOADTIMER(UMaterialExpression::PostLoad);
+	SCOPED_LOADTIMER(UMaterialExpression_PostLoad);
 	Super::PostLoad();
 
 	if (!Material && GetOuter()->IsA(UMaterial::StaticClass()))
