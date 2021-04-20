@@ -49,7 +49,7 @@ float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) con
 
 	if(Animation && WarpSectionIndex >= 0)
 	{
-		FName LastSyncPointName = NAME_None;
+		FName LastWarpTargetName = NAME_None;
 		int32 LastWarpSectionIndex = INDEX_NONE;
 
 		for (int32 Idx = 0; Idx < Animation->Notifies.Num(); Idx++)
@@ -57,22 +57,21 @@ float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) con
 			const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Idx];
 			if(const UAnimNotifyState_MotionWarping* Notify = Cast<const UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
 			{
-				//@TODO: We may want to add a function in UAnimNotifyState_MotionWarping that returns the SyncPointName?
-				if(const URootMotionModifierConfig_Warp* Config = Cast<const URootMotionModifierConfig_Warp>(Notify->RootMotionModifierConfig))
+				if(const URootMotionModifier_Warp* Modifier = Cast<const URootMotionModifier_Warp>(Notify->RootMotionModifier))
 				{
-					const FName SyncPointName = Config->SyncPointName;
-					if(SyncPointName != NAME_None)
+					const FName WarpTargetName = Modifier->WarpTargetName;
+					if(WarpTargetName != NAME_None)
 					{
 						// First valid warping window. Initialize everything
 						if (LastWarpSectionIndex == INDEX_NONE)
 						{
-							LastSyncPointName = SyncPointName;
+							LastWarpTargetName = WarpTargetName;
 							Result = NotifyEvent.GetEndTriggerTime();
 							LastWarpSectionIndex = 0;
 						}
 						// If we hit another warping window but the sync point is the same as the previous, update SyncTime.
 						// This is to deal with cases where a first short window is used to face the alignment point and a second one to perform the rest of the warp
-						else if(SyncPointName == LastSyncPointName)
+						else if(WarpTargetName == LastWarpTargetName)
 						{
 							Result = NotifyEvent.GetEndTriggerTime();
 						}
@@ -82,7 +81,7 @@ float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) con
 							// If we haven't reached the desired WarpSection yet. Update control vars and keep moving
 							if(WarpSectionIndex > LastWarpSectionIndex)
 							{
-								LastSyncPointName = SyncPointName;
+								LastWarpTargetName = WarpTargetName;
 								Result = NotifyEvent.GetEndTriggerTime();
 								LastWarpSectionIndex++;
 							}
@@ -103,7 +102,7 @@ float FContextualAnimData::GetSyncTimeForWarpSection(int32 WarpSectionIndex) con
 
 float FContextualAnimData::GetSyncTimeForWarpSection(const FName& WarpSectionName) const
 {
-	//@TODO: We need a better way to identify warping sections withing the animation. This is just a temp solution
+	//@TODO: We need a better way to identify warping sections within the animation. This is just a temp solution
 	//@TODO: We should cache this data
 
 	float Result = 0.f;
@@ -115,11 +114,10 @@ float FContextualAnimData::GetSyncTimeForWarpSection(const FName& WarpSectionNam
 			const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Idx];
 			if (const UAnimNotifyState_MotionWarping* Notify = Cast<const UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
 			{
-				//@TODO: We may want to add a function in UAnimNotifyState_MotionWarping that returns the SyncPointName?
-				if (const URootMotionModifierConfig_Warp* Config = Cast<const URootMotionModifierConfig_Warp>(Notify->RootMotionModifierConfig))
+				if (const URootMotionModifier_Warp* Config = Cast<const URootMotionModifier_Warp>(Notify->RootMotionModifier))
 				{
-					const FName SyncPointName = Config->SyncPointName;
-					if (WarpSectionName == SyncPointName)
+					const FName WarpTargetName = Config->WarpTargetName;
+					if (WarpSectionName == WarpTargetName)
 					{
 						const float NotifyEndTriggerTime = NotifyEvent.GetEndTriggerTime();
 						if(NotifyEndTriggerTime > Result)

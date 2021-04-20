@@ -16,50 +16,17 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 	//@TODO: Temp, to handle the case where the blueprint notify does not return the handle. Will be removed shortly
 	if (!Handle.IsValid())
 	{
-		if (MotionWarpingComp->GetRootMotionModifiers().Num())
+		if (MotionWarpingComp->GetModifiers().Num())
 		{
-			TSharedPtr<FRootMotionModifier> Last = MotionWarpingComp->GetRootMotionModifiers().Last();
-			if (Last.IsValid() && Last->Animation.Get() == Animation && Last->StartTime == StartTime && Last->EndTime == EndTime)
+			URootMotionModifier* Last = MotionWarpingComp->GetModifiers().Last();
+			if (Last && Last->Animation.Get() == Animation && Last->StartTime == StartTime && Last->EndTime == EndTime)
 			{
 				Handle = Last->GetHandle();
 			}
 		}
-
-		if (!Handle.IsValid())
-		{
-			if (MotionWarpingComp->GetModifiers().Num())
-			{
-				UMotionModifier* Last = MotionWarpingComp->GetModifiers().Last();
-				if (Last && Last->Animation.Get() == Animation && Last->StartTime == StartTime && Last->EndTime == EndTime)
-				{
-					Handle = Last->GetHandle();
-				}
-			}
-		}
 	}
 
-	TSharedPtr<FRootMotionModifier> Modifier = MotionWarpingComp->GetRootMotionModifierByHandle(Handle);
-	if (Modifier.IsValid())
-	{
-		if (!Modifier->OnActivateDelegate.IsBound())
-		{
-			Modifier->OnActivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierActivate);
-		}
-
-		if (!Modifier->OnUpdateDelegate.IsBound())
-		{
-			Modifier->OnUpdateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierUpdate);
-		}
-
-		if (!Modifier->OnDeactivateDelegate.IsBound())
-		{
-			Modifier->OnDeactivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate);
-		}
-
-		return Handle;
-	}
-
-	if (UMotionModifier* RootMotionModifierNew = MotionWarpingComp->GetModifierByHandle(Handle))
+	if (URootMotionModifier* RootMotionModifierNew = MotionWarpingComp->GetModifierByHandle(Handle))
 	{
 		if (!RootMotionModifierNew->OnActivateDelegate.IsBound())
 		{
@@ -86,13 +53,9 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::AddRootMotionModifier_
 {
 	if (MotionWarpingComp)
 	{
-		if (RootMotionModifierConfig)
+		if (RootMotionModifier)
 		{
-			return RootMotionModifierConfig->AddRootMotionModifierNew(MotionWarpingComp, Animation, StartTime, EndTime);
-		}
-		else if (RootMotionModifier)
-		{
-			UMotionModifier* NewRootMotionModifier = MotionWarpingComp->AddModifierFromTemplate(RootMotionModifier, Animation, StartTime, EndTime);
+			URootMotionModifier* NewRootMotionModifier = MotionWarpingComp->AddModifierFromTemplate(RootMotionModifier, Animation, StartTime, EndTime);
 			if (NewRootMotionModifier)
 			{
 				return NewRootMotionModifier->GetHandle();
