@@ -19,6 +19,26 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Font Non-Atlased Textures"), STAT_Slate
 DECLARE_MEMORY_STAT(TEXT("Shaped Glyph Sequence Memory"), STAT_SlateShapedGlyphSequenceMemory, STATGROUP_SlateMemory);
 DEFINE_STAT(STAT_SlateFontMeasureCacheMemory);
 
+static FAtlasFlushParams FontAtlasFlushParams;
+FAutoConsoleVariableRef CVarMaxAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxFontAtlasPagesBeforeFlush"),
+	FontAtlasFlushParams.InitialMaxAtlasPagesBeforeFlushRequest,
+	TEXT("The number of font atlas textures created and used before we flush the font cache if a texture atlas is full"));
+
+FAutoConsoleVariableRef CVarMaxFontNonAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxFontNonAtlasTexturesBeforeFlush"),
+	FontAtlasFlushParams.InitialMaxNonAtlasPagesBeforeFlushRequest,
+	TEXT("The number of large glyph font textures initially."));
+
+FAutoConsoleVariableRef CVarGrowFontAtlasFrameWindow(
+	TEXT("Slate.GrowFontAtlasFrameWindow"),
+	FontAtlasFlushParams.GrowAtlasFrameWindow,
+	TEXT("The number of frames within the font atlas will resize rather than flush."));
+
+FAutoConsoleVariableRef CVarGrowFontNonAtlasFrameWindow(
+	TEXT("Slate.GrowFontNonAtlasFrameWindow"),
+	FontAtlasFlushParams.GrowNonAtlasFrameWindow,
+	TEXT("The number of frames within the large font glyph pool will resize rather than flush."));
 
 static int32 UnloadFreeTypeDataOnFlush = 1;
 FAutoConsoleVariableRef CVarUnloadFreeTypeDataOnFlush(
@@ -776,7 +796,8 @@ FCharacterEntry FCharacterList::MakeCharacterEntry(TCHAR Character, const FChara
 }
 
 FSlateFontCache::FSlateFontCache( TSharedRef<ISlateFontAtlasFactory> InFontAtlasFactory, ESlateTextureAtlasThreadId InOwningThread)
-	: FTLibrary( new FFreeTypeLibrary() )
+	: FSlateFlushableAtlasCache(&FontAtlasFlushParams)
+	, FTLibrary( new FFreeTypeLibrary() )
 	, FTCacheDirectory( new FFreeTypeCacheDirectory() )
 	, CompositeFontCache( new FCompositeFontCache( FTLibrary.Get() ) )
 	, FontRenderer( new FSlateFontRenderer( FTLibrary.Get(), FTCacheDirectory.Get(), CompositeFontCache.Get() ) )

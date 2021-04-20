@@ -13,29 +13,6 @@ DEFINE_STAT(STAT_SlateTextureGPUMemory);
 DEFINE_STAT(STAT_SlateTextureDataMemory);
 DECLARE_MEMORY_STAT(TEXT("Texture Atlas Memory (CPU)"), STAT_SlateTextureAtlasMemory, STATGROUP_SlateMemory);
 
-static int32 GInitialMaxAtlasPagesBeforeFlushRequest = 1;
-FAutoConsoleVariableRef CVarMaxAtlasPagesBeforeFlush(
-	TEXT("Slate.MaxAtlasPagesBeforeFlush"),
-	GInitialMaxAtlasPagesBeforeFlushRequest,
-	TEXT("The number of atlas textures created and used before we flush the cache if a texture atlas is full"));
-
-static int32 GInitialMaxNonAtlasedTexturesBeforeFlushRequest = 1;
-FAutoConsoleVariableRef CVarMaxFontNonAtlasPagesBeforeFlush(
-	TEXT("Slate.MaxNonAtlasTexturesBeforeFlush"),
-	GInitialMaxNonAtlasedTexturesBeforeFlushRequest,
-	TEXT("The number of large textures initially."));
-
-static int32 GGrowAtlasFrameWindow = 1;
-FAutoConsoleVariableRef CVarGrowFontAtlasFrameWindow(
-	TEXT("Slate.GrowAtlasFrameWindow"),
-	GGrowAtlasFrameWindow,
-	TEXT("The number of frames within the atlas will resize rather than flush."));
-
-static int32 GGrowNonAtlasFrameWindow = 1;
-FAutoConsoleVariableRef CVarGrowFontNonAtlasFrameWindow(
-	TEXT("Slate.GrowNonAtlasFrameWindow"),
-	GGrowNonAtlasFrameWindow,
-	TEXT("The number of frames within the large pool will resize rather than flush."));
 
 ESlateTextureAtlasThreadId GetCurrentSlateTextureAtlasThreadId()
 {
@@ -390,38 +367,30 @@ const FAtlasedTextureSlot* FSlateTextureAtlas::FindSlotForTexture(uint32 InWidth
 
 
 
-FSlateFlushableAtlasCache::FSlateFlushableAtlasCache()
-	: InitialMaxAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
-	, InitialMaxNonAtlasPagesBeforeFlushRequest(GInitialMaxNonAtlasedTexturesBeforeFlushRequest)
-	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
-	, CurrentMaxColorAtlasPagesBeforeFlushRequest(GInitialMaxAtlasPagesBeforeFlushRequest)
-	, CurrentMaxNonAtlasedTexturesBeforeFlushRequest(GInitialMaxNonAtlasedTexturesBeforeFlushRequest)
+FSlateFlushableAtlasCache::FSlateFlushableAtlasCache(const FAtlasFlushParams* InFlushParams)
+	: FlushParams(InFlushParams)
 {
-}
+	check(FlushParams);
 
-FSlateFlushableAtlasCache::FSlateFlushableAtlasCache(int32 InInitialMaxAtlasPagesBeforeFlushRequest, int32 InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
-	: InitialMaxAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
-	, InitialMaxNonAtlasPagesBeforeFlushRequest(InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
-	, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
-	, CurrentMaxColorAtlasPagesBeforeFlushRequest(InInitialMaxAtlasPagesBeforeFlushRequest)
-	, CurrentMaxNonAtlasedTexturesBeforeFlushRequest(InInitialMaxNonAtlasedTexturesBeforeFlushRequest)
-{
+	CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest = FlushParams->InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxColorAtlasPagesBeforeFlushRequest = FlushParams->InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxNonAtlasedTexturesBeforeFlushRequest = FlushParams->InitialMaxNonAtlasPagesBeforeFlushRequest;
 }
 
 void FSlateFlushableAtlasCache::ResetFlushCounters()
 {
-	CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
-	CurrentMaxColorAtlasPagesBeforeFlushRequest = InitialMaxAtlasPagesBeforeFlushRequest;
-	CurrentMaxNonAtlasedTexturesBeforeFlushRequest = InitialMaxNonAtlasPagesBeforeFlushRequest;
+	CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest = FlushParams->InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxColorAtlasPagesBeforeFlushRequest = FlushParams->InitialMaxAtlasPagesBeforeFlushRequest;
+	CurrentMaxNonAtlasedTexturesBeforeFlushRequest = FlushParams->InitialMaxNonAtlasPagesBeforeFlushRequest;
 	FrameCounterLastFlushRequest = GFrameCounter;
 }
 
 void FSlateFlushableAtlasCache::UpdateFlushCounters(int32 NumGrayscale, int32 NumColor, int32 NumNonAtlased)
 {
 	bool bFlushRequested = false;
-	bFlushRequested |= UpdateInternal(NumGrayscale, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest, InitialMaxAtlasPagesBeforeFlushRequest, GGrowAtlasFrameWindow);
-	bFlushRequested |= UpdateInternal(NumColor, CurrentMaxColorAtlasPagesBeforeFlushRequest, InitialMaxAtlasPagesBeforeFlushRequest, GGrowAtlasFrameWindow);
-	bFlushRequested |= UpdateInternal(NumNonAtlased, CurrentMaxNonAtlasedTexturesBeforeFlushRequest, InitialMaxNonAtlasPagesBeforeFlushRequest, GGrowNonAtlasFrameWindow);
+	bFlushRequested |= UpdateInternal(NumGrayscale, CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest, FlushParams->InitialMaxAtlasPagesBeforeFlushRequest, FlushParams->GrowAtlasFrameWindow);
+	bFlushRequested |= UpdateInternal(NumColor, CurrentMaxColorAtlasPagesBeforeFlushRequest, FlushParams->InitialMaxAtlasPagesBeforeFlushRequest, FlushParams->GrowAtlasFrameWindow);
+	bFlushRequested |= UpdateInternal(NumNonAtlased, CurrentMaxNonAtlasedTexturesBeforeFlushRequest, FlushParams->InitialMaxNonAtlasPagesBeforeFlushRequest, FlushParams->GrowNonAtlasFrameWindow);
 
 	if (bFlushRequested)
 	{

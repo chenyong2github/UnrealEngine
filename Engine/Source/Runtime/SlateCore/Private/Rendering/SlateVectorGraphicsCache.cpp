@@ -6,8 +6,30 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Async/ParallelFor.h"
 
+static FAtlasFlushParams SVGAtlasFlushParams;
+FAutoConsoleVariableRef CVarMaxSVGAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxSVGAtlasPagesBeforeFlush"),
+	SVGAtlasFlushParams.InitialMaxAtlasPagesBeforeFlushRequest,
+	TEXT("The number of atlas textures created and used before we flush the cache if a texture atlas is full"));
+
+FAutoConsoleVariableRef CVarMaxSVGNonAtlasPagesBeforeFlush(
+	TEXT("Slate.MaxSVGNonAtlasTexturesBeforeFlush"),
+	SVGAtlasFlushParams.InitialMaxNonAtlasPagesBeforeFlushRequest,
+	TEXT("The number of large textures initially."));
+
+FAutoConsoleVariableRef CVarGrowSVGAtlasFrameWindow(
+	TEXT("Slate.GrowSVGAtlasFrameWindow"),
+	SVGAtlasFlushParams.GrowAtlasFrameWindow,
+	TEXT("The number of frames within the atlas will resize rather than flush."));
+
+FAutoConsoleVariableRef CVarGrowSVGNonAtlasFrameWindow(
+	TEXT("Slate.GrowSVGNonAtlasFrameWindow"),
+	SVGAtlasFlushParams.GrowNonAtlasFrameWindow,
+	TEXT("The number of frames within the large pool will resize rather than flush."));
+
 FSlateVectorGraphicsCache::FSlateVectorGraphicsCache(TSharedPtr<ISlateTextureAtlasFactory> InAtlasFactory, bool bInNeedRedBlueSwap)
-	: AtlasFactory(InAtlasFactory)
+	: FSlateFlushableAtlasCache(&SVGAtlasFlushParams)
+	, AtlasFactory(InAtlasFactory)
 	, bNeedRedBlueSwap(bInNeedRedBlueSwap)
 	, bFlushRequested(false)
 {

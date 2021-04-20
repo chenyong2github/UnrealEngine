@@ -256,13 +256,20 @@ public:
 	virtual void ReleaseTextureAtlases(const TArray<TUniquePtr<FSlateTextureAtlas>>& InTextureAtlases, const TArray<TUniquePtr<FSlateShaderResource>>& InNonAtlasedTextures, const bool bWaitForRelease) const = 0;
 };
 
+/** Parameters for flushable atlases that dictate when the atlas is allowed to flush after it becomes full */
+struct FAtlasFlushParams
+{
+	int32 InitialMaxAtlasPagesBeforeFlushRequest = 1;
+	int32 InitialMaxNonAtlasPagesBeforeFlushRequest = 1;
+	int32 GrowAtlasFrameWindow = 1;
+	int32 GrowNonAtlasFrameWindow = 1;
+};
 
 /** Base class for any atlas cache which has flushing logic to keep the number of in use pages small */
 class FSlateFlushableAtlasCache
 {
 public:
-	FSlateFlushableAtlasCache();
-	FSlateFlushableAtlasCache(int32 InInitialMaxAtlasPagesBeforeFlushRequest, int32 InInitialMaxNonAtlasedTexturesBeforeFlushRequest);
+	FSlateFlushableAtlasCache(const FAtlasFlushParams* InFlushParams);
 
 	virtual ~FSlateFlushableAtlasCache() {}
 
@@ -282,8 +289,8 @@ public:
 private:
 	bool UpdateInternal(int32 CurrentNum, int32& MaxNum, int32 InitialMax, int32 FrameWindowNum);
 private:
-	int32 InitialMaxAtlasPagesBeforeFlushRequest;
-	int32 InitialMaxNonAtlasPagesBeforeFlushRequest;
+	/** Flush params that dictate when this atlas can flush.*/
+	const FAtlasFlushParams* FlushParams;
 
 	/** Number of grayscale atlas pages we can have before we request that the cache be flushed */
 	int32 CurrentMaxGrayscaleAtlasPagesBeforeFlushRequest;
