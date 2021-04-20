@@ -410,6 +410,62 @@ void UMovieSceneSubSection::TrimSection( FQualifiedFrameTime TrimTime, bool bTri
 	}
 }
 
+void UMovieSceneSubSection::GetSnapTimes(TArray<FFrameNumber>& OutSnapTimes, bool bGetSectionBorders) const
+{
+	Super::GetSnapTimes(OutSnapTimes, bGetSectionBorders);
+
+	UMovieSceneSequence* Sequence = GetSequence();
+	UMovieScene* MovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
+	if (!MovieScene)
+	{
+		return;
+	}
+
+    TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
+	const FFrameNumber StartFrame = GetInclusiveStartFrame();
+	const FFrameNumber EndFrame = GetExclusiveEndFrame() - 1; // -1 because we don't need to add the end frame twice
+
+	if (Parameters.bCanLoop)
+	{
+	    const float InvTimeScale = FMath::IsNearlyZero(Parameters.TimeScale) ? 1.0f : 1.0f / Parameters.TimeScale;
+		const TRange<FFrameNumber> InnerPlaybackRange = UMovieSceneSubSection::GetValidatedInnerPlaybackRange(Parameters, *MovieScene);
+
+		const FFrameNumber InnerSubSeqLength = UE::MovieScene::DiscreteSize(InnerPlaybackRange);
+		const FFrameNumber InnerSubSeqFirstLoopLength = InnerSubSeqLength - Parameters.FirstLoopStartFrameOffset;
+
+		const FFrameRate OuterFrameRate = GetTypedOuter<UMovieScene>()->GetTickResolution();
+		const FFrameRate InnerFrameRate = MovieScene->GetTickResolution();
+		const FFrameNumber OuterSubSeqLength = (ConvertFrameTime(InnerSubSeqLength, InnerFrameRate, OuterFrameRate) * InvTimeScale).FrameNumber;
+		const FFrameNumber OuterSubSeqFirstLoopLength = (ConvertFrameTime(InnerSubSeqFirstLoopLength, InnerFrameRate, OuterFrameRate) * InvTimeScale).FrameNumber;
+
+		FFrameNumber CurOffsetFrame = FMath::Max(OuterSubSeqFirstLoopLength, FFrameNumber(0));
+	    
+		while (CurOffsetFrame < EndFrame)
+		{
+			const int32 CurOffset = CurOffsetFrame.Value;
+			      
+			OutSnapTimes.Add(StartFrame + CurOffset);
+
+			CurOffsetFrame += OuterSubSeqLength;
+		}
+	}
+	else
+	{
+		const FMovieSceneSequenceTransform InnerToOuterTransform = OuterToInnerTransform().InverseLinearOnly();
+		const FFrameNumber PlaybackStart = (UE::MovieScene::DiscreteInclusiveLower(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
+		if (GetRange().Contains(PlaybackStart))
+		{
+			OutSnapTimes.Add(PlaybackStart);
+		}
+
+		const FFrameNumber PlaybackEnd = (UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange) * InnerToOuterTransform).FloorToFrame();
+		if (GetRange().Contains(PlaybackEnd))
+		{
+			OutSnapTimes.Add(PlaybackEnd);
+		}
+	}
+}
+
 FMovieSceneSubSequenceData UMovieSceneSubSection::GenerateSubSequenceData(const FSubSequenceInstanceDataParams& Params) const
 {
 	return FMovieSceneSubSequenceData(*this);
