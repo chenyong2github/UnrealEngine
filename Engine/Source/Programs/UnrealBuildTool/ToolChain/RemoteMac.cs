@@ -1095,11 +1095,14 @@ namespace UnrealBuildTool
 		{
 			using(Process RsyncProcess = new Process())
 			{
+				DataReceivedEventHandler OutputHandler = (E, Args) => { RsyncOutput(Args, false); };
+				DataReceivedEventHandler ErrorHandler = (E, Args) => { RsyncOutput(Args, true); };
+
 				RsyncProcess.StartInfo.FileName = RsyncExe.FullName;
 				RsyncProcess.StartInfo.Arguments = Arguments;
 				RsyncProcess.StartInfo.WorkingDirectory = SshExe.Directory.FullName;
-				RsyncProcess.OutputDataReceived += RsyncOutput;
-				RsyncProcess.ErrorDataReceived += RsyncOutput;
+				RsyncProcess.OutputDataReceived += OutputHandler;
+				RsyncProcess.ErrorDataReceived += ErrorHandler;
 
 				Log.TraceLog("[Rsync] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(RsyncProcess.StartInfo.FileName), RsyncProcess.StartInfo.Arguments);
 				return Utils.RunLocalProcess(RsyncProcess);
@@ -1109,13 +1112,20 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Handles data output by rsync
 		/// </summary>
-		/// <param name="Sender">The object sending the messag</param>
 		/// <param name="Args">The received data</param>e
-		private void RsyncOutput(object Sender, DataReceivedEventArgs Args)
+		/// <param name="bStdErr">whether the data was received on stderr</param>
+		private void RsyncOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
 			if(Args.Data != null)
 			{
-				Log.TraceInformation("  {0}", Args.Data);
+				if (bStdErr)
+				{
+					Log.TraceError("  {0}", Args.Data);
+				}
+				else
+				{
+					Log.TraceInformation("  {0}", Args.Data);
+				}
 			}
 		}
 
@@ -1141,13 +1151,14 @@ namespace UnrealBuildTool
 			string FullCommand = String.Format("cd {0} && {1}", EscapeShellArgument(WorkingDirectory), Command);
 			using(Process SSHProcess = new Process())
 			{
-				DataReceivedEventHandler OutputHandler = (E, Args) => { SshOutput(Args); };
+				DataReceivedEventHandler OutputHandler = (E, Args) => { SshOutput(Args, false); };
+				DataReceivedEventHandler ErrorHandler = (E, Args) => { SshOutput(Args, true); };
 
 				SSHProcess.StartInfo.FileName = SshExe.FullName;
 				SSHProcess.StartInfo.WorkingDirectory = SshExe.Directory.FullName;
-				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand.Replace("\"", "\\\""));
+				SSHProcess.StartInfo.Arguments = String.Format("{0} {1}", String.Join(" ", CommonSshArguments), FullCommand);
 				SSHProcess.OutputDataReceived += OutputHandler;
-				SSHProcess.ErrorDataReceived += OutputHandler;
+				SSHProcess.ErrorDataReceived += ErrorHandler;
 
 				Log.TraceLog("[SSH] {0} {1}", Utils.MakePathSafeToUseWithCommandLine(SSHProcess.StartInfo.FileName), SSHProcess.StartInfo.Arguments);
 				return Utils.RunLocalProcess(SSHProcess);
@@ -1158,12 +1169,20 @@ namespace UnrealBuildTool
 		/// Handler for output from running remote SSH commands
 		/// </summary>
 		/// <param name="Args"></param>
-		private void SshOutput(DataReceivedEventArgs Args)
+		/// <param name="bStdErr">whether the data was received on stderr</param>
+		private void SshOutput(DataReceivedEventArgs Args, bool bStdErr)
 		{
 			if(Args.Data != null)
 			{
 				string FormattedOutput = ConvertRemotePathsToLocal(Args.Data);
-				Log.TraceInformation("  {0}", FormattedOutput);
+				if (bStdErr)
+				{
+					Log.TraceError("  {0}", FormattedOutput);
+				}
+				else
+				{
+					Log.TraceInformation("  {0}", FormattedOutput);
+				}
 			}
 		}
 

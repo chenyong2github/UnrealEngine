@@ -1710,7 +1710,7 @@ public class IOSPlatform : Platform
 				Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, out ExitCode, true);
 				if (ExitCode != 0)
 				{
-					LogError("Deployer error : failed to push files. See above log for more details");
+					throw new AutomationException("Failed to deploy manifest to mobile device.");
 				}
 
 				string[] ManifestFiles = Directory.GetFiles(CombinePaths(Params.BaseStageDirectory, PlatformName), "*_Manifest_UFS*.txt");
@@ -1751,7 +1751,8 @@ public class IOSPlatform : Platform
 		}
 		if (!File.Exists(ExecWithPath) || ExecWithPath == "")
 		{
-			LogError("Failed to locate Libimobile exec. Deploment will fail.");
+			throw new AutomationException("Failed to locate LibiMobileDevice executable.");
+
 		}
 		return ExecWithPath;
 	}
@@ -1794,10 +1795,22 @@ public class IOSPlatform : Platform
 		string IdeviceFSArgs = "-u " + Params.DeviceNames[0] + " -b " + BundleIdentifier + " -x " + "\"" + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt" + "\"";
 		IdeviceFSArgs = GetLibimobileDeviceNetworkedArgument(IdeviceFSArgs, Params.DeviceNames[0]);
 
-		Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, out ExitCode, true);
-		if (ExitCode != 0)
+		using (Process IDeviceFSProcess = new Process())
 		{
-			LogError("Deployer error : failed to push files. See above log for more details");
+			DataReceivedEventHandler StdOutHandler = (E, Args) => { if (Args.Data != null) { Log.TraceInformation("{0}", Args.Data); } };
+			DataReceivedEventHandler StdErrHandler = (E, Args) => { if (Args.Data != null) { Log.TraceError("{0}", Args.Data); } };
+
+			IDeviceFSProcess.StartInfo.FileName = DeviceFS;
+			IDeviceFSProcess.StartInfo.Arguments = IdeviceFSArgs;
+			IDeviceFSProcess.OutputDataReceived += StdOutHandler;
+			IDeviceFSProcess.ErrorDataReceived += StdErrHandler;
+
+			ExitCode = Utils.RunLocalProcess(IDeviceFSProcess);
+
+			if (ExitCode != 0)
+			{
+				throw new AutomationException("Failed to push content to mobile device.");
+			}
 		}
 
 		File.Delete(Directory.GetCurrentDirectory() + "\\CommandsToPush.txt");
