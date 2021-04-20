@@ -75,6 +75,7 @@ private:
 
 	void ToggleFilterAssetByAnimatableControls();
 	bool IsToggleFilterAssetByAnimatableControls();
+	void SelectSequencerNodeInSection(UMovieSceneControlRigParameterSection* ParamSection, const FName& ControlName, bool bSelected);
 
 	/** Control Rig Picked */
 	void AddControlRig(UClass* InClass, UObject* BoundActor, FGuid ObjectBinding);
@@ -183,8 +184,8 @@ private:
 
 
 	//used to sync curve editor selections/displays on next tick for performance reasons
-	TArray<FMovieSceneChannelHandle> DisplayedChannels;
-	TArray<FMovieSceneChannelHandle> UnDisplayedChannels;
+	TSet<FName> DisplayedControls;
+	TSet<FName> UnDisplayedControls;
 	bool bCurveDisplayTickIsPending;
 
 private:
