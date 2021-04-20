@@ -248,6 +248,8 @@ void SDisplayClusterConfiguratorNewClusterItemDialog::Construct(const FArguments
 			.Padding(2)
 			[
 				SAssignNew(DetailsBox, SBox)
+				.MaxDesiredHeight(InArgs._MaxWindowHeight - 128)
+				.WidthOverride(InArgs._MaxWindowWidth - 10)
 			]
 
 			+SVerticalBox::Slot()

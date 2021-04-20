@@ -22,7 +22,7 @@
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorClusterUtils"
 
-const FVector2D FDisplayClusterConfiguratorClusterUtils::NewClusterItemDialogSize = FVector2D(768, 512);
+const FVector2D FDisplayClusterConfiguratorClusterUtils::NewClusterItemDialogSize = FVector2D(410, 512);
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewHostName = TEXT("Host");
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewClusterNodeName = TEXT("Node");
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewViewportName = TEXT("VP");
