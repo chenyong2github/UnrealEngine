@@ -327,9 +327,12 @@ struct FLinearColor
 
 	/** Quantizes the linear color and returns the result as a FColor with optional sRGB conversion. 
 	* Clamps in [0,1] range before conversion.
+	* ToFColor(false) is QuantizeRound
 	*/
-	CORE_API FColor ToFColor(const bool bSRGB) const;
-
+	CORE_API FColor ToFColorSRGB() const;
+	
+	FORCEINLINE FColor ToFColor(const bool bSRGB) const;
+	
 	/**
 	 * Returns a desaturated color, with 0 meaning no desaturation and 1 == full desaturation
 	 *
@@ -700,6 +703,19 @@ private:
 	explicit FColor(const FLinearColor& LinearColor);
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FColor);
+
+
+FORCEINLINE FColor FLinearColor::ToFColor(const bool bSRGB) const
+{
+	if ( bSRGB )
+	{
+		return ToFColorSRGB();
+	}
+	else
+	{
+		return QuantizeRound();
+	}
+}
 
 FORCEINLINE uint32 GetTypeHash( const FColor& Color )
 {
