@@ -3570,14 +3570,7 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				{
 					if (Section.IsValid())
 					{
-						if (Section->HasStartFrame())
-						{
-							AllTimes.Add(Section->GetInclusiveStartFrame());
-						}
-						if (Section->HasEndFrame())
-						{
-							AllTimes.Add(Section->GetExclusiveEndFrame());
-						}
+						Section->GetSnapTimes(AllTimes, true);
 					}
 				}
 
