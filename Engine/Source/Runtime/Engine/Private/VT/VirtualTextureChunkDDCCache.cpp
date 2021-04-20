@@ -109,7 +109,7 @@ public:
 		const bool DDCResult = DDC.GetSynchronous(*Chunk->DerivedDataKey, Results, FinalFilename);
 		if (DDCResult == false)
 		{
-			UE_LOG(LogVTDiskCache, Error, TEXT("Failed to fetch data from DDC (key: %s)"), *Chunk->DerivedDataKey);
+			UE_LOG(LogVTDiskCache, Log, TEXT("Failed to fetch data from DDC (key: %s)"), *Chunk->DerivedDataKey);
 			return;
 		}
 

@@ -563,7 +563,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 			bSucceeded = DerivedData->VTData->ValidateData(Texture.GetPathName(), false);
 			if (!bSucceeded)
 			{
-				UE_LOG(LogTexture, Error, TEXT("Texture %s has corrupt Virtual Texture compression. The texture will be rebuilt."), *Texture.GetFullName());
+				UE_LOG(LogTexture, Display, TEXT("Texture %s has invalid cached VT data. The texture will be rebuilt."), *Texture.GetFullName());
 				bInvalidVirtualTextureCompression = true;
 			}
 		}
