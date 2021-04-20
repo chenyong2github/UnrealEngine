@@ -25,6 +25,7 @@
 #include "Engine/GameViewportClient.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "RenderCaptureInterface.h"
+#include "MoviePipelineGameOverrideSetting.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -545,14 +546,19 @@ void UMoviePipeline::FlushAsyncEngineSystems()
 	}
 
 	// Flush grass
+	if (CurrentShotIndex < ActiveShotList.Num())
 	{
-		for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
+		UMoviePipelineGameOverrideSetting* GameOverrides = FindOrAddSettingForShot<UMoviePipelineGameOverrideSetting>(ActiveShotList[CurrentShotIndex]);
+		if (GameOverrides && GameOverrides->bFlushGrassStreaming)
 		{
-			ALandscapeProxy* LandscapeProxy = (*It);
-			if (LandscapeProxy)
+			for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
 			{
-				TArray<FVector> CameraList;
-				LandscapeProxy->UpdateGrass(CameraList, true);
+				ALandscapeProxy* LandscapeProxy = (*It);
+				if (LandscapeProxy)
+				{
+					TArray<FVector> CameraList;
+					LandscapeProxy->UpdateGrass(CameraList, true);
+				}
 			}
 		}
 	}

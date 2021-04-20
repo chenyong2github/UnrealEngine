@@ -35,6 +35,7 @@ public:
 		, ShadowRadiusThreshold(0.001f)
 		, bOverrideViewDistanceScale(true)
 		, ViewDistanceScale(50)
+		, bFlushGrassStreaming(true)
 		, bDisableGPUTimeout(true) 
 	{
 	}
@@ -94,6 +95,10 @@ public:
 	/** Controls the view distance scale. A primitive's MaxDrawDistance is scaled by this value. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (EditCondition = bOverrideViewDistanceScale))
 	int32 ViewDistanceScale;
+	
+	/** Flushing grass streaming (combined with override view distance scale) prevents visible pop-in/culling of grace instances. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rendering")
+	bool bFlushGrassStreaming;
 
 	/** Should we disable the GPU Timeout? Currently only applicable when using D3D12 renderer. */
 	bool bDisableGPUTimeout;
