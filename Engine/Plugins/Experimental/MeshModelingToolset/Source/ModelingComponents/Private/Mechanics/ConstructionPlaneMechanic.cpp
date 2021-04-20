@@ -62,6 +62,11 @@ void UConstructionPlaneMechanic::SetEnableGridSnaping(bool bEnable)
 	bEnableSnapToWorldGrid = bEnable;
 }
 
+void UConstructionPlaneMechanic::SetEnableGridRotationSnapping(bool bEnableRotation)
+{
+	bEnableSnapToWorldRotGrid = bEnableRotation;
+}
+
 void UConstructionPlaneMechanic::UpdateClickPriority(FInputCapturePriority NewPriority)
 {
 	ensure(ClickToSetPlaneBehavior != nullptr);
@@ -118,6 +123,7 @@ void UConstructionPlaneMechanic::Tick(float DeltaTime)
 	if (PlaneTransformGizmo != nullptr)
 	{
 		PlaneTransformGizmo->bSnapToWorldGrid = bEnableSnapToWorldGrid;
+		PlaneTransformGizmo->bSnapToWorldRotGrid = bEnableSnapToWorldRotGrid;
 		PlaneTransformGizmo->SetVisibility(CanUpdatePlaneFunc());
 	}
 }

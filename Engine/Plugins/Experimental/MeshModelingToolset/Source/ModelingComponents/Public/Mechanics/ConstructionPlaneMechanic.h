@@ -58,6 +58,8 @@ public:
 
 	void SetEnableGridSnaping(bool bEnable);
 
+	void SetEnableGridRotationSnapping(bool bEnableRotationSnapping);
+
 	void UpdateClickPriority(FInputCapturePriority NewPriority);
 
 public:
@@ -76,6 +78,7 @@ public:
 
 protected:
 	bool bEnableSnapToWorldGrid = false;
+	bool bEnableSnapToWorldRotGrid = false;
 
 	UPROPERTY()
 	USingleClickInputBehavior* ClickToSetPlaneBehavior;

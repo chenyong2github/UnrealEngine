@@ -11,6 +11,7 @@
 #include "DynamicMesh3.h"
 #include "Changes/DynamicMeshChangeTarget.h"
 #include "BaseTools/SingleClickTool.h"
+#include "Mechanics/ConstructionPlaneMechanic.h"
 #include "PlaneCutTool.generated.h"
 
 
@@ -177,14 +178,6 @@ protected:
 	UPROPERTY()
 	UAcceptOutputProperties* AcceptProperties;
 
-	/** Origin of cutting plane */
-	UPROPERTY()
-	FVector CutPlaneOrigin;
-
-	/** Orientation of cutting plane */
-	UPROPERTY()
-	FQuat CutPlaneOrientation;
-
 	UPROPERTY()
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
@@ -212,6 +205,12 @@ protected:
 	UPROPERTY()
 	TArray<UDynamicMeshReplacementChangeTarget*> MeshesToCut;
 
+	UPROPERTY()
+	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
+
+	// Cutting plane
+	UE::Geometry::FFrame3d CutPlaneWorld;
+
 	// UV Scale factor is cached based on the bounding box of the mesh before any cuts are performed, so you don't get inconsistent UVs if you multi-cut the object to smaller sizes
 	TArray<float> MeshUVScaleFactor;
 
@@ -221,28 +220,18 @@ protected:
 	FViewCameraState CameraState;
 
 	// flags used to identify modifier keys/buttons
-	static const int IgnoreSnappingModifier = 1;
-	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
+	static const int SnappingModifier = 1;
+	bool bSnappingToggle = false;		// toggled by hotkey (shift)
 
 	EPlaneCutToolActions PendingAction = EPlaneCutToolActions::NoAction;
 
-	UPROPERTY()
-	UTransformGizmo* PlaneTransformGizmo;
-
-	UPROPERTY()
-	UTransformProxy* PlaneTransformProxy;
-
-	void TransformChanged(UTransformProxy* Proxy, FTransform Transform);
-	void MeshChanged();
 
 	void DoCut();
 	void DoFlipPlane();
 
 	void SetupPreviews();
 
-	IClickBehaviorTarget* SetPointInWorldConnector = nullptr;
-
-	virtual void SetCutPlaneFromWorldPos(const FVector& Position, const FVector& Normal, bool bIsInitializing);
+	void InvalidatePreviews();
 
 	void GenerateAsset(const TArray<FDynamicMeshOpResult>& Results);
 };
