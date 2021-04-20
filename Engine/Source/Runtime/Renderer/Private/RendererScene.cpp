@@ -3958,7 +3958,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				int32 PrimitiveIndex = PrimitiveSceneInfo->PackedIndex;
 				PrimitiveSceneInfo->PackedIndex = INDEX_NONE;
 
-				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
+				if (PrimitiveSceneInfo->bRegisteredWithVelocityData)
 				{
 					// Remove primitive's motion blur information.
 					VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId);
@@ -4182,6 +4182,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
 				{
+					PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
 					// We must register the initial LocalToWorld with the velocity state. 
 					// In the case of a moving component with MarkRenderStateDirty() called every frame, UpdateTransform will never happen.
 					VelocityData.UpdateTransform(PrimitiveSceneInfo, PrimitiveTransforms[PrimitiveIndex], PrimitiveTransforms[PrimitiveIndex]);
@@ -4251,6 +4252,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 			if (ShouldPrimitiveOutputVelocity(PrimitiveSceneInfo->Proxy))
 			{
+				PrimitiveSceneInfo->bRegisteredWithVelocityData = true;
 				VelocityData.UpdateTransform(PrimitiveSceneInfo, LocalToWorld, PrimitiveSceneProxy->GetLocalToWorld());
 			}
 

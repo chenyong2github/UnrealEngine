@@ -155,6 +155,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bNeedsUniformBufferUpdate(false),
 	bIndirectLightingCacheBufferDirty(false),
 	bRegisteredVirtualTextureProducerCallback(false),
+	bRegisteredWithVelocityData(false),
 	InstanceDataOffset(INDEX_NONE),
 	NumInstanceDataEntries(0),
 	LightmapDataOffset(INDEX_NONE),

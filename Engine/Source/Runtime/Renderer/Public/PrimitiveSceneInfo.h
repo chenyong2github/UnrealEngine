@@ -554,6 +554,9 @@ private:
 	/** If this is TRUE, this primitive has registered with the virtual texture system for a callback on virtual texture changes. */
 	bool bRegisteredVirtualTextureProducerCallback : 1;
 
+	/** True if the primitive registered with velocity data and needs to remove itself when being removed from the scene. */
+	bool bRegisteredWithVelocityData : 1;
+
 	/** Offset into the scene's instance data buffer, when GPUScene is enabled. */
 	int32 InstanceDataOffset;
 
