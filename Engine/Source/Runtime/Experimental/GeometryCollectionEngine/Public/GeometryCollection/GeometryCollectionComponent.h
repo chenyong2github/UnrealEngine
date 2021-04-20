@@ -664,7 +664,7 @@ protected:
 	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;
 
 	/** Populate the dynamic particle data for the render thread. */
-	void InitDynamicData(FGeometryCollectionDynamicData* ConstantData);
+	FGeometryCollectionDynamicData* InitDynamicData();
 
 	/** Reset the dynamic collection from the current rest state. */
 	void ResetDynamicCollection();
@@ -744,7 +744,7 @@ private:
 	TArray<FMatrix> GlobalMatrices;
 	FBox LocalBounds;
 	
-	FBoxSphereBounds WorldBounds;		
+	FBoxSphereBounds WorldBounds;
 
 	float CurrentCacheTime;
 	TArray<bool> EventsPlayed;
@@ -770,10 +770,6 @@ private:
 	TObjectPtr<AActor> EditorActor;
 #endif
 	void SwitchRenderModels(const AActor* Actor);
-
-	bool IsEqual(const TArray<FMatrix> &A, const TArray<FMatrix> &B, const float Tolerance = 1e-6);
-	TArray<bool> TransformsAreEqual;	
-	int32 TransformsAreEqualIndex;
 
 	UChaosGameplayEventDispatcher* EventDispatcher;
 
