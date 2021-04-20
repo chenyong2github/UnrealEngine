@@ -6925,7 +6925,7 @@ int32 FAsyncLoadingThread::LoadPackage(const FPackagePath& InPackagePath, FName 
 	if (!InPackagePath.IsMountedPath())
 	{
 		UE_LOG(LogStreaming, Warning, TEXT("Async loading code requires MountedPath PackagePaths (%s)."), *InPackagePath.GetDebugName());
-		InCompletionDelegate.ExecuteIfBound(NAME_None, nullptr, EAsyncLoadingResult::Failed);
+		InCompletionDelegate.ExecuteIfBound(InPackagePath.GetPackageFName(), nullptr, EAsyncLoadingResult::Failed);
 		return INDEX_NONE;
 	}
 

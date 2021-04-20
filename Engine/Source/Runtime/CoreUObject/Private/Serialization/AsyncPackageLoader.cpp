@@ -711,6 +711,17 @@ static FPackagePath GetLoadPackageAsyncPackagePath(FStringView InPackageNameOrFi
 			}
 		}
 	}
+
+	// If PackagePath is empty at this point, then we are going to fail because its not mounted. But pass the input name 
+	// into PackagePath (preferably as a packagename) to provide to the caller's CompletionCallback
+	if (PackagePath.IsEmpty())
+	{
+		if (!FPackagePath::TryFromPackageName(InPackageNameOrFilePath, PackagePath))
+		{
+			PackagePath = FPackagePath::FromLocalPath(InPackageNameOrFilePath);
+		}
+	}
+
 	return PackagePath;
 }
 
