@@ -51,7 +51,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 {
 	/** Build the hair strands resource */
 	FHairStrandsRestRootResource(const FHairStrandsRootData& RootData, EHairStrandsResourcesType CurveType);
-	FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples, EHairStrandsResourcesType CurveType);
 
 	/* Init the buffer */
 	void InternalAllocate(FRDGBuilder& GraphBuilder) override;
@@ -120,7 +119,7 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	TArray<FLOD> LODs;
 
 	/* Store CPU data for root info & root binding */
-	FHairStrandsRootData RootData;
+	const FHairStrandsRootData& RootData;
 
 	/* Type of curves */
 	const EHairStrandsResourcesType CurveType;

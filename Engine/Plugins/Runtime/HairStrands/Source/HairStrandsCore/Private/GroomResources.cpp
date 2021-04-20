@@ -719,18 +719,11 @@ FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsRoo
 	PopulateFromRootData();
 }
 
-FHairStrandsRestRootResource::FHairStrandsRestRootResource(const FHairStrandsDatas* HairStrandsDatas, uint32 LODCount, const TArray<uint32>& NumSamples, EHairStrandsResourcesType InCurveType):
-	FHairCommonResource(EHairStrandsAllocationType::Immediate),
-	RootData(HairStrandsDatas, LODCount, NumSamples), CurveType(InCurveType)
-{
-	PopulateFromRootData();
-}
-
 void FHairStrandsRestRootResource::PopulateFromRootData()
 {
 	uint32 LODIndex = 0;
 	LODs.Reserve(RootData.MeshProjectionLODs.Num());
-	for (FHairStrandsRootData::FMeshProjectionLOD& MeshProjectionLOD : RootData.MeshProjectionLODs)
+	for (const FHairStrandsRootData::FMeshProjectionLOD& MeshProjectionLOD : RootData.MeshProjectionLODs)
 	{
 		FLOD& LOD = LODs.AddDefaulted_GetRef();
 
