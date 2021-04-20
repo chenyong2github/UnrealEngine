@@ -60,10 +60,10 @@ const FName UEdGraphSchema_Niagara::PinCategoryMisc("Misc");
 const FName UEdGraphSchema_Niagara::PinCategoryClass("Class");
 const FName UEdGraphSchema_Niagara::PinCategoryEnum("Enum");
 
-namespace 
+namespace NiagaraNodeNumbers
 {
 	// Maximum distance a drag can be off a node edge to require 'push off' from node
-	const int32 NodeDistance = 60;
+	const int32 NiagaraMinNodeDistance = 60;
 }
 
 UEdGraphNode* FNiagaraSchemaAction_NewNode::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
@@ -106,11 +106,11 @@ UEdGraphNode* FNiagaraSchemaAction_NewNode::PerformAction(class UEdGraph* Parent
 			UEdGraphNode* PinNode = FromPin->GetOwningNode();
 			const float XDelta = FMath::Abs(PinNode->NodePosX - Location.X);
 
-			if (XDelta < NodeDistance)
+			if (XDelta < NiagaraNodeNumbers::NiagaraMinNodeDistance)
 			{
 				// Set location to edge of current node minus the max move distance
 				// to force node to push off from connect node enough to give selection handle
-				XLocation = PinNode->NodePosX - NodeDistance;
+				XLocation = PinNode->NodePosX - NiagaraNodeNumbers::NiagaraMinNodeDistance;
 			}
 		}
 

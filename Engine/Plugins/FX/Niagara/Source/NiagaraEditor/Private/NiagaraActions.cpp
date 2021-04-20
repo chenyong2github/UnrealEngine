@@ -143,7 +143,7 @@ void FNiagaraParameterAction::SetIsNamespaceModifierRenamePending(bool bIsNamesp
 UEdGraphNode* FNiagaraAction_NewNode::CreateNode(UEdGraph* ParentGraph, UEdGraphPin* FromPin, FVector2D NodePosition, bool bSelectNewNode) const
 {
 	// see niagara schema 
-	int32 NodeDistance = 60;
+	int32 NiagaraNodeDistance = 60;
 	
 	UEdGraphNode* ResultNode = nullptr;
 
@@ -183,11 +183,11 @@ UEdGraphNode* FNiagaraAction_NewNode::CreateNode(UEdGraph* ParentGraph, UEdGraph
 			UEdGraphNode* PinNode = FromPin->GetOwningNode();
 			const float XDelta = FMath::Abs(PinNode->NodePosX - NodePosition.X);
 
-			if (XDelta < NodeDistance)
+			if (XDelta < NiagaraNodeDistance)
 			{
 				// Set location to edge of current node minus the max move distance
 				// to force node to push off from connect node enough to give selection handle
-				XLocation = PinNode->NodePosX - NodeDistance;
+				XLocation = PinNode->NodePosX - NiagaraNodeDistance;
 			}
 		}
 
