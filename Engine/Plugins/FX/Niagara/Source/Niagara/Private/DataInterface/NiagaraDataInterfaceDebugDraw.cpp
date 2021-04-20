@@ -221,7 +221,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, SystemInstance);
 
 
-			if (Center.IsSet() && Radius.IsSet())
+			if (Radius.IsSet())
 				InstanceData->AddSphere(DrawCenter + DrawOffset, DrawRadius, DrawNumSegments, DrawColor);
 		}
 
@@ -263,7 +263,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 				DrawExtents /= 2.0f;
 			}
 
-			if (Center.IsSet() && Extents.IsSet())
+			if (Extents.IsSet())
 				InstanceData->AddBox(DrawCenter + DrawOffset, DrawRotation, DrawExtents,  DrawColor);
 		}
 	};
