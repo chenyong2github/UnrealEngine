@@ -171,7 +171,7 @@ void MainCS(
 				// accumulate the contributions of each triangle on the triangle vertices
 				
 				// no start offset as we reuse the same buffer always from 0 on
-				uint Index = VertexIndex * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
+				uint Index = (IntermediateAccumBufferOffset + VertexIndex) * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
 
 				// TangentZ
 				InterlockedAdd(IntermediateAccumBufferUAV[Index + 0], IntTangentZ.x);
@@ -190,7 +190,7 @@ void MainCS(
                 for(uint DupIndexOffset = 0; DupIndexOffset < DupVertexIndicesLength; ++DupIndexOffset)
                 {
                     uint DupVertexIndex = DuplicatedIndices[DupIndexStart + DupIndexOffset];
-                    uint DupIndex = DupVertexIndex * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
+                    uint DupIndex = (IntermediateAccumBufferOffset + DupVertexIndex) * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
                     // TangentZ
                     InterlockedAdd(IntermediateAccumBufferUAV[DupIndex + 0], IntTangentZ.x);
                     InterlockedAdd(IntermediateAccumBufferUAV[DupIndex + 1], IntTangentZ.y);

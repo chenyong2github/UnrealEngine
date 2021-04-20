@@ -134,7 +134,7 @@ void MainCS(
 		// the sign defines the handyness of the tangent matrix
   
         // no start offset as we reuse the same buffer always from 0 on
-        uint Index = DispatchThreadId * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
+        uint Index = (IntermediateAccumBufferOffset + DispatchThreadId) * INTERMEDIATE_ACCUM_BUFFER_NUM_INTS;
 		
         // we don't have to scale down as we normalize anyway
         TangentZ = normalize(float3(IntermediateAccumBufferUAV[Index + 0], IntermediateAccumBufferUAV[Index + 1], IntermediateAccumBufferUAV[Index + 2]));

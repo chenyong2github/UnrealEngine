@@ -221,8 +221,8 @@ public:
 	{
 		friend struct FRWBufferTracker;
 
-		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents)
-			: NumVertices(InNumVertices), WithTangents(InWithTangents)
+		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, uint32 InNumTriangles, FRHICommandListImmediate& RHICmdList)
+			: NumVertices(InNumVertices), WithTangents(InWithTangents), NumTriangles(InNumTriangles)
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
@@ -235,6 +235,12 @@ public:
 				{
 					IntermediateTangents.Initialize(TEXT("SkinCacheIntermediateTangents"), 8, NumVertices * 2, PF_R16G16B16A16_SNORM, BUF_Static);
 				}
+			}
+			if (NumTriangles > 0)
+			{
+				IntermediateAccumulatedTangents.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), NumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
+				// The UAV must be zero-filled. We leave it zeroed after each round (see RecomputeTangentsPerVertexPass.usf), so this is only needed on when the buffer is first created.
+				RHICmdList.ClearUAVUint(IntermediateAccumulatedTangents.UAV, FUintVector4(0, 0, 0, 0));
 			}
 		}
 
@@ -249,23 +255,28 @@ public:
 				Tangents.Release();
 				IntermediateTangents.Release();
 			}
+			if (NumTriangles > 0)
+			{
+				IntermediateAccumulatedTangents.Release();
+			}
 		}
 
-		static uint64 CalculateRequiredMemory(uint32 NumVertices, bool WithTangents)
+		static uint64 CalculateRequiredMemory(uint32 InNumVertices, bool InWithTangents, uint32 InNumTriangles)
 		{
-			uint64 PositionBufferSize = 4 * 3 * NumVertices * NUM_BUFFERS;
-			uint64 TangentBufferSize = WithTangents ? 2 * 4 * NumVertices : 0;
+			uint64 PositionBufferSize = 4 * 3 * InNumVertices * NUM_BUFFERS;
+			uint64 TangentBufferSize = InWithTangents ? 2 * 4 * InNumVertices : 0;
 			uint64 IntermediateTangentBufferSize = 0;
 			if (FGPUSkinCache::UseIntermediateTangents())
 			{
-				IntermediateTangentBufferSize = WithTangents ? 2 * 4 * NumVertices : 0;
+				IntermediateTangentBufferSize = InWithTangents ? 2 * 4 * InNumVertices : 0;
 			}
-			return TangentBufferSize + IntermediateTangentBufferSize + PositionBufferSize;
+			uint64 AccumulatedTangentBufferSize = InNumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts * sizeof(int32);
+			return TangentBufferSize + IntermediateTangentBufferSize + PositionBufferSize + AccumulatedTangentBufferSize;
 		}
 
 		uint64 GetNumBytes() const
 		{
-			return CalculateRequiredMemory(NumVertices, WithTangents);
+			return CalculateRequiredMemory(NumVertices, WithTangents, NumTriangles);
 		}
 
 		FRWBuffer* GetTangentBuffer()
@@ -278,6 +289,11 @@ public:
 			return WithTangents ? &IntermediateTangents : nullptr;
 		}
 
+		FRWBuffer* GetIntermediateAccumulatedTangentBuffer()
+		{
+			return NumTriangles > 0 ? &IntermediateAccumulatedTangents : nullptr;
+		}
+
 		void RemoveAllFromTransitionArray(TSet<FRHIUnorderedAccessView*>& BuffersToTransition);
 
 	private:
@@ -286,8 +302,11 @@ public:
 
 		FRWBuffer Tangents;
 		FRWBuffer IntermediateTangents;
+		FRWBuffer IntermediateAccumulatedTangents;	// Intermediate buffer used to accumulate results of triangle pass to be passed onto vertex pass
+
 		const uint32 NumVertices;
 		const bool WithTangents;
+		const uint32 NumTriangles;
 	};
 
 	struct FRWBufferTracker
@@ -329,12 +348,17 @@ public:
 
 		FRWBuffer* GetTangentBuffer()
 		{
-			return Allocation->GetTangentBuffer();
+			return Allocation ? Allocation->GetTangentBuffer() : nullptr;
 		}
 
 		FRWBuffer* GetIntermediateTangentBuffer()
 		{
-			return Allocation->GetIntermediateTangentBuffer();
+			return Allocation ? Allocation->GetIntermediateTangentBuffer() : nullptr;
+		}
+
+		FRWBuffer* GetIntermediateAccumulatedTangentBuffer()
+		{
+			return Allocation ? Allocation->GetIntermediateAccumulatedTangentBuffer() : nullptr;
 		}
 
 		void Advance(const FVertexBufferAndSRV& BoneBuffer1, uint32 Revision1, const FVertexBufferAndSRV& BoneBuffer2, uint32 Revision2)
@@ -396,10 +420,9 @@ public:
 	inline ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 
 protected:
+	void MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, TArray<FRHIUnorderedAccessView*>& Buffers, ERHIAccess FromState, ERHIAccess ToState);
 
-	void AddBufferToTransition(FRHIUnorderedAccessView* InUAV);
-
-	TSet<FRHIUnorderedAccessView*> BuffersToTransition;
+	TSet<FRHIUnorderedAccessView*> BuffersToTransitionToRead;
 #if RHI_RAYTRACING
 	TMap<FRayTracingGeometry*, EAccelerationStructureBuildMode> RayTracingGeometriesToUpdate;
 	uint64 RayTracingGeometryMemoryPendingRelease = 0;
@@ -409,10 +432,10 @@ protected:
 	TArray<FGPUSkinCacheEntry*> Entries;
 	TArray<FDispatchEntry> BatchDispatches;
 
-	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents);
+	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents, uint32 NumTriangles, FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
-	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex);
+	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex, FRWBuffer*& StagingBuffer, bool bTrianglePass);
 
 	void PrepareUpdateSkinning(
 		FGPUSkinCacheEntry* Entry, 
