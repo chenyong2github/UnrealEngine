@@ -5,6 +5,7 @@
 
 #include "LensDistortionModelHandlerBase.h"
 #include "Logging/LogMacros.h"
+#include "UObject/UObjectIterator.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogLensModel, Log, All);
