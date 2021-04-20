@@ -3,7 +3,6 @@
 #include "TidPacketTransport.h"
 #include "Algo/BinarySearch.h"
 #include "HAL/UnrealMemory.h"
-#include "Trace/Detail/Transport.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 namespace UE {
@@ -77,15 +76,6 @@ FTidPacketTransport::FThreadStream& FTidPacketTransport::FindOrAddThread(uint32 
 
 	FThreadStream Thread;
 	Thread.ThreadId = ThreadId;
-
-	// Internal events are sent over tid 0 and they should be processed first. We
-	// don't care about the order otherwise.
-	if (Thread.ThreadId == UE::Trace::ETransportTid::Internal)
-	{
-		Threads.Insert(Thread, 0);
-		return Threads[0];
-	}
-
 	Threads.Add(Thread);
 	return Threads[ThreadCount];
 }
@@ -97,7 +87,7 @@ void FTidPacketTransport::Update()
 
 	Threads.RemoveAll([] (const FThreadStream& Thread)
 	{
-		return Thread.Buffer.IsEmpty();
+		return (Thread.ThreadId <= ETransportTid::Internal) ? false : Thread.Buffer.IsEmpty();
 	});
 }
 

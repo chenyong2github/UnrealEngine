@@ -5,6 +5,7 @@
 #include "Transport.h"
 #include "Analysis/StreamReader.h"
 #include "Containers/Array.h"
+#include "Trace/Detail/Transport.h"
 
 namespace UE {
 namespace Trace {
@@ -32,7 +33,9 @@ private:
 
 	bool					ReadPacket();
 	FThreadStream&			FindOrAddThread(uint32 ThreadId);
-	TArray<FThreadStream>	Threads;
+	TArray<FThreadStream>	Threads = {
+								{ {}, ETransportTid::Internal },
+							};
 };
 
 } // namespace Trace
