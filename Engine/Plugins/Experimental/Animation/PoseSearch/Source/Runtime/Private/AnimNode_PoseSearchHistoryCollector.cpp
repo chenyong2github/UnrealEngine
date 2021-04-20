@@ -47,8 +47,6 @@ void FAnimNode_PoseSearchHistoryCollector::Initialize_AnyThread(const FAnimation
 	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, this);
 
 	Source.Initialize(Context);
-
-	EvalDeltaTime = 0.0f;
 }
 
 void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Output)
@@ -57,9 +55,7 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 
 	Source.Evaluate(Output);
 
-	PoseHistory.Update(EvalDeltaTime, Output);
-
-	EvalDeltaTime = 0.0f;
+	PoseHistory.Update(Output.AnimInstanceProxy->GetDeltaSeconds(), Output);
 }
 
 void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpdateContext& Context)
@@ -69,8 +65,6 @@ void FAnimNode_PoseSearchHistoryCollector::Update_AnyThread(const FAnimationUpda
 	UE::Anim::TScopedGraphMessage<UE::PoseSearch::Private::FPoseHistoryProvider> ScopedMessage(Context, this);
 
 	Source.Update(Context);
-
-	EvalDeltaTime += Context.GetDeltaTime();
 }
 
 void FAnimNode_PoseSearchHistoryCollector::GatherDebugData(FNodeDebugData& DebugData)

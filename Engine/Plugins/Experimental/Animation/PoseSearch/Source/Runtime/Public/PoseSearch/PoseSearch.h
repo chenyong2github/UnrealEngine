@@ -77,6 +77,8 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 
 	bool operator==(const FPoseSearchFeatureDesc& Other) const;
 
+	bool IsSubsampleOfSameFeature(const FPoseSearchFeatureDesc& Other) const;
+
 	FPoseSearchFeatureDesc()
 		: SchemaBoneIdx(MAX_int32)
 		, SubsampleIdx(MAX_int32)
@@ -105,6 +107,18 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 	UPROPERTY()
 	uint32 NumFloats = 0;
 
+	UPROPERTY()
+	uint32 NumTrajectoryValues = 0;
+
+	UPROPERTY()
+	int32 FirstTrajectoryValueOffset = -1;
+
+	UPROPERTY()
+	uint32 NumPoseValues = 0;
+
+	UPROPERTY()
+	int32 FirstPoseValueOffset = -1;
+
 	bool IsValid(int32 MaxNumBones) const;
 };
 
@@ -126,6 +140,16 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 //	int32 RelativeBoneIdx = -1;
 //};
 
+UENUM()
+enum class EPoseSearchDataPreprocessor : int32
+{
+	None			= 0,
+	Automatic		= 1,
+	Normalize    	= 2,
+	Sphere			= 3 UMETA(Hidden),
+
+	Invalid = -1 UMETA(Hidden)
+};
 
 /**
 * Specifies the format of a pose search index. At runtime, queries are built according to the schema for searching.
@@ -140,22 +164,22 @@ public:
 	static constexpr int32 DefaultSampleRate = 10;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	USkeleton* Skeleton;
+	USkeleton* Skeleton = nullptr;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "60"), Category = "Schema")
-	int32 SampleRate;
+	int32 SampleRate = DefaultSampleRate;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseBoneVelocities;
+	bool bUseBoneVelocities = true;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseBonePositions;
+	bool bUseBonePositions = true;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseTrajectoryVelocities;
+	bool bUseTrajectoryVelocities = true;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	bool bUseTrajectoryPositions;
+	bool bUseTrajectoryPositions = true;
 
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<FBoneReference> Bones;
@@ -174,6 +198,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	TArray<float> TrajectorySampleDistances;
 
+	UPROPERTY(EditAnywhere, Category = "Schema")
+	EPoseSearchDataPreprocessor DataPreprocessor = EPoseSearchDataPreprocessor::Automatic;
+
 	UPROPERTY()
 	TArray<int32> TrajectorySampleOffsets;
 
@@ -181,7 +208,10 @@ public:
 	TArray<int32> PoseSampleOffsets;
 
 	UPROPERTY()
-	float SamplingInterval;
+	EPoseSearchDataPreprocessor EffectiveDataPreprocessor = EPoseSearchDataPreprocessor::Invalid;
+
+	UPROPERTY()
+	float SamplingInterval = 1.0f / DefaultSampleRate;
 
 	UPROPERTY()
 	FPoseSearchFeatureVectorLayout Layout;
@@ -192,19 +222,12 @@ public:
 	UPROPERTY(Transient)
 	TArray<uint16> BoneIndicesWithParents;
 
-	UPoseSearchSchema()
-		: SampleRate(DefaultSampleRate)
-	{}
 
 	bool IsValid () const;
 
 	int32 NumBones () const { return BoneIndices.Num(); }
 
 public: // UObject
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 
@@ -217,6 +240,32 @@ private:
 	void ConvertTimesToOffsets(TArrayView<const float> SampleTimes, TArray<int32>& OutSampleOffsets);
 };
 
+USTRUCT()
+struct POSESEARCH_API FPoseSearchIndexPreprocessInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	uint32 NumDimensions = 0;
+
+	UPROPERTY()
+	TArray<float> TransformationMatrix;
+
+	UPROPERTY()
+	TArray<float> InverseTransformationMatrix;
+
+	UPROPERTY()
+	TArray<float> SampleMean;
+
+	void Reset()
+	{
+		NumDimensions = 0;
+		TransformationMatrix.Reset();
+		InverseTransformationMatrix.Reset();
+		SampleMean.Reset();
+	}
+};
+
 /**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
@@ -225,7 +274,7 @@ USTRUCT()
 struct POSESEARCH_API FPoseSearchIndex
 {
 	GENERATED_BODY()
-public:
+
 	UPROPERTY()
 	int32 NumPoses = 0;
 
@@ -235,11 +284,17 @@ public:
 	UPROPERTY()
 	const UPoseSearchSchema* Schema = nullptr;
 
+	UPROPERTY()
+	FPoseSearchIndexPreprocessInfo PreprocessInfo;
+
 	bool IsValid() const;
 
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
 	void Reset();
+
+	void Normalize (TArrayView<float> PoseVector) const;
+	void InverseNormalize (TArrayView<float> PoseVector) const;
 };
 
 /** Animation metadata object for indexing a single animation. */
@@ -250,7 +305,7 @@ class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
 public:
 
 	UPROPERTY(EditAnywhere, Category="Settings")
-	const UPoseSearchSchema* Schema;
+	const UPoseSearchSchema* Schema = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Settings")
 	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
@@ -262,10 +317,6 @@ public:
 	bool IsValidForSearch() const;
 
 public: // UObject
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
@@ -336,10 +387,6 @@ public:
 	bool IsValidForSearch() const;
 
 public: // UObject
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 };
 
@@ -359,6 +406,7 @@ public:
 	void ResetFeatures();
 
 	TArrayView<const float> GetValues() const { return Values; }
+	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
 
 	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
 	void SetTransformDerivative(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
@@ -370,7 +418,7 @@ public:
 	bool SetPoseFeatures(UE::PoseSearch::FPoseHistory* History);
 	bool SetPastTrajectoryFeatures(UE::PoseSearch::FPoseHistory* History);
 
-	void Copy(TArrayView<const float> FeatureVector);
+	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
 
 	void MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder);
@@ -379,11 +427,14 @@ public:
 	bool IsComplete() const;
 	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
 
+	void Normalize(const FPoseSearchIndex& ForSearchIndex);
+
 private:
 	UPROPERTY(Transient)
 	const UPoseSearchSchema* Schema = nullptr;
 
 	TArray<float> Values;
+	TArray<float> ValuesNormalized;
 	TBitArray<> FeaturesAdded;
 	int32 NumFeaturesAdded = 0;
 };

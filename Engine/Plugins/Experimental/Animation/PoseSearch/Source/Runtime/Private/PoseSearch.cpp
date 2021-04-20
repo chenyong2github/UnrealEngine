@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearch/PoseSearch.h"
+#include "PoseSearchEigenHelper.h"
 
 #include "Async/ParallelFor.h"
 #include "Templates/IdentityFunctor.h"
@@ -176,6 +177,14 @@ bool FPoseSearchFeatureDesc::operator==(const FPoseSearchFeatureDesc& Other) con
 		(Domain == Other.Domain);
 }
 
+bool FPoseSearchFeatureDesc::IsSubsampleOfSameFeature(const FPoseSearchFeatureDesc& Other) const
+{
+	return
+		(SchemaBoneIdx == Other.SchemaBoneIdx) &&
+		(Type == Other.Type) &&
+		(Domain == Other.Domain);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchFeatureVectorLayout
@@ -187,7 +196,28 @@ void FPoseSearchFeatureVectorLayout::Init()
 	for (FPoseSearchFeatureDesc& Feature : Features)
 	{
 		Feature.ValueOffset = FloatCount;
-		FloatCount += UE::PoseSearch::GetFeatureTypeTraits(Feature.Type).NumFloats;
+
+		uint32 FeatureNumFloats = UE::PoseSearch::GetFeatureTypeTraits(Feature.Type).NumFloats;
+		FloatCount += FeatureNumFloats;
+
+		if (Feature.SchemaBoneIdx == FPoseSearchFeatureDesc::TrajectoryBoneIndex)
+		{
+			if (FirstTrajectoryValueOffset == -1)
+			{
+				FirstTrajectoryValueOffset = Feature.ValueOffset;
+			}
+
+			NumTrajectoryValues += FeatureNumFloats;
+		}
+		else
+		{
+			if (FirstPoseValueOffset == -1)
+			{
+				FirstPoseValueOffset = Feature.ValueOffset;
+			}
+
+			NumPoseValues += FeatureNumFloats;
+		}
 	}
 
 	NumFloats = FloatCount;
@@ -197,11 +227,15 @@ void FPoseSearchFeatureVectorLayout::Reset()
 {
 	Features.Reset();
 	NumFloats = 0;
+	NumTrajectoryValues = 0;
+	NumPoseValues = 0;
+	FirstTrajectoryValueOffset = -1;
+	FirstPoseValueOffset = -1;
 }
 
 bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 {
-	if (NumFloats == 0.0f)
+	if (NumFloats == 0)
 	{
 		return false;
 	}
@@ -221,13 +255,6 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 MaxNumBones) const
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
 
-void UPoseSearchSchema::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
-
 void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	SampleRate = FMath::Clamp(SampleRate, 1, 60);
@@ -242,6 +269,12 @@ void UPoseSearchSchema::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 	GenerateLayout();
 	ResolveBoneReferences();
+
+	EffectiveDataPreprocessor = DataPreprocessor;
+	if (EffectiveDataPreprocessor == EPoseSearchDataPreprocessor::Automatic)
+	{
+		EffectiveDataPreprocessor = EPoseSearchDataPreprocessor::Normalize;
+	}
 
 	Super::PreSave(ObjectSaveContext);
 }
@@ -273,65 +306,84 @@ void UPoseSearchSchema::GenerateLayout()
 {
 	Layout.Reset();
 
-	for (int32 TrajectoryTimeSubsampleIdx = 0; TrajectoryTimeSubsampleIdx != TrajectorySampleOffsets.Num(); ++TrajectoryTimeSubsampleIdx)
+	// Time domain trajectory positions
+	if (bUseTrajectoryPositions && TrajectorySampleOffsets.Num())
 	{
-		FPoseSearchFeatureDesc Element;
-		Element.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
-		Element.SubsampleIdx = TrajectoryTimeSubsampleIdx;
-		Element.Domain = EPoseSearchFeatureDomain::Time;
-
-		if (bUseTrajectoryPositions)
+		FPoseSearchFeatureDesc Feature;
+		Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
+		Feature.Domain = EPoseSearchFeatureDomain::Time;
+		Feature.Type = EPoseSearchFeatureType::Position;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != TrajectorySampleOffsets.Num(); ++Feature.SubsampleIdx)
 		{
-			Element.Type = EPoseSearchFeatureType::Position;
-			Layout.Features.Add(Element);
-		}
-
-		if (bUseTrajectoryVelocities)
-		{
-			Element.Type = EPoseSearchFeatureType::LinearVelocity;
-			Layout.Features.Add(Element);
+			Layout.Features.Add(Feature);
 		}
 	}
 
- 	for (int32 TrajectoryDistSubsampleIdx = 0; TrajectoryDistSubsampleIdx != TrajectorySampleDistances.Num(); ++TrajectoryDistSubsampleIdx)
- 	{
- 		FPoseSearchFeatureDesc Element;
- 		Element.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
- 		Element.SubsampleIdx = TrajectoryDistSubsampleIdx;
- 		Element.Domain = EPoseSearchFeatureDomain::Distance;
-
-		if (bUseTrajectoryPositions)
-		{
-			Element.Type = EPoseSearchFeatureType::Position;
-			Layout.Features.Add(Element);
-		}
-
-		if (bUseTrajectoryVelocities)
-		{
-			Element.Type = EPoseSearchFeatureType::LinearVelocity;
-			Layout.Features.Add(Element);
-		}
- 	}
-
-	for (int32 PoseSubsampleIdx = 0; PoseSubsampleIdx != PoseSampleOffsets.Num(); ++PoseSubsampleIdx)
+	// Time domain trajectory linear velocities
+	if (bUseTrajectoryVelocities && TrajectorySampleOffsets.Num())
 	{
-		FPoseSearchFeatureDesc Element;
-		Element.SubsampleIdx = PoseSubsampleIdx;
-		Element.Domain = EPoseSearchFeatureDomain::Time;
-
-		for (int32 SchemaBoneIdx = 0; SchemaBoneIdx != Bones.Num(); ++SchemaBoneIdx)
+		FPoseSearchFeatureDesc Feature;
+		Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
+		Feature.Domain = EPoseSearchFeatureDomain::Time;
+		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != TrajectorySampleOffsets.Num(); ++Feature.SubsampleIdx)
 		{
-			Element.SchemaBoneIdx = SchemaBoneIdx;
-			if (bUseBonePositions)
-			{
-				Element.Type = EPoseSearchFeatureType::Position;
-				Layout.Features.Add(Element);
-			}
+			Layout.Features.Add(Feature);
+		}
+	}
 
-			if (bUseBoneVelocities)
+	// Distance domain trajectory positions
+	if (bUseTrajectoryPositions && TrajectorySampleDistances.Num())
+	{
+		FPoseSearchFeatureDesc Feature;
+		Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
+		Feature.Domain = EPoseSearchFeatureDomain::Distance;
+		Feature.Type = EPoseSearchFeatureType::Position;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != TrajectorySampleDistances.Num(); ++Feature.SubsampleIdx)
+		{
+			Layout.Features.Add(Feature);
+		}
+	}
+
+	// Distance domain trajectory linear velocities
+	if (bUseTrajectoryVelocities && TrajectorySampleDistances.Num())
+	{
+		FPoseSearchFeatureDesc Feature;
+		Feature.SchemaBoneIdx = FPoseSearchFeatureDesc::TrajectoryBoneIndex;
+		Feature.Domain = EPoseSearchFeatureDomain::Distance;
+		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != TrajectorySampleDistances.Num(); ++Feature.SubsampleIdx)
+		{
+			Layout.Features.Add(Feature);
+		}
+	}
+
+	// Time domain bone positions
+	if (bUseBonePositions && PoseSampleOffsets.Num())
+	{
+		FPoseSearchFeatureDesc Feature;
+		Feature.Domain = EPoseSearchFeatureDomain::Time;
+		Feature.Type = EPoseSearchFeatureType::Position;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != PoseSampleOffsets.Num(); ++Feature.SubsampleIdx)
+		{
+			for (Feature.SchemaBoneIdx = 0; Feature.SchemaBoneIdx != Bones.Num(); ++Feature.SchemaBoneIdx)
 			{
-				Element.Type = EPoseSearchFeatureType::LinearVelocity;
-				Layout.Features.Add(Element);
+				Layout.Features.Add(Feature);
+			}
+		}
+	}
+
+	// Time domain bone linear velocities
+	if (bUseBoneVelocities && PoseSampleOffsets.Num())
+	{
+		FPoseSearchFeatureDesc Feature;
+		Feature.Domain = EPoseSearchFeatureDomain::Time;
+		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != PoseSampleOffsets.Num(); ++Feature.SubsampleIdx)
+		{
+			for (Feature.SchemaBoneIdx = 0; Feature.SchemaBoneIdx != Bones.Num(); ++Feature.SchemaBoneIdx)
+			{
+				Layout.Features.Add(Feature);
 			}
 		}
 	}
@@ -399,29 +451,81 @@ void FPoseSearchIndex::Reset()
 	Schema = nullptr;
 }
 
+void FPoseSearchIndex::Normalize (TArrayView<float> InOutPoseVector) const
+{
+	using namespace Eigen;
+
+	auto TransformationMtx = Map<const Matrix<float, Dynamic, Dynamic, ColMajor>>
+	(
+		PreprocessInfo.TransformationMatrix.GetData(),
+		PreprocessInfo.NumDimensions,
+		PreprocessInfo.NumDimensions
+	);
+	auto SampleMean = Map<const Matrix<float, Dynamic, 1, ColMajor>>
+	(
+		PreprocessInfo.SampleMean.GetData(),
+		PreprocessInfo.NumDimensions
+	);
+
+	checkSlow(InOutPoseVector.Num() == PreprocessInfo.NumDimensions);
+
+	auto PoseVector = Map<Matrix<float, Dynamic, 1, ColMajor>>
+	(
+		InOutPoseVector.GetData(),
+		InOutPoseVector.Num()
+	);
+
+	PoseVector = TransformationMtx * (PoseVector - SampleMean);
+}
+
+void FPoseSearchIndex::InverseNormalize (TArrayView<float> InOutNormalizedPoseVector) const
+{
+	using namespace Eigen;
+
+	auto InverseTransformationMtx = Map<const Matrix<float, Dynamic, Dynamic, ColMajor>>
+	(
+		PreprocessInfo.InverseTransformationMatrix.GetData(),
+		PreprocessInfo.NumDimensions,
+		PreprocessInfo.NumDimensions
+	);
+	auto SampleMean = Map<const Matrix<float, Dynamic, 1, ColMajor>>
+	(
+		PreprocessInfo.SampleMean.GetData(),
+		PreprocessInfo.NumDimensions
+	);
+
+	checkSlow(InOutNormalizedPoseVector.Num() == PreprocessInfo.NumDimensions);
+
+	auto NormalizedPoseVector = Map<Matrix<float, Dynamic, 1, ColMajor>>
+	(
+		InOutNormalizedPoseVector.GetData(),
+		InOutNormalizedPoseVector.Num()
+	);
+
+	NormalizedPoseVector = (InverseTransformationMtx * NormalizedPoseVector) + SampleMean;
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSequenceMetaData
-
-void UPoseSearchSequenceMetaData::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
 
 void UPoseSearchSequenceMetaData::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	SearchIndex.Reset();
 
-	if (IsValidForIndexing())
+#if WITH_EDITOR
+	if (!IsTemplate())
 	{
-		UObject* Outer = GetOuter();
-		if (UAnimSequence* Sequence = Cast<UAnimSequence>(Outer))
+		if (IsValidForIndexing())
 		{
-			UE::PoseSearch::BuildIndex(Sequence, this);
+			UObject* Outer = GetOuter();
+			if (UAnimSequence* Sequence = Cast<UAnimSequence>(Outer))
+			{
+				UE::PoseSearch::BuildIndex(Sequence, this);
+			}
 		}
 	}
+#endif
 
 	Super::PreSave(ObjectSaveContext);
 }
@@ -478,7 +582,31 @@ int32 UPoseSearchDatabase::GetPoseIndexFromAssetTime(int32 DbSequenceIdx, float 
 
 bool UPoseSearchDatabase::IsValidForIndexing() const
 {
-	return Schema && Schema->IsValid() && !Sequences.IsEmpty();
+	bool bValid = Schema && Schema->IsValid() && !Sequences.IsEmpty();
+
+	if (bValid)
+	{
+		bool bSequencesValid = true;
+		for (const FPoseSearchDatabaseSequence& DbSequence : Sequences)
+		{
+			if (!DbSequence.Sequence)
+			{
+				bSequencesValid = false;
+				break;
+			}
+
+			USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
+			if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Schema->Skeleton))
+			{
+				bSequencesValid = false;
+				break;
+			}
+		}
+
+		bValid = bSequencesValid;
+	}
+
+	return bValid;
 }
 
 bool UPoseSearchDatabase::IsValidForSearch() const
@@ -486,21 +614,19 @@ bool UPoseSearchDatabase::IsValidForSearch() const
 	return IsValidForIndexing() && SearchIndex.IsValid();
 }
 
-void UPoseSearchDatabase::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
-}
-
 void UPoseSearchDatabase::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
 	SearchIndex.Reset();
 
-	if (IsValidForIndexing())
+#if WITH_EDITOR
+	if (!IsTemplate())
 	{
-		UE::PoseSearch::BuildIndex(this);
+		if (IsValidForIndexing())
+		{
+			UE::PoseSearch::BuildIndex(this);
+		}
 	}
+#endif
 
 	Super::PreSave(ObjectSaveContext);
 }
@@ -520,6 +646,8 @@ void FPoseSearchFeatureVectorBuilder::ResetFeatures()
 {
 	Values.Reset(0);
 	Values.SetNumZeroed(Schema->Layout.NumFloats);
+	ValuesNormalized.Reset(0);
+	ValuesNormalized.SetNumZeroed(Schema->Layout.NumFloats);
 	NumFeaturesAdded = 0;
 	FeaturesAdded.Init(false, Schema->Layout.Features.Num());
 }
@@ -706,10 +834,16 @@ bool FPoseSearchFeatureVectorBuilder::SetPastTrajectoryFeatures(UE::PoseSearch::
 	return true;
 }
 
-void FPoseSearchFeatureVectorBuilder::Copy(TArrayView<const float> FeatureVector)
+void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx)
 {
-	check(FeatureVector.Num() == Values.Num());
-	FMemory::Memcpy(Values.GetData(), FeatureVector.GetData(), FeatureVector.GetTypeSize() * FeatureVector.Num());
+	check(Schema == SearchIndex.Schema);
+
+	TArrayView<const float> FeatureVector = SearchIndex.GetPoseValues(PoseIdx);
+
+	ValuesNormalized = FeatureVector;
+	Values = FeatureVector;
+	SearchIndex.InverseNormalize(Values);
+
 	NumFeaturesAdded = Schema->Layout.Features.Num();
 	FeaturesAdded.SetRange(0, FeaturesAdded.Num(), true);
 }
@@ -760,6 +894,11 @@ bool FPoseSearchFeatureVectorBuilder::IsCompatible(const FPoseSearchFeatureVecto
 	return IsInitialized() && (Schema == OtherBuilder.Schema);
 }
 
+void FPoseSearchFeatureVectorBuilder::Normalize(const FPoseSearchIndex& ForSearchIndex)
+{
+	ValuesNormalized = Values;
+	ForSearchIndex.Normalize(ValuesNormalized);
+}
 
 namespace UE { namespace PoseSearch {
 
@@ -1740,9 +1879,12 @@ static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 		return;
 	}
 
+	TArray<float> PoseVector;
 	for (int32 PoseIdx = StartPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
 	{
-		Reader.SetValues(SearchIndex->GetPoseValues(PoseIdx));
+		PoseVector = SearchIndex->GetPoseValues(PoseIdx);
+		SearchIndex->InverseNormalize(PoseVector);
+		Reader.SetValues(PoseVector);
 
 		DrawFeatureVector(DrawParams, Reader);
 	}
@@ -1785,6 +1927,416 @@ void Draw(const FDebugDrawParams& DebugDrawParams)
 	}
 }
 
+static void PreprocessSearchIndexNone(FPoseSearchIndex* SearchIndex)
+{
+	// This function leaves the data unmodified and simply outputs the transformation
+	// and inverse transformation matrices as the identity matrix and the sample mean
+	// as the zero vector.
+
+	using namespace Eigen;
+
+	check(SearchIndex->IsValid());
+
+	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
+	Info.Reset();
+
+	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
+
+	const int32 NumPoses = SearchIndex->NumPoses;
+	const int32 NumDimensions = Layout.NumFloats;
+
+	Info.NumDimensions = NumDimensions;
+	Info.TransformationMatrix.SetNumZeroed(NumDimensions * NumPoses);
+	Info.InverseTransformationMatrix.SetNumZeroed(NumDimensions * NumPoses);
+	Info.SampleMean.SetNumZeroed(NumDimensions);
+
+	// Map output transformation matrix
+	auto TransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.TransformationMatrix.GetData(),
+		NumDimensions, NumPoses
+	);
+
+	// Map output inverse transformation matrix
+	auto InverseTransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.InverseTransformationMatrix.GetData(),
+		NumDimensions, NumPoses
+	);
+
+	// Map output sample mean vector
+	auto SampleMeanMap = Map<VectorXf>(Info.SampleMean.GetData(), NumDimensions);
+
+	// Write the transformation matrices and sample mean
+	TransformMap = MatrixXf::Identity(NumDimensions, NumPoses);
+	InverseTransformMap = MatrixXf::Identity(NumDimensions, NumPoses);
+	SampleMeanMap = VectorXf::Zero(NumDimensions);
+}
+
+static Eigen::VectorXd ComputeFeatureMeanDeviations (const Eigen::MatrixXd& CenteredPoseMatrix, const FPoseSearchFeatureVectorLayout& Layout) {
+	using namespace Eigen;
+
+	const int32 NumPoses = CenteredPoseMatrix.cols();
+	const int32 NumDimensions = CenteredPoseMatrix.rows();
+
+	VectorXd MeanDeviations(NumDimensions);
+	MeanDeviations.setConstant(0);
+	for (const FPoseSearchFeatureDesc& Feature : Layout.Features)
+	{
+		int32 FeatureDims = GetFeatureTypeTraits(Feature.Type).NumFloats;
+
+		// Construct a submatrix for the feature and find the average distance to the feature's centroid.
+		// Since we've already mean centered the data, the average distance to the mean is simply the average norm.
+		double FeatureMeanDeviation = CenteredPoseMatrix.block(Feature.ValueOffset, 0, FeatureDims, NumPoses).colwise().norm().mean();
+
+		// Fill the feature's corresponding scaling axes with the average distance
+		MeanDeviations.segment(Feature.ValueOffset, FeatureDims).setConstant(FeatureMeanDeviation);
+	}
+
+	return MeanDeviations;
+}
+
+static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
+{
+	// This function performs a modified z-score normalization where features are normalized
+	// by mean absolute deviation rather than standard deviation. Both methods are preferable
+	// here to min-max scaling because they preserve outliers.
+	// 
+	// Mean absolute deviation is preferred here over standard deviation because the latter
+	// emphasizes outliers since squaring the distance from the mean increases variance 
+	// exponentially rather than additively and square rooting the sum of squares does not 
+	// remove that bias. [1]
+	//
+	// The pose matrix is transformed in place and the tranformation matrix, its inverse,
+	// and data mean vector are computed and stored along with it.
+	//
+	// N:	number of dimensions for input column vectors
+	// P:	number of input column vectors
+	// X:	NxP input matrix
+	// x_p:	pth column vector of input matrix
+	// u:   mean column vector of X
+	//
+	// S:	mean absolute deviations of X, as diagonal NxN matrix with average distances replicated for each feature's axes
+	// s_n:	nth deviation
+	//
+	// Normalization by mean absolute deviation algorithm:
+	//
+	// 1) mean-center X
+	//    x_p := x_p - u
+	// 2) rescale X by inverse mean absolute deviation
+	//    x_p := x_p * s_n^(-1)
+	// 
+	// Let S^(-1) be the inverse of S where the nth diagonal element is s_n^(-1)
+	// then step 2 can be expressed as matrix multiplication:
+	// X := S^(-1) * X
+	//
+	// By persisting the mean vector u and linear transform S, we can bring an input vector q
+	// into the same space as the mean centered and scaled data matrix X:
+	// q := S^(-1) * (q - u)
+	//
+	// This operation is invertible, a normalized data vector x can be unscaled via:
+	// x := (S * x) + u
+	//
+	// References:
+	// [1] Gorard, S. (2005), “Revisiting a 90-Year-Old Debate: The Advantages of the Mean Deviation.”
+	//     British Journal of Educational Studies, 53: 417-430.
+
+	using namespace Eigen;
+
+	check(SearchIndex->IsValid());
+
+	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
+	Info.Reset();
+
+	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
+
+	const int32 NumPoses = SearchIndex->NumPoses;
+	const int32 NumDimensions = Layout.NumFloats;
+
+	// Map input buffer
+	auto PoseMatrixSourceMap = Map<Matrix<float, Dynamic, Dynamic, RowMajor>>(
+		SearchIndex->Values.GetData(),
+		NumPoses,		// rows
+		NumDimensions	// cols
+	);
+
+	// Copy row major float matrix to column major double matrix
+	MatrixXd PoseMatrix = PoseMatrixSourceMap.transpose().cast<double>();
+	checkSlow(PoseMatrix.rows() == NumDimensions);
+	checkSlow(PoseMatrix.cols() == NumPoses);
+
+	// Mean center
+	VectorXd SampleMean = PoseMatrix.rowwise().mean();
+	PoseMatrix = PoseMatrix.colwise() - SampleMean;
+
+	// Compute per-feature average distances
+	VectorXd MeanDeviations = ComputeFeatureMeanDeviations(PoseMatrix, Layout);
+
+	// Construct a scaling matrix that uniformly scales each feature by its average distance from the mean
+	MatrixXd ScalingMatrix = MeanDeviations.cwiseInverse().asDiagonal();
+
+	// Construct the inverse scaling matrix
+	MatrixXd InverseScalingMatrix = MeanDeviations.asDiagonal();
+
+	// Rescale data by transforming it with the scaling matrix
+	// Now each feature has an average Euclidean length = 1.
+	PoseMatrix = ScalingMatrix * PoseMatrix;
+
+	// Write normalized data back to source buffer, converting from column data back to row data
+	PoseMatrixSourceMap = PoseMatrix.transpose().cast<float>();
+
+	// Output preprocessing info
+	Info.NumDimensions = NumDimensions;
+	Info.TransformationMatrix.SetNumZeroed(ScalingMatrix.size());
+	Info.InverseTransformationMatrix.SetNumZeroed(InverseScalingMatrix.size());
+	Info.SampleMean.SetNumZeroed(SampleMean.size());
+
+	auto TransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.TransformationMatrix.GetData(),
+		ScalingMatrix.rows(), ScalingMatrix.cols()
+	);
+
+	auto InverseTransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.InverseTransformationMatrix.GetData(),
+		InverseScalingMatrix.rows(), InverseScalingMatrix.cols()
+	);
+
+	auto SampleMeanMap = Map<VectorXf>(Info.SampleMean.GetData(), SampleMean.size());
+
+	// Output scaling matrix, inverse scaling matrix, and mean vector
+	TransformMap = ScalingMatrix.cast<float>();
+	InverseTransformMap = InverseScalingMatrix.cast<float>();
+	SampleMeanMap = SampleMean.cast<float>();
+
+#if UE_POSE_SEARCH_EIGEN_DEBUG
+	FString PoseMtxStr = EigenMatrixToString(PoseMatrix);
+	FString TransformationStr = EigenMatrixToString(TransformMap);
+	FString InverseTransformationStr = EigenMatrixToString(InverseTransformMap);
+	FString SampleMeanStr = EigenMatrixToString(SampleMeanMap);
+#endif // UE_POSE_SEARCH_EIGEN_DEBUG
+}
+
+static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
+{
+	// This function performs correlation based zero-phase component analysis sphering (ZCA-cor sphering)
+	// The pose matrix is transformed in place and the tranformation matrix, its inverse,
+	// and data mean vector are computed and stored along with it.
+	//
+	// N:	number of dimensions for input column vectors
+	// P:	number of input column vectors
+	// X:	NxP input matrix
+	// x_p:	pth column vector of input matrix
+	// u:   mean column vector of X
+	//
+	// Eigendecomposition of correlation matrix of X:
+	// cor(X) = (1/P) * X * X^T = V * D * V^T
+	//
+	// V:	eigenvectors of cor(X), stacked as columns in an orthogonal NxN matrix
+	// D:	eigenvalues of cor(X), as diagonal NxN matrix
+	// d_n:	nth eigenvalue
+	// s_n: nth standard deviation
+	// s_n^2 = d_n, the variance along the nth eigenvector
+	// s_n   = d_n^(1/2)
+	//
+	// ZCA sphering algorithm:
+	//
+	// 1) mean-center X
+	//    x_p := x_p - u
+	// 2) align largest orthogonal directions of variance in X to coordinate axes (PCA rotate)
+	//    x_p := V^T * x_p
+	// 3) rescale X by inverse standard deviation
+	//    x_p := x_p * d_n^(-1/2)
+	// 4) return now rescaled X back to original rotation (inverse PCA rotate)
+	//    x_p := V * x_p
+	// 
+	// Let D^(-1/2) be the inverse square root of D where the nth diagonal element is d_n^(-1/2)
+	// then steps 2-4 can be expressed as a series of matrix multiplications:
+	// Z = V * D^(-1/2) * V^T
+	// X := Z * X
+	//
+	// By persisting the mean vector u and linear transform Z, we can bring an input vector q
+	// into the same space as the sphered data matrix X:
+	// q := Z * (q - u)
+	//
+	// This operation is invertible, a sphere standardized data vector x can be unscaled via:
+	// Z^(-1) = V * D^(1/2) * V^T
+	// x := (Z^(-1) * x) + u
+	//
+	// The sphering processs allows nearest neighbor queries to use the Mahalonobis metric
+	// which is unitless, scale-invariant, and uncorrelated. The Mahalanobis distance between
+	// two random vectors x and y in data matrix X is:
+	// d(x,y) = ((x-y)^T * cov(X)^(-1) * (x-y))^(1/2)
+	//
+	// Because sphering transforms X into a new matrix with identity covariance, the Mahalonobis
+	// distance equation above reduces to Eucledean distance since cov(X)^(-1) = I:
+	// d(x,y) = ((x-y)^T * (x-y))^(1/2)
+	// 
+	// References:
+	// Watt, Jeremy, et al. Machine Learning Refined: Foundations, Algorithms, and Applications.
+	// 2nd ed., Cambridge University Press, 2020.
+	// 
+	// Kessy, Agnan, Alex Lewin, and Korbinian Strimmer. "Optimal whitening and decorrelation."
+	// The American Statistician 72.4 (2018): 309-314.
+	// 
+	// https://en.wikipedia.org/wiki/Whitening_transformation
+	// 
+	// https://en.wikipedia.org/wiki/Mahalanobis_distance
+	//
+	// Note this sphering preprocessor needs more work and isn't yet exposed in the editor as an option.
+	// Todo:
+	// - Try singular value decomposition in place of eigendecomposition
+	// - Remove zero variance feature axes from data and search queries
+	// - Support weighted Mahalanobis metric. User supplied weights need to be transformed to data's new basis.
+
+#if UE_POSE_SEARCH_EIGEN_DEBUG
+	double StartTime = FPlatformTime::Seconds();
+#endif
+
+	using namespace Eigen;
+
+	check(SearchIndex->IsValid());
+
+	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
+	Info.Reset();
+
+	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
+
+	const int32 NumPoses = SearchIndex->NumPoses;
+	const int32 NumDimensions = Layout.NumFloats;
+
+	// Map input buffer
+	auto PoseMatrixSourceMap = Map<Matrix<float, Dynamic, Dynamic, RowMajor>>(
+		SearchIndex->Values.GetData(),
+		NumPoses,		// rows
+		NumDimensions	// cols
+	);
+
+	// Copy row major float matrix to column major double matrix
+	MatrixXd PoseMatrix = PoseMatrixSourceMap.transpose().cast<double>();
+	checkSlow(PoseMatrix.rows() == NumDimensions);
+	checkSlow(PoseMatrix.cols() == NumPoses);
+
+	// Mean center
+	VectorXd SampleMean = PoseMatrix.rowwise().mean();
+	PoseMatrix = PoseMatrix.colwise() - SampleMean;
+
+	// Compute per-feature average distances
+	VectorXd MeanDeviations = ComputeFeatureMeanDeviations(PoseMatrix, Layout);
+
+	// Rescale data by transforming it with the scaling matrix
+	// Now each feature has an average Euclidean length = 1.
+	MatrixXd PoseMatrixNormalized = MeanDeviations.cwiseInverse().asDiagonal() * PoseMatrix;
+
+	// Compute sample covariance
+	MatrixXd Covariance = ((1.0 / NumPoses) * (PoseMatrixNormalized * PoseMatrixNormalized.transpose())) + 1e-7 * MatrixXd::Identity(NumDimensions, NumDimensions);
+
+	VectorXd StdDev = Covariance.diagonal().cwiseSqrt();
+	VectorXd InvStdDev = StdDev.cwiseInverse();
+	MatrixXd Correlation = InvStdDev.asDiagonal() * Covariance * InvStdDev.asDiagonal();
+
+	// Compute eigenvalues and eigenvectors of correlation matrix
+	SelfAdjointEigenSolver<MatrixXd> EigenDecomposition(Correlation, ComputeEigenvectors);
+
+	VectorXd EigenValues = EigenDecomposition.eigenvalues();
+	MatrixXd EigenVectors = EigenDecomposition.eigenvectors();
+
+	// Sort eigenpairs by descending eigenvalue
+	{
+		const Eigen::Index n = EigenValues.size();
+		for (Eigen::Index i = 0; i < n-1; ++i)
+		{
+			Index k;
+			EigenValues.segment(i,n-i).maxCoeff(&k);
+			if (k > 0)
+			{
+				std::swap(EigenValues[i], EigenValues[k+i]);
+				EigenVectors.col(i).swap(EigenVectors.col(k+i));
+			}
+		}
+	}
+
+	// Regularize eigenvalues
+	EigenValues = EigenValues.array() + 1e-7;
+
+	// Compute ZCA-cor and ZCA-cor^(-1)
+	MatrixXd ZCA = EigenVectors * EigenValues.cwiseInverse().cwiseSqrt().asDiagonal() * EigenVectors.transpose() * MeanDeviations.cwiseInverse().asDiagonal();
+	MatrixXd ZCAInverse = MeanDeviations.asDiagonal() * EigenVectors * EigenValues.cwiseSqrt().asDiagonal() * EigenVectors.transpose();
+
+	// Apply sphering transform to the data matrix
+	PoseMatrix = ZCA * PoseMatrix;
+	checkSlow(PoseMatrix.rows() == NumDimensions);
+	checkSlow(PoseMatrix.cols() == NumPoses);
+
+	// Write data back to source buffer, converting from column data back to row data
+	PoseMatrixSourceMap = PoseMatrix.transpose().cast<float>();
+
+	// Output preprocessing info
+	Info.NumDimensions = NumDimensions;
+	Info.TransformationMatrix.SetNumZeroed(ZCA.size());
+	Info.InverseTransformationMatrix.SetNumZeroed(ZCAInverse.size());
+	Info.SampleMean.SetNumZeroed(SampleMean.size());
+
+	auto TransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.TransformationMatrix.GetData(),
+		ZCA.rows(), ZCA.cols()
+	);
+
+	auto InverseTransformMap = Map<Matrix<float, Dynamic, Dynamic, ColMajor>>(
+		Info.InverseTransformationMatrix.GetData(),
+		ZCAInverse.rows(), ZCAInverse.cols()
+	);
+
+	auto SampleMeanMap = Map<VectorXf>(Info.SampleMean.GetData(), SampleMean.size());
+
+	// Output sphering matrix, inverse sphering matrix, and mean vector
+	TransformMap = ZCA.cast<float>();
+	InverseTransformMap = ZCAInverse.cast<float>();
+	SampleMeanMap = SampleMean.cast<float>();
+
+#if UE_POSE_SEARCH_EIGEN_DEBUG
+	double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+
+	FString EigenValuesStr = EigenMatrixToString(EigenValues);
+	FString EigenVectorsStr = EigenMatrixToString(EigenVectors);
+
+	FString CovarianceStr = EigenMatrixToString(Covariance);
+	FString CorrelationStr = EigenMatrixToString(Correlation);
+
+	FString ZCAStr = EigenMatrixToString(ZCA);
+	FString ZCAInverseStr = EigenMatrixToString(ZCAInverse);
+
+	FString PoseMatrixSphereStr = EigenMatrixToString(PoseMatrix);
+	MatrixXd PoseMatrixUnsphered = ZCAInverse * PoseMatrix;
+	FString PoseMatrixUnspheredStr = EigenMatrixToString(PoseMatrixUnsphered);
+
+	FString OutputPoseMatrixStr = EigenMatrixToString(PoseMatrixSourceMap);
+
+	FString TransformStr = EigenMatrixToString(TransformMap);
+	FString InverseTransformStr = EigenMatrixToString(InverseTransformMap);
+	FString SampleMeanStr = EigenMatrixToString(SampleMeanMap);
+#endif // UE_POSE_SEARCH_EIGEN_DEBUG
+}
+
+static void PreprocessSearchIndex(FPoseSearchIndex* SearchIndex)
+{
+	switch (SearchIndex->Schema->EffectiveDataPreprocessor)
+	{
+		case EPoseSearchDataPreprocessor::Normalize:
+			PreprocessSearchIndexNormalize(SearchIndex);
+		break;
+
+		case EPoseSearchDataPreprocessor::Sphere:
+			PreprocessSearchIndexSphere(SearchIndex);
+		break;
+
+		case EPoseSearchDataPreprocessor::None:
+			PreprocessSearchIndexNone(SearchIndex);
+		break;
+
+		case EPoseSearchDataPreprocessor::Invalid:
+			checkNoEntry();
+		break;
+	}
+}
+
 bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData)
 {
 	check(Sequence);
@@ -1820,6 +2372,9 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	SequenceMetaData->SearchIndex.Values = Indexer.Output.FeatureVectorTable;
 	SequenceMetaData->SearchIndex.NumPoses = Indexer.Output.NumIndexedPoses;
 	SequenceMetaData->SearchIndex.Schema = SequenceMetaData->Schema;
+
+	PreprocessSearchIndex(&SequenceMetaData->SearchIndex);
+
 	return true;
 }
 
@@ -1830,15 +2385,6 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 	if (!Database->IsValidForIndexing())
 	{
 		return false;
-	}
-
-	for (const FPoseSearchDatabaseSequence& DbSequence : Database->Sequences)
-	{
-		USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
-		if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Database->Schema->Skeleton))
-		{
-			return false;
-		}
 	}
 
 	// Prepare animation sampling tasks
@@ -1931,6 +2477,9 @@ bool BuildIndex(UPoseSearchDatabase* Database)
 
 	Database->SearchIndex.NumPoses = TotalPoses;
 	Database->SearchIndex.Schema = Database->Schema;
+
+	PreprocessSearchIndex(&Database->SearchIndex);
+
 	return true;
 }
 

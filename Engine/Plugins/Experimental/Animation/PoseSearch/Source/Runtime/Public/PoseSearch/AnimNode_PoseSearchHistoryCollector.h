@@ -33,5 +33,4 @@ protected:
 
 	UE::PoseSearch::FPoseHistory PoseHistory;
 	TArray<float> Query;
-	float EvalDeltaTime = 0.0f;
 };

@@ -64,8 +64,7 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 			// Overwrite query feature vector with the stepped pose from the database
 			if (DbPoseIdx != INDEX_NONE)
 			{
-				TArrayView<const float> DbFeatureVector = Database->SearchIndex.GetPoseValues(DbPoseIdx);
-				ComposedQuery.Copy(DbFeatureVector);
+				ComposedQuery.CopyFromSearchIndex(Database->SearchIndex, DbPoseIdx);
 			}
 		}
 
@@ -86,11 +85,11 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 		float CurrentDissimilarity = MAX_flt;
 		if (DbPoseIdx != INDEX_NONE)
 		{
-			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetValues());
+			CurrentDissimilarity = UE::PoseSearch::ComparePoses(Database->SearchIndex, DbPoseIdx, ComposedQuery.GetNormalizedValues());
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetValues());
+		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetNormalizedValues());
 		if (Result.IsValid() && (ElapsedPoseJumpTime >= SearchThrottleTime))
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
@@ -134,6 +133,7 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 					UE::PoseSearch::FDbSearchResult FollowUpResult;
 					FollowUpResult.DbSequenceIdx = FollowUpDbSequenceIdx;
 					FollowUpResult.PoseIdx = FollowUpPoseIdx;
+					FollowUpResult.TimeOffsetSeconds = FollowUpAssetTime;
 					JumpToPose(Context, FollowUpResult);
 					bJumpedToPose = true;
 				}
@@ -211,6 +211,8 @@ void FAnimNode_MotionMatching::ComposeQuery(const FAnimationBaseContext& Context
 	{
 		ComposedQuery.MergeReplace(Goal);
 	}
+
+	ComposedQuery.Normalize(Database->SearchIndex);
 }
 
 void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context, UE::PoseSearch::FDbSearchResult Result)
