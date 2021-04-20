@@ -155,6 +155,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "LandscapeSubsystem.h"
 #include "TextureCompiler.h"
 #include "StaticMeshCompiler.h"
+#include "AssetCompilingManager.h"
 #endif
 // @todo this is here only due to circular dependency to AIModule. To be removed
 
@@ -13344,6 +13345,11 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			WorldContext.World()->DuplicateRequestedLevels(FName(*URL.Map));
 		}
 	}
+
+#if WITH_EDITOR
+	// Gives a chance to any assets being used for PIE/game to complete
+	FAssetCompilingManager::Get().ProcessAsyncTasks();
+#endif
 
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();

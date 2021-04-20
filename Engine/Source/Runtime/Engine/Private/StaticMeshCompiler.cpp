@@ -42,7 +42,7 @@ static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncStaticMe
 
 static TAutoConsoleVariable<int32> CVarAsyncStaticMeshPlayInEditorMode(
 	TEXT("Editor.AsyncStaticMeshPlayInEditorMode"),
-	2,
+	0,
 	TEXT("0 - Wait until all static meshes are built before entering PIE. (Slowest but causes no visual or behavior artifacts.) \n")
 	TEXT("1 - Wait until all static meshes affecting navigation and physics are built before entering PIE. (Some visuals might be missing during compilation.)\n")
 	TEXT("2 - Wait only on static meshes affecting navigation and physics when they are close to the player. (Fastest while still preventing falling through the floor and going through objects.)\n"),
