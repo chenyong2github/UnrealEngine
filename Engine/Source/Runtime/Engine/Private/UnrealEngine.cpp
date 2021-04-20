@@ -1925,6 +1925,8 @@ void UEngine::PreExit()
 	DynamicResolutionState.Reset();
 	NextDynamicResolutionState.Reset();
 #endif
+
+	EngineSubsystemCollection.Deinitialize();
 }
 
 void UEngine::ShutdownHMD()
