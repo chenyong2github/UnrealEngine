@@ -182,7 +182,7 @@ void UPlaneCutTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Plane Cut"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartPlaneCutTool", "Press 'A' or use the Cut button to cut the mesh without leaving the tool.  Press 'S' to flip the plane direction.  Hold 'Shift' to toggle grid snapping."),
+		LOCTEXT("OnStartPlaneCutTool", "Press 'T' or use the Cut button to cut the mesh without leaving the tool.  Press 'R' to flip the plane direction.  Hold 'Shift' to toggle grid snapping."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -195,13 +195,13 @@ void UPlaneCutTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
 		TEXT("Do Plane Cut"), 
 		LOCTEXT("DoPlaneCut", "Do Plane Cut"),
 		LOCTEXT("DoPlaneCutTooltip", "Cut the mesh with the current cutting plane, without exiting the tool"),
-		EModifierKey::None, EKeys::A,
+		EModifierKey::None, EKeys::T,
 		[this]() { this->Cut(); } );
 	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 102,
 		TEXT("Flip Cutting Plane"),
 		LOCTEXT("FlipCutPlane", "Flip Cutting Plane"),
 		LOCTEXT("FlipCutPlaneTooltip", "Flip the cutting plane"),
-		EModifierKey::None, EKeys::S,
+		EModifierKey::None, EKeys::R,
 		[this]() { this->FlipPlane(); });
 }
 

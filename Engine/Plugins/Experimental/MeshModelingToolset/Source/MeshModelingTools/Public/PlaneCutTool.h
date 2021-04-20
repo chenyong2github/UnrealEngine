@@ -186,14 +186,14 @@ protected:
 	/// Note these set a flag to call the action later (in OnTick)
 	/// Otherwise, the actions in undo history will end up being generically named by an outer UI handler transaction
 
-	/** Cut with the current plane without exiting the tool */
+	/** Cut with the current plane without exiting the tool (Hotkey: T)*/
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Cut"))
 	void Cut()
 	{
 		PendingAction = EPlaneCutToolActions::Cut;
 	}
 
-	/** Flip the cutting plane */
+	/** Flip the cutting plane (Hotkey: R) */
 	UFUNCTION(CallInEditor, Category = Actions, meta = (DisplayName = "Flip Plane"))
 	void FlipPlane()
 	{
