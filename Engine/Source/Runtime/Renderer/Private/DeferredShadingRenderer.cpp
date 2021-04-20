@@ -1168,6 +1168,113 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
 RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
 END_SHADER_PARAMETER_STRUCT()
 
+bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandListImmediate& RHICmdList)
+{
+	if (!IsRayTracingEnabled() || Views.Num() == 0)
+	{
+		return false;
+	}
+
+	bool bAnyRayTracingPassEnabled = false;
+	bool bPathTracingOrDebugViewEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
+	}
+
+	if (!bAnyRayTracingPassEnabled)
+	{
+		return false;
+	}
+
+	if (!bAnyRayTracingPassEnabled && !bPathTracingOrDebugViewEnabled)
+	{
+		return false;
+	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates);
+
+	const int32 ReferenceViewIndex = 0;
+	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_WaitRayTracingAddMesh);
+
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(ReferenceView.AddRayTracingMeshBatchTaskList, ENamedThreads::GetRenderThread_Local());
+
+		for (int32 TaskIndex = 0; TaskIndex < ReferenceView.AddRayTracingMeshBatchTaskList.Num(); TaskIndex++)
+		{
+			ReferenceView.VisibleRayTracingMeshCommands.Append(*ReferenceView.VisibleRayTracingMeshCommandsPerTask[TaskIndex]);
+		}
+
+		ReferenceView.AddRayTracingMeshBatchTaskList.Empty();
+	}
+
+	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
+	TArray<FRHIRayTracingShader*> RayGenShaders;
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		PrepareRayTracingReflections(View, *Scene, RayGenShaders);
+		PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
+		PrepareRayTracingShadows(View, RayGenShaders);
+		PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
+		PrepareRayTracingSkyLight(View, RayGenShaders);
+		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
+		PrepareRayTracingTranslucency(View, RayGenShaders);
+		PrepareRayTracingDebug(View, RayGenShaders);
+		PreparePathTracing(View, RayGenShaders);
+		PrepareRayTracingLumenDirectLighting(View, *Scene, RayGenShaders);
+		PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
+		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
+		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
+	}
+
+	DeduplicateRayGenerationShaders(RayGenShaders);
+
+	if (RayGenShaders.Num())
+	{
+		auto DefaultHitShader = ReferenceView.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+
+		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView,
+			RayGenShaders,
+			DefaultHitShader
+		);
+	}
+
+	// Initialize common resources used for lighting in ray tracing effects
+
+	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsufaceProfileTexture_RT(RHICmdList);
+	if (!ReferenceView.RayTracingSubSurfaceProfileTexture)
+	{
+		ReferenceView.RayTracingSubSurfaceProfileTexture = GSystemTextures.BlackDummy;
+	}
+
+	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		View.RayTracingLightData = CreateRayTracingLightData(RHICmdList,
+			Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+
+		// Send common ray tracing resources from reference view to all others.
+		if (ViewIndex != ReferenceViewIndex)
+		{
+			View.RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
+			View.RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
+			View.RayTracingLightData = ReferenceView.RayTracingLightData;
+			View.RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
+		}
+	}
+
+	return true;
+}
 bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder)
 {
 	if (!IsRayTracingEnabled() || Views.Num() == 0)
@@ -1218,85 +1325,10 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		// Force update all the collected geometries (use stack allocator?)
 		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, RayTracingScene.GeometriesToBuild);
 	}
-	
-	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_WaitRayTracingAddMesh);
-
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ReferenceView.AddRayTracingMeshBatchTaskList, ENamedThreads::GetRenderThread_Local());
-
-		for (int32 TaskIndex = 0; TaskIndex < ReferenceView.AddRayTracingMeshBatchTaskList.Num(); TaskIndex++)
-		{
-			ReferenceView.VisibleRayTracingMeshCommands.Append(*ReferenceView.VisibleRayTracingMeshCommandsPerTask[TaskIndex]);
-		}
-
-		ReferenceView.AddRayTracingMeshBatchTaskList.Empty();
-	}
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
-	TArray<FRHIRayTracingShader*> RayGenShaders;
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		FViewInfo& View = Views[ViewIndex];
-
-		PrepareRayTracingReflections(View, *Scene, RayGenShaders);
-		PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
-		PrepareRayTracingShadows(View, RayGenShaders);
-		PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
-		PrepareRayTracingSkyLight(View, RayGenShaders);
-		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
-		PrepareRayTracingTranslucency(View, RayGenShaders);
-		PrepareRayTracingDebug(View, RayGenShaders);
-		PreparePathTracing(View, RayGenShaders);
-		PrepareRayTracingLumenDirectLighting(View, *Scene, RayGenShaders);
-		PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
-		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
-		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
-	}
-
-	DeduplicateRayGenerationShaders(RayGenShaders);
-
 	RayTracingScene.BeginCreate(GraphBuilder);
-
-	if (RayGenShaders.Num())
-	{
-		auto DefaultHitShader = ReferenceView.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
-
-		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(GraphBuilder.RHICmdList, ReferenceView,
-			RayGenShaders,
-			DefaultHitShader
-		);
-	}
-
-	// Initialize common resources used for lighting in ray tracing effects
-
-	ReferenceView.RayTracingSubSurfaceProfileTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList);
-	if (!ReferenceView.RayTracingSubSurfaceProfileTexture)
-	{
-		ReferenceView.RayTracingSubSurfaceProfileTexture = GSystemTextures.BlackDummy;
-	}
-
-	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
-
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-	{
-		FViewInfo& View = Views[ViewIndex];
-
-		View.RayTracingLightData = CreateRayTracingLightData(GraphBuilder.RHICmdList,
-			Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
-
-		// Send common ray tracing resources from reference view to all others.
-		if (ViewIndex != ReferenceViewIndex)
-		{
-			View.RayTracingSubSurfaceProfileTexture = ReferenceView.RayTracingSubSurfaceProfileTexture;
-			View.RayTracingSubSurfaceProfileSRV = ReferenceView.RayTracingSubSurfaceProfileSRV;
-			View.RayTracingLightData = ReferenceView.RayTracingLightData;
-			View.RayTracingMaterialPipeline = ReferenceView.RayTracingMaterialPipeline;
-		}
-	}
 
 	const bool bRayTracingAsyncBuild = CVarRayTracingAsyncBuild.GetValueOnRenderThread() != 0;
 
@@ -1309,9 +1341,6 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 			RayTracingDynamicGeometryUpdateEndTransition = RHICreateTransition(FRHITransitionCreateInfo(ERHIPipeline::AsyncCompute, ERHIPipeline::Graphics));
 
 			FRHIAsyncComputeCommandListImmediate& RHIAsyncCmdList = FRHICommandListExecutor::GetImmediateAsyncComputeCommandList();
-
-			// TArray<FRHIUnorderedAccessView*> VertexBuffers;
-			// Scene->GetRayTracingDynamicGeometryCollection()->GetVertexBufferUAVs(VertexBuffers);
 
 			RHICmdList.BeginTransition(RayTracingDynamicGeometryUpdateBeginTransition);
 			RHIAsyncCmdList.EndTransition(RayTracingDynamicGeometryUpdateBeginTransition);
@@ -1429,6 +1458,8 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	// Scratch buffer must be referenced in this pass, as it must live until the BVH build is complete.
 	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
+
+	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams](FRHICommandListImmediate& RHICmdList)
@@ -1551,6 +1582,22 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		FRHIRayTracingScene* RayTracingScene = ReferenceView.GetRayTracingSceneChecked();
 		RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 	});
+}
+
+enum class ERayTracingWorldUpdatesDispatchPoint
+{
+	BeforeLumenSceneLighting,
+	OverlapWithBasePass
+};
+
+ERayTracingWorldUpdatesDispatchPoint GetRayTracingWorldUpdatesDispatchPoint(bool bOcclusionBeforeBasePass, bool bLumenUseHardwareRayTracedShadows)
+{
+	if (bOcclusionBeforeBasePass && bLumenUseHardwareRayTracedShadows)
+	{
+		return ERayTracingWorldUpdatesDispatchPoint::BeforeLumenSceneLighting;
+	}
+
+	return ERayTracingWorldUpdatesDispatchPoint::OverlapWithBasePass;
 }
 
 #endif // RHI_RAYTRACING
@@ -2059,11 +2106,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-#if RHI_RAYTRACING
-	// Must be done after FGlobalDynamicVertexBuffer::Get().Commit() for dynamic geometries to be updated
-	DispatchRayTracingWorldUpdates(GraphBuilder);
-#endif
-
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 	if (bNaniteEnabled && Views.Num() > 0)
 	{
@@ -2217,6 +2259,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Early occlusion queries
 	const bool bOcclusionBeforeBasePass = !bNaniteEnabled && !bAnyLumenEnabled && !bHairEnable && ((DepthPass.EarlyZPassMode == EDepthDrawingMode::DDM_AllOccluders) || bIsEarlyDepthComplete);
 
+#if RHI_RAYTRACING
+	ERayTracingWorldUpdatesDispatchPoint RayTracingWorldUpdatesDispatchPoint = GetRayTracingWorldUpdatesDispatchPoint(bOcclusionBeforeBasePass, Lumen::UseHardwareRayTracedShadows(Views[0]));
+#endif
+
 	if (bOcclusionBeforeBasePass)
 	{
 		RenderOcclusionLambda();
@@ -2286,6 +2332,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bOcclusionBeforeBasePass)
 	{
+#if RHI_RAYTRACING
+		if (RayTracingWorldUpdatesDispatchPoint == ERayTracingWorldUpdatesDispatchPoint::BeforeLumenSceneLighting)
+		{
+			DispatchRayTracingWorldUpdates(GraphBuilder);
+		}
+
+		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
+		if (Lumen::UseHardwareRayTracedShadows(Views[0]))
+		{
+			WaitForRayTracingScene(GraphBuilder);
+		}
+#endif // RHI_RAYTRACING
+
 		{
 			LLM_SCOPE_BYTAG(Lumen);
 			RenderLumenSceneLighting(GraphBuilder, Views[0]);
@@ -2339,6 +2398,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		InitTranslucencyLightingVolumeTextures(GraphBuilder, Views, ERDGPassFlags::AsyncCompute, TranslucencyLightingVolumeTextures);
 	}
+
+#if RHI_RAYTRACING
+	if (RayTracingWorldUpdatesDispatchPoint == ERayTracingWorldUpdatesDispatchPoint::OverlapWithBasePass)
+	{
+		// Async AS builds can potentially overlap with BasePass
+		DispatchRayTracingWorldUpdates(GraphBuilder);
+	}
+#endif
 
 	{
 		RenderBasePass(GraphBuilder, SceneTextures, DBufferTextures, BasePassDepthStencilAccess, ForwardScreenSpaceShadowMaskTexture, InstanceCullingManager);
@@ -2447,14 +2514,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderHairBasePass(GraphBuilder, Scene, SceneTextures, Views, InstanceCullingManager);
 	}
 
-#if RHI_RAYTRACING
-	const bool bRayTracingEnabled = IsRayTracingEnabled();
-	if (bRayTracingEnabled)
-	{
-		WaitForRayTracingScene(GraphBuilder);
-	}
-#endif // RHI_RAYTRACING
-
 	// Shadow and fog after base pass
 	if (bCanOverlayRayTracingOutput && !bOcclusionBeforeBasePass)
 	{
@@ -2462,7 +2521,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		AllocateVirtualShadowMaps(bAfterBasePass);
 
 		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
-		
+
+#if RHI_RAYTRACING
+		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
+		if (Lumen::UseHardwareRayTracedShadows(Views[0]))
+		{
+			WaitForRayTracingScene(GraphBuilder);
+		}
+#endif // RHI_RAYTRACING
+
 		{
 			LLM_SCOPE_BYTAG(Lumen);
 			RenderLumenSceneLighting(GraphBuilder, Views[0]);
@@ -2571,6 +2638,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		AddClearStencilPass(GraphBuilder, SceneTextures.Depth.Target);
 	}
 
+#if RHI_RAYTRACING
+	// If Lumen is not using HWRT shadows, we can wait until here: before Lumen diffuse indirect
+	if (!Lumen::UseHardwareRayTracedShadows(Views[0]))
+	{
+		WaitForRayTracingScene(GraphBuilder);
+	}
+#endif // RHI_RAYTRACING
+
 	if (bRenderDeferredLighting)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, RenderDeferredLighting);
@@ -2598,7 +2673,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 #if RHI_RAYTRACING
-		if (bRayTracingEnabled)
+		if (IsRayTracingEnabled())
 		{
 			RenderDitheredLODFadingOutMask(GraphBuilder, Views[0], SceneTextures.Depth.Target);
 		}
@@ -2847,7 +2922,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 #if RHI_RAYTRACING
-	if (bRayTracingEnabled)
+	if (IsRayTracingEnabled())
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
