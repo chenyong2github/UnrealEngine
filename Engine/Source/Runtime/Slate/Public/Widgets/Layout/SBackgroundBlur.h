@@ -17,6 +17,8 @@
 */
 class SLATE_API SBackgroundBlur : public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SBackgroundBlur, SCompoundWidget)
+
 public:
 	SLATE_BEGIN_ARGS(SBackgroundBlur)
 		: _HAlign(HAlign_Fill)
@@ -42,13 +44,14 @@ public:
 	SLATE_END_ARGS()
 
 public:
+	SBackgroundBlur();
 	void Construct(const FArguments& InArgs);
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 
 	void SetContent(const TSharedRef<SWidget>& InContent);
 	void SetApplyAlphaToBlur(bool bInApplyAlphaToBlur);
-	void SetBlurRadius(const TAttribute<TOptional<int32>>& InBlurRadius);
-	void SetBlurStrength(const TAttribute<float>& InStrength);
+	void SetBlurRadius(TAttribute<TOptional<int32>> InBlurRadius);
+	void SetBlurStrength(TAttribute<float> InStrength);
 	void SetLowQualityBackgroundBrush(const FSlateBrush* InBrush);
 	
 	void SetHAlign(EHorizontalAlignment HAlign);
@@ -60,8 +63,22 @@ public:
 protected:
 	void ComputeEffectiveKernelSize(float Strength, int32& OutKernelSize, int32& OutDownsampleAmount) const;
 
+
+	/** @return an attribute reference of ColorAndOpacity */
+	TSlateAttributeRef<float> GetBlurStrengthAttribute() const { return TSlateAttributeRef<float>{*this, BlurStrengthAttribute}; }
+
+	/** @return an attribute reference of ForegroundColor */
+	TSlateAttributeRef<TOptional<int32>> GetBlurRadiusAttribute() const { return TSlateAttributeRef<TOptional<int32>>{*this, BlurRadiusAttribute}; }
+
+#if WITH_EDITORONLY_DATA
+	FSlateDeprecatedTAttribute<float> BlurStrength;
+	FSlateDeprecatedTAttribute<TOptional<int32>> BlurRadius;
+#endif
+
 	bool bApplyAlphaToBlur;
-	TAttribute<float> BlurStrength;
-	TAttribute<TOptional<int32>> BlurRadius;
 	const FSlateBrush* LowQualityFallbackBrush;
+
+private:
+	TSlateAttribute<float> BlurStrengthAttribute;
+	TSlateAttribute<TOptional<int32>> BlurRadiusAttribute;
 };
