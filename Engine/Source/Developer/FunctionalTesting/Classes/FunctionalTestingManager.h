@@ -15,7 +15,7 @@ class IMessageLogListing;
 namespace FFunctionalTesting
 {
 	extern const TCHAR* ReproStringTestSeparator;
-	extern const TCHAR* ReproStringParamsSeparator;
+	FUNCTIONALTESTING_API extern const TCHAR* ReproStringParamsSeparator;
 }
 
 UCLASS(BlueprintType, MinimalAPI)
