@@ -174,7 +174,7 @@ bool SampleLight(
 
 	float LightPickingCdfSum = InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf);
 
-	if (LightPickingCdfSum > 0.0)
+	if (LightPickingCdfSum == 0.0)
 	{
 		// light picking cdf is all 0
 		return false;
