@@ -421,7 +421,7 @@ namespace UE
 				if ( ShadeInput.GetConnectedSource( &Source, &SourceName, &AttributeType ) )
 				{
 					pxr::UsdShadeInput FileInput;
-			
+
 				    // UsdUVTexture: Get its file input
 				    if ( AttributeType == pxr::UsdShadeAttributeType::Output )
 				    {
@@ -432,7 +432,7 @@ namespace UE
 				    {
 					    FileInput = Source.GetInput( SourceName );
 				    }
-    
+
 				    if ( FileInput && FileInput.GetTypeName() == pxr::SdfValueTypeNames->Asset ) // Check that FileInput is of type Asset
 				    {
 						const FString TexturePath = UsdUtils::GetResolvedTexturePath( FileInput.GetAttr() );
@@ -634,13 +634,13 @@ namespace UE
 			bool GetBoolParameterValue( pxr::UsdShadeConnectableAPI& Connectable, const pxr::TfToken& InputName, bool DefaultValue, FParameterValue& OutValue, UMaterialInterface* Material = nullptr, UUsdAssetCache* TexturesCache = nullptr, TMap<FString, int32>* PrimvarToUVIndex = nullptr)
 	        {
 		        FScopedUsdAllocs Allocs;
-        
+
 		        pxr::UsdShadeInput Input = Connectable.GetInput( InputName );
 		        if ( !Input )
 		        {
 			        return false;
 		        }
-        
+
 		        // If we have another shader/node connected
 		        pxr::UsdShadeConnectableAPI Source;
 		        pxr::TfToken SourceName;
@@ -656,10 +656,10 @@ namespace UE
 		        {
 			        bool InputValue = DefaultValue;
 			        Input.Get< bool >( &InputValue );
-        
+
 			        OutValue.Set< bool >( InputValue );
 		        }
-        
+
 		        return true;
 	        }
 
@@ -852,19 +852,19 @@ namespace UE
 			struct FSetPreviewSurfaceParameterValueVisitor : private FSetParameterValueVisitor
 			{
 				using FSetParameterValueVisitor::FSetParameterValueVisitor;
-        
+
 				void operator()( const float FloatValue ) const
 				{
 					FSetParameterValueVisitor::operator()( FloatValue );
 					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
 				}
-        
+
 				void operator()( const FVector& VectorValue ) const
 				{
 					FSetParameterValueVisitor::operator()( VectorValue );
 					SetScalarParameterValue( Material, *FString::Printf( TEXT( "Use%sTexture" ), ParameterName ), 0.0f );
 				}
-        
+
 				void operator()( const FTextureParameterValue& TextureValue ) const
 				{
 					SetTextureParameterValue( Material, *FString::Printf( TEXT( "%sTexture" ), ParameterName ), TextureValue.Texture );
@@ -1401,7 +1401,10 @@ namespace UE
 
 						pxr::UsdShadeInput TextureFileInput = UsdUVTextureShader.CreateInput( UnrealIdentifiers::File, pxr::SdfValueTypeNames->Asset );
 						FString TextureRelativePath = *TextureFilePath;
-						FPaths::MakePathRelativeTo( TextureRelativePath, *UsdFilePath );
+						if ( !UsdFilePath.IsEmpty() )
+						{
+							FPaths::MakePathRelativeTo( TextureRelativePath, *UsdFilePath );
+						}
 						TextureFileInput.Set( pxr::SdfAssetPath( UnrealToUsd::ConvertString( *TextureRelativePath ).Get() ) );
 
 						pxr::UsdShadeInput TextureStInput = UsdUVTextureShader.CreateInput( UnrealIdentifiers::St, pxr::SdfValueTypeNames->Float2 );
@@ -1781,7 +1784,7 @@ bool UsdToUnreal::ConvertShadeInputsToParameters( const pxr::UsdShadeMaterial& U
 			}
 		}
 		else if ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Float ||
-			ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Double || 
+			ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Double ||
 			ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Half )
 		{
 			if ( UsdShadeConversionImpl::GetFloatParameterValue( Connectable, ShadeInput.GetBaseName(), 1.f, ParameterValue, &MaterialInstance, TexturesCache ) )
