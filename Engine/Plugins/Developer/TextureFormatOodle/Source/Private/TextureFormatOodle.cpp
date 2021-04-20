@@ -412,7 +412,8 @@ public:
 			RDOLambda = 0;
 		}
 			
-		OodleTex_EncodeEffortLevel EffortLevel = OodleTex_EncodeEffortLevel_Default;
+		// "Normal" is medium quality/speed
+		OodleTex_EncodeEffortLevel EffortLevel = OodleTex_EncodeEffortLevel_Normal;
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
 		//  it's more about cook mode (fast vs final bake)
