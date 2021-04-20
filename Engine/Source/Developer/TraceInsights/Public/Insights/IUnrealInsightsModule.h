@@ -68,6 +68,8 @@ struct TRACEINSIGHTS_API FInsightsMinorTabConfig
 
 	FOnSpawnTab OnSpawnTab;
 
+	FCanSpawnTab CanSpawnTab;
+
 	FOnFindTabToReuse OnFindTabToReuse;
 
 	TSharedPtr<FWorkspaceItem> WorkspaceGroup;

@@ -62,9 +62,10 @@ public:
 	virtual void Shutdown() override;
 	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) override;
 	virtual void UnregisterMajorTabs() override;
-	virtual void OnWindowClosedEvent() override {}
+	virtual void OnWindowClosedEvent() override;
 
 	TSharedRef<SDockTab> SpawnTab_TaskTableTreeView(const FSpawnTabArgs& Args);
+	bool CanSpawnTab_TaskTableTreeView(const FSpawnTabArgs& Args);
 	void OnTaskTableTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	//////////////////////////////////////////////////

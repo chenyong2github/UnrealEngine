@@ -438,7 +438,7 @@ void STimingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 	// Register any new minor tabs.
 	for (const FInsightsMinorTabConfig& MinorTabConfig : Extension->GetMinorTabs())
 	{
-		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab);
+		FTabSpawnerEntry& TabSpawnerEntry = TabManager->RegisterTabSpawner(MinorTabConfig.TabId, MinorTabConfig.OnSpawnTab, MinorTabConfig.CanSpawnTab);
 
 		TabSpawnerEntry
 		.SetDisplayName(MinorTabConfig.TabLabel)
