@@ -3394,11 +3394,12 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				check(View.GetInstancedView() != nullptr);
 				ViewIds.Add(View.GetInstancedView()->GPUSceneViewId);
 			}
+			const bool bDrawOnlyVSMInvalidatingGeometry = ViewFamily.EngineShowFlags.DrawOnlyVSMInvalidatingGeo != 0;
 
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
-				FInstanceCullingContext(&InstanceCullingManager, ViewIds, InstanceCullingMode),
+				FInstanceCullingContext(&InstanceCullingManager, ViewIds, InstanceCullingMode, bDrawOnlyVSMInvalidatingGeometry),
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,

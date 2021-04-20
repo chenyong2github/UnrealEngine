@@ -45,6 +45,7 @@
 #define DEBUG_FLAG_CULL_HZB_SPHERE					0x4
 #define DEBUG_FLAG_CULL_FRUSTUM_BOX					0x8
 #define DEBUG_FLAG_CULL_FRUSTUM_SPHERE				0x10
+#define DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING		0x20
 
 #define NUM_PRINT_STATS_PASSES						3
 
@@ -200,15 +201,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialCulling(
 
 // Nanite Debug Flags
 
-// Enables support for using debug flags.
-int32 GNaniteDebugFlags = 0;
-static FAutoConsoleVariableRef CVarNaniteDebugFlags(
-	TEXT("r.Nanite.Debug"),
-	GNaniteDebugFlags,
-	TEXT("")
-);
-
-int32 GNaniteShowStats = 1;
+int32 GNaniteShowStats = 0;
 FAutoConsoleVariableRef CVarNaniteShowStats(
 	TEXT("r.Nanite.ShowStats"),
 	GNaniteShowStats,
@@ -292,7 +285,6 @@ void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar)
 	uint32 ParameterCount = 0;
 
 	// Convenience, force on Nanite debug/stats and also shader printing.
-	GNaniteDebugFlags = 1;
 	GNaniteShowStats = 1;
 	ShaderPrint::CVarEnable->Set(true);
 
@@ -2156,7 +2148,7 @@ FString GetFilterNameForLight(const FLightSceneProxy* LightProxy)
 
 bool IsStatFilterActive(const FString& FilterName)
 {
-	if (GNaniteDebugFlags == 0 || GNaniteShowStats == 0)
+	if (GNaniteShowStats == 0)
 	{
 		// Stats are disabled, do nothing.
 		return false;
@@ -2167,7 +2159,7 @@ bool IsStatFilterActive(const FString& FilterName)
 
 bool IsStatFilterActiveForLight(const FLightSceneProxy* LightProxy)
 {
-	if (GNaniteDebugFlags == 0 || GNaniteShowStats == 0)
+	if (GNaniteShowStats == 0)
 	{
 		return false;
 	}
@@ -2297,7 +2289,8 @@ FCullingContext InitCullingContext(
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
 	bool bForceHWRaster,
-	bool bPrimaryContext
+	bool bPrimaryContext,
+	bool bDrawOnlyVSMInvalidatingGeometry
 	)
 {
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
@@ -2330,7 +2323,6 @@ FCullingContext InitCullingContext(
 	}
 
 	// TODO: Exclude from shipping builds
-	if (GNaniteDebugFlags != 0)
 	{
 		if (GNaniteSphereCullingFrustum != 0)
 		{
@@ -2355,6 +2347,11 @@ FCullingContext InitCullingContext(
 		if (GNaniteShowStats != 0)
 		{
 			CullingContext.DebugFlags |= DEBUG_FLAG_WRITE_STATS;
+		}
+
+		if (bDrawOnlyVSMInvalidatingGeometry)
+		{
+			CullingContext.DebugFlags |= DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING;
 		}
 	}
 
@@ -2472,7 +2469,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 
 		FInstanceCullVSM_CS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FInstanceCullVSM_CS::FNearClipDim>(RasterState.bNearClip);
-		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
+		PermutationVector.Set<FInstanceCullVSM_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCullVSM_CS::FUseCompactedViewsDim>(CVarCompactVSMViews.GetValueOnRenderThread() != 0);
 
 		auto ComputeShader = CullingContext.ShaderMap->GetShader<FInstanceCullVSM_CS>(PermutationVector);
@@ -2538,7 +2535,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FCullingPassDim>(InstanceCullingPass);
 		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
 		PermutationVector.Set<FInstanceCull_CS::FNearClipDim>(RasterState.bNearClip);
-		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
+		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
 
 		auto ComputeShader = CullingContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
@@ -2634,7 +2631,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FPersistentClusterCull_CS::FNearClipDim>(RasterState.bNearClip);
 		PermutationVector.Set<FPersistentClusterCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 		PermutationVector.Set<FPersistentClusterCull_CS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr);
-		PermutationVector.Set<FPersistentClusterCull_CS::FDebugFlagsDim>(GNaniteDebugFlags != 0);
+		PermutationVector.Set<FPersistentClusterCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
 
 		auto ComputeShader = CullingContext.ShaderMap->GetShader<FPersistentClusterCull_CS>(PermutationVector);
 
@@ -3225,7 +3222,7 @@ void CullRasterize(
 		CullingContext.NumInstancesPreCull = Scene.GPUScene.InstanceDataAllocator.GetMaxSize();
 	}
 
-	if (GNaniteDebugFlags != 0)
+	if (CullingContext.DebugFlags != 0)
 	{
 		FNaniteStats Stats;
 		Stats.NumTris  = 0;
@@ -3543,7 +3540,7 @@ void ExtractStats(
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
-	if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0 && CullingContext.StatsBuffer != nullptr)
+	if (CullingContext.DebugFlags != 0 && GNaniteShowStats != 0 && CullingContext.StatsBuffer != nullptr)
 	{
 		FRDGBufferRef ClusterStatsArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.ClusterStatsArgs"));
 
@@ -3645,7 +3642,7 @@ void PrintStats(
 	LLM_SCOPE_BYTAG(Nanite);
 
 	// Print stats
-	if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
+	if (GNaniteShowStats != 0 && Nanite::GGlobalResources.GetStatsBufferRef())
 	{
 		auto& MainPassBuffers = Nanite::GGlobalResources.GetMainPassBuffers();
 		auto& PostPassBuffers = Nanite::GGlobalResources.GetPostPassBuffers();
@@ -3660,7 +3657,7 @@ void PrintStats(
 			PassParameters->PackedClusterSize = sizeof(Nanite::FPackedCluster);
 
 			PassParameters->RenderFlags = Nanite::GGlobalResources.StatsRenderFlags;
-			PassParameters->DebugFlags = GNaniteDebugFlags == 0 ? 0 : Nanite::GGlobalResources.StatsDebugFlags;
+			PassParameters->DebugFlags = Nanite::GGlobalResources.StatsDebugFlags;
 
 			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStatsBufferRef()));
 

@@ -134,6 +134,14 @@ void InstanceCull(
 			// Only process valid Nanite instances
 			return;
 		}
+#if DEBUG_FLAGS
+		const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
+		BRANCH
+		if ((DebugFlags & DEBUG_FLAG_DRAW_ONLY_VSM_INVALIDATING) != 0U && !bHasMoved)
+		{
+			return;
+		}
+#endif // DEBUG_FLAGS
 
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const bool bCastShadows = (PrimitiveData.Flags & 1u) != 0u;

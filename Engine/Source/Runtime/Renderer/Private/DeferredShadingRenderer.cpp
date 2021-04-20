@@ -64,7 +64,6 @@
 #include "InstanceCulling/InstanceCullingManager.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 
-extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
 
 static TAutoConsoleVariable<int32> CVarClearCoatNormal(
@@ -2063,6 +2062,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			const bool bSupportsMultiplePasses = false;
 			const bool bForceHWRaster = RasterContext.RasterScheduling == Nanite::ERasterScheduling::HardwareOnly;
 			const bool bPrimaryContext = true;
+			const bool bDiscardNonMoving = ViewFamily.EngineShowFlags.DrawOnlyVSMInvalidatingGeo != 0;
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -2077,7 +2077,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					bUpdateStreaming,
 					bSupportsMultiplePasses,
 					bForceHWRaster,
-					bPrimaryContext
+					bPrimaryContext,
+					bDiscardNonMoving
 				);
 
 				static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
@@ -2141,7 +2142,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			}
 		}
 
-		if (GNaniteDebugFlags != 0 && GNaniteShowStats != 0)
+		if (GNaniteShowStats != 0)
 		{
 			Nanite::PrintStats(GraphBuilder, PrimaryViewRef);
 		}

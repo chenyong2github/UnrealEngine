@@ -462,6 +462,8 @@ private:
 		SetVirtualTexturePrimitives(false);
 		SetVisualizeVolumetricCloudConservativeDensity(false);
 		SetVisualizeStrataMaterial(false);
+
+		SetDrawOnlyVSMInvalidatingGeo(false);
 	}
 
 

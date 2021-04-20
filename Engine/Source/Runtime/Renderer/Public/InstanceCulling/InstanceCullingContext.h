@@ -73,7 +73,7 @@ public:
 
 	FInstanceCullingContext() {}
 
-	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal);
+	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, bool bInDrawOnlyVSMInvalidatingGeometry = false);
 
 	struct FPrimCullingCommand
 	{
@@ -138,5 +138,6 @@ public:
 	TArray<int32/*, SceneRenderingAllocator*/> ViewIds;
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
+	bool bDrawOnlyVSMInvalidatingGeometry = false;
 };
 

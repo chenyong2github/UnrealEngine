@@ -40,6 +40,11 @@ uint NumCulledInstances;
 uint NumCulledViews;
 #endif
 
+#if DEBUG_MODE
+int bDrawOnlyVSMInvalidatingGeometry;
+uint InstanceDataSOAStride;
+#endif // DEBUG_MODE
+
 uint NumPrimitiveIds;
 uint NumInstanceRuns;
 int NumCommands;
@@ -454,8 +459,10 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 		// 3. Broadcast to all threads
 		uint InstanceIdOutputOffset = InstanceIdOffsetGroupShared;
-		uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset]);
-		WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
+		{
+			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset]);
+			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
+		}
 		GroupMemoryBarrierWithGroupSync();
 
 		int CurrentPrimitiveIdIndex = -1;
@@ -480,29 +487,46 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 			uint OutId = InstanceDataOffset >= 0 ? uint(InstanceDataOffset) + OutputIndex1 - CurrentRangeStart : 0U;
 
-			// In stereo mode we need to output all the instances in pairs, one for each eye
-#if STEREO_CULLING_MODE
-			if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+			bool bIsVisible = true;
+#if DEBUG_MODE
+			BRANCH
+			if (InstanceDataOffset >= 0 && bDrawOnlyVSMInvalidatingGeometry != 0)
 			{
-				uint OutputOffset = 0;
-				InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
+				FInstanceSceneData InstanceData = GetInstanceData(OutId, InstanceDataSOAStride);
+				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
+				const bool bCastShadow = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & 1u) != 0u;
 
-				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
-				{
-					WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
-				}
+				bIsVisible = bHasMoved && bCastShadow;
 			}
-#else // !STEREO_CULLING_MODE
-			for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+#endif // DEBUG_MODE
+
+			BRANCH
+			if (bIsVisible)
 			{
-				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+				// In stereo mode we need to output all the instances in pairs, one for each eye
+#if STEREO_CULLING_MODE
+				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
 				{
 					uint OutputOffset = 0;
-					InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
-					WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
+					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
+
+					for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+					{
+						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
+					}
 				}
-			}
+#else // !STEREO_CULLING_MODE
+				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				{
+					if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+					{
+						uint OutputOffset = 0;
+						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
+						WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
+					}
+				}
 #endif // STEREO_CULLING_MODE
+			}
 		}
 		// repeat process for the runs
 		CurrentRangeStart = 0;
@@ -525,29 +549,46 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 			uint OutId = uint(InstanceDataOffset) + Run.Start + OutputIndex2 - CurrentRangeStart;
 
-			// In stereo mode we need to output all the instances in pairs, one for each eye, thus they must be atomically allocated in pairs also
-#if STEREO_CULLING_MODE
-			if (TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+			bool bIsVisible = true;
+#if DEBUG_MODE
+			BRANCH
+			if (bDrawOnlyVSMInvalidatingGeometry != 0)
 			{
-				uint OutputOffset = 0;
-				InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
-				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
-				{
-					WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
-				}
-			}
+				FInstanceSceneData InstanceData = GetInstanceData(OutId, InstanceDataSOAStride);
+				const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
+				const bool bCastShadow = (GetPrimitiveData(Run.PrimitiveId).Flags & 1u) != 0u;
 
-#else // !STEREO_CULLING_MODE
-			for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				bIsVisible = bHasMoved && bCastShadow;
+			}
+#endif // DEBUG_MODE
+
+			BRANCH
+			if (bIsVisible)
 			{
-				if (TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+				// In stereo mode we need to output all the instances in pairs, one for each eye, thus they must be atomically allocated in pairs also
+#if STEREO_CULLING_MODE
+				if (TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
 				{
 					uint OutputOffset = 0;
-					InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
-					WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
+					InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
+					for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+					{
+						WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
+					}
 				}
-			}
+
+#else // !STEREO_CULLING_MODE
+				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				{
+					if (TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
+					{
+						uint OutputOffset = 0;
+						InterlockedAdd(FinalInstanceCountGroupShared, 1, OutputOffset);
+						WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
+					}
+				}
 #endif // STEREO_CULLING_MODE
+			}
 		}
 	}
 	GroupMemoryBarrierWithGroupSync();

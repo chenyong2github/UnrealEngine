@@ -510,8 +510,8 @@ FCullingContext	InitCullingContext(
 	bool bUpdateStreaming,
 	bool bSupportsMultiplePasses,
 	bool bForceHWRaster,
-	bool bPrimaryContext
-);
+	bool bPrimaryContext,
+	bool bDrawOnlyVSMInvalidatingGeometry = false);
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,

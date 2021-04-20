@@ -15,11 +15,12 @@
 #define ENABLE_DETERMINISTIC_INSTANCE_CULLING 0
 
 
-FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode) :
+FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry) :
 	InstanceCullingManager(InInstanceCullingManager),
 	ViewIds(InViewIds),
 	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled()),
-	InstanceCullingMode(InInstanceCullingMode)
+	InstanceCullingMode(InInstanceCullingMode),
+	bDrawOnlyVSMInvalidatingGeometry(bInDrawOnlyVSMInvalidatingGeometry)
 {
 }
 
@@ -255,8 +256,12 @@ public:
 	class FOutputCommandIdDim : SHADER_PERMUTATION_BOOL("OUTPUT_COMMAND_IDS");
 	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
 	class FStereoModeDim : SHADER_PERMUTATION_BOOL("STEREO_CULLING_MODE");
+	// This permutation should be used for all debug output etc that adds overhead not wanted in production. 
+	// Individual debug features should be controlled by dynamic switches rather than adding more permutations.
+	// TODO: maybe disable permutation in shipping builds?
+	class FDebugModeDim : SHADER_PERMUTATION_BOOL("DEBUG_MODE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim, FStereoModeDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim, FStereoModeDim, FDebugModeDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -278,6 +283,7 @@ public:
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceCullingContext::FPrimCullingCommand >, PrimitiveCullingCommands)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< int32 >, PrimitiveIds)
@@ -301,6 +307,7 @@ public:
 		SHADER_PARAMETER(uint32, NumCulledInstances)
 		SHADER_PARAMETER(uint32, NumCulledViews)
 		SHADER_PARAMETER(int32, NumViewIds)
+		SHADER_PARAMETER(int32, bDrawOnlyVSMInvalidatingGeometry)
 
 		SHADER_PARAMETER(int32, DynamicPrimitiveIdOffset)
 		SHADER_PARAMETER(int32, DynamicPrimitiveIdMax)
@@ -333,6 +340,9 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	const uint32 NumCulledInstances = InstanceCullingManager != nullptr ? uint32(InstanceCullingManager->CullingIntermediate.NumInstances) : 0U;
 	const uint32 NumCulledViews = InstanceCullingManager != nullptr ? uint32(InstanceCullingManager->CullingIntermediate.NumViews) : 0U;
 	uint32 NumInstanceFlagWords = FMath::DivideAndRoundUp(NumCulledInstances, uint32(sizeof(uint32) * 8));
+
+	// Add any other conditions that needs debug code running here.
+	const bool bUseDebugMode = bDrawOnlyVSMInvalidatingGeometry;
 
 #if ENABLE_DETERMINISTIC_INSTANCE_CULLING
 	// 1. Compute output sizes for all commands
@@ -476,6 +486,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+	PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
+
 	// Upload data etc
 	PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.PrimitiveCullingCommands"), CullingCommands));
 
@@ -494,6 +506,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 	PassParameters->ViewIds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds));
 	PassParameters->NumViewIds = ViewIds.Num();
+	PassParameters->bDrawOnlyVSMInvalidatingGeometry = bDrawOnlyVSMInvalidatingGeometry;
 
 	// TODO: Remove this when everything is properly RDG'd
 	AddPass(GraphBuilder, [&GraphBuilder](FRHICommandList& RHICmdList)
@@ -520,6 +533,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
+	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FDebugModeDim>(bUseDebugMode);
 
 	auto ComputeShader = ShaderMap->GetShader<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs>(PermutationVector);
 
@@ -569,6 +583,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+	PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
+
 	// Upload data etc
 	Params.PrimitiveCullingCommands = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.PrimitiveCullingCommands"), CullingCommands);
 	PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(Params.PrimitiveCullingCommands);
@@ -600,6 +616,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 	PassParameters->ViewIds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.ViewIds"), ViewIds));
 	PassParameters->NumViewIds = ViewIds.Num();
+	PassParameters->bDrawOnlyVSMInvalidatingGeometry = 0;
 
 
 	//PassParameters->InstanceIdsBufferOut = GraphBuilder.CreateUAV(InstanceIdsBufferRDG, PF_R32_UINT);
@@ -632,6 +649,10 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
 	// NOTE: this also switches between legacy buffer and RDG for Id output
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(1);
+	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(false);
+	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(false);
+	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FDebugModeDim>(false);
+
 	auto ComputeShader = ShaderMap->GetShader<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs>(PermutationVector);
 
 	FComputeShaderUtils::AddPass(
