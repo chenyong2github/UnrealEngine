@@ -525,6 +525,30 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 			FTimespan SampleEndTime = SampleStartTime + Sample->GetDuration();
 			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange looking at sample %f %f"),
 				SampleStartTime.GetTotalSeconds(), SampleEndTime.GetTotalSeconds());
+
+#if WMFMEDIA_PLAYER_VERSION >= 2
+			// Are we waiting for the sample from a seek?
+			if (SeekTimeOptional.IsSet())
+			{
+				// Is this our seek sample?
+				FTimespan SeekTime = SeekTimeOptional.GetValue();
+				double SeekTimeSeconds = SeekTime.GetTotalSeconds();
+				if ((FMath::IsNearlyEqual(SeekTimeSeconds, SampleStartTime.GetTotalSeconds(), 0.001)) ||
+					((SeekTime >= SampleStartTime) && (SeekTime < SampleEndTime)))
+				{
+					// Yes this is what we have been waiting for.
+					// Reset the seek time so its no longer used.
+					SeekTimeOptional.Reset();
+				}
+				else
+				{
+					// This is not the sample we want, its old.
+					VideoSampleQueue.Pop();
+					continue;
+				}
+			}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 			// Are we already past this sample?
 			if (SampleEndTime < TimeRangeLow)
 			{
@@ -558,26 +582,7 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 					continue;
 				}
 
-				// Are we waiting for the sample from a seek?
-				if (SeekTimeOptional.IsSet())
-				{
-					// Is this our seek sample?
-					FTimespan SeekTime = SeekTimeOptional.GetValue();
-					double SeekTimeSeconds = SeekTime.GetTotalSeconds();
-					if ((FMath::IsNearlyEqual(SeekTimeSeconds, SampleStartTime.GetTotalSeconds(), 0.001)) ||
-						((SeekTime >= SampleStartTime) && (SeekTime < SampleEndTime)))
-					{
-						// Yes this is what we have been waiting for.
-						// Reset the seek time so its no longer used.
-						SeekTimeOptional.Reset();
-					}
-					else
-					{
-						// This is not the sample we want, its old.
-						VideoSampleQueue.Pop();
-						continue;
-					}
-				}
+				
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 				// Is this sample before the end of the requested time range?
