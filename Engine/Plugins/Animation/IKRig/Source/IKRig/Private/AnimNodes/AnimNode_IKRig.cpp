@@ -218,6 +218,11 @@ void FAnimNode_IKRig::CacheBones_AnyThread(const FAnimationCacheBonesContext& Co
 	{
 		return;
 	}
+	
+	if (!RigDefinitionAsset)
+	{
+		return;
+	}
 
 	// fill up node names
 	CompactPoseToRigIndices.Reset();
