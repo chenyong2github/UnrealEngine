@@ -330,6 +330,7 @@ protected:
 
 			virtual int64 Tell() override {return Offset;}
 			virtual void Seek( int64 InPos ) override { Offset = InPos; }
+			virtual int64 TotalSize() override { return SerializedObject.Data.Num(); }
 
 		private:
 			void Serialize( void* SerData, int64 Num ) override
@@ -420,6 +421,8 @@ protected:
 				checkSlow(Offset<=SerializedObject.Data.Num());
 				Offset = InPos; 
 			}
+
+			virtual int64 TotalSize() override { return SerializedObject.Data.Num(); }
 
 			virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
 			{
