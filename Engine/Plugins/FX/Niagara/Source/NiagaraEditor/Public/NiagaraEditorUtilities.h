@@ -7,6 +7,7 @@
 #include "UObject/StructOnScope.h"
 #include "Misc/Attribute.h"
 #include "AssetData.h"
+#include "NiagaraActions.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -35,6 +36,7 @@ class FMenuBuilder;
 class FNiagaraEmitterViewModel;
 class FNiagaraEmitterHandleViewModel;
 enum class ECheckBoxState : uint8;
+enum class EScriptSource : uint8;
 struct FNiagaraNamespaceMetadata;
 class FNiagaraParameterHandle;
 
@@ -176,11 +178,18 @@ namespace FNiagaraEditorUtilities
 	*/
 	struct FGetFilteredScriptAssetsOptions
 	{
+		enum ESuggestedFiltering
+		{
+			NoFiltering,
+			OnlySuggested,
+			NoSuggested
+		};
 		FGetFilteredScriptAssetsOptions()
 			: ScriptUsageToInclude(ENiagaraScriptUsage::Module)
 			, TargetUsageToMatch()
 			, bIncludeDeprecatedScripts(false)
 			, bIncludeNonLibraryScripts(false)
+			, SuggestedFiltering(NoFiltering)
 		{
 		}
 
@@ -188,6 +197,7 @@ namespace FNiagaraEditorUtilities
 		TOptional<ENiagaraScriptUsage> TargetUsageToMatch;
 		bool bIncludeDeprecatedScripts;
 		bool bIncludeNonLibraryScripts;
+		ESuggestedFiltering SuggestedFiltering;
 	};
 
 	NIAGARAEDITOR_API void GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets); 
@@ -208,6 +218,14 @@ namespace FNiagaraEditorUtilities
 	NIAGARAEDITOR_API ENiagaraScriptLibraryVisibility GetScriptAssetVisibility(const FAssetData& ScriptAssetData);
 
 	NIAGARAEDITOR_API bool IsScriptAssetInLibrary(const FAssetData& ScriptAssetData);
+
+	NIAGARAEDITOR_API int32 GetWeightForItem(const TSharedPtr<FNiagaraMenuAction_Generic>& Item, const TArray<FString>& FilterTerms);
+
+	NIAGARAEDITOR_API bool DoesItemMatchFilterText(const FText& FilterText, const TSharedPtr<FNiagaraMenuAction_Generic>& Item);
+	
+	NIAGARAEDITOR_API TTuple<EScriptSource, FText> GetScriptSource(const FAssetData& ScriptAssetData);
+
+	NIAGARAEDITOR_API FLinearColor GetScriptSourceColor(EScriptSource ScriptSourceData);
 
 	NIAGARAEDITOR_API FText FormatScriptName(FName Name, bool bIsInLibrary);
 

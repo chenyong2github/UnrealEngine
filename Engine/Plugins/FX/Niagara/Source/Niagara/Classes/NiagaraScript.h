@@ -435,6 +435,10 @@ public:
 	/** Used to break up scripts of the same Usage type in UI display.*/
 	UPROPERTY(EditAnywhere, Category = Script)
 	FText Category;
+
+	/** If true, this script will be added to a 'Suggested' category at the top of menus during searches */
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
+	bool bSuggested = false;
 	
 	/** Array of Ids of dependencies provided by this module to other modules on the stack (e.g. 'ProvidesNormalizedAge') */
 	UPROPERTY(EditAnywhere, Category = Script)
