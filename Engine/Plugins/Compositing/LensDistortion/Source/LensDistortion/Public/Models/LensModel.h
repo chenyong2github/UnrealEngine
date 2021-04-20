@@ -6,6 +6,10 @@
 
 #include "LensModel.generated.h"
 
+
+class ULensDistortionModelHandlerBase;
+
+
 /**
  * Abstract base class for lens models
  */
@@ -43,6 +47,9 @@ public:
 	{
 		FromArray_Internal(StructType::StaticStruct(), SrcArray, &DstData);
 	}
+
+	/** Returns the first handler that supports the given LensModel */
+	static TSubclassOf<ULensDistortionModelHandlerBase> GetHandlerClass(TSubclassOf<ULensModel> LensModel);
 
 protected:
 	/** Internal implementation of ToArray. See declaration of public template method. */

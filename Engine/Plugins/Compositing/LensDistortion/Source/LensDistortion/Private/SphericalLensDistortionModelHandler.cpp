@@ -68,7 +68,7 @@ void USphericalLensDistortionModelHandler::InitDistortionMaterials()
 
 	DistortionPostProcessMID->SetTextureParameterValue("UVDisplacementMap", DisplacementMapRT);
 
-	UpdateInternal(CurrentState);
+	SetDistortionState(CurrentState);
 }
 
 void USphericalLensDistortionModelHandler::UpdateMaterialParameters()

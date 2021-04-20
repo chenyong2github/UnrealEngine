@@ -16,6 +16,7 @@
 
 
 class FLensFilePreComputeDataProcessor;
+class ULensDistortionModelHandlerBase;
 
 
 /** Mode of operation of Lens File */
@@ -65,6 +66,26 @@ public:
 };
 
 /**
+ * Derived data computed from parameters or stmap
+ */
+USTRUCT(BlueprintType)
+struct LENSDISTORTION_API FDerivedDistortionData
+{
+	GENERATED_BODY()
+
+	/** Precomputed data about distortion */
+	UPROPERTY(VisibleAnywhere, Category = "Distortion")
+	FDistortionData DistortionData;
+
+	/** Computed displacement map based on distortion data */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
+	UTextureRenderTarget2D* DisplacementMap = nullptr;
+
+	/** When dirty, derived data needs to be recomputed */
+	bool bIsDirty = true;
+};
+
+/**
  * A data point associating focus and zoom to lens parameters
  */
 USTRUCT(BlueprintType)
@@ -100,25 +121,7 @@ private:
 	FGuid Identifier;
 };
 
-/**
- * Derived data computed from parameters or stmap
- */
-USTRUCT(BlueprintType)
-struct LENSDISTORTION_API FDerivedDistortionData
-{
-	GENERATED_BODY()
 
-	/** Precomputed data about distortion */
-	UPROPERTY(VisibleAnywhere, Category = "Distortion")
-	FDistortionData DistortionData;
-
-	/** Computed displacement map based on distortion data */
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* DisplacementMap = nullptr;
-
-	/** When dirty, derived data needs to be recomputed */
-	bool bIsDirty = true;
-};
 
 /**
 * A data point associating focus and zoom to precalibrated STMap
@@ -238,7 +241,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent ) override;
 #endif //WITH_EDITOR
-
+	
+	virtual void PostInitProperties() override;
 	//~End UObject interface
 
 	//~ Begin FTickableGameObject
@@ -254,7 +258,7 @@ public:
 	bool EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrinsicParameters& OutEvaluatedValue);
 
 	/** Draws the distortion map based on evaluation point*/
-	bool EvaluateDistortionData(float InFocus, float InZoom, UTextureRenderTarget2D* OutDisplacementMap, FDistortionData& OutDistortionData) const;
+	bool EvaluateDistortionData(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
 
 	/** Returns interpolated nodal point offset based on input focus and zoom */
 	bool EvaluateNodalPointOffset(float InFocus, float InZoom, FNodalPointOffset& OutEvaluatedValue);
@@ -280,12 +284,6 @@ public:
 	/** Callbacked when stmap derived data has completed */
 	void OnDistortionDerivedDataJobCompleted(const FDerivedDistortionDataJobOutput& JobOutput);
 
-	//~ Begin UObject Interface
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif	
-	//~ End UObject Interface
-
 protected:
 
 	/** Updates derived data entries to make sure it matches what is assigned in map points based on data mode */
@@ -293,11 +291,20 @@ protected:
 
 	/** Returns the overscan factor based on distorted UV and image center */
 	float ComputeOverscan(const FDistortionData& DerivedData, FVector2D PrincipalPoint) const;
+
+	/** Clears output displacement map on LensHandler to have no distortion and setup distortion data to match that */
+	void SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const;
+
+	/** Evaluates distortion based on InFocus and InZoom using parameters */
+	bool EvaluateDistortionForParameters(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
+	
+	/** Evaluates distortion based on InFocus and InZoom using STMaps */
+	bool EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData);
 	
 public:
 
 	/** Lens information */
-	UPROPERTY(EditAnywhere, Category = "Lens info")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Lens info")
 	FLensInfo LensInfo;
 
 	/** Type of data used for lens mapping */
@@ -335,6 +342,14 @@ protected:
 
 	/** Processor handling derived data out of calibrated st maps */
 	TUniquePtr<ICalibratedMapProcessor> CalibratedMapProcessor;
+
+	/** Texture used to store temporary displacement map when using map blending */
+	UPROPERTY(Transient)
+	TArray<UTextureRenderTarget2D*>  DisplacementMapHolders;
+	static constexpr int32 DisplacementMapHolderCount = 4;
+
+	/** UV coordinates of 8 points (4 corners + 4 mid points) */
+	static const TArray<FVector2D> UndistortedUVs;
 };
 
 

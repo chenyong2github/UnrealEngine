@@ -343,30 +343,10 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 	{
 		if (LensFile != nullptr)
 		{
-			if (LensFile->DataMode == ELensDataMode::Parameters)
-			{
-				// Update the lens distortion handler with the evaluated data from the lens file
-				FLensDistortionState DistortionState;
-
-				FDistortionInfo DistortionInfo;
-				FIntrinsicParameters IntrinsicParams;
-				LensFile->EvaluateDistortionParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, DistortionInfo);
-				LensFile->EvaluateIntrinsicParameters(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, IntrinsicParams);
-
-				DistortionState.DistortionInfo = MoveTemp(DistortionInfo);
-				DistortionState.PrincipalPoint = IntrinsicParams.PrincipalPoint;
-				DistortionState.FxFy = IntrinsicParams.FxFy;
-
-				LensDistortionHandler->Update(DistortionState);
-			}
-			else
-			{
-				FDistortionData DistortionData;
-				LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, LensDistortionHandler->GetUVDisplacementMap(), DistortionData);
-
-				//Todo : Add basic Handler that givesSetter for overscan, MID that just use the displacement map
-				LensDistortionHandler->UpdateOverscanFactor(DistortionData.OverscanFactor);
-			}
+			//Go through the lens file to get distortion data based on FIZ
+			//Our handler's displacement map will get updated
+			FDistortionData DistortionData;
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, CineCameraComponent->CurrentFocalLength, LensDistortionHandler, DistortionData);
 		}
 
 		NewDistortionMID = LensDistortionHandler->GetDistortionMID();

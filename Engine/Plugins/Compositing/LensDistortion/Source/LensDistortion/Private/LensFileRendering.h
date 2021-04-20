@@ -37,6 +37,9 @@ struct FDisplacementMapBlendingParams
 
 namespace LensFileRendering
 {
+	/** Clears the given render target. Useful when no distortion can be applied and the RT has to be resetted */
+	void ClearDisplacementMap(UTextureRenderTarget2D* OutRenderTarget);
+
 	/**
 	 * Draws the blended result of displacement map from input textures based on blend parameters
 	 * One texture is always needed to do a passthrough. Up to four textures can be blended using bilinear

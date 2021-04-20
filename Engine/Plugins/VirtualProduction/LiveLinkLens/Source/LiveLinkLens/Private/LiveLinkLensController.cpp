@@ -37,7 +37,12 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 				DistortionState.PrincipalPoint = FrameData->PrincipalPoint;
 				DistortionState.FxFy = FrameData->FxFy;
 
-				LensDistortionHandler->Update(DistortionState);
+				//Update the distortion state based on incoming LL data.
+				//Recompute overscan factor for the distortion state
+				//Make sure the displacement map is up to date
+				LensDistortionHandler->SetDistortionState(DistortionState);
+				LensDistortionHandler->SetOverscanFactor(LensDistortionHandler->ComputeOverscanFactor());
+				LensDistortionHandler->ProcessCurrentDistortion();
 
 				NewDistortionMID = LensDistortionHandler->GetDistortionMID();
 

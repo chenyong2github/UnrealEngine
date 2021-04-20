@@ -47,7 +47,7 @@ public:
 
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	void Update(const FLensDistortionState& InNewState);
+    void SetDistortionState(const FLensDistortionState& InNewState);
 
 	/** Get the UV displacement map that was drawn during the last call to Update() */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
@@ -65,9 +65,6 @@ public:
 	/** Get the current distortion state (the lens model and properties that mathematically represent the distortion characteristics */
 	FLensDistortionState GetCurrentDistortionState() const { return CurrentState; }
 
-	/** Get the computed overscan factor needed to scale the camera's FOV */
-	float GetOverscanFactor() const { return OverscanFactor; }
-
 	/** Get the post-process MID for the currently specified lens model */
 	UMaterialInstanceDynamic* GetDistortionMID() const { return DistortionPostProcessMID; }
 
@@ -81,7 +78,22 @@ public:
 	FVector2D GetFxFy() const { return CurrentState.FxFy; }
 
 	/** Updates overscan factor and applies to material instances */
-	void UpdateOverscanFactor(float OverscanFactor);
+	void SetOverscanFactor(float OverscanFactor);
+
+	/** Returns the last overscan factor that was set */
+	float GetOverscanFactor() const { return OverscanFactor; }
+
+	/** Use the current distortion state to compute the overscan factor needed such that all distorted UVs will fall into the valid range of [0,1] */
+	float ComputeOverscanFactor() const;
+
+	/** Computes the distorted version of UndistortedUVs based on the current state */
+	TArray<FVector2D> GetDistortedUVs(TConstArrayView<FVector2D> UndistortedUVs) const;
+
+	/** Draw the displacement map associated with the current state to the DestinationTexture */
+	bool DrawDisplacementMap(UTextureRenderTarget2D* DestinationTexture);
+
+	/** Draws the current distortion state to the internal displacement map */
+	void ProcessCurrentDistortion();
 
 protected:
 	/** Initialize the handler. Derived classes must set the LensModelClass that they support, if not already set */
@@ -89,9 +101,6 @@ protected:
 
 	/** Use the current distortion state to compute the distortion position of an input UV coordinate */
 	virtual FVector2D ComputeDistortedUV(const FVector2D& InScreenUV) const PURE_VIRTUAL(ULensDistortionModelHandlerBase::ComputeDistortedUV, return FVector2D::ZeroVector;);
-
-	/** Use the current distortion state to compute the overscan factor needed such that all distorted UVs will fall into the valid range of [0,1] */
-	float ComputeOverscanFactor() const;
 
 	/** Create the distortion MIDs */
 	virtual void InitDistortionMaterials() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InitDistortionMaterials);
@@ -101,9 +110,6 @@ protected:
 
 	/** Convert the generic distortion parameter array into the specific structure of parameters used by the supported lens model */
 	virtual void InterpretDistortionParameters() PURE_VIRTUAL(ULensDistortionModelHandlerBase::InterpretDistortionParameters);
-
-	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
-	void UpdateInternal(const FLensDistortionState& InNewState);
 
 protected:
 	/** Lens Model describing how to interpret the distortion parameters */
@@ -133,4 +139,7 @@ protected:
 private:
 	static constexpr uint32 DisplacementMapWidth = 256;
 	static constexpr uint32 DisplacementMapHeight = 256;
+
+	/** Tracks whether distortion state has been changed */
+	bool bIsDirty = true;
 };
