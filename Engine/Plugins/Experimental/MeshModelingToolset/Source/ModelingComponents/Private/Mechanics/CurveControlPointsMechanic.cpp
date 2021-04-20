@@ -775,7 +775,7 @@ void UCurveControlPointsMechanic::UpdateGizmoLocation()
 
 	if (SelectedPointIDs.Num() > 0)
 	{
-		FVector3d NewGizmoLocation;
+		FVector3d NewGizmoLocation = FVector3d::Zero();
 		for (int32 PointID : SelectedPointIDs)
 		{
 			NewGizmoLocation += ControlPoints.GetPointCoordinates(PointID);
