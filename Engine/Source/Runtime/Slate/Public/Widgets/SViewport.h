@@ -114,7 +114,11 @@ public:
 	 */
 	void SetViewportInterface( TSharedRef<ISlateViewport> InViewportInterface )
 	{
-		ViewportInterface = InViewportInterface;
+		if (ViewportInterface != InViewportInterface)
+		{
+			ViewportInterface = InViewportInterface;
+			Invalidate(EInvalidateWidgetReason::Paint);
+		}
 	}
 
 	/**
@@ -170,7 +174,11 @@ public:
 	 */
 	void SetRenderDirectlyToWindow( const bool bInRenderDirectlyToWindow )
 	{
-		bRenderDirectlyToWindow = bInRenderDirectlyToWindow;
+		if (bRenderDirectlyToWindow != bInRenderDirectlyToWindow)
+		{
+			bRenderDirectlyToWindow = bInRenderDirectlyToWindow;
+			Invalidate(EInvalidateWidgetReason::Paint);
+		}
 	}
 
 	/**
@@ -181,7 +189,11 @@ public:
 	 */
 	void SetIgnoreTextureAlpha(const bool bInIgnoreTextureAlpha)
 	{
-		bIgnoreTextureAlpha = bInIgnoreTextureAlpha;
+		if (bIgnoreTextureAlpha != bInIgnoreTextureAlpha)
+		{
+			bIgnoreTextureAlpha = bInIgnoreTextureAlpha;
+			Invalidate(EInvalidateWidgetReason::Paint);
+		}
 	}
 
 	/** @return Whether or not to ignore texture alpha when blending */
@@ -265,10 +277,10 @@ private:
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
 	/** Whether or not to show the disabled effect when this viewport is disabled. */
-	TAttribute<bool> ShowDisabledEffect;
+	TSlateAttribute<bool, EInvalidateWidgetReason::Paint> ShowDisabledEffect;
 
 	/** Size of the viewport. */
-	TAttribute<FVector2D> ViewportSize;
+	TSlateAttribute<FVector2D, EInvalidateWidgetReason::Layout> ViewportSize;
 
 	TSharedPtr<ICustomHitTestPath> CustomHitTestPath;
 

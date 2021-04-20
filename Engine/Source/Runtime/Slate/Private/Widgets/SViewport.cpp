@@ -26,7 +26,9 @@ FVector2D SViewport::FArguments::GetDefaultViewportSize()
  *****************************************************************************/
 
 SViewport::SViewport()
-	: bRenderDirectlyToWindow(false)
+	: ShowDisabledEffect(*this)
+	, ViewportSize(*this)
+	, bRenderDirectlyToWindow(false)
 	, bEnableGammaCorrection(true)
 	, bReverseGammaCorrection(false)
 	, bEnableStereoRendering(false)
@@ -38,7 +40,7 @@ SViewport::SViewport()
 
 void SViewport::Construct( const FArguments& InArgs )
 {
-	ShowDisabledEffect = InArgs._ShowEffectWhenDisabled;
+	ShowDisabledEffect.Assign(*this, InArgs._ShowEffectWhenDisabled);
 	bRenderDirectlyToWindow = InArgs._RenderDirectlyToWindow;
 	bEnableGammaCorrection = InArgs._EnableGammaCorrection;
 	bReverseGammaCorrection = InArgs._ReverseGammaCorrection;
@@ -47,7 +49,7 @@ void SViewport::Construct( const FArguments& InArgs )
 	bIgnoreTextureAlpha = InArgs._IgnoreTextureAlpha;
 	bPreMultipliedAlpha = InArgs._PreMultipliedAlpha;
 	ViewportInterface = InArgs._ViewportInterface;
-	ViewportSize = InArgs._ViewportSize;
+	ViewportSize.Assign(*this, InArgs._ViewportSize);
 
 #if UE_WITH_SLATE_SIMULATEDNAVIGATIONMETADATA
 	AddMetadata(MakeShared<FSimulatedNavigationMetaData>(EUINavigationRule::Stop));
@@ -61,7 +63,7 @@ void SViewport::Construct( const FArguments& InArgs )
 
 void SViewport::SetActive(bool bActive)
 {
-	// In game enviroments the viewport is always active
+	// In game environments the viewport is always active
 	if(GIsEditor || IS_PROGRAM)
 	{
 		if (bActive && !ActiveTimerHandle.IsValid())
@@ -297,7 +299,11 @@ void SViewport::SetContent( TSharedPtr<SWidget> InContent )
 
 void SViewport::SetCustomHitTestPath( TSharedPtr<ICustomHitTestPath> InCustomHitTestPath )
 {
-	CustomHitTestPath = InCustomHitTestPath;
+	if (CustomHitTestPath != InCustomHitTestPath)
+	{
+		CustomHitTestPath = InCustomHitTestPath;
+		Invalidate(EInvalidateWidgetReason::Paint);
+	}
 }
 
 TSharedPtr<ICustomHitTestPath> SViewport::GetCustomHitTestPath()
