@@ -2547,9 +2547,9 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 
 	TArray<const XrCompositionLayerBaseHeader*> Headers;
 
+	XrCompositionLayerProjection Layer = {};
 	if (IsBackgroundLayerVisible())
 	{
-		XrCompositionLayerProjection Layer = {};
 		Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 		Layer.next = nullptr;
 		Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
@@ -2779,12 +2779,12 @@ void FOpenXRHMD::RenderTexture_RenderThread(class FRHICommandListImmediate& RHIC
 
 bool FOpenXRHMD::HasHiddenAreaMesh() const
 {
-	return false;
+	return HiddenAreaMeshes.Num() > 0;
 }
 
 bool FOpenXRHMD::HasVisibleAreaMesh() const
 {
-	return false;
+	return VisibleAreaMeshes.Num() > 0;
 }
 
 void FOpenXRHMD::DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
