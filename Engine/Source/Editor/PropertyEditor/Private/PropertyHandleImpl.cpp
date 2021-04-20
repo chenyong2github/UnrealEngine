@@ -1285,7 +1285,7 @@ void FPropertyValueImpl::InsertChild( TSharedPtr<FPropertyNode> ChildNodeToInser
 			UObject* Obj = ObjectNode ? ObjectNode->GetUObject(0) : nullptr;
 			if (IsTemplate(Obj))
 			{
-				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, AffectedInstances);
+				ChildNodePtr->GatherInstancesAffectedByContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Insert, AffectedInstances);
 			}
 		}
 
