@@ -280,41 +280,42 @@ public:
 	/**
 	 * A comma separated list of formats to use for .pak file and IoStore compression. If more than one is specified, the list is in order of priority, with fallbacks to other formats
 	 * in case of errors or unavailability of the format (plugin not enabled, etc).
-	 * Commonly PakFileCompressionFormats=Oodle or PakFileCompressionFormats=None
+	 * Commonly PackageCompressionFormat=Oodle or PackageCompressionFormat=None
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File / IoStore Compression Format(s)"))
-	FString PakFileCompressionFormats;
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Package Compression Format"))
+	FString PackageCompressionFormat;
 	
 	/**
-	 * Force use of PakFileCompressionFormats (do not use override HardwareCompressionFormat from DDPI)
+	 * Force use of PackageCompressionFormat (do not use override HardwareCompressionFormat from DDPI)
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Packaging, AdvancedDisplay, meta=(DisplayName="Use this Compression Format not hardware override"))
 	bool bForceUseProjectCompressionFormatIgnoreHardwareOverride;
 
 	/**
 	 * A generic setting for allowing a project to control compression settings during .pak file and iostore compression.
-	 * For instance PakFileAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
+	 * For instance PackageAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File / IoStore Compression Commandline Options"))
-	FString PakFileAdditionalCompressionOptions;
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Package Compression Commandline Options"))
+	FString PackageAdditionalCompressionOptions;
 	
 	/**
 	 * For compressors with multiple methods, select one.  eg. for Oodle you may use one of {Kraken,Mermaid,Selkie,Leviathan}
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Pak File Compression Method"))
-	FString PakFileCompressionMethod;
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Package Compression Method"))
+	FString PackageCompressionMethod;
 		
 	/*
 	 * For compressors with variable levels, select the encoder effort level, which makes packages smaller but takes more time to encode.
+	 * This does not affect decode speed.  For faster iteration, use lower effort levels (eg. 1)
 	 */
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Debug & Development"))
-	int32 PakFileCompressionLevel_DebugDevelopment;
+	int32 PackageCompressionLevel_DebugDevelopment;
 	
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Test & Shipping"))
-	int32 PakFileCompressionLevel_TestShipping;
+	int32 PackageCompressionLevel_TestShipping;
 	
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Encoder Effort Level for Distribution"))
-	int32 PakFileCompressionLevel_Distribution;
+	int32 PackageCompressionLevel_Distribution;
 
 	/** 
 	 * Version name for HTTP Chunk Install Data.

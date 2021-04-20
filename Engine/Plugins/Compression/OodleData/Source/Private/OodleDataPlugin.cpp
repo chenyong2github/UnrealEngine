@@ -31,28 +31,28 @@
 [/Script/UnrealEd.ProjectPackagingSettings]
 bCompressed=True
 bForceUseProjectCompressionFormat=False
-PakFileCompressionFormats=Oodle
-PakFileAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
-PakFileCompressionMethod=Mermaid
-PakFileCompressionLevel_Distribution=8
-PakFileCompressionLevel_TestShipping=5
-PakFileCompressionLevel_DebugDevelopment=3
+PackageCompressionFormat=Oodle
+PackageAdditionalCompressionOptions=-compressionblocksize=1MB -asynccompression
+PackageCompressionMethod=Mermaid
+PackageCompressionLevel_Distribution=8
+PackageCompressionLevel_TestShipping=5
+PackageCompressionLevel_DebugDevelopment=3
 
 * This can be set in DefaultGame.ini then overrides set up per-platform.
 * 
 * The Engine also has a veto compressionformat set up in the DataDrivenPlatformInfo.ini for each platform in the field
 * "HardwareCompressionFormat"
 * eg. platforms that don't want any software compressor can set "HardwareCompressionFormat=None" and this will override what you
-* set in "PakFileCompressionFormats".
+* set in "PackageCompressionFormat".
 * 
-* The idea is in typical use, you set "PakFileCompressionFormats" for your Game, and you get that compressor on most platforms, but on
+* The idea is in typical use, you set "PackageCompressionFormat" for your Game, and you get that compressor on most platforms, but on
 * some platforms that don't want compression, it automatically turns off.
 * 
 * If you want to force use of your Game.ini compressor (ignore the HardwareCompressionFormat) you can set bForceUseProjectCompressionFormat
 * in ProjectPackagingSettings.
 * 
 * 
-* When using Oodle we recommend "-compressionblocksize=1MB -asynccompression" which can be set with PakFileAdditionalCompressionOptions.
+* When using Oodle we recommend "-compressionblocksize=1MB -asynccompression" which can be set with PackageAdditionalCompressionOptions.
 * 
 * ***************************/
 

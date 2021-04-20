@@ -2233,7 +2233,7 @@ public partial class Project : CommandUtils
 		}
 		else
 		{
-			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionFormats", out CompressionFormats);
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionFormat", out CompressionFormats);
 			// empty CompressionFormats string means "use default" eg. zlib
 		}
 
@@ -2285,12 +2285,12 @@ public partial class Project : CommandUtils
 			// the game may want to control compression settings, but since it may be in a plugin that checks the commandline for the settings, we need to pass
 			// the settings directly on the UnrealPak commandline, and not put it into the batch file lines (plugins can't get the unrealpak command list, and
 			// there's not a great way to communicate random strings down into the plugins during plugin init time)
-			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileAdditionalCompressionOptions", out AdditionalCompressionOptionsOnCommandLine);
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageAdditionalCompressionOptions", out AdditionalCompressionOptionsOnCommandLine);
 
-			//LogInformation("PakFileAdditionalCompressionOptions = {0}", AdditionalCompressionOptionsOnCommandLine);
+			//LogInformation("PackageAdditionalCompressionOptions = {0}", AdditionalCompressionOptionsOnCommandLine);
 
 			string CompressionMethod;
-			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionMethod", out CompressionMethod);
+			PlatformGameConfig.GetString("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionMethod", out CompressionMethod);
 			if (!string.IsNullOrWhiteSpace(CompressionMethod))
 			{
 				//LogInformation("CompressionMethod = {0}", CompressionMethod);
@@ -2302,15 +2302,15 @@ public partial class Project : CommandUtils
 			// GetInt32 fills out with = 0 if not found
 			if (Params.Distribution)
 			{
-				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_Distribution", out CompressionLevel);
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_Distribution", out CompressionLevel);
 			}
 			else if (SC.StageTargetConfigurations.Any(Config => Config == UnrealTargetConfiguration.Test || Config == UnrealTargetConfiguration.Shipping))
 			{
-				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_TestShipping", out CompressionLevel);
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_TestShipping", out CompressionLevel);
 			}
 			else
 			{
-				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PakFileCompressionLevel_DebugDevelopment", out CompressionLevel);
+				PlatformGameConfig.GetInt32("/Script/UnrealEd.ProjectPackagingSettings", "PackageCompressionLevel_DebugDevelopment", out CompressionLevel);
 			}
 
 			if (CompressionLevel != 0)
