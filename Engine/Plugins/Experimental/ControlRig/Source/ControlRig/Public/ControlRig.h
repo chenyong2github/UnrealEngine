@@ -635,8 +635,12 @@ protected:
 
 private:
 
+#if WITH_EDITORONLY_DATA
+
 	UPROPERTY(transient)
 	URigVM* VMSnapshotBeforeExecution;
+
+#endif
 	
 #if WITH_EDITOR	
 
@@ -644,6 +648,9 @@ private:
 	
 public:	
 	
+	/** Creates the snapshot VM if required and returns it */
+	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
+
 	/** Adds a breakpoint in the VM at the InstructionIndex */
 	void AddBreakpoint(int32 InstructionIndex);
 
