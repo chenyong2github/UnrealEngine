@@ -46,6 +46,8 @@ private:
 	bool bBuildHLODs;
 	bool bDeleteHLODs;
 	bool bSubmitHLODs;
+	bool bSingleBuildStep;
+	bool bAutoSubmit;
 	bool bDistributedBuild;
 	FString BuildManifest;
 	int32 BuilderIdx;

@@ -128,6 +128,10 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	bDeleteHLODs = FParse::Param(FCommandLine::Get(), TEXT("DeleteHLODs"));
 	bSubmitHLODs = FParse::Param(FCommandLine::Get(), TEXT("SubmitHLODs"));
 
+	bSingleBuildStep = !bSetupHLODs && !bBuildHLODs && !bSubmitHLODs && !bDeleteHLODs;
+
+	bAutoSubmit = FParse::Param(FCommandLine::Get(), TEXT("AutoSubmit"));
+
 	bDistributedBuild = FParse::Param(FCommandLine::Get(), TEXT("DistributedBuild"));
 
 	FParse::Value(FCommandLine::Get(), TEXT("BuildManifest="), BuildManifest);
@@ -204,6 +208,12 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 		return false;
 	}
 
+	if (bAutoSubmit && !bSingleBuildStep)
+	{
+		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("-AutoSubmit argument only valid when building HLODs in a single step, exiting..."), *BuildManifest);
+		return false;
+	}
+
 	if (IsDistributedBuild() && !ISourceControlModule::Get().GetProvider().IsEnabled())
 	{
 		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Distributed builds requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
@@ -239,26 +249,31 @@ bool UWorldPartitionHLODsBuilder::Run(UWorld* World, FPackageSourceControlHelper
 
 	SourceControlHelper = new FSourceControlHelper(PackageHelper);
 
-	bool bRet;
-	if (bSetupHLODs)
+	bool bRet = true;
+
+	if (bSingleBuildStep)
 	{
-		bRet = SetupHLODActors(true);
-	}
-	else if (bBuildHLODs)
-	{
-		bRet = BuildHLODActors();
-	}
-	else if (bDeleteHLODs)
-	{
-		bRet = DeleteHLODActors();
-	}
-	else if (bSubmitHLODs)
-	{
-		bRet = SubmitHLODActors();
+		bRet = SetupHLODActors(false);
 	}
 	else
 	{
-		bRet = SetupHLODActors(false);
+		if (bSetupHLODs)
+		{
+			bRet = SetupHLODActors(true);
+		}
+		else if (bBuildHLODs)
+		{
+			bRet = BuildHLODActors();
+		}
+		else if (bDeleteHLODs)
+		{
+			bRet = DeleteHLODActors();
+		}
+	}
+
+	if (bRet && (bSubmitHLODs || bAutoSubmit))
+	{
+		bRet = SubmitHLODActors();
 	}
 
 	WorldPartition = nullptr;
