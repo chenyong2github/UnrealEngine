@@ -7,36 +7,6 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MotionWarpingComponent.h"
 
-// URootMotionModifierConfig_SkewWarp
-///////////////////////////////////////////////////////////////
-
-FRootMotionModifierHandle URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
-	FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier)
-{
-	if (ensureAlways(InMotionWarpingComp))
-	{
-		URootMotionModifier_SkewWarp* NewModifier = NewObject<URootMotionModifier_SkewWarp>(InMotionWarpingComp);
-		NewModifier->Animation = InAnimation;
-		NewModifier->StartTime = InStartTime;
-		NewModifier->EndTime = InEndTime;
-		NewModifier->WarpTargetName = InSyncPointName;
-		NewModifier->WarpPointAnimProvider = InWarpPointAnimProvider;
-		NewModifier->WarpPointAnimTransform = InWarpPointAnimTransform;
-		NewModifier->WarpPointAnimBoneName = InWarpPointAnimBoneName;
-		NewModifier->bWarpTranslation = bInWarpTranslation;
-		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
-		NewModifier->bWarpRotation = bInWarpRotation;
-		NewModifier->RotationType = InRotationType;
-		NewModifier->WarpRotationTimeMultiplier = InWarpRotationTimeMultiplier;
-		return InMotionWarpingComp->AddModifier(NewModifier);
-	}
-
-	return FRootMotionModifierHandle::InvalidHandle;
-}
-
-///////////////////////////////////////////////////////////////
-
 URootMotionModifier_SkewWarp::URootMotionModifier_SkewWarp(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

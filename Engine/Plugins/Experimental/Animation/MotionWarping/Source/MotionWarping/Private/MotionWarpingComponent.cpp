@@ -178,39 +178,18 @@ bool UMotionWarpingComponent::ContainsModifier(const UAnimSequenceBase* Animatio
 		});
 }
 
-FRootMotionModifierHandle UMotionWarpingComponent::AddModifier(URootMotionModifier* Modifier)
+int32 UMotionWarpingComponent::AddModifier(URootMotionModifier* Modifier)
 {
 	if (ensureAlways(Modifier))
 	{
-		//@TODO: Move this from here after update all modifiers
-		Modifier->Initialize(this);
-
-		Modifiers.Add(Modifier);
-
 		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier added. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
 			GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
 			*GetCharacterOwner()->GetActorLocation().ToString(), *GetCharacterOwner()->GetActorRotation().ToCompactString());
 
-		return Modifier->GetHandle();
+		return Modifiers.Add(Modifier);
 	}
 
-	return FRootMotionModifierHandle::InvalidHandle;
-}
-
-URootMotionModifier* UMotionWarpingComponent::GetModifierByHandle(const FRootMotionModifierHandle& Handle) const
-{
-	if (Handle.IsValid())
-	{
-		for (URootMotionModifier* RootMotionModifier : Modifiers)
-		{
-			if (RootMotionModifier && RootMotionModifier->GetHandle() == Handle)
-			{
-				return RootMotionModifier;
-			}
-		}
-	}
-
-	return nullptr;
+	return INDEX_NONE;
 }
 
 void UMotionWarpingComponent::DisableAllRootMotionModifiers()
@@ -408,32 +387,6 @@ void UMotionWarpingComponent::AddOrUpdateSyncPoint(FName Name, const FMotionWarp
 int32 UMotionWarpingComponent::RemoveSyncPoint(FName Name)
 {
 	return SyncPoints.Remove(Name);
-}
-
-bool UMotionWarpingComponent::SetRootMotionModifierDelegatesByHandle(FRootMotionModifierHandle Handle, FOnRootMotionModifierDelegate OnActivate, FOnRootMotionModifierDelegate OnUpdate, FOnRootMotionModifierDelegate OnDeactivate)
-{
-	if (URootMotionModifier* RootMotionModifier = GetModifierByHandle(Handle))
-	{
-		RootMotionModifier->OnActivateDelegate = OnActivate;
-		RootMotionModifier->OnUpdateDelegate = OnUpdate;
-		RootMotionModifier->OnDeactivateDelegate = OnDeactivate;
-		return true;
-	}
-
-	return false;
-}
-
-bool UMotionWarpingComponent::GetAnimationAndTimeRangeForRootMotionModifierByHandle(FRootMotionModifierHandle Handle, UAnimSequenceBase*& OutAnimation, float& OutStartTime, float& OutEndTime) const
-{
-	if (URootMotionModifier* RootMotionModifier = GetModifierByHandle(Handle))
-	{
-		OutAnimation = const_cast<UAnimSequenceBase*>(RootMotionModifier->GetAnimation());
-		OutStartTime = RootMotionModifier->StartTime;
-		OutEndTime = RootMotionModifier->EndTime;
-		return true;
-	}
-
-	return false;
 }
 
 URootMotionModifier* UMotionWarpingComponent::AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime)

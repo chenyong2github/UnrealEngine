@@ -9,24 +9,11 @@ UAnimNotifyState_MotionWarping::UAnimNotifyState_MotionWarping(const FObjectInit
 {
 }
 
-FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
+void UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
 {
-	FRootMotionModifierHandle Handle = AddRootMotionModifier(MotionWarpingComp, Animation, StartTime, EndTime);
+	URootMotionModifier* RootMotionModifierNew = AddRootMotionModifier(MotionWarpingComp, Animation, StartTime, EndTime);
 
-	//@TODO: Temp, to handle the case where the blueprint notify does not return the handle. Will be removed shortly
-	if (!Handle.IsValid())
-	{
-		if (MotionWarpingComp->GetModifiers().Num())
-		{
-			URootMotionModifier* Last = MotionWarpingComp->GetModifiers().Last();
-			if (Last && Last->Animation.Get() == Animation && Last->StartTime == StartTime && Last->EndTime == EndTime)
-			{
-				Handle = Last->GetHandle();
-			}
-		}
-	}
-
-	if (URootMotionModifier* RootMotionModifierNew = MotionWarpingComp->GetModifierByHandle(Handle))
+	if (RootMotionModifierNew)
 	{
 		if (!RootMotionModifierNew->OnActivateDelegate.IsBound())
 		{
@@ -42,44 +29,33 @@ FRootMotionModifierHandle UAnimNotifyState_MotionWarping::OnBecomeRelevant(UMoti
 		{
 			RootMotionModifierNew->OnDeactivateDelegate.BindDynamic(this, &UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate);
 		}
-
-		return Handle;
 	}
-
-	return Handle;
 }
 
-FRootMotionModifierHandle UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
+URootMotionModifier* UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
 {
-	if (MotionWarpingComp)
+	if (MotionWarpingComp && RootMotionModifier)
 	{
-		if (RootMotionModifier)
-		{
-			URootMotionModifier* NewRootMotionModifier = MotionWarpingComp->AddModifierFromTemplate(RootMotionModifier, Animation, StartTime, EndTime);
-			if (NewRootMotionModifier)
-			{
-				return NewRootMotionModifier->GetHandle();
-			}
-		}
+		return MotionWarpingComp->AddModifierFromTemplate(RootMotionModifier, Animation, StartTime, EndTime);
 	}
 
-	return FRootMotionModifierHandle::InvalidHandle;
+	return nullptr;
 }
 
-void UAnimNotifyState_MotionWarping::OnRootMotionModifierActivate(UMotionWarpingComponent* MotionWarpingComp, const FRootMotionModifierHandle& Handle)
+void UAnimNotifyState_MotionWarping::OnRootMotionModifierActivate(UMotionWarpingComponent* MotionWarpingComp, URootMotionModifier* Modifier)
 {
 	// Notify blueprint
-	OnWarpBegin(MotionWarpingComp, Handle);
+	OnWarpBegin(MotionWarpingComp, Modifier);
 }
 
-void UAnimNotifyState_MotionWarping::OnRootMotionModifierUpdate(UMotionWarpingComponent* MotionWarpingComp, const FRootMotionModifierHandle& Handle)
+void UAnimNotifyState_MotionWarping::OnRootMotionModifierUpdate(UMotionWarpingComponent* MotionWarpingComp, URootMotionModifier* Modifier)
 {
 	// Notify blueprint
-	OnWarpUpdate(MotionWarpingComp, Handle);
+	OnWarpUpdate(MotionWarpingComp, Modifier);
 }
 
-void UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate(UMotionWarpingComponent* MotionWarpingComp, const FRootMotionModifierHandle& Handle)
+void UAnimNotifyState_MotionWarping::OnRootMotionModifierDeactivate(UMotionWarpingComponent* MotionWarpingComp, URootMotionModifier* Modifier)
 {
 	// Notify blueprint
-	OnWarpEnd(MotionWarpingComp, Handle);
+	OnWarpEnd(MotionWarpingComp, Modifier);
 }

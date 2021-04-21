@@ -119,13 +119,10 @@ public:
 	bool ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
 
 	/** Add a new modifier */
-	FRootMotionModifierHandle AddModifier(URootMotionModifier* Modifier);
+	int32 AddModifier(URootMotionModifier* Modifier);
 
 	/** Mark all the modifiers as Disable */
 	void DisableAllRootMotionModifiers();
-
-	/** Finds a RootMotionModifier that matches the supplied Handle */
-	URootMotionModifier* GetModifierByHandle(const FRootMotionModifierHandle& Handle) const;
 
 	URootMotionModifier* AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 
@@ -152,12 +149,4 @@ protected:
 	FTransform ProcessRootMotionPreConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
 	
 	FTransform ProcessRootMotionPostConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
-
-public:
-
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	bool SetRootMotionModifierDelegatesByHandle(FRootMotionModifierHandle Handle, FOnRootMotionModifierDelegate OnActivate, FOnRootMotionModifierDelegate OnUpdate, FOnRootMotionModifierDelegate OnDeactivate);
-
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	bool GetAnimationAndTimeRangeForRootMotionModifierByHandle(FRootMotionModifierHandle Handle, UAnimSequenceBase*& OutAnimation, float& OutStartTime, float& OutEndTime) const;
 };

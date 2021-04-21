@@ -10,25 +10,14 @@
 #include "Animation/AnimInstance.h"
 #include "AnimNotifyState_MotionWarping.h"
 
-const FRootMotionModifierHandle FRootMotionModifierHandle::InvalidHandle;
-
-void FRootMotionModifierHandle::GenerateNewHandle()
-{
-	// Must be in C++ to avoid duplicate statics across execution units
-	static int32 GHandle = 1;
-	Handle = GHandle++;
-}
-
 URootMotionModifier::URootMotionModifier(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-void URootMotionModifier::Initialize(UMotionWarpingComponent* OwnerComp)
+UMotionWarpingComponent* URootMotionModifier::GetOwnerComponent() const
 {
-	check(OwnerComp);
-	OwnerComponent = OwnerComp;
-	Handle.GenerateNewHandle();
+	return Cast<UMotionWarpingComponent>(GetOuter());
 }
 
 ACharacter* URootMotionModifier::GetCharacterOwner() const
@@ -87,7 +76,7 @@ void URootMotionModifier::Update()
 	{
 		if (UMotionWarpingComponent* OwnerComp = GetOwnerComponent())
 		{
-			OnUpdateDelegate.ExecuteIfBound(OwnerComp, Handle);
+			OnUpdateDelegate.ExecuteIfBound(OwnerComp, this);
 		}
 	}
 }
@@ -110,11 +99,11 @@ void URootMotionModifier::OnStateChanged(ERootMotionModifierState LastState)
 	{
 		if (LastState != ERootMotionModifierState::Active && State == ERootMotionModifierState::Active)
 		{
-			OnActivateDelegate.ExecuteIfBound(OwnerComp, Handle);
+			OnActivateDelegate.ExecuteIfBound(OwnerComp, this);
 		}
 		else if (LastState == ERootMotionModifierState::Active && (State == ERootMotionModifierState::Disabled || State == ERootMotionModifierState::MarkedForRemoval))
 		{
-			OnDeactivateDelegate.ExecuteIfBound(OwnerComp, Handle);
+			OnDeactivateDelegate.ExecuteIfBound(OwnerComp, this);
 		}
 	}
 }

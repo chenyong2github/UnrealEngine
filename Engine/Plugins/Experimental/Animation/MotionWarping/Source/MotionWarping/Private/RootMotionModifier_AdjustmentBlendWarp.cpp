@@ -14,42 +14,6 @@
 DECLARE_CYCLE_STAT(TEXT("MotionWarping PrecomputeWarpedTracks"), STAT_MotionWarping_PrecomputeWarpedTracks, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("MotionWarping ExtractMotionDelta"), STAT_MotionWarping_ExtractMotionDelta, STATGROUP_Anim);
 
-void URootMotionModifierConfig_AdjustmentBlendWarp::GetIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha)
-{
-	URootMotionModifier_AdjustmentBlendWarp::GetAdjustmentBlendIKBoneTransformAndAlpha(Character, BoneName, OutTransform, OutAlpha);
-}
-
-// URootMotionModifierConfig_AdjustmentBlendWarp
-///////////////////////////////////////////////////////////////
-
-FRootMotionModifierHandle URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
-	FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones)
-{
-	if (ensureAlways(InMotionWarpingComp))
-	{
-		URootMotionModifier_AdjustmentBlendWarp* NewModifier = NewObject<URootMotionModifier_AdjustmentBlendWarp>(InMotionWarpingComp);
-		NewModifier->Animation = InAnimation;
-		NewModifier->StartTime = InStartTime;
-		NewModifier->EndTime = InEndTime;
-		NewModifier->WarpTargetName = InSyncPointName;
-		NewModifier->WarpPointAnimProvider = InWarpPointAnimProvider;
-		NewModifier->WarpPointAnimTransform = InWarpPointAnimTransform;
-		NewModifier->WarpPointAnimBoneName = InWarpPointAnimBoneName;
-		NewModifier->bWarpTranslation = bInWarpTranslation;
-		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
-		NewModifier->bWarpRotation = bInWarpRotation;
-		NewModifier->bWarpIKBones = bInWarpIKBones;
-		NewModifier->IKBones = InIKBones;
-
-		return InMotionWarpingComp->AddModifier(NewModifier);
-	}
-
-	return FRootMotionModifierHandle::InvalidHandle;
-}
-
-/////////////////////////////////////////////////////////
-
 URootMotionModifier_AdjustmentBlendWarp::URootMotionModifier_AdjustmentBlendWarp(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

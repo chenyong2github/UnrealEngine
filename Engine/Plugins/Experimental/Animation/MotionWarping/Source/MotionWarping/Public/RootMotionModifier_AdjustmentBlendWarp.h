@@ -41,29 +41,6 @@ struct FMotionDeltaTrackContainer
 	}
 };
 
-//DEPRECATED will be removed shortly
-UCLASS()
-class MOTIONWARPING_API URootMotionModifierConfig_AdjustmentBlendWarp : public UObject
-{
-	GENERATED_BODY()
-
-public:
-
-	URootMotionModifierConfig_AdjustmentBlendWarp(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
-
-	UE_DEPRECATED(5.0, "Please use UMotionModifier_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp instead")
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping", meta = (DeprecatedFunction))
-	static FRootMotionModifierHandle AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
-		FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones);
-
-	UE_DEPRECATED(5.0, "Please use UMotionModifier_AdjustmentBlendWarp::GetAdjustmentBlendIKBoneTransformAndAlpha instead")
-	UFUNCTION(BlueprintPure, Category = "Motion Warping", meta = (DeprecatedFunction))
-	static void GetIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha);
-};
-
-//////////////////////////////////////////////
-
 UCLASS()
 class MOTIONWARPING_API URootMotionModifier_AdjustmentBlendWarp : public URootMotionModifier_Warp
 {

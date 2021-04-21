@@ -8,6 +8,7 @@
 
 class UMotionWarpingComponent;
 class UAnimNotifyState_MotionWarping;
+class URootMotionModifier;
 
 /** The possible states of a Root Motion Modifier */
 UENUM(BlueprintType)
@@ -26,35 +27,7 @@ enum class ERootMotionModifierState : uint8
 	Disabled
 };
 
-/** Handle to identify a RootMotionModifier */
-USTRUCT(BlueprintType)
-struct MOTIONWARPING_API FRootMotionModifierHandle
-{
-	GENERATED_BODY()
-
-	FRootMotionModifierHandle() : Handle(INDEX_NONE) {}
-
-	void GenerateNewHandle();
-	
-	bool IsValid() const { return Handle != INDEX_NONE; }
-	void Invalidate() { Handle = INDEX_NONE; }
-	
-	bool operator==(const FRootMotionModifierHandle& Other) const { return Handle == Other.Handle; }
-	bool operator!=(const FRootMotionModifierHandle& Other) const { return Handle != Other.Handle; }
-	
-	friend uint32 GetTypeHash(const FRootMotionModifierHandle& InHandle) { return InHandle.Handle; }
-
-	FString ToString() const { return IsValid() ? FString::FromInt(Handle) : TEXT("Invalid"); }
-
-	static const FRootMotionModifierHandle InvalidHandle;
-
-private:
-
-	UPROPERTY()
-	int32 Handle;
-};
-
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRootMotionModifierDelegate, UMotionWarpingComponent*, MotionWarpingComp, const FRootMotionModifierHandle&, Handle);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRootMotionModifierDelegate, UMotionWarpingComponent*, MotionWarpingComp, URootMotionModifier*, RootMotionModifier);
 
 /** Represents a point of alignment in the world */
 USTRUCT(BlueprintType, meta = (HasNativeMake = "MotionWarping.MotionWarpingUtilities.MakeMotionWarpingSyncPoint", HasNativeBreak = "MotionWarping.MotionWarpingUtilities.BreakMotionWarpingSyncPoint"))
@@ -170,9 +143,6 @@ public:
 
 	URootMotionModifier(const FObjectInitializer& ObjectInitializer);
 
-	/** Initialize this modifier */
-	void Initialize(UMotionWarpingComponent* OwnerComp);
-
 	/** Called when the state of the modifier changes */
 	virtual void OnStateChanged(ERootMotionModifierState LastState);
 
@@ -182,12 +152,8 @@ public:
 	/** Returns the state of the modifier */
 	FORCEINLINE ERootMotionModifierState GetState() const { return State; }
 
-	/** Returns the handle to identify this modifier */
-	UFUNCTION(BlueprintPure, Category = "Motion Warping")
-	FRootMotionModifierHandle GetHandle() const { return Handle; }
-
 	/** Returns a pointer to the component that owns this modifier */
-	FORCEINLINE UMotionWarpingComponent* GetOwnerComponent() const { return OwnerComponent.Get(); }
+	UMotionWarpingComponent* GetOwnerComponent() const;
 
 	/** Returns a pointer to the character that owns the component that owns this modifier */
 	class ACharacter* GetCharacterOwner() const;
@@ -200,14 +166,6 @@ public:
 private:
 
 	friend UMotionWarpingComponent;
-
-	/** Pointer back to the Component that owns this modifier */
-	UPROPERTY()
-	TWeakObjectPtr<UMotionWarpingComponent> OwnerComponent = nullptr;
-
-	/** Handle to identify this modifier */
-	UPROPERTY()
-	FRootMotionModifierHandle Handle;
 
 	/** Current state */
 	UPROPERTY()
@@ -316,81 +274,3 @@ public:
 		return FinalRootMotion;
 	}
 };
-
-/** Blueprint wrapper around the config properties of a root motion modifier */
-UCLASS(abstract, BlueprintType, EditInlineNew)
-class MOTIONWARPING_API URootMotionModifierConfig : public UObject
-{
-	GENERATED_BODY()
-
-public:
-
-	URootMotionModifierConfig(const FObjectInitializer& ObjectInitializer)
-		: Super(ObjectInitializer) {}
-
-	/** Adds a RootMotionModifier of the type this object represents */
-	virtual FRootMotionModifierHandle AddRootMotionModifierNew(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const { return FRootMotionModifierHandle::InvalidHandle; }
-
-	//DEPRECATED will be removed shortly
-	virtual void AddRootMotionModifier(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const {}
-};
-
-UCLASS(meta = (DisplayName = "Simple Warp"))
-class MOTIONWARPING_API URootMotionModifierConfig_Warp : public URootMotionModifierConfig
-{
-	GENERATED_BODY()
-
-public:
-
-	/** Name used to find the warp point for this modifier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (DisplayName = "Warp Point Name"))
-	FName SyncPointName = NAME_None;  //@TODO: Rename to WarpPointName
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	EWarpPointAnimProvider WarpPointAnimProvider = EWarpPointAnimProvider::None;
-
-	//@TODO: Hide from the UI when Provider != Static
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "WarpPointAnimProvider == EWarpPointAnimProvider::Static"))
-	FTransform WarpPointAnimTransform = FTransform::Identity;
-
-	//@TODO: Hide from the UI when Provider != Bone
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "WarpPointAnimProvider == EWarpPointAnimProvider::Bone"))
-	FName WarpPointAnimBoneName = NAME_None;
-
-	/** Whether to warp the translation component of the root motion */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	bool bWarpTranslation = true;
-
-	/** Whether to ignore the Z component of the translation. Z motion will remain untouched */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpTranslation"))
-	bool bIgnoreZAxis = true;
-
-	/** Whether to warp the rotation component of the root motion */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	bool bWarpRotation = true;
-
-	/** Whether rotation should be warp to match the rotation of the sync point or to face the sync point */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
-	EMotionWarpRotationType RotationType;
-
-	/**
-	 * Allow to modify how fast the rotation is warped.
-	 * e.g if the window duration is 2sec and this is 0.5, the target rotation will be reached in 1sec instead of 2sec
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpRotation"))
-		float WarpRotationTimeMultiplier = 1.f;
-
-	URootMotionModifierConfig_Warp(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
-
-	UE_DEPRECATED(5.0, "Please use URootMotionModifier_Warp::AddRootMotionModifierSimpleWarp instead")
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping", meta = (DeprecatedFunction))
-	static FRootMotionModifierHandle AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime,
-			FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-			bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier = 1.f) {
-		return FRootMotionModifierHandle::InvalidHandle;
-	}
-};
-
-//@TODO: Temp for backward compatibility will be removed shortly
-UCLASS() class MOTIONWARPING_API UMotionModifier : public URootMotionModifier { GENERATED_BODY() };
-UCLASS() class MOTIONWARPING_API UMotionModifier_Warp : public URootMotionModifier_Warp { GENERATED_BODY() };
