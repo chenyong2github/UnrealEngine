@@ -8,7 +8,9 @@
 
 void FAudioWidgetsModule::StartupModule()
 {
-	//FModuleManager::Get().LoadModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
+	// Required to load so the AudioWidget plugin content can reference widgets
+	// defined in AdvancedWidgets (ex. RadialSlider for UMG-defined knobs)
+	FModuleManager::Get().LoadModuleChecked<FAdvancedWidgetsModule>("AdvancedWidgets");
 }
 
 void FAudioWidgetsModule::ShutdownModule()
