@@ -130,6 +130,7 @@ public:
 		, IntAttributeJ(*this, 99)
 		, IntAttributeK(*this, 99)
 		, IntAttributeL(*this, 99)
+		, IntAttributeM(*this, 99)
 	{
 	}
 
@@ -140,12 +141,13 @@ public:
 	TSlateAttribute<int32> IntAttributeJ;
 	TSlateAttribute<int32> IntAttributeK;
 	TSlateAttribute<int32> IntAttributeL;
+	TSlateAttribute<int32> IntAttributeM;
 };
 
 SLATE_IMPLEMENT_WIDGET(SAttributeLeftWidget_Child)
 void SAttributeLeftWidget_Child::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
-	// The update order is B, A, I, J, D, C, L, H, K
+	// The update order is M, B, A, I, J, D, C, L, H, K
 	//SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeH, EInvalidateWidgetReason::ChildOrder);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeJ, EInvalidateWidgetReason::ChildOrder)
 		.UpdateDependency("IntAttributeA");
@@ -154,6 +156,9 @@ void SAttributeLeftWidget_Child::PrivateRegisterAttributes(FSlateAttributeInitia
 		.UpdatePrerequisite("IntAttributeB");
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeL, EInvalidateWidgetReason::ChildOrder)
 		.UpdatePrerequisite("IntAttributeC");
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, IntAttributeM, EInvalidateWidgetReason::ChildOrder)
+		.UpdatePrerequisite("Visibility")
+		.AffectVisibility();
 }
 
 class SAttributeLeftWidget_OnInvalidationParent : public SLeafWidget
@@ -197,7 +202,7 @@ public:
 
 bool FSlateAttributeTest::RunTest(const FString& Parameters)
 {
-	const int NumberOfAttributeInSWidget = 2;
+	const int NumberOfAttributeInSWidget = 4;
 	int32 OrderCounter = 0;
 	auto OrderLambda = [this, &OrderCounter]() -> int32
 	{
@@ -335,7 +340,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			, TEXT("The static data do not matches"));
 
 		FSlateAttributeDescriptor const& AttributeDescriptor = WidgetChild->GetWidgetClass().GetAttributeDescriptor();
-		AddErrorIfFalse(AttributeDescriptor.AttributeNum() == 8 + NumberOfAttributeInSWidget, TEXT("")); // H is not counted
+		AddErrorIfFalse(AttributeDescriptor.AttributeNum() == 9 + NumberOfAttributeInSWidget, TEXT("")); // H is not counted
 
 		const int32 IndexA = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeA");
 		const int32 IndexB = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeB");
@@ -345,6 +350,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 		const int32 IndexJ = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeJ");
 		const int32 IndexK = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeK");
 		const int32 IndexL = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeL");
+		const int32 IndexM = AttributeDescriptor.IndexOfMemberAttribute("IntAttributeM");
 
 		AddErrorIfFalse(IndexA != INDEX_NONE, TEXT("Could not find the Attribute A"));
 		AddErrorIfFalse(IndexB != INDEX_NONE, TEXT("Could not find the Attribute B"));
@@ -354,6 +360,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 		AddErrorIfFalse(IndexJ != INDEX_NONE, TEXT("Could not find the Attribute J"));
 		AddErrorIfFalse(IndexK != INDEX_NONE, TEXT("Could not find the Attribute K"));
 		AddErrorIfFalse(IndexL != INDEX_NONE, TEXT("Could not find the Attribute L"));
+		AddErrorIfFalse(IndexM != INDEX_NONE, TEXT("Could not find the Attribute M"));
 
 		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexA) == AttributeDescriptor.FindAttribute("IntAttributeA"), TEXT("Index and Attribute should return the same value."));
 		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexB) == AttributeDescriptor.FindAttribute("IntAttributeB"), TEXT("Index and Attribute should return the same value."));
@@ -363,8 +370,10 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexJ) == AttributeDescriptor.FindAttribute("IntAttributeJ"), TEXT("Index and Attribute should return the same value."));
 		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexK) == AttributeDescriptor.FindAttribute("IntAttributeK"), TEXT("Index and Attribute should return the same value."));
 		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexL) == AttributeDescriptor.FindAttribute("IntAttributeL"), TEXT("Index and Attribute should return the same value."));
+		AddErrorIfFalse(&AttributeDescriptor.GetAttributeAtIndex(IndexM) == AttributeDescriptor.FindAttribute("IntAttributeM"), TEXT("Index and Attribute should return the same value."));
 		AddErrorIfFalse(AttributeDescriptor.FindAttribute("IntAttributeH") == nullptr, TEXT("H exist but is not defined."));
 
+		AddErrorIfFalse(AttributeDescriptor.GetAttributeAtIndex(IndexM).SortOrder < AttributeDescriptor.GetAttributeAtIndex(IndexB).SortOrder, TEXT("M should have a lower value than B"));
 		AddErrorIfFalse(AttributeDescriptor.GetAttributeAtIndex(IndexB).SortOrder < AttributeDescriptor.GetAttributeAtIndex(IndexA).SortOrder, TEXT("B should have a lower value than A"));
 		AddErrorIfFalse(AttributeDescriptor.GetAttributeAtIndex(IndexA).SortOrder <= AttributeDescriptor.GetAttributeAtIndex(IndexI).SortOrder, TEXT("A should have a lower value than I"));
 		AddErrorIfFalse(AttributeDescriptor.GetAttributeAtIndex(IndexI).SortOrder < AttributeDescriptor.GetAttributeAtIndex(IndexJ).SortOrder, TEXT("I should have a lower value than J"));
@@ -394,6 +403,8 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 99, TEXT("K It is not the expected value."));
 			WidgetChild->IntAttributeL.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
 			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 99, TEXT("L It is not the expected value."));
+			WidgetChild->IntAttributeM.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
+			AddErrorIfFalse(WidgetChild->IntAttributeM.Get() == 99, TEXT("L It is not the expected value."));
 
 
 			OrderCounter = 0;
@@ -401,15 +412,16 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			ReturnValue = 4;
 			WidgetChild->MarkPrepassAsDirty();
 			WidgetChild->SlatePrepass(1.f);
-			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 2 || WidgetChild->IntAttributeA.Get() == 3, TEXT("A It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 6, TEXT("C It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 5, TEXT("D It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 8, TEXT("H It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 2 || WidgetChild->IntAttributeI.Get() == 3, TEXT("I It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 4, TEXT("J It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 9, TEXT("K It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 7, TEXT("L It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 3 || WidgetChild->IntAttributeA.Get() == 4, TEXT("A It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 2, TEXT("B It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 7, TEXT("C It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 6, TEXT("D It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 9, TEXT("H It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 3 || WidgetChild->IntAttributeI.Get() == 4, TEXT("I It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 5, TEXT("J It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 10, TEXT("K It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 8, TEXT("L It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeM.Get() == 1, TEXT("L It is not the expected value."));
 		}
 
 		{
@@ -418,15 +430,16 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			ReturnValue = 4;
 			WidgetChild->MarkPrepassAsDirty();
 			WidgetChild->SlatePrepass(1.f);
-			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 2 || WidgetChild->IntAttributeA.Get() == 3, TEXT("A It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 1, TEXT("B It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 5, TEXT("C It is not the expected value.")); // will get updated because D changes
-			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 4, TEXT("D It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 7, TEXT("H It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 2 || WidgetChild->IntAttributeI.Get() == 3, TEXT("I It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 4, TEXT("J It is not the expected value.")); // should not get updated
-			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 8, TEXT("K It is not the expected value."));
-			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 6, TEXT("L It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 3 || WidgetChild->IntAttributeA.Get() == 4, TEXT("A It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 2, TEXT("B It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 6, TEXT("C It is not the expected value.")); // will get updated because D changes
+			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 5, TEXT("D It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 8, TEXT("H It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 3 || WidgetChild->IntAttributeI.Get() == 4, TEXT("I It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 5, TEXT("J It is not the expected value.")); // should not get updated
+			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 9, TEXT("K It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 7, TEXT("L It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeM.Get() == 1, TEXT("M It is not the expected value."));
 		}
 	}
 

@@ -103,7 +103,7 @@ bool FSlateWindowHelper::FindPathToWidget( const TArray<TSharedRef<SWindow>>& Wi
 		while (true)
 		{
 			// Update the Widgets visibility before getting the ArrangeChildren
-			FSlateAttributeMetaData::UpdateCollapsedAttributes(*CurWidget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation);
+			FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(*CurWidget.Get(), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation);
 			EVisibility CurWidgetVisibility = CurWidget->GetVisibility();
 			if (OutWidgetPath.Widgets.Accepts(CurWidgetVisibility))
 			{

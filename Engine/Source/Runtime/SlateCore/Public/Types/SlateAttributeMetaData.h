@@ -46,25 +46,22 @@ public:
 	 * Update all the attributes.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static void UpdateAllAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
-	 * Update attributes that are mark to be updated when the widget is collapsed.
-	 * These attributes are usually responsible to change visibility of the widget.
+	 * Update attributes that are responsible to change visibility of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static void UpdateOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
-	 * Update attributes that are mark to be updated when the widget is NOT collapsed.
-	 * These attributes usually do not change the visibility of the widget.
+	 * Update attributes that are NOT responsible to change visibility of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateExpandedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static void UpdateExceptVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
 	/**
-	 * Update the children attributes that are mark to be updated when the widget is collapsed.
-	 * These attributes are usually responsible to change visibility of the widget.
+	 * Execute UpdateOnlyVisibilityAttributes on every children of the widget.
 	 * @param InvalidationStyle if we should invalidate the widget.
 	 */
-	static void UpdateChildrenCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle);
+	static void UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive);
 
 public:
 	bool IsBound(const FSlateAttributeBase& Attribute) const
@@ -72,12 +69,12 @@ public:
 		return IndexOfAttribute(Attribute) != INDEX_NONE;
 	}
 
-	int32 RegisteredAttributeCount() const { return Attributes.Num(); }
+	int32 GetRegisteredAttributeCount() const { return Attributes.Num(); }
 
-	int32 RegisteredCollaspedAttributeCount() const { return CollaspedAttributeCounter; }
+	int32 GetRegisteredAffectVisibilityAttributeCount() const { return AffectVisibilityCounter; }
 
 	/** Get the name of all the attributes, if available. */
-	TArray<FName> GetAttributeNames(const SWidget& OwningWidget) const;
+	static TArray<FName> GetAttributeNames(const SWidget& OwningWidget);
 
 private:
 	using ESlateAttributeType = SlateAttributePrivate::ESlateAttributeType;
@@ -92,15 +89,9 @@ private:
 	static void MoveAttribute(const SWidget& OwningWidget, FSlateAttributeBase& NewAttribute, ESlateAttributeType AttributeType, const FSlateAttributeBase* PreviousAttribute);
 
 private:
-	enum class EUpdateType
-	{
-		All,
-		Collapsed,
-		Expanded, // not mark as collapsed
-	};
 	void RegisterAttributeImpl(SWidget& OwningWidget, FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Getter);
 	bool UnregisterAttributeImpl(const FSlateAttributeBase& Attribute);
-	void UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, EInvalidationPermission InvaldiationStyle);
+	void UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvaldiationStyle, int32 StartIndex, int32 IndexNum);
 
 private:
 	int32 IndexOfAttribute(const FSlateAttributeBase& Attribute) const
@@ -146,7 +137,7 @@ private:
 				int8 bIsADependencyForSomeoneElse : 1;
 				int8 bIsMemberType : 1;
 				int8 bIsManagedType : 1;
-				int8 bUpdateWhenCollapsed : 1;
+				int8 bAffectVisibility : 1;
 			};
 			int8 Flags;
 		};
@@ -169,5 +160,5 @@ private:
 	//~2. The parent widget will clear this widget PersistentState.
 	EInvalidateWidgetReason CachedInvalidationReason = EInvalidateWidgetReason::None;
 	bool bHasUpdatedManuallyFlagToReset = false;
-	uint8 CollaspedAttributeCounter = 0;
+	uint8 AffectVisibilityCounter = 0;
 };

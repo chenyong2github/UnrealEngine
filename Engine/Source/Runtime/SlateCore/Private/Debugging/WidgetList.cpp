@@ -255,9 +255,9 @@ void LogAllWidgetsDebugInfoImpl(FOutputDevice& Ar, const FLogAllWidgetsDebugInfo
 			if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*Widget))
 			{
 				MessageBuilder << TEXT(";");
-				MessageBuilder << MetaData->RegisteredAttributeCount();
+				MessageBuilder << MetaData->GetRegisteredAttributeCount();
 				MessageBuilder << TEXT(";");
-				MessageBuilder << MetaData->RegisteredCollaspedAttributeCount();
+				MessageBuilder << MetaData->GetRegisteredAffectVisibilityAttributeCount();
 			}
 			else
 			{

@@ -101,10 +101,10 @@ void FSlateAttributeMetaData::RegisterAttributeImpl(SWidget& OwningWidget, FSlat
 					GetterItem.CachedAttributeDependencyIndex = (int16)FoundDependencyAttributeIndex;
 				}
 				GetterItem.bIsADependencyForSomeoneElse = FoundAttribute.bIsADependencyForSomeoneElse;
-				GetterItem.bUpdateWhenCollapsed = FoundAttribute.bUpdateWhenCollapsed;
-				if (GetterItem.bUpdateWhenCollapsed)
+				GetterItem.bAffectVisibility = FoundAttribute.bAffectVisibility;
+				if (GetterItem.bAffectVisibility)
 				{
-					++CollaspedAttributeCounter;
+					++AffectVisibilityCounter;
 				}
 			}
 			else
@@ -156,10 +156,10 @@ bool FSlateAttributeMetaData::UnregisterAttributeImpl(const FSlateAttributeBase&
 	const int32 FoundIndex = IndexOfAttribute(Attribute);
 	if (FoundIndex != INDEX_NONE)
 	{
-		if (Attributes[FoundIndex].bUpdateWhenCollapsed)
+		if (Attributes[FoundIndex].bAffectVisibility)
 		{
-			check(CollaspedAttributeCounter > 0);
-			--CollaspedAttributeCounter;
+			check(AffectVisibilityCounter > 0);
+			--AffectVisibilityCounter;
 		}
 		Attributes.RemoveAt(FoundIndex); // keep the order valid
 		return true;
@@ -168,16 +168,19 @@ bool FSlateAttributeMetaData::UnregisterAttributeImpl(const FSlateAttributeBase&
 }
 
 
-TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWidget) const
+TArray<FName> FSlateAttributeMetaData::GetAttributeNames(const SWidget& OwningWidget)
 {
 	TArray<FName> Names;
-	Names.Reserve(Attributes.Num());
-	for (const FGetterItem& Getter : Attributes)
+	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		const FName Name = Getter.GetAttributeName(OwningWidget);
-		if (Name.IsValid())
+		Names.Reserve(AttributeMetaData->Attributes.Num());
+		for (const FGetterItem& Getter : AttributeMetaData->Attributes)
 		{
-			Names.Add(Name);
+			const FName Name = Getter.GetAttributeName(OwningWidget);
+			if (Name.IsValid())
+			{
+				Names.Add(Name);
+			}
 		}
 	}
 	return Names;
@@ -278,67 +281,57 @@ void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSla
 }
 
 
-void FSlateAttributeMetaData::UpdateAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
+void FSlateAttributeMetaData::UpdateAllAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::All, InvalidationStyle);
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, 0, AttributeMetaData->Attributes.Num());
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
+void FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		// Does it have any collapsed attributes
-		if (AttributeMetaData->CollaspedAttributeCounter > 0)
-		{
-			AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::Collapsed, InvalidationStyle);
-		}
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, 0, AttributeMetaData->AffectVisibilityCounter);
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateExpandedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
+void FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
 	{
-		AttributeMetaData->UpdateAttributesImpl(OwningWidget, EUpdateType::Expanded, InvalidationStyle);
+		AttributeMetaData->UpdateAttributesImpl(OwningWidget, InvalidationStyle, AttributeMetaData->AffectVisibilityCounter, AttributeMetaData->Attributes.Num());
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateChildrenCollapsedAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle)
+void FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, bool bRecursive)
 {
 	FChildren* Children = OwningWidget.GetChildren();
 	const int32 NumChildren = Children->Num();
 	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 	{
 		const TSharedRef<SWidget>& Child = Children->GetChildAt(ChildIndex);
-		UpdateCollapsedAttributes(Child.Get(), InvalidationStyle);
+		UpdateOnlyVisibilityAttributes(Child.Get(), InvalidationStyle);
+		if (bRecursive)
+		{
+			UpdateChildrenOnlyVisibilityAttributes(Child.Get(), InvalidationStyle, bRecursive);
+		}
 	}
 }
 
 
-void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EUpdateType UpdateType, EInvalidationPermission InvalidationStyle)
+void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, int32 StartIndex, int32 IndexNum)
 {
-	bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructionCompleted());
-	bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
+	const bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructionCompleted());
+	const bool bAllowInvalidation = bInvalidateIfNeeded || InvalidationStyle == EInvalidationPermission::DelayInvalidation;
 	EInvalidateWidgetReason InvalidationReason = EInvalidateWidgetReason::None;
-	for (int32 Index = 0; Index < Attributes.Num(); ++Index)
+	for (int32 Index = StartIndex; Index < IndexNum; ++Index)
 	{
 		FGetterItem& GetterItem = Attributes[Index];
-
-		// Only update attributes that needs to be updated when the widget is collapsed
-		if (UpdateType == EUpdateType::Collapsed && !GetterItem.bUpdateWhenCollapsed)
-		{
-			continue;
-		}
-		if (UpdateType == EUpdateType::Expanded && GetterItem.bUpdateWhenCollapsed)
-		{
-			continue;
-		}
 
 		// Update every attribute at least once.
 		//Check if it has a dependency and if it was updated this frame (it could be from an UpdateNow)

@@ -172,7 +172,7 @@ void SWidget::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeIni
 	// Visibility should be the first Attribute in the list.
 	//The order in which SlateAttribute are declared in the .h dictates of the order.
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Visibility", VisibilityAttribute, EInvalidateWidgetReason::Visibility)
-		.UpdateWhenCollapsed();
+		.AffectVisibility();
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "EnabledState", EnabledStateAttribute, EInvalidateWidgetReason::Paint);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "RenderTransform", RenderTransformAttribute, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "RenderTransformPivot", RenderTransformPivotAttribute, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
@@ -664,7 +664,7 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 	{
 		if (HasRegisteredSlateAttribute() && IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation)
 		{
-			FSlateAttributeMetaData::UpdateAttributes(*this, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+			FSlateAttributeMetaData::UpdateAllAttributes(*this, FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 		}
 		Prepass_Internal(InLayoutScaleMultiplier);
 	}
@@ -1615,7 +1615,7 @@ void SWidget::ArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildr
 	{
 		// Update the Widgets visibility before getting the ArrangeChildren
 		//const-casting for TSlateAttribute has the same behavior as previously with TAttribute. The const was hidden from the user.
-		FSlateAttributeMetaData::UpdateChildrenCollapsedAttributes(const_cast<SWidget&>(*this), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation);
+		FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(const_cast<SWidget&>(*this), FSlateAttributeMetaData::EInvalidationPermission::DelayInvalidation, false);
 	}
 
 	OnArrangeChildren(AllottedGeometry, ArrangedChildren);
@@ -1653,24 +1653,25 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 	const int32 NumChildren = MyChildren->Num();
 	for (int32 ChildIndex = 0; ChildIndex < NumChildren; ++ChildIndex)
 	{
-		const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
-			? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
-			: InLayoutScaleMultiplier;
-
 		const TSharedRef<SWidget>& Child = MyChildren->GetChildAt(ChildIndex);
 
 		const bool bUpdateAttributes = Child->HasRegisteredSlateAttribute() && Child->IsAttributesUpdatesEnabled() && !GSlateIsOnFastProcessInvalidation;
 		if (bUpdateAttributes)
 		{
-			FSlateAttributeMetaData::UpdateCollapsedAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+			FSlateAttributeMetaData::UpdateOnlyVisibilityAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 		}
 
 		if (Child->GetVisibility() != EVisibility::Collapsed)
 		{
 			if (bUpdateAttributes)
 			{
-				FSlateAttributeMetaData::UpdateExpandedAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
+				FSlateAttributeMetaData::UpdateExceptVisibilityAttributes(Child.Get(), FSlateAttributeMetaData::EInvalidationPermission::AllowInvalidationIfConstructed);
 			}
+
+			const float ChildLayoutScaleMultiplier = bHasRelativeLayoutScale
+				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+				: InLayoutScaleMultiplier;
+
 			// Recur: Descend down the widget tree.
 			Child->Prepass_Internal(ChildLayoutScaleMultiplier);
 		}
@@ -1680,7 +1681,9 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 			// it is finally visible and invalidate it's prepass so that it gets that when its visibility
 			// is finally invalidated.
 			Child->MarkPrepassAsDirty();
-			Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;
+			Child->PrepassLayoutScaleMultiplier = bHasRelativeLayoutScale
+				? InLayoutScaleMultiplier * GetRelativeLayoutScale(ChildIndex, InLayoutScaleMultiplier)
+				: InLayoutScaleMultiplier;
 		}
 	}
 }

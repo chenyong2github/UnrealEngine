@@ -4,6 +4,7 @@
 
 #include "Layout/Geometry.h"
 #include "Styling/CoreStyle.h"
+#include "Types/SlateAttributeMetaData.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SGridPanel.h"
@@ -76,8 +77,15 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 		BuildLabelAndValue(LOCTEXT("IsVolatile", "Is Volatile"), { this, &SReflectorToolTipWidget::GetIsVolatile });
 		BuildLabelAndValue(LOCTEXT("IsVolatileIndirectly", "Is Volatile Indirectly"), { this, &SReflectorToolTipWidget::GetIsVolatileIndirectly });
 		BuildLabelAndValue(LOCTEXT("HasActiveTimers", "Has Active Timer"), { this, &SReflectorToolTipWidget::GetHasActiveTimers });
-		BuildLabelAndValue(LOCTEXT("HasRegisteredAttribute", "Attribute Count"), { this, &SReflectorToolTipWidget::GetAttributeCount });
-		BuildLabelAndValue(LOCTEXT("HasCollapsedAttribute", "Collapsed Attribute Count"), { this, &SReflectorToolTipWidget::GetCollapsedAttributeCount });
+		if (WidgetInfo->GetNodeType() == EWidgetReflectorNodeType::Live)
+		{
+			BuildLabelAndValue(LOCTEXT("HasRegisteredAttribute", "Attributes"), { this, &SReflectorToolTipWidget::GetLiveAttributeName });
+		}
+		else
+		{
+			BuildLabelAndValue(LOCTEXT("HasRegisteredAttribute", "Attributes"), { this, &SReflectorToolTipWidget::GetAttributeCount });
+			BuildLabelAndValue(LOCTEXT("HasCollapsedAttribute", "Affect Visibility Attributes"), { this, &SReflectorToolTipWidget::GetCollapsedAttributeCount });
+		}
 
 		if (bIsInsideInvalidationRoot)
 		{
@@ -117,6 +125,29 @@ void SReflectorToolTipWidget::Construct( const FArguments& InArgs )
 			GridPanel
 		];
 	}
+}
+
+FText SReflectorToolTipWidget::GetLiveAttributeName() const
+{
+	if (TSharedPtr<SWidget> Widget = WidgetInfo->GetLiveWidget())
+	{
+		if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(*Widget.Get()))
+		{
+			TArray<FName> AttributeNames = AttributeMetaData->GetAttributeNames(*Widget.Get());
+			TArray<FText> AttributeNamesAsText;
+			AttributeNamesAsText.Reserve(AttributeNames.Num());
+			for (FName AttributeName : AttributeNames)
+			{
+				AttributeNamesAsText.Add(FText::FromName(AttributeName));
+			}
+			return FText::FormatOrdered(LOCTEXT("LiveAttributeNames", "{0} ({1} affect widget visibility) \n  {2}")
+				, AttributeMetaData->GetRegisteredAttributeCount()
+				, AttributeMetaData->GetRegisteredAffectVisibilityAttributeCount()
+				, FText::Join(LOCTEXT("LiveAttributeNamesDelimiter", "\n  "), AttributeNamesAsText));
+		}
+	}
+
+	return FText::AsNumber(0);
 }
 
 #undef LOCTEXT_NAMESPACE

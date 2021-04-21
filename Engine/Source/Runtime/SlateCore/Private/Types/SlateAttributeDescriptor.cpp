@@ -34,11 +34,11 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescrip
 }
 
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdateWhenCollapsed()
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::AffectVisibility()
 {
 	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
 	{
-		Descriptor.SetUpdateWhenCollapsed(Descriptor.Attributes[AttributeIndex], true);
+		Descriptor.SetAffectVisibility(Descriptor.Attributes[AttributeIndex], true);
 	}
 	return *this;
 }
@@ -61,9 +61,18 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 {
 	checkf(Descriptor.Attributes.Num() < std::numeric_limits<int16>::max(), TEXT("There is too many attributes. The index is saved as an int16 in FSlateAttributeMetaData."));
 
+	// Confirm that the Visibility attribute is marked as "bAffectVisibility"
+	{
+		const FAttribute* FoundVisibilityAttribute = Descriptor.FindAttribute("Visibility");
+		checkf(FoundVisibilityAttribute, TEXT("The visibility attribute doesn't exist."));
+		checkf(FoundVisibilityAttribute->bAffectVisibility, TEXT("The Visibility attribute must be marked as 'Affect Visibility'"));
+	}
+
+
 	// Update the sort order for the item that have prerequisite.
 	//Because adding the attribute is not required at the moment
-	//try to not change the order in which they were added
+	//try to not change the order in which they were added.
+	//The AffectVisibility attributes must be in the front of the list.
 
 	struct FPrerequisiteSort
 	{
@@ -92,22 +101,31 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 		const TArray<FAttribute>& Attrbutes;
 		bool operator()(const FPrerequisiteSort& A, const FPrerequisiteSort& B) const
 		{
+			const FAttribute& AttributeA = Attrbutes[A.AttributeIndex];
+			const FAttribute& AttributeB = Attrbutes[B.AttributeIndex];
+
+			if (AttributeA.bAffectVisibility != AttributeB.bAffectVisibility)
+			{
+				return AttributeA.bAffectVisibility;
+			}
+
 			if (A.Depth != B.Depth)
 			{
 				return A.Depth < B.Depth;
 			}
+
 			if (A.PrerequisitesIndex == B.PrerequisitesIndex)
 			{
 				return Attrbutes[A.AttributeIndex].SortOrder < Attrbutes[B.AttributeIndex].SortOrder;
 			}
 
-			const int32 SortA = A.PrerequisitesIndex != INDEX_NONE ? Attrbutes[A.PrerequisitesIndex].SortOrder : Attrbutes[A.AttributeIndex].SortOrder;
-			const int32 SortB = B.PrerequisitesIndex != INDEX_NONE ? Attrbutes[B.PrerequisitesIndex].SortOrder : Attrbutes[B.AttributeIndex].SortOrder;
+			const int32 SortA = A.PrerequisitesIndex != INDEX_NONE ? Attrbutes[A.PrerequisitesIndex].SortOrder : AttributeA.SortOrder;
+			const int32 SortB = B.PrerequisitesIndex != INDEX_NONE ? Attrbutes[B.PrerequisitesIndex].SortOrder : AttributeB.SortOrder;
 			return SortA < SortB;
 		}
 	};
 
-	TArray<FPrerequisiteSort, TInlineAllocator<16>> Prerequisites;
+	TArray<FPrerequisiteSort, TInlineAllocator<32>> Prerequisites;
 	Prerequisites.Reserve(Descriptor.Attributes.Num());
 
 	bool bHavePrerequisite = false;
@@ -162,6 +180,27 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 			PreviousPrerequisiteIndex = Element.PrerequisitesIndex;
 		}
 	}
+
+	// Confirm that the attributes marked as "AffectVisibility" are in front of the list.
+#if 1
+	{
+		TArray<FAttribute, TInlineAllocator<32>> Copy;
+		Copy.Append(Descriptor.Attributes);
+		Copy.Sort([](const FAttribute& A, const FAttribute& B){ return A.SortOrder < B.SortOrder; });
+		bool bLookingForAffectVisibility = true;
+		for (const FAttribute& Attribute : Copy)
+		{
+			if (!Attribute.bAffectVisibility)
+			{
+				bLookingForAffectVisibility = false;
+			}
+			else if (!bLookingForAffectVisibility)
+			{
+				checkf(false, TEXT("Attribute marked as 'AffectVisibility' should be at the start of the update list or depends on the Visibility attribute."));
+			}
+		}
+	}
+#endif
 }
 
 
@@ -189,12 +228,12 @@ void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName A
 }
 
 
-void FSlateAttributeDescriptor::FInitializer::SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed)
+void FSlateAttributeDescriptor::FInitializer::SetAffectVisibility(FName AttributeName, bool bAffectVisibility)
 {
 	FAttribute* Attribute = Descriptor.FindAttribute(AttributeName);
 	if (ensureAlwaysMsgf(Attribute, TEXT("The attribute named '%s' doesn't exist"), *AttributeName.ToString()))
 	{
-		Descriptor.SetUpdateWhenCollapsed(*Attribute, bUpdateWhenCollapsed);
+		Descriptor.SetAffectVisibility(*Attribute, bAffectVisibility);
 	}
 }
 
@@ -322,7 +361,12 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 }
 
 
-void FSlateAttributeDescriptor::SetUpdateWhenCollapsed(FAttribute& Attribute, bool bUpdate)
+void FSlateAttributeDescriptor::SetAffectVisibility(FAttribute& Attribute, bool bInAffectVisibility)
 {
-	Attribute.bUpdateWhenCollapsed = bUpdate;
+	if (Attribute.Name == "Visibility")
+	{
+		checkf(bInAffectVisibility, TEXT("The Visibility attribute must be marked at 'Affect Visibility'"));
+	}
+
+	Attribute.bAffectVisibility = bInAffectVisibility;
 }

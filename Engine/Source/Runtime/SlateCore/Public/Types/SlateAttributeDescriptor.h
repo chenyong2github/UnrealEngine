@@ -66,17 +66,6 @@ public:
 		FGetter Getter;
 	};
 
-	/** */
-	enum class EInvalidationDelegateOverrideType
-	{
-		/** Replace the callback that the base class defined. */
-		ReplacePrevious,
-		/** Execute the callback that the base class defined, then execute the new callback. */
-		ExecuteAfterPrevious,
-		/** Execute the new callback, then execute the callback that the base class defined. */
-		ExecuteBeforePrevious,
-	};
-
 public:
 	using OffsetType = uint32;
 
@@ -94,7 +83,7 @@ public:
 		bool bIsMemberAttribute = false;
 		bool bIsPrerequisiteAlsoADependency = false;
 		bool bIsADependencyForSomeoneElse = false;
-		bool bUpdateWhenCollapsed = false;
+		bool bAffectVisibility = false;
 	};
 
 	/** Internal class to initialize the SlateAttributeDescriptor (Add attributes or modify existing attributes). */
@@ -130,9 +119,11 @@ public:
 			FAttributeEntry& UpdateDependency(FName Dependency);
 
 			/**
-			 * Update the attribute when the widget is collapsed and its parent is not.
+			 * The attribute affect the visibility of the widget.
+			 * We only update the attributes that can change the visibility of the widget when the widget is collapsed.
+			 * Attributes that affect visibility must have the Visibility attribute as a Prerequisite or the Visibility attribute must have it as a Prerequisite.
 			 */
-			FAttributeEntry& UpdateWhenCollapsed();
+			FAttributeEntry& AffectVisibility();
 
 		private:
 			FSlateAttributeDescriptor& Descriptor;
@@ -148,7 +139,7 @@ public:
 		void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason);
 
 		/** Change the update type of an attribute defined in a base class. */
-		void SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed);
+		void SetAffectVisibility(FName AttributeName, bool bAffectVisibility);
 
 
 	private:
@@ -159,10 +150,10 @@ public:
 	int32 AttributeNum() const { return Attributes.Num(); }
 
 	/** @returns the Attribute at the index previously found with IndexOfMemberAttribute */
-	FAttribute const& GetAttributeAtIndex(int32 Index) const;
+	const FAttribute& GetAttributeAtIndex(int32 Index) const;
 
 	/** @returns the Attribute with the corresponding name. */
-	FAttribute const* FindAttribute(FName AttributeName) const;
+	const FAttribute* FindAttribute(FName AttributeName) const;
 
 	/** @returns the index of a SlateAttribute that have the corresponding memory offset. */
 	int32 IndexOfMemberAttribute(OffsetType AttributeOffset) const;
@@ -171,7 +162,7 @@ public:
 	int32 IndexOfMemberAttribute(FName AttributeName) const;
 
 	/** @returns the Attribute of a SlateAttribute that have the corresponding memory offset. */
-	FAttribute const* FindMemberAttribute(OffsetType AttributeOffset) const;
+	const FAttribute* FindMemberAttribute(OffsetType AttributeOffset) const;
 
 	/** Iterator over each dependency this attribute is responsible of. */
 	template<typename Predicate>
@@ -191,7 +182,7 @@ private:
 	FInitializer::FAttributeEntry AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute ReasonGetter);
 	void SetPrerequisite(FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency);
-	void SetUpdateWhenCollapsed(FAttribute& Attribute, bool bUpdate);
+	void SetAffectVisibility(FAttribute& Attribute, bool bUpdate);
 
 	template<typename Predicate>
 	void ForEachDependencyImpl(FName const& LookForName, int32 Index, Predicate& Pred) const

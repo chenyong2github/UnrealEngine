@@ -949,7 +949,7 @@ int32 FWidgetReflectorNodeUtils::GetWidgetAttributeCount(const TSharedPtr<const 
 	{
 		if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*InWidget.Get()))
 		{
-			return MetaData->RegisteredAttributeCount();
+			return MetaData->GetRegisteredAttributeCount();
 		}
 	}
 	return 0;
@@ -961,7 +961,7 @@ int32 FWidgetReflectorNodeUtils::GetWidgetCollapsedAttributeCount(const TSharedP
 	{
 		if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*InWidget.Get()))
 		{
-			return MetaData->RegisteredCollaspedAttributeCount();
+			return MetaData->GetRegisteredAffectVisibilityAttributeCount();
 		}
 	}
 	return 0;

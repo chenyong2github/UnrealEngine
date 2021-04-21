@@ -69,6 +69,8 @@ private:
 		return (WidgetInfo->GetWidgetHasActiveTimers()) ? TrueText : FalseText;
 	}
 
+	FText GetLiveAttributeName() const;
+
 	FText GetAttributeCount() const
 	{
 		return FText::AsNumber(WidgetInfo->GetWidgetAttributeCount());
