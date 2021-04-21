@@ -749,7 +749,6 @@ FText FMaterialPropertyHelpers::GetParameterExpressionDescription(UDEditorParame
 FText FMaterialPropertyHelpers::GetParameterTooltip(UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance)
 {
 	UMaterial* BaseMaterial = nullptr;
-	FText FoundInLocationText = FText::FromString(FPaths::GetBaseFilename(Parameter->ParameterInfo.ParameterLocation.GetAssetPathName().ToString()));
 	UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
 	if (MaterialInstanceEditor)
 	{
@@ -768,10 +767,15 @@ FText FMaterialPropertyHelpers::GetParameterTooltip(UDEditorParameterValue* Para
 
 		if (MaterialExpression)
 		{
-			FText TooltipText = FText::Format(LOCTEXT("ParameterInfoLocationOnly", "Found in: {0}"), FoundInLocationText);
+			const FText AssetPath = FText::FromString(MaterialExpression->GetAssetPathName());
+			FText TooltipText;
 			if (!MaterialExpression->Desc.IsEmpty())
 			{
-				TooltipText = FText::Format(LOCTEXT("ParameterInfoDescAndLocation", "{0} \nFound in: {1}"), FText::FromString(MaterialExpression->Desc), FoundInLocationText);
+				TooltipText = FText::Format(LOCTEXT("ParameterInfoDescAndLocation", "{0} \nFound in: {1}"), FText::FromString(MaterialExpression->Desc), AssetPath);
+			}
+			else
+			{
+				TooltipText = FText::Format(LOCTEXT("ParameterInfoLocationOnly", "Found in: {0}"), AssetPath);
 			}
 			return TooltipText;
 		}
