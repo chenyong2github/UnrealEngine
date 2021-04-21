@@ -2831,15 +2831,6 @@ void FControlRigEditor::UpdateControlRig()
 			Blueprint->RecompileVM();
 			Blueprint->ClearFlags(RF_Transient);
 
-			if (Blueprint->bErrorsDuringCompilation)
-			{
-				AnimInstance->ResetControlRigTracks();
-				AnimInstance->RecalcRequiredBones();
-				GetBlueprintObj()->SetObjectBeingDebugged(nullptr);
-				ControlRig = nullptr;
-				return;
-			}
-
 			ControlRig->OnInitialized_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->OnExecuted_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->RequestInit();

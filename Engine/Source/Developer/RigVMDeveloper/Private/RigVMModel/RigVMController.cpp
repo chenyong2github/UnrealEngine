@@ -7611,6 +7611,12 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 
 		if(bSetupOrphanedPins && (SourcePin != nullptr) && (TargetPin != nullptr))
 		{
+			// ignore duplicated links that have been processed
+			if (SourcePin->IsLinkedTo(TargetPin))
+			{
+				continue;
+			}
+
 			if (!URigVMPin::CanLink(SourcePin, TargetPin, nullptr, nullptr))
 			{
 				if(SourcePin->GetNode()->HasOrphanedPins() && bSetupOrphanedPins)
@@ -7670,17 +7676,6 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 						}
 						bRelayedBackToOrphanPin = true;
 					}
-				}
-			}
-
-			if(bRelayedBackToOrphanPin && (SourcePin != nullptr) && (TargetPin != nullptr))
-			{
-				if (!URigVMPin::CanLink(SourcePin, TargetPin, nullptr, nullptr))
-				{
-					ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
-					TargetPin->Links.Remove(Link);
-					SourcePin->Links.Remove(Link);
-					continue;
 				}
 			}
 		}
