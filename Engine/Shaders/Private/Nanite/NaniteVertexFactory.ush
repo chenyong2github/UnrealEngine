@@ -7,17 +7,19 @@
 #include "NaniteDataDecode.ush"
 #include "NaniteAttributeDecode.ush"
 
+// Always enable all inputs to work around shader linkage errors without introducing permutations.
+// Make sure this matches definition in ExportGBuffer.usf
 struct FVertexFactoryInterpolantsVSToPS
 {
-#if NEEDS_LIGHTMAP_COORDINATE
+//#if NEEDS_LIGHTMAP_COORDINATE
 	nointerpolation float4 LightMapCoordinate : TEXCOORD3;
-#endif
-#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
+//#endif
+//#if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
 	nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
-#endif
-#if INSTANCED_STEREO
+//#endif
+//#if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
-#endif
+//#endif
 };
 
 #if NEEDS_LIGHTMAP_COORDINATE

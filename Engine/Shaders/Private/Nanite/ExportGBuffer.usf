@@ -395,10 +395,19 @@ void EmitEditorSelectionDepthPS(
 
 float MaterialDepth;
 
+struct FVertexFactoryInterpolantsVSToPS
+{
+	float4 LightMapCoordinate : TEXCOORD3;
+	uint LightmapDataIndex : LIGHTMAP_ID;
+	uint EyeIndex : PACKED_EYE_INDEX;
+};
+
 void FullScreenVS(
-	float2 InPosition   : ATTRIBUTE0,
-	uint TileIndex      : SV_InstanceID,
+	float2 InPosition	: ATTRIBUTE0,
+	uint TileIndex		: SV_InstanceID,
+	out FVertexFactoryInterpolantsVSToPS Output,	// Always produce all outputs to work around shader linkage errors without introducing permutations.
 	out float4 Position : SV_Position
+	
 )
 {
 	const uint  CullMode = Nanite.MaterialConfig.x;
@@ -415,6 +424,8 @@ void FullScreenVS(
 	const uint MaterialBucketId = GetMaterialBucketIdFromDepth(Depth);
 
 	Position = float4(TilePosition.x * 2.0 - 1.0, 1.0 - 2.0 * TilePosition.y, Depth, 1);
+
+	Output = (FVertexFactoryInterpolantsVSToPS)0;
 
 	// Mode 0: no culling
 	// Mode 1: cull full screen passes (32bit mask)
