@@ -171,7 +171,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 				bSuccess = Layer->GetRawData(RawDataPtr, RawDataSize);
 				if (!bSuccess)
 				{
-					UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to retrieve raw data from image data for writing. Bailing."));
+					UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Failed to retrieve raw data from image data for writing. Bailing."));
 					break;
 				}
 
@@ -222,7 +222,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 #if WITH_EDITOR
 			catch (const IEX_NAMESPACE::BaseExc& Exception)
 			{
-				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Caught exception: %s"), Exception.message().c_str());
+				UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Caught exception: %s"), Exception.message().c_str());
 			}
 #endif
 		}
@@ -236,7 +236,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 
 	if (!bSuccess)
 	{
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to write image to '%s'. The pixel format may not be compatible with this image type, or there was an error writing to that filename."), *Filename);
+		UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Failed to write image to '%s'. The pixel format may not be compatible with this image type, or there was an error writing to that filename."), *Filename);
 	}
 
 	return bSuccess;
@@ -349,7 +349,7 @@ bool FEXRImageWriteTask::EnsureWritableFile()
 	// We can't write to the file
 	else
 	{
-		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to write image to '%s'. Should Overwrite: %d - If we should have overwritten the file, we failed to delete the file. If we shouldn't have overwritten the file the file already exists so we can't replace it."), *Filename, bOverwriteFile);
+		UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Failed to write image to '%s'. Should Overwrite: %d - If we should have overwritten the file, we failed to delete the file. If we shouldn't have overwritten the file the file already exists so we can't replace it."), *Filename, bOverwriteFile);
 		return false;
 	}
 }

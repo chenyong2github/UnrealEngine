@@ -284,6 +284,8 @@ private:
 	/** Flush any async resources in the engine that need to be finalized before submitting anything to the GPU, ie: Streaming Levels and Shaders */
 	void FlushAsyncEngineSystems();
 
+	/** If the log verbosity is high enough, prints out the files specified in the shot output data. */
+	void PrintVerboseLogForFiles(TArray<FMoviePipelineShotOutputData>& InOutputData);
 
 	/** Tell our submixes to start capturing the data they are generating. Should only be called once output frames are being produced. */
 	void StartAudioRecording();

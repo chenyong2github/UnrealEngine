@@ -22,7 +22,7 @@
 #define LOCTEXT_NAMESPACE "MoviePipelinePIEExecutor"
 
 
-const TArray<FString> UMoviePipelinePIEExecutor::FValidationMessageGatherer::Whitelist = { "LogMovieRenderPipeline", "LogMoviePipelineExecutor" };
+const TArray<FString> UMoviePipelinePIEExecutor::FValidationMessageGatherer::Whitelist = { "LogMovieRenderPipeline", "LogMovieRenderPipelineIO", "LogMoviePipelineExecutor", "LogImageWriteQueue", "LogAppleProResMedia", "LogAvidDNxMedia"};
 
 UMoviePipelinePIEExecutor::FValidationMessageGatherer::FValidationMessageGatherer()
 	: FOutputDevice()

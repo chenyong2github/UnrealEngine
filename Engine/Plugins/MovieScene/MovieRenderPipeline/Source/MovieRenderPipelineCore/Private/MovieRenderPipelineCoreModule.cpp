@@ -62,3 +62,4 @@ void FMovieRenderPipelineCoreModule::ShutdownModule()
 
 IMPLEMENT_MODULE(FMovieRenderPipelineCoreModule, MovieRenderPipelineCore);
 DEFINE_LOG_CATEGORY(LogMovieRenderPipeline); 
+DEFINE_LOG_CATEGORY(LogMovieRenderPipelineIO);

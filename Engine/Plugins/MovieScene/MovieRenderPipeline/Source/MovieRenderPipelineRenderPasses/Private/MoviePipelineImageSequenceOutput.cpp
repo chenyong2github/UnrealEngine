@@ -47,13 +47,13 @@ void UMoviePipelineImageSequenceOutputBase::OnShotFinishedImpl(const UMoviePipel
 {
 	if (bFlushToDisk)
 	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("ImageSequenceOutputBase flushing %d tasks to disk, inserting a fence in the queue and then waiting..."), ImageWriteQueue->GetNumPendingTasks());
+		UE_LOG(LogMovieRenderPipelineIO, Log, TEXT("ImageSequenceOutputBase flushing %d tasks to disk, inserting a fence in the queue and then waiting..."), ImageWriteQueue->GetNumPendingTasks());
 		const double FlushBeginTime = FPlatformTime::Seconds();
 
 		TFuture<void> Fence = ImageWriteQueue->CreateFence();
 		Fence.Wait();
 		const float ElapsedS = float((FPlatformTime::Seconds() - FlushBeginTime));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
+		UE_LOG(LogMovieRenderPipelineIO, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
 	}
 }
 
