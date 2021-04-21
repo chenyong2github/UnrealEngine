@@ -12,7 +12,7 @@ void FGroomBindingDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder& L
 	
 	uint8 EnumValue;
 	GroomBindingType->GetValue(EnumValue);
-	if (EnumValue == (uint8) EGroomBindingType::SkeletalMesh)
+	if (EnumValue == (uint8) EGroomBindingMeshType::SkeletalMesh)
 	{
 		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, SourceGeometryCache));
 		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomBindingAsset, TargetGeometryCache));
@@ -36,7 +36,7 @@ void FGroomCreateBindingDetailsCustomization::CustomizeDetails(IDetailLayoutBuil
 
 	uint8 EnumValue;
 	GroomBindingType->GetValue(EnumValue);
-	if (EnumValue == (uint8) EGroomBindingType::SkeletalMesh)
+	if (EnumValue == (uint8) EGroomBindingMeshType::SkeletalMesh)
 	{
 		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, SourceGeometryCache));
 		LayoutBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UGroomCreateBindingOptions, TargetGeometryCache));

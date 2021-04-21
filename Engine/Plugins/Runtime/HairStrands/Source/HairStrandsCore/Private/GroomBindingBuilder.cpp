@@ -1798,7 +1798,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 
 	TUniquePtr<IMeshData> SourceMeshData;
 	TUniquePtr<IMeshData> TargetMeshData;
-	if (BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh)
+	if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 	{
 		BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
 		if (BindingAsset->SourceSkeletalMesh)

@@ -333,7 +333,7 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 {
 	if (InBinding && InSkeletalMesh && IsHairStrandsBindingEnable())
 	{
-		if (InBinding->GroomBindingType != EGroomBindingType::SkeletalMesh)
+		if (InBinding->GroomBindingType != EGroomBindingMeshType::SkeletalMesh)
 		{
 			if (bIssueWarning)
 			{
@@ -408,7 +408,7 @@ bool UGroomBindingAsset::IsCompatible(const UGeometryCache* InGeometryCache, con
 {
 	if (InBinding && InGeometryCache && IsHairStrandsBindingEnable())
 	{
-		if (InBinding->GroomBindingType != EGroomBindingType::GeometryCache)
+		if (InBinding->GroomBindingType != EGroomBindingMeshType::GeometryCache)
 		{
 			if (bIssueWarning)
 			{
@@ -593,8 +593,8 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 
 bool UGroomBindingAsset::HasValidTarget() const
 {
-	return (GroomBindingType == EGroomBindingType::SkeletalMesh && TargetSkeletalMesh) ||
-		   (GroomBindingType == EGroomBindingType::GeometryCache && TargetGeometryCache);
+	return (GroomBindingType == EGroomBindingMeshType::SkeletalMesh && TargetSkeletalMesh) ||
+		   (GroomBindingType == EGroomBindingMeshType::GeometryCache && TargetGeometryCache);
 }
 
 #if WITH_EDITOR
@@ -647,7 +647,7 @@ static FString BuildDerivedDataKeySuffix(const UGroomBindingAsset& BindingAsset)
 	FString SourceKey;
 	FString TargetKey;
 
-	if (BindingAsset.GroomBindingType == EGroomBindingType::SkeletalMesh)
+	if (BindingAsset.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 	{
 		// Binding type is implicitly SkeletalMesh so keep BindingType empty to prevent triggering rebuild of old binding for nothing
 		SourceKey = BindingAsset.SourceSkeletalMesh ? BindingAsset.SourceSkeletalMesh->GetDerivedDataKey() : FString();

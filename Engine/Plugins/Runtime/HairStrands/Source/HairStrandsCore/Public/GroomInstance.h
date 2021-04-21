@@ -171,7 +171,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		uint32					LastFrameIndex = ~0;
 
 		int32					MeshLODIndex = ~0;
-		EGroomBindingType		GroomBindingType;
+		EGroomBindingMeshType	GroomBindingType;
 		EGroomCacheType			GroomCacheType;
 		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;

@@ -41,7 +41,7 @@ struct HAIRSTRANDSCORE_API FGoomBindingGroupInfo
 
 /** Enum that describes the type of mesh to bind to */
 UENUM(BlueprintType)
-enum class EGroomBindingType : uint8
+enum class EGroomBindingMeshType : uint8
 {
 	SkeletalMesh,
 	GeometryCache
@@ -63,7 +63,7 @@ class HAIRSTRANDSCORE_API UGroomBindingAsset : public UObject
 public:
 	/** Type of mesh to create groom binding for */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
-	EGroomBindingType GroomBindingType = EGroomBindingType::SkeletalMesh;
+	EGroomBindingMeshType GroomBindingType = EGroomBindingMeshType::SkeletalMesh;
 
 	/** Groom to bind. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
