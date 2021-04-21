@@ -53,9 +53,10 @@ namespace ChaosTest
 		EXPECT_TRUE(bHit);
 		EXPECT_EQ(FaceIndex, 1);
 		EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
-		EXPECT_EQ(Tri.GetFaceNormal(1).X, Normal.X);
-		EXPECT_EQ(Tri.GetFaceNormal(1).Y, Normal.Y);
-		EXPECT_EQ(Tri.GetFaceNormal(1).Z, Normal.Z);
+		const FVec3 FaceNormal = Tri.GetFaceNormal(1);
+		EXPECT_EQ(FaceNormal.X, Normal.X);
+		EXPECT_EQ(FaceNormal.Y, Normal.Y);
+		EXPECT_EQ(FaceNormal.Z, Normal.Z);
 
 		//very close to edge, for now just return face hit regardless of direction because that's the implementation we currently rely on.
 		//todo: inconsistent with hulls, should make them the same, but may have significant impact on existing content

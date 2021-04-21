@@ -241,7 +241,7 @@ namespace ChaosTest {
 		EXPECT_TRUE(Dynamic1HasWokeAgain);
 	}
 
-	GTEST_TEST(AllTraits, SimTests_MidSubstepSleep)
+	GTEST_TEST(AllTraits, DISABLED_SimTests_MidSubstepSleep)
 	{
 		TSharedPtr<FImplicitObject, ESPMode::ThreadSafe> Sphere{new TSphere<FReal, 3>(FVec3(0), 10)};
 

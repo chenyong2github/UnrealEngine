@@ -940,6 +940,7 @@ namespace ChaosTest {
 			Particle.SetGeometry(MoveTemp(Sphere));
 		}
 
+		Params.bSimulatePhysics = true;
 		FChaosEngineInterface::CreateActor(Params, Proxy2);
 		auto& Particle2 = Proxy2->GetGameThreadAPI();
 		{
@@ -983,7 +984,7 @@ namespace ChaosTest {
 			//set force every external frame
 			Particle2.AddForce(ConstantForce);
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false,FixedDT);
+			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 1, false,FixedDT);
 			Scene.StartFrame();
 			Scene.EndFrame();
 
