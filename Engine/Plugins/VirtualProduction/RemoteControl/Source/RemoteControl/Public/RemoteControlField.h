@@ -186,6 +186,9 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	/** Returns whether the function is callable in a packaged build. */
 	bool IsCallableInPackaged() const { return bIsCallableInPackaged; }
 
+	/** Returns the underlying exposed function. */
+	UFunction* GetFunction() const;
+
 	friend FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction);
 	bool Serialize(FArchive& Ar);
 	void PostSerialize(const FArchive& Ar);
@@ -195,7 +198,7 @@ public:
 	 * The exposed function.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")
-	UFunction* Function = nullptr;
+	mutable UFunction* Function = nullptr;
 
 	/**
 	 * The function arguments.
@@ -205,7 +208,11 @@ public:
 private:
 	/** Whether the function is callable in a packaged build. */
 	UPROPERTY()
-	bool bIsCallableInPackaged = false;	
+	bool bIsCallableInPackaged = false;
+	
+	/** The exposed function. */
+	UPROPERTY()
+	FSoftObjectPath FunctionPath;
 
 private:
 	/** Parse function metadata to get the function`s default parameters */

@@ -66,6 +66,34 @@ namespace
 		checkNoEntry();
 		return NAME_None;
 	}
+
+	FName GenerateExposedFieldLabel(const FString& FieldName, UObject* FieldOwner)
+	{
+		FName OutputName;
+		
+		if (ensure(FieldOwner))
+		{
+			FString ObjectName;
+	#if WITH_EDITOR
+			if (AActor* Actor = Cast<AActor>(FieldOwner))
+			{
+				ObjectName = Actor->GetActorLabel();
+			}
+			else if(UActorComponent* Component = Cast<UActorComponent>(FieldOwner))
+			{
+				ObjectName = Component->GetOwner()->GetActorLabel();
+			}
+			else
+	#endif
+			{
+				// Get the class name when dealing with BP libraries and subsystems. 
+				ObjectName = FieldOwner->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ? FieldOwner->GetClass()->GetName() : FieldOwner->GetName();
+			}
+
+			OutputName = *FString::Printf(TEXT("%s (%s)"), *FieldName, *ObjectName);
+		}
+		return OutputName;
+	}
 }
 
 FRemoteControlPresetExposeArgs::FRemoteControlPresetExposeArgs()
@@ -734,7 +762,20 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 		return nullptr;
 	}
 
-	FName DesiredName = Args.Label.IsEmpty() ? Function->GetFName() : *Args.Label;
+	FName DesiredName = *Args.Label;
+
+	if (DesiredName == NAME_None)
+	{
+		FString FunctionName;
+#if WITH_EDITOR
+		FunctionName = Function->GetDisplayNameText().ToString(); 
+#else
+		FunctionName = Function->GetName();
+#endif
+		
+		DesiredName = GenerateExposedFieldLabel(FunctionName, Object);
+	}
+
 	FRemoteControlFunction RCFunction{ this, Registry->GenerateUniqueLabel(DesiredName), Function->GetName(), Function, { FindOrAddBinding(Object) } };
 	return StaticCastSharedPtr<FRemoteControlFunction>(Expose(MoveTemp(RCFunction), FRemoteControlFunction::StaticStruct(), Args.GroupId));
 }

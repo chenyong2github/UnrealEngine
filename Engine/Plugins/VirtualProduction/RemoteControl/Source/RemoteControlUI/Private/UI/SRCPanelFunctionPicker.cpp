@@ -11,6 +11,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/Actor.h"
 #include "Styling/SlateColor.h"
+#include "Subsystems/Subsystem.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
@@ -102,7 +103,7 @@ namespace FunctionPickerUtils
 			: Owner(InOwner)
 			, Function(InFunction)
 		{
-			if (Function)
+			if (Function.IsValid())
 			{
 				Name = Function->GetDisplayNameText().ToString();
 			}
@@ -111,45 +112,42 @@ namespace FunctionPickerUtils
 		//~ Begin FRCBlueprintPickerTreeNode interface
 		virtual const FString& GetName() const override { return Name; }
 		virtual bool IsFunctionNode() const override { return true; }
-		virtual UFunction* GetFunction() const override { return Function; }
-		virtual UObject* GetObject() const override { return Owner; }
+		virtual UFunction* GetFunction() const override { return Function.Get(); }
+		virtual UObject* GetObject() const override { return Owner.Get(); }
 		virtual void GetChildNodes(TArray<TSharedPtr<FRCFunctionPickerTreeNode>>& OutNodes) const {}
 		//~ End FRCBlueprintPickerTreeNode interface
 
 	private:
 		/** The object that owns this node's function. */
-		UObject* Owner = nullptr;
+		TWeakObjectPtr<UObject> Owner = nullptr;
 		/** This node's function. */
-		UFunction* Function = nullptr;
+		TWeakObjectPtr<UFunction> Function = nullptr;
 		/** This node's function's name. */
 		FString Name;
 	};
 
 	struct FRCObjectNode : public FRCFunctionPickerTreeNode
 	{
-		FRCObjectNode(UObject* Object, const TArray<UFunction*>& Functions)
-			: WeakObject(Object)
+		FRCObjectNode(UObject* InObject, const TArray<UFunction*>& InFunctions)
+			: WeakObject(InObject)
 		{
-			if (ensure(Object && Object->GetFName().IsValid() && Object->GetFName() != NAME_None))
+			if (ensure(InObject && InObject->GetFName().IsValid() && InObject->GetFName() != NAME_None))
 			{
-				if (Object->IsA<AActor>())
+				if (InObject->IsA<AActor>())
 				{
-					Name = Cast<AActor>(Object)->GetActorLabel();
+					Name = Cast<AActor>(InObject)->GetActorLabel();
 				}
 				else
 				{
-					Name = Object->GetName();
+					Name = InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || InObject->IsA<USubsystem>() ? InObject->GetClass()->GetName() : InObject->GetName();
 					Name.RemoveFromStart(DefaultPrefix, ESearchCase::CaseSensitive);
 					Name.RemoveFromEnd(CPostfix, ESearchCase::CaseSensitive);
 				}
 
-				for (UFunction* Function : Functions)
+				for (UFunction* Function : InFunctions)
 				{
-					if (Function)
-					{
-						TSharedPtr<FRCFunctionNode> FunctionNode = MakeShared<FRCFunctionNode>(Object, Function);
-						ChildNodes.Add(FunctionNode);
-					}
+					TSharedPtr<FRCFunctionNode> FunctionNode = MakeShared<FRCFunctionNode>(InObject, Function);
+					ChildNodes.Add(FunctionNode);
 				}
 			}
 		}
@@ -159,14 +157,17 @@ namespace FunctionPickerUtils
 		virtual bool IsFunctionNode() const override { return false; }
 		virtual UObject* GetObject() const override { return WeakObject.Get(); }
 		virtual UFunction* GetFunction() const override { return nullptr; }
-		virtual void GetChildNodes(TArray<TSharedPtr<FRCFunctionPickerTreeNode>>& OutNodes) const override { OutNodes.Append(ChildNodes); }
+		virtual void GetChildNodes(TArray<TSharedPtr<FRCFunctionPickerTreeNode>>& OutNodes) const override
+		{
+			OutNodes.Append(ChildNodes);
+		}
 		//~ End FRCBlueprintPickerTreeNode
 
 	private:
 		/** The object represented by this node. */
 		TWeakObjectPtr<UObject> WeakObject;
 		/** This node's child functions. */
-		TArray<TSharedPtr<FRCFunctionPickerTreeNode>> ChildNodes;
+		mutable TArray<TSharedPtr<FRCFunctionPickerTreeNode>> ChildNodes;
 		/** This object's name. */
 		FString Name;
 	};
@@ -211,62 +212,40 @@ void SRCPanelFunctionPicker::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SComboButton)
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-		.ForegroundColor(FSlateColor::UseForeground())
-		.OnComboBoxOpened_Lambda([this]()
-			{
-				if (ObjectsTreeView)
+		SNew(SBox)
+		.WidthOverride(300.0f)
+		.MaxDesiredHeight(200.0f)
+		[
+			SAssignNew(ObjectsTreeView, SSearchableTreeView<TSharedPtr<FRCFunctionPickerTreeNode>>)
+			.Items(&ObjectNodes)
+			.OnGetChildren_Lambda(OnGetChildren)
+			.OnGetDisplayName_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> InEntry) { return InEntry ? InEntry->GetName() : TEXT("INVALID_ENTRY"); })
+			.IsSelectable_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) { return TreeNode ? TreeNode->IsFunctionNode() : false; })
+			.OnItemSelected_Lambda(
+				[this] (TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) 
 				{
-					ObjectsTreeView->ClearSearchBox();
-					ObjectsTreeView->Focus();
-				}
-			})
-		.CollapseMenuOnParentFocus(true)
-		.ButtonContent()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(2.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-				.Text(Label)
-			]
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush("GraphEditor.Function_16x"))
-			]
-		]
-		.MenuContent()
-		[
-			SNew(SBox)
-			.WidthOverride(300.0f)
-			.MaxDesiredHeight(200.0f)
-			[
-				SAssignNew(ObjectsTreeView, SSearchableTreeView<TSharedPtr<FRCFunctionPickerTreeNode>>)
-				.Items(&ObjectNodes)
-				.OnGetChildren_Lambda(OnGetChildren)
-				.OnGetDisplayName_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> InEntry) { return InEntry ? InEntry->GetName() : TEXT("INVALID_ENTRY"); })
-				.IsSelectable_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) { return TreeNode ? TreeNode->IsFunctionNode() : false; })
-				.OnItemSelected_Lambda(
-					[this] (TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) 
+					UObject* Owner = TreeNode->GetObject();
+					UFunction* Function = TreeNode->GetFunction();
+					if (Owner && Function)
 					{
-						UObject* Owner = TreeNode->GetObject();
-						UFunction* Function = TreeNode->GetFunction();
-						if (Owner && Function)
-						{
-							OnSelectFunction.Execute(Owner, Function);
-							FSlateApplication::Get().SetUserFocus(0, SharedThis(this));
-						}
-					})
-			]
+						OnSelectFunction.Execute(Owner, Function);
+						FSlateApplication::Get().SetUserFocus(0, SharedThis(this));
+					}
+				})
 		]
 	];
+}
+
+FReply SRCPanelFunctionPicker::OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
+{
+	if (InFocusEvent.GetCause() == EFocusCause::Navigation)
+	{
+		ObjectsTreeView->ClearSearchBox();
+		ObjectsTreeView->Focus();
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
 }
 
 void SRCPanelFunctionPicker::Refresh()

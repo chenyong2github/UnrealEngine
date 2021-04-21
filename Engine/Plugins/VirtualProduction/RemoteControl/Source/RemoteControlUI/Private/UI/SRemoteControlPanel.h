@@ -17,6 +17,8 @@ struct FAssetData;
 class FReply;
 class IPropertyRowGenerator;
 class IPropertyHandle;
+class SClassViewer;
+class SComboButton;
 struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
@@ -114,19 +116,38 @@ private:
 	/** Exposes a function.  */
 	void ExposeFunction(UObject* Object, UFunction* Function);
 
-	/** Handles exposing an actor. */
+	/** Handles exposing an actor from asset data. */
 	void OnExposeActor(const FAssetData& AssetData);
 
+	/** Handle exposing an actor. */
+	void ExposeActor(AActor* Actor);
 
-	/** Handles disbabling CPU throttling. */
+	/** Handles disabling CPU throttling. */
 	FReply OnClickDisableUseLessCPU() const;
 
 	/** Creates a widget that warns the user when CPU throttling is enabled.  */
 	TSharedRef<SWidget> CreateCPUThrottleButton() const;
+
+	/** Create expose button, allowing to expose blueprints and actor functions. */
+	TSharedRef<SWidget> CreateExposeButton();
+
+	/** Create expose by class menu content */
+	TSharedRef<SWidget> CreateExposeByClassWidget();
+
+	/** Cache the classes (and parent classes) of all actors in the level. */
+	void CacheLevelClasses();
+	
+	/** Handles updating the level class list when an actor is added to the level. */
+	void OnActorAddedToLevel(AActor* Actor);
+
+	/** Handles caching an actor's class and parent classes. */
+	void CacheActorClass(AActor* Actor);
+
+	/** Handles refreshing the class picker when the map is changed. */
+	void OnMapChange(uint32);
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
-	/** Holds all the field groups. */
 	/** Whether the panel is in edit mode. */
 	bool bIsInEditMode = true;
 	/** Whether objects need to be re-resolved because PIE Started or ended. */
@@ -141,4 +162,10 @@ private:
 	TSharedPtr<SRCPanelFunctionPicker> SubsystemFunctionPicker;
 	/** Holds the exposed entity list view. */
 	TSharedPtr<SRCPanelExposedEntitiesList> EntityList;
+	/** Holds the combo button that allows exposing functions and actors. */
+	TSharedPtr<SComboButton> ExposeComboButton;
+	/** Caches all the classes of actors in the current level. */
+	TSet<TWeakObjectPtr<const UClass>> CachedClassesInLevel;
+	/** Holds the class picker used to expose all actors of class. */
+	TSharedPtr<SClassViewer> ClassPicker;
 };

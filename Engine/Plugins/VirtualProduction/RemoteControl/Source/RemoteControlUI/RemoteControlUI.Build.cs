@@ -15,6 +15,7 @@ public class RemoteControlUI : ModuleRules
 				"ApplicationCore",
 				"AssetRegistry",
 				"AssetTools",
+				"ClassViewer",
 				"Core",
 				"CoreUObject",
 				"DeveloperSettings",

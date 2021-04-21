@@ -290,6 +290,7 @@ void FRemoteControlProperty::InitializeMetadata()
 FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction)
 	: FRemoteControlField(nullptr, EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo), {})
 	, Function(InFunction)
+	, FunctionPath(InFunction)
 {
 	check(Function);
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
@@ -301,6 +302,7 @@ FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo F
 FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings)
 	: FRemoteControlField(InPreset, EExposedFieldType::Function, InLabel, MoveTemp(InFieldPathInfo), InBindings)
 	, Function(InFunction)
+	, FunctionPath(InFunction)
 {
 	check(Function);
 	FunctionArguments = MakeShared<FStructOnScope>(Function);
@@ -333,6 +335,7 @@ void FRemoteControlFunction::PostSerialize(const FArchive& Ar)
 	if (Ar.IsLoading())
 	{
 		int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
+
 		if (CustomVersion < FRemoteControlObjectVersion::AddedFieldFlags)
 		{
 			if (Function)
@@ -379,6 +382,22 @@ bool FRemoteControlFunction::IsBound() const
 	return false;
 }
 
+UFunction* FRemoteControlFunction::GetFunction() const
+{
+	if (Function)
+	{
+		return Function;
+	}
+	
+	if (UFunction* ResolvedFunction = Cast<UFunction>(FunctionPath.TryLoad()))
+	{
+		Function = ResolvedFunction;
+		return ResolvedFunction;
+	}
+
+	return nullptr;
+}
+
 void FRemoteControlFunction::AssignDefaultFunctionArguments()
 {
 #if WITH_EDITOR
@@ -400,15 +419,16 @@ void FRemoteControlFunction::AssignDefaultFunctionArguments()
 FArchive& operator<<(FArchive& Ar, FRemoteControlFunction& RCFunction)
 {
 	Ar.UsingCustomVersion(FRemoteControlObjectVersion::GUID);
-	
+
 	FRemoteControlFunction::StaticStruct()->SerializeTaggedProperties(Ar, (uint8*)&RCFunction, FRemoteControlFunction::StaticStruct(), nullptr);
 
 	if (Ar.IsLoading())
 	{
+		RCFunction.Function = Cast<UFunction>(RCFunction.FunctionPath.TryLoad());
 		RCFunction.FunctionArguments = MakeShared<FStructOnScope>(RCFunction.Function);
 	}
 
-	if (ensure(RCFunction.Function))
+	if (RCFunction.Function)
 	{
 		RCFunction.Function->SerializeTaggedProperties(Ar, RCFunction.FunctionArguments->GetStructMemory(), RCFunction.Function, nullptr);
 	}

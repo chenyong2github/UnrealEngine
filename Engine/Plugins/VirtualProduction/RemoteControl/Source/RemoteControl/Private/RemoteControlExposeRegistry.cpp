@@ -216,7 +216,7 @@ bool FRCEntityWrapper::Serialize(FArchive& Ar)
 {
 	if (Ar.IsSaving())
 	{
-		if (IsValid())
+		if (ensure(IsValid()))
 		{
 			FSoftObjectPath Path{ EntityType };
 			Path.Serialize(Ar);
