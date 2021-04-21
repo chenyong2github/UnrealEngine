@@ -3621,7 +3621,8 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	if (!Super::IsReadyForFinishDestroy())
+	// Match BeginDestroy() by checking for HasPendingInitOrStreaming().
+	if (HasPendingInitOrStreaming() || !Super::IsReadyForFinishDestroy())
 	{
 		return false;
 	}
@@ -5695,7 +5696,10 @@ bool UStaticMesh::DoesMipDataExist(const int32 MipIndex) const
 
 bool UStaticMesh::HasPendingRenderResourceInitialization() const
 {
-	return GetRenderData() && !GetRenderData()->bReadyForStreaming;
+	// Only check !bReadyForStreaming if the render data is initialized from FStaticMeshRenderData::InitResources(), 
+	// otherwise no render commands are pending and the state will never resolve.
+	// Note that bReadyForStreaming is set on the renderthread.
+	return GetRenderData() && GetRenderData()->IsInitialized() && !GetRenderData()->bReadyForStreaming;
 }
 
 bool UStaticMesh::StreamOut(int32 NewMipCount)

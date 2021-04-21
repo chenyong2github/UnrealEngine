@@ -611,7 +611,7 @@ public:
 	/** Bounds of the renderable mesh. */
 	FBoxSphereBounds Bounds;
 
-	bool IsInitialized()
+	bool IsInitialized() const
 	{
 		return bIsInitialized;
 	}
