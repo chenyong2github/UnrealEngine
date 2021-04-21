@@ -166,14 +166,12 @@ namespace UE
 				return false;
 			}
 
-			std::shared_ptr<const char> ReadTextureBufferFromUsdzArchive( const FString& ResolvedTexturePath, uint64& OutBufferSize )
+			TUsdStore<std::shared_ptr<const char>> ReadTextureBufferFromUsdzArchive( const FString& ResolvedTexturePath, uint64& OutBufferSize )
 			{
-				FString TextureExtension;
-
 				pxr::ArResolver& Resolver = pxr::ArGetResolver();
 				std::shared_ptr<pxr::ArAsset> Asset = Resolver.OpenAsset( UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() );
 
-				std::shared_ptr<const char> Buffer = nullptr;
+				TUsdStore<std::shared_ptr<const char>> Buffer;
 
 				if ( Asset )
 				{
@@ -192,8 +190,8 @@ namespace UE
 			{
 #if WITH_EDITOR
 				uint64 BufferSize = 0;
-				std::shared_ptr<const char> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
-				const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.get() );
+				TUsdStore<std::shared_ptr<const char>> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
+				const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.Get().get() );
 
 				if ( BufferSize == 0 || BufferStart == nullptr )
 				{
@@ -219,8 +217,8 @@ namespace UE
 			UTexture* ReadTextureFromUsdzArchiveRuntime( const FString& ResolvedTexturePath )
 			{
 				uint64 BufferSize = 0;
-				std::shared_ptr<const char> Buffer = ReadTextureBufferFromUsdzArchive( ResolvedTexturePath, BufferSize );
-				const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.get() );
+				TUsdStore<std::shared_ptr<const char>> Buffer = ReadTextureBufferFromUsdzArchive( ResolvedTexturePath, BufferSize );
+				const uint8* BufferStart = reinterpret_cast< const uint8* >( Buffer.Get().get() );
 
 				if ( BufferSize == 0 || BufferStart == nullptr )
 				{
