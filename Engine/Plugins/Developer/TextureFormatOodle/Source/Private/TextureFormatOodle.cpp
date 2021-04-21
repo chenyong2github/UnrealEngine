@@ -75,7 +75,7 @@ find them and move them up to DefaultEngine if you want them to be global.
 
 The INI settings block looks like :
 
-[TextureFormatOodle]
+[TextureFormatOodleSettings]
 bForceAllBC23ToBC7=False
 bForceRDOOff=False
 bDebugColor=False
@@ -232,7 +232,7 @@ public:
 
 	FTextureFormatOodle() :
 		bForceAllBC23ToBC7(false),
-		bForceRDOOff(false),
+		bForceRDOOff(true),
 		bDebugColor(false),
 		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
 		GlobalLambdaMultiplier(1.f)
@@ -258,10 +258,11 @@ public:
 	{
 		// this is done at Singleton init time, the first time GetTextureFormat() is called
 
-		#define OODLETEXTURE_INI_SECTION	TEXT("TextureFormatOodle")
+		#define OODLETEXTURE_INI_SECTION	TEXT("TextureFormatOodleSettings")
 		
+		#if 0
 		// Check that the OodleHandlerComponent section exists, and if not, init with defaults
-		//  this will add it to your per-build Engine.ini
+		//  this will add it to your per-user "Saved" Engine.ini
 		// eg: C:\UnrealEngine\Games\oodletest\Saved\Config\Windows\Engine.ini
 		// you can then move or copy it to DefaultEngine.ini if you like
 		if (!GConfig->DoesSectionExist(OODLETEXTURE_INI_SECTION, GEngineIni))
@@ -274,6 +275,7 @@ public:
 
 			GConfig->Flush(false);
 		}
+		#endif
 		
 		// Class config variables
 		GConfig->GetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);

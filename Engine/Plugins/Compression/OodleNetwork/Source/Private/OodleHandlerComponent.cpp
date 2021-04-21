@@ -352,6 +352,7 @@ void OodleHandlerComponent::CountBytes(FArchive& Ar) const
 void OodleHandlerComponent::InitFirstRunConfig()
 {
 	// Check that the OodleHandlerComponent section exists, and if not, init with defaults
+	// @todo Oodle : this writes to a Saved/ Engine.ini ; unclear that this is desirable, reconsider
 	if (!GConfig->DoesSectionExist(OODLE_INI_SECTION, GEngineIni))
 	{
 		GConfig->SetBool(OODLE_INI_SECTION, TEXT("bEnableOodle"), true, GEngineIni);
