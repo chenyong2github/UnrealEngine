@@ -8,6 +8,8 @@
 #include "GeometryTypes.h"
 #include "DynamicMesh3.h"
 
+class FProgressCancel;
+
 namespace UE
 {
 namespace Geometry
@@ -62,13 +64,13 @@ public:
 	 * Calculate output ConvexHull mesh for vertices of input Mesh
 	 * @return true on success
 	 */
-	bool Compute();
+	bool Compute(FProgressCancel* Progress = nullptr);
 
 
 
 protected:
-	bool Compute_FullMesh();
-	bool Compute_VertexSubset();
+	bool Compute_FullMesh(FProgressCancel* Progress);
+	bool Compute_VertexSubset(FProgressCancel* Progress);
 };
 
 

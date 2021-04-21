@@ -160,7 +160,7 @@ static void ComputeSimpleShapeFits(const FDynamicMesh3& Mesh,
 	if (bConvex)
 	{
 		FMeshConvexHull Hull(&Mesh);
-		if (Hull.Compute())
+		if (Hull.Compute(Progress))
 		{
 			FitResult.bHaveConvex = true;
 			FitResult.Convex = MoveTemp(Hull.ConvexHull);
@@ -271,7 +271,7 @@ void FMeshSimpleShapeApproximation::Generate_Capsules(FSimpleShapeSet3d& ShapeSe
 
 
 
-void FMeshSimpleShapeApproximation::Generate_ConvexHulls(FSimpleShapeSet3d& ShapeSetOut)
+void FMeshSimpleShapeApproximation::Generate_ConvexHulls(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress)
 {
 	FCriticalSection GeometryLock;
 	ParallelFor(SourceMeshes.Num(), [&](int32 idx)
@@ -287,7 +287,7 @@ void FMeshSimpleShapeApproximation::Generate_ConvexHulls(FSimpleShapeSet3d& Shap
 		Hull.bPostSimplify = bSimplifyHulls;
 		Hull.MaxTargetFaceCount = HullTargetFaceCount;
 
-		if (Hull.Compute())
+		if (Hull.Compute(Progress))
 		{
 			FConvexShape3d NewConvex;
 			NewConvex.Mesh = MoveTemp(Hull.ConvexHull);

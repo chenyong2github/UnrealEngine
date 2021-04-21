@@ -23,7 +23,8 @@ namespace GenerateSimpleCollisionNodeHelpers
 	void GenerateConvexHulls(const FDynamicMesh3& Mesh,
 							 const FIndexSets& IndexData,
 							 const FGenerateSimpleCollisionSettings& Settings,
-							 FCollisionGeometry& Result)
+							 FCollisionGeometry& Result,
+							 FProgressCancel* Progress)
 	{
 		int32 NumShapes = IndexData.IndexSets.Num();
 		TArray<FConvexShape3d> Convexes;
@@ -44,7 +45,7 @@ namespace GenerateSimpleCollisionNodeHelpers
 
 			Hull.bPostSimplify = Settings.ConvexHullSettings.SimplifyToTriangleCount > 0;
 			Hull.MaxTargetFaceCount = Settings.ConvexHullSettings.SimplifyToTriangleCount;
-			if (Hull.Compute())
+			if (Hull.Compute(Progress))
 			{
 				FConvexShape3d NewConvex;
 				NewConvex.Mesh = MoveTemp(Hull.ConvexHull);
@@ -77,7 +78,7 @@ namespace GenerateSimpleCollisionNodeHelpers
 
 				Hull.bPostSimplify = Settings.ConvexHullSettings.SimplifyToTriangleCount > 0;
 				Hull.MaxTargetFaceCount = Settings.ConvexHullSettings.SimplifyToTriangleCount;
-				if (Hull.Compute())
+				if (Hull.Compute(Progress))
 				{
 					FConvexShape3d NewConvex;
 					NewConvex.Mesh = MoveTemp(Hull.ConvexHull);
@@ -164,7 +165,7 @@ EGeometryFlowResult FGenerateSimpleCollisionNode::EvaluateInternal(const FDynami
 		 ShapeApproximator.Generate_Capsules(OutCollisionGeometry.Geometry);
 		 break;
 	 case ESimpleCollisionGeometryType::ConvexHulls:
-		 GenerateSimpleCollisionNodeHelpers::GenerateConvexHulls(Mesh, IndexData, Settings, OutCollisionGeometry);
+		 GenerateSimpleCollisionNodeHelpers::GenerateConvexHulls(Mesh, IndexData, Settings, OutCollisionGeometry, Progress);
 		 break;
 	 case ESimpleCollisionGeometryType::SweptHulls:
 		 ShapeApproximator.bDetectConvexes = true;

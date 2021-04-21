@@ -10,16 +10,16 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-bool FMeshConvexHull::Compute()
+bool FMeshConvexHull::Compute(FProgressCancel* Progress)
 {
 	bool bOK = false;
 	if (VertexSet.Num() > 0)
 	{
-		bOK = Compute_VertexSubset();
+		bOK = Compute_VertexSubset(Progress);
 	}
 	else
 	{
-		bOK = Compute_FullMesh();
+		bOK = Compute_FullMesh(Progress);
 	}
 	if (!bOK)
 	{
@@ -45,7 +45,7 @@ bool FMeshConvexHull::Compute()
 			// recalculate convex hull
 			// TODO: test if simplified mesh is convex first, can just re-use in that case!!
 			FMeshConvexHull SimplifiedHull(&ConvexHull);
-			if (SimplifiedHull.Compute())
+			if (SimplifiedHull.Compute(Progress))
 			{
 				ConvexHull = MoveTemp(SimplifiedHull.ConvexHull);
 			}
@@ -60,9 +60,10 @@ bool FMeshConvexHull::Compute()
 
 
 
-bool FMeshConvexHull::Compute_FullMesh()
+bool FMeshConvexHull::Compute_FullMesh(FProgressCancel* Progress)
 {
 	FConvexHull3d HullCompute;
+	HullCompute.Progress = Progress;
 	bool bOK = HullCompute.Solve(Mesh->MaxVertexID(),
 		[this](int32 Index) { return Mesh->GetVertex(Index); },
 		[this](int32 Index) { return Mesh->IsVertex(Index); });
@@ -100,9 +101,10 @@ bool FMeshConvexHull::Compute_FullMesh()
 
 
 
-bool FMeshConvexHull::Compute_VertexSubset()
+bool FMeshConvexHull::Compute_VertexSubset(FProgressCancel* Progress)
 {
 	FConvexHull3d HullCompute;
+	HullCompute.Progress = Progress;
 	bool bOK = HullCompute.Solve(VertexSet.Num(),
 		[this](int32 Index) { return Mesh->GetVertex(VertexSet[Index]); });
 	if (!bOK)

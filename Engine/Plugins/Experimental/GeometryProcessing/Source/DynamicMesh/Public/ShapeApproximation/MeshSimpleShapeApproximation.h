@@ -113,7 +113,7 @@ public:
 	 * Calculate 3D Convex Hulls for each input mesh and store in ShapeSetOut.
 	 * Each convex hull is stored as a triangle mesh, and optionally simplified if bSimplifyHulls=true
 	 */
-	void Generate_ConvexHulls(FSimpleShapeSet3d& ShapeSetOut);
+	void Generate_ConvexHulls(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress = nullptr);
 
 
 	/** Type/Mode for deciding 3D axis to use in Generate_ProjectedHulls() */
