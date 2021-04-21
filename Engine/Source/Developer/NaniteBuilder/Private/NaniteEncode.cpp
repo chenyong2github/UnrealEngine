@@ -3824,9 +3824,19 @@ public:
 		static_assert(sizeof(StripDesc.Bitmasks) == sizeof(Context.StripBitmasks), "");
 		FMemory::Memcpy( StripDesc.Bitmasks, Context.StripBitmasks, sizeof(StripDesc.Bitmasks) );
 
+		const uint32 PaddedSize = Cluster.StripIndexData.Num() + 5;
 		TArray<uint8> PaddedStripIndexData;
+		PaddedStripIndexData.Reserve( PaddedSize );
+
 		PaddedStripIndexData.Add( 0 );	// TODO: Workaround for empty list and reading from negative offset
 		PaddedStripIndexData.Append( Cluster.StripIndexData );
+
+		// UnpackTriangleIndices is 1:1 with the GPU implementation.
+		// It can end up over-fetching because it is branchless. The over-fetched data is never actually used.
+		// On the GPU index data is followed by other page data, so it is safe.
+		
+		// Here we have to pad to make it safe to perform a DWORD read after the end.
+		PaddedStripIndexData.SetNumZeroed( PaddedSize );
 
 		// Unpack strip
 		for( uint32 i = 0; i < NumOldTriangles; i++ )
