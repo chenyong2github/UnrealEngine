@@ -61,18 +61,10 @@ static FCacheBuffer* Writer_CacheCreateBuffer(uint32 Size)
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_CacheCommit(const FCacheBuffer* Collector)
 {
-	struct FPacketEncoded
-	{
-		uint16	PacketSize;
-		uint16	ThreadId;
-		uint16	DecodedSize;
-		uint8	Data[];
-	};
-
 	// Check there's enough size to compress Data into.
 	uint32 InputSize = uint32(Collector->Size - Collector->Remaining);
 	uint32 EncodeMaxSize = GetEncodeMaxSize(InputSize);
-	if (EncodeMaxSize + sizeof(FPacketEncoded) > GCacheActiveBuffer->Remaining)
+	if (EncodeMaxSize + sizeof(FTidPacketEncoded) > GCacheActiveBuffer->Remaining)
 	{
 		// Retire active buffer
 		*(GCacheActiveBuffer->TailNext) = GCacheActiveBuffer;
@@ -89,14 +81,14 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 	}
 
 	uint32 Used = GCacheActiveBuffer->Size - GCacheActiveBuffer->Remaining;
-	auto* Packet = (FPacketEncoded*)(GCacheActiveBuffer->Data + Used);
+	auto* Packet = (FTidPacketEncoded*)(GCacheActiveBuffer->Data + Used);
 	uint32 OutputSize = Encode(Collector->Data, InputSize, Packet->Data, EncodeMaxSize);
 
-	Packet->PacketSize = OutputSize + sizeof(FPacketEncoded);
+	Packet->PacketSize = OutputSize + sizeof(FTidPacketEncoded);
 	Packet->ThreadId = 0x8000 | uint16(ETransportTid::Internal);
 	Packet->DecodedSize = uint16(InputSize);
 
-	Used = sizeof(FPacketEncoded) + OutputSize;
+	Used = sizeof(FTidPacketEncoded) + OutputSize;
 	GCacheActiveBuffer->Remaining -= Used;
 
 #if TRACE_PRIVATE_STATISTICS

@@ -260,20 +260,13 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 		return 0;
 	}
 
-	struct FPacketBase
-	{
-		uint16 PacketSize;
-		uint16 ThreadId;
-	};
-
 	// Smaller buffers usually aren't redundant enough to benefit from being
 	// compressed. They often end up being larger.
 	if (Size <= 384)
 	{
-		static_assert(sizeof(FPacketBase) == sizeof(uint32), "");
-		Data -= sizeof(FPacketBase);
-		Size += sizeof(FPacketBase);
-		auto* Packet = (FPacketBase*)Data;
+		Data -= sizeof(FTidPacket);
+		Size += sizeof(FTidPacket);
+		auto* Packet = (FTidPacket*)Data;
 		Packet->ThreadId = uint16(ThreadId & 0x7fff);
 		Packet->PacketSize = uint16(Size);
 
@@ -282,26 +275,15 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 		return Size;
 	}
 
-	struct FPacketEncoded
-		: public FPacketBase
-	{
-		uint16	DecodedSize;
-	};
+	// Buffer size is expressed as "A + B" where A is a maximum expected
+	// input size (i.e. at least GPoolBlockSize) and B is LZ4 overhead as
+	// per LZ4_COMPRESSBOUND.
+	TTidPacketEncoded<8192 + 64> Packet;
 
-	struct FPacket
-		: public FPacketEncoded
-	{
-		// Buffer size is expressed as "A + B" where A is a maximum expected
-		// input size (i.e. at least GPoolBlockSize) and B is LZ4 overhead as
-		// per LZ4_COMPRESSBOUND.
-		uint8 Data[8129 + 64];
-	};
-
-	FPacket Packet;
 	Packet.ThreadId = 0x8000 | uint16(ThreadId & 0x7fff);
 	Packet.DecodedSize = uint16(Size);
 	Packet.PacketSize = Encode(Data, Packet.DecodedSize, Packet.Data, sizeof(Packet.Data));
-	Packet.PacketSize += sizeof(FPacketEncoded);
+	Packet.PacketSize += sizeof(FTidPacketEncoded);
 
 	Writer_SendDataRaw(&Packet, Packet.PacketSize);
 
