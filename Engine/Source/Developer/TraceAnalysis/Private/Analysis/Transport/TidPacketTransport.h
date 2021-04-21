@@ -34,6 +34,7 @@ private:
 	bool					ReadPacket();
 	FThreadStream&			FindOrAddThread(uint32 ThreadId);
 	TArray<FThreadStream>	Threads = {
+								{ {}, ETransportTid::Events },
 								{ {}, ETransportTid::Internal },
 							};
 };

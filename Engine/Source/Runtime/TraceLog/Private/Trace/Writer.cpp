@@ -303,14 +303,14 @@ static void Writer_DescribeEvents()
 		// Flush just in case an NewEvent event will be larger than 512 bytes.
 		if (TraceData.GetSize() >= (TraceData.GetCapacity() - 512))
 		{
-			Writer_SendData(ETransportTid::Internal, TraceData.GetData(), TraceData.GetSize());
+			Writer_SendData(ETransportTid::Events, TraceData.GetData(), TraceData.GetSize());
 			TraceData.Reset();
 		}
 	}
 
 	if (TraceData.GetSize())
 	{
-		Writer_SendData(ETransportTid::Internal, TraceData.GetData(), TraceData.GetSize());
+		Writer_SendData(ETransportTid::Events, TraceData.GetData(), TraceData.GetSize());
 	}
 }
 

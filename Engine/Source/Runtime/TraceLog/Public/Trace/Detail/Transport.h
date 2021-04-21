@@ -18,8 +18,9 @@ enum ETransport : uint8
 ////////////////////////////////////////////////////////////////////////////////
 enum ETransportTid : uint32
 {
-	Internal	= 0,
-	Bias		= 1,
+	Events		= 0,
+	Internal	= 1,
+	Bias		= 2,
 };
 
 
