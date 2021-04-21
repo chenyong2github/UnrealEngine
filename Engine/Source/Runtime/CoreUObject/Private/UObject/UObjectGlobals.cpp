@@ -34,7 +34,6 @@
 #include "UObject/UnrealType.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/PackageResourceManager.h"
-#include "UObject/UObjectAnnotation.h"
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataReader.h"
 #include "Serialization/DuplicatedDataWriter.h"
@@ -78,9 +77,6 @@ static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
 	TEXT("If true, allows unversioned content to be loaded by the editor."),
 	ECVF_Default
 );
-
-/** Object annotation used by the engine to keep track of which objects are selected */
-FUObjectAnnotationSparseBool GSelectedObjectAnnotation;
 
 DEFINE_STAT(STAT_InitProperties);
 DEFINE_STAT(STAT_ConstructObject);

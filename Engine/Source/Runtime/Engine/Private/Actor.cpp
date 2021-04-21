@@ -73,10 +73,6 @@ DECLARE_CYCLE_STAT(TEXT("PostActorConstruction"), STAT_PostActorConstruction, ST
 
 FMakeNoiseDelegate AActor::MakeNoiseDelegate = FMakeNoiseDelegate::CreateStatic(&AActor::MakeNoiseImpl);
 
-#if WITH_EDITOR
-FUObjectAnnotationSparseBool GSelectedActorAnnotation;
-#endif
-
 #if !UE_BUILD_SHIPPING
 FOnProcessEvent AActor::ProcessEventDelegate;
 #endif
@@ -3203,7 +3199,7 @@ void AActor::PostEditImport()
 
 bool AActor::IsSelectedInEditor() const
 {
-	return !IsPendingKill() && GSelectedActorAnnotation.Get(this);
+	return !IsPendingKill() && GIsActorSelectedInEditor && GIsActorSelectedInEditor(this);
 }
 
 bool AActor::SupportsExternalPackaging() const
@@ -5574,5 +5570,9 @@ void AActor::SetInstigator(APawn* InInstigator)
 	Instigator = InInstigator;
 	MARK_PROPERTY_DIRTY_FROM_NAME(AActor, Instigator, this);
 }
+
+#if WITH_EDITOR
+TFunction<bool(const AActor*)> GIsActorSelectedInEditor;
+#endif
 
 #undef LOCTEXT_NAMESPACE

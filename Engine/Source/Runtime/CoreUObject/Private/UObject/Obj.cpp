@@ -589,7 +589,7 @@ TSharedPtr<ITransactionObjectAnnotation> UObject::CreateAndRestoreTransactionAnn
 
 bool UObject::IsSelectedInEditor() const
 {
-	return !IsPendingKill() && GSelectedObjectAnnotation.Get(this);
+	return !IsPendingKill() && GIsObjectSelectedInEditor && GIsObjectSelectedInEditor(this);
 }
 
 #endif // WITH_EDITOR
@@ -4716,3 +4716,7 @@ bool UObject::IsSupportedForNetworking() const
 {
 	return IsFullNameStableForNetworking();
 }
+
+#if WITH_EDITOR
+TFunction<bool(const UObject*)> GIsObjectSelectedInEditor;
+#endif

@@ -178,9 +178,6 @@ bool FActorElementLevelEditorSelectionCustomization::SelectActorElement(const TT
 	}
 
 	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Selected Actor: %s (%s)"), *Actor->GetActorLabel(), *Actor->GetClass()->GetName());
-
-	// Update the annotation state
-	GSelectedActorAnnotation.Set(Actor);
 	
 	// Bind the override delegates for the components on the selected actor
 	for (UActorComponent* Component : Actor->GetComponents())
@@ -245,9 +242,6 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 	}
 	
 	UE_LOG(LogActorLevelEditorSelection, Verbose, TEXT("Deselected Actor: %s (%s)"), *Actor->GetActorLabel(), *Actor->GetClass()->GetName());
-	
-	// Update the annotation state
-	GSelectedActorAnnotation.Clear(Actor);
 	
 	// Deselect and unbind the override delegates for the components on the selected actor
 	{

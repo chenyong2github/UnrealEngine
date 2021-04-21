@@ -1598,3 +1598,7 @@ FORCEINLINE bool IsValid(const UObject *Test)
 	return Test && !Test->IsPendingKill();
 }
 
+#if WITH_EDITOR
+/** Callback for editor object selection. This must be in core instead of editor for UObject::IsSelectedInEditor to work */
+extern COREUOBJECT_API TFunction<bool(const UObject*)> GIsObjectSelectedInEditor;
+#endif

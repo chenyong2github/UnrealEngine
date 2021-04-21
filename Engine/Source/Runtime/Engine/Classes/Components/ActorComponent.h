@@ -13,7 +13,6 @@
 #include "UObject/ScriptMacros.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Interfaces/Interface_AssetUserData.h"
-#include "UObject/UObjectAnnotation.h"
 #include "UObject/StructOnScope.h"
 #include "ComponentInstanceDataCache.h"
 #include "ActorComponent.generated.h"
@@ -51,9 +50,6 @@ private:
 #if WITH_EDITOR
 class SWidget;
 struct FMinimalViewInfo;
-
-/** Annotation for component selection.  This must be in engine instead of editor for ::IsSelected to work */
-extern ENGINE_API FUObjectAnnotationSparseBool GSelectedComponentAnnotation;
 #endif
 
 /** Information about how to update transform when something is moved */
@@ -1127,3 +1123,8 @@ FORCEINLINE_DEBUGGABLE AActor* UActorComponent::GetOwner() const
 	return OwnerPrivate;
 #endif
 }
+
+#if WITH_EDITOR
+/** Callback for editor component selection. This must be in engine instead of editor for UActorComponent::IsSelectedInEditor to work */
+extern ENGINE_API TFunction<bool(const UActorComponent*)> GIsComponentSelectedInEditor;
+#endif

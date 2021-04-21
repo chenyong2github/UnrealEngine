@@ -133,7 +133,6 @@
 #include "Editor/ActorPositioning.h"
 
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Object/ObjectElementEditorSelectionCustomization.h"
 #include "Elements/Actor/ActorElementEditorViewportInteractionCustomization.h"
 #include "Elements/Component/ComponentElementEditorViewportInteractionCustomization.h"
 
@@ -273,10 +272,22 @@ void InitSelectionSets()
 
 	GObjectSelection = USelection::CreateObjectSelection(GetTransientPackage(), TEXT("SelectedObjects"), RF_Transactional);
 	GObjectSelection->AddToRoot();
+	GObjectSelection->SetElementSelectionSet(NewObject<UTypedElementSelectionSet>(GObjectSelection, NAME_None, RF_Transactional));
 
-	UTypedElementSelectionSet* ObjectSelectionSet = NewObject<UTypedElementSelectionSet>(GObjectSelection, NAME_None, RF_Transactional);
-	ObjectSelectionSet->RegisterInterfaceCustomizationByTypeName(NAME_Object, MakeUnique<FObjectElementEditorSelectionCustomization>());
-	GObjectSelection->SetElementSelectionSet(ObjectSelectionSet);
+	GIsActorSelectedInEditor = [](const AActor* InActor)
+	{
+		return GActorSelection->IsSelected(InActor);
+	};
+
+	GIsComponentSelectedInEditor = [](const UActorComponent* InComponent)
+	{
+		return GComponentSelection->IsSelected(InComponent);
+	};
+
+	GIsObjectSelectedInEditor = [](const UObject* InObject)
+	{
+		return GObjectSelection->IsSelected(InObject);
+	};
 }
 
 void DestroySelectionSets()
@@ -297,6 +308,10 @@ void DestroySelectionSets()
 			}
 		}
 	}
+
+	GIsActorSelectedInEditor = nullptr;
+	GIsComponentSelectedInEditor = nullptr;
+	GIsObjectSelectedInEditor = nullptr;
 
 	GActorSelection = nullptr;
 	GComponentSelection = nullptr;

@@ -1308,9 +1308,3 @@ private:
 	TArray<TBitType> AnnotationArray;
 
 };
-
-
-
-// Definition is in UObjectGlobals.cpp
-extern COREUOBJECT_API FUObjectAnnotationSparseBool GSelectedObjectAnnotation;
-

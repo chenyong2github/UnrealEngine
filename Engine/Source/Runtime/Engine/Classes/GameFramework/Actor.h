@@ -101,11 +101,6 @@ DECLARE_EVENT_TwoParams(AActor, FActorOnPackagingModeChanged, AActor*, bool /* b
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnProcessEvent, AActor*, UFunction*, void*);
 #endif
 
-#if WITH_EDITOR
-/** Annotation for actor selection.  This must be in engine instead of editor for ::IsSelected to work */
-extern ENGINE_API FUObjectAnnotationSparseBool GSelectedActorAnnotation;
-#endif
-
 /**
  * TInlineComponentArray is simply a TArray that reserves a fixed amount of space on the stack
  * to try to avoid heap allocation when there are fewer than a specified number of elements expected in the result.
@@ -3926,6 +3921,11 @@ FORCEINLINE_DEBUGGABLE bool AActor::IsNetMode(ENetMode Mode) const
 	}
 #endif
 }
+
+#if WITH_EDITOR
+/** Callback for editor actor selection. This must be in engine instead of editor for AActor::IsSelectedInEditor to work */
+extern ENGINE_API TFunction<bool(const AActor*)> GIsActorSelectedInEditor;
+#endif
 
 DEFINE_ACTORDESC_TYPE(AActor, FWorldPartitionActorDesc);
 

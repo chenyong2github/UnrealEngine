@@ -111,9 +111,6 @@ bool FComponentElementLevelEditorSelectionCustomization::SelectComponentElement(
 
 	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Selected Component: %s (%s)"), *Component->GetPathName(), *Component->GetClass()->GetName());
 	
-	// Update the annotation state
-	GSelectedComponentAnnotation.Set(Component);
-	
 	// Make sure the override delegate is bound properly
 	if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 	{
@@ -149,9 +146,6 @@ bool FComponentElementLevelEditorSelectionCustomization::DeselectComponentElemen
 	}
 
 	UE_LOG(LogComponentLevelEditorSelection, Verbose, TEXT("Deselected Component: %s (%s)"), *Component->GetPathName(), *Component->GetClass()->GetName());
-
-	// Update the annotation state
-	GSelectedComponentAnnotation.Clear(Component);
 	
 	// Update the selection visualization
 	if (AActor* ComponentOwner = Component->GetOwner())
