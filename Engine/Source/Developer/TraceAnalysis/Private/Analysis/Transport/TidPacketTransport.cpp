@@ -87,7 +87,7 @@ void FTidPacketTransport::Update()
 
 	Threads.RemoveAll([] (const FThreadStream& Thread)
 	{
-		return (Thread.ThreadId <= ETransportTid::Internal) ? false : Thread.Buffer.IsEmpty();
+		return (Thread.ThreadId <= ETransportTid::Importants) ? false : Thread.Buffer.IsEmpty();
 	});
 }
 

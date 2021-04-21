@@ -85,7 +85,7 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 	uint32 OutputSize = Encode(Collector->Data, InputSize, Packet->Data, EncodeMaxSize);
 
 	Packet->PacketSize = OutputSize + sizeof(FTidPacketEncoded);
-	Packet->ThreadId = 0x8000 | uint16(ETransportTid::Internal);
+	Packet->ThreadId = 0x8000 | uint16(ETransportTid::Importants);
 	Packet->DecodedSize = uint16(InputSize);
 
 	Used = sizeof(FTidPacketEncoded) + OutputSize;
@@ -99,7 +99,7 @@ static void Writer_CacheCommit(const FCacheBuffer* Collector)
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_CacheData(uint8* Data, uint32 Size)
 {
-	Writer_SendData(ETransportTid::Internal, Data, Size);
+	Writer_SendData(ETransportTid::Importants, Data, Size);
 
 	while (true)
 	{
@@ -141,7 +141,7 @@ void Writer_CacheOnConnect()
 
 	if (uint32 Used = GCacheCollector->Size - GCacheCollector->Remaining)
 	{
-		Writer_SendData(ETransportTid::Internal, GCacheCollector->Data, Used);
+		Writer_SendData(ETransportTid::Importants, GCacheCollector->Data, Used);
 	}
 }
 

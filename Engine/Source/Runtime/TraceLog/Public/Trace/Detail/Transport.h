@@ -18,9 +18,10 @@ enum ETransport : uint8
 ////////////////////////////////////////////////////////////////////////////////
 enum ETransportTid : uint32
 {
-	Events		= 0,
-	Internal	= 1,
-	Bias		= 2,
+	Events		= 0,			// used to describe events
+	Internal	= 1,			// events to make the trace stream function
+	Importants	= Internal,		// important/cached events
+	Bias,
 };
 
 
