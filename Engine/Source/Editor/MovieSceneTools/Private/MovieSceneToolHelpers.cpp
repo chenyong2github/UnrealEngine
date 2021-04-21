@@ -1669,7 +1669,7 @@ static bool ImportFBXTransformToChannels(FString NodeName, FFrameNumber StartFra
 	FRichCurve Scale[3];
 	FTransform DefaultTransform;
 	const bool bUseSequencerCurve = true;
-	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, true);
+	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, true, ImportFBXSettings->ImportUniformScale);
 
 
 	FVector Location = DefaultTransform.GetLocation(), Rotation = DefaultTransform.GetRotation().Euler(), Scale3D = DefaultTransform.GetScale3D();
@@ -2421,7 +2421,6 @@ bool MovieSceneToolHelpers::ImportFBXIntoChannelsWithDialog(const TSharedRef<ISe
 	return true;
 
 }
-
 bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurvesAPI& CurveAPI, UMovieSceneSequence* InSequence)
 {
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
@@ -2434,7 +2433,7 @@ bool ImportFBXTransform(FString NodeName, FGuid ObjectBinding, UnFbx::FFbxCurves
 	FRichCurve Scale[3];
 	FTransform DefaultTransform;
 	const bool bUseSequencerCurve = true;
-	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve);
+	CurveAPI.GetConvertedTransformCurveData(NodeName, Translation[0], Translation[1], Translation[2], EulerRotation[0], EulerRotation[1], EulerRotation[2], Scale[0], Scale[1], Scale[2], DefaultTransform, bUseSequencerCurve, ImportFBXSettings->ImportUniformScale);
 
  	UMovieScene3DTransformTrack* TransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ObjectBinding); 
 	if (!TransformTrack)
