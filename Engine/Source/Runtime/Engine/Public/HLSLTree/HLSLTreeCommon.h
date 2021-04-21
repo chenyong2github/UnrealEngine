@@ -277,6 +277,12 @@ public:
 	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
+class FExpressionReflectionVector : public FExpression
+{
+public:
+	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+};
+
 class FExpressionFunctionInput : public FExpression
 {
 public:

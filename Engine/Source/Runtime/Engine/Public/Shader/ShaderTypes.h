@@ -81,6 +81,15 @@ struct FValue
 {
 	inline FValue() : ComponentType(EValueComponentType::Void), NumComponents(0) {}
 
+	explicit FValue(EValueType InType)
+	{
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(InType);
+		ComponentType = TypeDesc.ComponentType;
+		NumComponents = TypeDesc.NumComponents;
+	}
+
+	inline FValue(EValueComponentType InComponentType, int8 InNumComponents) : ComponentType(InComponentType), NumComponents(InNumComponents) {}
+
 	inline FValue(float v) : ComponentType(EValueComponentType::Float), NumComponents(1)
 	{
 		Component[0].Float = v;

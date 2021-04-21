@@ -29,6 +29,7 @@
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
+#include "Materials/MaterialExpressionReflectionVectorWS.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
@@ -244,6 +245,14 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHL
 	}
 
 	OutExpression = AttributesExpression;
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
+EMaterialGenerateHLSLStatus UMaterialExpressionReflectionVectorWS::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	check(!CustomWorldNormal.GetTracedInput().Expression); // TODO
+
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionReflectionVector>(Scope);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

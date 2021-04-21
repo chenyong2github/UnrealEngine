@@ -110,19 +110,19 @@ public:
 	~FEmitContext();
 
 	/** Returns a value that references the given expression */
-	const FEmitValue& AcquireValue(FExpression* Expression);
+	const FEmitValue* AcquireValue(FExpression* Expression);
 
 	/** Returns value that references the given local variable */
-	const FEmitValue& AcquireValue(FLocalDeclaration* Declaration);
+	const FEmitValue* AcquireValue(FLocalDeclaration* Declaration);
 
 	/** Returns value that references the given local function output */
-	const FEmitValue& AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex);
+	const FEmitValue* AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex);
 
 	/** Gets HLSL code that references the given value */
-	const TCHAR* GetCode(const FEmitValue& Value) const;
+	const TCHAR* GetCode(const FEmitValue* Value) const;
 
 	/** Append preshader bytecode that represents the given value */
-	void AppendPreshader(const FEmitValue& Value, Shader::FPreshaderData& InOutPreshader) const;
+	void AppendPreshader(const FEmitValue* Value, Shader::FPreshaderData& InOutPreshader) const;
 
 	struct FScopeEntry
 	{
@@ -138,7 +138,7 @@ public:
 
 	struct FFunctionCallEntry
 	{
-		const FEmitValue* OutputRef;
+		const FEmitValue* OutputValues;
 		int32 NumOutputs;
 	};
 
@@ -174,7 +174,7 @@ struct FExpressionEmitResult
 		, bInline(false)
 	{}
 
-	void ForwardValue(FEmitContext& Context, const FEmitValue& InValue);
+	void ForwardValue(FEmitContext& Context, const FEmitValue* InValue);
 
 	FCodeWriter& Writer;
 	Shader::FPreshaderData& Preshader;

@@ -69,12 +69,8 @@ void UE::HLSLTree::FExpressionConstant::EmitCode(FEmitContext& Context, FExpress
 
 void UE::HLSLTree::FExpressionLocalVariable::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& DeclarationRef = Context.AcquireValue(Declaration);
-	
-	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
-	OutResult.Type = DeclarationRef.GetExpressionType();
-	OutResult.bInline = true;
-	OutResult.Writer.Writef(TEXT("%s"), Context.GetCode(DeclarationRef));
+	const FEmitValue* DeclarationValue = Context.AcquireValue(Declaration);
+	OutResult.ForwardValue(Context, DeclarationValue);
 }
 
 void UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
@@ -257,10 +253,10 @@ void UE::HLSLTree::FExpressionTextureSample::EmitCode(FEmitContext& Context, FEx
 		}
 	}
 
-	const FEmitValue& TexCoordRef = Context.AcquireValue(TexCoordExpression);
+	const FEmitValue* TexCoordValue = Context.AcquireValue(TexCoordExpression);
 	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
 	OutResult.Type = Shader::EValueType::Float4;
-	OutResult.Writer.Writef(TEXT("%s(%s(%s, %s, %s))"), SamplerTypeFunction, SampleFunctionName, *TextureName, *SamplerStateCode, Context.GetCode(TexCoordRef));
+	OutResult.Writer.Writef(TEXT("%s(%s(%s, %s, %s))"), SamplerTypeFunction, SampleFunctionName, *TextureName, *SamplerStateCode, Context.GetCode(TexCoordValue));
 }
 
 void UE::HLSLTree::FExpressionDefaultMaterialAttributes::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
@@ -275,37 +271,37 @@ void UE::HLSLTree::FExpressionSetMaterialAttribute::EmitCode(FEmitContext& Conte
 {
 	const FString PropertyName = FMaterialAttributeDefinitionMap::GetAttributeName(AttributeID);
 
-	const FEmitValue& AttributresRef = Context.AcquireValue(AttributesExpression);
-	const FEmitValue&ValueRef = Context.AcquireValue(ValueExpression);
+	const FEmitValue* AttributresValue = Context.AcquireValue(AttributesExpression);
+	const FEmitValue* Value = Context.AcquireValue(ValueExpression);
 
 	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
 	OutResult.Type = Shader::EValueType::MaterialAttributes;
-	OutResult.Writer.Writef(TEXT("FMaterialAttributes_Set%s(%s, %s)"), *PropertyName, Context.GetCode(AttributresRef), Context.GetCode(ValueRef));
+	OutResult.Writer.Writef(TEXT("FMaterialAttributes_Set%s(%s, %s)"), *PropertyName, Context.GetCode(AttributresValue), Context.GetCode(Value));
 }
 
 void UE::HLSLTree::FExpressionSelect::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& ConditionValue = Context.AcquireValue(ConditionExpression);
-	if (ConditionValue.GetEvaluationType() == EExpressionEvaluationType::Constant)
+	const FEmitValue* ConditionValue = Context.AcquireValue(ConditionExpression);
+	if (ConditionValue->GetEvaluationType() == EExpressionEvaluationType::Constant)
 	{
-		const bool bCondition = ConditionValue.GetConstantValue().AsBoolScalar();
+		const bool bCondition = ConditionValue->GetConstantValue().AsBoolScalar();
 		if (!bCondition)
 		{
-			const FEmitValue& Value = Context.AcquireValue(FalseExpression);
+			const FEmitValue* Value = Context.AcquireValue(FalseExpression);
 			OutResult.ForwardValue(Context, Value);
 		}
 		else
 		{
-			const FEmitValue& Value = Context.AcquireValue(TrueExpression);
+			const FEmitValue* Value = Context.AcquireValue(TrueExpression);
 			OutResult.ForwardValue(Context, Value);
 		}
 	}
 	else
 	{
-		const FEmitValue& TrueValue = Context.AcquireValue(TrueExpression);
-		const FEmitValue& FalseValue = Context.AcquireValue(FalseExpression);
+		const FEmitValue* TrueValue = Context.AcquireValue(TrueExpression);
+		const FEmitValue* FalseValue = Context.AcquireValue(FalseExpression);
 		OutResult.EvaluationType = EExpressionEvaluationType::Shader; // TODO - preshader
-		OutResult.Type = TrueValue.GetExpressionType(); // TODO - FalseValue?
+		OutResult.Type = TrueValue->GetExpressionType(); // TODO - FalseValue?
 		OutResult.Writer.Writef(TEXT("(%s ? %s : %s)"),
 			Context.GetCode(ConditionValue),
 			Context.GetCode(TrueValue),
@@ -315,16 +311,16 @@ void UE::HLSLTree::FExpressionSelect::EmitCode(FEmitContext& Context, FExpressio
 
 void UE::HLSLTree::FExpressionBinaryOp::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& LhsRef = Context.AcquireValue(Lhs);
-	const FEmitValue& RhsRef = Context.AcquireValue(Rhs);
+	const FEmitValue* LhsValue = Context.AcquireValue(Lhs);
+	const FEmitValue* RhsValue = Context.AcquireValue(Rhs);
 
 	FString ErrorMessage;
 
-	OutResult.EvaluationType = CombineEvaluationTypes(LhsRef.GetEvaluationType(), RhsRef.GetEvaluationType());
-	OutResult.Type = MakeArithmeticResultType(LhsRef.GetExpressionType(), RhsRef.GetExpressionType(), ErrorMessage);
+	OutResult.EvaluationType = CombineEvaluationTypes(LhsValue->GetEvaluationType(), RhsValue->GetEvaluationType());
+	OutResult.Type = MakeArithmeticResultType(LhsValue->GetExpressionType(), RhsValue->GetExpressionType(), ErrorMessage);
 	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
 	{
-		OutResult.Writer.Writef(TEXT("(%s + %s)"), Context.GetCode(LhsRef), Context.GetCode(RhsRef));
+		OutResult.Writer.Writef(TEXT("(%s + %s)"), Context.GetCode(LhsValue), Context.GetCode(RhsValue));
 	}
 	else
 	{
@@ -335,8 +331,8 @@ void UE::HLSLTree::FExpressionBinaryOp::EmitCode(FEmitContext& Context, FExpress
 		default: checkNoEntry(); break;
 		}
 
-		Context.AppendPreshader(LhsRef, OutResult.Preshader);
-		Context.AppendPreshader(RhsRef, OutResult.Preshader);
+		Context.AppendPreshader(LhsValue, OutResult.Preshader);
+		Context.AppendPreshader(RhsValue, OutResult.Preshader);
 		OutResult.Preshader.WriteOpcode(Opcode);
 	}
 }
@@ -352,18 +348,18 @@ void UE::HLSLTree::FExpressionSwizzle::EmitCode(FEmitContext& Context, FExpressi
 		Swizzle[i] = ComponentName[ComponentIndex];
 	}
 
-	const FEmitValue& InputRef = Context.AcquireValue(Input);
+	const FEmitValue* InputValue = Context.AcquireValue(Input);
 
 	OutResult.bInline = true;
-	OutResult.EvaluationType = InputRef.GetEvaluationType();
-	OutResult.Type = Shader::MakeValueType(InputRef.GetExpressionType(), Parameters.NumComponents);
+	OutResult.EvaluationType = InputValue->GetEvaluationType();
+	OutResult.Type = Shader::MakeValueType(InputValue->GetExpressionType(), Parameters.NumComponents);
 	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
 	{
-		OutResult.Writer.Writef(TEXT("%s.%s"), Context.GetCode(InputRef), Swizzle);
+		OutResult.Writer.Writef(TEXT("%s.%s"), Context.GetCode(InputValue), Swizzle);
 	}
 	else
 	{
-		Context.AppendPreshader(InputRef, OutResult.Preshader);
+		Context.AppendPreshader(InputValue, OutResult.Preshader);
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
 			.Write((uint8)Parameters.NumComponents)
 			.Write((uint8)Parameters.ComponentIndex[0])
@@ -375,9 +371,9 @@ void UE::HLSLTree::FExpressionSwizzle::EmitCode(FEmitContext& Context, FExpressi
 
 void UE::HLSLTree::FExpressionCast::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& InputRef = Context.AcquireValue(Input);
-	const Shader::EValueType InputType = InputRef.GetExpressionType();
-	const TCHAR* InputCode = Context.GetCode(InputRef);
+	const FEmitValue* InputValue = Context.AcquireValue(Input);
+	const Shader::EValueType InputType = InputValue->GetExpressionType();
+	const TCHAR* InputCode = Context.GetCode(InputValue);
 
 	OutResult.bInline = true;
 	OutResult.Type = Type;
@@ -424,15 +420,24 @@ void UE::HLSLTree::FExpressionCast::EmitCode(FEmitContext& Context, FExpressionE
 		else
 		{
 			// Padding with 0s, use a constructor
+			const Shader::FValue ZeroValue(OutputTypeDesc.ComponentType, 1);
 			OutResult.Writer.Writef(TEXT("%s(%s"), OutputTypeDesc.Name, InputCode);
 			for (int32 i = InputTypeDesc.NumComponents; i < OutputTypeDesc.NumComponents; ++i)
 			{
-				// TODO - worth making these 0s the appropriate type? 0u, 0.0f, etc
-				OutResult.Writer.Write(TEXT(", 0"));
+				OutResult.Writer.Write(TEXT(", "));
+				OutResult.Writer.WriteConstant(ZeroValue);
 			}
 			OutResult.Writer.Write(TEXT(")"));
 		}
 	}
+}
+
+void UE::HLSLTree::FExpressionReflectionVector::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
+{
+	OutResult.bInline = true;
+	OutResult.Type = Shader::EValueType::Float3;
+	OutResult.EvaluationType = EExpressionEvaluationType::Shader;
+	OutResult.Writer.Write(TEXT("Parameters.ReflectionVector"));
 }
 
 void UE::HLSLTree::FExpressionFunctionInput::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
@@ -441,33 +446,33 @@ void UE::HLSLTree::FExpressionFunctionInput::EmitCode(FEmitContext& Context, FEx
 
 	check(InputIndex >= 0 && InputIndex < StackEntry.FunctionCall->NumInputs);
 	FExpression* InputExpression = StackEntry.FunctionCall->Inputs[InputIndex];
-	const FEmitValue& Value = Context.AcquireValue(InputExpression);
+	const FEmitValue* Value = Context.AcquireValue(InputExpression);
 	OutResult.ForwardValue(Context, Value);
 }
 
 void UE::HLSLTree::FExpressionFunctionOutput::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& Value = Context.AcquireValue(FunctionCall, OutputIndex);
+	const FEmitValue* Value = Context.AcquireValue(FunctionCall, OutputIndex);
 	OutResult.ForwardValue(Context, Value);
 }
 
 void UE::HLSLTree::FStatementReturn::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
 {
-	const FEmitValue& Ref = Context.AcquireValue(Expression);
-	OutWriter.WriteLinef(TEXT("return %s;"), Context.GetCode(Ref));
+	const FEmitValue* Value = Context.AcquireValue(Expression);
+	OutWriter.WriteLinef(TEXT("return %s;"), Context.GetCode(Value));
 }
 
 void UE::HLSLTree::FStatementSetLocalVariable::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
 {
-	const FEmitValue& DeclarationRef = Context.AcquireValue(Declaration);
-	const FEmitValue& ExpressionRef = Context.AcquireValue(Expression);
-	OutWriter.WriteLinef(TEXT("%s = %s;"), Context.GetCode(DeclarationRef), Context.GetCode(ExpressionRef));
+	const FEmitValue* DeclarationValue = Context.AcquireValue(Declaration);
+	const FEmitValue* ExpressionValue = Context.AcquireValue(Expression);
+	OutWriter.WriteLinef(TEXT("%s = %s;"), Context.GetCode(DeclarationValue), Context.GetCode(ExpressionValue));
 }
 
 void UE::HLSLTree::FStatementIf::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
 {
-	const FEmitValue& ConditionRef = Context.AcquireValue(ConditionExpression);
-	OutWriter.WriteLinef(TEXT("if (%s)"), Context.GetCode(ConditionRef));
+	const FEmitValue* ConditionValue = Context.AcquireValue(ConditionExpression);
+	OutWriter.WriteLinef(TEXT("if (%s)"), Context.GetCode(ConditionValue));
 	ThenScope->EmitHLSL(Context, OutWriter);
 	if (ElseScope)
 	{
