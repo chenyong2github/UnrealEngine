@@ -8,56 +8,16 @@
 #include "PropertyInfoHelpers.h"
 
 #include "EngineUtils.h"
-#include "Engine/LevelScriptActor.h"
-#include "Components/BillboardComponent.h"
+#include "SnapshotRestorability.h"
 #include "GameFramework/Actor.h"
-#include "GameFramework/DefaultPhysicsVolume.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
-#include "ActorEditorUtils.h"
 #include "ScopedTransaction.h"
 #endif
 
 namespace
 {
-	bool DoesActorHaveSupportedClass(const AActor* Actor)
-	{
-		const TSet<UClass*> UnsupportedClasses = 
-		{
-			ALevelScriptActor::StaticClass(),		// The level blueprint. Filtered out to avoid external map errors when saving a snapshot.
-			ADefaultPhysicsVolume::StaticClass()	// Does not show up in world outliner; always spawned with world.
-        };
-
-		for (UClass* Class : UnsupportedClasses)
-		{
-			if (Actor->IsA(Class))
-			{
-				return false;
-			}
-		}
-	
-		return true;
-	}
-
-	bool DoesComponentHaveSupportedClass(const UActorComponent* Component)
-	{
-		const TSet<UClass*> UnsupportedClasses = 
-		{
-			UBillboardComponent::StaticClass(),		// Attached to all editor actors > It always has a different name so we will never be able to match it.
-        };
-
-		for (UClass* Class : UnsupportedClasses)
-		{
-			if (Component->IsA(Class))
-			{
-				return false;
-			}
-		}
-	
-		return true;
-	}
-
 	/* If this function return false, the objects are not equivalent. If true, ignore the object references. */
 	bool ShouldConsiderObjectsEquivalent(const FWorldSnapshotData& SnapshotData, const FObjectPropertyBase* ObjectProperty, void* SnapshotValuePtr, void* WorldValuePtr, AActor* SnapshotActor, AActor* WorldActor)
 	{
@@ -101,7 +61,7 @@ namespace
 		WorldActor->GetComponents(WorldComponents);
 		for (UActorComponent* WorldComponent : WorldComponents)
 		{
-			const bool bIsSupported = ULevelSnapshot::IsComponentDesirableForCapture(WorldComponent);
+			const bool bIsSupported = FSnapshotRestorability::IsComponentDesirableForCapture(WorldComponent);
 			if (!bIsSupported)
 			{
 				continue;
@@ -130,44 +90,6 @@ namespace
 			SnapshotOriginalPairsToProcess.Add(TPair<UObject*, UObject*>(*SnapshotComponent, WorldComponent));
 		}
 	}
-}
-
-bool ULevelSnapshot::IsActorDesirableForCapture(const AActor* Actor)
-{
-	// TODO: Create project settings blacklist
-	return IsValid(Actor)
-			&& DoesActorHaveSupportedClass(Actor)
-			&& !Actor->IsTemplate()								// Should never happen, but we never want CDOs
-			// TODO: Temp test for USD && !Actor->HasAnyFlags(RF_Transient)				// Don't add transient actors in non-play worlds		
-#if WITH_EDITOR
-			&& Actor->IsEditable()
-            && Actor->IsListedInSceneOutliner() 				// Only add actors that are allowed to be selected and drawn in editor
-            && !FActorEditorUtils::IsABuilderBrush(Actor)		// Don't add the builder brush
-#endif
-        ;	
-}
-
-bool ULevelSnapshot::IsComponentDesirableForCapture(const UActorComponent* Component)
-{
-	// TODO: Create project settings blacklist
-	// We only support native components or the ones added through the component list in Blueprints.
-	return Component && DoesComponentHaveSupportedClass(Component) && (Component->CreationMethod == EComponentCreationMethod::Native || Component->CreationMethod == EComponentCreationMethod::SimpleConstructionScript);
-}
-
-bool ULevelSnapshot::IsRestorableProperty(const FProperty* Property)
-{
-	// Deprecated and transient properties should not cause us to consider the property different because we do not save these properties.
-	const uint64 UnsavedProperties = CPF_Deprecated | CPF_Transient;
-	// We currently do not support (instanced) subobjects
-	const uint64 InstancedFlags = CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance;
-	// Property is not editable in details panels
-	const int64 UneditableFlags = CPF_DisableEditOnInstance;
-	
-	// Only consider editable properties
-	const uint64 RequiredFlags = CPF_Edit;
-	
-	return !Property->HasAnyPropertyFlags(UnsavedProperties | InstancedFlags | UneditableFlags)
-		&& Property->HasAllPropertyFlags(RequiredFlags);
 }
 
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
@@ -245,29 +167,29 @@ bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* S
 	return false;
 }
 
-bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* Property, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const
+bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const
 {
 	// Ensure that property's flags are allowed. Skip check collection properties, e.g. FArrayProperty::Inner, etc.: inner properties do not have the same flags.
-	const bool bIsInCollection = FPropertyInfoHelpers::IsPropertyInCollection(Property);
-	if (!bIsInCollection && !IsRestorableProperty(Property))
+	const bool bIsInCollection = FPropertyInfoHelpers::IsPropertyInCollection(LeafProperty);
+	if (!bIsInCollection && !FSnapshotRestorability::IsRestorableProperty(LeafProperty))
 	{
 		return true;
 	}
 	
-	for (int32 i = 0; i < Property->ArrayDim; ++i)
+	for (int32 i = 0; i < LeafProperty->ArrayDim; ++i)
 	{
-		void* SnapshotValuePtr = Property->ContainerPtrToValuePtr<void>(SnapshotContainer, i);
-		void* WorldValuePtr = Property->ContainerPtrToValuePtr<void>(WorldContainer, i);
+		void* SnapshotValuePtr = LeafProperty->ContainerPtrToValuePtr<void>(SnapshotContainer, i);
+		void* WorldValuePtr = LeafProperty->ContainerPtrToValuePtr<void>(WorldContainer, i);
 
 		// Check whether property value points to a subobject
-		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(LeafProperty))
 		{
 			return ShouldConsiderObjectsEquivalent(SerializedData, ObjectProperty, SnapshotValuePtr, WorldValuePtr, SnapshotActor, WorldActor);
 		}
 
 
 		// Use our custom equality function for array, set, and map inner properties
-		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(LeafProperty))
 		{
 			FScriptArrayHelper SnapshotArray(ArrayProperty, SnapshotValuePtr);
 			FScriptArrayHelper WorldArray(ArrayProperty, WorldValuePtr);
@@ -280,7 +202,7 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 			{
 				void* SnapshotElementValuePtr = SnapshotArray.GetRawPtr(j);
 				void* WorldElementValuePtr = WorldArray.GetRawPtr(j);
-			
+
 				if (!AreSnapshotAndOriginalPropertiesEquivalent(ArrayProperty->Inner, SnapshotElementValuePtr, WorldElementValuePtr, SnapshotActor, WorldActor))
 				{
 					return false;
@@ -289,26 +211,26 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 			return true;
 		}
 		
-		if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
+		if (const FMapProperty* MapProperty = CastField<FMapProperty>(LeafProperty))
 		{
 			// TODO: Use custom function. Need to do something similar to UE4MapProperty_Private::IsPermutation
 		}
 
-		if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
+		if (const FSetProperty* SetProperty = CastField<FSetProperty>(LeafProperty))
 		{
 			// TODO: Use custom function. Need to do something similar to UE4SetProperty_Private::IsPermutation
 		}
 
 
 		// Check whether float is nearly equal instead of exactly equal
-		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(Property))
+		if (const FNumericProperty* NumericProperty = CastField<FNumericProperty>(LeafProperty))
 		{
 			return FPropertyInfoHelpers::AreNumericPropertiesNearlyEqual(NumericProperty, SnapshotValuePtr, WorldValuePtr);
 		}
 
 		
 		// Use our custom equality function for struct properties
-		if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(LeafProperty))
 		{
 			for (TFieldIterator<FProperty> FieldIt(StructProperty->Struct); FieldIt; ++FieldIt)
 			{
@@ -322,7 +244,7 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 
 		
 		// Use normal property comparison for all other properties
-		if (!Property->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
+		if (!LeafProperty->Identical_InContainer(SnapshotContainer, WorldContainer, i, PPF_DeepComparison | PPF_DeepCompareDSOsOnly))
 		{
 			return false;
 		}
@@ -378,7 +300,7 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 		for (AActor* ActorInLevel : Level->Actors)
 		{
 			// Warning: ActorInLevel can be null
-			if (IsValid(ActorInLevel) && IsActorDesirableForCapture(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel))
+			if (IsValid(ActorInLevel) && FSnapshotRestorability::IsActorDesirableForCapture(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel))
 			{
 				HandleAddedActor.Execute(ActorInLevel);
 			}

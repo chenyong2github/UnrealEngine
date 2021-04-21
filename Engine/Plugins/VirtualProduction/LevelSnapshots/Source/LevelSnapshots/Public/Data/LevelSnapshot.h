@@ -19,12 +19,6 @@ public:
 
 	DECLARE_DELEGATE_OneParam(FActorPathConsumer, const FSoftObjectPath& /*OriginalActorPath*/);
 	DECLARE_DELEGATE_OneParam(FActorConsumer, AActor* /*WorldActor*/);
-
-	/* Should this actor supported for the snapshot system? */
-	static bool IsActorDesirableForCapture(const AActor* Actor);
-	static bool IsComponentDesirableForCapture(const UActorComponent* Component);
-	/* Whether this property is supported for restoring. */
-	static bool IsRestorableProperty(const FProperty* Property);
 	
 	
 	/* Applies this snapshot to the given world. We assume the world matches. SelectionSet specifies which properties to roll back. */
@@ -40,7 +34,7 @@ public:
 	* Checks whether the snapshot and original property value should be considered equal.
 	* Primitive properties are trivial. Special support is needed for object references.
 	*/
-	bool AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* Property, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const;
+	bool AreSnapshotAndOriginalPropertiesEquivalent(const FProperty* LeafProperty, void* SnapshotContainer, void* WorldContainer, AActor* SnapshotActor, AActor* WorldActor) const;
 	
 	
 	

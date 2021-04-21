@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "WorldSnapshotData.h"
+#include "Data/WorldSnapshotData.h"
 
-#include "LevelSnapshot.h"
-#include "LevelSnapshotSelections.h"
+#include "Archive/TakeClassDefaultObjectSnapshotArchive.h"
+#include "Archive/TakeWorldObjectSnapshotArchive.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsStats.h"
-#include "TakeClassDefaultObjectSnapshotArchive.h"
-#include "TakeWorldObjectSnapshotArchive.h"
+#include "PropertySelectionMap.h"
+#include "Restorability/SnapshotRestorability.h"
 
 #include "EngineUtils.h"
-#include "PropertySelectionMap.h"
 #if WITH_EDITOR
 #include "Editor/UnrealEdEngine.h"
 #include "Internationalization/Internationalization.h"
@@ -93,7 +92,7 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 #endif
 		
 		AActor* Actor = *It; 
-		if (ULevelSnapshot::IsActorDesirableForCapture(Actor))
+		if (FSnapshotRestorability::IsActorDesirableForCapture(Actor))
 		{
 			ActorData.Add(Actor, FActorSnapshotData::SnapshotActor(Actor, *this));
 		}

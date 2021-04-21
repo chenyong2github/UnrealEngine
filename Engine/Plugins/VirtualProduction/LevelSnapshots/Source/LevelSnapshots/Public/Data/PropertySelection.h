@@ -13,15 +13,20 @@
  */
 struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedPropertyChain
 {
+	using Super = FArchiveSerializedPropertyChain;
 	friend struct FPropertySelection;
 
+	using Super::GetPropertyFromStack;
+	using Super::GetPropertyFromRoot;
+	using Super::GetNumProperties;
+	
 	FLevelSnapshotPropertyChain MakeAppended(const FProperty* Property) const;
 	void AppendInline(const FProperty* Property);
 
 	/**
 	 * Checks whether a given property being serialized corresponds to this chain.
 	 *
-	 * @param Chain The chain of properties to the most nested owning struct.
+	 * @param ContainerChain The chain of properties to the most nested owning struct: See FArchive::GetSerializedPropertyChain.
 	 * @param LeafProperty The leaf property in the struct
 	 */
 	bool EqualsSerializedProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
@@ -35,7 +40,7 @@ struct LEVELSNAPSHOTS_API FPropertySelection
 	/**
 	* Checks whether the given property is in this selection.
 	*
-	* @param Chain The chain of properties to the most nested owning struct. Expected to be the result of FArchive::GetSerializedPropertyChain.
+	* @param ContainerChain The chain of properties to the most nested owning struct: See FArchive::GetSerializedPropertyChain.
 	* @param LeafProperty The leaf property in the struct
 	*/
 	bool IsPropertySelected(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;

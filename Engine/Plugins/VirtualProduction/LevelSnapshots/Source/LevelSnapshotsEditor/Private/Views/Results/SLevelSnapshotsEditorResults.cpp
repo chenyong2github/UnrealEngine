@@ -19,6 +19,7 @@
 #include "IPropertyRowGenerator.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "SnapshotRestorability.h"
 #include "Stats/StatsMisc.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
@@ -1727,7 +1728,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView()
 			continue;
 		}
 
-		if (!ULevelSnapshot::IsActorDesirableForCapture(WorldActor))
+		if (!FSnapshotRestorability::IsActorDesirableForCapture(WorldActor))
 		{
 			continue;
 		}

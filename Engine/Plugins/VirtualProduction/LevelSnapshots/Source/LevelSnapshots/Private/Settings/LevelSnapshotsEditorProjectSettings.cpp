@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorProjectSettings.h"
 
 #include "Misc/Paths.h"
 
