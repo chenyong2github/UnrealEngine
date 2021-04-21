@@ -141,11 +141,6 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		protected override String GetRequiredScriptVersionString()
-		{
-			return "3.0";
-		}
-
 		protected override bool PreferAutoSDK()
 		{
 			// having LINUX_ROOT set (for legacy reasons or for convenience of cross-compiling certain third party libs) should not make UBT skip AutoSDKs

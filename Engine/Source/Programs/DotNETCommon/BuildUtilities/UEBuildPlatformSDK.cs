@@ -454,6 +454,11 @@ namespace EpicGames.Core
 		protected const string LastRunScriptVersionManifest = "CurrentlyInstalled.Version.txt";
 
 		/// <summary>
+		/// Filename of the script version file in each AutoSDK directory. Changing the contents of this file will force reinstallation of an AutoSDK.
+		/// </summary>
+		private const string ScriptVersionFilename = "Version.txt";
+
+		/// <summary>
 		/// Name of the file that holds environment variables of current SDK
 		/// </summary>
 		protected const string SDKEnvironmentVarsFile = "OutputEnvVars.txt";
@@ -524,12 +529,22 @@ namespace EpicGames.Core
 
 		/// <summary>
 		/// Gets the version number of the SDK setup script itself.  The version in the base should ALWAYS be the master revision from the last refactor.
-		/// If you need to force a rebuild for a given platform, override this for the given platform.
+		/// If you need to force a rebuild for a given platform, modify the version file.
 		/// </summary>
 		/// <returns>Setup script version</returns>
-		protected virtual String GetRequiredScriptVersionString()
+		private string GetRequiredScriptVersionString()
 		{
-			return "3.0";
+			const string UnspecifiedVersion = "UnspecifiedScriptVersion";
+
+			string VersionFilename = Path.Combine(GetPathToPlatformAutoSDKs(), GetAutoSDKDirectoryForMainVersion(), ScriptVersionFilename);
+			if (File.Exists(VersionFilename))
+			{
+				return File.ReadAllLines(VersionFilename).FirstOrDefault() ?? UnspecifiedVersion;
+			}
+			else
+			{
+				return UnspecifiedVersion;
+			}
 		}
 
 		/// <summary>
