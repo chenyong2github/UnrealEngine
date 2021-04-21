@@ -493,6 +493,9 @@ bool UWorldPartitionHLODsBuilder::SubmitHLODActors()
 {
 	bool bRet = true;
 
+	// Ensure all files modified by the source control helper are taken into account
+	ModifiedFiles.Append(SourceControlHelper->GetModifiedFiles());
+
 	// Check in all modified files
 	if (ModifiedFiles.Num() > 0)
 	{
