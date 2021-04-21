@@ -2365,7 +2365,7 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBP
 URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 {
 // temporarily disabled #todo
-#if 0 || WITH_EDITOR
+#if 0 && WITH_EDITOR
 	if(VMSnapshotBeforeExecution != nullptr)
 	{
 		if(VMSnapshotBeforeExecution->GetOuter() != this)
