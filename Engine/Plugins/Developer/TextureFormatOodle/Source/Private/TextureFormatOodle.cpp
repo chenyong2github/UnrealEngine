@@ -769,11 +769,14 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	}
 
 	// don't hold lock while dispatching task
+
+	// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
+	// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
 	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
 		[JobFunction, JobData]()
 		{
 			JobFunction(JobData);
-		}, TStatId(), &Prerequisites);
+		}, TStatId(), &Prerequisites, ENamedThreads::AnyBackgroundThreadNormalTask);
 	
 	// scope lock for NextTaskId and TaskIdMap
 	TaskIdMapLock.Lock();
