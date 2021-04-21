@@ -3455,7 +3455,7 @@ void UEditorEngine::CopySelectedActorsToClipboard( UWorld* InWorld, bool bShould
 		}
 
 		// Take a note of the current selection, so it can be restored at the end of this process
-		TArray<AActor*> CurrentlySelectedActors;
+		TArray<TWeakObjectPtr<AActor>> CurrentlySelectedActors;
 		for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
 		{
 			AActor* Actor = static_cast<AActor*>( *It );
@@ -3582,9 +3582,12 @@ void UEditorEngine::CopySelectedActorsToClipboard( UWorld* InWorld, bool bShould
 
 		// Restore old selection
 		GEditor->SelectNone( false, true );
-		for (auto& Actor : CurrentlySelectedActors)
+		for (const TWeakObjectPtr<AActor>& Actor : CurrentlySelectedActors)
 		{
-			GEditor->SelectActor( Actor, true, false );
+			if (AActor* ActorPtr = Actor.Get())
+			{
+				GEditor->SelectActor(ActorPtr, true, false);
+			}
 		}
 	}
 }
