@@ -309,12 +309,6 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_SendData(uint8* __restrict Data, uint32 Size)
-{
-	return Writer_SendData(ETransportTid::Internal, Data, Size);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 static void Writer_DescribeEvents()
 {
 	TWriteBufferRedirect<4096> TraceData;
@@ -327,14 +321,14 @@ static void Writer_DescribeEvents()
 		// Flush just in case an NewEvent event will be larger than 512 bytes.
 		if (TraceData.GetSize() >= (TraceData.GetCapacity() - 512))
 		{
-			Writer_SendData(TraceData.GetData(), TraceData.GetSize());
+			Writer_SendData(ETransportTid::Internal, TraceData.GetData(), TraceData.GetSize());
 			TraceData.Reset();
 		}
 	}
 
 	if (TraceData.GetSize())
 	{
-		Writer_SendData(TraceData.GetData(), TraceData.GetSize());
+		Writer_SendData(ETransportTid::Internal, TraceData.GetData(), TraceData.GetSize());
 	}
 }
 
@@ -449,7 +443,7 @@ static bool Writer_UpdateConnection()
 	TWriteBufferRedirect<512> HeaderEvents;
 	Writer_LogHeader();
 	HeaderEvents.Close();
-	Writer_SendData(HeaderEvents.GetData(), HeaderEvents.GetSize());
+	Writer_SendData(ETransportTid::Internal, HeaderEvents.GetData(), HeaderEvents.GetSize());
 
 	Writer_CacheOnConnect();
 
@@ -480,7 +474,7 @@ static void Writer_WorkerUpdate()
 		// can be established from preceding synced events.
 		TWriteBufferRedirect<32> SideBuffer;
 		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
-		Writer_SendData(SideBuffer.GetData(), SideBuffer.GetSize());
+		Writer_SendData(ETransportTid::Internal, SideBuffer.GetData(), SideBuffer.GetSize());
 	}
 }
 
