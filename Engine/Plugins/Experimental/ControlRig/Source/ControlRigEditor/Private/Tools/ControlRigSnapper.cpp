@@ -453,7 +453,7 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 		FScopedTransaction ScopedTransaction(LOCTEXT("SnapAnimation", "Snap Animation"));
 
 		ISequencer* Sequencer = InSequencer.Pin().Get();
-
+		Sequencer->ForceEvaluate(); // force an evaluate so any control rig get's binding setup
 		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 		MovieScene->Modify();
 		
@@ -619,7 +619,7 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 			}
 		}
 	}
-	return false;
+	return true;
 }
 
 
