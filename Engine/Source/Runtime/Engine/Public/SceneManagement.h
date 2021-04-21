@@ -213,8 +213,6 @@ public:
 	//
 	virtual uint32 GetCurrentTemporalAASampleIndex() const = 0;
 
-	virtual uint32 GetCurrentUnclampedTemporalAASampleIndex() const = 0;
-
 	/** Tells if the eye adaptation texture / buffer exists without attempting to allocate it. */
 	bool HasValidEyeAdaptationTexture() const { return bValidEyeAdaptationTexture; }
 	bool HasValidEyeAdaptationBuffer() const { return bValidEyeAdaptationBuffer; }

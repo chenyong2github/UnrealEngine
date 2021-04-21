@@ -44,6 +44,7 @@
 #include "ProfilingDebugging/DiagnosticTable.h"
 #include "Algo/Unique.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "TemporalAA.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -3276,6 +3277,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		// Subpixel jitter for temporal AA
 		int32 CVarTemporalAASamplesValue = CVarTemporalAASamples.GetValueOnRenderThread();
 
+		EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+
 		bool bTemporalUpsampling = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale;
 		
 		// Apply a sub pixel offset to the view.
@@ -3284,8 +3287,19 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			float EffectivePrimaryResolutionFraction = float(View.ViewRect.Width()) / float(View.GetSecondaryViewRectSize().X);
 
 			// Compute number of TAA samples.
-			int32 TemporalAASamples = CVarTemporalAASamplesValue;
+			int32 TemporalAASamples;
 			{
+				if (TAAConfig == EMainTAAPassConfig::Gen5)
+				{
+					// Force the number of AA sample to make sure the quality doesn't get
+					// compromised by previously set settings for Gen4 TAA
+					TemporalAASamples = 8;
+				}
+				else
+				{
+					TemporalAASamples = FMath::Clamp(CVarTemporalAASamplesValue, 1, 255);
+				}
+
 				if (bTemporalUpsampling)
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
@@ -3297,11 +3311,27 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 					TemporalAASamples = 4;
 				}
 
-				TemporalAASamples = FMath::Clamp(TemporalAASamples, 1, 255);
+				// Use immediately higher prime number to break up coherence between the TAA jitter sequence and any
+				// other random signal that are power of two of View.StateFrameIndex
+				if (TAAConfig == EMainTAAPassConfig::Gen5)
+				{
+					static const int8 kFirstPrimeNumbers[25] = {
+						2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
+					};
+
+					for (int32 PrimeNumberId = 4; PrimeNumberId < UE_ARRAY_COUNT(kFirstPrimeNumbers); PrimeNumberId++)
+					{
+						if (int32(kFirstPrimeNumbers[PrimeNumberId]) >= TemporalAASamples)
+						{
+							TemporalAASamples = int32(kFirstPrimeNumbers[PrimeNumberId]);
+							break;
+						}
+					}
+				}
 			}
 
 			// Compute the new sample index in the temporal sequence.
-			int32 TemporalSampleIndex			= ViewState->TemporalAASampleIndex + 1;
+			int32 TemporalSampleIndex = ViewState->TemporalAASampleIndex + 1;
 			if (TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
 			{
 				TemporalSampleIndex = 0;
@@ -3317,8 +3347,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			// Updates view state.
 			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
-				ViewState->TemporalAASampleIndex		  = TemporalSampleIndex;
-				ViewState->TemporalAASampleIndexUnclamped = ViewState->TemporalAASampleIndexUnclamped+1;
+				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
 			}
 
 			// Choose sub pixel sample coordinate in the temporal sequence.

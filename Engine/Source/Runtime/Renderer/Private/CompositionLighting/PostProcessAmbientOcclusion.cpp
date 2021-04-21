@@ -408,14 +408,11 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 {
 	const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
-	uint32 TemporalFrame = 0;
-	uint32 Frame = 0;
-
 	const FSceneViewState* ViewState = static_cast<const FSceneViewState*>(View.State);
 
+	uint32 Frame = 0;
 	if (ViewState && (CVarGTAOPauseJitter.GetValueOnRenderThread() != 1))
 	{
-		TemporalFrame = ViewState->GetCurrentUnclampedTemporalAASampleIndex();
 		Frame = ViewState->GetFrameIndex();
 	}
 
@@ -424,13 +421,13 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 	const float Rots[6] = { 60.0f, 300.0f, 180.0f, 240.0f, 120.0f, 0.0f };
 	const float Offsets[4] = { 0.1f, 0.6f, 0.35f, 0.85f };
 
-	float TemporalAngle = Rots[TemporalFrame % 6] * (PI / 360.0f);
+	float TemporalAngle = Rots[Frame % 6] * (PI / 360.0f);
 
 	// Angles of rotation that are set per frame
 	float SinAngle, CosAngle;
 	FMath::SinCos(&SinAngle, &CosAngle, TemporalAngle);
 
-	Result.GTAOParams[0] = FVector4(CosAngle, SinAngle, Offsets[(TemporalFrame / 6) % 4] * 0.25, Offsets[TemporalFrame % 4]);
+	Result.GTAOParams[0] = FVector4(CosAngle, SinAngle, Offsets[(Frame / 6) % 4] * 0.25, Offsets[Frame % 4]);
 
 	// Frame X = number , Y = Thickness param, 
 	float ThicknessBlend = CVarGTAOThicknessBlend.GetValueOnRenderThread();
