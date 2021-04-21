@@ -6,6 +6,19 @@
 
 struct FClothConfig_Legacy;
 
+/** Different mass modes deciding the setup process. */
+UENUM()
+enum class EClothMassMode : uint8
+{
+	/** The mass value is used to set the same mass for each particle. */
+	UniformMass,
+	/** The mass value is used to set the mass of the entire cloth, distributing it to each particle depending on the amount of connected surface area. */
+	TotalMass,
+	/** The mass value is used to set the density of the cloth, calculating the mass for each particle depending on its connected surface area. */
+	Density,
+	MaxClothMassMode UMETA(Hidden)
+};
+
 /** Common configuration base class. */
 UCLASS(Abstract)
 class CLOTHINGSYSTEMRUNTIMECOMMON_API UClothConfigCommon : public UClothConfigBase
