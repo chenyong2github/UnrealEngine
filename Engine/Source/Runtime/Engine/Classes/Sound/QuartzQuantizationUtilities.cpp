@@ -190,6 +190,8 @@ namespace Audio
 
 		switch (InDuration)
 		{
+		case EQuartzCommandQuantization::None:
+			return 0;
 
 			// NORMAL
 		case EQuartzCommandQuantization::Tick:
@@ -353,6 +355,7 @@ namespace Audio
 	)
 		: ClockName(RHS.ClockName)
 		, ClockHandleName(RHS.ClockHandleName)
+		, OtherClockName(RHS.OtherClockName)
 		, QuantizedCommandPtr(RHS.QuantizedCommandPtr)
 		, QuantizationBoundary(RHS.QuantizationBoundary)
 		, GameThreadCommandQueue(RHS.GameThreadCommandQueue)
@@ -371,7 +374,11 @@ namespace Audio
 
 	void IQuartzQuantizedCommand::OnQueued(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
 	{
-		InCommandInitInfo.OwningClockPointer->GetMixerDevice()->QuantizedEventClockManager.PushLatencyTrackerResult(FQuartzCrossThreadMessage::RequestRecieved());
+		Audio::FMixerDevice* MixerDevice = InCommandInitInfo.OwningClockPointer->GetMixerDevice();
+		if (MixerDevice)
+		{
+			MixerDevice->QuantizedEventClockManager.PushLatencyTrackerResult(FQuartzCrossThreadMessage::RequestRecieved());
+		}
 
 		GameThreadCommandQueue = InCommandInitInfo.GameThreadCommandQueue; 
 		GameThreadDelegateID = InCommandInitInfo.GameThreadDelegateID;
@@ -603,3 +610,15 @@ namespace Audio
 
 
 } // namespace Audio
+
+bool FQuartzTransportTimeStamp::IsZero() const
+{
+	return (!Bars) && (!Beat) && FMath::IsNearlyZero(BeatFraction);
+}
+
+void FQuartzTransportTimeStamp::Reset()
+{
+	Bars = 0;
+	Beat = 0;
+	BeatFraction = 0.f;
+}
