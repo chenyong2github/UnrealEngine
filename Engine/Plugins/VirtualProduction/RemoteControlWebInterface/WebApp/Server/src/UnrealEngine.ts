@@ -1,8 +1,9 @@
-import { IPayload, IPayloads, IPreset, IView, PropertyType, PropertyValue, IAsset, AssetAction } from '../../Client/src/shared';
+import { IPayload, IPayloads, IPreset, IPanel, IView, ICustomStackWidget, ICustomStackTabs, PropertyValue, IAsset, AssetAction, WidgetTypes, PropertyType } from '../../Client/src/shared';
 import _ from 'lodash';
 import WebSocket from 'ws';
 import { Notify, Program } from './';
 import request from 'superagent';
+import crypto from 'crypto';
 
 
 namespace UnrealApi {
@@ -134,27 +135,6 @@ export namespace UnrealEngine {
       }
 
       switch (message.Type) {
-        case UnrealApi.PresetEvent.FieldsRenamed: {
-          const view = views[message.PresetName];
-          if (!view)
-            return;
-
-          const panels = _.compact(_.flatMap(view.tabs, tab => tab.panels));
-          if (panels?.length) {
-            const allWidgets = _.flatMap(panels, panel => panel.widgets);
-            for (const Rename of message.RenamedFields) {
-              const widgets = _.filter(allWidgets, w => w.property === Rename.OldFieldLabel);
-              for (const widget of widgets)
-                widget.property = Rename.NewFieldLabel;
-            }
-            
-            Notify.onViewChange(message.PresetName, view);
-          }
-
-          refresh();
-          break;
-        }
-
         case UnrealApi.PresetEvent.FieldsChanged: {
           const preset = _.find(presets, p => p.Name === message.PresetName);
           if (!preset)
@@ -162,25 +142,11 @@ export namespace UnrealEngine {
 
           for (const field of message.ChangedFields) {
             setPayloadValueInternal(payloads, [message.PresetName, field.PropertyLabel], field.PropertyValue);
-              Notify.emitValueChange(message.PresetName, field.PropertyLabel, field.PropertyValue);
+            Notify.emitValueChange(message.PresetName, field.PropertyLabel, field.PropertyValue);
           }
           break;
         }
 
-        case UnrealApi.PresetEvent.ActorModified: {
-          const preset = _.find(presets, p => p.Name === message.PresetName);
-          if (!preset)
-            break;
-
-          for (const actor of message.ModifiedActors) {
-            for (const property of actor.ModifiedProperties)
-              setPayloadValueInternal(payloads, [message.PresetName, actor.DisplayName, property.PropertyName], property.PropertyValue);
-
-            Notify.emitValueChange(message.PresetName, actor.DisplayName, payloads[message.PresetName]?.[actor.DisplayName]);
-          }
-          break;
-        }
- 
         case UnrealApi.PresetEvent.FieldsAdded:
         case UnrealApi.PresetEvent.FieldsRemoved:
           refresh();
@@ -271,7 +237,7 @@ export namespace UnrealEngine {
       for (const p of Presets ?? []) {
         if (!_.find(presets, preset => preset.Name === p.Name)) {
           registerToPreset(p.Name);
-          
+
           const res = await get<UnrealApi.View>(`/remote/preset/${p.Name}/metadata/view`);
           refreshView(p.Name, res?.Value);
         }
@@ -282,11 +248,54 @@ export namespace UnrealEngine {
 
         Preset.ExposedProperties = [];
         Preset.ExposedFunctions = [];
-        Preset.ExposedActors = [];
+        Preset.Exposed = {};
+
         for (const Group of Preset.Groups) {
+          for (const Function of Group.ExposedFunctions)
+            Preset.Exposed[Function.Id] = Function;
+
+          for (const Property of Group.ExposedProperties) {
+            Preset.Exposed[Property.Id] = Property;
+
+            switch (Property.UnderlyingProperty.Type) {
+              case PropertyType.Boolean:
+              case PropertyType.Uint8:
+              case PropertyType.Int8:
+                Property.Widget = WidgetTypes.Toggle;
+                break;
+
+              case PropertyType.Int16:
+              case PropertyType.Int32:
+              case PropertyType.Int64:
+              case PropertyType.Uint16:
+              case PropertyType.Uint32:
+              case PropertyType.Uint64:
+              case PropertyType.Float:
+              case PropertyType.Double:
+                Property.Widget = WidgetTypes.Slider;
+                break;
+
+              case PropertyType.LinearColor:
+              case PropertyType.Color:
+              case PropertyType.Vector4:
+                Property.Widget = WidgetTypes.ColorPicker;
+                break;
+
+              case PropertyType.Vector:
+              case PropertyType.Vector2D:
+              case PropertyType.Rotator:
+                Property.Widget = WidgetTypes.Vector;
+                break;
+
+              case PropertyType.String:
+              case PropertyType.Text:
+                Property.Widget = WidgetTypes.Text;
+                break;
+            }
+          }
+
           Preset.ExposedProperties.push(...Group.ExposedProperties);
           Preset.ExposedFunctions.push(...Group.ExposedFunctions);
-          Preset.ExposedActors.push(...Group.ExposedActors);
         }
         
         all.push(Preset);
@@ -309,13 +318,58 @@ export namespace UnrealEngine {
 
       const view = JSON.parse(viewJson) as IView;
       if (equal(view, views[preset]))
-        return;
+        return; 
+
+      for (const tab of view.tabs) {
+        if (!tab.panels)
+          continue;
+
+        for (const panel of tab.panels)
+          setPanelIds(panel);
+      }
 
       views[preset] = view;
       Notify.onViewChange(preset, view);
     } catch (error) {
       console.log('Failed to parse View of Preset', preset);
     }    
+  }
+
+  function setPanelIds(panel: IPanel) {
+    if (!panel.id)
+      panel.id = crypto.randomBytes(16).toString('hex');
+
+    if (panel.widgets)
+      return setWidgetsId(panel.widgets);
+
+    if (panel.items)
+      for (const item of panel.items) {
+        if (!item.id)
+          item.id = crypto.randomBytes(16).toString('hex');
+
+        for (const panel of item.panels)
+          setPanelIds(panel);
+      }
+  }
+
+  function setWidgetsId(widgets?: ICustomStackWidget[]) {
+    if (!widgets)
+      return;
+
+    for (const widget of widgets) {
+      if (!widget.id)
+        widget.id = crypto.randomBytes(16).toString('hex');
+
+      if (widget.widget === 'Tabs') {
+        const tabWidget = widget as ICustomStackTabs;
+        for (const tab of tabWidget?.tabs ?? []) {
+          if (!tab.id)
+            tab.id = crypto.randomBytes(16).toString('hex');
+
+          setWidgetsId(tab.widgets);
+        }
+      }
+    }
   }
 
   function equal(a: any, b: any): boolean {
@@ -354,17 +408,11 @@ export namespace UnrealEngine {
 
   async function pullValues(): Promise<void> {
     const updatedPayloads = {};
-    
     for (const Preset of presets) {
       for (const group of Preset.Groups) {
         for (const property of group.ExposedProperties) {
-           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.DisplayName}`);
-           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.DisplayName], value?.PropertyValues?.[0]?.PropertyValue);
-        }
-
-        for (const actor of group.ExposedActors) {
-          const value = await get<any>(`/remote/preset/${Preset.Name}/actor/${actor.DisplayName}`);
-          setPayloadValueInternal(updatedPayloads, [Preset.Name, actor.DisplayName], value);
+           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.Id}`);
+           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.Id], value?.PropertyValues?.[0]?.PropertyValue);
         }
       }
     }
@@ -384,15 +432,15 @@ export namespace UnrealEngine {
   }
 
   export async function setPayload(preset: string, payload: IPayload): Promise<void> {
-      payloads[preset] = payload;
+    payloads[preset] = payload;
   }
 
   export async function setPayloadValue(preset: string, property: string, value: PropertyValue): Promise<void> {
     try {
       const body: any = { GenerateTransaction: true };
       if (value !== null) {
-    setPayloadValueInternal(payloads, [preset, property], value);
-    Notify.emitValueChange(preset, property, value);
+        setPayloadValueInternal(payloads, [preset, property], value);
+        Notify.emitValueChange(preset, property, value);
         body.PropertyValue = value;
       } else {
         body.ResetToDefault = true; 
@@ -401,10 +449,11 @@ export namespace UnrealEngine {
       await put(`/remote/preset/${preset}/property/${property}`, body);
 
       if (value === null) {
-        const ret = await get<UnrealApi.GetPropertyValue>(`/remote/preset/${preset}/property/${property}`);
-        if (ret) {
-          setPayloadValueInternal(payloads, [preset, property], ret.PropertyValue);
-          Notify.emitValueChange(preset, property, ret.PropertyValue);
+        const ret = await get<UnrealApi.PropertyValues>(`/remote/preset/${preset}/property/${property}`);
+        value = ret.PropertyValues?.[0]?.PropertyValue;
+        if (value !== undefined) {
+          setPayloadValueInternal(payloads, [preset, property], value);
+          Notify.emitValueChange(preset, property, value);
         }
       }
     } catch (err) {
@@ -511,6 +560,14 @@ export namespace UnrealEngine {
   }
 
   export async function setView(preset: string, view: IView): Promise<void> {
+    for (const tab of view.tabs) {
+      if (!tab.panels)
+        continue;
+
+      for (const panel of tab.panels)
+        setPanelIds(panel);
+    }
+
     views[preset] = view;
     const Value = JSON.stringify(view);
     await put(`/remote/preset/${preset}/metadata/view`, { Value });

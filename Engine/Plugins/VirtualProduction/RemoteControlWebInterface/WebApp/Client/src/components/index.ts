@@ -16,3 +16,4 @@ export * from './WidgetsPanelWrapper';
 export * from './WidgetsStack';
 export * from './WidgetSettings';
 export * from './WidgetWrapper';
+export * from './WidgetDnd';
