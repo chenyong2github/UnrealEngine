@@ -732,6 +732,11 @@ FCbFieldView FCbObjectView::FindViewIgnoreCase(const FAnsiStringView Name) const
 	return FCbFieldView();
 }
 
+FCbObjectView::operator bool() const
+{
+	return GetSize() > sizeof(CompactBinaryPrivate::GEmptyObjectPayload);
+}
+
 uint64 FCbObjectView::GetSize() const
 {
 	return sizeof(ECbFieldType) + GetPayloadSize();

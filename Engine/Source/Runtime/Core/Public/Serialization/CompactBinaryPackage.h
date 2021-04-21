@@ -214,10 +214,7 @@ public:
 	inline explicit operator bool() const { return !IsNull(); }
 
 	/** Whether the package has an empty object and no attachments. */
-	inline bool IsNull() const
-	{
-		return !Object.CreateViewIterator() && Attachments.Num() == 0;
-	}
+	inline bool IsNull() const { return !Object && Attachments.IsEmpty(); }
 
 	/** Returns the compact binary object for the package. */
 	inline const FCbObject& GetObject() const { return Object; }

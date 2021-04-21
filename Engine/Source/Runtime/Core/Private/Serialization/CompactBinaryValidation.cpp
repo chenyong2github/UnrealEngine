@@ -455,7 +455,7 @@ static FIoHash ValidateCbPackageObject(FCbFieldView& Value, FMemoryView& View, E
 		const FIoHash Hash = HashField.AsAttachment();
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
-			if (!Object.CreateViewIterator())
+			if (!Object)
 			{
 				AddError(Error, ECbValidateError::NullPackageObject);
 			}

@@ -179,7 +179,7 @@ void FCbAttachment::Save(FArchive& Ar) const
 
 void FCbPackage::SetObject(FCbObject InObject, const FIoHash* InObjectHash, FAttachmentResolver* InResolver)
 {
-	if (InObject.CreateViewIterator())
+	if (InObject)
 	{
 		Object = InObject.IsOwned() ? MoveTemp(InObject) : FCbObject::Clone(InObject);
 		if (InObjectHash)
@@ -292,7 +292,7 @@ void FCbPackage::Load(FCbFieldIterator& Fields)
 			Object = Fields.AsObject();
 			Object.MakeOwned();
 			++Fields;
-			if (Object.CreateViewIterator())
+			if (Object)
 			{
 				ObjectHash = Fields.AsCompactBinaryAttachment();
 				checkf(!Fields.HasError(), TEXT("Object must be followed by a CompactBinaryAttachment with the object hash."));
@@ -346,7 +346,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			checkf(ValueField.IsObject(), TEXT("Expected Object, Binary, or Null field when loading a package."));
 			Object = ValueField.AsObject();
 			Object.MakeOwned();
-			if (Object.CreateViewIterator())
+			if (Object)
 			{
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
 				ObjectHash = HashField.AsCompactBinaryAttachment();
@@ -362,7 +362,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 
 void FCbPackage::Save(FCbWriter& Writer) const
 {
-	if (Object.CreateViewIterator())
+	if (Object)
 	{
 		Writer.AddObject(Object);
 		Writer.AddCompactBinaryAttachment(ObjectHash);

@@ -54,7 +54,7 @@
  *         }
  *     }
  *
- *     for (FCbFieldView Format : Params["Formats"].AsArrayView())
+ *     for (FCbFieldView Format : Params.FindView("Formats"_ASV))
  *     {
  *         BeginCompress(FName(Format.AsString()));
  *     }
@@ -901,6 +901,9 @@ public:
 	/** Construct an array from an array field. No type check is performed! */
 	static inline FCbArrayView FromFieldNoCheck(const FCbFieldView& Field) { return FCbArrayView(Field); }
 
+	/** Whether the array has any fields. */
+	inline explicit operator bool() const { return Num() > 0; }
+
 	/** Returns the size of the array in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;
 
@@ -997,6 +1000,9 @@ public:
 
 	/** Construct an object from an object field. No type check is performed! */
 	static inline FCbObjectView FromFieldNoCheck(const FCbFieldView& Field) { return FCbObjectView(Field); }
+
+	/** Whether the object has any fields. */
+	CORE_API explicit operator bool() const;
 
 	/** Returns the size of the object in bytes if serialized by itself with no name. */
 	CORE_API uint64 GetSize() const;

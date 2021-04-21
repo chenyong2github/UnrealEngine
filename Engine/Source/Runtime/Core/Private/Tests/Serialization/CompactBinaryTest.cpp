@@ -1436,6 +1436,10 @@ bool FCbFieldIterateAttachmentsTest::RunTest(const FString& Parameters)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FCbFieldBufferTest, FCbFieldTestBase, "System.Core.Serialization.CbFieldBuffer", CompactBinaryTestFlags)
 bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 {
+	static_assert(std::is_constructible<FCbField>::value, "Missing constructor for FCbField");
+	static_assert(std::is_constructible<FCbField, const FCbField&>::value, "Missing constructor for FCbField");
+	static_assert(std::is_constructible<FCbField, FCbField&&>::value, "Missing constructor for FCbField");
+
 	static_assert(std::is_constructible<FCbField, const FSharedBuffer&>::value, "Missing constructor for FCbField");
 	static_assert(std::is_constructible<FCbField, FSharedBuffer&&>::value, "Missing constructor for FCbField");
 
@@ -1562,6 +1566,10 @@ bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbArrayBufferTest, "System.Core.Serialization.CbArrayBuffer", CompactBinaryTestFlags)
 bool FCbArrayBufferTest::RunTest(const FString& Parameters)
 {
+	static_assert(std::is_constructible<FCbArray>::value, "Missing constructor for FCbArray");
+	static_assert(std::is_constructible<FCbArray, const FCbArray&>::value, "Missing constructor for FCbArray");
+	static_assert(std::is_constructible<FCbArray, FCbArray&&>::value, "Missing constructor for FCbArray");
+
 	static_assert(std::is_constructible<FCbArray, const FCbArrayView&, const FSharedBuffer&>::value, "Missing constructor for FCbArray");
 	static_assert(std::is_constructible<FCbArray, const FCbArrayView&, const FCbFieldIterator&>::value, "Missing constructor for FCbArray");
 	static_assert(std::is_constructible<FCbArray, const FCbArrayView&, const FCbField&>::value, "Missing constructor for FCbArray");
@@ -1590,6 +1598,10 @@ bool FCbArrayBufferTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbObjectBufferTest, "System.Core.Serialization.CbObjectBuffer", CompactBinaryTestFlags)
 bool FCbObjectBufferTest::RunTest(const FString& Parameters)
 {
+	static_assert(std::is_constructible<FCbObject>::value, "Missing constructor for FCbObject");
+	static_assert(std::is_constructible<FCbObject, const FCbObject&&>::value, "Missing constructor for FCbObject");
+	static_assert(std::is_constructible<FCbObject, FCbObject&&>::value, "Missing constructor for FCbObject");
+
 	static_assert(std::is_constructible<FCbObject, const FCbObjectView&, const FSharedBuffer&>::value, "Missing constructor for FCbObject");
 	static_assert(std::is_constructible<FCbObject, const FCbObjectView&, const FCbFieldIterator&>::value, "Missing constructor for FCbObject");
 	static_assert(std::is_constructible<FCbObject, const FCbObjectView&, const FCbField&>::value, "Missing constructor for FCbObject");
