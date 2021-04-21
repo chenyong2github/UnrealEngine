@@ -14,7 +14,9 @@ import json, struct, os
 class UassetSummary(object):
     ''' Class to hold the PacketSummary of the asset.
     '''
-    pass
+    def print(self):
+        from pprint import pprint
+        pprint(vars(self))
 
 class AssetRegistryData(object):
     ''' Class to hold the asset registry data of the asset
@@ -363,27 +365,33 @@ class UassetParser(object):
             
         return AssetDataList    
 
-def printAssetData(aparser):
+def printAssetData(aparser, bAssetRegistry, bTags, bNames, bThumbnailCache):
     ''' Convenience function to print and visualize the asset data '''
 
-    for idx,assetdata in enumerate(aparser.aregdata):
-        print('\nAssetData {}\n'.format(idx))
-        print('ObjectPath     : {}'.format(assetdata.ObjectPath))
-        print('ObjectClassName: {}'.format(assetdata.ObjectClassName))
-        print('Tags')
-        for k,v in assetdata.tags.items():
-            print('Tag {}: {}'.format(str(k),str(v)))
+    aparser.asummary.print()
 
-    print('\nNames\n')
-    for idx,name in enumerate(aparser.names):
-        print('Name {}: {}'.format(idx,name))
+    if bAssetRegistry:
+        for idx,assetdata in enumerate(aparser.aregdata):
+            print('\nAssetData {}\n'.format(idx))
+            print('ObjectPath     : {}'.format(assetdata.ObjectPath))
+            print('ObjectClassName: {}'.format(assetdata.ObjectClassName))
+            if bTags:
+                print('Tags')
+                for k,v in assetdata.tags.items():
+                    print('Tag {}: {}'.format(str(k),str(v)))
 
-    print('\nThumbnailCache')
-    for assetdata in aparser.thumbnailCache:
-        print()
-        print('AssetClassName              : {}'.format(assetdata.AssetClassName))
-        print('ObjectPathWithoutPackageName: {}'.format(assetdata.ObjectPathWithoutPackageName))
-        print('FileOffset                  : {}'.format(assetdata.FileOffset))
+    if bNames:
+        print('\nNames\n')
+        for idx,name in enumerate(aparser.names):
+            print('Name {}: {}'.format(idx,name))
+
+    if bThumbnailCache:
+        print('\nThumbnailCache')
+        for assetdata in aparser.thumbnailCache:
+            print()
+            print('AssetClassName              : {}'.format(assetdata.AssetClassName))
+            print('ObjectPathWithoutPackageName: {}'.format(assetdata.ObjectPathWithoutPackageName))
+            print('FileOffset                  : {}'.format(assetdata.FileOffset))
 
 if __name__ == '__main__':
     ''' When this script is run standalone, it can be used to parse and print the asset in the given path '''
@@ -395,8 +403,15 @@ if __name__ == '__main__':
     if(len(sys.argv) > 1):
         fpath = sys.argv[1]
 
+    argvlower = [s.lower() for s in sys.argv[1:]]
+
+    bAssetRegistry = '-assetregistry' in argvlower
+    bTags = '-tags' in argvlower
+    bNames = '-names' in argvlower
+    bThumbnailCache = '-thumbnailcache' in argvlower
+
     fpath = os.path.abspath(fpath)
 
     aparser = UassetParser(fpath)
-    printAssetData(aparser)
+    printAssetData(aparser, bAssetRegistry, bTags, bNames, bThumbnailCache)
     
