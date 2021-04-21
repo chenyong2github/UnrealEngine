@@ -58,6 +58,7 @@
 #include "ObjectCacheContext.h"
 #include "ProfilingDebugging/StallDetector.h"
 #include "RenderUtils.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -2676,8 +2677,11 @@ void FShaderCompilerStats::RegisterCookedShaders(uint32 NumCooked, float Compile
 	}
 }
 
+TRACE_DECLARE_INT_COUNTER(Shaders_Compiled, TEXT("Shaders/Compiled"));
 void FShaderCompilerStats::RegisterCompiledShaders(uint32 NumCompiled, EShaderPlatform Platform, const FString MaterialPath, FString PermutationString)
 {
+	TRACE_COUNTER_ADD(Shaders_Compiled, NumCompiled);
+
 	FScopeLock Lock(&CompileStatsLock);
 	if (!CompileStats.IsValidIndex(Platform))
 	{
@@ -3280,6 +3284,7 @@ void FShaderCompilingManager::AddCompiledResults(TMap<int32, FShaderMapFinalizeR
 /** Flushes all pending jobs for the given shader maps. */
 void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& ShaderMapIdsToFinishCompiling, TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::BlockOnShaderMapCompletion);
 	SCOPE_STALL_REPORTER(FShaderCompilingManager::BlockOnShaderMapCompletion, 2.0);
 
 	COOK_STAT(FScopedDurationTimer BlockingTimer(ShaderCompilerCookStats::BlockingTimeSec));
@@ -3401,6 +3406,7 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 
 void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderMapFinalizeResults>& CompiledShaderMaps)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::BlockOnAllShaderMapCompletion);
 	SCOPE_STALL_REPORTER(FShaderCompilingManager::BlockOnAllShaderMapCompletion, 2.0);
 
 	COOK_STAT(FScopedDurationTimer BlockingTimer(ShaderCompilerCookStats::BlockingTimeSec));
@@ -3541,6 +3547,8 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 	float TimeBudget)
 {
 #if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompilingManager::ProcessCompiledShaderMaps);
+
 	TMap<TRefCountPtr<FMaterial>, TRefCountPtr<FMaterialShaderMap>> MaterialsToUpdate;
 	TArray<TRefCountPtr<FMaterial>> MaterialsToReleaseCompilingId;
 
@@ -6677,9 +6685,12 @@ void FShaderPipelineCompileJob::SerializeOutput(FArchive& Ar)
 	}
 }
 
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheSearchAttempts, TEXT("Shaders/JobCacheSearchAttempts"));
+TRACE_DECLARE_INT_COUNTER(Shaders_JobCacheHits, TEXT("Shaders/JobCacheHits"));
 FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Hash)
 {
 	++TotalSearchAttempts;
+	TRACE_COUNTER_INCREMENT(Shaders_JobCacheSearchAttempts);
 
 	if (ShaderCompiler::IsJobCacheEnabled())
 	{
@@ -6687,6 +6698,7 @@ FShaderJobCache::FJobCachedOutput* FShaderJobCache::Find(const FJobInputHash& Ha
 		if (OutputHash)
 		{
 			++TotalCacheHits;
+			TRACE_COUNTER_INCREMENT(Shaders_JobCacheHits);
 
 			FStoredOutput** CannedOutput = Outputs.Find(*OutputHash);
 			// we should not allow a dangling input to output mapping to exist

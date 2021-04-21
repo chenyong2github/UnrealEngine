@@ -56,6 +56,7 @@
 #if WITH_ODSC
 #include "ODSC/ODSCManager.h"
 #endif
+#include "ProfilingDebugging/CountersTrace.h"
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -2553,6 +2554,7 @@ TShaderRef<FShader> FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FV
 	return TShaderRef<FShader>(Shader, *RenderingThreadShaderMap);
 }
 
+TRACE_DECLARE_INT_COUNTER(Shaders_OnDemandShaderRequests, TEXT("Shaders/OnDemandShaderRequests"));
 bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType, FMaterialShaders& OutShaders) const
 {
 	// TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::TryGetShaders); // <-- disabled by default due to verbosity (hundreds of calls per frame)
@@ -2693,6 +2695,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 
 	if (CompileJobs.Num() > 0)
 	{
+		TRACE_COUNTER_ADD(Shaders_OnDemandShaderRequests, CompileJobs.Num());
 		GShaderCompilingManager->SubmitJobs(CompileJobs, GetBaseMaterialPathName(), ShaderMap->GetDebugDescription());
 	}
 

@@ -3058,9 +3058,16 @@ void UMaterial::UpdateMaterialShaderCacheAndTextureReferences()
 
 #endif //WITH_EDITOR
 
+UE_TRACE_EVENT_BEGIN(Cpu, CacheResourceShadersForRendering, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, MaterialName)
+UE_TRACE_EVENT_END()
+
 void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialShaderPrecompileMode PrecompileMode)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CacheResourceShadersForRendering);
+	UE_TRACE_LOG_SCOPED_T(Cpu, CacheResourceShadersForRendering, CpuChannel)
+		<< CacheResourceShadersForRendering.MaterialName(*GetFullName());
+
 #if WITH_EDITOR
 	// Always rebuild the shading model field on recompile
 	RebuildShadingModelField();
