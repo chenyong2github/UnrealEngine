@@ -555,6 +555,7 @@ public:
 	}
 
 #if WITH_EDITOR
+	bool IsAsyncWorkComplete() const;
 	void Cache(
 		class UTexture& InTexture,
 		const struct FTextureBuildSettings* InSettingsPerLayer,
