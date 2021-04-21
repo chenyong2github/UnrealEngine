@@ -2076,24 +2076,18 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 	// Make sure to reuse the same external package if any
 	SpawnInfo.bCreateActorPackage = false;
 	SpawnInfo.OverridePackage = OldActor->GetExternalPackage();
-	if (SpawnInfo.OverridePackage)
-	{
-		OldActor->SetPackageExternal(false, false);
-	}
 
 	SpawnInfo.OverrideActorGuid = OldActor->GetActorGuid();
 
-	OldActor->Rename(nullptr, OldActor->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+	// Don't go through AActor::Rename here because we aren't changing outers (the actor's level) and we also don't want to reset loaders
+	// if the actor is using an external package. We really just want to rename that actor out of the way so we can spawn the new one in
+	// the exact same package, keeping the package name intact.
+	OldActor->UObject::Rename(nullptr, OldActor->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 
 	AActor* NewActor = nullptr;
 	{
 		FMakeClassSpawnableOnScope TemporarilySpawnable(SpawnClass);
 		NewActor = World->SpawnActor(SpawnClass, &Location, &Rotation, SpawnInfo);
-	}
-
-	if (SpawnInfo.OverridePackage)
-	{
-		OldActor->SetExternalPackage(SpawnInfo.OverridePackage);
 	}
 
 	if (OldActor->CurrentTransactionAnnotation.IsValid())
@@ -2477,6 +2471,13 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 		UObject** NewObject = OldToNewInstanceMap.Find(Obj);
 		if (NewObject && *NewObject)
 		{
+			if (Obj)
+			{
+				// Patch the new object into the old object linker's export map; subsequent loads may import
+				// this entry and we need to make sure that it returns the new object instead of the old one.
+				FLinkerLoad::PRIVATE_PatchNewObjectIntoExport(Obj, *NewObject);
+			}
+
 			if (UAnimInstance* AnimTree = Cast<UAnimInstance>(*NewObject))
 			{
 				// Initialising the anim instance isn't enough to correctly set up the skeletal mesh again in a
