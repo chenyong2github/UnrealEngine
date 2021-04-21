@@ -17,7 +17,7 @@ void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecu
 {
 	if (bFlushToDisk)
 	{
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("MoviePipelineVideoOutputBase flushing %d tasks to disk..."), AllWriters.Num());
+		UE_LOG(LogMovieRenderPipelineIO, Log, TEXT("MoviePipelineVideoOutputBase flushing %d tasks to disk..."), AllWriters.Num());
 		const double FlushBeginTime = FPlatformTime::Seconds();
 
 		// Despite what the comments indicate, there's no actual queue of tasks here, so we can just call BeginFinalize/Finalize.
@@ -26,7 +26,7 @@ void UMoviePipelineVideoOutputBase::OnShotFinishedImpl(const UMoviePipelineExecu
 		FinalizeImpl();
 
 		const float ElapsedS = float((FPlatformTime::Seconds() - FlushBeginTime));
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
+		UE_LOG(LogMovieRenderPipelineIO, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
 	}
 }
 
@@ -156,7 +156,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 		if (!OutputWriter)
 		{
-			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Failed to generate writer for FileName: %s"), *FinalFilePath);
+			UE_LOG(LogMovieRenderPipelineIO, Error, TEXT("Failed to generate writer for FileName: %s"), *FinalFilePath);
 			continue;
 		}
 
