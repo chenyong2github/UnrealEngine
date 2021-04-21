@@ -833,7 +833,6 @@ void UMoviePipeline::BuildShotListFromSequence()
 		const bool bPrePass = true;
 		ExpandShot(Shot, OutputSettings->HandleFrameCount, bPrePass);
 
-
 		bool bUseCameraCutForWarmUp = AntiAliasingSettings->bUseCameraCutForWarmUp;
 		if (Shot->ShotInfo.NumEngineWarmUpFramesRemaining == 0 && bUseCameraCutForWarmUp)
 		{
@@ -853,35 +852,6 @@ void UMoviePipeline::BuildShotListFromSequence()
 		// When we expanded the shot above, it pushed the first/last camera cuts ranges to account for Handle Frames.
 		// We want to start rendering from the first handle frame. Shutter Timing is a fixed offset from this number.
 		Shot->ShotInfo.CurrentTickInMaster = Shot->ShotInfo.TotalOutputRangeMaster.GetLowerBoundValue();
-	}
-
-	int32 ShotIndex = 0;
-
-	// Find any duplicate shot names and append a number to keep them unique
-	TMap<FString, int32> ShotNameUseCount;
-	for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
-	{
-		int32& Count = ShotNameUseCount.FindOrAdd(Shot->OuterName, 0);
-		if (++Count > 1)
-		{
-			Shot->OuterName.Append(FString::Format(TEXT("({0})"), { ShotNameUseCount[Shot->OuterName] }));
-		}
-	}
-
-	// For any shot names we found duplicates, append 1 to the first to keep naming consistent
-	for (TPair<FString, int32>& Pair : ShotNameUseCount)
-	{
-		if (Pair.Value > 1)
-		{
-			for (UMoviePipelineExecutorShot* Shot : GetCurrentJob()->ShotInfo)
-			{
-				if (Shot->OuterName.Equals(Pair.Key))
-				{
-					Shot->OuterName.Append(TEXT("(1)"));
-					break;
-				}
-			}
-		}
 	}
 
 	// The active shot-list is a subset of the whole shot-list; The ShotInfo contains information about every range it detected to render

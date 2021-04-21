@@ -401,7 +401,7 @@ namespace MoviePipeline
 		}
 	}
 
-	void GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarchy, TArray<TTuple<FString, FString>>& OutGeneratedNames)
+	TTuple<FString, FString> GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarchy)
 	{
 		FString InnerName;
 		FString OuterName;
@@ -485,26 +485,14 @@ namespace MoviePipeline
 			}
 		}
 
-		OuterName = StringBuilder.ToString();
-		FString ThisTry = OuterName;
-
-		// We don't want to generate duplicate inner and outer names. There are certain situations (such as a master sequence with
-		// multiple copies of a sub-scene that have a camera track) that generate identical inner/outer names. That causes the same
-		// shot to be 'found' multiple times when trying to match the existing shot list to the new one, which then causes re-used
-		// shots which is invalid. So here, we try to generate a unique name by examining all the names we've generated for shots so far
-		int32 DuplicateIndex = 1;
-		while (true)
+		// If you don't have any shots, then StringBuilder will be empty.
+		if (StringBuilder.Len() == 0)
 		{
-			TTuple<FString, FString> Result = TTuple<FString, FString>(InnerName, ThisTry);
-			if (!OutGeneratedNames.Contains(Result))
-			{
-				OutGeneratedNames.Add(Result);
-				return;
-			}
-
-			ThisTry = FString::Printf(TEXT("%s_(%d)"), *OuterName, DuplicateIndex);
-			++DuplicateIndex;
+			StringBuilder.Append(TEXT("no shot"));
 		}
+		OuterName = StringBuilder.ToString();
+
+		return TTuple<FString, FString>(InnerName, OuterName);
 	}
 
 	TRange<FFrameNumber> GetCameraWarmUpRangeFromSequence(UMovieSceneSequence* InSequence, FFrameNumber InSectionEnd, FMovieSceneTimeTransform InInnerToOuterTransform)
