@@ -353,7 +353,7 @@ void UMovieSceneTrack::AddSectionPrePostRollRangesToTree(TArrayView<UMovieSceneS
 
 				if (!SectionRange.GetUpperBound().IsOpen() && Section->GetPostRollFrames() > 0)
 				{
-					TRange<FFrameNumber> PostRollRange = UE::MovieScene::MakeDiscreteRangeFromLower(TRangeBound<FFrameNumber>::FlipInclusion(SectionRange.GetUpperBoundValue()), Section->GetPostRollFrames());
+					TRange<FFrameNumber> PostRollRange = UE::MovieScene::MakeDiscreteRangeFromLower(TRangeBound<FFrameNumber>(SectionRange.GetUpperBoundValue()), Section->GetPostRollFrames());
 					OutTree.Add(PostRollRange, FMovieSceneTrackEvaluationData::FromSection(Section).SetFlags(ESectionEvaluationFlags::PostRoll));
 				}
 			}
