@@ -2,15 +2,17 @@
 
 #pragma once
 
+#include "FilterListData.h"
 #include "Data/LevelSnapshotsEditorData.h"
 
 #include "IPropertyRowGenerator.h"
-#include "PropertySelectionMap.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
+struct FFilterListData;
+class SLevelSnapshotsEditorResults;
 struct FLevelSnapshotsEditorResultsRow;
 struct FLevelSnapshotsEditorResultsSplitterManager;
 class FLevelSnapshotsEditorResults;
@@ -40,6 +42,9 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	enum ELevelSnapshotsEditorResultsRowType
 	{
 		None,
+		TreeViewHeader,
+		AddedActor,
+		RemovedActor,
 		ActorGroup,
 		ComponentGroup,
 		SubObjectGroup,
@@ -49,6 +54,14 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 		SinglePropertyInStruct,
 		SinglePropertyInMap,
 		SinglePropertyInSetOrArray
+	};
+
+	enum ELevelSnapshotsEditorResultsTreeViewHeaderType
+	{
+		HeaderType_None,
+		HeaderType_ModifiedActors,
+		HeaderType_AddedActors,
+		HeaderType_RemovedActors,
 	};
 
 	enum ELevelSnapshotsObjectType
@@ -71,7 +84,13 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	
 	FLevelSnapshotsEditorResultsRow(const FText InDisplayName, const ELevelSnapshotsEditorResultsRowType InRowType, const ECheckBoxState StartingWidgetCheckboxState, const FLevelSnapshotsEditorResultsRowPtr DirectParent = nullptr);
 
-	void InitActorRow(const TWeakObjectPtr<AActor>& InSnapshotActor, const TWeakObjectPtr<AActor>& InWorldActor);
+	void InitHeaderRow(
+		const ELevelSnapshotsEditorResultsTreeViewHeaderType InHeaderType, const TArray<FText>& InColumns, const TSharedRef<SLevelSnapshotsEditorResults>& InResultsView);
+	
+	void InitAddedActorRow(const TWeakObjectPtr<AActor>& InAddedActor, const TSharedRef<SLevelSnapshotsEditorResults>& InResultsView);
+	void InitRemovedActorRow(const FSoftObjectPath& InRemovedActorPath, const TSharedRef<SLevelSnapshotsEditorResults>& InResultsView);
+	
+	void InitActorRow(const TWeakObjectPtr<AActor>& InSnapshotActor, const TWeakObjectPtr<AActor>& InWorldActor, const TSharedRef<SLevelSnapshotsEditorResults>& InResultsView);
 	void InitObjectRow(const TSharedPtr<IPropertyRowGenerator> InSnapshotRowGenerator, const TSharedPtr<IPropertyRowGenerator> InWorldRowGenerator);
 
 	// Only populate InWorldProperty and InSnapshotProperty if InWorldHandle is nullptr, such as when a handle is not created by PropertyRowGenerator
@@ -92,8 +111,10 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	
 	ELevelSnapshotsEditorResultsRowType GetRowType() const;
 
-	/* Returns the ELevelSnapshotsEditorResultsRowType of a given property. Will never return ActorGroup. Returns None on error. */
+	/* Returns the ELevelSnapshotsEditorResultsRowType of a given property. Will never return ActorGroup or TreeViewHeader. Returns None on error. */
 	static ELevelSnapshotsEditorResultsRowType DetermineRowTypeFromProperty(FProperty* InProperty);
+
+	const TArray<FText>& GetHeaderColumns() const;
 
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText InDisplayName);
@@ -180,6 +201,10 @@ private:
 	TArray<FLevelSnapshotsEditorResultsRowPtr> ChildRows;
 	bool bIsTreeViewItemExpanded = false;
 
+	/* For Header Rows */
+	ELevelSnapshotsEditorResultsTreeViewHeaderType HeaderType = HeaderType_None;
+	TArray<FText> HeaderColumns;
+
 	/* Number of parents in row's ancestor chain */
 	uint8 ChildDepth = 0;
 	FLevelSnapshotsEditorResultsRowPtr DirectParentRow = nullptr;
@@ -204,10 +229,14 @@ private:
 	bool GetDoesRowMatchSearchTerms() const;
 	void SetDoesRowMatchSearchTerms(const bool bNewMatch);
 
+	/* For removed actor type rows */
+	FSoftObjectPath RemovedActorPath;
+
 	/* For actor type rows */
 
 	TWeakObjectPtr<AActor> SnapshotActor;
 	TWeakObjectPtr<AActor> WorldActor;
+	TSharedPtr<SLevelSnapshotsEditorResults> ResultsViewPtr;
 
 	/* For non-actor object type rows */
 
@@ -260,6 +289,9 @@ public:
 
 	void OnSnapshotSelected(const TOptional<ULevelSnapshot*>& InLevelSnapshot);
 	void RefreshResults();
+	FReply OnClickApplyToWorld();
+
+	void UpdateSnapshotInformationText();
 
 	/* This method builds a selection set of all visible and checked properties to pass back to apply to the world. */
 	void BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
@@ -272,12 +304,14 @@ private:
 
 	FLevelSnapshotsEditorResultsRowPtr& GetOrCreateDummyRow();
 
-	void GenerateTreeView();
+	// Header Slate Pointers
+	TSharedPtr<STextBlock> SelectedSnapshotNamePtr;
 
-	// For the Select/Deselect All buttons
-	
-	FReply SetAllActorGroupsSelected();
-	FReply SetAllActorGroupsUnselected();
+	// Snapshot Information Text
+	TSharedPtr<STextBlock> SelectedActorCountText;
+	TSharedPtr<STextBlock> TotalActorCountText;
+	TSharedPtr<STextBlock> MiscActorCountText;
+		
 	FReply SetAllActorGroupsCollapsed();
 
 	// Search
@@ -298,16 +332,24 @@ private:
 
 	//  Tree View Implementation
 
+	void GenerateTreeView();
+	void GenerateTreeViewChildren_ModifiedActors(const FLevelSnapshotsEditorResultsRowPtr& ModifiedActorsHeader, const TWeakObjectPtr<ULevelSnapshotFilter>& UserFilters);
+	void GenerateTreeViewChildren_AddedActors(const FLevelSnapshotsEditorResultsRowPtr& AddedActorsHeader);
+	void GenerateTreeViewChildren_RemovedActors(const FLevelSnapshotsEditorResultsRowPtr& RemovedActorsHeader);
+	
 	void OnGetRowChildren(FLevelSnapshotsEditorResultsRowPtr Row, TArray<FLevelSnapshotsEditorResultsRowPtr>& OutChildren);
 	void OnRowChildExpansionChange(TSharedPtr<FLevelSnapshotsEditorResultsRow> Row, const bool bIsExpanded);
 	
 	TSharedPtr<STreeView<FLevelSnapshotsEditorResultsRowPtr>> TreeViewPtr;
 	
 	/** Holds all the actor groups. */
-	TArray<FLevelSnapshotsEditorResultsRowPtr> TreeViewRootObjects;
+	TArray<FLevelSnapshotsEditorResultsRowPtr> TreeViewRootHeaderObjects;
+	TArray<FLevelSnapshotsEditorResultsRowPtr> TreeViewModifiedActorGroupObjects;
+	TArray<FLevelSnapshotsEditorResultsRowPtr> TreeViewAddedActorGroupObjects;
+	TArray<FLevelSnapshotsEditorResultsRowPtr> TreeViewRemovedActorGroupObjects;
 
 	FLevelSnapshotsEditorResultsRowPtr DummyRow;
-	FPropertySelectionMap PropertySelectionMap;
+	FFilterListData FilterListData;
 
 };
 
