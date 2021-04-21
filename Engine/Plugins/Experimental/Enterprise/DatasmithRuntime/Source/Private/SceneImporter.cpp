@@ -1465,40 +1465,46 @@ namespace DatasmithRuntime
 
 		const bool bUseParent = ParentId != DirectLink::InvalidId && ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None;
 		USceneComponent* ParentComponent = bUseParent ? ActorDataList[ParentId].GetObject<USceneComponent>() : RootComponent.Get();
-		ensure(ParentComponent != nullptr);
 
-		const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
-
-		const FTransform ParentToWorld = ParentComponent->GetComponentToWorld();
-		const FTransform RelativeTransform = ActorData.WorldTransform.GetRelativeTransform(ParentToWorld);
-
-		SceneComponent->SetRelativeTransform( RelativeTransform );
-		SceneComponent->SetVisibility(ActorElement->GetVisibility());
-		SceneComponent->SetMobility( EComponentMobility::Movable );
-
-		if (SceneComponent->GetAttachParent() != ParentComponent)
+		if (ParentComponent)
 		{
-			SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-			SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
-		}
+			const IDatasmithActorElement* ActorElement = static_cast<IDatasmithActorElement*>(Elements[ActorData.ElementId].Get());
 
-		SceneComponent->ComponentTags.Empty(ActorElement->GetTagsCount());
-		for (int32 Index = 0; Index < ActorElement->GetTagsCount(); ++Index)
-		{
-			SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
-		}
+			const FTransform ParentToWorld = ParentComponent->GetComponentToWorld();
+			const FTransform RelativeTransform = ActorData.WorldTransform.GetRelativeTransform(ParentToWorld);
 
-		if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
-		{
-			if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+			SceneComponent->SetRelativeTransform( RelativeTransform );
+			SceneComponent->SetVisibility(ActorElement->GetVisibility());
+			SceneComponent->SetMobility( EComponentMobility::Movable );
+
+			if (SceneComponent->GetAttachParent() != ParentComponent)
 			{
-				FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
-				SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
+				SceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+				SceneComponent->AttachToComponent( ParentComponent, FAttachmentTransformRules::KeepRelativeTransform );
 			}
 
-			SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
-		}
+			SceneComponent->ComponentTags.Empty(ActorElement->GetTagsCount());
+			for (int32 Index = 0; Index < ActorElement->GetTagsCount(); ++Index)
+			{
+				SceneComponent->ComponentTags.Add(ActorElement->GetTag(Index));
+			}
 
-		SceneComponent->RegisterComponentWithWorld(RootComponent->GetOwner()->GetWorld());
+			if (ImportOptions.BuildHierarchy != EBuildHierarchyMethod::None)
+			{
+				if (ActorElement->IsAComponent() && ParentComponent && SceneComponent->GetOwner() != ParentComponent->GetOwner())
+				{
+					FName UniqueName = MakeUniqueObjectName(ParentComponent->GetOwner(), SceneComponent->GetClass(), ActorElement->GetLabel());
+					SceneComponent->Rename(*UniqueName.ToString(), ParentComponent->GetOwner(), REN_NonTransactional | REN_DontCreateRedirectors);
+				}
+
+				SceneComponent->GetOwner()->AddInstanceComponent(SceneComponent);
+			}
+
+			SceneComponent->RegisterComponentWithWorld(RootComponent->GetOwner()->GetWorld());
+		}
+		else
+		{
+			ensure(false);
+		}
 	}
 } // End of namespace DatasmithRuntime
