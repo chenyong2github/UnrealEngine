@@ -9,12 +9,12 @@ public class NiagaraShader : ModuleRules
         PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-                "Engine",
                 "CoreUObject",
-                "NiagaraCore"
+                "Engine",
+                "NiagaraCore",
+                "Renderer",
             }
         );
-
 
         PublicDependencyModuleNames.AddRange(
             new string[] {

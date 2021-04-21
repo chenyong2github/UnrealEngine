@@ -23,7 +23,7 @@ struct FNiagaraRayTracingPayload
 	float	WorldNormal[3];
 };
 
-class FNiagaraRayTracingHelper
+class NIAGARASHADER_API FNiagaraRayTracingHelper
 {
 	public:
 		FNiagaraRayTracingHelper(EShaderPlatform InShaderPlatform)
