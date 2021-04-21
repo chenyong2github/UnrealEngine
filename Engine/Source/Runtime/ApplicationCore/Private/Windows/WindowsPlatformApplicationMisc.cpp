@@ -8,6 +8,7 @@
 #include "HAL/FeedbackContextAnsi.h"
 #include "Misc/App.h"
 #include "Math/Color.h"
+#include "Misc/ScopeExit.h"
 #include "Windows/WindowsHWrapper.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CoreDelegates.h"
