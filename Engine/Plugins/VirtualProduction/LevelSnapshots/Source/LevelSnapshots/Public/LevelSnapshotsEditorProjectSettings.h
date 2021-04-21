@@ -53,8 +53,6 @@ public:
 	 * {day}        - The current day
 	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
 	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
-	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
-	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 		FString LevelSnapshotSaveDir;
@@ -67,8 +65,6 @@ public:
 	 * {day}        - The current day
 	 * {date}       - The current date from the local computer in the format of {year}-{month}-{day}
 	 * {time}       - The current time from the local computer in the format of hours-minutes-seconds
-	 * {slate}		- The current slate name, if Take Recorder is enabled. Otherwise blank.
-	 * {take}		- The current take number, if Take Recorder is enabled. Otherwise blank.
 	 */
 	UPROPERTY(config, EditAnywhere, Category = "Level Snapshots")
 		FString DefaultLevelSnapshotName;
