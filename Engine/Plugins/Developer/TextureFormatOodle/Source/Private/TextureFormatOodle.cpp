@@ -267,7 +267,7 @@ public:
 		#define OODLETEXTURE_INI_SECTION	TEXT("TextureFormatOodleSettings")
 		
 		#if 0
-		// Check that the OodleHandlerComponent section exists, and if not, init with defaults
+		// Check that our config section exists, and if not, init with defaults
 		//  this will add it to your per-user "Saved" Engine.ini
 		// eg: C:\UnrealEngine\Games\oodletest\Saved\Config\Windows\Engine.ini
 		// you can then move or copy it to DefaultEngine.ini if you like
