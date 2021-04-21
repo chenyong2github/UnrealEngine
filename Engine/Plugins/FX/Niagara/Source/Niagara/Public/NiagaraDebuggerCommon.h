@@ -345,7 +345,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	FNiagaraDebugHUDSettingsData();
 
 	/** Master control for all HUD features. */
-	UPROPERTY(EditAnywhere, Category = "Debug General")
+	UPROPERTY(EditAnywhere, Category = "Debug General", meta = (DisplayName = "Debug HUD Enabled"))
 	bool bEnabled = true;
 
 	/**
@@ -365,15 +365,15 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	bool bValidateParticleDataBuffers = false;
 
 	/** When enabled the overview display will be enabled. */
-	UPROPERTY(EditAnywhere, Category = "Debug Overview")
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Enabled"))
 	bool bOverviewEnabled = false;
 
 	/** Overview display font to use. */
-	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (EditCondition = "bOverviewEnabled"))
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Font", EditCondition = "bOverviewEnabled"))
 	ENiagaraDebugHudFont OverviewFont = ENiagaraDebugHudFont::Normal;
 
 	/** Overview display location. */
-	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (EditCondition = "bOverviewEnabled"))
+	UPROPERTY(EditAnywhere, Category = "Debug Overview", meta = (DisplayName = "Debug Overview Text Location", EditCondition = "bOverviewEnabled"))
 	FVector2D OverviewLocation = FIntPoint(30.0f, 150.0f);
 
 	/**
@@ -425,7 +425,7 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	ENiagaraDebugHudVerbosity SystemEmitterVerbosity = ENiagaraDebugHudVerbosity::Basic;
 
 	/** When enabled will show the system bounds for all filtered systems. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition="SystemDebugVerbosity != ENiagaraDebugHudVerbosity::None"))
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	bool bSystemShowBounds = false;
 
 	/** When disabled in world rendering will show systems deactivated by scalability. */
