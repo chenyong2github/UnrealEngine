@@ -173,6 +173,9 @@ struct FPropertyBindingWidgetArgs
 	/** Whether to allow array element bindings */
 	bool bAllowArrayElementBindings = false;
 
+	/** Whether to allow struct member bindings */
+	bool bAllowStructMemberBindings = true;
+
 	/** Whether to allow new bindings to be made from within the widget's UI */
 	bool bAllowNewBindings = true;
 

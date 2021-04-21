@@ -587,7 +587,7 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 								FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, Struct, NewArrayElementBindingChain)
 								);
 						}
-						else
+						else if(Args.bAllowStructMemberBindings)
 						{
 							MenuBuilder.AddSubMenu(
 								MakePropertyWidget(Property),
