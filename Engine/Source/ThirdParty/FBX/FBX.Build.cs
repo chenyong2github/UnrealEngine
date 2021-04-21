@@ -33,7 +33,7 @@ public class FBX : ModuleRules
 				// We are using DLL versions of the FBX libraries
 				PublicDefinitions.Add("FBXSDK_SHARED");
 
-				RuntimeDependencies.Add(FBxDllPath);
+				RuntimeDependencies.Add("$(TargetOutputDir)/libfbxsdk.dll", FBxDllPath);
 			}
 			else
 			{
