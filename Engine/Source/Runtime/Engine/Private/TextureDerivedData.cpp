@@ -170,6 +170,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	//Settings.CompressionQuality
 
 	//note : LossyCompressionAmount and CompressionQuality are not put in DDC key
+	// 	   same for bHasEditorOnlyData
 	// it is up to textureformats that use them to put them in
 }
 
@@ -514,6 +515,8 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bVirtualTextureEnableCompressZlib = false;
 		OutBuildSettings.bVirtualTextureEnableCompressCrunch = false;
 	}
+
+	OutBuildSettings.bHasEditorOnlyData = CurrentPlatform.HasEditorOnlyData();
 
 	// By default, initialize settings for layer0
 	FinalizeBuildSettingsForLayer(Texture, 0, OutBuildSettings);

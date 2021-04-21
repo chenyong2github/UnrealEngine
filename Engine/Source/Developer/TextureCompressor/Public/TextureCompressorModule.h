@@ -170,6 +170,8 @@ struct FTextureBuildSettings
 	uint32 bVirtualTextureEnableCompressZlib : 1;
 	/** Is crunch compression enabled */
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
+	/** Is Target Platform Editor */
+	uint32 bHasEditorOnlyData : 1;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -223,6 +225,7 @@ struct FTextureBuildSettings
 		, VirtualTextureBorderSize(0)
 		, bVirtualTextureEnableCompressZlib(false)
 		, bVirtualTextureEnableCompressCrunch(false)
+		, bHasEditorOnlyData(false)
 	{
 	}
 

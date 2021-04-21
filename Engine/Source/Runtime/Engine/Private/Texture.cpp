@@ -1966,41 +1966,28 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 	if ( bHasPrefix )
 	{
-	FString TextureCompressionFormat;
-	bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
-bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
+		FString TextureCompressionFormat;
+		bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
+		bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
 	
 		if ( bHasFormat )
 		{
-	// Disable in the Editor by default ?
-	// I guess this is done for speed but it's not a great idea because it means people aren't seeing the real content
-	//	would be preferrable to properly make a "fast preview" vs "cook encode" mode
-	//bool bEnableInEditor = false;
-	bool bEnableInEditor = true;
-	TargetPlatform->GetConfigSystem()->GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor, GEngineIni);
+			ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
 
-	// do prefixing if bEnableInEditor or if making cooked content
-	bool bEnablePrefix = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
-
-			if ( bEnablePrefix )
-	{
-				ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
-
-		if ( TextureFormatModule )
-		{
-			ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
-
-			TArray<FName> SupportedFormats;
-			TextureFormat->GetSupportedFormats(SupportedFormats);
-
-			FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
-
-			if (SupportedFormats.Contains(NewFormatName))
+			if ( TextureFormatModule )
 			{
-				TextureFormatName = NewFormatName;
+				ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
+
+				TArray<FName> SupportedFormats;
+				TextureFormat->GetSupportedFormats(SupportedFormats);
+
+				FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+
+				if (SupportedFormats.Contains(NewFormatName))
+				{
+					TextureFormatName = NewFormatName;
+				}
 			}
-		}
-	}
 		}
 	}
 
