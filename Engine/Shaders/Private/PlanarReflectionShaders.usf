@@ -149,9 +149,7 @@ void PlanarReflectionPS(
 	{
 		OutColor = ComputePlanarReflections(WorldPosition, GBuffer.WorldNormal, GBuffer.Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
 
-	#if USE_PREEXPOSURE
 		OutColor.xyz *= View.PreExposure;
-	#endif
 	}
 }
 

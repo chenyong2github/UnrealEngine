@@ -359,7 +359,7 @@ void UvToSkyViewLutParams(out float3 ViewDir, in float ViewHeight, in float2 UV)
 // Utilities
 ////////////////////////////////////////////////////////////
 
-#if USE_PREEXPOSURE && VIEWDATA_AVAILABLE
+#if VIEWDATA_AVAILABLE
 // Exposure used for regular views by the FastSky and AP LUTs.
 #define ViewPreExposure			View.PreExposure
 #define ViewOneOverPreExposure	View.OneOverPreExposure

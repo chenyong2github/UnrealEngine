@@ -74,7 +74,6 @@ void FShaderCompileUtilities::ApplyFetchEnvironment(FShaderGlobalDefines& SrcDef
 	FETCH_COMPILE_BOOL(FORWARD_SHADING);
 	FETCH_COMPILE_BOOL(PROJECT_VERTEX_FOGGING_FOR_OPAQUE);
 	FETCH_COMPILE_BOOL(PROJECT_MOBILE_DISABLE_VERTEX_FOG);
-	FETCH_COMPILE_BOOL(USE_PREEXPOSURE);
 	FETCH_COMPILE_BOOL(PROJECT_ALLOW_GLOBAL_CLIP_PLANE);
 	FETCH_COMPILE_BOOL(EARLY_Z_PASS_ONLY_MATERIAL_MASKING);
 	FETCH_COMPILE_BOOL(PROJECT_SUPPORT_SKY_ATMOSPHERE);
@@ -314,12 +313,6 @@ static FShaderGlobalDefines FetchShaderGlobalDefines(EShaderPlatform TargetPlatf
 	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DisableVertexFog"));
 		Ret.PROJECT_MOBILE_DISABLE_VERTEX_FOG = CVar ? (CVar->GetInt() != 0) : 0;
-	}
-
-
-	{
-		// PreExposure is now always enabled in the shaders.
-		Ret.USE_PREEXPOSURE = 1;
 	}
 
 	{

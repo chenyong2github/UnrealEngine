@@ -45,9 +45,7 @@ float GetLumenLightingCorrection()
 {
 	float LightingCorrection = 1.0;
 
-#if USE_PREEXPOSURE
 	LightingCorrection *= View.PreExposure;
-#endif
 	
 	return LightingCorrection;
 }

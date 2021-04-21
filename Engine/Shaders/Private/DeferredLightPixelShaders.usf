@@ -111,11 +111,7 @@ uint GetLightingChannelMask(float2 UV)
 
 float GetExposure()
 {
-#if USE_PREEXPOSURE
 	return View.PreExposure;
-#else
-	return 1;
-#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -125,9 +125,7 @@ void VisualizeQuadsCS(
 	EvaluateSkyRadianceForCone(CameraVector, TanConeAngle, TraceResult);
 #endif
 
-	#if USE_PREEXPOSURE
-		TraceResult.Lighting *= View.PreExposure;
-	#endif
+	TraceResult.Lighting *= View.PreExposure;
 
 	float4 FinalColor = 0.0f;
 
@@ -315,9 +313,7 @@ void VisualizeLumenVoxelsCS(
 
 	EvaluateSkyRadianceForCone(RayDirection, .01f, TraceResult);
 
-#if USE_PREEXPOSURE
 	TraceResult.Lighting *= View.PreExposure;
-#endif
 
 	RWSceneColor[PixelPos] = float4(TraceResult.Lighting, 1.0f);
 }

@@ -450,9 +450,7 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 
 			SSR *= Vignette * saturate( 2 - 6.6 * Roughness );
 
-			#if USE_PREEXPOSURE
-				SSR.rgb *= TranslucentBasePass.PrevSceneColorPreExposureInv;
-			#endif
+			SSR.rgb *= TranslucentBasePass.PrevSceneColorPreExposureInv;
 			SpecularIBL.rgb = SpecularIBL.rgb * (1 - SSR.a) + SSR.rgb;
 		}
 	}

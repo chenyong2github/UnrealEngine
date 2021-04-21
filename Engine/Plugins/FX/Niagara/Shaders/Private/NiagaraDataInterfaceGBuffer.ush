@@ -188,9 +188,7 @@ void DIGBuffer_DecodeSceneColor(in float2 ScreenUV, out bool IsValid, out float4
 #if NDIGBUFFER_ENABLED
 	IsValid = true;
 	OutValue = Texture2DSampleLevel(SceneTexturesStruct_SceneColorTexture, SceneTexturesStruct_SceneColorTextureSampler, ScreenUV, 0);
-	#if USE_PREEXPOSURE
-		OutValue.rgb *= View.OneOverPreExposure.xxx;
-	#endif
+	OutValue.rgb *= View.OneOverPreExposure.xxx;
 #else
 	IsValid = false;
 	OutValue = 0;

@@ -1106,17 +1106,9 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 
 
-#if USE_PREEXPOSURE
-	// Exposure used for regular views by the FastSky and AP LUTs.
-	const float ViewPreExposure = ResolvedView.PreExposure;
-	const float ViewOneOverPreExposure = ResolvedView.OneOverPreExposure;
 	// When rendering a real time reflection capture (sky envmap) whe use a different exposure
-	const float OutputPreExposure = (ResolvedView.RealTimeReflectionCapture ? ResolvedView.RealTimeReflectionCapturePreExposure : ViewPreExposure);
-#else
-	const float ViewPreExposure = 1.0f;
-	const float ViewOneOverPreExposure = 1.0f;
-	const float OutputPreExposure = 1.0f
-#endif
+	const float OutputPreExposure = (ResolvedView.RealTimeReflectionCapture ? ResolvedView.RealTimeReflectionCapturePreExposure : ResolvedView.PreExposure);
+
 
 
 	//
@@ -1146,7 +1138,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-			ViewOneOverPreExposure);
+			ResolvedView.OneOverPreExposure);
 
 		// Apply aerial perspective OVER the cloud, assiming coverage is from the full transmittance.
 		// skip if MeanTransmittance is 1

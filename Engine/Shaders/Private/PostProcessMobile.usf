@@ -286,14 +286,6 @@ void BloomPS_Mobile(
 {
 	half3 AverageColor = 0.0f;
 
-#if USE_PREEXPOSURE
-	const float OneOverPreExposure = View.OneOverPreExposure;
-	const float PreExposure = View.PreExposure;
-#else
-	const float OneOverPreExposure = 1.0f;
-	const float PreExposure = View.PreExposure;
-#endif
-
 #if MOBILE_USEBLOOM || MOBILE_USESUN || MOBILE_USEEYEADAPTATION
 	half4 C0 = SceneColorTexture.Sample(SceneColorSampler, InUVs[0]);
 	half4 C1 = SceneColorTexture.Sample(SceneColorSampler, InUVs[1]);
@@ -314,7 +306,7 @@ void BloomPS_Mobile(
 	#endif
 
 	// Try to kill negatives and NaNs here
-	AverageColor.rgb = max(AverageColor.rgb, 0) * OneOverPreExposure;
+	AverageColor.rgb = max(AverageColor.rgb, 0) * View.OneOverPreExposure;
 
 	
 	#if MOBILE_USEBLOOM || MOBILE_USESUN
@@ -329,7 +321,7 @@ void BloomPS_Mobile(
 		OutColor.rgb *= Amount;
 		OutColor.a = 0;
 
-		OutColor = OutColor * PreExposure;
+		OutColor = OutColor * View.PreExposure;
 	#endif
 #endif
 

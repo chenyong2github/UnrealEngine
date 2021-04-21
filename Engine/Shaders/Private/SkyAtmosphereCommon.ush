@@ -89,9 +89,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	AP.b += Weight  <  1.0f ? 0.2f+0.2f*Weight : 0.0f;
 #endif
 
-#if USE_PREEXPOSURE 
 	AP.rgb *= OneOverExposure;
-#endif
 
 	return AP;
 }

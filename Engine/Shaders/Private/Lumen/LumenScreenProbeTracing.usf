@@ -365,9 +365,7 @@ void TraceMeshSDFs(
 			Lighting *= 1 - DistanceFade;
 			Transparency = lerp(Transparency, 1, DistanceFade);
 
-			#if USE_PREEXPOSURE
-				Lighting *= View.PreExposure;
-			#endif
+			Lighting *= View.PreExposure;
 
 			#if DEBUG_VISUALIZE_TRACE_TYPES
 				RWTraceRadiance[TraceCoord] = float3(0, .5f, 0) * View.PreExposure;
@@ -498,9 +496,7 @@ void TraceVoxels(
 				}
 			}
 			
-			#if USE_PREEXPOSURE
-				TraceResult.Lighting *= View.PreExposure;
-			#endif
+			TraceResult.Lighting *= View.PreExposure;
 
 			#if DEBUG_VISUALIZE_TRACE_TYPES
 				RWTraceRadiance[TraceCoord] = float3(0, 0, .5f) * View.PreExposure;

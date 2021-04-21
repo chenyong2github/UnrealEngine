@@ -996,7 +996,7 @@ void Main(
 		#endif
 	#endif
 
-	#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
+	#if !MATERIALBLENDING_MODULATE
 		OutColor.rgb *= ResolvedView.PreExposure;
 	#endif
 

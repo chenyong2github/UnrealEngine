@@ -210,7 +210,7 @@ void MainPS(
 #endif
 	OutColor = float4(GetMaterialEmissive(PixelMaterialInputs), Alpha );
 
-#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
+#if !MATERIALBLENDING_MODULATE && POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 	OutColor.xyz *= View.PreExposure;
 #endif
 } 
@@ -399,7 +399,7 @@ void MainPS(
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);
 #endif
 
-#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
+#if !MATERIALBLENDING_MODULATE
 	FullSceneColor.xyz *= View.PreExposure;
 #endif
 #endif

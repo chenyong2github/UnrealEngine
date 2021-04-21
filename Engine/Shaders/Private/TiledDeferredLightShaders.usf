@@ -354,9 +354,9 @@ void TiledDeferredLightingMain(
 #endif // USE_PASS_PER_SHADING_MODEL
 	}
 
-#if USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+#if !VISUALIZE_LIGHT_CULLING
 	CompositedLighting *= View.PreExposure;
-#endif // USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+#endif // !VISUALIZE_LIGHT_CULLING
 
 #endif
 

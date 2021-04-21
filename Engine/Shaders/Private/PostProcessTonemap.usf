@@ -360,12 +360,6 @@ float4 TonemapCommonPS(
 {
 	float4 OutColor = 0;
 
-#if USE_PREEXPOSURE
-	const float OneOverPreExposure = View.OneOverPreExposure;
-#else
-	const float OneOverPreExposure = 1.f;
-#endif
-
 #if DEBUG_TONEMAPPER
 	// @param DebugTile 0,0 is center, -1,0 is left, 1,0 is right, ...
 	int2 DebugTile;
@@ -427,7 +421,7 @@ float4 TonemapCommonPS(
 		half4 SceneColor = SampleSceneColor(SceneUV);
 	#endif
 
-	SceneColor.rgb *= OneOverPreExposure;
+	SceneColor.rgb *= View.OneOverPreExposure;
 
 	float ExposureScale = ExposureScaleVignette.x;
 
@@ -464,8 +458,8 @@ float4 TonemapCommonPS(
 				
 		half4 LuminanceNeighbors;
 
-		half3 C1 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(PQMP.QuadVector.x, 0) * Color_ExtentInverse).rgb * OneOverPreExposure;
-		half3 C3 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(0, PQMP.QuadVector.y) * Color_ExtentInverse).rgb * OneOverPreExposure;
+		half3 C1 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(PQMP.QuadVector.x, 0) * Color_ExtentInverse).rgb * View.OneOverPreExposure;
+		half3 C3 = Texture2DSample(ColorTexture, ColorSampler, SceneUV + float2(0, PQMP.QuadVector.y) * Color_ExtentInverse).rgb * View.OneOverPreExposure;
 		LuminanceNeighbors.x = Luminance(C1);
 		LuminanceNeighbors.y = Luminance(C3);
 		
@@ -474,10 +468,10 @@ float4 TonemapCommonPS(
 		LuminanceNeighbors.z =  PQMPReadX(PQMP,A0);
 		LuminanceNeighbors.w =  PQMPReadY(PQMP,A0);
 	#else
-		half3 C1 = LookupSceneColor(SceneUV, int2(-1,  0)) * OneOverPreExposure;
-		half3 C2 = LookupSceneColor(SceneUV, int2( 1,  0)) * OneOverPreExposure;
-		half3 C3 = LookupSceneColor(SceneUV, int2( 0, -1)) * OneOverPreExposure;
-		half3 C4 = LookupSceneColor(SceneUV, int2( 0,  1)) * OneOverPreExposure;
+		half3 C1 = LookupSceneColor(SceneUV, int2(-1,  0)) * View.OneOverPreExposure;
+		half3 C2 = LookupSceneColor(SceneUV, int2( 1,  0)) * View.OneOverPreExposure;
+		half3 C3 = LookupSceneColor(SceneUV, int2( 0, -1)) * View.OneOverPreExposure;
+		half3 C4 = LookupSceneColor(SceneUV, int2( 0,  1)) * View.OneOverPreExposure;
 		half4 LuminanceNeighbors = half4(Luminance(C1), Luminance(C2), Luminance(C3), Luminance(C4));
 	#endif
 
@@ -531,7 +525,7 @@ float4 TonemapCommonPS(
 				BloomUV = FullViewUV.xy;
 			#endif
 			float4 CombinedBloom = Texture2DSample(BloomTexture, BloomSampler, BloomUV);
-			CombinedBloom.rgb *= OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
+			CombinedBloom.rgb *= View.OneOverPreExposure; // Standard bloom path, convolution path has bloom already in scene color.
 
 			//float2 DirtViewportUV = (SvPosition.xy - float2(Output_ViewportMin)) * Output_ViewportSizeInverse; 
 

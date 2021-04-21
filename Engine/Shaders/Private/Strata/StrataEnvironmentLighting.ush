@@ -27,9 +27,7 @@ float4 StrataEnvironmentLighting(
 	SSRReductionFactor = 1.0f;
 
 	float3 CommonFactor = 1;
-#if USE_PREEXPOSURE
 	CommonFactor *= View.PreExposure;
-#endif
 
 	// Sample DFAO only once
 	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);

@@ -967,9 +967,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 #endif
 
 			// Transform previous sample information back into a useful domain
-#if USE_PREEXPOSURE
-			PreviousColor.xyz /= View.PreExposure;
-#endif
+			PreviousColor.xyz *= View.OneOverPreExposure;
 
 			if (ReflectedWeight > 0)
 			{
@@ -1034,9 +1032,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 		}
 
 		// Transform the sample information into the expected output format
-	#if USE_PREEXPOSURE
 		ReflectedColor.xyz *= View.PreExposure;
-	#endif
 
 		// Output required information
 		ColorOutput[DispatchThreadId] = ClampToHalfFloatRange(ReflectedColor);

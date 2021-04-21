@@ -1831,9 +1831,7 @@ FTAAHistoryPayload SampleHistory(in float2 HistoryScreenPosition)
 		HistoryPayload.CocRadius = RawHistory0.a;
 	#endif
 
-	#if USE_PREEXPOSURE
-		HistoryPayload.Color.rgb *= HistoryPreExposureCorrection;
-	#endif
+	HistoryPayload.Color.rgb *= HistoryPreExposureCorrection;
 
 	HistoryPayload.Color = TransformSceneColor(HistoryPayload.Color);
 
@@ -1883,11 +1881,7 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 	FTAAInputParameters InputParams;
 
 	// Per frame setup.
-	#if USE_PREEXPOSURE
-		InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale * View.OneOverPreExposure);
-	#else
-		InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale);
-	#endif
+	InputParams.FrameExposureScale = ToScalarMemory(FrameExposureScale * View.OneOverPreExposure);
 
 
 	// Per pixel setup.

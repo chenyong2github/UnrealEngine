@@ -206,9 +206,7 @@ void MainCS(
 		}
 
 		// Correct scene color exposure.
-		#if USE_PREEXPOSURE
-			PrevColor.rgb *= PrevSceneColorPreExposureCorrection;
-		#endif
+		PrevColor.rgb *= PrevSceneColorPreExposureCorrection;
 
 		// Apply vignette to the color.
 		{

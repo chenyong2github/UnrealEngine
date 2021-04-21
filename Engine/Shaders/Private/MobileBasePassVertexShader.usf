@@ -103,7 +103,6 @@ void Main(
 #if PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 		// Sample the aerial perspective (AP). It is also blended under the VertexFog parameter.
 		VertexFog = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
@@ -114,7 +113,7 @@ void Main(
 			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-			OneOverPreExposure, VertexFog);
+			ResolvedView.OneOverPreExposure, VertexFog);
 	}
 #endif
 

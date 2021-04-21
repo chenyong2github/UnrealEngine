@@ -339,7 +339,7 @@ void ClusteredShadingPixelShader(
 	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex);
 #endif // USE_PASS_PER_SHADING_MODEL
 	
-#if USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+#if !VISUALIZE_LIGHT_CULLING
 	CompositedLighting *= View.PreExposure;
 #endif
 	OutColor = CompositedLighting;
@@ -411,7 +411,7 @@ void ClusteredShadingPixelShader(
 	float4 CompositedLighting = 0;
 	uint FirstNonSimpleLightIndex = 0;
 	CompositedLighting += GetLightGridLocalLighting(CulledLightGridData, WorldPosition, CameraVector, ScreenSpaceData, ScreenUV, 0, Dither, FirstNonSimpleLightIndex, SampleIndex, TotalSampleCount, PixelCoord);
-#if USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+#if !VISUALIZE_LIGHT_CULLING
 	CompositedLighting *= View.PreExposure;
 #endif
 

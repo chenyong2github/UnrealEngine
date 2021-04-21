@@ -373,9 +373,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 
 	AmbientOcclusion = saturate(AmbientOcclusion);
 
-#if USE_PREEXPOSURE
 	Irradiance *= View.PreExposure;
-#endif
 
 	Irradiance = ClampToHalfFloatRange(Irradiance);
 	RWGlobalIlluminationUAV[DispatchThreadId] = float4(Irradiance, AmbientOcclusion);

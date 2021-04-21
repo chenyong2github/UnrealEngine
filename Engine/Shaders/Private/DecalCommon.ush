@@ -31,11 +31,9 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	Color = lerp(1, Data.GBufferAO, Opacity);
 #endif
 
-#if USE_PREEXPOSURE
 	#if DECAL_RENDERTARGETMODE == DECAL_RENDERTARGETMODE_SCENECOLOR || DECAL_RENDERTARGET == DECAL_RENDERTARGETMODE_GBUFFER || DECAL_RENDERTARGET == DECAL_RENDERTARGETMODE_GBUFFER_NONORMAL
 		Color *= View.PreExposure;
 	#endif
-#endif
 
 	Out.MRT[0] = float4(Color, Opacity);
 

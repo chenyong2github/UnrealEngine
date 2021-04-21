@@ -338,10 +338,8 @@ void MobileDirectLightPS(
 	Color+= SkyDiffuseLighting * half3(View.SkyLightColor.rgb) * ShadingModelContext.DiffuseColor * GBuffer.GBufferAO;
 	half LightAttenuation = ComputeLightFunctionMultiplier(WorldPosition);
 
-#if USE_PREEXPOSURE
 	// MobileHDR applies PreExposure in tonemapper
-	LightAttenuation *= View.PreExposure;	
-#endif
+	LightAttenuation *= View.PreExposure;
 					
 	OutColor.rgb = Color.rgb * LightAttenuation;
 	OutColor.a = 1;
@@ -398,10 +396,8 @@ void MobileRadialLightPS(
 	half LightAttenuation = ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.Position, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
 	LightAttenuation*= ComputeLightFunctionMultiplier(WorldPosition);
 
-#if USE_PREEXPOSURE
 	// MobileHDR applies PreExposure in tonemapper
-	LightAttenuation*= View.PreExposure;	
-#endif
+	LightAttenuation*= View.PreExposure;
 
 	OutColor.rgb = Color * LightAttenuation;
 	OutColor.a = 1;

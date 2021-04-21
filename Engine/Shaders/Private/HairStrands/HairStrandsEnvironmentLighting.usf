@@ -58,12 +58,7 @@
 
 float GetPreExposure()
 {
-	#if USE_PREEXPOSURE
-	const float PreExposure = View.PreExposure;
-	#else
-	const float PreExposure = 1.f;
-	#endif
-	return PreExposure;
+	return View.PreExposure;
 }
 
 float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition, float PixelSceneDepth, float3 AbsoluteWorldPosition)

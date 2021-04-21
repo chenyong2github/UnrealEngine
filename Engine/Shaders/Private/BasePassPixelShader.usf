@@ -1384,7 +1384,7 @@ void FPixelShaderInOut_MainPS(
 #endif
 
 #if NEEDS_BASEPASS_PIXEL_FOGGING
-	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
+	const float OneOverPreExposure = ResolvedView.OneOverPreExposure;
 	float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 #endif
 
@@ -1792,7 +1792,7 @@ void FPixelShaderInOut_MainPS(
 		#endif
 	}
 
-#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
+#if !MATERIALBLENDING_MODULATE
 #if MATERIAL_IS_SKY
 	// Dynamic capture exposure is 1 as of today.
 	const float ViewPreExposure = View.RealTimeReflectionCapture>0.0f ? View.RealTimeReflectionCapturePreExposure : View.PreExposure;

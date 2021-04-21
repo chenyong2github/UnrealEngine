@@ -110,13 +110,11 @@ float4 EvaluateVolumetric(float3 WorldPosition)
 		float3 VolumeUV = ComputeVolumeUV(WorldPosition, View.WorldToClip);
 		Fogging = CombineVolumetricFog(HeightFogging, VolumeUV, EyeIndex);
 	}
-#if USE_PREEXPOSURE 
+
 	Fogging.rgb *= View.PreExposure;
-#endif
 
 	if (View.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-		const float OneOverPreExposure = USE_PREEXPOSURE ? View.OneOverPreExposure : 1.0f;
 		float4 NDCPosition = mul(float4(WorldPosition.xyz, 1), View.WorldToClip);
 
 		// Sample the aerial perspective (AP).
@@ -133,7 +131,7 @@ float4 EvaluateVolumetric(float3 WorldPosition)
 			View.SkyAtmosphereAerialPerspectiveStartDepthKm,
 			View.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
 			View.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-			OneOverPreExposure, 
+			View.OneOverPreExposure, 
 			Fogging);
 	}
 

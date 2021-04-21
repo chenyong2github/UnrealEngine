@@ -54,12 +54,6 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 	float3 TransmittanceToScene = 1.0f;
 
-#if USE_PREEXPOSURE
-	const float PreExposure = View.PreExposure;
-#else
-	const float PreExposure = 1.f;
-#endif
-
 #if STRATA_ENABLED
 
 	// Water do nto read the classification data to avoid running it a second time when water is enabled.
@@ -104,7 +98,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			// Point lobe in off-specular peak direction
 			R = GetOffSpecularPeakReflectionDir(N, R, SafeRoughness);
 			const bool bCompositeSkylight = true;
-			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
+			Reflection += View.PreExposure * CompositeReflectionCapturesAndSkylight(
 				1,
 				WorldPosition,
 				R,
@@ -162,7 +156,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 			// Point lobe in off-specular peak direction
 			R = GetOffSpecularPeakReflectionDir(N, R, GBuffer.Roughness);
 			const bool bCompositeSkylight = true;
-			Reflection += PreExposure * CompositeReflectionCapturesAndSkylight(
+			Reflection += View.PreExposure * CompositeReflectionCapturesAndSkylight(
 				1,
 				WorldPosition,
 				R,

@@ -64,7 +64,5 @@ void AtmosphericPixelMain(
 	OutColor.rgb = OutColor.rgb * LightShaftMask;
 #endif
 
-#if USE_PREEXPOSURE 
 	OutColor.rgb *= View.PreExposure;
-#endif
 }

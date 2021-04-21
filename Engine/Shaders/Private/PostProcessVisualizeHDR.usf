@@ -224,9 +224,8 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			}
 			LuminanceAvg  = LuminanceAvg / SampleCount;
 			SceneColorAvg = SceneColorAvg / SampleCount;
-		#if USE_PREEXPOSURE
 			LuminanceAvg *= View.OneOverPreExposure;
-		#endif
+
 			if (PixelDx < MeterSize && PixelDy < MeterSize)
 			{
 				if (PixelDx == MeterSize-1 || PixelDy == MeterSize-1)
@@ -299,9 +298,8 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	else if (EyeAdaptation_VisualizeDebugType == 1)
 	{
 		float4 SceneColor = Texture2DSample(HDRSceneColorTexture, HDRSceneColorSampler, UV);
-	#if USE_PREEXPOSURE
 		SceneColor.xyz *= View.OneOverPreExposure;
-	#endif
+
 		float Percentile = ComputePlaceInHistogram(SceneColor.xyz);
 
 		OutColor.rgb = Percentile;

@@ -107,9 +107,7 @@ void VisualizeRadianceCachePS(
 		Lighting = float3(0, 1000.0f, 0);
 	}
 
-	#if USE_PREEXPOSURE
-		Lighting *= View.PreExposure;
-	#endif
+	Lighting *= View.PreExposure;
 
 	OutColor = float4(Lighting, 1.0f);
 }

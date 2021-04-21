@@ -355,8 +355,6 @@ void ReflectionPassPS(
 	}
 #endif
 
-#if USE_PREEXPOSURE
 	OutColor.rgb *= ResolvedView.OneOverPreExposure;
-#endif
 }
 #endif

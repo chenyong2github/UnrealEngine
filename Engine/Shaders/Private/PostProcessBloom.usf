@@ -33,15 +33,7 @@ void BloomSetupVS(
 
 float4 BloomSetupCommon(float2 UV, float ExposureScale)
 {
-#if USE_PREEXPOSURE
-	const float OneOverPreExposure = View.OneOverPreExposure;
-	const float PreExposure = View.PreExposure;
-#else
-	const float OneOverPreExposure = 1.0f;
-	const float PreExposure = View.PreExposure;
-#endif
-
-	float4 SceneColor = Texture2DSample(InputTexture, InputSampler, UV) * OneOverPreExposure; 
+	float4 SceneColor = Texture2DSample(InputTexture, InputSampler, UV) * View.OneOverPreExposure; 
 
 	// clamp to avoid artifacts from exceeding fp16 through framebuffer blending of multiple very bright lights
 	SceneColor.rgb = min(float3(256 * 256, 256 * 256, 256 * 256), SceneColor.rgb);
@@ -52,7 +44,7 @@ float4 BloomSetupCommon(float2 UV, float ExposureScale)
 	half BloomLuminance = TotalLuminance - BloomThreshold;
 	half BloomAmount = saturate(BloomLuminance * 0.5f);
 
-	return float4(BloomAmount * LinearColor, 0) * PreExposure;
+	return float4(BloomAmount * LinearColor, 0) * View.PreExposure;
 }
 
 void BloomSetupPS(

@@ -146,9 +146,7 @@ float GetSignalColorTransformationExposure()
 
 	float FrameExposureScale = EyeAdaptationLookup();
 	
-	#if USE_PREEXPOSURE
-		FrameExposureScale *= View.OneOverPreExposure;
-	#endif
+	FrameExposureScale *= View.OneOverPreExposure;
 
 	return ToScalarMemory(FrameExposureScale * Tweak);
 }

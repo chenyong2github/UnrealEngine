@@ -428,9 +428,7 @@ void ScreenSpaceReflections(
 	OutColor *= RoughnessFade;
 	OutColor *= SSRParams.r;
 
-#if USE_PREEXPOSURE
 	OutColor.rgb *= PrevSceneColorPreExposureCorrection;
-#endif
 	
 	// Output closest hit distance for denoiser.
 	#if SSR_OUTPUT_FOR_DENOISER

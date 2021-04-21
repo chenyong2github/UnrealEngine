@@ -4963,11 +4963,6 @@ void GlobalBeginCompileShader(
 	}
 
 	{
-		// PreExposure is now always enabled in the shaders.
-		Input.Environment.SetDefine(TEXT("USE_PREEXPOSURE"), 1);
-	}
-
-	{
 		Input.Environment.SetDefine(TEXT("USE_DBUFFER"), IsUsingDBuffers((EShaderPlatform)Target.Platform) ? 1 : 0);
 	}
 

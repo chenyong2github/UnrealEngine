@@ -408,9 +408,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		AmbientOcclusion = HitCount / ValidSamplesPerPixel;
 		HitDistance = ValidSamplesPerPixel / HitDistance;
 	}
-#if USE_PREEXPOSURE
+
 	ExitantRadiance *= View.PreExposure;
-#endif
+
 	ExitantRadiance = ClampToHalfFloatRange(ExitantRadiance);
 #if 0
 	// Threshold against low luminance..
