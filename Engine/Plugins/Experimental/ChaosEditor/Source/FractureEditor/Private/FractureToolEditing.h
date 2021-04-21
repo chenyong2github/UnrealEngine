@@ -37,19 +37,3 @@ public:
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 };
-
-UCLASS(DisplayName = "StripSimulationData", Category = "FractureTools")
-class UFractureToolStripSimulationData : public UFractureToolValidate
-{
-public:
-	GENERATED_BODY()
-
-	UFractureToolStripSimulationData(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
-
-	// UFractureActionTool Interface
-	virtual FText GetDisplayText() const override;
-	virtual FText GetTooltipText() const override;
-	virtual FSlateIcon GetToolIcon() const override;
-	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
-	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
-};

@@ -181,6 +181,22 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 					{
 						FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 						AddSingleRootNodeIfRequired(GeometryCollectionObject);
+
+						// Update Nanite resource data to correctly reflect modified geometry collection data
+						{
+							GeometryCollectionObject->ReleaseResources();
+
+							if (GeometryCollectionObject->EnableNanite)
+							{
+								GeometryCollectionObject->NaniteData = UGeometryCollection::CreateNaniteData(GeometryCollection);
+							}
+							else
+							{
+								GeometryCollectionObject->NaniteData = MakeUnique<FGeometryCollectionNaniteData>();
+							}
+							GeometryCollectionObject->InitResources();
+						}
+
 						GeometryCollectionComponent->MarkRenderStateDirty();
 						GeometryCollectionObject->MarkPackageDirty();
 					}
@@ -199,80 +215,6 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 		Toolkit->SetOutlinerComponents(GeomCompSelection.Array());	
 	}
 }
-
-FText UFractureToolStripSimulationData::GetDisplayText() const
-{
-	return FText(NSLOCTEXT("FractureToolEditingOps", "StripSimulationData", "Strip"));
-}
-
-FText UFractureToolStripSimulationData::GetTooltipText() const
-{
-	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolStripSimulationDataTooltip", "Remove data needed for simulation. WARNING: Geometry Collectin will no longer accurately simulate!"));
-}
-
-FSlateIcon UFractureToolStripSimulationData::GetToolIcon() const
-{
-	return FSlateIcon("FractureEditorStyle", "FractureEditor.StripSimulationData");
-}
-
-void UFractureToolStripSimulationData::RegisterUICommand(FFractureEditorCommands* BindingContext)
-{
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "StripSimulationData", "Strip", "Remove data needed for simulation. WARNING: Geometry Collection will no longer accurately simulate!", EUserInterfaceActionType::Button, FInputChord());
-	BindingContext->StripSimulationData = UICommandInfo;
-}
-
-void UFractureToolStripSimulationData::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
-{
-	if (InToolkit.IsValid())
-	{
-		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
-
-		TSet<UGeometryCollectionComponent*> GeomCompSelection;
-		GetSelectedGeometryCollectionComponents(GeomCompSelection);
-		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
-		{
-			FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
-			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
-			{
-				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
-				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
-				{
-					static TMap<FName, TArray<FName>> Removals = {
-						{ "Transform",
-							{
-							"SimulatableParticlesAttribute",
-							"Implicits",
-							"CollisionParticles"
-							}
-						}
-					};
-
-					FSuppressableWarningDialog::FSetupInfo Info(LOCTEXT("WarningStripSimulationData", "This will strip important simulation data from this GeometryCollection. This is a suitable choice if the GeometryCollection will only be used for cached playback. It will result in unpredictable behaviour if the GeometryCollection becomes dynamic. Do you want to continue?"), LOCTEXT("WarningStripSimulationData_Title", "Stripping Simulation Data"), TEXT("bStripSimulationDataWarning"), GEditorSettingsIni);
-					Info.ConfirmText = LOCTEXT("OK", "OK");
-					Info.CancelText = LOCTEXT("Cancel", "Cancel");
-					Info.bDefaultToSuppressInTheFuture = false;
-					FSuppressableWarningDialog StripSimulationDataWarning(Info);
-					if(StripSimulationDataWarning.ShowModal() != FSuppressableWarningDialog::EResult::Cancel)
-					{
-						for (const TPair<FName, TArray<FName>>& Removal : Removals)
-						{
-							for (const FName AttributeName : Removal.Value)
-							{
-								if (GeometryCollection->HasAttribute(AttributeName, Removal.Key))
-								{
-									GeometryCollection->RemoveAttribute(AttributeName, Removal.Key);
-								}
-							}
-						}
-					}				
-				}
-			}
-		}
-
-		Toolkit->SetOutlinerComponents(GeomCompSelection.Array());
-	}
-}
-
 
 #undef LOCTEXT_NAMESPACE
 

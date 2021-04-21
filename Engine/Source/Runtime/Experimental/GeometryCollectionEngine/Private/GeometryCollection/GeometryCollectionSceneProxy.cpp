@@ -1126,17 +1126,17 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialID;
 	}
 
-	Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;
-	const int32 NumGeometry = Resource.HierarchyRootOffsets.Num();
-	GeometryNaniteData.SetNumUninitialized(NumGeometry);
-
 	bool bHasGeometryBoundingBoxes = Collection->HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup) && Collection->NumElements(FGeometryCollection::GeometryGroup);
 	bool bHasTransformBoundingBoxes = Collection->NumElements(FGeometryCollection::TransformGroup) && 
 		Collection->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) &&
 		Collection->HasAttribute("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 
+	int32 NumGeometry = 0;
 	if (bHasGeometryBoundingBoxes)
 	{
+		NumGeometry = Collection->NumElements(FGeometryCollection::GeometryGroup);
+		GeometryNaniteData.SetNumUninitialized(NumGeometry);
+
 		const TManagedArray<FBox>& BoundingBoxes = Collection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
 		for (int32 GeometryIndex = 0; GeometryIndex < NumGeometry; ++GeometryIndex)
 		{
@@ -1148,6 +1148,10 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	}
 	else if(bHasTransformBoundingBoxes)
 	{
+		Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;
+		NumGeometry = Resource.HierarchyRootOffsets.Num();
+		GeometryNaniteData.SetNumUninitialized(NumGeometry);
+		
 		const TManagedArray<FBox>& BoundingBoxes = Collection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::TransformGroup);
 		const TManagedArray<int32>& TransformToGeometry = Collection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 		const int32 NumTransforms = TransformToGeometry.Num();

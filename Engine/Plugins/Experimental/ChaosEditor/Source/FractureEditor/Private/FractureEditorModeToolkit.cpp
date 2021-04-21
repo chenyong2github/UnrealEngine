@@ -528,7 +528,6 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Resample);
 		ToolbarBuilder.AddToolBarButton(Commands.ConvertToMesh);
 		ToolbarBuilder.AddToolBarButton(Commands.Validate);
-		ToolbarBuilder.AddToolBarButton(Commands.StripSimulationData);
 	}
 	else if (PaletteIndex == TEXT("Properties"))
 	{
