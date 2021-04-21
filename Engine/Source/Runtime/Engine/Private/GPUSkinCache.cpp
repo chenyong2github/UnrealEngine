@@ -2259,11 +2259,14 @@ FAutoConsoleVariableSink FGPUSkinCache::CVarSink(FConsoleCommandDelegate::Create
 
 void FGPUSkinCache::IncrementDispatchCounter(FRHICommandListImmediate& RHICmdList)
 {
-	DispatchCounter++;
-	if (GSkinCacheMaxDispatchesPerCmdList > 0 && DispatchCounter >= GSkinCacheMaxDispatchesPerCmdList)
+	if (GSkinCacheMaxDispatchesPerCmdList > 0)
 	{
-		//UE_LOG(LogSkinCache, Log, TEXT("SubmitCommandsHint issued after %d dispatches"), DispatchCounter);
-		RHICmdList.SubmitCommandsHint();
-		DispatchCounter = 0;
+		DispatchCounter++;
+		if (DispatchCounter >= GSkinCacheMaxDispatchesPerCmdList)
+		{
+			//UE_LOG(LogSkinCache, Log, TEXT("SubmitCommandsHint issued after %d dispatches"), DispatchCounter);
+			RHICmdList.SubmitCommandsHint();
+			DispatchCounter = 0;
+		}
 	}
 }
