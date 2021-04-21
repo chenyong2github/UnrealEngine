@@ -12,9 +12,6 @@ FString GetStrataBSDFName(uint8 BSDFType)
 	case STRATA_BSDF_TYPE_SLAB:
 		return TEXT("SLAB");
 		break;
-	case STRATA_BSDF_TYPE_SHEEN:
-		return TEXT("SHEEN");
-		break;
 	case STRATA_BSDF_TYPE_VOLUMETRICFOGCLOUD:
 		return TEXT("VOLUMETRICFOGCLOUD");
 		break;
@@ -57,7 +54,7 @@ uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32
 	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk, TangentCodeChunk);
 }
 
-void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm)
+void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm, bool bHasFuzz)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
@@ -68,6 +65,7 @@ void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, 
 	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
 	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = bHasThinFilm;
+	StrataInfo.Layers[0].BSDFs[0].bHasFuzz = bHasFuzz;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
 	Compiler->StrataCompilationInfoRegisterCodeChunk(CodeChunk, StrataInfo);
 }
@@ -303,11 +301,10 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}
-				break;
-			}
-			case STRATA_BSDF_TYPE_SHEEN:
-			{
-				Result.RequestedByteCount += UintByteSize;
+				if (BSDF.bHasFuzz)
+				{
+					Result.RequestedByteCount += UintByteSize;
+				}
 				break;
 			}
 			case STRATA_BSDF_TYPE_HAIR:

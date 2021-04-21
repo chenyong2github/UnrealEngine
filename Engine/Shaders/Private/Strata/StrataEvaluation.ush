@@ -86,11 +86,6 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 		R = SLAB_ROUGHNESSX(BSDF);
 		break;
 	}
-	case STRATA_BSDF_TYPE_SHEEN:
-	{
-		R = SHEEN_ROUGHNESS(BSDF);
-		break;
-	}
 	case STRATA_BSDF_TYPE_HAIR:
 	{
 		R = HAIR_ROUGHNESS(BSDF);
@@ -363,6 +358,38 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 
 			Sample.Throughput = OpaqueBSDFThroughput;
 
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETHASFUZZ(BSDFContext.BSDF))
+			{
+				const float Fuzz = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
+				const float3 FuzzF0  = SLAB_FUZZ_COLOR(BSDFContext.BSDF);
+
+				// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
+				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness);
+
+				const float SafeClothNoV = saturate(abs(BSDFContext.Context.NoV) + 1e-5);
+				
+				// Generalized inverse microfacet specular
+				float ClothD   = D_InvGGX(a2, BSDFContext.Context.NoH);
+				float ClothVis = Vis_Cloth(SafeClothNoV, BSDFContext.SatNoL);
+				float3 ClothF  = F_Schlick(FuzzF0, BSDFContext.Context.VoH);
+				float3 ClothDVF = ClothD * ClothVis * ClothF;
+				
+				// What to do with specular and diffuse here?
+				Sample.SpecularPathValue = lerp(Sample.SpecularPathValue,	ClothDVF,					Fuzz);
+				Sample.SpecularPDF		 = lerp(Sample.SpecularPDF,			BSDFContext.SatNoV / PI,	Fuzz); // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
+				// Fuzz does not affect throughput
+
+				if (bHaziness)
+				{
+					Sample.SpecularHazePathValue= lerp(Sample.SpecularHazePathValue,	ClothDVF,					Fuzz);
+					Sample.SpecularHazePDF		= lerp(Sample.SpecularHazePDF,			BSDFContext.SatNoV / PI,	Fuzz);
+				}
+				break;
+			}
+			#endif
+
 			#if STRATA_FASTPATH==0 && STRATA_SSS_TRANSMISSION
 			const bool bHasProfile = BSDF_GETHASSSSPROFILE(BSDFContext.BSDF);
 			if (BSDF_GETHASSSS(BSDFContext.BSDF))
@@ -428,29 +455,6 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 		}
 
 		#if STRATA_FASTPATH==0
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			const float3 F0  = SHEEN_BASECOLOR(BSDFContext.BSDF);
-			const float SafeRoughness = MakeRoughnessSafe(SHEEN_ROUGHNESS(BSDFContext.BSDF));
-
-			// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
-			const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughness);
-
-			// Generalized inverse microfacet specular
-			float D   = D_InvGGX(a2, BSDFContext.Context.NoH);
-			float Vis = Vis_Cloth(BSDFContext.Context.NoV, BSDFContext.SatNoL);
-			float3 F  = F_Schlick(F0, BSDFContext.Context.VoH);
-
-			// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
-			// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
-			const float3 ApproxFresnelForTransmittance = F_Schlick(F0, BSDFContext.SatNoV);
-
-			Sample.DiffusePathValue	= D * Vis * F;
-			Sample.DiffusePDF		= BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
-			Sample.Throughput		= (1.0f - ApproxFresnelForTransmittance);
-			break;
-		}
-
 		case STRATA_BSDF_TYPE_HAIR:
 		{
 			FGBufferData GBuffer	= (FGBufferData)0;
@@ -524,7 +528,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			PDF = Sample.DiffusePDF;
 
 			const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), BaseColor, Metallic);
-			// STRATA_TODO F82pb 
+			// STRATA_TODO take into account F90 
 
 			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
@@ -539,7 +543,8 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 				TangentH = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughnessX), BSDFContext.TangentV);
 			}
 
-			// STRATA_TODO: take into account Haziness
+			// STRATA_TODO take into account Haziness
+			// STRATA_TODO take into account Fuzz: Per "Production Friendly Microfacet Sheen BRDF", uniform hemispherical sampling gives good result as the roughness is usually high and avoid issue at grazing angle.
 
 			const float HPDF = TangentH.w;
 			const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);
@@ -548,16 +553,6 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			Sample.SpecularDirection = 2 * dot(BSDFContext.V, H) * H - BSDFContext.V;
 			Sample.SpecularPDF = RayPDFToReflectionRayPDF(VoH, HPDF);
 			PDF = Sample.SpecularPDF;
-			break;
-		}
-
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			// Per "Production Friendly Microfacet Sheen BRDF", uniform hemispherical sampling gives good result as the roughness is 
-			// usually high and avoid issue at grazing angle
-			float4 ImportanceSample = CosineSampleHemisphere(E);
-			Sample.DiffuseDirection = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
-			PDF = ImportanceSample.w;
 			break;
 		}
 
@@ -758,16 +753,27 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.bSubsurface = false;
 			}
 			#endif
+
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETHASFUZZ(BSDFContext.BSDF))
+			{
+				const float Fuzz = SLAB_FUZZ_AMOUNT(BSDFContext.BSDF);
+				const float3 FuzzColor  = SLAB_FUZZ_COLOR(BSDFContext.BSDF);
+
+				// This should be a lerp, but SkyLightDiffuse from ReflectionEnvironmentPixelShader.usf add the contribution...
+				// STRATA_TODO fix the Fuzz model
+				//StrataEnvLightResult.DiffuseWeight = lerp(StrataEnvLightResult.DiffuseWeight, FuzzColor, Fuzz);
+				StrataEnvLightResult.DiffuseWeight += FuzzColor * Fuzz;
+				// Fuzz does not affect throughput.
+				break;
+			}
+			#endif
+
 			break;
 		}
 
 #if STRATA_FASTPATH==0
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			StrataEnvLightResult.DiffuseWeight = SHEEN_BASECOLOR(BSDFContext.BSDF);
-			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			break;
-		}
 
 		case STRATA_BSDF_TYPE_HAIR:
 		{

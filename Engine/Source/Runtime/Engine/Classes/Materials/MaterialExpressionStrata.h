@@ -33,7 +33,7 @@ class UMaterialExpressionStrataBSDF : public UMaterialExpression
 #endif
 };
 
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Slab BSDF")
+UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Slab")
 class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 {
 	GENERATED_UCLASS_BODY()
@@ -124,6 +124,18 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY()
 	FExpressionInput Thickness;
 
+	/**
+	 * The amount of fuzz on top of the surface used to simulate cloth-like appearance.
+	 */
+	UPROPERTY()
+	FExpressionInput FuzzAmount;
+
+	/**
+	 * The base colod of the fuzz.
+	 */
+	UPROPERTY()
+	FExpressionInput FuzzColor;
+
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
@@ -140,45 +152,11 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 
 	bool HasEdgeColor() const;
 	bool HasThinFilm() const;
+	bool HasFuzz() const;
 	bool HasSSS() const;
 	bool HasSSSProfile() const;
 	bool HasDMFPPluggedIn() const;
 	bool HasAnisotropy() const;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Sheen BSDF")
-class UMaterialExpressionStrataSheenBSDF : public UMaterialExpressionStrataBSDF
-{
-	GENERATED_UCLASS_BODY()
-
-	/**
-	* Defines the overall color of the Material. (type = float3, unit = unitless)
-	*/
-	UPROPERTY()
-	FExpressionInput BaseColor;
-
-	/**
-	 * Roughness (type = float, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Roughness;
-
-	/**
-	 * Take the surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless)
-	 */
-	UPROPERTY()
-	FExpressionInput Normal;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-	virtual bool IsResultStrataMaterial(int32 OutputIndex) override;
-	virtual void GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

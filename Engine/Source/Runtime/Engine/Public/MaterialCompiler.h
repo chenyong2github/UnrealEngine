@@ -413,7 +413,11 @@ public:
 	virtual int32 StrataSlabBSDF(
 		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy, 
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
-		int32 EmissiveColor, int32 Haziness, int32 ThinFilmThickness, int32 Thickness,
+		int32 EmissiveColor, 
+		int32 Haziness, 
+		int32 ThinFilmThickness, 
+		int32 FuzzAmount, int32 FuzzColor,
+		int32 Thickness,
 		int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) = 0;
 	virtual int32 StrataVolumetricFogCloudBSDF(int32 Albedo, int32 Extinction, int32 EmissiveColor, int32 AmbientOcclusion) = 0;
@@ -898,13 +902,22 @@ public:
 	virtual int32 StrataSlabBSDF(
 		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
-		int32 EmissiveColor, int32 Haziness, int32 ThinFilmThickness, int32 Thickness,
+		int32 EmissiveColor, 
+		int32 Haziness, 
+		int32 ThinFilmThickness, 
+		int32 FuzzAmount, int32 FuzzColor,
+		int32 Thickness,
 		int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override
 	{
 		return Compiler->StrataSlabBSDF(
 			BaseColor, EdgeColor, Specular, Metallic, Roughness, Anisotropy,
 			SSSProfileId, SSSDMFP, SSSDMFPScale,
-			EmissiveColor, Haziness, ThinFilmThickness, Thickness, Normal, Tangent, SharedNormalIndex);
+			EmissiveColor, 
+			Haziness, 
+			ThinFilmThickness,
+			FuzzAmount, FuzzColor,
+			Thickness,
+			Normal, Tangent, SharedNormalIndex);
 	}
 
 	virtual int32 StrataSheenBSDF(int32 BaseColor, int32 Roughness, int32 Normal, uint8 SharedNormalIndex) override

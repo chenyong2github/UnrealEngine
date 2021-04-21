@@ -315,12 +315,14 @@ TRDGUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformPara
 ////////////////////////////////////////////////////////////////////////// 
 // Debug
 
+#define VISUALIZE_MATERIAL_PASS_COUNT 3
+
 class FVisualizeMaterialPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVisualizeMaterialPS);
 	SHADER_USE_PARAMETER_STRUCT(FVisualizeMaterialPS, FGlobalShader);
 
-	class FBSDFPass : SHADER_PERMUTATION_INT("PERMUTATION_BSDF_PASS", 4);
+	class FBSDFPass : SHADER_PERMUTATION_INT("PERMUTATION_BSDF_PASS", VISUALIZE_MATERIAL_PASS_COUNT);
 	using FPermutationDomain = TShaderPermutationDomain<FBSDFPass>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -376,7 +378,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawParameters);
 		}
 
-		for (uint32 j = 0; j < 4; ++j)
+		for (uint32 j = 0; j < VISUALIZE_MATERIAL_PASS_COUNT; ++j)
 		{
 			FVisualizeMaterialPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<typename FVisualizeMaterialPS::FBSDFPass>(j);

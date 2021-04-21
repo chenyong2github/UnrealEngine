@@ -61,14 +61,15 @@ struct FStrataBSDF
 	float4 InlineVGPRs[3];
 #endif
 
-	float4 VGPRs[4];
+	float4 VGPRs[5];
 };
 
 
 
 #define TO_BITMASK(BitCount)							((1u<<BitCount)-1)
+#define TO_OFFSET_BITMASK(BitCount, BitOffset)			(TO_BITMASK(BitCount)<<BitOffset)
 #define READ_BITS(X, BitCount, BitOffset)				uint((X>>BitOffset) & TO_BITMASK(BitCount))
-#define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~(TO_BITMASK(BitCount)<<BitOffset))) | ((NewValue & TO_BITMASK(BitCount)) << BitOffset)
+#define WRITE_BITS(X, BitCount, BitOffset, NewValue)	X = (X & (~TO_OFFSET_BITMASK(BitCount, BitOffset))) | ((NewValue & TO_BITMASK(BitCount)) << BitOffset)
 
 // Bit count for each component stored in a Strata header
 // For HEADER_BIT_BSDF_COUNT and  HEADER_BIT_SHAREDNORMAL_X, please refer to values in StrataDefinitions.h
@@ -123,7 +124,8 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_THINFILM				1
 #define STATE_BIT_COUNT_SIMPLEVOLUME			1
 #define STATE_BIT_COUNT_DMFPPLUGGED				1
-#define STATE_BIT_COUNT___UNUSED___				7
+#define STATE_BIT_COUNT_HASFUZZ					1
+#define STATE_BIT_COUNT___UNUSED___				6
 #define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -139,6 +141,7 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_THINFILM		(STATE_BIT_OFFSET_EDGECOLOR			+ STATE_BIT_COUNT_EDGECOLOR)
 #define STATE_BIT_OFFSET_SIMPLEVOLUME	(STATE_BIT_OFFSET_THINFILM			+ STATE_BIT_COUNT_THINFILM)
 #define STATE_BIT_OFFSET_DMFPPLUGGED	(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
+#define STATE_BIT_OFFSET_HASFUZZ		(STATE_BIT_OFFSET_DMFPPLUGGED		+ STATE_BIT_COUNT_DMFPPLUGGED)
 #define STATE_BIT_OFFSET_WEIGHT10F		22
 
 // Accessors for the BSDF type
@@ -195,6 +198,10 @@ struct FStrataBSDF
 #define BSDF_GETHASDMFP(X)				READ_BITS(X.State,  STATE_BIT_COUNT_DMFPPLUGGED, STATE_BIT_OFFSET_DMFPPLUGGED)
 #define BSDF_SETHASDMFP(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_DMFPPLUGGED, STATE_BIT_OFFSET_DMFPPLUGGED, Value)
 
+// Indicates if the BSDF is part of the top layer
+#define BSDF_GETHASFUZZ(X)				READ_BITS(X.State,  STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ)
+#define BSDF_SETHASFUZZ(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ, Value)
+
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
 #define BSDF_GETEMISSIVE(X)				X.Emissive
@@ -211,6 +218,12 @@ struct FStrataBSDF
 #define BSDF_GETTHICKNESSCM(X)			STRATA_SIMPLEVOLUME_THICKNESS_CM
 #endif
 
+#define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(STATE_BIT_COUNT_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY)		|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS) | \
+								TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HAZINESS, STATE_BIT_OFFSET_HAZINESS) | \
+								TO_OFFSET_BITMASK(STATE_BIT_COUNT_THINFILM, STATE_BIT_OFFSET_THINFILM)			|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR) | \
+								TO_OFFSET_BITMASK(STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME)	|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ) )
+
+
 #define SLAB_BASECOLOR(X)				X.VGPRs[0].xyz
 #define SLAB_SPECULAR(X)				X.VGPRs[0].w
 #define SLAB_METALLIC(X)				X.VGPRs[1].x
@@ -226,9 +239,10 @@ struct FStrataBSDF
 // Thin film. IOR is harcoded to oil IOR in order to save VGPR
 #define SLAB_THINFILM_THICKNESS(X)		X.VGPRs[2].w
 #define SLAB_THINFILM_IOR(X)			1.44f
-
-#define SHEEN_BASECOLOR(X)				X.VGPRs[0].xyz
-#define SHEEN_ROUGHNESS(X)				X.VGPRs[0].w
+// Fuzz to simulate cloth
+#define SLAB_FUZZ_COLOR(X)				X.VGPRs[3].xyz
+#define SLAB_FUZZ_AMOUNT(X)				X.VGPRs[3].w
+// NOTE For SLAB, X.VGPRs[3].w is free for another use case.
 
 #define VOLUMETRICFOGCLOUD_ALBEDO(X)	X.VGPRs[0].xyz
 #define VOLUMETRICFOGCLOUD_EXTINCTION(X)X.VGPRs[1].xyz
@@ -433,9 +447,14 @@ FStrataData GetInitialisedStrataData()
 }
 
 FStrataData GetStrataSlabBSDF(
-	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic, float Roughness, float Anisotropy,
+	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic, float Roughness, 
+	float Anisotropy,
 	float SSSProfileID, float3 SSSDMFP, float SSSDMFPScale,
-	float3 Emissive, float Haziness, float ThinFilmThickness,  float Thickness, 
+	float3 Emissive, 
+	float Haziness, 
+	float ThinFilmThickness,
+	float FuzzAmount, float3 FuzzColor,
+	float Thickness, 
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
@@ -445,6 +464,7 @@ FStrataData GetStrataSlabBSDF(
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
 	const uint bHasThinFilm = ThinFilmThickness > 0.0f ? 1 : 0;
 	const uint bHasAnisotropy = Anisotropy != 0;
+	const uint bHasFuzz = FuzzAmount > 0.0f ? 1 : 0;
 	if (bHasAnisotropy)
 	{
 		StrataRequestSharedNormalTangentBasis(SharedNormalTypes, SharedNormalIndex);
@@ -470,6 +490,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETHASEDGECOLOR	(StrataData.Layers[0].BSDFs[0],		bHasEdgeColor);
 	BSDF_SETHASTHINFILM		(StrataData.Layers[0].BSDFs[0],		bHasThinFilm);
 	BSDF_SETTHICKNESSCM		(StrataData.Layers[0].BSDFs[0],		Thickness);
+	BSDF_SETHASFUZZ			(StrataData.Layers[0].BSDFs[0],		bHasFuzz);
 
 	SLAB_BASECOLOR			(StrataData.Layers[0].BSDFs[0])		= BaseColor;
 	SLAB_EDGECOLOR			(StrataData.Layers[0].BSDFs[0])		= EdgeColor;
@@ -479,6 +500,7 @@ FStrataData GetStrataSlabBSDF(
 	SLAB_ROUGHNESSY			(StrataData.Layers[0].BSDFs[0])		= RoughnessXY.y;
 	SLAB_HAZINESS			(StrataData.Layers[0].BSDFs[0])		= Haziness;
 	SLAB_THINFILM_THICKNESS	(StrataData.Layers[0].BSDFs[0])		= ThinFilmThickness;
+
 	if (bHasSSSProfile)
 	{
 		SLAB_SSSPROFILEID	(StrataData.Layers[0].BSDFs[0])		= SSSProfileID;
@@ -489,29 +511,15 @@ FStrataData GetStrataSlabBSDF(
 		SLAB_SSSDMFP	(StrataData.Layers[0].BSDFs[0])			= SSSDMFP * saturate(SSSDMFPScale);
 	}
 
+	SLAB_FUZZ_AMOUNT		(StrataData.Layers[0].BSDFs[0])		= FuzzAmount;
+	SLAB_FUZZ_COLOR			(StrataData.Layers[0].BSDFs[0])		= FuzzColor;
+
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the DMFP on the side to not override SSSPROFILE data.
 	StrataData.Layers[0].BSDFs[0].TmpDMFP = SSSDMFP * saturate(SSSDMFPScale);
 #endif
 
 	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
-	return StrataData;
-}
-
-FStrataData GetStrataSheenBSDF(float3 BaseColor, float Roughness, uint SharedNormalIndex)
-{
-	FStrataData StrataData = GetInitialisedStrataData();
-	StrataData.LayerCount++;
-
-	StrataData.Layers[0].BSDFCount++;
-	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SHEEN);
-	BSDF_SETNORMALID		(StrataData.Layers[0].BSDFs[0],		SharedNormalIndex);
-	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
-	SHEEN_BASECOLOR			(StrataData.Layers[0].BSDFs[0])		= BaseColor;
-	SHEEN_ROUGHNESS			(StrataData.Layers[0].BSDFs[0])		= Roughness;
-
-	StrataData.Layers[0].BSDFs[0].Weight						= 1.0f;
-
 	return StrataData;
 }
 
@@ -884,12 +892,9 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 			SLAB_SSSDMFP(BSDF) = clamp(SLAB_SSSDMFP(BSDF), 0.0f, Max111110BitsFloat3);
 		}
 	}
-}
 
-void SanitizeStrataSheen(inout FStrataBSDF BSDF)
-{
-	SHEEN_BASECOLOR(BSDF) = saturate(SHEEN_BASECOLOR(BSDF));
-	SHEEN_ROUGHNESS(BSDF) = saturate(SHEEN_ROUGHNESS(BSDF));
+	SLAB_FUZZ_AMOUNT(BSDF) = saturate(SLAB_FUZZ_AMOUNT(BSDF));
+	SLAB_FUZZ_COLOR(BSDF) = saturate(SLAB_FUZZ_COLOR(BSDF));
 }
 
 void SanitizeStrataHair(inout FStrataBSDF BSDF)
@@ -928,11 +933,6 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 		{
 			SanitizeStrataSlab(BSDF);
 			break; 
-		}
-		case STRATA_BSDF_TYPE_SHEEN:
-		{
-			SanitizeStrataSheen(BSDF);
-			break;
 		}
 		case STRATA_BSDF_TYPE_HAIR:
 		{
@@ -1390,21 +1390,11 @@ void PackStrataOut(
 					bStrataSubsurfaceEnable = false;
 				}
 
+				// STRATA_TODO	Should we have the Fuzz influence the next layter visibility accoding to fuzz amount? Should it also occlude diffuse?
+				//				If this is done, we should also update ComputePostProcessBSDFData.
+
 				LayerCoverage	+= BSDFCoverage;
 				LayerThroughput += BSDFCoverage * BSDFThroughput;
-				break;
-			}
-
-			case STRATA_BSDF_TYPE_SHEEN:
-			{
-				// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
-				// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
-				const float NoL = saturate(ContextNoLight.NoV);
-				const float3 F0  = SHEEN_BASECOLOR(BSDF);
-				const float3 ApproxFresnelForTransmittance = F_Schlick(F0, NoL);
-
-				LayerCoverage	+= BSDFCoverage;
-				LayerThroughput += BSDFCoverage * (1.0f - ApproxFresnelForTransmittance);
 				break;
 			}
 
@@ -1513,13 +1503,12 @@ void PackStrataOut(
 					}
 				}
 
-				// 8-16 bytes
-			}
-			break;
-			case STRATA_BSDF_TYPE_SHEEN:
-			{
-				STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SHEEN_BASECOLOR(BSDF), SHEEN_ROUGHNESS(BSDF))));
-				// 4 bytes
+				if (BSDF_GETHASFUZZ(BSDF))
+				{
+					STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_FUZZ_COLOR(BSDF), SLAB_FUZZ_AMOUNT(BSDF))));
+				}
+
+				// 8-20 bytes
 			}
 			break;
 			case STRATA_BSDF_TYPE_HAIR:
@@ -1596,16 +1585,9 @@ FStrataPixelHeader UnpackStrataHeaderIn(ByteAddressBuffer StrataBuffer, inout FS
 	return Out;
 }
 
-bool IsStrataFastPathCompatible(in FStrataBSDF BSDF)
+bool IsStrataSlabFastPathCompatible(in FStrataBSDF BSDF)
 {
-	return
-		!BSDF_GETANISOTROPY(BSDF) &&
-		!BSDF_GETHASSSS(BSDF) &&
-		!BSDF_GETHASSSSPROFILE(BSDF) &&
-		!BSDF_GETHASHAZINESS(BSDF) &&
-		!BSDF_GETHASTHINFILM(BSDF) &&
-		!BSDF_GETHASEDGECOLOR(BSDF) &&
-		!BSDF_GETISSIMPLEVOLUME(BSDF);
+	return (BSDF.State & SLAB_COMPLEX_PATH_MASK) == 0;
 }
 
 void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
@@ -1647,6 +1629,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FSt
 	BSDF_SETHASHAZINESS(OutBSDF, 0);
 	BSDF_SETHASTHINFILM(OutBSDF, 0);
 	BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
+	BSDF_SETHASFUZZ(OutBSDF, 0);
 
 	return OutBSDF;
 }
@@ -1712,11 +1695,11 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 			}
 			#endif
 		}
-	}
-	break;
-	case STRATA_BSDF_TYPE_SHEEN:
-	{
-		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SHEEN_BASECOLOR(OutBSDF), SHEEN_ROUGHNESS(OutBSDF));
+
+		if (BSDF_GETHASFUZZ(OutBSDF))
+		{
+			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SLAB_FUZZ_COLOR(OutBSDF), SLAB_FUZZ_AMOUNT(OutBSDF));
+		}
 	}
 	break;
 	case STRATA_BSDF_TYPE_HAIR:

@@ -19873,6 +19873,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	const bool bHasEdgeColor = HasEdgeColor();
 	const bool bHasThinFilm = HasThinFilm();
+	const bool bHasFuzz = HasFuzz();
 	const bool bHasDMFPPluggedIn = HasDMFPPluggedIn();
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
@@ -19896,11 +19897,13 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, ThinFilmThickness, 0.0f),
+		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
+		CompileWithDefaultFloat3(Compiler, FuzzColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Thickness, STRATA_LAYER_DEFAULT_THICKNESS_CM),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm, bHasFuzz);
 
 	return OutputCodeChunk;
 }
@@ -19960,6 +19963,12 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 		break;
 	case 13:
 		return MCT_Float1; // Thickness
+		break;
+	case 14:
+		return MCT_Float1; // FuzzAmount
+		break;
+	case 15:
+		return MCT_Float3; // FuzzColor
 		break;
 	}
 
@@ -20025,6 +20034,14 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	{
 		return TEXT("Thickness");
 	}
+	else if (InputIndex == 14)
+	{
+		return TEXT("FuzzAmount");
+	}
+	else if (InputIndex == 15)
+	{
+		return TEXT("FuzzColor");
+	}
 	return TEXT("Unknown");
 }
 
@@ -20075,80 +20092,14 @@ bool UMaterialExpressionStrataSlabBSDF::HasThinFilm() const
 	return ThinFilmThickness.IsConnected();
 }
 
+bool UMaterialExpressionStrataSlabBSDF::HasFuzz() const
+{
+	return FuzzAmount.IsConnected();
+}
+
 bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const
 {
 	return Anisotropy.IsConnected();
-}
-#endif // WITH_EDITOR
-
-
-UMaterialExpressionStrataSheenBSDF::UMaterialExpressionStrataSheenBSDF(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata BSDFs", "Strata BSDFs")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataSheenBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
-	uint8 SharedNormalIndex = StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
-
-	int32 OutputCodeChunk = Compiler->StrataSheenBSDF(
-		CompileWithDefaultFloat3(Compiler, BaseColor,	0.0f, 0.0f, 0.0f),
-		CompileWithDefaultFloat1(Compiler, Roughness,	0.0f),
-		NormalCodeChunk,
-		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SHEEN);
-
-	return OutputCodeChunk;
-}
-
-void UMaterialExpressionStrataSheenBSDF::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Sheen BSDF"));
-}
-
-uint32 UMaterialExpressionStrataSheenBSDF::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Strata;
-}
-
-uint32 UMaterialExpressionStrataSheenBSDF::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0:
-		return MCT_Float3;
-		break;
-	case 1:
-		return MCT_Float1;
-		break;	
-	case 2:
-		return MCT_Float3;
-		break;
-	}
-
-	check(false);
-	return MCT_Float1;
-}
-
-bool UMaterialExpressionStrataSheenBSDF::IsResultStrataMaterial(int32 OutputIndex)
-{
-	return true;
-}
-
-void UMaterialExpressionStrataSheenBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
-{
-	StrataMaterialInfo.AddShadingModel(SSM_DefaultLit);
 }
 #endif // WITH_EDITOR
 

@@ -52,14 +52,12 @@ void ComputePostProcessBSDFData(
 	}
 
 	Classification.ShadingModels |= StrataShadingModelBit(BSDF_GETTYPE(BSDF));
-	Classification.bIsSimple = Classification.bIsSimple && BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB;
 
 	switch (BSDF_GETTYPE(BSDF))
 	{
 	case STRATA_BSDF_TYPE_SLAB:
 	{
-		const float3 F0  = ComputeF0(SLAB_SPECULAR(BSDF), SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
-		const float3 F90 = ComputeF90(F0, SLAB_BASECOLOR(BSDF), SLAB_METALLIC(BSDF));
+		Classification.bIsSimple = Classification.bIsSimple && IsStrataSlabFastPathCompatible(BSDF);
 
 		if (bTopLayer)
 		{
@@ -67,8 +65,6 @@ void ComputePostProcessBSDFData(
 			TopLayerRoughness += BSDFWeightAvg * SLAB_ROUGHNESSX(BSDF);
 			TopLayerRoughnessAverageCount += BSDFWeightAvg;
 		}
-
-		Classification.bIsSimple = Classification.bIsSimple && IsStrataFastPathCompatible(BSDF);
 
 		// Select the latest encoutered SSS BSDF
 		if (BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
@@ -92,21 +88,10 @@ void ComputePostProcessBSDFData(
 		break;
 	}
 
-	case STRATA_BSDF_TYPE_SHEEN:
-	{
-		const float3 F0  = SHEEN_BASECOLOR(BSDF);
-		const float3 F   = F_Schlick(F0, ContextNoLight.VoH);
-
-		if (bTopLayer)
-		{
-			TopLayerRoughness += SHEEN_ROUGHNESS(BSDF);
-			TopLayerRoughnessAverageCount += 1.0f;
-		}
-		break;
-	}
-
 	case STRATA_BSDF_TYPE_HAIR:
 	{
+		Classification.bIsSimple = false;
+
 		// No SSR
 		if (bTopLayer)
 		{
@@ -118,6 +103,8 @@ void ComputePostProcessBSDFData(
 
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 	{
+		Classification.bIsSimple = false;
+
 		if (bTopLayer)
 		{
 			const float Roughness = SLW_ROUGHNESS(BSDF);
