@@ -155,7 +155,7 @@ public:
 	TSharedPtr< FUICommandInfo > SetSelectionRangeStart;
 
 	/** Clear and reset the selection range */
-	TSharedPtr< FUICommandInfo > ResetSelectionRange;
+	TSharedPtr< FUICommandInfo > ClearSelectionRange;
 
 	/** Select all keys that fall into the selection range*/
 	TSharedPtr< FUICommandInfo > SelectKeysInSelectionRange;

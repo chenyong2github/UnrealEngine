@@ -2754,7 +2754,7 @@ void FSequencer::SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>&
 	}
 }
 
-void FSequencer::ResetSelectionRange()
+void FSequencer::ClearSelectionRange()
 {
 	SetSelectionRange(TRange<FFrameNumber>::Empty());
 }
@@ -13576,8 +13576,8 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateLambda([this]{ SetSelectionRangeStart(); }));
 
 	SequencerCommandBindings->MapAction(
-		Commands.ResetSelectionRange,
-		FExecuteAction::CreateLambda([this]{ ResetSelectionRange(); }),
+		Commands.ClearSelectionRange,
+		FExecuteAction::CreateLambda([this]{ ClearSelectionRange(); }),
 		FCanExecuteAction::CreateLambda(IsSelectionRangeNonEmpty));
 
 	SequencerCommandBindings->MapAction(
