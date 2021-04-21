@@ -147,7 +147,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnInp
 	}
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("ProtocolsLabel", "Protocols"))
+		.Label(LOCTEXT("InputMappingsLabel", "Input Mappings"))
 		.TabColorScale(GetTabColorScale())
 		[
 			InputBindingsTab.ToSharedRef()
