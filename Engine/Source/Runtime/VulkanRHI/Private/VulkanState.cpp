@@ -204,7 +204,7 @@ void FVulkanSamplerState::SetupSamplerCreateInfo(const FSamplerStateInitializerR
 	OutSamplerInfo.mipLodBias = Initializer.MipBias;
 	
 	OutSamplerInfo.maxAnisotropy = 1.0f;
-	if (Initializer.Filter != SF_Point)
+	if (Initializer.Filter == SF_AnisotropicLinear || Initializer.Filter == SF_AnisotropicPoint)
 	{
 		OutSamplerInfo.maxAnisotropy = FMath::Clamp((float)ComputeAnisotropyRT(Initializer.MaxAnisotropy), 1.0f, InDevice.GetLimits().maxSamplerAnisotropy);
 	}
