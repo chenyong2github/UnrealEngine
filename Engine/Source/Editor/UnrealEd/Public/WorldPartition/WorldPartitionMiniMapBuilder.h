@@ -13,10 +13,14 @@ class UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return true; }
-	virtual bool RequiresEntireWorldLoading() const override { return true; }
+	virtual bool RequiresEntireWorldLoading() const override { return !bUseOnlyHLODs; }
 	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
 	UPROPERTY(config)
-	int32 MiniMapSize = 1024;
+	int32 MiniMapSize = 4096;
+
+private:
+	bool bUseOnlyHLODs;
+	bool bAutoSubmit;
 };

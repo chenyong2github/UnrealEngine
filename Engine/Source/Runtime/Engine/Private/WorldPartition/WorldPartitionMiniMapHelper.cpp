@@ -12,12 +12,12 @@
 #include "Engine/SceneCapture2D.h"
 #include "Engine/World.h"
 #include "ShaderCompiler.h"
-#include "TextureCompiler.h"
+#include "AssetCompilingManager.h"
 #include "DistanceFieldAtlas.h"
 #include "PackageSourceControlHelper.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartitionMiniMap.h"
-#include"WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartition.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionMiniMapHelper, All, All);
 
@@ -50,7 +50,6 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 	}
 	
 	return nullptr;
-	
 }
 
 void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, FBox& OutWorldBounds)
@@ -63,16 +62,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 			GShaderCompilingManager->FinishAllCompilation();
 		}
 	};
-	auto WaitForTextureBuilding = []()
-	{
-		UE_SCOPED_TIMER(TEXT("Building Textures"), LogWorldPartitionMiniMapHelper);
-		auto RemainingTextures = FTextureCompilingManager::Get().GetNumRemainingTextures();
-		if (RemainingTextures > 0)
-		{
-			FTextureCompilingManager::Get().FinishAllCompilation();
-		}
-	};
-	auto WaitForDistanceMeshFieldBuilding = []() {
+	auto WaitForDistanceFieldBuilding = []() {
 		UE_SCOPED_TIMER(TEXT("Building Mesh Distance Fields"), LogWorldPartitionMiniMapHelper);
 		if (GDistanceFieldAsyncQueue && GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
 		{
@@ -80,9 +70,9 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 		}
 	};
 
-	WaitForDistanceMeshFieldBuilding();
-	WaitForTextureBuilding();
+	WaitForDistanceFieldBuilding();
 	WaitForShaderCompilation();
+	FAssetCompilingManager::Get().FinishAllCompilation();
 	
 	//Calculate bounds of the World
 	OutWorldBounds = InWorld->GetWorldPartition()->GetEditorWorldBounds();
@@ -114,6 +104,7 @@ void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld,
 	auto CaptureComponent = CaptureActor->GetCaptureComponent2D();
 	CaptureComponent->TextureTarget = RenderTargetTexture;
 	CaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
+	CaptureComponent->CaptureSource = SCS_BaseColor;
 	CaptureComponent->OrthoWidth = ViewportWidth;
 	CaptureComponent->bUseCustomProjectionMatrix = true;
 	CaptureComponent->CustomProjectionMatrix = ProjectionMatrix;
