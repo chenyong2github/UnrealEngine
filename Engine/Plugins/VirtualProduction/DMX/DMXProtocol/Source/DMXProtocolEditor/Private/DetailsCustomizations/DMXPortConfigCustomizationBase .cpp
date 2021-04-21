@@ -57,6 +57,20 @@ void FDMXPortConfigCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHand
 	DeviceAddressHandle = PropertyHandles.FindChecked(GetDeviceAddressPropertyNameChecked());
 	PortGuidHandle = PropertyHandles.FindChecked(GetPortGuidPropertyNameChecked());
 
+	// Ports always need a valid Guid (cannot be blueprinted)
+	if (!GetPortGuid().IsValid())
+	{
+		ChildBuilder.AddCustomRow(LOCTEXT("InvalidPortConfigSearchString", "Invalid"))
+			.WholeRowContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("InvalidPortConfigText", "Cannot utilize Port Configs in Blueprints"))
+			];
+
+		return;
+	}
+
+	// Add customized properties
 	for (auto Iter(PropertyHandles.CreateConstIterator()); Iter; ++Iter)
 	{
 		// Don't add the PortGuid property
@@ -113,6 +127,26 @@ IDMXProtocolPtr FDMXPortConfigCustomizationBase::GetProtocolChecked() const
 	check(Protocol.IsValid());
 
 	return Protocol;
+}
+
+FGuid FDMXPortConfigCustomizationBase::GetPortGuid() const
+{
+	check(PortGuidHandle.IsValid());
+
+	TArray<void*> RawData;
+	PortGuidHandle->AccessRawData(RawData);
+
+	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
+	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	{
+		const FGuid* PortGuidPtr = reinterpret_cast<FGuid*>(RawData[0]);
+		if (PortGuidPtr && PortGuidPtr->IsValid())
+		{
+			return *PortGuidPtr;
+		}
+	}
+
+	return FGuid();
 }
 
 FGuid FDMXPortConfigCustomizationBase::GetPortGuidChecked() const

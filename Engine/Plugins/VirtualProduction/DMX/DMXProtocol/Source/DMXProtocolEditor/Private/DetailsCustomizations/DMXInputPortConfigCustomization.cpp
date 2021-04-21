@@ -76,15 +76,19 @@ void FDMXInputPortConfigCustomization::UpdatePort()
 	StructPropertyHandle->AccessRawData(RawData);
 
 	// Multiediting is not supported, may fire if this is used in a blueprint way that would support it
-	if (ensureMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
+	if (ensureAlwaysMsgf(RawData.Num() == 1, TEXT("Using port config in ways that would enable multiediting is not supported.")))
 	{
-		const FDMXInputPortConfig* PortConfigPtr = reinterpret_cast<FDMXInputPortConfig*>(RawData[0]);
-		if (ensure(PortConfigPtr))
+		FDMXInputPortConfig* PortConfigPtr = reinterpret_cast<FDMXInputPortConfig*>(RawData[0]);
+		if (ensureAlways(PortConfigPtr))
 		{
 			FDMXInputPortSharedPtr InputPort = FDMXPortManager::Get().FindInputPortByGuid(PortConfigPtr->GetPortGuid());
-			if (ensure(InputPort.IsValid()))
+			if (InputPort.IsValid())
 			{
 				InputPort->UpdateFromConfig(*PortConfigPtr);
+			}
+			else
+			{
+				PortConfigPtr->PortName = FString(TEXT("Invalid Port Config"));
 			}
 		}
 	}
