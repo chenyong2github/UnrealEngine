@@ -274,6 +274,7 @@ float4 OutputViewSizeAndInvSize;
 float4 OutputBufferSizeAndInvSize;
 float4x4 ViewScreenToTranslatedWorld;
 Buffer<uint> TileListBuffer;
+float4 DebugTileColor;
 
 void StrataTilePassVS(
 	in uint InVertexId : SV_VertexID,
@@ -313,7 +314,8 @@ void StencilMainPS(
 	const bool bTileX = (InTileCoord.x & 1) == 0;
 	const bool bTileY = (InTileCoord.y & 1) == 0;
 	const bool bChecker = (bTileX && bTileY) || (!bTileX && !bTileY);
-	OutColor0 = bChecker ? float4(0.0f, 0.5f, 0.f, 1.0f) : float4(0.f, 1.0f, 0.f, 1.0f);
+	OutColor0 = DebugTileColor * float4(1.0f, 1.0f, 1.0f, bChecker ? 0.33f : 0.66f);
+	OutColor0.rgb *= OutColor0.a; // premultiplied alpha blending assuming alpha is opacity==coverage
 }
 
 #endif //SHADER_STENCIL_CATEGORIZATION
