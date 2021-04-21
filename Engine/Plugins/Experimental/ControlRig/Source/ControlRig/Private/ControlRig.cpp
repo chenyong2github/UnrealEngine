@@ -2374,7 +2374,7 @@ URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 	}
 	if ((VMSnapshotBeforeExecution == nullptr) && bCreateIfNeeded)
 	{
-		VMSnapshotBeforeExecution = NewObject<URigVM>(this);
+		VMSnapshotBeforeExecution = NewObject<URigVM>(this, NAME_None, RF_Transient);
 	}
 	return VMSnapshotBeforeExecution;
 #else
