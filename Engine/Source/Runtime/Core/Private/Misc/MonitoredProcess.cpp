@@ -21,6 +21,7 @@ FMonitoredProcess::FMonitoredProcess( const FString& InURL, const FString& InPar
 FMonitoredProcess::FMonitoredProcess( const FString& InURL, const FString& InParams, const FString& InWorkingDir, bool InHidden, bool InCreatePipes )
 	: Hidden(InHidden)
 	, Params(InParams)
+	, bIsRunning(false)
 	, URL(InURL)
 	, WorkingDir(InWorkingDir)
 	, bCreatePipes(InCreatePipes)

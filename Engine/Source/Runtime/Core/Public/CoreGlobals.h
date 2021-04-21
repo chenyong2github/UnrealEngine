@@ -435,7 +435,7 @@ extern CORE_API bool GEventDrivenLoaderEnabled;
 extern CORE_API bool GIsRetrievingVTablePtr;
 
 /** Steadily increasing frame counter. */
-extern CORE_API TSAN_ATOMIC(uint64) GFrameCounter;
+extern CORE_API uint64 GFrameCounter;
 
 /** GFrameCounter the last time GC was run. */
 extern CORE_API uint64 GLastGCFrame;

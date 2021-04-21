@@ -346,7 +346,7 @@ bool					GIsInitialLoad					= true;
 bool					GEventDrivenLoaderEnabled = false;
 
 /** Steadily increasing frame counter.																		*/
-TSAN_ATOMIC(uint64)		GFrameCounter(0);
+uint64					GFrameCounter					= 0;
 uint64					GLastGCFrame					= 0;
 /** The time input was sampled, in cycles. */
 uint64					GInputTime					= 0;
