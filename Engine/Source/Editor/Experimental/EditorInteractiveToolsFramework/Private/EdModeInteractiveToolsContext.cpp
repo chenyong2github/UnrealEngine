@@ -980,6 +980,26 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 					return true;
 				}
 			}
+			else if (Key == EKeys::MouseScrollUp || Key == EKeys::MouseScrollDown)
+			{
+				// Note that we get two events for each scroll- an IE_Pressed, and IE_Released.
+				// We pass both of these in, though only the first one will have WheelDelta set.
+				// If a behavior captures the mouse wheel interaction, the second event will give
+				// it the opportunity to immediately release capture. Not passing in the second
+				// event would probably be ok too- capture would get released on next hover event.
+
+				FInputDeviceState InputState = CurrentMouseState;
+				InputState.InputDevice = EInputDevices::Mouse;
+				InputState.SetModifierKeyStates(
+					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
+					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+
+				InputState.Mouse.WheelDelta = (Event != IE_Pressed) ? 0
+					: (Key == EKeys::MouseScrollUp) ? 1 
+					: -1;
+
+				InputRouter->PostInputEvent(InputState);
+			}
 		}
 		else if (Key.IsGamepadKey())
 		{

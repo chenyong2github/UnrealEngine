@@ -18,7 +18,16 @@ void UToolTargetManager::Shutdown()
 
 void UToolTargetManager::AddTargetFactory(UToolTargetFactory* Factory)
 {
-	Factories.AddUnique(Factory);
+	// If this type of factory has already been added, skip it.
+	if (Factories.ContainsByPredicate(
+		[Factory](UToolTargetFactory* ExistingFactory) { 
+			return ExistingFactory->GetClass() == Factory->GetClass(); 
+		}))
+	{
+		return;
+	}
+
+	Factories.Add(Factory);
 }
 
 bool UToolTargetManager::CanBuildTarget(UObject* SourceObject, const FToolTargetTypeRequirements& TargetType) const

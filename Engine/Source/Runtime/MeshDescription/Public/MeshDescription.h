@@ -831,7 +831,7 @@ public:
 	}
 
 	/** Return UV indices for this triangle for the given channel */
-	TArrayView<FUVID> GetTriangleUVIndices(const FTriangleID TriangleID, int32 UVChannel = 0)
+	TArrayView<FUVID> GetTriangleUVIndices(const FTriangleID TriangleID, int32 UVChannel = 0) const
 	{
 		return TriangleUVs.Get(TriangleID, UVChannel);
 	}

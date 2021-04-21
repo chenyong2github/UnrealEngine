@@ -96,6 +96,39 @@ public:
 };
 
 
+/**
+ * Functions required to apply mouse wheel behavior
+ */
+class IMouseWheelBehaviorTarget : public IModifierToggleBehaviorTarget
+{
+public:
+	virtual ~IMouseWheelBehaviorTarget() {}
+
+	/**
+	 * The result's bHit property determines whether the mouse wheel action will be captured.
+	 * (Perhaps the mouse wheel only does something when mousing over some part of a mesh)
+	 * 
+	 * @param CurrentPos device position/ray at point where mouse wheel is engaged
+	 * @return hit information at this point
+	 */
+	virtual FInputRayHit ShouldRespondToMouseWheel(const FInputDeviceRay& CurrentPos) = 0;
+
+
+	/**
+	 *
+	 * @param CurrentPos device position/ray at point where mouse wheel is engaged
+	 */
+	virtual void OnMouseWheelScrollUp(const FInputDeviceRay& CurrentPos) = 0;
+
+	/**
+	 *
+	 * @param CurrentPos device position/ray at point where mouse wheel is engaged
+	 */
+	virtual void OnMouseWheelScrollDown(const FInputDeviceRay& CurrentPos) = 0;
+
+};
+
+
 
 
 

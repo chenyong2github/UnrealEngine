@@ -75,8 +75,13 @@ public:
 	virtual TArray<TObjectPtr<UToolTarget>> BuildAllSelectedTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements);
 
+	/** Initialize the ToolTargetManager. UInteractiveToolsContext calls this, you should not. */
+	virtual void Initialize();
+
+	/** Shutdown the ToolTargetManager. Called by UInteractiveToolsContext. */
+	virtual void Shutdown();
+
 protected:
-	friend class UInteractiveToolsContext;		// to call Initialize/Shutdown
 
 	// This should be removed once tools are transitioned to using tool targets, and the
 	// functions in ComponentSourceInterfaces.h do not exist. For now, this is here to call
@@ -84,12 +89,6 @@ protected:
 	friend INTERACTIVETOOLSFRAMEWORK_API void AddFactoryToDeprecatedToolTargetManager(UToolTargetFactory* Factory);
 
 	UToolTargetManager(){};
-
-	/** Initialize the ToolTargetManager. UInteractiveToolsContext calls this, you should not. */
-	virtual void Initialize();
-
-	/** Shutdown the ToolTargetManager. Called by UInteractiveToolsContext. */
-	virtual void Shutdown();
 
 	/** This flag is set to true on Initialize() and false on Shutdown(). */
 	bool bIsActive = false;

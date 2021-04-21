@@ -115,6 +115,9 @@ void UMeshElementsVisualizer::OnCreated()
 	Settings->WatchProperty(Settings->bShowColorSeams, [this](bool){ bSettingsModified = true; });
 	Settings->WatchProperty(Settings->ThicknessScale, [this](float) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->DepthBias, [this](float) { bSettingsModified = true; });
+	Settings->WatchProperty(Settings->bAdjustDepthBiasUsingMeshSize, [this](bool) {
+		UpdateLineDepthBiasScale(); // A little expensive, so only want to do this when necessary.
+		bSettingsModified = true; }); // Still mark this so we mark the wireframe as dirty.
 	Settings->WatchProperty(Settings->WireframeColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->BoundaryEdgeColor, [this](FColor) { bSettingsModified = true; });
 	Settings->WatchProperty(Settings->UVSeamColor, [this](FColor) { bSettingsModified = true; });
@@ -131,18 +134,28 @@ void UMeshElementsVisualizer::OnCreated()
 
 void UMeshElementsVisualizer::SetMeshAccessFunction(TUniqueFunction<const FDynamicMesh3* (void)>&& MeshAccessFunctionIn)
 {
-	const FDynamicMesh3* Mesh = MeshAccessFunctionIn();
-	FAxisAlignedBox3d Bounds = Mesh->GetBounds();
-	float DepthBiasDim = Bounds.DiagonalLength() * 0.01;
-	WireframeComponent->LineDepthBiasSizeScale = DepthBiasDim;
-
 	WireframeSourceProvider = MakeShared<FDynamicMeshWireframeSourceProvider>(MoveTemp(MeshAccessFunctionIn));
+
+	UpdateLineDepthBiasScale();
 
 	WireframeComponent->SetWireframeSourceProvider(WireframeSourceProvider);
 }
 
-
-
+void UMeshElementsVisualizer::UpdateLineDepthBiasScale()
+{
+	if (Settings->bAdjustDepthBiasUsingMeshSize && WireframeSourceProvider)
+	{
+		WireframeSourceProvider->AccessMesh(
+			[this](const IMeshWireframeSource& WireframeSource) {
+				// Scale is 0.01 of diameter of bounding sphere (diagonal of box)
+				WireframeComponent->LineDepthBiasSizeScale = WireframeSource.GetBounds().SphereRadius * 2 * 0.01;
+			});
+	}
+	else
+	{
+		WireframeComponent->LineDepthBiasSizeScale = 1;
+	}
+}
 
 void UMeshElementsVisualizer::OnTick(float DeltaTime)
 {
