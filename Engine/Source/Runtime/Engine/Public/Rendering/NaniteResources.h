@@ -83,7 +83,7 @@
 #define VERTEX_COLOR_MODE_VARIABLE				2
 
 // TODO: Only needed while there are multiple graphs instead of one big one (or a more intelligent resource reuse).
-#define NANITE_USE_SCRATCH_BUFFERS				0
+#define NANITE_USE_SCRATCH_BUFFERS				1
 
 #define NANITE_CLUSTER_FLAG_LEAF				0x1
 
