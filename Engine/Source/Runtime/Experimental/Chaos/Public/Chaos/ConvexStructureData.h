@@ -207,10 +207,31 @@ namespace Chaos
 		{
 		}
 
+		FConvexStructureData(const FConvexStructureData& Other) = delete;
+
+		FConvexStructureData(FConvexStructureData&& Other)
+		{
+			*this = MoveTemp(Other);
+		}
+
 		~FConvexStructureData()
 		{
 			DestroyDataContainer();
 		}
+
+		FConvexStructureData& operator=(const FConvexStructureData& Other) = delete;
+
+		FConvexStructureData& operator=(FConvexStructureData&& Other)
+		{
+			Data = Other.Data;
+			IndexType = Other.IndexType;
+
+			Other.Data = nullptr;
+			Other.IndexType = EIndexType::None;
+
+			return *this;
+		}
+
 
 		FORCEINLINE bool IsValid() const
 		{
