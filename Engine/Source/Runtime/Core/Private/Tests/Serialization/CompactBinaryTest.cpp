@@ -1050,6 +1050,18 @@ bool FCbFieldHashTest::RunTest(const FString& Parameters)
 		TestFieldError<ECbFieldType::Hash>(TEXT("Hash, None"), DefaultField, ECbFieldError::TypeError, FIoHash(SequentialBytes));
 	}
 
+	// Test FCbFieldView(CompactBinaryAttachment) as Hash
+	{
+		FCbFieldView Field(SequentialBytes, ECbFieldType::CompactBinaryAttachment);
+		TestField<ECbFieldType::Hash>(TEXT("CompactBinaryAttachment, NonZero, AsHash"), Field, FIoHash(SequentialBytes));
+	}
+
+	// Test FCbFieldView(BinaryAttachment) as Hash
+	{
+		FCbFieldView Field(SequentialBytes, ECbFieldType::BinaryAttachment);
+		TestField<ECbFieldType::Hash>(TEXT("BinaryAttachment, NonZero, AsHash"), Field, FIoHash(SequentialBytes));
+	}
+
 	return true;
 }
 
