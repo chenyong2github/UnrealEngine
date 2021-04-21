@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
 
-class FMobilityCustomization;
 class IDetailLayoutBuilder;
 
 class FControlRigComponentDetails : public IDetailCustomization

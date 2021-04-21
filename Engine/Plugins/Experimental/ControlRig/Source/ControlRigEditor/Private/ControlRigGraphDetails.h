@@ -13,7 +13,6 @@
 #include "Graph/SControlRigGraphNode.h"
 #include "Widgets/Colors/SColorBlock.h"
 
-class FMobilityCustomization;
 class IDetailLayoutBuilder;
 
 class FControlRigArgumentGroupLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentGroupLayout>

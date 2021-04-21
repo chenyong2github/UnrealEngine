@@ -7,7 +7,6 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigDrawingDetails.generated.h"
 
-class FMobilityCustomization;
 class IDetailLayoutBuilder;
 
 USTRUCT()
