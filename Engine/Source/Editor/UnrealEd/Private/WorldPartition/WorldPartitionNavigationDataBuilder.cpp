@@ -18,7 +18,7 @@ UWorldPartitionNavigationDataBuilder::UWorldPartitionNavigationDataBuilder(const
 {
 }
 
-bool UWorldPartitionNavigationDataBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionNavigationDataBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
 {
 	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
 	check(WorldPartitionSubsystem);

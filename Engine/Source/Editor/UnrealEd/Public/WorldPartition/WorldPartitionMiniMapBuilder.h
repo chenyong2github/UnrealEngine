@@ -13,8 +13,9 @@ class UWorldPartitionMiniMapBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return true; }
-	virtual bool RequiresEntireWorldLoading() const override { return !bUseOnlyHLODs; }
-	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual ELoadingMode GetLoadingMode() const override { return bUseOnlyHLODs ? ELoadingMode::Custom : ELoadingMode::EntireWorld; }
+protected:
+	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
 	UPROPERTY(config)

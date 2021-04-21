@@ -13,7 +13,8 @@ class UWorldPartitionVirtualHeightfieldMeshBuilder : public UWorldPartitionBuild
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override { return true; }
-	virtual bool RequiresEntireWorldLoading() const override { return true; }
-	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::EntireWorld; }
+protected:
+	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 };

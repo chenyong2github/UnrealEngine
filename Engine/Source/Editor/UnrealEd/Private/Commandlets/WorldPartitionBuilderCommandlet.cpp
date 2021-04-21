@@ -166,12 +166,6 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	UWorld* PrevGWorld = GWorld;
 	GWorld = World;
 
-	if (Builder->RequiresEntireWorldLoading())
-	{
-		const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
-		WorldPartition->LoadEditorCells(LoadBox);
-	}
-
 	// Run builder
 	bool bResult = Builder->Run(World, *this);
 	

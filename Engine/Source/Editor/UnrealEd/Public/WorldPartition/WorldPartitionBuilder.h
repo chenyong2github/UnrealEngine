@@ -11,13 +11,29 @@ class UNREALED_API UWorldPartitionBuilder : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	enum ELoadingMode
+	{
+		Custom,
+		EntireWorld,
+		IterativeCells
+	};
+
 	virtual bool RequiresCommandletRendering() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresCommandletRendering, return false;);
-	virtual bool RequiresEntireWorldLoading() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresEntireWorldLoading, return false;);
-	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartitionBuilder::Run, return false;);
+	virtual ELoadingMode GetLoadingMode() const PURE_VIRTUAL(UWorldPartitionBuilder::GetLoadingMode, return ELoadingMode::Custom;);
+	
+	bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper);
 
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) { return true; }
 
 protected:
+	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
+
 	bool HasExceededMaxMemory() const;
 	void DoCollectGarbage() const;
+
+	int32 IterativeCellSize = 102400;
+	int32 IterativeCellOverlapSize = 0;
+	TSet<FName> DataLayerLabels;
+	bool bLoadNonDynamicDataLayers = true;
+	bool bLoadInitiallyActiveDataLayers = true;
 };

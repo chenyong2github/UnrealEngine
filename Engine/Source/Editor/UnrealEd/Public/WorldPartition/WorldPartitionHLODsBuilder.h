@@ -13,12 +13,12 @@ class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 public:
 	// UWorldPartitionBuilder interface begin
 	virtual bool RequiresCommandletRendering() const override;
-	virtual bool RequiresEntireWorldLoading() const override { return false; }
+	virtual ELoadingMode GetLoadingMode() const override { return ELoadingMode::Custom; }
 	virtual bool PreWorldInitialization(FPackageSourceControlHelper& PackageHelper) override;
-	virtual bool Run(UWorld* World, FPackageSourceControlHelper& PackageHelper) override;
+protected:
+	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) override;
 	// UWorldPartitionBuilder interface end
 
-protected:
 	bool IsDistributedBuild() const { return bDistributedBuild; }
 	bool IsUsingBuildManifest() const { return !BuildManifest.IsEmpty(); }
 	bool ValidateParams() const;

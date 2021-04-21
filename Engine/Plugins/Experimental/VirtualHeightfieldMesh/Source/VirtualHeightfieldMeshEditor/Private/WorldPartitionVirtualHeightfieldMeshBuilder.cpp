@@ -14,7 +14,7 @@ UWorldPartitionVirtualHeightfieldMeshBuilder::UWorldPartitionVirtualHeightfieldM
 {
 }
 
-bool UWorldPartitionVirtualHeightfieldMeshBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionVirtualHeightfieldMeshBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
 {
 	// Find UVirtualHeightfieldMeshComponent and update the associated UHeightfieldMinMaxTexture assets.
 	// todo[vhm]: Convert builder to sequentially load and build sections of the world.

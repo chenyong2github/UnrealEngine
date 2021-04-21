@@ -16,7 +16,7 @@ UWorldPartitionResaveActorsBuilder::UWorldPartitionResaveActorsBuilder(const FOb
 	FParse::Value(FCommandLine::Get(), TEXT("ActorClass="), ActorClassName);
 }
 
-bool UWorldPartitionResaveActorsBuilder::Run(UWorld* World, FPackageSourceControlHelper& PackageHelper)
+bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
 {
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	check(WorldPartition);
