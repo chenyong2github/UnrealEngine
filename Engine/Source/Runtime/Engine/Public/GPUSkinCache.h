@@ -469,6 +469,9 @@ protected:
 
 	static void CVarSinkFunction();
 	static FAutoConsoleVariableSink CVarSink;
+
+	void IncrementDispatchCounter(FRHICommandListImmediate& RHICmdList);
+	int32 DispatchCounter = 0;
 };
 
 DECLARE_STATS_GROUP(TEXT("GPU Skin Cache"), STATGROUP_GPUSkinCache, STATCAT_Advanced);
