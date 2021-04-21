@@ -79,53 +79,49 @@ struct FRHIFlipDetails
 	{}
 };
 
+enum class ERayTracingInstanceFlags : uint8
+{
+	None                  = 0,
+	TriangleCullDisable   = 1 << 1, // No back face culling. Triangle is visible from both sides.
+	TriangleCullReverse   = 1 << 2, // Makes triangle front-facing if its vertices are counterclockwise from ray origin.
+	ForceOpaque           = 1 << 3, // Disable any-hit shader invocation for this instance.
+	ForceNonOpaque        = 1 << 4, // Force any-hit shader invocation even if geometries inside the instance were marked opaque.
+};
+ENUM_CLASS_FLAGS(ERayTracingInstanceFlags);
+
+/**
+* High level descriptor of one or more instances of a mesh in a ray tracing scene.
+* All instances covered by this descriptor will share shader bindings, but may have different transforms and user data.
+*/
 struct FRayTracingGeometryInstance
 {
 	FRHIRayTracingGeometry* GeometryRHI = nullptr;
 
-	// A physical FRayTracingGeometryInstance may be duplicated many times in the scene with different transforms and user data.
+	// A single physical mesh may be duplicated many times in the scene with different transforms and user data.
 	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
-	TArray<FMatrix, TInlineAllocator<1>> Transforms;
+	TArrayView<const FMatrix> Transforms;
 
-	// Similar to Transforms (but mutually exclusive with it). Allows passing transforms by pointer.
-	TArrayView<const FMatrix> TransformsView;
+	// Optional buffer that stores GPU transforms. Used instead of CPU-side transform data.
+	FRHIShaderResourceView* GPUTransformsSRV = nullptr;
 
-	TArrayView<const FMatrix> GetTransforms() const
-	{
-		if (TransformsView.Num())
-		{
-			check(Transforms.Num() == 0);
-			return TransformsView;
-		}
-		else
-		{
-			check(TransformsView.Num() == 0);
-			return TArrayView<const FMatrix>(Transforms);
-		}
-	}
-
-	// Transforms count. When GPU transforms are used it is a conservative count 
+	// Conservative number of instances. Some of the actual instances may be made inactive if GPU transforms are used.
+	// Must be less or equal to number of entries in Transforms view if CPU transform data is used.
+	// Must be less or equal to number of entries in GPUTransformsSRV if it is non-null.
 	uint32 NumTransforms = 0;
 
-	// Buffer that stores GPU transforms
-	FShaderResourceViewRHIRef GPUTransformsSRV;
-	
 	// Each geometry copy can receive a user-provided integer, which can be used to retrieve extra shader parameters or customize appearance.
 	// This data can be retrieved using GetInstanceUserData() in closest/any hit shaders.
-	// If UserData is empty, then 0 will be implicitly used for all entries.
-	// If UserData contains a single entry, then it will be applied to all instances/copies.
-	// Otherwise one UserData entry must be provided per entry in Transforms array.
-	TArray<uint32, TInlineAllocator<1>> UserData;
+	// If UserData view is empty, then DefaultUserData value will be used for all instances.
+	// If UserData view is used, then it must have the same number of entries as NumInstances.
+	uint32 DefaultUserData = 0;
+	TArrayView<const uint32> UserData;
 
 	// Mask that will be tested against one provided to TraceRay() in shader code.
 	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
 
-	// No any-hit shaders will be invoked for this geometry instance (only closest hit)
-	bool bForceOpaque = false;
-
-	// Disabling this will allow ray hits to be registered for front and back faces
-	bool bDoubleSided = false;
+	// Flags to control triangle back face culling, whether to allow any-hit shaders, etc.
+	ERayTracingInstanceFlags Flags = ERayTracingInstanceFlags::None;
 };
 
 enum ERayTracingGeometryType

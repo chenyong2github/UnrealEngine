@@ -14,7 +14,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRayTracingTestbed, "System.Renderer.RayTracing
 #include "GlobalShader.h"
 #include "RayTracingDefinitions.h"
 
-
+// HINT: Execute this test via console command in editor: Automation RunTest System.Renderer.RayTracing.BasicRayTracing
 bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 {
 	check(IsInRenderingThread());
@@ -101,23 +101,35 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FRayTracingGeometrySegment Segment;
 	Segment.VertexBuffer = VertexBuffer;
 	Segment.NumPrimitives = 1;
+	Segment.MaxVertices = 3;
 	GeometryInitializer.Segments.Add(Segment);
 	GeometryInitializer.TotalPrimitiveCount = Segment.NumPrimitives;
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
-	FShaderResourceViewRHIRef GPUTransforms = nullptr;
-	const uint32 NumTransforms = 1;
+	static constexpr uint32 NumTransforms = 1;
+	static constexpr uint32 NumInstances = 1;
 
-	FRayTracingGeometryInstance Instances[] = {
-		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, {}, NumTransforms, GPUTransforms, {0}, 0xFF }
-	};
+	FRayTracingGeometryInstance Instances[NumInstances] = {};
+	Instances[0].GeometryRHI = Geometry;
+	Instances[0].NumTransforms = NumTransforms;
+	Instances[0].Transforms = MakeArrayView(&FMatrix::Identity, 1);
 
 	FRayTracingSceneInitializer Initializer;
 	Initializer.Instances = Instances;
 	Initializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
-	FRayTracingSceneRHIRef Scene = RHICreateRayTracingScene(Initializer);
+
+	ERayTracingAccelerationStructureFlags SceneBuildFlags = ERayTracingAccelerationStructureFlags::FastTrace;
+	FRayTracingAccelerationStructureSize SceneSizeInfo = RHICalcRayTracingSceneSize(1, SceneBuildFlags);
+	FRHIResourceCreateInfo SceneBufferCreateInfo(TEXT("RayTracingTestBedSceneBuffer"));
+	FBufferRHIRef SceneBuffer = RHICreateBuffer(
+		uint32(SceneSizeInfo.ResultSize),
+		BUF_AccelerationStructure, 0 /*Stride*/, ERHIAccess::BVHWrite,
+		SceneBufferCreateInfo);
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	FRayTracingSceneRHIRef Scene = RHICreateRayTracingScene(Initializer);
+	RHICmdList.BindAccelerationStructureMemory(Scene, SceneBuffer, 0);
 
 	RHICmdList.BuildAccelerationStructure(Geometry);
 

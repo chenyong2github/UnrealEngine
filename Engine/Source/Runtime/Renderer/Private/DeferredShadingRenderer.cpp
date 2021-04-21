@@ -946,10 +946,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
 					RayTracingInstance.GeometryRHI = Geometry->RayTracingGeometryRHI;
-					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
+					RayTracingInstance.DefaultUserData = PrimitiveIndex;
 					RayTracingInstance.Mask = Instance.Mask;
-					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
-					RayTracingInstance.bDoubleSided = Instance.bDoubleSided;
+					if (Instance.bForceOpaque)
+					{
+						RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+					}
+					if (Instance.bDoubleSided)
+					{
+						RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
+					}
 
 					if (Instance.InstanceGPUTransformsSRV.IsValid())
 					{
@@ -962,17 +968,19 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 						{
 							// Slow path: copy transforms to the owned storage
 							checkf(Instance.InstanceTransformsView.Num() == 0, TEXT("InstanceTransformsView is expected to be empty if using InstanceTransforms"));
-							RayTracingInstance.NumTransforms = Instance.InstanceTransforms.Num();
-							RayTracingInstance.Transforms.SetNumUninitialized(Instance.InstanceTransforms.Num());
-							FMemory::Memcpy(RayTracingInstance.Transforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
-							static_assert(TIsSame<decltype(RayTracingInstance.Transforms[0]), decltype(Instance.InstanceTransforms[0])>::Value, "Unexpected transform type");
+							TArrayView<FMatrix> SceneOwnedTransforms = RayTracingScene.Allocate<FMatrix>(Instance.InstanceTransforms.Num());
+							FMemory::Memcpy(SceneOwnedTransforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
+							static_assert(TIsSame<decltype(SceneOwnedTransforms[0]), decltype(Instance.InstanceTransforms[0])>::Value, "Unexpected transform type");
+
+							RayTracingInstance.NumTransforms = SceneOwnedTransforms.Num();
+							RayTracingInstance.Transforms = SceneOwnedTransforms;
 						}
 						else
 						{
 							// Fast path: just reference persistently-allocated transforms and avoid a copy
 							checkf(Instance.InstanceTransforms.Num() == 0, TEXT("InstanceTransforms is expected to be empty if using InstanceTransformsView"));
 							RayTracingInstance.NumTransforms = Instance.InstanceTransformsView.Num();
-							RayTracingInstance.TransformsView = Instance.InstanceTransformsView;
+							RayTracingInstance.Transforms = Instance.InstanceTransformsView;
 						}
 					}
 
@@ -1057,8 +1065,59 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(LODTaskList, ENamedThreads::GetRenderThread_Local());
 		}
 
-		Experimental::TSherwoodMap<uint64, int32> InstanceSet;
-		InstanceSet.Reserve(RelevantPrimitives.Num());
+		struct FAutoInstanceBatch
+		{
+			int32 Index = INDEX_NONE;
+
+			// Copies the next transform and user data into the current batch, returns true if arrays were re-allocated.
+			bool Add(FRayTracingScene& RayTracingScene, const FMatrix& InTransform, uint32 InUserData)
+			{
+				// Adhoc TArray-like resize behavior, in lieu of support for using a custom FMemStackBase in TArray.
+				// Idea for future: if batch becomes large enough, we could actually split it into multiple instances to avoid memory waste.
+
+				const bool bNeedReallocation = Cursor == Transforms.Num();
+
+				if (bNeedReallocation)
+				{
+					int32 PrevCount = Transforms.Num();
+					int32 NextCount = FMath::Max(PrevCount * 2, 1);
+
+					TArrayView<FMatrix> NewTransforms = RayTracingScene.Allocate<FMatrix>(NextCount);
+					if (PrevCount)
+					{
+						FMemory::Memcpy(NewTransforms.GetData(), Transforms.GetData(), Transforms.GetTypeSize() * Transforms.Num());
+					}
+					Transforms = NewTransforms;
+
+					TArrayView<uint32> NewUserData = RayTracingScene.Allocate<uint32>(NextCount);
+					if (PrevCount)
+					{
+						FMemory::Memcpy(NewUserData.GetData(), UserData.GetData(), UserData.GetTypeSize() * UserData.Num());
+					}
+					UserData = NewUserData;
+				}
+
+				Transforms[Cursor] = InTransform;
+				UserData[Cursor] = InUserData;
+
+				++Cursor;
+
+				return bNeedReallocation;
+			}
+
+			bool IsValid() const
+			{
+				return Transforms.Num() != 0;
+			}
+
+			TArrayView<FMatrix> Transforms;
+			TArrayView<uint32> UserData;
+			uint32 Cursor = 0;
+		};
+
+		Experimental::TSherwoodMap<uint64, FAutoInstanceBatch> InstanceBatches;
+
+		InstanceBatches.Reserve(RelevantPrimitives.Num());
 
 		// scan relevant primitives computing hash data to look for duplicate instances
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
@@ -1105,19 +1164,29 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				const int32 NewInstanceIndex = RayTracingScene.Instances.Num();
 				const uint64 InstanceKey = RelevantPrimitive.InstancingKey();
 
-				const int32 Index = bAutoInstance ? InstanceSet.FindOrAdd(InstanceKey, NewInstanceIndex) : NewInstanceIndex;
+				FAutoInstanceBatch DummyInstanceBatch = { NewInstanceIndex };
+				FAutoInstanceBatch& InstanceBatch = bAutoInstance ? InstanceBatches.FindOrAdd(InstanceKey, DummyInstanceBatch) : DummyInstanceBatch;
 
-				if (Index != NewInstanceIndex)
+				if (InstanceBatch.Index != NewInstanceIndex)
 				{
-					// reusing a previous entry, just append to the instance list
-					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances[Index];
-					RayTracingInstance.NumTransforms++;
-					RayTracingInstance.Transforms.Add(Scene->PrimitiveTransforms[PrimitiveIndex]);
-					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
+					// Reusing a previous entry, just append to the instance list.
 
+					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances[InstanceBatch.Index];
+					bool bReallocated = InstanceBatch.Add(RayTracingScene, Scene->PrimitiveTransforms[PrimitiveIndex], (uint32)PrimitiveIndex);
+
+					++RayTracingInstance.NumTransforms;
+					check(RayTracingInstance.NumTransforms == InstanceBatch.Cursor); // sanity check
+
+					if (bReallocated)
+					{
+						RayTracingInstance.Transforms = InstanceBatch.Transforms;
+						RayTracingInstance.UserData = InstanceBatch.UserData;
+					}
 				}
 				else
 				{
+					// Starting new instance batch
+
 					for (int32 CommandIndex : RelevantPrimitive.CachedRayTracingMeshCommandIndices)
 					{
 						if (CommandIndex >= 0)
@@ -1136,16 +1205,24 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					}
 
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingScene.Instances.AddDefaulted_GetRef();
-					RayTracingInstance.NumTransforms = 1;
-					RayTracingInstance.Transforms.SetNumUninitialized(1);
-					RayTracingInstance.UserData.SetNumUninitialized(1);
 
 					RayTracingInstance.GeometryRHI = RelevantPrimitive.RayTracingGeometryRHI;
-					RayTracingInstance.Transforms[0] = Scene->PrimitiveTransforms[PrimitiveIndex];
-					RayTracingInstance.UserData[0] = (uint32)PrimitiveIndex;
+
+					InstanceBatch.Add(RayTracingScene, Scene->PrimitiveTransforms[PrimitiveIndex], (uint32)PrimitiveIndex);
+					RayTracingInstance.Transforms = InstanceBatch.Transforms;
+					RayTracingInstance.UserData = InstanceBatch.UserData;
+					RayTracingInstance.NumTransforms = 1;
+
 					RayTracingInstance.Mask = RelevantPrimitive.InstanceMask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
-					RayTracingInstance.bForceOpaque = RelevantPrimitive.bAllSegmentsOpaque;
-					RayTracingInstance.bDoubleSided = RelevantPrimitive.bTwoSided;
+
+					if (RelevantPrimitive.bAllSegmentsOpaque)
+					{
+						RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+					}
+					if (RelevantPrimitive.bTwoSided)
+					{
+						RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
+					}
 				}
 			}
 		}

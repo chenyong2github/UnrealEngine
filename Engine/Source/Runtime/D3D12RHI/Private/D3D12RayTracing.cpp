@@ -3333,7 +3333,7 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 			ReferencedGeometries.Add(Geometry);
 		}
 
-		if (UNLIKELY(Instance.GPUTransformsSRV && Instance.NumTransforms))
+		if (UNLIKELY(Instance.GPUTransformsSRV != nullptr && Instance.NumTransforms))
 		{
 			FInstanceCopyCommand Command;
 			Command.Source = Instance.GPUTransformsSRV;
@@ -3362,41 +3362,48 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 
 		InstanceDesc.InstanceMask = Instance.Mask;
 		InstanceDesc.InstanceContributionToHitGroupIndex = SegmentPrefixSum[InstanceIndex] * ShaderSlotsPerGeometrySegment;
-		InstanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE; // #dxr_todo: convert cull mode based on instance mirroring or double-sidedness
 
-		if (Instance.bForceOpaque || GRayTracingDebugForceOpaque)
-		{
-			InstanceDesc.Flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE;
-		}
-
-		if (Instance.bDoubleSided || GRayTracingDebugDisableTriangleCull)
+		if (EnumHasAnyFlags(Instance.Flags, ERayTracingInstanceFlags::TriangleCullDisable) || GRayTracingDebugDisableTriangleCull)
 		{
 			InstanceDesc.Flags |= D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_CULL_DISABLE;
 		}
 
+		if (!EnumHasAnyFlags(Instance.Flags, ERayTracingInstanceFlags::TriangleCullReverse))
+		{
+			// Counterclockwise is the default for UE. Reversing culling is achieved by *not* setting this flag.
+			InstanceDesc.Flags |= D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE;
+		}
+
+		if (EnumHasAnyFlags(Instance.Flags, ERayTracingInstanceFlags::ForceOpaque) || GRayTracingDebugForceOpaque)
+		{
+			InstanceDesc.Flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_OPAQUE;
+		}
+
+		if (EnumHasAnyFlags(Instance.Flags, ERayTracingInstanceFlags::ForceNonOpaque))
+		{
+			InstanceDesc.Flags |= D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE;
+		}
+
 		const uint32 NumTransforms = Instance.NumTransforms;
 
-		checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() == 1 || Instance.UserData.Num() == NumTransforms,
-			TEXT("User data array must be either be empty (implicit 0 is assumed), contain a single entry (same value applied to all instances) or contain one entry per entry in Transforms array."));
+		checkf(Instance.UserData.Num() == 0 || Instance.UserData.Num() >= int32(NumTransforms),
+			TEXT("User data array must be either be empty (Instance.DefaultUserData is used), or contain one entry per entry in Transforms array."));
 
-		const bool bUseUniqueUserData = Instance.UserData.Num() > 1;
-		const uint32 CommonUserData = Instance.UserData.Num() == 1 ? Instance.UserData[0] : 0;
+		const bool bUseUniqueUserData = Instance.UserData.Num() != 0;
 
-		const bool bGpuInstance = Instance.GPUTransformsSRV.IsValid();
+		const bool bGpuInstance = Instance.GPUTransformsSRV != nullptr;
 		const bool bCpuInstance = !bGpuInstance;
-
-		TArrayView<const FMatrix> InstanceTransforms = Instance.GetTransforms();
 
 		uint32 DescIndex = BaseInstancePrefixSum[InstanceIndex];
 		for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
-			InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : CommonUserData;
+			InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : Instance.DefaultUserData;
 
 			if (LIKELY(bCpuInstance))
 			{
 				// DXR uses a 3x4 transform matrix in row major layout
 
-				const FMatrix& Transform = InstanceTransforms[TransformIndex];
+				const FMatrix& Transform = Instance.Transforms[TransformIndex];
 
 				InstanceDesc.Transform[0][0] = Transform.M[0][0];
 				InstanceDesc.Transform[0][1] = Transform.M[1][0];

@@ -10,6 +10,8 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "RHI.h"
 #include "RenderGraphResources.h"
+#include "Misc/MemStack.h"
+#include "Containers/ArrayView.h"
 
 class FRHIRayTracingScene;
 class FRHIShaderResourceView;
@@ -39,6 +41,14 @@ public:
 
 	// Similar to Reset(), but also releases any persistent CPU and GPU memory allocations.
 	void ResetAndReleaseResources();
+
+	// Allocates temporary memory that will be valid until the next Reset().
+	// Can be used to store temporary instance transforms, user data, etc.
+	template <typename T>
+	TArrayView<T> Allocate(int32 Count)
+	{
+		return MakeArrayView(new(Allocator) T[Count], Count);
+	}
 
 	// Returns true if RHI ray tracing scene has been created or asynchronous creation has been kicked.
 	// i.e. returns true after BeginCreate() and before Reset().
@@ -83,6 +93,10 @@ private:
 
 	// View for the TLAS buffer that should be used in ray tracing shaders
 	FShaderResourceViewRHIRef RayTracingSceneSRV;
+
+	// Transient memory allocator
+	FMemStackBase Allocator;
+
 };
 
 #endif // RHI_RAYTRACING

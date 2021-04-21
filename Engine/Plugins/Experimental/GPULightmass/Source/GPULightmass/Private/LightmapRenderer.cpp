@@ -613,11 +613,14 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
 				FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
 				RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[Instance.ClampedMinLOD].RayTracingGeometry.RayTracingGeometryRHI;
-				RayTracingInstance.Transforms.Add(Instance.LocalToWorld);
+				RayTracingInstance.Transforms = MakeArrayView(&Instance.LocalToWorld, 1);
 				RayTracingInstance.NumTransforms = 1;
-				RayTracingInstance.UserData.Add((uint32)StaticMeshIndex);
+				RayTracingInstance.DefaultUserData = (uint32)StaticMeshIndex;
 				RayTracingInstance.Mask = 0xFF;
-				RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
+				if (bAllSegmentsOpaque)
+				{
+					RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+				}
 
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
@@ -657,23 +660,32 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
 					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[0].RayTracingGeometry.RayTracingGeometryRHI;
 
-					RayTracingInstance.Transforms.AddZeroed(InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
+					const int32 NumInstances = (int32)InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances();
+					TArrayView<FMatrix> NewTransforms = MakeArrayView(
+						OwnedRayTracingInstanceTransforms.Add_GetRef(TUniquePtr<FMatrix>(new FMatrix[NumInstances])).Get(),
+						NumInstances);
 
-					for (int32 InstanceIdx = 0; InstanceIdx < (int32)InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances(); InstanceIdx++)
+					for (int32 InstanceIdx = 0; InstanceIdx < NumInstances; InstanceIdx++)
 					{
 						FMatrix Transform;
 						InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-						Transform.M[3][3] = 1.0f;
+						Transform.M[3][3] = 1.0f; // GPUCULL_TODO: GetInstanceTransform currently sets this to 0 due to *reasons*
+
 						FMatrix InstanceTransform = Transform * InstanceGroup.LocalToWorld;
 
-						RayTracingInstance.Transforms[InstanceIdx] = InstanceTransform;
+						NewTransforms[InstanceIdx] = InstanceTransform;
 					}
 
-					RayTracingInstance.NumTransforms = RayTracingInstance.Transforms.Num();
+					RayTracingInstance.Transforms = NewTransforms;
+					RayTracingInstance.NumTransforms = NumInstances;
 
-					RayTracingInstance.UserData.Add((uint32)(Scene.StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex));
+					RayTracingInstance.DefaultUserData = (uint32)(Scene.StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex);
 					RayTracingInstance.Mask = 0xFF;
-					RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
+
+					if (bAllSegmentsOpaque)
+					{
+						RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+					}
 
 					for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 					{
@@ -913,9 +925,9 @@ void FSceneRenderState::SetupRayTracingScene()
 
 						FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
 						RayTracingInstance.GeometryRHI = Landscape.SectionRayTracingStates[SubSectionIdx]->Geometry.RayTracingGeometryRHI;
-						RayTracingInstance.Transforms.Add(FMatrix::Identity);
+						RayTracingInstance.Transforms = MakeArrayView(&FMatrix::Identity, 1);
 						RayTracingInstance.NumTransforms = 1;
-						RayTracingInstance.UserData.Add((uint32)InstanceIndex);
+						RayTracingInstance.DefaultUserData = (uint32)InstanceIndex;
 						RayTracingInstance.Mask = 0xFF;
 
 						TArray<FMeshBatch> MeshBatches = Landscape.GetMeshBatchesForGBufferRendering(0);
@@ -952,7 +964,10 @@ void FSceneRenderState::SetupRayTracingScene()
 							RayTracingInstance.Mask = 0;
 						}
 
-						RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
+						if (bAllSegmentsOpaque)
+						{
+							RayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+						}
 					}
 				}
 			}
@@ -970,7 +985,7 @@ void FSceneRenderState::SetupRayTracingScene()
 			uint32 NumTotalInstances = 0;
 			for (const FRayTracingGeometryInstance& Instance : RayTracingGeometryInstances)
 			{
-				ensure(Instance.NumTransforms >= uint32(Instance.GetTransforms().Num()));
+				ensure(Instance.NumTransforms == uint32(Instance.Transforms.Num()));
 				NumTotalInstances += Instance.NumTransforms;
 			}
 

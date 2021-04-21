@@ -23,10 +23,10 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 	WaitForTasks();
 
 	uint32 NumTotalInstances = 0;
-	for (const FRayTracingGeometryInstance& Instance : Instances)
+	for (const FRayTracingGeometryInstance& InstanceDesc : Instances)
 	{
-		ensure(Instance.NumTransforms >= uint32(Instance.GetTransforms().Num()));
-		NumTotalInstances += Instance.NumTransforms;
+		ensure(InstanceDesc.NumTransforms <= uint32(InstanceDesc.Transforms.Num()));
+		NumTotalInstances += InstanceDesc.NumTransforms;
 	}
 	SET_DWORD_STAT(STAT_RayTracingInstances, NumTotalInstances);
 
@@ -132,6 +132,8 @@ void FRayTracingScene::Reset()
 
 	Instances.Reset();
 	GeometriesToBuild.Reset();
+
+	Allocator.Flush();
 
 	BuildScratchBuffer = nullptr;
 }

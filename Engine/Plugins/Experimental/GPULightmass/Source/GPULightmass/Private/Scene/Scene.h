@@ -9,6 +9,7 @@
 #include "MeshPassProcessor.h"
 #include "IrradianceCaching.h"
 #include "GPULightmassSettings.h"
+#include "Templates/UniquePtr.h"
 
 class FGPULightmass;
 
@@ -75,6 +76,7 @@ struct FCachedRayTracingSceneData
 	TArray<uint32> InstanceDataOriginalOffsets;
 
 	TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;
+	TArray<TUniquePtr<FMatrix>> OwnedRayTracingInstanceTransforms;
 
 	TUniformBufferRef<FViewUniformShaderParameters> CachedViewUniformBuffer;
 

@@ -22,6 +22,10 @@
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometrySegment);
 
+static_assert(sizeof(FRayTracingGeometryInstance) <= 64,
+	"Ray tracing instance descriptor is expected to be no more than 64 bytes, "
+	"as there may be a very large number of them.");
+
 #ifndef PLATFORM_ALLOW_NULL_RHI
 	#define PLATFORM_ALLOW_NULL_RHI		0
 #endif

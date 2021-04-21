@@ -763,19 +763,26 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 				SceneInfo->CachedRayTracingInstanceWorldTransforms.Empty();
 				SceneInfo->CachedRayTracingInstanceWorldTransforms.AddUninitialized(CachedRayTracingInstance.NumTransforms);
 				SceneInfo->UpdateCachedRayTracingInstanceTransforms(SceneInfo->Proxy->GetLocalToWorld());
-				SceneInfo->CachedRayTracingInstance.TransformsView = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
+				SceneInfo->CachedRayTracingInstance.Transforms = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
 
-				check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.GetTransforms().Num()));
+				check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.Transforms.Num()));
 
-				SceneInfo->CachedRayTracingInstance.UserData.SetNumUninitialized(1);
 				SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
+
 				// At this point (in AddToScene()) PrimitiveIndex has been set
 				check(SceneInfo->GetIndex() != INDEX_NONE);
-				SceneInfo->CachedRayTracingInstance.UserData[0] = (uint32)SceneInfo->GetIndex();
+				SceneInfo->CachedRayTracingInstance.DefaultUserData = (uint32)SceneInfo->GetIndex();
 				SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
-				SceneInfo->CachedRayTracingInstance.bForceOpaque = CachedRayTracingInstance.bForceOpaque;
-				SceneInfo->CachedRayTracingInstance.bDoubleSided = CachedRayTracingInstance.bDoubleSided;
 
+				if (CachedRayTracingInstance.bForceOpaque)
+				{
+					SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+				}
+
+				if (CachedRayTracingInstance.bDoubleSided)
+				{
+					SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
+				}
 			}
 
 		}
