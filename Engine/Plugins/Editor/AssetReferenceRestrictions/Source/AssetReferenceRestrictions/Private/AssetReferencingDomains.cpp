@@ -141,6 +141,7 @@ void FDomainDatabase::RebuildFromScratch()
 	ScriptDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::ScriptDomainName);
 	ScriptDomain->UserFacingDomainName = LOCTEXT("ScriptDomain", "Script");
 	ScriptDomain->bCanBeSeenByEverything = true;
+	ScriptDomain->bCanSeeEverything = true;
 	ScriptDomain->DomainRootPaths.Add(TEXT("/Script/"));
 
 	TempDomain = FindOrAddDomainByName(UAssetReferencingPolicySettings::TempDomainName);
