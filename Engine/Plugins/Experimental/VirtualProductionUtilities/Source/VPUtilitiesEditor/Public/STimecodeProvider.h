@@ -17,7 +17,7 @@
 
 struct FSlateBrush;
 
-class TIMEMANAGEMENTEDITOR_API STimecodeProvider : public SCompoundWidget
+class VPUTILITIESEDITOR_API STimecodeProvider : public SCompoundWidget
 {	
 public:
 	SLATE_BEGIN_ARGS(STimecodeProvider)

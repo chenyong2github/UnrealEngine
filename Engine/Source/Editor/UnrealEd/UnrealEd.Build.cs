@@ -254,7 +254,6 @@ public class UnrealEd : ModuleRules
 				"OverlayEditor",
 				"ClothPainter",
 				"Media",
-				"TimeManagementEditor",
 				"VirtualTexturingEditor",
 				"TraceInsights",
 			}

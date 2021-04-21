@@ -15,6 +15,9 @@ public class VPUtilitiesEditor : ModuleRules
 				"Core",
 				"CoreUObject",
 				"EditorSubsystem",
+				"Engine",
+				"Slate",
+				"SlateCore",
 				"VPUtilities",                
 				"VREditor",
             }
@@ -23,23 +26,21 @@ public class VPUtilitiesEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+                "CinematicCamera",
 				"EditorFramework",
 				"EditorStyle",
-				"Engine",
 				"GameplayTags",
+				"InputCore",
 				"LevelEditor",
+				"OSC",
+				"PlacementMode",
 				"Settings",
-				"Slate",
-				"SlateCore",
 				"TimeManagement",
 				"UMG",
 				"UMGEditor",
 				"UnrealEd",
 				"VPBookmark",
 				"WorkspaceMenuStructure",
-                "CinematicCamera",
-				"OSC",
-				"PlacementMode"
             }
 		);
 	}

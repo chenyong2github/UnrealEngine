@@ -16,6 +16,7 @@
 #include "OSCManager.h"
 #include "OSCServer.h"
 #include "SGenlockProviderTab.h"
+#include "STimecodeProviderTab.h"
 #include "Textures/SlateIcon.h"
 #include "VPSettings.h"
 #include "VPUtilitiesEditorSettings.h"
@@ -39,6 +40,7 @@ void FVPUtilitiesEditorModule::StartupModule()
 	CustomUIHandler->Init();
 
 	SGenlockProviderTab::RegisterNomadTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorVirtualProductionCategory());
+	STimecodeProviderTab::RegisterNomadTabSpawner();
 
 	RegisterSettings();
 
@@ -51,6 +53,7 @@ void FVPUtilitiesEditorModule::StartupModule()
 void FVPUtilitiesEditorModule::ShutdownModule()
 {
 	UnregisterSettings();
+	STimecodeProviderTab::UnregisterNomadTabSpawner();
 	SGenlockProviderTab::UnregisterNomadTabSpawner();
 
 	if (UObjectInitialized())
