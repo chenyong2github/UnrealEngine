@@ -111,11 +111,37 @@ namespace Chaos
 			CreateStructureData(MoveTemp(FaceIndices));
 
 			SetMargin(InMargin);
-		}	
+		}
 
-	private:
+		FConvex& operator=(const FConvex& Other) = delete;
+		
+		FConvex& operator=(FConvex&& Other)
+		{
+			// Base class assignment
+			// @todo(chaos): Base class needs protected assignment
+			Type = Other.Type;
+			CollisionType = Other.CollisionType;
+			Margin = Other.Margin;
+			bIsConvex = Other.bIsConvex;
+			bDoCollide = Other.bDoCollide;
+			bHasBoundingBox = Other.bHasBoundingBox;
+#if TRACK_CHAOS_GEOMETRY
+			bIsTracked = Other.bIsTracked;
+#endif
+			// This class assignment
+			Planes = MoveTemp(Other.Planes);
+			Vertices = MoveTemp(Other.Vertices);
+			LocalBoundingBox = MoveTemp(Other.LocalBoundingBox);
+			StructureData = MoveTemp(Other.StructureData);
+			Volume = MoveTemp(Other.Volume);
+			CenterOfMass = MoveTemp(Other.CenterOfMass);
+
+			return *this;
+		}
+
 		void MovePlanesAndRebuild(FReal InDelta);
 
+	private:
 		void CreateStructureData(TArray<TArray<int32>>&& FaceIndices);
 
 	public:
@@ -420,12 +446,19 @@ namespace Chaos
 			return MaxVIdx;
 		}
 
+	public:
+
 		FVec3 GetMarginAdjustedVertex(int32 VertexIndex, FReal InMargin) const
 		{
 			// @chaos(todo): moving the vertices this way based on margin is only valid for small margins. If the margin
 			// is large enough to cause a face to reduce to zero size, vertices should be merged and the path is non-linear.
 			// This can be fixed with some extra data in the convex structure, but for now we accept the fact that large 
 			// margins on convexes with small faces can cause non-convex core shapes.
+
+			if (InMargin == 0.0f)
+			{
+				return GetVertex(InMargin);
+			}
 
 			// Get any 3 planes that contribute to this vertex
 			if (NumVertexPlanes(VertexIndex) >= 3)
@@ -454,6 +487,11 @@ namespace Chaos
 
 		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale) const
 		{
+			if (InMargin == 0.0f)
+			{
+				return GetVertex(InMargin) * Scale;
+			}
+
 			// Get any 3 planes that contribute to this vertex
 			if (NumVertexPlanes(VertexIndex) >= 3)
 			{
@@ -466,9 +504,9 @@ namespace Chaos
 				const FVec3 NewPlaneX = Scale * GetVertex(VertexIndex);
 				const FVec3 NewPlaneNs[3] = 
 				{
-					(Scale * Planes[PlaneIndex0].Normal()).GetUnsafeNormal(),
-					(Scale * Planes[PlaneIndex1].Normal()).GetUnsafeNormal(),
-					(Scale * Planes[PlaneIndex2].Normal()).GetUnsafeNormal(),
+					(Planes[PlaneIndex0].Normal() / Scale).GetUnsafeNormal(),
+					(Planes[PlaneIndex1].Normal() / Scale).GetUnsafeNormal(),
+					(Planes[PlaneIndex2].Normal() / Scale).GetUnsafeNormal(),
 				};
 				FReal NewPlaneDs[3] = 
 				{
