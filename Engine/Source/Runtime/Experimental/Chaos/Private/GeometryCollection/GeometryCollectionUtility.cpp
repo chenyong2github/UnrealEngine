@@ -443,4 +443,25 @@ namespace GeometryCollection
 		}
 	}
 
+
+	void GenerateTemporaryGuids(FTransformCollection* Collection, int32 StartIdx, bool bForceInit)
+	{
+		bool bNeedsInit = false;
+		if (!Collection->HasAttribute("GUID", FTransformCollection::TransformGroup))
+		{
+			FManagedArrayCollection::FConstructionParameters Params(FName(""), false);
+			Collection->AddAttribute<FGuid>("GUID", FTransformCollection::TransformGroup, Params);
+			bNeedsInit = true;
+		}
+
+		if (bNeedsInit || bForceInit)
+		{
+			TManagedArray<FGuid>& Guids = Collection->GetAttribute<FGuid>("GUID", FTransformCollection::TransformGroup);
+			for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
+			{
+				Guids[Idx] = FGuid::NewGuid();
+			}
+		}
+	}
+
 }

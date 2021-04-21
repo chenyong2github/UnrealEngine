@@ -3,6 +3,7 @@
 #include "FractureToolContext.h"
 
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionUtility.h"
 
 
 FFractureToolContext::FFractureToolContext(UGeometryCollectionComponent* InGeometryCollectionComponent)
@@ -53,17 +54,7 @@ void FFractureToolContext::RemoveRootNodes()
 
 void FFractureToolContext::GenerateGuids(int32 StartIdx)
 {
-	if (!GeometryCollection->HasAttribute("GUID", FGeometryCollection::TransformGroup))
-	{
-		FManagedArrayCollection::FConstructionParameters Params(FName(""), false);
-		GeometryCollection->AddAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup, Params);
-	}
-
-	TManagedArray<FGuid>& Guids = GeometryCollection->GetAttribute<FGuid>("GUID", FGeometryCollection::TransformGroup);
-	for (int32 Idx = StartIdx; Idx < Guids.Num(); ++Idx)
-	{
-		Guids[Idx] = FGuid::NewGuid();
-	}
+	::GeometryCollection::GenerateTemporaryGuids(this->GeometryCollection.Get(), StartIdx, true);
 }
 
 TMap<int32, TArray<int32>> FFractureToolContext::GetClusteredSelections()

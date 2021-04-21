@@ -151,6 +151,17 @@ namespace GeometryCollection
 	template<class T>
 	void
 	AttributeTransfer(const FGeometryCollection * FromCollection, FGeometryCollection * ToCollection, const FName FromAttributeName, const FName ToAttributeName);
+
+	/***
+	* Generate GUID in the FTransformCollection::TransformGroup for id tracking. 
+	* The GUIDs will not be saved during serialization, and can be used to bind
+	* and entry to an location in the collection. NOTE: GUIDs are expensive to
+	* maintain so they should not be kept for cooked content. 
+	*/
+	void 
+	CHAOS_API
+	GenerateTemporaryGuids(FTransformCollection* Collection, int32 StartIdx = 0, bool bForceInit=false);
+
 };
 
 // AttributeTransfer implementation

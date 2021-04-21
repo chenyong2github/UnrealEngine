@@ -5,6 +5,7 @@
 #include "FractureToolProperties.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionUtility.h"
 
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Text/STextBlock.h"
@@ -139,6 +140,7 @@ FGeometryCollectionHistogramItemList FGeometryCollectionHistogramItemComponent::
 		if (Collection)
 		{
 			int32 NumElements = Collection->NumElements(FGeometryCollection::TransformGroup);
+			::GeometryCollection::GenerateTemporaryGuids(Collection);
 
 			const TManagedArray<FGuid>& Guids = Collection->GetAttribute<FGuid>("GUID", "Transform");
 			const TManagedArray<int32>& GeometryToTransform = Collection->GetAttribute<int32>("TransformIndex", "Geometry");

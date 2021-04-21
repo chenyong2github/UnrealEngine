@@ -36,10 +36,6 @@ public:
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
-
-private:
-	bool StripUnnecessaryAttributes(FGeometryCollection* GeometryCollection);
-	bool StripAttributes(FGeometryCollection* GeometryCollection, const TMap<FName, TArray<FName>>& Whitelist);
 };
 
 UCLASS(DisplayName = "StripSimulationData", Category = "FractureTools")
