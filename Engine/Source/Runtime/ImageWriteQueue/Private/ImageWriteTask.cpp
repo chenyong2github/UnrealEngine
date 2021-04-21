@@ -196,7 +196,7 @@ bool FImageWriteTask::WriteToDisk()
 						uint32 ErrorCode = FPlatformMisc::GetLastError();
 						TCHAR ErrorBuffer[1024];
 						FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
-						UE_LOG(LogImageWriteQueue, Warning, TEXT("Fail to check free space for %s. Error: %u (%s)"), *FPaths::GetPath(Filename), ErrorCode, ErrorBuffer);
+						UE_LOG(LogImageWriteQueue, Warning, TEXT("Failed to check free space for %s. Error: %u (%s)"), *FPaths::GetPath(Filename), ErrorCode, ErrorBuffer);
 					}
 					IFileManager* FileManager = &IFileManager::Get();
 					bSuccess = FFileHelper::SaveArrayToFile(CompressedFile, *Filename);
@@ -221,7 +221,8 @@ bool FImageWriteTask::EnsureWritableFile()
 
 	if (!IFileManager::Get().DirectoryExists(*Directory))
 	{
-		IFileManager::Get().MakeDirectory(*Directory);
+		const bool bRecursive = true;
+		IFileManager::Get().MakeDirectory(*Directory, bRecursive);
 	}
 
 	// If the file doesn't exist, we're ok to continue

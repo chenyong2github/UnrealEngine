@@ -141,8 +141,8 @@ namespace MoviePipeline
 	void RestoreCompleteSequenceHierarchy(UMovieSceneSequence* InSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InRootNode);
 	/** Iterates tail to root building Hierarchy Nodes while correctly keeping track of which sub-section by GUID for correct enabling/disabling later. */
 	void BuildSectionHierarchyRecursive(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, const FMovieSceneSequenceID InSequenceId, const FMovieSceneSequenceID InChildId, TSharedPtr<FCameraCutSubSectionHierarchyNode> OutSubsectionHierarchy);
-	/** Gets the inner and outer names for the shot by resolving camera bindings/shot names, etc. Will generate a unique name (compared to what is already in OutGeneratedNames) */
-	void GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarchy, TArray<TTuple<FString, FString>>& OutGeneratedNames);
+	/** Gets the inner and outer names for the shot by resolving camera bindings/shot names, etc. Not neccessairly the final names. */
+	TTuple<FString, FString> GetNameForShot(const FMovieSceneSequenceHierarchy& InHierarchy, UMovieSceneSequence* InRootSequence, TSharedPtr<FCameraCutSubSectionHierarchyNode> InSubSectionHierarch);
 	/** Examine the local sequence and see how much overlap the camera cut has with the start of the playback range. Converts to Root space. */
 	TRange<FFrameNumber> GetCameraWarmUpRangeFromSequence(UMovieSceneSequence* InSequence, FFrameNumber InSectionEnd, FMovieSceneTimeTransform InInnerToOuterTransform);
 	/** Given a leaf node, either caches the value of the hierarchy or restores it. Used to save the state before soloing a shot. */

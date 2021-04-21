@@ -402,6 +402,11 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			TRange<FFrameNumber> Range;
 			UMovieSceneCameraCutSection* CameraCut;
 			FMovieSceneSequenceID SequenceID;
+
+			// These are only updated after the final linearized entities are chosen
+			TTuple<FString, FString> Name;
+			TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> LeafNode;
+			TRange<FFrameNumber> CameraCutWarmUpRange;
 		};
 
 		TArray<FLinearizedEntity> Entities;
@@ -465,9 +470,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 		UMovieSceneCompiledDataManager::CompileHierarchy(InSequence, &SequenceHierarchyCache, EMovieSceneServerClientMask::All);
 
 		// We now have the ranges we want to render (for camera cuts), 
-		TArray<UMoviePipelineExecutorShot*> NewShots;
-		TArray<TTuple<FString, FString>> GeneratedNames;
-		for (const FLinearizedEntity& Entity : Entities)
+		for (FLinearizedEntity& Entity : Entities)
 		{
 			// Let's build a sub-section hierarchy for this node
 			TSharedPtr<MoviePipeline::FCameraCutSubSectionHierarchyNode> LeafNode = MakeShared<MoviePipeline::FCameraCutSubSectionHierarchyNode>();
@@ -481,10 +484,46 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			{
 				InnerToOuterTransform = SubSequenceData->RootToSequenceTransform.InverseFromAllFirstWarps();
 			}
-			TRange<FFrameNumber> CameraCutWarmUpRange = MoviePipeline::GetCameraWarmUpRangeFromSequence(InSequence, LeafNode->MovieScene->GetPlaybackRange().GetLowerBoundValue(), InnerToOuterTransform);
+			Entity.CameraCutWarmUpRange = MoviePipeline::GetCameraWarmUpRangeFromSequence(InSequence, LeafNode->MovieScene->GetPlaybackRange().GetLowerBoundValue(), InnerToOuterTransform);
+			Entity.LeafNode = LeafNode;
+			Entity.Name = MoviePipeline::GetNameForShot(SequenceHierarchyCache, InSequence, LeafNode);
+		}
 
-			MoviePipeline::GetNameForShot(SequenceHierarchyCache, InSequence, LeafNode, GeneratedNames);
-			TTuple<FString, FString> NewName = GeneratedNames.Last();
+		// We need to generate all of the linearized segments first so that we have all of the names available.
+		// We need all of the names available because we need to ensure unique shot names (for XMLs), and they 
+		// expect to be consistent (ie: if duplicates are found, the first one is retroactively changed to (1)).
+		TMap<FString, int32> ShotNameUseCount;
+		for (FLinearizedEntity& Entity : Entities)
+		{
+			int32& Count = ShotNameUseCount.FindOrAdd(Entity.Name.Get<1>(), 0);
+			if (++Count > 1)
+			{
+				FString& ShotName = Entity.Name.Get<1>();
+				ShotName.Append(FString::Format(TEXT("({0})"), { ShotNameUseCount[Entity.Name.Get<1>()] }));
+			}
+		}
+
+		// For any shot names we found duplicates, append 1 to the first to keep naming consistent
+		for (TPair<FString, int32>& Pair : ShotNameUseCount)
+		{
+			if (Pair.Value > 1)
+			{
+				for (FLinearizedEntity& Entity : Entities)
+				{
+					if (Entity.Name.Get<1>().Equals(Pair.Key))
+					{
+						Entity.Name.Get<1>().Append(TEXT("(1)"));
+						break;
+					}
+				}
+			}
+		}
+
+		// Finally, we can take the entities and turn them into shots. We have to do all of the name
+		// manipulation all upfront before looking for matching shots that already exist.
+		TArray<UMoviePipelineExecutorShot*> NewShots;
+		for (FLinearizedEntity& Entity : Entities)
+		{
 			// Try to find an existing shot to update - this way we respect the toggled UI state.
 			UMoviePipelineExecutorShot* NewShot = nullptr;
 			for (UMoviePipelineExecutorShot* Shot : InJob->ShotInfo)
@@ -496,7 +535,7 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 				}
 
 				// For now we just compare the inner and outer names to decide if they match
-				if (Shot->InnerName == NewName.Get<0>() && Shot->OuterName == NewName.Get<1>())
+				if (Shot->InnerName == Entity.Name.Get<0>() && Shot->OuterName == Entity.Name.Get<1>())
 				{
 					NewShot = Shot;
 					break;
@@ -509,26 +548,24 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 			if (!NewShot)
 			{
 				NewShot = NewObject<UMoviePipelineExecutorShot>(InJob);
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *NewName.Get<0>(), *NewName.Get<1>());
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Generated new ShotInfo for Inner: %s Outer: %s (No existing shot found in the job)."), *Entity.Name.Get<0>(), *Entity.Name.Get<1>());
 			}
 			else
 			{
-				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *NewName.Get<0>(), *NewName.Get<1>());
-			
+				UE_LOG(LogMovieRenderPipeline, Log, TEXT("Reusing existing ShotInfo for Inner: %s Outer: %s."), *Entity.Name.Get<0>(), *Entity.Name.Get<1>());
+
 			}
 			NewShots.Add(NewShot);
 
 			// Reset the shot info (as it is all transient data) so it doesn't get re-used between runs.
 			NewShot->ShotInfo = FMoviePipelineCameraCutInfo();
-			NewShot->InnerName = NewName.Get<0>();
-			NewShot->OuterName = NewName.Get<1>();
-			NewShot->ShotInfo.SubSectionHierarchy = LeafNode;
+			NewShot->InnerName = Entity.Name.Get<0>();
+			NewShot->OuterName = Entity.Name.Get<1>();
+			NewShot->ShotInfo.SubSectionHierarchy = Entity.LeafNode;
 			NewShot->ShotInfo.TotalOutputRangeMaster = Entity.Range;
-			NewShot->ShotInfo.WarmupRangeMaster = CameraCutWarmUpRange;
+			NewShot->ShotInfo.WarmupRangeMaster = Entity.CameraCutWarmUpRange;
 			UE_LOG(LogMovieRenderPipeline, Log, TEXT("Registering range: %s (InnerName: %s OuterName: %s)"), *LexToString(NewShot->ShotInfo.TotalOutputRangeMaster), *NewShot->InnerName, *NewShot->OuterName);
 		}
-
-
 
 		// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
 		if (InJob->ShotInfo != NewShots)
