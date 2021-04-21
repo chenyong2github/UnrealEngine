@@ -1132,13 +1132,6 @@ static void AddGen5MainTemporalAAPasses(
 	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 	FTemporalAAHistory* OutputHistory = &View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
 
-	// Gen5 Temporal AA no longer use the view.
-	{
-		static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.UsePreExposure"));
-		const bool bUsePreExposure = CVarShowTransitions->GetInt() != 0;
-		ensureMsgf(bUsePreExposure, TEXT("r.TemporalAA.Algorithm=1 requires r.UsePreExposure=1"));
-	}
-
 #if COMPILE_TAA_DEBUG_PASSES
 	const bool bSetupDebugPasses = CVarTAASetupDebugPasses.GetValueOnRenderThread() != 0;
 #endif

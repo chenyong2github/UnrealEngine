@@ -170,15 +170,6 @@ static TAutoConsoleVariable<int32> CVarRoundRobinOcclusion(
 	TEXT("0 to disable round-robin occlusion queries for stereo rendering (default), 1 to enable."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarUsePreExposure(
-	TEXT("r.UsePreExposure"),
-	1,
-	TEXT("0 to disable pre-exposure, 1 to enable it (default).\n")
-	TEXT("Pre-exposure allows the engine to apply the last frame exposure to luminance values before writing them in rendertargets.\n")
-	TEXT("It avoids rendertarget overflow when using low precision formats like fp16.\n")
-	TEXT("The pre-exposure value can be overriden through r.EyeAdaptation.PreExposureOverride\n"),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarODSCapture(
 	TEXT("vr.ODSCapture"),
 	0,

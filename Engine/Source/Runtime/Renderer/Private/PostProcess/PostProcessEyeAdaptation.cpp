@@ -66,20 +66,7 @@ namespace
 		TEXT("will have no influence.\n"),
 		ECVF_RenderThreadSafe);
 
-	static TAutoConsoleVariable<int32> CVarEnablePreExposureOnlyInTheEditor(
-		TEXT("r.EyeAdaptation.EditorOnly"),
-		0,
-		TEXT("When pre-exposure is enabled, 0 to enable it everywhere, 1 to enable it only in the editor (default).\n")
-		TEXT("This is to because it currently has an impact on the renderthread performance\n"),
-		ECVF_ReadOnly);
 	const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
-}
-
-// Function is static because EyeAdaptation is the only system that should be checking this value.
-static bool UsePreExposureEnabled()
-{
-	static const auto CVarUsePreExposure = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.UsePreExposure"));
-	return CVarUsePreExposure->GetValueOnAnyThread() != 0;
 }
 
 bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId)
@@ -755,7 +742,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapTextures(FRDGBuilder& GraphBuil
 	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
 	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
 
-	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
+	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid())
 	{
 		FRDGTextureRef CurrentTexture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget[CurrentBuffer], ERenderTargetTexture::ShaderResource, ERDGTextureFlags::MultiFrame);
 
@@ -864,7 +851,7 @@ void FSceneViewState::FEyeAdaptationManager::SwapBuffers(FRDGBuilder& GraphBuild
 	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
 	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
 
-	if (bInUpdateLastExposure && ExposureBufferData[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
+	if (bInUpdateLastExposure && ExposureBufferData[CurrentBuffer].IsValid())
 	{
 		FRDGBufferRef CurrentRDGBuffer = GraphBuilder.RegisterExternalBuffer(ExposureBufferData[CurrentBuffer], ERDGBufferFlags::MultiFrame);
 
@@ -934,32 +921,18 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 
 	if (bIsPreExposureRelevant && bEnableAutoExposure)
 	{
-		if (UsePreExposureEnabled())
+		const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
+		const float LastExposure = View.GetLastEyeAdaptationExposure();
+		if (PreExposureOverride > 0)
 		{
-			const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
-			const float LastExposure = View.GetLastEyeAdaptationExposure();
-			if (PreExposureOverride > 0)
-			{
-				PreExposure = PreExposureOverride;
-			}
-			else if (LastExposure > 0)
-			{
-				PreExposure = LastExposure;
-			}
-
-			bUpdateLastExposure = true;
+			PreExposure = PreExposureOverride;
 		}
-		else
+		else if (LastExposure > 0)
 		{
-			if (View.FinalPostProcessSettings.AutoExposureBiasCurve)
-			{
-				// The exposure compensation curves require the scene average luminance
-				bUpdateLastExposure = true;
-			}
-
-			// Whe PreExposure is not used, we will override the PreExposure value to 1.0, which simulates PreExposure being off.
-			PreExposure = 1.0f;
+			PreExposure = LastExposure;
 		}
+
+		bUpdateLastExposure = true;
 
 		// Mobile LDR does not support post-processing but still can apply Exposure during basepass
 		if (bMobilePlatform && !IsMobileHDR())

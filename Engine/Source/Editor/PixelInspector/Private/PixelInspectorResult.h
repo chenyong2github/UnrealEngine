@@ -66,7 +66,7 @@ namespace PixelInspector
 
 
 		//////////////////////////////////////////////////////////////////////////
-		// PreExposure used to render this frame. See "r.UsePreExposure"
+		// PreExposure used to render this frame.
 		float PreExposure;
 		float OneOverPreExposure;
 
