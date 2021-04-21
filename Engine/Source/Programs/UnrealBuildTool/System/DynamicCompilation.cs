@@ -349,13 +349,32 @@ namespace UnrealBuildTool
 				}
 			}
 
+			List<string> SourceFileNamesList;
+			// Using Mono on Mac, Compiler.CompileAssemblyFromFile() may fail by creating a command line that is longer than 256k chars.
+			// In an attempt to avoid that, construct relative paths for each input file and use that relative path if it is shorter than the path provided.
+			if (Utils.IsRunningOnMono && BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				SourceFileNamesList = new List<string>();
+				DirectoryReference CurrentDir = DirectoryReference.GetCurrentDirectory();
+				foreach (FileReference SourceFileName in SourceFileNames)
+				{
+					string RelativePath = SourceFileName.MakeRelativeTo(CurrentDir);
+					string InputPath = SourceFileName.FullName;
+					SourceFileNamesList.Add(RelativePath.Length < InputPath.Length ? RelativePath : InputPath);
+				}
+			}
+			else
+			{
+				SourceFileNamesList = SourceFileNames.Select(x => x.FullName).ToList();
+			}
+
 			// Compile the code
 			CompilerResults CompileResults;
 			try
 			{
 				Dictionary<string, string> ProviderOptions = new Dictionary<string, string>() { { "CompilerVersion", "v4.0" } };
 				CSharpCodeProvider Compiler = new CSharpCodeProvider(ProviderOptions);
-				CompileResults = Compiler.CompileAssemblyFromFile(CompileParams, SourceFileNames.Select(x => x.FullName).ToArray());
+				CompileResults = Compiler.CompileAssemblyFromFile(CompileParams, SourceFileNamesList.ToArray());
 			}
 			catch (Exception Ex)
 			{
