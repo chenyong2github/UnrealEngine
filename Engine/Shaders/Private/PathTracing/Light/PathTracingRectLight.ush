@@ -138,7 +138,7 @@ FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 
 FLightSample RectLight_SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
@@ -167,11 +167,11 @@ FLightSample RectLight_SampleLight(
 	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
 
 #if USE_RECT_LIGHT_TEXTURES
-	FSphericalRectSample Sample = UniformSampleSphericalRectWithUV(RandSample.yz, SphericalRect);
+	FSphericalRectSample Sample = UniformSampleSphericalRectWithUV(RandSample, SphericalRect);
 	float2 ClippedUV = Sample.UV;
 	float3 Direction = Sample.Direction;
 #else
-	float3 Direction = UniformSampleSphericalRect(RandSample.yz, SphericalRect);
+	float3 Direction = UniformSampleSphericalRect(RandSample, SphericalRect);
 #endif
 
 	float3 RadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);

@@ -36,7 +36,7 @@ FLightHit TraceLight(RayDesc Ray, int LightId)
 // Choose a point on a light as seen from the given shading point
 FLightSample SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
@@ -146,7 +146,7 @@ void SelectLight(float RandSample, int NumLights, inout float LightPickingCdf[RA
 }
 
 bool SampleLight(
-	float4 RandSample,
+	float3 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal,
 	uint PrimitiveLightingChannelMask,
@@ -186,7 +186,7 @@ bool SampleLight(
 
 	LightPickPdf /= LightPickingCdfSum;
 
-	FLightSample Result = SampleLight(OutLightId, RandSample, WorldPos, WorldNormal);
+	FLightSample Result = SampleLight(OutLightId, RandSample.yz, WorldPos, WorldNormal);
 	OutDirection = Result.Direction;
 	OutDistance = Result.Distance;
 	OutRadianceOverPdf = Result.RadianceOverPdf / LightPickPdf;

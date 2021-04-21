@@ -53,7 +53,7 @@ FLightHit PointLight_TraceLight(RayDesc Ray, int LightId)
 
 FLightSample PointLight_SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
@@ -78,7 +78,7 @@ FLightSample PointLight_SampleLight(
 		float SinThetaMax2 = saturate(Radius2 / LightDistanceSquared);
 
 		// #dxr_todo: find a better way of handling the region inside the light than just clamping to 1.0 here
-		float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax2);
+		float4 DirAndPdf = UniformSampleConeRobust(RandSample, SinThetaMax2);
 
 		float CosTheta = DirAndPdf.z;
 		float SinTheta2 = 1.0 - CosTheta * CosTheta;

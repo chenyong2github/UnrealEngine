@@ -126,7 +126,7 @@ FLightHit CapsuleLight_TraceLight(RayDesc Ray, int LightId)
 
 FLightSample CapsuleLight_SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
@@ -153,7 +153,7 @@ FLightSample CapsuleLight_SampleLight(
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	FCapsuleSphericalBounds CapsuleBounds = CapsuleGetSphericalBounds(LightDirection, Axis, Radius, SourceLength);
 
-	float4 Result = SampleCapsuleBounds(CapsuleBounds, RandSample.yz);
+	float4 Result = SampleCapsuleBounds(CapsuleBounds, RandSample);
 
 	float3 L = Result.xyz;
 	float SolidAngle = Result.w;
@@ -178,11 +178,11 @@ FLightSample CapsuleLight_SampleLight(
 
 	float3 LightPoint;
 	float3 LightNormal;
-	if (RandSample.y < Prob)
+	if (RandSample.x < Prob)
 	{
-		RandSample.y /= Prob;
+		RandSample.x /= Prob;
 		// sample the caps
-		float4 Result = UniformSampleSphere(float2(RandSample.yz));
+		float4 Result = UniformSampleSphere(float2(RandSample));
 
 		LightPoint = Result.xyz * Radius;
 		LightPoint.z += 0.5 * SourceLength * sign(Result.z);
@@ -191,14 +191,14 @@ FLightSample CapsuleLight_SampleLight(
 	}
 	else
 	{
-		RandSample.y -= Prob;
-		RandSample.y /= 1 - Prob;
+		RandSample.x -= Prob;
+		RandSample.x /= 1 - Prob;
 		// sample the cylinder body
 
-		float Phi = 2 * PI * RandSample.y;
+		float Phi = 2 * PI * RandSample.x;
 
 		LightNormal = float3(cos(Phi), sin(Phi), 0.0);
-		LightPoint = float3(Radius * LightNormal.xy, (RandSample.z - 0.5) * SourceLength);
+		LightPoint = float3(Radius * LightNormal.xy, (RandSample.y - 0.5) * SourceLength);
 	}
 	float3x3 CylinderBasis = GetTangentBasis(Axis);
 
