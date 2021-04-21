@@ -3,6 +3,7 @@
 #include "AnimGraphNode_Root.h"
 #include "GraphEditorSettings.h"
 #include "AnimBlueprintCompiler.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 
@@ -91,7 +92,7 @@ void UAnimGraphNode_Root::OnProcessDuringCompilation(IAnimBlueprintCompilationCo
 {
 	UAnimGraphNode_Root* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Root>(this);
 
-	Node.SetName(TrueNode->GetGraph()->GetFName());
+	Node.Name = TrueNode->GetGraph()->GetFName();
 }
 
 void UAnimGraphNode_Root::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
@@ -99,7 +100,7 @@ void UAnimGraphNode_Root::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTe
 	UAnimGraphNode_Root* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Root>(this);
 
 	FAnimNode_Root* DestinationNode = reinterpret_cast<FAnimNode_Root*>(InPerNodeContext.GetDestinationPtr());
-	DestinationNode->SetName(TrueNode->GetGraph()->GetFName());
+	DestinationNode->Name = TrueNode->GetGraph()->GetFName();
 }
 
 #undef LOCTEXT_NAMESPACE

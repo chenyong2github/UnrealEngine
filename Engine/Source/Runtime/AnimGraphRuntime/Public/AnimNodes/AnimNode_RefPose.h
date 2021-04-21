@@ -18,35 +18,32 @@ enum ERefPoseType
 USTRUCT()
 struct ANIMGRAPHRUNTIME_API FAnimNode_RefPose : public FAnimNode_Base
 {
-	GENERATED_BODY()
+	GENERATED_USTRUCT_BODY()
 
-private:
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(meta=(FoldProperty))
-	TEnumAsByte<ERefPoseType> RefPoseType = EIT_LocalSpace;
-#endif	// #if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TEnumAsByte<ERefPoseType> RefPoseType;
 	
 public:	
-	FAnimNode_RefPose() = default;
+	FAnimNode_RefPose()
+		:	FAnimNode_Base()
+		, 	RefPoseType(EIT_LocalSpace)
+	{
+	}
 
-#if WITH_EDITORONLY_DATA
-	// Set the ref pose type of this node
-	void SetRefPoseType(ERefPoseType InType) { RefPoseType = InType; }
-#endif
-
-	// Get the type of this ref pose
-	ERefPoseType GetRefPoseType() const;
-	
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
+
 };
 
 USTRUCT()
 struct ANIMGRAPHRUNTIME_API FAnimNode_MeshSpaceRefPose : public FAnimNode_Base
 {
-	GENERATED_BODY()
+	GENERATED_USTRUCT_BODY()
 public:	
-	FAnimNode_MeshSpaceRefPose() = default;
+	FAnimNode_MeshSpaceRefPose()
+		:	FAnimNode_Base()
+	{
+	}
 
 	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
 };

@@ -28,28 +28,24 @@ public:
 	}
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetCurrentAssetTime() const { return 0.f; }
-	virtual float GetCurrentAssetLength() const { return 0.f; }
+	virtual float GetCurrentAssetTime() { return 0.f; }
+	virtual float GetCurrentAssetLength() { return 0.f; }
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
+	virtual void OverrideAsset(UAnimationAsset* NewAsset) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
 	// FAnimNode_AssetPlayerBase Interface
 	virtual float GetAccumulatedTime() const {return 0.f;}
 	virtual void SetAccumulatedTime(const float& NewTime) {}
-	virtual UAnimationAsset* GetAnimAsset() const {return PoseAsset;}
+	virtual UAnimationAsset* GetAnimAsset() {return PoseAsset;}
 	// End of FAnimNode_AssetPlayerBase Interface
 
-#if WITH_EDITORONLY_DATA
-	// Set the pose asset to use for this node 
-	void SetPoseAsset(UPoseAsset* InPoseAsset);
-#endif
-	
 protected:
 	/** Called after CurrentPoseAsset is changed.  */
 	virtual void OnPoseAssetChange() {}

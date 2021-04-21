@@ -1004,7 +1004,7 @@ void FAnimTrace::OutputAnimNodeValue(const FAnimationBaseContext& InContext, con
 		<< AnimNodeValueClass.Attachment(InKey, KeyLength * sizeof(TCHAR));
 }
 
-void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode)
+void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayer& InNode)
 {
 	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(AnimationChannel);
 	if (!bChannelEnabled)
@@ -1022,15 +1022,13 @@ void FAnimTrace::OutputAnimSequencePlayer(const FAnimationBaseContext& InContext
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
 
-	UAnimSequenceBase* Sequence = InNode.GetSequence();
-
 	UE_TRACE_LOG(Animation, AnimSequencePlayer, AnimationChannel)
 		<< AnimSequencePlayer.Cycle(FPlatformTime::Cycles64())
 		<< AnimSequencePlayer.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
 		<< AnimSequencePlayer.NodeId(InContext.GetCurrentNodeId())
 		<< AnimSequencePlayer.Position(InNode.GetAccumulatedTime())
-		<< AnimSequencePlayer.Length(Sequence ? Sequence->GetPlayLength() : 0.0f)
-		<< AnimSequencePlayer.FrameCounter(Sequence ? Sequence->GetNumberOfSampledKeys() : 0);
+		<< AnimSequencePlayer.Length(InNode.Sequence ? InNode.Sequence->GetPlayLength() : 0.0f)
+		<< AnimSequencePlayer.FrameCounter(InNode.Sequence ? InNode.Sequence->GetNumberOfSampledKeys() : 0);
 }
 
 void FAnimTrace::OutputStateMachineState(const FAnimationBaseContext& InContext, int32 InStateMachineIndex, int32 InStateIndex, float InStateWeight, float InElapsedTime)

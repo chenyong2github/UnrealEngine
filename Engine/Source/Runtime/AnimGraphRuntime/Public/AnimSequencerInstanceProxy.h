@@ -65,7 +65,7 @@ struct FSequencerPlayerAnimSequence : public FSequencerPlayerBase
 {
 	SEQUENCER_INSTANCE_PLAYER_TYPE(FSequencerPlayerAnimSequence, FSequencerPlayerBase)
 	TOptional<FRootMotionOverride> RootMotion;
-	FAnimNode_SequenceEvaluator_Standalone PlayerNode;
+	struct FAnimNode_SequenceEvaluator PlayerNode;
 };
 
 

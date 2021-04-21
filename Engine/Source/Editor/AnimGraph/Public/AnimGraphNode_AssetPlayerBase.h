@@ -20,9 +20,9 @@ class ANIMGRAPH_API UAnimGraphNode_AssetPlayerBase : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
 public:
-	// Deprecated - sync group data is held on the contained FAnimNode_Base
-	UPROPERTY()
-	FAnimationGroupReference SyncGroup_DEPRECATED;
+	// Sync group settings for this player.  Sync groups keep related animations with different lengths synchronized.
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FAnimationGroupReference SyncGroup;
 
 	/** UObject interface */
 	void Serialize(FArchive& Ar) override;

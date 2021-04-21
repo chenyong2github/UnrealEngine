@@ -10,13 +10,13 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h"
+#include "Logging/TokenizedMessage.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimationPoseData.h"
+#include "UObject/FieldPath.h"
 #include "Animation/AttributesRuntime.h"
 #include "Animation/AnimNodeMessages.h"
-#include "Animation/AnimNodeData.h"
-#include "Animation/ExposedValueHandler.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -33,7 +33,6 @@ struct FAnimInstanceProxy;
 struct FAnimNode_Base;
 class UProperty;
 struct FPropertyAccessLibrary;
-struct FAnimNodeConstantData;
 
 /**
  * DEPRECATED - This system is now supplanted by UE::Anim::FMessageStack
@@ -173,9 +172,6 @@ public:
 	// Get the Blueprint IAnimClassInterface associated with this context, if there is one.
 	// Note: This can return NULL, so check the result.
 	ENGINE_API IAnimClassInterface* GetAnimClass() const;
-
-	// Get the anim instance associated with the current proxy
-	ENGINE_API UObject* GetAnimInstanceObject() const;
 
 #if WITH_EDITORONLY_DATA
 	// Get the AnimBlueprint associated with this context, if there is one.
@@ -661,11 +657,6 @@ struct ENGINE_API FPoseLinkBase
 {
 	GENERATED_USTRUCT_BODY()
 
-protected:
-	/** The non serialized node pointer. */
-	FAnimNode_Base* LinkedNode;
-
-public:
 	/** Serialized link ID, used to build the non-serialized pointer map. */
 	UPROPERTY()
 	int32 LinkID;
@@ -684,40 +675,36 @@ public:
 #endif
 
 protected:
-#if DO_CHECK
 	/** Flag to prevent reentry when dealing with circular trees. */
 	bool bProcessed;
-#endif
+
+	/** The non serialized node pointer. */
+	struct FAnimNode_Base* LinkedNode;
 
 public:
 	FPoseLinkBase()
-		: LinkedNode(nullptr)
-		, LinkID(INDEX_NONE)
+		: LinkID(INDEX_NONE)
 #if WITH_EDITORONLY_DATA
 		, SourceLinkID(INDEX_NONE)
 #endif
-#if DO_CHECK
 		, bProcessed(false)
-#endif
+		, LinkedNode(NULL)
 	{
 	}
 
 	// Interface
 
 	void Initialize(const FAnimationInitializeContext& Context);
-	void CacheBones(const FAnimationCacheBonesContext& Context);
+	void CacheBones(const FAnimationCacheBonesContext& Context) ;
 	void Update(const FAnimationUpdateContext& Context);
 	void GatherDebugData(FNodeDebugData& DebugData);
 
 	/** Try to re-establish the linked node pointer. */
 	void AttemptRelink(const FAnimationBaseContext& Context);
-
 	/** This only used by custom handlers, and it is advanced feature. */
-	void SetLinkNode(FAnimNode_Base* NewLinkNode);
-
+	void SetLinkNode(struct FAnimNode_Base* NewLinkNode);
 	/** This only used when dynamic linking other graphs to this one. */
 	void SetDynamicLinkNode(struct FPoseLinkBase* InPoseLink);
-
 	/** This only used by custom handlers, and it is advanced feature. */
 	FAnimNode_Base* GetLinkNode();
 };
@@ -752,6 +739,88 @@ public:
 	void EvaluateComponentSpace(FComponentSpacePoseContext& Output);
 };
 
+UENUM()
+enum class EPostCopyOperation : uint8
+{
+	None,
+
+	LogicalNegateBool,
+};
+
+USTRUCT()
+struct FExposedValueCopyRecord
+{
+	GENERATED_BODY()
+
+	FExposedValueCopyRecord() = default;
+
+	FExposedValueCopyRecord(int32 InCopyIndex, EPostCopyOperation InPostCopyOperation)
+		: CopyIndex(InCopyIndex)
+		, PostCopyOperation(InPostCopyOperation)
+	{
+	}
+
+	UPROPERTY()
+	int32 CopyIndex = INDEX_NONE;
+
+	UPROPERTY()
+	EPostCopyOperation PostCopyOperation = EPostCopyOperation::None;
+};
+
+// An exposed value updater
+USTRUCT()
+struct ENGINE_API FExposedValueHandler
+{
+	GENERATED_USTRUCT_BODY()
+
+	FExposedValueHandler()
+		: BoundFunction(NAME_None)
+		, Function(nullptr)
+		, ValueHandlerNodeProperty(nullptr)
+		, PropertyAccessLibrary(nullptr)
+		, bInitialized(false)
+	{
+	}
+
+	// The function to call to update associated properties (can be NULL)
+	UPROPERTY()
+	FName BoundFunction;
+
+	// Direct data access to property in anim instance
+	UPROPERTY()
+	TArray<FExposedValueCopyRecord> CopyRecords;
+
+	// function pointer if BoundFunction != NAME_None
+	UPROPERTY()
+	TObjectPtr<UFunction> Function;
+
+	// Node property that this value handler is associated with, when the node
+	// is instantiated from this property the node's ExposedValueHandler will 
+	// point back to this FExposedValueHandler:
+	UPROPERTY()
+	TFieldPath<FStructProperty> ValueHandlerNodeProperty;
+
+	// Cached property access library ptr
+	const FPropertyAccessLibrary* PropertyAccessLibrary;
+
+	// Prevent multiple initialization
+	bool bInitialized;
+
+	// Helper function to bind an array of handlers.
+	// This is called for nativized builds to initialize against a dynamic class
+	static void DynamicClassInitialization(TArray<FExposedValueHandler>& Handlers, UDynamicClass* InDynamicClass);
+
+	// Helper function to bind an array of handlers.
+	// This is called for non-nativized builds to initialize against a UAnimBlueprintGeneratedClass
+	static void ClassInitialization(TArray<FExposedValueHandler>& Handlers, UObject* ClassDefaultObject);
+
+	// Bind copy records and cache UFunction if necessary
+	void Initialize(UClass* InClass, const FPropertyAccessLibrary& InPropertyAccessLibrary);
+
+	// Execute the function and copy records
+	void Execute(const FAnimationBaseContext& Context) const;
+};
+
 /**
  * This is the base of all runtime animation nodes
  *
@@ -762,7 +831,7 @@ public:
 USTRUCT()
 struct ENGINE_API FAnimNode_Base
 {
-	GENERATED_BODY()
+	GENERATED_USTRUCT_BODY()
 
 	/** 
 	 * Called when the node first runs. If the node is inside a state machine or cached pose branch then this can be called multiple times. 
@@ -803,6 +872,12 @@ struct ENGINE_API FAnimNode_Base
 	 * @param	Output		Output structure to write pose or curve data to. Also provides access to relevant data as a context.
 	 */	
 	virtual void EvaluateComponentSpace_AnyThread(FComponentSpacePoseContext& Output);
+	/** 
+	 * If a derived anim node should respond to asset overrides, OverrideAsset should be defined to handle changing the asset 
+	 * This is called during anim blueprint compilation to handle child anim blueprints.
+	 * @param	NewAsset	The new asset that is being set
+	 */
+	virtual void OverrideAsset(class UAnimationAsset* NewAsset) {}
 
 	/**
 	 * Called to gather on-screen debug data. 
@@ -848,7 +923,7 @@ struct ENGINE_API FAnimNode_Base
 
 	/** 
 	 * For nodes that need some kind of initialization that is not dependent on node relevancy 
-	 * (i.e. it is insufficient or inefficient to use Initialize_AnyThread), return true here.
+	 * (i.e. it is insufficent or inefficent to use Initialize_AnyThread), return true here.
 	 * Note that this is called at load on the UAnimInstance CDO to avoid needing to call this at runtime.
 	 */
 	virtual bool NeedsOnInitializeAnimInstance() const { return false; }
@@ -872,64 +947,19 @@ struct ENGINE_API FAnimNode_Base
 	virtual bool WantsSkippedUpdates() const { return false; }
 	UE_DEPRECATED(5.0, "Please use IGraphMessage instead")
 	virtual void OnUpdatesSkipped(TArrayView<const FAnimationUpdateContext*> SkippedUpdateContexts) {}
-	UE_DEPRECATED(5.0, "Please use the OverrideAssets API on UAnimGraphNode_Base to opt-in to child anim BP override functionality, or per-node specific asset override calls.")
-	virtual void OverrideAsset(class UAnimationAsset* NewAsset) {}
-	
+
 	// The default handler for graph-exposed inputs:
-	const FExposedValueHandler& GetEvaluateGraphExposedInputs() const;
+	const FExposedValueHandler& GetEvaluateGraphExposedInputs();
 
 	// Initialization function for the default handler for graph-exposed inputs, used only by instancing code:
-	UE_DEPRECATED(5.0, "Exposed value handlers are now accessed via FAnimNodeConstantData")
-	void SetExposedValueHandler(const FExposedValueHandler* Handler) { }
-
-	// Get this node's index. The node index provides a unique key into its location within the class data
-	int32 GetNodeIndex() const
-	{
-		check(NodeData);
-		return NodeData->GetNodeIndex();
+	void SetExposedValueHandler(const FExposedValueHandler* Handler) 
+	{ 
+		ExposedValueHandler = Handler; 
 	}
-
-protected:
-	// Get anim node constant/folded data of the specified type given the identifier. Do not use directly - use GET_ANIM_NODE_DATA
-	template<typename DataType>
-	const DataType& GetData(UE::Anim::FNodeDataId InId, const UObject* InObject = nullptr) const
-	{
-#if WITH_EDITORONLY_DATA
-		if(NodeData)
-		{
-			return *static_cast<const DataType*>(NodeData->GetData(InId, this, InObject));
-		}
-		else
-		{
-			return *InId.GetProperty()->ContainerPtrToValuePtr<const DataType>(this);
-		}
-#else
-		check(NodeData);
-		return *static_cast<const DataType*>(NodeData->GetData(InId, this, InObject));
-#endif
-	}
-
-#if WITH_EDITORONLY_DATA
-	// Get anim node constant/folded data of the specified type given the identifier. Do not use directly - use GET_MUTABLE_ANIM_NODE_DATA
-	template<typename DataType>
-	DataType& GetMutableData(UE::Anim::FNodeDataId InId, UObject* InObject = nullptr)
-	{
-		if(NodeData)
-		{
-			return *static_cast<DataType*>(NodeData->GetMutableData(InId, this, InObject));
-		}
-		else
-		{
-			return *InId.GetProperty()->ContainerPtrToValuePtr<DataType>(this);
-		}
-	}
-#endif
 
 protected:
 	/** return true if enabled, otherwise, return false. This is utility function that can be used per node level */
 	bool IsLODEnabled(FAnimInstanceProxy* AnimInstanceProxy);
-
-	/** Get the LOD threshold at which this node is enabled. Node is enabled if the current LOD >= threshold. */
 	virtual int32 GetLODThreshold() const { return INDEX_NONE; }
 
 	/** Deprecated function */
@@ -941,60 +971,10 @@ protected:
 
 	friend struct FAnimInstanceProxy;
 
-private:
-	friend class IAnimClassInterface;
-	friend class UAnimBlueprintGeneratedClass;
-	friend struct UE::Anim::FNodeDataId;
-
-	// Set the cached ptr to the constant/folded data for this node
-	void SetNodeData(const FAnimNodeData& InNodeData) { NodeData = &InNodeData; }
-
-	// Reference to the constant/folded data for this node
-	const FAnimNodeData* NodeData = nullptr;
+private:		
+	// Reference to the exposed value handler used by this node. Allocated on the class, rather than per instance:
+	const FExposedValueHandler* ExposedValueHandler = nullptr;
 };
 
-#if WITH_EDITORONLY_DATA
-#define ANIM_NODE_VERIFY_MEMBER(Identifier) (this->Identifier);
-#else
-#define ANIM_NODE_VERIFY_MEMBER(Identifier)
-#endif
-
-// Get some (potentially folded) anim node data. Only usable from within an anim node.
-// This caches the node data ID in static contained in a local lambda for improved performance
-#define GET_ANIM_NODE_DATA(Type, Identifier) \
-	( \
-		GetData<Type>( \
-			[this]() -> UE::Anim::FNodeDataId \
-			{ \
-				ANIM_NODE_VERIFY_MEMBER(Identifier); \
-				static UE::Anim::FNodeDataId CachedId_##Identifier; \
-				if(!CachedId_##Identifier.IsValid()) \
-				{ \
-					static const FName NAME_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(NAME_##Identifier, this, StaticStruct()); \
-				} \
-				return CachedId_##Identifier; \
-			}() \
-		) \
-	)
-
-#if WITH_EDITORONLY_DATA
-#define GET_MUTABLE_ANIM_NODE_DATA(Type, Identifier) \
-	( \
-		GetMutableData<Type>( \
-			[this]() -> UE::Anim::FNodeDataId \
-			{ \
-				ANIM_NODE_VERIFY_MEMBER(Identifier); \
-				static UE::Anim::FNodeDataId CachedId_##Identifier; \
-				if(!CachedId_##Identifier.IsValid()) \
-				{ \
-					static const FName NAME_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(NAME_##Identifier, this, StaticStruct()); \
-				} \
-				return CachedId_##Identifier; \
-			}() \
-		) \
-	)
-#endif
 
 #include "UObject/DefineUPropertyMacros.h"

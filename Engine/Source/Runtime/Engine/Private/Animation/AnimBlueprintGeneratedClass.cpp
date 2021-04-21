@@ -8,6 +8,7 @@
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
 #include "ObjectEditorUtils.h"
+#include "BonePose.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstance.h"
 #include "UObject/AnimObjectVersion.h"
@@ -16,10 +17,10 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
+#include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/AnimNode_StateMachine.h"
-#include "Animation/AnimSubsystem.h"
 #include "EdGraph/EdGraphNode.h"
-#include "Animation/AnimSubsystemInstance.h"
+#include "Algo/Reverse.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -329,113 +330,11 @@ void FAnimationFrameSnapshot::CopyToInstance(UAnimInstance* Instance)
 #endif
 
 /////////////////////////////////////////////////////
-// UAnimBlueprintGeneratedClass
+// UAnimBlueprintGeneratedClas
 
 UAnimBlueprintGeneratedClass::UAnimBlueprintGeneratedClass(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-}
-
-const void* UAnimBlueprintGeneratedClass::GetConstantNodeValueRaw(int32 InIndex) const
-{
-	const FProperty* Property = ConstantProperties[InIndex];
-	check(Property->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(Property->GetOwner<UStruct>()));
-	const void* ConstantData = GetConstantNodeData();
-	check(ConstantData);
-	return Property->ContainerPtrToValuePtr<void>(static_cast<const void*>(ConstantData));
-}
-
-const void* UAnimBlueprintGeneratedClass::GetMutableNodeValueRaw(int32 InIndex, const UObject* InObject) const
-{
-	const FProperty* Property = MutableProperties[InIndex];
-	check(Property->GetOwner<UStruct>() && Property->GetOwner<UStruct>()->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
-	const FAnimBlueprintMutableData* MutableData = GetMutableNodeData(InObject);
-	check(MutableData);	
-	return Property->ContainerPtrToValuePtr<void>(static_cast<const void*>(MutableData));
-}
-
-FAnimBlueprintMutableData* UAnimBlueprintGeneratedClass::GetMutableNodeData(UObject* InObject) const
-{
-	if(MutableNodeDataProperty != nullptr)
-	{
-		check(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
-		check(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
-		return MutableNodeDataProperty->ContainerPtrToValuePtr<FAnimBlueprintMutableData>(InObject);
-	}
-
-	return nullptr;
-}
-
-const FAnimBlueprintMutableData* UAnimBlueprintGeneratedClass::GetMutableNodeData(const UObject* InObject) const
-{
-	if(MutableNodeDataProperty != nullptr)
-	{
-		check(MutableNodeDataProperty->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()));
-		check(MutableNodeDataProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableNodeDataProperty->GetOwner<UClass>()));
-		return MutableNodeDataProperty->ContainerPtrToValuePtr<FAnimBlueprintMutableData>(InObject);
-	}
-
-	return nullptr;
-}
-
-const void* UAnimBlueprintGeneratedClass::GetConstantNodeData() const 
-{
-	return SparseClassData;
-}
-
-void UAnimBlueprintGeneratedClass::ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const
-{
-	for(int32 SubsystemIndex = 0; SubsystemIndex < ConstantSubsystemProperties.Num(); ++SubsystemIndex)
-	{
-		FStructProperty* ConstantSubsystemProperty = ConstantSubsystemProperties[SubsystemIndex];
-		check(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
-		FAnimSubsystem& Subsystem = *ConstantSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystem>(const_cast<void*>(GetConstantNodeData()));
-
-		if(InFunction(FAnimSubsystemContext(Subsystem, ConstantSubsystemProperty->Struct)) == EAnimSubsystemEnumeration::Stop)
-		{
-			break;
-		}
-	}
-}
-
-void UAnimBlueprintGeneratedClass::ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const
-{
-	check(ConstantSubsystemProperties.Num() == MutableSubsystemProperties.Num());
-	
-	for(int32 SubsystemIndex = 0; SubsystemIndex < ConstantSubsystemProperties.Num(); ++SubsystemIndex)
-	{
-		FStructProperty* ConstantSubsystemProperty = ConstantSubsystemProperties[SubsystemIndex];
-		FStructProperty* MutableSubsystemProperty = MutableSubsystemProperties[SubsystemIndex];
-		
-		check(ConstantSubsystemProperty->GetOwner<UStruct>() && GetSparseClassDataStruct()->IsChildOf(ConstantSubsystemProperty->GetOwner<UStruct>()));
-		const FAnimSubsystem& Subsystem = *ConstantSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystem>(GetConstantNodeData());
-
-		check(MutableSubsystemProperty->GetOwner<UClass>() && InObject->GetClass()->IsChildOf(MutableSubsystemProperty->GetOwner<UClass>()));
-		FAnimSubsystemInstance& SubsystemInstance = *MutableSubsystemProperty->ContainerPtrToValuePtr<FAnimSubsystemInstance>(InObject);
-		
-		if(InFunction(FAnimSubsystemInstanceContext(Subsystem, ConstantSubsystemProperty->Struct, SubsystemInstance, MutableSubsystemProperty->Struct)) == EAnimSubsystemEnumeration::Stop)
-		{
-			break;
-		}
-	}
-}
-
-const FAnimSubsystem* UAnimBlueprintGeneratedClass::FindSubsystem(UScriptStruct* InSubsystemType) const
-{
-	const FAnimSubsystem* FoundSubsystem = nullptr;
-	
-	ForEachSubsystem([&FoundSubsystem, InSubsystemType](const FAnimSubsystemContext& InContext)
-	{
-		if(InContext.SubsystemStruct == InSubsystemType)
-		{
-			FoundSubsystem = &InContext.Subsystem;
-			return EAnimSubsystemEnumeration::Stop;
-		}
-
-		return EAnimSubsystemEnumeration::Continue;
-	});
-
-	return FoundSubsystem;
 }
 
 void UAnimBlueprintGeneratedClass::Serialize(FArchive& Ar)
@@ -458,10 +357,15 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 	DynamicResetNodeProperties.Empty();
 	StateMachineNodeProperties.Empty();
 	InitializationNodeProperties.Empty();
-	MutableProperties.Empty();
-	ConstantProperties.Empty();
-	MutableSubsystemProperties.Empty();
-	ConstantSubsystemProperties.Empty();
+
+#if WITH_EDITORONLY_DATA
+	for (FExposedValueHandler& Handler : EvaluateGraphExposedInputs)
+	{
+		// handle potential renames of the class package
+		Handler.ValueHandlerNodeProperty.ResolveWithRenamedStructPackage(this);
+		check(Handler.ValueHandlerNodeProperty.Get() || Handler.ValueHandlerNodeProperty.IsPathToFieldEmpty());
+	}
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	// This relies on the entire class being fully loaded, this is not the case with EDL async-loading, in which case the functions are generated in PostLoad
@@ -488,19 +392,6 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 					StateMachineNodeProperties.Add(StructProp);
 				}
 				AnimNodeProperties.Add(StructProp);
-			}
-			else if(StructProp->Struct->IsChildOf(FAnimBlueprintMutableData::StaticStruct()))
-			{
-				MutableNodeDataProperty = StructProp;
-
-				for(TFieldIterator<FProperty> MutableIt(StructProp->Struct); MutableIt; ++MutableIt)
-				{
-					MutableProperties.Add(*MutableIt);
-				}
-			}
-			else if(StructProp->Struct->IsChildOf(FAnimSubsystemInstance::StaticStruct()))
-			{
-				MutableSubsystemProperties.Add(StructProp);
 			}
 		}
 	}
@@ -534,46 +425,28 @@ void UAnimBlueprintGeneratedClass::PostLoadDefaultObject(UObject* Object)
 {
 	Super::PostLoadDefaultObject(Object);
 
-	OnPostLoadDefaults(Object);
-}
-
-void UAnimBlueprintGeneratedClass::OnPostLoadDefaults(UObject* Object)
-{
 	// Make sure that 'functions' are generated before we use them in LinkFunctionsToDefaultObjectNodes()
 	if (AnimBlueprintFunctions.IsEmpty()) 
 	{ 
 		GenerateAnimationBlueprintFunctions();
 	}
 
-	BuildConstantProperties();
+	UAnimBlueprintGeneratedClass* Iter = this;
+	while(Iter)
+	{
+		FExposedValueHandler::ClassInitialization(Iter->EvaluateGraphExposedInputs, Object);
+		Iter = Cast<UAnimBlueprintGeneratedClass>(Iter->GetSuperClass());
+	}
 
 	LinkFunctionsToDefaultObjectNodes(Object);
-
-	Subsystems.Empty();
-	
-	ForEachSubsystem(Object, [this, Object](const FAnimSubsystemInstanceContext& InContext)
-	{
-		Subsystems.Add(&InContext.Subsystem);
-
-		FAnimSubsystemPostLoadDefaultsContext Context(InContext, Object);
-		const_cast<FAnimSubsystem&>(InContext.Subsystem).OnPostLoadDefaults(Context);
-		return EAnimSubsystemEnumeration::Continue;
-	});
 }
 
 void UAnimBlueprintGeneratedClass::PostLoad()
 {
 	Super::PostLoad();
 
-	BuildConstantProperties();
-
-	// Call postload on the class subsystems
-	ForEachSubsystem([this](const FAnimSubsystemContext& InContext)
-	{
-		FAnimSubsystemPostLoadContext Context(InContext, *this);
-		const_cast<FAnimSubsystem&>(InContext.Subsystem).OnPostLoad(Context);
-		return EAnimSubsystemEnumeration::Continue;
-	});
+	// Post-load property access library
+	PropertyAccess::PostLoadLibrary(PropertyAccessLibrary);
 }
 
 void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
@@ -662,21 +535,6 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 	}
 }
 
-void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject)
-{
-	// Link functions to their nodes
-	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
-	{
-		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
-
-		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
-		{
-			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
-			Node->SetNodeData(GetNodeData()[AnimNodeIndex]);
-		}
-	}
-}
-
 void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)
 {
 	PreUpdateNodeProperties.Empty();
@@ -687,34 +545,12 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
 		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
-
-		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
-		{
-			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
-			Node->SetNodeData(GetNodeData()[AnimNodeIndex]);
-
-			if(Node->NeedsDynamicReset())
-			{
-				DynamicResetNodeProperties.Add(StructProperty);
-			}
-
-			if(Node->HasPreUpdate())
-			{
-				PreUpdateNodeProperties.Add(StructProperty);
-			}
-
-			if(Node->NeedsOnInitializeAnimInstance())
-			{
-				InitializationNodeProperties.Add(StructProperty);
-			}
-		}
-		
 		if (StructProperty->Struct->IsChildOf(FAnimNode_Root::StaticStruct()))
 		{
 			FAnimNode_Root* RootNode = StructProperty->ContainerPtrToValuePtr<FAnimNode_Root>(DefaultObject);
-			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([RootNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == RootNode->GetName(); }))
+			if(FAnimBlueprintFunction* FoundFunction = AnimBlueprintFunctions.FindByPredicate([RootNode](const FAnimBlueprintFunction& InFunction){ return InFunction.Name == RootNode->Name; }))
 			{
-				FoundFunction->Group = RootNode->GetGroup();
+				FoundFunction->Group = RootNode->Group;
 				FoundFunction->OutputPoseNodeIndex = AnimNodeIndex;
 				FoundFunction->OutputPoseNodeProperty = StructProperty;
 			}
@@ -732,6 +568,24 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 						FoundFunction->InputPoseNodeProperties[InputIndex] = StructProperty;
 					}
 				}
+			}
+		}
+		else if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+		{
+			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
+			if(Node->NeedsDynamicReset())
+			{
+				DynamicResetNodeProperties.Add(StructProperty);
+			}
+
+			if(Node->HasPreUpdate())
+			{
+				PreUpdateNodeProperties.Add(StructProperty);
+			}
+
+			if(Node->NeedsOnInitializeAnimInstance())
+			{
+				InitializationNodeProperties.Add(StructProperty);
 			}
 		}
 	}
@@ -796,6 +650,7 @@ const int32* UAnimBlueprintGeneratedClass::GetNodePropertyIndexFromGuid(FGuid Gu
 					return NodeIndex;
 				}
 			}
+
 		}
 	}
 
@@ -812,81 +667,11 @@ int32 UAnimBlueprintGeneratedClass::GetNodeIndexFromGuid(FGuid Guid, EPropertySe
 	return INDEX_NONE;
 }
 
-const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex, EPropertySearchMode::Type SearchMode) const
+const UEdGraphNode* UAnimBlueprintGeneratedClass::GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const
 {
 	const int32 ReversedPropertyIndex = AnimNodeProperties.Num() - PropertyIndex - 1;
-	if (SearchMode == EPropertySearchMode::OnlyThis)
-	{
-		const TWeakObjectPtr<const UEdGraphNode>* Node = AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(ReversedPropertyIndex);
-		return Node ? Node->Get() : nullptr;
-	}
-	else
-	{
-		TArray<const UBlueprintGeneratedClass*> BlueprintHierarchy;
-		GetGeneratedClassesHierarchy(this, BlueprintHierarchy);
-
-		for (const UBlueprintGeneratedClass* Blueprint : BlueprintHierarchy)
-		{
-			if (const UAnimBlueprintGeneratedClass* AnimBlueprintClass = Cast<UAnimBlueprintGeneratedClass>(Blueprint))
-			{
-				const TWeakObjectPtr<const UEdGraphNode>* Node = AnimBlueprintClass->AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(ReversedPropertyIndex);
-				if (Node)
-				{
-					return Node->Get();
-				}
-			}
-		}
-	}
-
-	return nullptr;
+	const TWeakObjectPtr<const UEdGraphNode>* Node = AnimBlueprintDebugData.NodePropertyIndexToNodeMap.Find(ReversedPropertyIndex);
+	return Node ? Node->Get() : nullptr;
 }
 
 #endif // WITH_EDITORONLY_DATA
-
-void UAnimBlueprintGeneratedClass::BuildConstantProperties()
-{
-	ConstantProperties.Empty();
-	ConstantSubsystemProperties.Empty();
-
-	if(UScriptStruct* ConstantsStruct = GetSparseClassDataStruct())
-	{
-		// Make sure we create the data area up-front here
-		GetOrCreateSparseClassData();
-
-		// We must init sparse class data here once the class has been serialized
-		for (TFieldIterator<FProperty> It(ConstantsStruct); It; ++It)
-		{
-			if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
-			{
-				if(StructProp->Struct->IsChildOf(FAnimSubsystem::StaticStruct()))
-				{
-					ConstantSubsystemProperties.Add(StructProp);
-				}
-			}
-			
-			ConstantProperties.Add(*It);
-		}
-	}
-}
-
-int32 UAnimBlueprintGeneratedClass::GetAnimNodePropertyIndex(const UScriptStruct* InNodeType, FName InPropertyName) const
-{
-	const FAnimNodeStructData* ScriptStructDataPtr = NodeTypeMap.Find(InNodeType);
-	if(ScriptStructDataPtr != nullptr)
-	{
-		return ScriptStructDataPtr->GetPropertyIndex(InPropertyName);
-	}
-
-	return INDEX_NONE;
-}
-
-int32 UAnimBlueprintGeneratedClass::GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const
-{
-	const FAnimNodeStructData* ScriptStructDataPtr = NodeTypeMap.Find(InNodeType);
-	if(ScriptStructDataPtr != nullptr)
-	{
-		return ScriptStructDataPtr->GetNumProperties();
-	}
-	
-	return 0;
-}

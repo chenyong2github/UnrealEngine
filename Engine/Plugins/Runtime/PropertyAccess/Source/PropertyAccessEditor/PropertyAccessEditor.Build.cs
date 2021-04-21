@@ -18,6 +18,7 @@ public class PropertyAccessEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"PropertyAccess",
 				"GraphEditor",
 				"BlueprintGraph",
 				"EditorStyle",

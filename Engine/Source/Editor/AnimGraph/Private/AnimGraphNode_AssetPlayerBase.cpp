@@ -17,6 +17,8 @@
 #include "AnimGraphNode_PoseDriver.h"
 #include "UObject/UObjectIterator.h"
 #include "Animation/AnimLayerInterface.h"
+#include "IAnimBlueprintCompilerHandlerCollection.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "Animation/AnimSync.h"
@@ -33,21 +35,9 @@ void UAnimGraphNode_AssetPlayerBase::Serialize(FArchive& Ar)
 
 	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimSyncGroupsExplicitSyncMethod)
 	{
-		if(SyncGroup_DEPRECATED.GroupName != NAME_None)
+		if(SyncGroup.GroupName != NAME_None)
 		{
-			SyncGroup_DEPRECATED.Method = EAnimSyncMethod::SyncGroup;
-		}
-	}
-
-	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimNodeConstantDataRefactorPhase0)
-	{
-		FStructProperty* NodeProperty = GetFNodeProperty();
-		if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
-		{
-			FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
-			Node->SetGroupName(SyncGroup_DEPRECATED.GroupName);
-			Node->GetGroupRole(SyncGroup_DEPRECATED.GroupRole);
-			Node->SetGroupMethod(SyncGroup_DEPRECATED.Method);
+			SyncGroup.Method = EAnimSyncMethod::SyncGroup;
 		}
 	}
 }
@@ -56,17 +46,12 @@ void UAnimGraphNode_AssetPlayerBase::PostEditChangeProperty(FPropertyChangedEven
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	FStructProperty* NodeProperty = GetFNodeProperty();
-	if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+	if(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimationGroupReference, Method))
 	{
-		if(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimNode_AssetPlayerBase, Method))
+		if(SyncGroup.Method != EAnimSyncMethod::SyncGroup)
 		{
-			FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
-			if(Node->GetGroupMethod() != EAnimSyncMethod::SyncGroup)
-			{
-				Node->SetGroupName(NAME_None);
-				Node->GetGroupRole(EAnimGroupRole::CanBeLeader);
-			}
+			SyncGroup.GroupName = NAME_None;
+			SyncGroup.GroupRole = EAnimGroupRole::CanBeLeader;
 		}
 	}
 }
@@ -150,15 +135,9 @@ void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilation(USkeleton
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	FStructProperty* NodeProperty = GetFNodeProperty();
-	if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+	if(SyncGroup.Method == EAnimSyncMethod::SyncGroup && SyncGroup.GroupName == NAME_None)
 	{
-		FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
-
-		if(Node->GetGroupMethod() == EAnimSyncMethod::SyncGroup && Node->GetGroupName() == NAME_None)
-		{
-			MessageLog.Error(*LOCTEXT("NoSyncGroupSupplied", "Node @@ is set to use sync groups, but no sync group has been supplied").ToString(), this);
-		}
+		MessageLog.Error(*LOCTEXT("NoSyncGroupSupplied", "Node @@ is set to use sync groups, but no sync group has been supplied").ToString(), this);
 	}
 }
 
@@ -166,15 +145,9 @@ void UAnimGraphNode_AssetPlayerBase::GetOutputLinkAttributes(FNodeAttributeArray
 {
 	OutAttributes.Add(UE::Anim::FAttributes::Curves);
 	OutAttributes.Add(UE::Anim::FAttributes::Attributes);
-
-	FStructProperty* NodeProperty = GetFNodeProperty();
-	if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
+	if(SyncGroup.Method == EAnimSyncMethod::Graph)
 	{
-		const FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
-		if(Node->GetGroupMethod() == EAnimSyncMethod::Graph)
-		{
-			OutAttributes.Add(UE::Anim::FAnimSync::Attribute);
-		}
+		OutAttributes.Add(UE::Anim::FAnimSync::Attribute);
 	}
 }
 

@@ -81,21 +81,20 @@ void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext&
 			FEmitDefaultValueHelper::OuterGenerate(Context, InProperty, TEXT(""), reinterpret_cast<const uint8*>(InCDO), bInNewProperty ? nullptr : reinterpret_cast<const uint8*>(InParentCDO), FEmitDefaultValueHelper::EPropertyAccessOperator::None, FEmitDefaultValueHelper::EPropertyGenerationControlFlags::AllowProtected);
 			
 			// anim nodes constructed, finish anim node initialization:
-			// @TODO: if we are to support nativizaton of anim BPs this will need to be reworked
-// 			if (UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
-// 			{
-// 				for (int32 i = 0; i < AnimClass->GetExposedValueHandlers().Num(); ++i)
-// 				{
-// 					if (AnimClass->GetExposedValueHandlers()[i].ValueHandlerNodeProperty == InProperty)
-// 					{
-// 						const FString ClassName = FEmitHelper::GetCppName(Context.GetCurrentlyGeneratedClass());
-// 						const FString MemberName = FEmitHelper::GetCppName(const_cast<FProperty*>(InProperty));
-// 						Context.Body.AddLine(FString::Printf(TEXT("%s.SetExposedValueHandler(&CastChecked<UAnimClassData>(CastChecked<UDynamicClass>(%s::StaticClass())->%s)->GetExposedValueHandlers()[%d]);"), *MemberName, *ClassName, GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, AnimClassImplementation), i));
-// 
-// 						break;
-// 					}
-// 				}
-// 			}
+			if (UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
+			{
+				for (int32 i = 0; i < AnimClass->GetExposedValueHandlers().Num(); ++i)
+				{
+					if (AnimClass->GetExposedValueHandlers()[i].ValueHandlerNodeProperty == InProperty)
+					{
+						const FString ClassName = FEmitHelper::GetCppName(Context.GetCurrentlyGeneratedClass());
+						const FString MemberName = FEmitHelper::GetCppName(const_cast<FProperty*>(InProperty));
+						Context.Body.AddLine(FString::Printf(TEXT("%s.SetExposedValueHandler(&CastChecked<UAnimClassData>(CastChecked<UDynamicClass>(%s::StaticClass())->%s)->GetExposedValueHandlers()[%d]);"), *MemberName, *ClassName, GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, AnimClassImplementation), i));
+
+						break;
+					}
+				}
+			}
 
 			Context.Body.DecreaseIndent();
 			Context.Body.AddLine(TEXT("}"));

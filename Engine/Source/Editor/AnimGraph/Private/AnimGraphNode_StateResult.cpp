@@ -2,6 +2,8 @@
 
 #include "AnimGraphNode_StateResult.h"
 #include "GraphEditorSettings.h"
+#include "AnimBlueprintCompiler.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
 #include "IAnimBlueprintCompilationContext.h"
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
@@ -48,7 +50,7 @@ void UAnimGraphNode_StateResult::OnProcessDuringCompilation(IAnimBlueprintCompil
 {
 	UAnimGraphNode_StateResult* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_StateResult>(this);
 
-	Node.SetName(TrueNode->GetGraph()->GetFName());
+	Node.Name = TrueNode->GetGraph()->GetFName();
 }
 
 #undef LOCTEXT_NAMESPACE

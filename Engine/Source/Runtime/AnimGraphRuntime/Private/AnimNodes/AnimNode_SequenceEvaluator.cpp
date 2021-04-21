@@ -4,67 +4,65 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 
-float FAnimNode_SequenceEvaluatorBase::GetCurrentAssetTime() const
+float FAnimNode_SequenceEvaluator::GetCurrentAssetTime()
 {
-	return GetExplicitTime();
+	return ExplicitTime;
 }
 
-float FAnimNode_SequenceEvaluatorBase::GetCurrentAssetLength() const
+float FAnimNode_SequenceEvaluator::GetCurrentAssetLength()
 {
-	UAnimSequenceBase* CurrentSequence = GetSequence();
-	return CurrentSequence ? CurrentSequence->GetPlayLength() : 0.0f;
+	return Sequence ? Sequence->GetPlayLength() : 0.0f;
 }
 
-void FAnimNode_SequenceEvaluatorBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+/////////////////////////////////////////////////////
+// FAnimSequenceEvaluatorNode
+
+void FAnimNode_SequenceEvaluator::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Initialize_AnyThread)
 	FAnimNode_AssetPlayerBase::Initialize_AnyThread(Context);
 	bReinitialized = true;
 }
 
-void FAnimNode_SequenceEvaluatorBase::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
+void FAnimNode_SequenceEvaluator::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(CacheBones_AnyThread)
 }
 
-void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
+void FAnimNode_SequenceEvaluator::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
-	float CurrentExplicitTime = GetExplicitTime();
-
-	UAnimSequenceBase* CurrentSequence = GetSequence();
-	if (CurrentSequence)
+	if (Sequence)
 	{
 		// Clamp input to a valid position on this sequence's time line.
-		CurrentExplicitTime = FMath::Clamp(CurrentExplicitTime, 0.f, CurrentSequence->GetPlayLength());
+		ExplicitTime = FMath::Clamp(ExplicitTime, 0.f, Sequence->GetPlayLength());
 
-		if ((!GetTeleportToExplicitTime() || (GetGroupName() != NAME_None)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
+		if ((!bTeleportToExplicitTime || (GroupName != NAME_None)) && (Context.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
 		{
 			if (bReinitialized)
 			{
-				switch (GetReinitializationBehavior())
+				switch (ReinitializationBehavior)
 				{
-					case ESequenceEvalReinit::StartPosition: InternalTimeAccumulator = GetStartPosition(); break;
-					case ESequenceEvalReinit::ExplicitTime: InternalTimeAccumulator = CurrentExplicitTime; break;
+					case ESequenceEvalReinit::StartPosition: InternalTimeAccumulator = StartPosition; break;
+					case ESequenceEvalReinit::ExplicitTime: InternalTimeAccumulator = ExplicitTime; break;
 				}
 
-				InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, CurrentSequence->GetPlayLength());
+				InternalTimeAccumulator = FMath::Clamp(InternalTimeAccumulator, 0.f, Sequence->GetPlayLength());
 			}
 
-			float TimeJump = CurrentExplicitTime - InternalTimeAccumulator;
-			const bool bCurrentShouldLoop = GetShouldLoop();
-			if (bCurrentShouldLoop)
+			float TimeJump = ExplicitTime - InternalTimeAccumulator;
+			if (bShouldLoop)
 			{
-				if (FMath::Abs(TimeJump) > (CurrentSequence->GetPlayLength() * 0.5f))
+				if (FMath::Abs(TimeJump) > (Sequence->GetPlayLength() * 0.5f))
 				{
 					if (TimeJump > 0.f)
 					{
-						TimeJump -= CurrentSequence->GetPlayLength();
+						TimeJump -= Sequence->GetPlayLength();
 					}
 					else
 					{
-						TimeJump += CurrentSequence->GetPlayLength();
+						TimeJump += Sequence->GetPlayLength();
 					}
 				}
 			}
@@ -73,37 +71,36 @@ void FAnimNode_SequenceEvaluatorBase::UpdateAssetPlayer(const FAnimationUpdateCo
 			// to prevent that from happening, we set current accumulator to explicit time
 			if (TimeJump == 0.f)
 			{
-				InternalTimeAccumulator = CurrentExplicitTime;
+				InternalTimeAccumulator = ExplicitTime;
 			}
 			
 			const float DeltaTime = Context.GetDeltaTime();
-			const float RateScale = CurrentSequence->RateScale;
+			const float RateScale = Sequence->RateScale;
 			const float PlayRate = FMath::IsNearlyZero(DeltaTime) || FMath::IsNearlyZero(RateScale) ? 0.f : (TimeJump / (DeltaTime * RateScale));
-			CreateTickRecordForNode(Context, CurrentSequence, bCurrentShouldLoop, PlayRate);
+			CreateTickRecordForNode(Context, Sequence, bShouldLoop, PlayRate);
 		}
 		else
 		{
-			InternalTimeAccumulator = CurrentExplicitTime;
+			InternalTimeAccumulator = ExplicitTime;
 		}
 	}
 
 	bReinitialized = false;
 
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), CurrentSequence != nullptr ? CurrentSequence->GetFName() : NAME_None);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Sequence"), CurrentSequence);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("InputTime"), CurrentExplicitTime);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), Sequence != nullptr ? Sequence->GetFName() : NAME_None);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Sequence"), Sequence);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("InputTime"), ExplicitTime);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Time"), InternalTimeAccumulator);
 }
 
-void FAnimNode_SequenceEvaluatorBase::Evaluate_AnyThread(FPoseContext& Output)
+void FAnimNode_SequenceEvaluator::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	check(Output.AnimInstanceProxy != nullptr);
-	UAnimSequenceBase* CurrentSequence = GetSequence();
-	if ((CurrentSequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
+	if ((Sequence != nullptr) && Output.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton()))
 	{
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentSequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
+		Sequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));
 	}
 	else
 	{
@@ -111,49 +108,19 @@ void FAnimNode_SequenceEvaluatorBase::Evaluate_AnyThread(FPoseContext& Output)
 	}
 }
 
-void FAnimNode_SequenceEvaluatorBase::GatherDebugData(FNodeDebugData& DebugData)
+void FAnimNode_SequenceEvaluator::OverrideAsset(UAnimationAsset* NewAsset)
+{
+	if(UAnimSequenceBase* NewSequence = Cast<UAnimSequenceBase>(NewAsset))
+	{
+		Sequence = NewSequence;
+	}
+}
+
+void FAnimNode_SequenceEvaluator::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	
-	DebugLine += FString::Printf(TEXT("('%s' InputTime: %.3f, Time: %.3f)"), *GetNameSafe(GetSequence()), GetExplicitTime(), InternalTimeAccumulator);
+	DebugLine += FString::Printf(TEXT("('%s' InputTime: %.3f, Time: %.3f)"), *GetNameSafe(Sequence), ExplicitTime, InternalTimeAccumulator);
 	DebugData.AddDebugItem(DebugLine, true);
-}
-
-void FAnimNode_SequenceEvaluator::SetSequence(UAnimSequenceBase* InSequence)
-{
-#if WITH_EDITORONLY_DATA
-	TObjectPtr<UAnimSequenceBase>& SequenceToSet = GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
-	SequenceToSet = InSequence;
-#endif
-}
-
-UAnimSequenceBase* FAnimNode_SequenceEvaluator::GetSequence() const
-{
-	return GET_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
-}
-
-float FAnimNode_SequenceEvaluator::GetExplicitTime() const
-{
-	return GET_ANIM_NODE_DATA(float, ExplicitTime);
-}
-
-bool FAnimNode_SequenceEvaluator::GetShouldLoop() const
-{
-	return GET_ANIM_NODE_DATA(bool, bShouldLoop);
-}
-
-bool FAnimNode_SequenceEvaluator::GetTeleportToExplicitTime() const
-{
-	return GET_ANIM_NODE_DATA(bool, bTeleportToExplicitTime);
-}
-
-TEnumAsByte<ESequenceEvalReinit::Type> FAnimNode_SequenceEvaluator::GetReinitializationBehavior() const
-{
-	return GET_ANIM_NODE_DATA(TEnumAsByte<ESequenceEvalReinit::Type>, ReinitializationBehavior);
-}
-
-float FAnimNode_SequenceEvaluator::GetStartPosition() const
-{
-	return GET_ANIM_NODE_DATA(float, StartPosition);
 }

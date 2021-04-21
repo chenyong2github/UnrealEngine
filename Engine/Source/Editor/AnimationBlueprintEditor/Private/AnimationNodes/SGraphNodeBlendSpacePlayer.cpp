@@ -48,7 +48,7 @@ void SGraphNodeBlendSpacePlayer::UpdateGraphSyncLabel()
 			{
 				if (UObject* ActiveObject = AnimBlueprint->GetObjectBeingDebugged())
 				{
-					if(VisualBlendSpacePlayer->Node.GetGroupMethod() == EAnimSyncMethod::Graph)
+					if(VisualBlendSpacePlayer->SyncGroup.Method == EAnimSyncMethod::Graph)
 					{
 						int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(VisualBlendSpacePlayer->NodeGuid);
 						if(NodeIndex != INDEX_NONE)

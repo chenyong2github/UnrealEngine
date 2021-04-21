@@ -10,7 +10,7 @@
 UAnimGraphNode_IdentityPose::UAnimGraphNode_IdentityPose(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Node.SetRefPoseType(EIT_Additive);
+	Node.RefPoseType = EIT_Additive;
 }
 
 FText UAnimGraphNode_IdentityPose::GetTooltipText() const

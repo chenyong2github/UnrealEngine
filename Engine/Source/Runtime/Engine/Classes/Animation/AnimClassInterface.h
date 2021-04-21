@@ -5,10 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "UObject/Class.h"
+#include "Templates/Casts.h"
 #include "UObject/Interface.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimStateMachineTypes.h"
-#include "Animation/AnimSubsystem.h"
 #include "UObject/FieldPath.h"
 
 #include "AnimClassInterface.generated.h"
@@ -16,13 +17,6 @@
 class USkeleton;
 struct FExposedValueHandler;
 struct FPropertyAccessLibrary;
-struct FAnimNodeConstantData;
-class IAnimClassInterface;
-struct FAnimBlueprintConstantData;
-struct FAnimBlueprintMutableData;
-struct FAnimNode_Base;
-struct FAnimNodeData;
-namespace UE { namespace Anim { struct FNodeDataId; } }
 
 /** Describes the input and output of an anim blueprint 'function' */
 USTRUCT()
@@ -136,12 +130,6 @@ struct FAnimGraphBlendOptions
 	{}
 };
 
-// How to proceed when enumerating subsystems
-enum class EAnimSubsystemEnumeration
-{
-	Stop,
-	Continue
-};
 
 UINTERFACE()
 class ENGINE_API UAnimClassInterface : public UInterface
@@ -168,8 +156,7 @@ public:
 	virtual const TArray<FStructProperty*>& GetDynamicResetNodeProperties() const = 0;
 	virtual const TArray<FStructProperty*>& GetStateMachineNodeProperties() const = 0;
 	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const = 0;
-	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_Base>")
-	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const;
+	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const = 0;
 	virtual const TArray<FName>& GetSyncGroupNames() const = 0;
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const = 0;
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const = 0;
@@ -177,35 +164,11 @@ public:
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const = 0;
 	virtual USkeleton* GetTargetSkeleton() const = 0;
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const = 0;
-	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_PropertyAccess>")
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const;
-
-	// Iterate over each subsystem for this class, supplying both the constant (FAnimSubsystem) and mutable (FAnimSubsystemInstance) data
-	virtual void ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const  = 0;
-	virtual void ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const = 0;
-
-	// Find a subsystem's class-resident data. If no subsystem of the type exists this will return nullptr.
-	// @param	InSubsystemType	The subsystem's type
-	virtual const FAnimSubsystem* FindSubsystem(UScriptStruct* InSubsystemType) const = 0;
-
-	// Get a subsystem's class-resident data. If no subsystem of the type exists this will return nullptr.
-	template<typename SubsystemType>
-	const SubsystemType* FindSubsystem() const
-	{
-		const FAnimSubsystem* Subsystem = FindSubsystem(SubsystemType::StaticStruct());
-		return static_cast<const SubsystemType*>(Subsystem);
-	}
-	
-	// Get a subsystem's class-resident data. If no subsystem of the type exists this will assert.
-	template<typename SubsystemType>
-	const SubsystemType& GetSubsystem() const
-	{
-		const FAnimSubsystem* Subsystem = FindSubsystem(SubsystemType::StaticStruct());
-		check(Subsystem);
-		return static_cast<const SubsystemType&>(*Subsystem);
-	}
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const = 0;
 	
 protected:
+	friend class UAnimBlueprintGeneratedClass;
+
 	// These direct accessors are here to allow internal access that doesnt redirect to the root class
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const = 0;
 	virtual const TArray<FAnimNotifyEvent>& GetAnimNotifies_Direct() const = 0;
@@ -213,52 +176,101 @@ protected:
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap_Direct() const = 0;
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const = 0;
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const = 0;
-	UE_DEPRECATED(5.0, "Please use GetSubsystem<FAnimSubsystem_PropertyAccess>")
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const;
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const = 0;
 
-protected:
-	friend class UAnimBlueprintGeneratedClass;
-	friend struct FAnimNodeData;
-	friend struct UE::Anim::FNodeDataId;
-
-	// Access the various constant and mutable values
-	virtual const void* GetConstantNodeValueRaw(int32 InIndex) const = 0;
-	virtual const void* GetMutableNodeValueRaw(int32 InIndex, const UObject* InObject) const = 0;
-
-	// Get the struct that holds the mutable data
-	// @param	InObject	The anim instance object that holds the mutable data
-	virtual const FAnimBlueprintMutableData* GetMutableNodeData(const UObject* InObject) const = 0;
-	virtual FAnimBlueprintMutableData* GetMutableNodeData(UObject* InObject) const = 0;
-
-	// Get the struct that holds the constant data
-	virtual const void* GetConstantNodeData() const = 0;
-
-	// Get the anim node data used for each node's constant/folded data
-	virtual TArrayView<const FAnimNodeData> GetNodeData() const = 0;
-
-	// Get the (editor-only data) index of the property
-	virtual int32 GetAnimNodePropertyIndex(const UScriptStruct* InNodeType, FName InPropertyName) const = 0;
-
-	// Get the number of properties (including editor only properties) that the anim node type has
-	virtual int32 GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const = 0;
-	
 public:
 
 	// Get the root anim class interface (i.e. if this is a derived class).
 	// Some properties that are derived from the compiled anim graph are routed to the 'Root' class
 	// as child classes don't get fully compiled. Instead they just override various asset players leaving the
 	// full compilation up to the base class. 
-	const IAnimClassInterface* GetRootClass() const;
+	const IAnimClassInterface* GetRootClass() const
+	{
+		auto GetSuperClassInterface = [](const IAnimClassInterface* InClass) -> const IAnimClassInterface*
+		{
+			if(const UClass* ActualClass = GetActualAnimClass(InClass))
+			{
+				return GetFromClass(ActualClass->GetSuperClass());
+			}
 
-	static IAnimClassInterface* GetFromClass(UClass* InClass);
+			return nullptr;
+		};
 
-	static const IAnimClassInterface* GetFromClass(const UClass* InClass);
+		const IAnimClassInterface* RootClass = this;
+		while(const IAnimClassInterface* NextClass = GetSuperClassInterface(RootClass))
+		{
+			RootClass = NextClass;
+		}
 
-	static UClass* GetActualAnimClass(IAnimClassInterface* AnimClassInterface);
+		return RootClass;
+	}
 
-	static const UClass* GetActualAnimClass(const IAnimClassInterface* AnimClassInterface);
+	static IAnimClassInterface* GetFromClass(UClass* InClass)
+	{
+		if (auto AnimClassInterface = Cast<IAnimClassInterface>(InClass))
+		{
+			return AnimClassInterface;
+		}
+		if (auto DynamicClass = Cast<UDynamicClass>(InClass))
+		{
+			DynamicClass->GetDefaultObject(true);
+			return CastChecked<IAnimClassInterface>(DynamicClass->AnimClassImplementation, ECastCheckedType::NullAllowed);
+		}
+		return nullptr;
+	}
 
-	static const FAnimBlueprintFunction* FindAnimBlueprintFunction(IAnimClassInterface* AnimClassInterface, const FName& InFunctionName);
+	static const IAnimClassInterface* GetFromClass(const UClass* InClass)
+	{
+		if (auto AnimClassInterface = Cast<const IAnimClassInterface>(InClass))
+		{
+			return AnimClassInterface;
+		}
+		if (auto DynamicClass = Cast<const UDynamicClass>(InClass))
+		{
+			DynamicClass->GetDefaultObject(true);
+			return CastChecked<const IAnimClassInterface>(DynamicClass->AnimClassImplementation, ECastCheckedType::NullAllowed);
+		}
+		return nullptr;
+	}
+
+	static UClass* GetActualAnimClass(IAnimClassInterface* AnimClassInterface)
+	{
+		if (UClass* ActualAnimClass = Cast<UClass>(AnimClassInterface))
+		{
+			return ActualAnimClass;
+		}
+		if (UObject* AsObject = Cast<UObject>(AnimClassInterface))
+		{
+			return Cast<UClass>(AsObject->GetOuter());
+		}
+		return nullptr;
+	}
+
+	static const UClass* GetActualAnimClass(const IAnimClassInterface* AnimClassInterface)
+	{
+		if (const UClass* ActualAnimClass = Cast<const UClass>(AnimClassInterface))
+		{
+			return ActualAnimClass;
+		}
+		if (const UObject* AsObject = Cast<const UObject>(AnimClassInterface))
+		{
+			return Cast<const UClass>(AsObject->GetOuter());
+		}
+		return nullptr;
+	}
+
+	static const FAnimBlueprintFunction* FindAnimBlueprintFunction(IAnimClassInterface* AnimClassInterface, const FName& InFunctionName)
+	{
+		for(const FAnimBlueprintFunction& Function : AnimClassInterface->GetAnimBlueprintFunctions())
+		{
+			if(Function.Name == InFunctionName)
+			{
+				return &Function;
+			}
+		}
+
+		return nullptr;
+	}
 
 	/**
 	 * Check if a function is an anim function on this class
@@ -266,11 +278,21 @@ public:
 	 * @param	InFunction				The function to check
 	 * @return true if the supplied function is an anim function on the specified class
 	 */
-	static bool IsAnimBlueprintFunction(IAnimClassInterface* InAnimClassInterface, const UFunction* InFunction);
+	static bool IsAnimBlueprintFunction(IAnimClassInterface* InAnimClassInterface, const UFunction* InFunction)
+	{
+		if(InFunction->GetOuterUClass() == GetActualAnimClass(InAnimClassInterface))
+		{
+			for(const FAnimBlueprintFunction& Function : InAnimClassInterface->GetAnimBlueprintFunctions())
+			{
+				if(Function.Name == InFunction->GetFName())
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
-	// Get the object ptr given an anim node
-	static const UObject* GetObjectPtrFromAnimNode(IAnimClassInterface* InAnimClassInterface, const FAnimNode_Base* InNode);
-	
 	UE_DEPRECATED(4.23, "Please use GetAnimBlueprintFunctions()")
 	virtual int32 GetRootAnimNodeIndex() const { return INDEX_NONE; }
 

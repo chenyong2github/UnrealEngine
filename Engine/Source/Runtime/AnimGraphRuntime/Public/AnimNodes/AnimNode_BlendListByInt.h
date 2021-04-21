@@ -11,19 +11,19 @@
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByInt : public FAnimNode_BlendListBase
 {
-	GENERATED_BODY()
-private:
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere,  Category=Runtime, meta=(PinShownByDefault, FoldProperty))
-	int32 ActiveChildIndex = 0;
-#endif
-	
+	GENERATED_USTRUCT_BODY()
 public:
-	FAnimNode_BlendListByInt() = default;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(PinShownByDefault))
+	int32 ActiveChildIndex;
 
-	// Get the currently active child index
-	virtual int32 GetActiveChildIndex() override;
-	
+public:	
+	FAnimNode_BlendListByInt()
+		:	FAnimNode_BlendListBase()
+		,	ActiveChildIndex(0)
+	{
+	}
+
 protected:
-	virtual FString GetNodeName(FNodeDebugData& DebugData) override { return DebugData.GetNodeName(this); }
+	virtual int32 GetActiveChildIndex();
+	virtual FString GetNodeName(FNodeDebugData& DebugData) { return DebugData.GetNodeName(this); }
 };

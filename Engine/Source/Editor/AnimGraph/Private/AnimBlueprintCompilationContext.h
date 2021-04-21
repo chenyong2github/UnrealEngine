@@ -7,12 +7,8 @@
 #include "IAnimBlueprintCompilationBracketContext.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 #include "IAnimBlueprintPostExpansionStepContext.h"
-#include "IAnimBlueprintNodeOverrideAssetsContext.h"
-#include "Animation/AnimationAsset.h"
 
 class FAnimBlueprintCompilerContext;
-class UAnimBlueprintExtension;
-struct FAnimNode_Base;
 
 class FAnimBlueprintCompilationContext : public IAnimBlueprintCompilationContext
 {
@@ -41,9 +37,7 @@ private:
 	virtual const TMap<UAnimGraphNode_Base*, FProperty*>& GetAllocatedPropertiesByNodeImpl() const override;
 	virtual void AddAttributesToNodeImpl(UAnimGraphNode_Base* InNode, TArrayView<const FName> InAttributes) const override;
 	virtual TArrayView<const FName> GetAttributesFromNodeImpl(UAnimGraphNode_Base* InNode) const override;
-	virtual bool IsAnimGraphNodeFoldedImpl(UAnimGraphNode_Base* InNode) const override;
-	virtual const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* GetFoldedPropertyRecordImpl(UAnimGraphNode_Base* InNode, FName InPropertyName) const override;
-	virtual const FStructProperty* GetMutableDataPropertyImpl() const override;
+	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const override;
 	virtual FKismetCompilerContext* GetKismetCompiler() const override;
 
 	FAnimBlueprintCompilerContext* CompilerContext;
@@ -59,8 +53,8 @@ private:
 	{}
 
 	virtual FCompilerResultsLog& GetMessageLogImpl() const override;
-	virtual const TMap<UAnimGraphNode_Base*, int32>& GetAllocatedAnimNodeIndicesImpl() const override;
-	
+	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const override;
+
 	FAnimBlueprintCompilerContext* CompilerContext;
 };
 
@@ -102,29 +96,6 @@ private:
 	int32 NodePropertyIndex;
 };
 
-class FAnimBlueprintExtensionCopyTermDefaultsContext : public IAnimBlueprintExtensionCopyTermDefaultsContext
-{
-private:
-	friend class FAnimBlueprintCompilerContext;
-
-	FAnimBlueprintExtensionCopyTermDefaultsContext(const FProperty* InTargetProperty, uint8* InDestinationPtr, const uint8* InSourcePtr, int32 InNodePropertyIndex)
-        : TargetProperty(InTargetProperty)
-        , DestinationPtr(InDestinationPtr)
-        , SourcePtr(InSourcePtr)
-        , NodePropertyIndex(InNodePropertyIndex)
-	{}
-
-	virtual const FProperty* GetTargetPropertyImpl() const override { return TargetProperty; }
-	virtual uint8* GetDestinationPtrImpl() const override { return DestinationPtr; }
-	virtual const uint8* GetSourcePtrImpl() const override { return SourcePtr; }
-	virtual int32 GetNodePropertyIndexImpl() const override { return NodePropertyIndex; }
-
-	const FProperty* TargetProperty;
-	uint8* DestinationPtr;
-	const uint8* SourcePtr;
-	int32 NodePropertyIndex;
-};
-
 class FAnimBlueprintPostExpansionStepContext : public IAnimBlueprintPostExpansionStepContext
 {
 private:
@@ -137,33 +108,7 @@ private:
 	virtual FCompilerResultsLog& GetMessageLogImpl() const override;
 	virtual UEdGraph* GetConsolidatedEventGraphImpl() const override;
 	virtual const FKismetCompilerOptions& GetCompileOptionsImpl() const override;
+	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const override;
 
 	FAnimBlueprintCompilerContext* CompilerContext;
-};
-
-class FAnimBlueprintNodeOverrideAssetsContext : public IAnimBlueprintNodeOverrideAssetsContext
-{
-private:
-	friend class FAnimBlueprintCompilerContext;
-	
-	FAnimBlueprintNodeOverrideAssetsContext(FAnimNode_Base* InAnimNode, UScriptStruct* InAnimNodeType)
-		: AnimNode(InAnimNode)
-		, AnimNodeType(InAnimNodeType)
-	{}
-
-	// Add an asset to this context
-	void AddAsset(UObject* InAsset) { Assets.Add(InAsset); }
-
-	virtual FAnimNode_Base* GetAnimNodeImpl() const override { return AnimNode; }
-	virtual UScriptStruct* GetAnimNodeTypeImpl() const override { return AnimNodeType; }
-	virtual TArrayView<UObject* const> GetAssetsImpl() const override { return MakeArrayView(Assets); }
-
-	// The anim node we are targeting
-	FAnimNode_Base* AnimNode;
-
-	// The type of the anim node we are targeting
-	UScriptStruct* AnimNodeType;
-	
-	// All the assets to override
-	TArray<UObject*> Assets;
 };

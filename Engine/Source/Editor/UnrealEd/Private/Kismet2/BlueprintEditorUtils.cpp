@@ -4224,7 +4224,7 @@ void FBlueprintEditorUtils::SetAnimationGraphLayerGroup(UEdGraph* InGraph, const
 	{
 		const FName NewGroup = InGroupName.IsEmpty() ? NAME_None : FName(*InGroupName.ToString());
 		UAnimGraphNode_Root* Root = GetAnimGraphRoot(InGraph);
-		if(NewGroup != Root->Node.GetGroup())
+		if(NewGroup != Root->Node.Group)
 		{
 			FScopedTransaction Transaction(LOCTEXT("SetAnimationGraphLayerGroup", "Set Group"));
 
@@ -4243,7 +4243,7 @@ void FBlueprintEditorUtils::SetAnimationGraphLayerGroup(UEdGraph* InGraph, const
 			}
 
 		
-			Root->Node.SetGroup(NewGroup);
+			Root->Node.Group = NewGroup;
 
 			if (Function)
 			{

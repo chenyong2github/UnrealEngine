@@ -293,7 +293,7 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 			Graph.GetNodesOfClass<UAnimGraphNode_Root>(RootNodes);
 
 			check(RootNodes.Num() == 1);
-			RootNodes[0]->Node.SetGroup(*FObjectEditorUtils::GetCategoryText(InterfaceToImplement).ToString());
+			RootNodes[0]->Node.Group = *FObjectEditorUtils::GetCategoryText(InterfaceToImplement).ToString();
 
 			int32 CurrentPoseIndex = 0;
 			for (TFieldIterator<FProperty> PropIt(InterfaceToImplement); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
@@ -730,7 +730,7 @@ void UAnimationGraphSchema::ConformAnimGraphToInterface(UBlueprint* InBlueprint,
 		InGraph.GetNodesOfClass<UAnimGraphNode_Root>(RootNodes);
 
 		check(RootNodes.Num() == 1);
-		RootNodes[0]->Node.SetGroup(*FObjectEditorUtils::GetCategoryText(InFunction).ToString());
+		RootNodes[0]->Node.Group = *FObjectEditorUtils::GetCategoryText(InFunction).ToString();
 
 		TArray<UAnimGraphNode_LinkedInputPose*> LinkedInputPoseNodes;
 		InGraph.GetNodesOfClass<UAnimGraphNode_LinkedInputPose>(LinkedInputPoseNodes);

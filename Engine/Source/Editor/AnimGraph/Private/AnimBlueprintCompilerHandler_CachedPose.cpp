@@ -1,23 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimBlueprintExtension_CachedPose.h"
+#include "AnimBlueprintCompilerHandler_CachedPose.h"
 #include "AnimGraphNode_SaveCachedPose.h"
 #include "AnimGraphNode_Root.h"
 #include "AnimGraphNode_UseCachedPose.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "AnimGraphNode_StateMachine.h"
 #include "AnimGraphNode_StateResult.h"
+#include "AnimationStateMachineGraph.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilerCreationContext.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimationGraphSchema.h"
 
-void UAnimBlueprintExtension_CachedPose::HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+FAnimBlueprintCompilerHandler_CachedPose::FAnimBlueprintCompilerHandler_CachedPose(IAnimBlueprintCompilerCreationContext& InCreationContext)
 {
-	SaveCachedPoseNodes.Empty();
+	InCreationContext.OnPreProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_CachedPose::PreProcessAnimationNodes);
+	InCreationContext.OnPostProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_CachedPose::PostProcessAnimationNodes);
 }
 
-void UAnimBlueprintExtension_CachedPose::HandlePreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_CachedPose::PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	for(UAnimGraphNode_Base* Node : InAnimNodes)
 	{
@@ -29,7 +31,7 @@ void UAnimBlueprintExtension_CachedPose::HandlePreProcessAnimationNodes(TArrayVi
 	}
 }
 
-void UAnimBlueprintExtension_CachedPose::HandlePostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_CachedPose::PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	// Build cached pose map
 	BuildCachedPoseNodeUpdateOrder(InCompilationContext, OutCompiledData);
@@ -37,7 +39,7 @@ void UAnimBlueprintExtension_CachedPose::HandlePostProcessAnimationNodes(TArrayV
 
 TAutoConsoleVariable<int32> CVarAnimDebugCachePoseNodeUpdateOrder(TEXT("a.Compiler.CachePoseNodeUpdateOrderDebug.Enable"), 0, TEXT("Toggle debugging for CacheNodeUpdateOrder debug during AnimBP compilation"));
 
-void UAnimBlueprintExtension_CachedPose::BuildCachedPoseNodeUpdateOrder(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_CachedPose::BuildCachedPoseNodeUpdateOrder(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	TArray<UAnimGraphNode_Root*> RootNodes;
 	InCompilationContext.GetConsolidatedEventGraph()->GetNodesOfClass<UAnimGraphNode_Root>(RootNodes);
@@ -72,7 +74,7 @@ void UAnimBlueprintExtension_CachedPose::BuildCachedPoseNodeUpdateOrder(IAnimBlu
 			UE_LOG(LogAnimation, Display, TEXT("End List"));
 		}
 
-		FCachedPoseIndices& OrderedSavedPoseIndices = OutCompiledData.GetOrderedSavedPoseIndicesMap().FindOrAdd(RootNode->Node.GetName());
+		FCachedPoseIndices& OrderedSavedPoseIndices = OutCompiledData.GetOrderedSavedPoseIndicesMap().FindOrAdd(RootNode->Node.Name);
 
 		for(UAnimGraphNode_SaveCachedPose* PoseNode : OrderedSavePoseNodes)
 		{
@@ -88,7 +90,7 @@ void UAnimBlueprintExtension_CachedPose::BuildCachedPoseNodeUpdateOrder(IAnimBlu
 	}
 }
 
-void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_StartNewTraversal(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InRootNode, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes, TArray<UAnimGraphNode_Base*> VisitedRootNodes)
+void FAnimBlueprintCompilerHandler_CachedPose::CachePoseNodeOrdering_StartNewTraversal(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InRootNode, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes, TArray<UAnimGraphNode_Base*> VisitedRootNodes)
 {
 	check(InRootNode);
 	UAnimGraphNode_SaveCachedPose* RootCacheNode = Cast<UAnimGraphNode_SaveCachedPose>(InRootNode);
@@ -129,7 +131,7 @@ void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_StartNewTraversal
 	UE_CLOG(bEnableDebug, LogAnimation, Display, TEXT("EndNewTraversal %s"), *RootName);
 }
 
-void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_TraverseInternal_SubGraph(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraph* InGraph, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes)
+void FAnimBlueprintCompilerHandler_CachedPose::CachePoseNodeOrdering_TraverseInternal_SubGraph(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraph* InGraph, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes)
 {
 	const bool bEnableDebug = (CVarAnimDebugCachePoseNodeUpdateOrder.GetValueOnAnyThread() == 1);
 	UE_CLOG(bEnableDebug, LogAnimation, Display, TEXT("ProcessGraph %s"), *InGraph->GetName());	
@@ -156,7 +158,7 @@ void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_TraverseInternal_
 	}
 }
 
-void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_TraverseInternal(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InAnimGraphNode, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes)
+void FAnimBlueprintCompilerHandler_CachedPose::CachePoseNodeOrdering_TraverseInternal(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InAnimGraphNode, TArray<UAnimGraphNode_SaveCachedPose*> &OrderedSavePoseNodes)
 {
 	TArray<UAnimGraphNode_Base*> LinkedAnimNodes;
 	InCompilationContext.GetLinkedAnimNodes(InAnimGraphNode, LinkedAnimNodes);
@@ -195,7 +197,7 @@ void UAnimBlueprintExtension_CachedPose::CachePoseNodeOrdering_TraverseInternal(
 	}
 }
 
-const TMap<FString, UAnimGraphNode_SaveCachedPose*>& UAnimBlueprintExtension_CachedPose::GetSaveCachedPoseNodes() const
+const TMap<FString, UAnimGraphNode_SaveCachedPose*>& FAnimBlueprintCompilerHandler_CachedPose::GetSaveCachedPoseNodes() const
 {
 	return SaveCachedPoseNodes;
 }

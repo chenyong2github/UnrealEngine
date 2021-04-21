@@ -113,7 +113,7 @@ void UAnimGraphNode_BlendListBase::GetOutputLinkAttributes(FNodeAttributeArray& 
 	{
 		const FAnimNode_BlendListBase* BaseNode = GetFNodeProperty()->ContainerPtrToValuePtr<FAnimNode_BlendListBase>(this);
 
-		if(BaseNode->GetTransitionType() == EBlendListTransitionType::Inertialization)
+		if(BaseNode->TransitionType == EBlendListTransitionType::Inertialization)
 		{
 			OutAttributes.Add(UE::Anim::IInertializationRequester::Attribute);
 		}

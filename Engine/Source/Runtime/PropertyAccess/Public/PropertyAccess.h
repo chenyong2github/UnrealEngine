@@ -6,31 +6,13 @@
 #include "Containers/ArrayView.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/Object.h"
+#include "PropertyEventInterfaces.h"
+#include "IPropertyAccess.h"
 
 #include "PropertyAccess.generated.h"
 
 struct FPropertyAccessSystem;
-struct FPropertyAccessLibrary;
 enum class EPropertyAccessType : uint8;
-
-// The various types of property copy
-UENUM()
-enum class EPropertyAccessCopyBatch : uint8
-{
-	// A copy of internal->internal data, unbatched
-	InternalUnbatched,
-
-	// A copy of external->internal data, unbatched
-	ExternalUnbatched,
-
-	// A copy of internal->internal data, batched
-	InternalBatched,
-
-	// A copy of external->internal data, batched
-	ExternalBatched,
-
-	Count
-};
 
 namespace PropertyAccess
 {
@@ -38,25 +20,25 @@ namespace PropertyAccess
 	 * Called to patch up library after it is loaded.
 	 * This converts all FName-based paths into node-based paths that provide an optimized way of accessing properties.
 	 */
-	ENGINE_API extern void PostLoadLibrary(FPropertyAccessLibrary& InLibrary);
+	PROPERTYACCESS_API extern void PostLoadLibrary(FPropertyAccessLibrary& InLibrary);
 
 	/** 
 	 * Process a 'tick' of a property access instance. 
 	 * Note internally allocates via FMemStack and pushes its own FMemMark
 	 */
-	ENGINE_API extern void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType);
+	PROPERTYACCESS_API extern void ProcessCopies(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType);
 
 	/** 
 	 * Process a single copy 
 	 * Note that this can potentially allocate via FMemStack, so inserting FMemMark before a number of these calls is recommended
 	 */
-	ENGINE_API extern void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation);
+	PROPERTYACCESS_API extern void ProcessCopy(UObject* InObject, const FPropertyAccessLibrary& InLibrary, EPropertyAccessCopyBatch InBatchType, int32 InCopyIndex, TFunctionRef<void(const FProperty*, void*)> InPostCopyOperation);
 
-	UE_DEPRECATED(5.0, "Property Access Events are no longer supported")
-	ENGINE_API extern void BindEvents(UObject* InObject, const FPropertyAccessLibrary& InLibrary);
+	/** Bind all event-type accesses to their respective objects */
+	PROPERTYACCESS_API extern void BindEvents(UObject* InObject, const FPropertyAccessLibrary& InLibrary);
 
-	UE_DEPRECATED(5.0, "Property Access Events are no longer supported")
-	ENGINE_API extern int32 GetEventId(const UClass* InClass, TArrayView<const FName> InPath);
+	/** Resolve a path to an event Id for the specified class */
+	PROPERTYACCESS_API extern int32 GetEventId(const UClass* InClass, TArrayView<const FName> InPath);
 }
 
 // The type of an indirection
@@ -165,6 +147,10 @@ private:
 	// Index of the last indirection of a property access
 	UPROPERTY()
 	int32 IndirectionEndIndex = INDEX_NONE;
+
+	// If this access is an event, then this will be the event Id of the property
+	UPROPERTY()
+	int32 EventId = INDEX_NONE;
 };
 
 // Flags for a segment of a property access path
@@ -201,11 +187,14 @@ enum class EPropertyAccessSegmentFlags : uint16
 	// Entries before this are exclusive values
 	LastExclusiveValue = ArrayOfObjects,
 
+	// Segment is an object key for an event (object)
+	Event			= (1 << 14),
+
 	// Segment is a function
 	Function		= (1 << 15),
 
 	// All modifier flags
-	ModifierFlags = (Function),
+	ModifierFlags = (Event | Function),
 };
 
 ENUM_CLASS_FLAGS(EPropertyAccessSegmentFlags);
@@ -257,6 +246,7 @@ struct FPropertyAccessPath
 	FPropertyAccessPath()
 		: PathSegmentStartIndex(INDEX_NONE)
 		, PathSegmentCount(INDEX_NONE)
+		, bHasEvents(false)
 	{
 	}
 
@@ -271,6 +261,10 @@ private:
 	// The count of the path segments.
 	UPROPERTY()
 	int32 PathSegmentCount = INDEX_NONE;
+
+	// Whether this access has events in its path
+	UPROPERTY()
+	uint8 bHasEvents : 1;
 };
 
 UENUM()
@@ -399,7 +393,31 @@ private:
 	// Indirections
 	UPROPERTY(Transient)
 	TArray<FPropertyAccessIndirection> Indirections;
-	
+
+	// Indexes into the SrcAccesses array to allow faster iteration of all event accesses
+	UPROPERTY()
+	TArray<int32> EventAccessIndices;
+
 	// Whether this library has been post-loaded
 	bool bHasBeenPostLoaded = false;
+
+	// A per-class mapping
+	struct FEventMapping
+	{
+		// The class that this mapping refers to
+		TWeakObjectPtr<UClass> Class;
+
+		// Mapping from class event Id to SrcAccesses index in this library
+		TArray<int32> Mapping;
+	};
+
+	// Per-class event ID mappings. Built dynamically at runtime. Maps class event IDs to SrcAccesses index.
+	TArray<FEventMapping> EventMappings;
 };
+
+// Broadcasts a property changed event.
+// Arguments are of the form of a comma-separated list of property names, e.g.
+// BROADCAST_PROPERTY_CHANGED("MyStructProperty", "MySubProperty");
+#define BROADCAST_PROPERTY_CHANGED(...) \
+	static int32 EventId_##__LINE__ = PropertyAccess::GetEventId(GetClass(), { __VA_ARGS__ }); \
+	static_cast<IPropertyEventBroadcaster*>(this)->BroadcastPropertyChanged(EventId_##__LINE__);

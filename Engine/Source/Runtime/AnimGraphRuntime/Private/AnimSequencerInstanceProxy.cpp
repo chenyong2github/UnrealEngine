@@ -132,7 +132,8 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 			SequencerToPlayerMap.Add(SequenceId, NewPlayerState);
 
 			// link player to blendnode, this will let you trigger notifies and so on
-			NewPlayerState->PlayerNode.SetTeleportToExplicitTime(false);
+			NewPlayerState->PlayerNode.bTeleportToExplicitTime = false;
+			NewPlayerState->PlayerNode.bShouldLoop = true;
 			BlendNode.Poses[PoseIndex].SetLinkNode(&NewPlayerState->PlayerNode);
 
 			// set player state
@@ -140,8 +141,8 @@ void FAnimSequencerInstanceProxy::InitAnimTrack(UAnimSequenceBase* InAnimSequenc
 		}
 
 		// now set animation data to player
-		PlayerState->PlayerNode.SetSequence(InAnimSequence);
-		PlayerState->PlayerNode.SetExplicitTime(0.f);
+		PlayerState->PlayerNode.Sequence = InAnimSequence;
+		PlayerState->PlayerNode.ExplicitTime = 0.f;
 
 		// initialize player
 		PlayerState->PlayerNode.Initialize_AnyThread(FAnimationInitializeContext(this));
@@ -193,17 +194,17 @@ void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSeque
 
 	FSequencerPlayerAnimSequence* PlayerState = FindPlayer<FSequencerPlayerAnimSequence>(SequenceId);
 
-	PlayerState->PlayerNode.SetExplicitTime(InToPosition);
+	PlayerState->PlayerNode.ExplicitTime = InToPosition;
 	if (InFromPosition.IsSet())
 	{
 		// Set the internal time accumulator at the "from" time so that the player node will correctly evaluate the
 		// desired "from/to" range. We also disable the reinitialization code so it doesn't mess up that time we
 		// just set.
 		PlayerState->PlayerNode.SetExplicitPreviousTime(InFromPosition.GetValue());
-		PlayerState->PlayerNode.SetReinitializationBehavior(ESequenceEvalReinit::NoReset);
+		PlayerState->PlayerNode.ReinitializationBehavior = ESequenceEvalReinit::NoReset;
 	}
 	// if no fire notifies, we can teleport to explicit time
-	PlayerState->PlayerNode.SetTeleportToExplicitTime(!bFireNotifies);
+	PlayerState->PlayerNode.bTeleportToExplicitTime = !bFireNotifies;
 	// if moving to 0.f, we mark this to teleport. Otherwise, do not use explicit time
 	FAnimNode_MultiWayBlend& BlendNode = (PlayerState->bAdditive) ? AdditiveBlendNode : FullBodyBlendNode;
 	BlendNode.DesiredAlphas[PlayerState->PoseIndex] = Weight;
@@ -223,9 +224,9 @@ void FAnimSequencerInstanceProxy::EnsureAnimTrack(UAnimSequenceBase* InAnimSeque
 	{
 		InitAnimTrack(InAnimSequence, SequenceId);
 	}
-	else if (PlayerState->PlayerNode.GetSequence() != InAnimSequence)
+	else if (PlayerState->PlayerNode.Sequence != InAnimSequence)
 	{
-		PlayerState->PlayerNode.SetSequence(InAnimSequence);
+		PlayerState->PlayerNode.OverrideAsset(InAnimSequence);
 	}
 }
 

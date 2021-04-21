@@ -4,7 +4,6 @@
 #include "Animation/PoseAsset.h"
 #include "AnimNodes/AnimNode_PoseHandler.h"
 #include "Kismet2/CompilerResultsLog.h"
-#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 UAnimGraphNode_PoseHandler::UAnimGraphNode_PoseHandler(const FObjectInitializer& ObjectInitializer)
 	:Super(ObjectInitializer)
@@ -46,18 +45,6 @@ void UAnimGraphNode_PoseHandler::SetAnimationAsset(UAnimationAsset* Asset)
 	if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(Asset))
 	{
 		GetPoseHandlerNode()->PoseAsset = PoseAsset;
-	}
-}
-
-void UAnimGraphNode_PoseHandler::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
-{
-	if(InContext.GetAssets().Num() > 0)
-	{
-		if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(InContext.GetAssets()[0]))
-		{
-			FAnimNode_PoseHandler& AnimNode = InContext.GetAnimNode<FAnimNode_PoseHandler>();
-			AnimNode.SetPoseAsset(PoseAsset);
-		}
 	}
 }
 

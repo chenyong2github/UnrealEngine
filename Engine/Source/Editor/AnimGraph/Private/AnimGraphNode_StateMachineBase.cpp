@@ -25,7 +25,7 @@
 #include "AnimGraphNode_LinkedAnimLayer.h"
 #include "AnimGraphNode_TransitionPoseEvaluator.h"
 #include "AnimGraphNode_CustomTransitionResult.h"
-#include "AnimBlueprintExtension_StateMachine.h"
+#include "AnimBlueprintCompilerHandler_StateMachine.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "Animation/AnimNode_Inertialization.h"
@@ -114,8 +114,6 @@ FString UAnimGraphNode_StateMachineBase::GetNodeCategory() const
 
 void UAnimGraphNode_StateMachineBase::PostPlacedNewNode()
 {
-	Super::PostPlacedNewNode();
-
 	// Create a new animation graph
 	check(EditorStateMachineGraph == NULL);
 	EditorStateMachineGraph = CastChecked<UAnimationStateMachineGraph>(FBlueprintEditorUtils::CreateNewGraph(this, NAME_None, UAnimationStateMachineGraph::StaticClass(), UAnimationStateMachineSchema::StaticClass()));
@@ -365,8 +363,8 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 		}
 	};
 	
-	UAnimBlueprintExtension_StateMachine* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_StateMachine>(GetAnimBlueprint());
-	check(Extension);
+	FAnimBlueprintCompilerHandler_StateMachine* CompilerHandler = InCompilationContext.GetHandler<FAnimBlueprintCompilerHandler_StateMachine>("AnimBlueprintCompilerHandler_StateMachine");
+	check(CompilerHandler);
 
 	if (EditorStateMachineGraph == NULL)
 	{
@@ -433,7 +431,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				{
 					InCompilationContext.ValidateGraphIsWellFormed(StateNode->BoundGraph);
 
-					BakedState.StateRootNodeIndex = Extension->ExpandGraphAndProcessNodes(StateNode->BoundGraph, AnimGraphResultNode, InCompilationContext, OutCompiledData);
+					BakedState.StateRootNodeIndex = CompilerHandler->ExpandGraphAndProcessNodes(StateNode->BoundGraph, AnimGraphResultNode, InCompilationContext, OutCompiledData);
 
 					// See if the state consists of a single sequence player node, and remember the index if so
 					for (UEdGraphPin* TestPin : AnimGraphResultNode->Pins)
@@ -475,7 +473,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			{
 				if (UAnimGraphNode_TransitionResult* EntryRuleResultNode = CastChecked<UAnimationTransitionGraph>(ConduitNode->BoundGraph)->GetResultNode())
 				{
-					BakedState.EntryRuleNodeIndex = Extension->ExpandGraphAndProcessNodes(ConduitNode->BoundGraph, EntryRuleResultNode, InCompilationContext, OutCompiledData);
+					BakedState.EntryRuleNodeIndex = CompilerHandler->ExpandGraphAndProcessNodes(ConduitNode->BoundGraph, EntryRuleResultNode, InCompilationContext, OutCompiledData);
 				}
 			}
 
@@ -652,7 +650,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				}
 				else
 				{
-					Rule.CanTakeDelegateIndex = Extension->ExpandGraphAndProcessNodes(TransitionNode->BoundGraph, TransitionResultNode, InCompilationContext, OutCompiledData, TransitionNode);
+					Rule.CanTakeDelegateIndex = CompilerHandler->ExpandGraphAndProcessNodes(TransitionNode->BoundGraph, TransitionResultNode, InCompilationContext, OutCompiledData, TransitionNode);
 					AlreadyMergedTransitionList.Add(TransitionResultNode, Rule.CanTakeDelegateIndex);
 				}
 			}
@@ -673,7 +671,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				TArray<UEdGraphNode*> ClonedNodes;
 				if (CustomTransitionGraph->GetResultNode())
 				{
-					Rule.CustomResultNodeIndex = Extension->ExpandGraphAndProcessNodes(TransitionNode->CustomTransitionGraph, CustomTransitionGraph->GetResultNode(), InCompilationContext, OutCompiledData, nullptr, &ClonedNodes);
+					Rule.CustomResultNodeIndex = CompilerHandler->ExpandGraphAndProcessNodes(TransitionNode->CustomTransitionGraph, CustomTransitionGraph->GetResultNode(), InCompilationContext, OutCompiledData, nullptr, &ClonedNodes);
 				}
 
 				// Find all the pose evaluators used in this transition, save handles to them because we need to populate some pose data before executing
@@ -714,11 +712,6 @@ void UAnimGraphNode_StateMachineBase::GetOutputLinkAttributes(FNodeAttributeArra
 			}
 		}
 	}
-}
-
-void UAnimGraphNode_StateMachineBase::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
-{
-	OutExtensions.Add(UAnimBlueprintExtension_StateMachine::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -31,7 +31,7 @@ FText UAnimGraphNode_AimOffsetLookAt::GetTooltipText() const
 
 FText UAnimGraphNode_AimOffsetLookAt::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
+	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -78,7 +78,7 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
 		{
 			UAnimGraphNode_AimOffsetLookAt* BlendSpaceNode = CastChecked<UAnimGraphNode_AimOffsetLookAt>(NewNode);
-			BlendSpaceNode->Node.SetBlendSpace(BlendSpace.Get());
+			BlendSpaceNode->Node.BlendSpace = BlendSpace.Get();
 		}
 
 		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
@@ -133,7 +133,7 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 FBlueprintNodeSignature UAnimGraphNode_AimOffsetLookAt::GetSignature() const
 {
 	FBlueprintNodeSignature NodeSignature = Super::GetSignature();
-	NodeSignature.AddSubObject(Node.GetBlendSpace());
+	NodeSignature.AddSubObject(Node.BlendSpace);
 
 	return NodeSignature;
 }
@@ -142,7 +142,7 @@ void UAnimGraphNode_AimOffsetLookAt::SetAnimationAsset(UAnimationAsset* Asset)
 {
 	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
-		Node.SetBlendSpace(BlendSpace);
+		Node.BlendSpace = BlendSpace;
 	}
 }
 
@@ -150,7 +150,7 @@ void UAnimGraphNode_AimOffsetLookAt::ValidateAnimNodeDuringCompilation(class USk
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
+	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -230,7 +230,7 @@ void UAnimGraphNode_AimOffsetLookAt::GetNodeContextMenuActions(UToolMenu* Menu, 
 
 void UAnimGraphNode_AimOffsetLookAt::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
 {
-	if (Node.GetBlendSpace())
+	if (Node.BlendSpace)
 	{
 		HandleAnimReferenceCollection(Node.BlendSpace, AnimationAssets);
 	}

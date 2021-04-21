@@ -16,8 +16,7 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 	FAnimNode_Base::Initialize_AnyThread(Context);
 
 	const int32 NumPoses = BlendPose.Num();
-	const TArray<float>& CurrentBlendTimes = GetBlendTimes();
-	checkSlow(CurrentBlendTimes.Num() == NumPoses);
+	checkSlow(BlendTime.Num() == NumPoses);
 
 	BlendWeights.Reset(NumPoses);
 	PosesToEvaluate.Reset(NumPoses);
@@ -41,8 +40,7 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 	Blends.Empty(NumPoses);
 	Blends.AddZeroed(NumPoses);
 
-	UBlendProfile* CurrentBlendProfile = GetBlendProfile();
-	if (CurrentBlendProfile)
+	if (BlendProfile)
 	{
 		BlendStartAlphas.Empty(NumPoses);
 		BlendStartAlphas.AddZeroed(NumPoses);
@@ -50,24 +48,22 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 
 	LastActiveChildIndex = INDEX_NONE;
 
-	EAlphaBlendOption CurrentBlendType = GetBlendType();
-	UCurveFloat* CurrentCustomBlendCurve = GetCustomBlendCurve();
 	for(int32 i = 0 ; i < Blends.Num() ; ++i)
 	{
 		FAlphaBlend& Blend = Blends[i];
 
 		Blend.SetBlendTime(0.0f);
-		Blend.SetBlendOption(CurrentBlendType);
-		Blend.SetCustomCurve(CurrentCustomBlendCurve);
+		Blend.SetBlendOption(BlendType);
+		Blend.SetCustomCurve(CustomBlendCurve);
 
-		if (CurrentBlendProfile)
+		if (BlendProfile)
 		{
 			BlendStartAlphas[i] = 0.0f;
 		}
 	}
 	Blends[0].SetAlpha(1.0f);
 
-	if(CurrentBlendProfile)
+	if(BlendProfile)
 	{
 		BlendStartAlphas[0] = 1.0f;
 
@@ -79,7 +75,7 @@ void FAnimNode_BlendListBase::Initialize_AnyThread(const FAnimationInitializeCon
 		{
 			FBlendSampleData& SampleData = PerBoneSampleData[Idx];
 			SampleData.SampleDataIndex = Idx;
-			SampleData.PerBoneBlendData.AddZeroed(CurrentBlendProfile->GetNumBlendEntries());
+			SampleData.PerBoneBlendData.AddZeroed(BlendProfile->GetNumBlendEntries());
 		}
 	}
 }
@@ -99,15 +95,12 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 	GetEvaluateGraphExposedInputs().Execute(Context);
 
 	const int32 NumPoses = BlendPose.Num();
-	const TArray<float>& CurrentBlendTimes = GetBlendTimes();
-	checkSlow((CurrentBlendTimes.Num() == NumPoses) && (BlendWeights.Num() == NumPoses));
+	checkSlow((BlendTime.Num() == NumPoses) && (BlendWeights.Num() == NumPoses));
 
 	PosesToEvaluate.Empty(NumPoses);
 
 	if (NumPoses > 0)
 	{
-		UBlendProfile* CurrentBlendProfile = GetBlendProfile();
-		
 		// Handle a change in the active child index; adjusting the target weights
 		const int32 ChildIndex = GetActiveChildIndex();
 		
@@ -127,12 +120,12 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			{
 				RemainingBlendTime = 0.0f;
 			}
-			else if (GetTransitionType() == EBlendListTransitionType::Inertialization)
+			else if (TransitionType == EBlendListTransitionType::Inertialization)
 			{
 				UE::Anim::IInertializationRequester* InertializationRequester = Context.GetMessage<UE::Anim::IInertializationRequester>();
 				if (InertializationRequester)
 				{
-					InertializationRequester->RequestInertialization(CurrentBlendTimes[ChildIndex]);
+					InertializationRequester->RequestInertialization(BlendTime[ChildIndex]);
 					InertializationRequester->AddDebugRecord(*Context.AnimInstanceProxy, Context.GetCurrentNodeId());
 				}
 				else
@@ -144,7 +137,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 			}
 			else
 			{
-				RemainingBlendTime = CurrentBlendTimes[ChildIndex] * WeightDifference;
+				RemainingBlendTime = BlendTime[ChildIndex] * WeightDifference;
 			}
 
 			for (int32 i = 0; i < RemainingBlendTimes.Num(); ++i)
@@ -168,7 +161,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 				{
 					Blend.SetValueRange(BlendWeights[i], 1.0f);
 
-					if (CurrentBlendProfile)
+					if (BlendProfile)
 					{
 						Blend.ResetAlpha();
 						BlendStartAlphas[i] = Blend.GetAlpha();
@@ -179,14 +172,14 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 					Blend.SetValueRange(BlendWeights[i], 0.0f);
 				}
 
-				if (CurrentBlendProfile)
+				if (BlendProfile)
 				{
 					BlendStartAlphas[i] = Blend.GetAlpha();
 				}
 			}
 
 			// when this flag is true, we'll reinitialize the children
-			if (GetResetChildOnActivation())
+			if (bResetChildOnActivation)
 			{
 				FAnimationInitializeContext ReinitializeContext(Context.AnimInstanceProxy, Context.SharedContext);
 
@@ -233,13 +226,13 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 		}
 
 		// If we're using a blend profile, extract the scales and build blend sample data
-		if (CurrentBlendProfile)
+		if (BlendProfile)
 		{
 			for(int32 i = 0; i < BlendPose.Num(); ++i)
 			{
 				FBlendSampleData& PoseSampleData = PerBoneSampleData[i];
 				PoseSampleData.TotalWeight = BlendWeights[i];
-				CurrentBlendProfile->UpdateBoneWeights(PoseSampleData, Blends[i], BlendStartAlphas[i], BlendWeights[i]);
+				BlendProfile->UpdateBoneWeights(PoseSampleData, Blends[i], BlendStartAlphas[i], BlendWeights[i]);
 			}
 
 			FBlendSampleData::NormalizeDataWeight(PerBoneSampleData);
@@ -250,7 +243,7 @@ void FAnimNode_BlendListBase::Update_AnyThread(const FAnimationUpdateContext& Co
 	const int32 ChildIndex = GetActiveChildIndex();
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Index"), ChildIndex);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Weight"), BlendWeights[ChildIndex]);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Blend Time"), CurrentBlendTimes[ChildIndex]);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Active Blend Time"), BlendTime[ChildIndex]);
 #endif
 }
 
@@ -290,10 +283,9 @@ void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 		FAnimationPoseData OutAnimationPoseData(Output);
 
 		// Use the calculated blend sample data if we're blending per-bone
-		UBlendProfile* CurrentBlendProfile = GetBlendProfile();
-		if (CurrentBlendProfile)
+		if (BlendProfile)
 		{
-			FAnimationRuntime::BlendPosesTogetherPerBone(FilteredPoses, FilteredCurve, FilteredAttributes, CurrentBlendProfile, PerBoneSampleData, PosesToEvaluate, OutAnimationPoseData);
+			FAnimationRuntime::BlendPosesTogetherPerBone(FilteredPoses, FilteredCurve, FilteredAttributes, BlendProfile, PerBoneSampleData, PosesToEvaluate, OutAnimationPoseData);
 		}
 		else
 		{
@@ -313,8 +305,7 @@ void FAnimNode_BlendListBase::GatherDebugData(FNodeDebugData& DebugData)
 	const int32 ChildIndex = GetActiveChildIndex();
 
 	FString DebugLine = GetNodeName(DebugData);
-	const TArray<float>& CurrentBlendTimes = GetBlendTimes();
-	DebugLine += FString::Printf(TEXT("(Active: (%i/%i) Weight: %.1f%% Time %.3f)"), ChildIndex+1, NumPoses, BlendWeights[ChildIndex]*100.f, CurrentBlendTimes[ChildIndex]);
+	DebugLine += FString::Printf(TEXT("(Active: (%i/%i) Weight: %.1f%% Time %.3f)"), ChildIndex+1, NumPoses, BlendWeights[ChildIndex]*100.f, BlendTime[ChildIndex]);
 
 	DebugData.AddDebugItem(DebugLine);
 	
@@ -322,34 +313,4 @@ void FAnimNode_BlendListBase::GatherDebugData(FNodeDebugData& DebugData)
 	{
 		BlendPose[Pose].GatherDebugData(DebugData.BranchFlow(BlendWeights[Pose]));
 	}
-}
-
-const TArray<float>& FAnimNode_BlendListBase::GetBlendTimes() const
-{
-	return GET_ANIM_NODE_DATA(TArray<float>, BlendTime);
-}
-
-EBlendListTransitionType FAnimNode_BlendListBase::GetTransitionType() const
-{
-	return GET_ANIM_NODE_DATA(EBlendListTransitionType, TransitionType);
-}
-
-EAlphaBlendOption FAnimNode_BlendListBase::GetBlendType() const
-{
-	return GET_ANIM_NODE_DATA(EAlphaBlendOption, BlendType);
-}
-
-bool FAnimNode_BlendListBase::GetResetChildOnActivation() const
-{
-	return GET_ANIM_NODE_DATA(bool, bResetChildOnActivation);
-}
-
-UCurveFloat* FAnimNode_BlendListBase::GetCustomBlendCurve() const
-{
-	return GET_ANIM_NODE_DATA(TObjectPtr<UCurveFloat>, CustomBlendCurve);
-}
-
-UBlendProfile* FAnimNode_BlendListBase::GetBlendProfile() const
-{
-	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendProfile>, BlendProfile);
 }

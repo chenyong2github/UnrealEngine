@@ -107,9 +107,17 @@ public:
 	UPROPERTY()
 	TArray<FName> SyncGroupNames;
 
+	// The default handler for graph-exposed inputs
+	UPROPERTY()
+	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
+
 	// Per layer graph blending options
 	UPROPERTY()
 	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
+
+	// Property access library
+	UPROPERTY()
+	FPropertyAccessLibrary PropertyAccessLibrary;
 
 public:
 	// IAnimClassInterface interface
@@ -127,8 +135,10 @@ public:
 	virtual const TArray<FStructProperty*>& GetInitializationNodeProperties() const override { return ResolvedInitializationNodeProperties; }
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
+	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const override { return EvaluateGraphExposedInputs; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GraphBlendOptions; }
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const override { return PropertyAccessLibrary; }
 
 private:
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const override { return BakedStateMachines; }
@@ -137,21 +147,8 @@ private:
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap_Direct() const override { return OrderedSavedPoseIndicesMap; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const override { return GraphNameAssetPlayers; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const override { return GraphBlendOptions; }
-	
-private:
-	virtual const void* GetConstantNodeValueRaw(int32 InIndex) const override { return nullptr; }
-	virtual const void* GetMutableNodeValueRaw(int32 InIndex, const UObject* InObject) const override { return nullptr; }
-	virtual const FAnimBlueprintMutableData* GetMutableNodeData(const UObject* InObject) const override { return nullptr; }
-	virtual FAnimBlueprintMutableData* GetMutableNodeData(UObject* InObject) const override { return nullptr; }
-	virtual const void* GetConstantNodeData() const override { return nullptr; }
-	virtual TArrayView<const FAnimNodeData> GetNodeData() const override;
-	virtual int32 GetAnimNodePropertyIndex(const UScriptStruct* InNodeType, FName InPropertyName) const override { return INDEX_NONE; }
-	virtual int32 GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const override { return 0; }
-	
-	virtual void ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const override {}
-	virtual void ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const override {}
-	virtual const FAnimSubsystem* FindSubsystem(UScriptStruct* InStruct) const override { return nullptr; }
-	
+	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const override { return PropertyAccessLibrary; }
+
 public:
 	// Resolve TFieldPaths to FStructPropertys, init value handlers
 	void DynamicClassInitialization(UDynamicClass* InDynamicClass);

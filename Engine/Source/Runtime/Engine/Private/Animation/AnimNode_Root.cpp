@@ -11,6 +11,8 @@ FAnimNode_Root::FAnimNode_Root()
 
 void FAnimNode_Root::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
+	FAnimNode_Base::Initialize_AnyThread(Context);
+
 	Result.Initialize(Context);
 }
 
@@ -21,8 +23,9 @@ void FAnimNode_Root::CacheBones_AnyThread(const FAnimationCacheBonesContext& Con
 
 void FAnimNode_Root::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), GetName());
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), Name);
 
+	GetEvaluateGraphExposedInputs().Execute(Context);
 	Result.Update(Context);
 }
 
@@ -36,14 +39,4 @@ void FAnimNode_Root::GatherDebugData(FNodeDebugData& DebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
 	DebugData.AddDebugItem(DebugLine);
 	Result.GatherDebugData(DebugData);
-}
-
-FName FAnimNode_Root::GetName() const
-{
-	return GET_ANIM_NODE_DATA(FName, Name);
-}
-
-FName FAnimNode_Root::GetGroup() const
-{
-	return GET_ANIM_NODE_DATA(FName, Group);
 }

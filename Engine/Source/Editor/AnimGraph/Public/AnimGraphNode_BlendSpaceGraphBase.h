@@ -96,7 +96,6 @@ protected:
 	virtual void OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailBuilder) override;
 	virtual void GetInputLinkAttributes(FNodeAttributeArray& OutAttributes) const override;
-	virtual void GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const override;
 
 	// UK2Node interface
 	virtual void PreloadRequiredAssets() override;

@@ -55,9 +55,6 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSp
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookAt, meta = (PinShownByDefault))
 	float Alpha;
 
-	/** Cached calculated blend input */
-	FVector CurrentBlendInput;
-
 	/** Cached reference to the source socket's bone */
 	FBoneReference SocketBoneReference;
 
@@ -80,9 +77,6 @@ public:
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
-
-	// FAnimNode_BlendSpacePlayer interface
-	virtual FVector GetPosition() const override;
 
 	void UpdateFromLookAtTarget(FPoseContext& LocalPoseContext);
 };

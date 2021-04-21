@@ -1015,7 +1015,7 @@ public:
 	float GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex);
 
 	/** Gets the runtime instance of the specified state machine by Name */
-	const FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName) const;
+	FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName);
 
 	/** Get the machine description for the specified instance. Does not rely on PRIVATE_MachineDescription being initialized */
 	const FBakedAnimationStateMachine* GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, FAnimNode_StateMachine* MachineInstance);
@@ -1026,28 +1026,25 @@ public:
 	int32 GetSyncGroupIndexFromName(FName SyncGroupName) const;
 
 	/** Gets the index of the state machine matching MachineName */
-	int32 GetStateMachineIndex(FName MachineName) const;
+	int32 GetStateMachineIndex(FName MachineName);
 
 	/** Gets the runtime instance of the specified state machine */
-	const FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex) const;
+	FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex);
 
 	/** 
 	 * Get the index of the specified instance asset player. Useful to pass to GetInstanceAssetPlayerLength (etc.).
 	 * Passing NAME_None to InstanceName will return the first (assumed only) player instance index found.
 	 */
-	int32 GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName InstanceName = NAME_None) const;
+	int32 GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName InstanceName = NAME_None);
 
 	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
-	TArray<const FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName) const;
-
-	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
-	TArray<FAnimNode_AssetPlayerBase*> GetMutableInstanceAssetPlayers(const FName& GraphName);
+	TArray<FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName);
 
 	/** Gets the runtime instance desc of the state machine specified by name */
-	const FBakedAnimationStateMachine* GetStateMachineInstanceDesc(FName MachineName) const;
+	const FBakedAnimationStateMachine* GetStateMachineInstanceDesc(FName MachineName);
 
 	/** Gets the most relevant asset player in a specified state */
-	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const;
+	FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex);
 
 	//////////////////////////////////////////////////////////////////////////
 

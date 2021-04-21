@@ -3,8 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimBlueprintExtension.h"
-#include "AnimBlueprintExtension_StateMachine.generated.h"
+#include "IAnimBlueprintCompilerHandler.h"
 
 class UK2Node_CallFunction;
 class UK2Node_AnimGetter;
@@ -17,14 +16,12 @@ struct FAnimNotifyEvent;
 class IAnimBlueprintCompilerCreationContext;
 class IAnimBlueprintGeneratedClassCompiledData;
 class IAnimBlueprintCompilationContext;
-class IAnimBlueprintCompilationBracketContext;
 
-UCLASS(MinimalAPI)
-class UAnimBlueprintExtension_StateMachine : public UAnimBlueprintExtension
+class FAnimBlueprintCompilerHandler_StateMachine : public IAnimBlueprintCompilerHandler
 {
-	GENERATED_BODY()
-
 public:
+	FAnimBlueprintCompilerHandler_StateMachine(IAnimBlueprintCompilerCreationContext& InCreationContext);
+
 	// This function does the following steps:
 	//   Clones the nodes in the specified source graph
 	//   Merges them into the ConsolidatedEventGraph
@@ -34,11 +31,8 @@ public:
 	int32 ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData, UAnimStateTransitionNode* TransitionNode = nullptr, TArray<UEdGraphNode*>* ClonedNodes = nullptr);
 
 private:
-	// UAnimBlueprintExtension interface
-	virtual void HandleBeginCompilation(IAnimBlueprintCompilerCreationContext& InCreationContext) override;
-	virtual void HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
-	virtual void HandlePreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
-	virtual void HandlePostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	void PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 	// Spawns a function call node, calling a function on the anim instance
 	UK2Node_CallFunction* SpawnCallAnimInstanceFunction(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphNode* SourceNode, FName FunctionName);

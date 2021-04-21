@@ -29,10 +29,10 @@ namespace PropertyAccess
 class FPropertyAccessLibraryCompiler : public IPropertyAccessLibraryCompiler
 {
 public:
-	FPropertyAccessLibraryCompiler(FPropertyAccessLibrary* InLibrary, const UClass* InClass);
+	FPropertyAccessLibraryCompiler();
 
 	// IPropertyAccessLibraryCompiler interface
-	virtual void BeginCompilation() override;
+	virtual void BeginCompilation(const UClass* InClass) override;
 	virtual int32 AddCopy(TArrayView<FString> InSourcePath, TArrayView<FString> InDestPath, EPropertyAccessBatchType InBatchType, UObject* InAssociatedObject = nullptr) override;
 	virtual bool FinishCompilation() override;
 	virtual void IterateErrors(TFunctionRef<void(const FText&, UObject*)> InFunction) const override;

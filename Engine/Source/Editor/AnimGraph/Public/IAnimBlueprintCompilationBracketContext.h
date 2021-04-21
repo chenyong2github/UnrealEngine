@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 class FCompilerResultsLog;
+class IAnimBlueprintCompilerHandler;
 
 // Interface passed to start/end compilation delegates
 class ANIMGRAPH_API IAnimBlueprintCompilationBracketContext
@@ -12,16 +13,21 @@ class ANIMGRAPH_API IAnimBlueprintCompilationBracketContext
 public:	
 	virtual ~IAnimBlueprintCompilationBracketContext() {}
 
+	// Get a handler of the specified type and name (i.e. via simple name-based RTTI)
+	// Handlers are registered via IAnimBlueprintCompilerHandlerCollection::RegisterHandler
+	template <typename THandlerClass>
+	THandlerClass* GetHandler(FName InName) const
+	{
+		return static_cast<THandlerClass*>(GetHandlerInternal(InName));
+	}
+
 	// Get the message log for the current compilation
 	FCompilerResultsLog& GetMessageLog() const { return GetMessageLogImpl(); }
 
-	// Index of the nodes (must match up with the runtime discovery process of nodes, which runs thru the property chain)
-	const TMap<UAnimGraphNode_Base*, int32>& GetAllocatedAnimNodeIndices() const { return GetAllocatedAnimNodeIndicesImpl(); }
+protected:	
+	// GetHandler helper function
+	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const = 0;
 
-protected:
 	// Get the message log for the current compilation
 	virtual FCompilerResultsLog& GetMessageLogImpl() const = 0;
-
-	// Map of anim node properties to original anim graph node
-	virtual const TMap<UAnimGraphNode_Base*, int32>& GetAllocatedAnimNodeIndicesImpl() const = 0;
 };

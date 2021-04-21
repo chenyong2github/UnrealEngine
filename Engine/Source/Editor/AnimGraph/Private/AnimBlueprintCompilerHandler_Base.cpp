@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimBlueprintExtension_Base.h"
+#include "AnimBlueprintCompilerHandler_Base.h"
 #include "AnimGraphNode_Base.h"
 #include "AnimationGraphSchema.h"
 #include "AnimGraphNode_CustomProperty.h"
@@ -17,6 +17,8 @@
 #include "K2Node_MakeStruct.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "K2Node_TransitionRuleGetter.h"
+#include "Algo/Accumulate.h"
+#include "K2Node_GetArrayItem.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "PropertyAccessCompilerHandler.h"
@@ -28,18 +30,18 @@
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
 #include "IAnimBlueprintPostExpansionStepContext.h"
 #include "IAnimBlueprintCompilationBracketContext.h"
-#include "Features/IModularFeatures.h"
 
-#define LOCTEXT_NAMESPACE "AnimBlueprintExtension_Base"
+#define LOCTEXT_NAMESPACE "AnimBlueprintCompilerHandler_Base"
 
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler"), EAnimBlueprintCompilerStats_CreateEvaluationHandler, STATGROUP_KismetCompiler )
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler - Node Properties"), EAnimBlueprintCompilerStats_CreateEvaluationHandler_NodeProperties, STATGROUP_KismetCompiler )
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler - Create Assignment Node"), EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateAssignmentNode, STATGROUP_KismetCompiler )
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler - Create Instance Assignment Node"), EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode, STATGROUP_KismetCompiler )
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler - Create Instance Assignment Node - Build Property List"), EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode_BuildPropertyList, STATGROUP_KismetCompiler )
-DECLARE_CYCLE_STAT(TEXT("Create Evaluation Handler - Create Instance Assignment Node - Create Visible Pins"), EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode_CreateVisiblePins, STATGROUP_KismetCompiler )
+FAnimBlueprintCompilerHandler_Base::FAnimBlueprintCompilerHandler_Base(IAnimBlueprintCompilerCreationContext& InCreationContext)
+{
+	InCreationContext.OnStartCompilingClass().AddRaw(this, &FAnimBlueprintCompilerHandler_Base::StartCompilingClass);
+	InCreationContext.OnFinishCompilingClass().AddRaw(this, &FAnimBlueprintCompilerHandler_Base::FinishCompilingClass);
+	InCreationContext.OnPostExpansionStep().AddRaw(this, &FAnimBlueprintCompilerHandler_Base::PostExpansionStep);
+	InCreationContext.OnCopyTermDefaultsToDefaultObject().AddRaw(this, &FAnimBlueprintCompilerHandler_Base::CopyTermDefaultsToDefaultObject);
+}
 
-void UAnimBlueprintExtension_Base::HandleCopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintExtensionCopyTermDefaultsContext& InPerExtensionContext)
+void FAnimBlueprintCompilerHandler_Base::CopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	UAnimInstance* DefaultAnimInstance = Cast<UAnimInstance>(InDefaultObject);
 
@@ -78,7 +80,7 @@ void UAnimBlueprintExtension_Base::HandleCopyTermDefaultsToDefaultObject(UObject
 					UAnimGraphNode_Base* Node = CastChecked<UAnimGraphNode_Base>(Handler.CopyRecords[0].DestPin->GetOwningNode());
 					UAnimGraphNode_Base* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_Base>(Node);	
 
-					const FExposedValueHandler& ValueHandler = Subsystem.ExposedValueHandlers[ EvaluationHandler.EvaluationHandlerIdx ];
+					const FExposedValueHandler& ValueHandler = OutCompiledData.GetExposedValueHandlers()[ EvaluationHandler.EvaluationHandlerIdx ];
 					TrueNode->BlueprintUsage = ValueHandler.BoundFunction != NAME_None ? EBlueprintUsage::UsesBlueprint : EBlueprintUsage::DoesNotUseBlueprint; 
 
 #if WITH_EDITORONLY_DATA // ANIMINST_PostCompileValidation
@@ -106,21 +108,23 @@ void UAnimBlueprintExtension_Base::HandleCopyTermDefaultsToDefaultObject(UObject
 	}
 }
 
-void UAnimBlueprintExtension_Base::HandlePostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_Base::PostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	UEdGraph* ConsolidatedEventGraph = InCompilationContext.GetConsolidatedEventGraph();
 	if(InGraph == ConsolidatedEventGraph)
 	{
+		FPropertyAccessCompilerHandler* PropertyAccessHandler = InCompilationContext.GetHandler<FPropertyAccessCompilerHandler>("PropertyAccessCompilerHandler");
+
 		// Skip fast-path generation if the property access system is unavailable.
 		// Disable fast-path generation for nativized anim BPs, we dont run the VM anyways and 
 		// the property names are 'decorated' by the backend, so records dont match.
 		// Note that this wont prevent property access 'binding' copy records from running, only
 		// old-style 'fast-path' records that are derived from BP pure chains
-		if(IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor") && !InCompilationContext.GetCompileOptions().DoesRequireCppCodeGeneration())
+		if(PropertyAccessHandler != nullptr && !InCompilationContext.GetCompileOptions().DoesRequireCppCodeGeneration())
 		{
 			for(FEvaluationHandlerRecord& HandlerRecord : ValidEvaluationHandlerList)
 			{
-				HandlerRecord.BuildFastPathCopyRecords(InCompilationContext);
+				HandlerRecord.BuildFastPathCopyRecords(*this, InCompilationContext);
 
 				if(HandlerRecord.IsFastPath())
 				{
@@ -146,42 +150,14 @@ void UAnimBlueprintExtension_Base::HandlePostExpansionStep(const UEdGraph* InGra
 	}
 }
 
-void UAnimBlueprintExtension_Base::PatchEvaluationHandlers(IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_Base::StartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	TArray<FExposedValueHandler>& ExposedValueHandlers = Subsystem.ExposedValueHandlers;
-
-	// Exposed value handlers indices must match the index of anim node properties, 
-	// so we iterate over anim node properties here when patching up
-	const int32 NumAllocatedNodes = InCompilationContext.GetAllocatedAnimNodeIndices().Num();
-	ExposedValueHandlers.SetNum(NumAllocatedNodes);
-	for(const TPair<UAnimGraphNode_Base*, int32>& GraphNodePair : InCompilationContext.GetAllocatedAnimNodeIndices())
-	{
-		if(int32* EvaluationHandlerIndexPtr = ValidEvaluationHandlerMap.Find(GraphNodePair.Key))
-		{
-			// Indices here are in reverse order with respect to iterated properties as properties are prepended to the linked list when they are added
-			const int32 NodePropertyIndex = NumAllocatedNodes - 1 - GraphNodePair.Value;
-
-			FEvaluationHandlerRecord& EvaluationHandlerRecord = ValidEvaluationHandlerList[*EvaluationHandlerIndexPtr];
-			EvaluationHandlerRecord.EvaluationHandlerIdx = NodePropertyIndex;
-			EvaluationHandlerRecord.PatchFunctionNameAndCopyRecordsInto(ExposedValueHandlers[NodePropertyIndex]);
-		}
-	}
-}
-
-void UAnimBlueprintExtension_Base::HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
-{
-	PerNodeStructEvalHandlers.Empty();
-	ValidEvaluationHandlerList.Empty();
-	ValidEvaluationHandlerMap.Empty();
-	ValidAnimNodePinConstants.Empty();
-	HandlerFunctionNames.Empty();
-	
-	UAnimBlueprintExtension_PropertyAccess* PropertyAccessExtension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_PropertyAccess>(GetAnimBlueprint());
-	if(PropertyAccessExtension)
+	FPropertyAccessCompilerHandler* PropertyAccessHandler = InCompilationContext.GetHandler<FPropertyAccessCompilerHandler>("PropertyAccessCompilerHandler");
+	if(PropertyAccessHandler)
 	{
 		if(!PreLibraryCompiledDelegateHandle.IsValid())
 		{
-			PreLibraryCompiledDelegateHandle = PropertyAccessExtension->OnPreLibraryCompiled().AddLambda([this, PropertyAccessExtension, InClass]()
+			PreLibraryCompiledDelegateHandle = PropertyAccessHandler->OnPreLibraryCompiled().AddLambda([this, PropertyAccessHandler, InClass]()
 			{
 				if(IModularFeatures::Get().IsModularFeatureAvailable("PropertyAccessEditor"))
 				{
@@ -203,22 +179,21 @@ void UAnimBlueprintExtension_Base::HandleStartCompilingClass(const UClass* InCla
 
 									// Batch all external accesses, we cant call them safely from a worker thread.
 									Record.LibraryBatchType = Result == EPropertyAccessResolveResult::SucceededExternal ? EPropertyAccessBatchType::Batched : EPropertyAccessBatchType::Unbatched;
-									Record.LibraryCopyIndex = PropertyAccessExtension->AddCopy(Record.SourcePropertyPath, Record.DestPropertyPath, Record.LibraryBatchType, HandlerRecord.AnimGraphNode);
+									Record.LibraryCopyIndex = PropertyAccessHandler->AddCopy(Record.SourcePropertyPath, Record.DestPropertyPath, Record.LibraryBatchType, HandlerRecord.AnimGraphNode);
 								}
 							}
 						}
 					}
 				}
-
-				PropertyAccessExtension->OnPreLibraryCompiled().Remove(PreLibraryCompiledDelegateHandle);
-				PreLibraryCompiledDelegateHandle.Reset();
 			});
 		}
 
 		if(!PostLibraryCompiledDelegateHandle.IsValid())
 		{
-			PostLibraryCompiledDelegateHandle = PropertyAccessExtension->OnPostLibraryCompiled().AddLambda([this, PropertyAccessExtension](IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+			PostLibraryCompiledDelegateHandle = PropertyAccessHandler->OnPostLibraryCompiled().AddLambda([this, PropertyAccessHandler](IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 			{
+				TArray<FExposedValueHandler>& ExposedValueHandlers = OutCompiledData.GetExposedValueHandlers();
+
 				for(FEvaluationHandlerRecord& HandlerRecord : ValidEvaluationHandlerList)
 				{
 					// Map global copy index to batched indices
@@ -228,32 +203,39 @@ void UAnimBlueprintExtension_Base::HandleStartCompilingClass(const UClass* InCla
 						{
 							if(CopyRecord.IsFastPath())
 							{
-								CopyRecord.LibraryCopyIndex = PropertyAccessExtension->MapCopyIndex(CopyRecord.LibraryCopyIndex);
+								CopyRecord.LibraryCopyIndex = PropertyAccessHandler->MapCopyIndex(CopyRecord.LibraryCopyIndex);
 							}
 						}
 					}
+
+					// Patch either fast-path copy records or generated function names into the class
+					HandlerRecord.EvaluationHandlerIdx = ExposedValueHandlers.Num();
+					FExposedValueHandler& ExposedValueHandler = ExposedValueHandlers.AddDefaulted_GetRef();
+					HandlerRecord.PatchFunctionNameAndCopyRecordsInto(ExposedValueHandler);
 				}
-
-				PatchEvaluationHandlers(InCompilationContext, OutCompiledData);
-
-				PropertyAccessExtension->OnPostLibraryCompiled().Remove(PostLibraryCompiledDelegateHandle);
-				PostLibraryCompiledDelegateHandle.Reset();	
 			});
 		}
 	}
 }
 
-void UAnimBlueprintExtension_Base::HandleFinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_Base::FinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	UAnimBlueprintExtension_PropertyAccess* PropertyAccessExtension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_PropertyAccess>(GetAnimBlueprint());
-	if(PropertyAccessExtension == nullptr)
+	FPropertyAccessCompilerHandler* PropertyAccessHandler = InCompilationContext.GetHandler<FPropertyAccessCompilerHandler>("PropertyAccessCompilerHandler");
+	if(PropertyAccessHandler == nullptr)
 	{
+		TArray<FExposedValueHandler>& ExposedValueHandlers = OutCompiledData.GetExposedValueHandlers();
+
 		// Without the property access system we need to patch generated function names here
-		PatchEvaluationHandlers(InCompilationContext, OutCompiledData);
+		for(FEvaluationHandlerRecord& HandlerRecord : ValidEvaluationHandlerList)
+		{
+			HandlerRecord.EvaluationHandlerIdx = ExposedValueHandlers.Num();
+			FExposedValueHandler& ExposedValueHandler = ExposedValueHandlers.AddDefaulted_GetRef();
+			HandlerRecord.PatchFunctionNameAndCopyRecordsInto(ExposedValueHandler);
+		}
 	}
 }
 
-void UAnimBlueprintExtension_Base::AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void FAnimBlueprintCompilerHandler_Base::AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	const UAnimationGraphSchema* AnimGraphDefaultSchema = GetDefault<UAnimationGraphSchema>();
 
@@ -375,7 +357,7 @@ void UAnimBlueprintExtension_Base::AddStructEvalHandlers(UAnimGraphNode_Base* In
 	}
 }
 
-void UAnimBlueprintExtension_Base::CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode)
+void FAnimBlueprintCompilerHandler_Base::CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode)
 {
 	if(FEvaluationHandlerRecord* RecordPtr = PerNodeStructEvalHandlers.Find(InNode))
 	{
@@ -386,85 +368,14 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandlerForNode(IAnimBlueprint
 		{
 			CreateEvaluationHandler(InCompilationContext, InNode, Record);
 
-			RedirectPropertyAccesses(InCompilationContext, InNode, Record);
-			
 			int32 NewIndex = ValidEvaluationHandlerList.Add(Record);
 			ValidEvaluationHandlerMap.Add(InNode, NewIndex);
 		}
 	}
 }
 
-// Optional pin manager used to optimize the creation of internal struct member set nodes 
-struct FInternalOptionalPinManager : public FOptionalPinManager
+void FAnimBlueprintCompilerHandler_Base::CreateEvaluationHandler(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record)
 {
-	FInternalOptionalPinManager(UAnimGraphNode_Base* InNode, FStructProperty* InNodeProperty, IAnimBlueprintCompilationContext& InCompilationContext)
-		: Node(InNode)
-		, NodeProperty(InNodeProperty)
-		, CompilationContext(InCompilationContext)
-	{}
-
-	void BuildPropertyList(TArray<FOptionalPinFromProperty>& Properties, UStruct* SourceStruct)
-	{
-		// Build optional pins for all properties
-		for(TFieldIterator<FProperty> It(SourceStruct); It; ++It)
-		{
-			FOptionalPinFromProperty& OptionalPin = Properties.AddDefaulted_GetRef();
-			OptionalPin.PropertyName = It->GetFName();
-		}
-
-		// Then expose only those that have records for this node 
-		for(TFieldIterator<FProperty> It(NodeProperty->Struct); It; ++It)
-		{
-			if(const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FoldedPropertyRecord = CompilationContext.GetFoldedPropertyRecord(Node, It->GetFName()))
-			{
-				if(!FoldedPropertyRecord->bIsOnClass)
-				{
-					FOptionalPinFromProperty& OptionalPin = Properties[Properties.Num() - 1 - FoldedPropertyRecord->PropertyIndex];
-				
-					check(OptionalPin.PropertyName == FoldedPropertyRecord->GeneratedProperty->GetFName());
-					OptionalPin.bShowPin = true;
-				}
-			}
-		}
-	}
-
-	// Duplicated & re-worked from base class (because we are never re-creating) to optimize our case
-	void CreateVisiblePinsEx(TArray<FOptionalPinFromProperty>& Properties, UStruct* SourceStruct, EEdGraphPinDirection Direction, UK2Node* TargetNode)
-	{
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-
-		for (FOptionalPinFromProperty& PropertyEntry : Properties)
-		{
-			if (PropertyEntry.bShowPin)
-			{	
-				if (FProperty* OuterProperty = FindFieldChecked<FProperty>(SourceStruct, PropertyEntry.PropertyName))
-				{
-					// Not an array property
-					FEdGraphPinType PinType;
-					if (Schema->ConvertPropertyToPinType(OuterProperty, /*out*/ PinType))
-					{
-						// Create the pin
-						const FName PinName = PropertyEntry.PropertyName;
-						UEdGraphPin* NewPin = TargetNode->CreatePin(Direction, PinType, PinName);
-						NewPin->PinFriendlyName = FText::FromString(PropertyEntry.PropertyFriendlyName.IsEmpty() ? PinName.ToString() : PropertyEntry.PropertyFriendlyName);
-						NewPin->bNotConnectable = !PropertyEntry.bIsSetValuePinVisible;
-						NewPin->bDefaultValueIsIgnored = !PropertyEntry.bIsSetValuePinVisible;
-						Schema->ConstructBasicPinTooltip(*NewPin, PropertyEntry.PropertyTooltip, NewPin->PinToolTip);
-					}
-				}
-			}
-		}
-	}
-
-	UAnimGraphNode_Base* Node;
-	FStructProperty* NodeProperty;
-	IAnimBlueprintCompilationContext& CompilationContext;
-};
-
-void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record)
-{
-	BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler);
-
 	// Shouldn't create a handler if there is nothing to work with
 	check(Record.ServicedProperties.Num() > 0);
 	check(Record.NodeVariableProperty != NULL);
@@ -506,7 +417,7 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 			FAnimNodeSinglePropertyHandler& PropHandler = PropHandlerPair.Value;
 			FName PropertyName = PropHandlerPair.Key;
 
-			// We only want to deal with instance targets in here
+			// Should be true, we only want to deal with instance targets in here
 			if (PropHandler.bInstanceIsTarget)
 			{
 				for (FPropertyCopyRecord& CopyRecord : PropHandler.CopyRecords)
@@ -546,53 +457,17 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 
 	if (Record.bServicesNodeProperties)
 	{
-		BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler_NodeProperties);
-		
-		UK2Node_StructMemberSet* AssignmentNode;
-		{
-			BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateAssignmentNode);
-			
-			// Create a struct member write node to store the parameters into the animation node
-			AssignmentNode = InCompilationContext.SpawnIntermediateNode<UK2Node_StructMemberSet>(InNode, InCompilationContext.GetConsolidatedEventGraph());
-			AssignmentNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
-			AssignmentNode->StructType = Record.NodeVariableProperty->Struct;
-			AssignmentNode->AllocateDefaultPins();
-			Record.CustomEventNodes.Add(AssignmentNode);
-		}
+		// Create a struct member write node to store the parameters into the animation node
+		UK2Node_StructMemberSet* AssignmentNode = InCompilationContext.SpawnIntermediateNode<UK2Node_StructMemberSet>(InNode, InCompilationContext.GetConsolidatedEventGraph());
+		AssignmentNode->VariableReference.SetSelfMember(Record.NodeVariableProperty->GetFName());
+		AssignmentNode->StructType = Record.NodeVariableProperty->Struct;
+		AssignmentNode->AllocateDefaultPins();
+		Record.CustomEventNodes.Add(AssignmentNode);
 
-		// If we have folded properties we will need to set members on the classes generated mutable data block
-		const FStructProperty* MutableDataProperty = InCompilationContext.GetMutableDataProperty();
-		UK2Node_StructMemberSet* InstanceAssignmentNode = nullptr;
-		if(InCompilationContext.IsAnimGraphNodeFolded(InNode) && MutableDataProperty != nullptr)
-		{
-			BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode);
-			
-			// Spawn 'manually' as we dont want the original node to be included in the backtrack map for this member set - the struct
-			// is referenced by multiple nodes
-			InstanceAssignmentNode = InNode->GetGraph()->CreateIntermediateNode<UK2Node_StructMemberSet>();
-			InstanceAssignmentNode->CreateNewGuid();
-			
-			InstanceAssignmentNode->VariableReference.SetSelfMember(MutableDataProperty->GetFName());
-			InstanceAssignmentNode->StructType = MutableDataProperty->Struct;
-
-			// We build this struct member set node using specialized logic to optimize its creation
-			// as it can have 1000's of properties harvested from animation nodes
-			InstanceAssignmentNode->AllocateExecPins();
-
-			{
-				FInternalOptionalPinManager OptionalPinManager(InNode, InNode->GetFNodeProperty(), InCompilationContext);
-				{
-					BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode_BuildPropertyList);
-					OptionalPinManager.BuildPropertyList(InstanceAssignmentNode->ShowPinForProperties, MutableDataProperty->Struct);
-				}
-				{
-					BP_SCOPED_COMPILER_EVENT_STAT(EAnimBlueprintCompilerStats_CreateEvaluationHandler_CreateInstanceAssignmentNode_CreateVisiblePins);
-					OptionalPinManager.CreateVisiblePinsEx(InstanceAssignmentNode->ShowPinForProperties, MutableDataProperty->Struct, EGPD_Input, InstanceAssignmentNode);
-				}
-			}
-			
-			Record.CustomEventNodes.Add(InstanceAssignmentNode);
-		}
+		// Wire up the variable node execution wires
+		UEdGraphPin* ExecVariablesIn = K2Schema->FindExecutionPin(*AssignmentNode, EGPD_Input);
+		ExecChain->MakeLinkTo(ExecVariablesIn);
+		ExecChain = K2Schema->FindExecutionPin(*AssignmentNode, EGPD_Output);
 
 		// Run thru each property
 		TSet<FName> PropertiesBeingSet;
@@ -605,21 +480,6 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 			// Does it get serviced by this handler?
 			if (FAnimNodeSinglePropertyHandler* SourceInfo = Record.ServicedProperties.Find(PropertyName))
 			{
-				// Skip if the property is folded, we should have handled it above
-				const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FoldedPropertyRecord = InCompilationContext.GetFoldedPropertyRecord(InNode, PropertyName);
-
-				if(FoldedPropertyRecord != nullptr)
-				{
-					// We only support per-instance members here. If this is held on the class then something is wrong
-					check(!FoldedPropertyRecord->bIsOnClass);
-
-					// We must have created an assignment node for the mutable data block by now
-					check(InstanceAssignmentNode != nullptr);
-
-					// Redirect to the instance's mutable data area assignment node
-					TargetPin = InstanceAssignmentNode->FindPinChecked(FoldedPropertyRecord->GeneratedProperty->GetFName());
-				}
-
 				if (TargetPin->PinType.IsArray())
 				{
 					// Grab the array that we need to set members for
@@ -673,7 +533,7 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 					{
 						UEdGraphPin* DestPin = SourceInfo->CopyRecords[0].DestPin;
 
-						PropertiesBeingSet.Add(TargetPin->PinName);
+						PropertiesBeingSet.Add(DestPin->PinName);
 						TargetPin->CopyPersistentDataFromOldPin(*DestPin);
 						InCompilationContext.GetMessageLog().NotifyIntermediatePinCreation(TargetPin, DestPin);
 					}
@@ -681,85 +541,21 @@ void UAnimBlueprintExtension_Base::CreateEvaluationHandler(IAnimBlueprintCompila
 			}
 		}
 
-		// Remove any unused pins from the assignment nodes to avoid smashing constant values
-		bool bAnyNodePropertiesSet = false;
+		// Remove any unused pins from the assignment node to avoid smashing constant values
 		for (int32 PinIndex = 0; PinIndex < AssignmentNode->ShowPinForProperties.Num(); ++PinIndex)
 		{
 			FOptionalPinFromProperty& TestProperty = AssignmentNode->ShowPinForProperties[PinIndex];
 			TestProperty.bShowPin = PropertiesBeingSet.Contains(TestProperty.PropertyName);
-			bAnyNodePropertiesSet |= TestProperty.bShowPin;
 		}
 
-		if(bAnyNodePropertiesSet)
-		{
-			AssignmentNode->ReconstructNode();
-			
-			UEdGraphPin* ExecVariablesIn = K2Schema->FindExecutionPin(*AssignmentNode, EGPD_Input);
-			ExecChain->MakeLinkTo(ExecVariablesIn);
-			ExecChain = K2Schema->FindExecutionPin(*AssignmentNode, EGPD_Output);
-		}
-
-		if(InstanceAssignmentNode != nullptr)
-		{
-			for (int32 PinIndex = 0; PinIndex < InstanceAssignmentNode->ShowPinForProperties.Num(); ++PinIndex)
-			{
-				FOptionalPinFromProperty& TestProperty = InstanceAssignmentNode->ShowPinForProperties[PinIndex];
-				if(TestProperty.bShowPin)
-				{				
-					UEdGraphPin* ExecVariablesIn = K2Schema->FindExecutionPin(*InstanceAssignmentNode, EGPD_Input);
-					ExecChain->MakeLinkTo(ExecVariablesIn);
-					ExecChain = K2Schema->FindExecutionPin(*InstanceAssignmentNode, EGPD_Output);
-					break;
-				}
-			}
-		}
+		AssignmentNode->ReconstructNode();
 	}
 }
 
-void UAnimBlueprintExtension_Base::RedirectPropertyAccesses(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& InRecord)
-{
-	const FStructProperty* MutableDataProperty = InCompilationContext.GetMutableDataProperty();
-	if(InCompilationContext.IsAnimGraphNodeFolded(InNode) && MutableDataProperty != nullptr)
-	{
-		for(TPair<FName, FAnimNodeSinglePropertyHandler>& NamePropertyPair : InRecord.ServicedProperties)
-		{
-			if(const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FoldedPropertyRecord = InCompilationContext.GetFoldedPropertyRecord(InNode, NamePropertyPair.Key))
-			{
-				for(FPropertyCopyRecord& CopyRecord : NamePropertyPair.Value.CopyRecords)
-				{
-					if(CopyRecord.DestPropertyPath.Num() > 1)
-					{
-						// If this record writes to the node, switch it to the mutable data's property instead
-						if(CopyRecord.DestPropertyPath[0] == InRecord.NodeVariableProperty->GetName())
-						{
-							CopyRecord.DestPropertyPath[0] = MutableDataProperty->GetName();
-
-							FString DestPropertyPathTail = CopyRecord.DestPropertyPath[1];
-							FString DestPropertyPathWithoutArray = DestPropertyPathTail;
-							FString ArrayIndex;
-							int32 ArrayDelim = INDEX_NONE;
-							if(DestPropertyPathTail.FindChar(TEXT('['), ArrayDelim))
-							{
-								DestPropertyPathWithoutArray = DestPropertyPathTail.Left(ArrayDelim);
-								ArrayIndex = DestPropertyPathTail.RightChop(ArrayDelim);
-							}
-
-							// Switch the destination property from the node's property to the generated one
-							if(DestPropertyPathWithoutArray == FoldedPropertyRecord->Property->GetName())
-							{
-								CopyRecord.DestPropertyPath[1] = FoldedPropertyRecord->GeneratedProperty->GetName() + ArrayIndex;
-							}
-						}
-					}
-				}
-			}
-		}	
-	}
-}
-
-void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::PatchFunctionNameAndCopyRecordsInto(FExposedValueHandler& Handler) const
+void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::PatchFunctionNameAndCopyRecordsInto(FExposedValueHandler& Handler) const
 {
 	Handler.CopyRecords.Empty();
+	Handler.ValueHandlerNodeProperty = NodeVariableProperty;
 
 	if (IsFastPath())
 	{
@@ -852,7 +648,7 @@ static UEdGraphNode* FollowKnots(UEdGraphPin* FromPin, UEdGraphPin*& ToPin)
 	return nullptr;
 }
 
-void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::RegisterPin(UEdGraphPin* DestPin, FProperty* AssociatedProperty, int32 AssociatedPropertyArrayIndex)
+void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::RegisterPin(UEdGraphPin* DestPin, FProperty* AssociatedProperty, int32 AssociatedPropertyArrayIndex)
 {
 	FAnimNodeSinglePropertyHandler& Handler = ServicedProperties.FindOrAdd(AssociatedProperty->GetFName());
 
@@ -876,7 +672,7 @@ void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::RegisterPin(UEdGrap
 	Handler.CopyRecords.Emplace(DestPin, AssociatedProperty, AssociatedPropertyArrayIndex, MoveTemp(DestPropertyPath));
 }
 
-void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::RegisterPropertyBinding(FProperty* InProperty, const FAnimGraphNodePropertyBinding& InBinding)
+void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::RegisterPropertyBinding(FProperty* InProperty, const FAnimGraphNodePropertyBinding& InBinding)
 {
 	FAnimNodeSinglePropertyHandler& Handler = ServicedProperties.FindOrAdd(InProperty->GetFName());
 
@@ -893,17 +689,17 @@ void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::RegisterPropertyBin
 	Handler.CopyRecords.Emplace(InBinding.PropertyPath, DestPropertyPath);
 }
 
-void UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::BuildFastPathCopyRecords(IAnimBlueprintPostExpansionStepContext& InCompilationContext)
+void FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler, IAnimBlueprintPostExpansionStepContext& InCompilationContext)
 {
-	typedef bool (UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::*GraphCheckerFunc)(FCopyRecordGraphCheckContext&, UEdGraphPin*);
+	typedef bool (FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::*GraphCheckerFunc)(FCopyRecordGraphCheckContext&, UEdGraphPin*);
 
 	GraphCheckerFunc GraphCheckerFuncs[] =
 	{
-		&UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess,
-		&UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForVariableGet,
-		&UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForLogicalNot,
-		&UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForStructMemberAccess,
-		&UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForArrayAccess,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForVariableGet,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForLogicalNot,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForStructMemberAccess,
+		&FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForArrayAccess,
 	};
 
 	if (GetDefault<UEngine>()->bOptimizeAnimBlueprintMemberVariableAccess)
@@ -970,7 +766,7 @@ static void GetFullyQualifiedPathFromPin(const UEdGraphPin* Pin, TArray<FString>
 	});
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForVariableGet(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForVariableGet(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -991,7 +787,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForVariableGet
 	return false;
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForLogicalNot(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForLogicalNot(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -1060,7 +856,7 @@ static bool IsWhitelistedNativeMake(const FName& InFunctionName)
 	return false;
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForStructMemberAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForStructMemberAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -1099,7 +895,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForStructMembe
 	return false;
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplitPinAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -1163,7 +959,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForSplitPinAcc
 	return false;
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForArrayAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForArrayAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin)
 {
 	if(DestPin)
 	{
@@ -1202,7 +998,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForArrayAccess
 	return false;
 }
 
-bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForMemberOnlyAccess(FPropertyCopyRecord& CopyRecord, UEdGraphPin* DestPin)
+bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForMemberOnlyAccess(FPropertyCopyRecord& CopyRecord, UEdGraphPin* DestPin)
 {
 	const UAnimationGraphSchema* AnimGraphDefaultSchema = GetDefault<UAnimationGraphSchema>();
 
@@ -1260,7 +1056,7 @@ bool UAnimBlueprintExtension_Base::FEvaluationHandlerRecord::CheckForMemberOnlyA
 	return CopyRecord.IsFastPath();
 }
 
-bool UAnimBlueprintExtension_Base::FEffectiveConstantRecord::Apply(UObject* Object)
+bool FAnimBlueprintCompilerHandler_Base::FEffectiveConstantRecord::Apply(UObject* Object)
 {
 	uint8* PropertyPtr = nullptr;
 	

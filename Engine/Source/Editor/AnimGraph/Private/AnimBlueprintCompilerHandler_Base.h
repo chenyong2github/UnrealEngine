@@ -3,12 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AnimBlueprintExtension.h"
-#include "AnimBlueprintExtension_PropertyAccess.h"
-#include "Animation/AnimNodeBase.h"
+#include "IAnimBlueprintCompilerHandler.h"
 #include "IPropertyAccessCompiler.h"
-#include "Animation/AnimSubsystem_Base.h"
-#include "AnimBlueprintExtension_Base.generated.h"
+#include "Animation/AnimNodeBase.h"
 
 class UAnimGraphNode_Base;
 struct FAnimGraphNodePropertyBinding;
@@ -20,12 +17,11 @@ class IAnimBlueprintCompilationBracketContext;
 class IAnimBlueprintPostExpansionStepContext;
 class IAnimBlueprintCopyTermDefaultsContext;
 
-UCLASS(MinimalAPI)
-class UAnimBlueprintExtension_Base : public UAnimBlueprintExtension
+class FAnimBlueprintCompilerHandler_Base : public IAnimBlueprintCompilerHandler
 {
-	GENERATED_BODY()
-
 public:
+	FAnimBlueprintCompilerHandler_Base(IAnimBlueprintCompilerCreationContext& InCreationContext);
+
 	// Adds a map of struct eval handlers for the specified node
 	void AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
@@ -33,14 +29,10 @@ public:
 	void CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode);
 
 private:
-	// UAnimBlueprintExtension interface
-	virtual void HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
-	virtual void HandleFinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
-	virtual void HandlePostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
-	virtual void HandleCopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintExtensionCopyTermDefaultsContext& InPerExtensionContext) override;
-
-	// Patch all node's evaluation handlers 
-	void PatchEvaluationHandlers(IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void StartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void FinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void PostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	void CopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 private:
 	/** Record of a single copy operation */
@@ -245,7 +237,7 @@ private:
 
 		FStructProperty* GetHandlerNodeProperty() const { return NodeVariableProperty; }
 
-		void BuildFastPathCopyRecords(IAnimBlueprintPostExpansionStepContext& InCompilationContext);
+		void BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler, IAnimBlueprintPostExpansionStepContext& InCompilationContext);
 
 	private:
 
@@ -261,12 +253,9 @@ private:
 
 		bool CheckForArrayAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin);
 	};
-	
+
 	// Create an evaluation handler for the specified node/record
 	void CreateEvaluationHandler(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record);
-
-	// Redirect any property accesses that are affected by constant folding
-	void RedirectPropertyAccesses(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& InRecord);
 
 private:
 	// Records of pose pins for later patchup with an associated evaluation handler
@@ -285,8 +274,4 @@ private:
 	// Delegate handle for registering against library pre/post-compilation
 	FDelegateHandle PreLibraryCompiledDelegateHandle;
 	FDelegateHandle PostLibraryCompiledDelegateHandle;
-
-	// Base subsystem data containing eval handlers
-	UPROPERTY()
-	FAnimSubsystem_Base Subsystem;
 };

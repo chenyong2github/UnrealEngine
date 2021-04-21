@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Containers/ArrayView.h"
 #include "UObject/ObjectMacros.h"
-#include "Features/IModularFeature.h"
 
 class UObject;
 struct FPropertyAccessLibrary;
@@ -28,10 +27,7 @@ public:
 	virtual ~IPropertyAccessLibraryCompiler() {}
 
 	// Begin compilation - reset the library to its default state
-	virtual void BeginCompilation() = 0;
-	
-	UE_DEPRECATED(5.0, "Please use BeginCompilation without a class argument")
-	virtual void BeginCompilation(const UClass* InClass) {}
+	virtual void BeginCompilation(const UClass* InClass) = 0;
 
 	// Add a copy to the property access library we are compiling
 	// @return an integer handle to the pending copy. This can be resolved to a true copy index by calling MapCopyIndex

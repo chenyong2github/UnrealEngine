@@ -80,7 +80,7 @@ void FAnimNode_LinkedAnimGraph::CacheBonesSubGraph_AnyThread(const FAnimationCac
 		// Note not calling Proxy.CacheBones_WithRoot here as it is guarded by
 		// bBoneCachesInvalidated, which is handled at a higher level
 		FAnimationCacheBonesContext LinkedContext(&Proxy);
-		LinkedContext.SetNodeId(CachedLinkedNodeIndex);
+		LinkedContext = LinkedContext.WithNodeId(CachedLinkedNodeIndex);
 		LinkedRoot->CacheBones_AnyThread(LinkedContext);
 	}
 }
@@ -112,7 +112,7 @@ void FAnimNode_LinkedAnimGraph::Update_AnyThread(const FAnimationUpdateContext& 
 		// in USkeletalMeshComponent::TickAnimation. It used to be the case that we could do non-parallel work in 
 		// USkeletalMeshComponent::TickAnimation, which would mean we would have to skip doing that work here.
 		FAnimationUpdateContext NewContext = InContext.WithOtherProxy(&Proxy);
-		NewContext.SetNodeId(CachedLinkedNodeIndex);
+		NewContext = NewContext.WithNodeId(CachedLinkedNodeIndex);
 		Proxy.UpdateAnimation_WithRoot(NewContext, LinkedRoot, GetDynamicLinkFunctionName());
 	}
 	else if(InputPoses.Num() > 0)

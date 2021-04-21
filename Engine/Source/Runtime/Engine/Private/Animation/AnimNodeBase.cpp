@@ -5,8 +5,8 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 #include "UObject/CoreObjectVersion.h"
+#include "PropertyAccess.h"
 #include "Animation/AnimAttributes.h"
-#include "Animation/AnimSubsystem_Base.h"
 
 /////////////////////////////////////////////////////
 // FAnimationBaseContext
@@ -38,11 +38,6 @@ FAnimationBaseContext::FAnimationBaseContext(const FAnimationBaseContext& InCont
 IAnimClassInterface* FAnimationBaseContext::GetAnimClass() const
 {
 	return AnimInstanceProxy ? AnimInstanceProxy->GetAnimClassInterface() : nullptr;
-}
-
-UObject* FAnimationBaseContext::GetAnimInstanceObject() const 
-{
-	return AnimInstanceProxy ? AnimInstanceProxy->GetAnimInstanceObject() : nullptr;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -156,7 +151,7 @@ void FAnimNode_Base::ResetDynamics(ETeleportType InTeleportType)
 void FPoseLinkBase::AttemptRelink(const FAnimationBaseContext& Context)
 {
 	// Do the linkage
-	if ((LinkedNode == nullptr) && (LinkID != INDEX_NONE))
+	if ((LinkedNode == NULL) && (LinkID != INDEX_NONE))
 	{
 		IAnimClassInterface* AnimBlueprintClass = Context.GetAnimClass();
 		check(AnimBlueprintClass);
@@ -172,27 +167,27 @@ void FPoseLinkBase::AttemptRelink(const FAnimationBaseContext& Context)
 	}
 }
 
-void FPoseLinkBase::Initialize(const FAnimationInitializeContext& InContext)
+void FPoseLinkBase::Initialize(const FAnimationInitializeContext& Context)
 {
 #if DO_CHECK
 	checkf(!bProcessed, TEXT("Initialize already in progress, circular link for AnimInstance [%s] Blueprint [%s]"), \
-		*InContext.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(InContext.AnimInstanceProxy->GetAnimClassInterface())));
+		*Context.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(Context.AnimInstanceProxy->GetAnimClassInterface())));
 	TGuardValue<bool> CircularGuard(bProcessed, true);
 #endif
 
-	AttemptRelink(InContext);
+	AttemptRelink(Context);
 
 #if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
-	InitializationCounter.SynchronizeWith(InContext.AnimInstanceProxy->GetInitializationCounter());
+	InitializationCounter.SynchronizeWith(Context.AnimInstanceProxy->GetInitializationCounter());
 
 	// Initialization will require update to be called before an evaluate.
 	UpdateCounter.Reset();
 #endif
 
 	// Do standard initialization
-	if (LinkedNode != nullptr)
+	if (LinkedNode != NULL)
 	{
-		FAnimationInitializeContext LinkContext(InContext);
+		FAnimationInitializeContext LinkContext(Context);
 		LinkContext.SetNodeId(LinkID);
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
 		LinkedNode->Initialize_AnyThread(LinkContext);
@@ -230,41 +225,40 @@ FAnimNode_Base* FPoseLinkBase::GetLinkNode()
 	return LinkedNode;
 }
 
-const FExposedValueHandler& FAnimNode_Base::GetEvaluateGraphExposedInputs() const
+const FExposedValueHandler& FAnimNode_Base::GetEvaluateGraphExposedInputs()
 {
-	if(NodeData)
+	// Inverting control (entering via the immutable data rather than the mutable data) would allow
+	// us to remove this static local. Would also allow us to remove the vtable from FAnimNode_Base.
+	static const FExposedValueHandler Default;
+	if(ExposedValueHandler)
 	{
-		const int32 NodeIndex = NodeData->GetNodeIndex();
-		return NodeData->GetAnimClassInterface().GetSubsystem<FAnimSubsystem_Base>().GetExposedValueHandlers()[NodeIndex];
+		return *ExposedValueHandler;
 	}
 	else
 	{
-		// Inverting control (entering via the immutable data rather than the mutable data) would allow
-		// us to remove this static local. Would also allow us to remove the vtable from FAnimNode_Base.
-		static const FExposedValueHandler Default;	
 		return Default;
 	}
 }
 
-void FPoseLinkBase::CacheBones(const FAnimationCacheBonesContext& InContext) 
+void FPoseLinkBase::CacheBones(const FAnimationCacheBonesContext& Context) 
 {
 #if DO_CHECK
 	checkf( !bProcessed, TEXT( "CacheBones already in progress, circular link for AnimInstance [%s] Blueprint [%s]" ), \
-		*InContext.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(InContext.AnimInstanceProxy->GetAnimClassInterface())));
+		*Context.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(Context.AnimInstanceProxy->GetAnimClassInterface())));
 	TGuardValue<bool> CircularGuard(bProcessed, true);
 #endif
 
 #if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
-	CachedBonesCounter.SynchronizeWith(InContext.AnimInstanceProxy->GetCachedBonesCounter());
+	CachedBonesCounter.SynchronizeWith(Context.AnimInstanceProxy->GetCachedBonesCounter());
 #endif
 
-	if (LinkedNode != nullptr)
+	if (LinkedNode != NULL)
 	{
-		LinkedNode->CacheBones_AnyThread(InContext);
+		LinkedNode->CacheBones_AnyThread(Context);
 	}
 }
 
-void FPoseLinkBase::Update(const FAnimationUpdateContext& InContext)
+void FPoseLinkBase::Update(const FAnimationUpdateContext& Context)
 {
 #if ENABLE_VERBOSE_ANIM_PERF_TRACKING
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPoseLinkBase_Update);
@@ -272,48 +266,48 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& InContext)
 
 #if DO_CHECK
 	checkf( !bProcessed, TEXT( "Update already in progress, circular link for AnimInstance [%s] Blueprint [%s]" ), \
-		*InContext.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(InContext.AnimInstanceProxy->GetAnimClassInterface())));
+		*Context.AnimInstanceProxy->GetAnimInstanceName(), *GetFullNameSafe(IAnimClassInterface::GetActualAnimClass(Context.AnimInstanceProxy->GetAnimClassInterface())));
 	TGuardValue<bool> CircularGuard(bProcessed, true);
 #endif
 
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (LinkedNode == nullptr)
+		if (LinkedNode == NULL)
 		{
 			//@TODO: Should only do this when playing back
-			AttemptRelink(InContext);
+			AttemptRelink(Context);
 		}
 
 		// Record the node line activation
-		if (LinkedNode != nullptr)
+		if (LinkedNode != NULL)
 		{
-			if (InContext.AnimInstanceProxy->IsBeingDebugged())
+			if (Context.AnimInstanceProxy->IsBeingDebugged())
 			{
-				InContext.AnimInstanceProxy->RecordNodeVisit(LinkID, SourceLinkID, InContext.GetFinalBlendWeight());
+				Context.AnimInstanceProxy->RecordNodeVisit(LinkID, SourceLinkID, Context.GetFinalBlendWeight());
 			}
 		}
 	}
 #endif
 
 #if ENABLE_ANIMGRAPH_TRAVERSAL_DEBUG
-	checkf(InitializationCounter.IsSynchronized_Counter(InContext.AnimInstanceProxy->GetInitializationCounter()), TEXT("Calling Update without initialization!"));
-	UpdateCounter.SynchronizeWith(InContext.AnimInstanceProxy->GetUpdateCounter());
+	checkf(InitializationCounter.IsSynchronized_Counter(Context.AnimInstanceProxy->GetInitializationCounter()), TEXT("Calling Update without initialization!"));
+	UpdateCounter.SynchronizeWith(Context.AnimInstanceProxy->GetUpdateCounter());
 #endif
 
-	if (LinkedNode != nullptr)
+	if (LinkedNode != NULL)
 	{
-		FAnimationUpdateContext LinkContext(InContext.WithNodeId(LinkID));
+		FAnimationUpdateContext LinkContext(Context.WithNodeId(LinkID));
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
 		LinkedNode->Update_AnyThread(LinkContext);
 	}
 }
 
-void FPoseLinkBase::GatherDebugData(FNodeDebugData& InDebugData)
+void FPoseLinkBase::GatherDebugData(FNodeDebugData& DebugData)
 {
-	if(LinkedNode != nullptr)
+	if(LinkedNode != NULL)
 	{
-		LinkedNode->GatherDebugData(InDebugData);
+		LinkedNode->GatherDebugData(DebugData);
 	}
 }
 
@@ -329,7 +323,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 #endif
 
 #if WITH_EDITOR
-	if ((LinkedNode == nullptr) && GIsEditor)
+	if ((LinkedNode == NULL) && GIsEditor)
 	{
 		//@TODO: Should only do this when playing back
 		AttemptRelink(Output);
@@ -343,7 +337,7 @@ void FPoseLink::Evaluate(FPoseContext& Output)
 	EvaluationCounter.SynchronizeWith(Output.AnimInstanceProxy->GetEvaluationCounter());
 #endif
 
-	if (LinkedNode != nullptr)
+	if (LinkedNode != NULL)
 	{
 #if ENABLE_ANIMNODE_POSE_DEBUG
 		CurrentPose.ResetToAdditiveIdentity();
@@ -448,7 +442,7 @@ void FComponentSpacePoseLink::EvaluateComponentSpace(FComponentSpacePoseContext&
 	EvaluationCounter.SynchronizeWith(Output.AnimInstanceProxy->GetEvaluationCounter());
 #endif
 
-	if (LinkedNode != nullptr)
+	if (LinkedNode != NULL)
 	{
 		int32 SourceID = Output.GetCurrentNodeId();
 
@@ -580,6 +574,91 @@ void FNodeDebugData::GetFlattenedDebugData(TArray<FFlattenedDebugData>& Flattene
 		{
 			++ChainID;
 			CachePoseData.GetFlattenedDebugData(FlattenedDebugData, 0, ChainID);
+		}
+	}
+}
+
+void FExposedValueHandler::DynamicClassInitialization(TArray<FExposedValueHandler>& InHandlers, UDynamicClass* InDynamicClass)
+{
+	const FPropertyAccessLibrary& PropertyAccessLibrary = IAnimClassInterface::GetFromClass(InDynamicClass)->GetPropertyAccessLibrary();
+
+	for(FExposedValueHandler& Handler : InHandlers)
+	{
+		Handler.Initialize(InDynamicClass, PropertyAccessLibrary);
+	}
+}
+
+void FExposedValueHandler::ClassInitialization(TArray<FExposedValueHandler>& InHandlers, UObject* InClassDefaultObject)
+{
+	UClass* Class = InClassDefaultObject->GetClass();
+	const FPropertyAccessLibrary& PropertyAccessLibrary = IAnimClassInterface::GetFromClass(Class)->GetPropertyAccessLibrary();
+
+	for(FExposedValueHandler& Handler : InHandlers)
+	{
+		FAnimNode_Base* AnimNode = Handler.ValueHandlerNodeProperty->ContainerPtrToValuePtr<FAnimNode_Base>(InClassDefaultObject);
+		check(AnimNode);
+		AnimNode->SetExposedValueHandler(&Handler);
+		Handler.Initialize(Class, PropertyAccessLibrary);
+	}
+}
+
+void FExposedValueHandler::Initialize(UClass* InClass, const FPropertyAccessLibrary& InPropertyAccessLibrary)
+{
+	// bInitialized may no longer be necessary, but leaving alone for now:
+	if (bInitialized)
+	{
+		return;
+	}
+
+	if (BoundFunction != NAME_None)
+	{
+		// This cached function is NULL when the CDO is initially serialized, or (in editor) when the class has been
+		// recompiled and any instances have been re-instanced. When new instances are spawned, this function is
+		// duplicated (it is a FProperty) onto those instances so we dont pay the cost of the FindFunction() call
+#if !WITH_EDITOR
+		if (Function == nullptr)
+#endif
+		{
+			// we cant call FindFunction on anything but the game thread as it accesses a shared map in the object's class
+			check(IsInGameThread());
+			Function = InClass->FindFunctionByName(BoundFunction);
+			check(Function);
+		}
+	}
+	else
+	{
+		Function = NULL;
+	}
+
+	// Cache property access library
+	PropertyAccessLibrary = &InPropertyAccessLibrary;
+
+	bInitialized = true;
+}
+
+void FExposedValueHandler::Execute(const FAnimationBaseContext& Context) const
+{
+	if (Function != nullptr)
+	{
+		Context.AnimInstanceProxy->GetAnimInstanceObject()->ProcessEvent(Function, NULL);
+	}
+
+	if(CopyRecords.Num() > 0)
+	{
+		if(PropertyAccessLibrary != nullptr)
+		{
+			UObject* AnimInstanceObject = Context.AnimInstanceProxy->GetAnimInstanceObject();
+			for(const FExposedValueCopyRecord& CopyRecord : CopyRecords)
+			{
+				PropertyAccess::ProcessCopy(AnimInstanceObject, *PropertyAccessLibrary, EPropertyAccessCopyBatch::InternalUnbatched, CopyRecord.CopyIndex, [&CopyRecord](const FProperty* InProperty, void* InAddress)
+				{
+					if(CopyRecord.PostCopyOperation == EPostCopyOperation::LogicalNegateBool)
+					{
+						bool bValue = static_cast<const FBoolProperty*>(InProperty)->GetPropertyValue(InAddress);
+						static_cast<const FBoolProperty*>(InProperty)->SetPropertyValue(InAddress, !bValue);
+					}
+				});
+			}
 		}
 	}
 }

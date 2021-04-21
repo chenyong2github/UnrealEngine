@@ -14,73 +14,67 @@ class UBlendSpace;
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayer : public FAnimNode_AssetPlayerBase
 {
-	GENERATED_BODY()
+	GENERATED_USTRUCT_BODY()
 
- 	friend class UAnimGraphNode_BlendSpacePlayer;
- 	friend class UAnimGraphNode_BlendSpaceEvaluator;
-	friend class UAnimGraphNode_RotationOffsetBlendSpace;
-	friend class UAnimGraphNode_AimOffsetLookAt;
+	// @return the current sample coordinates that this node is using to sample the blendspace
+	FVector GetPosition() const { return FVector(X, Y, Z); }
 
 	// @return the current sample coordinates after going through the filtering
 	FVector GetFilteredPosition() const { return BlendFilter.GetFilterLastOutput(); }
-private:
 
-#if WITH_EDITORONLY_DATA
+public:
 	// The X coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, Category=Coordinates, meta=(PinShownByDefault, FoldProperty))
-	float X = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Coordinates, meta=(PinShownByDefault))
+	float X;
 
 	// The Y coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, Category = Coordinates, meta = (PinShownByDefault, FoldProperty))
-	float Y = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Coordinates, meta = (PinShownByDefault))
+	float Y;
 
 	// The Z coordinate to sample in the blendspace
-	UPROPERTY(EditAnywhere, Category = Coordinates, meta = (PinHiddenByDefault, FoldProperty))
-	float Z = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Coordinates, meta = (PinHiddenByDefault))
+	float Z;
 
 	// The play rate multiplier. Can be negative, which will cause the animation to play in reverse.
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (DefaultValue = "1.0", PinHiddenByDefault, FoldProperty))
-	float PlayRate = 1.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (DefaultValue = "1.0", PinHiddenByDefault))
+	float PlayRate;
 
 	// Should the animation continue looping when it reaches the end?
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (DefaultValue = "true", PinHiddenByDefault, FoldProperty))
-	bool bLoop = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (DefaultValue = "true", PinHiddenByDefault))
+	bool bLoop;
 
 	// Whether we should reset the current play time when the blend space changes
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
-	bool bResetPlayTimeWhenBlendSpaceChanges = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	bool bResetPlayTimeWhenBlendSpaceChanges;
 
 	// The start up position in [0, 1], it only applies when reinitialized
 	// if you loop, it will still start from 0.f after finishing the round
-	UPROPERTY(EditAnywhere, Category=Settings, meta = (DefaultValue = "0.f", PinHiddenByDefault, FoldProperty))
-	float StartPosition = 0.0f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta = (DefaultValue = "0.f", PinHiddenByDefault))
+	float StartPosition;
 
 	// The blendspace asset to play
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
-	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
-#endif
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
+	TObjectPtr<UBlendSpace> BlendSpace;
 
 protected:
-	// Filter used to dampen coordinate changes
+
 	FBlendFilter BlendFilter;
 
-	// Cache of samples used to determine blend weights
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
 	/** Previous position in the triangulation/segmentation */
 	int32 CachedTriangulationIndex = -1;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UBlendSpace> PreviousBlendSpace = nullptr;
+	TObjectPtr<UBlendSpace> PreviousBlendSpace;
 
 public:	
-	FAnimNode_BlendSpacePlayer() = default;
+	FAnimNode_BlendSpacePlayer();
 
 	// FAnimNode_AssetPlayerBase interface
-	virtual float GetCurrentAssetTime() const override;
-	virtual float GetCurrentAssetTimePlayRateAdjusted() const override;
-	virtual float GetCurrentAssetLength() const override;
-	virtual UAnimationAsset* GetAnimAsset() const override;
+	virtual float GetCurrentAssetTime();
+	virtual float GetCurrentAssetTimePlayRateAdjusted();
+	virtual float GetCurrentAssetLength();
 	// End of FAnimNode_AssetPlayerBase interface
 
 	// FAnimNode_Base interface
@@ -88,34 +82,13 @@ public:
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void UpdateAssetPlayer(const FAnimationUpdateContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext& Output) override;
+	virtual void OverrideAsset(UAnimationAsset* NewAsset) override;
 	virtual void GatherDebugData(FNodeDebugData& DebugData) override;
 	// End of FAnimNode_Base interface
 
-	float GetTimeFromEnd(float CurrentTime) const;
+	float GetTimeFromEnd(float CurrentTime);
 
-#if WITH_EDITORONLY_DATA
-	// Set the blendspace asset to play
-	void SetBlendSpace(UBlendSpace* InBlendSpace);
-#endif
-
-	// Get the coordinates that are currently being sampled by the blendspace
-	virtual FVector GetPosition() const;
-
-	// Get the play rate multiplier. Can be negative, which will cause the animation to play in reverse.
-	float GetPlayRate() const;
-
-	// Should the animation continue looping when it reaches the end?
-	bool GetLoop() const;
-
-	// Get whether we should reset the current play time when the blend space changes
-	bool ShouldResetPlayTimeWhenBlendSpaceChanges() const;
-
-	// Get the start up position in [0, 1], it only applies when reinitialized
-	// if you loop, it will still start from 0.f after finishing the round
-	float GetStartPosition() const;
-
-	// Get the blendspace asset to play
-	UBlendSpace* GetBlendSpace() const;
+	UAnimationAsset* GetAnimAsset();
 
 protected:
 	void UpdateInternal(const FAnimationUpdateContext& Context);

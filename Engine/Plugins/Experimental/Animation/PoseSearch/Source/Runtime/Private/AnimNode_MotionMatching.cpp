@@ -117,7 +117,7 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 		}
 
 		// Continue with the follow up sequence if we're finishing a one shot anim
-		if (!bJumpedToPose && SequencePlayerNode.GetSequence() && !SequencePlayerNode.GetLoopAnimation())
+		if (!bJumpedToPose && SequencePlayerNode.Sequence && !SequencePlayerNode.bLoopAnimation)
 		{
 			float AssetTimeAfterUpdate = AssetTime + Context.GetDeltaTime();
 			if (AssetTimeAfterUpdate > AssetLength)
@@ -223,9 +223,9 @@ void FAnimNode_MotionMatching::JumpToPose(const FAnimationUpdateContext& Context
 
 	// Immediately jump to the pose by updating the embedded sequence player node
 	const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
-	SequencePlayerNode.SetSequence(ResultDbSequence.Sequence);
+	SequencePlayerNode.Sequence = ResultDbSequence.Sequence;
 	SequencePlayerNode.SetAccumulatedTime(Result.TimeOffsetSeconds);
-	SequencePlayerNode.SetLoopAnimation(ResultDbSequence.bLoopAnimation);
+	SequencePlayerNode.bLoopAnimation = ResultDbSequence.bLoopAnimation;
 
 	// Use inertial blending to smooth over the transition
 	// It would be cool in the future to adjust the blend time by amount of dissimilarity, but we'll need a standardized distance metric first.

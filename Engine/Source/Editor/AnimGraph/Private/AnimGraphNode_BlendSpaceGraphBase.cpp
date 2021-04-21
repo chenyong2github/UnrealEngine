@@ -20,14 +20,12 @@
 #include "EdGraphUtilities.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimationBlendSpaceSampleGraph.h"
-#include "AnimBlueprintExtension.h"
 #include "AnimGraphNode_BlendSpaceSampleResult.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
 #include "BlueprintEditor.h"
 #include "Animation/AnimSequence.h"
-#include "AnimBlueprintExtension_BlendSpaceGraph.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_BlendSpaceGraphBase"
 
@@ -124,9 +122,10 @@ void UAnimGraphNode_BlendSpaceGraphBase::OnProcessDuringCompilation(IAnimBluepri
 
 void UAnimGraphNode_BlendSpaceGraphBase::OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
+	UAnimGraphNode_BlendSpaceGraphBase* TrueNode = InCompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimGraphNode_BlendSpaceGraphBase>(this);
+
 	FAnimNode_BlendSpaceGraphBase* DestinationNode = reinterpret_cast<FAnimNode_BlendSpaceGraphBase*>(InPerNodeContext.GetDestinationPtr());
-	UAnimBlueprintExtension_BlendSpaceGraph* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_BlendSpaceGraph>(GetAnimBlueprint());
-	DestinationNode->BlendSpace = Extension->AddBlendSpace(BlendSpace);
+	DestinationNode->BlendSpace = OutCompiledData.AddBlendSpace(BlendSpace);
 }
 
 void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpace* InBlendSpace, bool bInIsTemplateNode)
@@ -323,8 +322,6 @@ void UAnimGraphNode_BlendSpaceGraphBase::PostPasteNode()
 
 void UAnimGraphNode_BlendSpaceGraphBase::PostPlacedNewNode()
 {
-	Super::PostPlacedNewNode();
-	
 	// Create a new graph & blendspace if we havent been set up already
 	if(BlendSpaceGraph == nullptr)
 	{
@@ -424,7 +421,7 @@ UAnimationBlendSpaceSampleGraph* UAnimGraphNode_BlendSpaceGraphBase::AddGraphInt
 		FGraphNodeCreator<UAnimGraphNode_SequencePlayer> SequencePlayerNodeCreator(*SampleGraph);
 		UAnimGraphNode_SequencePlayer* SequencePlayer = SequencePlayerNodeCreator.CreateNode();
 		SequencePlayer->SetAnimationAsset(InSequence);
-		SequencePlayer->Node.SetGroupMethod(EAnimSyncMethod::Graph);
+		SequencePlayer->SyncGroup.Method = EAnimSyncMethod::Graph;
 		SequencePlayerNodeCreator.Finalize();
 
 		// Offset node in X
@@ -494,11 +491,6 @@ void UAnimGraphNode_BlendSpaceGraphBase::GetInputLinkAttributes(FNodeAttributeAr
 	{
 		OutAttributes.Add(UE::Anim::FAnimSync::Attribute);
 	}
-}
-
-void UAnimGraphNode_BlendSpaceGraphBase::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
-{
-	OutExtensions.Add(UAnimBlueprintExtension_BlendSpaceGraph::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE

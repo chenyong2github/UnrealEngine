@@ -51,6 +51,16 @@ TArray<FAnimNotifyEvent>& FAnimBlueprintGeneratedClassCompiledData::GetAnimNotif
 	return Class->AnimNotifies;
 }
 
+TArray<FExposedValueHandler>& FAnimBlueprintGeneratedClassCompiledData::GetExposedValueHandlers() const
+{
+	return Class->EvaluateGraphExposedInputs;
+}
+
+FPropertyAccessLibrary& FAnimBlueprintGeneratedClassCompiledData::GetPropertyAccessLibrary() const
+{
+	return Class->PropertyAccessLibrary;
+}
+
 FAnimBlueprintDebugData& FAnimBlueprintGeneratedClassCompiledData::GetAnimBlueprintDebugData() const
 {
 	return Class->AnimBlueprintDebugData;
@@ -63,5 +73,7 @@ TMap<FName, FGraphAssetPlayerInformation>& FAnimBlueprintGeneratedClassCompiledD
 
 UBlendSpace* FAnimBlueprintGeneratedClassCompiledData::AddBlendSpace(UBlendSpace* InSourceBlendSpace)
 {
-	return nullptr;
+	UBlendSpace* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
+	Class->BlendSpaces.Add(CopiedBlendSpace);
+	return CopiedBlendSpace;
 }

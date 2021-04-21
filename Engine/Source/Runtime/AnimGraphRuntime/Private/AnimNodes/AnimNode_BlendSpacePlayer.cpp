@@ -11,7 +11,20 @@
 /////////////////////////////////////////////////////
 // FAnimNode_BlendSpacePlayer
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetTime() const
+FAnimNode_BlendSpacePlayer::FAnimNode_BlendSpacePlayer()
+	: X(0.0f)
+	, Y(0.0f)
+	, Z(0.0f)
+	, PlayRate(1.0f)
+	, bLoop(true)
+	, bResetPlayTimeWhenBlendSpaceChanges(true)
+	, StartPosition(0.f)
+	, BlendSpace(nullptr)
+	, PreviousBlendSpace(nullptr)
+{
+}
+
+float FAnimNode_BlendSpacePlayer::GetCurrentAssetTime()
 {
 	if(const FBlendSampleData* HighestWeightedSample = GetHighestWeightedSample())
 	{
@@ -22,20 +35,19 @@ float FAnimNode_BlendSpacePlayer::GetCurrentAssetTime() const
 	return 0.0f;
 }
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetTimePlayRateAdjusted() const
+float FAnimNode_BlendSpacePlayer::GetCurrentAssetTimePlayRateAdjusted()
 {
 	float Length = GetCurrentAssetLength();
-	return GetPlayRate() < 0.0f ? Length - InternalTimeAccumulator * Length : Length * InternalTimeAccumulator;
+	return PlayRate < 0.0f ? Length - InternalTimeAccumulator * Length : Length * InternalTimeAccumulator;
 }
 
-float FAnimNode_BlendSpacePlayer::GetCurrentAssetLength() const
+float FAnimNode_BlendSpacePlayer::GetCurrentAssetLength()
 {
 	if(const FBlendSampleData* HighestWeightedSample = GetHighestWeightedSample())
 	{
-		UBlendSpace* CurrentBlendSpace = GetBlendSpace();
-		if (CurrentBlendSpace != nullptr)
+		if (BlendSpace != nullptr)
 		{
-			const FBlendSample& Sample = CurrentBlendSpace->GetBlendSample(HighestWeightedSample->SampleDataIndex);
+			const FBlendSample& Sample = BlendSpace->GetBlendSample(HighestWeightedSample->SampleDataIndex);
 			return Sample.Animation->GetPlayLength();
 		}
 	}
@@ -53,7 +65,7 @@ void FAnimNode_BlendSpacePlayer::Initialize_AnyThread(const FAnimationInitialize
 
 	Reinitialize();
 
-	PreviousBlendSpace = GetBlendSpace();
+	PreviousBlendSpace = BlendSpace;
 }
 
 void FAnimNode_BlendSpacePlayer::CacheBones_AnyThread(const FAnimationCacheBonesContext& Context)
@@ -71,23 +83,21 @@ void FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(const FAnimationUpdateContext
 void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& Context)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(UpdateInternal)
-
-	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
-	if ((CurrentBlendSpace != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentBlendSpace->GetSkeleton())))
+	if ((BlendSpace != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
 	{	
-		if (PreviousBlendSpace != CurrentBlendSpace)
+		if (PreviousBlendSpace != BlendSpace)
 		{
-			Reinitialize(ShouldResetPlayTimeWhenBlendSpaceChanges());
+			Reinitialize(bResetPlayTimeWhenBlendSpaceChanges);
 		}
 
-		const FVector Position = GetPosition();
+		const FVector Position(X, Y, Z);
 
 		// Create a tick record and push into the closest scope
 		UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
-		FAnimTickRecord TickRecord(CurrentBlendSpace, Position, BlendSampleDataCache, BlendFilter, GetLoop(), GetPlayRate(), Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+		FAnimTickRecord TickRecord(BlendSpace, Position, BlendSampleDataCache, BlendFilter, bLoop, PlayRate, Context.GetFinalBlendWeight(), /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 		TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
-		UE::Anim::FAnimSyncParams SyncParams(GetGroupName(), GetGroupRole(), GetGroupMethod());
+		UE::Anim::FAnimSyncParams SyncParams(GroupName, GroupRole, Method);
 
 		SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));
 
@@ -96,28 +106,26 @@ void FAnimNode_BlendSpacePlayer::UpdateInternal(const FAnimationUpdateContext& C
 #if WITH_EDITORONLY_DATA
 		if (FAnimBlueprintDebugData* DebugData = Context.AnimInstanceProxy->GetAnimBlueprintDebugData())
 		{
-			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), CurrentBlendSpace, Position, BlendFilter.GetFilterLastOutput());
+			DebugData->RecordBlendSpacePlayer(Context.GetCurrentNodeId(), BlendSpace, Position, BlendFilter.GetFilterLastOutput());
 		}
 #endif
 
-		PreviousBlendSpace = CurrentBlendSpace;
+		PreviousBlendSpace = BlendSpace;
 	}
 
 	TRACE_BLENDSPACE_PLAYER(Context, *this);
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), CurrentBlendSpace ? *CurrentBlendSpace->GetName() : TEXT("None"));
-	TRACE_ANIM_NODE_VALUE(Context, TEXT("Blend Space"), CurrentBlendSpace);
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Name"), BlendSpace ? *BlendSpace->GetName() : TEXT("None"));
+	TRACE_ANIM_NODE_VALUE(Context, TEXT("Blend Space"), BlendSpace);
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Playback Time"), InternalTimeAccumulator);
 }
 
 void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
-
-	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
-	if ((CurrentBlendSpace != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentBlendSpace->GetSkeleton())))
+	if ((BlendSpace != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(BlendSpace->GetSkeleton())))
 	{
 		FAnimationPoseData AnimationPoseData(Output);
-		CurrentBlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
+		BlendSpace->GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
 	}
 	else
 	{
@@ -125,30 +133,38 @@ void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 	}
 }
 
+void FAnimNode_BlendSpacePlayer::OverrideAsset(UAnimationAsset* NewAsset)
+{
+	if(UBlendSpace* NewBlendSpace = Cast<UBlendSpace>(NewAsset))
+	{
+		BlendSpace = NewBlendSpace;
+	}
+}
+
 void FAnimNode_BlendSpacePlayer::GatherDebugData(FNodeDebugData& DebugData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(GatherDebugData)
 	FString DebugLine = DebugData.GetNodeName(this);
-
-	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
-	if (CurrentBlendSpace)
+	if (BlendSpace)
 	{
-		DebugLine += FString::Printf(TEXT("('%s' Play Time: %.3f)"), *CurrentBlendSpace->GetName(), InternalTimeAccumulator);
+		DebugLine += FString::Printf(TEXT("('%s' Play Time: %.3f)"), *BlendSpace->GetName(), InternalTimeAccumulator);
 
 		DebugData.AddDebugItem(DebugLine, true);
+
+		//BlendSpace->GetBlendSamples();
 	}
 }
 
-float FAnimNode_BlendSpacePlayer::GetTimeFromEnd(float CurrentTime) const
+float FAnimNode_BlendSpacePlayer::GetTimeFromEnd(float CurrentTime)
 {
 	// Blend-spaces use normalized time value
 	const float PlayLength = 1.0f;
-	return GetBlendSpace() != nullptr ? PlayLength - CurrentTime : 0.0f;
+	return BlendSpace != nullptr ? PlayLength - CurrentTime : 0.0f;
 }
 
-UAnimationAsset* FAnimNode_BlendSpacePlayer::GetAnimAsset() const
+UAnimationAsset* FAnimNode_BlendSpacePlayer::GetAnimAsset()
 {
-	return GetBlendSpace();
+	return BlendSpace;
 }
 
 const FBlendSampleData* FAnimNode_BlendSpacePlayer::GetHighestWeightedSample() const
@@ -176,57 +192,16 @@ void FAnimNode_BlendSpacePlayer::Reinitialize(bool bResetTime)
 	BlendSampleDataCache.Empty();
 	if(bResetTime)
 	{
-		float CurrentStartPosition = GetStartPosition();
-
-		InternalTimeAccumulator = FMath::Clamp(CurrentStartPosition, 0.f, 1.0f);
-		if (CurrentStartPosition == 0.f && GetPlayRate() < 0.0f)
+		InternalTimeAccumulator = FMath::Clamp(StartPosition, 0.f, 1.0f);
+		if (StartPosition == 0.f && PlayRate < 0.0f)
 		{
 			// Blend spaces run between 0 and 1
 			InternalTimeAccumulator = 1.0f;
 		}
 	}
 
-	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
-	if (CurrentBlendSpace != nullptr)
+	if (BlendSpace != nullptr)
 	{
-		CurrentBlendSpace->InitializeFilter(&BlendFilter);
+		BlendSpace->InitializeFilter(&BlendFilter);
 	}
-}
-
-#if WITH_EDITORONLY_DATA
-void FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
-{
-	TObjectPtr<UBlendSpace>& BlendSpaceToSet = GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
-	BlendSpaceToSet = InBlendSpace;
-}
-#endif
-
-FVector FAnimNode_BlendSpacePlayer::GetPosition() const
-{
-	return FVector(GET_ANIM_NODE_DATA(float, X), GET_ANIM_NODE_DATA(float, Y), GET_ANIM_NODE_DATA(float, Z));
-}
-
-float FAnimNode_BlendSpacePlayer::GetPlayRate() const
-{
-	return GET_ANIM_NODE_DATA(float, PlayRate);
-}
-
-bool FAnimNode_BlendSpacePlayer::GetLoop() const
-{
-	return GET_ANIM_NODE_DATA(bool, bLoop);
-}
-
-bool FAnimNode_BlendSpacePlayer::ShouldResetPlayTimeWhenBlendSpaceChanges() const
-{
-	return GET_ANIM_NODE_DATA(bool, bResetPlayTimeWhenBlendSpaceChanges);
-}
-
-float FAnimNode_BlendSpacePlayer::GetStartPosition() const
-{
-	return GET_ANIM_NODE_DATA(float, StartPosition);
-}
-
-UBlendSpace* FAnimNode_BlendSpacePlayer::GetBlendSpace() const
-{
-	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
 }

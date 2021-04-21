@@ -10,7 +10,7 @@
 UAnimGraphNode_LocalRefPose::UAnimGraphNode_LocalRefPose(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	Node.SetRefPoseType(EIT_LocalSpace);
+	Node.RefPoseType = EIT_LocalSpace;
 }
 
 FText UAnimGraphNode_LocalRefPose::GetTooltipText() const

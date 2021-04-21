@@ -321,12 +321,12 @@ FReply FAnimGraphDetails::OnRemoveInputPoseClicked(UAnimGraphNode_LinkedInputPos
 FText FAnimGraphDetails::OnGetGroupText() const
 {
 	UAnimGraphNode_Root* Root = FBlueprintEditorUtils::GetAnimGraphRoot(Graph);
-	if(Root->Node.GetGroup() == NAME_None)
+	if(Root->Node.Group == NAME_None)
 	{
 		return LOCTEXT("DefaultGroup", "Default");
 	}
 		
-	return FText::FromName(Root->Node.GetGroup());
+	return FText::FromName(Root->Node.Group);
 }
 
 void FAnimGraphDetails::OnGroupTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit)
@@ -392,7 +392,7 @@ void FAnimGraphDetails::RefreshGroupSource()
 	GroupSource.Empty();
 
 	UAnimGraphNode_Root* Root = FBlueprintEditorUtils::GetAnimGraphRoot(Graph);
-	if(Root->Node.GetGroup() != NAME_None)
+	if(Root->Node.Group != NAME_None)
 	{
 		GroupSource.Add(MakeShared<FText>(LOCTEXT("DefaultGroup", "Default")));
 	}

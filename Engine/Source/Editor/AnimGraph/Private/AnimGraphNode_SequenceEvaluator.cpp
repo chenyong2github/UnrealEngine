@@ -8,7 +8,6 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "AnimGraphNode_SequenceEvaluator.h"
-#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_SequenceEvaluator
@@ -22,7 +21,7 @@ UAnimGraphNode_SequenceEvaluator::UAnimGraphNode_SequenceEvaluator(const FObject
 
 void UAnimGraphNode_SequenceEvaluator::PreloadRequiredAssets()
 {
-	PreloadObject(Node.GetSequence());
+	PreloadObject(Node.Sequence);
 
 	Super::PreloadRequiredAssets();
 }
@@ -30,12 +29,15 @@ void UAnimGraphNode_SequenceEvaluator::PreloadRequiredAssets()
 void UAnimGraphNode_SequenceEvaluator::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)
 {
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	AnimBlueprint->FindOrAddGroup(Node.GetGroupName());
+	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
+	Node.GroupName = SyncGroup.GroupName;
+	Node.GroupRole = SyncGroup.GroupRole;
+	Node.Method = SyncGroup.Method;
 }
 
 void UAnimGraphNode_SequenceEvaluator::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
 {
-	if(Node.GetSequence())
+	if(Node.Sequence)
 	{
 		HandleAnimReferenceCollection(Node.Sequence, AnimationAssets);
 	}
@@ -74,8 +76,7 @@ FText UAnimGraphNode_SequenceEvaluator::GetNodeTitleForSequence(ENodeTitleType::
 
 FText UAnimGraphNode_SequenceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UAnimSequenceBase* Sequence = Node.GetSequence();
-	if (Sequence == nullptr)
+	if (Node.Sequence == nullptr)
 	{
 		// we may have a valid variable connected or default pin value
 		UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
@@ -97,7 +98,7 @@ FText UAnimGraphNode_SequenceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleT
 	//        then, we'll leave this optimization off
 	else //if (CachedNodeTitle.IsOutOfDate(this))
 	{
-		GetNodeTitleForSequence(TitleType, Sequence);
+		GetNodeTitleForSequence(TitleType, Node.Sequence);
 	}
 
 	return CachedNodeTitle;
@@ -112,19 +113,7 @@ void UAnimGraphNode_SequenceEvaluator::SetAnimationAsset(UAnimationAsset* Asset)
 {
 	if (UAnimSequenceBase* Seq =  Cast<UAnimSequence>(Asset))
 	{
-		Node.SetSequence(Seq);
-	}
-}
-
-void UAnimGraphNode_SequenceEvaluator::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
-{
-	if(InContext.GetAssets().Num() > 0)
-	{
-		if (UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(InContext.GetAssets()[0]))
-		{
-			FAnimNode_SequenceEvaluator& AnimNode = InContext.GetAnimNode<FAnimNode_SequenceEvaluator>();
-			AnimNode.SetSequence(Sequence);
-		}
+		Node.Sequence = Seq;
 	}
 }
 
@@ -132,7 +121,7 @@ void UAnimGraphNode_SequenceEvaluator::ValidateAnimNodeDuringCompilation(class U
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UAnimSequenceBase* SequenceToCheck = Node.GetSequence();
+	UAnimSequenceBase* SequenceToCheck = Node.Sequence;
 	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
 	if (SequencePin != nullptr && SequenceToCheck == nullptr)
 	{
@@ -188,14 +177,14 @@ bool UAnimGraphNode_SequenceEvaluator::DoesSupportTimeForTransitionGetter() cons
 
 UAnimationAsset* UAnimGraphNode_SequenceEvaluator::GetAnimationAsset() const 
 {
-	UAnimSequenceBase* Sequence = Node.GetSequence();
+	UAnimSequenceBase* Sequence = Node.Sequence;
 	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence));
 	if (SequencePin != nullptr && Sequence == nullptr)
 	{
 		Sequence = Cast<UAnimSequenceBase>(SequencePin->DefaultObject);
 	}
 
-	return Sequence;
+	return Node.Sequence;
 }
 
 const TCHAR* UAnimGraphNode_SequenceEvaluator::GetTimePropertyName() const 

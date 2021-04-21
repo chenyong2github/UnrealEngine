@@ -29,7 +29,7 @@ class UAnimGraphNode_AimOffsetLookAt : public UAnimGraphNode_BlendSpaceBase
 
 	// UAnimGraphNode_Base interface
 	virtual void ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog) override;
-	virtual UAnimationAsset* GetAnimationAsset() const override { return Node.GetBlendSpace(); }
+	virtual UAnimationAsset* GetAnimationAsset() const override { return Node.BlendSpace; }
 	virtual void GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const override;
 	virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& AnimAssetReplacementMap) override;
 	ANIMGRAPH_API virtual void CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const override;

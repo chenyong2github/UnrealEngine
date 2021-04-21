@@ -2,7 +2,6 @@
 
 #include "AnimBlueprintCompilationContext.h"
 #include "AnimBlueprintCompiler.h"
-#include "AnimBlueprintExtension.h"
 
 TUniquePtr<IAnimBlueprintCompilationContext> IAnimBlueprintCompilationContext::Get(FKismetCompilerContext& InKismetCompiler)
 {
@@ -94,19 +93,9 @@ TArrayView<const FName> FAnimBlueprintCompilationContext::GetAttributesFromNodeI
 	return CompilerContext->GetAttributesFromNode(InNode);
 }
 
-bool FAnimBlueprintCompilationContext::IsAnimGraphNodeFoldedImpl(UAnimGraphNode_Base* InNode) const
+IAnimBlueprintCompilerHandler* FAnimBlueprintCompilationContext::GetHandlerInternal(FName InName) const
 {
-	return CompilerContext->IsAnimGraphNodeFolded(InNode);
-}
-
-const IAnimBlueprintCompilationContext::FFoldedPropertyRecord* FAnimBlueprintCompilationContext::GetFoldedPropertyRecordImpl(UAnimGraphNode_Base* InNode, FName InPropertyName) const
-{
-	return CompilerContext->GetFoldedPropertyRecord(InNode, InPropertyName);
-}
-
-const FStructProperty* FAnimBlueprintCompilationContext::GetMutableDataPropertyImpl() const
-{
-	return CompilerContext->NewMutablesProperty;
+	return CompilerContext->AnimBlueprintCompilerHandlerCollection.GetHandler<IAnimBlueprintCompilerHandler>(InName);
 }
 
 FKismetCompilerContext* FAnimBlueprintCompilationContext::GetKismetCompiler() const
@@ -119,10 +108,10 @@ FCompilerResultsLog& FAnimBlueprintCompilationBracketContext::GetMessageLogImpl(
 	return CompilerContext->MessageLog;
 }
 
-const TMap<UAnimGraphNode_Base*, int32>& FAnimBlueprintCompilationBracketContext::GetAllocatedAnimNodeIndicesImpl() const
+IAnimBlueprintCompilerHandler* FAnimBlueprintCompilationBracketContext::GetHandlerInternal(FName InName) const
 {
-	return CompilerContext->AllocatedAnimNodeIndices;
-}
+	return CompilerContext->AnimBlueprintCompilerHandlerCollection.GetHandler<IAnimBlueprintCompilerHandler>(InName);
+}	
 
 FCompilerResultsLog& FAnimBlueprintCopyTermDefaultsContext::GetMessageLogImpl() const
 {
@@ -147,4 +136,9 @@ UEdGraph* FAnimBlueprintPostExpansionStepContext::GetConsolidatedEventGraphImpl(
 const FKismetCompilerOptions& FAnimBlueprintPostExpansionStepContext::GetCompileOptionsImpl() const
 {
 	return CompilerContext->CompileOptions;
+}
+
+IAnimBlueprintCompilerHandler* FAnimBlueprintPostExpansionStepContext::GetHandlerInternal(FName InName) const
+{
+	return CompilerContext->AnimBlueprintCompilerHandlerCollection.GetHandler<IAnimBlueprintCompilerHandler>(InName);
 }

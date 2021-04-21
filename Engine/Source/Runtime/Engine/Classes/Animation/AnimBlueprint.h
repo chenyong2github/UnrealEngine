@@ -144,9 +144,6 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	/** Returns the most base anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
 	static UAnimBlueprint* FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
 
-	/** Returns the parent anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
-	static UAnimBlueprint* GetParentAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
-	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOverrideChangedMulticaster, FGuid, UAnimationAsset*);
 
 	typedef FOnOverrideChangedMulticaster::FDelegate FOnOverrideChanged;
@@ -168,7 +165,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 
 	virtual void PostLoad() override;
 	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
-	
+
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated
 	FOnOverrideChangedMulticaster OnOverrideChanged;
@@ -199,11 +196,6 @@ public:
 
 #if WITH_EDITORONLY_DATA
 public:
-	// Queue a refresh of the set of anim blueprint extensions that this anim blueprint hosts.
-	// Usually called from anim graph nodes to ensure that extensions that are no longer required are cleaned up.
-	void RequestRefreshExtensions() { bRefreshExtensions = true; }
-	
-public:
 	// Array of overrides to asset containing nodes in the parent that have been overridden
 	UPROPERTY()
 	TArray<FAnimParentNodeAssetOverride> ParentAssetOverrides;
@@ -214,8 +206,6 @@ public:
 	TArray<TObjectPtr<class UPoseWatch>> PoseWatches;
 
 private:
-	friend class FAnimBlueprintCompilerContext;
-	
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
@@ -234,8 +224,5 @@ private:
 	/** The tag to use when applying a preview animation blueprint via LinkAnimGraphByTag */
 	UPROPERTY()
 	FName PreviewAnimationBlueprintTag;
-
-	/** If set, then extensions need to be refreshed according to spawned nodes */
-	bool bRefreshExtensions;
 #endif // WITH_EDITORONLY_DATA
 };

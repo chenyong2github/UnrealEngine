@@ -145,11 +145,11 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 		{
 			if (const FAnimNode_BlendSpacePlayer* const BlendSpacePlayer = Property->ContainerPtrToValuePtr<FAnimNode_BlendSpacePlayer>(PCV_Params.DefaultAnimInstance))
 			{
-				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (BlendSpacePlayer->GetGroupName() == GatherParams.SyncGroupName);
-				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (BlendSpacePlayer->GetLoop() == GatherParams.bLoopingCondition);
+				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (BlendSpacePlayer->GroupName == GatherParams.SyncGroupName);
+				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (BlendSpacePlayer->bLoop == GatherParams.bLoopingCondition);
 				if (bPassSyncGroupFilter && bPassLoopingFilter)
 				{
-					PCV_GatherAnimSequences(OutAnimSequences, BlendSpacePlayer->GetBlendSpace());
+					PCV_GatherAnimSequences(OutAnimSequences, BlendSpacePlayer->BlendSpace);
 				}
 			}
 		}
@@ -157,11 +157,11 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 		{
 			if (const FAnimNode_SequencePlayer* const SequencePlayer = Property->ContainerPtrToValuePtr<FAnimNode_SequencePlayer>(PCV_Params.DefaultAnimInstance))
 			{
-				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (SequencePlayer->GetGroupName() == GatherParams.SyncGroupName);
-				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (SequencePlayer->GetLoopAnimation() == GatherParams.bLoopingCondition);
+				const bool bPassSyncGroupFilter = !GatherParams.bFilterBySyncGroup || (SequencePlayer->GroupName == GatherParams.SyncGroupName);
+				const bool bPassLoopingFilter = !GatherParams.bFilterByLoopingCondition || (SequencePlayer->bLoopAnimation == GatherParams.bLoopingCondition);
 				if (bPassSyncGroupFilter && bPassLoopingFilter)
 				{
-					PCV_GatherAnimSequences(OutAnimSequences, SequencePlayer->GetSequence());
+					PCV_GatherAnimSequences(OutAnimSequences, SequencePlayer->Sequence);
 				}
 			}
 		}
@@ -176,7 +176,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherBlendSpacesFromGraph(TArray<
 		{
 			if (const FAnimNode_BlendSpacePlayer* const BlendSpacePlayer = Property->ContainerPtrToValuePtr<FAnimNode_BlendSpacePlayer>(PCV_Params.DefaultAnimInstance))
 			{
-				OutBlendSpaces.AddUnique(BlendSpacePlayer->GetBlendSpace());
+				OutBlendSpaces.AddUnique(BlendSpacePlayer->BlendSpace);
 			}
 		}
 	}

@@ -314,41 +314,21 @@ public:
 	const UObject* GetAnimInstanceObject() const { return AnimInstanceObject; }
 
 	/** Gets an unchecked (can return nullptr) node given an index into the node property array */
-	FAnimNode_Base* GetMutableNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType);
-
-	/** Gets an unchecked (can return nullptr) node given an index into the node property array */
-	const FAnimNode_Base* GetNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType) const;
+	FAnimNode_Base* GetNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType);
 
 	/** Gets a checked node given an index into the node property array */
-	FAnimNode_Base* GetCheckedMutableNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType);
-
-	/** Gets a checked node given an index into the node property array */
-	const FAnimNode_Base* GetCheckedNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType) const;
+	FAnimNode_Base* GetCheckedNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType);
 
 	/** Gets a checked node given an index into the node property array */
 	template<class NodeType>
-	const NodeType* GetCheckedNodeFromIndex(int32 NodeIdx) const
+	NodeType* GetCheckedNodeFromIndex(int32 NodeIdx)
 	{
 		return (NodeType*)GetCheckedNodeFromIndexUntyped(NodeIdx, NodeType::StaticStruct());
 	}
 
-	/** Gets a checked node given an index into the node property array */
-	template<class NodeType>
-	NodeType* GetCheckedMutableNodeFromIndex(int32 NodeIdx) const
-	{
-		return (NodeType*)GetCheckedMutableNodeFromIndexUntyped(NodeIdx, NodeType::StaticStruct());
-	}
-
 	/** Gets an unchecked (can return nullptr) node given an index into the node property array */
 	template<class NodeType>
-	const NodeType* GetNodeFromIndex(int32 NodeIdx) const
-	{
-		return (NodeType*)GetNodeFromIndexUntyped(NodeIdx, NodeType::StaticStruct());
-	}
-
-	/** Gets an unchecked (can return nullptr) node given an index into the node property array */
-	template<class NodeType>
-	NodeType* GetMutableNodeFromIndex(int32 NodeIdx) const
+	NodeType* GetNodeFromIndex(int32 NodeIdx)
 	{
 		return (NodeType*)GetNodeFromIndexUntyped(NodeIdx, NodeType::StaticStruct());
 	}
@@ -517,16 +497,16 @@ public:
 	}
 
 	/** Gets the runtime instance of the specified state machine by Name */
-	const FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName) const;
+	FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName);
 
 	/** Get the machine description for the specified instance. Does not rely on PRIVATE_MachineDescription being initialized */
-	static const FBakedAnimationStateMachine* GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, const FAnimNode_StateMachine* MachineInstance);
+	static const FBakedAnimationStateMachine* GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, FAnimNode_StateMachine* MachineInstance);
 
 	/** 
 	 * Get the index of the specified instance asset player. Useful to pass to GetInstanceAssetPlayerLength (etc.).
 	 * Passing NAME_None to InstanceName will return the first (assumed only) player instance index found.
 	 */
-	int32 GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName InstanceName = NAME_None) const;
+	int32 GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName InstanceName = NAME_None);
 
 	float GetRecordedMachineWeight(const int32 InMachineClassIndex) const;
 	void RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight);
@@ -539,10 +519,7 @@ public:
 	void ResetDynamics(ETeleportType InTeleportType);
 
 	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
-	TArray<const FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName) const;
-
-	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
-	TArray<FAnimNode_AssetPlayerBase*> GetMutableInstanceAssetPlayers(const FName& GraphName);
+	TArray<FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName);
 
 	/** Returns true if SyncGroupName is valid (exists, and if is based on markers, has valid markers) */
 	bool IsSyncGroupValid(FName InSyncGroupName) const;
@@ -798,10 +775,10 @@ protected:
 
 	/** Check whether we have active morph target curves */
 	/** Gets the most relevant asset player in a specified state */
-	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const;
+	FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex);
 
 	/** Gets the runtime instance of the specified state machine */
-	const FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex) const;
+	FAnimNode_StateMachine* GetStateMachineInstance(int32 MachineIndex);
 
 	/** Gets an unchecked (can return nullptr) node given a property of the anim instance */
 	template<class NodeType>
@@ -811,52 +788,52 @@ protected:
 	}
 
 	/** Gets the length in seconds of the asset referenced in an asset player node */
-	float GetInstanceAssetPlayerLength(int32 AssetPlayerIndex) const;
+	float GetInstanceAssetPlayerLength(int32 AssetPlayerIndex);
 
 	/** Get the current accumulated time in seconds for an asset player node */
-	float GetInstanceAssetPlayerTime(int32 AssetPlayerIndex) const;
+	float GetInstanceAssetPlayerTime(int32 AssetPlayerIndex);
 
 	/** Get the current accumulated time as a fraction for an asset player node */
-	float GetInstanceAssetPlayerTimeFraction(int32 AssetPlayerIndex) const;
+	float GetInstanceAssetPlayerTimeFraction(int32 AssetPlayerIndex);
 
 	/** Get the time in seconds from the end of an animation in an asset player node */
-	float GetInstanceAssetPlayerTimeFromEnd(int32 AssetPlayerIndex) const;
+	float GetInstanceAssetPlayerTimeFromEnd(int32 AssetPlayerIndex);
 
 	/** Get the time as a fraction of the asset length of an animation in an asset player node */
-	float GetInstanceAssetPlayerTimeFromEndFraction(int32 AssetPlayerIndex) const;
+	float GetInstanceAssetPlayerTimeFromEndFraction(int32 AssetPlayerIndex);
 
 	/** Get the blend weight of a specified state */
-	float GetInstanceMachineWeight(int32 MachineIndex) const;
+	float GetInstanceMachineWeight(int32 MachineIndex);
 
 	/** Get the blend weight of a specified state */
-	float GetInstanceStateWeight(int32 MachineIndex, int32 StateIndex) const;
+	float GetInstanceStateWeight(int32 MachineIndex, int32 StateIndex);
 
 	/** Get the current elapsed time of a state within the specified state machine */
-	float GetInstanceCurrentStateElapsedTime(int32 MachineIndex) const;
+	float GetInstanceCurrentStateElapsedTime(int32 MachineIndex);
 
 	/** Get the crossfade duration of a specified transition */
-	float GetInstanceTransitionCrossfadeDuration(int32 MachineIndex, int32 TransitionIndex) const;
+	float GetInstanceTransitionCrossfadeDuration(int32 MachineIndex, int32 TransitionIndex);
 
 	/** Get the elapsed time in seconds of a specified transition */
-	float GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex) const;
+	float GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex);
 
 	/** Get the elapsed time as a fraction of the crossfade duration of a specified transition */
-	float GetInstanceTransitionTimeElapsedFraction(int32 MachineIndex, int32 TransitionIndex) const;
+	float GetInstanceTransitionTimeElapsedFraction(int32 MachineIndex, int32 TransitionIndex);
 
 	/** Get the time remaining in seconds for the most relevant animation in the source state */
-	float GetRelevantAnimTimeRemaining(int32 MachineIndex, int32 StateIndex) const;
+	float GetRelevantAnimTimeRemaining(int32 MachineIndex, int32 StateIndex);
 
 	/** Get the time remaining as a fraction of the duration for the most relevant animation in the source state */
-	float GetRelevantAnimTimeRemainingFraction(int32 MachineIndex, int32 StateIndex) const;
+	float GetRelevantAnimTimeRemainingFraction(int32 MachineIndex, int32 StateIndex);
 
 	/** Get the length in seconds of the most relevant animation in the source state */
-	float GetRelevantAnimLength(int32 MachineIndex, int32 StateIndex) const;
+	float GetRelevantAnimLength(int32 MachineIndex, int32 StateIndex);
 
 	/** Get the current accumulated time in seconds for the most relevant animation in the source state */
-	float GetRelevantAnimTime(int32 MachineIndex, int32 StateIndex) const;
+	float GetRelevantAnimTime(int32 MachineIndex, int32 StateIndex);
 
 	/** Get the current accumulated time as a fraction of the length of the most relevant animation in the source state */
-	float GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex) const;
+	float GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex);
 
 	// Sets up a native transition delegate between states with PrevStateName and NextStateName, in the state machine with name MachineName.
 	// Note that a transition already has to exist for this to succeed
@@ -881,12 +858,12 @@ protected:
 	void BindNativeDelegates();
 
 	/** Gets the runtime instance desc of the state machine specified by name */
-	const FBakedAnimationStateMachine* GetStateMachineInstanceDesc(FName MachineName) const;
+	const FBakedAnimationStateMachine* GetStateMachineInstanceDesc(FName MachineName);
 
 	/** Gets the index of the state machine matching MachineName */
-	int32 GetStateMachineIndex(FName MachineName) const;
+	int32 GetStateMachineIndex(FName MachineName);
 
-	void GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription) const;
+	void GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription);
 
 	/** Initialize the root node - split into a separate function for backwards compatibility (initialization order) reasons */
 	void InitializeRootNode(bool bInDeferRootNodeInitialization = false);

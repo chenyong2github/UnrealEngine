@@ -27,8 +27,6 @@ class IAnimBlueprintGeneratedClassCompiledData;
 class IAnimBlueprintCompilationContext;
 class IAnimBlueprintCopyTermDefaultsContext;
 class IAnimBlueprintNodeCopyTermDefaultsContext;
-class IAnimBlueprintNodeOverrideAssetsContext;
-class UAnimBlueprintExtension;
 
 struct FPoseLinkMappingRecord
 {
@@ -207,8 +205,6 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
-	virtual void PostPlacedNewNode() override;
-	virtual void DestroyNode() override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
@@ -356,14 +352,6 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	 */
 	bool IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection Direction = EGPD_MAX) const;
 
-	/**
-	 * Helper function to check whether a pin is valid and bound via property access
-	 * @param	InPinName		The name of the pin @see UEdGraphNode::FindPin
-	 * @param	InPinDirection	The direction of the pin we are looking for. If this is EGPD_MAX, all directions are considered
-	 * @return true if the pin is present and bound
-	 */
-	bool IsPinExposedAndBound(const FString& InPinName, const EEdGraphPinDirection InDirection = EGPD_MAX) const;
-
 	// Event that is broadcast to inform observers that the node title has changed
 	// The default SAnimationGraphNode uses this to invalidate cached node title text
 	DECLARE_EVENT(UAnimGraphNode_Base, FOnNodeTitleChangedEvent);
@@ -388,8 +376,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 protected:
 	friend class FAnimBlueprintCompilerContext;
 	friend class FAnimGraphNodeDetails;
-	friend class UAnimBlueprintExtension;
-	friend class UAnimBlueprintExtension_Base;
+	friend class FAnimBlueprintCompilerHandler_Base;
 
 	// Gets the animation FNode type represented by this ed graph node
 	UScriptStruct* GetFNodeType() const;
@@ -397,9 +384,6 @@ protected:
 	// Gets the animation FNode property represented by this ed graph node
 	FStructProperty* GetFNodeProperty() const;
 
-	// Get the extension types that this node type holds on the anim blueprint. Some extension types are always requested by the system
-	virtual void GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const {}
-	
 	// This will be called when a pose link is found, and can be called with PoseProperty being either of:
 	//  - an array property (ArrayIndex >= 0)
 	//  - a single pose property (ArrayIndex == INDEX_NONE)
@@ -424,12 +408,6 @@ protected:
 	// Copy this node's data during the last phase of compilation where term defaults are copied to the new CDO
 	virtual void OnCopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) {}
 
-	// Called to override the assets held on a runtime anim node. Implements per-node logic for child anim blueprints.
-	void OverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const;
-
-	// Override point for OverrideAssets
-	virtual void OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const {}
-	
 	// Allocates or reallocates pins
 	void InternalPinCreation(TArray<UEdGraphPin*>* OldPins);
 

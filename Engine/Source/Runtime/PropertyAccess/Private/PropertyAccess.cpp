@@ -622,7 +622,206 @@ struct FPropertyAccessSystem
 
 		int32 LastChildId = INDEX_NONE;
 	};
+
+	/** Map of classes to a tree of property nodes, for faster specialized iteration */
+	static TMap<const UClass*, TUniquePtr<TArray<FPropertyNode>>> ClassPropertyTrees;
+
+	/** Finds the event Id associated with a property node identified by InPath */
+	static int32 FindEventId(const TArray<FPropertyNode>& InPropertyTree, TArrayView<const FName> InPath)
+	{
+		if(InPropertyTree.Num() > 0)
+		{
+			int32 NodeIndex = 0;
+			int32 PathIndex = 0;
+
+			for(int32 ChildIndex = InPropertyTree[NodeIndex].FirstChildId; ChildIndex < InPropertyTree[NodeIndex].LastChildId; ++ChildIndex)
+			{
+				if(InPropertyTree[ChildIndex].Name == InPath[PathIndex])
+				{
+					if(PathIndex == InPath.Num() - 1)
+					{
+						// Found the leaf property of the path
+						check(InPropertyTree[ChildIndex].Id == ChildIndex);
+						return ChildIndex;
+					}
+					else
+					{
+						// Recurse into the next level of the tree/path
+						PathIndex++;
+						NodeIndex = ChildIndex;
+						ChildIndex = InPropertyTree[ChildIndex].FirstChildId;
+					}
+				}
+			}
+		}
+
+		return INDEX_NONE;
+	}
+
+	/** Makes a property tree for the specified struct */
+	static void MakeClassPropertyTree(const UStruct* InStruct, TArray<FPropertyNode>& OutPropertyTree, int32 InParentId = INDEX_NONE)
+	{
+		const int32 StartIndex = OutPropertyTree.Num();
+		int32 Index = OutPropertyTree.Num();
+
+		// Add root
+		if(InParentId == INDEX_NONE)
+		{
+			check(OutPropertyTree.Num() == 0);
+			OutPropertyTree.Emplace(OutPropertyTree, Index++);
+			InParentId = 0;
+		}
+
+		// Make sure that all children are contiguous indices
+		for (TFieldIterator<FProperty> It(InStruct, EFieldIteratorFlags::ExcludeSuper); It; ++It)
+		{
+			const FProperty* Property = *It;
+
+			// Skip editor-only properties, as the runtime cant respond to them and we want editor and non-editor IDs to match
+			if((Property->GetFlags() & CPF_EditorOnly) == 0)
+			{
+				OutPropertyTree.Emplace(OutPropertyTree, Property, Index++, InParentId);
+			}
+		}
+
+		// Reset index to repeat iteration for recursion into sub-structs
+		Index = StartIndex;
+		for (TFieldIterator<FProperty> It(InStruct, EFieldIteratorFlags::ExcludeSuper); It; ++It, ++Index)
+		{
+			const FProperty* Property = *It;
+
+			if((Property->GetFlags() & CPF_EditorOnly) == 0)
+			{
+				if(const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
+				{
+					MakeClassPropertyTree(StructProperty->Struct, OutPropertyTree, Index);
+				}
+				else if(const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(Property))
+				{
+					if(const FStructProperty* InnerStructProperty = CastField<const FStructProperty>(ArrayProperty->Inner))
+					{
+						MakeClassPropertyTree(InnerStructProperty->Struct, OutPropertyTree, Index);
+					}
+				}
+			}
+		}
+	}
+
+	static const TArray<FPropertyNode>& GetClassPropertyTree(const UClass* InClass)
+	{
+		TArray<FPropertyNode>* PropertyTree = nullptr;
+
+		if(TUniquePtr<TArray<FPropertyNode>>* ExistingPropertyTreePtr = ClassPropertyTrees.Find(InClass))
+		{
+			PropertyTree = ExistingPropertyTreePtr->Get();
+		}
+		else
+		{
+			PropertyTree = ClassPropertyTrees.Emplace(InClass, MakeUnique<TArray<FPropertyNode>>()).Get();
+			MakeClassPropertyTree(InClass, *PropertyTree);
+		}
+
+		return *PropertyTree;
+	}
+
+	static int32 GetEventId(const UClass* InClass, TArrayView<const FName> InPath)
+	{
+		return FindEventId(GetClassPropertyTree(InClass), InPath);
+	}
+
+	// Mapping from a broadcaster's IDs to subscribers IDs
+	struct FSubscriberMap
+	{
+		TArray<int32> Mapping;
+	};
+
+	// Mapping from a broadcaster to various subscribers, the integer indexes SubscriberMappings
+	struct FBroadcasterMap
+	{
+		TMap<TWeakObjectPtr<const UClass>, int32> SubscriberIndices;
+	};
+
+	// Map for looking up a broadcaster/subscriber
+	static TMap<TWeakObjectPtr<const UClass>, FBroadcasterMap> BroadcasterMaps;
+
+	// Array for stable indices of mappings
+	static TArray<FSubscriberMap> SubscriberMappings;
+
+	/** Creates a mapping between a broadcaster classes IDs and a subscriber classes accesses */
+	static int32 CreateBroadcasterSubscriberMapping(const UClass* InBroadcasterClass, const UClass* InSubscriberClass, const FPropertyAccessLibrary& InSubscriberLibrary)
+	{
+		const TArray<FPropertyNode>& BroadcasterPropertyTree = GetClassPropertyTree(InBroadcasterClass);
+	
+		int32 MappingIndex = SubscriberMappings.Num();
+		FBroadcasterMap& BroadcasterMap = BroadcasterMaps.FindOrAdd(InBroadcasterClass);
+		BroadcasterMap.SubscriberIndices.Add(InSubscriberClass, MappingIndex);
+		FSubscriberMap& Mapping = SubscriberMappings.AddDefaulted_GetRef();
+
+		Mapping.Mapping.SetNum(BroadcasterPropertyTree.Num());
+
+		for(int32& Index : Mapping.Mapping)
+		{
+			Index = INDEX_NONE;
+		}
+
+		for(int32 AccessIndex = 0; AccessIndex < InSubscriberLibrary.SrcAccesses.Num(); ++AccessIndex)
+		{
+			const FPropertyAccessIndirectionChain& Access = InSubscriberLibrary.SrcAccesses[AccessIndex];
+			Mapping.Mapping[Access.EventId] = AccessIndex;
+		}
+
+		return MappingIndex;
+	}
+
+	static void BindEvents(UObject* InSubscriberObject, UClass* InSubscriberClass, const FPropertyAccessLibrary& InSubscriberLibrary)
+	{
+		IPropertyEventSubscriber* SubscriberObject = CastChecked<IPropertyEventSubscriber>(InSubscriberObject);
+
+		TSet<UObject*> Broadcasters;
+
+		for(int32 EventAccessIndex : InSubscriberLibrary.EventAccessIndices)
+		{
+			const FPropertyAccessIndirectionChain& Access = InSubscriberLibrary.SrcAccesses[EventAccessIndex];
+			check(Access.EventId != INDEX_NONE);
+
+			// Find all unique broadcasters
+			ForEachObjectInAccess(InSubscriberObject, InSubscriberLibrary, Access, [&Broadcasters](UObject* InBroadcasterObject)
+			{
+				if(IPropertyEventBroadcaster* Broadcaster = Cast<IPropertyEventBroadcaster>(InBroadcasterObject))
+				{
+					Broadcasters.Add(InBroadcasterObject);
+				}
+			});
+
+			for(UObject* BroadcasterObject : Broadcasters)
+			{
+				// lookup or create a mapping
+				int32 MappingIndex = INDEX_NONE;
+				const UClass* BroadcasterClass = BroadcasterObject->GetClass();
+				
+				if(FBroadcasterMap* BroadcasterMapPtr = BroadcasterMaps.Find(BroadcasterClass))
+				{
+					if(int32* SubscriberMappingIndexPtr = BroadcasterMapPtr->SubscriberIndices.Find(InSubscriberClass))
+					{
+						MappingIndex = *SubscriberMappingIndexPtr;
+					}
+				}
+
+				if(MappingIndex == INDEX_NONE)
+				{
+					MappingIndex = CreateBroadcasterSubscriberMapping(BroadcasterClass, InSubscriberClass, InSubscriberLibrary);
+				}
+
+				IPropertyEventBroadcaster* Broadcaster = CastChecked<IPropertyEventBroadcaster>(BroadcasterObject);
+				Broadcaster->RegisterSubscriber(SubscriberObject, MappingIndex);
+			}
+		}
+	}
 };
+
+TMap<const UClass*, TUniquePtr<TArray<FPropertyAccessSystem::FPropertyNode>>> FPropertyAccessSystem::ClassPropertyTrees;
+TMap<TWeakObjectPtr<const UClass>, FPropertyAccessSystem::FBroadcasterMap> FPropertyAccessSystem::BroadcasterMaps;
+TArray<FPropertyAccessSystem::FSubscriberMap> FPropertyAccessSystem::SubscriberMappings;
 
 namespace PropertyAccess
 {
@@ -645,11 +844,12 @@ namespace PropertyAccess
 
 	void BindEvents(UObject* InObject, const FPropertyAccessLibrary& InLibrary)
 	{
+		::FPropertyAccessSystem::BindEvents(InObject, InObject->GetClass(), InLibrary);
 	}
 
 	int32 GetEventId(const UClass* InClass, TArrayView<const FName> InPath)
 	{
-		return INDEX_NONE;
+		return ::FPropertyAccessSystem::GetEventId(InClass, InPath);
 	}
 }
 

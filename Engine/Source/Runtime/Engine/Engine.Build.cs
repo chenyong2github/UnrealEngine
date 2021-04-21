@@ -95,6 +95,7 @@ public class Engine : ModuleRules
 				"SignalProcessing",
 				"AudioExtensions",
 				"DeveloperSettings",
+				"PropertyAccess",
 			}
 		);
 
