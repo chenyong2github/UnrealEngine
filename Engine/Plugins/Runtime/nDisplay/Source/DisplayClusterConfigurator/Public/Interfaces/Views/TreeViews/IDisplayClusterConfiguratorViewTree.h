@@ -131,6 +131,9 @@ public:
 	 */
 	virtual TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> GetSelectedItems() const = 0;
 
+	/** Gets the objects that are currently selected in the tree view. */
+	virtual void GetSelectedObjects(TArray<UObject*>& OutObjects) const = 0;
+
 	/**
 	 * Finds any tree items that represet the specified objects and selects them.
 	 * @param ObjectsToSelect - The objects to select

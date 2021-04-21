@@ -128,11 +128,17 @@ void SDisplayClusterConfiguratorGraphEditor::OnObjectSelected()
 void SDisplayClusterConfiguratorGraphEditor::OnConfigReloaded()
 {
 	RebuildGraph();
+
+	// Reselect any graph nodes that correspond to the selected objects in the editor
+	FindAndSelectObjects(ToolkitPtr.Pin()->GetSelectedObjects());
 }
 
 void SDisplayClusterConfiguratorGraphEditor::OnClusterChanged()
 {
 	RebuildGraph();
+
+	// Reselect any graph nodes that correspond to the selected objects in the editor
+	FindAndSelectObjects(ToolkitPtr.Pin()->GetSelectedObjects());
 }
 
 void SDisplayClusterConfiguratorGraphEditor::RebuildGraph()

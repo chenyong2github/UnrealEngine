@@ -48,6 +48,7 @@ public:
 	virtual void SetSelectedItems(const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InTreeItems) override;
 	virtual void ClearSelection() override;
 	virtual TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>> GetSelectedItems() const override;
+	virtual void GetSelectedObjects(TArray<UObject*>& OutObjects) const override;
 	virtual void FindAndSelectObjects(const TArray<UObject*>& ObjectsToSelect) override;
 	virtual void Filter(const FDisplayClusterConfiguratorTreeFilterArgs& InArgs, const TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& InItems, TArray<TSharedPtr<IDisplayClusterConfiguratorTreeItem>>& OutFilteredItems) override;
 

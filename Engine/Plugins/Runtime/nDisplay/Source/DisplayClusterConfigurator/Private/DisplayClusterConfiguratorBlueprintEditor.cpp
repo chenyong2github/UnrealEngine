@@ -103,6 +103,7 @@ FDisplayClusterConfiguratorBlueprintEditor::~FDisplayClusterConfiguratorBlueprin
 	ShutdownDCSCSEditors();
 
 	FBlueprintEditorUtils::OnRenameVariableReferencesEvent.Remove(RenameVariableHandle);
+	FSlateApplication::Get().OnFocusChanging().Remove(FocusChangedHandle);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEditor(const EToolkitMode::Type Mode,
@@ -186,6 +187,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	PostLayoutBlueprintEditorInitialization();
 
 	RenameVariableHandle = FBlueprintEditorUtils::OnRenameVariableReferencesEvent.AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable);
+	FocusChangedHandle = FSlateApplication::Get().OnFocusChanging().AddSP(this, &FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged);
 }
 
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
@@ -255,7 +257,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::SelectObjects(TArray<UObject*>&
 
 	// Clear old tree view selections and update the details panel.
 	
-	if (bSCSEditorSelecting)
+	if (CurrentSelectionSource == ESelectionSource::Internal)
 	{
 		// SCS Selection is handled from OnSelectionUpdated.
 
@@ -269,6 +271,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::SelectObjects(TArray<UObject*>&
 		TSharedPtr<SSCSEditor> SCSEditorTreeView = GetSCSEditor();
 		if (SCSEditorTreeView.IsValid())
 		{
+			const FSelectionScope SelectionScope(this, ESelectionSource::Ancillary);
 			SCSEditorTreeView->ClearSelection();
 		}
 		
@@ -282,7 +285,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::SelectObjects(TArray<UObject*>&
 
 void FDisplayClusterConfiguratorBlueprintEditor::SelectAncillaryComponents(const TArray<FString>& ComponentNames)
 {
-	bSelectSilently = true;
+	const FSelectionScope SelectionScope(this, ESelectionSource::Ancillary);
 	if (ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(GetPreviewActor()))
 	{
 		TArray<UActorComponent*> ComponentsToSelect;
@@ -302,7 +305,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::SelectAncillaryComponents(const
 			}
 		}
 	}
-	bSelectSilently = false;
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::SelectAncillaryViewports(const TArray<FString>& ComponentNames)
@@ -359,6 +361,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::ClusterChanged(bool bStructureC
 {
 	if (LoadedBlueprint.IsValid())
 	{
+		const FSelectionScope SelectionScope(this, ESelectionSource::Refresh);
 		FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(LoadedBlueprint.Get(), bStructureChange);
 	}
 
@@ -439,11 +442,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::RefreshDisplayClusterPreviewAct
 		check(LoadedBlueprint.IsValid());
 		PreviewActor->UpdateConfigDataInstance(LoadedBlueprint->GetOrLoadConfig());
 	}
-}
-
-void FDisplayClusterConfiguratorBlueprintEditor::ReselectObjects()
-{
-	SelectObjects(SelectedObjects, false);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::RestoreLastEditedState()
@@ -671,6 +669,70 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnRenameVariable(UBlueprint* Bl
 	}
 }
 
+void FDisplayClusterConfiguratorBlueprintEditor::OnFocusChanged(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
+{
+	if (NewFocusedWidget.IsValid())
+	{
+		// If the SCSEditor or the Cluster View are being focused, update the property inspector to show the items currently selected in the respective tree view.
+		// This ensures that if any item as selected as part of an ancillary selection, the user can still "select" it and have its properties show up in the
+		// inspector, since already selected items don't fire a OnSelectionChanged event where we would normally update the property inspector
+		if (NewFocusedWidgetPath.ContainsWidget(SCSEditor.ToSharedRef()))
+		{
+			TArray<FSCSEditorTreeNodePtrType> SelectedNodes = SCSEditor->GetSelectedNodes();
+			if (Inspector.IsValid())
+			{
+				// Convert the selection set to an array of UObject* pointers
+				FText InspectorTitle = FText::GetEmpty();
+				TArray<UObject*> InspectorObjects;
+				bool bShowComponents = true;
+				InspectorObjects.Empty(SelectedNodes.Num());
+				for (FSCSEditorTreeNodePtrType NodePtr : SelectedNodes)
+				{
+					if (NodePtr.IsValid())
+					{
+						if (NodePtr->IsActorNode())
+						{
+							if (AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj()))
+							{
+								InspectorObjects.Add(DefaultActor);
+
+								FString Title;
+								DefaultActor->GetName(Title);
+								InspectorTitle = FText::FromString(Title);
+								bShowComponents = false;
+
+								TryInvokingDetailsTab();
+							}
+						}
+						else
+						{
+							UActorComponent* EditableComponent = NodePtr->GetOrCreateEditableComponentTemplate(GetBlueprintObj());
+							if (EditableComponent)
+							{
+								InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
+								InspectorObjects.Add(EditableComponent);
+							}
+						}
+					}
+				}
+
+				// Update the details panel
+				SKismetInspector::FShowDetailsOptions Options(InspectorTitle, true);
+				Options.bShowComponents = bShowComponents;
+				Inspector->ShowDetailsForObjects(InspectorObjects, Options);
+			}
+		}
+		else if (NewFocusedWidgetPath.ContainsWidget(ViewCluster->GetWidget()))
+		{
+			TArray<UObject*> SelectedClusterObjects;
+			ViewCluster->GetSelectedObjects(SelectedClusterObjects);
+
+			SKismetInspector::FShowDetailsOptions Options;
+			Inspector->ShowDetailsForObjects(SelectedClusterObjects, Options);
+		}
+	}
+}
+
 void FDisplayClusterConfiguratorBlueprintEditor::BindCommands()
 {
 	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
@@ -749,8 +811,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::ExtendToolbar()
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnPostCompiled(UBlueprint* InBlueprint)
 {
-	// Reselect / trigger UI refresh.
-	ReselectObjects();
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -877,9 +937,20 @@ bool FDisplayClusterConfiguratorBlueprintEditor::OnRequestClose()
 	return bShouldClose;
 }
 
+void FDisplayClusterConfiguratorBlueprintEditor::Compile()
+{
+	const FSelectionScope SelectionScope(this, ESelectionSource::Refresh);
+	FBlueprintEditor::Compile();
+}
+
 void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 	const TArray<TSharedPtr<FSCSEditorTreeNode>>& SelectedNodes)
 {
+	if (CurrentSelectionSource == ESelectionSource::Refresh)
+	{
+		return;
+	}
+
 	if (ViewportTabContent.IsValid())
 	{
 		TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> OnCompSelectionChangeFunc =
@@ -954,7 +1025,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 		}
 	}
 
-	if (Inspector.IsValid() && !bSelectSilently)
+	if (Inspector.IsValid() && CurrentSelectionSource != ESelectionSource::Ancillary)
 	{
 		// Clear the my blueprints selection
 		if (SelectedNodes.Num() > 0)
@@ -1020,14 +1091,13 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 			// Only do this if items are being selected, not if the selection is being cleared
 			if (SelectedNodes.Num())
 			{
-				bSCSEditorSelecting = true;
+				const FSelectionScope SelectionScope(this, ESelectionSource::Internal);
 				SelectObjects(InspectorObjects);
-				bSCSEditorSelecting = false;
 			}
 		}
-		
+
 		// Update the details panel
-		SKismetInspector::FShowDetailsOptions Options(InspectorTitle, true);
+		SKismetInspector::FShowDetailsOptions Options(InspectorTitle);
 		Options.bShowComponents = bShowComponents;
 		Inspector->ShowDetailsForObjects(InspectorObjects, Options);
 

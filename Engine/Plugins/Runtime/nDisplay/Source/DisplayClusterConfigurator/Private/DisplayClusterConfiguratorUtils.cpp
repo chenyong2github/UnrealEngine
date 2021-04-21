@@ -187,11 +187,6 @@ void FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(UOb
 		{
 			FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
 		}
-
-		if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = GetBlueprintEditorForObject(Blueprint))
-		{
-			BPEditor->ReselectObjects();
-		}
 	}
 }
 
