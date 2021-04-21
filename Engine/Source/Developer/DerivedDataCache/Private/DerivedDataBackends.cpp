@@ -728,6 +728,18 @@ public:
 			return nullptr;
 		}
 
+		// Check the EnvHostOverride environment variable to allow persistent overriding of data cache path, eg for offsite workers.
+		FString EnvHostOverride;
+		if( FParse::Value( Entry, TEXT("EnvHostOverride="), EnvHostOverride ) )
+		{
+			FString ServiceUrlEnv = FPlatformMisc::GetEnvironmentVariable( *EnvHostOverride );
+			if( ServiceUrlEnv.Len() > 0 )
+			{
+				ServiceUrl = ServiceUrlEnv;
+				UE_LOG( LogDerivedDataCache, Log, TEXT("Found environment variable for Host %s=%s"), *EnvHostOverride, *ServiceUrl );
+			}
+		}
+
 		// Allow Host to be overriden via CommandLineHostOverride
 		FString CommandLineOverride;
 		if( FParse::Value( Entry, TEXT("CommandLineHostOverride="), CommandLineOverride ) )
@@ -738,6 +750,12 @@ public:
 				ServiceUrl = Value;
 				UE_LOG(LogDerivedDataCache, Warning, TEXT("Found command line override for Host %s=%s"), *CommandLineOverride, *ServiceUrl);
 			}
+		}
+
+		if (ServiceUrl == TEXT("None"))
+		{
+			UE_LOG( LogDerivedDataCache, Log, TEXT("Disabling %s data cache - host set to 'None'."), NodeName );
+			return nullptr;
 		}
 
 		FDerivedDataBackendInterface::ESpeedClass ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Unknown;
@@ -787,7 +805,9 @@ public:
 			return nullptr;
 		}
 
-		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret);
+		const bool bReadOnly = GetParsedBool(Entry, TEXT("ReadOnly="));
+
+		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
 
 		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
 		{

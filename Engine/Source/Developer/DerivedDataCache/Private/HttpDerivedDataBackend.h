@@ -39,7 +39,8 @@ public:
 		const TCHAR* Namespace, 
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
-		const TCHAR* OAuthData);
+		const TCHAR* OAuthData,
+		bool bReadOnly);
 
 	~FHttpDerivedDataBackend();
 
@@ -49,7 +50,12 @@ public:
 	 */
 	bool IsUsable() const { return bIsUsable; }
 
-	virtual bool IsWritable() const override { return true; }
+	/** return true if this cache is writable **/
+	virtual bool IsWritable() const override
+	{
+		return !bReadOnly && bIsUsable;
+	}
+
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
@@ -79,6 +85,7 @@ private:
 	TUniquePtr<struct FRequestPool> PutRequestPools[2];
 	TUniquePtr<struct FHttpAccessToken> Access;
 	bool bIsUsable;
+	bool bReadOnly;
 	uint32 FailedLoginAttempts;
 	ESpeedClass SpeedClass;
 

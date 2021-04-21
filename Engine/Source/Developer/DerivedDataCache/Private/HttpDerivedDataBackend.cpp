@@ -1752,7 +1752,8 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	const TCHAR* InNamespace, 
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
-	const TCHAR* InOAuthSecret)
+	const TCHAR* InOAuthSecret,
+	const bool bInReadOnly)
 	: Domain(InServiceUrl)
 	, Namespace(InNamespace)
 	, DefaultBucket(TEXT("default"))
@@ -1761,6 +1762,7 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	, OAuthSecret(InOAuthSecret)
 	, Access(nullptr)
 	, bIsUsable(false)
+	, bReadOnly(bInReadOnly)
 	, FailedLoginAttempts(0)
 	, SpeedClass(ESpeedClass::Slow)
 {
@@ -1793,7 +1795,7 @@ bool FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 
 bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
 {
-	return true;
+	return IsWritable();
 }
 
 FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass() const
@@ -2146,6 +2148,12 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Put);
 
+	if (!IsWritable())
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s is read only. Skipping put of %s"), *GetName(), CacheKey);
+		return EPutStatus::NotCached;
+	}
+
 #if WITH_DATAREQUEST_HELPER
 	for (int32 Attempts = 0; Attempts < UE_HTTPDDC_MAX_ATTEMPTS; ++Attempts)
 	{
@@ -2214,7 +2222,7 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 {
 	// do not remove transient data as Jupiter does its own verification of the content and cleans itself up
-	if (bTransient)
+	if (!IsWritable() || bTransient)
 		return;
 	
 	TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_Remove);
