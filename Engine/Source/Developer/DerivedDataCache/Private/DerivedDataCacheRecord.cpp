@@ -58,6 +58,8 @@ public:
 	const FPayload& GetAttachmentPayload(const FPayloadId& Id) const final;
 	TConstArrayView<FPayload> GetAttachmentPayloads() const final;
 
+	const FPayload& GetPayload(const FPayloadId& Id) const final;
+
 	FCacheKey Key;
 	FCbObject Meta;
 	FPayload Value;
@@ -150,6 +152,11 @@ const FPayload& FCacheRecordInternal::GetAttachmentPayload(const FPayloadId& Id)
 TConstArrayView<FPayload> FCacheRecordInternal::GetAttachmentPayloads() const
 {
 	return Attachments;
+}
+
+const FPayload& FCacheRecordInternal::GetPayload(const FPayloadId& Id) const
+{
+	return Value.GetId() == Id ? Value : GetAttachmentPayload(Id);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

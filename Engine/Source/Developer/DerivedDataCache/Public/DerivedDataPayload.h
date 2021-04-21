@@ -67,6 +67,9 @@ public:
 	/** Construct a null payload. */
 	FPayload() = default;
 
+	/** Construct a payload with no hash or buffer. */
+	inline explicit FPayload(const FPayloadId& Id);
+
 	/** Construct a payload from a raw buffer hash. */
 	inline FPayload(const FPayloadId& Id, const FIoHash& RawHash);
 
@@ -126,6 +129,12 @@ inline FPayloadId FPayloadId::FromName(const FWideStringView Name)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline FPayload::FPayload(const FPayloadId& InId)
+	: Id(InId)
+{
+	checkf(Id.IsValid(), TEXT("A valid ID is required to construct a payload."));
+}
 
 inline FPayload::FPayload(const FPayloadId& InId, const FIoHash& InRawHash)
 	: Id(InId)
