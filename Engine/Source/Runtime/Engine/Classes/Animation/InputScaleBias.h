@@ -130,7 +130,99 @@ public:
 	// Apply scale, bias, and clamp to value
 	float ApplyTo(float Value, float InDeltaTime) const;
 	void Reinitialize() { bInitialized = false; }
+
+#if WITH_EDITOR
 	FText GetFriendlyName(FText InFriendlyName) const;
+#endif
+};
+
+USTRUCT(BlueprintType)
+struct ENGINE_API FInputScaleBiasClampConstants
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bMapRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bClampResult;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bInterpResult;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bMapRange"))
+	FInputRange InRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bMapRange"))
+	FInputRange OutRange;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	float Scale;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	float Bias;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bClampResult"))
+	float ClampMin;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bClampResult"))
+	float ClampMax;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bInterpResult"))
+	float InterpSpeedIncreasing;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (EditCondition = "bInterpResult"))
+	float InterpSpeedDecreasing;
+
+public:
+	FInputScaleBiasClampConstants()
+		: bMapRange(false)
+		, bClampResult(false)
+		, bInterpResult(false)
+		, Scale(1.0f)
+		, Bias(0.0f)
+		, ClampMin(0.f)
+		, ClampMax(1.f)
+		, InterpSpeedIncreasing(10.f)
+		, InterpSpeedDecreasing(10.f)
+	{
+	}
+
+#if WITH_EDITOR
+	// Get a friendly name to display on a pin
+	FText GetFriendlyName(FText InFriendlyName) const;
+
+	// Copy parameters from the legacy combined constants/state structure
+	void CopyFromLegacy(const FInputScaleBiasClamp& InLegacy);
+#endif
+};
+
+// Mutable state struct to be used with FInputScaleBiasClampConstants
+USTRUCT(BlueprintType)
+struct ENGINE_API FInputScaleBiasClampState
+{
+	GENERATED_BODY()
+
+	// The interpolated result
+	float InterpolatedResult;
+
+	// Whether this state is initialized
+	bool bInitialized;
+
+public:
+	FInputScaleBiasClampState()
+		: InterpolatedResult(0.f)
+		, bInitialized(false)
+	{
+	}
+
+	// Apply scale, bias, and clamp to value
+	float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value, float InDeltaTime);
+
+	// Apply but dont modify InterpolatedResult
+	float ApplyTo(const FInputScaleBiasClampConstants& InConstants, float Value) const;
+
+	void Reinitialize() { bInitialized = false; }
 };
 
 // AnimNodes using an Alpha can choose how it is driven.

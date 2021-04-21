@@ -2,7 +2,7 @@
 
 #include "Animation/AnimClassData.h"
 #include "Animation/AnimNode_Root.h"
-#include "Animation/AnimNode_LinkedInputPose.h"
+#include "PropertyAccess.h"
 
 void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
 {
@@ -28,12 +28,6 @@ void UAnimClassData::DynamicClassInitialization(UDynamicClass* InDynamicClass)
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputProperties, AnimBlueprintFunctions[FunctionIndex].InputProperties, [](const TFieldPath<FProperty>& InPropertyPath){ return InPropertyPath.Get(); });
 		Algo::Transform(AnimBlueprintFunctionData[FunctionIndex].InputPoseNodeProperties, AnimBlueprintFunctions[FunctionIndex].InputPoseNodeProperties, ResolveTransform);
 	}
-
-	// Init property access library
-	PropertyAccess::PostLoadLibrary(PropertyAccessLibrary);
-
-	// Init exposed value handlers
-	FExposedValueHandler::DynamicClassInitialization(EvaluateGraphExposedInputs, InDynamicClass);
 }
 
 #if WITH_EDITOR
@@ -77,9 +71,13 @@ void UAnimClassData::CopyFrom(UAnimBlueprintGeneratedClass* AnimClass)
 	ResolvedInitializationNodeProperties = AnimClass->GetInitializationNodeProperties();
 
 	SyncGroupNames = AnimClass->GetSyncGroupNames();
-	EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
 	GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
 	GraphBlendOptions = AnimClass->GetGraphBlendOptions();
-	PropertyAccessLibrary = AnimClass->GetPropertyAccessLibrary();
 }
 #endif // WITH_EDITOR
+
+TArrayView<const FAnimNodeData> UAnimClassData::GetNodeData() const
+{
+	TArray<FAnimNodeData> Dummy;
+	return Dummy;
+}

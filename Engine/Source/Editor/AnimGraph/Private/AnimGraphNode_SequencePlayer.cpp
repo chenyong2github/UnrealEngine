@@ -17,6 +17,8 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimPoseSearchProvider.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 #define LOCTEXT_NAMESPACE "A3Nodes"
 
@@ -41,7 +43,7 @@ public:
 	virtual UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override
 	{
 		UAnimGraphNode_SequencePlayer* SpawnedNode = CastChecked<UAnimGraphNode_SequencePlayer>(FEdGraphSchemaAction_K2NewNode::PerformAction(ParentGraph, FromPin, Location, bSelectNewNode));
-		SpawnedNode->Node.Sequence = Cast<UAnimSequence>(AssetInfo.GetAsset());
+		SpawnedNode->Node.SetSequence(Cast<UAnimSequence>(AssetInfo.GetAsset()));
 
 		return SpawnedNode;
 	}
@@ -55,16 +57,29 @@ UAnimGraphNode_SequencePlayer::UAnimGraphNode_SequencePlayer(const FObjectInitia
 {
 }
 
+void UAnimGraphNode_SequencePlayer::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimNodeConstantDataRefactorPhase0)
+	{
+		Node.PlayRateScaleBiasClampConstants.CopyFromLegacy(Node.PlayRateScaleBiasClamp_DEPRECATED);
+	}
+}
+
 void UAnimGraphNode_SequencePlayer::PreloadRequiredAssets()
 {
-	PreloadObject(Node.Sequence);
+	PreloadObject(Node.GetSequence());
 
 	Super::PreloadRequiredAssets();
 }
 
 FLinearColor UAnimGraphNode_SequencePlayer::GetNodeTitleColor() const
 {
-	if ((Node.Sequence != NULL) && Node.Sequence->IsValidAdditive())
+	UAnimSequenceBase* Sequence = Node.GetSequence();
+	if ((Sequence != NULL) && Sequence->IsValidAdditive())
 	{
 		return FLinearColor(0.10f, 0.60f, 0.12f);
 	}
@@ -76,13 +91,14 @@ FLinearColor UAnimGraphNode_SequencePlayer::GetNodeTitleColor() const
 
 FText UAnimGraphNode_SequencePlayer::GetTooltipText() const
 {
-	if (!Node.Sequence)
+	UAnimSequenceBase* Sequence = Node.GetSequence();
+	if (!Sequence)
 	{
 		return FText();
 	}
 
-	const bool bAdditive = Node.Sequence->IsValidAdditive();
-	return GetTitleGivenAssetInfo(FText::FromString(Node.Sequence->GetPathName()), bAdditive);
+	const bool bAdditive = Sequence->IsValidAdditive();
+	return GetTitleGivenAssetInfo(FText::FromString(Sequence->GetPathName()), bAdditive);
 }
 
 FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Type TitleType, UAnimSequenceBase* InSequence) const
@@ -90,9 +106,9 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Typ
 	const bool bAdditive = InSequence->IsValidAdditive();
 	const FText BasicTitle = GetTitleGivenAssetInfo(FText::FromName(InSequence->GetFName()), bAdditive);
 
-	if(SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+	if(Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
 	{
-		const FText SyncGroupName = FText::FromName(SyncGroup.GroupName);
+		const FText SyncGroupName = FText::FromName(Node.GetGroupName());
 
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Title"), BasicTitle);
@@ -107,7 +123,7 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Typ
 			return FText::Format(LOCTEXT("SequenceNodeGroupWithSubtitleList", "{Title} (Sync group {SyncGroup})"), Args);
 		}
 	}
-	else if(SyncGroup.Method == EAnimSyncMethod::Graph)
+	else if(Node.GetGroupMethod() == EAnimSyncMethod::Graph)
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Title"), BasicTitle);
@@ -153,7 +169,8 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitleForSequence(ENodeTitleType::Typ
 
 FText UAnimGraphNode_SequencePlayer::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	if (Node.Sequence == nullptr)
+	UAnimSequenceBase* Sequence = Node.GetSequence();
+	if (Sequence == nullptr)
 	{
 		// we may have a valid variable connected or default pin value
 		UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
@@ -172,7 +189,7 @@ FText UAnimGraphNode_SequencePlayer::GetNodeTitle(ENodeTitleType::Type TitleType
 	}
 	else
 	{
-		return GetNodeTitleForSequence(TitleType, Node.Sequence);
+		return GetNodeTitleForSequence(TitleType, Sequence);
 	}
 }
 
@@ -201,7 +218,7 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 	auto LoadedAssetSetup = [](UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UAnimSequence> SequencePtr)
 	{
 		UAnimGraphNode_SequencePlayer* SequencePlayerNode = CastChecked<UAnimGraphNode_SequencePlayer>(NewNode);
-		SequencePlayerNode->Node.Sequence = SequencePtr.Get();
+		SequencePlayerNode->Node.SetSequence(SequencePtr.Get());
 	};
 
 	auto UnloadedAssetSetup = [](UEdGraphNode* NewNode, bool bIsTemplateNode, const FAssetData AssetData)
@@ -215,7 +232,7 @@ void UAnimGraphNode_SequencePlayer::GetMenuActions(FBlueprintActionDatabaseRegis
 		{
 			UAnimSequence* Sequence = Cast<UAnimSequence>(AssetData.GetAsset());
 			check(Sequence != nullptr);
-			SequencePlayerNode->Node.Sequence = Sequence;
+			SequencePlayerNode->Node.SetSequence(Sequence);
 		}
 	};	
 
@@ -311,9 +328,10 @@ bool UAnimGraphNode_SequencePlayer::IsActionFilteredOut(class FBlueprintActionFi
 		UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint);
 		if (AnimBlueprint && AnimBlueprint->TargetSkeleton)
 		{
-			if(Node.Sequence)
+			UAnimSequenceBase* Sequence = Node.GetSequence();
+			if(Sequence)
 			{
-				if (!AnimBlueprint->TargetSkeleton->IsCompatible(Node.Sequence->GetSkeleton()))
+				if (!AnimBlueprint->TargetSkeleton->IsCompatible(Sequence->GetSkeleton()))
 				{
 					// Asset does not use a compatible skeleton with the Blueprint, cannot use
 					bIsFilteredOut = true;
@@ -355,7 +373,7 @@ void UAnimGraphNode_SequencePlayer::ValidateAnimNodeDuringCompilation(class USke
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UAnimSequenceBase* SequenceToCheck = Node.Sequence;
+	UAnimSequenceBase* SequenceToCheck = Node.GetSequence();
 	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
 	if (SequencePin != nullptr && SequenceToCheck == nullptr)
 	{
@@ -412,22 +430,31 @@ void UAnimGraphNode_SequencePlayer::SetAnimationAsset(UAnimationAsset* Asset)
 {
 	if (UAnimSequenceBase* Seq = Cast<UAnimSequenceBase>(Asset))
 	{
-		Node.Sequence = Seq;
+		Node.SetSequence(Seq);
+	}
+}
+
+void UAnimGraphNode_SequencePlayer::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
+{
+	if(InContext.GetAssets().Num() > 0)
+	{
+		if (UAnimSequenceBase* Sequence = Cast<UAnimSequenceBase>(InContext.GetAssets()[0]))
+		{
+			FAnimNode_SequencePlayer& AnimNode = InContext.GetAnimNode<FAnimNode_SequencePlayer>();
+			AnimNode.SetSequence(Sequence);
+		}
 	}
 }
 
 void UAnimGraphNode_SequencePlayer::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)
 {
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
-	Node.GroupName = SyncGroup.GroupName;
-	Node.GroupRole = SyncGroup.GroupRole;
-	Node.Method = SyncGroup.Method;
+	AnimBlueprint->FindOrAddGroup(Node.GetGroupName());
 }
 
 void UAnimGraphNode_SequencePlayer::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
 {
-	if(Node.Sequence)
+	if(Node.GetSequence())
 	{
 		HandleAnimReferenceCollection(Node.Sequence, AnimationAssets);
 	}
@@ -446,7 +473,7 @@ bool UAnimGraphNode_SequencePlayer::DoesSupportTimeForTransitionGetter() const
 
 UAnimationAsset* UAnimGraphNode_SequencePlayer::GetAnimationAsset() const 
 {
-	UAnimSequenceBase* Sequence = Node.Sequence;
+	UAnimSequenceBase* Sequence = Node.GetSequence();
 	UEdGraphPin* SequencePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence));
 	if (SequencePin != nullptr && Sequence == nullptr)
 	{
@@ -488,11 +515,11 @@ void UAnimGraphNode_SequencePlayer::CustomizePinData(UEdGraphPin* Pin, FName Sou
 			UEdGraphPin* PlayRateBasisPin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, PlayRateBasis));
 			if (!PlayRateBasisPin || PlayRateBasisPin->bHidden)
 			{
-				if (Node.PlayRateBasis != 1.f)
+				if (Node.GetPlayRateBasis() != 1.f)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("PinFriendlyName"), Pin->PinFriendlyName);
-					Args.Add(TEXT("PlayRateBasis"), FText::AsNumber(Node.PlayRateBasis));
+					Args.Add(TEXT("PlayRateBasis"), FText::AsNumber(Node.GetPlayRateBasis()));
 					Pin->PinFriendlyName = FText::Format(LOCTEXT("FAnimNode_SequencePlayer_PlayRateBasis_Value", "({PinFriendlyName} / {PlayRateBasis})"), Args);
 				}
 			}
@@ -503,7 +530,7 @@ void UAnimGraphNode_SequencePlayer::CustomizePinData(UEdGraphPin* Pin, FName Sou
 				Pin->PinFriendlyName = FText::Format(LOCTEXT("FAnimNode_SequencePlayer_PlayRateBasis_Name", "({PinFriendlyName} / PlayRateBasis)"), Args);
 			}
 
-			Pin->PinFriendlyName = Node.PlayRateScaleBiasClamp.GetFriendlyName(Pin->PinFriendlyName);
+			Pin->PinFriendlyName = Node.GetPlayRateScaleBiasClampConstants().GetFriendlyName(Pin->PinFriendlyName);
 		}
 	}
 }
@@ -514,17 +541,17 @@ void UAnimGraphNode_SequencePlayer::PostEditChangeProperty(struct FPropertyChang
 
 	// Reconstruct node to show updates to PinFriendlyNames.
 	if ((PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, PlayRateBasis))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, bMapRange))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, bMapRange))
 		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputRange, Min))
 		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputRange, Max))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, Scale))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, Bias))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, bClampResult))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, ClampMin))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, ClampMax))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, bInterpResult))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, InterpSpeedIncreasing))
-		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClamp, InterpSpeedDecreasing)))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, Scale))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, Bias))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, bClampResult))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, ClampMin))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, ClampMax))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, bInterpResult))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, InterpSpeedIncreasing))
+		|| (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FInputScaleBiasClampConstants, InterpSpeedDecreasing)))
 	{
 		ReconstructNode();
 	}

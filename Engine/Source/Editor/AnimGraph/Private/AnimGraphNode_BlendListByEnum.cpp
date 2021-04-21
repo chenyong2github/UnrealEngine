@@ -307,8 +307,9 @@ void UAnimGraphNode_BlendListByEnum::BakeDataDuringCompilation(class FCompilerRe
 		BoundEnum->ConditionalPostLoad();
 
 		// Zero the array out so it looks up the default value, and stat counting at index 1
-		Node.EnumToPoseIndex.Empty();
-		Node.EnumToPoseIndex.AddZeroed(BoundEnum->NumEnums());
+		TArray<int32> EnumToPoseIndex;
+		EnumToPoseIndex.Empty();
+		EnumToPoseIndex.AddZeroed(BoundEnum->NumEnums());
 		int32 PinIndex = 1;
 
 		// Run thru the enum entries
@@ -319,7 +320,7 @@ void UAnimGraphNode_BlendListByEnum::BakeDataDuringCompilation(class FCompilerRe
 
 			if (EnumIndex != INDEX_NONE)
 			{
-				Node.EnumToPoseIndex[EnumIndex] = PinIndex;
+				EnumToPoseIndex[EnumIndex] = PinIndex;
 			}
 			else
 			{
@@ -328,6 +329,8 @@ void UAnimGraphNode_BlendListByEnum::BakeDataDuringCompilation(class FCompilerRe
 
 			++PinIndex;
 		}
+
+		Node.SetEnumToPoseIndex(EnumToPoseIndex);
 	}
 }
 

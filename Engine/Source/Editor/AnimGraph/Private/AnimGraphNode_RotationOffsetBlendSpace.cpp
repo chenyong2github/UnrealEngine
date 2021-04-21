@@ -34,7 +34,7 @@ FText UAnimGraphNode_RotationOffsetBlendSpace::GetTooltipText() const
 
 FText UAnimGraphNode_RotationOffsetBlendSpace::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -81,7 +81,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
 		{
 			UAnimGraphNode_RotationOffsetBlendSpace* BlendSpaceNode = CastChecked<UAnimGraphNode_RotationOffsetBlendSpace>(NewNode);
-			BlendSpaceNode->Node.BlendSpace = BlendSpace.Get();
+			BlendSpaceNode->Node.SetBlendSpace(BlendSpace.Get());
 		}
 
 		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
@@ -136,7 +136,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetMenuActions(FBlueprintActionDat
 FBlueprintNodeSignature UAnimGraphNode_RotationOffsetBlendSpace::GetSignature() const
 {
 	FBlueprintNodeSignature NodeSignature = Super::GetSignature();
-	NodeSignature.AddSubObject(Node.BlendSpace);
+	NodeSignature.AddSubObject(Node.GetBlendSpace());
 
 	return NodeSignature;
 }
@@ -145,7 +145,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::SetAnimationAsset(UAnimationAsset*
 {
 	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
-		Node.BlendSpace = BlendSpace;
+		Node.SetBlendSpace(BlendSpace);
 	}
 }
 
@@ -153,7 +153,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::ValidateAnimNodeDuringCompilation(
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_RotationOffsetBlendSpace, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -208,7 +208,7 @@ void UAnimGraphNode_RotationOffsetBlendSpace::GetNodeContextMenuActions(UToolMen
 
 void UAnimGraphNode_RotationOffsetBlendSpace::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
 {
-	if(Node.BlendSpace)
+	if(Node.GetBlendSpace())
 	{
 		HandleAnimReferenceCollection(Node.BlendSpace, AnimationAssets);
 	}

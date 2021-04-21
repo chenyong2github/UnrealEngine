@@ -20,8 +20,6 @@ private:
 	virtual FBlueprintDebugData& GetBlueprintDebugData() const override;
 	virtual TArray<FAnimNotifyEvent>& GetAnimNotifies() const override;
 	virtual int32 FindOrAddNotify(FAnimNotifyEvent& Notify) const override;
-	virtual TArray<FExposedValueHandler>& GetExposedValueHandlers() const override;
-	virtual FPropertyAccessLibrary& GetPropertyAccessLibrary() const override;
 	virtual FAnimBlueprintDebugData& GetAnimBlueprintDebugData() const override;
 	virtual TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override;
 	virtual UBlendSpace* AddBlendSpace(UBlendSpace* InSourceBlendSpace) override;

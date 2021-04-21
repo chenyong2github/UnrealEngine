@@ -40,6 +40,7 @@ class UAnimGraphNode_SaveCachedPose : public UAnimGraphNode_Base
 	// UAnimGraphNode_Base interface
 	virtual FString GetNodeCategory() const override;
 	virtual bool IsSinkNode() const override { return true; }
+	virtual void GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const override;
 	// End of UAnimGraphNode_Base interface
 
 private:

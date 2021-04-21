@@ -4,6 +4,7 @@
 #include "ToolMenus.h"
 #include "AnimGraphCommands.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpaceEvaluator
@@ -39,11 +40,11 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleTy
 		TitleArgs.Add(TEXT("BlendSpaceName"), BlendSpaceName);
 		FText Title = FText::Format(LOCTEXT("BlendSpaceEvaluatorFullTitle", "{BlendSpaceName}\nBlendspace Evaluator"), TitleArgs);
 
-		if ((TitleType == ENodeTitleType::FullTitle) && (SyncGroup.GroupName != NAME_None))
+		if ((TitleType == ENodeTitleType::FullTitle) && (Node.GetGroupName() != NAME_None))
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("Title"), Title);
-			Args.Add(TEXT("SyncGroupName"), FText::FromName(SyncGroup.GroupName));
+			Args.Add(TEXT("SyncGroupName"), FText::FromName(Node.GetGroupName()));
 			Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
 		}
 		// FText::Format() is slow, so we cache this to save on performance
@@ -55,7 +56,7 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleTy
 
 FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	if (Node.BlendSpace == nullptr)
+	if (Node.GetBlendSpace() == nullptr)
 	{
 		// we may have a valid variable connected or default pin value
 		UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
@@ -83,7 +84,7 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitle(ENodeTitleType::Type Titl
 	//        choose to mark this dirty when that happens for this to properly work
 	else //if (!CachedNodeTitles.IsTitleCached(TitleType, this))
 	{
-		return GetNodeTitleForBlendSpace(TitleType, Node.BlendSpace);
+		return GetNodeTitleForBlendSpace(TitleType, Node.GetBlendSpace());
 	}
 }
 
@@ -97,7 +98,7 @@ void UAnimGraphNode_BlendSpaceEvaluator::ValidateAnimNodeDuringCompilation(class
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpaceEvaluator, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -136,10 +137,7 @@ void UAnimGraphNode_BlendSpaceEvaluator::ValidateAnimNodeDuringCompilation(class
 void UAnimGraphNode_BlendSpaceEvaluator::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)
 {
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
-	Node.GroupName = SyncGroup.GroupName;
-	Node.GroupRole = SyncGroup.GroupRole;
-	Node.Method = SyncGroup.Method;
+	AnimBlueprint->FindOrAddGroup(Node.GetGroupName());
 }
 
 void UAnimGraphNode_BlendSpaceEvaluator::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
@@ -159,7 +157,19 @@ void UAnimGraphNode_BlendSpaceEvaluator::SetAnimationAsset(UAnimationAsset* Asse
 {
 	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
-		Node.BlendSpace = BlendSpace;
+		Node.SetBlendSpace(BlendSpace);
+	}
+}
+
+void UAnimGraphNode_BlendSpaceEvaluator::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
+{
+	if(InContext.GetAssets().Num() > 0)
+	{
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InContext.GetAssets()[0]))
+		{
+			FAnimNode_BlendSpaceEvaluator& AnimNode = InContext.GetAnimNode<FAnimNode_BlendSpaceEvaluator>();
+			AnimNode.SetBlendSpace(BlendSpace);
+		}
 	}
 }
 
@@ -170,7 +180,7 @@ bool UAnimGraphNode_BlendSpaceEvaluator::DoesSupportTimeForTransitionGetter() co
 
 UAnimationAsset* UAnimGraphNode_BlendSpaceEvaluator::GetAnimationAsset() const 
 {
-	UBlendSpace* BlendSpace = Node.BlendSpace;
+	UBlendSpace* BlendSpace = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpaceEvaluator, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpace == nullptr)
 	{

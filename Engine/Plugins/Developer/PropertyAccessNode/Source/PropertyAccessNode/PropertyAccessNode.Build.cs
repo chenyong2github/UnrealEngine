@@ -12,7 +12,6 @@ public class PropertyAccessNode : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Slate",	
-				"PropertyAccess",
 				"GraphEditor",
 				"BlueprintGraph",
 				"EditorStyle",

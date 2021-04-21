@@ -17,7 +17,7 @@ FString UAnimGraphNode_RefPoseBase::GetNodeCategory() const
 
 FLinearColor UAnimGraphNode_RefPoseBase::GetNodeTitleColor() const
 {
-	if ( Node.RefPoseType == EIT_Additive )
+	if ( Node.GetRefPoseType() == EIT_Additive )
 	{
 		return FLinearColor(0.10f, 0.60f, 0.12f);
 	}

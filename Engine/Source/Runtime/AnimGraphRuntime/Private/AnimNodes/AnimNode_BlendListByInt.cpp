@@ -7,6 +7,7 @@
 
 int32 FAnimNode_BlendListByInt::GetActiveChildIndex()
 {
-	const int NumPoses = BlendPose.Num();
-	return FMath::Clamp<int32>(ActiveChildIndex, 0, NumPoses - 1);
+	const int32 NumPoses = BlendPose.Num();
+	int32 CurrentActiveChildIndex = GET_ANIM_NODE_DATA(int32, ActiveChildIndex);
+	return FMath::Clamp<int32>(CurrentActiveChildIndex, 0, NumPoses - 1);
 }

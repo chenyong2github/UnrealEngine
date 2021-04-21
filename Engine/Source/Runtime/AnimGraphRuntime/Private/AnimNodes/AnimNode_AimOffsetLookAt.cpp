@@ -103,10 +103,10 @@ void FAnimNode_AimOffsetLookAt::Evaluate_AnyThread(FPoseContext& Context)
 
 void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseContext)
 {
-	FVector BlendInput(X, Y, Z);
+	UBlendSpace* CurrentBlendSpace = GetBlendSpace();
 
 	const FBoneContainer& RequiredBones = LocalPoseContext.Pose.GetBoneContainer();
-	if (BlendSpace && SocketBoneReference.IsValidToEvaluate(RequiredBones))
+	if (CurrentBlendSpace && SocketBoneReference.IsValidToEvaluate(RequiredBones))
 	{
 		FCSPose<FCompactPose> GlobalPose;
 		GlobalPose.InitPose(LocalPoseContext.Pose);
@@ -140,8 +140,8 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 
 		const FVector2D CurrentCoords = FMath::GetAzimuthAndElevation(CurrentDirection, AxisX, AxisY, AxisZ);
 		const FVector2D TargetCoords = FMath::GetAzimuthAndElevation(DirectionToTarget, AxisX, AxisY, AxisZ);
-		BlendInput.X = FRotator::NormalizeAxis(FMath::RadiansToDegrees(TargetCoords.X - CurrentCoords.X));
-		BlendInput.Y = FRotator::NormalizeAxis(FMath::RadiansToDegrees(TargetCoords.Y - CurrentCoords.Y));
+		CurrentBlendInput.X = FRotator::NormalizeAxis(FMath::RadiansToDegrees(TargetCoords.X - CurrentCoords.X));
+		CurrentBlendInput.Y = FRotator::NormalizeAxis(FMath::RadiansToDegrees(TargetCoords.Y - CurrentCoords.Y));
 
 #if ENABLE_DRAW_DEBUG
 		if (CVarAimOffsetLookAtDebug.GetValueOnAnyThread() == 1)
@@ -155,21 +155,17 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 				, FMath::RadiansToDegrees(CurrentCoords.Y)
 				, FMath::RadiansToDegrees(TargetCoords.X)
 				, FMath::RadiansToDegrees(TargetCoords.Y)
-				, BlendInput.X
-				, BlendInput.Y);
+				, CurrentBlendInput.X
+				, CurrentBlendInput.Y);
 			AnimProxy->AnimDrawDebugOnScreenMessage(DebugString, FColor::Red);
 		}
 #endif // ENABLE_DRAW_DEBUG
 	}
 
-	// Set X and Y, so ticking next frame is based on correct weights.
-	X = BlendInput.X;
-	Y = BlendInput.Y;
-
 	// Generate BlendSampleDataCache from inputs.
-	if (BlendSpace)
+	if (CurrentBlendSpace)
 	{
-		BlendSpace->GetSamplesFromBlendInput(BlendInput, BlendSampleDataCache, CachedTriangulationIndex, true);
+		CurrentBlendSpace->GetSamplesFromBlendInput(CurrentBlendInput, BlendSampleDataCache, CachedTriangulationIndex, true);
 	}
 }
 
@@ -184,6 +180,12 @@ void FAnimNode_AimOffsetLookAt::GatherDebugData(FNodeDebugData& DebugData)
 	BasePose.GatherDebugData(DebugData);
 }
 
+FVector FAnimNode_AimOffsetLookAt::GetPosition() const
+{
+	// Use our calculated coordinates rather than the folded values
+	return CurrentBlendInput;
+}
+
 FAnimNode_AimOffsetLookAt::FAnimNode_AimOffsetLookAt()
 	: SocketLocalTransform(FTransform::Identity)
 	, PivotSocketLocalTransform(FTransform::Identity)
@@ -193,6 +195,7 @@ FAnimNode_AimOffsetLookAt::FAnimNode_AimOffsetLookAt()
 	, LookAtLocation(ForceInitToZero)
 	, SocketAxis(1.0f, 0.0f, 0.0f)
 	, Alpha(1.f)
+	, CurrentBlendInput(FVector::ZeroVector)
 	, bIsLODEnabled(false)
 {
 }

@@ -18,9 +18,12 @@
 #include "Kismet2/CompilerResultsLog.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "AnimBlueprintCompiler.h"
-#include "AnimBlueprintCompilerHandler_Base.h"
+#include "AnimBlueprintExtension_Base.h"
+#include "AnimBlueprintExtension_Attributes.h"
+#include "AnimBlueprintExtension_PropertyAccess.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimBlueprintCompilationContext.h"
+#include "AnimBlueprintExtension.h"
 #include "FindInBlueprintManager.h"
 #include "UObject/ReleaseObjectVersion.h"
 
@@ -37,8 +40,8 @@ UAnimGraphNode_Base::UAnimGraphNode_Base(const FObjectInitializer& ObjectInitial
 void UAnimGraphNode_Base::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	TUniquePtr<IAnimBlueprintCompilationContext> CompilationContext = IAnimBlueprintCompilationContext::Get(CompilerContext);
-	FAnimBlueprintCompilerHandler_Base* Handler = CompilationContext->GetHandler<FAnimBlueprintCompilerHandler_Base>("AnimBlueprintCompilerHandler_Base");
-	Handler->CreateEvaluationHandlerForNode(*CompilationContext.Get(), this);
+	UAnimBlueprintExtension_Base* Extension = UAnimBlueprintExtension_Base::GetExtension<UAnimBlueprintExtension_Base>(GetAnimBlueprint());
+	Extension->CreateEvaluationHandlerForNode(*CompilationContext.Get(), this);
 }
 
 void UAnimGraphNode_Base::PreEditChange(FProperty* PropertyThatWillChange)
@@ -98,6 +101,22 @@ void UAnimGraphNode_Base::Serialize(FArchive& Ar)
 	}
 }
 
+void UAnimGraphNode_Base::PostPlacedNewNode()
+{
+	Super::PostPlacedNewNode();
+
+	// This makes sure that all anim BP extensions are registered that this node needs
+	UAnimBlueprintExtension::RequestExtensionsForNode(this);
+}
+
+void UAnimGraphNode_Base::DestroyNode()
+{
+	// This node may have been the last using its extension, so refresh
+	GetAnimBlueprint()->RequestRefreshExtensions();
+
+	Super::DestroyNode();
+}
+
 void UAnimGraphNode_Base::CreateOutputPins()
 {
 	if (!IsSinkNode())
@@ -138,6 +157,21 @@ void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTerm
 	InPerNodeContext.GetTargetProperty()->CopyCompleteValue(InPerNodeContext.GetDestinationPtr(), InPerNodeContext.GetSourcePtr());
 
 	OnCopyTermDefaultsToDefaultObject(InCompilationContext, InPerNodeContext, OutCompiledData);
+}
+
+void UAnimGraphNode_Base::OverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
+{
+	if(InContext.GetAssets().Num() > 0)
+	{
+		if(UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(InContext.GetAssets()[0]))
+		{
+			// Call the legacy implementation
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			InContext.GetAnimNode<FAnimNode_Base>().OverrideAsset(AnimationAsset);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+	OnOverrideAssets(InContext);
 }
 
 void UAnimGraphNode_Base::InternalPinCreation(TArray<UEdGraphPin*>* OldPins)
@@ -383,10 +417,10 @@ void UAnimGraphNode_Base::GetPinHoverText(const UEdGraphPin& Pin, FString& Hover
 
 void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
-	FAnimBlueprintCompilerHandler_Base* HandlerBase = InCompilationContext.GetHandler<FAnimBlueprintCompilerHandler_Base>("AnimBlueprintCompilerHandler_Base");
+	UAnimBlueprintExtension_Base* Extension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_Base>(GetAnimBlueprint());
 
 	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
-	HandlerBase->AddStructEvalHandlers(this, InCompilationContext, OutCompiledData);
+	Extension->AddStructEvalHandlers(this, InCompilationContext, OutCompiledData);
 
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);
@@ -510,6 +544,12 @@ bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const 
 {
 	UEdGraphPin* Pin = FindPin(InPinName, InDirection);
 	return Pin != nullptr && Pin->LinkedTo.Num() > 0 && Pin->LinkedTo[0] != nullptr;
+}
+
+bool UAnimGraphNode_Base::IsPinExposedAndBound(const FString& InPinName, const EEdGraphPinDirection InDirection) const
+{
+	UEdGraphPin* Pin = FindPin(InPinName, InDirection);
+	return Pin != nullptr && Pin->LinkedTo.Num() == 0 && PropertyBindings.Find(Pin->GetFName()) != nullptr;
 }
 
 void UAnimGraphNode_Base::PinConnectionListChanged(UEdGraphPin* Pin)

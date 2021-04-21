@@ -83,13 +83,12 @@ void FAnimNode_PoseHandler::UpdateAssetPlayer(const FAnimationUpdateContext& Con
 	TRACE_ANIM_NODE_VALUE(Context, TEXT("Pose Asset"), CurrentPoseAsset.IsValid() ? *CurrentPoseAsset.Get()->GetName() : TEXT("None"));
 }
 
-void FAnimNode_PoseHandler::OverrideAsset(UAnimationAsset* NewAsset)
+#if WITH_EDITORONLY_DATA
+void FAnimNode_PoseHandler::SetPoseAsset(UPoseAsset* InPoseAsset)
 {
-	if(UPoseAsset* NewPoseAsset = Cast<UPoseAsset>(NewAsset))
-	{
-		PoseAsset = NewPoseAsset;
-	}
+	PoseAsset = InPoseAsset;
 }
+#endif
 
 void FAnimNode_PoseHandler::GatherDebugData(FNodeDebugData& DebugData)
 {

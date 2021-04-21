@@ -4,21 +4,6 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSyncScope.h"
 
-FAnimNode_AssetPlayerBase::FAnimNode_AssetPlayerBase()
-	: GroupName(NAME_None)
-#if WITH_EDITORONLY_DATA
-	, GroupIndex_DEPRECATED(INDEX_NONE)
-	, GroupScope_DEPRECATED(EAnimSyncGroupScope::Local)
-#endif
-	, GroupRole(EAnimGroupRole::CanBeLeader)
-	, bIgnoreForRelevancyTest(false)
-	, bHasBeenFullWeight(false)
-	, BlendWeight(0.0f)
-	, InternalTimeAccumulator(0.0f)
-{
-
-}
-
 void FAnimNode_AssetPlayerBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)
 {
 	FAnimNode_Base::Initialize_AnyThread(Context);
@@ -43,14 +28,17 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 
 	UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
-	FName GroupNameToUse = ((GroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? GroupName : NAME_None;
-	EAnimSyncMethod MethodToUse = Method;
+	const EAnimGroupRole::Type SyncGroupRole = GetGroupRole();
+	const FName SyncGroupName = GetGroupName();
+
+	FName GroupNameToUse = ((SyncGroupRole < EAnimGroupRole::TransitionLeader) || bHasBeenFullWeight) ? SyncGroupName : NAME_None;
+	EAnimSyncMethod MethodToUse = GetGroupMethod();
 	if(GroupNameToUse == NAME_None && MethodToUse == EAnimSyncMethod::SyncGroup)
 	{
 		MethodToUse = EAnimSyncMethod::DoNotSync;
 	}
 
-	UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, GroupRole, MethodToUse);
+	UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, SyncGroupRole, MethodToUse);
 	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 
@@ -74,7 +62,7 @@ void FAnimNode_AssetPlayerBase::SetAccumulatedTime(const float& NewTime)
 	InternalTimeAccumulator = NewTime;
 }
 
-UAnimationAsset* FAnimNode_AssetPlayerBase::GetAnimAsset()
+UAnimationAsset* FAnimNode_AssetPlayerBase::GetAnimAsset() const
 {
 	return nullptr;
 }
@@ -84,3 +72,22 @@ void FAnimNode_AssetPlayerBase::ClearCachedBlendWeight()
 	BlendWeight = 0.0f;
 }
 
+FName FAnimNode_AssetPlayerBase::GetGroupName() const
+{
+	return GET_ANIM_NODE_DATA(FName, GroupName);
+}
+
+EAnimGroupRole::Type FAnimNode_AssetPlayerBase::GetGroupRole() const
+{
+	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+}
+
+EAnimSyncMethod FAnimNode_AssetPlayerBase::GetGroupMethod() const
+{
+	return GET_ANIM_NODE_DATA(EAnimSyncMethod, Method);
+}
+
+bool FAnimNode_AssetPlayerBase::GetIgnoreForRelevancyTest() const
+{
+	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
+}

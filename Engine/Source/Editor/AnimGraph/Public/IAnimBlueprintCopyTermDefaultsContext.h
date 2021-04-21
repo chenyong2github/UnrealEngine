@@ -11,7 +11,7 @@ class UAnimBlueprint;
 class IAnimBlueprintCopyTermDefaultsContext
 {
 public:	
-	virtual ~IAnimBlueprintCopyTermDefaultsContext() {}
+	virtual ~IAnimBlueprintCopyTermDefaultsContext() = default;
 
 	// Get the message log for the current compilation
 	FCompilerResultsLog& GetMessageLog() const { return GetMessageLogImpl(); }
@@ -32,7 +32,7 @@ protected:
 class IAnimBlueprintNodeCopyTermDefaultsContext
 {
 public:	
-	virtual ~IAnimBlueprintNodeCopyTermDefaultsContext() {}
+	virtual ~IAnimBlueprintNodeCopyTermDefaultsContext() = default;
 
 	// Get the property that we are writing to
 	const FProperty* GetTargetProperty() const { return GetTargetPropertyImpl(); }
@@ -58,4 +58,36 @@ protected:
 
 	// Get the property index for this node
 	virtual int32 GetNodePropertyIndexImpl() const  = 0;
+};
+
+// Interface passed to per-extension CopyTermDefaults override point
+class IAnimBlueprintExtensionCopyTermDefaultsContext
+{
+public:	
+	virtual ~IAnimBlueprintExtensionCopyTermDefaultsContext() = default;
+
+	// Get the property that we are writing to
+	const FProperty* GetTargetProperty() const { return GetTargetPropertyImpl(); }
+
+	// Get the destination ptr (the node) that we are writing to
+	uint8* GetDestinationPtr() const { return GetDestinationPtrImpl(); }
+
+	// Get the source ptr (the node in the anim graph node) that we are reading from
+	const uint8* GetSourcePtr() const { return GetSourcePtrImpl(); }
+
+	// Get the property index for this node
+	int32 GetNodePropertyIndex() const { return GetNodePropertyIndexImpl(); }
+
+protected:
+	// Get the property that we are writing to
+	virtual const FProperty* GetTargetPropertyImpl() const = 0;
+
+	// Get the destination ptr (the node) that we are writing to
+	virtual uint8* GetDestinationPtrImpl() const = 0;
+
+	// Get the source ptr (the node in the anim graph node) that we are reading from
+	virtual const uint8* GetSourcePtrImpl() const = 0;
+
+	// Get the property index for this node
+	virtual int32 GetNodePropertyIndexImpl() const = 0;
 };

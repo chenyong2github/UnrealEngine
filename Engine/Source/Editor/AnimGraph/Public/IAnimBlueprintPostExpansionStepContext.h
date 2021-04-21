@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IAnimBlueprintCompilerHandler.h"
 
 class FCompilerResultsLog;
 class UEdGraph;
@@ -14,14 +13,6 @@ class IAnimBlueprintPostExpansionStepContext
 {
 public:
 	virtual ~IAnimBlueprintPostExpansionStepContext() {}
-
-	// Get a handler of the specified type and name (i.e. via simple name-based RTTI)
-	// Handlers are registered via IAnimBlueprintCompilerHandlerCollection::RegisterHandler
-	template <typename THandlerClass>
-	THandlerClass* GetHandler(FName InName) const
-	{
-		return static_cast<THandlerClass*>(GetHandlerInternal(InName));
-	}
 
 	// Get the message log for the current compilation
 	FCompilerResultsLog& GetMessageLog() const { return GetMessageLogImpl(); }
@@ -41,7 +32,4 @@ protected:
 
 	// Get the compiler options we are currently using
 	virtual const FKismetCompilerOptions& GetCompileOptionsImpl() const = 0;
-
-	// GetHandler helper function
-	virtual IAnimBlueprintCompilerHandler* GetHandlerInternal(FName InName) const = 0;
 };

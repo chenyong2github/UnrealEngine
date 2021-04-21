@@ -58,7 +58,7 @@ public:
 private:
 
 	// Embedded sequence player node for playing animations from the motion matching database
-	FAnimNode_SequencePlayer SequencePlayerNode;
+	FAnimNode_SequencePlayer_Standalone SequencePlayerNode;
 
 	// The current pose we're playing from the database
 	int32 DbPoseIdx = INDEX_NONE;

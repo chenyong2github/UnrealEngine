@@ -14,7 +14,6 @@
 class FCompilerResultsLog;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
-class FAnimBlueprintCompilerHandler;
 
 UCLASS(Abstract)
 class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base, public IClassVariableCreator

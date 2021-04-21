@@ -115,6 +115,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// PackedLevelInstance bounds fix
 		PackedLevelInstanceBoundsFix,
 
+		// Initial set of anim nodes converted to use constants held in sparse class data
+		AnimNodeConstantDataRefactorPhase0,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

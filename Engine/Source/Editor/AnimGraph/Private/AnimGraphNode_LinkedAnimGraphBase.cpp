@@ -18,6 +18,7 @@
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "AnimGraphAttributes.h"
 #include "IAnimBlueprintCopyTermDefaultsContext.h"
+#include "AnimBlueprintExtension_LinkedAnimGraph.h"
 
 #define LOCTEXT_NAMESPACE "LinkedAnimGraph"
 
@@ -487,6 +488,11 @@ void UAnimGraphNode_LinkedAnimGraphBase::OnCopyTermDefaultsToDefaultObject(IAnim
 
 	FAnimNode_LinkedAnimGraph* DestinationNode = reinterpret_cast<FAnimNode_LinkedAnimGraph*>(InPerNodeContext.GetDestinationPtr());
 	DestinationNode->NodeIndex = InPerNodeContext.GetNodePropertyIndex();
+}
+
+void UAnimGraphNode_LinkedAnimGraphBase::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
+{
+	OutExtensions.Add(UAnimBlueprintExtension_LinkedAnimGraph::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE
