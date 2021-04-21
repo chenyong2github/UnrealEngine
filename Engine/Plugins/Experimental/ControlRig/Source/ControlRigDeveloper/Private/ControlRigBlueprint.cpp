@@ -618,6 +618,13 @@ void UControlRigBlueprint::RecompileVM()
 			CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
 		}
 
+#if WITH_EDITOR
+		if (CDO->GetVMSnapshot() == nullptr || CDO->GetVMSnapshot()->GetOuter() != CDO)
+		{
+			CDO->SetVMSnapshot(NewObject<URigVM>(CDO));
+		}
+#endif
+
 		if (!HasAnyFlags(RF_Transient | RF_Transactional))
 		{
 			CDO->Modify(false);
@@ -672,6 +679,10 @@ void UControlRigBlueprint::RecompileVM()
 		bVMRecompilationRequired = false;
 		VMRecompilationBracket = 0;
 		VMCompiledEvent.Broadcast(this, CDO->VM);
+
+#if WITH_EDITOR
+		RefreshControlRigBreakpoints();
+#endif
 	}
 }
 
@@ -784,6 +795,204 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		EdGraphNode->bHasCompilerMessage = EdGraphNode->ErrorType <= int32(EMessageSeverity::Info);
 	}
 }
+
+#if WITH_EDITOR
+
+void UControlRigBlueprint::ClearBreakpoints()
+{
+	Breakpoints.Empty();
+	RefreshControlRigBreakpoints();
+}
+
+bool UControlRigBlueprint::AddBreakpoint(const FString& InBreakpointNodePath)
+{
+	URigVMLibraryNode* FunctionNode = nullptr;
+	
+	// Find the node in the graph
+	URigVMNode* BreakpointNode = GetModel()->FindNode(InBreakpointNodePath);
+	if (BreakpointNode == nullptr)
+	{
+		// If we cannot find the node, it might be because it is inside a function
+		FString FunctionName = InBreakpointNodePath, Right;
+		URigVMNode::SplitNodePathAtStart(InBreakpointNodePath, FunctionName, Right);
+
+		// Look inside the local function library
+		if (URigVMLibraryNode* LibraryNode = GetLocalFunctionLibrary()->FindFunction(FName(FunctionName)))
+		{
+			BreakpointNode = LibraryNode->GetContainedGraph()->FindNode(Right);
+			FunctionNode = LibraryNode;
+		}
+	}
+
+	return AddBreakpoint(BreakpointNode, FunctionNode);
+}
+
+bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryNode* LibraryNode)
+{
+	if (InBreakpointNode == nullptr)
+	{
+		return false;
+	}
+
+	bool bSuccess = true;
+	if (LibraryNode)
+	{
+		// If the breakpoint node is inside a library node, find all references to the library node
+		TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> References = LibraryNode->GetLibrary()->GetReferencesForFunction(LibraryNode->GetFName());
+		for (TSoftObjectPtr<URigVMFunctionReferenceNode> Reference : References)
+		{
+			if (!Reference.IsValid())
+			{
+				continue;
+			}
+
+			UControlRigBlueprint* ReferenceBlueprint = Reference->GetTypedOuter<UControlRigBlueprint>();
+
+			// If the reference is not inside another function, add a breakpoint in the blueprint containing the
+			// reference, without a function specified
+			bool bIsInsideFunction = Reference->GetRootGraph()->IsA<URigVMFunctionLibrary>();
+			if(!bIsInsideFunction)
+			{
+				bSuccess &= ReferenceBlueprint->AddBreakpoint(InBreakpointNode);
+			}
+			else
+			{
+				// Otherwise, we need to add breakpoints to all the blueprints that reference this
+				// function (when the blueprint graph is flattened)
+				
+				// Get all the functions containing this reference
+				URigVMNode* Node = Reference.Get();
+				while (Node->GetGraph() != ReferenceBlueprint->GetLocalFunctionLibrary())
+				{
+					if (URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Node->GetGraph()->GetOuter()))
+					{
+						// Recursively add breakpoints to the reference blueprint, specifying the parent function
+						bSuccess &= ReferenceBlueprint->AddBreakpoint(InBreakpointNode, ParentLibraryNode);
+					}
+
+					Node = Cast<URigVMNode>(Node->GetGraph()->GetOuter());
+				}
+			}
+		}
+	}
+	else
+	{
+		if (!Breakpoints.Contains(InBreakpointNode))
+		{
+			// Add the breakpoint to the VM
+			bSuccess = AddBreakpointToControlRig(InBreakpointNode);
+		}
+	}
+
+	return bSuccess;
+}
+
+bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNode)
+{
+	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
+	const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode();
+	TSet<FString> AddedCallpaths;
+
+	if (CDO && ByteCode)
+	{
+		FRigVMInstructionArray Instructions = ByteCode->GetInstructions();	
+
+		// For each instruction, see if the node is in the callpath
+		// Only add one breakpoint for each callpath related to this node (i.e. if a node produces multiple
+		// instructions, only add a breakpoint to the first instruction)
+		for (int32 i = 0; i< Instructions.Num(); ++i)
+		{
+			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode->GetCallPathForInstruction(i), GetModel());
+			if (Proxy.GetCallstack().Contains(InBreakpointNode))
+			{
+				// Find the callpath related to the breakpoint node
+				FRigVMASTProxy BreakpointProxy = Proxy;
+				while(BreakpointProxy.GetSubject() != InBreakpointNode)
+				{
+					BreakpointProxy = BreakpointProxy.GetParent();
+				}
+				const FString& BreakpointCallPath = BreakpointProxy.GetCallstack().GetCallPath();
+
+				// Only add this callpath breakpoint once
+				if (!AddedCallpaths.Contains(BreakpointCallPath))
+				{
+					AddedCallpaths.Add(BreakpointCallPath);
+					CDO->AddBreakpoint(i);
+				}
+			}
+		}
+	}
+
+	if (AddedCallpaths.Num() > 0)
+	{
+		Breakpoints.AddUnique(InBreakpointNode);
+		return true;
+	}
+	
+	return false;
+}
+
+bool UControlRigBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
+{
+	// Find the node in the graph
+	URigVMNode* BreakpointNode = GetModel()->FindNode(InBreakpointNodePath);
+	if (BreakpointNode == nullptr)
+	{
+		// If we cannot find the node, it might be because it is inside a function
+		FString FunctionName = InBreakpointNodePath, Right;
+		URigVMNode::SplitNodePathAtStart(InBreakpointNodePath, FunctionName, Right);
+
+		// Look inside the local function library
+		if (URigVMLibraryNode* LibraryNode = GetLocalFunctionLibrary()->FindFunction(FName(FunctionName)))
+		{
+			BreakpointNode = LibraryNode->GetContainedGraph()->FindNode(Right);
+		}
+	}
+
+	bool bSuccess = RemoveBreakpoint(BreakpointNode);
+
+	// Remove the breakpoint from all the loaded dependent blueprints
+	TArray<UControlRigBlueprint*> DependentBlueprints = GetDependentBlueprints(true, true);
+	DependentBlueprints.Remove(this);
+	for (UControlRigBlueprint* Dependent : DependentBlueprints)
+	{
+		bSuccess &= Dependent->RemoveBreakpoint(BreakpointNode);
+	}
+	return bSuccess;
+}
+
+bool UControlRigBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
+{
+	if (Breakpoints.Contains(InBreakpointNode))
+	{
+		Breakpoints.Remove(InBreakpointNode);
+
+		// Multiple breakpoint nodes might set a breakpoint to the same instruction. When we remove
+		// one of the breakpoint nodes, we do not want to remove the instruction breakpoint if there
+		// is another breakpoint node addressing it. For that reason, we just recompute all the
+		// breakpoint instructions.
+		// Refreshing breakpoints in the control rig will keep the state it had before.
+		RefreshControlRigBreakpoints();
+		return true;
+	}
+
+	return false;
+}
+
+
+void UControlRigBlueprint::RefreshControlRigBreakpoints()
+{
+	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
+	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
+	CDO->GetDebugInfo().Clear();
+	for (URigVMNode* Node : Breakpoints)
+	{
+		AddBreakpointToControlRig(Node);
+	}
+}
+
+#endif
 
 void UControlRigBlueprint::RequestControlRigInit()
 {
@@ -1298,25 +1507,28 @@ TArray<FAssetData> UControlRigBlueprint::GetDependentAssets() const
 	return Dependents;
 }
 
-TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool bRecursive) const
+TArray<UControlRigBlueprint*> UControlRigBlueprint::GetDependentBlueprints(bool bRecursive, bool bOnlyLoaded) const
 {
 	TArray<FAssetData> Assets = GetDependentAssets();
 	TArray<UControlRigBlueprint*> Dependents;
 
 	for(const FAssetData& Asset : Assets)
 	{
-		if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(Asset.GetAsset()))
+		if (!bOnlyLoaded || Asset.IsAssetLoaded())
 		{
-			if(!Dependents.Contains(Dependent))
+			if(UControlRigBlueprint* Dependent = Cast<UControlRigBlueprint>(Asset.GetAsset()))
 			{
-				Dependents.Add(Dependent);
-
-				if(bRecursive)
+				if(!Dependents.Contains(Dependent))
 				{
-					TArray<UControlRigBlueprint*> ParentDependents = Dependent->GetDependentBlueprints(true);
-					for(UControlRigBlueprint* ParentDependent : ParentDependents)
+					Dependents.Add(Dependent);
+
+					if(bRecursive && Dependent != this)
 					{
-						Dependents.AddUnique(ParentDependent);
+						TArray<UControlRigBlueprint*> ParentDependents = Dependent->GetDependentBlueprints(true);
+						for(UControlRigBlueprint* ParentDependent : ParentDependents)
+						{
+							Dependents.AddUnique(ParentDependent);
+						}
 					}
 				}
 			}
@@ -2259,6 +2471,14 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::NodeAdded:
 			case ERigVMGraphNotifType::NodeRemoved:
 			{
+				if (InNotifType == ERigVMGraphNotifType::NodeRemoved)
+				{
+					if (URigVMNode* RigVMNode = Cast<URigVMNode>(InSubject))
+					{
+						RemoveBreakpoint(RigVMNode);
+					}
+				}
+					
 				if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InSubject))
 				{
 					if (InNotifType == ERigVMGraphNotifType::NodeAdded)

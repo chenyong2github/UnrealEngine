@@ -8,6 +8,9 @@
 #include "RigVMRegistry.h"
 #include "RigVMByteCode.h"
 #include "RigVMStatistics.h"
+#if WITH_EDITOR
+#include "RigVMDebugInfo.h"
+#endif
 #include "RigVM.generated.h"
 
 // The type of parameter for a VM
@@ -120,7 +123,10 @@ public:
 
 	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
 	DECLARE_EVENT(URigVM, FExecutionReachedExitEvent);
-	
+#if WITH_EDITOR
+	DECLARE_EVENT_OneParam(URigVM, FExecutionHaltedEvent, int32);
+#endif
+
 	URigVM();
 	virtual ~URigVM();
 
@@ -213,6 +219,10 @@ public:
 	FORCEINLINE const TArray<int32> GetInstructionVisitOrder() const { return InstructionVisitOrder; }
 
 	FORCEINLINE const void SetFirstEntryEventInEventQueue(const FName& InFirstEventName) { FirstEntryEventInQueue = InFirstEventName; }
+
+	bool ResumeExecution(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void*> AdditionalArguments, const FName& InEntryName = NAME_None);
+
+	bool ResumeExecution();
 #endif
 
 	// Returns the parameters of the VM
@@ -505,6 +515,13 @@ public:
 #endif
 
 	FExecutionReachedExitEvent& ExecutionReachedExit() { return OnExecutionReachedExit; }
+#if WITH_EDITOR
+	FExecutionHaltedEvent& ExecutionHalted() { return OnExecutionHalted; }
+
+	void SetDebugInfo(FRigVMDebugInfo* InDebugInfo) { DebugInfo = InDebugInfo; }
+
+	int32 GetHaltedAtInstruction() const { return HaltedAtInstruction; }
+#endif
 
 private:
 
@@ -518,6 +535,11 @@ private:
 
 	UPROPERTY(transient)
 	FRigVMExecuteContext Context;
+
+#if WITH_EDITOR
+	FRigVMDebugInfo* DebugInfo;
+	int32 HaltedAtInstruction;
+#endif
 
 	UPROPERTY()
 	TArray<FName> FunctionNamesStorage;
@@ -570,6 +592,10 @@ private:
 	void CopyDeferredVMIfRequired();
 
 	FExecutionReachedExitEvent OnExecutionReachedExit;
+#if WITH_EDITOR
+	FExecutionHaltedEvent OnExecutionHalted;
+#endif
+
 	
 	friend class URigVMCompiler;
 };

@@ -1186,6 +1186,12 @@ bool FRigVMMemoryContainer::Copy(
 	uint8* TargetPtr = GetDataPtr(Target, InTargetRegisterOffset, InTargetSliceIndex, false);
 	uint16 NumBytes = Target.GetNumBytesPerSlice();
 
+	// TODO: preventing crash when SourcePtr is null
+	if (SourcePtr == nullptr)
+	{
+		return false;
+	}
+	
 	if (Source.IsNestedDynamic())
 	{
 #if WITH_EDITOR

@@ -261,9 +261,9 @@ public:
 
 	// Returns a list of dependents as resolved blueprints.
 	// A dependent is a blueprint which uses a function defined in this blueprint.
-	// This function loads the dependent assets and can introduce a large cost
+	// If bOnlyLoaded is false, this function loads the dependent assets and can introduce a large cost
 	// depending on the size / count of assets in the project.
-	TArray<UControlRigBlueprint*> GetDependentBlueprints(bool bRecursive = false) const;
+	TArray<UControlRigBlueprint*> GetDependentBlueprints(bool bRecursive = false, bool bOnlyLoaded = false) const;
 
 	UPROPERTY(EditAnywhere, Category = "User Interface")
 	FRigGraphDisplaySettings RigGraphDisplaySettings;
@@ -533,6 +533,38 @@ private:
 	bool RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify = false);
 	void HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage);
 
+#if WITH_EDITOR
+private:
+	TArray<URigVMNode*> Breakpoints;
+
+public:
+
+	/** Removes all the breakpoints from the blueprint and the VM */
+	void ClearBreakpoints();
+
+	/** Adds a breakpoint to all loaded blueprints which use the node indicated by InBreakpointNodePath 
+	  * If the node is inside a public function, it will add a breakpoint to all blueprints calling this function. */
+	bool AddBreakpoint(const FString& InBreakpointNodePath);
+
+	/** Adds a breakpoint to all loaded blueprints which use the InBreakpointNode. 
+	  * If LibraryNode is not null, it indicates that the library uses the InBreapointNode, and the function will add
+	  * breakpoints to any other loaded blueprint that references this library. */
+	bool AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLibraryNode* LibraryNode = nullptr);
+
+	/** Adds a breakpoint to the first instruction of each callpath related to the InBreakpointNode */
+	bool AddBreakpointToControlRig(URigVMNode* InBreakpointNode);
+
+	/** Removes the given breakpoint from all the loaded blueprints that use this node, and recomputes all breakpoints
+	  * in the VM  */
+	bool RemoveBreakpoint(const FString& InBreakpointNodePath);
+	bool RemoveBreakpoint(URigVMNode* InBreakpointNode);
+
+	/** Recomputes the instruction breakpoints given the node breakpoints in the blueprint */
+	void RefreshControlRigBreakpoints();
+
+#endif
+
+private:
 	bool bDirtyDuringLoad;
 	bool bErrorsDuringCompilation;
 

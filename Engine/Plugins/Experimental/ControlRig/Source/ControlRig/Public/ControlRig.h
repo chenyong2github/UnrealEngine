@@ -546,11 +546,6 @@ public:
 	UFUNCTION(BlueprintSetter)
 	void SetInteractionRigClass(TSubclassOf<UControlRig> InInteractionRigClass);
 
-	// UObject interface
-#if WITH_EDITOR
-	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 
 public:
 	//~ Begin IInterface_AssetUserData Interface
@@ -637,6 +632,36 @@ protected:
 	FControlSelectedEvent OnControlSelected;
 
 	TArray<FRigElementKey> QueuedModifiedControls;
+
+private:
+
+	UPROPERTY(transient)
+	URigVM* VMSnapshotBeforeExecution;
+	
+#if WITH_EDITOR	
+
+	FRigVMDebugInfo DebugInfo;
+	
+public:	
+	
+	/** Adds a breakpoint in the VM at the InstructionIndex */
+	void AddBreakpoint(int32 InstructionIndex);
+
+	/** Reloads the VM from the SnapshotVM, and increments activation hit on the halted breakpoint */
+	void ResumeExecution();
+	
+	FRigVMDebugInfo& GetDebugInfo() { return DebugInfo; }
+
+	URigVM* GetVMSnapshot() { return VMSnapshotBeforeExecution; }
+
+	void SetVMSnapshot(URigVM* InVMSnapshot) { VMSnapshotBeforeExecution = InVMSnapshot; }
+#endif	
+
+	// UObject interface
+	#if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;

@@ -70,6 +70,9 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, PostSetupBracket(0)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
+#if WITH_EDITOR
+	, VMSnapshotBeforeExecution(nullptr)
+#endif
 {
 	SetVM(ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM")));
 	DynamicHierarchy = ObjectInitializer.CreateDefaultSubobject<URigHierarchy>(this, TEXT("DynamicHierarchy"));
@@ -417,6 +420,13 @@ void UControlRig::InstantiateVMFromCDO()
 	{
 		SetVM(NewObject<URigVM>(this, TEXT("VM")));
 	}
+	
+#if WITH_EDITOR
+	if (VMSnapshotBeforeExecution == nullptr || VMSnapshotBeforeExecution->GetOuter() != this)
+	{
+		VMSnapshotBeforeExecution = NewObject<URigVM>(this);
+	}
+#endif
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -467,6 +477,15 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		VM->SetFirstEntryEventInEventQueue(NAME_None);
 #endif
 	}
+
+#if WITH_EDITOR
+	if (UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+	{
+		// Copy the breakpoints. This will not override the state of the breakpoints
+		DebugInfo.SetBreakpoints(CDO->DebugInfo.GetBreakpoints());
+	}
+	VM->SetDebugInfo(&DebugInfo);
+#endif
 
 	bool bJustRanInit = false;
 	if (bRequiresInitExecution)
@@ -943,6 +962,16 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 		}
 		else
 		{
+#if WITH_EDITOR
+			if (VM->GetHaltedAtInstruction() != INDEX_NONE)
+			{
+				VM->CopyFrom(VMSnapshotBeforeExecution, false, false, false, true, true);	
+			}
+			else
+			{
+				VMSnapshotBeforeExecution->CopyFrom(VM, false, false, false, true, true);
+			}
+#endif
 			VM->Execute(FRigVMMemoryContainerPtrArray(LocalMemory, 2), AdditionalArguments, InEventName);
 		}
 	}
@@ -1169,6 +1198,11 @@ void UControlRig::HandleOnControlModified(UControlRig* Subject, FRigControlEleme
 
 void UControlRig::HandleExecutionReachedExit()
 {
+#if WITH_EDITOR
+	VMSnapshotBeforeExecution->CopyFrom(VM, false, false, false, true, true);
+	DebugInfo.ResetState();
+#endif
+	
 	if (LatestExecutedState != EControlRigState::Init && bAccumulateTime)
 	{
 		AbsoluteTime += DeltaTime;
@@ -2327,6 +2361,17 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBP
 	const bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
 	const bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
 	return GetExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
+}
+
+void UControlRig::AddBreakpoint(int32 InstructionIndex)
+{
+	DebugInfo.AddBreakpoint(InstructionIndex);
+}
+
+void UControlRig::ResumeExecution()
+{
+	VM->CopyFrom(VMSnapshotBeforeExecution, false, false, false, true, true);
+	VM->ResumeExecution();
 }
 
 #endif // WITH_EDITOR
