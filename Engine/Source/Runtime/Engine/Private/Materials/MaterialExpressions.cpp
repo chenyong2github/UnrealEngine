@@ -11990,7 +11990,6 @@ void UMaterialExpressionCustom::Serialize(FStructuredArchive::FRecord Record)
 			FString(TEXT("WorldCameraMovementSinceLastFrame")),
 			FString(TEXT("CullingSign")),
 			FString(TEXT("NearPlane")),
-			FString(TEXT("AdaptiveTessellationFactor")),
 			FString(TEXT("GameTime")),
 			FString(TEXT("RealTime")),
 			FString(TEXT("Random")),

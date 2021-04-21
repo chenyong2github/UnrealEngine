@@ -29,10 +29,6 @@ struct FHoloLensPlatformProperties : public FGenericPlatformProperties
 	{
 		return false;
 	}              
-	static FORCEINLINE bool SupportsTessellation()
-	{
-		return true;
-	}
 	static FORCEINLINE bool SupportsWindowedMode()
 	{
 		return true;

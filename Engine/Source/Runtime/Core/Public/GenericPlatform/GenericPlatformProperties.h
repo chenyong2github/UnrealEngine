@@ -179,16 +179,6 @@ struct FGenericPlatformProperties
 	}
 
 	/**
-	 * Gets whether this platform supports tessellation.
-	 *
-	 * @return true if tessellation is supported, false otherwise.
-	 */
-	static FORCEINLINE bool SupportsTessellation()
-	{
-		return false;
-	}
-
-	/**
 	 * Gets whether this platform supports windowed mode rendering.
 	 *
 	 * @return true if windowed mode is supported.

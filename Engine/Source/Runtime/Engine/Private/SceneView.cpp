@@ -275,12 +275,6 @@ static TAutoConsoleVariable<int32> CVarTonemapperQuality(
 	TEXT(" 5: + GrainJitter = full quality (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<float> CVarTessellationAdaptivePixelsPerTriangle(
-	TEXT("r.TessellationAdaptivePixelsPerTriangle"),
-	48.0f,
-	TEXT("Global tessellation factor multiplier"),
-	ECVF_RenderThreadSafe);
-
 // should be changed to BaseColor and Metallic, since some time now UE is not using DiffuseColor and SpecularColor any more
 static TAutoConsoleVariable<float> CVarDiffuseColorMin(
 	TEXT("r.DiffuseColor.Min"),
@@ -2287,17 +2281,6 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 				FPlane(0, My, 0, 0),
 				FPlane(0, 0, 1, 0),
 				FPlane(Ax, Ay, 0, 1)) * InViewMatrices.GetInvTranslatedViewProjectionMatrix();
-	}
-
-	// is getting clamped in the shader to a value larger than 0 (we don't want the triangles to disappear)
-	ViewUniformShaderParameters.AdaptiveTessellationFactor = 0.0f;
-
-	if(Family->EngineShowFlags.Tessellation)
-	{
-		// CVar setting is pixels/tri which is nice and intuitive.  But we want pixels/tessellated edge.  So use a heuristic.
-		float TessellationAdaptivePixelsPerEdge = FMath::Sqrt(2.f * CVarTessellationAdaptivePixelsPerTriangle.GetValueOnRenderThread());
-
-		ViewUniformShaderParameters.AdaptiveTessellationFactor = 0.5f * InViewMatrices.GetProjectionMatrix().M[1][1] * float(EffectiveViewRect.Height()) / TessellationAdaptivePixelsPerEdge;
 	}
 
 	// Compute coefficients which takes a screen UV and converts to Viewspace.xy / ViewZ

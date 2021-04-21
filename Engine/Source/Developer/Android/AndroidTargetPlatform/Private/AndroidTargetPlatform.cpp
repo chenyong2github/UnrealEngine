@@ -356,9 +356,6 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::DeferredRendering:
 			return SupportsVulkanSM5();
 
-		case ETargetPlatformFeatures::Tessellation:
-			return false;
-
 		case ETargetPlatformFeatures::SoftwareOcclusion:
 			return SupportsSoftwareOcclusion();
 

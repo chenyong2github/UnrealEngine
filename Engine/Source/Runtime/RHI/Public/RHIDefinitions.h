@@ -364,7 +364,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bRequiresRenderTargetDuringRaster : 1;
 	uint32 bRequiresDisableForwardLocalLights : 1;
 	uint32 bCompileSignalProcessingPipeline : 1;
-	uint32 bSupportsTessellation : 1;
 	uint32 bSupportsMeshShaders : 1;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
@@ -652,11 +651,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetCompileSignalProcessingPipeline(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bCompileSignalProcessingPipeline;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTessellation(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsTessellation;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShaders(const FStaticShaderPlatform Platform)

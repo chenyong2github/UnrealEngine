@@ -112,8 +112,6 @@ public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
 
-	static bool SupportsTessellationShaders() { return true; }
-
 	inline FRHIShaderResourceView* GetPositionsSRV() const
 	{
 		return Data.PositionComponentSRV;

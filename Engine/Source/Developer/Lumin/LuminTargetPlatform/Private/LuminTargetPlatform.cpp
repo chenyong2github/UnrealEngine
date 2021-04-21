@@ -122,8 +122,6 @@ bool FLuminTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) cons
 		return SupportsMobileRendering() || SupportsVulkan();
 
 	case ETargetPlatformFeatures::HighQualityLightmaps:
-	//#todo-rco: Enable when Vulkan supports it
-	//case ETargetPlatformFeatures::Tessellation:
 	case ETargetPlatformFeatures::DeferredRendering:
 		return SupportsDesktopRendering();
 

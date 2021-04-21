@@ -1342,19 +1342,6 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 	return Version;
 }
 
-RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform)
-{
-	if (FDataDrivenShaderPlatformInfo::GetSupportsTessellation(Platform))
-	{
-		return true;
-	}
-	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
-	{
-		return (Platform == SP_PCD3D_SM5) || (IsVulkanSM5Platform(Platform));
-	}
-	return false;
-}
-
 RHI_API bool RHISupportsIndexBufferUAVs(const FStaticShaderPlatform Platform)
 {
 	return Platform == SP_PCD3D_SM5 || IsVulkanPlatform(Platform) || IsMetalSM5Platform(Platform)
@@ -1790,7 +1777,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bRequiresRenderTargetDuringRaster);
 	GET_SECTION_BOOL_HELPER(bRequiresDisableForwardLocalLights);
 	GET_SECTION_BOOL_HELPER(bCompileSignalProcessingPipeline);
-	GET_SECTION_BOOL_HELPER(bSupportsTessellation);
 	GET_SECTION_BOOL_HELPER(bSupportsMeshShaders);
 	GET_SECTION_BOOL_HELPER(bSupportsPerPixelDBufferMask);
 	GET_SECTION_BOOL_HELPER(bIsHlslcc);

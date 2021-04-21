@@ -373,9 +373,6 @@ public:
 		case ETargetPlatformFeatures::Packaging:
 			return false;
 
-		case ETargetPlatformFeatures::Tessellation:
-			return TPlatformProperties::SupportsTessellation();
-
 		case ETargetPlatformFeatures::TextureStreaming:
 			return TPlatformProperties::SupportsTextureStreaming();
 		case ETargetPlatformFeatures::MeshLODStreaming:

@@ -98,11 +98,6 @@ struct FWindowsPlatformProperties
 		return true;
 	}
 
-	static FORCEINLINE bool SupportsTessellation()
-	{
-		return true; // DX11 compatible
-	}
-
 	static FORCEINLINE bool SupportsWindowedMode()
 	{
 		return true;

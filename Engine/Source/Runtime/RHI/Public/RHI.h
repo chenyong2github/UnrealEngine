@@ -124,9 +124,6 @@ RHI_API const TCHAR* RHIVendorIdToString(EGpuVendorId VendorId);
 // helper to return the shader language version for the given shader platform.
 RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform);
 
-// helper to check that the shader platform supports tessellation.
-RHI_API bool RHISupportsTessellation(const FStaticShaderPlatform Platform);
-
 // helper to check that the shader platform supports writing to UAVs from pixel shaders.
 RHI_API bool RHISupportsPixelShaderUAVs(const FStaticShaderPlatform Platform);
 

@@ -47,9 +47,6 @@ enum class ETargetPlatformFeatures
 	/** Connect and disconnect devices through the SDK. */
 	SdkConnectDisconnect,
 
-	/** GPU tesselation. */
-	Tessellation,
-
 	/** Texture streaming. */
 	TextureStreaming,
 
