@@ -246,13 +246,13 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 				continue;
 			}
 			else if (GroomAsset.Get() && CurrentOptions && 
-				    ((CurrentOptions->GroomBindingType == EGroomBindingType::SkeletalMesh && CurrentOptions->TargetSkeletalMesh) ||
-					(CurrentOptions->GroomBindingType == EGroomBindingType::GeometryCache && CurrentOptions->TargetGeometryCache)))
+				    ((CurrentOptions->GroomBindingType == EGroomBindingMeshType::SkeletalMesh && CurrentOptions->TargetSkeletalMesh) ||
+					(CurrentOptions->GroomBindingType == EGroomBindingMeshType::GeometryCache && CurrentOptions->TargetGeometryCache)))
 			{
 				GroomAsset->ConditionalPostLoad();
 
 				UGroomBindingAsset* BindingAsset = nullptr;
-				if (CurrentOptions->GroomBindingType == EGroomBindingType::SkeletalMesh)
+				if (CurrentOptions->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 				{
 					CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 					if (CurrentOptions->SourceSkeletalMesh)

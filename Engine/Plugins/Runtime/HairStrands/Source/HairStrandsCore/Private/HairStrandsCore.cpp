@@ -163,15 +163,15 @@ UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, co
 
 UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
-	return CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, InPackageName, InParent, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
+	return CreateGroomBindingAsset(EGroomBindingMeshType::SkeletalMesh, InPackageName, InParent, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
 }
 
-UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType BindingType, const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, UObject* Source, UObject* Target, const int32 NumInterpolationPoints, const int32 MatchingSection)
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType BindingType, const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, UObject* Source, UObject* Target, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
 #if WITH_EDITOR
 	if (!GroomAsset ||
-		!((BindingType == EGroomBindingType::SkeletalMesh && Cast<USkeletalMesh>(Target)) || 
-		 (BindingType == EGroomBindingType::GeometryCache && Cast<UGeometryCache>(Target)))
+		!((BindingType == EGroomBindingMeshType::SkeletalMesh && Cast<USkeletalMesh>(Target)) || 
+		 (BindingType == EGroomBindingMeshType::GeometryCache && Cast<UGeometryCache>(Target)))
 		)
 	{
 		return nullptr;
@@ -215,7 +215,7 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType 
 	{
 		Out->GroomBindingType = BindingType;
 		Out->Groom = GroomAsset;
-		if (BindingType == EGroomBindingType::SkeletalMesh)
+		if (BindingType == EGroomBindingMeshType::SkeletalMesh)
 		{
 			Out->SourceSkeletalMesh = Cast<USkeletalMesh>(Source);
 			Out->TargetSkeletalMesh = Cast<USkeletalMesh>(Target);
@@ -236,14 +236,14 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType 
 	return nullptr;
 }
 
-UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType BindingType, UGroomAsset* GroomAsset, UObject* Source, UObject* Target, const int32 NumInterpolationPoints, const int32 MatchingSection)
+UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType BindingType, UGroomAsset* GroomAsset, UObject* Source, UObject* Target, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
 	return CreateGroomBindingAsset(BindingType, FString(), nullptr, GroomAsset, Source, Target, NumInterpolationPoints, MatchingSection);
 }
 
 UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
 {
-	return CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, FString(), nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
+	return CreateGroomBindingAsset(EGroomBindingMeshType::SkeletalMesh, FString(), nullptr, GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
 }
 
 void FHairStrandsCore::SaveAsset(UObject* Object)

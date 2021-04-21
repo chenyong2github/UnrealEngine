@@ -14,7 +14,7 @@ class HAIRSTRANDSCORE_API UGroomCreateBindingOptions : public UObject
 public:
 	/** Type of mesh to create groom binding for */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
-	EGroomBindingType GroomBindingType;
+	EGroomBindingMeshType GroomBindingType;
 
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
 		binding is done a different mesh than the one which it has been authored, i.e., only if the curves 

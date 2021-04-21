@@ -5,7 +5,7 @@
 UGroomCreateBindingOptions::UGroomCreateBindingOptions(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
-	GroomBindingType = EGroomBindingType::SkeletalMesh;
+	GroomBindingType = EGroomBindingMeshType::SkeletalMesh;
 	SourceSkeletalMesh = nullptr;
 	TargetSkeletalMesh = nullptr;
 	SourceGeometryCache = nullptr;

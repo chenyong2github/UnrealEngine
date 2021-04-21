@@ -101,8 +101,8 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 
 bool SGroomCreateBindingOptionsWindow::CanCreateBinding()  const
 {
-	return (BindingOptions->GroomBindingType == EGroomBindingType::SkeletalMesh && BindingOptions->TargetSkeletalMesh != nullptr) ||
-		   (BindingOptions->GroomBindingType == EGroomBindingType::GeometryCache && BindingOptions->TargetGeometryCache != nullptr);
+	return (BindingOptions->GroomBindingType == EGroomBindingMeshType::SkeletalMesh && BindingOptions->TargetSkeletalMesh != nullptr) ||
+		   (BindingOptions->GroomBindingType == EGroomBindingMeshType::GeometryCache && BindingOptions->TargetGeometryCache != nullptr);
 }
 
 enum class EGroomBindingOptionsVisibility : uint8

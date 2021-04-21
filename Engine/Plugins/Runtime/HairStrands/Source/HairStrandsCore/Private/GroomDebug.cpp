@@ -90,7 +90,7 @@ static void GetGroomInterpolationData(
 			continue;
 
 		FCachedGeometry CachedGeometry;
-		if (Instance->Debug.GroomBindingType == EGroomBindingType::SkeletalMesh)
+		if (Instance->Debug.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 		{
 			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
 			{

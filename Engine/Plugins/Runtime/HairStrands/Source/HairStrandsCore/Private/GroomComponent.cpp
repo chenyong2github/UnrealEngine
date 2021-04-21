@@ -1912,7 +1912,7 @@ static UMeshComponent* ValidateBindingAsset(
 		return nullptr;
 	}
 
-	if (BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh)
+	if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 	{
 		return ValidateBindingAsset(GroomAsset, BindingAsset, Cast<USkeletalMeshComponent>(MeshComponent), bIsBindingReloading, bValidationEnable, Component);
 	}
@@ -1952,8 +1952,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	if (ValidatedMeshComponent)
 	{
 		if (BindingAsset && 
-			((BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->SkeletalMesh == nullptr) ||
-			(BindingAsset->GroomBindingType == EGroomBindingType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr)))
+			((BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->SkeletalMesh == nullptr) ||
+			(BindingAsset->GroomBindingType == EGroomBindingMeshType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr)))
 		{
 			ValidatedMeshComponent = nullptr;
 		}
@@ -1985,7 +1985,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroupCount = GroupCount;
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
 		HairGroupInstance->Debug.MeshComponent = IsHairStrandsBindingEnable() ? RegisteredMeshComponent : nullptr;
-		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingType::SkeletalMesh;
+		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
 		HairGroupInstance->Debug.GroomCacheType = GroomCache ? GroomCache->GetType() : EGroomCacheType::None;
 		HairGroupInstance->Debug.GroomCacheBuffers = GroomCacheBuffers;
 		if (RegisteredMeshComponent)

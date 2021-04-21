@@ -88,7 +88,7 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGro
 		if (BindingAsset.IsValid() && BindingAsset->Groom && BindingAsset->HasValidTarget())
 		{
 			BindingAsset->Groom->ConditionalPostLoad();
-			if (BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh)
+			if (BindingAsset->GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
 			{
 				BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
 				if (BindingAsset->SourceSkeletalMesh)

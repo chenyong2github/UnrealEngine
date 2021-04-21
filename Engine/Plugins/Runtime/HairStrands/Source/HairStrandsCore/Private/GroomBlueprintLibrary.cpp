@@ -19,7 +19,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType::SkeletalMesh, InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
@@ -44,7 +44,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAsset(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType::SkeletalMesh, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
@@ -70,7 +70,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGeometryCacheGroomBindingAs
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::GeometryCache, InDesiredPackagePath, nullptr, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType::GeometryCache, InDesiredPackagePath, nullptr, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
@@ -95,7 +95,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGeometryCacheGroomBindingAs
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::GeometryCache, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshType::GeometryCache, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
