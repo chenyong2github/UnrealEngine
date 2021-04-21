@@ -293,21 +293,11 @@ static UTexture2D* CreateCardTexture(FIntPoint Resolution)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount)
+void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount)
 {
 	if (VertexCount == 0 || !DebugAttributeBuffer)
 		return;
-
-	FRDGExternalBuffer* LocalAttributeBuffer = DebugAttributeBuffer;
-	ENQUEUE_RENDER_COMMAND(FHairStrandsCreateDebugAttributeBuffer)(
-	[LocalAttributeBuffer, VertexCount](FRHICommandListImmediate& RHICmdList)
-	{
-		if (GUsingNullRHI) { return; }
-		FMemMark Mark(FMemStack::Get());
-		FRDGBuilder GraphBuilder(RHICmdList);
-		InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, VertexCount, *LocalAttributeBuffer, TEXT("Hair.Strands_DebugAttributeBuffer"), EHairResourceUsageType::Dynamic);
-		GraphBuilder.Execute();
-	});
+	InternalCreateVertexBufferRDG<FHairStrandsAttributeFormat>(GraphBuilder, VertexCount, *DebugAttributeBuffer, TEXT("Hair.Strands_DebugAttributeBuffer"), EHairResourceUsageType::Dynamic);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -336,6 +326,12 @@ void FHairCommonResource::InitRHI()
 		InternalAllocate();
 	}
 	bIsInitialized = true;
+}
+
+void FHairCommonResource::ReleaseRHI()
+{
+	InternalRelease();
+	bIsInitialized = false;
 }
 
 void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder)
@@ -388,7 +384,7 @@ void FHairCardsRestResource::InternalAllocate()
 	AttributeSampler = DefaultSampler;
 }
 
-void FHairCardsRestResource::ReleaseRHI()
+void FHairCardsRestResource::InternalRelease()
 {
 }
 
@@ -444,7 +440,7 @@ void FHairCardsProceduralResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG<FHairCardsStrandsAttributeFormat>(GraphBuilder, RenderData.CardsStrandsAttributes, CardsStrandsAttributes, TEXT("Hair.CardsProcedural_CardsStrandsAttributes"), EHairResourceUsageType::Static);
 }
 
-void FHairCardsProceduralResource::ReleaseRHI()
+void FHairCardsProceduralResource::InternalRelease()
 {
 	AtlasRectBuffer.Release();
 	LengthBuffer.Release();
@@ -482,7 +478,7 @@ void FHairCardsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	}
 }
 
-void FHairCardsDeformedResource::ReleaseRHI()
+void FHairCardsDeformedResource::InternalRelease()
 {
 	DeformedPositionBuffer[0].Release();
 	DeformedPositionBuffer[1].Release();
@@ -512,7 +508,7 @@ void FHairMeshesRestResource::InternalAllocate()
 	CreateBuffer<FHairCardsUVFormat>(RenderData.UVs, UVsBuffer, TEXT("Hair.MeshesRest_UVs"));
 }
 
-void FHairMeshesRestResource::ReleaseRHI()
+void FHairMeshesRestResource::InternalRelease()
 {
 
 }
@@ -558,7 +554,7 @@ void FHairMeshesDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	}
 }
 
-void FHairMeshesDeformedResource::ReleaseRHI()
+void FHairMeshesDeformedResource::InternalRelease()
 {
 	DeformedPositionBuffer[0].Release();
 	DeformedPositionBuffer[1].Release();
@@ -610,7 +606,7 @@ FRDGExternalBuffer FHairStrandsRestResource::GetTangentBuffer(FRDGBuilder& Graph
 	return TangentBuffer;
 }
 
-void FHairStrandsRestResource::ReleaseRHI()
+void FHairStrandsRestResource::InternalRelease()
 {
 	PositionBuffer.Release();
 	PositionOffsetBuffer.Release();
@@ -647,7 +643,7 @@ void FHairStrandsDeformedResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG<FHairStrandsPositionOffsetFormat>(GraphBuilder, DefaultOffsets, DeformedOffsetBuffer[1], HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsDeformed_DeformedOffsetBuffer1), EHairResourceUsageType::Dynamic);
 }
 
-void FHairStrandsDeformedResource::ReleaseRHI()
+void FHairStrandsDeformedResource::InternalRelease()
 {
 	DeformedPositionBuffer[0].Release();
 	DeformedPositionBuffer[1].Release();
@@ -702,7 +698,7 @@ void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuil
 	InternalCreateVertexBufferRDG(GraphBuilder, Data.VertexToClusterIds, PF_R32_UINT, VertexToClusterIdBuffer, TEXT("Hair.StrandsClusterCulling_VertexToClusterIds"), EHairResourceUsageType::Static);
 }
 
-void FHairStrandsClusterCullingResource::ReleaseRHI()
+void FHairStrandsClusterCullingResource::InternalRelease()
 {
 	ClusterInfoBuffer.Release();
 	ClusterLODInfoBuffer.Release();
@@ -800,7 +796,7 @@ void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	}
 }
 
-void FHairStrandsRestRootResource::ReleaseRHI()
+void FHairStrandsRestRootResource::InternalRelease()
 {
 	RootPositionBuffer.Release();
 	RootNormalBuffer.Release();
@@ -870,7 +866,7 @@ void FHairStrandsDeformedRootResource::InternalAllocate(FRDGBuilder& GraphBuilde
 	}
 }
 
-void FHairStrandsDeformedRootResource::ReleaseRHI()
+void FHairStrandsDeformedRootResource::InternalRelease()
 {
 	for (FLOD& GPUData : LODs)
 	{
@@ -1042,7 +1038,7 @@ void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuild
 	//SimRootPointIndex.SetNum(0);
 }
 
-void FHairStrandsInterpolationResource::ReleaseRHI()
+void FHairStrandsInterpolationResource::InternalRelease()
 {
 	Interpolation0Buffer.Release();
 	Interpolation1Buffer.Release();
@@ -1085,7 +1081,7 @@ void FHairCardsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder
 	InternalCreateVertexBufferRDG<FHairCardsInterpolationFormat>(GraphBuilder, RenderData.Interpolation, InterpolationBuffer, TEXT("Hair.CardsInterpolation_InterpolationBuffer"), EHairResourceUsageType::Static);
 }
 
-void FHairCardsInterpolationResource::ReleaseRHI()
+void FHairCardsInterpolationResource::InternalRelease()
 {
 	InterpolationBuffer.Release();
 }
@@ -1115,7 +1111,7 @@ void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("Hair.StrandsRaytracing_PositionBuffer"), EHairResourceUsageType::Dynamic);
 }
 
-void FHairStrandsRaytracingResource::ReleaseRHI()
+void FHairStrandsRaytracingResource::InternalRelease()
 {
 	PositionBuffer.Release();
 	RayTracingGeometry.ReleaseResource();

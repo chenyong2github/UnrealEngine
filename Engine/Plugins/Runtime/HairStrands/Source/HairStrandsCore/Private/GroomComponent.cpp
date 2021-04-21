@@ -1801,8 +1801,6 @@ static UMeshComponent* ValidateBindingAsset(
 	return ValidateBindingAsset(GroomAsset, BindingAsset, Cast<UGeometryCacheComponent>(MeshComponent), bIsBindingReloading, bValidationEnable, Component);
 }
 
-void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
-
 static EGroomGeometryType GetEffectiveGeometryType(EGroomGeometryType Type, bool bUseCards)
 {
 	return Type == EGroomGeometryType::Strands && (!IsHairStrandsEnabled(EHairStrandsShaderType::Strands) || bUseCards) ? EGroomGeometryType::Cards : Type;
@@ -2091,12 +2089,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Strands.RestResource->PositionOffset;
 				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Strands.RestResource->PositionOffset;
 			} 
-
-			// Create an debug buffer for storing cluster visalization data. This is only used for debug purpose, hence only enable in editor build.
-			// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
-			#if WITH_EDITOR
-			CreateHairStrandsDebugAttributeBuffer(&HairGroupInstance->Strands.DebugAttributeBuffer, HairGroupInstance->Strands.RestResource->GetVertexCount());
-			#endif
 
 			// An empty groom doesn't have a ClusterCullingResource
 			HairGroupInstance->Strands.ClusterCullingResource = GroupData.Strands.ClusterCullingResource;

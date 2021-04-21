@@ -1295,7 +1295,7 @@ static void ConvertHairStrandsVFParameters(
 	FRDGBuilder* GraphBuilder,
 	FRDGImportedBuffer& Buffer,
 	FShaderResourceViewRHIRef& BufferRHISRV,
-	FRDGExternalBuffer& ExternalBuffer)
+	const FRDGExternalBuffer& ExternalBuffer)
 {
 	if (GraphBuilder)
 	{
@@ -1387,6 +1387,8 @@ void AddBufferTransitionToReadablePass(FRDGBuilder& GraphBuilder, FRHIUnorderedA
 	});
 }
 
+void CreateHairStrandsDebugAttributeBuffer(FRDGBuilder& GraphBuilder, FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
+
 void ComputeHairStrandsInterpolation(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
@@ -1462,11 +1464,21 @@ void ComputeHairStrandsInterpolation(
 				FRDGImportedBuffer Strands_DeformedPosition = Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateViews);
 				FRDGImportedBuffer Strands_DeformedPrevPosition = Register(GraphBuilder, Instance->Strands.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Previous), ERDGImportedBufferFlags::CreateViews);
 				FRDGImportedBuffer Strands_DeformedTangent = Register(GraphBuilder, Instance->Strands.DeformedResource->TangentBuffer, ERDGImportedBufferFlags::CreateViews);
-			#if WITH_EDITOR
-				FRDGImportedBuffer Strands_DebugAttributeReg = Register(GraphBuilder, Instance->Strands.DebugAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
-				FRDGImportedBuffer* Strands_DebugAttribute = &Strands_DebugAttributeReg;
-			#else
 				FRDGImportedBuffer* Strands_DebugAttribute = nullptr;
+			#if WITH_EDITOR
+				FRDGImportedBuffer Strands_DebugAttributeReg;
+				if (bDebugModePatchedAttributeBuffer)
+				{
+					// Create an debug buffer for storing cluster visalization data. This is only used for debug purpose, hence only enable in editor build.
+					// Special case for debug mode were the attribute buffer is patch with some custom data to show hair properties (strands belonging to the same cluster, ...)
+					if (Instance->Strands.DebugAttributeBuffer.Buffer == nullptr)
+					{
+						CreateHairStrandsDebugAttributeBuffer(GraphBuilder, &Instance->Strands.DebugAttributeBuffer, Instance->Strands.Data->GetNumPoints());
+					}
+
+					Strands_DebugAttributeReg = Register(GraphBuilder, Instance->Strands.DebugAttributeBuffer, ERDGImportedBufferFlags::CreateUAV);
+					Strands_DebugAttribute = &Strands_DebugAttributeReg;
+				}
 			#endif
 				Strands_PositionSRV = Strands_DeformedPosition.SRV;
 				Strands_PositionOffsetSRV = RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current));
