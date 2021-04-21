@@ -55,9 +55,6 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Results(const FSpawnTabArgs& Args);
 
 	FReply OnClickTakeSnapshot();
-	FReply OnClickApplyToWorld();
-
-
 	
 	TWeakObjectPtr<ULevelSnapshotsEditorData> EditorData;
 	

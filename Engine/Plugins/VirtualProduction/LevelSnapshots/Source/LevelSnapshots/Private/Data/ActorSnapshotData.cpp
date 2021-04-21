@@ -59,7 +59,7 @@ void FActorSnapshotData::DeserializeIntoExistingWorldActor(UWorld* SnapshotWorld
 #if WITH_EDITOR
 			Original->Modify();
 #endif
-			CompData.DeserializeIntoRecreatedWorldActor(SerializedCompData, Original, Deserialized, WorldData);
+			CompData.DeserializeIntoExistingWorldActor(SerializedCompData, Original, Deserialized, WorldData, *ComponentSelectedProperties);
 		};
 	};
 

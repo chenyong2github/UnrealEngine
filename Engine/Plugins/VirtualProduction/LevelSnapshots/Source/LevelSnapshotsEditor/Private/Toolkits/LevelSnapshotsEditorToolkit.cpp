@@ -200,14 +200,16 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 	
 	return SNew(SDockTab)
         .Label(LOCTEXT("Levelsnapshots.Toolkit.ToolbarTitle", "Toolbar"))
+		.OnCanCloseTab_Lambda([]() {return false; })
 		.ShouldAutosize(true)
         [
 	        SNew(SBorder)
 	        .Padding(0)
 	        .BorderImage(FEditorStyle::GetBrush("NoBorder"))
+			.HAlign(HAlign_Fill)
 	        [
 				SNew(SHorizontalBox)
-
+				
 				// Take snapshot
 				+ SHorizontalBox::Slot()
 					.AutoWidth()
@@ -224,27 +226,23 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 	                ]
 				]
 
-				// Update results
+				// Open Settings
 				+ SHorizontalBox::Slot()
-					.AutoWidth()
-                    .HAlign(HAlign_Left)
+                    .HAlign(HAlign_Right)
 					.Padding(2.f, 2.f)
                 [
                     SNew(SButton)
-                    .ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
+					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Info")
                     .ForegroundColor(FSlateColor::UseForeground())
-                    .OnClicked_Raw(this, &FLevelSnapshotsEditorToolkit::OnClickApplyToWorld)
+                    .OnClicked_Lambda([]()
+                    {
+						FLevelSnapshotsEditorModule::OpenLevelSnapshotsSettings();
+						return FReply::Handled();
+                    })
                     [
-	                    SNew(SHorizontalBox)
-	                    +SHorizontalBox::Slot()
-	                        .AutoWidth()
-	                        .VAlign(VAlign_Center)
-	                    [
-		                    SNew(STextBlock)
-			                    .Justification(ETextJustify::Center)
-			                    .TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			                    .Text(LOCTEXT("ApplyToWorld", "Apply to World"))
-                    	]
+						SNew(STextBlock)
+						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+						.Text(FEditorFontGlyphs::Cogs)
                     ]
                 ]
         	]
@@ -254,6 +252,7 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_CustomToolbar(const 
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTabArgs& Args)
 {	
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
+		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.InputTitle", "Input"))
 		.ShouldAutosize(true)
 		[
@@ -266,6 +265,7 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Input(const FSpawnTa
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Filter(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
+		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.FilterTitle", "Filter"))
 		[
 			EditorFilters->GetOrCreateWidget()
@@ -277,6 +277,7 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Filter(const FSpawnT
 TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
+		.OnCanCloseTab_Lambda([]() {return false; })
 		.Label(LOCTEXT("Levelsnapshots.Toolkit.ResultTitle", "Result"))
 		[
 			EditorResults->GetOrCreateWidget()
@@ -288,42 +289,6 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawn
 FReply FLevelSnapshotsEditorToolkit::OnClickTakeSnapshot()
 {
 	FLevelSnapshotsEditorModule::Get().BuildPathsToSaveSnapshotWithOptionalForm();
-	return FReply::Handled();
-}
-
-FReply FLevelSnapshotsEditorToolkit::OnClickApplyToWorld()
-{
-	if (!ensure(EditorData.IsValid()))
-	{
-		FReply::Handled();
-	}
-
-	const TOptional<ULevelSnapshot*> ActiveLevelSnapshot = EditorData->GetActiveSnapshot();
-	if (ActiveLevelSnapshot.IsSet())
-	{
-		if (!ensure(EditorResults.IsValid()))
-		{
-			FReply::Handled();
-		}
-
-		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OnClickApplyToWorld"), STAT_LevelSnapshots, STATGROUP_LevelSnapshots);
-		{
-			// Measure how long it takes to get all selected properties from UI
-			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("BuildSelectionSetFromSelectedProperties"), STAT_BuildSelectionSetFromSelectedProperties, STATGROUP_LevelSnapshots);
-			EditorResults->BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
-		}
-		
-		UWorld* World = GEditor->GetEditorWorldContext().World();
-		ActiveLevelSnapshot.GetValue()->ApplySnapshotToWorld(World, EditorData->GetFilterResults()->GetPropertiesToRollback());
- 
-		EditorResults->RefreshResults();
-	}
-	else
-	{
-		FNotificationInfo Info(LOCTEXT("SelectSnapshotFirst", "Select a snapshot first."));
-		Info.ExpireDuration = 5.f;
-		FSlateNotificationManager::Get().AddNotification(Info);
-	}
 	return FReply::Handled();
 }
 
