@@ -1110,17 +1110,18 @@ namespace Chaos
 			{
 				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
-				FVec3 Location = A1 + Dir * A.GetRadius();
+				FVec3 LocationA = A1 + Dir * A.GetRadius();
+				FVec3 LocationB = P2 - Dir * B.GetRadius();
 				FVec3 Normal = -Dir;
 				// @todo(chaos): margin
 				Result.ShapeMargins[0] = 0.0f;
 				Result.ShapeMargins[1] = 0.0f;
-				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(Location);
-				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(Location);
+				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(LocationA);
+				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 				Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 				Result.Phi = NewPhi;
 				Result.Normal = Normal;
-				Result.Location = Location;
+				Result.Location = 0.5f * (LocationA + LocationB);
 			}
 
 			return Result;
@@ -1307,16 +1308,17 @@ namespace Chaos
 				FReal NewPhi = DeltaLen - (A.GetRadius() + B.GetRadius()) - ShapePadding;
 				FVec3 Dir = Delta / DeltaLen;
 				FVec3 Normal = -Dir;
-				FVec3 Location = P1 + Dir * A.GetRadius();
+				FVec3 LocationA = P1 + Dir * A.GetRadius();
+				FVec3 LocationB = P2 - Dir * B.GetRadius();
 				// @todo(chaos): margin
 				Result.ShapeMargins[0] = 0.0f;
 				Result.ShapeMargins[1] = 0.0f;
-				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(Location);
-				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(Location);
+				Result.ShapeContactPoints[0] = ATransform.InverseTransformPosition(LocationA);
+				Result.ShapeContactPoints[1] = BTransform.InverseTransformPosition(LocationB);
 				Result.ShapeContactNormal = BTransform.InverseTransformVector(Normal);
 				Result.Phi = NewPhi;
 				Result.Normal = Normal;
-				Result.Location = Location;
+				Result.Location = 0.5f * (LocationA + LocationB);
 			}
 
 			return Result;

@@ -173,6 +173,11 @@ namespace Chaos
 				AddManifoldPoint(ContactPoint, Dt);
 			}
 
+			// Copy currently active point
+			if (ContactPoint.Phi < Manifold.Phi)
+			{
+				SetActiveContactPoint(ContactPoint);
+			}
 		}
 		else 
 		{
@@ -187,11 +192,7 @@ namespace Chaos
 			}
 
 			InitManifoldPoint(ManifoldPoints[0], Dt);
-		}
 
-		// Copy currently active point
-		if (ContactPoint.Phi < Manifold.Phi)
-		{
 			SetActiveContactPoint(ContactPoint);
 		}
 	}
