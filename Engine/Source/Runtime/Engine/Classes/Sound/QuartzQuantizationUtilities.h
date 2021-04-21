@@ -67,7 +67,10 @@ enum class EQuartzCommandQuantization : uint8
 
 	Tick					UMETA(DisplayName = "On Tick (Smallest Value, same as 1/32)", ToolTip = "(same as 1/32)"),
 
-	Count				UMETA(Hidden),
+	Count					UMETA(Hidden),
+
+	None					UMETA(DisplayName = "None", ToolTip = "(Execute as soon as possible)"),
+	// (when using "Count" in various logic, we don't want to account for "None")
 };
 
 // An enumeration for specifying the denominator of time signatures
@@ -91,7 +94,7 @@ struct ENGINE_API FQuartzPulseOverrideStep
 
 	// The number of pulses for this beat duration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
-	int32 NumberOfPulses = 0;
+	int32 NumberOfPulses = 1;
 
 	// This Beat duration
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Time Signature")
@@ -137,21 +140,15 @@ struct ENGINE_API FQuartzTransportTimeStamp
 {
 	GENERATED_BODY()
 
-		int32 Bars { 0 };
+	int32 Bars { 0 };
 
 	int32 Beat{ 0 };
 
-	float BeatFration{ 0.f };
+	float BeatFraction{ 0.f };
 
-	bool IsZero() const
-	{
-		return (!Bars) && (!Beat) && FMath::IsNearlyZero(BeatFration);
-	}
+	bool IsZero() const;
 
-	void Reset()
-	{
-		Bars = 0;
-	}
+	void Reset();
 };
 
 
@@ -216,15 +213,21 @@ struct ENGINE_API FQuartzQuantizationBoundary
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Quantized Audio Clock Settings")
 	EQuarztQuantizationReference CountingReferencePoint;
 
+	// If this is true and the Clock hasn't started yet, the event will fire immediately when the Clock starts
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Quantized Audio Clock Settings")
+	bool bFireOnClockStart;
+
 	// ctor
 	FQuartzQuantizationBoundary(
-		EQuartzCommandQuantization InQuantization = EQuartzCommandQuantization::Tick
+		EQuartzCommandQuantization InQuantization = EQuartzCommandQuantization::None
 		, float InMultiplier = 1.f
 		, EQuarztQuantizationReference InReferencePoint = EQuarztQuantizationReference::BarRelative
+		, bool bInFireOnClockStart = true
 	)
 		: Quantization(InQuantization)
 		, Multiplier(InMultiplier)
 		, CountingReferencePoint(InReferencePoint)
+		, bFireOnClockStart(bInFireOnClockStart)
 	{}
 }; // struct FQuartzQuantizationBoundary
 
@@ -409,6 +412,7 @@ namespace Audio
 		// shared with FQuartzQuantizedCommandInitInfo:
 		FName ClockName;
 		FName ClockHandleName;
+		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary{ /* InQuantization */ EQuartzCommandQuantization::Tick, /* InMultiplier */ 1.f };
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue{ nullptr };
@@ -437,6 +441,7 @@ namespace Audio
 		// shared with FQuartzQuantizedRequestData
 		FName ClockName;
 		FName ClockHandleName;
+		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary;
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue;
@@ -486,6 +491,7 @@ namespace Audio
 
 		virtual bool IsLooping() { return false; }
 		virtual bool IsClockAltering() { return false; }
+		virtual bool RequiresAudioDevice() const { return false; }
 
 		virtual FName GetCommandName() const = 0;
 

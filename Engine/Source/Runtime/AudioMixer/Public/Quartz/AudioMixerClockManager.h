@@ -16,13 +16,21 @@ namespace Audio
 	{
 	public:
 		// ctor
-		FQuartzClockManager(Audio::FMixerDevice* InOwner);
+		FQuartzClockManager(Audio::FMixerDevice* InOwner = nullptr);
 
 		// dtor
 		~FQuartzClockManager();
 
+		int32 GetNumClocks() const { return ActiveClocks.Num(); }
+
 		// Called on AudioRenderThread
 		void Update(int32 NumFramesUntilNextUpdate);
+		void UpdateClock(FName InClockToAdvance, int32 NumFramesToAdvance);
+
+		// can be called from any thread for low-resolution clock updates
+		// (i.e. used when running without an audio device)
+		// not sample-accurate!
+		void LowResoultionUpdate(float DeltaTimeSeconds);
 
 		// add (and take ownership of) a new clock
 		// safe to call from AudioThread (uses critical section)
@@ -30,8 +38,10 @@ namespace Audio
 
 
 		// returns true if a clock with the given name already exists.
-		// OutKey is overwritten with a default object if the clock didn't exist
 		bool DoesClockExist(const FName& InClockName);
+
+		// returns true if the name is running
+		bool IsClockRunning(const FName& InClockName);
 
 		// remove existing clock
 		// safe to call from AudioThread (uses Audio Render Thread Command)
@@ -45,7 +55,11 @@ namespace Audio
 
 		// start the given clock
 		// safe to call from AudioThread (uses Audio Render Thread command)
-		void ResumeClock(const FName& InName);
+		void ResumeClock(const FName& InName, int32 NumFramesToDelayStart = 0);
+
+		// stop the given clock
+		// safe to call from AudioThread (uses Audio Render Thread command)
+		void StopClock(const FName& InName, bool CancelPendingEvents);
 
 		// stop the given clock
 		// safe to call from AudioThread (uses Audio Render Thread command)
@@ -76,6 +90,10 @@ namespace Audio
 		// cancel a queued command on a clock (i.e. cancel a PlayQuantized command if the sound is stopped before it is played)
 		bool CancelCommandOnClock(FName InOwningClockName, TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
 
+		bool HasClockBeenTickedThisUpdate(FName InClockName);
+
+		int32 GetLastUpdateSizeInFrames() { return LastUpdateSizeInFrames; }
+
 		// get access to the owning FMixerDevice
 		FMixerDevice* GetMixerDevice() const;
 
@@ -94,5 +112,8 @@ namespace Audio
 
 		// Our array of active clocks (mutation/access acquires clock)
 		TArray<TSharedPtr<FQuartzClock>> ActiveClocks;
+
+		FThreadSafeCounter LastClockTickedIndex{ 0 };
+		int32 LastUpdateSizeInFrames{ 0 };
 	};
 } // namespace Audio

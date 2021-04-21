@@ -53,6 +53,9 @@ namespace Audio
 		// start ticking the clock
 		void Resume();
 
+		// stop ticking and reset the clock
+		void Stop(bool CancelPendingEvents);
+
 		// stop ticking the clock
 		void Pause();
 
@@ -62,7 +65,11 @@ namespace Audio
 		// shutdown
 		void Shutdown();
 
-		// tick the clock
+		// low-resolution clock update
+		// (not sample-accurate!, useful when running without an Audio Device)
+		void LowResolutionTick(float InDeltaTimeSeconds);
+
+		// sample accurate clock update
 		void Tick(int32 InNumFramesUntilNextTick);
 
 		// Set the sample rate of the clock
@@ -98,14 +105,29 @@ namespace Audio
 		// does the clock have any pending events
 		bool HasPendingEvents();
 
+		// is the clock currently ticking?
+		bool IsRunning();
+
 		FMixerDevice* GetMixerDevice();
 
 		FMixerSourceManager* GetSourceManager();
 
+		FQuartzClockManager* GetClockManager();
+
 		void ResetTransport();
 
+		void AddToTickDelay(int32 NumFramesOfDelayToAdd)
+		{
+			TickDelayLengthInFrames += NumFramesOfDelayToAdd;
+		}
+
+		void SetTickDelay(int32 NumFramesOfDelay)
+		{
+			TickDelayLengthInFrames = NumFramesOfDelay;
+		}
+
 	private:
-		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0);
+		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
 
 		bool CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick);
 
@@ -130,6 +152,7 @@ namespace Audio
 
 		bool bIgnoresFlush{ false };
 
+		int32 TickDelayLengthInFrames{ 0 };
 
 	}; // class FQuartzClock
 

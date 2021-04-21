@@ -33,9 +33,11 @@ namespace Audio
 		}
 		else
 		{
-			// cancel ourselves (no source manager is bad news)
-			check(SourceManager);
-			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+			// cancel ourselves (no source manager may mean we are running without an audio device)
+			if (ensure(OwningClockPtr))
+			{
+				OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+			}
 		}
 		
 	}
@@ -45,7 +47,7 @@ namespace Audio
 	void FQuantizedPlayCommand::OnFinalCallbackCustom(int32 InNumFramesLeft)
 	{
 		// Access source manager through owning clock (via clock manager)
-		check(OwningClockPtr && OwningClockPtr->GetMixerDevice() && OwningClockPtr->GetMixerDevice()->GetSourceManager());
+		check(OwningClockPtr && OwningClockPtr->GetSourceManager());
 
 		// access source manager through owning clock (via clock manager)
 		// Owning Clock Ptr may be nullptr if this command was canceled.
@@ -59,8 +61,7 @@ namespace Audio
 			}
 			else
 			{
-				// cancel ourselves (no source manager is bad news)
-				check(SourceManager);
+				// cancel ourselves (no source manager may mean we are running without an audio device)
 				OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
 			}
 		}
@@ -69,8 +70,11 @@ namespace Audio
 
 	void FQuantizedPlayCommand::CancelCustom()
 	{
-		// release hold on pending source
-		OnFinalCallbackCustom(0);
+		if (OwningClockPtr && OwningClockPtr->GetSourceManager())
+		{
+			// release hold on pending source
+			OnFinalCallbackCustom(0);
+		}
 	}
 
 	static const FName PlayCommandName("Play Command");
@@ -128,6 +132,62 @@ namespace Audio
 	FName FQuantizedTransportReset::GetCommandName() const
 	{
 		return TransportResetCommandName;
+	}
+
+
+	TSharedPtr<IQuartzQuantizedCommand> FQuantizedOtherClockStart::GetDeepCopyOfDerivedObject() const
+	{
+		TSharedPtr<FQuantizedOtherClockStart> NewCopy = MakeShared<FQuantizedOtherClockStart>();
+
+		NewCopy->OwningClockPtr = OwningClockPtr;
+		NewCopy->NameOfClockToStart = NameOfClockToStart;
+
+		return NewCopy;
+	}
+
+	void FQuantizedOtherClockStart::OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
+	{
+		OwningClockPtr = InCommandInitInfo.OwningClockPointer;
+		check(OwningClockPtr.IsValid());
+
+		NameOfClockToStart = InCommandInitInfo.OtherClockName;
+
+		// shouldn't be trying to start the same clock that owns this command
+		if (OwningClockPtr->GetName() == NameOfClockToStart)
+		{
+			UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to start itself on a quantization boundary.  Ignoring command"), *NameOfClockToStart.ToString());
+			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+		}
+	}
+
+	void FQuantizedOtherClockStart::OnFinalCallbackCustom(int32 InNumFramesLeft)
+	{
+		if (!ensureMsgf(OwningClockPtr.IsValid(), TEXT("Quantized Other Clock Start is early exiting (invalid/missing Owning Clock Pointer)")))
+		{
+			return;
+		}
+
+		// get access to the clock manager
+		FQuartzClockManager* ClockManager = OwningClockPtr->GetClockManager();
+
+		bool bShouldStart = ClockManager && !ClockManager->IsClockRunning(NameOfClockToStart);
+
+		if (bShouldStart)
+		{
+			// ...start the clock
+			ClockManager->ResumeClock(NameOfClockToStart, InNumFramesLeft);
+
+			if (ClockManager->HasClockBeenTickedThisUpdate(NameOfClockToStart))
+			{
+				ClockManager->UpdateClock(NameOfClockToStart, ClockManager->GetLastUpdateSizeInFrames());
+			}
+		}
+	}
+
+	static const FName StartOtherClockName("Start Other Clock Command");
+	FName FQuantizedOtherClockStart::GetCommandName() const
+	{
+		return StartOtherClockName;
 	}
 
 } // namespace Audio

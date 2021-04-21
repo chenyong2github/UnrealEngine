@@ -4,6 +4,15 @@
 #include "Quartz/AudioMixerClockManager.h"
 #include "AudioMixerSourceManager.h"
 
+
+static float HeadlessClockSampleRateCvar = 100000.f;
+FAutoConsoleVariableRef CVarHeadlessClockSampleRate(
+	TEXT("au.Quartz.HeadlessClockSampleRate"),
+	HeadlessClockSampleRateCvar,
+	TEXT("Sample rate to use for Quartz Clocks/Metronomes when no Mixer Device is present.\n")
+	TEXT("0: Not Enabled, 1: Enabled"),
+	ECVF_Default);
+
 namespace Audio
 {
 	FQuartzClock::FQuartzClock(const FName& InName, const FQuartzClockSettings& InClockSettings, FQuartzClockManager* InOwningClockManagerPtr)
@@ -20,6 +29,10 @@ namespace Audio
 		{
 			Metronome.SetSampleRate(MixerDevice->GetSampleRate());
 		}
+		else
+		{
+			Metronome.SetSampleRate(HeadlessClockSampleRateCvar);
+		}
 	}
 
 	FQuartzClock::~FQuartzClock()
@@ -34,6 +47,10 @@ namespace Audio
 		if (MixerDevice)
 		{
 			InNewTickRate.SetSampleRate(MixerDevice->GetSampleRate());
+		}
+		else
+		{
+			InNewTickRate.SetSampleRate(HeadlessClockSampleRateCvar);
 		}
 
 		Metronome.SetTickRate(InNewTickRate, NumFramesLeft);
@@ -80,6 +97,26 @@ namespace Audio
 		bIsRunning = true;
 	}
 
+	void FQuartzClock::Stop(bool CancelPendingEvents)
+	{
+		bIsRunning = false;
+		Metronome.ResetTransport();
+		TickDelayLengthInFrames = 0;
+
+		if (CancelPendingEvents)
+		{
+			for (auto& Command : PendingCommands)
+			{
+				Command.Command->Cancel();
+			}
+
+			for (auto& Command : ClockAlteringPendingCommands)
+			{
+				Command.Command->Cancel();
+			}
+		}
+	}
+
 	void FQuartzClock::Pause()
 	{
 		if (bIsRunning)
@@ -103,6 +140,7 @@ namespace Audio
 	void FQuartzClock::Restart(bool bPause)
 	{
 		bIsRunning = !bPause;
+		TickDelayLengthInFrames = 0;
 	}
 
 	void FQuartzClock::Shutdown()
@@ -121,22 +159,45 @@ namespace Audio
 		ClockAlteringPendingCommands.Reset();
 	}
 
+	void FQuartzClock::LowResolutionTick(float InDeltaTimeSeconds)
+	{
+		Tick(static_cast<int32>(InDeltaTimeSeconds * Metronome.GetTickRate().GetSampleRate()));
+	}
+
 	void FQuartzClock::Tick(int32 InNumFramesUntilNextTick)
 	{
-		const int32 FramesOfLatency = (ThreadLatencyInMilliseconds / 1000) * Metronome.GetTickRate().GetSampleRate();
-
 		if (!bIsRunning)
 		{
 			return;
 		}
 
-		TickInternal(InNumFramesUntilNextTick, ClockAlteringPendingCommands, FramesOfLatency); // (process things like BPM changes first)
-		TickInternal(InNumFramesUntilNextTick, PendingCommands, FramesOfLatency);
+		if (TickDelayLengthInFrames >= InNumFramesUntilNextTick)
+		{
+			TickDelayLengthInFrames -= InNumFramesUntilNextTick;
+			return;
+		}
+
+		const int32 FramesOfLatency = (ThreadLatencyInMilliseconds / 1000) * Metronome.GetTickRate().GetSampleRate();
+
+		if (TickDelayLengthInFrames == 0)
+		{
+			TickInternal(InNumFramesUntilNextTick, ClockAlteringPendingCommands, FramesOfLatency); // (process things like BPM changes first)
+			TickInternal(InNumFramesUntilNextTick, PendingCommands, FramesOfLatency);
+		}
+		else
+		{
+			TickInternal(TickDelayLengthInFrames, ClockAlteringPendingCommands, FramesOfLatency);
+			TickInternal(TickDelayLengthInFrames, PendingCommands, FramesOfLatency);
+
+			TickInternal(InNumFramesUntilNextTick - TickDelayLengthInFrames, ClockAlteringPendingCommands, FramesOfLatency, TickDelayLengthInFrames);
+			TickInternal(InNumFramesUntilNextTick - TickDelayLengthInFrames, PendingCommands, FramesOfLatency, TickDelayLengthInFrames);
+		}
+
 
 		Metronome.Tick(InNumFramesUntilNextTick, FramesOfLatency);
 	}
 
-	void FQuartzClock::TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency)
+	void FQuartzClock::TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency, int32 FramesOfDelay)
 	{
 		bool bHaveCommandsToRemove = false;
 
@@ -152,7 +213,7 @@ namespace Audio
 			// Time To execute?
 			if (PendingCommand.NumFramesUntilExec < InNumFramesUntilNextTick)
 			{
-				PendingCommand.Command->OnFinalCallback(PendingCommand.NumFramesUntilExec);
+				PendingCommand.Command->OnFinalCallback(PendingCommand.NumFramesUntilExec + FramesOfDelay);
 				PendingCommand.Command.Reset();
 				bHaveCommandsToRemove = true;
 			}
@@ -220,6 +281,19 @@ namespace Audio
 
 	void FQuartzClock::AddQuantizedCommand(FQuartzQuantizationBoundary InQuantizationBondary, TSharedPtr<IQuartzQuantizedCommand> InNewEvent)
 	{
+		if (!ensure(InNewEvent.IsValid()))
+		{
+			return;
+		}
+
+		// if this is unquantized, execute immediately (even if the clock is paused)
+		if (InQuantizationBondary.Quantization == EQuartzCommandQuantization::None)
+		{
+			InNewEvent->AboutToStart();
+			InNewEvent->OnFinalCallback(0);
+			return;
+		}
+
 		// get number of frames until event (assuming we are at frame 0)
 		int32 FramesUntilExec = Metronome.GetFramesUntilBoundary(InQuantizationBondary);
 
@@ -250,6 +324,11 @@ namespace Audio
 		return ((PendingCommands.Num() + ClockAlteringPendingCommands.Num() ) > 0);
 	}
 
+	bool FQuartzClock::IsRunning()
+	{
+		return bIsRunning;
+	}
+
 	FMixerDevice* FQuartzClock::GetMixerDevice()
 	{
 		checkSlow(OwningClockManagerPtr);
@@ -271,6 +350,16 @@ namespace Audio
 			return MixerDevice->GetSourceManager();
 		}
 		
+		return nullptr;
+	}
+
+	FQuartzClockManager* FQuartzClock::GetClockManager()
+	{
+		checkSlow(OwningClockManagerPtr);
+		if (OwningClockManagerPtr)
+		{
+			return OwningClockManagerPtr;
+		}
 		return nullptr;
 	}
 
