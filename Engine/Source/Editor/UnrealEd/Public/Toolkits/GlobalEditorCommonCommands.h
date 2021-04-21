@@ -32,6 +32,8 @@ public:
 	TSharedPtr<FUICommandInfo> FindInContentBrowser;
 	TSharedPtr<FUICommandInfo> SummonControlTabNavigation;
 	TSharedPtr<FUICommandInfo> SummonControlTabNavigationAlternate;
+	TSharedPtr<FUICommandInfo> SummonControlTabNavigationBackwards;
+	TSharedPtr<FUICommandInfo> SummonControlTabNavigationBackwardsAlternate;
 	TSharedPtr<FUICommandInfo> SummonOpenAssetDialog;
 	TSharedPtr<FUICommandInfo> SummonOpenAssetDialogAlternate;
 	TSharedPtr<FUICommandInfo> OpenDocumentation;

@@ -28,8 +28,11 @@ FGlobalEditorCommonCommands::FGlobalEditorCommonCommands()
 
 void FGlobalEditorCommonCommands::RegisterCommands()
 {
-	UI_COMMAND(SummonControlTabNavigation, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Tab));
-	UI_COMMAND(SummonControlTabNavigationAlternate, "Tab Navigation", "Summons a list of open assets and tabs", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command, EKeys::Tab));
+	UI_COMMAND(SummonControlTabNavigation, "Tab Navigation", "Summons a list of open assets and tabs, and navigates forwards in it.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::Tab));
+	UI_COMMAND(SummonControlTabNavigationAlternate, "Tab Navigation", "Summons a list of open assets and tabs, and navigates forward in its.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command, EKeys::Tab));
+
+	UI_COMMAND(SummonControlTabNavigationBackwards, "Tab Navigation Backwards", "Summons a list of open assets and tabs, and navigates backwards in it.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control | EModifierKey::Shift, EKeys::Tab));
+	UI_COMMAND(SummonControlTabNavigationBackwardsAlternate, "Tab Navigation Backwards", "Summons a list of open assets and tabs, and navigates backwards in it.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Command | EModifierKey::Shift, EKeys::Tab));
 
 	UI_COMMAND(SummonOpenAssetDialog, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::P));
 	UI_COMMAND(SummonOpenAssetDialogAlternate, "Open Asset...", "Summons an asset picker", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt | EModifierKey::Shift, EKeys::O));
@@ -52,6 +55,14 @@ void FGlobalEditorCommonCommands::MapActions(TSharedRef<FUICommandList>& Toolkit
 	ToolkitCommands->MapAction(
 		Get().SummonControlTabNavigationAlternate,
 		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigationAlternate));
+
+	ToolkitCommands->MapAction(
+		Get().SummonControlTabNavigationBackwards,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigationBackwards));
+
+	ToolkitCommands->MapAction(
+		Get().SummonControlTabNavigationBackwardsAlternate,
+		FExecuteAction::CreateStatic(&FGlobalEditorCommonCommands::OnPressedCtrlTab, Get().SummonControlTabNavigationBackwardsAlternate));
 
 	ToolkitCommands->MapAction(
 		Get().SummonOpenAssetDialog,
