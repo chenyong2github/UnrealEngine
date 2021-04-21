@@ -24,6 +24,15 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
+
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override;
+
+	virtual bool SupportsKeyboardFocus() const override
+	{
+		return true;
+	}
+
+	/** Regenerate the list of functions. */
 	void Refresh();
 
 private:
