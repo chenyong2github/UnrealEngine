@@ -2057,7 +2057,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeStart);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeEnd);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ResetSelectionRange);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ClearSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectKeysInSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectSectionsInSelectionRange);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectAllInSelectionRange);

@@ -142,7 +142,7 @@ public:
 	virtual void SetSelectionRangeStart() override;
 
 	/** Clear and reset the selection range. */
-	void ResetSelectionRange();
+	void ClearSelectionRange();
 
 	/** Select all keys that fall into the current selection range. */
 	void SelectInSelectionRange(bool bSelectKeys, bool bSelectSections);
