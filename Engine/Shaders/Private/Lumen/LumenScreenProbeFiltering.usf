@@ -488,16 +488,20 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 		}
 		else
 		{
-			// Clear probes outside of valid depth range to zero
+			// Clear probes on unlit pixels to safe values, GetScreenProbeSH in the upsample does not skip reading from invalid probes which might contain NaN
+			uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
-			uint ThreadIndex = GroupThreadId.y * ScreenProbeGatherOctahedronResolution + GroupThreadId.x;
-			uint2 ProbeTexelCoord = GroupThreadId.xy;
+			if (ThreadIndex == 0)
+			{
+				uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
+				RWScreenProbeRadianceSHAmbient[WriteIndex] = 0;
+			}
 
-			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
+			if (ThreadIndex < 3)
 			{
 				uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = 0;
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = 0;
 			}
 		}
 	}
