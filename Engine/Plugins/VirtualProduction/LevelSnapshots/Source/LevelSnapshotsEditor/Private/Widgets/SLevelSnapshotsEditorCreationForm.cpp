@@ -37,12 +37,18 @@ TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 		.SizingRule(ESizingRule::Autosized)
 		.AutoCenter(EAutoCenter::PrimaryWorkArea)
 		.ClientSize(BaseWindowSize)
+		.SupportsMinimize(false)
+		.SupportsMaximize(false)
 		.ScreenPosition(WindowPosition);
+
+	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings);
 	
 	Window->SetContent
 	(
-		SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings)
+		CreationForm
 	);
+
+	Window->SetOnWindowClosed(FOnWindowClosed::CreateSP(CreationForm, &SLevelSnapshotsEditorCreationForm::OnWindowClosed));
 
 	FSlateApplication::Get().AddWindow(Window);
 
@@ -128,7 +134,7 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 					.ForegroundColor(FSlateColor::UseForeground())
 					.SelectAllTextWhenFocused(true)
 					.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_DescriptionHintText", "<description>"))
-					.Text(this, &SLevelSnapshotsEditorCreationForm::GetDescriptionText)
+					.Text(DescriptionText)
 					.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetDescriptionText)
 				]
 				
@@ -203,7 +209,6 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 
 SLevelSnapshotsEditorCreationForm::~SLevelSnapshotsEditorCreationForm()
 {
-	CallOnCloseDelegate.ExecuteIfBound(bWasCreateSnapshotPressed, GetDescriptionText());
 	CallOnCloseDelegate.Unbind();
 }
 
@@ -224,13 +229,6 @@ void SLevelSnapshotsEditorCreationForm::SetNameOverrideText(const FText& InNewTe
 	ProjectSettingsObjectPtr->SetNameOverride(NameAsString);
 
 	bNameDiffersFromDefault = ProjectSettingsObjectPtr.Get()->IsNameOverridden();
-}
-
-FText SLevelSnapshotsEditorCreationForm::GetDescriptionText() const
-{
-	check(ProjectSettingsObjectPtr.IsValid());
-
-	return DescriptionText;
 }
 
 void SLevelSnapshotsEditorCreationForm::SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType)
@@ -295,4 +293,9 @@ FReply SLevelSnapshotsEditorCreationForm::OnCreateButtonPressed()
 	WidgetWindow.Pin()->RequestDestroyWindow();
 	
 	return FReply::Handled();
+}
+
+void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const
+{
+	CallOnCloseDelegate.ExecuteIfBound(bWasCreateSnapshotPressed, DescriptionText);
 }

@@ -32,8 +32,6 @@ public:
 
 	void SetNameOverrideText(const FText& InNewText, ETextCommit::Type InCommitType);
 
-	FText GetDescriptionText() const;
-
 	void SetDescriptionText(const FText& InNewText, ETextCommit::Type InCommitType);
 
 	FText GetPathOverrideText() const;
@@ -49,6 +47,8 @@ public:
 	FReply OnResetDirClicked();
 
 	FReply OnCreateButtonPressed();
+
+	void OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const;
 
 private:
 	
