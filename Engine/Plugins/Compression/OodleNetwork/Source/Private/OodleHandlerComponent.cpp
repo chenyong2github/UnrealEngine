@@ -29,6 +29,9 @@ DEFINE_LOG_CATEGORY(OodleHandlerComponentLog);
 #define OODLE_HANDLER_VERBOSE_LOG	1
 #endif
 
+#ifndef OODLE_USE_FALLBACK_DICTIONARY
+	#define OODLE_USE_FALLBACK_DICTIONARY !(PLATFORM_PS4 || PLATFORM_SWITCH)
+#endif
 
 // @todo #JohnB: You're not taking into account, the overhead of sending 'DecompressedLength', in the stats
 
@@ -524,7 +527,7 @@ void OodleHandlerComponent::InitializeDictionaries()
 
 	bInitializedDictionaries = true;
 
-#if (!UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING) && !(PLATFORM_PS4 || PLATFORM_XBOXONE || PLATFORM_SWITCH)
+#if (!UE_BUILD_SHIPPING || OODLE_DEV_SHIPPING) && OODLE_USE_FALLBACK_DICTIONARY
 	if (bUseDictionaryIfPresent)
 	{
 		bGotDictionaryPath = FindFallbackDictionaries(ServerDictionaryPath, ClientDictionaryPath);

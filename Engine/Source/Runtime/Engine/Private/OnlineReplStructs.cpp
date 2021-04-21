@@ -775,14 +775,12 @@ void TestUniqueIdRepl(UWorld* InWorld)
 	}
 
 	bool bPlatformSerializationSuccess = true;
-#if PLATFORM_XBOXONE || PLATFORM_PS4
-	if (bSetupSuccess)
+	FString NativePlatformService;
+	if (bSetupSuccess && 
+		GConfig->GetString(TEXT("OnlineSubsystem"), TEXT("NativePlatformService"), NativePlatformService, GEngineIni) && 
+		!NativePlatformService.IsEmpty())
 	{
-#if PLATFORM_XBOXONE
-		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("LIVE")));
-#elif PLATFORM_PS4
-		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("PS4")));
-#endif
+		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(*NativePlatformService));
 
 		FUniqueNetIdRepl ValidPlatformIdIn(PlatformUserId);
 		if (!ValidPlatformIdIn.IsValid() || PlatformUserId != ValidPlatformIdIn.GetUniqueNetId() || *PlatformUserId != *ValidPlatformIdIn)
@@ -833,7 +831,6 @@ void TestUniqueIdRepl(UWorld* InWorld)
 			CHECK_REPL_EQUALITY(ValidPlatformIdIn, ValidPlatformIdOut, bPlatformSerializationSuccess);
 		}
 	}
-#endif
 
 	bool bJSONSerializationSuccess = true;
 	if (bSetupSuccess)

@@ -466,10 +466,6 @@ void FPreLoadScreenManager::PlatformSpecificGameLogicFrameTick()
 #if PLATFORM_IOS
 	IOS_PlatformSpecificGameLogicFrameTick();
 #endif //PLATFORM_IOS
-
-#if PLATFORM_XBOXONE
-	XboxOne_PlatformSpecificGameLogicFrameTick();
-#endif // PLATFORM_XBOXONE
 }
 
 void FPreLoadScreenManager::EnableRendering(bool bEnabled)
@@ -724,11 +720,3 @@ void FPreLoadScreenManager::IOS_PlatformSpecificGameLogicFrameTick()
 	[FIOSAsyncTask ProcessAsyncTasks];
 }
 #endif //PLATFORM_IOS
-
-#if PLATFORM_XBOXONE
-void FPreLoadScreenManager::XboxOne_PlatformSpecificGameLogicFrameTick()
-{
-	// Xbox doesn't run engine init on the main thread, so we need to flush logging periodically
-	GLog->FlushThreadedLogs();
-}
-#endif //PLATFORM_XBOXONE

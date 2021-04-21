@@ -1179,12 +1179,7 @@ void FChunkDownloader::TryDownloadBuildManifest(int TryNumber)
 	check(BuildBaseUrls.Num() > 0);
 
 	// download the manifest from CDN, then load it
-#if PLATFORM_PS4 || PLATFORM_SWITCH || PLATFORM_XBOXONE
-	// TODO: Remove when the other platforms' build manifests exist in the CDN
-	FString ManifestFileName = FString::Printf(TEXT("BuildManifest-Windows.txt"));
-#else
 	FString ManifestFileName = FString::Printf(TEXT("BuildManifest-%s.txt"), *PlatformName);
-#endif
 	FString Url = BuildBaseUrls[TryNumber % BuildBaseUrls.Num()] / ManifestFileName;
 	UE_LOG(LogChunkDownloader, Log, TEXT("Downloading build manifest (attempt #%d) from %s"), TryNumber+1, *Url);
 

@@ -42,7 +42,7 @@ public:
 	
 	virtual void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor) override
 	{
-#if PLATFORM_XBOXONE
+#if UE_COMMONINPUT_PLATFORM_USE_GAMEPAD_IF_MOUSE_REMOVED
 		//fall back to gamepad controls if the mouse is removed... seems to stop slate getting confused and preventing gamepad input
 		if( InputSubsystem.GetCurrentInputType() == ECommonInputType::MouseAndKeyboard && !FSlateApplication::Get().IsMouseAttached() )
 		{
@@ -682,7 +682,7 @@ bool UCommonInputSubsystem::PlatformSupportsInputType(ECommonInputType InInputTy
 	{
 	case ECommonInputType::MouseAndKeyboard:
 	{
-#if PLATFORM_XBOXONE || PLATFORM_SWITCH
+#if UE_COMMONINPUT_PLATFORM_KBM_REQUIRES_ATTACHED_MOUSE || PLATFORM_SWITCH
 		bPlatformSupportsInput &= FSlateApplication::Get().IsMouseAttached();
 #endif
 	}
