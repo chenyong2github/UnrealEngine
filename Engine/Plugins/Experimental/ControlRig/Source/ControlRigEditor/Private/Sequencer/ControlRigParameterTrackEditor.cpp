@@ -1805,9 +1805,12 @@ FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEdito
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
 
 	// Prioritize a control rig parameter track on this component
-	if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Result.Handle, NAME_None))
+	if (Result.Handle.IsValid())
 	{
-		return Result;
+		if (MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Result.Handle, NAME_None))
+		{
+			return Result;
+		}
 	}
 
 	// If the owner has a control rig parameter track, let's use it
