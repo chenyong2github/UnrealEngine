@@ -2,7 +2,7 @@
 
 #include "LevelSnapshotsEditorModule.h"
 
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "NegatableFilter.h"
 #include "NegatableFilterDetailsCustomization.h"
 #include "LevelSnapshotsEditorCommands.h"

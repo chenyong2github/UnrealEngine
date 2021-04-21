@@ -13,7 +13,7 @@ struct LEVELSNAPSHOTS_API FClassDefaultObjectSnapshotData : public FObjectSnapsh
 
 	/* Holds a value if the value was already loaded from the snapshot. */
 	UPROPERTY(Transient)
-	UObject* CachedLoadedClassDefault;
+	UObject* CachedLoadedClassDefault = nullptr;
 	
 };
 

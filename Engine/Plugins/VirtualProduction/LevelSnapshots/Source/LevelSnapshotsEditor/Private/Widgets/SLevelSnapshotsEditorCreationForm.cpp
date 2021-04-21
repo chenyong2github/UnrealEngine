@@ -2,7 +2,7 @@
 
 #include "SLevelSnapshotsEditorCreationForm.h"
 
-#include "LevelSnapshotsEditorProjectSettings.h"
+#include "Settings/LevelSnapshotsEditorProjectSettings.h"
 #include "LevelSnapshotsEditorStyle.h"
 
 #include "CoreMinimal.h"

@@ -13,11 +13,11 @@ struct LEVELSNAPSHOTFILTERS_API FIsActorValidParams
 
 	/* The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* SnapshotActor;
+	AActor* SnapshotActor = nullptr;
 	
 	/* The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadWrite, Category = "Level Snapshots")
-	AActor* LevelActor;
+	AActor* LevelActor = nullptr;
 
 	FIsActorValidParams() = default;
 	FIsActorValidParams(AActor* InSnapshotActor, AActor* InLevelActor)
@@ -33,11 +33,11 @@ struct LEVELSNAPSHOTFILTERS_API FIsPropertyValidParams
 
 	/* The actor saved in the snapshot */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* SnapshotActor;
+	AActor* SnapshotActor = nullptr;
 	
 	/* The actor equivalent to LevelActor: it exists in the world */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* LevelActor;
+	AActor* LevelActor = nullptr;
 
 	/* For passing to FProperty::ContainerPtrToValuePtr. This is either SnapshotActor or a subobject thereof. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
@@ -101,7 +101,7 @@ struct LEVELSNAPSHOTFILTERS_API FIsAddedActorValidParams
 
 	/* This actor was added to the level since the snapshot was taken. */
 	UPROPERTY(BlueprintReadOnly, Category = "Level Snapshots")
-	AActor* NewActor;
+	AActor* NewActor = nullptr;
 
 	FIsAddedActorValidParams() = default;
 	explicit FIsAddedActorValidParams(AActor* NewActor)
