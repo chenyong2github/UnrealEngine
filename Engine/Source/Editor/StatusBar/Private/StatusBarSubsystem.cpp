@@ -215,6 +215,8 @@ void UStatusBarSubsystem::Deinitialize()
 	FSourceControlCommands::Unregister();
 
 	FSlateNotificationManager::Get().SetProgressNotificationHandler(nullptr);
+
+	StatusBarContentBrowser.Reset();
 }
 
 bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)

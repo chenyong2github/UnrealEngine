@@ -8,7 +8,14 @@ namespace TypedElementList_Private
 
 void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle, const UClass* InBaseInterfaceType, FTypedElement& OutElement)
 {
-	InRegistry->Private_GetElementImpl(InElementHandle, InBaseInterfaceType, OutElement);
+	if (InRegistry)
+	{
+		InRegistry->Private_GetElementImpl(InElementHandle, InBaseInterfaceType, OutElement);
+	}
+	else
+	{
+		OutElement.Release();
+	}
 }
 
 } // namespace TypedElementList_Private
@@ -125,6 +132,7 @@ void UTypedElementList::BeginDestroy()
 {
 	Super::BeginDestroy();
 
+	Empty();
 	LegacySync.Reset();
 	if (UTypedElementRegistry* RegistryPtr = Registry.Get())
 	{
