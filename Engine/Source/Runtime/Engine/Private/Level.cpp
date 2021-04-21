@@ -2503,6 +2503,12 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->OriginalWorldName == NAME_None ? World->GetName() : World->OriginalWorldName.ToString());
 	if (!ExternalActorsPath.IsEmpty())
 	{
+		// Make sure we filter out similar external folders
+		if (!ExternalActorsPath.EndsWith("/"))
+		{
+			ExternalActorsPath += "/";
+		}
+
 		for (TObjectIterator<UPackage> It; It; ++It)
 		{
 			if (!ActorPackages.Contains(*It) && It->GetLoadedPath().GetPackageName().Contains(ExternalActorsPath))
