@@ -1023,7 +1023,9 @@ void FDatasmithMaterialExpressions::ConnectToSlot(UMaterialExpression* ToBeConne
 
 	UMaterialFunction* Func = Cast< UMaterialFunction >( UnrealMatOrFunc );
 
-	if ((Slot == EDatasmithTextureSlot::METALLIC || Slot == EDatasmithTextureSlot::SPECULAR || Slot == EDatasmithTextureSlot::ROUGHNESS || Slot == EDatasmithTextureSlot::DISPLACE) && !ToBeConnected->IsA< UMaterialExpressionConstant >() && InputChannel == 0)
+	if ((Slot == EDatasmithTextureSlot::METALLIC || Slot == EDatasmithTextureSlot::SPECULAR || Slot == EDatasmithTextureSlot::ROUGHNESS)
+	  && !ToBeConnected->IsA< UMaterialExpressionConstant >()
+	  && InputChannel == 0)
 	{
 		if (UnrealMaterial != nullptr)
 		{
@@ -1046,8 +1048,6 @@ void FDatasmithMaterialExpressions::ConnectToSlot(UMaterialExpression* ToBeConne
 			break;
 		case EDatasmithTextureSlot::OPACITYMASK:
 			UnrealMaterial->BlendMode = EBlendMode::BLEND_Masked;
-			break;
-		case EDatasmithTextureSlot::DISPLACE:
 			break;
 		}
 	}
@@ -2433,14 +2433,14 @@ void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Pack
 
 	ModulateNormalAmount(UnrealMaterial, ShaderElement->GetBumpAmount());
 
-	// Displace mapping
-	if (AddCompExpression(ShaderElement->GetDisplaceComp(), UnrealMaterial, EDatasmithTextureSlot::DISPLACE, AssetsContext) == nullptr)
-	{
-		if (DisplaceTexture != nullptr)
-		{
-			AddTextureExpression(DisplaceTexture, ShaderElement->GetDisplaceTextureSampler(), 0.0, 0.0, UnrealMaterial, EDatasmithTextureSlot::DISPLACE);
-		}
-	}
+	// Displace mapping. #jira UE-113727
+// 	if (AddCompExpression(ShaderElement->GetDisplaceComp(), UnrealMaterial, EDatasmithTextureSlot::DISPLACE, AssetsContext) == nullptr)
+// 	{
+// 		if (DisplaceTexture != nullptr)
+// 		{
+// 			AddTextureExpression(DisplaceTexture, ShaderElement->GetDisplaceTextureSampler(), 0.0, 0.0, UnrealMaterial, EDatasmithTextureSlot::DISPLACE);
+// 		}
+// 	}
 }
 
 UMaterialExpressionMaterialFunctionCall* FDatasmithMaterialExpressions::BlendFunctions(UMaterial* UnrealMaterial, const FDatasmithAssetsImportContext& AssetsContext,
@@ -3162,7 +3162,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	}
 
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal().GetOutputIndex() );
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
+// #jira UE-113727 // 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
 
 	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
