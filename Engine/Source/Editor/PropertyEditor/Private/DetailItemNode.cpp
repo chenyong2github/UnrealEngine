@@ -540,8 +540,11 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 
 	bool bPassesAllFilters = true;
 
-	if( InFilter.FilterStrings.Num() > 0 || InFilter.bShowOnlyModifiedProperties == true || InFilter.bShowOnlyDiffering == true 
-		|| InFilter.bShowKeyable == true || InFilter.bShowAnimated == true)
+	if( InFilter.FilterStrings.Num() > 0 || 
+		InFilter.bShowOnlyModifiedProperties == true || 
+		InFilter.bShowOnlyDiffering == true || 
+		InFilter.bShowKeyable == true || 
+		InFilter.bShowAnimated == true)
 	{
 		const bool bSearchFilterIsEmpty = InFilter.FilterStrings.Num() == 0;
 
@@ -559,7 +562,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 
 			const bool bPassesSearchFilter = bPassesCategoryFilter || bPassesValueFilter || bSearchFilterIsEmpty || ( bIsNotBeingFiltered || bIsSeenDueToFiltering || bIsParentSeenDueToFiltering );
 			const bool bPassesModifiedFilter = bPassesSearchFilter && ( InFilter.bShowOnlyModifiedProperties == false || PropertyNodePin->GetDiffersFromDefault() == true );
-			const bool bPassesDifferingFilter = InFilter.bShowOnlyDiffering ? InFilter.WhitelistedProperties.Find(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) != nullptr : true;
+			const bool bPassesWhitelistedFilter = InFilter.bShowOnlyWhitelisted ? InFilter.WhitelistedProperties.Contains(*FPropertyNode::CreatePropertyPath(PropertyNodePin.ToSharedRef())) : true;
 
 			bool bPassesKeyableFilter = true;
 			if (InFilter.bShowKeyable)
@@ -578,13 +581,13 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false || Local::ItemIsAnimated(ItemNode, PropertyNodePin));
 
 			// The property node is visible (note categories are never visible unless they have a child that is visible )
-			bPassesAllFilters = bPassesSearchFilter && bPassesModifiedFilter && bPassesDifferingFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
+			bPassesAllFilters = bPassesSearchFilter && bPassesModifiedFilter && bPassesWhitelistedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
 		}
 		else if (InCustomization.HasCustomWidget())
 		{
 			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.WidgetDecl->FilterTextString.ToString());
 			const bool bPassesModifiedFilter = InFilter.bShowOnlyModifiedProperties == false || InCustomization.WidgetDecl->EditConditionValue.Get(false);
-			//@todo we need to support custom widgets for keyable,animated, in particularly for transforms(ComponentTransformDetails).
+			//@todo we need to support custom widgets for keyable, animated, in particular for transforms(ComponentTransformDetails).
 			const bool bPassesKeyableFilter = (InFilter.bShowKeyable == false);
 			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false);
 			bPassesAllFilters = bPassesTextFilter && bPassesModifiedFilter && bPassesKeyableFilter && bPassesAnimatedFilter;
@@ -592,7 +595,7 @@ static bool PassesAllFilters( FDetailItemNode* ItemNode, const FDetailLayoutCust
 		else if (InCustomization.HasCustomBuilder())
 		{
 			const bool bPassesTextFilter = bPassesCategoryFilter || bPassesValueFilter || Local::StringPassesFilter(InFilter, InCustomization.CustomBuilderRow->GetWidgetRow().FilterTextString.ToString());
-			//@todo we need to support custom builders for modified, keyable, animated, in particularly for transforms(ComponentTransformDetails).
+			//@todo we need to support custom builders for modified, keyable, animated, in particular for transforms(ComponentTransformDetails).
 			const bool bPassesModifiedFilter = (InFilter.bShowOnlyModifiedProperties == false);
 			const bool bPassesKeyableFilter = (InFilter.bShowKeyable == false);
 			const bool bPassesAnimatedFilter = (InFilter.bShowAnimated == false);

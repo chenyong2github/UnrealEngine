@@ -34,10 +34,7 @@ class IPropertyGenerationUtilities;
 class SSearchBox;
 struct FDetailsViewObjectRoot;
 
-
 typedef STreeView< TSharedRef<class FDetailTreeNode> > SDetailTree;
-
-
 
 /** Represents a filter which controls the visibility of items in the details view */
 struct FDetailFilter
@@ -45,14 +42,23 @@ struct FDetailFilter
 	FDetailFilter()
 		: bShowOnlyModifiedProperties(false)
 		, bShowAllAdvanced(false)
-		, bShowOnlyDiffering(false)
 		, bShowAllChildrenIfCategoryMatches(true)
 		, bShowKeyable(false)
 		, bShowAnimated(false)
 		, bShowFavoritesCategory(false)
+		, bShowOnlyWhitelisted(false)
 	{}
 
-	bool IsEmptyFilter() const { return FilterStrings.Num() == 0 && bShowOnlyModifiedProperties == false && bShowAllAdvanced == false && bShowOnlyDiffering == false && bShowAllChildrenIfCategoryMatches == false && bShowKeyable == false && bShowAnimated == false; }
+	bool IsEmptyFilter() const 
+	{ 
+		return FilterStrings.Num() == 0 
+			&& bShowOnlyModifiedProperties == false 
+			&& bShowAllAdvanced == false 
+			&& bShowOnlyWhitelisted == false 
+			&& bShowAllChildrenIfCategoryMatches == false 
+			&& bShowKeyable == false 
+			&& bShowAnimated == false;
+	}
 
 	/** Any user search terms that items must match */
 	TArray<FString> FilterStrings;
@@ -60,8 +66,6 @@ struct FDetailFilter
 	bool bShowOnlyModifiedProperties;
 	/** If we should show all advanced properties */
 	bool bShowAllAdvanced;
-	/** If we should only show differing properties */
-	bool bShowOnlyDiffering;
 	/** If we should show all the children if their category name matches the search */
 	bool bShowAllChildrenIfCategoryMatches;
 	/** If we should only show keyable properties */
@@ -70,6 +74,9 @@ struct FDetailFilter
 	bool bShowAnimated;
 	/** If we should show the favorites category. */
 	bool bShowFavoritesCategory;
+	/** If we should only show whitelisted properties */
+	bool bShowOnlyWhitelisted;
+	/** The set of whitelisted properties to show. */
 	TSet<FPropertyPath> WhitelistedProperties;
 };
 
@@ -270,7 +277,7 @@ protected:
 	bool IsShowAllAdvancedChecked() const { return CurrentFilter.bShowAllAdvanced; }
 
 	/** @return true if show only differing is checked */
-	bool IsShowOnlyDifferingChecked() const { return CurrentFilter.bShowOnlyDiffering; }
+	bool IsShowOnlyWhitelistedChecked() const { return CurrentFilter.bShowOnlyWhitelisted; }
 
 	/** @return true if show all advanced is checked */
 	bool IsShowAllChildrenIfCategoryMatchesChecked() const { return CurrentFilter.bShowAllChildrenIfCategoryMatches; }
@@ -291,7 +298,7 @@ protected:
 	void OnShowAllAdvancedClicked();
 
 	/** Called when show only differing is clicked */
-	void OnShowOnlyDifferingClicked();
+	void OnShowOnlyWhitelistedClicked();
 
 	/** Called when show all children if category matches is clicked */
 	void OnShowAllChildrenIfCategoryMatchesClicked();

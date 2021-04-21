@@ -606,9 +606,9 @@ void SDetailsViewBase::OnShowAllAdvancedClicked()
 	UpdateFilteredDetails();
 }
 
-void SDetailsViewBase::OnShowOnlyDifferingClicked()
+void SDetailsViewBase::OnShowOnlyWhitelistedClicked()
 {
-	CurrentFilter.bShowOnlyDiffering = !CurrentFilter.bShowOnlyDiffering;
+	CurrentFilter.bShowOnlyWhitelisted = !CurrentFilter.bShowOnlyWhitelisted;
 
 	UpdateFilteredDetails();
 }

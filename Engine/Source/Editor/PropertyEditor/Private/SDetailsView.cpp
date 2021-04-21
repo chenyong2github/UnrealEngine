@@ -108,9 +108,9 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				LOCTEXT("ShowOnlyDiffering_ToolTip", "Displays only properties in this instance which have been changed or added from the instance being compared"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateSP(this, &SDetailsView::OnShowOnlyDifferingClicked),
+					FExecuteAction::CreateSP(this, &SDetailsView::OnShowOnlyWhitelistedClicked),
 					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SDetailsView::IsShowOnlyDifferingChecked)
+					FIsActionChecked::CreateSP(this, &SDetailsView::IsShowOnlyWhitelistedChecked)
 				),
 				NAME_None,
 				EUserInterfaceActionType::ToggleButton
