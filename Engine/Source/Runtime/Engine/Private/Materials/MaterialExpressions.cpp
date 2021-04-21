@@ -610,6 +610,16 @@ UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitial
 #endif // WITH_EDITORONLY_DATA
 }
 
+UObject* UMaterialExpression::GetAssetOwner() const
+{
+	return Function ? (UObject*)Function : (UObject*)Material;
+}
+
+FString UMaterialExpression::GetAssetPathName() const
+{
+	UObject* Asset = GetAssetOwner();
+	return Asset ? Asset->GetPathName() : FString();
+}
 
 #if WITH_EDITOR
 void UMaterialExpression::CopyMaterialExpressions(const TArray<UMaterialExpression*>& SrcExpressions, const TArray<UMaterialExpressionComment*>& SrcExpressionComments, 
@@ -2501,11 +2511,6 @@ void UMaterialExpressionRuntimeVirtualTextureSampleParameter::GetAllParameterInf
 	int32 CurrentSize = OutParameterInfo.Num();
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
 #if WITH_EDITOR
-	NewParameter.ParameterLocation = Material;
-	if (Function != nullptr)
-	{
-		NewParameter.ParameterLocation = Function;
-	}
 	if (HasConnectedOutputs())
 #endif
 	{
@@ -2869,12 +2874,6 @@ void UMaterialExpressionTextureSampleParameter::GetAllParameterInfo(TArray<FMate
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
 
 #if WITH_EDITOR
-	NewParameter.ParameterLocation = Material;
-	if (Function != nullptr)
-	{
-		NewParameter.ParameterLocation = Function;
-	}
-
 	if (HasConnectedOutputs())
 #endif
 	{
@@ -7412,14 +7411,6 @@ void UMaterialExpressionParameter::GetAllParameterInfo(TArray<FMaterialParameter
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
 
 #if WITH_EDITOR
-	if (Function != nullptr)
-	{
-		NewParameter.ParameterLocation = Function;
-	}
-	else
-	{
-		NewParameter.ParameterLocation = Material;
-	}
 	if (HasConnectedOutputs())
 #endif
 	{
@@ -10610,11 +10601,6 @@ void UMaterialExpressionFontSampleParameter::GetAllParameterInfo(TArray<FMateria
 	int32 CurrentSize = OutParameterInfo.Num();
 	FMaterialParameterInfo NewParameter(ParameterName, InBaseParameterInfo.Association, InBaseParameterInfo.Index);
 #if WITH_EDITOR
-	NewParameter.ParameterLocation = Material;
-	if (Function != nullptr)
-	{
-		NewParameter.ParameterLocation = Function;
-	}
 	if (HasConnectedOutputs())
 #endif
 	{
