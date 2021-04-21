@@ -294,6 +294,31 @@ namespace UE
 				return NewTexture;
 			}
 
+			// Computes and returns the hash string for the texture at the given path.
+			// Handles regular texture asset paths as well as asset paths identifying textures inside Usdz archives.
+			// Returns an empty string if the texture could not be hashed.
+			FString GetTextureHash(const FString& ResolvedTexturePath)
+			{
+				FString TextureExtension;
+				if (IsInsideUsdzArchive(ResolvedTexturePath, TextureExtension))
+				{
+					uint64 BufferSize = 0;
+					TUsdStore<std::shared_ptr<const char>> Buffer = ReadTextureBufferFromUsdzArchive(ResolvedTexturePath, BufferSize);
+					const uint8* BufferStart = reinterpret_cast<const uint8*>(Buffer.Get().get());
+
+					if (BufferSize > 0 && BufferStart != nullptr)
+					{
+						return FMD5::HashBytes(BufferStart, BufferSize);
+					}
+				}
+				else
+				{
+					return LexToString(FMD5Hash::HashFile(*ResolvedTexturePath));
+				}
+
+				return {};
+			}
+
 			// Will traverse the shade material graph backwards looking for a string/token value and return it.
 			// Returns the empty string if it didn't find anything.
 			FString RecursivelySearchForStringValue( pxr::UsdShadeInput Input )
@@ -446,7 +471,7 @@ namespace UE
 							return false;
 						}
 
-						const FString TextureHash = LexToString( FMD5Hash::HashFile( *TexturePath ) );
+						const FString TextureHash = GetTextureHash(TexturePath);
 
 						// We only actually want to retrieve the textures if we have a cache to put them in
 						if ( TexturesCache )
