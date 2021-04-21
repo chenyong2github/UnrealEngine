@@ -2902,7 +2902,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 		// Lightmap data
 		StaticMesh->SetLightingGuid();
 		StaticMesh->SetLightMapResolution(SpeedTree.LightmapSize());
-		StaticMesh->SetLightMapCoordinateIndex(NumUVs - 1);
+		StaticMesh->SetLightMapCoordinateIndex(3);
 
 		// make geometry LODs
 		for (uint32 LODIndex = 0; LODIndex < SpeedTree.Lods().Count(); ++LODIndex)
@@ -2993,19 +2993,18 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 						VertexInstanceColors[VertexInstanceID] = FVector4(FLinearColor(FColor(Vertex.m_vColor.x * 255, Vertex.m_vColor.y * 255, Vertex.m_vColor.z * 255, Vertex.m_fBlendWeight * 255)));
 
 						// Texcoord setup:
-						// 0		Diffuse
+						// 0		Diffuse UV
 						// 1		Branch1Pos, Branch1Dir
 						// 2		Branch1Weight, RippleWeight
+						// 3		Lightmap UV
 
 						// If Branch2 is available
-						// 3		Branch2Pos, Branch2Dir
-						// 4		Branch2Weight, <Unused>
+						// 4		Branch2Pos, Branch2Dir
+						// 5		Branch2Weight, <Unused>
 
 						// If camera-facing geom is available
-						// 3/5		Anchor XY
-						// 4/6		Anchor Z, FacingFlag
-
-						// 3/5/7	Lightmap UV
+						// 4/6		Anchor XY
+						// 5/7		Anchor Z, FacingFlag
 
 						// diffuse
 						int32 CurrentUV = 0;
@@ -3014,6 +3013,9 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 						// branch1 / ripple
 						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.x, Vertex.m_vBranchWind1.y));
 						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vBranchWind1.z, Vertex.m_fRippleWeight));
+
+						// lightmap (lightmass can only access 4 uvs)
+						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
 
 						// branch 2
 						if (bHasBranch2Data)
@@ -3028,9 +3030,6 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary9(UClass* InClass, UObject*
 							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.x, Vertex.m_vAnchor.y));
 							VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vAnchor.z, Vertex.m_bCameraFacing ? 1.0f : 0.0f));
 						}
-
-						// lightmap
-						VertexInstanceUVs.Set(VertexInstanceID, CurrentUV++, FVector2D(Vertex.m_vLightmapTexCoord.x, Vertex.m_vLightmapTexCoord.y));
 					}
 
 					// Insert a polygon into the mesh
