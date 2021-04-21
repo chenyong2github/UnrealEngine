@@ -534,6 +534,9 @@ private:
 	/** Gets whether or not the breadcrumb trail should be visible. */
 	EVisibility GetBreadcrumbTrailVisibility() const;
 
+	/** Return whether there are breadcrumbs to navigate. */
+	bool CanNavigateBreadcrumbs() const;
+
 	/** Gets whether or not the bottom time slider should be visible. */
 	EVisibility GetBottomTimeSliderVisibility() const;
 

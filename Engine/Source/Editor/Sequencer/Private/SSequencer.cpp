@@ -91,6 +91,7 @@
 #include "SSequencerGroupManager.h"
 #include "SSequencerHierarchyBrowser.h"
 #include "MovieSceneCopyableTrack.h"
+#include "Tracks/MovieSceneSubTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
@@ -622,7 +623,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 										.FillHeight(1.0f)
 										[
 											SNew(SButton)
-											.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+											.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 											.VAlign(EVerticalAlignment::VAlign_Center)
 											.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 											.ForegroundColor(FLinearColor::White)
@@ -651,7 +652,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 										.FillHeight(1.0f)
 										[
 											SNew(SButton)
-											.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+											.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 											.VAlign(EVerticalAlignment::VAlign_Center)
 											.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 											.ForegroundColor(FLinearColor::White)
@@ -674,7 +675,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.Padding(3, 0)
 									[
 										SNew(SSeparator)
-										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+										.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 										.Orientation(Orient_Vertical)
 									]
 							
@@ -684,7 +685,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.AutoWidth()
 									[
 										SAssignNew(BreadcrumbPickerButton, SComboButton)
-										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
+										.Visibility_Lambda([this] { return CanNavigateBreadcrumbs() ? EVisibility::Visible : EVisibility::Collapsed; } )
 										.ButtonStyle(FEditorStyle::Get(), "FlatButton")
 										.ForegroundColor(FLinearColor::White)
 										.OnGetMenuContent_Lambda([this] { return SNew(SSequencerHierarchyBrowser, SequencerPtr); })
@@ -3680,6 +3681,27 @@ FText SSequencer::GetBreadcrumbTextForSequence(TWeakObjectPtr<UMovieSceneSequenc
 EVisibility SSequencer::GetBreadcrumbTrailVisibility() const
 {
 	return SequencerPtr.Pin()->IsLevelEditorSequencer() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+bool SSequencer::CanNavigateBreadcrumbs() const
+{
+	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
+	{
+		UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+		UMovieScene* MovieScene = RootSequence ? RootSequence->GetMovieScene() : nullptr;
+		if (RootSequence)
+		{
+			for (UMovieSceneTrack* MasterTrack : MovieScene->GetMasterTracks())
+			{
+				if (MasterTrack && MasterTrack->IsA<UMovieSceneSubTrack>())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 
