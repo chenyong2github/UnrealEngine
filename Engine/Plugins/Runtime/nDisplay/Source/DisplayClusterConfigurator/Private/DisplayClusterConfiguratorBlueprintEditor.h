@@ -27,12 +27,6 @@ class FDisplayClusterConfiguratorBlueprintEditor
 {
 
 public:
-	FDisplayClusterConfiguratorBlueprintEditor() :
-		bSCSEditorSelecting(false),
-		bSelectSilently(false)
-	{
-	}
-
 	~FDisplayClusterConfiguratorBlueprintEditor();
 
 public:
@@ -44,7 +38,7 @@ public:
 	virtual bool IsObjectSelected(UObject* Obj) const override;
 	//~ End IDisplayClusterConfiguratorBlueprintEditor Interface
 
-	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = true);
+	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = false);
 	virtual void SelectAncillaryComponents(const TArray<FString>& ComponentNames);
 	virtual void SelectAncillaryViewports(const TArray<FString>& ComponentNames);
 
@@ -80,9 +74,6 @@ public:
 
 	/** Make sure the blueprint preview actor is up to date. */
 	void RefreshDisplayClusterPreviewActor();
-
-	/** Reselects selected objects. Useful if recompiling as sometimes the details panel loses focus. */
-	void ReselectObjects();
 
 	/** Restores previously open documents. */
 	void RestoreLastEditedState();
@@ -127,6 +118,7 @@ protected:
 	virtual bool IsTickable() const override { return true; }
 	virtual TStatId GetStatId() const override;
 	virtual bool OnRequestClose() override;
+	virtual void Compile() override;
 	//~ End FBlueprintEditor Interface
 
 	// SSCS Implementation
@@ -144,12 +136,37 @@ protected:
 
 	void CreateSCSEditorWrapper();
 
-private:
-	/** True only during SCS selection change. */
-	bool bSCSEditorSelecting;
+public:
+	enum class ESelectionSource
+	{
+		External,
+		Internal,
+		Ancillary,
+		Refresh
+	};
 
-	/** Indicates that the current selection change in the SCS is silent, meaning it doesn't broadcast a selection changed event or update the inspector. */
-	bool bSelectSilently;
+	struct FSelectionScope
+	{
+		FSelectionScope(FDisplayClusterConfiguratorBlueprintEditor* Editor, ESelectionSource ScopedSelectionSource) :
+			SourceProperty(Editor->CurrentSelectionSource),
+			PreviousValue(Editor->CurrentSelectionSource)
+		{
+			SourceProperty = ScopedSelectionSource;
+		}
+
+		~FSelectionScope()
+		{
+			SourceProperty = PreviousValue;
+		}
+
+		ESelectionSource& SourceProperty;
+		ESelectionSource PreviousValue;
+	};
+	friend FSelectionScope;
+
+private:
+	/** Keeps track of the current source of the selection changes that caused OnSelectionUpdated to be invoked. */
+	ESelectionSource CurrentSelectionSource = ESelectionSource::External;
 	// ~End of SSCS Implementation
 
 protected:
@@ -175,6 +192,7 @@ private:
 
 	void OnReadOnlyChanged(bool bReadOnly);
 	void OnRenameVariable(UBlueprint* Blueprint, UClass* VariableClass, const FName& OldVariableName, const FName& NewVariableName);
+	void OnFocusChanged(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
 
 	void BindCommands();
 
@@ -219,4 +237,5 @@ private:
 	FName SCSEditorExtensionIdentifier;
 
 	FDelegateHandle RenameVariableHandle;
+	FDelegateHandle FocusChangedHandle;
 };
