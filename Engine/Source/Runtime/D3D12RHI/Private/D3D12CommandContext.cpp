@@ -512,7 +512,6 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 
 		Device->GetDefaultBufferAllocator().BeginFrame();
 		Device->GetTextureAllocator().BeginFrame();
-		Device->GetTransientMemoryPoolManager().BeginFrame();
 
 #if D3D12_RHI_RAYTRACING
 		Device->GetRayTracingCompactionRequestHandler()->Update(*ContextAtIndex);
@@ -621,7 +620,6 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		}
 
 		Device->GetTextureAllocator().CleanUpAllocations();
-		Device->GetTransientMemoryPoolManager().EndFrame();
 
 		// Only delete free blocks when not used in the last 2 frames, to make sure we are not allocating and releasing
 		// the same blocks every frame.
@@ -706,6 +704,8 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 	SET_MEMORY_STAT(STAT_D3D12DemotedVideoMemory, MemoryInfo.DemotedLocalMemory);
 	SET_MEMORY_STAT(STAT_D3D12TotalVideoMemory, MemoryInfo.LocalMemoryInfo.Budget);
 
+	ParentAdapter->GetTransientResourceSystem().UpdateStats();
+
 	uint64 MaxTexAllocWastage = 0;
 	for (uint32 GPUIndex : GPUMask)
 	{
@@ -722,7 +722,6 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 
 		Device->GetDefaultBufferAllocator().UpdateMemoryStats();
 		ParentAdapter->GetUploadHeapAllocator(GPUIndex).UpdateMemoryStats();
-		Device->GetTransientMemoryPoolManager().UpdateMemoryStats();
 	}
 #endif
 }
@@ -952,6 +951,27 @@ void FD3D12DynamicRHI::RHICreateTransition(FRHITransition* Transition, const FRH
 	Data->bCrossPipeline = bCrossPipeline;
 	Data->TransitionInfos = CreateInfo.TransitionInfos;
 	Data->AliasingInfos = CreateInfo.AliasingInfos;
+
+	uint32 AliasingOverlapCount = 0;
+
+	for (const FRHITransientAliasingInfo& AliasingInfo : Data->AliasingInfos)
+	{
+		AliasingOverlapCount += AliasingInfo.Overlaps.Num();
+	}
+
+	Data->AliasingOverlaps.Reserve(AliasingOverlapCount);
+
+	for (FRHITransientAliasingInfo& AliasingInfo : Data->AliasingInfos)
+	{
+		const int32 OverlapCount = AliasingInfo.Overlaps.Num();
+
+		if (OverlapCount > 0)
+		{
+			const int32 OverlapOffset = Data->AliasingOverlaps.Num();
+			Data->AliasingOverlaps.Append(AliasingInfo.Overlaps.GetData(), OverlapCount);
+			AliasingInfo.Overlaps = MakeArrayView(&Data->AliasingOverlaps[OverlapOffset], OverlapCount);
+		}
+	}
 }
 
 void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
@@ -960,14 +980,10 @@ void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
 	Transition->GetPrivateData<FD3D12TransitionData>()->~FD3D12TransitionData();
 }
 
-
 IRHITransientResourceAllocator* FD3D12DynamicRHI::RHICreateTransientResourceAllocator()
 {
-	// Handle mGPU here?
-	FD3D12Device* Device = GetAdapter().GetDevice(0);
-	return new FD3D12TransientResourceAllocator(Device->GetTransientMemoryPoolManager());
+	return new FD3D12TransientResourceAllocator(GetAdapter().GetTransientResourceSystem());
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 //

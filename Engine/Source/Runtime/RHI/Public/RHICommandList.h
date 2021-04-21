@@ -1541,18 +1541,6 @@ FRHICOMMAND_MACRO(FRHICommandResourceTransition)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandReleaseTransientResourceAllocator)
-{
-	IRHITransientResourceAllocator* Allocator;
-
-	FRHICommandReleaseTransientResourceAllocator(IRHITransientResourceAllocator * InAllocator)
-		: Allocator(InAllocator)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase & CmdList);
-};
-
 struct FRHICommandSetAsyncComputeBudgetString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandSetAsyncComputeBudget"); }
@@ -4260,7 +4248,7 @@ public:
 		return GDynamicRHI->RHICreateShaderResourceView_RenderThread(*this, Texture, CreateInfo);
 	}
 	
-	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
+	FORCEINLINE FShaderResourceViewRHIRef CreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, EPixelFormat Format)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
 		checkf(Texture, TEXT("Can't create a view off a null resource!"));
@@ -4467,17 +4455,6 @@ public:
 	FORCEINLINE FRenderQueryRHIRef CreateRenderQuery_RenderThread(ERenderQueryType QueryType)
 	{
 		return GDynamicRHI->RHICreateRenderQuery_RenderThread(*this, QueryType);
-	}
-
-	FORCEINLINE_DEBUGGABLE void ReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
-	{
-		check(InAllocator);
-		if (Bypass())
-		{
-			GetContext().RHIReleaseTransientResourceAllocator(InAllocator);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandReleaseTransientResourceAllocator)(InAllocator);
 	}
 
 	FORCEINLINE void AcquireTransientResource_RenderThread(FRHITexture* Texture)
@@ -5317,7 +5294,7 @@ FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* T
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, MipLevel);
 }
 
-FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
+FORCEINLINE FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* Texture, uint8 MipLevel, uint8 NumMipLevels, EPixelFormat Format)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateShaderResourceView(Texture, MipLevel, NumMipLevels, Format);
 }

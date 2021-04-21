@@ -177,30 +177,7 @@ inline ERDGParentResourceType GetParentResourceType(ERDGViewType ViewType)
 	}
 }
 
-/** Used to specify a texture metadata plane when creating a view. */
-enum class ERDGTextureMetaDataAccess : uint8
-{
-	/** The primary plane is used with default compression behavior. */
-	None = 0,
-
-	/** The primary plane is used without decompressing it. */
-	CompressedSurface,
-
-	/** The depth plane is used with default compression behavior. */
-	Depth,
-
-	/** The stencil plane is used with default compression behavior. */
-	Stencil,
-
-	/** The HTile plane is used. */
-	HTile,
-
-	/** the FMask plane is used. */
-	FMask,
-
-	/** the CMask plane is used. */
-	CMask
-};
+using ERDGTextureMetaDataAccess = ERHITextureMetaDataAccess;
 
 /** Returns the associated FRHITransitionInfo plane index. */
 inline int32 GetResourceTransitionPlaneForMetadataAccess(ERDGTextureMetaDataAccess Metadata)
@@ -357,13 +334,7 @@ class TRDGHandleBitArray : public TBitArray<FRDGBitArrayAllocator>
 {
 	using Base = TBitArray<FRDGBitArrayAllocator>;
 public:
-	TRDGHandleBitArray() = default;
-	TRDGHandleBitArray(const TRDGHandleBitArray&) = default;
-	TRDGHandleBitArray& operator=(const TRDGHandleBitArray&) = default;
-
-	explicit TRDGHandleBitArray(bool bValue, int32 InNumBits)
-		: Base(bValue, InNumBits)
-	{}
+	using Base::Base;
 
 	FORCEINLINE FBitReference operator[](HandleType Handle)
 	{

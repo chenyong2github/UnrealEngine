@@ -2033,6 +2033,24 @@ inline bool IsRayTracingShaderFrequency(EShaderFrequency Frequency)
 	}
 }
 
+inline ERHIResourceType GetRHIResourceType(ETextureDimension Dimension)
+{
+	switch (Dimension)
+	{
+	case ETextureDimension::Texture2D:
+		return ERHIResourceType::RRT_Texture2D;
+	case ETextureDimension::Texture2DArray:
+		return ERHIResourceType::RRT_Texture2DArray;
+	case ETextureDimension::Texture3D:
+		return ERHIResourceType::RRT_Texture3D;
+	case ETextureDimension::TextureCube:
+	case ETextureDimension::TextureCubeArray:
+		return ERHIResourceType::RRT_TextureCube;
+	}
+	checkNoEntry();
+	return ERHIResourceType::RRT_None;
+}
+
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	#define GEOMETRY_SHADER(GeometryShader)	(GeometryShader)
 #else

@@ -181,7 +181,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	{
 		if (ResourceAllocator)
 		{
-			ResourceAllocator->AllocateResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, InDesc.Width, Alignment, InResourceStateMode, InCreateState, nullptr, CreateInfo.DebugName, ResourceLocation);
+			ResourceAllocator->AllocateResource(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, InDesc, InDesc.Width, Alignment, InResourceStateMode, InCreateState, nullptr, CreateInfo.DebugName, ResourceLocation);
 		}
 		else
 		{

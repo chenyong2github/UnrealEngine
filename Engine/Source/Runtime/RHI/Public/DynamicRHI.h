@@ -20,6 +20,7 @@ class FReadSurfaceDataFlags;
 class FRHICommandList;
 class FRHIComputeFence;
 class FRayTracingPipelineState;
+class IRHITransientResourceAllocator;
 struct FDepthStencilStateInitializerRHI;
 struct FRasterizerStateInitializerRHI;
 struct FRHIResourceCreateInfo;

@@ -27,6 +27,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bExtracted(0)
 	, bProduced(0)
 	, bTransient(0)
+	, bUserSetNonTransient(0)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
 	// Culling logic runs only when immediate mode is off.
@@ -207,6 +208,75 @@ void FRDGPooledTexture::Reset()
 	Owner = nullptr;
 }
 
+FRHIShaderResourceView* FRDGPooledTexture::GetOrCreateSRV(const FRHITextureSRVCreateInfo& Desc)
+{
+	if (Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
+	{
+		check(GRHISupportsExplicitHTile);
+		if (!HTileSRV)
+		{
+			HTileSRV = RHICreateShaderResourceViewHTile((FRHITexture2D*)GetRHI());
+		}
+		return HTileSRV;
+	}
+
+	if (Desc.MetaData == ERDGTextureMetaDataAccess::FMask)
+	{
+		if (!FMaskSRV)
+		{
+			FMaskSRV = RHICreateShaderResourceViewFMask((FRHITexture2D*)GetRHI());
+		}
+		return FMaskSRV;
+	}
+
+	if (Desc.MetaData == ERDGTextureMetaDataAccess::CMask)
+	{
+		if (!CMaskSRV)
+		{
+			CMaskSRV = RHICreateShaderResourceViewWriteMask((FRHITexture2D*)GetRHI());
+		}
+		return CMaskSRV;
+	}
+
+	for (const auto& SRVPair : SRVs)
+	{
+		if (SRVPair.Key == Desc)
+		{
+			return SRVPair.Value;
+		}
+	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(GetRHI(), Desc);
+
+	FRHIShaderResourceView* View = RHIShaderResourceView;
+	SRVs.Emplace(Desc, MoveTemp(RHIShaderResourceView));
+	return View;
+}
+
+FRHIUnorderedAccessView* FRDGPooledTexture::GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc)
+{
+	if (UAVDesc.MetaData == ERDGTextureMetaDataAccess::HTile)
+	{
+		check(GRHISupportsExplicitHTile);
+		if (!HTileUAV)
+		{
+			HTileUAV = RHICreateUnorderedAccessViewHTile((FRHITexture2D*)GetRHI());
+		}
+		return HTileUAV;
+	}
+
+	if (UAVDesc.MetaData == ERDGTextureMetaDataAccess::Stencil)
+	{
+		if (!StencilUAV)
+		{
+			StencilUAV = RHICreateUnorderedAccessViewStencil((FRHITexture2D*)GetRHI(), 0);
+		}
+		return StencilUAV;
+	}
+
+	return MipUAVs[UAVDesc.MipLevel];
+}
+
 FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 {
 	FRDGTextureSubresourceRange Range = GetSubresourceRange();
@@ -221,7 +291,6 @@ FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 
 void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget)
 {
-	check(InPooledRenderTarget);
 	Allocation = InPooledRenderTarget;
 	PooledRenderTarget = InPooledRenderTarget;
 
@@ -235,7 +304,6 @@ void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget)
 
 void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
 {
-	check(InPooledTexture);
 	PooledTexture = InPooledTexture;
 	State = &PooledTexture->State;
 
@@ -251,7 +319,15 @@ void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
 	}
 
 	ResourceRHI = PooledTexture->GetRHI();
-	check(ResourceRHI);
+}
+
+void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGAllocator& Allocator)
+{
+	TransientTexture = InTransientTexture;
+	State = Allocator.AllocNoDestruct<FRDGTextureSubresourceState>();
+	ResourceRHI = TransientTexture->GetRHI();
+
+	bTransient = true;
 }
 
 void FRDGTexture::Finalize()
@@ -261,28 +337,35 @@ void FRDGTexture::Finalize()
 
 	if (bLastOwner)
 	{
-		// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
-		if (bExternal || bExtracted)
+		if (bTransient)
 		{
-			PooledTexture->Reset();
+			// Manually deconstruct the allocated state so as not to invoke overhead from the allocators destructor tracking.
+			State->~FRDGTextureSubresourceState();
+			State = nullptr;
 		}
 		else
 		{
-			PooledTexture->Finalize();
-		}
+			// External and extracted resources are user controlled, so we cannot assume the texture stays in its final state.
+			if (bExternal || bExtracted)
+			{
+				PooledTexture->Reset();
+			}
+			else
+			{
+				PooledTexture->Finalize();
+			}
 
-		// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
-		if (PooledRenderTarget)
-		{
-			Allocation = PooledRenderTarget;
+			// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
+			if (PooledRenderTarget)
+			{
+				Allocation = PooledRenderTarget;
+			}
 		}
 	}
 }
 
 void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 {
-	check(InPooledBuffer);
-
 	// Return the previous owner and assign this buffer as the new one.
 	FRDGBuffer* PreviousOwner = InPooledBuffer->Owner;
 	InPooledBuffer->Owner = this;
@@ -297,8 +380,16 @@ void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 	PooledBuffer = InPooledBuffer;
 	Allocation = InPooledBuffer;
 	State = &PooledBuffer->State;
-	ResourceRHI = InPooledBuffer->Buffer;
-	check(ResourceRHI);
+	ResourceRHI = InPooledBuffer->GetRHI();
+}
+
+void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator)
+{
+	TransientBuffer = InTransientBuffer;
+	State = Allocator.AllocNoDestruct<FRDGSubresourceState>();
+	ResourceRHI = TransientBuffer->GetRHI();
+
+	bTransient = true;;
 }
 
 void FRDGBuffer::Finalize()
@@ -309,44 +400,46 @@ void FRDGBuffer::Finalize()
 
 	if (bLastOwner)
 	{
-		if (bExternal || bExtracted)
+		if (bTransient)
 		{
-			PooledBuffer->Reset();
+			State = nullptr;
 		}
 		else
 		{
-			PooledBuffer->Finalize();
-		}
+			if (bExternal || bExtracted)
+			{
+				PooledBuffer->Reset();
+			}
+			else
+			{
+				PooledBuffer->Finalize();
+			}
 
-		// Restore the reference to the last owner in the aliasing chain.
-		Allocation = PooledBuffer;
+			// Restore the reference to the last owner in the aliasing chain.
+			Allocation = PooledBuffer;
+		}
 	}
 }
 
-FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc)
+FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc)
 {
-	if (const auto* FoundPtr = SRVs.Find(SRVDesc))
+	for (const auto& KeyValue : SRVs)
 	{
-		return FoundPtr->GetReference();
+		if (KeyValue.Key == SRVDesc)
+		{
+			return KeyValue.Value.GetReference();
+		}
 	}
 
 	FShaderResourceViewRHIRef RHIShaderResourceView;
 
-	if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	if (SRVDesc.Format != PF_Unknown)
 	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer, SRVDesc.BytesPerElement, SRVDesc.Format);
-	}
-	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
-	}
-	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
+		RHIShaderResourceView = RHICreateShaderResourceView(GetRHI(), SRVDesc.BytesPerElement, SRVDesc.Format);
 	}
 	else
 	{
-		checkNoEntry();
+		RHIShaderResourceView = RHICreateShaderResourceView(GetRHI());
 	}
 
 	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
@@ -354,26 +447,25 @@ FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(FRDGBufferSRVDesc SRVDe
 	return View;
 }
 
-FRHIUnorderedAccessView* FRDGPooledBuffer::GetOrCreateUAV(FRDGBufferUAVDesc UAVDesc)
+FRHIUnorderedAccessView* FRDGPooledBuffer::GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc)
 {
-	if (const auto* FoundPtr = UAVs.Find(UAVDesc))
+	for (const auto& KeyValue : UAVs)
 	{
-		return FoundPtr->GetReference();
+		if (KeyValue.Key == UAVDesc)
+		{
+			return KeyValue.Value.GetReference();
+		}
 	}
 
 	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
 
-	if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	if (UAVDesc.Format != PF_Unknown)
 	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVDesc.Format);
-	}
-	else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
-	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVDesc.bSupportsAtomicCounter, UAVDesc.bSupportsAppendBuffer);
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(GetRHI(), UAVDesc.Format);
 	}
 	else
 	{
-		checkNoEntry();
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(GetRHI(), UAVDesc.bSupportsAtomicCounter, UAVDesc.bSupportsAppendBuffer);
 	}
 
 	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();

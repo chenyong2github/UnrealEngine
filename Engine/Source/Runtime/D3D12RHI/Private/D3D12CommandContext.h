@@ -249,8 +249,6 @@ public:
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
-	virtual void RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator) final override;
-
 	// IRHIComputeContext interface
 	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader) final override;
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) final override;
@@ -899,6 +897,7 @@ struct FD3D12TransitionData
 
 	TArray<FRHITransitionInfo, TInlineAllocator<4>> TransitionInfos;
 	TArray<FRHITransientAliasingInfo, TInlineAllocator<4>> AliasingInfos;
+	TArray<FRHITransientAliasingOverlap, TInlineAllocator<4>> AliasingOverlaps;
 	TRefCountPtr<FD3D12Fence> Fence;
 
 	bool bCrossPipeline = false;

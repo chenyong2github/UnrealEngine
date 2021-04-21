@@ -80,7 +80,6 @@ public:
 	inline FD3D12CommandListManager& GetAsyncCommandListManager() { return *AsyncCommandListManager; }
 	inline FD3D12CommandAllocatorManager& GetTextureStreamingCommandAllocatorManager() { return TextureStreamingCommandAllocatorManager; }
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
-	inline FD3D12TransientMemoryPoolManager& GetTransientMemoryPoolManager() { return TransientMemoryPoolManager; }
 	inline FD3D12GlobalOnlineSamplerHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
 	inline FD3D12GlobalHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
 
@@ -197,7 +196,6 @@ protected:
 
 	FD3D12FastAllocator DefaultFastAllocator;
 	FD3D12TextureAllocatorPool TextureAllocator;
-	FD3D12TransientMemoryPoolManager TransientMemoryPoolManager;
 
 	FD3D12ResidencyManager ResidencyManager;
 

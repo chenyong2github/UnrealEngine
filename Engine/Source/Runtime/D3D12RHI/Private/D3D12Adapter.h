@@ -338,6 +338,8 @@ public:
 	inline FD3D12CommandContextRedirector& GetDefaultContextRedirector() { return DefaultContextRedirector; }
 	inline FD3D12CommandContextRedirector& GetDefaultAsyncComputeContextRedirector() { return DefaultAsyncComputeContextRedirector; }
 
+	inline FD3D12TransientResourceSystem& GetTransientResourceSystem() { return *TransientResourceSystem; }
+
 	FD3D12TemporalEffect* GetTemporalEffect(const FName& EffectName);
 
 	FD3D12FastConstantAllocator& GetTransientUniformBufferAllocator();
@@ -475,6 +477,8 @@ protected:
 #if WITH_MGPU
 	TMap<FName, FD3D12TemporalEffect> TemporalEffectMap;
 #endif
+
+	TUniquePtr<FD3D12TransientResourceSystem> TransientResourceSystem;
 
 	// Each of these devices represents a physical GPU 'Node'
 	FD3D12Device* Devices[MAX_NUM_GPUS];

@@ -74,7 +74,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 			check(0);
 		}
 
-		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = FRDGPooledBuffer::CreateCommitted(MoveTemp(BufferRHI), Desc);
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(MoveTemp(BufferRHI), Desc);
 		AllocatedBuffers.Add(PooledBuffer);
 		check(PooledBuffer->GetRefCount() == 2);
 

@@ -42,7 +42,6 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	SamplerID(0),
 	DefaultFastAllocator(this, FRHIGPUMask::All(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024 * 4),
 	TextureAllocator(this, FRHIGPUMask::All()),
-	TransientMemoryPoolManager(this, FRHIGPUMask::All()),
 	GPUProfilingData(this)
 {
 	for (uint32 QueueType = 0; QueueType < (uint32)ED3D12CommandQueueType::Count; ++QueueType)
@@ -64,8 +63,6 @@ FD3D12Device::~FD3D12Device()
 
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs
 	DefaultBufferAllocator.FreeDefaultBufferPools();
-
-	TransientMemoryPoolManager.Destroy();
 
 	DefaultFastAllocator.Destroy();
 

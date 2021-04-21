@@ -1627,73 +1627,6 @@ struct FRHIResourceCreateInfo
 	uint32 ExtData;
 };
 
-enum ERHITextureSRVOverrideSRGBType
-{
-	SRGBO_Default,
-	SRGBO_ForceDisable,
-};
-
-struct FRHITextureSRVCreateInfo
-{
-	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, uint8 InFormat = PF_Unknown)
-		: Format(InFormat)
-		, MipLevel(InMipLevel)
-		, NumMipLevels(InNumMipLevels)
-		, SRGBOverride(SRGBO_Default)
-		, FirstArraySlice(0)
-		, NumArraySlices(0)
-	{}
-
-	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel, uint8 InNumMipLevels, uint32 InFirstArraySlice, uint32 InNumArraySlices, uint8 InFormat = PF_Unknown)
-		: Format(InFormat)
-		, MipLevel(InMipLevel)
-		, NumMipLevels(InNumMipLevels)
-		, SRGBOverride(SRGBO_Default)
-		, FirstArraySlice(InFirstArraySlice)
-		, NumArraySlices(InNumArraySlices)
-	{}
-
-	/** View the texture with a different format. Leave as PF_Unknown to use original format. Useful when sampling stencil */
-	uint8 Format;
-
-	/** Specify the mip level to use. Useful when rendering to one mip while sampling from another */
-	uint8 MipLevel;
-
-	/** Create a view to a single, or multiple mip levels */
-	uint8 NumMipLevels;
-
-	/** Potentially override the texture's sRGB flag */
-	ERHITextureSRVOverrideSRGBType SRGBOverride;
-
-	/** Specify first array slice index. By default 0. */
-	uint32 FirstArraySlice;
-
-	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
-	uint32 NumArraySlices;
-
-	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
-	{
-		return (
-			Format == Other.Format &&
-			MipLevel == Other.MipLevel &&
-			NumMipLevels == Other.NumMipLevels &&
-			SRGBOverride == Other.SRGBOverride &&
-			FirstArraySlice == Other.FirstArraySlice &&
-			NumArraySlices == Other.NumArraySlices);
-	}
-
-	FORCEINLINE bool operator!=(const FRHITextureSRVCreateInfo& Other)const
-	{
-		return !(*this == Other);
-	}
-};
-
-FORCEINLINE uint32 GetTypeHash(const FRHITextureSRVCreateInfo& Var)
-{
-	uint32 Hash0 = uint32(Var.Format) | uint32(Var.MipLevel) << 8 | uint32(Var.NumMipLevels) << 16 | uint32(Var.SRGBOverride) << 24;
-	return HashCombine(HashCombine(GetTypeHash(Hash0), GetTypeHash(Var.FirstArraySlice)), GetTypeHash(Var.NumArraySlices));
-}
-
 struct FResolveRect
 {
 	int32 X1;
@@ -2017,6 +1950,59 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	}
 };
 
+struct FRHITransientAliasingOverlap
+{
+	union
+	{
+		class FRHIResource* Resource = nullptr;
+		class FRHITexture* Texture;
+		class FRHIBuffer* Buffer;
+	};
+
+	enum class EType : uint8
+	{
+		Texture,
+		Buffer
+	} Type = EType::Texture;
+
+	FRHITransientAliasingOverlap() = default;
+
+	FRHITransientAliasingOverlap(FRHIResource* InResource, EType InType)
+		: Resource(InResource)
+		, Type(InType)
+	{}
+
+	FRHITransientAliasingOverlap(FRHITexture* InTexture)
+		: Texture(InTexture)
+		, Type(EType::Texture)
+	{}
+
+	FRHITransientAliasingOverlap(FRHIBuffer* InBuffer)
+		: Buffer(InBuffer)
+		, Type(EType::Buffer)
+	{}
+
+	bool IsTexture() const
+	{
+		return Type == EType::Texture;
+	}
+
+	bool IsBuffer() const
+	{
+		return Type == EType::Buffer;
+	}
+
+	bool operator == (const FRHITransientAliasingOverlap& Other) const
+	{
+		return Resource == Other.Resource;
+	}
+
+	inline bool operator != (const FRHITransientAliasingOverlap& RHS) const
+	{
+		return !(*this == RHS);
+	}
+};
+
 struct FRHITransientAliasingInfo
 {
 	union
@@ -2025,6 +2011,9 @@ struct FRHITransientAliasingInfo
 		class FRHITexture* Texture;
 		class FRHIBuffer* Buffer;
 	};
+
+	// List of prior resource overlaps to use when acquiring. Must be empty for discard operations.
+	TArrayView<const FRHITransientAliasingOverlap> Overlaps;
 
 	enum class EType : uint8
 	{
@@ -2040,19 +2029,21 @@ struct FRHITransientAliasingInfo
 
 	FRHITransientAliasingInfo() = default;
 
-	static FRHITransientAliasingInfo Acquire(class FRHITexture* Texture)
+	static FRHITransientAliasingInfo Acquire(class FRHITexture* Texture, TArrayView<const FRHITransientAliasingOverlap> InOverlaps)
 	{
 		FRHITransientAliasingInfo Info;
 		Info.Texture = Texture;
+		Info.Overlaps = InOverlaps;
 		Info.Type = EType::Texture;
 		Info.Action = EAction::Acquire;
 		return Info;
 	}
 
-	static FRHITransientAliasingInfo Acquire(class FRHIBuffer* Buffer)
+	static FRHITransientAliasingInfo Acquire(class FRHIBuffer* Buffer, TArrayView<const FRHITransientAliasingOverlap> InOverlaps)
 	{
 		FRHITransientAliasingInfo Info;
 		Info.Buffer = Buffer;
+		Info.Overlaps = InOverlaps;
 		Info.Type = EType::Buffer;
 		Info.Action = EAction::Acquire;
 		return Info;

@@ -932,7 +932,7 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		if (ResourceAllocator)
 		{
 			const D3D12_HEAP_TYPE HeapType = (Flags & TexCreate_CPUReadback) ? D3D12_HEAP_TYPE_READBACK : D3D12_HEAP_TYPE_DEFAULT;
-			ResourceAllocator->AllocateTexture(HeapType, TextureDesc, (EPixelFormat)Format, ED3D12ResourceStateMode::Default, CreateState, ClearValuePtr, CreateInfo.DebugName, Location);
+			ResourceAllocator->AllocateTexture(Device->GetGPUIndex(), HeapType, TextureDesc, (EPixelFormat)Format, ED3D12ResourceStateMode::Default, CreateState, ClearValuePtr, CreateInfo.DebugName, Location);
 			Location.SetOwner(NewTexture);
 		}
 		else
@@ -957,6 +957,8 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 
 		// Mark transient
 		Location.SetTransient(bIsTransient);
+
+		check(Location.IsValid());
 
 		uint32 RTVIndex = 0;
 
@@ -1226,7 +1228,7 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 
 		if (ResourceAllocator)
 		{
-			ResourceAllocator->AllocateTexture(D3D12_HEAP_TYPE_DEFAULT, TextureDesc, (EPixelFormat)Format, ED3D12ResourceStateMode::Default, InitialState, ClearValuePtr, CreateInfo.DebugName, Texture3D->ResourceLocation);
+			ResourceAllocator->AllocateTexture(Device->GetGPUIndex(), D3D12_HEAP_TYPE_DEFAULT, TextureDesc, (EPixelFormat)Format, ED3D12ResourceStateMode::Default, InitialState, ClearValuePtr, CreateInfo.DebugName, Texture3D->ResourceLocation);
 		}
 		else
 		{
@@ -1912,6 +1914,119 @@ void* TD3D12Texture2D<RHIResourceType>::Lock(class FRHICommandListImmediate* RHI
 
 	check(Data != nullptr);
 	return Data;
+}
+
+D3D12_RESOURCE_DESC FD3D12TextureBase::GetResourceDesc(const FRHITextureCreateInfo& CreateInfo)
+{
+	D3D12_RESOURCE_DESC Desc;
+
+	const DXGI_FORMAT Format = GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[CreateInfo.Format].PlatformFormat, CreateInfo.Flags);
+
+	if (CreateInfo.Dimension != ETextureDimension::Texture3D)
+	{
+		if (CreateInfo.IsTextureCube())
+		{
+			check(CreateInfo.Extent.X <= (int32)GetMaxCubeTextureDimension());
+			check(CreateInfo.Extent.X == CreateInfo.Extent.Y);
+		}
+		else
+		{
+			check(CreateInfo.Extent.X <= (int32)GetMax2DTextureDimension());
+			check(CreateInfo.Extent.Y <= (int32)GetMax2DTextureDimension());
+		}
+
+		if (CreateInfo.IsTextureArray())
+		{
+			check(CreateInfo.ArraySize <= (int32)GetMaxTextureArrayLayers());
+		}
+
+		uint32 ActualMSAACount = CreateInfo.NumSamples;
+		uint32 ActualMSAAQuality = GetMaxMSAAQuality(ActualMSAACount);
+
+		// 0xffffffff means not supported
+		if (ActualMSAAQuality == 0xffffffff || EnumHasAnyFlags(CreateInfo.Flags, TexCreate_Shared))
+		{
+			// no MSAA
+			ActualMSAACount = 1;
+			ActualMSAAQuality = 0;
+		}
+
+		Desc = CD3DX12_RESOURCE_DESC::Tex2D(
+			Format,
+			CreateInfo.Extent.X,
+			CreateInfo.Extent.Y,
+			CreateInfo.ArraySize * (CreateInfo.IsTextureCube() ? 6 : 1),  // Array size
+			CreateInfo.NumMips,
+			ActualMSAACount,
+			ActualMSAAQuality,
+			D3D12_RESOURCE_FLAG_NONE);  // Add misc flags later
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_Shared))
+		{
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+		}
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_RenderTargetable))
+		{
+			check(!EnumHasAnyFlags(CreateInfo.Flags, TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable));
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		}
+		else if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_DepthStencilTargetable))
+		{
+			check(!EnumHasAnyFlags(CreateInfo.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable));
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+		}
+		else if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_ResolveTargetable))
+		{
+			check(!EnumHasAnyFlags(CreateInfo.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+			if (CreateInfo.Format == PF_DepthStencil || CreateInfo.Format == PF_ShadowDepth || CreateInfo.Format == PF_D24)
+			{
+				Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+			}
+			else
+			{
+				Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+			}
+		}
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_UAV))
+		{
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		}
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_DepthStencilTargetable) && !EnumHasAnyFlags(CreateInfo.Flags, TexCreate_ShaderResource))
+		{
+			// Only deny shader resources if it's a depth resource that will never be used as SRV
+			Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+		}
+	}
+	else // ETextureDimension::Texture3D
+	{
+		check(CreateInfo.Dimension == ETextureDimension::Texture3D)
+		check(!EnumHasAnyFlags(CreateInfo.Flags, TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable));
+		check(EnumHasAnyFlags(CreateInfo.Flags, TexCreate_ShaderResource));
+
+		Desc = CD3DX12_RESOURCE_DESC::Tex3D(
+			Format,
+			CreateInfo.Extent.X,
+			CreateInfo.Extent.Y,
+			CreateInfo.Depth,
+			CreateInfo.NumMips);
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_UAV))
+		{
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		}
+
+		if (EnumHasAnyFlags(CreateInfo.Flags, TexCreate_RenderTargetable))
+		{
+			Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+		}
+	}
+
+	Desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+
+	return Desc;
 }
 
 void FD3D12TextureBase::UpdateTexture(uint32 MipIndex, uint32 DestX, uint32 DestY, uint32 DestZ, const D3D12_TEXTURE_COPY_LOCATION& SourceCopyLocation)

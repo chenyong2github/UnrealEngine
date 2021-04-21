@@ -25,6 +25,8 @@ extern int32 GRDGAsyncCompute;
 extern int32 GRDGClobberResources;
 extern int32 GRDGDebug;
 extern int32 GRDGDebugFlushGPU;
+extern int32 GRDGDebugExtendResourceLifetimes;
+extern int32 GRDGDebugDisableTransientResources;
 extern int32 GRDGDumpGraph;
 extern int32 GRDGDumpGraphUnknownCount;
 extern int32 GRDGBreakpoint;
@@ -87,6 +89,8 @@ void EmitRDGWarning(const FString& WarningMessage);
 const int32 GRDGClobberResources = 0;
 const int32 GRDGDebug = 0;
 const int32 GRDGDebugFlushGPU = 0;
+const int32 GRDGDebugExtendResourceLifetimes = 0;
+const int32 GRDGDebugDisableTransientResources = 0;
 const int32 GRDGDumpGraph = 0;
 const int32 GRDGBreakpoint = 0;
 const int32 GRDGTransitionLog = 0;
@@ -103,6 +107,7 @@ extern int32 GRDGAsyncCompute;
 extern int32 GRDGCullPasses;
 extern int32 GRDGMergeRenderPasses;
 extern int32 GRDGTransientAllocator;
+extern int32 GRDGTransientMinimumBufferSize;
 
 #if CSV_PROFILER
 extern int32 GRDGVerboseCSVStats;
@@ -169,4 +174,23 @@ inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
 inline bool IsImmediateMode()
 {
 	return GRDGImmediateMode != 0;
+}
+
+template <typename ResourceRegistryType, typename FunctionType>
+inline void EnumerateExtendedLifetimeResources(ResourceRegistryType& Registry, FunctionType Function)
+{
+#if RDG_ENABLE_DEBUG
+	if (GRDGDebugExtendResourceLifetimes)
+	{
+		for (auto Handle = Registry.Begin(); Handle != Registry.End(); ++Handle)
+		{
+			auto* Resource = Registry[Handle];
+
+			if (IsDebugAllowedForResource(Resource->Name))
+			{
+				Function(Resource);
+			}
+		}
+	}
+#endif
 }

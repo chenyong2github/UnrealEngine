@@ -354,7 +354,7 @@ private:
 //-----------------------------------------------------------------------------
 // This is designed for allocation of scratch memory such as temporary staging buffers
 // or shadow buffers for dynamic resources.
-class FD3D12UploadHeapAllocator : public FD3D12AdapterChild, public FD3D12MultiNodeGPUObject
+class FD3D12UploadHeapAllocator : public FD3D12AdapterChild, public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
 {
 public:
 

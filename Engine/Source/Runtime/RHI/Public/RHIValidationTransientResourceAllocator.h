@@ -1,27 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	RHIValidation.h: Public Valdation RHI definitions.
-=============================================================================*/
-
 #pragma once 
 
-#include "RHIResources.h"
+#include "RHITransientResourceAllocator.h"
 
 #if ENABLE_RHI_VALIDATION
 
 class FValidationTransientResourceAllocator : public IRHITransientResourceAllocator
 {
 public:
-	FValidationTransientResourceAllocator(IRHITransientResourceAllocator* InRHIAllocator) : RHIAllocator(InRHIAllocator) {}
+	FValidationTransientResourceAllocator(IRHITransientResourceAllocator* InRHIAllocator)
+		: RHIAllocator(InRHIAllocator)
+	{}
+
 	virtual ~FValidationTransientResourceAllocator();
 
 	// Implementation of FRHITransientResourceAllocator interface
-	virtual FRHITexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
-	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
-	virtual void DeallocateMemory(FRHITexture* InTexture) override final;
-	virtual void DeallocateMemory(FRHIBuffer* InBuffer) override final;
+	virtual FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
+	virtual FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override final;
+	virtual void DeallocateMemory(FRHITransientTexture* InTexture) override final;
+	virtual void DeallocateMemory(FRHITransientBuffer* InBuffer) override final;
 	virtual void Freeze(FRHICommandListImmediate&) override final;
+	virtual void Release(FRHICommandListImmediate&) override final;
 
 private:
 
@@ -31,11 +31,11 @@ private:
 	// Actual RHI transient allocator which will get all functions forwarded
 	IRHITransientResourceAllocator* RHIAllocator = nullptr;
 
-	// Allocator already frozen?
 	bool bFrozen = false;
+	bool bReleased = false;
 
 	// All the allocated resources on the transient allocator
-	struct AllocatedResourceData
+	struct FAllocatedResourceData
 	{
 		enum class EType
 		{
@@ -56,7 +56,7 @@ private:
 			uint8 NumMips = 0;
 		} Texture;
 	};
-	TMap<FRHIResource*, AllocatedResourceData> AllocatedResourceMap;
+	TMap<FRHIResource*, FAllocatedResourceData> AllocatedResourceMap;
 };
 
 #endif	// ENABLE_RHI_VALIDATION

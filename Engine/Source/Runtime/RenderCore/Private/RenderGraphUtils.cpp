@@ -759,10 +759,14 @@ const void* GetInitialData(FRDGBuilder& GraphBuilder, const void* InitialData, u
 
 void AddBufferUploadPass(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
 {
+	check(Buffer);
+
 	const void* SourcePtr = GetInitialData(GraphBuilder, InitialData, InitialDataSize, InitialDataFlags);
 
 	FCopyBufferParameters* PassParameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
 	PassParameters->Buffer = Buffer;
+
+	Buffer->SetNonTransient();
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("BufferUpload(%s)", Buffer->Name),

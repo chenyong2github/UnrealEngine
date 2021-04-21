@@ -25,6 +25,13 @@ static FAutoConsoleVariableRef CVarSyncTemporalResources(
 	ECVF_RenderThreadSafe
 	);
 
+static int32 GD3D12TransientAllocatorFullAliasingBarrier = 0;
+static FAutoConsoleVariableRef CVarD3D12TransientAllocatorFullAliasingBarrier(
+	TEXT("d3d12.TransientAllocator.FullAliasingBarrier"),
+	GD3D12TransientAllocatorFullAliasingBarrier,
+	TEXT("Inserts a full aliasing barrier on an transient acquire operation. Useful to debug if an aliasing barrier is missing."),
+	ECVF_RenderThreadSafe);
+
 using namespace D3D12RHI;
 
 #define DECLARE_ISBOUNDSHADER(ShaderType) inline void ValidateBoundShader(FD3D12StateCache& InStateCache, FRHI##ShaderType* ShaderType##RHI) \
@@ -333,7 +340,7 @@ static void HandleResourceDiscardTransitions(
 
 			// Get the initial state to force a 'nop' transition so the internal command list resource tracking has the correct state
 			// already to make sure it's not added to the pending transition list to be kicked before this command list (resource is not valid then yet)
-			D3D12_RESOURCE_STATES InitialState = FD3D12TransientResourceAllocator::GetInitialResourceState(Resource->GetDesc());
+			D3D12_RESOURCE_STATES InitialState = GetInitialResourceState(Resource->GetDesc());
 			if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
 			{
 				FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, InitialState, InitialState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
@@ -425,17 +432,28 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AcquireTransient);
 
-			// Try and see if the resource has overlapping resources
-			if (BaseShaderResource->ResourceLocation.IsTransient() && BaseShaderResource->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+			if (GD3D12TransientAllocatorFullAliasingBarrier != 0)
 			{
-				// We know it's a transient resource allocator
-				FD3D12TransientResourceAllocator* Allocator = (FD3D12TransientResourceAllocator*)BaseShaderResource->ResourceLocation.GetPoolAllocator();
-
-				// Get the overlapping resources and append aliasing barriers for each of them
-				TArrayView<FD3D12Resource*> OverlappingResources = Allocator->GetOverlappingResources(BaseShaderResource);
-				for (FD3D12Resource* OverlappingResource : OverlappingResources)
+				Context.CommandListHandle.AddAliasingBarrier(nullptr, Resource);
+			}
+			else
+			{
+				for (const FRHITransientAliasingOverlap& Overlap : Info.Overlaps)
 				{
-					Context.CommandListHandle.AddAliasingBarrier(OverlappingResource, Resource);
+					FD3D12Resource* ResourceBefore{};
+
+					switch (Overlap.Type)
+					{
+					case FRHITransientAliasingOverlap::EType::Texture:
+						ResourceBefore = Context.RetrieveTextureBase(Overlap.Texture)->GetResource();
+						break;
+					case FRHITransientAliasingOverlap::EType::Buffer:
+						ResourceBefore = Context.RetrieveObject<FD3D12Buffer>(Overlap.Buffer)->GetResource();
+						break;
+					}
+
+					check(ResourceBefore);
+					Context.CommandListHandle.AddAliasingBarrier(ResourceBefore, Resource);
 				}
 			}
 		}
@@ -444,17 +462,11 @@ static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12T
 			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
 
 			// Restore the resource back to the initial state when done
-			D3D12_RESOURCE_STATES FinalState = FD3D12TransientResourceAllocator::GetInitialResourceState(BaseShaderResource->GetResource()->GetDesc());
+			D3D12_RESOURCE_STATES FinalState = GetInitialResourceState(Resource->GetDesc());
 			FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, FinalState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
 
 			// Remove from caches
 			Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
-
-			// Release the resource location - transient allocator internally will take care of correct caching
-			BaseShaderResource->ResourceLocation.Clear();
-
-			// Release the views after clearing resource location
-			BaseShaderResource->ResourceRenamed(&BaseShaderResource->ResourceLocation);
 		}
 	}
 }
@@ -608,12 +620,6 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 	{
 		StateCache.FlushComputeShaderCache(true);
 	}
-}
-
-void FD3D12CommandContext::RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
-{
-	// Should be fine to delete now
-	delete (FD3D12TransientResourceAllocator*)InAllocator;
 }
 
 void FD3D12CommandContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)

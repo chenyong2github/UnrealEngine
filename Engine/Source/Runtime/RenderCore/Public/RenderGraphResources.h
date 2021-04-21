@@ -5,6 +5,7 @@
 #include "RenderGraphParameter.h"
 #include "RenderGraphTextureSubresource.h"
 #include "RendererInterface.h"
+#include "RHITransientResourceAllocator.h"
 
 struct FPooledRenderTarget;
 class FRenderTargetPool;
@@ -234,6 +235,13 @@ public:
 		return bProduced;
 	}
 
+	/** Marks a resource as excluded from the transient allocator, if it would otherwise be included. */
+	void SetNonTransient()
+	{
+		check(!bTransient);
+		bUserSetNonTransient = 1;
+	}
+
 protected:
 	FRDGParentResource(const TCHAR* InName, ERDGParentResourceType InType);
 	~FRDGParentResource();
@@ -247,8 +255,11 @@ protected:
 	/** Whether any sub-resource has been used for write by a pass. */
 	uint8 bProduced : 1;
 
-	/** Whether this resource needs acquire / discard. */
+	/** Whether this resource is allocated through the transient resource allocator. */
 	uint8 bTransient : 1;
+
+	/** Whether this resource is set to be non-transient by the user. */
+	uint8 bUserSetNonTransient : 1;
 
 	/** (External | Extracted only) If true, the resource is locked in its current state and will not be transitioned any more. */
 	uint8 bFinalizedAccess : 1;
@@ -328,73 +339,23 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderT
 /** Translates from an RDG texture descriptor to a pooled render target descriptor. */
 inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc);
 
-class FRDGPooledResource
-{
-public:
-	virtual ~FRDGPooledResource() = default;
-
-	uint32 GetRefCount() const
-	{
-		return RefCount;
-	}
-
-	uint32 AddRef() const
-	{
-		return ++RefCount;
-	}
-
-	uint32 Release() const
-	{
-		check(RefCount > 0);
-		uint32 LocalRefCount = --RefCount;
-		if (LocalRefCount == 0)
-		{
-			if (Allocator == EAllocator::Default)
-			{
-				delete this;
-			}
-			else
-			{
-				this->~FRDGPooledResource();
-			}
-		}
-		return LocalRefCount;
-	}
-
-protected:
-	enum class EAllocator
-	{
-		/** Allocated with the default allocator (new / delete). */
-		Default,
-
-		/** Allocated with the RDG allocator. */
-		RDG
-	};
-
-	FRDGPooledResource(EAllocator InAllocator)
-		: Allocator(InAllocator)
-	{}
-
-	EAllocator Allocator;
-
-	mutable uint32 RefCount = 0;
-};
-
 class RENDERCORE_API FRDGPooledTexture final
-	: public FRDGPooledResource
+	: public FRefCountedObject
 {
 public:
-	/** Creates a pooled texture using the default allocator. Ref-counting determines deletion of the memory. Safe to be persistently cached. */
-	static TRefCountPtr<FRDGPooledTexture> CreateCommitted(TRefCountPtr<FRHITexture> Texture, const FRDGTextureSubresourceLayout& Layout, const FUnorderedAccessViewRHIRef& FirstMipUAV = nullptr)
+	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout, const FUnorderedAccessViewRHIRef& FirstMipUAV)
+		: Texture(InTexture)
+		, Layout(InLayout)
 	{
-		return TRefCountPtr<FRDGPooledTexture>(new FRDGPooledTexture(MoveTemp(Texture), Layout, FirstMipUAV, EAllocator::Default));
+		InitViews(FirstMipUAV);
+		Reset();
 	}
 
-	/** Creates a pooled texture using the RDG allocator. All references should be released before the allocator is freed. */
-	static TRefCountPtr<FRDGPooledTexture> CreateTransient(FRDGAllocator& Allocator, const FRDGTextureSubresourceLayout& Layout, TRefCountPtr<FRHITexture> Texture, const FUnorderedAccessViewRHIRef& FirstMipUAV = nullptr)
-	{
-		return TRefCountPtr<FRDGPooledTexture>(Allocator.AllocNoDestruct<FRDGPooledTexture>(MoveTemp(Texture), Layout, FirstMipUAV, EAllocator::RDG));
-	}
+	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
+	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc);
+
+	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
+	FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& SRVDesc);
 
 	FRHITexture* GetRHI() const
 	{
@@ -407,15 +368,6 @@ public:
 	}
 
 private:
-	FRDGPooledTexture(TRefCountPtr<FRHITexture> InTexture, const FRDGTextureSubresourceLayout& InLayout, const FUnorderedAccessViewRHIRef& FirstMipUAV, EAllocator InAllocator)
-		: FRDGPooledResource(InAllocator)
-		, Texture(MoveTemp(InTexture))
-		, Layout(InLayout)
-	{
-		InitViews(FirstMipUAV);
-		Reset();
-	}
-
 	/** Initializes cached views. Safe to call multiple times; each call will recreate. */
 	void InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV);
 
@@ -501,9 +453,14 @@ private:
 		InitAsWholeResource(LastProducers);
 	}
 
-	/** Assigns the pooled texture to this texture; returns the previous texture to own the allocation. */
+	/** Assigns a pooled render target as the backing RHI resource. */
 	void SetRHI(FPooledRenderTarget* PooledRenderTarget);
+
+	/** Assigns a pooled buffer as the backing RHI resource. */
 	void SetRHI(FRDGPooledTexture* PooledTexture);
+
+	/** Assigns a transient buffer as the backing RHI resource. */
+	void SetRHI(FRHITransientTexture* TransientTexture, FRDGAllocator& Allocator);
 
 	/** Finalizes the texture for execution; no other transitions are allowed after calling this. */
 	void Finalize();
@@ -542,8 +499,14 @@ private:
 	/** The assigned pooled render target to use during execution. Never reset. */
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
-	/** The assigned pooled texture to use during execution. Never reset. */
-	TRefCountPtr<FRDGPooledTexture> PooledTexture;
+	union
+	{
+		/** The assigned pooled texture to use during execution. Never reset. */
+		FRDGPooledTexture* PooledTexture = nullptr;
+
+		/** The assigned transient texture to use during execution. Never reset. */
+		FRHITransientTexture* TransientTexture;
+	};
 
 	/** Cached state pointer from the pooled texture. */
 	FRDGTextureSubresourceState* State = nullptr;
@@ -628,7 +591,6 @@ public:
 	FRDGTextureSRVDesc() = default;
 	
 	FRDGTextureRef Texture = nullptr;
-	ERDGTextureMetaDataAccess MetaData = ERDGTextureMetaDataAccess::None;
 
 	/** Create SRV that access all sub resources of texture. */
 	static FRDGTextureSRVDesc Create(FRDGTextureRef Texture)
@@ -693,14 +655,15 @@ private:
 };
 
 /** Descriptor for render graph tracked UAV. */
-class FRDGTextureUAVDesc
+class FRDGTextureUAVDesc final
+	: public FRHITextureUAVCreateInfo
 {
 public:
 	FRDGTextureUAVDesc() = default;
 
-	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0)
-		: Texture(InTexture)
-		, MipLevel(InMipLevel)
+	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0, ERHITextureMetaDataAccess InMetaData = ERHITextureMetaDataAccess::None)
+		: FRHITextureUAVCreateInfo(InMipLevel, InMetaData)
+		, Texture(InTexture)
 	{}
 
 	/** Create UAV with access to a specific meta data plane */
@@ -712,8 +675,6 @@ public:
 	}
 
 	FRDGTextureRef Texture = nullptr;
-	uint8 MipLevel = 0;
-	ERDGTextureMetaDataAccess MetaData = ERDGTextureMetaDataAccess::None;
 };
 
 /** Render graph tracked texture UAV. */
@@ -854,75 +815,57 @@ struct FRDGBufferDesc
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
 };
 
-struct FRDGBufferSRVDesc
+struct FRDGBufferSRVDesc final
+	: public FRHIBufferSRVCreateInfo
 {
 	FRDGBufferSRVDesc() = default;
 
 	FRDGBufferSRVDesc(FRDGBufferRef InBuffer);
 
 	FRDGBufferSRVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
-		: Buffer(InBuffer)
-		, Format(InFormat)
+		: FRHIBufferSRVCreateInfo(InFormat)
+		, Buffer(InBuffer)
 	{
 		BytesPerElement = GPixelFormats[Format].BlockBytes;
 	}
 
 	FRDGBufferRef Buffer = nullptr;
-
-	/** Number of bytes per element (used for vertex buffer). */
-	uint32 BytesPerElement = 1;
-
-	/** Encoding format for the element (used for vertex buffer). */
-	EPixelFormat Format = PF_Unknown;
 };
 
-struct FRDGBufferUAVDesc
+struct FRDGBufferUAVDesc final
+	: public FRHIBufferUAVCreateInfo
 {
 	FRDGBufferUAVDesc() = default;
 
 	FRDGBufferUAVDesc(FRDGBufferRef InBuffer);
 
 	FRDGBufferUAVDesc(FRDGBufferRef InBuffer, EPixelFormat InFormat)
-		: Buffer(InBuffer)
-		, Format(InFormat)
+		: FRHIBufferUAVCreateInfo(InFormat)
+		, Buffer(InBuffer)
 	{}
 
 	FRDGBufferRef Buffer = nullptr;
-
-	/** Number of bytes per element (used for vertex buffer). */
-	EPixelFormat Format = PF_Unknown;
-
-	/** Whether the uav supports atomic counter or append buffer operations (used for structured buffers) */
-	bool bSupportsAtomicCounter = false;
-	bool bSupportsAppendBuffer = false;
 };
 
 /** Translates from a RDG buffer descriptor to a RHI buffer creation info */
 inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc);
 
 class RENDERCORE_API FRDGPooledBuffer final
-	: public FRDGPooledResource
+	: public FRefCountedObject
 {
 public:
-	/** Creates a pooled texture using the default allocator. Ref-counting determines deletion of the memory. Safe to be persistently cached. */
-	static TRefCountPtr<FRDGPooledBuffer> CreateCommitted(TRefCountPtr<FRHIBuffer> Buffer, const FRDGBufferDesc& Desc)
-	{
-		return TRefCountPtr<FRDGPooledBuffer>(new FRDGPooledBuffer(MoveTemp(Buffer), Desc, EAllocator::Default));
-	}
-
-	/** Creates a pooled texture using the RDG allocator. All references should be released before the allocator is freed. */
-	static TRefCountPtr<FRDGPooledBuffer> CreateTransient(FRDGAllocator& Allocator, TRefCountPtr<FRHIBuffer> Buffer, const FRDGBufferDesc& Desc)
-	{
-		return TRefCountPtr<FRDGPooledBuffer>(Allocator.AllocNoDestruct<FRDGPooledBuffer>(MoveTemp(Buffer), Desc, EAllocator::RDG));
-	}
+	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc)
+		: Desc(InDesc)
+		, Buffer(MoveTemp(InBuffer))
+	{}
 
 	const FRDGBufferDesc Desc;
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIUnorderedAccessView* GetOrCreateUAV(FRDGBufferUAVDesc UAVDesc);
+	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc);
 
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIShaderResourceView* GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc);
+	FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc);
 
 	/** Returns the RHI buffer. */
 	FRHIBuffer* GetRHI() const
@@ -942,56 +885,10 @@ public:
 		return Buffer;
 	}
 
-	template<typename KeyType, typename ValueType>
-	struct TSRVFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, /* bInAllowDuplicateKeys = */ false>
-	{
-		typedef typename TTypeTraits<KeyType>::ConstPointerType KeyInitType;
-		typedef const TPairInitializer<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
-
-		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
-		{
-			return Element.Key;
-		}
-		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
-		{
-			return A.BytesPerElement == B.BytesPerElement && A.Format == B.Format;
-		}
-		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
-		{
-			return HashCombine(uint32(Key.BytesPerElement), uint32(Key.Format));
-		}
-	};
-
-	template<typename KeyType, typename ValueType>
-	struct TUAVFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, /* bInAllowDuplicateKeys = */ false>
-	{
-		typedef typename TTypeTraits<KeyType>::ConstPointerType KeyInitType;
-		typedef const TPairInitializer<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
-
-		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
-		{
-			return Element.Key;
-		}
-		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
-		{
-			return A.Format == B.Format && A.bSupportsAtomicCounter == B.bSupportsAtomicCounter && A.bSupportsAppendBuffer == B.bSupportsAppendBuffer;
-		}
-		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
-		{
-			return (uint32(Key.bSupportsAtomicCounter) << 8) | (uint32(Key.bSupportsAppendBuffer) << 9) | uint32(Key.Format);
-		}
-	};
-
 private:
-	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, EAllocator InAllocator)
-		: FRDGPooledResource(InAllocator)
-		, Desc(InDesc)
-		, Buffer(MoveTemp(InBuffer))
-	{}
-
 	TRefCountPtr<FRHIBuffer> Buffer;
-	TMap<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef, FDefaultSetAllocator, TUAVFuncs<FRDGBufferUAVDesc, FUnorderedAccessViewRHIRef>> UAVs;
-	TMap<FRDGBufferSRVDesc, FShaderResourceViewRHIRef, FDefaultSetAllocator, TSRVFuncs<FRDGBufferSRVDesc, FShaderResourceViewRHIRef>> SRVs;
+	TArray<TPair<FRHIBufferUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
+	TArray<TPair<FRHIBufferSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 
 	void Reset()
 	{
@@ -1069,17 +966,19 @@ private:
 		, Flags(InFlags)
 	{}
 
-	/** Assigns the pooled buffer to this buffer; returns the previous buffer to own the allocation. */
+	/** Assigns a pooled buffer as the backing RHI resource. */
 	void SetRHI(FRDGPooledBuffer* InPooledBuffer);
 
-	/** Returns RHI buffer without access checks. */
+	/** Assigns a transient buffer as the backing RHI resource. */
+	void SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& Allocator);
+
+	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
+	void Finalize();
+
 	FRHIBuffer* GetRHIUnchecked() const
 	{
 		return static_cast<FRHIBuffer*>(FRDGResource::GetRHIUnchecked());
 	}
-
-	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
-	void Finalize();
 
 	/** Returns the current buffer state. Only valid to call after SetRHI. */
 	FRDGSubresourceState& GetState() const
@@ -1097,10 +996,16 @@ private:
 	/** The next buffer to own the PooledBuffer allocation during execution. */
 	FRDGBufferHandle NextOwner;
 
-	/** Assigned pooled buffer pointer. Never reset once assigned. */
-	FRDGPooledBuffer* PooledBuffer = nullptr;
+	union
+	{
+		/** Assigned pooled buffer pointer. Never reset once assigned. */
+		FRDGPooledBuffer* PooledBuffer = nullptr;
 
-	/** Cached state pointer from the pooled buffer. */
+		/** Assigned transient buffer pointer. Never reset once assigned. */
+		FRHITransientBuffer* TransientBuffer;
+	};
+
+	/** Cached state pointer from the pooled / transient buffer. */
 	FRDGSubresourceState* State = nullptr;
 
 	/** Valid strictly when holding a strong reference; use PooledBuffer instead. */

@@ -2861,7 +2861,6 @@ private:
 	RHI_API void OnVerifyNumUAVsFailed(int32 InNumUAVs);
 };
 
-
 /** Descriptor used to create a texture resource */
 struct RHI_API FRHITextureCreateInfo
 {
@@ -2893,10 +2892,9 @@ struct RHI_API FRHITextureCreateInfo
 		EPixelFormat InFormat,
 		FClearValueBinding InClearValue,
 		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
+		uint8 InNumMips = 1)
 	{
-		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, InSize.Z, 1, InNumMips, InNumSamples);
+		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, InSize.Z, 1, InNumMips);
 	}
 
 	static FRHITextureCreateInfo CreateCube(
@@ -3038,6 +3036,123 @@ struct RHI_API FRHITextureCreateInfo
 	uint8 NumSamples = 1;
 };
 
+/** Used to specify a texture metadata plane when creating a view. */
+enum class ERHITextureMetaDataAccess : uint8
+{
+	/** The primary plane is used with default compression behavior. */
+	None = 0,
+
+	/** The primary plane is used without decompressing it. */
+	CompressedSurface,
+
+	/** The depth plane is used with default compression behavior. */
+	Depth,
+
+	/** The stencil plane is used with default compression behavior. */
+	Stencil,
+
+	/** The HTile plane is used. */
+	HTile,
+
+	/** the FMask plane is used. */
+	FMask,
+
+	/** the CMask plane is used. */
+	CMask
+};
+
+enum ERHITextureSRVOverrideSRGBType
+{
+	SRGBO_Default,
+	SRGBO_ForceDisable,
+};
+
+struct FRHITextureSRVCreateInfo
+{
+	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, EPixelFormat InFormat = PF_Unknown)
+		: Format(InFormat)
+		, MipLevel(InMipLevel)
+		, NumMipLevels(InNumMipLevels)
+		, SRGBOverride(SRGBO_Default)
+		, FirstArraySlice(0)
+		, NumArraySlices(0)
+	{}
+
+	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel, uint8 InNumMipLevels, uint32 InFirstArraySlice, uint32 InNumArraySlices, EPixelFormat InFormat = PF_Unknown)
+		: Format(InFormat)
+		, MipLevel(InMipLevel)
+		, NumMipLevels(InNumMipLevels)
+		, SRGBOverride(SRGBO_Default)
+		, FirstArraySlice(InFirstArraySlice)
+		, NumArraySlices(InNumArraySlices)
+	{}
+
+	/** View the texture with a different format. Leave as PF_Unknown to use original format. Useful when sampling stencil */
+	EPixelFormat Format;
+
+	/** Specify the mip level to use. Useful when rendering to one mip while sampling from another */
+	uint8 MipLevel;
+
+	/** Create a view to a single, or multiple mip levels */
+	uint8 NumMipLevels;
+
+	/** Potentially override the texture's sRGB flag */
+	ERHITextureSRVOverrideSRGBType SRGBOverride;
+
+	/** Specify first array slice index. By default 0. */
+	uint32 FirstArraySlice;
+
+	/** Specify number of array slices. If FirstArraySlice and NumArraySlices are both zero, the SRV is created for all array slices. By default 0. */
+	uint32 NumArraySlices;
+
+	/** Specify the metadata plane to use when creating a view. */
+	ERHITextureMetaDataAccess MetaData = ERHITextureMetaDataAccess::None;
+
+	FORCEINLINE bool operator==(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return (
+			Format == Other.Format &&
+			MipLevel == Other.MipLevel &&
+			NumMipLevels == Other.NumMipLevels &&
+			SRGBOverride == Other.SRGBOverride &&
+			FirstArraySlice == Other.FirstArraySlice &&
+			NumArraySlices == Other.NumArraySlices &&
+			MetaData == Other.MetaData);
+	}
+
+	FORCEINLINE bool operator!=(const FRHITextureSRVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
+};
+
+FORCEINLINE uint32 GetTypeHash(const FRHITextureSRVCreateInfo& Var)
+{
+	uint32 Hash0 = uint32(Var.Format) | uint32(Var.MipLevel) << 8 | uint32(Var.NumMipLevels) << 16 | uint32(Var.SRGBOverride) << 24;
+	return HashCombine(HashCombine(GetTypeHash(Hash0), GetTypeHash(Var.FirstArraySlice)), GetTypeHash(Var.NumArraySlices));
+}
+
+struct FRHITextureUAVCreateInfo
+{
+public:
+	explicit FRHITextureUAVCreateInfo(uint8 InMipLevel = 0u, ERHITextureMetaDataAccess InMetaData = ERHITextureMetaDataAccess::None)
+		: MipLevel(InMipLevel)
+		, MetaData(InMetaData)
+	{}
+
+	FORCEINLINE bool operator==(const FRHITextureUAVCreateInfo& Other)const
+	{
+		return MipLevel == Other.MipLevel && MetaData == Other.MetaData;
+	}
+
+	FORCEINLINE bool operator!=(const FRHITextureUAVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
+
+	uint8 MipLevel;
+	ERHITextureMetaDataAccess MetaData;
+};
 
 /** Descriptor used to create a buffer resource */
 struct FRHIBufferCreateInfo
@@ -3065,29 +3180,55 @@ struct FRHIBufferCreateInfo
 	EBufferUsageFlags Usage = BUF_None;
 };
 
-
-/**
-@brief Resource allocator which is managed for a certain part of the frame by the high level
-	   rendering code (usually RenderGraph). An allocator is created via RHICreateTransientResourceAllocator on the device
-	   and released via the command list function RHIReleaseTransientResourceAllocator when all the
-	   transient resources are no longer needed.
-	   The allocator manages the lifetime of all the created resources and will take care of destroying
-	   all the resources when the allocator itself is destroyed.	   
-**/
-class RHI_API IRHITransientResourceAllocator
+struct FRHIBufferSRVCreateInfo
 {
-public:
-	// Virtual destructor
-	virtual ~IRHITransientResourceAllocator() {}
+	explicit FRHIBufferSRVCreateInfo() = default;
 
-	// Create functions
-	virtual FRHITexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
-	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
+	explicit FRHIBufferSRVCreateInfo(EPixelFormat InFormat)
+		: Format(InFormat)
+	{
+		BytesPerElement = GPixelFormats[Format].BlockBytes;
+	}
 
-	// Memory deallocation functions - doesn't destroy the resource, but frees internal memory for reuse by another transient resource
-	virtual void DeallocateMemory(FRHITexture* InTexture) = 0;
-	virtual void DeallocateMemory(FRHIBuffer* InBuffer) = 0;
+	FORCEINLINE bool operator==(const FRHIBufferSRVCreateInfo& Other)const
+	{
+		return BytesPerElement == Other.BytesPerElement && Format == Other.Format;
+	}
 
-	// Freeze allocator for now creation and validates that all resources have their memory deallocated
-	virtual void Freeze(class FRHICommandListImmediate& RHICmdList) = 0;
+	FORCEINLINE bool operator!=(const FRHIBufferSRVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
+
+	/** Number of bytes per element. */
+	uint32 BytesPerElement = 1;
+
+	/** Encoding format for the element. */
+	EPixelFormat Format = PF_Unknown;
+};
+
+struct FRHIBufferUAVCreateInfo
+{
+	FRHIBufferUAVCreateInfo() = default;
+
+	explicit FRHIBufferUAVCreateInfo(EPixelFormat InFormat)
+		: Format(InFormat)
+	{}
+
+	FORCEINLINE bool operator==(const FRHIBufferUAVCreateInfo& Other)const
+	{
+		return Format == Other.Format && bSupportsAtomicCounter == Other.bSupportsAtomicCounter && bSupportsAppendBuffer == Other.bSupportsAppendBuffer;
+	}
+
+	FORCEINLINE bool operator!=(const FRHIBufferUAVCreateInfo& Other)const
+	{
+		return !(*this == Other);
+	}
+
+	/** Number of bytes per element (used for typed buffers). */
+	EPixelFormat Format = PF_Unknown;
+
+	/** Whether the uav supports atomic counter or append buffer operations (used for structured buffers) */
+	bool bSupportsAtomicCounter = false;
+	bool bSupportsAppendBuffer = false;
 };

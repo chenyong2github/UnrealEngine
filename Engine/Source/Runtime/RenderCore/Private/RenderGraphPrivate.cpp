@@ -39,6 +39,23 @@ FAutoConsoleVariableRef CVarRDGDebugFlushGPU(
 	}),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGDebugExtendResourceLifetimes = 0;
+FAutoConsoleVariableRef CVarRDGDebugExtendResourceLifetimes(
+	TEXT("r.RDG.Debug.ExtendResourceLifetimes"),
+	GRDGDebugExtendResourceLifetimes,
+	TEXT("Extends the resource lifetimes of resources (or a specific resource filter specified by r.RDG.Debug.ResourceFilter) ")
+	TEXT("so that they cannot overlap memory with any other resource within the graph. Useful to debug if transient aliasing is causing issues.\n")
+	TEXT(" 0: disabled (default);\n")
+	TEXT(" 1: enabled;\n"),
+	ECVF_RenderThreadSafe);
+
+int32 GRDGDebugDisableTransientResources = 0;
+FAutoConsoleVariableRef CVarRDGDebugDisableTransientResource(
+	TEXT("r.RDG.Debug.DisableTransientResources"),
+	GRDGDebugDisableTransientResources,
+	TEXT("Filters out transient resources from the transient allocator. Use r.rdg.debug.resourcefilter to specify the filter. Defaults to all resources if enabled."),
+	ECVF_RenderThreadSafe);
+
 int32 GRDGDumpGraph = 0;
 FAutoConsoleVariableRef CVarDumpGraph(
 	TEXT("r.RDG.DumpGraph"),
@@ -97,14 +114,23 @@ FAutoConsoleVariableRef CVarRDGTransitionLog(
 
 TAutoConsoleVariable<FString> CVarRDGDebugGraphFilter(
 	TEXT("r.RDG.Debug.GraphFilter"), TEXT(""),
-	TEXT("Filters certain debug events to a specific graph.\n"),
+	TEXT("Filters certain debug events to a specific graph. Set to 'None' to reset.\n"),
 	ECVF_Default);
 
 FString GRDGDebugGraphFilterName;
 
+inline FString GetDebugFilterString(const FString& InputString)
+{
+	if (!InputString.Compare(TEXT("None"), ESearchCase::IgnoreCase))
+	{
+		return {};
+	}
+	return InputString;
+}
+
 FAutoConsoleVariableSink CVarRDGDebugGraphSink(FConsoleCommandDelegate::CreateLambda([]()
 {
-	GRDGDebugGraphFilterName = CVarRDGDebugGraphFilter.GetValueOnGameThread();
+	GRDGDebugGraphFilterName = GetDebugFilterString(CVarRDGDebugGraphFilter.GetValueOnGameThread());
 }));
 
 inline bool IsDebugAllowed(const FString& FilterString, const TCHAR* Name)
@@ -130,14 +156,14 @@ bool IsDebugAllowedForGraph(const TCHAR* GraphName)
 
 TAutoConsoleVariable<FString> CVarRDGDebugPassFilter(
 	TEXT("r.RDG.Debug.PassFilter"), TEXT(""),
-	TEXT("Filters certain debug events to specific passes.\n"),
+	TEXT("Filters certain debug events to specific passes. Set to 'None' to reset.\n"),
 	ECVF_Default);
 
 FString GRDGDebugPassFilterName;
 
 FAutoConsoleVariableSink CVarRDGDebugPassSink(FConsoleCommandDelegate::CreateLambda([]()
 {
-	GRDGDebugPassFilterName = CVarRDGDebugPassFilter.GetValueOnGameThread();
+	GRDGDebugPassFilterName = GetDebugFilterString(CVarRDGDebugPassFilter.GetValueOnGameThread());
 }));
 
 bool IsDebugAllowedForPass(const TCHAR* PassName)
@@ -147,14 +173,14 @@ bool IsDebugAllowedForPass(const TCHAR* PassName)
 
 TAutoConsoleVariable<FString> CVarRDGDebugResourceFilter(
 	TEXT("r.RDG.Debug.ResourceFilter"), TEXT(""),
-	TEXT("Filters certain debug events to a specific resource.\n"),
+	TEXT("Filters certain debug events to a specific resource. Set to 'None' to reset.\n"),
 	ECVF_Default);
 
 FString GRDGDebugResourceFilterName;
 
 FAutoConsoleVariableSink CVarRDGDebugResourceSink(FConsoleCommandDelegate::CreateLambda([]()
 {
-	GRDGDebugResourceFilterName = CVarRDGDebugResourceFilter.GetValueOnGameThread();
+	GRDGDebugResourceFilterName = GetDebugFilterString(CVarRDGDebugResourceFilter.GetValueOnGameThread());
 }));
 
 bool IsDebugAllowedForResource(const TCHAR* ResourceName)
@@ -271,10 +297,12 @@ FAutoConsoleVariableRef CVarRDGMergeRenderPasses(
 	TEXT(" 1:on(default);\n"),
 	ECVF_RenderThreadSafe);
 
-int32 GRDGTransientAllocator = 0;
+int32 GRDGTransientAllocator = 1;
 FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
 	TEXT("r.RDG.TransientAllocator"), GRDGTransientAllocator,
-	TEXT("RDG will use the RHITransientResourceAllocator to allocate all transient resources."),
+	TEXT("RDG will use the RHITransientResourceAllocator to allocate all transient resources.")
+	TEXT(" 0: disables the transient allocator;")
+	TEXT(" 1: enables the transient allocator (default)"),
 	ECVF_RenderThreadSafe);
 
 #if CSV_PROFILER
@@ -337,6 +365,11 @@ void InitRenderGraph()
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebug")))
 	{
 		GRDGDebug = 1;
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("rdgdebugextendresourcelifetimes")))
+	{
+		GRDGDebugExtendResourceLifetimes = 1;
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("rdgtransitionlog")))

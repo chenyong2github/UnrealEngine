@@ -374,12 +374,6 @@ void FRHICommandClearUAVUint::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR_COMPUTE(RHIClearUAVUint)(UnorderedAccessViewRHI, Values);
 }
 
-void FRHICommandReleaseTransientResourceAllocator::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(ReleaseTransientResourceAllocator);
-	INTERNAL_DECORATOR(RHIReleaseTransientResourceAllocator)(Allocator);
-}
-
 void FRHICommandCopyToResolveTarget::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(CopyToResolveTarget);

@@ -193,6 +193,8 @@ public:
 
 	FD3D12CLSyncPoint ReadBackSyncPoint;
 
+	static D3D12_RESOURCE_DESC GetResourceDesc(const FRHITextureCreateInfo& CreateInfo);
+
 protected:
 
 	/** Amount of memory allocated by this texture, in bytes. */

@@ -508,10 +508,7 @@ bool FRDGBuilder::IsTransient(FRDGBufferRef Buffer) const
 		return false;
 	}
 
-	// Buffers smaller than a page go through normal pooled allocation.
-	const uint32 TransientSizeMin = 64 * 1024;
-
-	return Buffer->Desc.GetTotalNumBytes() >= TransientSizeMin && EnumHasAnyFlags(Buffer->Desc.Usage, BUF_UnorderedAccess);
+	return EnumHasAnyFlags(Buffer->Desc.Usage, BUF_UnorderedAccess);
 }
 
 bool FRDGBuilder::IsTransient(FRDGTextureRef Texture) const
@@ -528,10 +525,17 @@ bool FRDGBuilder::IsTransientInternal(FRDGParentResourceRef Resource) const
 	}
 
 	// Transient resources must stay within the graph.
-	if (Resource->bExternal || Resource->bExtracted)
+	if (Resource->bExternal || Resource->bExtracted || Resource->bUserSetNonTransient)
 	{
 		return false;
 	}
+
+#if RDG_ENABLE_DEBUG
+	if (GRDGDebugDisableTransientResources != 0 && IsDebugAllowedForResource(Resource->Name))
+	{
+		return false;
+	}
+#endif
 
 	// This resource cannot be extracted or made external later.
 	check(bSetupComplete);
@@ -543,7 +547,7 @@ FRDGBuilder::FTransientResourceAllocator::~FTransientResourceAllocator()
 {
 	if (Allocator)
 	{
-		RHICmdList.ReleaseTransientResourceAllocator(Allocator);
+		Allocator->Release(RHICmdList);
 	}
 }
 
@@ -949,6 +953,16 @@ void FRDGBuilder::Compile()
 			AddCullingDependency(Buffer->LastProducer, StateFinal, ERHIPipeline::Graphics);
 			Buffer->ReferenceCount++;
 		}
+
+		EnumerateExtendedLifetimeResources(Textures, [](FRDGTextureRef Texture)
+		{
+			Texture->ReferenceCount++;
+		});
+
+		EnumerateExtendedLifetimeResources(Buffers, [](FRDGBufferRef Buffer)
+		{
+			Buffer->ReferenceCount++;
+		});
 	}
 
 	// All dependencies in the raw graph have been specified; if enabled, all passes are marked as culled and a
@@ -1468,6 +1482,16 @@ void FRDGBuilder::Execute()
 			{
 				EndResourceRHI(TransientResourceAllocator, EpiloguePassHandle, Query.Key, 1);
 			}
+
+			EnumerateExtendedLifetimeResources(Textures, [&](FRDGTextureRef Texture)
+			{
+				EndResourceRHI(TransientResourceAllocator, EpiloguePassHandle, Texture, 1);
+			});
+
+			EnumerateExtendedLifetimeResources(Buffers, [&](FRDGBufferRef Buffer)
+			{
+				EndResourceRHI(TransientResourceAllocator, EpiloguePassHandle, Buffer, 1);
+			});
 
 			if (TransientResourceAllocator)
 			{
@@ -2430,7 +2454,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGUniformBuffer* UniformBuffer)
 {
 	check(UniformBuffer);
 
-	if (UniformBuffer->UniformBufferRHI)
+	if (UniformBuffer->GetRHIUnchecked())
 	{
 		return;
 	}
@@ -2452,7 +2476,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 {
 	check(Texture);
 
-	if (Texture->PooledTexture)
+	if (Texture->GetRHIUnchecked())
 	{
 		return;
 	}
@@ -2471,40 +2495,36 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 	}
 #endif
 
-	bool bTransientAllocated = false;
-
 	if (IsTransient(Texture))
 	{
 		check(TransientResourceAllocator);
 
 		if (IRHITransientResourceAllocator* AllocatorRHI = TransientResourceAllocator->GetOrCreate())
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBuilder::SetupTransientTexture);
-
-			Texture->SetRHI(FRDGPooledTexture::CreateTransient(Allocator, Texture->Desc, AllocatorRHI->CreateTexture(Texture->Desc, Texture->Name)));
-			Texture->bTransient = true;
-
-			check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
-
-			FRDGSubresourceState InitialState;
-			InitialState.SetPass(ERHIPipeline::Graphics, PassHandle);
-			InitialState.Access = ERHIAccess::Discard;
-			InitAsWholeResource(Texture->GetState(), InitialState);
-
-			AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
+			if (FRHITransientTexture* TransientTexture = AllocatorRHI->CreateTexture(Texture->Desc, Texture->Name))
 			{
-				Barriers.AddAlias(Texture, FRHITransientAliasingInfo::Acquire(Texture->GetRHIUnchecked()));
-			});
+				Texture->SetRHI(TransientTexture, Allocator);
 
-			bTransientAllocated = true;
+				check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
 
-		#if STATS
-			GRDGStatTransientTextureCount++;
-		#endif
+				FRDGSubresourceState InitialState;
+				InitialState.SetPass(ERHIPipeline::Graphics, PassHandle);
+				InitialState.Access = ERHIAccess::Discard;
+				InitAsWholeResource(Texture->GetState(), InitialState);
+
+				AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
+				{
+					Barriers.AddAlias(Texture, FRHITransientAliasingInfo::Acquire(Texture->GetRHIUnchecked(), Texture->TransientTexture->GetAliasingOverlaps()));
+				});
+
+			#if STATS
+				GRDGStatTransientTextureCount++;
+			#endif
+			}
 		}
 	}
 
-	if (!bTransientAllocated)
+	if (!Texture->bTransient)
 	{
 		Texture->SetRHI(GRenderTargetPool.FindFreeElementForRDG(RHICmdList, Texture->Desc, Texture->Name));
 	}
@@ -2518,69 +2538,29 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle 
 {
 	check(SRV);
 
-	if (SRV->ResourceRHI)
+	if (SRV->GetRHIUnchecked())
 	{
 		return;
 	}
 
 	FRDGTextureRef Texture = SRV->Desc.Texture;
-	FRDGPooledTexture* PooledTexture = Texture->PooledTexture;
-	checkf(PooledTexture, TEXT("Pass parameters contained an SRV of RDG Texture %s, before that texture was referenced as a UAV or RTV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Texture->Name);
+	check(Texture->GetRHIUnchecked());
 
-	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
+	if (Texture->bTransient)
 	{
-		check(GRHISupportsExplicitHTile);
-		if (!PooledTexture->HTileSRV)
-		{
-			PooledTexture->HTileSRV = RHICreateShaderResourceViewHTile((FRHITexture2D*)PooledTexture->Texture.GetReference());
-		}
-		SRV->ResourceRHI = PooledTexture->HTileSRV;
-		check(SRV->ResourceRHI);
-		return;
+		SRV->ResourceRHI = Texture->TransientTexture->GetOrCreateSRV(SRV->Desc);
 	}
-
-	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::FMask)
+	else
 	{
-		if (!PooledTexture->FMaskSRV)
-		{
-			PooledTexture->FMaskSRV = RHICreateShaderResourceViewFMask((FRHITexture2D*)PooledTexture->Texture.GetReference());
-		}
-		SRV->ResourceRHI = PooledTexture->FMaskSRV;
-		check(SRV->ResourceRHI);
-		return;
+		SRV->ResourceRHI = Texture->PooledTexture->GetOrCreateSRV(SRV->Desc);
 	}
-
-	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::CMask)
-	{
-		if (!PooledTexture->CMaskSRV)
-		{
-			PooledTexture->CMaskSRV = RHICreateShaderResourceViewWriteMask((FRHITexture2D*)PooledTexture->Texture.GetReference());
-		}
-		SRV->ResourceRHI = PooledTexture->CMaskSRV;
-		check(SRV->ResourceRHI);
-		return;
-	}
-
-	for (const auto& SRVPair : PooledTexture->SRVs)
-	{
-		if (SRVPair.Key == SRV->Desc)
-		{
-			SRV->ResourceRHI = SRVPair.Value;
-			return;
-		}
-	}
-
-	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(PooledTexture->Texture, SRV->Desc);
-
-	SRV->ResourceRHI = RHIShaderResourceView;
-	PooledTexture->SRVs.Emplace(SRV->Desc, MoveTemp(RHIShaderResourceView));
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGTextureUAVRef UAV)
 {
 	check(UAV);
 
-	if (UAV->ResourceRHI)
+	if (UAV->GetRHIUnchecked())
 	{
 		return;
 	}
@@ -2588,48 +2568,28 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 	BeginResourceRHI(TransientResourceAllocator, PassHandle, UAV->Desc.Texture);
 
 	FRDGTextureRef Texture = UAV->Desc.Texture;
-	FRDGPooledTexture* PooledTexture = Texture->PooledTexture;
-	check(PooledTexture);
 
-	if (UAV->Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
+	if (Texture->bTransient)
 	{
-		check(GRHISupportsExplicitHTile);
-		if (!PooledTexture->HTileUAV)
-		{
-			PooledTexture->HTileUAV = RHICreateUnorderedAccessViewHTile((FRHITexture2D*)PooledTexture->Texture.GetReference());
-		}
-		UAV->ResourceRHI = PooledTexture->HTileUAV;
-		check(UAV->ResourceRHI);
-		return;
+		UAV->ResourceRHI = Texture->TransientTexture->GetOrCreateUAV(UAV->Desc);
 	}
-
-	if (UAV->Desc.MetaData == ERDGTextureMetaDataAccess::Stencil)
+	else
 	{
-		if (!PooledTexture->StencilUAV)
-		{
-			PooledTexture->StencilUAV = RHICreateUnorderedAccessViewStencil((FRHITexture2D*)PooledTexture->Texture.GetReference(), 0);
-		}
-		UAV->ResourceRHI = PooledTexture->StencilUAV;
-		check(UAV->ResourceRHI);
-		return;
+		UAV->ResourceRHI = Texture->PooledTexture->GetOrCreateUAV(UAV->Desc);
 	}
-
-	UAV->ResourceRHI = PooledTexture->MipUAVs[UAV->Desc.MipLevel];
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGBufferRef Buffer)
 {
 	check(Buffer);
 
-	if (Buffer->PooledBuffer)
+	if (Buffer->GetRHIUnchecked())
 	{
 		return;
 	}
 
 	check(TransientResourceAllocator || Buffer->bExternal);
 	check(Buffer->ReferenceCount > 0 || Buffer->bExternal || IsImmediateMode());
-
-	bool bTransientAllocated = false;
 
 	// If transient then create the resource on the transient allocator. External or extracted resource can't be transient because of lifetime tracking issues.
 	if (IsTransient(Buffer))
@@ -2638,67 +2598,100 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 		if (IRHITransientResourceAllocator* AllocatorRHI = TransientResourceAllocator->GetOrCreate())
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBuilder::SetupTransientBuffer);
-
-			Buffer->SetRHI(FRDGPooledBuffer::CreateTransient(Allocator, AllocatorRHI->CreateBuffer(Translate(Buffer->Desc), Buffer->Name), Buffer->Desc));
-			Buffer->bTransient = true;
-
-			check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
-
-			FRDGSubresourceState& InitialState = Buffer->GetState();
-			InitialState.SetPass(ERHIPipeline::Graphics, PassHandle);
-			InitialState.Access = ERHIAccess::Discard;
-
-			AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
+			if (FRHITransientBuffer* TransientBuffer = AllocatorRHI->CreateBuffer(Translate(Buffer->Desc), Buffer->Name))
 			{
-				Barriers.AddAlias(Buffer, FRHITransientAliasingInfo::Acquire(Buffer->GetRHIUnchecked()));
-			});
+				Buffer->SetRHI(TransientBuffer, Allocator);
 
-			bTransientAllocated = true;
+				check(GetPrologueBarrierPassHandle(PassHandle) == PassHandle);
 
-		#if STATS
-			GRDGStatTransientBufferCount++;
-		#endif
+				FRDGSubresourceState& InitialState = Buffer->GetState();
+				InitialState.SetPass(ERHIPipeline::Graphics, PassHandle);
+				InitialState.Access = ERHIAccess::Discard;
+
+				AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
+				{
+					Barriers.AddAlias(Buffer, FRHITransientAliasingInfo::Acquire(Buffer->GetRHIUnchecked(), Buffer->TransientBuffer->GetAliasingOverlaps()));
+				});
+
+			#if STATS
+				GRDGStatTransientBufferCount++;
+			#endif
+			}
 		}
 	}
 
-	if (!bTransientAllocated)
+	if (!Buffer->bTransient)
 	{
 		Buffer->SetRHI(GRenderGraphResourcePool.FindFreeBufferInternal(RHICmdList, Buffer->Desc, Buffer->Name));
 	}
 
 	Buffer->FirstPass = PassHandle;
 
-	check(Buffer->PooledBuffer);
+	check(Buffer->GetRHIUnchecked());
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle PassHandle, FRDGBufferSRVRef SRV)
 {
 	check(SRV);
 
-	if (SRV->ResourceRHI)
+	if (SRV->GetRHIUnchecked())
 	{
 		return;
 	}
 
 	FRDGBufferRef Buffer = SRV->Desc.Buffer;
-	checkf(Buffer->PooledBuffer, TEXT("Pass parameters contained an SRV of RDG buffer %s, before that buffer was referenced as a UAV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Buffer->Name);
+	checkf(Buffer->GetRHIUnchecked(), TEXT("Pass parameters contained an SRV of RDG buffer %s, before that buffer was referenced as a UAV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Buffer->Name);
 
-	SRV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateSRV(SRV->Desc);
+	FRHIBufferSRVCreateInfo SRVCreateInfo = SRV->Desc;
+
+	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	{
+		// RDG allows structured buffer views to be typed, but the view creation logic requires that it
+		// be unknown (as do platform APIs -- structured buffers are not typed). This could be validated
+		// at the high level but the current API makes it confusing. For now, it's considered a no-op.
+		SRVCreateInfo.Format = PF_Unknown;
+	}
+
+	if (Buffer->bTransient)
+	{
+		SRV->ResourceRHI = Buffer->TransientBuffer->GetOrCreateSRV(SRVCreateInfo);
+	}
+	else
+	{
+		SRV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateSRV(SRVCreateInfo);
+	}
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGBufferUAV* UAV)
 {
 	check(UAV);
 
-	if (UAV->ResourceRHI)
+	if (UAV->GetRHIUnchecked())
 	{
 		return;
 	}
 
 	FRDGBufferRef Buffer = UAV->Desc.Buffer;
 	BeginResourceRHI(TransientResourceAllocator, PassHandle, Buffer);
-	UAV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateUAV(UAV->Desc);
+
+	FRHIBufferUAVCreateInfo UAVCreateInfo = UAV->Desc;
+
+	if (Buffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	{
+		// RDG allows structured buffer views to be typed, but the view creation logic requires that it
+		// be unknown (as do platform APIs -- structured buffers are not typed). This could be validated
+		// at the high level but the current API makes it confusing. For now, it's considered a no-op.
+		UAVCreateInfo.Format = PF_Unknown;
+	}
+
+	if (Buffer->bTransient)
+	{
+		UAV->ResourceRHI = Buffer->TransientBuffer->GetOrCreateUAV(UAVCreateInfo);
+	}
+	else
+	{
+		UAV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateUAV(UAVCreateInfo);
+	}
 }
 
 void FRDGBuilder::EndResourceRHI(FTransientResourceAllocator& TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGTextureRef Texture, uint32 ReferenceCount)
@@ -2711,7 +2704,7 @@ void FRDGBuilder::EndResourceRHI(FTransientResourceAllocator& TransientResourceA
 	{
 		if (Texture->bTransient)
 		{
-			TransientResourceAllocator->DeallocateMemory(Texture->GetRHIUnchecked());
+			TransientResourceAllocator->DeallocateMemory(Texture->TransientTexture);
 
 			AddToEpilogueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
 			{
@@ -2737,7 +2730,7 @@ void FRDGBuilder::EndResourceRHI(FTransientResourceAllocator& TransientResourceA
 	{
 		if (Buffer->bTransient)
 		{
-			TransientResourceAllocator->DeallocateMemory(Buffer->GetRHIUnchecked());
+			TransientResourceAllocator->DeallocateMemory(Buffer->TransientBuffer);
 
 			AddToEpilogueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
 			{

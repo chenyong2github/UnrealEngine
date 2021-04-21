@@ -1,233 +1,77 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
-#include "D3D12PoolAllocator.h"
+#include "D3D12Resources.h"
+#include "RHICoreTransientResourceAllocator.h"
 
-// Forward declare
-class FD3D12TransientResourceAllocator;
+extern D3D12_RESOURCE_STATES GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc);
 
-/**
-@brief Tracking stats for transient resource allocations
-**/
-struct FD3D12TransientMemoryStats
-{
-	void Reset()
-	{
-		CurrentPoolAllocated = 0;
-		TotalRequested = 0;
-		MaxFrameAllocated = 0;
-		CommittedAllocated = 0;
-		PoolAllocations = 0;
-		CommittedAllocations = 0;
-	}
-	void Add(const FD3D12TransientMemoryStats& InOther)
-	{
-		CurrentPoolAllocated += InOther.CurrentPoolAllocated;
-		TotalRequested += InOther.TotalRequested;
-		MaxFrameAllocated += InOther.MaxFrameAllocated;
-		CommittedAllocated += InOther.CommittedAllocated;
-		PoolAllocations += InOther.PoolAllocations;
-		CommittedAllocations += InOther.CommittedAllocations;
-	}
-
-	uint64 CurrentPoolAllocated = 0;
-	uint64 TotalRequested = 0;
-	uint64 MaxFrameAllocated = 0;
-	uint64 CommittedAllocated = 0;
-	uint32 PoolAllocations = 0;
-	uint32 CommittedAllocations = 0;
-};
-
-
-struct FD3D12PooledTextureData
-{
-	FRHITextureCreateInfo CreateInfo;
-	D3D12_RESOURCE_DESC ResourceDesc;
-	D3D12_CLEAR_VALUE ClearValue;
-	FTextureRHIRef RHITexture;
-};
-
-struct FD3D12PooledBufferData
-{
-	FRHIBufferCreateInfo CreateInfo;
-	FBufferRHIRef RHIBuffer;
-};
-
-
-/**
-@brief D3D12 transient pool specific implementation of the FD3D12MemoryPool
-	   Caches previously created resource to remove placed resource creation overhead and 
-	   also keeps track of all open allocation ranges used to create the aliasing barriers
-**/
-class FD3D12TransientMemoryPool : public FD3D12MemoryPool
+class FD3D12TransientHeap final
+	: public FRHITransientHeap
+	, public FRefCountBase
+	, public FD3D12LinkedAdapterObject<FD3D12TransientHeap>
 {
 public:
+	FD3D12TransientHeap(const FRHITransientHeapInitializer& Initializer, FD3D12Adapter* Adapter, FD3D12Device* Device, FRHIGPUMask VisibleNodeMask);
+	~FD3D12TransientHeap();
 
-	FD3D12TransientMemoryPool(FD3D12Device* ParentDevice, FRHIGPUMask VisibleNodes, const FD3D12ResourceInitConfig& InInitConfig, ERHIPoolResourceTypes InSupportedResourceTypes, const FString& Name,
-		EResourceAllocationStrategy InAllocationStrategy, int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment) :
-		FD3D12MemoryPool(ParentDevice, VisibleNodes, InInitConfig, Name, InAllocationStrategy, InPoolIndex, InPoolSize, InPoolAlignment, InSupportedResourceTypes, FRHIMemoryPool::EFreeListOrder::SortByOffset) { }
-	virtual ~FD3D12TransientMemoryPool();
+	FD3D12Heap* Get() { return Heap; }
 
-	void ResetPool();
-	void SetPoolIndex(int16 InNewPoolIndex);
+private:
+	TRefCountPtr<FD3D12Heap> Heap;
+};
 
-	void ClearActiveResources();
-	void CheckActiveResources(const FInt64Range& InAllocationRange, TArray<FD3D12Resource*>& OverlappingResources);
+class FD3D12TransientResourceSystem final
+	: public FRHITransientResourceSystem
+	, public FD3D12AdapterChild
+{
+public:
+	static TUniquePtr<FD3D12TransientResourceSystem> Create(FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
 
-	FD3D12Resource* FindResourceInCache(uint64 InAllocationOffset, const D3D12_RESOURCE_DESC& InDesc, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName);
-	void ReleaseResource(FD3D12Resource* InResource, FRHIPoolAllocationData& InReleasedAllocationData, uint64 InFenceValue);
-		
+	//! FRHITransientResourceSystem Overrides
+	FRHITransientHeap* CreateHeap(const FRHITransientHeapInitializer& Initializer) override;
+
+private:
+	FD3D12TransientResourceSystem(const FRHITransientResourceSystemInitializer& Initializer, FD3D12Adapter* ParentAdapter, FRHIGPUMask VisibleNodeMask);
+
+	FRHIGPUMask VisibleNodeMask;
+};
+
+class FD3D12TransientResourceAllocator final
+	: public IRHITransientResourceAllocator
+	, public FD3D12AdapterChild
+{
+public:
+	FD3D12TransientResourceAllocator(FD3D12TransientResourceSystem& InParentSystem);
+
+	//! IRHITransientResourceAllocator Overrides
+	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
+	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
+	void DeallocateMemory(FRHITransientTexture* InTexture) override;
+	void DeallocateMemory(FRHITransientBuffer* InBuffer) override;
+	void Freeze(FRHICommandListImmediate& RHICmdList) override;
+
 private:
 
-	// Track all active ranges on an allocation which require possible aliasing barriers
-	struct ActiveResourceData
+	// This adapter mocks the D3D12 resource allocator interface and performs placed resource creation.
+	class FResourceAllocatorAdapter final : public FD3D12AdapterChild, public ID3D12ResourceAllocator
 	{
-		FInt64Range AllocationRange;
-		FInt64Range ActiveRange;
-		FD3D12Resource* Resource;
+	public:
+		FResourceAllocatorAdapter(FD3D12Adapter* Adapter, FD3D12TransientHeap& InHeap, const FRHITransientHeapAllocation& InAllocation)
+			: FD3D12AdapterChild(Adapter)
+			, Heap(InHeap)
+			, Allocation(InAllocation)
+		{}
+
+		void AllocateResource(
+			uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+			D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) override;
+
+		FD3D12TransientHeap& Heap;
+		const FRHITransientHeapAllocation& Allocation;
 	};
-	TArray<ActiveResourceData> ActiveResources;
 
-	// Cache all previously created placed resources at given offset and creation params to reduce
-	// placed resource creation overhead
-	struct FResourceCreateState
-	{
-		// Key values used to create the resource
-		uint64 AllocationOffset;
-		D3D12_RESOURCE_DESC ResourceDesc;
-		D3D12_CLEAR_VALUE ClearValue;
-
-		uint64 GetHash() const;
-	};
-	TMap<uint64, FD3D12Resource*> CachedResourceMap;
-};
-
-
-//-----------------------------------------------------------------------------
-//	Transient Memory Pool Manager
-//-----------------------------------------------------------------------------
-
-/**
-@brief Manages an array of pools per device which can be reused by the temporary
-	   transient memory allocator - the pools are returned to the manager when the 
-	   allocator is destroyed, so the heap creation and placed resource caches are kept
-	   alive in between frames. Pools are deleted when not used for n amount of frames.
-**/
-class FD3D12TransientMemoryPoolManager : public FD3D12DeviceChild, public FD3D12MultiNodeGPUObject
-{
-public:
-	FD3D12TransientMemoryPoolManager(FD3D12Device* InParent, FRHIGPUMask VisibleNodes);
-	~FD3D12TransientMemoryPoolManager() { }
-
-	void Destroy();
-
-	void BeginFrame();
-	void EndFrame();
-
-	// Get or creation functions from cached resources
-	FD3D12TransientMemoryPool* GetOrCreateMemoryPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType);
-	void ReleaseMemoryPool(FD3D12TransientMemoryPool* InMemoryPool);
-	FD3D12PooledTextureData GetPooledTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName);
-	FD3D12PooledBufferData GetPooledBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName);
-	void ReleaseResources(FD3D12TransientResourceAllocator* InAllocator);
-
-	// Get the pool creation members
-	const FD3D12ResourceInitConfig& GetInitConfig() const { return InitConfig; }
-	uint64 GetDefaultPoolSize() const { return DefaultPoolSize; }
-	uint32 GetPoolAlignment() const { return PoolAlignment; }
-	uint64 GetMaxAllocationSize() const { return MaxAllocationSize; }
-
-	// Stat management
-	void UpdateTextureStats(const FD3D12TransientMemoryStats& InStats)
-	{
-		TextureMemoryStats.Add(InStats);
-	}
-	void UpdateBufferStats(const FD3D12TransientMemoryStats& InStats)
-	{
-		BufferMemoryStats.Add(InStats);
-	}
-	void UpdateMemoryStats();
-	
-private:
-
-	// Pool creation members
-	FD3D12ResourceInitConfig InitConfig;
-	uint64 DefaultPoolSize;
-	uint32 PoolAlignment;
-	uint64 MaxAllocationSize;
-	bool bMergedTypeHeapSupported;
-
-	// Critical section to lock access to the pools & resource caches
-	FCriticalSection CS;
-	TArray<FD3D12TransientMemoryPool*> Pools;
-	TMap<uint64, TArray<FD3D12PooledTextureData>> FreeTextures;
-	TMap<uint64, TArray<FD3D12PooledBufferData>> FreeBuffers;
-
-	// Stats of last frame
-	FD3D12TransientMemoryStats TextureMemoryStats;
-	FD3D12TransientMemoryStats BufferMemoryStats;
-};
-
-
-//-----------------------------------------------------------------------------
-//	Transient Resource Allocator
-//-----------------------------------------------------------------------------
-
-/**
-@brief D3D12 Specific implementation of the IRHITransientResourceAllocator
-	   Uses a pool allocator as base to manage the internal D3D12 memory pools and also takes care of the actual
-	   D3D12 placed resource creation.
-	   Pools are retrieved from and released to the FD3D12TransientMemoryPoolManager
-**/
-class FD3D12TransientResourceAllocator : public IRHITransientResourceAllocator, public FD3D12PoolAllocator
-{
-public:
-
-	FD3D12TransientResourceAllocator(FD3D12TransientMemoryPoolManager& InMemoryPoolManager);
-	virtual ~FD3D12TransientResourceAllocator();
-
-	// Implementation of FRHITransientResourceAllocator interface
-	virtual FRHITexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
-	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
-	virtual void DeallocateMemory(FRHITexture* InTexture) override;
-	virtual void DeallocateMemory(FRHIBuffer* InBuffer) override;
-	virtual void Freeze(FRHICommandListImmediate&) override;
-
-	// Override deallocation function - memory possibly already freed during DeallocateMemory
-	virtual void DeallocateResource(FD3D12ResourceLocation& ResourceLocation) override;
-
-	// Try and find overlapping resource data for given base resource
-	TArrayView<FD3D12Resource*> GetOverlappingResources(FD3D12BaseShaderResource* InBaseShaderResource);
-
-	// Get the initial resource state
-	static D3D12_RESOURCE_STATES GetInitialResourceState(const D3D12_RESOURCE_DESC& InDesc);
-
-private:
-
-	// Override placed resource allocation helper function to get from cache if available
-	virtual FD3D12Resource* CreatePlacedResource(const FRHIPoolAllocationData& InAllocationData, const D3D12_RESOURCE_DESC& InDesc, D3D12_RESOURCE_STATES InCreateState, ED3D12ResourceStateMode InResourceStateMode, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName) override;
-	virtual FRHIMemoryPool* CreateNewPool(int16 InPoolIndex, uint32 InMinimumAllocationSize, ERHIPoolResourceTypes InAllocationResourceType) override;
-
-	// Shared allocation/deallocation helper
-	FD3D12BaseShaderResource* GetBaseShaderResource(FRHITexture* InRHITexture);
-	void SetupAllocatedResource(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12TransientMemoryStats& Stats);
-	void DeallocateMemory(FD3D12BaseShaderResource* InBaseShaderResource, FD3D12TransientMemoryStats& Stats);
-
-	// Don't track any allocations
-	virtual void UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType) override {}
-
-	// Reference all the allocated resources - owner of all the resources and will be returned back to the manager when the allocator is destroyed
-	TArray<FD3D12PooledTextureData> AllocatedTextures;
-	TArray<FD3D12PooledBufferData> AllocatedBuffers;
-
-	// All overlapping resource allocation information from all allocated resources on this allocator
-	// Not stored inside each resource to not increase the base object size for each resource
-	// (can still be moved if it the lookup becomes a perf bottleneck at some point)
-	TMap<FD3D12BaseShaderResource*, TArray<FD3D12Resource*>> OverlappingResourceData;
-
-	// Stat tracking
-	FD3D12TransientMemoryStats TextureMemoryStats;
-	FD3D12TransientMemoryStats BufferMemoryStats;
-
-	friend class FD3D12TransientMemoryPoolManager;
+	FRHITransientResourceAllocator Allocator;
+	FD3D12Device* AllocationInfoQueryDevice;
 };
