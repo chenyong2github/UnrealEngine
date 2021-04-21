@@ -52,6 +52,9 @@ protected:
 	IDMXProtocolPtr GetProtocolChecked() const;
 
 	/** Helper function that gets the Guid of the edited port */
+	FGuid GetPortGuid() const;
+
+	/** Helper function that gets the Guid of the edited port, checked version */
 	FGuid GetPortGuidChecked() const;
 
 	/** Gets the communication type */
