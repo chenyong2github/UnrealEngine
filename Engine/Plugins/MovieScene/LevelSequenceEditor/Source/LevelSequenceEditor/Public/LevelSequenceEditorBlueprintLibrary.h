@@ -171,9 +171,9 @@ public:
 
 public:
 
-	 /**
-	  * Internal function to assign a sequencer singleton.
-	  * NOTE: Only to be called by LevelSequenceEditor::Construct.
-	  */
+	/**
+	 * Internal function to assign a sequencer singleton.
+	 * NOTE: Only to be called by LevelSequenceEditor::Construct.
+	 */
 	static void SetSequencer(TSharedRef<ISequencer> InSequencer);
 };

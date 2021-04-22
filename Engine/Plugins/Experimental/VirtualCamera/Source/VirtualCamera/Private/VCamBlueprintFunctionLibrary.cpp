@@ -16,7 +16,7 @@
 #include "LevelEditorViewport.h"
 #include "SceneView.h"
 #include "SLevelViewport.h"
-#include "LevelSequenceEditor/Private/LevelSequenceEditorBlueprintLibrary.h"
+#include "LevelSequenceEditorBlueprintLibrary.h"
 #include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
 #include "Modules/ModuleManager.h"
 #endif
