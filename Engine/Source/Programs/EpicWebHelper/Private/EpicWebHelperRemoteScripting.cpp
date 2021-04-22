@@ -366,7 +366,7 @@ void FEpicWebHelperRemoteScripting::OnContextCreated(CefRefPtr<CefBrowser> Brows
 
 void FEpicWebHelperRemoteScripting::OnContextReleased(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefV8Context> Context)
 {
-	for(const TPair<FGuid,CefRefPtr<FEpicWebHelperRemoteObject>> RemoteObject : RemoteObjects)
+	for(const TPair<FGuid,CefRefPtr<FEpicWebHelperRemoteObject>> &RemoteObject : RemoteObjects)
 	{
 		if (RemoteObject.Value->Browser->IsSame(Browser)
 			&&  RemoteObject.Value->CreationContext->IsSame(Context))
