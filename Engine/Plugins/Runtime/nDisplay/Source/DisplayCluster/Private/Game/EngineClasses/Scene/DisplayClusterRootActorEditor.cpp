@@ -52,7 +52,6 @@ void ADisplayClusterRootActor::Constructor_Editor()
 {
 	// Allow tick in editor for preview rendering
 	PrimaryActorTick.bStartWithTickEnabled = true;
-	PreviewViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 	PreviewSettings = CreateDefaultSubobject<UDisplayClusterConfigurationViewportPreview>(TEXT("PreviewSettings"));
 }
 
@@ -64,7 +63,7 @@ void ADisplayClusterRootActor::Destructor_Editor()
 
 void ADisplayClusterRootActor::Tick_Editor(float DeltaSeconds)
 {
-	if (!IsRunningGameOrPIE())
+	if (!IsRunningGameOrPIE() && IsPreviewEnabled())
 	{
 		if (bDeferPreviewGeneration)
 		{
@@ -103,31 +102,53 @@ void ADisplayClusterRootActor::RerunConstructionScripts_Editor()
 	InitializeRootActor();
 }
 
-FRHITexture2D* ADisplayClusterRootActor::GetPreviewRenderTargetableTexture_RenderThread(const FString& ViewportId) const
+bool ADisplayClusterRootActor::IsPreviewEnabled() const
 {
-	check(IsInRenderingThread());
+	//@todo: (GUI) Scene preview can be disabled when the configuration window with internal preview is open.
+#if 0
+	bool bIsScenePreview = true; //@todo: handle GUI logic
+	bool bIsConfigurationPreviewUsed = false; //@todo: handle GUI logic
 
-	for(const TPair<FString, UDisplayClusterPreviewComponent*>& PreviewComponentIt : PreviewComponents)
+	if (bIsScenePreview == bIsConfigurationPreviewUsed)
 	{
-		if (PreviewComponentIt.Value && PreviewComponentIt.Value->GetViewportId() == ViewportId)
+		return false;
+	}
+#endif
+
+	return true;
+}
+
+// Return all RTT RHI resources for preview
+void ADisplayClusterRootActor::GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const
+{
+	check(IsInGameThread());
+
+	if(IsPreviewEnabled())
+	{
+		for(const TPair<FString, UDisplayClusterPreviewComponent*>& PreviewComponentIt : PreviewComponents)
 		{
-			// Add scope for func GetRenderTargetTexture()
-			UTextureRenderTarget2D* RenderTarget2D = PreviewComponentIt.Value->GetRenderTargetTexture();
-			if (RenderTarget2D)
+			if (PreviewComponentIt.Value)
 			{
-				FTextureRenderTargetResource* DstRenderTarget = RenderTarget2D->GetRenderTargetResource();
-				if (DstRenderTarget)
+				int OutTextureIndex = InViewportNames.Find(PreviewComponentIt.Value->GetViewportId());
+				if (OutTextureIndex != INDEX_NONE)
 				{
-					PreviewComponentIt.Value->HandleRenderTargetTextureUpdate_RenderThread();
-					return DstRenderTarget->GetTexture2DRHI();
+					// Add scope for func GetRenderTargetTexture()
+					UTextureRenderTarget2D* RenderTarget2D = PreviewComponentIt.Value->GetRenderTargetTexture();
+					if (RenderTarget2D)
+					{
+						FTextureRenderTargetResource* DstRenderTarget = RenderTarget2D->GameThread_GetRenderTargetResource();
+						if (DstRenderTarget)
+						{
+							OutTextures[OutTextureIndex] = DstRenderTarget->TextureRHI;
+
+							// handle configurator logic: raise deffered update for preview component RTT
+							PreviewComponentIt.Value->HandleRenderTargetTextureDefferedUpdate();
+						}
+					}
 				}
 			}
-
-			break;
 		}
 	}
-
-	return nullptr;
 }
 
 float ADisplayClusterRootActor::GetXformGizmoScale() const
@@ -167,9 +188,9 @@ void ADisplayClusterRootActor::SetIsSelectedInEditor(bool bValue)
 
 IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FString& InViewportId) const
 {
-	if (PreviewViewportManager.IsValid())
+	if (ViewportManager.IsValid())
 	{
-		return PreviewViewportManager->FindViewport(InViewportId);
+		return ViewportManager->FindViewport(InViewportId);
 	}
 
 	return nullptr;
@@ -177,7 +198,7 @@ IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FSt
 
 void ADisplayClusterRootActor::RenderPreview_Editor()
 {
-	if (PreviewViewportManager.IsValid())
+	if (ViewportManager.IsValid())
 	{
 		check(PreviewSettings);
 
@@ -207,11 +228,11 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 			{
 				// Update preview viewports from settings
 				FDisplayClusterRenderFrame PreviewRenderFrame;
-				if(PreviewViewportManager->UpdatePreviewConfiguration(PreviewSettings, PreviewWorld, this)
-				&& PreviewViewportManager->BeginNewFrame(nullptr, PreviewRenderFrame)
+				if(ViewportManager->UpdatePreviewConfiguration(PreviewSettings, this)
+				&& ViewportManager->BeginNewFrame(nullptr, PreviewWorld, PreviewRenderFrame)
 				&& PreviewRenderFrame.DesiredNumberOfViews > 0)
 				{
-					PreviewViewportManager->RenderPreview(PreviewRenderFrame);
+					ViewportManager->RenderInEditor(PreviewRenderFrame, nullptr);
 					// Send event about RTT changed
 					OnPreviewGenerated.ExecuteIfBound();
 				}

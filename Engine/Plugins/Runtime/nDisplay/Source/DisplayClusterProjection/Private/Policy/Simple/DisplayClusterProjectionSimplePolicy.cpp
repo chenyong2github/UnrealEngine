@@ -117,14 +117,19 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayCl
 	const float hw = ScreenComp->GetScreenSizeScaled().X / 2.f * ViewData[InContextNum].WorldToMeters;
 	const float hh = ScreenComp->GetScreenSizeScaled().Y / 2.f * ViewData[InContextNum].WorldToMeters;
 
+	float lhw = hw;
+	float rhw = hw;
+	float thh = hh;
+	float bhh = hh;
+
 	// Screen data
 	const FVector  ScreenLoc = ScreenComp->GetComponentLocation();
 	const FRotator ScreenRot = ScreenComp->GetComponentRotation();
 
 	// Screen corners
-	const FVector pa = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryLBC(hw, hh)); // left bottom corner
-	const FVector pb = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryRBC(hw, hh)); // right bottom corner
-	const FVector pc = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryLTC(hw, hh)); // left top corner
+	const FVector pa = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryLBC(lhw, bhh)); // left bottom corner
+	const FVector pb = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryRBC(rhw, bhh)); // right bottom corner
+	const FVector pc = ScreenLoc + ScreenRot.Quaternion().RotateVector(GetProjectionScreenGeometryLTC(lhw, thh)); // left top corner
 
 	// Screen vectors
 	FVector vr = pb - pa; // lb->rb normalized vector, right axis of projection screen
@@ -152,7 +157,8 @@ bool FDisplayClusterProjectionSimplePolicy::GetProjectionMatrix(class IDisplayCl
 	const float b = FVector::DotProduct(vu, va) * ndifd; // distance to bottom screen edge
 	const float t = FVector::DotProduct(vu, vc) * ndifd; // distance to top screen edge
 
-	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(l, r, t, b, n, f);
+	InViewport->CalculateProjectionMatrix(InContextNum, l, r, t, b, n, f, false);
+	OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 
 	return true;
 }

@@ -58,6 +58,21 @@ void FDisplayClusterProjectionCameraPolicy::HandleEndScene(class IDisplayCluster
 }
 
 
+APlayerCameraManager* const GetCurPlayerCameraManager(IDisplayClusterViewport* InViewport)
+{
+	UWorld* World = InViewport->GetOwner().GetCurrentWorld();
+	if (World)
+	{
+		APlayerController* const CurPlayerController = World->GetFirstPlayerController();
+		if (CurPlayerController)
+		{
+			return CurPlayerController->PlayerCameraManager;
+		}
+	}
+
+	return nullptr;
+}
+
 bool FDisplayClusterProjectionCameraPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
@@ -74,20 +89,13 @@ bool FDisplayClusterProjectionCameraPolicy::CalculateView(class IDisplayClusterV
 	// Otherwise default UE camera is used
 	else
 	{
-		if (InViewport->GetOwner().GetWorld())
-		{
-			APlayerController* const CurPlayerController = InViewport->GetOwner().GetWorld()->GetFirstPlayerController();
-			if (CurPlayerController)
-			{
-				APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
+		APlayerCameraManager* const CurPlayerCameraManager = GetCurPlayerCameraManager(InViewport);
 				if (CurPlayerCameraManager)
 				{
 					InOutViewLocation = CurPlayerCameraManager->GetCameraLocation();
 					InOutViewRotation = CurPlayerCameraManager->GetCameraRotation();
 				}
 			}
-		}
-	}
 
 	// Fix camera lens deffects (prototype)
 	InOutViewLocation += CameraSettings.FrustumOffset;
@@ -109,18 +117,11 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(IDisplayClusterV
 	}
 	else
 	{
-		if (InViewport->GetOwner().GetWorld())
+		APlayerCameraManager* const CurPlayerCameraManager = GetCurPlayerCameraManager(InViewport);
+		if (CurPlayerCameraManager)
 		{
-			APlayerController* const CurPlayerController = InViewport->GetOwner().GetWorld()->GetFirstPlayerController();
-			if (CurPlayerController)
-			{
-				APlayerCameraManager* const CurPlayerCameraManager = CurPlayerController->PlayerCameraManager;
-				if (CurPlayerCameraManager)
-				{
-					OutPrjMatrix = ComposureSettings.GetProjectionMatrix(CurPlayerCameraManager->GetFOVAngle() * CameraSettings.FOVMultiplier, CurPlayerCameraManager->DefaultAspectRatio);
-					return true;
-				}
-			}
+			OutPrjMatrix = ComposureSettings.GetProjectionMatrix(CurPlayerCameraManager->GetFOVAngle() * CameraSettings.FOVMultiplier, CurPlayerCameraManager->DefaultAspectRatio);
+			return true;
 		}
 	}
 

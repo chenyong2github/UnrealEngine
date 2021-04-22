@@ -75,6 +75,8 @@ public:
 	UDisplayClusterConfigurationICVFX_StageSettings* GetStageSettings() const { return StageSettings; }
 	UDisplayClusterConfigurationRenderFrame* GetRenderFrameSettings() const { return RenderFrameSettings; }
 
+	UDisplayClusterConfigurationViewport* GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID);
+
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -158,9 +160,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster|Settings")
 	UDisplayClusterConfigurationRenderFrame* RenderFrameSettings;
 
+	IDisplayClusterViewportManager* GetViewportManager() const
+	{
+		return ViewportManager.IsValid() ? ViewportManager.Get() : nullptr;
+	}
+
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))
 	bool bExitOnEsc;
+
+	// Unique viewport manager for this configuration
+	TUniquePtr<IDisplayClusterViewportManager> ViewportManager;
 
 private:
 	/**
@@ -221,6 +231,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
 	FString PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 
+	// Render mode for PIE
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
+	EDisplayClusterConfigurationRenderMode RenderMode = EDisplayClusterConfigurationRenderMode::Mono;
+
 	// Allow preview render
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Preview (Editor only)")
 	bool bPreviewEnable = true;
@@ -262,7 +276,6 @@ public:
 	bool bEditorViewportXformGizmoVisibility = true;
 
 private:
-	TUniquePtr<IDisplayClusterViewportManager> PreviewViewportManager;
 	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 
 	int32 TickPerFrameCounter = 0;
@@ -276,6 +289,9 @@ public:
 
 	FOnPreviewUpdated& GetOnPreviewGenerated() { return OnPreviewGenerated; }
 	FOnPreviewUpdated& GetOnPreviewDestroyed() { return OnPreviewDestroyed; }
+
+	// return true, if preview enabled for this actor
+	bool IsPreviewEnabled() const;
 
 	void Constructor_Editor();
 	void Destructor_Editor();
@@ -300,8 +316,7 @@ public:
 
 	IDisplayClusterViewport* FindPreviewViewport(const FString& InViewportId) const;
 
-	// Request for output preview texture from render thread from PreviewManager renderer
-	FRHITexture2D* GetPreviewRenderTargetableTexture_RenderThread(const FString& ViewportId) const;
+	void GetPreviewRenderTargetableTextures(const TArray<FString>& InViewportNames, TArray<FTextureRHIRef>& OutTextures) const;
 
 	float GetXformGizmoScale() const;
 	bool GetXformGizmoVisibility() const;

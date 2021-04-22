@@ -60,6 +60,8 @@ public:
 	virtual bool UnregisterPostprocessOperation(const FString& InName) override;
 	virtual TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const override;
 
+	virtual IDisplayClusterViewportManager* GetViewportManager() const override;
+
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterRenderManager

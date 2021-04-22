@@ -102,7 +102,7 @@ bool FDisplayClusterRenderTargetManager::AllocateRenderFrameResources(class FVie
 			for (const FDisplayClusterViewport_Context& ContextIt : ViewportIt->GetContexts())
 			{
 
-				const FIntPoint& ContextSize = ContextIt.RenderTargetRect.Size();
+				const FIntPoint& ContextSize = ContextIt.ContextSize;
 				const uint32&     ContextNum = ContextIt.ContextNum;
 
 				check(ViewportIt->InputShaderResources.Num() > 0);
@@ -177,63 +177,59 @@ bool FDisplayClusterRenderTargetManager::AllocateFrameTargets(const FDisplayClus
 		return false;
 	}
 
-	// Setup outputs and target offsets
-	if (FrameTargetsAmmount > 0)
+	check(FrameTargetsAmmount > 0);
+
+	// Reallocate frame target resources
+	TArray<FDisplayClusterTextureResource*> NewFrameTargetResources;
+	TArray<FDisplayClusterTextureResource*> NewAdditionalFrameTargetableResources;
+
+	for (uint32 FrameTargetsIt = 0; FrameTargetsIt < FrameTargetsAmmount; FrameTargetsIt++)
 	{
-		// Reallocate frame target resources
-		TArray<FDisplayClusterTextureResource*> NewFrameTargetResources;
-		TArray<FDisplayClusterTextureResource*> NewAdditionalFrameTargetableResources;
-
-		for (uint32 FrameTargetsIt = 0; FrameTargetsIt < FrameTargetsAmmount; FrameTargetsIt++)
+		FDisplayClusterTextureResource* NewResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
+		if (NewResource)
 		{
-			FDisplayClusterTextureResource* NewResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
-			if (NewResource)
-			{
-				// calc and assign backbuffer offset (side_by_side, top_bottom)
-				NewResource->BackbufferFrameOffset = InOutRenderFrame.FrameRect.Min + TargetLocation;
-				TargetLocation += TargetOffset;
-				NewFrameTargetResources.Add(NewResource);
-			}
-
-			if (InRenderFrameSettings.bShouldUseAdditionalFrameTargetableResource)
-			{
-				FDisplayClusterTextureResource* NewAdditionalResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
-				if (NewAdditionalResource)
-				{
-					NewAdditionalFrameTargetableResources.Add(NewAdditionalResource);
-				}
-			}
+			// calc and assign backbuffer offset (side_by_side, top_bottom)
+			NewResource->BackbufferFrameOffset = InOutRenderFrame.FrameRect.Min + TargetLocation;
+			TargetLocation += TargetOffset;
+			NewFrameTargetResources.Add(NewResource);
 		}
 
-		// Assign frame resources for all visible viewports
-		for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
+		if (InRenderFrameSettings.bShouldUseAdditionalFrameTargetableResource)
 		{
-			for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilieIt : RenderTargetIt.ViewFamilies)
+			FDisplayClusterTextureResource* NewAdditionalResource = ResourcesPool->AllocateTextureResource(InOutRenderFrame.FrameRect.Size(), true, PF_Unknown);
+			if (NewAdditionalResource)
 			{
-				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilieIt.Views)
-				{
-					if (ViewIt.Viewport != nullptr)
-					{
-						FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
-						if (ViewportPtr && ViewportPtr->RenderSettings.bVisible)
-						{
-							ViewportPtr->OutputFrameTargetableResources = NewFrameTargetResources;
-							ViewportPtr->AdditionalFrameTargetableResources = NewAdditionalFrameTargetableResources;
+				NewAdditionalFrameTargetableResources.Add(NewAdditionalResource);
+			}
+		}
+	}
 
-							// Adjust viewports frame rects. This offset saved in 'BackbufferFrameOffset'
-							for (FDisplayClusterViewport_Context& ContextIt : ViewportPtr->Contexts)
-							{
-								ContextIt.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
-								ContextIt.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
-							}
+	// Assign frame resources for all visible viewports
+	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InOutRenderFrame.RenderTargets)
+	{
+		for (FDisplayClusterRenderFrame::FFrameViewFamily& ViewFamilieIt : RenderTargetIt.ViewFamilies)
+		{
+			for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilieIt.Views)
+			{
+				if (ViewIt.Viewport != nullptr)
+				{
+					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+					if (ViewportPtr && ViewportPtr->RenderSettings.bVisible)
+					{
+						ViewportPtr->OutputFrameTargetableResources = NewFrameTargetResources;
+						ViewportPtr->AdditionalFrameTargetableResources = NewAdditionalFrameTargetableResources;
+
+						// Adjust viewports frame rects. This offset saved in 'BackbufferFrameOffset'
+						for (FDisplayClusterViewport_Context& ContextIt : ViewportPtr->Contexts)
+						{
+							ContextIt.FrameTargetRect.Min -= InOutRenderFrame.FrameRect.Min;
+							ContextIt.FrameTargetRect.Max -= InOutRenderFrame.FrameRect.Min;
 						}
 					}
 				}
 			}
 		}
-
-		return true;
 	}
 
-	return false;
+	return true;
 }

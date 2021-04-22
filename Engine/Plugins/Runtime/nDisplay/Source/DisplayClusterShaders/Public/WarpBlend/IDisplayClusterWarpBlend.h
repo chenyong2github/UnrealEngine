@@ -26,7 +26,7 @@ public:
 	*
 	* @return - true if the context calculated successfully
 	*/
-	virtual bool CalcFrustumContext(const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext) = 0;
+	virtual bool CalcFrustumContext(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext) = 0;
 
 	// Access to resources
 	virtual class FRHITexture* GetTexture(EDisplayClusterWarpBlendTextureType TextureType) const = 0;

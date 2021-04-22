@@ -35,6 +35,6 @@ public:
 	// Resolve resource contexts
 	virtual bool ResolveResources(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const = 0;
 
-	virtual class IDisplayClusterViewportManager& GetOwner() const = 0;
+	virtual const class IDisplayClusterViewportManagerProxy& GetOwner() const = 0;
 	virtual EDisplayClusterViewportResourceType   GetOutputResourceType() const = 0;
 };

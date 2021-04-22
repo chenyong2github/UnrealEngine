@@ -47,6 +47,17 @@
 
 #include "Config/DisplayClusterConfigManager.h"
 
+// Enable/disable warp&blend
+static TAutoConsoleVariable<int32> CVarWarpBlendEnabled(
+	TEXT("nDisplay.render.WarpBlendEnabled"),
+	1,
+	TEXT("Warp & Blend status\n")
+	TEXT("0 : disabled\n")
+	TEXT("1 : enabled\n")
+	,
+	ECVF_RenderThreadSafe
+);
+
 
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper) : Super(Helper)
 {
@@ -122,33 +133,32 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	////////////////////////////////
 	// For any operation mode other than 'Cluster' we use default UGameViewportClient::Draw pipeline
 	const bool bIsNDisplayClusterMode = (GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
-	if (!bIsNDisplayClusterMode)
-	{
-		return UGameViewportClient::Draw(InViewport, SceneCanvas);
-	}
 
 	// Get nDisplay stereo device
-	IDisplayClusterRenderDevice* const DCRenderDevice = static_cast<IDisplayClusterRenderDevice* const>(GEngine->StereoRenderingDevice.Get());
-	if (!DCRenderDevice)
+	IDisplayClusterRenderDevice* const DCRenderDevice = bIsNDisplayClusterMode ? static_cast<IDisplayClusterRenderDevice* const>(GEngine->StereoRenderingDevice.Get()) : nullptr;
+
+	if (!bIsNDisplayClusterMode || !DCRenderDevice)
 	{
+#if WITH_EDITOR
+		// Special render for PIE
+		if (Draw_PIE(InViewport, SceneCanvas))
+		{
+			return;
+		}
+#endif
 		return UGameViewportClient::Draw(InViewport, SceneCanvas);
 	}
 
-	IDisplayCluster& DisplayCluster = IDisplayCluster::Get();
-	IDisplayClusterViewportManager& ViewportManager = DCRenderDevice->GetViewportManager();
+	//Get world for render
+	UWorld* const MyWorld = GetWorld();
 
-	// Update local node viewports (update\create\delete) and build new render frame
+	// Initialize new render frame resources
 	FDisplayClusterRenderFrame RenderFrame;
-	if(ViewportManager.UpdateConfiguration(DCRenderDevice->GetRenderFrameMode(), DisplayCluster.GetConfigMgr()->GetLocalNodeId(), DisplayCluster.GetGameMgr()->GetRootActor()) == false
-		|| ViewportManager.BeginNewFrame(InViewport, RenderFrame) == false
-		|| RenderFrame.DesiredNumberOfViews == 0)
+	if (!DCRenderDevice->BeginNewFrame(InViewport, MyWorld, RenderFrame))
 	{
 		// skip rendering: Can't build render frame
 		return;
 	}
-
-	// update total number of views for this frame (in multiple families)
-	DCRenderDevice->SetDesiredNumberOfViews(RenderFrame.DesiredNumberOfViews);
 
 	////////////////////////////////
 	// Otherwise we use our own version of the UGameViewportClient::Draw which is basically
@@ -197,7 +207,6 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		ViewModeIndex = VMI_PathTracing;
 	}
 
-	UWorld* const MyWorld = GetWorld();
 	APlayerController* const PlayerController = GEngine->GetFirstLocalPlayerController(GetWorld());
 	ULocalPlayer* LocalPlayer = nullptr;
 	if (PlayerController)
@@ -231,7 +240,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				bAdditionalViewFamily = true;
 
 				// Configure family flags
-				ViewportManager.ConfigureViewFamily(DCRenderTarget, DCViewFamily, ViewFamily);
+				RenderFrame.ViewportManager->ConfigureViewFamily(DCRenderTarget, DCViewFamily, ViewFamily);
 
 #if WITH_EDITOR
 				if (GIsEditor)
@@ -289,7 +298,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				{
 					if (DCView.bDisableRender == false)
 					{
-						FDisplayClusterViewport_Context ViewportContext = DCView.Viewport->GetContexts()[DCView.ContextNum];
+						const FDisplayClusterViewport_Context ViewportContext = DCView.Viewport->GetContexts()[DCView.ContextNum];
 
 						// Calculate the player's view information.
 						FVector		ViewLocation;
@@ -568,7 +577,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 	// Handle special viewports game-thread logic at frame end
 	// custom postprocess single frame flag must be removed at frame end on game thread
-	ViewportManager.FinalizeNewFrame();
+	DCRenderDevice->FinalizeNewFrame();
 
 	// Beyond this point, only UI rendering independent from dynamic resolution.
 	GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::EndDynamicResolutionRendering);
@@ -598,11 +607,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		SceneCanvas->Flush_GameThread();
 
 		// After all render target rendered call nDisplay frame rendering
-		ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_RenderFrame)(
-			[DCRenderDevice](FRHICommandListImmediate& RHICmdList)
-		{
-			DCRenderDevice->RenderFrame_RenderThread(RHICmdList);
-		});
+		RenderFrame.ViewportManager->RenderFrame(CVarWarpBlendEnabled.GetValueOnGameThread() != 0, InViewport->GetRenderTargetTexture());
 
 		OnDrawn().Broadcast();
 
@@ -643,4 +648,70 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 	OnEndDraw().Broadcast();
 }
+
+#if WITH_EDITOR
+
+#include "DisplayClusterRootActor.h"
+
+bool UDisplayClusterViewportClient::Draw_PIE(FViewport* InViewport, FCanvas* SceneCanvas)
+{
+	// Get root actor from viewport
+	ADisplayClusterRootActor* const RootActor = GDisplayCluster->GetGameMgr()->GetRootActor();
+	if (RootActor == nullptr)
+	{
+		return false;
+	}
+
+	//@todo Implement this logic inside function DisplayCluster.GetConfigMgr()->GetLocalNodeId()
+	//@todo: change local node selection for customers
+	FString LocalNodeId = RootActor->PreviewNodeId;
+	if (LocalNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll || LocalNodeId == DisplayClusterConfigurationStrings::gui::preview::PreviewNodeNone)
+	{
+		return false;
+	}
+
+	//@todo add render mode select
+	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
+	switch (RootActor->RenderMode)
+	{
+	case EDisplayClusterConfigurationRenderMode::SideBySide:
+		RenderFrameMode = EDisplayClusterRenderFrameMode::SideBySide;
+		break;
+	case EDisplayClusterConfigurationRenderMode::TopBottom:
+		RenderFrameMode = EDisplayClusterRenderFrameMode::TopBottom;
+		break;
+	default:
+		break;
+	}
+		
+
+
+	//Get world for render
+	UWorld* const MyWorld = GetWorld();
+
+	IDisplayClusterViewportManager* ViewportManager = RootActor->GetViewportManager();
+	if (ViewportManager == nullptr)
+	{
+		return false;
+	}
+	// Update local node viewports (update\create\delete) and build new render frame
+	if (ViewportManager->UpdateConfiguration(RenderFrameMode, LocalNodeId, RootActor) == false)
+	{
+		return false;
+	}
+
+	FDisplayClusterRenderFrame RenderFrame;
+	if (ViewportManager->BeginNewFrame(InViewport, MyWorld, RenderFrame) == false || RenderFrame.DesiredNumberOfViews < 1)
+	{
+		return false;
+	}
+
+	if (ViewportManager->RenderInEditor(RenderFrame, InViewport->GetRenderTargetTexture()) == false)
+	{
+		return false;
+	}
+
+	return true;
+}
+#endif /*WITH_EDITOR*/
 

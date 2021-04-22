@@ -26,8 +26,9 @@
 #include "DisplayClusterSceneViewExtensions.h"
 #include "OpenColorIODisplayExtension.h"
 
-namespace DisplayClusterViewportConfigurationHelpers
+class DisplayClusterViewportConfigurationHelpers
 {
+public:
 	static void UpdateViewportOCIOConfiguration(FDisplayClusterViewport& DstViewport, const FOpenColorIODisplayConfiguration& InOCIO_Configuration)
 	{
 		if (InOCIO_Configuration.bIsEnabled)
@@ -52,8 +53,31 @@ namespace DisplayClusterViewportConfigurationHelpers
 		}
 		else
 		{
-			// Remove OICO
+			// Remove OICO ref
 			DstViewport.OpenColorIODisplayExtension.Reset();
+		}
+	}
+
+	//@todo: implement bIsOneFrame flag logic
+	static void ImplUpdateViewportSetting_CustomPostprocess(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationViewport_CustomPostprocessSettings& InCustomPostprocess, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass RenderPass)
+	{
+		DstViewport.CustomPostProcessSettings.AddCustomPostProcess(RenderPass, InCustomPostprocess.PostProcessSettings, InCustomPostprocess.BlendWeight, InCustomPostprocess.bIsOneFrame);
+	}
+
+	//@todo: Implement PP disable, other PP sources, etc
+	static void UpdateViewportSetting_CustomPostprocess(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationViewport_CustomPostprocess& InCustomPostprocessConfiguration)
+	{
+		if (InCustomPostprocessConfiguration.Start.bIsEnabled)
+		{
+			ImplUpdateViewportSetting_CustomPostprocess(DstViewport, InCustomPostprocessConfiguration.Start, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Start);
+		}
+		if (InCustomPostprocessConfiguration.Override.bIsEnabled)
+		{
+			ImplUpdateViewportSetting_CustomPostprocess(DstViewport, InCustomPostprocessConfiguration.Override, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
+		}
+		if (InCustomPostprocessConfiguration.Final.bIsEnabled)
+		{
+			ImplUpdateViewportSetting_CustomPostprocess(DstViewport, InCustomPostprocessConfiguration.Final, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Final);
 		}
 	}
 
@@ -101,30 +125,30 @@ namespace DisplayClusterViewportConfigurationHelpers
 		switch (StereoMode)
 		{
 		case EDisplayClusterConfigurationViewport_StereoMode::ForceMono:
-			DstViewport.GetRenderSettings().bForceMono = true;
+			DstViewport.RenderSettings.bForceMono = true;
 			break;
 		default:
-			DstViewport.GetRenderSettings().bForceMono = false;
+			DstViewport.RenderSettings.bForceMono = false;
 			break;
 		}
 	}
 
 	static void UpdateViewportSetting_OverlayRenderSettings(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings& InOverlaySettings)
 	{
-		DstViewport.GetRenderSettings().BufferRatio = InOverlaySettings.BufferRatio;
-		DstViewport.GetRenderSettings().RenderTargetRatio = InOverlaySettings.RenderTargetRatio;
+		DstViewport.RenderSettings.BufferRatio = InOverlaySettings.BufferRatio;
+		DstViewport.RenderSettings.RenderTargetRatio = InOverlaySettings.RenderTargetRatio;
 
-		DstViewport.GetRenderSettings().GPUIndex = InOverlaySettings.GPUIndex;
-		DstViewport.GetRenderSettings().StereoGPUIndex = InOverlaySettings.StereoGPUIndex;
+		DstViewport.RenderSettings.GPUIndex = InOverlaySettings.GPUIndex;
+		DstViewport.RenderSettings.StereoGPUIndex = InOverlaySettings.StereoGPUIndex;
 
 		UpdateViewportStereoMode(DstViewport, InOverlaySettings.StereoMode);
 
-		DstViewport.GetRenderSettings().RenderFamilyGroup = InOverlaySettings.RenderFamilyGroup;
+		DstViewport.RenderSettings.RenderFamilyGroup = InOverlaySettings.RenderFamilyGroup;
 	};
 
 	static void UpdateViewportSetting_Override(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationPostRender_Override& InOverride)
 	{
-		DstViewport.GetPostRenderSettings().Override.TextureRHI.SafeRelease();
+		DstViewport.PostRenderSettings.Override.TextureRHI.SafeRelease();
 
 		if (InOverride.bAllowOverride && InOverride.SourceTexture != nullptr)
 		{
@@ -132,10 +156,10 @@ namespace DisplayClusterViewportConfigurationHelpers
 
 			if (TextureRHI.IsValid())
 			{
-				DstViewport.GetPostRenderSettings().Override.TextureRHI = TextureRHI;
+				DstViewport.PostRenderSettings.Override.TextureRHI = TextureRHI;
 				FIntVector Size = TextureRHI->GetSizeXYZ();
 
-				DstViewport.GetPostRenderSettings().Override.Rect = (InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y));
+				DstViewport.PostRenderSettings.Override.Rect = (InOverride.bShouldUseTextureRegion) ? InOverride.TextureRegion.ToRect() : FIntRect(FIntPoint(0, 0), FIntPoint(Size.X, Size.Y));
 			}
 		}
 	};
@@ -145,39 +169,73 @@ namespace DisplayClusterViewportConfigurationHelpers
 		switch (InBlurPostprocess.Mode)
 		{
 		case EDisplayClusterConfiguration_PostRenderBlur::Gaussian:
-			DstViewport.GetPostRenderSettings().PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::Gaussian;
+			DstViewport.PostRenderSettings.PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::Gaussian;
 			break;
 		case EDisplayClusterConfiguration_PostRenderBlur::Dilate:
-			DstViewport.GetPostRenderSettings().PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::Dilate;
+			DstViewport.PostRenderSettings.PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::Dilate;
 			break;
 		default:
-			DstViewport.GetPostRenderSettings().PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::None;
+			DstViewport.PostRenderSettings.PostprocessBlur.Mode = EDisplayClusterShaderParameters_PostprocessBlur::None;
 			break;
 		}
 
-		DstViewport.GetPostRenderSettings().PostprocessBlur.KernelRadius = InBlurPostprocess.KernelRadius;
-		DstViewport.GetPostRenderSettings().PostprocessBlur.KernelScale = InBlurPostprocess.KernelScale;
+		DstViewport.PostRenderSettings.PostprocessBlur.KernelRadius = InBlurPostprocess.KernelRadius;
+		DstViewport.PostRenderSettings.PostprocessBlur.KernelScale = InBlurPostprocess.KernelScale;
+	};
+
+	static void UpdateViewportSetting_Overscan(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationViewport_Overscan& InOverscan)
+	{
+		FImplDisplayClusterViewport_OverscanSettings OverscanSettings;
+		OverscanSettings.bOversize = InOverscan.bOversize;
+
+		switch (InOverscan.Mode)
+		{
+		case EDisplayClusterConfigurationViewportOverscanMode::Percent:
+			OverscanSettings.Mode = EDisplayClusterViewport_OverscanMode::Percent;
+
+			// Scale 0..100% to 0..1 range
+			OverscanSettings.Left   = .01f * InOverscan.Left;
+			OverscanSettings.Right  = .01f * InOverscan.Right;
+			OverscanSettings.Top    = .01f * InOverscan.Top;
+			OverscanSettings.Bottom = .01f * InOverscan.Bottom;
+			break;
+
+		case EDisplayClusterConfigurationViewportOverscanMode::Pixels:
+			OverscanSettings.Mode = EDisplayClusterViewport_OverscanMode::Pixels;
+
+			OverscanSettings.Left   =InOverscan.Left;
+			OverscanSettings.Right  =InOverscan.Right;
+			OverscanSettings.Top    =InOverscan.Top;
+			OverscanSettings.Bottom =InOverscan.Bottom;
+			break;
+
+		default:
+			break;
+		}
+
+		DstViewport.OverscanRendering.Set(OverscanSettings);
 	};
 
 	static void UpdateViewportSetting_GenerateMips(FDisplayClusterViewport& DstViewport, const FDisplayClusterConfigurationPostRender_GenerateMips& InGenerateMips)
 	{
-		DstViewport.GetPostRenderSettings().GenerateMips.bAutoGenerateMips = InGenerateMips.bAutoGenerateMips;
+		DstViewport.PostRenderSettings.GenerateMips.bAutoGenerateMips = InGenerateMips.bAutoGenerateMips;
 
-		DstViewport.GetPostRenderSettings().GenerateMips.MipsSamplerFilter = InGenerateMips.MipsSamplerFilter;
-		DstViewport.GetPostRenderSettings().GenerateMips.MipsAddressU = InGenerateMips.MipsAddressU;
-		DstViewport.GetPostRenderSettings().GenerateMips.MipsAddressV = InGenerateMips.MipsAddressV;
+		DstViewport.PostRenderSettings.GenerateMips.MipsSamplerFilter = InGenerateMips.MipsSamplerFilter;
+		DstViewport.PostRenderSettings.GenerateMips.MipsAddressU = InGenerateMips.MipsAddressU;
+		DstViewport.PostRenderSettings.GenerateMips.MipsAddressV = InGenerateMips.MipsAddressV;
 
-		DstViewport.GetPostRenderSettings().GenerateMips.MaxNumMipsLimit = (InGenerateMips.bShouldUseMaxNumMips) ? InGenerateMips.MaxNumMips : 100;
+		DstViewport.PostRenderSettings.GenerateMips.MaxNumMipsLimit = (InGenerateMips.bShouldUseMaxNumMips) ? InGenerateMips.MaxNumMips : 100;
 	}
 
 	static void ResetViewportRuntimeParameters(FDisplayClusterViewport& DstViewport)
 	{
 		// Reset runtim flags from prev frame:
-		DstViewport.GetRenderSettings().BeginUpdateSettings();
-		DstViewport.GetRenderSettingsICVFX().BeginUpdateSettings();
-		DstViewport.GetPostRenderSettings().BeginUpdateSettings();
+		DstViewport.RenderSettings.BeginUpdateSettings();
+		DstViewport.RenderSettingsICVFX.BeginUpdateSettings();
+		DstViewport.PostRenderSettings.BeginUpdateSettings();
 		DstViewport.VisibilitySettings.ResetConfiguration();
 		DstViewport.CameraMotionBlur.ResetConfiguration();
+		DstViewport.OverscanRendering.ResetConfiguration();
 	}
 
 	static void UpdateBaseViewportSetting(FDisplayClusterViewport& DstViewport, const UDisplayClusterConfigurationViewport& InConfigurationViewport)
@@ -189,14 +247,14 @@ namespace DisplayClusterViewportConfigurationHelpers
 		{
 			if (InConfigurationViewport.bAllowRendering == false)
 			{
-				DstViewport.GetRenderSettings().bEnable = false;
+				DstViewport.RenderSettings.bEnable = false;
 			}
 
-			DstViewport.GetRenderSettings().CameraId = InConfigurationViewport.Camera;
-			DstViewport.GetRenderSettings().Rect = InConfigurationViewport.Region.ToRect();
+			DstViewport.RenderSettings.CameraId = InConfigurationViewport.Camera;
+			DstViewport.RenderSettings.Rect = InConfigurationViewport.Region.ToRect();
 
-			DstViewport.GetRenderSettings().GPUIndex = InConfigurationViewport.GPUIndex;
-			DstViewport.GetRenderSettings().OverlapOrder = InConfigurationViewport.OverlapOrder;
+			DstViewport.RenderSettings.GPUIndex = InConfigurationViewport.GPUIndex;
+			DstViewport.RenderSettings.OverlapOrder = InConfigurationViewport.OverlapOrder;
 		}
 
 		// OCIO
@@ -205,7 +263,10 @@ namespace DisplayClusterViewportConfigurationHelpers
 		// FDisplayClusterConfigurationViewport_RenderSettings
 		const FDisplayClusterConfigurationViewport_RenderSettings& InRenderSettings = InConfigurationViewport.RenderSettings;
 		{
-			DstViewport.GetRenderSettings().BufferRatio = InRenderSettings.BufferRatio;
+			DstViewport.RenderSettings.BufferRatio = InRenderSettings.BufferRatio;
+
+			UpdateViewportSetting_Overscan(DstViewport, InRenderSettings.Overscan);
+			UpdateViewportSetting_CustomPostprocess(DstViewport, InRenderSettings.CustomPostprocess);
 
 			UpdateViewportSetting_Override(DstViewport,        InRenderSettings.Override);
 			UpdateViewportSetting_PostprocessBlur(DstViewport, InRenderSettings.PostprocessBlur);
@@ -213,14 +274,14 @@ namespace DisplayClusterViewportConfigurationHelpers
 
 			UpdateViewportStereoMode(DstViewport, InRenderSettings.StereoMode);
 
-			DstViewport.GetRenderSettings().StereoGPUIndex = InRenderSettings.StereoGPUIndex;
-			DstViewport.GetRenderSettings().RenderTargetRatio = InRenderSettings.RenderTargetRatio;
-			DstViewport.GetRenderSettings().RenderFamilyGroup = InRenderSettings.RenderFamilyGroup;
+			DstViewport.RenderSettings.StereoGPUIndex = InRenderSettings.StereoGPUIndex;
+			DstViewport.RenderSettings.RenderTargetRatio = InRenderSettings.RenderTargetRatio;
+			DstViewport.RenderSettings.RenderFamilyGroup = InRenderSettings.RenderFamilyGroup;
 		}
 
 		// FDisplayClusterConfigurationViewport_ICVFX property:
 		{
-			EDisplayClusterViewportICVFXFlags& TargetFlags = DstViewport.GetRenderSettingsICVFX().Flags;
+			EDisplayClusterViewportICVFXFlags& TargetFlags = DstViewport.RenderSettingsICVFX.Flags;
 
 			if (InConfigurationViewport.ICVFX.bAllowICVFX)
 			{
@@ -256,13 +317,13 @@ namespace DisplayClusterViewportConfigurationHelpers
 					// Render incamera frame over lightcard for this viewport
 				case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Over:
 					TargetFlags |= ViewportICVFX_OverrideLightcardMode;
-					DstViewport.GetRenderSettingsICVFX().ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
+					DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
 					break;
 
 					// Over lightcard over incamera frame  for this viewport
 				case EDisplayClusterConfigurationICVFX_OverrideLightcardRenderMode::Under:
 					TargetFlags |= ViewportICVFX_OverrideLightcardMode;
-					DstViewport.GetRenderSettingsICVFX().ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
+					DstViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
 					break;
 				default:
 					break;
@@ -284,7 +345,7 @@ namespace DisplayClusterViewportConfigurationHelpers
 		ResetViewportRuntimeParameters(DstViewport);
 
 		// incamera textrure used as overlay
-		DstViewport.GetRenderSettings().bVisible = false;
+		DstViewport.RenderSettings.bVisible = false;
 
 		// OCIO
 		UpdateViewportOCIOConfiguration(DstViewport, InCameraSettings.OCIO_Configuration);
@@ -292,8 +353,8 @@ namespace DisplayClusterViewportConfigurationHelpers
 
 		// UDisplayClusterConfigurationICVFX_CameraSettings
 		{
-			DstViewport.GetRenderSettings().CameraId.Empty();
-			DstViewport.GetRenderSettings().BufferRatio = InCameraSettings.BufferRatio;
+			DstViewport.RenderSettings.CameraId.Empty();
+			DstViewport.RenderSettings.BufferRatio = InCameraSettings.BufferRatio;
 		}
 
 		// UDisplayClusterConfigurationICVFX_CameraRenderSettings
@@ -316,7 +377,9 @@ namespace DisplayClusterViewportConfigurationHelpers
 			DesiredSize.X = FMath::Max(16, DesiredSize.X);
 			DesiredSize.Y = FMath::Max(16, DesiredSize.Y);
 
-			DstViewport.GetRenderSettings().Rect = FIntRect(FIntPoint(0, 0), DesiredSize);
+			DstViewport.RenderSettings.Rect = FIntRect(FIntPoint(0, 0), DesiredSize);
+
+			UpdateViewportSetting_CustomPostprocess(DstViewport, InCameraRenderSettings.CustomPostprocess);
 
 			UpdateViewportSetting_Override(DstViewport, InCameraRenderSettings.Override);
 			UpdateViewportSetting_PostprocessBlur(DstViewport, InCameraRenderSettings.PostprocessBlur);
@@ -325,13 +388,13 @@ namespace DisplayClusterViewportConfigurationHelpers
 			// UDisplayClusterConfigurationICVFX_CameraAdvancedRenderSettings
 			const FDisplayClusterConfigurationICVFX_CameraAdvancedRenderSettings& InAdvancedRS = InCameraRenderSettings.AdvancedRenderSettings;
 			{
-				DstViewport.GetRenderSettings().RenderTargetRatio = InAdvancedRS.RenderTargetRatio;
-				DstViewport.GetRenderSettings().GPUIndex          = InAdvancedRS.GPUIndex;
-				DstViewport.GetRenderSettings().StereoGPUIndex    = InAdvancedRS.StereoGPUIndex;
+				DstViewport.RenderSettings.RenderTargetRatio = InAdvancedRS.RenderTargetRatio;
+				DstViewport.RenderSettings.GPUIndex          = InAdvancedRS.GPUIndex;
+				DstViewport.RenderSettings.StereoGPUIndex    = InAdvancedRS.StereoGPUIndex;
 
 				UpdateViewportStereoMode(DstViewport, InAdvancedRS.StereoMode);
 
-				DstViewport.GetRenderSettings().RenderFamilyGroup = InAdvancedRS.RenderFamilyGroup;
+				DstViewport.RenderSettings.RenderFamilyGroup = InAdvancedRS.RenderFamilyGroup;
 			}
 		}
 	}
@@ -344,10 +407,10 @@ namespace DisplayClusterViewportConfigurationHelpers
 		ResetViewportRuntimeParameters(DstViewport);
 
 		// Chromakey used as overlay
-		DstViewport.GetRenderSettings().bVisible = false;
+		DstViewport.RenderSettings.bVisible = false;
 
 		// Use special capture mode (this change RTT format and render flags)
-		DstViewport.GetRenderSettings().CaptureMode = EDisplayClusterViewportCaptureMode::Chromakey;
+		DstViewport.RenderSettings.CaptureMode = EDisplayClusterViewportCaptureMode::Chromakey;
 
 		// UDisplayClusterConfigurationICVFX_ChromakeyRenderSettings
 		const FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings& InRenderSettings = InChromakeySettings.ChromakeyRenderTexture;
@@ -357,7 +420,7 @@ namespace DisplayClusterViewportConfigurationHelpers
 			UpdateViewportSetting_GenerateMips(DstViewport, InRenderSettings.GenerateMips);
 
 			// Update visibility settings only for rendered viewports
-			if (!DstViewport.GetPostRenderSettings().Override.IsEnabled())
+			if (!DstViewport.PostRenderSettings.Override.IsEnabled())
 			{
 				check(IsVisibilitySettingsDefined(InRenderSettings.ShowOnlyList));
 				UpdateVisibilitySetting(DstViewport, EDisplayClusterViewport_VisibilityMode::ShowOnly, InRenderSettings.ShowOnlyList);
@@ -412,17 +475,17 @@ namespace DisplayClusterViewportConfigurationHelpers
 		ResetViewportRuntimeParameters(DstViewport);
 
 		// LIghtcard texture used as overlay
-		DstViewport.GetRenderSettings().bVisible = false;
+		DstViewport.RenderSettings.bVisible = false;
 
 		if (bIsOpenColorIO)
 		{
 			// OCIO
 			UpdateViewportOCIOConfiguration(DstViewport, InLightcardSettings.OCIO_Configuration);
-			DstViewport.GetRenderSettings().CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard_OCIO;
+			DstViewport.RenderSettings.CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard_OCIO;
 		}
 		else
 		{
-			DstViewport.GetRenderSettings().CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard;
+			DstViewport.RenderSettings.CaptureMode = EDisplayClusterViewportCaptureMode::Lightcard;
 		}
 
 		const FDisplayClusterConfigurationICVFX_LightcardRenderSettings& InRenderSettings = InLightcardSettings.RenderSettings;
@@ -432,7 +495,7 @@ namespace DisplayClusterViewportConfigurationHelpers
 			UpdateViewportSetting_GenerateMips(DstViewport, InRenderSettings.GenerateMips);
 
 			// Update visibility settings only for rendered viewports
-			if (!DstViewport.GetPostRenderSettings().Override.IsEnabled())
+			if (!DstViewport.PostRenderSettings.Override.IsEnabled())
 			{
 				check(IsVisibilitySettingsDefined(InLightcardSettings.ShowOnlyList));
 
@@ -443,36 +506,36 @@ namespace DisplayClusterViewportConfigurationHelpers
 		}
 
 		// Attach to parent viewport
-		DstViewport.GetRenderSettings().AssignParentViewport(BaseViewport.GetId(), BaseViewport.GetRenderSettings());
+		DstViewport.RenderSettings.AssignParentViewport(BaseViewport.GetId(), BaseViewport.RenderSettings);
 
 		// Global lighcard rendering mode
-		if ((BaseViewport.GetRenderSettingsICVFX().Flags & ViewportICVFX_OverrideLightcardMode) == 0)
+		if ((BaseViewport.RenderSettingsICVFX.Flags & ViewportICVFX_OverrideLightcardMode) == 0)
 		{
 			// Use global lightcard blending mode
 			switch (InLightcardSettings.Blendingmode)
 			{
 			case EDisplayClusterConfigurationICVFX_LightcardRenderMode::Over:
-				BaseViewport.GetRenderSettingsICVFX().ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
+				BaseViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Over;
 				break;
 			case EDisplayClusterConfigurationICVFX_LightcardRenderMode::Under:
-				BaseViewport.GetRenderSettingsICVFX().ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
+				BaseViewport.RenderSettingsICVFX.ICVFX.LightcardMode = EDisplayClusterShaderParametersICVFX_LightcardRenderMode::Under;
 				break;
 			};
 		}
 		// Debug: override the texture of the target viewport from this lightcard RTT
 		if (InLightcardSettings.RenderSettings.bOverrideViewport)
 		{
-			BaseViewport.GetRenderSettings().OverrideViewportId = DstViewport.GetId();
+			BaseViewport.RenderSettings.OverrideViewportId = DstViewport.GetId();
 		}
 		else
 		{
 			if (bIsOpenColorIO)
 			{
-				BaseViewport.GetRenderSettingsICVFX().ICVFX.Lightcard_OCIO.ViewportId = DstViewport.GetId();
+				BaseViewport.RenderSettingsICVFX.ICVFX.Lightcard_OCIO.ViewportId = DstViewport.GetId();
 			}
 			else
 			{
-				BaseViewport.GetRenderSettingsICVFX().ICVFX.Lightcard.ViewportId = DstViewport.GetId();
+				BaseViewport.RenderSettingsICVFX.ICVFX.Lightcard.ViewportId = DstViewport.GetId();
 			}
 		}
 	}

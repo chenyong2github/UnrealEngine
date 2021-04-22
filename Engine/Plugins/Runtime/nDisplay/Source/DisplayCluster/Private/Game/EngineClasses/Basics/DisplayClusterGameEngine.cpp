@@ -39,7 +39,7 @@ namespace DisplayClusterGameEngineUtils
 // Enable/disable warp&blend
 static TAutoConsoleVariable<int32> CVarGameStartBarrierAvoidance(
 	TEXT("nDisplay.game.GameStartBarrierAvoidance"),
-	1,
+	0,
 	TEXT("Avoid entering GameStartBarrier on loaing level\n")
 	TEXT("0 : disabled\n")
 	TEXT("1 : enabled\n")

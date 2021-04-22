@@ -20,6 +20,7 @@
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
 
+#include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
 
@@ -140,7 +141,7 @@ void FDisplayClusterProjectionEasyBlendViewAdapterDX11::ImplInitializeResources_
 }
 
 // Location/Rotation inside the function is in EasyBlend space with a scale applied
-bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(Views.Num() > (int)InContextNum);
 
@@ -176,17 +177,18 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(class IDis
 	return true;
 }
 
-bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(Views.Num() > (int)InContextNum);
 
 	// Build Projection matrix:
-	const float Left = Views[InContextNum].EasyBlendMeshData->Frustum.LeftAngle;
-	const float Right = Views[InContextNum].EasyBlendMeshData->Frustum.RightAngle;
+	const float Left   = Views[InContextNum].EasyBlendMeshData->Frustum.LeftAngle;
+	const float Right  = Views[InContextNum].EasyBlendMeshData->Frustum.RightAngle;
 	const float Bottom = Views[InContextNum].EasyBlendMeshData->Frustum.BottomAngle;
-	const float Top = Views[InContextNum].EasyBlendMeshData->Frustum.TopAngle;
+	const float Top    = Views[InContextNum].EasyBlendMeshData->Frustum.TopAngle;
 
-	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(Left, Right, Top, Bottom, ZNear, ZFar);
+	InViewport->CalculateProjectionMatrix(InContextNum, Left, Right, Top, Bottom, ZNear, ZFar, true);
+	OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 
 	return true;
 }

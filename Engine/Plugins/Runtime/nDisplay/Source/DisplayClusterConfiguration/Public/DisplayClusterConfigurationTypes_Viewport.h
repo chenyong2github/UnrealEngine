@@ -15,13 +15,78 @@
 #include "DisplayClusterConfigurationTypes_Viewport.generated.h"
 
 USTRUCT()
-struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ICVFX
-	//: public UDisplayClusterConfigurationData_Base
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_CustomPostprocessSettings
 {
 	GENERATED_BODY()
 
 public:
-	//FDisplayClusterConfigurationViewport_ICVFX();
+	// Enable custom postprocess
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	bool bIsEnabled = false;
+
+	// Apply postprocess for one frame
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	bool bIsOneFrame = false;
+
+	// Custom postprocess settings
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FPostProcessSettings PostProcessSettings;
+
+	// Override blend weight
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	float BlendWeight = 1;
+};
+
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_CustomPostprocess
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Start;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Override;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Final;
+};
+
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Overscan
+{
+	GENERATED_BODY()
+
+public:
+	// Allow Render overscan
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	EDisplayClusterConfigurationViewportOverscanMode Mode = EDisplayClusterConfigurationViewportOverscanMode::None;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	float Left = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	float Right = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	float Top  = 0;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	float Bottom = 0;
+
+	// If true (increased RTT size, same image quality) - increase the RTT size from overscan_pixel or overscan_percent (of actual size)
+	// If false (same RTT size, loss of image quality) - use the original viewport size to render overscan, but finally the small inner rectangle copy into the frame 
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	bool bOversize = true;
+};
+
+
+
+USTRUCT()
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_ICVFX
+{
+	GENERATED_BODY()
 
 public:
 	// Allow use ICVFX for this viewport (Must be supported by projection policy)
@@ -39,17 +104,20 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_RenderSettings
-	//: public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
 public:
-	//FDisplayClusterConfigurationViewport_RenderSettings();
-
-public:
 	// Allow ScreenPercentage 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport", meta = (ClampMin = "0.05", UIMin = "0.05", ClampMax = "10.0", UIMax = "10.0"))
 	float BufferRatio = 1;
+
+	// Experimental: Overscan rendering
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationViewport_Overscan Overscan;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")

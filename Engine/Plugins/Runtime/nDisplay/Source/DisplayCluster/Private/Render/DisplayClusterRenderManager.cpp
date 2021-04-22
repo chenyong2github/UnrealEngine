@@ -43,6 +43,8 @@
 #include "CineCameraComponent.h"
 #include "Engine/Scene.h"
 
+#include "DisplayClusterRootActor.h"
+
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows.h"
@@ -477,6 +479,17 @@ TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> FDisplayClus
 {
 	FScopeLock Lock(&CritSecInternals);
 	return PostProcessOperations;
+}
+
+IDisplayClusterViewportManager* FDisplayClusterRenderManager::GetViewportManager() const
+{
+	ADisplayClusterRootActor* RootActor = GDisplayCluster->GetGameMgr()->GetRootActor();
+	if (RootActor)
+	{
+		return RootActor->GetViewportManager();
+	}
+
+	return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

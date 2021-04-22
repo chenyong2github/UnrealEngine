@@ -13,18 +13,14 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "Cluster/DisplayClusterClusterEvent.h"
-#include "Config/IPDisplayClusterConfigManager.h"
-#include "Render/IPDisplayClusterRenderManager.h"
-#include "Render/Device/IDisplayClusterRenderDevice.h"
+#include "Game/IDisplayClusterGameManager.h"
+
+#include "DisplayClusterRootActor.h"
 
 #include "Misc/DisplayClusterGlobals.h"
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterTypesConverter.h"
-
-#include "Render/Viewport/IDisplayClusterViewportManager.h"
-#include "Render/Viewport/IDisplayClusterViewport.h"
-#include "Render/Viewport/IDisplayClusterViewport_CustomPostProcessSettings.h"
 
 #include "UObject/ConstructorHelpers.h"
 
@@ -104,19 +100,23 @@ void ADisplayClusterTestPatternsActor::Tick(float DeltaSeconds)
 	// Override post-process settings if nDisplay is active
 	if (OperationMode != EDisplayClusterOperationMode::Disabled)
 	{
-		static IPDisplayClusterRenderManager* const RenderMgr = GDisplayCluster->GetPrivateRenderMgr();
-		IDisplayClusterRenderDevice* RenderDevice = RenderMgr->GetRenderDevice();
-		if (RenderDevice)
+		//@todo: additional test+refactor stuff before release
+		static IDisplayClusterGameManager* const GameMgr = GDisplayCluster->GetGameMgr();
+		ADisplayClusterRootActor* RootActor = GameMgr->GetRootActor();
+		if (RootActor)
 		{
-			IDisplayClusterViewportManager& ViewportManager = RenderDevice->GetViewportManager();
+			const FString LocalNodeId = GDisplayCluster->GetConfigMgr()->GetLocalNodeId();
 
 			for (auto it = ViewportPPSettings.CreateConstIterator(); it; ++it)
 			{
-				IDisplayClusterViewport* DesiredViewport = ViewportManager.FindViewport(it->Key);
-				if (DesiredViewport != nullptr)
+				UDisplayClusterConfigurationViewport* ViewportCfg = RootActor->GetViewportConfiguration(LocalNodeId, it->Key);
+				if (ViewportCfg)
 				{
 					// Assign current post-process settigns for each viewport
-					DesiredViewport->GetViewport_CustomPostProcessSettings().AddCustomPostProcess(IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override, it->Value);
+					FDisplayClusterConfigurationViewport_CustomPostprocessSettings& DstPostProcess = ViewportCfg->RenderSettings.CustomPostprocess.Override;
+					DstPostProcess.bIsEnabled = true;
+					DstPostProcess.bIsOneFrame = true;
+					DstPostProcess.PostProcessSettings = it->Value;
 				}
 			}
 		}

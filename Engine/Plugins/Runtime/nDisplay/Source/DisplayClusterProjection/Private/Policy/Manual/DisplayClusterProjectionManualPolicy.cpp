@@ -144,7 +144,9 @@ bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(class IDisplayCl
 		break;
 
 	case EManualDataType::FrustumAngles:
-		OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromAngles(FrustumAngles[InContextNum].Left, FrustumAngles[InContextNum].Right, FrustumAngles[InContextNum].Top, FrustumAngles[InContextNum].Bottom, NCP, FCP);
+		InViewport->CalculateProjectionMatrix(InContextNum, FrustumAngles[InContextNum].Left, FrustumAngles[InContextNum].Right, FrustumAngles[InContextNum].Top, FrustumAngles[InContextNum].Bottom, NCP, FCP, true);
+		OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
+
 		bResult = true;
 		break;
 

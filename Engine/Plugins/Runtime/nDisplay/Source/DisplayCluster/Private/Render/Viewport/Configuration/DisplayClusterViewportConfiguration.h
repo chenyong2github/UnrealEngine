@@ -31,9 +31,14 @@ public:
 	ADisplayClusterRootActor* GetRootActor() const;
 
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings() const
-	{ return RenderFrameSettings; }
+	{ 
+		check(IsInGameThread());
+
+		return RenderFrameSettings; 
+	}
 
 	bool UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId);
+
 #if WITH_EDITOR
 	bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration);
 #endif
@@ -41,6 +46,9 @@ public:
 private:
 	void ImplUpdateRenderFrameConfiguration(const UDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration);
 	void ImplUpdateConfiguration(const TArray<FString>& InClusterNodeIds, ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
+	void ImplUpdateConfigurationICVFX(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
+	void ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& InRootActor, const UDisplayClusterConfigurationData& InConfigurationData);
+
 	void ImplUpdateConfiguration_PostProcess(const FString& InClusterNodeId, const UDisplayClusterConfigurationData& ConfigurationData);
 
 private:

@@ -10,7 +10,7 @@
 
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
-#include "Render/Viewport/DisplayClusterViewportManager_PostProcess.h"
+#include "Render/Viewport/Postprocess//DisplayClusterViewportPostProcessManager.h"
 
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 
@@ -44,6 +44,8 @@ bool FDisplayClusterViewportConfiguration::SetRootActor(ADisplayClusterRootActor
 
 ADisplayClusterRootActor* FDisplayClusterViewportConfiguration::GetRootActor() const
 {
+	check(IsInGameThread());
+
 	AActor* ActorPtr = RootActorRef.GetOrFindSceneActor();
 	if (ActorPtr)
 	{
@@ -55,6 +57,7 @@ ADisplayClusterRootActor* FDisplayClusterViewportConfiguration::GetRootActor() c
 
 bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRenderFrameMode InRenderMode, const FString& InClusterNodeId)
 {
+	check(IsInGameThread());
 	check(InRenderMode != EDisplayClusterRenderFrameMode::PreviewMono)
 
 	ADisplayClusterRootActor* RootActor = GetRootActor();
@@ -67,6 +70,9 @@ bool FDisplayClusterViewportConfiguration::UpdateConfiguration(EDisplayClusterRe
 			RenderNodes.Add(InClusterNodeId);
 
 			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
+			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
+			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
+			ImplUpdateRenderFrameConfiguration(*(RootActor->GetRenderFrameSettings()));
 
 			ImplUpdateConfiguration_PostProcess(InClusterNodeId, *ConfigurationData);
 
@@ -85,11 +91,17 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(const TArray<
 	// Update and create Base viewports
 	FDisplayClusterViewportConfigurationBase BaseViewports(ViewportManager, RootActor, ConfigurationData);
 	BaseViewports.Update(InClusterNodeIds);
+}
 
+void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationICVFX(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
+{
 	// Update ICBFX internal viewports and resources
 	FDisplayClusterViewportConfigurationICVFX ConfigurationICVFX(ViewportManager, RootActor, ConfigurationData);
 	ConfigurationICVFX.Update();
+}
 
+void FDisplayClusterViewportConfiguration::ImplUpdateConfigurationVisibility(ADisplayClusterRootActor& RootActor, const UDisplayClusterConfigurationData& ConfigurationData)
+{
 	// Hide root actor components for all viewports
 	TSet<FPrimitiveComponentId> RootActorHidePrimitivesList;
 	if (RootActor.GetHiddenInGamePrimitives(RootActorHidePrimitivesList))
@@ -99,8 +111,6 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(const TArray<
 			ViewportIt->VisibilitySettings.SetRootActorHideList(RootActorHidePrimitivesList);
 		}
 	}
-
-	ImplUpdateRenderFrameConfiguration(*(RootActor.GetRenderFrameSettings()));
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(const UDisplayClusterConfigurationRenderFrame& InRenderFrameConfiguration)
@@ -161,6 +171,15 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	// (icvfx has child viewports: lightcard and chromakey with prj_view matrices copied from parent viewport. May sense to use same viewfamily?)
 	// [not implemented yet] Experimental
 	RenderFrameSettings.bShouldUseParentViewportRenderFamily = InRenderFrameConfiguration.bShouldUseParentViewportRenderFamily;
+
+#if WITH_EDITOR
+	// Use special renderin mode, if DCRenderDevice not used right now
+	const bool bIsNDisplayClusterMode = (GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
+	if (bIsNDisplayClusterMode == false)
+	{
+		RenderFrameSettings.bIsRenderingInEditor = true;
+	}
+#endif /*WITH_EDITOR*/
 }
 
 void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration_PostProcess(const FString& InClusterNodeId, const UDisplayClusterConfigurationData& ConfigurationData)
@@ -192,6 +211,7 @@ void FDisplayClusterViewportConfiguration::ImplUpdateConfiguration_PostProcess(c
 #if WITH_EDITOR
 bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration)
 {
+	check(IsInGameThread());
 	check(PreviewConfiguration);
 	check(PreviewConfiguration->bEnable);
 
@@ -217,9 +237,15 @@ bool FDisplayClusterViewportConfiguration::UpdatePreviewConfiguration(class UDis
 
 			ImplUpdateConfiguration(RenderNodes, *RootActor, *ConfigurationData);
 
+			ImplUpdateConfigurationICVFX(*RootActor, *ConfigurationData);
+			ImplUpdateConfigurationVisibility(*RootActor, *ConfigurationData);
+			ImplUpdateRenderFrameConfiguration(*(RootActor->GetRenderFrameSettings()));
+
 			// Downscale resources with PreviewDownscaleRatio
 			RenderFrameSettings.PreviewRenderTargetRatioMult = PreviewConfiguration->PreviewRenderTargetRatioMult;
 			RenderFrameSettings.RenderMode = EDisplayClusterRenderFrameMode::PreviewMono;
+
+			RenderFrameSettings.bIsRenderingInEditor = true;
 
 			return true;
 		}

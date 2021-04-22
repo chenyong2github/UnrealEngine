@@ -242,7 +242,7 @@ void FDisplayClusterProjectionVIOSOPolicy::HandleEndScene(class IDisplayClusterV
 	}
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(Views.Num() > (int)InContextNum);
 
@@ -257,7 +257,7 @@ bool FDisplayClusterProjectionVIOSOPolicy::CalculateView(class IDisplayClusterVi
 
 	// Get view prj data from VIOSO
 	FScopeLock lock(&DllAccessCS);
-	if (!Views[InContextNum].UpdateVIOSO(LocalEyeOrigin, LocalRotator, WorldToMeters, NCP, FCP))
+	if (!Views[InContextNum].UpdateVIOSO(InViewport, InContextNum, LocalEyeOrigin, LocalRotator, WorldToMeters, NCP, FCP))
 	{
 		if (Views[InContextNum].IsValid())
 		{
@@ -366,14 +366,14 @@ bool FDisplayClusterProjectionVIOSOPolicy::FViewData::Initialize(ERenderDevice I
 	return true;
 }
 
-bool FDisplayClusterProjectionVIOSOPolicy::FViewData::UpdateVIOSO(const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionVIOSOPolicy::FViewData::UpdateVIOSO(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP)
 {
 	if (IsValid())
 	{
 		ViewLocation = LocalLocation;
 		ViewRotation = LocalRotator;
 
-		return Warper.CalculateViewProjection(ViewLocation, ViewRotation, ProjectionMatrix, WorldToMeters, NCP, FCP);
+		return Warper.CalculateViewProjection(InViewport, InContextNum, ViewLocation, ViewRotation, ProjectionMatrix, WorldToMeters, NCP, FCP);
 	}
 
 	return false;

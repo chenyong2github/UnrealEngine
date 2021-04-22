@@ -178,3 +178,20 @@ enum class EDisplayClusterConfigurationRenderMGPUMode : uint8
 	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=false 
 	Optimized_DisabledLockSteps  UMETA(DisplayName = "Optimization: Disabled Lockstep"),
 };
+
+UENUM()
+enum class EDisplayClusterConfigurationViewportOverscanMode : uint8
+{
+	None     UMETA(DisplayName = "Disabled"),
+	Pixels   UMETA(DisplayName = "Enabled: Pixels values"),
+	Percent  UMETA(DisplayName = "Enabled: Percent values")
+};
+
+UENUM()
+enum class EDisplayClusterConfigurationRenderMode : uint8
+{
+	Mono        UMETA(DisplayName = "Mono"),
+	SideBySide  UMETA(DisplayName = "Stereo: Side By Side"),
+	TopBottom   UMETA(DisplayName = "Stereo: Top Bottom")
+};
+

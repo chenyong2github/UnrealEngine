@@ -8,19 +8,6 @@ void FDisplayClusterViewport_CustomPostProcessSettings::AddCustomPostProcess(con
 	PostprocessAsset.Emplace(InRenderPass, FPostprocessData(InSettings, BlendWeight, bSingleFrame));
 }
 
-bool FDisplayClusterViewport_CustomPostProcessSettings::GetCustomPostProcess(const ERenderPass InRenderPass, FPostProcessSettings& OutSettings, float& OutBlendWeight, bool& bOutSingleFrame) const
-{
-	const FPostprocessData* ExistSettings = PostprocessAsset.Find(InRenderPass);
-	if (ExistSettings)
-	{
-		OutSettings = ExistSettings->Settings;
-		OutBlendWeight = ExistSettings->BlendWeight;
-		bOutSingleFrame = ExistSettings->bSingleFrame;
-		return true;
-	}
-
-	return false;
-}
 
 void FDisplayClusterViewport_CustomPostProcessSettings::RemoveCustomPostProcess(const ERenderPass InRenderPass)
 {
@@ -30,10 +17,10 @@ void FDisplayClusterViewport_CustomPostProcessSettings::RemoveCustomPostProcess(
 	}
 }
 
-bool FDisplayClusterViewport_CustomPostProcessSettings::DoPostProcess(const ERenderPass InRenderPass, FPostProcessSettings* OutSettings, float* OutBlendWeight)
+bool FDisplayClusterViewport_CustomPostProcessSettings::DoPostProcess(const ERenderPass InRenderPass, FPostProcessSettings* OutSettings, float* OutBlendWeight) const
 {
 	const FPostprocessData* ExistSettings = PostprocessAsset.Find(InRenderPass);
-	if (ExistSettings)
+	if (ExistSettings && ExistSettings->bIsEnabled)
 	{
 		if (OutSettings != nullptr)
 		{
@@ -51,20 +38,14 @@ bool FDisplayClusterViewport_CustomPostProcessSettings::DoPostProcess(const ERen
 	return false;
 }
 
-void FDisplayClusterViewport_CustomPostProcessSettings::RemoveAllSingleFramePosprocess()
+void FDisplayClusterViewport_CustomPostProcessSettings::FinalizeFrame()
 {
-	TArray<ERenderPass> SingleFrameKeys;
-	for (TPair<ERenderPass, FPostprocessData>& It : PostprocessAsset)
-	{
-		if (It.Value.bSingleFrame)
-		{
-			SingleFrameKeys.Add(It.Key);
-		}
-	}
-
 	// Safe remove items out of iterator
-	for (const ERenderPass& keyIt : SingleFrameKeys)
+	for (TPair<ERenderPass, FPostprocessData>& It: PostprocessAsset)
 	{
-		PostprocessAsset.Remove(keyIt);
+		if (It.Value.bIsSingleFrame)
+		{
+			It.Value.bIsEnabled = false;
+		}
 	}
 }
