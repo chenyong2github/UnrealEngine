@@ -25,7 +25,6 @@ struct DMXPROTOCOL_API FDMXOutputPortConfig
 	GENERATED_BODY()
 
 public:
-	/** Hidden default constructor, create with a valid guid instead */
 	FDMXOutputPortConfig() = default;
 
 	/** Constructs a default config with a Guid */
