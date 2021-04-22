@@ -9,11 +9,14 @@ using namespace Chaos;
 
 namespace Chaos
 {
-	FRealSingle BoundsThicknessMultiplier = 1.f;	//should not be based on bounds, should be based on distance
-	FAutoConsoleVariableRef CVarBoundsThicknessMultiplier(TEXT("p.BoundsThicknessMultiplier"), BoundsThicknessMultiplier, TEXT(""));
-
-	FRealSingle MinBoundsThickness = 0.1f;
-	FAutoConsoleVariableRef CVarMinBoundsThickness(TEXT("p.MinBoundsThickness"), MinBoundsThickness, TEXT(""));
+	// Bounds expansion (for speculative contact creation) is limited by this factor multiplied by the objects size.
+	// This prevents objects that are moving large distances in one frame from having bounds which overlap too many objects. 
+	// We only detect collisions at the final position anyway (when CCD is disabled) so having a bounds which is much larger 
+	// than the object doesn't help much. E.g., if an object moves more than its size per frame it will encounter tunneling 
+	// problems when colliding against zero-thickness surfaces such as tri meshes, regardless of the bounds size.
+	// NOTE: This is only used by objects that have CCD disabled.
+	FRealSingle Chaos_Bounds_MaxInflationScale = 2.f;
+	FAutoConsoleVariableRef CVarBoundsMaxInflatiuonScale(TEXT("p.Chaos.MaxInflationScale"), Chaos_Bounds_MaxInflationScale, TEXT("A limit on the bounds used to detect collisions when CCD is disabled. The bounds limit is this scale multiplied by the object's max dimension"));
 }
 
 template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>

@@ -303,6 +303,9 @@ template <typename T, int d, bool bPersistent>
 class TGeometryParticleHandleImp : public TParticleHandleBase<T,d>
 {
 public:
+	using FDynamicParticleHandleType = TPBDRigidParticleHandleImp<T, d, bPersistent>;
+	using FKinematicParticleHandleType = TKinematicGeometryParticleHandleImp<T, d, bPersistent>;
+
 	using TTransientHandle = TTransientGeometryParticleHandle<T, d>;
 	using THandleBase = TParticleHandleBase<T, d>;
 	using THandleBase::GeometryParticles;
@@ -1115,6 +1118,9 @@ TGeometryParticleHandleImp<T,d,bPersistent>* TGeometryParticleHandleImp<T,d, bPe
 class CHAOS_API FGenericParticleHandleHandleImp
 {
 public:
+	using FDynamicParticleHandleType = FPBDRigidParticleHandle;
+	using FKinematicParticleHandleType = FKinematicGeometryParticleHandle;
+
 	FGenericParticleHandleHandleImp(FGeometryParticleHandle* InHandle) { MHandle = InHandle; }
 
 	// Check for the exact type of particle (see also AsKinematic etc, which will work on derived types)
@@ -1322,13 +1328,23 @@ public:
 		return MHandle->UniqueIdx();
 	}
 
-	//Named this way for templated code
+	bool HasBounds() const
+	{
+		return MHandle->HasBounds();
+	}
+
+	const FAABB3& LocalBounds() const
+	{
+		return MHandle->LocalBounds();
+	}
+
+	//Named this way for templated code (GT/PT particles)
 	bool HasBoundingBox() const
 	{
 		return MHandle->HasBounds();
 	}
 
-	//Named this way for templated code
+	//Named this way for templated code (GT/PT particles)
 	const FAABB3& BoundingBox() const
 	{
 		return MHandle->WorldSpaceInflatedBounds();

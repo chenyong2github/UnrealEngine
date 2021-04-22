@@ -19,7 +19,6 @@ namespace Chaos
 			const FRigidTransform3& Box1Transform, //world
 			const FImplicitBox3& Box2,
 			const FRigidTransform3& Box2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 
@@ -29,7 +28,6 @@ namespace Chaos
 			const FRigidTransform3& Convex1Transform, //world
 			const ConvexImplicitType2& Implicit2,
 			const FRigidTransform3& Convex2Transform, //world
-			const FReal CullDistance,
 			const FReal Dt,
 			FRigidBodyPointContactConstraint& Constraint);
 	}
