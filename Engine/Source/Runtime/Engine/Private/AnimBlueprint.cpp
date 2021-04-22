@@ -18,7 +18,10 @@ UAnimBlueprint::UAnimBlueprint(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bUseMultiThreadedAnimationUpdate = true;
-
+#if WITH_EDITORONLY_DATA
+	bRefreshExtensions = true;
+#endif
+	
 #if WITH_EDITOR
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -84,8 +87,6 @@ int32 UAnimBlueprint::FindOrAddGroup(FName GroupName)
 	}
 }
 
-
-/** Returns the most base anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
 UAnimBlueprint* UAnimBlueprint::FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint)
 {
 	UAnimBlueprint* ParentBP = nullptr;
@@ -97,6 +98,19 @@ UAnimBlueprint* UAnimBlueprint::FindRootAnimBlueprint(const UAnimBlueprint* Deri
 		{
 			ParentBP = TestBP;
 		}
+	}
+
+	return ParentBP;
+}
+
+UAnimBlueprint* UAnimBlueprint::GetParentAnimBlueprint(const UAnimBlueprint* DerivedBlueprint)
+{
+	UAnimBlueprint* ParentBP = nullptr;
+	UClass* ParentClass = DerivedBlueprint->ParentClass;
+
+	if (UAnimBlueprint* TestBP = Cast<UAnimBlueprint>(ParentClass->ClassGeneratedBy))
+	{
+		ParentBP = TestBP;
 	}
 
 	return ParentBP;

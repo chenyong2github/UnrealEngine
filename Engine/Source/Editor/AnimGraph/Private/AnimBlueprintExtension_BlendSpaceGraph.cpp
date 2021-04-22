@@ -1,0 +1,17 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "AnimBlueprintExtension_BlendSpaceGraph.h"
+#include "Animation/BlendSpace.h"
+
+void UAnimBlueprintExtension_BlendSpaceGraph::HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	Subsystem.BlendSpaces.Empty();
+	Class = const_cast<UClass*>(InClass);
+}
+
+UBlendSpace* UAnimBlueprintExtension_BlendSpaceGraph::AddBlendSpace(UBlendSpace* InSourceBlendSpace)
+{
+	UBlendSpace* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
+	Subsystem.BlendSpaces.Add(CopiedBlendSpace);
+	return CopiedBlendSpace;
+}

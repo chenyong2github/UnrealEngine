@@ -131,13 +131,8 @@ struct FPropertyAccessEditorSystem
 		}
 		else
 		{
+			InContext.ErrorMessage = FText::Format(LOCTEXT("UnrecognisedProperty", "Property '{0}' is unrecognised in property path for @@"), InProperty ? FText::FromName(InProperty->GetFName()) : LOCTEXT("Null", "Null"));
 			return ESegmentResolveResult::Failed;
-		}
-
-		static const FName PropertyEventMetadata("PropertyEvent");
-		if(InProperty->HasMetaData(PropertyEventMetadata))
-		{
-			InSegment.Flags |= (uint16)EPropertyAccessSegmentFlags::Event;
 		}
 
 		return Result;
@@ -570,13 +565,13 @@ namespace PropertyAccess
 	}
 }
 
-FPropertyAccessLibraryCompiler::FPropertyAccessLibraryCompiler()
-	: Library(nullptr)
-	, Class(nullptr)
+FPropertyAccessLibraryCompiler::FPropertyAccessLibraryCompiler(FPropertyAccessLibrary* InLibrary, const UClass* InClass)
+	: Library(InLibrary)
+	, Class(InClass)
 {
 }
 
-void FPropertyAccessLibraryCompiler::BeginCompilation(const UClass* InClass)
+void FPropertyAccessLibraryCompiler::BeginCompilation()
 {
 	if(Class && Library)
 	{

@@ -176,9 +176,10 @@ void SGraphNodeSequencePlayer::SetSequencePositionRatio(float NewRatio)
 {
 	if(FAnimNode_SequencePlayer* SequencePlayer = GetSequencePlayer())
 	{
-		if (SequencePlayer->Sequence != NULL)
+		UAnimSequenceBase* Sequence = SequencePlayer->GetSequence();
+		if (Sequence != NULL)
 		{
-			const float NewTime = NewRatio * SequencePlayer->Sequence->GetPlayLength();
+			const float NewTime = NewRatio * Sequence->GetPlayLength();
 			SequencePlayer->SetAccumulatedTime(NewTime);
 		}
 	}
@@ -196,7 +197,7 @@ void SGraphNodeSequencePlayer::UpdateGraphSyncLabel()
 			{
 				if (UObject* ActiveObject = AnimBlueprint->GetObjectBeingDebugged())
 				{
-					if(VisualSequencePlayer->SyncGroup.Method == EAnimSyncMethod::Graph)
+					if(VisualSequencePlayer->Node.GetGroupMethod() == EAnimSyncMethod::Graph)
 					{
 						int32 NodeIndex = GeneratedClass->GetNodeIndexFromGuid(VisualSequencePlayer->NodeGuid);
 						if(NodeIndex != INDEX_NONE)

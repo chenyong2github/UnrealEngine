@@ -7,9 +7,9 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimNodeBase.h"
+#include "PropertyAccess.h"
 
 struct FBlueprintDebugData;
-struct FPropertyAccessLibrary;
 struct FAnimBlueprintDebugData;
 
 /** Interface to the writable parts of the generated class that handlers can operate on */
@@ -31,11 +31,11 @@ public:
 	// Finds a notify event or adds if it doesn't already exist
 	virtual int32 FindOrAddNotify(FAnimNotifyEvent& Notify) const = 0;
 
-	// Get the currently-compiled classes exposed value handlers
-	virtual TArray<FExposedValueHandler>& GetExposedValueHandlers() const = 0;
+	UE_DEPRECATED(5.0, "Exposed value handlers are no longer accessible via this method. Access them via UAnimBlueprintExtension_Base.")
+	virtual TArray<FExposedValueHandler>& GetExposedValueHandlers() const {	static TArray<FExposedValueHandler> Dummy; return Dummy; }
 
-	// Get the currently-compiled classes property access library
-	virtual FPropertyAccessLibrary& GetPropertyAccessLibrary() const = 0;
+	UE_DEPRECATED(5.0, "Property access library is no longer accessible via this method. Access it via UAnimBlueprintExtension_PropertyAccess.")
+	virtual FPropertyAccessLibrary& GetPropertyAccessLibrary() const { static FPropertyAccessLibrary Dummy; return Dummy; }
 
 	// Get the anim debug data for the currently-compiled class
 	virtual FAnimBlueprintDebugData& GetAnimBlueprintDebugData() const = 0;

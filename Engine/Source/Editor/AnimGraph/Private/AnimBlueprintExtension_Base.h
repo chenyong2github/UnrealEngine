@@ -3,9 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IAnimBlueprintCompilerHandler.h"
-#include "IPropertyAccessCompiler.h"
+#include "AnimBlueprintExtension.h"
+#include "AnimBlueprintExtension_PropertyAccess.h"
 #include "Animation/AnimNodeBase.h"
+#include "IPropertyAccessCompiler.h"
+#include "Animation/AnimSubsystem_Base.h"
+#include "AnimBlueprintExtension_Base.generated.h"
 
 class UAnimGraphNode_Base;
 struct FAnimGraphNodePropertyBinding;
@@ -17,11 +20,12 @@ class IAnimBlueprintCompilationBracketContext;
 class IAnimBlueprintPostExpansionStepContext;
 class IAnimBlueprintCopyTermDefaultsContext;
 
-class FAnimBlueprintCompilerHandler_Base : public IAnimBlueprintCompilerHandler
+UCLASS(MinimalAPI)
+class UAnimBlueprintExtension_Base : public UAnimBlueprintExtension
 {
-public:
-	FAnimBlueprintCompilerHandler_Base(IAnimBlueprintCompilerCreationContext& InCreationContext);
+	GENERATED_BODY()
 
+public:
 	// Adds a map of struct eval handlers for the specified node
 	void AddStructEvalHandlers(UAnimGraphNode_Base* InNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
@@ -29,10 +33,14 @@ public:
 	void CreateEvaluationHandlerForNode(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode);
 
 private:
-	void StartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
-	void FinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
-	void PostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
-	void CopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	// UAnimBlueprintExtension interface
+	virtual void HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void HandleFinishCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void HandlePostExpansionStep(const UEdGraph* InGraph, IAnimBlueprintPostExpansionStepContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void HandleCopyTermDefaultsToDefaultObject(UObject* InDefaultObject, IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintExtensionCopyTermDefaultsContext& InPerExtensionContext) override;
+
+	// Patch all node's evaluation handlers 
+	void PatchEvaluationHandlers(IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
 
 private:
 	/** Record of a single copy operation */
@@ -133,41 +141,6 @@ private:
 		}
 	};
 
-	// Record for a property that was exposed as a pin, but wasn't wired up (just a literal)
-	struct FEffectiveConstantRecord
-	{
-	public:
-		// The node variable that the handler is in
-		class FStructProperty* NodeVariableProperty;
-
-		// The property within the struct to set
-		class FProperty* ConstantProperty;
-
-		// The array index if ConstantProperty is an array property, or INDEX_NONE otherwise
-		int32 ArrayIndex;
-
-		// The pin to pull the DefaultValue/DefaultObject from
-		UEdGraphPin* LiteralSourcePin;
-
-		FEffectiveConstantRecord()
-			: NodeVariableProperty(NULL)
-			, ConstantProperty(NULL)
-			, ArrayIndex(INDEX_NONE)
-			, LiteralSourcePin(NULL)
-		{
-		}
-
-		FEffectiveConstantRecord(FStructProperty* ContainingNodeProperty, UEdGraphPin* SourcePin, FProperty* SourcePinProperty, int32 SourceArrayIndex)
-			: NodeVariableProperty(ContainingNodeProperty)
-			, ConstantProperty(SourcePinProperty)
-			, ArrayIndex(SourceArrayIndex)
-			, LiteralSourcePin(SourcePin)
-		{
-		}
-
-		bool Apply(UObject* Object);
-	};
-
 	/** BP execution handler for Anim node */
 	struct FEvaluationHandlerRecord
 	{
@@ -237,7 +210,7 @@ private:
 
 		FStructProperty* GetHandlerNodeProperty() const { return NodeVariableProperty; }
 
-		void BuildFastPathCopyRecords(FAnimBlueprintCompilerHandler_Base& InHandler, IAnimBlueprintPostExpansionStepContext& InCompilationContext);
+		void BuildFastPathCopyRecords(IAnimBlueprintPostExpansionStepContext& InCompilationContext);
 
 	private:
 
@@ -253,9 +226,12 @@ private:
 
 		bool CheckForArrayAccess(FCopyRecordGraphCheckContext& Context, UEdGraphPin* DestPin);
 	};
-
+	
 	// Create an evaluation handler for the specified node/record
 	void CreateEvaluationHandler(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& Record);
+
+	// Redirect any property accesses that are affected by constant folding
+	void RedirectPropertyAccesses(IAnimBlueprintCompilationContext& InCompilationContext, UAnimGraphNode_Base* InNode, FEvaluationHandlerRecord& InRecord);
 
 private:
 	// Records of pose pins for later patchup with an associated evaluation handler
@@ -265,13 +241,14 @@ private:
 	TArray<FEvaluationHandlerRecord> ValidEvaluationHandlerList;
 	TMap<UAnimGraphNode_Base*, int32> ValidEvaluationHandlerMap;
 
-	// List of animation node literals (values exposed as pins but never wired up) that need to be pushed into the CDO
-	TArray<FEffectiveConstantRecord> ValidAnimNodePinConstants;
-
 	// Set of used handler function names
 	TSet<FName> HandlerFunctionNames;
 
 	// Delegate handle for registering against library pre/post-compilation
 	FDelegateHandle PreLibraryCompiledDelegateHandle;
 	FDelegateHandle PostLibraryCompiledDelegateHandle;
+
+	// Base subsystem data containing eval handlers
+	UPROPERTY()
+	FAnimSubsystem_Base Subsystem;
 };

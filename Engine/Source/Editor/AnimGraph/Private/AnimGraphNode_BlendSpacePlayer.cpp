@@ -11,6 +11,8 @@
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
 #include "AnimGraphCommands.h"
+#include "IAnimBlueprintCopyTermDefaultsContext.h"
+#include "IAnimBlueprintNodeOverrideAssetsContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_BlendSpacePlayer
@@ -50,12 +52,12 @@ FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitleForBlendSpace(ENodeTitleType:
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("Title"), Title);
 
-			if(SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+			if(Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
 			{
-				Args.Add(TEXT("SyncGroupName"), FText::FromName(SyncGroup.GroupName));
+				Args.Add(TEXT("SyncGroupName"), FText::FromName(Node.GetGroupName()));
 				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nSync group {SyncGroupName}"), Args);
 			}
-			else if(SyncGroup.Method == EAnimSyncMethod::Graph)
+			else if(Node.GetGroupMethod() == EAnimSyncMethod::Graph)
 			{
 				Title = FText::Format(LOCTEXT("BlendSpaceNodeGroupSubtitle", "{Title}\nGraph sync group"), Args);
 
@@ -84,7 +86,7 @@ FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitleForBlendSpace(ENodeTitleType:
 
 FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {	
-	if (Node.BlendSpace == nullptr)
+	if (Node.GetBlendSpace() == nullptr)
 	{
 		// we may have a valid variable connected or default pin value
 		UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
@@ -112,7 +114,7 @@ FText UAnimGraphNode_BlendSpacePlayer::GetNodeTitle(ENodeTitleType::Type TitleTy
 	//        choose to mark this dirty when that happens for this to properly work
 	else //if (!CachedNodeTitles.IsTitleCached(TitleType, this))
 	{
-		return GetNodeTitleForBlendSpace(TitleType, Node.BlendSpace);
+		return GetNodeTitleForBlendSpace(TitleType, Node.GetBlendSpace());
 	}
 }
 
@@ -120,7 +122,7 @@ void UAnimGraphNode_BlendSpacePlayer::ValidateAnimNodeDuringCompilation(class US
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
@@ -159,10 +161,7 @@ void UAnimGraphNode_BlendSpacePlayer::ValidateAnimNodeDuringCompilation(class US
 void UAnimGraphNode_BlendSpacePlayer::BakeDataDuringCompilation(class FCompilerResultsLog& MessageLog)
 {
 	UAnimBlueprint* AnimBlueprint = GetAnimBlueprint();
-	AnimBlueprint->FindOrAddGroup(SyncGroup.GroupName);
-	Node.GroupName = SyncGroup.GroupName;
-	Node.GroupRole = SyncGroup.GroupRole;
-	Node.Method = SyncGroup.Method;
+	AnimBlueprint->FindOrAddGroup(Node.GetGroupName());
 }
 
 void UAnimGraphNode_BlendSpacePlayer::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
@@ -186,7 +185,7 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
 		{
 			UAnimGraphNode_BlendSpacePlayer* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpacePlayer>(NewNode);
-			BlendSpaceNode->Node.BlendSpace = BlendSpace.Get();
+			BlendSpaceNode->Node.SetBlendSpace(BlendSpace.Get());
 		}
 
 		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
@@ -241,7 +240,7 @@ void UAnimGraphNode_BlendSpacePlayer::GetMenuActions(FBlueprintActionDatabaseReg
 FBlueprintNodeSignature UAnimGraphNode_BlendSpacePlayer::GetSignature() const
 {
 	FBlueprintNodeSignature NodeSignature = Super::GetSignature();
-	NodeSignature.AddSubObject(Node.BlendSpace);
+	NodeSignature.AddSubObject(Node.GetBlendSpace());
 
 	return NodeSignature;
 }
@@ -250,13 +249,25 @@ void UAnimGraphNode_BlendSpacePlayer::SetAnimationAsset(UAnimationAsset* Asset)
 {
 	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
-		Node.BlendSpace = BlendSpace;
+		Node.SetBlendSpace(BlendSpace);
+	}
+}
+
+void UAnimGraphNode_BlendSpacePlayer::OnOverrideAssets(IAnimBlueprintNodeOverrideAssetsContext& InContext) const
+{
+	if(InContext.GetAssets().Num() > 0)
+	{
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InContext.GetAssets()[0]))
+		{
+			FAnimNode_BlendSpacePlayer& AnimNode = InContext.GetAnimNode<FAnimNode_BlendSpacePlayer>();
+			AnimNode.SetBlendSpace(BlendSpace);
+		}
 	}
 }
 
 void UAnimGraphNode_BlendSpacePlayer::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets) const
 {
-	if(Node.BlendSpace)
+	if(Node.GetBlendSpace())
 	{
 		HandleAnimReferenceCollection(Node.BlendSpace, AnimationAssets);
 	}
@@ -274,7 +285,7 @@ bool UAnimGraphNode_BlendSpacePlayer::DoesSupportTimeForTransitionGetter() const
 
 UAnimationAsset* UAnimGraphNode_BlendSpacePlayer::GetAnimationAsset() const 
 {
-	UBlendSpace* BlendSpace = Node.BlendSpace;
+	UBlendSpace* BlendSpace = Node.GetBlendSpace();
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpace == nullptr)
 	{

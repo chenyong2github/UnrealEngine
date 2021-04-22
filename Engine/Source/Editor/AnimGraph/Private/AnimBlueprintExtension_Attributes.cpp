@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimBlueprintCompilerHandler_Attributes.h"
+#include "AnimBlueprintExtension_Attributes.h"
 #include "IAnimBlueprintCompilerCreationContext.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "AnimationGraphSchema.h"
@@ -23,12 +23,7 @@
 #include "AnimGraphNode_BlendSpaceGraphBase.h"
 #include "AnimationBlendSpaceSampleGraph.h"
 
-FAnimBlueprintCompilerHandler_Attributes::FAnimBlueprintCompilerHandler_Attributes(IAnimBlueprintCompilerCreationContext& InCreationContext)
-{
-	InCreationContext.OnPreProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_Attributes::PreProcessAnimationNodes);
-}
-
-void FAnimBlueprintCompilerHandler_Attributes::PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void UAnimBlueprintExtension_Attributes::HandlePostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {	
 	using FNodeAttributeMap = TMap<UAnimGraphNode_Base*, UAnimGraphNode_Base::FNodeAttributeArray>;
 	using FCachedPoseMap = TMultiMap<UAnimGraphNode_SaveCachedPose*, UAnimGraphNode_UseCachedPose*>;

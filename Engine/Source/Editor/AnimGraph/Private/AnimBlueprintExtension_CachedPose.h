@@ -4,24 +4,28 @@
 
 #include "CoreMinimal.h"
 #include "AnimGraphNode_Base.h"
-#include "IAnimBlueprintCompilerHandler.h"
+#include "AnimBlueprintExtension.h"
+#include "AnimBlueprintExtension_CachedPose.generated.h"
 
 class UAnimGraphNode_SaveCachedPose;
 class IAnimBlueprintCompilerCreationContext;
 class IAnimBlueprintCompilationContext;
 class IAnimBlueprintGeneratedClassCompiledData;
+class IAnimBlueprintCompilationBracketContext;
 
-class FAnimBlueprintCompilerHandler_CachedPose : public IAnimBlueprintCompilerHandler
+UCLASS(MinimalAPI)
+class UAnimBlueprintExtension_CachedPose : public UAnimBlueprintExtension
 {
+	GENERATED_BODY()
+	
 public:
-	FAnimBlueprintCompilerHandler_CachedPose(IAnimBlueprintCompilerCreationContext& InCreationContext);
-
 	// Get the map of cache name to encountered save cached pose nodes
 	const TMap<FString, UAnimGraphNode_SaveCachedPose*>& GetSaveCachedPoseNodes() const;
 
 private:
-	void PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
-	void PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);
+	virtual void HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void HandlePreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
+	virtual void HandlePostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData) override;
 
 	// Builds the update order list for saved pose nodes in this blueprint
 	void BuildCachedPoseNodeUpdateOrder(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData);

@@ -31,7 +31,7 @@ struct FComponentSpacePoseContext;
 class FName;
 struct FVector;
 struct FRotator;
-struct FAnimNode_SequencePlayer;
+struct FAnimNode_SequencePlayerBase;
 struct FAnimNotifyEvent;
 struct FPassedMarker;
 struct FAnimSyncMarker;
@@ -166,7 +166,7 @@ struct FAnimTrace
 	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UObject* InValue);
 
 	/** Helper function to output debug info for sequence player nodes */
-	ENGINE_API static void OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayer& InNode);
+	ENGINE_API static void OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode);
 
 	/** 
 	 * Helper function to output a name to the trace stream, referenced by ID. 

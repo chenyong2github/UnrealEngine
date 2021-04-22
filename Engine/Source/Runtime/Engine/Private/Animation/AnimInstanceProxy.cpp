@@ -59,10 +59,13 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateCont
 		InRootNode->Update_AnyThread(InContext);
 
 		// We've updated the graph, now update the fractured saved pose sections
-		TArray<FAnimNode_SaveCachedPose*>& SavedPoseQueue = SavedPoseQueueMap.FindChecked(InLayerName);
-		for(FAnimNode_SaveCachedPose* PoseNode : SavedPoseQueue)
+		// Note SavedPoseQueueMap can be empty if we have no cached poses in use
+		if(TArray<FAnimNode_SaveCachedPose*>* SavedPoseQueue = SavedPoseQueueMap.Find(InLayerName))
 		{
-			PoseNode->PostGraphUpdate();
+			for(FAnimNode_SaveCachedPose* PoseNode : *SavedPoseQueue)
+			{
+				PoseNode->PostGraphUpdate();
+			}
 		}
 	}
 }
@@ -890,9 +893,9 @@ float FAnimInstanceProxy::CalcSlotMontageLocalWeight(const FName& SlotNodeName) 
 	return out_SlotNodeLocalWeight;
 }
 
-FAnimNode_Base* FAnimInstanceProxy::GetCheckedNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType)
+const FAnimNode_Base* FAnimInstanceProxy::GetCheckedNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType) const
 {
-	FAnimNode_Base* NodePtr = nullptr;
+	const FAnimNode_Base* NodePtr = nullptr;
 	if (AnimClassInterface)
 	{
 		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
@@ -922,9 +925,14 @@ FAnimNode_Base* FAnimInstanceProxy::GetCheckedNodeFromIndexUntyped(int32 NodeIdx
 	return NodePtr;
 }
 
-FAnimNode_Base* FAnimInstanceProxy::GetNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType)
+FAnimNode_Base* FAnimInstanceProxy::GetCheckedMutableNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType)
 {
-	FAnimNode_Base* NodePtr = nullptr;
+	return const_cast<FAnimNode_Base*>(GetCheckedNodeFromIndexUntyped(NodeIdx, RequiredStructType));
+}
+
+const FAnimNode_Base* FAnimInstanceProxy::GetNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType) const
+{
+	const FAnimNode_Base* NodePtr = nullptr;
 	if (AnimClassInterface)
 	{
 		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
@@ -942,6 +950,11 @@ FAnimNode_Base* FAnimInstanceProxy::GetNodeFromIndexUntyped(int32 NodeIdx, UScri
 	}
 
 	return NodePtr;
+}
+
+FAnimNode_Base* FAnimInstanceProxy::GetMutableNodeFromIndexUntyped(int32 NodeIdx, UScriptStruct* RequiredStructType)
+{
+	return const_cast<FAnimNode_Base*>(GetNodeFromIndexUntyped(NodeIdx, RequiredStructType));
 }
 
 void FAnimInstanceProxy::RecalcRequiredBones(USkeletalMeshComponent* Component, UObject* Asset)
@@ -1006,10 +1019,14 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	FMemMark Mark(FMemStack::Get());
 
-	// Process internal batched property copies
 	if(AnimClassInterface)
 	{
-		PropertyAccess::ProcessCopies(GetAnimInstanceObject(), AnimClassInterface->GetPropertyAccessLibrary(), EPropertyAccessCopyBatch::InternalBatched);
+		AnimClassInterface->ForEachSubsystem(GetAnimInstanceObject(), [this](const FAnimSubsystemInstanceContext& InContext)
+		{
+		    FAnimSubsystemParallelUpdateContext Context(InContext, *this, CurrentDeltaSeconds);
+		    InContext.Subsystem.OnParallelUpdate(Context);
+		    return EAnimSubsystemEnumeration::Continue;
+		});
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -1024,7 +1041,7 @@ void FAnimInstanceProxy::UpdateAnimation()
 
 	if(AnimClassInterface && AnimClassInterface->GetAnimBlueprintFunctions().Num() > 0)
 	{
-		Context = Context.WithNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
+		Context.SetNodeId(AnimClassInterface->GetAnimBlueprintFunctions()[0].OutputPoseNodeIndex);
 	}
 
 	UpdateAnimation_WithRoot(Context, RootNode, NAME_AnimGraph);
@@ -1876,10 +1893,12 @@ void FAnimInstanceProxy::GatherDebugData_WithRoot(FNodeDebugData& DebugData, FAn
 	}
 
 	// Gather debug data for Cached Poses.
-	TArray<FAnimNode_SaveCachedPose*>& SavedPoseQueue = SavedPoseQueueMap.FindChecked(InLayerName);
-	for (FAnimNode_SaveCachedPose* PoseNode : SavedPoseQueue)
+	if(TArray<FAnimNode_SaveCachedPose*>* SavedPoseQueue = SavedPoseQueueMap.Find(InLayerName))
 	{
-		PoseNode->GatherDebugData(DebugData);
+		for (FAnimNode_SaveCachedPose* PoseNode : *SavedPoseQueue)
+		{
+			PoseNode->GatherDebugData(DebugData);
+		}
 	}
 }
 
@@ -2013,9 +2032,9 @@ void FAnimInstanceProxy::AnimDrawDebugPoint(const FVector& Loc, float Size, cons
 }
 #endif // ENABLE_ANIM_DRAW_DEBUG
 
-float FAnimInstanceProxy::GetInstanceAssetPlayerLength(int32 AssetPlayerIndex)
+float FAnimInstanceProxy::GetInstanceAssetPlayerLength(int32 AssetPlayerIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
+	if(const FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
 	{
 		return PlayerNode->GetCurrentAssetLength();
 	}
@@ -2023,9 +2042,9 @@ float FAnimInstanceProxy::GetInstanceAssetPlayerLength(int32 AssetPlayerIndex)
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceAssetPlayerTime(int32 AssetPlayerIndex)
+float FAnimInstanceProxy::GetInstanceAssetPlayerTime(int32 AssetPlayerIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
+	if(const FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
 	{
 		return PlayerNode->GetCurrentAssetTimePlayRateAdjusted();
 	}
@@ -2033,9 +2052,9 @@ float FAnimInstanceProxy::GetInstanceAssetPlayerTime(int32 AssetPlayerIndex)
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFraction(int32 AssetPlayerIndex)
+float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFraction(int32 AssetPlayerIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
+	if(const FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
 	{
 		float Length = PlayerNode->GetCurrentAssetLength();
 
@@ -2048,9 +2067,9 @@ float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFraction(int32 AssetPlayerIn
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEndFraction(int32 AssetPlayerIndex)
+float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEndFraction(int32 AssetPlayerIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
+	if(const FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
 	{
 		float Length = PlayerNode->GetCurrentAssetLength();
 
@@ -2063,9 +2082,9 @@ float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEndFraction(int32 AssetP
 	return 1.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEnd(int32 AssetPlayerIndex)
+float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEnd(int32 AssetPlayerIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
+	if(const FAnimNode_AssetPlayerBase* PlayerNode = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(AssetPlayerIndex))
 	{
 		return PlayerNode->GetCurrentAssetLength() - PlayerNode->GetCurrentAssetTimePlayRateAdjusted();
 	}
@@ -2073,9 +2092,9 @@ float FAnimInstanceProxy::GetInstanceAssetPlayerTimeFromEnd(int32 AssetPlayerInd
 	return MAX_flt;
 }
 
-float FAnimInstanceProxy::GetInstanceMachineWeight(int32 MachineIndex)
+float FAnimInstanceProxy::GetInstanceMachineWeight(int32 MachineIndex) const
 {
-	if (FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if (const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		return GetRecordedMachineWeight(MachineInstance->StateMachineIndexInClass);
 	}
@@ -2083,9 +2102,9 @@ float FAnimInstanceProxy::GetInstanceMachineWeight(int32 MachineIndex)
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceStateWeight(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetInstanceStateWeight(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		return GetRecordedStateWeight(MachineInstance->StateMachineIndexInClass, StateIndex);
 	}
@@ -2093,9 +2112,9 @@ float FAnimInstanceProxy::GetInstanceStateWeight(int32 MachineIndex, int32 State
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceCurrentStateElapsedTime(int32 MachineIndex)
+float FAnimInstanceProxy::GetInstanceCurrentStateElapsedTime(int32 MachineIndex) const
 {
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		return MachineInstance->GetCurrentStateElapsedTime();
 	}
@@ -2103,9 +2122,9 @@ float FAnimInstanceProxy::GetInstanceCurrentStateElapsedTime(int32 MachineIndex)
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceTransitionCrossfadeDuration(int32 MachineIndex, int32 TransitionIndex)
+float FAnimInstanceProxy::GetInstanceTransitionCrossfadeDuration(int32 MachineIndex, int32 TransitionIndex) const
 {
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		if(MachineInstance->IsValidTransitionIndex(TransitionIndex))
 		{
@@ -2116,14 +2135,14 @@ float FAnimInstanceProxy::GetInstanceTransitionCrossfadeDuration(int32 MachineIn
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex)
+float FAnimInstanceProxy::GetInstanceTransitionTimeElapsed(int32 MachineIndex, int32 TransitionIndex) const
 {
 	// Just an alias for readability in the anim graph
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		if(MachineInstance->IsValidTransitionIndex(TransitionIndex))
 		{
-			for(FAnimationActiveTransitionEntry& ActiveTransition : MachineInstance->ActiveTransitionArray)
+			for(const FAnimationActiveTransitionEntry& ActiveTransition : MachineInstance->ActiveTransitionArray)
 			{
 				if(ActiveTransition.SourceTransitionIndices.Contains(TransitionIndex))
 				{
@@ -2136,13 +2155,13 @@ float FAnimInstanceProxy::GetInstanceTransitionTimeElapsed(int32 MachineIndex, i
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetInstanceTransitionTimeElapsedFraction(int32 MachineIndex, int32 TransitionIndex)
+float FAnimInstanceProxy::GetInstanceTransitionTimeElapsedFraction(int32 MachineIndex, int32 TransitionIndex) const
 {
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		if(MachineInstance->IsValidTransitionIndex(TransitionIndex))
 		{
-			for(FAnimationActiveTransitionEntry& ActiveTransition : MachineInstance->ActiveTransitionArray)
+			for(const FAnimationActiveTransitionEntry& ActiveTransition : MachineInstance->ActiveTransitionArray)
 			{
 				if(ActiveTransition.SourceTransitionIndices.Contains(TransitionIndex))
 				{
@@ -2155,9 +2174,9 @@ float FAnimInstanceProxy::GetInstanceTransitionTimeElapsedFraction(int32 Machine
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetRelevantAnimTimeRemaining(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetRelevantAnimTimeRemaining(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
 	{
 		if(AssetPlayer->GetAnimAsset())
 		{
@@ -2168,9 +2187,9 @@ float FAnimInstanceProxy::GetRelevantAnimTimeRemaining(int32 MachineIndex, int32
 	return MAX_flt;
 }
 
-float FAnimInstanceProxy::GetRelevantAnimTimeRemainingFraction(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetRelevantAnimTimeRemainingFraction(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
 	{
 		if(AssetPlayer->GetAnimAsset())
 		{
@@ -2185,9 +2204,9 @@ float FAnimInstanceProxy::GetRelevantAnimTimeRemainingFraction(int32 MachineInde
 	return 1.0f;
 }
 
-float FAnimInstanceProxy::GetRelevantAnimLength(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetRelevantAnimLength(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
 	{
 		if(AssetPlayer->GetAnimAsset())
 		{
@@ -2198,9 +2217,9 @@ float FAnimInstanceProxy::GetRelevantAnimLength(int32 MachineIndex, int32 StateI
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetRelevantAnimTime(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetRelevantAnimTime(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
 	{
 		return AssetPlayer->GetCurrentAssetTimePlayRateAdjusted();
 	}
@@ -2208,9 +2227,9 @@ float FAnimInstanceProxy::GetRelevantAnimTime(int32 MachineIndex, int32 StateInd
 	return 0.0f;
 }
 
-float FAnimInstanceProxy::GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex)
+float FAnimInstanceProxy::GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex) const
 {
-	if(FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
 	{
 		float Length = AssetPlayer->GetCurrentAssetLength();
 		if(Length > 0.0f)
@@ -2234,18 +2253,18 @@ const TArray<FMontageEvaluationState>& FAnimInstanceProxy::GetMontageEvaluationD
 	return *MainMontageEvaluationData;
 }
 
-FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex)
+const FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const
 {
-	FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;
-	if(FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
+	const FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;
+	if(const FAnimNode_StateMachine* MachineInstance = GetStateMachineInstance(MachineIndex))
 	{
 		float MaxWeight = 0.0f;
 		const FBakedAnimationState& State = MachineInstance->GetStateInfo(StateIndex);
 		for(const int32& PlayerIdx : State.PlayerNodeIndices)
 		{
-			if(FAnimNode_AssetPlayerBase* Player = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
+			if(const FAnimNode_AssetPlayerBase* Player = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
 			{
-				if(!Player->bIgnoreForRelevancyTest && Player->GetCachedBlendWeight() > MaxWeight)
+				if(!Player->GetIgnoreForRelevancyTest() && Player->GetCachedBlendWeight() > MaxWeight)
 				{
 					MaxWeight = Player->GetCachedBlendWeight();
 					ResultPlayer = Player;
@@ -2256,7 +2275,7 @@ FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(i
 	return ResultPlayer;
 }
 
-FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstance(int32 MachineIndex)
+const FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstance(int32 MachineIndex) const
 {
 	if (AnimClassInterface)
 	{
@@ -2438,13 +2457,13 @@ void FAnimInstanceProxy::BindNativeDelegates()
 	}
 }
 
-const FBakedAnimationStateMachine* FAnimInstanceProxy::GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, FAnimNode_StateMachine* MachineInstance)
+const FBakedAnimationStateMachine* FAnimInstanceProxy::GetMachineDescription(IAnimClassInterface* AnimBlueprintClass, const FAnimNode_StateMachine* MachineInstance)
 {
 	const TArray<FBakedAnimationStateMachine>& BakedStateMachines = AnimBlueprintClass->GetBakedStateMachines();
 	return BakedStateMachines.IsValidIndex(MachineInstance->StateMachineIndexInClass) ? &(BakedStateMachines[MachineInstance->StateMachineIndexInClass]) : nullptr;
 }
 
-FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstanceFromName(FName MachineName)
+const FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstanceFromName(FName MachineName) const
 {
 	if (AnimClassInterface)
 	{
@@ -2454,7 +2473,7 @@ FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstanceFromName(FNam
 			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
-				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+				const FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 				if (StateMachine)
 				{
 					if (const FBakedAnimationStateMachine* MachineDescription = GetMachineDescription(AnimClassInterface, StateMachine))
@@ -2472,7 +2491,7 @@ FAnimNode_StateMachine* FAnimInstanceProxy::GetStateMachineInstanceFromName(FNam
 	return nullptr;
 }
 
-const FBakedAnimationStateMachine* FAnimInstanceProxy::GetStateMachineInstanceDesc(FName MachineName)
+const FBakedAnimationStateMachine* FAnimInstanceProxy::GetStateMachineInstanceDesc(FName MachineName) const
 {
 	if (AnimClassInterface)
 	{
@@ -2500,7 +2519,7 @@ const FBakedAnimationStateMachine* FAnimInstanceProxy::GetStateMachineInstanceDe
 	return nullptr;
 }
 
-int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName)
+int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName) const
 {
 	if (AnimClassInterface)
 	{
@@ -2510,7 +2529,7 @@ int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName)
 			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if(Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
-				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+				const FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 				if(StateMachine)
 				{
 					if (const FBakedAnimationStateMachine* MachineDescription = GetMachineDescription(AnimClassInterface, StateMachine))
@@ -2528,7 +2547,7 @@ int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName)
 	return INDEX_NONE;
 }
 
-void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription)
+void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription) const
 {
 	if (AnimClassInterface)
 	{
@@ -2538,7 +2557,7 @@ void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName,
 			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
 			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
 			{
-				FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+				const FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 				if (StateMachine)
 				{
 					if (const FBakedAnimationStateMachine* MachineDescription = GetMachineDescription(AnimClassInterface, StateMachine))
@@ -2565,7 +2584,7 @@ void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName,
 	}
 }
 
-int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName AssetName)
+int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName StateName, FName AssetName) const
 {
 	if (AnimClassInterface)
 	{
@@ -2583,7 +2602,7 @@ int32 FAnimInstanceProxy::GetInstanceAssetPlayerIndex(FName MachineName, FName S
 						FStructProperty* AssetPlayerProperty = AnimNodeProperties[AnimNodeProperties.Num() - 1 - State.PlayerNodeIndices[PlayerIndex]];
 						if(AssetPlayerProperty && AssetPlayerProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
 						{
-							FAnimNode_AssetPlayerBase* AssetPlayer = AssetPlayerProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(AnimInstanceObject);
+							const FAnimNode_AssetPlayerBase* AssetPlayer = AssetPlayerProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(AnimInstanceObject);
 							if(AssetPlayer)
 							{
 								if(AssetName == NAME_None || AssetPlayer->GetAnimAsset()->GetFName() == AssetName)
@@ -2682,7 +2701,30 @@ void FAnimInstanceProxy::TraceMontageEvaluationData(const FAnimationUpdateContex
 }
 #endif
 
-TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName)
+TArray<const FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName) const
+{
+	TArray<const FAnimNode_AssetPlayerBase*> Nodes;
+
+	// Retrieve all asset player nodes from the (named) Animation Layer Graph
+	if (AnimClassInterface)
+	{
+		const TMap<FName, FGraphAssetPlayerInformation>& GrapInformationMap = AnimClassInterface->GetGraphAssetPlayerInformation();
+		if (const FGraphAssetPlayerInformation* Information = GrapInformationMap.Find(GraphName))
+		{
+			for (const int32& NodeIndex : Information->PlayerNodeIndices)
+			{
+				if (const FAnimNode_AssetPlayerBase* Node = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
+				{
+					Nodes.Add(Node);
+				}
+			}
+		}
+	}
+
+	return Nodes;
+}
+
+TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetMutableInstanceAssetPlayers(const FName& GraphName)
 {
 	TArray<FAnimNode_AssetPlayerBase*> Nodes;
 
@@ -2694,7 +2736,7 @@ TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(c
 		{
 			for (const int32& NodeIndex : Information->PlayerNodeIndices)
 			{
-				if (FAnimNode_AssetPlayerBase* Node = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
+				if (FAnimNode_AssetPlayerBase* Node = GetMutableNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
 				{
 					Nodes.Add(Node);
 				}

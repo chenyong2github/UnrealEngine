@@ -32,6 +32,8 @@ FText UAnimGraphNode_BlendListByInt::GetNodeTitle(ENodeTitleType::Type TitleType
 
 void UAnimGraphNode_BlendListByInt::PostPlacedNewNode()
 {
+	Super::PostPlacedNewNode();
+
 	Node.AddPose();
 	ReconstructNode();
 }

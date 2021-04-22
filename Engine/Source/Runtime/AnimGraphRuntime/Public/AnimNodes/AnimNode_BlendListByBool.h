@@ -11,19 +11,20 @@
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByBool : public FAnimNode_BlendListBase
 {
-	GENERATED_USTRUCT_BODY()
-public:
+	GENERATED_BODY()
+private:
+#if WITH_EDITORONLY_DATA
 	// Which input should be connected to the output?
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(PinShownByDefault))
-	bool bActiveValue;
-
+	UPROPERTY(EditAnywhere, Category=Runtime, meta=(PinShownByDefault, FoldProperty))
+	bool bActiveValue = false;
+#endif
+	
 public:	
-	FAnimNode_BlendListByBool()
-		: FAnimNode_BlendListBase()
-		, bActiveValue(false)
-	{
-	}
+	FAnimNode_BlendListByBool() = default;
 
+	// Get which input should be connected to the output
+	bool GetActiveValue() const;
+	
 protected:
 	virtual int32 GetActiveChildIndex() override;
 	virtual FString GetNodeName(FNodeDebugData& DebugData) override { return DebugData.GetNodeName(this); }

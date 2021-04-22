@@ -8,7 +8,7 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSpawner.h"
 #include "BlueprintActionDatabaseRegistrar.h"
-#include "AnimBlueprintCompilerHandler_CachedPose.h"
+#include "AnimBlueprintExtension_CachedPose.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintEditorModule.h"
@@ -200,15 +200,15 @@ bool UAnimGraphNode_UseCachedPose::IsActionFilteredOut(class FBlueprintActionFil
 
 void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {	
-	FAnimBlueprintCompilerHandler_CachedPose* CompilerHandler = InCompilationContext.GetHandler<FAnimBlueprintCompilerHandler_CachedPose>("AnimBlueprintCompilerHandler_CachedPose");
-	check(CompilerHandler);
+	UAnimBlueprintExtension_CachedPose* CompilerExtension = UAnimBlueprintExtension::GetExtension<UAnimBlueprintExtension_CachedPose>(GetAnimBlueprint());
+	check(CompilerExtension);
 
 	bool bSuccessful = false;
 
 	// Link to the saved cached pose
 	if(SaveCachedPoseNode.IsValid())
 	{
-		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = CompilerHandler->GetSaveCachedPoseNodes().FindRef(SaveCachedPoseNode->CacheName))
+		if (UAnimGraphNode_SaveCachedPose* AssociatedSaveNode = CompilerExtension->GetSaveCachedPoseNodes().FindRef(SaveCachedPoseNode->CacheName))
 		{
 			FStructProperty* LinkProperty = FindFProperty<FStructProperty>(FAnimNode_UseCachedPose::StaticStruct(), TEXT("LinkToCachingNode"));
 			check(LinkProperty);
@@ -231,6 +231,11 @@ void UAnimGraphNode_UseCachedPose::OnProcessDuringCompilation(IAnimBlueprintComp
 	{
 		InCompilationContext.GetMessageLog().Error(*LOCTEXT("NoAssociatedSaveNode", "@@ does not have an associated Save Cached Pose node").ToString(), this);
 	}
+}
+
+void UAnimGraphNode_UseCachedPose::GetRequiredExtensions(TArray<TSubclassOf<UAnimBlueprintExtension>>& OutExtensions) const
+{
+	OutExtensions.Add(UAnimBlueprintExtension_CachedPose::StaticClass());
 }
 
 #undef LOCTEXT_NAMESPACE

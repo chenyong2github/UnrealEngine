@@ -758,7 +758,7 @@ void FAnimationBlueprintEditor::OnConvertToSequenceEvaluator()
 			UAnimGraphNode_SequencePlayer* OldNode = Cast<UAnimGraphNode_SequencePlayer>(*NodeIter);
 
 			// see if sequence player
-			if ( OldNode && OldNode->Node.Sequence )
+			if ( OldNode && OldNode->Node.GetSequence() )
 			{
 				UEdGraph* TargetGraph = OldNode->GetGraph();
 				TargetGraph->Modify();
@@ -767,7 +767,7 @@ void FAnimationBlueprintEditor::OnConvertToSequenceEvaluator()
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_SequenceEvaluator> NodeCreator(*TargetGraph);
 				UAnimGraphNode_SequenceEvaluator* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.Sequence = OldNode->Node.Sequence;
+				NewNode->Node.SetSequence(OldNode->Node.GetSequence());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -807,7 +807,7 @@ void FAnimationBlueprintEditor::OnConvertToSequencePlayer()
 			UAnimGraphNode_SequenceEvaluator* OldNode = Cast<UAnimGraphNode_SequenceEvaluator>(*NodeIter);
 
 			// see if sequence player
-			if ( OldNode && OldNode->Node.Sequence )
+			if ( OldNode && OldNode->Node.GetSequence() )
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -817,7 +817,7 @@ void FAnimationBlueprintEditor::OnConvertToSequencePlayer()
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_SequencePlayer> NodeCreator(*TargetGraph);
 				UAnimGraphNode_SequencePlayer* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.Sequence = OldNode->Node.Sequence;
+				NewNode->Node.SetSequence(OldNode->Node.GetSequence());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -858,7 +858,7 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator()
 			UAnimGraphNode_BlendSpacePlayer* OldNode = Cast<UAnimGraphNode_BlendSpacePlayer>(*NodeIter);
 
 			// see if sequence player
-			if ( OldNode && OldNode->Node.BlendSpace )
+			if ( OldNode && OldNode->Node.GetBlendSpace() )
 			{
 				// convert to sequence evaluator
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -868,7 +868,7 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceEvaluator()
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_BlendSpaceEvaluator> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpaceEvaluator* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.BlendSpace = OldNode->Node.BlendSpace;
+				NewNode->Node.SetBlendSpace(OldNode->Node.GetBlendSpace());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -909,7 +909,7 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer()
 			UAnimGraphNode_BlendSpaceEvaluator* OldNode = Cast<UAnimGraphNode_BlendSpaceEvaluator>(*NodeIter);
 
 			// see if sequence player
-			if ( OldNode && OldNode->Node.BlendSpace )
+			if ( OldNode && OldNode->Node.GetBlendSpace() )
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -919,7 +919,7 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpacePlayer()
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_BlendSpacePlayer> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpacePlayer* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.BlendSpace = OldNode->Node.BlendSpace;
+				NewNode->Node.SetBlendSpace(OldNode->Node.GetBlendSpace());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -960,7 +960,7 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceGraph()
 			UAnimGraphNode_BlendSpacePlayer* OldNode = Cast<UAnimGraphNode_BlendSpacePlayer>(*NodeIter);
 
 			// see if sequence player
-			if (OldNode && OldNode->Node.BlendSpace)
+			if (OldNode && OldNode->Node.GetBlendSpace())
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -970,11 +970,11 @@ void FAnimationBlueprintEditor::OnConvertToBlendSpaceGraph()
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_BlendSpaceGraph> NodeCreator(*TargetGraph);
 				UAnimGraphNode_BlendSpaceGraph* NewNode = NodeCreator.CreateNode();
-				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
-				if(OldNode->SyncGroup.GroupName != NAME_None && OldNode->SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+				if(OldNode->Node.GetGroupName() != NAME_None && OldNode->Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
 				{
-					NewNode->SetSyncGroupName(OldNode->SyncGroup.GroupName);
+					NewNode->SetSyncGroupName(OldNode->Node.GetGroupName());
 				}
+				NewNode->SetupFromAsset(OldNode->Node.GetBlendSpace(), false);
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -1116,7 +1116,7 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt()
 			UAnimGraphNode_RotationOffsetBlendSpace* OldNode = Cast<UAnimGraphNode_RotationOffsetBlendSpace>(*NodeIter);
 
 			// see if sequence player
-			if (OldNode && OldNode->Node.BlendSpace)
+			if (OldNode && OldNode->Node.GetBlendSpace())
 			{
 				// convert to sequence evaluator
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -1126,7 +1126,7 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetLookAt()
 				// create new evaluator
 				FGraphNodeCreator<UAnimGraphNode_AimOffsetLookAt> NodeCreator(*TargetGraph);
 				UAnimGraphNode_AimOffsetLookAt* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.BlendSpace = OldNode->Node.BlendSpace;
+				NewNode->Node.SetBlendSpace(OldNode->Node.GetBlendSpace());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -1170,7 +1170,7 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetSimple()
 			UAnimGraphNode_AimOffsetLookAt* OldNode = Cast<UAnimGraphNode_AimOffsetLookAt>(*NodeIter);
 
 			// see if sequence player
-			if (OldNode && OldNode->Node.BlendSpace)
+			if (OldNode && OldNode->Node.GetBlendSpace())
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -1180,7 +1180,7 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetSimple()
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_RotationOffsetBlendSpace> NodeCreator(*TargetGraph);
 				UAnimGraphNode_RotationOffsetBlendSpace* NewNode = NodeCreator.CreateNode();
-				NewNode->Node.BlendSpace = OldNode->Node.BlendSpace;
+				NewNode->Node.SetBlendSpace(OldNode->Node.GetBlendSpace());
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node
@@ -1222,7 +1222,7 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetGraph()
 			UAnimGraphNode_RotationOffsetBlendSpace* OldNode = Cast<UAnimGraphNode_RotationOffsetBlendSpace>(*NodeIter);
 
 			// see if sequence player
-			if (OldNode && OldNode->Node.BlendSpace)
+			if (OldNode && OldNode->Node.GetBlendSpace())
 			{
 				// convert to sequence player
 				UEdGraph* TargetGraph = OldNode->GetGraph();
@@ -1232,11 +1232,11 @@ void FAnimationBlueprintEditor::OnConvertToAimOffsetGraph()
 				// create new player
 				FGraphNodeCreator<UAnimGraphNode_RotationOffsetBlendSpaceGraph> NodeCreator(*TargetGraph);
 				UAnimGraphNode_RotationOffsetBlendSpaceGraph* NewNode = NodeCreator.CreateNode();
-				NewNode->SetupFromAsset(OldNode->Node.BlendSpace, false);
-				if(OldNode->SyncGroup.GroupName != NAME_None && OldNode->SyncGroup.Method == EAnimSyncMethod::SyncGroup)
+				if(OldNode->Node.GetGroupName() != NAME_None && OldNode->Node.GetGroupMethod() == EAnimSyncMethod::SyncGroup)
 				{
-					NewNode->SetSyncGroupName(OldNode->SyncGroup.GroupName);
+					NewNode->SetSyncGroupName(OldNode->Node.GetGroupName());
 				}
+				NewNode->SetupFromAsset(OldNode->Node.GetBlendSpace(), false);
 				NodeCreator.Finalize();
 
 				// get default data from old node to new node

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimBlueprintCompilerHandler_StateMachine.h"
+#include "AnimBlueprintExtension_StateMachine.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "K2Node_AnimGetter.h"
 #include "K2Node_TransitionRuleGetter.h"
@@ -12,22 +12,25 @@
 #include "AnimGraphNode_StateMachineBase.h"
 #include "EdGraphUtilities.h"
 #include "AnimationStateMachineSchema.h"
-#include "Algo/Transform.h"
-#include "Animation/AnimTypes.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilerCreationContext.h"
 #include "IAnimBlueprintCompilationContext.h"
 
-#define LOCTEXT_NAMESPACE "StateMachineHandler"
+#define LOCTEXT_NAMESPACE "AnimBlueprintExtension_StateMachine"
 
-FAnimBlueprintCompilerHandler_StateMachine::FAnimBlueprintCompilerHandler_StateMachine(IAnimBlueprintCompilerCreationContext& InCreationContext)
+void UAnimBlueprintExtension_StateMachine::HandleBeginCompilation(IAnimBlueprintCompilerCreationContext& InCreationContext)
 {
-	InCreationContext.OnPreProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_StateMachine::PreProcessAnimationNodes);
-	InCreationContext.OnPostProcessAnimationNodes().AddRaw(this, &FAnimBlueprintCompilerHandler_StateMachine::PostProcessAnimationNodes);
 	InCreationContext.RegisterKnownGraphSchema(UAnimationStateMachineSchema::StaticClass());
 }
 
-void FAnimBlueprintCompilerHandler_StateMachine::PreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void UAnimBlueprintExtension_StateMachine::HandleStartCompilingClass(const UClass* InClass, IAnimBlueprintCompilationBracketContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+{
+	FoundGetterNodes.Empty();
+	RootTransitionGetters.Empty();
+	RootGraphAnimGetters.Empty();
+}
+
+void UAnimBlueprintExtension_StateMachine::HandlePreProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	InCompilationContext.GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_TransitionRuleGetter>(RootTransitionGetters);
 
@@ -35,7 +38,7 @@ void FAnimBlueprintCompilerHandler_StateMachine::PreProcessAnimationNodes(TArray
 	InCompilationContext.GetConsolidatedEventGraph()->GetNodesOfClass<UK2Node_AnimGetter>(RootGraphAnimGetters);
 }
 
-void FAnimBlueprintCompilerHandler_StateMachine::PostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void UAnimBlueprintExtension_StateMachine::HandlePostProcessAnimationNodes(TArrayView<UAnimGraphNode_Base*> InAnimNodes, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	// Process the getter nodes in the graph if there were any
 	for (auto GetterIt = RootTransitionGetters.CreateIterator(); GetterIt; ++GetterIt)
@@ -56,7 +59,7 @@ void FAnimBlueprintCompilerHandler_StateMachine::PostProcessAnimationNodes(TArra
 	}
 }
 
-UK2Node_CallFunction* FAnimBlueprintCompilerHandler_StateMachine::SpawnCallAnimInstanceFunction(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphNode* SourceNode, FName FunctionName)
+UK2Node_CallFunction* UAnimBlueprintExtension_StateMachine::SpawnCallAnimInstanceFunction(IAnimBlueprintCompilationContext& InCompilationContext, UEdGraphNode* SourceNode, FName FunctionName)
 {
 	//@TODO: SKELETON: This is a call on a parent function (UAnimInstance::StaticClass() specifically), should we treat it as self or not?
 	UK2Node_CallFunction* FunctionCall = InCompilationContext.SpawnIntermediateNode<UK2Node_CallFunction>(SourceNode);
@@ -66,7 +69,7 @@ UK2Node_CallFunction* FAnimBlueprintCompilerHandler_StateMachine::SpawnCallAnimI
 	return FunctionCall;
 }
 
-void FAnimBlueprintCompilerHandler_StateMachine::ProcessTransitionGetter(UK2Node_TransitionRuleGetter* Getter, UAnimStateTransitionNode* TransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void UAnimBlueprintExtension_StateMachine::ProcessTransitionGetter(UK2Node_TransitionRuleGetter* Getter, UAnimStateTransitionNode* TransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	// Get common elements for multiple getters
 	UEdGraphPin* OutputPin = Getter->GetOutputPin();
@@ -387,7 +390,7 @@ void FAnimBlueprintCompilerHandler_StateMachine::ProcessTransitionGetter(UK2Node
 	Getter->BreakAllNodeLinks();
 }
 
-void FAnimBlueprintCompilerHandler_StateMachine::AutoWireAnimGetter(class UK2Node_AnimGetter* Getter, UAnimStateTransitionNode* InTransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
+void UAnimBlueprintExtension_StateMachine::AutoWireAnimGetter(class UK2Node_AnimGetter* Getter, UAnimStateTransitionNode* InTransitionNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
 {
 	UEdGraphPin* ReferencedNodeTimePin = nullptr;
 	int32 ReferencedNodeIndex = INDEX_NONE;
@@ -474,7 +477,7 @@ void FAnimBlueprintCompilerHandler_StateMachine::AutoWireAnimGetter(class UK2Nod
 	}
 }
 
-int32 FAnimBlueprintCompilerHandler_StateMachine::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)
+int32 UAnimBlueprintExtension_StateMachine::ExpandGraphAndProcessNodes(UEdGraph* SourceGraph, UAnimGraphNode_Base* SourceRootNode, IAnimBlueprintCompilationContext& InCompilationContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData, UAnimStateTransitionNode* TransitionNode, TArray<UEdGraphNode*>* ClonedNodes)
 {
 	// Clone the nodes from the source graph
 	// Note that we outer this graph to the ConsolidatedEventGraph to allow ExpansionStep to 

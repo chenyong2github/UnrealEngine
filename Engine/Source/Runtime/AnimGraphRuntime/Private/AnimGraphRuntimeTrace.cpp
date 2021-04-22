@@ -34,19 +34,22 @@ void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext&
 	check(InContext.AnimInstanceProxy);
 
 	TRACE_OBJECT(InContext.AnimInstanceProxy->GetAnimInstanceObject());
-	TRACE_OBJECT(InNode.BlendSpace);
+	TRACE_OBJECT(InNode.GetBlendSpace());
+
+	FVector SampleCoordinates = InNode.GetPosition();
+	FVector FilteredPosition = InNode.GetFilteredPosition();
 
 	UE_TRACE_LOG(Animation, BlendSpacePlayer, AnimationChannel)
 		<< BlendSpacePlayer.Cycle(FPlatformTime::Cycles64())
 		<< BlendSpacePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
-		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.BlendSpace))
+		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.GetBlendSpace()))
 		<< BlendSpacePlayer.NodeId(InContext.GetCurrentNodeId())
-		<< BlendSpacePlayer.PositionX(InNode.X)
-		<< BlendSpacePlayer.PositionY(InNode.Y)
-		<< BlendSpacePlayer.PositionZ(InNode.Z)
-		<< BlendSpacePlayer.FilteredPositionX(InNode.GetFilteredPosition().X)
-		<< BlendSpacePlayer.FilteredPositionY(InNode.GetFilteredPosition().Y)
-		<< BlendSpacePlayer.FilteredPositionZ(InNode.GetFilteredPosition().Z);
+		<< BlendSpacePlayer.PositionX(SampleCoordinates.X)
+		<< BlendSpacePlayer.PositionY(SampleCoordinates.Y)
+		<< BlendSpacePlayer.PositionZ(SampleCoordinates.Z)
+		<< BlendSpacePlayer.FilteredPositionX(FilteredPosition.X)
+		<< BlendSpacePlayer.FilteredPositionY(FilteredPosition.Y)
+		<< BlendSpacePlayer.FilteredPositionZ(FilteredPosition.Z);
 }
 
 void FAnimGraphRuntimeTrace::OutputBlendSpace(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpaceGraphBase& InNode)

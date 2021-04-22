@@ -11,23 +11,33 @@
 USTRUCT(BlueprintInternalUseOnly)
 struct ANIMGRAPHRUNTIME_API FAnimNode_BlendListByEnum : public FAnimNode_BlendListBase
 {
-	GENERATED_USTRUCT_BODY()
-public:
+	GENERATED_BODY()
+	
+private:
+#if WITH_EDITORONLY_DATA
 	// Mapping from enum value to BlendPose index; there will be one entry per entry in the enum; entries out of range always map to pose index 0
-	UPROPERTY()
+	UPROPERTY(meta=(FoldProperty))
 	TArray<int32> EnumToPoseIndex;
-
+	
 	// The currently selected pose (as an enum value)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Runtime, meta=(PinShownByDefault))
-	mutable uint8 ActiveEnumValue;
-
+	UPROPERTY(EditAnywhere, Category=Runtime, meta=(PinShownByDefault, FoldProperty))
+	mutable uint8 ActiveEnumValue = 0;
+#endif
+	
 public:	
-	FAnimNode_BlendListByEnum()
-		: FAnimNode_BlendListBase()
-		, ActiveEnumValue(0)
-	{
-	}
+	FAnimNode_BlendListByEnum() = default;
 
+#if WITH_EDITORONLY_DATA
+	// Set the mapping from enum value to BlendPose index. Called during compilation.
+	void SetEnumToPoseIndex(const TArray<int32>& InEnumToPoseIndex);
+#endif
+	
+	// Get the mapping from enum value to BlendPose index; there will be one entry per entry in the enum; entries out of range always map to pose index 0
+	const TArray<int32>& GetEnumToPoseIndex() const;
+	
+	// Get the currently selected pose (as an enum value)
+	uint8 GetActiveEnumValue() const;
+	
 protected:
 	virtual int32 GetActiveChildIndex() override;
 	virtual FString GetNodeName(FNodeDebugData& DebugData) override { return DebugData.GetNodeName(this); }

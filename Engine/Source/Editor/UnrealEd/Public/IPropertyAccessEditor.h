@@ -16,6 +16,8 @@ class FExtender;
 class SWidget;
 struct FSlateBrush;
 struct FEdGraphPinType;
+class IPropertyAccessLibraryCompiler;
+struct FPropertyAccessLibrary;
 
 /** An element in a binding chain */
 struct FBindingChainElement
@@ -209,6 +211,21 @@ enum class EPropertyAccessCompatibility
 	Promotable,
 };
 
+// Context used to create a property access library compiler
+struct FPropertyAccessLibraryCompilerArgs
+{
+	FPropertyAccessLibraryCompilerArgs(FPropertyAccessLibrary& InLibrary, const UClass* InClassContext)
+		: Library(InLibrary)
+		, ClassContext(InClassContext)
+	{}
+
+	// The library that will be built
+	FPropertyAccessLibrary& Library;
+
+	// The class that provides a root context for the library to be built in
+	const UClass* ClassContext;
+};
+
 /** Editor support for property access system */
 class IPropertyAccessEditor : public IModularFeature
 {
@@ -242,4 +259,7 @@ public:
 
 	// Makes a string path from a binding chain
 	virtual void MakeStringPath(const TArray<FBindingChainElement>& InBindingChain, TArray<FString>& OutStringPath) const = 0;
+
+	// Make a property access library compiler, used for building a FPropertyAccessLibrary
+	virtual TUniquePtr<IPropertyAccessLibraryCompiler> MakePropertyAccessCompiler(const FPropertyAccessLibraryCompilerArgs& InArgs) const = 0;
 };

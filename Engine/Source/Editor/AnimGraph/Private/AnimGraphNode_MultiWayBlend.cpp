@@ -94,6 +94,8 @@ void UAnimGraphNode_MultiWayBlend::RemovePinFromBlendNode(UEdGraphPin* Pin)
 
 void UAnimGraphNode_MultiWayBlend::PostPlacedNewNode()
 {
+	Super::PostPlacedNewNode();
+	
 	// Make sure we start out with two inputs
 	Node.AddPose();
 	Node.AddPose();

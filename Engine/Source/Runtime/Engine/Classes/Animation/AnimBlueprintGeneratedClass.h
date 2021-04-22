@@ -12,7 +12,7 @@
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/BlendSpace.h"
-#include "PropertyAccess.h"
+#include "Animation/ExposedValueHandler.h"
 
 #include "AnimBlueprintGeneratedClass.generated.h"
 
@@ -25,6 +25,9 @@ class UAnimStateAliasNode;
 class UAnimStateTransitionNode;
 class UEdGraph;
 class USkeleton;
+struct FAnimSubsystem;
+struct FAnimSubsystemInstance;
+struct FPropertyAccessLibrary;
 
 // Represents the debugging information for a single state within a state machine
 USTRUCT()
@@ -308,6 +311,22 @@ public:
 #endif
 };
 
+// 'Marker' structure for mutable data. This is used as a base struct for mutable data to be inserted into by the anim
+// BP compiler.
+USTRUCT()
+struct ENGINE_API FAnimBlueprintMutableData
+{
+	GENERATED_BODY()
+};
+
+// 'Marker' structure for constant data. This is used as a base struct for constant data to be inserted into by the anim
+// BP compiler if there is no existing archetype sparse class data.
+USTRUCT()
+struct ENGINE_API FAnimBlueprintConstantData
+{
+	GENERATED_BODY()
+};
+
 #if WITH_EDITORONLY_DATA
 namespace EPropertySearchMode
 {
@@ -359,9 +378,11 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TArray<FName> SyncGroupNames;
 
-	// The default handler for graph-exposed inputs
+#if WITH_EDITORONLY_DATA
+	// Deprecated - moved to FAnimSubsystem_Base
 	UPROPERTY()
-	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
+	TArray<FExposedValueHandler> EvaluateGraphExposedInputs_DEPRECATED;
+#endif
 
 	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
 	UPROPERTY()
@@ -372,14 +393,28 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	TMap<FName, FAnimGraphBlendOptions> GraphBlendOptions;
 
 private:
-	// The library holding the property access data
+	// Constant/folded anim node data
 	UPROPERTY()
-	FPropertyAccessLibrary PropertyAccessLibrary;
+	TArray<FAnimNodeData> AnimNodeData;
 
-	// Any internal blendspaces we host
+	// Map from anim node struct to info about that struct (used to accelerate property name lookups)
 	UPROPERTY()
-	TArray<TObjectPtr<UBlendSpace>> BlendSpaces;
+	TMap<const UScriptStruct*, FAnimNodeStructData> NodeTypeMap;
 
+	// Cached properties used to access 'folded' anim node properties
+	TArray<FProperty*> MutableProperties;
+	TArray<FProperty*> ConstantProperties;
+
+	// Cached properties used to access subsystem properties
+	TArray<FStructProperty*> ConstantSubsystemProperties;
+	TArray<FStructProperty*> MutableSubsystemProperties;
+
+	// Property for the object's mutable data area
+	FStructProperty* MutableNodeDataProperty = nullptr;
+
+	// Pointers to each subsystem, for easier debugging
+	TArray<const FAnimSubsystem*> Subsystems;
+	
 public:
 	// IAnimClassInterface interface
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return GetRootClass()->GetBakedStateMachines_Direct(); }
@@ -395,11 +430,10 @@ public:
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return GetRootClass()->GetSyncGroupNames_Direct(); }
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap() const override { return GetRootClass()->GetOrderedSavedPoseNodeIndicesMap_Direct(); }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return GetSyncGroupNames().IndexOfByKey(SyncGroupName); }
-	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
+
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GetRootClass()->GetGraphAssetPlayerInformation_Direct(); }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const override { return GetRootClass()->GetGraphBlendOptions_Direct(); }
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary() const override { return GetRootClass()->GetPropertyAccessLibrary_Direct(); }
 
 private:
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines_Direct() const override { return BakedStateMachines; }
@@ -408,8 +442,29 @@ private:
 	virtual const TMap<FName, FCachedPoseIndices>& GetOrderedSavedPoseNodeIndicesMap_Direct() const override { return OrderedSavedPoseIndicesMap; }
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation_Direct() const override { return GraphAssetPlayerInformation; }
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions_Direct() const override { return GraphBlendOptions; }
-	virtual const FPropertyAccessLibrary& GetPropertyAccessLibrary_Direct() const override { return PropertyAccessLibrary; }
+	
+private:
+	virtual const void* GetConstantNodeValueRaw(int32 InIndex) const override;
+	virtual const void* GetMutableNodeValueRaw(int32 InIndex, const UObject* InObject) const override;
+	virtual const FAnimBlueprintMutableData* GetMutableNodeData(const UObject* InObject) const override;
+	virtual FAnimBlueprintMutableData* GetMutableNodeData(UObject* InObject) const override;
+	virtual const void* GetConstantNodeData() const override;
+	virtual TArrayView<const FAnimNodeData> GetNodeData() const override { return AnimNodeData; }
 
+	virtual int32 GetAnimNodePropertyIndex(const UScriptStruct* InNodeType, FName InPropertyName) const override;
+	virtual int32 GetAnimNodePropertyCount(const UScriptStruct* InNodeType) const override;
+	
+	virtual void ForEachSubsystem(TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemContext&)> InFunction) const override;
+	virtual void ForEachSubsystem(UObject* InObject, TFunctionRef<EAnimSubsystemEnumeration(const FAnimSubsystemInstanceContext&)> InFunction) const override;
+	virtual const FAnimSubsystem* FindSubsystem(UScriptStruct* InSubsystemType) const override;
+
+	// Called internally post-load defaults and by the compiler after compilation is completed 
+	void OnPostLoadDefaults(UObject* Object);
+
+	// Called by the compiler to make sure that data tables are initialized. This is needed to patch the sparse class
+	// data for child anim BP overrides 
+	void InitializeAnimNodeData(UObject* DefaultObject);
+	
 public:
 #if WITH_EDITORONLY_DATA
 	FAnimBlueprintDebugData AnimBlueprintDebugData;
@@ -521,7 +576,7 @@ public:
 	// Gets the remapped property index from the original UAnimGraphNode's GUID. Can be used to index the AnimNodeProperties array.
 	int32 GetNodeIndexFromGuid(FGuid Guid, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis);
 
-	const UEdGraphNode* GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex) const;
+	const UEdGraphNode* GetVisualNodeFromNodePropertyIndex(int32 PropertyIndex, EPropertySearchMode::Type SearchMode = EPropertySearchMode::OnlyThis) const;
 #endif
 
 	// Called after Link to patch up references to the nodes in the CDO
@@ -529,6 +584,9 @@ public:
 
 	// Populates AnimBlueprintFunctions according to the UFunction(s) on this class
 	void GenerateAnimationBlueprintFunctions();
+
+	// Build the properties that we cache for our constant data
+	void BuildConstantProperties();
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;

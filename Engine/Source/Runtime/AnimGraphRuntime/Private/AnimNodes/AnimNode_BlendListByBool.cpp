@@ -8,5 +8,10 @@
 int32 FAnimNode_BlendListByBool::GetActiveChildIndex()
 {
 	// Note: Intentionally flipped boolean sense (the true input is #0, and the false input is #1)
-	return bActiveValue ? 0 : 1;
+	return GetActiveValue() ? 0 : 1;
+}
+
+bool FAnimNode_BlendListByBool::GetActiveValue() const
+{
+	return GET_ANIM_NODE_DATA(bool, bActiveValue);
 }
