@@ -8,6 +8,7 @@
 #include "Scene/Lights.h"
 #include "LightmapRenderer.h"
 #include "GPULightmassModule.h"
+#include "Async/ParallelFor.h"
 
 namespace GPULightmass
 {
