@@ -83,7 +83,7 @@ void FAppEntry::Init()
 	}
 
 #if WITH_SHARED_POINTER_TESTS
-	SharedPointerTesting::TestSharedPointer<ESPMode::Fast>();
+	SharedPointerTesting::TestSharedPointer<ESPMode::NotThreadSafe>();
 	SharedPointerTesting::TestSharedPointer<ESPMode::ThreadSafe>();
 #endif
 

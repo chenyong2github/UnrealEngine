@@ -65,7 +65,7 @@ struct AIMODULE_API FAIMessage
 	static void Broadcast(UObject* WorldContextObject, const FAIMessage& Message);
 };
 
-typedef TSharedPtr<struct FAIMessageObserver, ESPMode::Fast> FAIMessageObserverHandle;
+typedef TSharedPtr<struct FAIMessageObserver> FAIMessageObserverHandle;
 
 struct AIMODULE_API FAIMessageObserver : public TSharedFromThis<FAIMessageObserver>
 {

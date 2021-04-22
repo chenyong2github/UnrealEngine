@@ -52,7 +52,7 @@ private:
 * Should be registered with FSourceCodeNavigation::AddNavigationHandler and unregistered
 * using FSourceCodeNavigation::Remove.NavigationHandler
 */
-class ISourceCodeNavigationHandler : public TSharedFromThis<ISourceCodeNavigationHandler, ESPMode::Fast>
+class ISourceCodeNavigationHandler : public TSharedFromThis<ISourceCodeNavigationHandler>
 {
 public:
 	virtual ~ISourceCodeNavigationHandler() {};

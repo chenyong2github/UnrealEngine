@@ -1049,12 +1049,12 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList);
 
 
-	TSharedPtr<FComputePipelineState, ESPMode::Fast> OutCachedState;
+	TSharedPtr<FComputePipelineState> OutCachedState;
 
 	// Find or add an entry for this initializer
 	bool WasFound = GComputePipelineCache.FindOrAdd(ComputeShader, OutCachedState, [&RHICmdList, &ComputeShader, &DoAsyncCompile] {
 			// create new graphics state
-			TSharedPtr<FComputePipelineState, ESPMode::Fast> PipelineState(new FComputePipelineState(ComputeShader));
+			TSharedPtr<FComputePipelineState> PipelineState(new FComputePipelineState(ComputeShader));
 			PipelineState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(ComputeShader));
 
 			// create a compilation task, or just do it now...
@@ -1488,7 +1488,7 @@ void DumpPipelineCacheStats()
 
 	for (auto GraphicsPipeLine : GGraphicsPipelineCache.Current())
 	{
-		TSharedPtr<FGraphicsPipelineState, ESPMode::Fast> State = GraphicsPipeLine.Value;
+		TSharedPtr<FGraphicsPipelineState> State = GraphicsPipeLine.Value;
 
 		// calc timestats
 		double SinceUse = FPlatformTime::Seconds() - State->FirstUsedTime;

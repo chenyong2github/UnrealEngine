@@ -14,7 +14,7 @@ DECLARE_DELEGATE(FStreamableDelegate);
 DECLARE_DELEGATE_OneParam(FStreamableUpdateDelegate, TSharedRef<struct FStreamableHandle>);
 
 /** A handle to a synchronous or async load. As long as the handle is Active, loaded assets will stay in memory */
-struct ENGINE_API FStreamableHandle : public TSharedFromThis<FStreamableHandle, ESPMode::Fast>
+struct ENGINE_API FStreamableHandle : public TSharedFromThis<FStreamableHandle>
 {
 	/** 
 	 * If this request has finished loading, meaning all available assets were loaded
