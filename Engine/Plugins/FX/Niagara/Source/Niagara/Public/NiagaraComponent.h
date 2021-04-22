@@ -256,8 +256,13 @@ public:
 
 	void OnPooledReuse(UWorld* NewWorld);
 
+	/*
+	Switch which asset the component is using.
+	This requires Niagara to wait for concurrent execution and the override parameter store to be synchronized with the new asset.
+	By default existing parameters are reset when we call SetAsset, modify bResetExistingOverrideParameters to leave existing parameter data as is.
+	*/
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Niagara System Asset"))
-	void SetAsset(UNiagaraSystem* InAsset);
+	void SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters = true);
 
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Niagara System Asset"))
 	UNiagaraSystem* GetAsset() const { return Asset; }
@@ -553,7 +558,7 @@ private:
 
 	void AssetExposedParametersChanged();
 
-	void CopyParametersFromAsset();
+	void CopyParametersFromAsset(bool bResetExistingOverrideParameters = true);
 	
 #if WITH_EDITOR
 	void SetOverrideParameterStoreValue(const FNiagaraVariableBase& InKey, const FNiagaraVariant& InValue);

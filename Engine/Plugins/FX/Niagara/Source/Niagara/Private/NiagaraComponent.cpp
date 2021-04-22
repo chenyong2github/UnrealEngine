@@ -2837,7 +2837,7 @@ void UNiagaraComponent::FixDataInterfaceOuters()
 
 #endif
 
-void UNiagaraComponent::CopyParametersFromAsset()
+void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParameters)
 {
 	TArray<FNiagaraVariable> SourceVars;
 	Asset->GetExposedParameters().GetParameters(SourceVars);
@@ -2853,7 +2853,10 @@ void UNiagaraComponent::CopyParametersFromAsset()
 	{
 		if (SourceVars.Contains(ExistingVar))
 		{
-			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+			if (bResetExistingOverrideParameters)
+			{
+				Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+			}
 		}
 		else
 		{
@@ -3212,7 +3215,7 @@ void UNiagaraComponent::PostLoadNormalizeOverrideNames()
 
 #endif // WITH_EDITOR
 
-void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
+void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOverrideParameters)
 {
 	if (Asset == InAsset)
 	{
@@ -3254,7 +3257,7 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 #else
 	if (Asset != nullptr)
 	{
-		CopyParametersFromAsset();
+		CopyParametersFromAsset(bResetExistingOverrideParameters);
 		OverrideParameters.Rebind();
 	}
 #endif
