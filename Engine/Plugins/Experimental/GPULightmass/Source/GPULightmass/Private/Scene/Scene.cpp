@@ -3014,6 +3014,12 @@ void FScene::ApplyFinishedLightmapsToWorld()
 			}
 		}
 	}
+
+	// Always turn Realtime back on after baking lighting
+	if (GCurrentLevelEditingViewportClient)
+	{
+		GCurrentLevelEditingViewportClient->SetRealtime(true);
+	} 
 }
 
 void FScene::RemoveAllComponents()
