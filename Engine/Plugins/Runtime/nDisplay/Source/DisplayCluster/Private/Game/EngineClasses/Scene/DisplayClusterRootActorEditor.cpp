@@ -88,12 +88,20 @@ void ADisplayClusterRootActor::PostLoad_Editor()
 	// Generating the preview on load for instances in the world can't be done on PostLoad, components may not have loaded flags present.
 	bDeferPreviewGeneration = true;
 }
+void ADisplayClusterRootActor::Destroyed_Editor()
+{
+	ReleasePreviewComponents();
+	OnPreviewGenerated.Unbind();
+	OnPreviewDestroyed.Unbind();
+	bDeferPreviewGeneration = true;
+}
 
 void ADisplayClusterRootActor::BeginDestroy_Editor()
 {
 	ReleasePreviewComponents();
 	OnPreviewGenerated.Unbind();
 	OnPreviewDestroyed.Unbind();
+	bDeferPreviewGeneration = true;
 }
 
 void ADisplayClusterRootActor::RerunConstructionScripts_Editor()
@@ -196,7 +204,7 @@ IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FSt
 	return nullptr;
 }
 
-void ADisplayClusterRootActor::RenderPreview_Editor()
+bool ADisplayClusterRootActor::UpdatePreviewConfiguration_Editor()
 {
 	if (ViewportManager.IsValid())
 	{
@@ -213,29 +221,37 @@ void ADisplayClusterRootActor::RenderPreview_Editor()
 
 		if (PreviewSettings->bEnable)
 		{
-			// Update all preview components resources before render
-			TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
-			GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
-			for (UDisplayClusterPreviewComponent* PreviewComp : AllPreviewComponents)
-			{
-				PreviewComp->UpdatePreviewResources();
-			}
+			return ViewportManager->UpdatePreviewConfiguration(PreviewSettings, this);
+		}
+	}
 
-			//@todo: add GUI to change preview scene
-			// Now always use RootActor world to preview. 
-			UWorld* PreviewWorld = GetWorld();
-			if (PreviewWorld)
+	return false;
+}
+
+void ADisplayClusterRootActor::RenderPreview_Editor()
+{
+	if (UpdatePreviewConfiguration_Editor())
+	{
+		// Update all preview components resources before render
+		TArray<UDisplayClusterPreviewComponent*> AllPreviewComponents;
+		GetComponents<UDisplayClusterPreviewComponent>(AllPreviewComponents);
+		for (UDisplayClusterPreviewComponent* PreviewComp : AllPreviewComponents)
+		{
+			PreviewComp->UpdatePreviewResources();
+		}
+
+		//@todo: add GUI to change preview scene
+		// Now always use RootActor world to preview. 
+		UWorld* PreviewWorld = GetWorld();
+		if (PreviewWorld)
+		{
+			// Update preview viewports from settings
+			FDisplayClusterRenderFrame PreviewRenderFrame;
+			if (ViewportManager->BeginNewFrame(nullptr, PreviewWorld, PreviewRenderFrame) && PreviewRenderFrame.DesiredNumberOfViews > 0)
 			{
-				// Update preview viewports from settings
-				FDisplayClusterRenderFrame PreviewRenderFrame;
-				if(ViewportManager->UpdatePreviewConfiguration(PreviewSettings, this)
-				&& ViewportManager->BeginNewFrame(nullptr, PreviewWorld, PreviewRenderFrame)
-				&& PreviewRenderFrame.DesiredNumberOfViews > 0)
-				{
-					ViewportManager->RenderInEditor(PreviewRenderFrame, nullptr);
-					// Send event about RTT changed
-					OnPreviewGenerated.ExecuteIfBound();
-				}
+				ViewportManager->RenderInEditor(PreviewRenderFrame, nullptr);
+				// Send event about RTT changed
+				OnPreviewGenerated.ExecuteIfBound();
 			}
 		}
 	}

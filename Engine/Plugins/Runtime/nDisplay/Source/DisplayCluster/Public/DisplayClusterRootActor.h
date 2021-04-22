@@ -89,6 +89,8 @@ protected:
 	virtual void BeginDestroy() override;
 	virtual void RerunConstructionScripts() override;
 
+	virtual void Destroyed() override;
+
 	// Cleans current hierarchy
 	virtual void CleanupHierarchy();
 	virtual void ResetHierarchyMap();
@@ -301,6 +303,8 @@ public:
 	void BeginDestroy_Editor();
 	void RerunConstructionScripts_Editor();
 
+	void Destroyed_Editor();
+
 	TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> GetToolkit() const { return ToolkitPtr; }
 
 	void SetToolkit(TWeakPtr<IDisplayClusterConfiguratorBlueprintEditor> Toolkit) { ToolkitPtr = Toolkit; }
@@ -332,6 +336,7 @@ private:
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();
+	bool UpdatePreviewConfiguration_Editor();
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
