@@ -114,23 +114,23 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	// helper functions for setting delegates
 
 	template< class UserClass >	
-	FORCEINLINE void SetMoveReachedLink(UserClass* TargetOb, typename FOnMoveReachedLink::TUObjectMethodDelegate< UserClass >::FMethodPtr InFunc)
+	FORCEINLINE void SetMoveReachedLink(UserClass* TargetOb, typename FOnMoveReachedLink::TMethodPtr< UserClass > InFunc)
 	{
 		SetMoveReachedLink(FOnMoveReachedLink::CreateUObject(TargetOb, InFunc));
 	}
 	template< class UserClass >	
-	FORCEINLINE void SetMoveReachedLink(UserClass* TargetOb, typename FOnMoveReachedLink::TUObjectMethodDelegate_Const< UserClass >::FMethodPtr InFunc)
+	FORCEINLINE void SetMoveReachedLink(UserClass* TargetOb, typename FOnMoveReachedLink::TConstMethodPtr< UserClass > InFunc)
 	{
 		SetMoveReachedLink(FOnMoveReachedLink::CreateUObject(TargetOb, InFunc));
 	}
 
 	template< class UserClass >	
-	FORCEINLINE void SetBroadcastFilter(UserClass* TargetOb, typename FBroadcastFilter::TUObjectMethodDelegate< UserClass >::FMethodPtr InFunc)
+	FORCEINLINE void SetBroadcastFilter(UserClass* TargetOb, typename FBroadcastFilter::TMethodPtr< UserClass > InFunc)
 	{
 		SetBroadcastFilter(FBroadcastFilter::CreateUObject(TargetOb, InFunc));
 	}
 	template< class UserClass >	
-	FORCEINLINE void SetBroadcastFilter(UserClass* TargetOb, typename FBroadcastFilter::TUObjectMethodDelegate_Const< UserClass >::FMethodPtr InFunc)
+	FORCEINLINE void SetBroadcastFilter(UserClass* TargetOb, typename FBroadcastFilter::TConstMethodPtr< UserClass > InFunc)
 	{
 		SetBroadcastFilter(FBroadcastFilter::CreateUObject(TargetOb, InFunc));
 	}

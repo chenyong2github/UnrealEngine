@@ -56,7 +56,7 @@ public:
 	/** Binds a native delegate, hidden for script delegates */
 	template<	typename UserClass,
 				typename TSig = TSignature>
-	void BindDelegate(UserClass* Object, typename TSig::template TUObjectMethodDelegate<UserClass>::FMethodPtr Func)
+	void BindDelegate(UserClass* Object, typename TSig::template TMethodPtr<UserClass> Func)
 	{
 		Unbind();
 		Delegate = MakeShared<TSig>(TSig::CreateUObject(Object, Func));
@@ -356,13 +356,13 @@ public:
 	/**
 	 * Binds a delegate function matching any of the handler signatures to a UInputAction assigned via UInputMappingContext to the owner of this component.
 	 */
-#define DEFINE_BIND_ACTION(HANDLER_SIG)																																									\
-	template<class UserClass>																																											\
-	FEnhancedInputActionEventBinding& BindAction(const UInputAction* Action, ETriggerEvent TriggerEvent, UserClass* Object, typename HANDLER_SIG::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) \
-	{																																																	\
-		TUniquePtr<FEnhancedInputActionEventDelegateBinding<HANDLER_SIG>> AB = MakeUnique<FEnhancedInputActionEventDelegateBinding<HANDLER_SIG>>(Action, TriggerEvent);									\
-		AB->Delegate.BindDelegate<UserClass>(Object, Func);																																				\
-		return *EnhancedActionEventBindings.Add_GetRef(MoveTemp(AB));																																	\
+#define DEFINE_BIND_ACTION(HANDLER_SIG)																																			\
+	template<class UserClass>																																					\
+	FEnhancedInputActionEventBinding& BindAction(const UInputAction* Action, ETriggerEvent TriggerEvent, UserClass* Object, typename HANDLER_SIG::TMethodPtr< UserClass > Func) \
+	{																																											\
+		TUniquePtr<FEnhancedInputActionEventDelegateBinding<HANDLER_SIG>> AB = MakeUnique<FEnhancedInputActionEventDelegateBinding<HANDLER_SIG>>(Action, TriggerEvent);			\
+		AB->Delegate.BindDelegate<UserClass>(Object, Func);																														\
+		return *EnhancedActionEventBindings.Add_GetRef(MoveTemp(AB));																											\
 	}
 
 	DEFINE_BIND_ACTION(FEnhancedInputActionHandlerSignature);
@@ -406,7 +406,7 @@ public:
 	 * Binds a chord event to a delegate function in development builds only.
 	 */
 	template<class UserClass>
-	FInputDebugKeyBinding& BindDebugKey(const FInputChord Chord, const EInputEvent KeyEvent, UserClass* Object, typename FInputDebugKeyHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func, bool bExecuteWhenPaused = true)
+	FInputDebugKeyBinding& BindDebugKey(const FInputChord Chord, const EInputEvent KeyEvent, UserClass* Object, typename FInputDebugKeyHandlerSignature::TMethodPtr< UserClass > Func, bool bExecuteWhenPaused = true)
 	{
 #ifdef DEV_ONLY_KEY_BINDINGS_AVAILABLE
 		TUniquePtr<FInputDebugKeyDelegateBinding<FInputDebugKeyHandlerSignature>> KB = MakeUnique<FInputDebugKeyDelegateBinding<FInputDebugKeyHandlerSignature>>(Chord, KeyEvent, bExecuteWhenPaused);
@@ -436,26 +436,26 @@ public:
 
 	// Delete all InputComponent binding helpers. Indicates intentions going forward and improves intellisense/VAX when working with EnhancedInputCompoennts.
 	template<class UserClass>
-	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	template<class UserClass>
-	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerWithKeySignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerWithKeySignature::TMethodPtr< UserClass > Func) = delete;
 	template< class DelegateType, class UserClass, typename... VarTypes >
-	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename DelegateType::template TUObjectMethodDelegate< UserClass >::FMethodPtr Func, VarTypes... Vars) = delete;
+	FInputActionBinding& BindAction(const FName ActionName, const EInputEvent KeyEvent, UserClass* Object, typename DelegateType::template TMethodPtr< UserClass > Func, VarTypes... Vars) = delete;
 	template<class UserClass>
-	FInputAxisBinding& BindAxis(const FName AxisName, UserClass* Object, typename FInputAxisHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputAxisBinding& BindAxis(const FName AxisName, UserClass* Object, typename FInputAxisHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	FInputAxisBinding& BindAxis(const FName AxisName) = delete;
 	template<class UserClass>
-	FInputAxisKeyBinding& BindAxisKey(const FKey AxisKey, UserClass* Object, typename FInputAxisHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputAxisKeyBinding& BindAxisKey(const FKey AxisKey, UserClass* Object, typename FInputAxisHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	FInputAxisKeyBinding& BindAxisKey(const FKey AxisKey) = delete;
 	template<class UserClass>
-	FInputVectorAxisBinding& BindVectorAxis(const FKey AxisKey, UserClass* Object, typename FInputVectorAxisHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputVectorAxisBinding& BindVectorAxis(const FKey AxisKey, UserClass* Object, typename FInputVectorAxisHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	FInputVectorAxisBinding& BindVectorAxis(const FKey AxisKey) = delete;
 	template<class UserClass>
-	FInputKeyBinding& BindKey(const FInputChord Chord, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputKeyBinding& BindKey(const FInputChord Chord, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	template<class UserClass>
-	FInputKeyBinding& BindKey(const FKey Key, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputKeyBinding& BindKey(const FKey Key, const EInputEvent KeyEvent, UserClass* Object, typename FInputActionHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	template<class UserClass>
-	FInputTouchBinding& BindTouch(const EInputEvent KeyEvent, UserClass* Object, typename FInputTouchHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputTouchBinding& BindTouch(const EInputEvent KeyEvent, UserClass* Object, typename FInputTouchHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 	template<class UserClass>
-	FInputGestureBinding& BindGesture(const FKey GestureKey, UserClass* Object, typename FInputGestureHandlerSignature::TUObjectMethodDelegate< UserClass >::FMethodPtr Func) = delete;
+	FInputGestureBinding& BindGesture(const FKey GestureKey, UserClass* Object, typename FInputGestureHandlerSignature::TMethodPtr< UserClass > Func) = delete;
 };

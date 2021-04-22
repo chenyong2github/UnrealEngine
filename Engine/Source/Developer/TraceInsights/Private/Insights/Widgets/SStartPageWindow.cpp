@@ -483,7 +483,7 @@ public:
 	}
 
 	void AddGridPanelRow(TSharedPtr<SGridPanel> Grid, int32 Row, const FText& Name,
-		typename TAttribute<FText>::FGetter::template TRawMethodDelegate_Const<STraceListRow>::FMethodPtr Value) const
+		typename TAttribute<FText>::FGetter::template TConstMethodPtr<STraceListRow> Value) const
 	{
 		Grid->AddSlot(0, Row)
 			.Padding(2.0f)

@@ -78,7 +78,7 @@ public:
 	* @returns  SharedRef to the MenuItem that was created.
 	*/
 	template< class UserClass >
-	FORCEINLINE TSharedRef<FGameMenuItem> AddMenuItem(const FText& InText, UserClass* InObj, typename FGameMenuItem::FOnConfirmMenuItem::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE TSharedRef<FGameMenuItem> AddMenuItem(const FText& InText, UserClass* InObj, typename FGameMenuItem::FOnConfirmMenuItem::TMethodPtr< UserClass > InMethod)
 	{
 		TSharedPtr<FGameMenuItem> Item = MakeShareable(new FGameMenuItem(InText));
 		Item->OnConfirmMenuItem.BindSP(InObj, InMethod);
@@ -96,7 +96,7 @@ public:
 	 * @returns  SharedRef to the MenuItem that was created.
 	 */
 	template< class UserClass >
-	FORCEINLINE TSharedRef<FGameMenuItem> AddMenuItemWithOptions(const FText& Text, const TArray<FText>& OptionsList, UserClass* InObj, typename FGameMenuItem::FOnOptionChanged::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE TSharedRef<FGameMenuItem> AddMenuItemWithOptions(const FText& Text, const TArray<FText>& OptionsList, UserClass* InObj, typename FGameMenuItem::FOnOptionChanged::TMethodPtr< UserClass > InMethod)
 	{
 		TSharedPtr<FGameMenuItem> Item = MakeShareable(new FGameMenuItem(Text, OptionsList));
 		Item->OnOptionChanged.BindSP(InObj, InMethod);
@@ -114,7 +114,7 @@ public:
 	 * @returns  SharedRef to the MenuItem that was created.
 	 */
 	template< class UserClass >
-	FORCEINLINE TSharedRef<FGameMenuItem> AddCustomMenuItem(const FText& Text, TSharedPtr<SGameMenuItemWidget> CustomWidget, UserClass* InObj, typename FGameMenuItem::FOnOptionChanged::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE TSharedRef<FGameMenuItem> AddCustomMenuItem(const FText& Text, TSharedPtr<SGameMenuItemWidget> CustomWidget, UserClass* InObj, typename FGameMenuItem::FOnOptionChanged::TMethodPtr< UserClass > InMethod)
 	{
 		TSharedPtr<FGameMenuItem> Item = MakeShareable(new FGameMenuItem(CustomWidget));
 		Item->OnOptionChanged.BindSP(InObj, InMethod);
@@ -129,7 +129,7 @@ public:
 	* @param	InMethod	Method to call when selection changes.
 	*/
 	template< class UserClass >
-	FORCEINLINE void SetCancelHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuGoBack::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE void SetCancelHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuGoBack::TMethodPtr< UserClass > InMethod)
 	{
 		OnGoBackCancel.BindSP(InObj, InMethod);
 	}
@@ -141,7 +141,7 @@ public:
 	* @param	InMethod	Method to call when menu has been hidden.
 	*/
 	template< class UserClass >
-	FORCEINLINE void SetOnHiddenHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuHidden::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE void SetOnHiddenHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuHidden::TMethodPtr< UserClass > InMethod)
 	{
 		OnMenuHidden.BindSP(InObj, InMethod);
 	}
@@ -153,7 +153,7 @@ public:
 	* @param	InMethod	Method to call when selection changes.
 	*/
 	template< class UserClass >
-	FORCEINLINE void SetAcceptHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuGoBack::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE void SetAcceptHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuGoBack::TMethodPtr< UserClass > InMethod)
 	{
 		OnGoBack.BindSP(InObj, InMethod);
 	}
@@ -165,7 +165,7 @@ public:
 	* @param	InMethod	Method to call when menu is about to open.
 	*/
 	template< class UserClass >
-	FORCEINLINE void SetOnOpenHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuHidden::TSPMethodDelegate< UserClass >::FMethodPtr InMethod)
+	FORCEINLINE void SetOnOpenHandler(UserClass* InObj, typename FGameMenuPage::FOnMenuHidden::TMethodPtr< UserClass > InMethod)
 	{
 		OnMenuOpening.BindSP(InObj, InMethod);
 	}

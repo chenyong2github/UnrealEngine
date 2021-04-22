@@ -38,13 +38,13 @@ public:
 	void CollapseAll();
 
 	template <typename ObjectT>
-	void SetOnGetItemChildren(ObjectT* InUserObject, typename TSlateDelegates<UObject*>::FOnGetChildren::TUObjectMethodDelegate<ObjectT>::FMethodPtr InMethodPtr)
+	void SetOnGetItemChildren(ObjectT* InUserObject, typename TSlateDelegates<UObject*>::FOnGetChildren::TMethodPtr<ObjectT> InMethodPtr)
 	{
 		static_assert(TIsDerivedFrom<ObjectT, UObject>::IsDerived, "Only UObject ptrs can be passed directly when binding to SetOnGetItemChildren. Pass a shared ref for non-UObject binders.");
 		OnGetItemChildren = TSlateDelegates<UObject*>::FOnGetChildren::CreateUObject(InUserObject, InMethodPtr);
 	}
 	template <typename ObjectT>
-	void SetOnGetItemChildren(TSharedRef<ObjectT> InUserObject, typename TSlateDelegates<UObject*>::FOnGetChildren::TUObjectMethodDelegate<ObjectT>::FMethodPtr InMethodPtr)
+	void SetOnGetItemChildren(TSharedRef<ObjectT> InUserObject, typename TSlateDelegates<UObject*>::FOnGetChildren::TMethodPtr<ObjectT> InMethodPtr)
 	{
 		OnGetItemChildren = TSlateDelegates<UObject*>::FOnGetChildren::CreateSP(InUserObject, InMethodPtr);
 	}

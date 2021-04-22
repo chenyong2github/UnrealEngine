@@ -32,7 +32,8 @@ public:
 		: Value()         // NOTE: Potentially uninitialized for atomics!!
 		, bIsSet(false)
 		, Getter()
-	{ }
+	{
+	}
 
 	/**
 	 * Construct implicitly from an initial value
@@ -44,7 +45,8 @@ public:
 		: Value( (ObjectType)InInitialValue )
 		, bIsSet(true)
 		, Getter()
-	{ }
+	{
+	}
 
 	/** 
 	 * Construct implicitly from moving an initial value
@@ -55,7 +57,8 @@ public:
 		: Value(MoveTemp(InInitialValue))
 		, bIsSet(true)
 		, Getter()
-	{ }
+	{
+	}
 
 	/**
 	 * Constructs by binding an arbitrary function that will be called to generate this attribute's value on demand. 
@@ -65,13 +68,14 @@ public:
 	 * @param  InUserObject  Shared Pointer to the instance of the class that contains the member function you want to bind.  The attribute will only retain a weak pointer to this class.
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	template< class SourceType >	
-	TAttribute( TSharedRef< SourceType > InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
-		: Value()		
+	template< class SourceType >
+	TAttribute( TSharedRef< SourceType > InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
+		: Value()
 		, bIsSet(true)
 		, Getter(FGetter::CreateSP(InUserObject, InMethodPtr))
-	{ }
-	
+	{
+	}
+
 	/**
 	 * Constructs by binding an arbitrary function that will be called to generate this attribute's value on demand. 
 	 * After binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
@@ -80,12 +84,13 @@ public:
 	 * @param  InUserObject  Shared Pointer to the instance of the class that contains the member function you want to bind.  The attribute will only retain a weak pointer to this class.
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	template< class SourceType >	
-	TAttribute( SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
-		: Value()		
+	template< class SourceType >
+	TAttribute( SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
+		: Value()
 		, bIsSet(true)
 		, Getter(FGetter::CreateSP(InUserObject, InMethodPtr))
-	{ }
+	{
+	}
 
 	/**
 	 * Static: Creates an attribute that's pre-bound to the specified 'getter' delegate
@@ -291,8 +296,8 @@ public:
 	 * @param  InUserObject  Instance of the class that contains the member function you want to bind.
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	template< class SourceType >	
-	void BindRaw( SourceType* InUserObject, typename FGetter::template TRawMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
+	template< class SourceType >
+	void BindRaw( SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
 	{
 		bIsSet = true;
 		Getter.BindRaw( InUserObject, InMethodPtr );
@@ -306,13 +311,13 @@ public:
 	 * @param  InUserObject  Shared Pointer to the instance of the class that contains the member function you want to bind.  The attribute will only retain a weak pointer to this class.
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	template< class SourceType >	
-	void Bind( TSharedRef< SourceType > InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
+	template< class SourceType >
+	void Bind( TSharedRef< SourceType > InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
 	{
 		bIsSet = true;
 		Getter.BindSP( InUserObject, InMethodPtr );
 	}
-	
+
 	/**
 	 * Binds an arbitrary function that will be called to generate this attribute's value on demand. 
 	 * After binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
@@ -321,13 +326,13 @@ public:
 	 * @param  InUserObject  Shared Pointer to the instance of the class that contains the member function you want to bind.  The attribute will only retain a weak pointer to this class.
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
-	template< class SourceType >	
-	void Bind( SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
+	template< class SourceType >
+	void Bind( SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
 	{
 		bIsSet = true;
 		Getter.BindSP( InUserObject, InMethodPtr );
 	}
-	
+
 	/**
 	 * Binds an arbitrary function that will be called to generate this attribute's value on demand. 
 	 * After binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
@@ -337,7 +342,7 @@ public:
 	 * @param  InMethodPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
 	 */
 	template< class SourceType >	
-	void BindUObject( SourceType* InUserObject, typename FGetter::template TUObjectMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr )
+	void BindUObject( SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr )
 	{
 		bIsSet = true;
 		Getter.BindUObject( InUserObject, InMethodPtr );

@@ -206,10 +206,10 @@ struct FSlateDeprecatedTAttribute
 	FSlateDeprecatedTAttribute(ObjectType&& InInitialValue)	{ }
 
 	template<class SourceType>
-	FSlateDeprecatedTAttribute(TSharedRef<SourceType> InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) {}
+	FSlateDeprecatedTAttribute(TSharedRef<SourceType> InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) {}
 
 	template< class SourceType >
-	FSlateDeprecatedTAttribute(SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) { }
+	FSlateDeprecatedTAttribute(SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) { }
 
 	bool IsSet() const { return false; }
 
@@ -222,7 +222,7 @@ struct FSlateDeprecatedTAttribute
 
 	void Bind(const FGetter& InGetter) {}
 	template<class SourceType>
-	void Bind(SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) {}
+	void Bind(SourceType* InUserObject, typename FGetter::template TConstMethodPtr< SourceType > InMethodPtr) {}
 	bool IsBound() const { return false; }
 
 	bool IdenticalTo(const TAttribute<ObjectType>& InOther) const { return false; }
@@ -538,7 +538,7 @@ namespace SlateAttributePrivate
 		 * The SlateAttribute will now be updated every frame from the Getter.
 		 */
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		void Bind(WidgetType& Widget, typename FGetter::template TSPMethodDelegate_Const<WidgetType>::FMethodPtr MethodPtr)
+		void Bind(WidgetType& Widget, typename FGetter::template TConstMethodPtr<WidgetType> MethodPtr)
 		{
 			Bind(Widget, FGetter::CreateSP(&Widget, MethodPtr));
 		}
