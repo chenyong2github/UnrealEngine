@@ -359,6 +359,15 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		UpdateConfigDataInstance(GetDefaultConfigDataFromAsset());
 	}
 
+	if (ViewportManager.IsValid() == false)
+	{
+		ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
+	}
+
+#if WITH_EDITOR
+	UpdatePreviewConfiguration_Editor();
+#endif
+
 	// Packaged, PIE and -game runtime
 	if (IsRunningGameOrPIE())
 	{
@@ -612,8 +621,30 @@ void ADisplayClusterRootActor::BeginDestroy()
 	BeginDestroy_Editor();
 #endif
 
+	if (ViewportManager.IsValid())
+	{
+		// remove runtime data, when actor destroyed
+		ViewportManager.Reset();
+	}
+
 	ResetHierarchyMap();
 	Super::BeginDestroy();
+}
+
+void ADisplayClusterRootActor::Destroyed()
+{
+#if WITH_EDITOR
+	Destroyed_Editor();
+#endif
+
+	if (ViewportManager.IsValid())
+	{
+		// remove runtime data, when actor destroyed
+		ViewportManager.Reset();
+	}
+
+	ResetHierarchyMap();
+	Super::Destroyed();
 }
 
 void ADisplayClusterRootActor::RerunConstructionScripts()
