@@ -60,39 +60,44 @@ void USphericalLensDistortionModelHandler::InitDistortionMaterials()
 		DistortionPostProcessMID = UMaterialInstanceDynamic::Create(DistortionMaterialParent, this);
 	}
 
-	if (DisplacementMapMID == nullptr)
+	if (UndistortionDisplacementMapMID == nullptr)
 	{
-		UMaterialInterface* DisplacementMapMaterialParent = GetDefault<UCameraCalibrationSettings>()->GetDefaultDisplacementMaterial(this->StaticClass());
-		DisplacementMapMID = UMaterialInstanceDynamic::Create(DisplacementMapMaterialParent, this);
+		UMaterialInterface* MaterialParent = GetDefault<UCameraCalibrationSettings>()->GetDefaultUndistortionDisplacementMaterial(this->StaticClass());
+		UndistortionDisplacementMapMID = UMaterialInstanceDynamic::Create(MaterialParent, this);
 	}
 
-	DistortionPostProcessMID->SetTextureParameterValue("UVDisplacementMap", DisplacementMapRT);
+	if (DistortionDisplacementMapMID == nullptr)
+	{
+		UMaterialInterface* MaterialParent = GetDefault<UCameraCalibrationSettings>()->GetDefaultDistortionDisplacementMaterial(this->StaticClass());
+		DistortionDisplacementMapMID = UMaterialInstanceDynamic::Create(MaterialParent, this);
+	}
+
+	DistortionPostProcessMID->SetTextureParameterValue("UndistortionDisplacementMap", UndistortionDisplacementMapRT);
+	DistortionPostProcessMID->SetTextureParameterValue("DistortionDisplacementMap", DistortionDisplacementMapRT);
 
 	SetDistortionState(CurrentState);
 }
 
 void USphericalLensDistortionModelHandler::UpdateMaterialParameters()
 {
-	// Update the material parameters
-	if (DisplacementMapMID)
+	//Helper function to set material parameters of an MID
+	const auto SetDistortionMaterialParameters = [this](UMaterialInstanceDynamic* const MID)
 	{
-		DisplacementMapMID->SetScalarParameterValue("k1", SphericalParameters.K1);
-		DisplacementMapMID->SetScalarParameterValue("k2", SphericalParameters.K2);
-		DisplacementMapMID->SetScalarParameterValue("k3", SphericalParameters.K3);
-		DisplacementMapMID->SetScalarParameterValue("p1", SphericalParameters.P1);
-		DisplacementMapMID->SetScalarParameterValue("p2", SphericalParameters.P2);
+		MID->SetScalarParameterValue("k1", SphericalParameters.K1);
+		MID->SetScalarParameterValue("k2", SphericalParameters.K2);
+		MID->SetScalarParameterValue("k3", SphericalParameters.K3);
+		MID->SetScalarParameterValue("p1", SphericalParameters.P1);
+		MID->SetScalarParameterValue("p2", SphericalParameters.P2);
 
-		DisplacementMapMID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
-		DisplacementMapMID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
+		MID->SetScalarParameterValue("cx", CurrentState.PrincipalPoint.X);
+		MID->SetScalarParameterValue("cy", CurrentState.PrincipalPoint.Y);
 
-		DisplacementMapMID->SetScalarParameterValue("fx", CurrentState.FxFy.X);
-		DisplacementMapMID->SetScalarParameterValue("fy", CurrentState.FxFy.Y);
-	}
+		MID->SetScalarParameterValue("fx", CurrentState.FxFy.X);
+		MID->SetScalarParameterValue("fy", CurrentState.FxFy.Y);
+	};
 
-	if (DistortionPostProcessMID)
-	{
-		DistortionPostProcessMID->SetScalarParameterValue("overscan_factor", OverscanFactor);
-	}
+	SetDistortionMaterialParameters(UndistortionDisplacementMapMID);
+	SetDistortionMaterialParameters(DistortionDisplacementMapMID);
 }
 
 void USphericalLensDistortionModelHandler::InterpretDistortionParameters()

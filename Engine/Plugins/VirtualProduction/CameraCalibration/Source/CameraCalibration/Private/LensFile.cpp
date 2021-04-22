@@ -25,7 +25,7 @@ namespace LensFileUtils
 		const FIntPoint Size{256,256};
 
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(), TEXT("LensDisplacementMap")), RF_Public);
-		NewRenderTarget2D->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA16f;
+		NewRenderTarget2D->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
 		NewRenderTarget2D->ClearColor = FLinearColor(0.5f, 0.5f, 0.5f, 0.5f);
 		NewRenderTarget2D->bAutoGenerateMips = false;
 		NewRenderTarget2D->bCanCreateUAV = true;
@@ -183,9 +183,15 @@ bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, ULensDistort
 		return false;
 	}
 	
-	if (LensHandler->GetUVDisplacementMap() == nullptr)
+	if (LensHandler->GetUndistortionDisplacementMap() == nullptr)
 	{
-		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid displacement map in LensHandler '%s'"), *GetName(), *LensHandler->GetName());
+		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid undistortion displacement map in LensHandler '%s'"), *GetName(), *LensHandler->GetName());
+		return false;
+	}
+
+	if (LensHandler->GetDistortionDisplacementMap() == nullptr)
+	{
+		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid distortion displacement map in LensHandler '%s'"), *GetName(), *LensHandler->GetName());
 		return false;
 	}
 
@@ -243,7 +249,8 @@ float ULensFile::ComputeOverscan(const FDistortionData& DerivedData, FVector2D P
 
 void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) const
 {
-	LensFileRendering::ClearDisplacementMap(LensHandler->GetUVDisplacementMap());
+	LensFileRendering::ClearDisplacementMap(LensHandler->GetUndistortionDisplacementMap());
+	LensFileRendering::ClearDisplacementMap(LensHandler->GetDistortionDisplacementMap());
 	OutDistortionData.DistortedUVs = UndistortedUVs;
 	OutDistortionData.OverscanFactor = 1.0f;
 	LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
@@ -317,7 +324,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 			State.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
 
 			//Helper function to compute the current distortion state
-			const auto GetDistortionData = [this, &State, LensHandler](const FDistortionMapPoint& MapPoint, UTextureRenderTarget2D* DestinationRenderTarget, FDistortionData& OutDistortionData)
+			const auto GetDistortionData = [this, &State, LensHandler](const FDistortionMapPoint& MapPoint, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
 			{
 				State.DistortionInfo = MapPoint.DistortionInfo;
 
@@ -326,7 +333,8 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				const float AspectRatio = LensInfo.SensorDimensions.X / LensInfo.SensorDimensions.Y;
 				State.FxFy = FVector2D(NormalizedFx, NormalizedFx * AspectRatio);
 				LensHandler->SetDistortionState(State);
-				LensHandler->DrawDisplacementMap(DestinationRenderTarget);
+				LensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
+				LensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
 
 				OutDistortionData.DistortedUVs = LensHandler->GetDistortedUVs(UndistortedUVs);
 				OutDistortionData.OverscanFactor = LensHandler->ComputeOverscanFactor();	
@@ -339,7 +347,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 			{
 				Params.BlendType = EDisplacementMapBlendType::Passthrough;
 
-				GetDistortionData(MinMinPoint, DisplacementMapHolders[0], BlendedData);
+				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], BlendedData);
 			}
 			else if (MinMinIndex == MaxMinIndex && MinMaxIndex == MaxMaxIndex)
 			{
@@ -348,8 +356,8 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, MinMinPoint.Zoom, MaxMaxPoint.Zoom);
 
 				FDistortionData DistortionData[2];
-				GetDistortionData(MinMinPoint, DisplacementMapHolders[0], DistortionData[0]);
-				GetDistortionData(MaxMaxPoint, DisplacementMapHolders[1], DistortionData[1]);
+				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+				GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
 
 				LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
 			}
@@ -360,8 +368,8 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, MinMinPoint.Focus, MaxMaxPoint.Focus);
 
 				FDistortionData DistortionData[2];
-				GetDistortionData(MinMinPoint, DisplacementMapHolders[0], DistortionData[0]);
-				GetDistortionData(MaxMaxPoint, DisplacementMapHolders[1], DistortionData[1]);
+				GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+				GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
 				
 				LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &DistortionData[0], &DistortionData[1], &BlendedData);
 			}
@@ -382,10 +390,10 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 					Params.MainCoefficient = 1.0f / Divider;
 
 					FDistortionData DistortionData[4];
-					GetDistortionData(MinMinPoint, DisplacementMapHolders[0], DistortionData[0]);
-					GetDistortionData(MinMaxPoint, DisplacementMapHolders[1], DistortionData[1]);
-					GetDistortionData(MaxMinPoint, DisplacementMapHolders[2], DistortionData[2]);
-					GetDistortionData(MaxMaxPoint, DisplacementMapHolders[3], DistortionData[3]);
+					GetDistortionData(MinMinPoint, UndistortionDisplacementMapHolders[0], DistortionDisplacementMapHolders[0], DistortionData[0]);
+					GetDistortionData(MinMaxPoint, UndistortionDisplacementMapHolders[1], DistortionDisplacementMapHolders[1], DistortionData[1]);
+					GetDistortionData(MaxMinPoint, UndistortionDisplacementMapHolders[2], DistortionDisplacementMapHolders[2], DistortionData[2]);
+					GetDistortionData(MaxMaxPoint, UndistortionDisplacementMapHolders[3], DistortionDisplacementMapHolders[3], DistortionData[3]);
 
 					LensInterpolationUtils::BilinearInterpolate<FDistortionData>(Params.MainCoefficient
 						, Params.DeltaMinX
@@ -405,13 +413,21 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				}
 			}
 
-			//Draw resulting displacement map for evaluation point
-			LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUVDisplacementMap()
+			//Draw resulting undistortion displacement map for evaluation point
+			LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUndistortionDisplacementMap()
 				, Params
-				, DisplacementMapHolders[0]
-				, DisplacementMapHolders[1]
-				, DisplacementMapHolders[2]
-				, DisplacementMapHolders[3]);
+				, UndistortionDisplacementMapHolders[0]
+				, UndistortionDisplacementMapHolders[1]
+				, UndistortionDisplacementMapHolders[2]
+				, UndistortionDisplacementMapHolders[3]);
+
+			//Draw resulting distortion displacement map for evaluation point
+			LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetDistortionDisplacementMap()
+				, Params
+				, DistortionDisplacementMapHolders[0]
+				, DistortionDisplacementMapHolders[1]
+				, DistortionDisplacementMapHolders[2]
+				, DistortionDisplacementMapHolders[3]);
 
 			OutDistortionData = MoveTemp(BlendedData);
 			LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
@@ -468,10 +484,14 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 		BlendedData.DistortedUVs.SetNumZeroed(UndistortedUVs.Num());
 		
 		FDisplacementMapBlendingParams Params;
-		UTextureRenderTarget2D* TextureOne = nullptr;
-		UTextureRenderTarget2D* TextureTwo = nullptr;
-		UTextureRenderTarget2D* TextureThree = nullptr;
-		UTextureRenderTarget2D* TextureFour = nullptr;
+		UTextureRenderTarget2D* UndistortionTextureOne = nullptr;
+		UTextureRenderTarget2D* UndistortionTextureTwo = nullptr;
+		UTextureRenderTarget2D* UndistortionTextureThree = nullptr;
+		UTextureRenderTarget2D* UndistortionTextureFour = nullptr;
+		UTextureRenderTarget2D* DistortionTextureOne = nullptr;
+		UTextureRenderTarget2D* DistortionTextureTwo = nullptr;
+		UTextureRenderTarget2D* DistortionTextureThree = nullptr;
+		UTextureRenderTarget2D* DistortionTextureFour = nullptr;
 
 		//Single point case
 		if (MinMinIndex == MaxMinIndex
@@ -479,7 +499,8 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 			&& MinMaxIndex == MaxMaxIndex)
 		{
 			Params.BlendType = EDisplacementMapBlendType::Passthrough;
-			TextureOne = MinMinPoint.DerivedDistortionData.DisplacementMap;
+			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
 			BlendedData = MinMinPoint.DerivedDistortionData.DistortionData;
 		}
 		else if (MinMinIndex == MaxMinIndex && MinMaxIndex == MaxMaxIndex)
@@ -487,8 +508,10 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 			//Fixed focus 
 			Params.BlendType = EDisplacementMapBlendType::Linear;
 			Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InZoom, MinMinPoint.Zoom, MaxMaxPoint.Zoom);
-			TextureOne = MinMinPoint.DerivedDistortionData.DisplacementMap;
-			TextureTwo = MaxMaxPoint.DerivedDistortionData.DisplacementMap;
+			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			UndistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
+			DistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
 			LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &MinMinPoint.DerivedDistortionData.DistortionData, &MaxMaxPoint.DerivedDistortionData.DistortionData, &BlendedData);
 		}
 		else if (MinMinIndex == MinMaxIndex && MaxMinIndex == MaxMaxIndex)
@@ -496,8 +519,10 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 			//Fixed zoom	
 			Params.BlendType = EDisplacementMapBlendType::Linear;
 			Params.LinearBlendFactor = LensInterpolationUtils::GetBlendFactor(InFocus, MinMinPoint.Focus, MaxMaxPoint.Focus);
-			TextureOne = MinMinPoint.DerivedDistortionData.DisplacementMap;
-			TextureTwo = MaxMaxPoint.DerivedDistortionData.DisplacementMap;
+			UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			UndistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
+			DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
+			DistortionTextureTwo = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
 			LensInterpolationUtils::Interpolate<FDistortionData>(Params.LinearBlendFactor, &MinMinPoint.DerivedDistortionData.DistortionData, &MaxMaxPoint.DerivedDistortionData.DistortionData, &BlendedData);
 		}
 		else
@@ -515,10 +540,14 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 				Params.DeltaMinY = InZoom - MinMinPoint.Zoom;
 				Params.DeltaMaxY = MaxMaxPoint.Zoom - InZoom;
 				Params.MainCoefficient = 1.0f / Divider;
-				TextureOne = MinMinPoint.DerivedDistortionData.DisplacementMap;
-				TextureTwo = MinMaxPoint.DerivedDistortionData.DisplacementMap;
-				TextureThree = MaxMinPoint.DerivedDistortionData.DisplacementMap;
-				TextureFour = MaxMaxPoint.DerivedDistortionData.DisplacementMap;
+				UndistortionTextureOne = MinMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
+				UndistortionTextureTwo = MinMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
+				UndistortionTextureThree = MaxMinPoint.DerivedDistortionData.UndistortionDisplacementMap;
+				UndistortionTextureFour = MaxMaxPoint.DerivedDistortionData.UndistortionDisplacementMap;
+				DistortionTextureOne = MinMinPoint.DerivedDistortionData.DistortionDisplacementMap;
+				DistortionTextureTwo = MinMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
+				DistortionTextureThree = MaxMinPoint.DerivedDistortionData.DistortionDisplacementMap;
+				DistortionTextureFour = MaxMaxPoint.DerivedDistortionData.DistortionDisplacementMap;
 				LensInterpolationUtils::BilinearInterpolate<FDistortionData>(Params.MainCoefficient
 				, Params.DeltaMinX
 				, Params.DeltaMaxX
@@ -541,19 +570,27 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 		FIntrinsicMapPoint InterpPoint;
 		LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
 
-		//Draw resulting displacement map for evaluation point
 		Params.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
-		if(LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUVDisplacementMap()
+
+		//Draw resulting undistortion displacement map for evaluation point
+		LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUndistortionDisplacementMap()
 			, Params
-			, TextureOne
-			, TextureTwo
-			, TextureThree
-			, TextureFour))
+			, UndistortionTextureOne
+			, UndistortionTextureTwo
+			, UndistortionTextureThree
+			, UndistortionTextureFour);
+
+		//Draw resulting displacement map for evaluation point
+		if(LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetDistortionDisplacementMap()
+			, Params
+			, DistortionTextureOne
+			, DistortionTextureTwo
+			, DistortionTextureThree
+			, DistortionTextureFour))
 		{
 			OutDistortionData.OverscanFactor = ComputeOverscan(BlendedData, Params.PrincipalPoint);
+			LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 		}
-
-		LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 	}
 	else
 	{
@@ -661,11 +698,13 @@ void ULensFile::PostInitProperties()
 	Super::PostInitProperties();
 	
 	//Create displacement maps used when blending them together to get final distortion map
-	DisplacementMapHolders.Reserve(DisplacementMapHolderCount);
+	UndistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
+	DistortionDisplacementMapHolders.Reserve(DisplacementMapHolderCount);
 	for (int32 Index = 0; Index < DisplacementMapHolderCount; ++Index)
 	{
 		UTextureRenderTarget2D* NewMap = LensFileUtils::CreateDisplacementMapRenderTarget(GetTransientPackage());
-		DisplacementMapHolders.Add(NewMap);
+		UndistortionDisplacementMapHolders.Add(NewMap);
+		DistortionDisplacementMapHolders.Add(NewMap);
 	}
 }
 
@@ -692,18 +731,26 @@ void ULensFile::UpdateDerivedData()
 		{
 			if (MapPoint.DerivedDistortionData.bIsDirty)
 			{
-				//Create required texture for newly added points
-				if(MapPoint.DerivedDistortionData.DisplacementMap == nullptr)
+				//Create required undistortion texture for newly added points
+				if(MapPoint.DerivedDistortionData.UndistortionDisplacementMap == nullptr)
 				{
-					MapPoint.DerivedDistortionData.DisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+					MapPoint.DerivedDistortionData.UndistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
 				}
 
-				check(MapPoint.DerivedDistortionData.DisplacementMap);
+				//Create required distortion texture for newly added points
+				if (MapPoint.DerivedDistortionData.DistortionDisplacementMap == nullptr)
+				{
+					MapPoint.DerivedDistortionData.DistortionDisplacementMap = LensFileUtils::CreateDisplacementMapRenderTarget(this);
+				}
+
+				check(MapPoint.DerivedDistortionData.UndistortionDisplacementMap);
+				check(MapPoint.DerivedDistortionData.DistortionDisplacementMap);
 
 				FDerivedDistortionDataJobArgs JobArgs;
 				JobArgs.Identifier = MapPoint.GetIdentifier();
 				JobArgs.SourceDistortionMap = MapPoint.DistortionMap;
-				JobArgs.OutputDisplacementMap = MapPoint.DerivedDistortionData.DisplacementMap;
+				JobArgs.OutputUndistortionDisplacementMap = MapPoint.DerivedDistortionData.UndistortionDisplacementMap;
+				JobArgs.OutputDistortionDisplacementMap = MapPoint.DerivedDistortionData.DistortionDisplacementMap;
 				JobArgs.JobCompletedCallback.BindUObject(this, &ULensFile::OnDistortionDerivedDataJobCompleted);
 				if (CalibratedMapProcessor->PushDerivedDistortionDataJob(MoveTemp(JobArgs)))
 				{

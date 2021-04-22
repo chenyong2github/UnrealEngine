@@ -49,9 +49,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
     void SetDistortionState(const FLensDistortionState& InNewState);
 
-	/** Get the UV displacement map that was drawn during the last call to Update() */
+	/** Get the UV displacement map used to undistort a distorted image */
 	UFUNCTION(BlueprintCallable, Category = "Distortion")
-	UTextureRenderTarget2D* GetUVDisplacementMap() const { return DisplacementMapRT; }
+	UTextureRenderTarget2D* GetUndistortionDisplacementMap() const { return UndistortionDisplacementMapRT; }
+
+	/** Get the UV displacement map used to distort an undistorted image */
+	UFUNCTION(BlueprintCallable, Category = "Distortion")
+	UTextureRenderTarget2D* GetDistortionDisplacementMap() const { return DistortionDisplacementMapRT; }
 
 public:
 	//~ Begin UObject Interface
@@ -89,8 +93,11 @@ public:
 	/** Computes the distorted version of UndistortedUVs based on the current state */
 	TArray<FVector2D> GetDistortedUVs(TConstArrayView<FVector2D> UndistortedUVs) const;
 
-	/** Draw the displacement map associated with the current state to the DestinationTexture */
-	bool DrawDisplacementMap(UTextureRenderTarget2D* DestinationTexture);
+	/** Draw the undistortion displacement map associated with the current state to the DestinationTexture */
+	bool DrawUndistortionDisplacementMap(UTextureRenderTarget2D* DestinationTexture);
+
+	/** Draw the distortion displacement map associated with the current state to the DestinationTexture */
+	bool DrawDistortionDisplacementMap(UTextureRenderTarget2D* DestinationTexture);
 
 	/** Draws the current distortion state to the internal displacement map */
 	void ProcessCurrentDistortion();
@@ -128,13 +135,21 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
 	float OverscanFactor = 1.0f;
 
-	/** MID used to draw a UV distortion displacement map to the DisplacementMapRT */
+	/** MID used to draw the undistortion displacement map */
 	UPROPERTY(Transient)
-	UMaterialInstanceDynamic* DisplacementMapMID = nullptr;
+	UMaterialInstanceDynamic* UndistortionDisplacementMapMID = nullptr;
 
-	/** Render Target representing a UV distortion displacement map */
+	/** MID used to draw the distortion displacement map */
 	UPROPERTY(Transient)
-	UTextureRenderTarget2D* DisplacementMapRT = nullptr;
+	UMaterialInstanceDynamic* DistortionDisplacementMapMID = nullptr;
+
+	/** UV displacement map used to undistort a distorted image */
+	UPROPERTY(Transient)
+	UTextureRenderTarget2D* UndistortionDisplacementMapRT = nullptr;
+
+	/** UV displacement map used to distort an undistorted image */
+	UPROPERTY(Transient)
+	UTextureRenderTarget2D* DistortionDisplacementMapRT = nullptr;
 
 private:
 	static constexpr uint32 DisplacementMapWidth = 256;

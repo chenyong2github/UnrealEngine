@@ -38,8 +38,11 @@ public:
 	 */
 	ULensFile* GetStartupLensFile() const;
 
-	/** Get the default MaterialInterface used by the input Model Handler class to write the distortion UV displacement map */
-	UMaterialInterface* GetDefaultDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
+	/** Get the default MaterialInterface used by the input Model Handler class to write the undistortion displacement map */
+	UMaterialInterface* GetDefaultUndistortionDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
+
+	/** Get the default MaterialInterface used by the input Model Handler class to write the distortion displacement map */
+	UMaterialInterface* GetDefaultDistortionDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
 
 	/** Get the default MaterialInterface used by the input Model Handler class to apply the post-process lens distortion effect */
 	UMaterialInterface* GetDefaultDistortionMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const;
@@ -58,7 +61,11 @@ private:
 
 	/** Map of Lens Distortion Model Handler classes to the default displacement map material used by that class */
 	UPROPERTY(config)
-	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultDisplacementMaterials;
+	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultUndistortionDisplacementMaterials;
+
+	/** Map of Lens Distortion Model Handler classes to the default displacement map material used by that class */
+	UPROPERTY(config)
+	TMap<TSubclassOf<ULensDistortionModelHandlerBase>, TSoftObjectPtr<UMaterialInterface>> DefaultDistortionDisplacementMaterials;
 
 	/** Map of Lens Distortion Model Handler classes to the default lens distortion post-process material used by that class */
 	UPROPERTY(config)
