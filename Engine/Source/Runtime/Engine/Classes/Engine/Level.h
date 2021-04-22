@@ -1048,6 +1048,19 @@ public:
 	ENGINE_API void ConvertAllActorsToPackaging(bool bExternal);
 
 	/**
+	* Get a properly formated external actor package instance name for this level package to be used in FLinkerInstancingContext
+	* @return external actor package instance name
+	*/
+	static ENGINE_API FString GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorShortPackageName);
+
+	/**
+	 * Get the list of (on disk) external actor packages associated with this external actors path
+	 * @param ExternalActorsPath the path to scan for external actor packages
+	 * @return Array of packages associated with this level
+	 */
+	static ENGINE_API TArray<FString> GetOnDiskExternalActorPackages(const FString& ExternalActorsPath);
+
+	/**
 	 * Get the list of (on disk) external actor packages associated with this level
 	 * @return Array of packages associated with this level
 	 */

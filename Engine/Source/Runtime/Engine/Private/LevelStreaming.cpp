@@ -1160,18 +1160,39 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
-
-			// When loading an instanced package we want to avoid it being processed as an asset so we make sure to set it RF_Transient.
-			// If the package is not created here, it will get created by the LoadPackageAsync call. 
-			// Gameworld packages (PIE) are already ignored so we can let LoadPackageAsync do its job.
-			if (!bIsGameWorld && DesiredPackageName != NAME_None && PackagePath.GetPackageFName() != DesiredPackageName)
+			
+			FLinkerInstancingContext* InstancingContextPtr = nullptr;
+#if WITH_EDITOR
+			FLinkerInstancingContext InstancingContext;
+			if (DesiredPackageName != NAME_None && PackagePath.GetPackageFName() != DesiredPackageName)
 			{
-				UPackage* NewPackage = CreatePackage(*DesiredPackageName.ToString());
-				NewPackage->SetFlags(RF_Transient);
+				// When loading an instanced package we want to avoid it being processed as an asset so we make sure to set it RF_Transient.
+				// If the package is not created here, it will get created by the LoadPackageAsync call. 
+				// Gameworld packages (PIE) are already ignored so we can let LoadPackageAsync do its job.
+				if (!bIsGameWorld)
+				{
+					UPackage* NewPackage = CreatePackage(*DesiredPackageName.ToString());
+					NewPackage->SetFlags(RF_Transient);
+				}
+
+				// When loading an instanced package we need to build an instancing context in case non external actors part of the level are 
+				// pulling on external actors.
+				UWorld* World = GetTypedOuter<UWorld>();
+				FString ExternalActorsPath = ULevel::GetExternalActorsPath(PackagePath.GetPackageName());
+				TArray<FString> ActorPackageNames = ULevel::GetOnDiskExternalActorPackages(ExternalActorsPath);
+								
+				InstancingContextPtr = &InstancingContext;
+				for (const FString& ActorPackageName : ActorPackageNames)
+				{
+					const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
+					const FString InstancedName = ULevel::GetExternalActorPackageInstanceName(DesiredPackageName.ToString(), ActorShortPackageName);
+				
+					InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
+				}
 			}
+#endif
 
-
-			LoadPackageAsync(PackagePath, DesiredPackageName, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), nullptr, PackageFlags, PIEInstanceID, GetPriority());
+			LoadPackageAsync(PackagePath, DesiredPackageName, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), nullptr, PackageFlags, PIEInstanceID, GetPriority(), InstancingContextPtr);
 
 			// streamingServer: server loads everything?
 			// Editor immediately blocks on load and we also block if background level streaming is disabled.

@@ -790,7 +790,7 @@ void ULevel::PostLoad()
 			if (bInstanced)
 			{
 				const FString ActorShortPackageName = FPackageName::GetShortName(ActorPackageName);
-				const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorShortPackageName);
+				const FString InstancedName = GetExternalActorPackageInstanceName(LevelPackage->GetName(), ActorShortPackageName);
 				InstancePackageNames.Add(InstancedName);
 
 				InstancingContext.AddMapping(FName(*ActorPackageName), FName(*InstancedName));
@@ -2468,11 +2468,14 @@ void ULevel::ConvertAllActorsToPackaging(bool bExternal)
 	}
 }
 
-TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
+FString ULevel::GetExternalActorPackageInstanceName(const FString& LevelPackageName, const FString& ActorShortPackageName)
+{
+	return FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackageName, *ActorShortPackageName);
+}
+
+TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& ExternalActorsPath)
 {
 	TArray<FString> ActorPackageNames;
-	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->OriginalWorldName == NAME_None ? World->GetName() : World->OriginalWorldName.ToString());
 	if (!ExternalActorsPath.IsEmpty())
 	{
 		IFileManager::Get().IterateDirectoryRecursively(*FPackageName::LongPackageNameToFilename(ExternalActorsPath), [&ActorPackageNames](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
@@ -2489,6 +2492,13 @@ TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
 			});
 	}
 	return ActorPackageNames;
+}
+
+TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
+{
+	UWorld* World = GetTypedOuter<UWorld>();
+	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->OriginalWorldName == NAME_None ? World->GetName() : World->OriginalWorldName.ToString());
+	return GetOnDiskExternalActorPackages(ExternalActorsPath);
 }
 
 TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
