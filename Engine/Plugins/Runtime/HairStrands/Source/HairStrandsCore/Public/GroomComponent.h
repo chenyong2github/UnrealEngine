@@ -175,8 +175,8 @@ public:
 
 	/** Hair group instance access */
 	uint32 GetGroupCount() const { return HairGroupInstances.Num();  }
-	FHairGroupInstance* GetGroupInstance(uint32 Index) { return Index < uint32(HairGroupInstances.Num()) ? HairGroupInstances[Index] : nullptr; }
-	const FHairGroupInstance* GetGroupInstance(uint32 Index) const { return Index < uint32(HairGroupInstances.Num()) ? HairGroupInstances[Index] : nullptr; } 
+	FHairGroupInstance* GetGroupInstance(int32 Index) { return Index >= 0 && Index < HairGroupInstances.Num() ? HairGroupInstances[Index] : nullptr; }
+	const FHairGroupInstance* GetGroupInstance(int32 Index) const { return Index >= 0 && Index < HairGroupInstances.Num() ? HairGroupInstances[Index] : nullptr; } 
 
 	//~ Begin UPrimitiveComponent Interface
 	EHairGeometryType GetMaterialGeometryType(int32 ElementIndex) const;
