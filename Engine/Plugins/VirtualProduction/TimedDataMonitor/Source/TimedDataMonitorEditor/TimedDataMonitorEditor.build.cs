@@ -20,7 +20,6 @@ public class TimedDataMonitorEditor : ModuleRules
 				"SlateCore",
 				"TimedDataMonitor",
 				"TimeManagement",
-				"TimeManagementEditor",
 				"UnrealEd",
 				"WorkspaceMenuStructure",
 			});
