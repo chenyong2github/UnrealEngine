@@ -5,7 +5,8 @@
 #include "ConcertTakeRecorderMessages.h"
 #include "ConcertMessages.h"
 #include "Delegates/IDelegateInstance.h"
-
+#include "UObject/StrongObjectPtr.h"
+#include "TakePreset.h"
 #include "ConcertSyncClient/Public/IConcertClientTransactionBridge.h"
 
 #include "ConcertTakeRecorderClientSessionCustomization.h"
@@ -109,6 +110,7 @@ private:
 		FString LastStoppedTake;
 	} TakeRecorderState;
 
+	TStrongObjectPtr<UTakePreset> Preset;
 	TSharedPtr<FConcertTakeRecorderClientSessionCustomization> Customization;
 
 	/** Delegate for any changes in client state. */
