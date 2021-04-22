@@ -168,7 +168,10 @@ void UMovieSceneDMXLibraryTrackRecorder::FinalizeTrackImpl()
 			DMXLibrarySection->SetRange(DefaultSectionLength.GetValue());
 		}
 
-		// Activate the channel
+		// Rebuild the section's cache so it can be played back right away
+		DMXLibrarySection->RebuildPlaybackCache();
+
+		// Activate the section
 		DMXLibrarySection->SetIsActive(true);
 	}
 }
