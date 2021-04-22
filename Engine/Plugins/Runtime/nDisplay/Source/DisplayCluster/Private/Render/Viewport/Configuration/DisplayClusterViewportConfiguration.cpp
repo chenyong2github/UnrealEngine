@@ -172,6 +172,8 @@ void FDisplayClusterViewportConfiguration::ImplUpdateRenderFrameConfiguration(co
 	// [not implemented yet] Experimental
 	RenderFrameSettings.bShouldUseParentViewportRenderFamily = InRenderFrameConfiguration.bShouldUseParentViewportRenderFamily;
 
+	RenderFrameSettings.bIsRenderingInEditor = false;
+
 #if WITH_EDITOR
 	// Use special renderin mode, if DCRenderDevice not used right now
 	const bool bIsNDisplayClusterMode = (GEngine->StereoRenderingDevice.IsValid() && GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster);
