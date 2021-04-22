@@ -149,10 +149,10 @@ void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InS
 		// on session start.
 		//
 		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-		UTakePreset* TakePreset = UTakePreset::AllocateTransientPreset(nullptr);
-		check(TakePreset);
-		TakePreset->CreateLevelSequence();
-		ULevelSequence *LevelSequence = TakePreset->GetLevelSequence();
+		Preset = TStrongObjectPtr<UTakePreset>(UTakePreset::AllocateTransientPreset(nullptr));
+		check(Preset);
+		Preset->CreateLevelSequence();
+		ULevelSequence *LevelSequence = Preset->GetLevelSequence();
 		check(LevelSequence);
 		LevelSequence->FindOrAddMetaData<UTakeRecorderSources>();
 	}
@@ -196,6 +196,7 @@ void FConcertTakeRecorderManager::Unregister(TSharedRef<IConcertClientSession> I
 		Session->UnregisterCustomEventHandler<FConcertMultiUserSyncChangeEvent>(this);
 		Session->UnregisterCustomEventHandler<FConcertRecordSettingsChangeEvent>(this);
 	}
+	Preset.Reset();
 	WeakSession.Reset();
 }
 
@@ -425,7 +426,7 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 		TakeRecorderState.LastStartedTake = InEvent.TakeName;
 
 		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-		UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
+		UTakePreset* TakePreset = Preset.Get();
 		if (bConcertUseTakePresetPathForRecord > 0)
 		{
 			TakePreset = Cast<UTakePreset>(StaticLoadObject(UObject::StaticClass(), nullptr, *InEvent.TakePresetPath));
@@ -792,7 +793,7 @@ ETransactionFilterResult FConcertTakeRecorderManager::ShouldObjectBeTransacted(U
 {
 	UConcertSessionRecordSettings const* RecordSettings = GetDefault<UConcertSessionRecordSettings>();
 	ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
-	UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
+	UTakePreset* TakePreset = Preset.Get();
 	if (!WeakSession.IsValid()
 		|| InPackage == nullptr
 		|| TakePreset == nullptr
