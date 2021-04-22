@@ -32,10 +32,10 @@ static TAutoConsoleVariable<float> CVarContactShadowLength(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
-	TEXT( "r.Shadow.Virtual.NormalOffsetWorld" ),
-	0.1f,
-	TEXT( "World space offset along surface normal for shadow lookup." )
+static TAutoConsoleVariable<float> CVarNormalBias(
+	TEXT( "r.Shadow.Virtual.NormalBias" ),
+	0.5f,
+	TEXT( "Receiver offset along surface normal for shadow lookup. Scaled by distance to camera." )
 	TEXT( "Higher values avoid artifacts on surfaces nearly parallel to the light, but also visibility offset shadows and increase the chance of hitting unmapped pages." ),
 	ECVF_RenderThreadSafe
 );
@@ -188,7 +188,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ContactShadowLength)
-		SHADER_PARAMETER(float, NormalOffsetWorld)
+		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER(uint32, SMRTRayCount)
 		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
@@ -239,6 +239,11 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjection", SF_Compute);
 
+static float GetNormalBiasForShader()
+{
+	return CVarNormalBias.GetValueOnRenderThread() / 1000.0f;
+}
+
 extern int32 GVirtualShadowMapAtomicWrites;
 
 static void RenderVirtualShadowMapProjectionCommon(
@@ -262,7 +267,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
-	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
+	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 	if (bHasHairStrandsData)

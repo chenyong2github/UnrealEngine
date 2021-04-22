@@ -179,7 +179,7 @@ float4 ComputeRandom4(uint2 PixelPosition)
 
 int4 ProjectionRect;
 float ContactShadowLength;
-float NormalOffsetWorld;			// Normal offset in world space
+float NormalBias;
 int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
@@ -218,6 +218,9 @@ FProjectLightResult ProjectLight(
 	const half Noise)
 {
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
+	// NOTE: If View.PreViewTranslation is guaranteed to be the camera position we can simplify
+	const float DistanceToCamera = length(TranslatedWorldPosition - View.TranslatedWorldCameraOrigin);
+	const float NormalBiasLength = max(0.01f, NormalBias * DistanceToCamera / View.ViewToClip._11);
 
 #if DIRECTIONAL_LIGHT
 	uint LightType = LIGHT_TYPE_DIRECTIONAL;
@@ -247,8 +250,8 @@ FProjectLightResult ProjectLight(
 	{
 		const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
 		const half3 EstimatedGeoWorldNormal = bIsHair ? L : GBufferNormal;
-
-		TranslatedWorldPosition += EstimatedGeoWorldNormal * lerp(NormalOffsetWorld, 0.01, saturate(dot(EstimatedGeoWorldNormal, L)));
+		
+		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalBiasLength;
 
 		if (SMRTRayCount > 0)
 		{
@@ -299,7 +302,7 @@ FProjectLightResult ProjectLight(
 		// depth buffer contains fully opaque depth, which create false positive intersection resulting in wrong self shadowing)
 		if (ContactShadowLengthWorld > 0.0f && !bIsHair)
 		{
-			half ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);		
+			half ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);
 			if (ContactShadowHitDistance >= 0.0f)
 			{
 				ShadowFactor = 0.0f;
