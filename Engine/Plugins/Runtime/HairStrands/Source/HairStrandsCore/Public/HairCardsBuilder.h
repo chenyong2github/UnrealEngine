@@ -20,8 +20,10 @@ namespace FHairCardsBuilder
 	bool ImportGeometry(
 		const UStaticMesh* StaticMesh,
 		FHairCardsDatas& OutCards,
+		FHairCardsBulkData& OutBulk,
 		FHairStrandsDatas& OutGuides,
-		FHairCardsInterpolationDatas& OutInterpolationData);
+		FHairCardsInterpolationDatas& OutInterpolationData,
+		FHairCardsInterpolationBulkData& OutInterpolationBulkData);
 
 	void ExportGeometry(
 		const FHairCardsDatas& InCardsData, 
@@ -29,12 +31,13 @@ namespace FHairCardsBuilder
 
 	void BuildGeometry(
 		const FString& LODName,
-		const struct FHairStrandsDatas& In,
+		const struct FHairStrandsDatas& InRen,
 		const struct FHairStrandsDatas& InSim,
 		const struct FHairGroupsProceduralCards& Settings,
 		FHairCardsProceduralDatas& Out,
 		FHairStrandsDatas& OutGuides,
 		FHairCardsInterpolationDatas& OutInterpolation,
+		FHairCardsInterpolationBulkData& OutInterpolationBulk,
 		FHairGroupCardsTextures& OutTextures);
 
 	void BuildTextureAtlas(
@@ -43,7 +46,7 @@ namespace FHairCardsBuilder
 		FHairCardsProceduralResource* AtlasResource,
 		FHairGroupCardsTextures* Textures);
 
-	void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out);
+	void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out, FHairCardsBulkData& OutBulk);
 
 	FString GetVersion();
 }
@@ -53,11 +56,13 @@ namespace FHairMeshesBuilder
 	void BuildGeometry(
 		const struct FHairStrandsDatas& In,
 		const struct FHairStrandsDatas& InSim,
-		FHairMeshesDatas& Out);
+		FHairMeshesDatas& Out,
+		FHairMeshesBulkData& OutBulk);
 
 	void ImportGeometry(
 		const UStaticMesh* StaticMesh,
-		FHairMeshesDatas& Out);
+		FHairMeshesDatas& Out,
+		FHairMeshesBulkData& OutBulk);
 
 	FString GetVersion();
 }

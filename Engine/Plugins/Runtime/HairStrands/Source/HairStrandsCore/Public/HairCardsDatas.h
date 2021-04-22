@@ -240,27 +240,47 @@ struct FHairCardsGeometry
 	}
 };
 
+struct FHairCardsBulkData;
 struct FHairCardsDatas
 {
-	bool IsValid() const { return RenderData.Positions.Num() > 0; }
+	bool IsValid() const { return Cards.Positions.Num() > 0; }
 
 	FHairCardsGeometry Cards;
+
+	void Serialize(FArchive& Ar, FHairCardsBulkData& BulkData);
+};
+
+struct FHairCardsBulkData
+{
+	bool IsValid() const { return Positions.Num() > 0; }
+	void Reset()
+	{
+		DepthTexture = nullptr;
+		TangentTexture = nullptr;
+		CoverageTexture = nullptr;
+		AttributeTexture = nullptr;
+
+		Positions.Empty();
+		Normals.Empty();
+		UVs.Empty();
+		Indices.Empty();
+	}
+
+	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
+	uint32 GetNumVertices() const { return Positions.Num(); }
 
 	UTexture2D* DepthTexture = nullptr;
 	UTexture2D* TangentTexture = nullptr;
 	UTexture2D* CoverageTexture = nullptr;
 	UTexture2D* AttributeTexture = nullptr;
 
-	struct FRenderData
-	{
-		TArray<FHairCardsPositionFormat::Type> Positions;
-		TArray<FHairCardsNormalFormat::Type> Normals;
-		TArray<FHairCardsUVFormat::Type> UVs;
-		TArray<FHairCardsIndexFormat::Type> Indices;
-	} RenderData;
-};
+	TArray<FHairCardsPositionFormat::Type> Positions;
+	TArray<FHairCardsNormalFormat::Type> Normals;
+	TArray<FHairCardsUVFormat::Type> UVs;
+	TArray<FHairCardsIndexFormat::Type> Indices;
 
-FArchive& operator<<(FArchive& Ar, FHairCardsDatas& CardData);
+	void Serialize(FArchive& Ar);
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair Cards (Procedural generation)
@@ -406,30 +426,31 @@ struct FHairMeshes
 		BoundingBox.Init();
 	}
 
-	uint32 GetNumTriangles() const
-	{
-		return Indices.Num() / 3;
-	}
-
-	uint32 GetNumVertices() const
-	{
-		return Positions.Num();
-	}
+	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
+	uint32 GetNumVertices() const { return Positions.Num(); }
 };
+
+struct FHairMeshesBulkData;
 
 struct FHairMeshesDatas
 {
-	bool IsValid() const { return RenderData.Positions.Num() > 0; }
+	bool IsValid() const { return Meshes.Positions.Num() > 0; }
 
 	FHairMeshes Meshes;
-
-	struct FRenderData
-	{
-		TArray<FHairCardsPositionFormat::Type> Positions;
-		TArray<FHairCardsNormalFormat::Type> Normals;
-		TArray<FHairCardsUVFormat::Type> UVs;
-		TArray<FHairCardsIndexFormat::Type> Indices;		
-	} RenderData;
+	void Serialize(FArchive& Ar, FHairMeshesBulkData& InBulkData);
 };
 
-FArchive& operator<<(FArchive& Ar, FHairMeshesDatas& MeshData);
+struct FHairMeshesBulkData
+{
+	bool IsValid() const { return Positions.Num() > 0; }
+
+	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
+	uint32 GetNumVertices() const { return Positions.Num(); }
+
+	TArray<FHairCardsPositionFormat::Type> Positions;
+	TArray<FHairCardsNormalFormat::Type> Normals;
+	TArray<FHairCardsUVFormat::Type> UVs;
+	TArray<FHairCardsIndexFormat::Type> Indices;
+	void Serialize(FArchive& Ar);
+};
+

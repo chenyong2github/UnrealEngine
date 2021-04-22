@@ -50,7 +50,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		bool IsValid() const { return RestResource != nullptr; }
 
 		// Data - Render & sim (rest) data
-		FHairStrandsDatas* Data = nullptr;
+		FHairStrandsBulkData* Data = nullptr;
 
 		// Resources - Strands rest position data for sim & render strands
 		// Resources - Strands deformed position data for sim & render strands
@@ -69,7 +69,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	{
 		// Data - Interpolation data (weights/Id/...) for transfering sim strands (i.e. guide) motion to render strands
 		// Resources - Strands deformed position data for sim & render strands
-		FHairStrandsInterpolationDatas* InterpolationData = nullptr;
 		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
 
 		EHairInterpolationType HairInterpolationType = EHairInterpolationType::NoneSkinning;
@@ -117,7 +116,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			bool IsValid() const { return RestResource != nullptr; }
 
 			// Data
-			FHairCardsDatas* Data = nullptr;
+			FHairCardsBulkData* Data = nullptr;
 
 			// Resources
 			FHairCardsRestResource* RestResource = nullptr;
@@ -128,7 +127,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			#endif
 
 			// Interpolation data/resources
-			FHairCardsInterpolationDatas* InterpolationData = nullptr;
 			FHairCardsInterpolationResource* InterpolationResource = nullptr;
 
 			FStrandsBaseWithInterpolation Guides;
@@ -157,7 +155,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			bool IsValid() const { return RestResource != nullptr; }
 
 			// Data
-			FHairMeshesDatas* Data = nullptr;
+			FHairMeshesBulkData* Data = nullptr;
 
 			// Resources
 			FHairMeshesRestResource* RestResource = nullptr;

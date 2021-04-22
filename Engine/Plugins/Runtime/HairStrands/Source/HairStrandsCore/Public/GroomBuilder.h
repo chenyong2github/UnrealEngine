@@ -15,6 +15,8 @@ struct FProcessedHairDescription;
 struct FHairGroupsInterpolation;
 struct FHairStrandsInterpolationDatas;
 struct FHairInterpolationSettings;
+struct FHairStrandsBulkData;
+struct FHairStrandsInterpolationBulkData;
 class FHairDescription;
 class UGroomAsset;
 
@@ -27,7 +29,18 @@ struct HAIRSTRANDSCORE_API FGroomBuilder
 
 	static void BuildData(FHairGroupData& GroupData, const FHairGroupsInterpolation& InterpolationSettings, uint32 GroupIndex);
 	static void BuildData(UGroomAsset* GroomAsset);
-	static void BuildData(FHairStrandsDatas& RenData, FHairStrandsDatas& SimData, FHairStrandsInterpolationDatas& InterpolationData, const FHairInterpolationSettings& InterpolationSettings, const bool bBuildRen, const bool bBuildSim, const bool bBuildInterpolation, uint32 Seed);
+	static void BuildData(
+		const FHairStrandsDatas& RenData,
+		const FHairStrandsDatas& SimData,
+		FHairStrandsBulkData& RenBulkData,
+		FHairStrandsBulkData& SimBulkData,
+		FHairStrandsInterpolationDatas& InterpolationData,
+		FHairStrandsInterpolationBulkData& InterpolationBulkData,
+		const FHairInterpolationSettings& InterpolationSettings,
+		const bool bBuildRen,
+		const bool bBuildSim,
+		const bool bBuildInterpolation,
+		uint32 Seed);
 
 	static bool BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex);
 	static bool BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset);

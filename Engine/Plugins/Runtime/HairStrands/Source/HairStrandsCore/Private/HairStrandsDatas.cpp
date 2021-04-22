@@ -170,13 +170,15 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 	return Ar;
 }
 
-void FHairStrandsInterpolationDatas::FRenderData::Serialize(FArchive& Ar)
+void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Interpolation0;
 	Ar << Interpolation1;
+	// TODO add here SimRootIndices serializaztion once changed.
+//	Ar << SimRootPointIndex;
 }
 
-void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar)
+void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar, FHairStrandsInterpolationBulkData& BulkData)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
@@ -198,7 +200,7 @@ void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar)
 		}
 	}
 
-	RenderData.Serialize(Ar);
+	BulkData.Serialize(Ar);
 }
 
 void FHairStrandsPoints::Serialize(FArchive& Ar)
@@ -232,7 +234,7 @@ void FHairStrandsCurves::Serialize(FArchive& Ar)
 	Ar << MaxRadius;
 }
 
-void FHairStrandsDatas::FRenderData::Serialize(FArchive& Ar)
+void FHairStrandsBulkData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
@@ -265,14 +267,23 @@ void FHairStrandsDatas::FRenderData::Serialize(FArchive& Ar)
 	}
 }
 
-void FHairStrandsDatas::Serialize(FArchive& Ar)
+void FHairStrandsDatas::Serialize(FArchive& Ar, FHairStrandsBulkData& BulkData)
 {
 	StrandsPoints.Serialize(Ar);
 	StrandsCurves.Serialize(Ar);
 	Ar << HairDensity;
 	Ar << BoundingBox;
 
-	RenderData.Serialize(Ar);
+	BulkData.Serialize(Ar);
+
+	if (Ar.IsLoading())
+	{
+		BulkData.CurveCount = StrandsCurves.Num();
+		BulkData.PointCount = StrandsPoints.Num();
+		BulkData.MaxLength  = StrandsCurves.MaxLength;
+		BulkData.MaxRadius  = StrandsCurves.MaxRadius;
+		BulkData.BoundingBox= BoundingBox;
+	}
 }
 
 void FHairStrandsDatas::Reset()

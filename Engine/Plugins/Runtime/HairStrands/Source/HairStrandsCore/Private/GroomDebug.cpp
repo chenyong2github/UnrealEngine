@@ -714,13 +714,13 @@ static void AddDrawDebugCardsGuidesPass(
 	Parameters->RenVertexCount = LOD.Guides.RestResource->GetVertexCount();
 	Parameters->SimVertexCount = Instance->Guides.RestResource->GetVertexCount();
 
-	Parameters->RenRestOffset = LOD.Guides.RestResource->PositionOffset;
+	Parameters->RenRestOffset = LOD.Guides.RestResource->GetPositionOffset();
 	Parameters->RenRestPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.RestResource->PositionBuffer);
 
 	Parameters->RenDeformedOffset = LOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);
 	Parameters->RenDeformedPosition = RegisterAsSRV(GraphBuilder, LOD.Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current));
 
-	Parameters->SimRestOffset = Instance->Guides.RestResource->PositionOffset;
+	Parameters->SimRestOffset = Instance->Guides.RestResource->GetPositionOffset();
 	Parameters->SimRestPosition = RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer);
 
 	Parameters->SimDeformedOffset = Instance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current);

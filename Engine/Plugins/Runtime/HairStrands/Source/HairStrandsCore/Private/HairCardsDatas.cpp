@@ -42,22 +42,18 @@ FArchive& operator<<(FArchive& Ar, FHairCardsGeometry& CardGeometry)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairCardsDatas::FRenderData& CardRenderData)
+void FHairCardsBulkData::Serialize(FArchive& Ar)
 {
-	Ar << CardRenderData.Positions;
-	Ar << CardRenderData.Normals;
-	Ar << CardRenderData.UVs;
-	Ar << CardRenderData.Indices;
-
-	return Ar;
+	Ar << Positions;
+	Ar << Normals;
+	Ar << UVs;
+	Ar << Indices;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairCardsDatas& CardData)
+void FHairCardsDatas::Serialize(FArchive& Ar, FHairCardsBulkData& BulkData)
 {
-	Ar << CardData.Cards;
-	Ar << CardData.RenderData;
-
-	return Ar;
+	Ar << Cards;
+	BulkData.Serialize(Ar);
 }
 
 FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationVertex& CardInterpVertex)
@@ -99,20 +95,17 @@ FArchive& operator<<(FArchive& Ar, FHairMeshes& HairMesh)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairMeshesDatas::FRenderData& MeshRenderData)
+void FHairMeshesDatas::Serialize(FArchive& Ar, FHairMeshesBulkData& InBulkData)
 {
-	Ar << MeshRenderData.Positions;
-	Ar << MeshRenderData.Normals;
-	Ar << MeshRenderData.UVs;
-	Ar << MeshRenderData.Indices;
-
-	return Ar;
+	Ar << Meshes;
+	InBulkData.Serialize(Ar);
 }
 
-FArchive& operator<<(FArchive& Ar, FHairMeshesDatas& MeshData)
+void FHairMeshesBulkData::Serialize(FArchive& Ar)
 {
-	Ar << MeshData.Meshes;
-	Ar << MeshData.RenderData;
-
-	return Ar;
+	Ar << Positions;
+	Ar << Normals;
+	Ar << UVs;
+	Ar << Indices;
 }
+

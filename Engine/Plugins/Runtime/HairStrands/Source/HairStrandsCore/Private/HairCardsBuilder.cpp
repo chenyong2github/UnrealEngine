@@ -3163,7 +3163,7 @@ namespace HairCards
 
 					const float StrandsU = InStrands.StrandsPoints.PointsCoordU[PointIndex];
 					const FVector2D RootUV = InStrands.StrandsCurves.CurvesRootUV[CurveIndex];
-					const float Seed = float(InStrands.RenderData.Attributes[PointIndex].Seed) / 255.f;
+					const float Seed = 0.f; // TODO float(InStrands.RenderData.Attributes[PointIndex].Seed) / 255.f;
 
 					const FVector& P0_Rest = InStrands.StrandsPoints.PointsPosition[PointIndex];
 					const float Radius = InStrands.StrandsPoints.PointsRadius[PointIndex] * InStrands.StrandsCurves.MaxRadius;
@@ -3383,6 +3383,7 @@ void BuildGeometry(
 	FHairCardsProceduralDatas& Out,
 	FHairStrandsDatas& OutGuides,
 	FHairCardsInterpolationDatas& OutInterpolation,
+	FHairCardsInterpolationBulkData& OutInterpolationBulk,
 	FHairGroupCardsTextures& OutTextures)
 {
 	// Basic algo:
@@ -3529,7 +3530,7 @@ void BuildGeometry(
 	}
 
 	// Interpolation data
-	OutInterpolation.RenderData.Interpolation.SetNum(PointCount);
+	OutInterpolationBulk.Interpolation.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
 		const uint32 VertexIndex = OutInterpolation.PointsSimCurvesVertexIndex[PointIt];
@@ -3537,7 +3538,7 @@ void BuildGeometry(
 		FHairCardsInterpolationVertex PackedData;
 		PackedData.VertexIndex = VertexIndex;
 		PackedData.VertexLerp  = FMath::Clamp(uint32(VertexLerp * 0xFF), 0u, 0xFFu);
-		OutInterpolation.RenderData.Interpolation[PointIt] = PackedData;
+		OutInterpolationBulk.Interpolation[PointIt] = PackedData;
 	}
 }
 
@@ -3563,8 +3564,10 @@ void SanitizeMeshDescription(FMeshDescription* MeshDescription)
 bool ImportGeometry(
 	const UStaticMesh* StaticMesh,
 	FHairCardsDatas& Out,
+	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
-	FHairCardsInterpolationDatas& OutInterpolationData)
+	FHairCardsInterpolationDatas& OutInterpolationData,
+	FHairCardsInterpolationBulkData& OutInterpolationBulkData)
 {
 	const uint32 MeshLODIndex = 0;
 
@@ -3685,27 +3688,27 @@ bool ImportGeometry(
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Cards.Positions.Num();
-	Out.RenderData.Positions.SetNum(PointCount);
-	Out.RenderData.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
-	Out.RenderData.UVs.SetNum(PointCount);
+	OutBulk.Positions.SetNum(PointCount);
+	OutBulk.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
+	OutBulk.UVs.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
-		Out.RenderData.Positions[PointIt] = FVector4(Out.Cards.Positions[PointIt], 0);
-		Out.RenderData.UVs[PointIt] = Out.Cards.UVs[PointIt];
-		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
-		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], TangentFrameSigns[PointIt]);
+		OutBulk.Positions[PointIt] = FVector4(Out.Cards.Positions[PointIt], 0);
+		OutBulk.UVs[PointIt] = Out.Cards.UVs[PointIt];
+		OutBulk.Normals[PointIt * 2] = FVector4(Out.Cards.Tangents[PointIt], 0);
+		OutBulk.Normals[PointIt * 2 + 1] = FVector4(Out.Cards.Normals[PointIt], TangentFrameSigns[PointIt]);
 	}
 
-	Out.RenderData.Indices.SetNum(IndexCount);
+	OutBulk.Indices.SetNum(IndexCount);
 	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
 	{
-		Out.RenderData.Indices[IndexIt] = Out.Cards.Indices[IndexIt];
+		OutBulk.Indices[IndexIt] = Out.Cards.Indices[IndexIt];
 	}
 
-	Out.DepthTexture = nullptr;
-	Out.TangentTexture = nullptr;
-	Out.CoverageTexture = nullptr;
-	Out.AttributeTexture = nullptr;
+	OutBulk.DepthTexture = nullptr;
+	OutBulk.TangentTexture = nullptr;
+	OutBulk.CoverageTexture = nullptr;
+	OutBulk.AttributeTexture = nullptr;
 
 	TArray<float> CardLengths;
 	CardLengths.Reserve(Out.Cards.IndexOffsets.Num());
@@ -3715,7 +3718,7 @@ bool ImportGeometry(
 		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, OutInterpolationData, CardLengths);
 
 		// Fill out the interpolation data
-		OutInterpolationData.RenderData.Interpolation.SetNum(PointCount);
+		OutInterpolationBulkData.Interpolation.SetNum(PointCount);
 		for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 		{
 			const uint32 InterpVertexIndex = OutInterpolationData.PointsSimCurvesVertexIndex[PointIt];
@@ -3723,21 +3726,21 @@ bool ImportGeometry(
 			FHairCardsInterpolationVertex PackedData;
 			PackedData.VertexIndex = InterpVertexIndex;
 			PackedData.VertexLerp = FMath::Clamp(uint32(VertexLerp * 0xFF), 0u, 0xFFu);
-			OutInterpolationData.RenderData.Interpolation[PointIt] = PackedData;
+			OutInterpolationBulkData.Interpolation[PointIt] = PackedData;
 		}
 	}
 
 	return bSuccess;
 }
 
-void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out)
+void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out, FHairCardsBulkData& OutBulk)
 {
 	Out.Cards = In.Cards;
 
-	Out.RenderData.Positions = In.RenderData.Positions;
-	Out.RenderData.Normals = In.RenderData.Normals;
-	Out.RenderData.Indices = In.RenderData.Indices;
-	Out.RenderData.UVs = In.RenderData.UVs;
+	OutBulk.Positions = In.RenderData.Positions;
+	OutBulk.Normals = In.RenderData.Normals;
+	OutBulk.Indices = In.RenderData.Indices;
+	OutBulk.UVs = In.RenderData.UVs;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3899,7 +3902,8 @@ FString GetVersion()
 void BuildGeometry(
 	const FHairStrandsDatas& InRen,
 	const FHairStrandsDatas& InSim,
-	FHairMeshesDatas& Out)
+	FHairMeshesDatas& Out,
+	FHairMeshesBulkData& OutBulk)
 {
 	const FVector Center = InRen.BoundingBox.GetCenter();
 	const FVector Extent = InRen.BoundingBox.GetExtent();
@@ -3996,30 +4000,31 @@ void BuildGeometry(
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Meshes.Positions.Num();
-	Out.RenderData.Positions.SetNum(PointCount);
-	Out.RenderData.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
-	Out.RenderData.UVs.SetNum(PointCount);
+	OutBulk.Positions.SetNum(PointCount);
+	OutBulk.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
+	OutBulk.UVs.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
-		Out.RenderData.Positions[PointIt] = FVector4(Out.Meshes.Positions[PointIt], 0);
-		Out.RenderData.UVs[PointIt] = FVector4(Out.Meshes.UVs[PointIt].X, Out.Meshes.UVs[PointIt].Y, 0, 0);
-		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
-		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
+		OutBulk.Positions[PointIt] = FVector4(Out.Meshes.Positions[PointIt], 0);
+		OutBulk.UVs[PointIt] = FVector4(Out.Meshes.UVs[PointIt].X, Out.Meshes.UVs[PointIt].Y, 0, 0);
+		OutBulk.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
+		OutBulk.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
 
-		Out.Meshes.BoundingBox += Out.RenderData.Positions[PointIt];
+		Out.Meshes.BoundingBox += OutBulk.Positions[PointIt];
 	}
 
 	const uint32 IndexCount = Out.Meshes.Indices.Num();
-	Out.RenderData.Indices.SetNum(IndexCount);
+	OutBulk.Indices.SetNum(IndexCount);
 	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
 	{
-		Out.RenderData.Indices[IndexIt] = Out.Meshes.Indices[IndexIt];
+		OutBulk.Indices[IndexIt] = Out.Meshes.Indices[IndexIt];
 	}
 }
 
 void ImportGeometry(
 	const UStaticMesh* StaticMesh,
-	FHairMeshesDatas& Out)
+	FHairMeshesDatas& Out,
+	FHairMeshesBulkData& OutBulk)
 {
 	const uint32 MeshLODIndex = 0;
 
@@ -4052,21 +4057,21 @@ void ImportGeometry(
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Meshes.Positions.Num();
-	Out.RenderData.Positions.SetNum(PointCount);
-	Out.RenderData.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
-	Out.RenderData.UVs.SetNum(PointCount);
+	OutBulk.Positions.SetNum(PointCount);
+	OutBulk.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);
+	OutBulk.UVs.SetNum(PointCount);
 	for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 	{
-		Out.RenderData.Positions[PointIt] = FVector4(Out.Meshes.Positions[PointIt], 0);
-		Out.RenderData.UVs[PointIt] = FVector4(Out.Meshes.UVs[PointIt].X, Out.Meshes.UVs[PointIt].Y, 0, 0);
-		Out.RenderData.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
-		Out.RenderData.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
+		OutBulk.Positions[PointIt] = FVector4(Out.Meshes.Positions[PointIt], 0);
+		OutBulk.UVs[PointIt] = FVector4(Out.Meshes.UVs[PointIt].X, Out.Meshes.UVs[PointIt].Y, 0, 0);
+		OutBulk.Normals[PointIt * 2] = FVector4(Out.Meshes.Tangents[PointIt], 0);
+		OutBulk.Normals[PointIt * 2 + 1] = FVector4(Out.Meshes.Normals[PointIt], 1);
 	}
 
-	Out.RenderData.Indices.SetNum(IndexCount);
+	OutBulk.Indices.SetNum(IndexCount);
 	for (uint32 IndexIt = 0; IndexIt < IndexCount; ++IndexIt)
 	{
-		Out.RenderData.Indices[IndexIt] = Out.Meshes.Indices[IndexIt];
+		OutBulk.Indices[IndexIt] = Out.Meshes.Indices[IndexIt];
 	}
 }
 

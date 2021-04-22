@@ -80,12 +80,14 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		bool HasValidData() const	{ return Data.GetNumPoints() > 0;}
 		bool IsValid() const		{ return RestResource != nullptr; }
 		FHairStrandsDatas					Data;
+		FHairStrandsBulkData				BulkData;
 		FHairStrandsRestResource*			RestResource = nullptr;
 	};
 
 	struct FBaseWithInterpolation : FBase
 	{
 		FHairStrandsInterpolationDatas		InterpolationData;
+		FHairStrandsInterpolationBulkData	InterpolationBulkData;
 		FHairStrandsInterpolationResource*	InterpolationResource = nullptr;
 	};
 
@@ -180,6 +182,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			// Main data & Resources
 			FHairCardsDatas						Data;
+			FHairCardsBulkData					BulkData;
 			FHairCardsRestResource*				RestResource = nullptr;
 
 			// Procedural data & resources
@@ -188,6 +191,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 			// Interpolation data & resources
 			FHairCardsInterpolationDatas		InterpolationData;
+			FHairCardsInterpolationBulkData		InterpolationBulkData;
 			FHairCardsInterpolationResource*	InterpolationResource = nullptr;
 
 			FBaseWithInterpolation				Guides;
@@ -250,6 +254,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool HasValidData() const { return Data.IsValid(); }
 			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
 			FHairMeshesDatas Data;
+			FHairMeshesBulkData BulkData;
 			FHairMeshesRestResource* RestResource = nullptr;
 			#if RHI_RAYTRACING
 			FHairStrandsRaytracingResource* RaytracingResource = nullptr;

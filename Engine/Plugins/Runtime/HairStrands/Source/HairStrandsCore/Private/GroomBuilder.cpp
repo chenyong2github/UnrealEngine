@@ -204,7 +204,7 @@ namespace HairStrandsBuilder
 	}
 
 	/** Build the packed datas for gpu rendering/simulation */
-	void BuildRenderData(FHairStrandsDatas& HairStrands, const TArray<uint8>& RandomSeeds)
+	void BuildRenderData(const FHairStrandsDatas& HairStrands, const TArray<uint8>& RandomSeeds, FHairStrandsBulkData& OutBulkData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairStrandsBuilder::BuildRenderData);
 
@@ -213,9 +213,9 @@ namespace HairStrandsBuilder
 		if (!(NumCurves > 0 && NumPoints > 0))
 			return;
 
-		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = HairStrands.RenderData.Positions;
-		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = HairStrands.RenderData.Attributes;
-		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = HairStrands.RenderData.Materials;
+		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = OutBulkData.Positions;
+		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = OutBulkData.Attributes;
+		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = OutBulkData.Materials;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
@@ -223,8 +223,8 @@ namespace HairStrandsBuilder
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
-		FHairStrandsCurves& Curves = HairStrands.StrandsCurves;
-		FHairStrandsPoints& Points = HairStrands.StrandsPoints;
+		const FHairStrandsCurves& Curves = HairStrands.StrandsCurves;
+		const FHairStrandsPoints& Points = HairStrands.StrandsPoints;
 
 		const bool bSeedValid = RandomSeeds.Num() > 0;
 		for (uint32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
@@ -273,12 +273,18 @@ namespace HairStrandsBuilder
 				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 			}
 		}
+
+		OutBulkData.BoundingBox = HairStrands.BoundingBox;
+		OutBulkData.CurveCount = HairStrands.GetNumCurves();
+		OutBulkData.PointCount = HairStrands.GetNumPoints();
+		OutBulkData.MaxLength = HairStrands.StrandsCurves.MaxLength;
+		OutBulkData.MaxRadius = HairStrands.StrandsCurves.MaxRadius;
 	}
 
-	void BuildRenderData(FHairStrandsDatas& HairStrands)
+	void BuildRenderData(const FHairStrandsDatas& HairStrands, FHairStrandsBulkData& OutBulkData)
 	{
 		TArray<uint8> RandomSeeds;
-		BuildRenderData(HairStrands, RandomSeeds);
+		BuildRenderData(HairStrands, RandomSeeds, OutBulkData);
 	}
 
 } // namespace HairStrandsBuilder
@@ -1099,7 +1105,7 @@ namespace HairInterpolationBuilder
 	}
 
 	/** Build data for interpolation between simulation and rendering */
-	void BuildRenderData(FHairStrandsInterpolationDatas& HairInterpolation)
+	void BuildRenderData(const FHairStrandsInterpolationDatas& HairInterpolation, const FHairStrandsDatas& SimDatas, FHairStrandsInterpolationBulkData& OutBulkData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::BuildRenderData);
 
@@ -1110,8 +1116,8 @@ namespace HairInterpolationBuilder
 		auto LowerPart = [](uint32 Index) { return uint16(Index & 0xFFFF); };
 		auto UpperPart = [](uint32 Index) { return uint8((Index >> 16) & 0xFF); };
 
-		TArray<FHairStrandsInterpolation0Format::Type>& OutPointsInterpolation0 = HairInterpolation.RenderData.Interpolation0;
-		TArray<FHairStrandsInterpolation1Format::Type>& OutPointsInterpolation1 = HairInterpolation.RenderData.Interpolation1;
+		TArray<FHairStrandsInterpolation0Format::Type>& OutPointsInterpolation0 = OutBulkData.Interpolation0;
+		TArray<FHairStrandsInterpolation1Format::Type>& OutPointsInterpolation1 = OutBulkData.Interpolation1;
 
 		OutPointsInterpolation0.SetNum(PointCount * FHairStrandsInterpolation0Format::ComponentCount);
 		OutPointsInterpolation1.SetNum(PointCount * FHairStrandsInterpolation1Format::ComponentCount);
@@ -1139,6 +1145,18 @@ namespace HairInterpolationBuilder
 			OutInterp1.Pad0			= 0;
 			OutInterp1.Pad1			= 0;
 		}	
+
+		const uint32 RootCount = SimDatas.GetNumCurves();
+		OutBulkData.SimRootPointIndex.SetNum(SimDatas.GetNumPoints());
+		for (uint32 CurveIndex = 0; CurveIndex < RootCount; ++CurveIndex)
+		{
+			const uint16 SimPointCount = SimDatas.StrandsCurves.CurvesCount[CurveIndex];
+			const uint32 SimPointOffset = SimDatas.StrandsCurves.CurvesOffset[CurveIndex];
+			for (uint32 PointIndex = 0; PointIndex < SimPointCount; ++PointIndex)
+			{
+				OutBulkData.SimRootPointIndex[PointIndex + SimPointOffset] = SimPointOffset;
+			}
+		}		
 	}
 
 	/** Fill the GroomAsset with the interpolation data that exists in the HairDescription */
@@ -1620,9 +1638,12 @@ void FGroomBuilder::BuildData(UGroomAsset* GroomAsset)
 }
 
 void FGroomBuilder::BuildData(
-	FHairStrandsDatas& RenData,
-	FHairStrandsDatas& SimData,
+	const FHairStrandsDatas& RenData,
+	const FHairStrandsDatas& SimData,
+	FHairStrandsBulkData& RenBulkData,
+	FHairStrandsBulkData& SimBulkData,
 	FHairStrandsInterpolationDatas& InterpolationData,
+	FHairStrandsInterpolationBulkData& InterpolationBulkData,
 	const FHairInterpolationSettings& InterpolationSettings,
 	const bool bBuildRen,
 	const bool bBuildSim,
@@ -1638,8 +1659,8 @@ void FGroomBuilder::BuildData(
 	FGroomDataRandomizer Random(Seed, RenData.GetNumCurves(), SimData.GetNumCurves());
 
 	// Build RenderData for HairStrandsDatas
-	if (bBuildRen) { HairStrandsBuilder::BuildRenderData(RenData, Random.GetRenderCurveSeeds()); }
-	if (bBuildSim) { HairStrandsBuilder::BuildRenderData(SimData, Random.GetSimCurveSeeds()); }
+	if (bBuildRen) { HairStrandsBuilder::BuildRenderData(RenData, Random.GetRenderCurveSeeds(),	RenBulkData); }
+	if (bBuildSim) { HairStrandsBuilder::BuildRenderData(SimData, Random.GetSimCurveSeeds(),	SimBulkData); }
 
 	// Build Rendering data for InterpolationData
 	if (bBuildInterpolation)
@@ -1650,7 +1671,7 @@ void FGroomBuilder::BuildData(
 		{
 			HairInterpolationBuilder::BuildInterpolationData(InterpolationData, SimData, RenData, InterpolationSettings, Random.GetRandomGuideIndices());
 		}
-		HairInterpolationBuilder::BuildRenderData(InterpolationData);
+		HairInterpolationBuilder::BuildRenderData(InterpolationData, SimData, InterpolationBulkData);
 	}
 }
 
@@ -1659,7 +1680,10 @@ void FGroomBuilder::BuildData(FHairGroupData& GroupData, const FHairGroupsInterp
 	BuildData(
 		GroupData.Strands.Data,
 		GroupData.Guides.Data,
+		GroupData.Strands.BulkData,
+		GroupData.Guides.BulkData,
 		GroupData.Strands.InterpolationData,
+		GroupData.Strands.InterpolationBulkData,
 		InSettings.InterpolationSettings, true, true, true, GroupIndex);
 }
 

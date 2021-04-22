@@ -12,6 +12,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
 struct FPackedHairVertex
 {
+	typedef uint64 BulkType;
+
 	FFloat16 X, Y, Z;
 	uint8 ControlPointType : 2;
 	uint8 NormalizedRadius : 6;
@@ -20,6 +22,8 @@ struct FPackedHairVertex
 
 struct FPackedHairAttributeVertex
 {
+	typedef uint64 BulkType;
+
 	uint8 RootU;
 	uint8 RootV;
 	uint8 NormalizedLength;
@@ -33,6 +37,8 @@ struct FPackedHairAttributeVertex
 
 struct FHairMaterialVertex
 {
+	typedef uint32 BulkType;
+
 	// sRGB color space
 	uint8 BaseColorR;
 	uint8 BaseColorG;
@@ -43,6 +49,8 @@ struct FHairMaterialVertex
 
 struct FHairInterpolation0Vertex
 {
+	typedef uint64 BulkType;
+
 	uint16 Index0;
 	uint16 Index1;
 	uint16 Index2;
@@ -53,6 +61,8 @@ struct FHairInterpolation0Vertex
 
 struct FHairInterpolation1Vertex
 {
+	typedef uint64 BulkType;
+
 	uint8 VertexIndex0;
 	uint8 VertexIndex1;
 	uint8 VertexIndex2;
@@ -77,6 +87,7 @@ FArchive& operator<<(FArchive& Ar, FVector4_16& Vertex);
 struct FHairStrandsPositionFormat
 {
 	typedef FPackedHairVertex Type;
+	typedef FPackedHairVertex::BulkType BulkType;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UShort4;
@@ -95,6 +106,7 @@ struct FHairStrandsPositionOffsetFormat
 struct FHairStrandsAttributeFormat
 {
 	typedef FPackedHairAttributeVertex Type;
+	typedef FPackedHairAttributeVertex::BulkType BulkType;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UShort4;
@@ -104,6 +116,7 @@ struct FHairStrandsAttributeFormat
 struct FHairStrandsMaterialFormat
 {
 	typedef FHairMaterialVertex Type;
+	typedef FHairMaterialVertex::BulkType BulkType;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UByte4;
@@ -113,7 +126,7 @@ struct FHairStrandsMaterialFormat
 struct FHairStrandsTangentFormat
 {
 	typedef FPackedNormal Type;
-
+	typedef uint32 BulkType;
 	// TangentX & tangentZ are packed into 2 * PF_R8G8B8A8_SNORM
 	static const uint32 ComponentCount = 2;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -124,6 +137,7 @@ struct FHairStrandsTangentFormat
 struct FHairStrandsInterpolation0Format
 {
 	typedef FHairInterpolation0Vertex Type;
+	typedef uint64 BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -134,6 +148,7 @@ struct FHairStrandsInterpolation0Format
 struct FHairStrandsInterpolation1Format
 {
 	typedef FHairInterpolation1Vertex Type;
+	typedef uint64 BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -144,6 +159,7 @@ struct FHairStrandsInterpolation1Format
 struct FHairStrandsRootIndexFormat
 {
 	typedef uint32 Type;
+	typedef uint32 BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
@@ -239,11 +255,13 @@ struct FHairStrandsRootUtils
 	static float	 PackUVsToFloat(const FVector2D& UV);
 };
 
+struct FHairStrandsInterpolationBulkData;
+
 /** Hair strands points interpolation attributes */
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 {
 	/** Serialize the interpolated points */
-	void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar, FHairStrandsInterpolationBulkData& BulkData);
 
 	/** Set the number of interpolated points */
 	void SetNum(const uint32 NumPoints);
@@ -253,6 +271,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 
 	/** Get the number of interpolated points */
 	uint32 Num() const { return PointsSimCurvesVertexIndex.Num(); }
+
+	bool IsValid() const { return PointsSimCurvesIndex.Num() > 0; }
 
 	/** Simulation curve indices, ordered by closest influence */
 	TArray<FIntVector> PointsSimCurvesIndex;
@@ -265,14 +285,15 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 
 	/** Weight of vertex indices on simulation curve, ordered by closest influence */
 	TArray<FVector>	PointsSimCurvesVertexWeights;
+};
 
-	struct FRenderData
-	{
-		TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;
-		TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;
-
-		void Serialize(FArchive& Ar);
-	} RenderData;
+struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
+{
+	void Serialize(FArchive& Ar);
+	uint32 GetPointCount() const { return Interpolation0.Num(); };
+	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;
+	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;
+	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;
 };
 
 /** Hair strands points attribute */
@@ -346,11 +367,13 @@ struct HAIRSTRANDSCORE_API FHairStrandsCurves
 	float MaxRadius = 0;
 };
 
+struct FHairStrandsBulkData;
+
 /** Hair strands datas that are stored on CPU */
 struct HAIRSTRANDSCORE_API FHairStrandsDatas
 {
 	/** Serialize all the hair strands datas */
-	void Serialize(FArchive& Ar);
+	void Serialize(FArchive& Ar, FHairStrandsBulkData& BulkData);
 
 	/* Get the total number of points */
 	uint32 GetNumPoints() const { return StrandsPoints.Num(); }
@@ -359,6 +382,8 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 	uint32 GetNumCurves() const { return StrandsCurves.Num(); }
 
 	void Reset();
+
+	bool IsValid() const { return StrandsCurves.Num() > 0 && StrandsPoints.Num() > 0; }
 
 	/** List of all the strands points */
 	FHairStrandsPoints StrandsPoints;
@@ -371,16 +396,30 @@ struct HAIRSTRANDSCORE_API FHairStrandsDatas
 
 	/* Strands bounding box */
 	FBox BoundingBox;
+};
 
-	struct FRenderData
-	{
-		TArray<FHairStrandsPositionFormat::Type>	Positions;
-		TArray<FHairStrandsAttributeFormat::Type>	Attributes;
-		TArray<FHairStrandsMaterialFormat::Type>	Materials;
-		TArray<	FHairStrandsRootIndexFormat::Type>	RootIndices; // Vertex to strands Index
+struct HAIRSTRANDSCORE_API FHairStrandsBulkData
+{
+	void Serialize(FArchive& Ar);
 
-		void Serialize(FArchive& Ar);
-	} RenderData;
+	bool IsValid() const { return CurveCount > 0 && PointCount > 0;	}
+	
+	uint32 GetNumCurves() const { return CurveCount;  };
+	uint32 GetNumPoints() const { return PointCount; };
+	float  GetMaxLength() const	{ return MaxLength; };
+	float  GetMaxRadius() const { return MaxRadius; }
+	FVector GetPositionOffset() const { return BoundingBox.GetCenter(); }
+
+	uint32 CurveCount = 0;
+	uint32 PointCount = 0;
+	float MaxLength = 0;
+	float MaxRadius = 0;
+	FBox BoundingBox;
+
+	TArray<FHairStrandsPositionFormat::Type>	Positions;
+	TArray<FHairStrandsAttributeFormat::Type>	Attributes;
+	TArray<FHairStrandsMaterialFormat::Type>	Materials;
+	TArray<FHairStrandsRootIndexFormat::Type>	RootIndices; // Vertex to strands Index
 };
 
 /** Hair strands debug data */

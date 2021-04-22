@@ -747,7 +747,7 @@ public:
 			}
 			VertexFactory = (FVertexFactory*)Instance->Meshes.LODs[IntLODIndex].GetVertexFactory();
 			check(VertexFactory);
-			HairVertexCount = Instance->Meshes.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
+			HairVertexCount = Instance->Meshes.LODs[IntLODIndex].RestResource->GetPrimitiveCount() * 3;
 			MaxVertexIndex = HairVertexCount;
 			NumPrimitive = HairVertexCount / 3;
 			IndexBuffer = &Instance->Meshes.LODs[IntLODIndex].RestResource->IndexBuffer;
@@ -763,7 +763,7 @@ public:
 
 			VertexFactory = (FVertexFactory*)Instance->Cards.LODs[IntLODIndex].GetVertexFactory();
 			check(VertexFactory);
-			HairVertexCount = Instance->Cards.LODs[IntLODIndex].RestResource->PrimitiveCount * 3;
+			HairVertexCount = Instance->Cards.LODs[IntLODIndex].RestResource->GetPrimitiveCount() * 3;
 			MaxVertexIndex = HairVertexCount;
 			NumPrimitive = HairVertexCount / 3;
 			IndexBuffer = &Instance->Cards.LODs[IntLODIndex].RestResource->RestIndexBuffer;
@@ -1967,7 +1967,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		const bool bNeedGuides = GroupData.Guides.HasValidData() && (bHasNeedSimulation || bHasNeedGlobalDeformation || bPreviewMode);
 		if (bNeedGuides)
 		{
-			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
+			HairGroupInstance->Guides.Data = &GroupData.Guides.BulkData;
 
 			if (LocalBindingAsset)
 			{
@@ -1988,9 +1988,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			check(GroupData.Guides.RestResource);
 
 			// If guides are allocated, deformed resources are always needs since they are either used with simulation, or RBF deformation. Both are dynamics, and require deformed positions
-			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.Data.RenderData, true, HairGroupInstance->Guides.RestResource->PositionOffset, EHairStrandsResourcesType::Guides);
-			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Guides.RestResource->PositionOffset;
-			HairGroupInstance->Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Guides.RestResource->PositionOffset;
+			HairGroupInstance->Guides.DeformedResource = new FHairStrandsDeformedResource(GroupData.Guides.BulkData, true, EHairStrandsResourcesType::Guides);
 
 			// Initialize the simulation and the global deformation to its default behavior by setting it with LODIndex = -1
 			const int32 LODIndex = -1;
@@ -2009,8 +2007,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		{
 			check(GroupIt < GroomGroupsDesc.Num());
 
-			HairGroupInstance->Strands.Data = &GroupData.Strands.Data;
-			HairGroupInstance->Strands.InterpolationData = &GroupData.Strands.InterpolationData;
+			HairGroupInstance->Strands.Data = &GroupData.Strands.BulkData;
+//			HairGroupInstance->Strands.InterpolationData = &GroupData.Strands.InterpolationBulkData;
 
 			// (Lazy) Allocate interpolation resources, only if guides are required
 			if (bNeedGuides)
@@ -2054,7 +2052,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				if (bNeedDynamicResources)
 				{
 					// Allocate dynamic raytracing resources (owned by the groom component/instance)
-					HairGroupInstance->Strands.RenRaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.Data);
+					HairGroupInstance->Strands.RenRaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData);
 					HairGroupInstance->Strands.RenRaytracingResourceOwned = true;
 				}
 				else
@@ -2084,10 +2082,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			HairGroupInstance->Strands.RestResource = GroupData.Strands.RestResource;
 			if (bNeedDynamicResources)
 			{
-				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.Data.RenderData, false, HairGroupInstance->Strands.RestResource->PositionOffset, EHairStrandsResourcesType::Strands);
-				// Initialize deformed position relative position offset to the rest pose offset
-				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current)  = HairGroupInstance->Strands.RestResource->PositionOffset;
-				HairGroupInstance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = HairGroupInstance->Strands.RestResource->PositionOffset;
+				HairGroupInstance->Strands.DeformedResource = new FHairStrandsDeformedResource(GroupData.Strands.BulkData, false, EHairStrandsResourcesType::Strands);
 			} 
 
 			// An empty groom doesn't have a ClusterCullingResource
@@ -2138,14 +2133,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					check(BindingType == EHairBindingType::Skinning);
 				}
 
-				InstanceLOD.Data = &LOD.Data;
+				InstanceLOD.Data = &LOD.BulkData;
 				InstanceLOD.RestResource = LOD.RestResource;
-				InstanceLOD.InterpolationData = &LOD.InterpolationData;
 				InstanceLOD.InterpolationResource = LOD.InterpolationResource;
 
 				if (bNeedDeformedPositions)
 				{
-					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.Data.RenderData, false);
+					InstanceLOD.DeformedResource = new FHairCardsDeformedResource(LOD.BulkData, false);
 				}
 
 				#if RHI_RAYTRACING
@@ -2173,8 +2167,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				// Strands data/resources
 				if (bNeedDeformedPositions)
 				{
-					InstanceLOD.Guides.Data = &LOD.Guides.Data;
-					InstanceLOD.Guides.InterpolationData = &LOD.Guides.InterpolationData;
+					InstanceLOD.Guides.Data = &LOD.Guides.BulkData;
 					InstanceLOD.Guides.InterpolationResource = LOD.Guides.InterpolationResource;
 
 					if (bNeedRootData)
@@ -2192,11 +2185,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 					InstanceLOD.Guides.RestResource = LOD.Guides.RestResource;
 					{
-						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.Data.RenderData, false, InstanceLOD.Guides.RestResource->PositionOffset, EHairStrandsResourcesType::Cards);
-
-						// Initialize deformed position relative position offset to the rest pose offset
-						InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current) = InstanceLOD.Guides.RestResource->PositionOffset;
-						InstanceLOD.Guides.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::EFrameType::Previous) = InstanceLOD.Guides.RestResource->PositionOffset;
+						InstanceLOD.Guides.DeformedResource = new FHairStrandsDeformedResource(LOD.Guides.BulkData, false, EHairStrandsResourcesType::Cards);
 					}
 
 					InstanceLOD.Guides.HairInterpolationType = HairInterpolationType;
@@ -2215,11 +2204,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				const bool bHasGlobalDeformation   = HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(MeshLODIndex);
 				const bool bNeedDeformedPositions  = bHasGlobalDeformation && BindingType == EHairBindingType::Skinning;
 
-				InstanceLOD.Data = &LOD.Data;
+				InstanceLOD.Data = &LOD.BulkData;
 				InstanceLOD.RestResource = LOD.RestResource;
 				if (bNeedDeformedPositions)
 				{
-					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.Data.RenderData, true);
+					InstanceLOD.DeformedResource = new FHairMeshesDeformedResource(LOD.BulkData, true);
 				}
 
 				#if RHI_RAYTRACING

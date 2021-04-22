@@ -172,6 +172,24 @@ bool IsHairStrandsAssetLoadingEnable()
 	return GHairStrandsLoadAsset > 0;
 }
 
+static void PatchHairStrandsInterpolationBulkData(FHairStrandsInterpolationBulkData& BulkData, const FHairStrandsDatas& SimDatas)
+{
+	// This is now move into the builder, but kept here for compatibility.
+	if (BulkData.SimRootPointIndex.Num() == 0)
+	{
+		const uint32 RootCount = SimDatas.GetNumCurves();
+		BulkData.SimRootPointIndex.SetNum(SimDatas.GetNumPoints());
+		for (uint32 CurveIndex = 0; CurveIndex < RootCount; ++CurveIndex)
+		{
+			const uint16 PointCount = SimDatas.StrandsCurves.CurvesCount[CurveIndex];
+			const uint32 PointOffset = SimDatas.StrandsCurves.CurvesOffset[CurveIndex];
+			for (uint32 PointIndex = 0; PointIndex < PointCount; ++PointIndex)
+			{
+				BulkData.SimRootPointIndex[PointIndex + PointOffset] = PointOffset;
+			}
+		}
+	}
+}
 /////////////////////////////////////////////////////////////////////////////////////////
 
 uint8 UGroomAsset::GenerateClassStripFlags(FArchive& Ar)
@@ -1014,24 +1032,26 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 {
 	if (!Ar.IsCooking() || !CardLODData.bIsCookedOut)
 	{
-		Ar << CardLODData.Data;
-		Ar << CardLODData.InterpolationData;
+		CardLODData.Data.Serialize(Ar, CardLODData.BulkData);
+		CardLODData.InterpolationData.Serialize(Ar, CardLODData.InterpolationBulkData);
 
-		CardLODData.Guides.Data.Serialize(Ar);
-		CardLODData.Guides.InterpolationData.Serialize(Ar);
+		CardLODData.Guides.Data.Serialize(Ar, CardLODData.Guides.BulkData);
+		CardLODData.Guides.InterpolationData.Serialize(Ar, CardLODData.Guides.InterpolationBulkData);
 	}
 	else
 	{
 		// LOD has been marked to be cooked out so serialize empty data
 		FHairCardsDatas NoCardsData;
-		Ar << NoCardsData;
+		FHairCardsBulkData NoCardsBulkData;
+		NoCardsData.Serialize(Ar, NoCardsBulkData);
 
 		FHairCardsInterpolationDatas NoInterpolationData;
-		Ar << NoInterpolationData;
+		FHairCardsInterpolationBulkData NoInterpolationBulkData;
+		NoInterpolationData.Serialize(Ar, NoInterpolationBulkData);
 
 		FHairGroupData::FBaseWithInterpolation NoGuideData;
-		NoGuideData.Data.Serialize(Ar);
-		NoGuideData.InterpolationData.Serialize(Ar);
+		NoGuideData.Data.Serialize(Ar, NoGuideData.BulkData);
+		NoGuideData.InterpolationData.Serialize(Ar, NoGuideData.InterpolationBulkData);
 	}
 
 	return Ar;
@@ -1041,13 +1061,14 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FMeshes::FLOD& MeshLODData)
 {
 	if (!Ar.IsCooking() || !MeshLODData.bIsCookedOut)
 	{
-		Ar << MeshLODData.Data;
+		MeshLODData.Data.Serialize(Ar, MeshLODData.BulkData);
 	}
 	else
 	{
 		// LOD has been marked to be cooked out so serialize empty data
 		FHairMeshesDatas NoMeshesData;
-		Ar << NoMeshesData;
+		FHairMeshesBulkData NoMeshesBulkData;
+		NoMeshesData.Serialize(Ar, NoMeshesBulkData);
 	}
 
 	return Ar;
@@ -1060,9 +1081,9 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 	FHairGroupData NoStrandsData;
 	if (!Ar.IsCooking() || !GroupData.bIsCookedOut)
 	{
-		GroupData.Strands.Data.Serialize(Ar);
-		GroupData.Guides.Data.Serialize(Ar);
-		GroupData.Strands.InterpolationData.Serialize(Ar);
+		GroupData.Strands.Data.Serialize(Ar, GroupData.Strands.BulkData);
+		GroupData.Guides.Data.Serialize(Ar, GroupData.Guides.BulkData);
+		GroupData.Strands.InterpolationData.Serialize(Ar, GroupData.Strands.InterpolationBulkData);
 
 	}
 	else
@@ -1070,9 +1091,9 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 		// Fall back to no data, but still serialize guide data as they an be used for cards simulation
 		// Theoritically, we should have something to detect if we are going to use or not guide (for 
 		// simulation or RBF deformation) on the target platform
-		NoStrandsData.Strands.Data.Serialize(Ar);
-		GroupData.Guides.Data.Serialize(Ar);
-		NoStrandsData.Strands.InterpolationData.Serialize(Ar);
+		NoStrandsData.Strands.Data.Serialize(Ar, NoStrandsData.Strands.BulkData);
+		GroupData.Guides.Data.Serialize(Ar, GroupData.Guides.BulkData);
+		NoStrandsData.Strands.InterpolationData.Serialize(Ar, NoStrandsData.Strands.InterpolationBulkData);
 	}
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
@@ -1941,16 +1962,13 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			if (CardsMesh != nullptr)
 			{
 				CardsMesh->ConditionalPostLoad();
-				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.Guides.Data, LOD.InterpolationData);
+				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.BulkData, LOD.Guides.Data, LOD.InterpolationData, LOD.InterpolationBulkData);
 				if (!bInitResources)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *CardsMesh->GetName(), GroupIndex, LODIt);
 
 					LOD.Data.Cards.Reset();
-					LOD.Data.RenderData.Positions.Empty();
-					LOD.Data.RenderData.Normals.Empty();
-					LOD.Data.RenderData.UVs.Empty();
-					LOD.Data.RenderData.Indices.Empty();
+					LOD.BulkData.Reset();
 				}
 			}
 
@@ -1963,10 +1981,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			// 2. Init geometry & texture resources, and generate interpolation data/resources
 			if (bInitResources)
 			{
-				LOD.RestResource = new FHairCardsRestResource(
-					LOD.Data.RenderData,
-					LOD.Data.Cards.GetNumVertices(),
-					LOD.Data.Cards.GetNumTriangles());
+				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData);
 				BeginInitResource(LOD.RestResource);
 
 				// 2.1 Load atlas textures
@@ -1978,7 +1993,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				LOD.RestResource->bInvertUV = Desc->SourceType == EHairCardsSourceType::Procedural;
 				
 				// 2.2 Load interoplatino resources
-				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationData.RenderData);
+				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData);
 				BeginInitResource(LOD.InterpolationResource);
 
 				// Create own interpolation settings for cards.
@@ -2004,7 +2019,10 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				FGroomBuilder::BuildData(
 					LOD.Guides.Data,
 					GroupData.Guides.Data,
+					LOD.Guides.BulkData,
+					GroupData.Guides.BulkData,
 					LOD.Guides.InterpolationData,
+					LOD.Guides.InterpolationBulkData,
 					CardsInterpolationSettings,
 					true,
 					false,
@@ -2013,14 +2031,15 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 				if (bCopyRenderData)
 				{
-					GroupData.Strands.Data.RenderData = LOD.Guides.Data.RenderData;
-					GroupData.Guides.Data.RenderData = LOD.Guides.Data.RenderData;
+					GroupData.Strands.BulkData = LOD.Guides.BulkData;
+					GroupData.Guides.BulkData = LOD.Guides.BulkData;
 				}
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Cards);
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards);
 				BeginInitResource(LOD.Guides.RestResource);
 
-				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationData.RenderData, GroupData.Guides.Data);
+				PatchHairStrandsInterpolationBulkData(LOD.Guides.InterpolationBulkData, GroupData.Guides.Data);
+				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData);
 				BeginInitResource(LOD.Guides.InterpolationResource);
 
 				// Update card stats to display
@@ -2173,7 +2192,8 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 				Desc->ImportedMesh->ConditionalPostLoad();
 				FHairMeshesBuilder::ImportGeometry(
 					Desc->ImportedMesh,
-					LOD.Data);
+					LOD.Data,
+					LOD.BulkData);
 			}
 			else
 			{
@@ -2181,7 +2201,8 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 				FHairMeshesBuilder::BuildGeometry(
 					GroupData.Strands.Data,
 					GroupData.Guides.Data,
-					LOD.Data);
+					LOD.Data,
+					LOD.BulkData);
 			}
 
 			bDataBuilt |= true;
@@ -2233,7 +2254,7 @@ FHairStrandsRestResource* UGroomAsset::AllocateGuidesResources(uint32 GroupIndex
 		{
 			if (GroupData.Guides.RestResource == nullptr)
 			{
-				GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.Data.RenderData, GroupData.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Guides);
+				GroupData.Guides.RestResource = new FHairStrandsRestResource(GroupData.Guides.BulkData, EHairStrandsResourcesType::Guides);
 				BeginInitResource(GroupData.Guides.RestResource);
 			}
 			return GroupData.Guides.RestResource;
@@ -2250,7 +2271,8 @@ FHairStrandsInterpolationResource* UGroomAsset::AllocateInterpolationResources(u
 		check(GroupData.Guides.IsValid());
 		if (GroupData.Strands.InterpolationResource == nullptr)
 		{
-			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationData.RenderData, GroupData.Guides.Data);
+			PatchHairStrandsInterpolationBulkData(GroupData.Strands.InterpolationBulkData, GroupData.Guides.Data);
+			GroupData.Strands.InterpolationResource = new FHairStrandsInterpolationResource(GroupData.Strands.InterpolationBulkData);
 			BeginInitResource(GroupData.Strands.InterpolationResource);
 		}
 		return GroupData.Strands.InterpolationResource;
@@ -2269,7 +2291,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 
 		if (LOD.RaytracingResource == nullptr)
 		{
-			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.Data);
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData);
 			BeginInitResource(LOD.RaytracingResource);
 		}
 		return LOD.RaytracingResource;
@@ -2287,7 +2309,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(u
 
 		if (LOD.RaytracingResource == nullptr)
 		{
-			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.Data);
+			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData);
 			BeginInitResource(LOD.RaytracingResource);
 		}
 		return LOD.RaytracingResource;
@@ -2304,7 +2326,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(
 
 		if (GroupData.Strands.RaytracingResource == nullptr)
 		{
-			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.Data);
+			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData);
 			BeginInitResource(GroupData.Strands.RaytracingResource);
 		}
 		return GroupData.Strands.RaytracingResource;
@@ -2333,7 +2355,7 @@ void UGroomAsset::InitStrandsResources()
 
 		if (GroupData.Strands.HasValidData())
 		{
-			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.Data.RenderData, GroupData.Strands.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Strands);
+			GroupData.Strands.RestResource = new FHairStrandsRestResource(GroupData.Strands.BulkData, EHairStrandsResourcesType::Strands);
 			BeginInitResource(GroupData.Strands.RestResource);
 
 			if (GroupData.Strands.ClusterCullingData.IsValid())
@@ -2426,19 +2448,17 @@ void UGroomAsset::InitCardsResources()
 			if (LOD.RestResource == nullptr &&			// don't initialize again if they were previously initialized during the BuildCardsGeometry
 				LOD.HasValidData())
 			{
-				LOD.RestResource = new FHairCardsRestResource(
-					LOD.Data.RenderData,
-					LOD.Data.Cards.GetNumVertices(),
-					LOD.Data.Cards.GetNumTriangles());
+				LOD.RestResource = new FHairCardsRestResource(LOD.BulkData);
 				BeginInitResource(LOD.RestResource);
 
-				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationData.RenderData);
+				LOD.InterpolationResource = new FHairCardsInterpolationResource(LOD.InterpolationBulkData);
 				BeginInitResource(LOD.InterpolationResource);
 
-				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.Data.RenderData, LOD.Guides.Data.BoundingBox.GetCenter(), EHairStrandsResourcesType::Cards);
+				LOD.Guides.RestResource = new FHairStrandsRestResource(LOD.Guides.BulkData, EHairStrandsResourcesType::Cards);
 				BeginInitResource(LOD.Guides.RestResource);
 
-				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationData.RenderData, GroupData.Guides.Data);
+				PatchHairStrandsInterpolationBulkData(LOD.Guides.InterpolationBulkData, GroupData.Guides.Data);
+				LOD.Guides.InterpolationResource = new FHairStrandsInterpolationResource(LOD.Guides.InterpolationBulkData);
 				BeginInitResource(LOD.Guides.InterpolationResource);
 
 				if (Desc)
@@ -2489,10 +2509,7 @@ void UGroomAsset::InitMeshesResources()
 
 			if (LOD.HasValidData())
 			{
-				LOD.RestResource = new FHairMeshesRestResource(
-					LOD.Data.RenderData,
-					LOD.Data.Meshes.GetNumVertices(),
-					LOD.Data.Meshes.GetNumTriangles());
+				LOD.RestResource = new FHairMeshesRestResource(LOD.BulkData);
 				BeginInitResource(LOD.RestResource);
 
 				if (Desc)
@@ -2758,9 +2775,11 @@ bool UGroomAsset::IsMaterialUsed(int32 MaterialIndex) const
 struct FHairProceduralCardsQuery
 {
 	FHairCardsInterpolationDatas InterpolationData;
+	FHairCardsInterpolationBulkData InterpolationBulkData;
 	FHairCardsProceduralDatas ProceduralData;
 	FHairStrandsDatas GuideData;
 	FHairCardsDatas Data;
+	FHairCardsBulkData BulkData;
 
 	UGroomAsset* Asset = nullptr;
 	FHairCardsRestResource* Resources = nullptr;
@@ -2826,13 +2845,14 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		Q.ProceduralData,
 		Q.GuideData,
 		Q.InterpolationData,
+		Q.InterpolationBulkData,
 		Desc->Textures);
 	Q.Textures = &Desc->Textures;
 
-	FHairCardsBuilder::Convert(Q.ProceduralData, Q.Data);
+	FHairCardsBuilder::Convert(Q.ProceduralData, Q.Data, Q.BulkData);
 
 	// 3. Create resources and enqueue texture generation (GPU, kicked by the render thread) 
-	Q.Resources = new FHairCardsRestResource(Q.Data.RenderData, Q.Data.Cards.GetNumVertices(), Q.Data.Cards.GetNumTriangles());
+	Q.Resources = new FHairCardsRestResource(Q.BulkData);
 	BeginInitResource(Q.Resources);
 	Q.ProceduralResources = new FHairCardsProceduralResource(Q.ProceduralData.RenderData, Q.ProceduralData.Atlas.Resolution, Q.ProceduralData.Voxels);
 	BeginInitResource(Q.ProceduralResources);

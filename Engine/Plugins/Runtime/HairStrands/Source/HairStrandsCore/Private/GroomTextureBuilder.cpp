@@ -964,10 +964,10 @@ static void InternalBuildStrandsTextures_GPU(
 
 				GroupData.Strands.RestResource->PositionBuffer.SRV,
 				GroupData.Strands.RestResource->AttributeBuffer.SRV,
-				GroupData.Strands.RestResource->PositionOffset,
+				GroupData.Strands.RestResource->GetPositionOffset(),
 				RenderingData.GeometrySettings.HairWidth * 0.5f,
-				GroupData.Strands.Data.StrandsCurves.MaxLength,
-				GroupData.Strands.Data.RenderData.Positions.Num(),
+				GroupData.Strands.RestResource->BulkData.MaxLength,
+				GroupData.Strands.RestResource->BulkData.PointCount,
 
 				DepthTestTexture,
 				DepthTexture[0],
