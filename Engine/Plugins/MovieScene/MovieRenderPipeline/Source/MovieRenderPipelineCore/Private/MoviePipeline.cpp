@@ -39,6 +39,8 @@
 #include "MoviePipelineQueue.h"
 #include "HAL/FileManager.h"
 #include "Misc/CoreDelegates.h"
+#include "MoviePipelineCommandLineEncoder.h"
+
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
 #endif
@@ -349,6 +351,9 @@ void UMoviePipeline::RequestShutdown(bool bIsError)
 void UMoviePipeline::Shutdown(bool bIsError)
 {
 	check(IsInGameThread());
+
+	// We flag this so you can check if the shutdown was requested even when we do a stall-stop.
+	bShutdownRequested = true;
 
 	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
 	// We don't want to unset a previously set error state
@@ -930,6 +935,22 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 	{
 		ProcessOutstandingFutures();
 
+		TArray<FMoviePipelineShotOutputData> LatestShotData;
+		LatestShotData.Add(GeneratedShotOutputData.Last());
+
+		// Temporarily remove it from the global array, as the encode may modify it.
+		GeneratedShotOutputData.RemoveAt(GeneratedShotOutputData.Num() - 1);
+
+		// We call the command line encoder as a special case here because it may want to modify the file list
+		// ie: if it deletes the file after use we probably don't want scripting looking for those files.
+		const bool bIncludeDisabledSettings = false;
+		UMoviePipelineCommandLineEncoder* Encoder = GetPipelineMasterConfig()->FindSetting<UMoviePipelineCommandLineEncoder>(bIncludeDisabledSettings);
+		if (Encoder)
+		{
+			const bool bInIsShotEncode = true;
+			Encoder->StartEncodingProcess(LatestShotData, bInIsShotEncode);
+		}
+
 		FMoviePipelineOutputData Params;
 		Params.Pipeline = this;
 		Params.Job = GetCurrentJob();
@@ -937,9 +958,10 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 
 		// The per-shot callback only includes data from the latest shot, but packed into an
 		// array to re-use the same datastructures.
-		TArray<FMoviePipelineShotOutputData> LatestShotData;
-		LatestShotData.Add(GeneratedShotOutputData.Last());
 		Params.ShotData = LatestShotData;
+
+		// Re-add this to our global list (as it has potentially been modified by the CLI encoder)
+		GeneratedShotOutputData.Append(LatestShotData);
 
 		UE_LOG(LogMovieRenderPipelineIO, Verbose, TEXT("Files written to disk for current shot:"));
 		PrintVerboseLogForFiles(LatestShotData);
@@ -1433,19 +1455,19 @@ void UMoviePipeline::OnMoviePipelineFinishedImpl()
 	OnMoviePipelineWorkFinishedDelegate.Broadcast(Params);
 }
 
-void UMoviePipeline::PrintVerboseLogForFiles(TArray<FMoviePipelineShotOutputData>& InOutputData)
+void UMoviePipeline::PrintVerboseLogForFiles(const TArray<FMoviePipelineShotOutputData>& InOutputData) const
 {
-	for (FMoviePipelineShotOutputData& OutputData : InOutputData)
+	for (const FMoviePipelineShotOutputData& OutputData : InOutputData)
 	{
-		UMoviePipelineExecutorShot* Shot = OutputData.Shot.Get();
+		const UMoviePipelineExecutorShot* Shot = OutputData.Shot.Get();
 		if (Shot)
 		{
 			UE_LOG(LogMovieRenderPipelineIO, Verbose, TEXT("Shot: %s [%s]"), *Shot->OuterName, *Shot->InnerName);
 		}
-		for (TPair<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData>& Pair : OutputData.RenderPassData)
+		for (const TPair<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData>& Pair : OutputData.RenderPassData)
 		{
 			UE_LOG(LogMovieRenderPipelineIO, Verbose, TEXT("Render Pass: %s"), *Pair.Key.Name);
-			for (FString& FilePath : Pair.Value.FilePaths)
+			for (const FString& FilePath : Pair.Value.FilePaths)
 			{
 				UE_LOG(LogMovieRenderPipelineIO, Verbose, TEXT("\t\t%s"), *FilePath);
 			}

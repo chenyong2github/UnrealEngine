@@ -22,7 +22,7 @@ UMoviePipelineOutputSetting::UMoviePipelineOutputSetting()
 	, bAutoVersion(true)
 	, ZeroPadFrameNumbers(4)
 	, FrameNumberOffset(0)
-	, bFlushDiskWritesPerShot(false)
+	, bFlushDiskWritesPerShot(true)
 {
 	FileNameFormat = TEXT("{sequence_name}.{frame_number}");
 	OutputDirectory.Path = FPaths::ProjectSavedDir() / TEXT("MovieRenders/");

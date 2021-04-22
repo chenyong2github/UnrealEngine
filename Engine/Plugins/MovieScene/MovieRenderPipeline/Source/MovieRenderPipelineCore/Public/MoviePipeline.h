@@ -285,7 +285,7 @@ private:
 	void FlushAsyncEngineSystems();
 
 	/** If the log verbosity is high enough, prints out the files specified in the shot output data. */
-	void PrintVerboseLogForFiles(TArray<FMoviePipelineShotOutputData>& InOutputData);
+	void PrintVerboseLogForFiles(const TArray<FMoviePipelineShotOutputData>& InOutputData) const;
 
 	/** Tell our submixes to start capturing the data they are generating. Should only be called once output frames are being produced. */
 	void StartAudioRecording();
