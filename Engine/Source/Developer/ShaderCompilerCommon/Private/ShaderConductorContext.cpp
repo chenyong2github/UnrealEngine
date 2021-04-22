@@ -171,7 +171,7 @@ namespace CrossCompiler
 
 	static ShaderConductor::ShaderStage ToShaderConductorShaderStage(EHlslShaderFrequency Frequency)
 	{
-		check(Frequency >= HSF_VertexShader && Frequency <= HSF_ComputeShader);
+		check(Frequency >= HSF_VertexShader && Frequency <= HSF_RayCallable);
 		switch (Frequency)
 		{
 		case HSF_VertexShader:		return ShaderConductor::ShaderStage::VertexShader;
@@ -180,6 +180,11 @@ namespace CrossCompiler
 		case HSF_HullShader:		return ShaderConductor::ShaderStage::HullShader;
 		case HSF_DomainShader:		return ShaderConductor::ShaderStage::DomainShader;
 		case HSF_ComputeShader:		return ShaderConductor::ShaderStage::ComputeShader;
+
+		case HSF_RayGen:			return ShaderConductor::ShaderStage::RayGen;
+		case HSF_RayMiss:			return ShaderConductor::ShaderStage::RayMiss;
+		case HSF_RayHitGroup:		return ShaderConductor::ShaderStage::RayHitGroup;
+		case HSF_RayCallable:		return ShaderConductor::ShaderStage::RayCallable;
 		default:					return ShaderConductor::ShaderStage::NumShaderStages;
 		}
 	}

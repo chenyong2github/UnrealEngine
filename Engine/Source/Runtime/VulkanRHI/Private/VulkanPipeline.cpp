@@ -1519,8 +1519,10 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 		8242695776924673527llu,
 		7556751872809527943llu,
 		8278265491465149053llu,
+		1263027877466626099llu,
+		2698115308251696101llu,
 	};
-	check(sizeof(Primes) / sizeof(Primes[0]) >= ShaderStage::NumStages);
+	static_assert(sizeof(Primes) / sizeof(Primes[0]) >= ShaderStage::NumStages);
 	for (int32 Index = 0; Index < ShaderStage::NumStages; ++Index)
 	{
 		FVulkanShader* Shader = Shaders[Index];

@@ -58,6 +58,13 @@ void FSpirvReflectBindings::AddDescriptorBinding(SpvReflectDescriptorBinding* In
 			}
 			break;
 
+		case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			if (InBinding->accessed)
+			{
+				AccelerationStructures.Add(InBinding);
+			}
+			break;
+
 		default:
 			// check(false);
 			break;

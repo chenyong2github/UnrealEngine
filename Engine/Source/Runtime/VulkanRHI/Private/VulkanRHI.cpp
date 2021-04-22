@@ -284,6 +284,10 @@ void FVulkanDynamicRHI::PostInit()
 {
 	//work around layering violation
 	TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader();
+
+#if VULKAN_RHI_RAYTRACING
+	Device->InitializeRayTracing();
+#endif // VULKAN_RHI_RAYTRACING
 }
 
 void FVulkanDynamicRHI::Shutdown()
@@ -324,6 +328,10 @@ void FVulkanDynamicRHI::Shutdown()
 			}
 			Device->SamplerMap.Empty();
 		}
+
+#if VULKAN_RHI_RAYTRACING
+		Device->CleanUpRayTracing();
+#endif // VULKAN_RHI_RAYTRACING
 
 		// Flush all pending deletes before destroying the device.
 		FRHIResource::FlushPendingDeletes();

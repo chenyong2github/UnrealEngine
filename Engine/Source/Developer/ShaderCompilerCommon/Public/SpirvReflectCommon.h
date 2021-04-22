@@ -26,6 +26,7 @@ struct SHADERCOMPILERCOMMON_API FSpirvReflectBindings
 	TArray<SpvReflectDescriptorBinding*> TBufferUAVs;
 	TArray<SpvReflectDescriptorBinding*> SBufferSRVs;
 	TArray<SpvReflectDescriptorBinding*> SBufferUAVs;
+	TArray<SpvReflectDescriptorBinding*> AccelerationStructures;
 
 	/** Adds the specified descriptor binding to the corresponding container iff the descriptor is marked as being accessed. */
 	void AddDescriptorBinding(SpvReflectDescriptorBinding* InBinding);

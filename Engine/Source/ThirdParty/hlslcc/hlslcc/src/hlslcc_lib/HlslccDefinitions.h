@@ -12,6 +12,10 @@ enum EHlslShaderFrequency
 	HSF_DomainShader,
 	HSF_ComputeShader,
 	HSF_FrequencyCount,
+	HSF_RayGen,
+	HSF_RayMiss,
+	HSF_RayHitGroup,
+	HSF_RayCallable,
 	HSF_InvalidFrequency = -1
 };
 

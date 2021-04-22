@@ -327,6 +327,45 @@ static uint16 GetCombinedSamplerStateAlias(const FString& ParameterName,
 	return UINT16_MAX;
 }
 
+// Parses ray tracing shader entry point specification string in one of the following formats:
+// 1) Verbatim single entry point name, e.g. "MainRGS"
+// 2) Complex entry point for ray tracing hit group shaders:
+//      a) "closesthit=MainCHS"
+//      b) "closesthit=MainCHS anyhit=MainAHS"
+//      c) "closesthit=MainCHS anyhit=MainAHS intersection=MainIS"
+//      d) "closesthit=MainCHS intersection=MainIS"
+//    NOTE: closesthit attribute must always be provided for complex hit group entry points
+static void ParseRayTracingEntryPoint(const FString& Input, FString& OutMain, FString& OutAnyHit, FString& OutIntersection)
+{
+	auto ParseEntry = [&Input](const TCHAR* Marker)
+	{
+		FString Result;
+		const int32 BeginIndex = Input.Find(Marker, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		if (BeginIndex != INDEX_NONE)
+		{
+			int32 EndIndex = Input.Find(TEXT(" "), ESearchCase::IgnoreCase, ESearchDir::FromStart, BeginIndex);
+			if (EndIndex == INDEX_NONE)
+			{
+				EndIndex = Input.Len() + 1;
+			}
+			const int32 MarkerLen = FCString::Strlen(Marker);
+			const int32 Count = EndIndex - BeginIndex;
+			Result = Input.Mid(BeginIndex + MarkerLen, Count - MarkerLen);
+		}
+		return Result;
+	};
+
+	OutMain = ParseEntry(TEXT("closesthit="));
+	OutAnyHit = ParseEntry(TEXT("anyhit="));
+	OutIntersection = ParseEntry(TEXT("intersection="));
+
+	// If complex hit group entry is not specified, assume a single verbatim entry point
+	if (OutMain.IsEmpty() && OutAnyHit.IsEmpty() && OutIntersection.IsEmpty())
+	{
+		OutMain = Input;
+	}
+}
+
 struct FPatchType
 {
 	int32	HeaderGlobalIndex;
@@ -1197,6 +1236,7 @@ static void BuildShaderOutput(
 			break;
 		case EVulkanBindingType::UniformTexelBuffer:
 		case EVulkanBindingType::StorageTexelBuffer:
+		case EVulkanBindingType::AccelerationStructure:
 			break;
 		default:
 			checkf(0, TEXT("Binding Type %d not found"), (int32)Binding.Type);
@@ -1884,8 +1924,10 @@ static void BuildShaderOutputFromSpirv(
 	const FShaderCompilerInput& Input,
 	FShaderCompilerOutput&		Output,
 	FVulkanBindingTable&		BindingTable,
+	const FString&				EntryPointName,
 	bool						bHasRealUBs,
-	bool						bDebugDump)
+	bool						bDebugDump,
+	bool						bIsRayTracingShader)
 {
 	FShaderParameterMap& ParameterMap = Output.ParameterMap;
 
@@ -1903,11 +1945,30 @@ static void BuildShaderOutputFromSpirv(
 	spv_reflect::ShaderModule Reflection(SpirvDataSize, Spirv.GetByteData(), SPV_REFLECT_RETURN_FLAG_SAMPLER_IMAGE_USAGE);
 	check(Reflection.GetResult() == SPV_REFLECT_RESULT_SUCCESS);
 
+	// Ray tracing shaders are not being rewritten to remove unreferenced entry points due to a bug in dxc.
+	// Until it's fixed and integrated, we need to pull out the requested entry point manually.
+	int32 EntryPointIndex = (!bIsRayTracingShader) ? 0 : -1;
+	if (bIsRayTracingShader)
+	{
+		// For now only use the primary entry point for hit groups until we decide how to best support hit group library shaders.
+		FString OutMain, OutAnyHit, OutIntersection;
+		ParseRayTracingEntryPoint(EntryPointName, OutMain, OutAnyHit, OutIntersection);
+
+		for (uint32 i = 0; i < Reflection.GetEntryPointCount(); ++i)
+		{
+			if (OutMain.Equals(Reflection.GetEntryPointName(i)))
+			{
+				EntryPointIndex = static_cast<int32>(i);
+				break;
+			}
+		}
+		checkf(EntryPointIndex >= 0, TEXT("Failed to find entry point %s in SPIRV-V module."), *EntryPointName);
+	}
+
 	// Change final entry point name in SPIR-V module
 	{
-		checkf(Reflection.GetEntryPointCount() == 1, TEXT("Too many entry points in SPIR-V module: Expected 1, but got %d"), Reflection.GetEntryPointCount());
-
-		SpvReflectResult Result = Reflection.ChangeEntryPointName(0, "main_00000000_00000000");
+		checkf(bIsRayTracingShader || Reflection.GetEntryPointCount() == 1, TEXT("Too many entry points in SPIR-V module: Expected 1, but got %d"), Reflection.GetEntryPointCount());
+		SpvReflectResult Result = Reflection.ChangeEntryPointName(EntryPointIndex, "main_00000000_00000000");
 		check(Result == SPV_REFLECT_RESULT_SUCCESS);
 	}
 
@@ -2008,6 +2069,12 @@ static void BuildShaderOutputFromSpirv(
 		BindingToIndexMap.Add(Binding, BindingIndex);
 	}
 
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.AccelerationStructures)
+	{
+		int32 BindingIndex = BindingTable.RegisterBinding(Binding->name, "r", EVulkanBindingType::AccelerationStructure);
+		BindingToIndexMap.Add(Binding, BindingIndex);
+	}
+
 	// Sort binding table
 	BindingTable.SortBindings();
 
@@ -2024,7 +2091,7 @@ static void BuildShaderOutputFromSpirv(
 		CCHeaderWriter.WriteOutputAttribute(*Attribute);
 	}
 
-	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0;
+	int32 UBOBindings = 0, UAVBindings = 0, SRVBindings = 0, SMPBindings = 0, GLOBindings = 0, ASBindings = 0;
 
 	auto MapDescriptorBindingToIndex = [&BindingTable, &BindingToIndexMap](const SpvReflectDescriptorBinding* Binding)
 	{
@@ -2205,6 +2272,22 @@ static void BuildShaderOutputFromSpirv(
 		}
 	}
 
+	for (const SpvReflectDescriptorBinding* Binding : Bindings.AccelerationStructures)
+	{
+		int32 BindingIndex = MapDescriptorBindingToIndex(Binding);
+
+		SpvResult = Reflection.ChangeDescriptorBindingNumbers(Binding, BindingIndex);//, GlobalSetId);
+		check(SpvResult == SPV_REFLECT_RESULT_SUCCESS);
+
+		const FString ResourceName(ANSI_TO_TCHAR(Binding->name));
+		
+		// VKRT Do we need a WriteAS our should we use reflection directly here?
+		//CCHeaderWriter.WriteAS(*ResourceName, ASBindings++);
+		ASBindings++;
+
+		Spirv.ReflectionInfo.Add(FVulkanSpirv::FEntry(ResourceName, BindingIndex));
+	}
+
 	// Build final shader output with meta data
 	FString DebugName = Input.DumpDebugInfoPath.Right(Input.DumpDebugInfoPath.Len() - Input.DumpDebugInfoRootPath.Len());
 
@@ -2251,7 +2334,8 @@ static bool CompileWithShaderConductor(
 {
 	const FShaderCompilerInput& Input = CompilerInfo.Input;
 
-	const bool bRewriteHlslSource = true;
+	const bool bIsRayTracingShader = Input.IsRayTracingShader();
+	const bool bRewriteHlslSource = !bIsRayTracingShader;
 	const bool bDebugDump = CompilerInfo.bDebugDump;
 
 	CrossCompiler::FShaderConductorContext CompilerContext;
@@ -2300,7 +2384,7 @@ static bool CompileWithShaderConductor(
 	}
 
 	// Build shader output and binding table
-	BuildShaderOutputFromSpirv(Spirv, Input, Output, BindingTable, bHasRealUBs, bDebugDump);
+	BuildShaderOutputFromSpirv(Spirv, Input, Output, BindingTable, EntryPointName, bHasRealUBs, bDebugDump, bIsRayTracingShader);
 
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
 	{
@@ -2339,9 +2423,12 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		HSF_InvalidFrequency,
 		HSF_PixelShader,
 		bIsSM5 ? HSF_GeometryShader : HSF_InvalidFrequency,
-		HSF_ComputeShader
+		HSF_ComputeShader, 
+		bIsSM5 ? HSF_RayGen : HSF_InvalidFrequency,
+		bIsSM5 ? HSF_RayMiss : HSF_InvalidFrequency,
+		bIsSM5 ? HSF_RayHitGroup : HSF_InvalidFrequency,
+		bIsSM5 ? HSF_RayCallable : HSF_InvalidFrequency,
 	};
-	static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
 
 	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
 	if (Frequency == HSF_InvalidFrequency)

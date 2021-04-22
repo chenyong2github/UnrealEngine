@@ -204,8 +204,8 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 	TMap<uint32, FDecorations> Decorations;
 	TMap<uint32, uint32> TypePointerUniforms;
 	TMap<uint32, uint32> VariableUniformTypes;
-	bool bDone = false;
-	while (Ptr < PtrEnd && !bDone)
+	bool bFoundEntry = false;
+	while (Ptr < PtrEnd)
 	{
 		uint32_t WordCount = (*Ptr >> spv::WordCountShift) & spv::OpCodeMask;
 		spv::Op OpCode = (spv::Op)(*Ptr & spv::OpCodeMask);
@@ -216,9 +216,12 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 				uint32 ExecModel = Ptr[1];
 				uint32 EntryPoint = Ptr[2];
 				FString Name = ReadLiteralString(Ptr + 3);
-				check(Name == TEXT("main_00000000_00000000"));
-				check(Spirv.OffsetToEntryPoint == 0);
-				Spirv.OffsetToEntryPoint = (uint32)(&Ptr[3] - PtrStart);
+				if (Name == TEXT("main_00000000_00000000"))
+				{
+					check(Spirv.OffsetToEntryPoint == 0);
+					Spirv.OffsetToEntryPoint = (uint32)(&Ptr[3] - PtrStart);
+					bFoundEntry = true;
+				}
 			}
 			break;
 		case spv::OpName:
@@ -284,9 +287,6 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 			}
 		}
 			break;
-		case spv::OpFunction:
-			bDone = true;
-			break;
 		default:
 			break;
 		}
@@ -294,7 +294,7 @@ static void ComputeMovableWordIndices(FVulkanSpirv& Spirv)
 		Ptr += WordCount;
 	}
 
-	check((bDone && Ptr < PtrEnd) || (!bDone && Ptr == PtrEnd));
+	check(bFoundEntry);
 
 	// Go through all found uniform variables and make sure we found the right info
 	for (const auto& Pair : VariableUniformTypes)

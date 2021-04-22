@@ -312,6 +312,9 @@ public:
 		check(OptionalDeviceExtensions.HasRaytracingExtensions());
 		return RayTracingProperties;
 	}
+
+	void InitializeRayTracing();
+	void CleanUpRayTracing();
 #endif // VULKAN_RHI_RAYTRACING
 #endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 

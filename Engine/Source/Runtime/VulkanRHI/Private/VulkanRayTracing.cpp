@@ -517,4 +517,21 @@ void FVulkanCommandListContext::RHIBuildAccelerationStructure(const FRayTracingS
 	Scene->BuildAccelerationStructure(*this);
 }
 
+void FVulkanCommandListContext::RHIRayTraceOcclusion(FRHIRayTracingScene* Scene, FRHIShaderResourceView* Rays, FRHIUnorderedAccessView* Output, uint32 NumRays)
+{
+	// todo
+	return;
+}
+
+void FVulkanDevice::InitializeRayTracing()
+{
+	// todo
+	return;
+}
+
+void FVulkanDevice::CleanUpRayTracing()
+{
+	// todo
+	return;
+}
 #endif // #if VULKAN_RHI_RAYTRACING

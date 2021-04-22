@@ -63,6 +63,13 @@ namespace ShaderConductor
         DomainShader,
         ComputeShader,
 
+		// UE Change Begin: Add ray tracing stages.
+		RayGen,
+		RayMiss,
+		RayHitGroup,
+		RayCallable,
+		// UE Change End: Add ray tracing stages.
+
         NumShaderStages,
     };
 

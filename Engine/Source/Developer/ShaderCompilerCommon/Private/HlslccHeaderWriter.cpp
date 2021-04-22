@@ -164,6 +164,22 @@ namespace CrossCompiler
 		case SpvBuiltInDrawIndex:					return TEXT("gl_DrawIndex");
 		case SpvBuiltInDeviceIndex:					return TEXT("gl_DeviceIndex");
 		case SpvBuiltInViewIndex:					return TEXT("gl_ViewIndex");
+
+		// Ray tracing
+		case SpvBuiltInLaunchIdKHR:					return TEXT("gl_LaunchIDEXT");
+		case SpvBuiltInLaunchSizeKHR:				return TEXT("gl_LaunchSizeEXT");
+		case SpvBuiltInInstanceCustomIndexKHR:		return TEXT("gl_InstanceCustomIndexEXT");
+		case SpvBuiltInRayGeometryIndexKHR:			return TEXT("gl_GeometryIndexEXT");
+		case SpvBuiltInWorldRayOriginKHR:			return TEXT("gl_WorldRayOriginEXT");
+		case SpvBuiltInWorldRayDirectionKHR:		return TEXT("gl_WorldRayDirectionEXT");
+		case SpvBuiltInObjectRayOriginKHR:			return TEXT("gl_ObjectRayOriginEXT");
+		case SpvBuiltInObjectRayDirectionKHR:		return TEXT("gl_ObjectRayDirectionEXT");
+		case SpvBuiltInRayTminKHR:					return TEXT("gl_RayTminEXT");
+		case SpvBuiltInRayTmaxKHR:					return TEXT("gl_RayTmaxEXT");
+		case SpvBuiltInIncomingRayFlagsKHR:			return TEXT("gl_IncomingRayFlagsEXT");
+		case SpvBuiltInHitKindKHR:					return TEXT("gl_HitKindEXT");
+		case SpvBuiltInObjectToWorldKHR:			return TEXT("gl_ObjectToWorldEXT");
+		case SpvBuiltInWorldToObjectKHR:			return TEXT("gl_WorldToObjectEXT");
 		}
 		return nullptr;
 	}
