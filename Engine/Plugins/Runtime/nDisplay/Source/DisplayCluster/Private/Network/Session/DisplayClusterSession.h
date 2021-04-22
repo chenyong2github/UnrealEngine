@@ -97,6 +97,9 @@ protected:
 	{
 		UE_LOG(LogDisplayClusterNetwork, Log, TEXT("Session thread %s has started"), *GetName());
 
+		// Using TLS dramatically speeds up clusters with large numbers of nodes
+		FMemory::SetupTLSCachesOnCurrentThread();
+
 		while (FDisplayClusterSocketOperations::IsOpen())
 		{
 			// Receive a packet
