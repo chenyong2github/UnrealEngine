@@ -32,10 +32,18 @@ FGPULightmass::FGPULightmass(UWorld* InWorld, FGPULightmassModule* InGPULightmas
 	// Start the lightmass 'progress' notification
 	FNotificationInfo Info(LOCTEXT("LightBuildMessage", "Building lighting"));
 	Info.bFireAndForget = false;
-	Info.ButtonDetails.Add(FNotificationButtonInfo(
-		LOCTEXT("Save", "Save"),
-		LOCTEXT("LightBuildSaveToolTip", "Save intermediate results from the lighting build in progress."),
-		FSimpleDelegate::CreateLambda([InWorld, this]() { this->Scene.ApplyFinishedLightmapsToWorld(); })));
+
+	if (InSettings->Mode == EGPULightmassMode::BakeWhatYouSee)
+	{
+		Info.ButtonDetails.Add(FNotificationButtonInfo(
+		LOCTEXT("Save", "Save and Stop"),
+		FText::GetEmpty(),
+		FSimpleDelegate::CreateLambda([InWorld, this]() { 
+			this->Scene.ApplyFinishedLightmapsToWorld(); 
+			InWorld->GetSubsystem<UGPULightmassSubsystem>()->Stop(); 
+		})));
+	}
+	
 	Info.ButtonDetails.Add(FNotificationButtonInfo(
 		LOCTEXT("LightBuildCancel", "Cancel"),
 		LOCTEXT("LightBuildCancelToolTip", "Cancels the lighting build in progress."),
