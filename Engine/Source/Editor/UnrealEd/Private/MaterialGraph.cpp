@@ -42,7 +42,10 @@ void UMaterialGraph::RebuildGraph()
 	}
 	for (UMaterialExpressionComment* Comment : Material->EditorComments)
 	{
-		SubgraphCommentMap.FindOrAdd(Comment->SubgraphExpression).Add(Comment);
+		if (Comment)
+		{
+			SubgraphCommentMap.FindOrAdd(Comment->SubgraphExpression).Add(Comment);
+		}
 	}
 
 	RebuildGraphInternal(SubgraphExpressionMap, SubgraphCommentMap);
