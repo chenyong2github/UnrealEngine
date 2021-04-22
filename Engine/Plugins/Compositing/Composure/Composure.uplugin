@@ -38,6 +38,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "LensDistortion",
+			"Enabled": true
+		},
+		{
 			"Name": "BlueprintMaterialTextureNodes",
 			"Enabled": true
 		},
