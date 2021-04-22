@@ -20,14 +20,23 @@ void FLevelSnapshotPropertyChain::AppendInline(const FProperty* Property)
 
 bool FLevelSnapshotPropertyChain::EqualsSerializedProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const
 {
-	const bool bIsSerializingRoot = !ContainerChain || ContainerChain->GetNumProperties() == 0;
-	if (bIsSerializingRoot)
+	check(GetNumProperties() > 0);
+	
+	const bool bHaveSameLeaf = LeafProperty == GetPropertyFromStack(0);
+	if (!ContainerChain)
 	{
-		return GetNumProperties() == 1 && GetPropertyFromRoot(0) == LeafProperty;
+		return bHaveSameLeaf;
 	}
-
+	
+	const bool bHaveSameChainLength = GetNumProperties() + 1 == ContainerChain->GetNumProperties();
+	if (!bHaveSameLeaf
+        || !bHaveSameChainLength)
+	{
+		return false;
+	}
+	
 	// Walk up the chain and compare every element
-	for (int32 i = 0; i < ContainerChain->GetNumProperties(); ++i)
+	for (int32 i = 0; i < GetNumProperties(); ++i)
 	{
 		if (ContainerChain->GetPropertyFromRoot(i) != GetPropertyFromRoot(i))
 		{
@@ -35,8 +44,7 @@ bool FLevelSnapshotPropertyChain::EqualsSerializedProperty(const FArchiveSeriali
 		}
 	}
 
-	// Now we only need to check whether our chain ends with the property being serialized
-	return LeafProperty == GetPropertyFromStack(0);
+	return true;
 }
 
 bool FLevelSnapshotPropertyChain::IsEmpty() const
