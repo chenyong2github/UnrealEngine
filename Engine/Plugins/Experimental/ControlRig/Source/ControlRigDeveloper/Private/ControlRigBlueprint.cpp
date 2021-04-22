@@ -621,7 +621,7 @@ void UControlRigBlueprint::RecompileVM()
 #if WITH_EDITOR
 		if (CDO->GetVMSnapshot() == nullptr || CDO->GetVMSnapshot()->GetOuter() != CDO)
 		{
-			CDO->SetVMSnapshot(NewObject<URigVM>(CDO));
+			CDO->SetVMSnapshot(NewObject<URigVM>(CDO, NAME_None, RF_Transient));
 		}
 #endif
 
