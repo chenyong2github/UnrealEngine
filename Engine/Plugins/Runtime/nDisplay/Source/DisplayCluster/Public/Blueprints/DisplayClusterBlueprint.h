@@ -21,9 +21,12 @@ public:
 	virtual UClass* GetBlueprintClass() const override;
 	virtual void GetReparentingRules(TSet<const UClass*>& AllowedChildrenOfClasses, TSet<const UClass*>& DisallowedChildrenOfClasses) const override;
 	// ~UBlueprint
-
-#endif
+#endif // WITH_EDITOR
 	
+	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
+
 	class UDisplayClusterBlueprintGeneratedClass* GetGeneratedClass() const;
 
 	UDisplayClusterConfigurationData* GetOrLoadConfig();
@@ -38,6 +41,11 @@ public:
 	// Holds the last saved config export. In the AssetRegistry to allow parsing without loading.
 	UPROPERTY(AssetRegistrySearchable)
 	FString ConfigExport;
+
+private:
+
+	//** Updates the ConfigExport property. Called when saving the asset.
+	void UpdateConfigExportProperty();
 
 protected:
 	UPROPERTY()

@@ -196,9 +196,6 @@ private:
 
 	void BindCommands();
 
-	// Updates the ConfigExport property of the LoadedBlueprint
-	void UpdateConfigExportProperty();
-
 private:
 	TSharedPtr<FDisplayClusterConfiguratorViewGeneral> ViewGeneral;
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;

@@ -818,32 +818,8 @@ void FDisplayClusterConfiguratorBlueprintEditor::RegisterTabSpawners(const TShar
 	FBlueprintEditor::RegisterTabSpawners(InTabManager);
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::UpdateConfigExportProperty()
-{
-	if (!LoadedBlueprint.IsValid())
-	{
-		return;
-	}
-
-	FString ConfigString;
-	UDisplayClusterConfiguratorEditorSubsystem* const EditorSubsystem = GEditor->GetEditorSubsystem<UDisplayClusterConfiguratorEditorSubsystem>();
-
-	if (EditorSubsystem != nullptr && EditorSubsystem->ConfigAsString(GetEditorData(), ConfigString))
-	{
-		LoadedBlueprint->ConfigExport = ConfigString;
-	}
-	else
-	{
-		// If the export fails, reset the exported string to indicate that the current config is not valid.
-		LoadedBlueprint->ConfigExport = TEXT("");
-	}
-}
-
-
 void FDisplayClusterConfiguratorBlueprintEditor::SaveAsset_Execute()
 {
-	UpdateConfigExportProperty();
-
 	if (CanExportConfig() && IsExportOnSaveSet())
 	{
 		ExportConfig();
