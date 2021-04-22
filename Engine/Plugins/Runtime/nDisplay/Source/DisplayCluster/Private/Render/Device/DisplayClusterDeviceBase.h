@@ -17,7 +17,7 @@
 class IDisplayClusterPostProcess;
 class FDisplayClusterPresentationBase;
 class IDisplayClusterViewportManager;
-class FDisplayClusterViewportManager;
+class IDisplayClusterViewportManagerProxy;
 class FSceneView;
 
 
@@ -46,17 +46,8 @@ public:
 
 	virtual IDisplayClusterPresentation* GetPresentation() const override;
 
-	virtual void RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList) override;
-
-	virtual EDisplayClusterRenderFrameMode GetRenderFrameMode() const override
-	{
-		return RenderFrameMode;
-	}
-
-	virtual void SetDesiredNumberOfViews(int32 InDesiredNumberOfViews) override
-	{
-		DesiredNumberOfViews = InDesiredNumberOfViews;
-	}
+	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) override;
+	virtual void FinalizeNewFrame() override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,8 +70,6 @@ public:
 
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override
 	{ return this; }
-
-	virtual IDisplayClusterViewportManager& GetViewportManager() const override;
 
 protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,8 +133,10 @@ protected:
 	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) override;
 	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) override;
 
-protected:
-	TUniquePtr<FDisplayClusterViewportManager> DCViewportManager;
+private:
+	// Runtime viewport manager api for game and render threads. Internal usage only
+	IDisplayClusterViewportManager*      ViewportManagerPtr = nullptr;
+	IDisplayClusterViewportManagerProxy* ViewportManagerProxyPtr = nullptr;
 
 	EDisplayClusterRenderFrameMode RenderFrameMode = EDisplayClusterRenderFrameMode::Mono;
 	int32 DesiredNumberOfViews = 0;

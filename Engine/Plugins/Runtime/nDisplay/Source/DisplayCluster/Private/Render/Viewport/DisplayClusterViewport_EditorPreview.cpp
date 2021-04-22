@@ -28,6 +28,9 @@
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+///////////////////////////////////////////////////////////////////////////////////////
+//          FDisplayClusterViewport
+///////////////////////////////////////////////////////////////////////////////////////
 
 FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContext& InOutViewFamily, uint32 InContextNum)
 {
@@ -115,12 +118,20 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 	return nullptr;
 }
 
+enum EDisplayClusterEyeType
+{
+	StereoLeft = 0,
+	Mono = 1,
+	StereoRight = 2,
+	COUNT
+};
+
 bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32 InContextNum, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
 
-	if (!GetOwner().IsSceneOpened() || !ProjectionPolicy.IsValid())
+	if (!GetOwner().IsSceneOpened())
 	{
 		return false;
 	}
@@ -133,7 +144,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 		return false;
 	}
 
-	FDisplayClusterViewport_Context& InOutViewportContext = Contexts[InContextNum];
+	const FDisplayClusterViewport_Context& ViewportContext = Contexts[InContextNum];
 
 	UE_LOG(LogDisplayClusterViewport, VeryVerbose, TEXT("OLD ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 	UE_LOG(LogDisplayClusterViewport, VeryVerbose, TEXT("WorldToMeters: %f"), WorldToMeters);
@@ -160,8 +171,55 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	const bool  bCfgEyeSwap = ViewCamera->GetSwapEyes();
 	const float CfgNCP = 1.f;
 
+	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera->GetStereoOffset();
+
+	// Calculate eye offset considering the world scale
+	const float ScaledEyeDist = CfgEyeDist * WorldToMeters;
+	const float ScaledEyeOffset = ScaledEyeDist / 2.f;
+	const float EyeOffsetValues[] = { -ScaledEyeOffset, 0.f, ScaledEyeOffset };
+
+	auto DecodeEyeType = [](const EStereoscopicPass EyePass)
+	{
+		switch (EyePass)
+		{
+		case EStereoscopicPass::eSSP_LEFT_EYE:
+			return EDisplayClusterEyeType::StereoLeft;
+		case EStereoscopicPass::eSSP_RIGHT_EYE:
+			return EDisplayClusterEyeType::StereoRight;
+		default:
+			break;
+		}
+
+		return EDisplayClusterEyeType::Mono;
+	};
+
+	// Decode current eye type	
+	const EDisplayClusterEyeType EyeType = DecodeEyeType(ViewportContext.StereoscopicEye);
+	const int   EyeIndex = (int)EyeType;
+
 	float PassOffset = 0.f;
 	float PassOffsetSwap = 0.f;
+
+	if (EyeType == EDisplayClusterEyeType::Mono)
+	{
+		// For monoscopic camera let's check if the "force offset" feature is used
+		// * Force left (-1) ==> 0 left eye
+		// * Force right (1) ==> 2 right eye
+		// * Default (0) ==> 1 mono
+		const int EyeOffsetIdx =
+			(CfgEyeOffset == EDisplayClusterEyeStereoOffset::None ? 0 :
+				(CfgEyeOffset == EDisplayClusterEyeStereoOffset::Left ? -1 : 1));
+
+		PassOffset = EyeOffsetValues[EyeOffsetIdx + 1];
+		// Eye swap is not available for monoscopic so just save the value
+		PassOffsetSwap = PassOffset;
+	}
+	else
+	{
+		// For stereo camera we can only swap eyes if required (no "force offset" allowed)
+		PassOffset = EyeOffsetValues[EyeIndex];
+		PassOffsetSwap = (bCfgEyeSwap ? -PassOffset : PassOffset);
+	}
 
 	FVector ViewOffset = FVector::ZeroVector;
 	if (ViewCamera)
@@ -176,15 +234,11 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	}
 
 	// Perform view calculations on a policy side
-	if (!ProjectionPolicy->CalculateView(this, InContextNum, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP))
+	if (!CalculateView(InContextNum, ViewLocation, ViewRotation, ViewOffset, WorldToMeters, CfgNCP, CfgNCP))
 	{
 		UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Couldn't compute view parameters for Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
+		return false;
 	}
-
-	// Store the view location/rotation
-	InOutViewportContext.ViewLocation = ViewLocation;
-	InOutViewportContext.ViewRotation = ViewRotation;
-	InOutViewportContext.WorldToMeters = WorldToMeters;
 
 	UE_LOG(LogDisplayClusterViewport, VeryVerbose, TEXT("ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
 
@@ -197,15 +251,9 @@ FMatrix FDisplayClusterViewport::ImplPreview_GetStereoProjectionMatrix(const uin
 
 	FMatrix PrjMatrix = FMatrix::Identity;
 
-	if (GetOwner().IsSceneOpened() && ProjectionPolicy.IsValid())
+	if (GetOwner().IsSceneOpened())
 	{
-		FDisplayClusterViewport_Context& InOutViewportContext = GetContexts()[InContextNum];
-
-		if (ProjectionPolicy->GetProjectionMatrix(this, InContextNum, PrjMatrix))
-		{
-			InOutViewportContext.ProjectionMatrix = PrjMatrix;
-		}
-		else
+		if (GetProjectionMatrix(InContextNum, PrjMatrix) == false)
 		{
 			UE_LOG(LogDisplayClusterViewport, Warning, TEXT("Got invalid projection matrix: Viewport %s, ViewIdx: %d"), *GetId(), InContextNum);
 		}

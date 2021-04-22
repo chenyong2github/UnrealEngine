@@ -63,7 +63,7 @@ static TAutoConsoleVariable<float> CVarMPCDIFrustumCachePrecision(
 	ECVF_RenderThreadSafe
 );
 
-bool FDisplayClusterWarpBlend::CalcFrustumContext(const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext)
+bool FDisplayClusterWarpBlend::CalcFrustumContext(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext)
 {
 	if (!GeometryContext.Update(InEye.WorldScale))
 	{
@@ -91,7 +91,7 @@ bool FDisplayClusterWarpBlend::CalcFrustumContext(const FDisplayClusterWarpEye& 
 	Frustum.SetParameter((EDisplayClusterWarpBlendStereoMode)(CVarMPCDIStereoMode.GetValueOnAnyThread()));
 	Frustum.SetParameter((EDisplayClusterWarpBlendProjectionType)(CVarMPCDIProjectionMode.GetValueOnAnyThread()));
 
-	if (!Frustum.CalcFrustum(OutWarpContext))
+	if (!Frustum.CalcFrustum(InViewport, InContextNum, OutWarpContext))
 	{
 		return false;
 	}

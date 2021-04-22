@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
+
+#if WITH_EDITOR
 
 #include "EngineModule.h"
 #include "CanvasTypes.h"
@@ -24,59 +27,90 @@
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
 #include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterRootActor.h" 
 
 #include "ClearQuad.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManager
 ///////////////////////////////////////////////////////////////////////////////////////
-#if WITH_EDITOR
-bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* InPreviewConfiguration, UWorld* InPreviewWorld, ADisplayClusterRootActor* InRootActorPtr)
+
+void FDisplayClusterViewportManager::ImplUpdatePreviewRTTResources()
 {
-	if (InRootActorPtr && InPreviewConfiguration)
+	check(IsInGameThread());
+
+	// Only for preview modes:
+	switch (Configuration->GetRenderFrameSettings().RenderMode)
 	{
-		bool bIsRootActorChanged = Configuration->SetRootActor(InRootActorPtr);
-
-		if (CurrentScene != InPreviewWorld)
-		{
-			// Handle end current scene
-			if (CurrentScene)
-			{
-				EndScene();
-			}
-
-			// no preview scene, disable preview
-			if (InPreviewWorld == nullptr)
-			{
-				return false;
-			}
-
-			// Handle begin new scene
-			StartScene(InPreviewWorld);
-		}
-		else
-		{
-			// When the root actor changes, we have to ResetScene() to reinitialize the internal references of the projection policy.
-			if (bIsRootActorChanged)
-			{
-				ResetScene();
-			}
-		}
-
-		return Configuration->UpdatePreviewConfiguration(InPreviewConfiguration);
+	case EDisplayClusterRenderFrameMode::PreviewMono:
+		break;
+	default:
+		return;
 	}
 
-	return false;
+	// The preview RTT created inside root actor
+	ADisplayClusterRootActor* RootActor = GetRootActor();
+	if (RootActor == nullptr)
+	{
+		//@todo: handle error
+		return;
+	}
+
+	TArray<FString>        PreviewViewportNames;
+	TArray<FTextureRHIRef> PreviewRenderTargetableTextures;
+
+	PreviewViewportNames.Reserve(Viewports.Num());
+	PreviewRenderTargetableTextures.Reserve(Viewports.Num());
+
+	// Collect visible and enabled viewports for preview rendering:
+	for (FDisplayClusterViewport* const ViewportIt : Viewports)
+	{
+		if (ViewportIt->RenderSettings.bEnable && ViewportIt->RenderSettings.bVisible)
+		{
+			PreviewViewportNames.Add(ViewportIt->GetId());
+			PreviewRenderTargetableTextures.AddDefaulted();
+		}
+	}
+
+	// Get all supported preview rtt resources from root actor
+	RootActor->GetPreviewRenderTargetableTextures(PreviewViewportNames, PreviewRenderTargetableTextures);
+
+	// Configure preview RTT to viwports:
+	for (int32 ViewportIndex = 0; ViewportIndex < PreviewViewportNames.Num(); ViewportIndex++)
+	{
+		FDisplayClusterViewport* DesiredViewport = ImplFindViewport(PreviewViewportNames[ViewportIndex]);
+		if (DesiredViewport)
+		{
+			FTextureRHIRef& PreviewRTT = PreviewRenderTargetableTextures[ViewportIndex];
+			if (PreviewRTT.IsValid())
+			{
+				// Use mapped preview viewport
+				DesiredViewport->OutputPreviewTargetableResource = PreviewRTT;
+			}
+			else
+			{
+				// disable visible, but unused by root actor viewports
+				DesiredViewport->RenderSettings.bEnable = false;
+			}
+		}
+	}
 }
 
-bool FDisplayClusterViewportManager::RenderPreview(class FDisplayClusterRenderFrame& InPreviewRenderFrame)
+bool FDisplayClusterViewportManager::UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, class ADisplayClusterRootActor* InRootActorPtr)
 {
-	if (CurrentScene == nullptr)
+	Configuration->SetRootActor(InRootActorPtr);
+	return Configuration->UpdatePreviewConfiguration(PreviewConfiguration);
+}
+
+bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FRHITexture2D* FrameOutputRTT)
+{
+	UWorld* CurrentWorld = GetCurrentWorld();
+	if (CurrentWorld == nullptr)
 	{
 		return false;
 	}
 
-	FSceneInterface* PreviewScene = CurrentScene->Scene;
+	FSceneInterface* PreviewScene = CurrentWorld->Scene;
 
 	bool bHasRender = false;
 
@@ -85,7 +119,7 @@ bool FDisplayClusterViewportManager::RenderPreview(class FDisplayClusterRenderFr
 	//Experimental code from render team, now always disabled
 	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
 
-	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InPreviewRenderFrame.RenderTargets)
+	for (FDisplayClusterRenderFrame::FFrameRenderTarget& RenderTargetIt : InRenderFrame.RenderTargets)
 	{
 		// Special flag, allow clear RTT surface only for first family
 		bool AdditionalViewFamily = false;
@@ -143,7 +177,6 @@ bool FDisplayClusterViewportManager::RenderPreview(class FDisplayClusterRenderFr
 					GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 					bHasRender = true;
 				}
-
 			}
 		}
 	}
@@ -155,23 +188,7 @@ bool FDisplayClusterViewportManager::RenderPreview(class FDisplayClusterRenderFr
 		FinalizeNewFrame();
 
 		// After all render target rendered call nDisplay frame rendering:
-		// void FDisplayClusterDeviceBase::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
-		ENQUEUE_RENDER_COMMAND(UDisplayClusterViewport_PreviewRenderFrame)(
-			[PreviewViewportManager = this, bWarpBlendEnabled = InPreviewRenderFrame.bWarpBlendEnabled](FRHICommandListImmediate& RHICmdList)
-		{
-			// Preview not used MGPU: skip cross-gpu transfers
-			// PreviewViewportManager->DoCrossGPUTransfers_RenderThread(MainViewport, RHICmdList);
-
-			// Update viewports resources: overlay, vp-overla, blur, nummips, etc
-			PreviewViewportManager->UpdateDeferredResources_RenderThread(RHICmdList);
-
-			// Update the frame resources: post-processing, warping, and finally resolving everything to the frame resource
-			PreviewViewportManager->UpdateFrameResources_RenderThread(RHICmdList, bWarpBlendEnabled);
-
-			// Preview not use frame resource, instead directly resolved to external RTT resource
-			// PreviewViewportManager->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, SeparateRTT, SeparateRTT->GetSizeXY());
-		});
-
+		RenderFrame(InRenderFrame.bWarpBlendEnabled, FrameOutputRTT);
 
 		return true;
 	}

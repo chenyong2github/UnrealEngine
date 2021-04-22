@@ -266,38 +266,38 @@ public:
 	// Render API
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	/** Binds camera to a viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
-	virtual void SetViewportCamera(const FString& CameraID, const FString& ViewportID) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetViewportCamera(const FString& CameraId, const FString& ViewportId) = 0;
 
 	/** Returns current buffer ratio for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool GetBufferRatio(const FString& ViewportID, float& BufferRatio) const = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool GetBufferRatio(const FString& ViewportId, float& BufferRatio) const = 0;
+
 	/** Sets buffer ratio for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool SetBufferRatio(const FString& ViewportID, float BufferRatio) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool SetBufferRatio(const FString& ViewportId, float BufferRatio) = 0;
 
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings) = 0;
+
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
-	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
+
 	/** Overrides postprocess settings for specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
 
 	/** Returns location and size of specified viewport. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle"), Category = "DisplayCluster|Render")
-	virtual bool GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Render")
+	virtual bool GetViewportRect(const FString& ViewportId, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const = 0;
 
 	/** Returns list of local viewports. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports"), Category = "DisplayCluster|Config")
-	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Config")
+	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ProjectionTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const = 0;
 
 	/** Returns a functor that determines if any given scene view extension should be active in the given context for the current frame */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function"), Category = "DisplayCluster|Render")
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
 	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const = 0;
 };

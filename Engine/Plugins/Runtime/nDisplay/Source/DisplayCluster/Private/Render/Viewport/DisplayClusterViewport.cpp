@@ -2,13 +2,13 @@
 
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/DisplayClusterViewportProxy.h"
 
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
 #include "Render/Viewport/DisplayClusterViewportStereoscopicPass.h"
-#include "Render/Viewport/Containers/DisplayClusterViewportProxy_ExchangeContainer.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
@@ -22,7 +22,10 @@
 
 #include "Misc\DisplayClusterLog.h"
 
-FDisplayClusterViewport::FDisplayClusterViewport(class FDisplayClusterViewportManager& InOwner, const FString& InViewportId, TSharedPtr<IDisplayClusterProjectionPolicy> InProjectionPolicy)
+///////////////////////////////////////////////////////////////////////////////////////
+//          FDisplayClusterViewport
+///////////////////////////////////////////////////////////////////////////////////////
+FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager& InOwner, const FString& InViewportId, TSharedPtr<IDisplayClusterProjectionPolicy> InProjectionPolicy)
 	: UninitializedProjectionPolicy(InProjectionPolicy)
 	, ViewportId(InViewportId)
 	, Owner(InOwner)
@@ -30,7 +33,12 @@ FDisplayClusterViewport::FDisplayClusterViewport(class FDisplayClusterViewportMa
 	check(UninitializedProjectionPolicy.IsValid());
 
 	// Create scene proxy pair with on game thread. Outside, in ViewportManager added to proxy array on render thread
-	ViewportProxy = new FDisplayClusterViewportProxy(Owner, *this);
+	ViewportProxy = new FDisplayClusterViewportProxy(Owner.ImplGetProxy(), *this);
+}
+
+FDisplayClusterViewport::~FDisplayClusterViewport()
+{
+	// ViewportProxy deleted on render thread from FDisplayClusterViewportManagerProxy::ImplDeleteViewport()
 }
 
 IDisplayClusterViewportManager& FDisplayClusterViewport::GetOwner() const
@@ -38,26 +46,24 @@ IDisplayClusterViewportManager& FDisplayClusterViewport::GetOwner() const
 	return Owner;
 }
 
-void FDisplayClusterViewport::UpdateViewExtensions(FViewport* InViewport)
+const TArray<FSceneViewExtensionRef> FDisplayClusterViewport::GatherActiveExtensions(FViewport* InViewport) const
 {
 	if (InViewport)
 	{
 		FDisplayClusterSceneViewExtensionContext ViewExtensionContext(InViewport, &Owner, GetId());
-		ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
+		return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 	}
 	else
 	{
-		UWorld* CurrentWorld = Owner.GetWorld();
+		UWorld* CurrentWorld = Owner.GetCurrentWorld();
 		if (CurrentWorld)
 		{
 			FDisplayClusterSceneViewExtensionContext ViewExtensionContext(CurrentWorld->Scene, &Owner, GetId());
-			ViewExtensions = GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
-		}
-		else
-		{
-			ViewExtensions.Empty();
+			return GEngine->ViewExtensions->GatherActiveExtensions(ViewExtensionContext);
 		}
 	}
+
+	return TArray<FSceneViewExtensionRef>();
 }
 
 FSceneViewExtensionIsActiveFunctor FDisplayClusterViewport::GetSceneViewExtensionIsActiveFunctor() const
@@ -87,28 +93,6 @@ FSceneViewExtensionIsActiveFunctor FDisplayClusterViewport::GetSceneViewExtensio
 	};
 
 	return IsActiveFunction;
-}
-
-void FDisplayClusterViewport::UpdateSceneProxyData()
-{
-	// Update viewport proxy data
-	ENQUEUE_RENDER_COMMAND(UpdateDisplayClusterViewportProxy)(
-		[ DstViewportProxy = ViewportProxy
-		, SrcProxyExchangeContainer = new FDisplayClusterViewportProxy_ExchangeContainer(this)
-		](FRHICommandListImmediate& RHICmdList)
-	{
-		if (SrcProxyExchangeContainer)
-		{
-			if (DstViewportProxy)
-			{
-				// Send data from container to viewport sceneproxy
-				SrcProxyExchangeContainer->CopyTo(DstViewportProxy);
-			}
-
-			// remove container after exchange
-			delete SrcProxyExchangeContainer;
-		}
-	});
 }
 
 bool FDisplayClusterViewport::HandleStartScene()
@@ -207,6 +191,10 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	OutputFrameTargetableResources.Empty();
 	AdditionalFrameTargetableResources.Empty();
 
+#if WITH_EDITOR
+	OutputPreviewTargetableResource.SafeRelease();
+#endif
+
 	InputShaderResources.Empty();
 	AdditionalTargetableResources.Empty();
 	MipsShaderResources.Empty();
@@ -266,24 +254,25 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	uint32 ViewportContextAmmount = RenderSettings.bForceMono ? 1 : FrameTargetsAmmount;
 
 
-	FIntPoint ViewportSize = FrameTargetRect.Size();
+	FIntPoint ContextSize = FrameTargetRect.Size();
+
+	static int MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
 
 	// Get valid viewport size for render:
 	{
-		int ViewportResolution = ViewportSize.GetMax() * RTTSizeMult;
+		int ViewportResolution = ContextSize.GetMax() * RTTSizeMult;
 
 		// In UE, the maximum texture resolution is computed as:
-		static int MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
 		if (ViewportResolution > MaximumSupportedResolution)
 		{
 			RTTSizeMult *= float(ViewportResolution) / MaximumSupportedResolution;
 	}
 
-		ViewportSize.X = FMath::Min(int(RTTSizeMult * ViewportSize.X), MaximumSupportedResolution);
-		ViewportSize.Y = FMath::Min(int(RTTSizeMult * ViewportSize.Y), MaximumSupportedResolution);
+		ContextSize.X = FMath::Min(int(RTTSizeMult * ContextSize.X), MaximumSupportedResolution);
+		ContextSize.Y = FMath::Min(int(RTTSizeMult * ContextSize.Y), MaximumSupportedResolution);
 	}
 
-	FIntRect RenderTargetRect(FIntPoint(0, 0), ViewportSize);
+	FIntRect RenderTargetRect(FIntPoint(0, 0), ContextSize);
 
 	// Test vs zero size rects
 	if (FrameTargetRect.Width() <= 0 || FrameTargetRect.Height() <= 0 || RenderTargetRect.Width() <= 0 || RenderTargetRect.Height() <= 0)
@@ -291,82 +280,70 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		return false;
 	}
 
+	// Support overscan rendering feature
+	OverscanRendering.Update(RenderTargetRect);
+
+	check(FrameTargetRect.Max.X <= MaximumSupportedResolution);
+	check(FrameTargetRect.Max.Y <= MaximumSupportedResolution);
+
 	// Support override feature
 	bool bDisableRender = PostRenderSettings.Override.IsEnabled();
-
 	if (RenderSettings.OverrideViewportId.IsEmpty() == false)
 	{
 		// map to override at UpdateFrameContexts()
 		bDisableRender = true;
 	}
 	
-	switch (InFrameSettings.RenderMode)
+	//Add new contexts
+	for (uint32 ContextIt = 0; ContextIt < ViewportContextAmmount; ++ContextIt)
 	{
-		case EDisplayClusterRenderFrameMode::PreviewMono:
+		const EStereoscopicPass StereoscopicEye  = FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicEye(ContextIt, ViewportContextAmmount);
+		const EStereoscopicPass StereoscopicPass = (InFrameSettings.bIsRenderingInEditor) ? EStereoscopicPass::eSSP_FULL : FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(InViewPassNum + ContextIt);
+
+		FDisplayClusterViewport_Context Context(ContextIt, StereoscopicEye, StereoscopicPass);
+
+		int ContextGPUIndex = (ContextIt > 0 && RenderSettings.StereoGPUIndex >= 0) ? RenderSettings.StereoGPUIndex : RenderSettings.GPUIndex;
+		Context.GPUIndex = ContextGPUIndex;
+
+
+		if (InFrameSettings.bIsRenderingInEditor)
 		{
-			//Add mono new preview contexts
-			const EStereoscopicPass StereoscopicEye = EStereoscopicPass::eSSP_FULL;
-			const EStereoscopicPass StereoscopicPass = EStereoscopicPass::eSSP_FULL;
-
-			FDisplayClusterViewport_Context Context(0, StereoscopicEye, StereoscopicPass);
-			
-			Context.FrameTargetRect = FrameTargetRect;
-			Context.RenderTargetRect = RenderTargetRect;
-
+			// Disable MultiGPU feature
 			Context.GPUIndex = INDEX_NONE;
-
-			Context.bDisableRender = bDisableRender;
-
-			Contexts.Add(Context);
-			break;
 		}
-
-		default:
+		else
 		{
-			//Add new contexts
-			for (uint32 ContextIt = 0; ContextIt < ViewportContextAmmount; ++ContextIt)
+			// Control mGPU:
+			switch (InFrameSettings.MultiGPUMode)
 			{
-				const uint32 ViewIndex = InViewPassNum + ContextIt;
-				const EStereoscopicPass StereoscopicEye = FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicEye(ContextIt, ViewportContextAmmount);
-				const EStereoscopicPass StereoscopicPass = FDisplayClusterViewportStereoscopicPass::EncodeStereoscopicPass(ViewIndex);
+			case EDisplayClusterMultiGPUMode::None:
+				Context.bAllowGPUTransferOptimization = false;
+				Context.GPUIndex = INDEX_NONE;
+				break;
 
-				int ContextGPUIndex = (ContextIt > 0 && RenderSettings.StereoGPUIndex >= 0) ? RenderSettings.StereoGPUIndex : RenderSettings.GPUIndex;
+			case EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps:
+				Context.bAllowGPUTransferOptimization = true;
+				Context.bEnabledGPUTransferLockSteps = true;
+				break;
 
-				FDisplayClusterViewport_Context Context(ContextIt, StereoscopicEye, StereoscopicPass);
-				Context.FrameTargetRect = FrameTargetRect;
-				Context.RenderTargetRect = RenderTargetRect;
+			case EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps:
+				Context.bAllowGPUTransferOptimization = true;
+				Context.bEnabledGPUTransferLockSteps = false;
+				break;
 
-				Context.GPUIndex = ContextGPUIndex;
-
-				Context.bDisableRender = bDisableRender;
-
-				// Control mGPU:
-				switch (InFrameSettings.MultiGPUMode)
-				{
-				case EDisplayClusterMultiGPUMode::None:
-					Context.bAllowGPUTransferOptimization = false;
-					Context.GPUIndex = INDEX_NONE;
-					break;
-
-				case EDisplayClusterMultiGPUMode::Optimized_EnabledLockSteps:
-					Context.bAllowGPUTransferOptimization = true;
-					Context.bEnabledGPUTransferLockSteps = true;
-					break;
-
-				case EDisplayClusterMultiGPUMode::Optimized_DisabledLockSteps:
-					Context.bAllowGPUTransferOptimization = true;
-					Context.bEnabledGPUTransferLockSteps = false;
-					break;
-
-				default:
-					Context.bAllowGPUTransferOptimization = false;
-					break;
-				}
-
-				Contexts.Add(Context);
+			default:
+				Context.bAllowGPUTransferOptimization = false;
+				break;
 			}
-			break;
 		}
+
+		Context.FrameTargetRect = FrameTargetRect;
+		Context.RenderTargetRect = RenderTargetRect;
+		Context.ContextSize = ContextSize;
+
+		Context.bDisableRender = bDisableRender;
+
+		Contexts.Add(Context);
 	}
 
 	// Reserve for resources
@@ -381,7 +358,7 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 	// Setup Mips resources:
 	for (FDisplayClusterViewport_Context& ContextIt: Contexts)
 	{
-		ContextIt.NumMips = PostRenderSettings.GenerateMips.GetRequiredNumMips(ContextIt.RenderTargetRect.Size());
+		ContextIt.NumMips = PostRenderSettings.GenerateMips.GetRequiredNumMips(ContextIt.ContextSize);
 		if (ContextIt.NumMips > 1)
 		{
 			MipsShaderResources.AddZeroed(1);

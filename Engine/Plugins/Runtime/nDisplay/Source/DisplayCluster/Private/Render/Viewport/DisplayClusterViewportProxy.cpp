@@ -2,13 +2,15 @@
 
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 
-#include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewport.h"
 
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
 #include "Render/Viewport/RenderTarget/DisplayClusterRenderTargetResource.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrameSettings.h"
 #include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
+
+#include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
 #if WITH_EDITOR
 #include "DisplayClusterRootActor.h"
@@ -33,7 +35,15 @@
 
 #include "IDisplayClusterShaders.h"
 
-FDisplayClusterViewportProxy::FDisplayClusterViewportProxy(class FDisplayClusterViewportManager& InOwner, const FDisplayClusterViewport& RenderViewport)
+static TAutoConsoleVariable<int> CVarDisplayClusterRenderOverscanResolve(
+	TEXT("nDisplay.render.overscan.resolve"),
+	1,
+	TEXT("Allow resolve overscan internal rect to output backbuffer.\n")
+	TEXT(" 0 - to disable.\n"),
+	ECVF_RenderThreadSafe
+);
+
+FDisplayClusterViewportProxy::FDisplayClusterViewportProxy(const FDisplayClusterViewportManagerProxy& InOwner, const FDisplayClusterViewport& RenderViewport)
 	: ViewportId(RenderViewport.ViewportId)
 	, RenderSettings(RenderViewport.RenderSettings)
 	, ProjectionPolicy(RenderViewport.UninitializedProjectionPolicy)
@@ -47,7 +57,7 @@ FDisplayClusterViewportProxy::~FDisplayClusterViewportProxy()
 {
 }
 
-IDisplayClusterViewportManager& FDisplayClusterViewportProxy::GetOwner() const
+const IDisplayClusterViewportManagerProxy& FDisplayClusterViewportProxy::GetOwner() const
 {
 	return Owner;
 }
@@ -155,13 +165,13 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 	case EDisplayClusterViewportResourceType::OutputPreviewTargetableResource:
 	{
 		// Get external resource:
-		ADisplayClusterRootActor* RootActor = Owner.GetRootActor();
-		if (RootActor)
+		if (OutputPreviewTargetableResource.IsValid())
 		{
-			FRHITexture2D* TargetTexture = RootActor->GetPreviewRenderTargetableTexture_RenderThread(GetId());
-			if (TargetTexture && TargetTexture->IsValid())
+			FRHITexture* Texture = OutputPreviewTargetableResource;
+			FRHITexture2D* Texture2D = static_cast<FRHITexture2D*>(Texture);
+			if (Texture2D != nullptr)
 			{
-				OutResources.Add(TargetTexture);
+				OutResources.Add(Texture2D);
 				return true;
 			}
 		}
@@ -179,7 +189,7 @@ bool FDisplayClusterViewportProxy::GetResources_RenderThread(const EDisplayClust
 EDisplayClusterViewportResourceType FDisplayClusterViewportProxy::GetOutputResourceType() const
 {
 #if WITH_EDITOR
-	if (Owner.Configuration->GetRenderFrameSettings().RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
+	if (Owner.GetRenderFrameSettings_RenderThread().RenderMode == EDisplayClusterRenderFrameMode::PreviewMono)
 	{
 		return EDisplayClusterViewportResourceType::OutputPreviewTargetableResource;
 	}
@@ -433,18 +443,34 @@ bool FDisplayClusterViewportProxy::ImplResolveResources(FRHICommandListImmediate
 		int InputAmmount = FMath::Min(InputResources.Num(), OutputResources.Num());
 		for (int InputIt = 0; InputIt < InputAmmount; InputIt++)
 		{
+			FIntRect SourceRect = InputResourcesRect[InputIt];
+
+			// When resolving without warp, apply overscan
+			switch (InputResourceType)
+			{
+			case EDisplayClusterViewportResourceType::InternalRenderTargetResource:
+				if (OverscanSettings.bIsEnabled && CVarDisplayClusterRenderOverscanResolve.GetValueOnRenderThread() != 0)
+				{
+					// Support overscan crop
+					SourceRect = OverscanSettings.OverscanPixels.GetInnerRect(SourceRect);
+				}
+				break;
+			default:
+				break;
+			}
+
 			if ((InputIt + 1) == InputAmmount)
 			{
 				// last input mono -> stereo outputs
 				for (int OutputIt = InputIt; OutputIt < OutputResources.Num(); OutputIt++)
 				{
-					ImplResolveResource(RHICmdList, InputResources[InputIt], InputResourcesRect[InputIt], OutputResources[OutputIt], OutputResourcesRect[OutputIt], bOutputIsMipsResource);
+					ImplResolveResource(RHICmdList, InputResources[InputIt], SourceRect, OutputResources[OutputIt], OutputResourcesRect[OutputIt], bOutputIsMipsResource);
 				}
 				break;
 			}
 			else
 			{
-				ImplResolveResource(RHICmdList, InputResources[InputIt], InputResourcesRect[InputIt], OutputResources[InputIt], OutputResourcesRect[InputIt], bOutputIsMipsResource);
+				ImplResolveResource(RHICmdList, InputResources[InputIt], SourceRect, OutputResources[InputIt], OutputResourcesRect[InputIt], bOutputIsMipsResource);
 			}
 		}
 

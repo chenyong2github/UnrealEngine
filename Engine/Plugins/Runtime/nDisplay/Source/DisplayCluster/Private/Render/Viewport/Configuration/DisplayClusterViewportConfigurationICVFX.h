@@ -42,7 +42,7 @@ private:
 	void ImplBeginReallocateViewports();
 	void ImplFinishReallocateViewports();
 	void ImplGetCameras(TArray<class FDisplayClusterViewportConfigurationCameraICVFX*>& OutCameras);
-	bool ImplGetTargetViewports(TArray<FDisplayClusterViewport*>& OutTargets, EDisplayClusterViewportICVFXFlags OutTargetViewportsFlags);
+	EDisplayClusterViewportICVFXFlags ImplGetTargetViewports(TArray<FDisplayClusterViewport*>& OutTargets);
 
 	bool CreateLightcardViewport(FDisplayClusterViewport& BaseViewport);
 	bool ImplCreateLightcardViewport(FDisplayClusterViewport& BaseViewport, bool bIsOpenColorIO);

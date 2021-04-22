@@ -171,31 +171,69 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Render API
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
-	virtual void SetViewportCamera(const FString& CameraId, const FString& ViewportId) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetViewportCamera(const FString& CameraId, const FString& ViewportId) override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool GetBufferRatio(const FString& ViewportId, float& BufferRatio) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool GetBufferRatio(const FString& ViewportId, float& BufferRatio) const override
+	{
+		return false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio"), Category = "DisplayCluster|Render")
-	virtual bool SetBufferRatio(const FString& ViewportId, float BufferRatio) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport's buffer ratio", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual bool SetBufferRatio(const FString& ViewportId, float BufferRatio) override
+	{
+		return false;
+	}
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetStartPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& StartPostProcessingSettings) override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set override post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport"), Category = "DisplayCluster|Render")
-	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings) override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set final post processing settings for viewport", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportId, const FPostProcessSettings& FinalPostProcessingSettings) override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Updated Post Processing"), Category = "DisplayCluster|Render")
-	virtual bool GetViewportRect(const FString& ViewportId, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Updated Post Processing", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Render")
+		virtual bool GetViewportRect(const FString& ViewportId, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) const override
+	{
+		return false;
+	}
 
 	/** Returns list of local viewports. */
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports"), Category = "DisplayCluster|Config")
-	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ProjectionTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports", DeprecatedFunction, DeprecationMessage = "Use new api"), Category = "DisplayCluster|Config")
+	virtual void GetLocalViewports(TArray<FString>& ViewportIDs, TArray<FString>& ProjectionTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) const override
+	{ }
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function"), Category = "DisplayCluster|Render")
-	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const override;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Scene View Extension Is Active In Context Function", DeprecatedFunction, DeprecationMessage = "Use Configuration structures"), Category = "DisplayCluster|Render")
+	virtual void SceneViewExtensionIsActiveInContextFunction(const TArray<FString>& ViewportIDs, FSceneViewExtensionIsActiveFunctor& OutIsActiveFunction) const override
+	{ }
+
+	// @todo: deprecation stuff before release
+
+	// @todo: Implement new BP api
+#if 0
+	/** Return a viewport configuration object (RW access). Changes will be applied at runtime for this frame */
+	virtual bool GetLocalViewportConfiguration(const FString& ViewportID, UDisplayClusterConfigurationViewport* ConfigurationViewport) override;
+
+	/** Return local viewports names */
+	virtual void GetLocalViewports(TArray<FString>& ViewportIDs) const override;
+
+	/** Return local viewports runtime contexts */
+	virtual void GetLocalViewportsContext(TArray<FDisplayClusterViewportContext>& ViewportContexts) const override;
+
+	/** Return local viewports runtime stereo contexts */
+	virtual void GetLocalViewportsStereoContext(TArray<FDisplayClusterViewportStereoContext>& ViewportStereoContexts) const override;
+
+	/** Return viewport runtime context (last frame viewport data) */
+	virtual bool GetLocalViewportContext(const FString& ViewportID, FDisplayClusterViewportContext& ViewportContext) const override;
+
+	/** Return viewport stereo contexts (last frame viewport data) */
+	virtual bool GetLocalViewportStereoContext(const FString& ViewportID, FDisplayClusterViewportStereoContext& ViewportStereoContext) const override;
+#endif
 };

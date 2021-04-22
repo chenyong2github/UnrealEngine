@@ -30,6 +30,9 @@ public:
 	// Projection Matrix
 	FMatrix ProjectionMatrix = FMatrix::Identity;
 
+	// Overscan Projection Matrix (internal use)
+	FMatrix OverscanProjectionMatrix = FMatrix::Identity;
+
 	// World scale
 	float WorldToMeters = 100.f;
 
@@ -44,6 +47,9 @@ public:
 
 	// Location and size on a render target texture
 	FIntRect RenderTargetRect;
+
+	// Context size
+	FIntPoint ContextSize;
 
 	// Location and size on a frame target texture
 	FIntRect FrameTargetRect;

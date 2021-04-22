@@ -4,16 +4,22 @@
 
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
+#include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
+
 class FDisplayClusterRenderTargetResource;
 class FDisplayClusterTextureResource;
-class FDisplayClusterViewportProxy_ExchangeContainer;
-class FDisplayClusterViewportManager;
+class FDisplayClusterViewportProxyData;
+class IDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewport;
+class IDisplayClusterShaders;
+class IDisplayClusterProjectionPolicy;
 
 class FDisplayClusterViewportProxy
 	: public IDisplayClusterViewportProxy
 {
 public:
-	FDisplayClusterViewportProxy(class FDisplayClusterViewportManager& Owner, const class FDisplayClusterViewport& RenderViewport);
+	FDisplayClusterViewportProxy(const FDisplayClusterViewportManagerProxy& Owner, const FDisplayClusterViewport& RenderViewport);
 	virtual ~FDisplayClusterViewportProxy();
 
 public:
@@ -44,7 +50,7 @@ public:
 		return PostRenderSettings;
 	}
 
-	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy>& GetProjectionPolicy_RenderThread() const override
+	virtual const TSharedPtr<IDisplayClusterProjectionPolicy>& GetProjectionPolicy_RenderThread() const override
 	{
 		check(IsInRenderingThread());
 		return ProjectionPolicy;
@@ -66,7 +72,7 @@ public:
 	// Resolve resource contexts
 	virtual bool ResolveResources(FRHICommandListImmediate& RHICmdList, const EDisplayClusterViewportResourceType InputResourceType, const EDisplayClusterViewportResourceType OutputResourceType) const override;
 
-	virtual class IDisplayClusterViewportManager& GetOwner() const override;
+	virtual const IDisplayClusterViewportManagerProxy& GetOwner() const override;
 	virtual EDisplayClusterViewportResourceType GetOutputResourceType() const override;
 
 
@@ -97,9 +103,9 @@ public:
 		return false;
 	}
 
-private:
-	friend FDisplayClusterViewportProxy_ExchangeContainer;
-	friend FDisplayClusterViewportManager;
+protected:
+	friend FDisplayClusterViewportProxyData;
+	friend FDisplayClusterViewportManagerProxy;
 
 	// Unique viewport name
 	const FString ViewportId;
@@ -108,6 +114,9 @@ private:
 	FDisplayClusterViewport_RenderSettings       RenderSettings;
 	FDisplayClusterViewport_RenderSettingsICVFX  RenderSettingsICVFX;
 	FDisplayClusterViewport_PostRenderSettings   PostRenderSettings;
+
+	// Additional parameters
+	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
 
 	// Projection policy instance that serves this viewport
 	TSharedPtr<IDisplayClusterProjectionPolicy> ProjectionPolicy;
@@ -122,12 +131,16 @@ private:
 	TArray<FDisplayClusterTextureResource*> OutputFrameTargetableResources;
 	TArray<FDisplayClusterTextureResource*> AdditionalFrameTargetableResources;
 
+#if WITH_EDITOR
+	FTextureRHIRef OutputPreviewTargetableResource;
+#endif
+
 	// unique viewport resources
 	TArray<FDisplayClusterTextureResource*> InputShaderResources;
 	TArray<FDisplayClusterTextureResource*> AdditionalTargetableResources;
 	TArray<FDisplayClusterTextureResource*> MipsShaderResources;
 
-	class FDisplayClusterViewportManager& Owner;
-	class IDisplayClusterShaders& ShadersAPI;
+	const FDisplayClusterViewportManagerProxy& Owner;
+	IDisplayClusterShaders& ShadersAPI;
 };
 

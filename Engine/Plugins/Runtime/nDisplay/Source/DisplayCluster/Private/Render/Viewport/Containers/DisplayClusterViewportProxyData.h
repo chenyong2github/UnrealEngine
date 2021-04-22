@@ -5,6 +5,7 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettings.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettingsICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
+#include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
 
 class IDisplayClusterProjectionPolicy;
 class FDisplayClusterTextureResource;
@@ -17,16 +18,19 @@ class FDisplayClusterViewport_Context;
 //
 // Container for data exchange game->render threads
 //
-class FDisplayClusterViewportProxy_ExchangeContainer
+class FDisplayClusterViewportProxyData
 {
 public:
-	FDisplayClusterViewportProxy_ExchangeContainer(const FDisplayClusterViewport* SrcViewport);
-	~FDisplayClusterViewportProxy_ExchangeContainer() = default;
+	FDisplayClusterViewportProxyData(const FDisplayClusterViewport* SrcViewport);
+	~FDisplayClusterViewportProxyData() = default;
 
-public:
-	void CopyTo(FDisplayClusterViewportProxy* DstViewportProxy) const;
+	void UpdateProxy_RenderThread() const;
 
 private:
+	FDisplayClusterViewportProxy* DstViewportProxy;
+
+	FDisplayClusterViewport_OverscanSettings     OverscanSettings;
+
 	// Viewport render params
 	FDisplayClusterViewport_RenderSettings       RenderSettings;
 	FDisplayClusterViewport_RenderSettingsICVFX  RenderSettingsICVFX;
@@ -44,6 +48,10 @@ private:
 	// Projection policy output resources
 	TArray<FDisplayClusterTextureResource*> OutputFrameTargetableResources;
 	TArray<FDisplayClusterTextureResource*> AdditionalFrameTargetableResources;
+
+#if WITH_EDITOR
+	FTextureRHIRef OutputPreviewTargetableResource;
+#endif
 
 	// unique viewport resources
 	TArray<FDisplayClusterTextureResource*> InputShaderResources;

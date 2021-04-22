@@ -16,6 +16,7 @@
 #include "Misc/Paths.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
+#include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
@@ -44,7 +45,7 @@ FDisplayClusterProjectionMPCDIPolicy::~FDisplayClusterProjectionMPCDIPolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -70,14 +71,14 @@ bool FDisplayClusterProjectionMPCDIPolicy::HandleStartScene(class IDisplayCluste
 	return true;
 }
 
-void FDisplayClusterProjectionMPCDIPolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionMPCDIPolicy::HandleEndScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
 	ReleaseOriginComponent(InViewport);
 }
 
-bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
 
@@ -107,7 +108,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(class IDisplayClusterVi
 	Eye.ZFar  = FCP;
 
 	// Compute frustum
-	if (!WarpBlendInterface->CalcFrustumContext(Eye, WarpBlendContexts[InContextNum]))
+	if (!WarpBlendInterface->CalcFrustumContext(InViewport, InContextNum, Eye, WarpBlendContexts[InContextNum]))
 	{
 		return false;
 	}
@@ -125,7 +126,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::CalculateView(class IDisplayClusterVi
 	return true;
 }
 
-bool FDisplayClusterProjectionMPCDIPolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionMPCDIPolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 
@@ -217,9 +218,10 @@ void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(FRHIComma
 					return;
 				}
 
-				// Finish ICVFX warp
-				return;
 			}
+
+			// Finish ICVFX warp
+			return;
 		}
 	}
 	

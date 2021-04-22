@@ -5,10 +5,17 @@
 #include "CoreMinimal.h"
 
 #include "DisplayClusterRenderFrameEnums.h"
+#include "SceneViewExtension.h"
 
 // Render frame container
 class FDisplayClusterRenderFrame
 {
+public:
+	~FDisplayClusterRenderFrame()
+	{
+		RenderTargets.Empty();
+	}
+
 public:
 	class FFrameView
 	{
@@ -25,11 +32,18 @@ public:
 	class FFrameViewFamily
 	{
 	public:
+		~FFrameViewFamily()
+		{
+			ViewExtensions.Empty();
+			Views.Empty();
+		}
+
+	public:
 		// Customize ScreenPercentage feature for viewfamily
 		float CustomBufferRatio = 1;
 
 		// Extensions that can modify view parameters
-		TArray<TSharedRef<class ISceneViewExtension, ESPMode::ThreadSafe> > ViewExtensions;
+		TArray<FSceneViewExtensionRef> ViewExtensions;
 
 		// Vieports, rendered at once for tthis family
 		TArray<FFrameView> Views;
@@ -39,6 +53,12 @@ public:
 
 	class FFrameRenderTarget
 	{
+	public:
+		~FFrameRenderTarget()
+		{
+			ViewFamilies.Empty();
+		}
+
 	public:
 		// Discard some RTT (when view render disabled)
 		// Also when RTT Atlasing used, this viewports excluded from atlas map (reduce size)
@@ -90,5 +110,7 @@ public:
 
 	// Allow warp blend
 	bool bWarpBlendEnabled = true;
+
+	IDisplayClusterViewportManager* ViewportManager = nullptr;
 };
 

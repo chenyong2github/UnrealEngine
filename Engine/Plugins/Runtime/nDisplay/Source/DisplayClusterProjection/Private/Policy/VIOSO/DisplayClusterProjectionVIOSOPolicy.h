@@ -62,7 +62,7 @@ protected:
 		bool Initialize(ERenderDevice RenderDevice, const FViosoPolicyConfiguration& InConfigData);
 		void DestroyVIOSO();
 
-		bool UpdateVIOSO(const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP);
+		bool UpdateVIOSO(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FVector& LocalLocation, const FRotator& LocalRotator, const float WorldToMeters, const float NCP, const float FCP);
 		bool RenderVIOSO_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* ShaderResourceTexture, FRHITexture2D* RenderTargetTexture, const FViosoPolicyConfiguration& InConfigData);
 
 	protected:

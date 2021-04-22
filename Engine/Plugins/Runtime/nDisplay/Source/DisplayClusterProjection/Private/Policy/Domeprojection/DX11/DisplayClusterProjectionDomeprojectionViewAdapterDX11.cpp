@@ -63,7 +63,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::CalculateView(IDisp
 	ZFar  = FCP;
 
 	const auto InContext = InViewport->GetContexts()[InContextNum];
-	const auto InViewportSize = InContext.RenderTargetRect.Size();
+	const auto InViewportSize = InContext.ContextSize;
 
 	const float WorldScale = WorldToMeters / 1000.0f; // we use mm
 
@@ -105,7 +105,8 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix
 	const float Bottom = Views[InContextNum].Camera.tanBottom;
 	const float Top    = Views[InContextNum].Camera.tanTop;
 
-	OutPrjMatrix = DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(Left, Right, Top, Bottom, ZNear, ZFar);
+	InViewport->CalculateProjectionMatrix(InContextNum, Left, Right, Top, Bottom, ZNear, ZFar, false);
+	OutPrjMatrix = InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 
 	return true;
 }

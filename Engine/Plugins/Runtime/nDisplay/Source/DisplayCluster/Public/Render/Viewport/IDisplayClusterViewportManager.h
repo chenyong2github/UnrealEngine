@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 
 #include "Render/Viewport/IDisplayClusterViewport.h"
-#include "Render/Viewport/IDisplayClusterViewportProxy.h"
 #include "Render/Viewport/RenderFrame/DisplayClusterRenderFrame.h"
 
 class UWorld;
@@ -13,6 +12,7 @@ class FViewport;
 class FSceneViewFamilyContext;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationViewport;
+class IDisplayClusterViewportManagerProxy;
 
 class DISPLAYCLUSTER_API IDisplayClusterViewportManager
 {
@@ -21,20 +21,12 @@ public:
 	{ }
 
 public:
-	virtual UWorld* GetWorld() const = 0;
+	virtual const IDisplayClusterViewportManagerProxy* GetProxy() const = 0;
+	virtual       IDisplayClusterViewportManagerProxy* GetProxy() = 0;
+
+	virtual UWorld* GetCurrentWorld() const = 0;
+
 	virtual ADisplayClusterRootActor* GetRootActor() const = 0;
-
-	/**
-	* Handle start scene event
-	* [Game thread func]
-	*/
-	virtual void StartScene(UWorld* World) = 0;
-
-	/**
-	* Handle end scene event
-	* [Game thread func]
-	*/
-	virtual void EndScene() = 0;
 
 	/**
 	* Return current scene status
@@ -65,7 +57,7 @@ public:
 	*
 	* @return - true, if success
 	*/
-	virtual bool BeginNewFrame(FViewport* InViewport, FDisplayClusterRenderFrame& OutRenderFrame) = 0;
+	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) = 0;
 
 	/**
 	* Finalize frame logic for viewports on game thread
@@ -84,27 +76,13 @@ public:
 	*/
 	virtual void ConfigureViewFamily(const FDisplayClusterRenderFrame::FFrameRenderTarget& InFrameTarget, const FDisplayClusterRenderFrame::FFrameViewFamily& InFrameViewFamily, FSceneViewFamilyContext& InOutViewFamily) = 0;
 
+	// Send to render thread
+	virtual void RenderFrame(const bool bWarpBlendEnabled, FRHITexture2D* FrameOutputRTT) = 0;
 
 #if WITH_EDITOR
-	virtual bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, UWorld* PreviewWorld, ADisplayClusterRootActor* InRootActorPtr) = 0;
-	virtual bool RenderPreview(FDisplayClusterRenderFrame& InPreviewRenderFrame) = 0;
+	virtual bool UpdatePreviewConfiguration(class UDisplayClusterConfigurationViewportPreview* PreviewConfiguration, ADisplayClusterRootActor* InRootActorPtr) = 0;
+	virtual bool RenderInEditor(class FDisplayClusterRenderFrame& InRenderFrame, FRHITexture2D* FrameOutputRTT) = 0;
 #endif
-
-	/** Transfer view results accross GPUs. This is done only once all views have been rendered for RenderFrame
-	* [Rendering thread func]
-	*/
-	virtual void DoCrossGPUTransfers_RenderThread(FViewport* InViewport, FRHICommandListImmediate& RHICmdList) const = 0;
-
-	/** Resolve render targets to unique viewport inputshader contexts resources
-	* Apply postprocess, generate mips, etc from settings in FDisplayClusterViewporDeferredUpdateSettings
-	* [Rendering thread func]
-	*/
-	virtual void UpdateDeferredResources_RenderThread(FRHICommandListImmediate& RHICmdList) const = 0;
-
-	/** Apply Warp&Blend
-	* [Rendering thread func]
-	*/
-	virtual void UpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, bool bWarpBlendEnabled) const = 0;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -136,60 +114,5 @@ public:
 	* @return - arrays with viewport objects refs
 	*/
 	virtual const TArrayView<IDisplayClusterViewport*> GetViewports() const = 0;
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	/**
-	* Find viewport render thread proxy object by name
-	* [Rendering thread func]
-	*
-	* @param ViewportId - Viewport name
-	*
-	* @return - viewport proxy object ref
-	*/
-	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const FString& InViewportId) const = 0;
-
-	/**
-	* Find viewport render thread proxy object and context number by stereoscopic pass index
-	* [Rendering thread func]
-	*
-	* @param StereoPassType - stereoscopic pass index
-	* @param OutContextNum - context number
-	*
-	* @return - viewport render thread proxy object ref
-	*/
-	virtual IDisplayClusterViewportProxy* FindViewport_RenderThread(const enum EStereoscopicPass StereoPassType, uint32* OutContextNum = nullptr) const = 0;
-
-	/**
-	* Return all exist viewports render thread proxy objects
-	* [Rendering thread func]
-	*
-	* @return - arrays with viewport render thread proxy objects refs
-	*/
-	virtual const TArrayView<IDisplayClusterViewportProxy*> GetViewports_RenderThread() const = 0;
-
-	/**
-	* Return render frame targets for current frame
-	* [Rendering thread func]
-	*
-	* @param OutRenderFrameTargets - frame RTTs (left, right)
-	* @param OutTargetOffsets - frames offset on backbuffer
-	* @param OutAdditionalFrameResources - (optional) array with additional render targetable resources (requested externally FDisplayClusterRenderFrameSettings::bShouldUseAdditionalTargetableFrameResource)
-	*
-	* @return - true if success
-	*/
-	virtual bool GetFrameTargets_RenderThread(TArray<FRHITexture2D*>& OutFrameResources, TArray<FIntPoint>& OutTargetOffsets, TArray<FRHITexture2D*>* OutAdditionalFrameResources=nullptr) const = 0;
-
-	/**
-	* Resolve to backbuffer
-	* [Rendering thread func]
-	*
-	* @param InContextNum - renderframe source context num
-	* @param DestArrayIndex - dest array index on backbuffer
-	* @param WindowSize - dest backbuffer window size
-	*
-	* @return - true if success
-	*/
-	virtual bool ResolveFrameTargetToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const uint32 InContextNum, const int DestArrayIndex, FRHITexture2D* DstBackBuffer, FVector2D WindowSize) const = 0;
 };
 

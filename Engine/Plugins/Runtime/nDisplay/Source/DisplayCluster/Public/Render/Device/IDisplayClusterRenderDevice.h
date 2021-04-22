@@ -9,8 +9,10 @@
 
 class IDisplayClusterPresentation;
 struct FDisplayClusterRenderViewContext;
+class FDisplayClusterRenderFrame;
 class IDisplayClusterProjectionPolicy;
 class UWorld;
+class FViewport;
 
 
 /**
@@ -50,12 +52,9 @@ public:
 	virtual void EndScene()
 	{ }
 
-	virtual class IDisplayClusterViewportManager& GetViewportManager() const = 0;
-
-	virtual EDisplayClusterRenderFrameMode GetRenderFrameMode() const = 0;
-
-	virtual void SetDesiredNumberOfViews(int32 DesiredNumberOfViews) = 0;
-	virtual void RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList) = 0;
+	// update settings from root actor config data, and build new frame structure
+	virtual bool BeginNewFrame(FViewport* InViewport, UWorld* InWorld, FDisplayClusterRenderFrame& OutRenderFrame) = 0;
+	virtual void FinalizeNewFrame() = 0;
 
 	/**
 	* Assigns camera to a specified viewport. If InViewportId is empty, all viewports will be assigned to a new camera. Empty camera ID means default active camera.

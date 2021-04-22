@@ -9,18 +9,21 @@
 
 #include "Misc/DisplayClusterHelpers.h"
 
+#include "Render/Viewport/IDisplayClusterViewport.h"
 
-FMatrix GetProjectionMatrixAssymetric(const FDisplayClusterWarpEye& InEye, const FDisplayClusterWarpContext& InContext)
+FMatrix GetProjectionMatrixAssymetric(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, const FDisplayClusterWarpContext& InContext)
 {
 	const float Left   = InContext.ProjectionAngles.Left;
 	const float Right  = InContext.ProjectionAngles.Right;
 	const float Top    = InContext.ProjectionAngles.Top;
 	const float Bottom = InContext.ProjectionAngles.Bottom;
 
-	return DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(Left, Right, Top, Bottom, InEye.ZNear, InEye.ZFar);
+	InViewport->CalculateProjectionMatrix(InContextNum, Left, Right, Top, Bottom, InEye.ZNear, InEye.ZFar, false);
+
+	return InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 }
 
-void FDisplayClusterWarpBlendMath_Frustum::ImplBuildFrustum()
+void FDisplayClusterWarpBlendMath_Frustum::ImplBuildFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum)
 {
 	// These matrices were copied from LocalPlayer.cpp.
 	// They change the coordinate system from the Unreal "Game" coordinate system to the Unreal "Render" coordinate system
@@ -39,7 +42,7 @@ void FDisplayClusterWarpBlendMath_Frustum::ImplBuildFrustum()
 	Frustum.TextureMatrix = ImplGetTextureMatrix();
 	Frustum.RegionMatrix = GeometryContext.RegionMatrix;
 
-	Frustum.ProjectionMatrix = GetProjectionMatrixAssymetric(Eye, Frustum);
+	Frustum.ProjectionMatrix = GetProjectionMatrixAssymetric(InViewport, InContextNum, Eye, Frustum);
 
 	Frustum.UVMatrix = World2Local * Game2Render * Frustum.ProjectionMatrix;
 

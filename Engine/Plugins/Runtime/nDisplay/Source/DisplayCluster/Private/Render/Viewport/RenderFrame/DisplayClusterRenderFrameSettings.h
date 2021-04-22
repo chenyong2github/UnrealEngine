@@ -30,6 +30,9 @@ struct FDisplayClusterRenderFrameSettings
 	// Allow warpblend render
 	bool bAllowWarpBlend = true;
 
+	// Render in Editor mode
+	bool bIsRenderingInEditor = false;
+
 	// Performance: Allow merge multiple viewports on single RTT with atlasing (required for bAllowViewFamilyMergeOptimization)
 	bool bAllowRenderTargetAtlasing = false;
 

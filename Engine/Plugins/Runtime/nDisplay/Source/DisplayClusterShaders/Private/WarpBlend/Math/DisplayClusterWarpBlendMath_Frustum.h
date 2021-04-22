@@ -7,6 +7,8 @@
 #include "WarpBlend/DisplayClusterWarpContext.h"
 #include "WarpBlend/DisplayClusterWarpBlend_GeometryContext.h"
 
+class IDisplayClusterViewport;
+
 class FDisplayClusterWarpBlendMath_Frustum
 {
 public:
@@ -16,7 +18,7 @@ public:
 	{ }
 
 public:
-	bool CalcFrustum(FDisplayClusterWarpContext& OutFrustum)
+	bool CalcFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FDisplayClusterWarpContext& OutFrustum)
 	{
 		if (!GeometryContext.GeometryProxy.bIsGeometryValid)
 		{
@@ -84,7 +86,7 @@ public:
 			}
 		}
 
-		ImplBuildFrustum();
+		ImplBuildFrustum(InViewport, InContextNum);
 
 		// Return result back:
 		OutFrustum = Frustum;
@@ -265,7 +267,7 @@ private:
 		return bResult;
 	}
 
-	void ImplBuildFrustum();
+	void ImplBuildFrustum(IDisplayClusterViewport* InViewport, const uint32 InContextNum);
 
 	FMatrix ImplGetTextureMatrix() const
 	{

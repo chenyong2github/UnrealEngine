@@ -95,9 +95,10 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(class FViewport* InView
 			{
 				for (FDisplayClusterRenderFrame::FFrameView& ViewIt : ViewFamilieIt.Views)
 				{
-					if (ViewIt.Viewport != nullptr)
+					FDisplayClusterViewport* ViewportPtr = static_cast<FDisplayClusterViewport*>(ViewIt.Viewport);
+					if (ViewportPtr != nullptr)
 					{
-						ViewIt.Viewport->GetContexts()[ViewIt.ContextNum].RenderFrameViewIndex = RenderFrameViewIndex++;
+						ViewportPtr->Contexts[ViewIt.ContextNum].RenderFrameViewIndex = RenderFrameViewIndex++;
 					}
 				}
 			}
@@ -134,7 +135,7 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 				{
 					FrameViewFamily.Views.Add(FrameView);
 					FrameViewFamily.CustomBufferRatio = ViewportIt->GetRenderSettings().BufferRatio * InRenderFrameSettings.ClusterBufferRatioMult;
-					FrameViewFamily.ViewExtensions = ViewportIt->ViewExtensions;
+					FrameViewFamily.ViewExtensions = ViewportIt->GatherActiveExtensions(InViewport);
 				}
 
 				FDisplayClusterRenderFrame::FFrameRenderTarget FrameRenderTarget;

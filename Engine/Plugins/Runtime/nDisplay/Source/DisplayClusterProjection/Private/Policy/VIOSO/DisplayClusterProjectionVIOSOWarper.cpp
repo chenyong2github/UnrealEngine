@@ -4,6 +4,8 @@
 #include "DisplayClusterProjectionVIOSOLibrary.h"
 #include "Misc/DisplayClusterHelpers.h"
 
+#include "Render/Viewport/IDisplayClusterViewport.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FViosoWarper
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -105,7 +107,7 @@ bool FViosoWarper::Render(VWB_param RenderParam, VWB_uint StateMask)
 	return IsValid() && (VWB_ERROR_NONE == FLibVIOSO::Render(pWarper, RenderParam, StateMask));
 }
 
-bool FViosoWarper::CalculateViewProjection(FVector& InOutViewLocation, FRotator& InOutViewRotation, FMatrix& OutProjMatrix, const float WorldToMeters, const float NCP, const float FCP)
+bool FViosoWarper::CalculateViewProjection(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, FMatrix& OutProjMatrix, const float WorldToMeters, const float NCP, const float FCP)
 {
 	// Convert to vioso space:
 	FVector InViosoEyeLocation = ToViosoLocation(InOutViewLocation, WorldToMeters);
@@ -122,7 +124,7 @@ bool FViosoWarper::CalculateViewProjection(FVector& InOutViewLocation, FRotator&
 
 		//InOutViewLocation = OutViewLocation;
 		InOutViewRotation = OutViewRotation;
-		OutProjMatrix = GetProjMatrix(NCP, FCP);
+		OutProjMatrix = GetProjMatrix(InViewport, InContextNum, NCP, FCP);
 		return true;
 	}
 
@@ -208,7 +210,8 @@ FVector FViosoWarper::GetViosoViewLocation() const
 	return FVector(_41, _42, _43);
 }
 
-FMatrix FViosoWarper::GetProjMatrix(const float NCP, const float FCP) const
+FMatrix FViosoWarper::GetProjMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const float NCP, const float FCP) const
 {
-	return DisplayClusterHelpers::math::GetProjectionMatrixFromOffsets(-_left, _right, _top, -_bottom, NCP, FCP);
+	InViewport->CalculateProjectionMatrix(InContextNum, -_left, _right, _top, -_bottom, NCP, FCP, false);
+	return InViewport->GetContexts()[InContextNum].ProjectionMatrix;
 }

@@ -84,6 +84,8 @@ bool UDisplayClusterPreviewComponent::InitializePreviewComponent(ADisplayCluster
 
 bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 {
+	check(IsInGameThread());
+
 	// And search for new mesh reference
 	IDisplayClusterViewport* Viewport = GetCurrentViewport();
 	if (Viewport != nullptr && Viewport->GetProjectionPolicy().IsValid())
@@ -320,12 +322,12 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewTexture()
 	return true;
 }
 
-void UDisplayClusterPreviewComponent::HandleRenderTargetTextureUpdate_RenderThread()
+void UDisplayClusterPreviewComponent::HandleRenderTargetTextureDefferedUpdate()
 {
-	check(IsInRenderingThread());
+	check(IsInGameThread());
 
 	//! @todo: integrate to configurator logic
-	//! Use ScopeLock to sync access to shared data (from game and render threads)
+	//! deffered update flag
 	bIsRenderTargetSurfaceChanged = true;
 }
 

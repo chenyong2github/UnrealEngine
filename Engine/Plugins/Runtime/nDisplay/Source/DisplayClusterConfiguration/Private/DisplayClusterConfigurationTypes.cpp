@@ -46,6 +46,20 @@ const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData:
 	return Cluster->Nodes.Contains(NodeId) ? Cluster->Nodes[NodeId] : nullptr;
 }
 
+UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewportConfiguration(const FString& NodeId, const FString& ViewportId)
+{
+	const UDisplayClusterConfigurationClusterNode* Node = GetClusterNode(NodeId);
+	if (Node)
+	{
+		if (Node->Viewports.Contains(ViewportId))
+		{
+			return Node->Viewports[ViewportId];
+		}
+	}
+
+	return nullptr;
+}
+
 const UDisplayClusterConfigurationViewport* UDisplayClusterConfigurationData::GetViewport(const FString& NodeId, const FString& ViewportId) const
 {
 	const UDisplayClusterConfigurationClusterNode* Node = GetClusterNode(NodeId);

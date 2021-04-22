@@ -57,4 +57,3 @@ enum class EDisplayClusterMultiGPUMode : uint8
 	// Performance (Experimental): Use optimized transfer once per frame with bLockStepGPUs=false 
 	Optimized_DisabledLockSteps,
 };
-

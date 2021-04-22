@@ -16,24 +16,26 @@ public:
 	virtual ~FDisplayClusterViewport_CustomPostProcessSettings() = default;
 
 public:
-	virtual void AddCustomPostProcess(const ERenderPass InRenderPass, const FPostProcessSettings& InSettings, float BlendWeight = 1.f, bool bSingleFrame = true) override;
-	virtual bool GetCustomPostProcess(const ERenderPass InRenderPass, FPostProcessSettings& OutSettings, float& OutBlendWeight, bool& bOutSingleFrame) const override;
-	virtual void RemoveCustomPostProcess(const ERenderPass InRenderPass) override;
-	virtual bool DoPostProcess(const ERenderPass InRenderPass, FPostProcessSettings* OutSettings, float* OutBlendWeight = nullptr) override;
+	void AddCustomPostProcess(const ERenderPass InRenderPass, const FPostProcessSettings& InSettings, float BlendWeight, bool bSingleFrame);
+	void RemoveCustomPostProcess(const ERenderPass InRenderPass);
+	void FinalizeFrame();
 
-	void RemoveAllSingleFramePosprocess();
+	virtual bool DoPostProcess(const ERenderPass InRenderPass, FPostProcessSettings* OutSettings, float* OutBlendWeight = nullptr) const override;
 
 private:
 	struct FPostprocessData
 	{
 		FPostProcessSettings Settings;
-		float BlendWeight;
-		bool bSingleFrame;
 
-		FPostprocessData(const FPostProcessSettings& InSettings, float InBlendWeight = 1.f, bool bInSingleFrame = true)
+		float BlendWeight = 1.f;
+
+		bool bIsEnabled = true;
+		bool bIsSingleFrame = false;
+
+		FPostprocessData(const FPostProcessSettings& InSettings, float InBlendWeight, bool bInSingleFrame)
 			: Settings(InSettings)
 			, BlendWeight(InBlendWeight)
-			, bSingleFrame(bInSingleFrame)
+			, bIsSingleFrame(bInSingleFrame)
 		{ }
 	};
 

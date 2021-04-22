@@ -1,21 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Render/Viewport/DisplayClusterViewportManager_PostProcess.h"
+#include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
 
 #include "Misc/DisplayClusterHelpers.h"
 #include "Misc/DisplayClusterLog.h"
 
 #include "HAL/IConsoleManager.h"
 
-#include "Render/Viewport/DisplayClusterViewportManager.h"
+#include "Render/Viewport/DisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/DisplayClusterViewportProxy.h"
 
 #include "Render/IPDisplayClusterRenderManager.h"
 #include "Misc/DisplayClusterGlobals.h"
 
-#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
-
-
+//#include "Render/Viewport/Configuration/DisplayClusterViewportConfiguration.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Round 1: VIEW before warp&blend
@@ -53,7 +51,7 @@ static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	ECVF_RenderThreadSafe
 );
 
-void FDisplayClusterViewportManager_PostProcess::PerformPostProcessBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList) const
+void FDisplayClusterViewportPostProcessManager::PerformPostProcessBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	bool bIsCustomPPEnabled = (CVarCustomPPEnabled.GetValueOnRenderThread() != 0);
 
@@ -64,14 +62,14 @@ void FDisplayClusterViewportManager_PostProcess::PerformPostProcessBeforeWarpBle
 	if (bIsCustomPPEnabled)
 	{
 		// Get operations array (sorted already by the rendering manager)
-		PPOperationsMap.GenerateValueArray(FDisplayClusterViewportManager_PostProcess::PPOperations);
+		PPOperationsMap.GenerateValueArray(FDisplayClusterViewportPostProcessManager::PPOperations);
 
 		// PP round 1: post-process for each view region before warp&blend
-		PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, nullptr);
+		ImplPerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
 	}
 }
 
-void FDisplayClusterViewportManager_PostProcess::PerformPostProcessAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList) const
+void FDisplayClusterViewportPostProcessManager::PerformPostProcessAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	bool bIsCustomPPEnabled = (CVarCustomPPEnabled.GetValueOnRenderThread() != 0);
 
@@ -79,13 +77,13 @@ void FDisplayClusterViewportManager_PostProcess::PerformPostProcessAfterWarpBlen
 	if (bIsCustomPPEnabled)
 	{
 		// PP round 4: post-process for each view region after warp&blend
-		PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, nullptr);
+		ImplPerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
 		// PP round 5: post-process for each eye frame after warp&blend
-		PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList);
+		ImplPerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, InViewportManagerProxy);
 	}
 }
 
-bool FDisplayClusterViewportManager_PostProcess::ShouldUseAdditionalFrameTargetableResource_PostProcess() const
+bool FDisplayClusterViewportPostProcessManager::ShouldUseAdditionalFrameTargetableResource_PostProcess() const
 {
 	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnAnyThread() != 0);
 
@@ -106,18 +104,18 @@ bool FDisplayClusterViewportManager_PostProcess::ShouldUseAdditionalFrameTargeta
 	return false;
 }
 
-void FDisplayClusterViewportManager_PostProcess::PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* ViewportProxy) const
+void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW before WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (bEnabled)
+	if (bEnabled && InViewportManagerProxy)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
 			if (CurPP.Operation->IsPostProcessViewBeforeWarpBlendRequired())
 			{
-				for(IDisplayClusterViewportProxy* ViewportProxyIt : ViewportManager.GetViewports_RenderThread())
+				for(IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
 					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW before WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
 					CurPP.Operation->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
@@ -131,18 +129,18 @@ void FDisplayClusterViewportManager_PostProcess::PerformPostProcessViewBeforeWar
 // Round 2: VIEW after warp&blend
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void FDisplayClusterViewportManager_PostProcess::PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* ViewportProxy) const
+void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	const bool bEnabled = (CVarPostprocessViewAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (bEnabled != 0)
+	if (bEnabled != 0 && InViewportManagerProxy)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
 			if (CurPP.Operation->IsPostProcessViewAfterWarpBlendRequired())
 			{
-				for (IDisplayClusterViewportProxy* ViewportProxyIt : ViewportManager.GetViewports_RenderThread())
+				for (IDisplayClusterViewportProxy* ViewportProxyIt : InViewportManagerProxy->GetViewports_RenderThread())
 				{
 					UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("Postprocess VIEW after WarpBlend - Viewport '%s'"), *ViewportProxyIt->GetId());
 					CurPP.Operation->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, ViewportProxyIt);
@@ -156,17 +154,17 @@ void FDisplayClusterViewportManager_PostProcess::PerformPostProcessViewAfterWarp
 // Round 3: FRAME after warp&blend
 //////////////////////////////////////////////////////////////////////////////////////////////
 
-void FDisplayClusterViewportManager_PostProcess::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets, const TArray<FRHITexture2D*>* InAdditionalFrameTargets) const
+void FDisplayClusterViewportPostProcessManager::ImplPerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const FDisplayClusterViewportManagerProxy* InViewportManagerProxy) const
 {
 	const bool bEnabled = (CVarPostprocessFrameAfterWarpBlend.GetValueOnRenderThread() != 0);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (bEnabled != 0)
+	if (bEnabled != 0 && InViewportManagerProxy)
 	{
 		TArray<FRHITexture2D*> FrameResources;
 		TArray<FRHITexture2D*> AdditionalFrameResources;
 		TArray<FIntPoint> TargetOffset;
-		if (ViewportManager.GetFrameTargets_RenderThread(FrameResources, TargetOffset, &AdditionalFrameResources))
+		if (InViewportManagerProxy->GetFrameTargets_RenderThread(FrameResources, TargetOffset, &AdditionalFrameResources))
 		{
 			for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 			{

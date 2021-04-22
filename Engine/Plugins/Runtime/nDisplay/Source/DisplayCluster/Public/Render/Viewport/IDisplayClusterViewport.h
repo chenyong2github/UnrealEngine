@@ -10,6 +10,8 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_RenderSettingsICVFX.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
 
+#include "Render/Viewport/Containers/DisplayClusterViewport_OverscanSettings.h"
+
 class FSceneViewFamily;
 
 /**
@@ -24,21 +26,20 @@ public:
 public:
 	virtual FString GetId() const = 0;
 
-	virtual FDisplayClusterViewport_RenderSettings& GetRenderSettings() = 0;
-	virtual FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX() = 0;
-	virtual FDisplayClusterViewport_PostRenderSettings& GetPostRenderSettings()  = 0;
-
-	virtual const FDisplayClusterViewport_RenderSettings& GetRenderSettings() const = 0;
+	virtual const FDisplayClusterViewport_RenderSettings&      GetRenderSettings() const = 0;
 	virtual const FDisplayClusterViewport_RenderSettingsICVFX& GetRenderSettingsICVFX() const = 0;
-	virtual const FDisplayClusterViewport_PostRenderSettings& GetPostRenderSettings() const = 0;
+	virtual const FDisplayClusterViewport_PostRenderSettings&  GetPostRenderSettings() const = 0;
+
+	// math wrappers: support overscan, etc
+	virtual void CalculateProjectionMatrix(const uint32 InContextNum, float Left, float Right, float Top, float Bottom, float ZNear, float ZFar, bool bIsAnglesInput) = 0;
+	virtual bool CalculateView(const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
+	virtual bool GetProjectionMatrix(const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
 
 	virtual const TSharedPtr<class IDisplayClusterProjectionPolicy>& GetProjectionPolicy() const = 0;
 
-	virtual       TArray<FDisplayClusterViewport_Context>& GetContexts() = 0;
 	virtual const TArray<FDisplayClusterViewport_Context>& GetContexts() const = 0;
 
 	// Override postprocess settings for this viewport
-	virtual       IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() = 0;
 	virtual const IDisplayClusterViewport_CustomPostProcessSettings& GetViewport_CustomPostProcessSettings() const = 0;
 
 	// Setup scene view for rendering specified Context

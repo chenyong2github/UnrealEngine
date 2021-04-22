@@ -56,12 +56,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//FDisplayClusterConfigurationICVFX_OverlayAdvancedRenderSettings();
 
 public:
 	// Allow ScreenPercentage 
@@ -92,12 +88,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_ChromakeyRenderSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_ChromakeyRenderSettings();
 
 public:
 	// Debug: override the texture of the camera viewport from this chromakey RTT
@@ -125,12 +117,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_ChromakeySettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//FDisplayClusterConfigurationICVFX_ChromakeySettings();
 
 public:
 	// Allow chromakey rendering (also require not empty ChromakeyLayers)
@@ -152,12 +140,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_LightcardRenderSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_LightcardRenderSettings();
 
 public:
 	// Debug: override the texture of the target viewport from this lightcard RTT
@@ -181,12 +165,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_LightcardSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_LightcardSettings();
 
 public:
 	// Allow lightcard rendering (also require not empty LightCardLayers)
@@ -212,7 +192,6 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraFrameSize
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
 
@@ -233,12 +212,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraAdvancedRenderSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_CameraAdvancedRenderSettings();
 
 public:
 	// Performance: Render to scale RTT, resolved with shader to viewport (Custom value)
@@ -265,12 +240,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraRenderSettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_CameraRenderSettings();
 
 public:
 	// Define camera RTT texture size
@@ -280,6 +251,9 @@ public:
 	// Camera render order, bigger value is over
 	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
 	int RenderOrder = -1;
+
+	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
+	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
 	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
@@ -299,12 +273,8 @@ public:
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraCustomChromakeySettings
-	// : public UDisplayClusterConfigurationData_Base
 {
 	GENERATED_BODY()
-
-public:
-	//UDisplayClusterConfigurationICVFX_CameraCustomChromakeySettings();
 
 public:
 	// Allow use local settings for chromakey and markers

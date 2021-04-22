@@ -25,9 +25,9 @@ void UDisplayClusterProjectionBlueprintAPIImpl::CameraPolicySetCamera(const FStr
 	check(FOVMultiplier >= 0.1f);
 
 	IDisplayClusterRenderManager* RenderManager = IDisplayCluster::Get().GetRenderMgr();
-	if (RenderManager && RenderManager->GetRenderDevice())
+	if (RenderManager && RenderManager->GetViewportManager())
 	{
-		IDisplayClusterViewport* Viewport = RenderManager->GetRenderDevice()->GetViewportManager().FindViewport(ViewportId);
+		IDisplayClusterViewport* Viewport = RenderManager->GetViewportManager()->FindViewport(ViewportId);
 		if (Viewport != nullptr)
 		{
 			// @todo: Add extra settings latter to BP call if required

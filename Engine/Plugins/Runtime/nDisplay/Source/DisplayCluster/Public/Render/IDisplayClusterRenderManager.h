@@ -11,8 +11,10 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
+class IDisplayClusterViewportManager; 
 class UCineCameraComponent;
 struct FPostProcessSettings;
+
 
 /**
  * Public render manager interface
@@ -160,4 +162,10 @@ public:
 	* @return - PP operations
 	*/
 	virtual TMap<FString, FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const = 0;
+
+	/**
+	* @return - Current viewport manager from root actor
+	*/
+	virtual IDisplayClusterViewportManager* GetViewportManager() const = 0;
+
 };

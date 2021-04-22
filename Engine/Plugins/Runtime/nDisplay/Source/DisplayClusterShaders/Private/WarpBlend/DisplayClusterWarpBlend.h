@@ -23,7 +23,7 @@ public:
 	virtual ~FDisplayClusterWarpBlend() override
 	{ }
 
-	virtual bool CalcFrustumContext(const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext) override;
+	virtual bool CalcFrustumContext(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const FDisplayClusterWarpEye& InEye, FDisplayClusterWarpContext& OutWarpContext) override;
 
 	// Access to resources
 	virtual class FRHITexture* GetTexture(EDisplayClusterWarpBlendTextureType TextureType) const override

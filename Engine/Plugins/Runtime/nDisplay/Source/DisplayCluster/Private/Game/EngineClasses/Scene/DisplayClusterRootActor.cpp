@@ -38,6 +38,7 @@
 #include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterStrings.h"
 
+#include "Render/Viewport/DisplayClusterViewportManager.h"
 
 ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -66,6 +67,8 @@ ADisplayClusterRootActor::ADisplayClusterRootActor(const FObjectInitializer& Obj
 
 	// A render frame settings (allow control whole cluster rendering)
 	RenderFrameSettings = CreateDefaultSubobject<UDisplayClusterConfigurationRenderFrame>(TEXT("RenderFrameSettings"));
+
+	ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = ETickingGroup::TG_PostUpdateWork;
@@ -149,6 +152,16 @@ void ADisplayClusterRootActor::ApplyConfigDataToComponents()
 	}
 }
 
+UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID)
+{
+	if (CurrentConfigData)
+	{
+		return CurrentConfigData->GetViewportConfiguration(ClusterNodeID, ViewportID);
+	}
+
+	return nullptr;
+}
+
 void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigurationData* InConfigData)
 {
 	if (InConfigData == nullptr)
@@ -192,7 +205,7 @@ void ImplCollectChildrenVisualizationComponent(TSet<FPrimitiveComponentId>& OutP
 		for (USceneComponent* ChildIt : Childrens)
 		{
 			// Hide attached visualization components
-			if (ChildIt->IsVisualizationComponent())
+			if (ChildIt->IsVisualizationComponent() || ChildIt->bHiddenInGame)
 			{
 				UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ChildIt);
 				if (PrimComp)
@@ -269,6 +282,8 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 
 	OutPrimitives.Empty();
 
+#if WITH_EDITOR
+
 	if (CurrentConfigData)
 	{
 		//@todo: Add more rules to hide components used in config
@@ -281,15 +296,13 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 		}
 	}
 
-#if WITH_EDITOR
-	//@todo: Add SetIsVisualizationComponent(true) to all custom components invisible in game and preview
 	// Hide all visualization components from RootActor
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
 		GetComponents<UPrimitiveComponent>(PrimitiveComponents);
 		for (UPrimitiveComponent* CompIt : PrimitiveComponents)
 		{
-			if (CompIt->IsVisualizationComponent())
+			if (CompIt->IsVisualizationComponent() || CompIt->bHiddenInGame)
 			{
 				OutPrimitives.Add(CompIt->ComponentId);
 			}
@@ -299,19 +312,22 @@ bool ADisplayClusterRootActor::GetHiddenInGamePrimitives(TSet<FPrimitiveComponen
 	}
 
 	// Hide all visualization components from preview scene
-	UWorld* ConfiguratorWorld = GetWorld();
-	if (ConfiguratorWorld && ConfiguratorWorld->IsPreviewWorld())
+	UWorld* CurrentWorld = GetWorld();
+	if (CurrentWorld)
 	{
 		// Iterate over all actors, looking for editor components.
-		for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(ConfiguratorWorld))
+		for (const TWeakObjectPtr<AActor>& WeakActor : FActorRange(CurrentWorld))
 		{
 			if (AActor* Actor = WeakActor.Get())
 			{
+				// do not render hiiden in game actors on preview
+				bool bActorHideInGame = Actor->IsHidden();
+
 				TArray<UPrimitiveComponent*> PrimitiveComponents;
 				Actor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
 				for (UPrimitiveComponent* PrimComp : PrimitiveComponents)
 				{
-					if (PrimComp->IsVisualizationComponent())
+					if (PrimComp->IsVisualizationComponent() || bActorHideInGame || PrimComp->bHiddenInGame)
 					{
 						OutPrimitives.Add(PrimComp->ComponentId);
 					}
