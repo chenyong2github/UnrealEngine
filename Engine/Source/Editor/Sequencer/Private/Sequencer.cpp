@@ -7377,12 +7377,20 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 		{
 			if (Node->GetType() == ESequencerNode::Category && Count++ == Index)
 			{
-				NodesToSelect.Add(Node);
-				if (bSelect == false) //make sure all children not selected
+				bool bAlreadySelected = false;
+				if (bSelect == true)
 				{
-					for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
+					bAlreadySelected = Selection.GetSelectedOutlinerNodes().Contains(Node);					
+				}
+				else if (bAlreadySelected == false)
+				{
+					NodesToSelect.Add(Node);
+					if (bSelect == false) //make sure all children not selected
 					{
-						NodesToSelect.Add(ChildNode);
+						for (const TSharedRef<FSequencerDisplayNode>& ChildNode : Node->GetChildNodes())
+						{
+							NodesToSelect.Add(ChildNode);
+						}
 					}
 				}
 			}
