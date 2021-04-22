@@ -827,7 +827,7 @@ public class IOSPlatform : Platform
 
 			// delete the old cookeddata
 			InternalUtils.SafeDeleteDirectory(AppDirectory + "/cookeddata", true);
-			InternalUtils.SafeDeleteFile(AppDirectory + "/ue4commandline.txt", true);
+			InternalUtils.SafeDeleteFile(AppDirectory + "/uecommandline.txt", true);
 
 			SearchOption searchMethod;
 			if (!Params.IterativeDeploy)

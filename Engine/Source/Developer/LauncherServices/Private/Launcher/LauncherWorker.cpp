@@ -488,7 +488,7 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 	}
 #endif	// WITH_EDITOR
 
-	// to reduce UE4CommandLine.txt churn (timestamp causing extra work), for LaunchOn (ie iterative deploy) we use a single session guid
+	// to reduce UECommandLine.txt churn (timestamp causing extra work), for LaunchOn (ie iterative deploy) we use a single session guid
 	if (InProfile->GetDeploymentMode() == ELauncherProfileDeploymentModes::CopyToDevice && Profile->IsDeployingIncrementally())
 	{
 		static FGuid StaticGuid(FGuid::NewGuid());

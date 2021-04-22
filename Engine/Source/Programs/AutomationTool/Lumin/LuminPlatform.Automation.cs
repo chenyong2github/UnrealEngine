@@ -530,9 +530,9 @@ public class LuminPlatform : Platform
 					bool NeedDeployNonUFSFiles = false;
 					foreach (string Line in Lines)
 					{
-						// We should not count ue4commandline.txt as a NonUFS file since it is deployed regardless (see Deploy() function).
+						// We should not count uecommandline.txt as a NonUFS file since it is deployed regardless (see Deploy() function).
 						// and counting it here as NonUFS causes an unnecesarry minimal package.
-						if (!(string.IsNullOrWhiteSpace(Line) || Line.Contains("ue4commandline.txt")))
+						if (!(string.IsNullOrWhiteSpace(Line) || Line.Contains("uecommandline.txt")))
 						{
 							NeedDeployNonUFSFiles = true;
 							break;
@@ -906,11 +906,11 @@ public class LuminPlatform : Platform
 
 	private void Deploy(ProjectParams Params, DeploymentContext SC, String DeviceName)
 	{
-		// update the ue4commandline.txt
-		// update and deploy ue4commandline.txt
+		// update the uecommandline.txt
+		// update and deploy uecommandline.txt
 		// always delete the existing commandline text file, so it doesn't reuse an old one
 		// only the file name should be lowercased, not the entire path
-		string IntermediateCmdLineFile = CombinePaths(SC.StageDirectory.FullName, "ue4commandline.txt");
+		string IntermediateCmdLineFile = CombinePaths(SC.StageDirectory.FullName, "uecommandline.txt");
 		Project.WriteStageCommandline(new FileReference(IntermediateCmdLineFile), Params, SC);
 
 		// Where we put the files on device.
@@ -925,7 +925,7 @@ public class LuminPlatform : Platform
 			if (Params.IterativeDeploy)
 			{
 				LogInformation("ITERATIVE DEPLOY..");
-				// always send ue4commandline.txt (it was written above after delta checks applied)
+				// always send uecommandline.txt (it was written above after delta checks applied)
 				EntriesToDeploy.Add(IntermediateCmdLineFile);
 
 				// Add non UFS files if any to deploy

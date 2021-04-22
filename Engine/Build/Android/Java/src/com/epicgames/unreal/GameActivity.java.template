@@ -703,7 +703,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		BufferedReader reader = null;
 
-		// determine the proper place to look for UE4CommandLine.txt as override outside APK
+		// determine the proper place to look for UECommandLine.txt as override outside APK
 		String BaseDirectory = android.os.Environment.getExternalStorageDirectory().getAbsolutePath();
 		if (bUseExternalFilesDir)
 		{
@@ -715,11 +715,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 
 		// first look for an override in the project directory
-		String filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/UE4CommandLine.txt";
+		String filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/UECommandLine.txt";
 		reader = TryOpenFileReader(filename);
 		if (reader == null)
 		{
-			filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/ue4commandline.txt";
+			filename = BaseDirectory + "/UnrealGame/" + ProjectName + "/uecommandline.txt";
 			reader = TryOpenFileReader(filename);
 		}
 
@@ -728,7 +728,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		{
 			try
 			{
-				InputStream stream = AssetManagerReference.open("UE4CommandLine.txt");
+				InputStream stream = AssetManagerReference.open("UECommandLine.txt");
 				reader = new BufferedReader(new InputStreamReader(stream));
 				Log.debug("Using APK commandline");
 			}

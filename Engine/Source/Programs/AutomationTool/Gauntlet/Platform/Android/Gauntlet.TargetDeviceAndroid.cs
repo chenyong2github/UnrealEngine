@@ -1018,7 +1018,7 @@ namespace Gauntlet
 				// create a tempfile, insert the command line, and push it over
 				string TmpFile = Path.GetTempFileName();
 
-				CommandLineFilePath = string.Format("{0}/UE4CommandLine.txt", RemoteDir);
+				CommandLineFilePath = string.Format("{0}/UECommandLine.txt", RemoteDir);
 
 				// I've seen a weird thing where adb push truncates by a byte, so add some padding...
 				File.WriteAllText(TmpFile, AppConfig.CommandLine + "    ");

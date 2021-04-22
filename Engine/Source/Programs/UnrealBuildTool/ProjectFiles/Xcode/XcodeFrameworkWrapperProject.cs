@@ -20,7 +20,7 @@ namespace UnrealBuildTool.ProjectFiles.Xcode
 		private readonly static string TEMPLATE_NAME = "FrameworkWrapper";
 		private readonly static string FRAMEWORK_WRAPPER_TEMPLATE_DIRECTORY = Path.Combine(UnrealBuildTool.EngineDirectory.ToNormalizedPath(), "Build", "IOS", "Resources", TEMPLATE_NAME);
 		private readonly static string TEMPLATE_PROJECT_NAME = "PROJECT_NAME";
-		private readonly static string COMMANDLINE_FILENAME = "ue4commandline.txt";
+		private readonly static string COMMANDLINE_FILENAME = "uecommandline.txt";
 
 		/// <summary>
 		/// Recursively copies all of the files and directories that are inside <paramref name="SourceDirectory"/> into <paramref name="DestinationDirectory"/>.

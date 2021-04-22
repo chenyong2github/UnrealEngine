@@ -182,8 +182,8 @@ static void* AndroidEventThreadWorker(void* param);
 // How often to process (read & dispatch) events, in seconds.
 static const float EventRefreshRate = 1.0f / 20.0f;
 
-// Name of the UE4 commandline append setprop
-static constexpr char UE4CommandLineSetprop[] = "debug.ue4.commandline";
+// Name of the UE commandline append setprop
+static constexpr char UECommandLineSetprop[] = "debug.ue.commandline";
 
 //Android event callback functions
 static int32_t HandleInputCB(struct android_app* app, AInputEvent* event); //Touch and key input events
@@ -280,7 +280,7 @@ static void InitCommandLine()
 	FCommandLine::Set(TEXT(""));
 
 	AAssetManager* AssetMgr = AndroidThunkCpp_GetAssetManager();
-	AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(TEXT("UE4CommandLine.txt")), AASSET_MODE_BUFFER);
+	AAsset* asset = AAssetManager_open(AssetMgr, TCHAR_TO_UTF8(TEXT("UECommandLine.txt")), AASSET_MODE_BUFFER);
 	if (nullptr != asset)
 	{
 		const void* FileContents = AAsset_getBuffer(asset);
@@ -304,12 +304,12 @@ static void InitCommandLine()
 	}
 
 	// read in the command line text file from the sdcard if it exists
-	FString CommandLineFilePath = GFilePathBase + FString("/UnrealGame/") + (!FApp::IsProjectNameEmpty() ? FApp::GetProjectName() : FPlatformProcess::ExecutableName()) + FString("/UE4CommandLine.txt");
+	FString CommandLineFilePath = GFilePathBase + FString("/UnrealGame/") + (!FApp::IsProjectNameEmpty() ? FApp::GetProjectName() : FPlatformProcess::ExecutableName()) + FString("/UECommandLine.txt");
 	FILE* CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
 	if(CommandLineFile == NULL)
 	{
 		// if that failed, try the lowercase version
-		CommandLineFilePath = CommandLineFilePath.Replace(TEXT("UE4CommandLine.txt"), TEXT("ue4commandline.txt"));
+		CommandLineFilePath = CommandLineFilePath.Replace(TEXT("UECommandLine.txt"), TEXT("uecommandline.txt"));
 		CommandLineFile = fopen(TCHAR_TO_UTF8(*CommandLineFilePath), "r");
 	}
 
@@ -341,11 +341,11 @@ static void InitCommandLine()
 	}
 
 	char CommandLineSetpropAppend[CMD_LINE_MAX];
-	if (__system_property_get(UE4CommandLineSetprop, CommandLineSetpropAppend) > 0)
+	if (__system_property_get(UECommandLineSetprop, CommandLineSetpropAppend) > 0)
 	{
 		FCommandLine::Append(UTF8_TO_TCHAR(" "));
 		FCommandLine::Append(UTF8_TO_TCHAR(CommandLineSetpropAppend));
-		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("UE4 setprop appended: %s"), UTF8_TO_TCHAR(CommandLineSetpropAppend));
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("UE setprop appended: %s"), UTF8_TO_TCHAR(CommandLineSetpropAppend));
 	}
 #endif
 }

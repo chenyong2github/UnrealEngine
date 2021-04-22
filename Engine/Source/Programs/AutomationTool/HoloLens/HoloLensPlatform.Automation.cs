@@ -1084,8 +1084,8 @@ namespace HoloLens.Automation
 
 					if (updateCommandLine)
 					{
-						// Update the ue4commandline.txt
-						FileReference IntermediateCmdLineFile = FileReference.Combine(SC.StageDirectory, "UE4CommandLine.txt");
+						// Update the uecommandline.txt
+						FileReference IntermediateCmdLineFile = FileReference.Combine(SC.StageDirectory, "UECommandLine.txt");
 						Log.TraceInformation("Writing cmd line to: " + IntermediateCmdLineFile.FullName);
 						Project.WriteStageCommandline(IntermediateCmdLineFile, Params, SC);
 					}

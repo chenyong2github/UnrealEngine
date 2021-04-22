@@ -1746,7 +1746,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Stage: If non-empty, the contents will be put into the stage
 		/// </summary>
-		[Help("cmdline", "command line to put into the stage in UE4CommandLine.txt")]
+		[Help("cmdline", "command line to put into the stage in UECommandLine.txt")]
 		public string StageCommandline;
 
         /// <summary>

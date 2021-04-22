@@ -760,13 +760,13 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			// move the UE4Commandline.txt file to the root of the stage
+			// move the UECommandline.txt file to the root of the stage
 			// this file needs to be treated as a UFS file for casing, but NonUFS for being put into the .pak file
 			// @todo: Maybe there should be a new category - UFSNotForPak - and reevaluate all SystemNonUFS references
-			FileReference CommandLineFile = FileReference.Combine(GetIntermediateCommandlineDir(SC), "UE4CommandLine.txt");
+			FileReference CommandLineFile = FileReference.Combine(GetIntermediateCommandlineDir(SC), "UECommandLine.txt");
 			if (FileReference.Exists(CommandLineFile))
 			{
-				StagedFileReference StagedCommandLineFile = new StagedFileReference("UE4CommandLine.txt");
+				StagedFileReference StagedCommandLineFile = new StagedFileReference("UECommandLine.txt");
 				if (SC.StageTargetPlatform.DeployLowerCaseFilenames(StagedFileType.SystemNonUFS))
 				{
 					StagedCommandLineFile = StagedCommandLineFile.ToLowerInvariant();
@@ -3742,7 +3742,7 @@ public partial class Project : CommandUtils
 			return;
 		}
 
-		LogInformation("Creating UE4CommandLine.txt");
+		LogInformation("Creating UECommandLine.txt");
 		if (!string.IsNullOrEmpty(Params.StageCommandline) || !string.IsNullOrEmpty(Params.RunCommandline))
 		{
 			string FileHostParams = " ";
@@ -3895,7 +3895,7 @@ public partial class Project : CommandUtils
 	private static void WriteStageCommandline(ProjectParams Params, DeploymentContext SC)
 	{
 		// always delete the existing commandline text file, so it doesn't reuse an old one
-		FileReference IntermediateCmdLineFile = FileReference.Combine(GetIntermediateCommandlineDir(SC), "UE4CommandLine.txt");
+		FileReference IntermediateCmdLineFile = FileReference.Combine(GetIntermediateCommandlineDir(SC), "UECommandLine.txt");
 		WriteStageCommandline(IntermediateCmdLineFile, Params, SC);
 	}
 

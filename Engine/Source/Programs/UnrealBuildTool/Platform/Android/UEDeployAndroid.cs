@@ -3963,9 +3963,9 @@ namespace UnrealBuildTool
 					SafeDeleteFile(DestFileName);
 				}
 
-				// See if we need to stage a UE4CommandLine.txt file in assets
-				string CommandLineSourceFileName = Path.Combine(Path.GetDirectoryName(ObbFileLocation), Path.GetFileNameWithoutExtension(ObbFileLocation), "UE4CommandLine.txt");
-				string CommandLineDestFileName = Path.Combine(UnrealBuildPath, "assets", "UE4CommandLine.txt");
+				// See if we need to stage a UECommandLine.txt file in assets
+				string CommandLineSourceFileName = Path.Combine(Path.GetDirectoryName(ObbFileLocation), Path.GetFileNameWithoutExtension(ObbFileLocation), "UECommandLine.txt");
+				string CommandLineDestFileName = Path.Combine(UnrealBuildPath, "assets", "UECommandLine.txt");
 				if (File.Exists(CommandLineSourceFileName))
 				{
 					Directory.CreateDirectory(UnrealBuildPath);

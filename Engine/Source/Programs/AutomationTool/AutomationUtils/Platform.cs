@@ -666,7 +666,7 @@ namespace AutomationTool
 
 		public virtual HashSet<StagedFileReference> GetFilesForCRCCheck()
 		{
-			string CmdLine = "UE4CommandLine.txt";
+			string CmdLine = "UECommandLine.txt";
 			// using SystemNonUFS because that is how it's staged in CreateStagingManifest
 			if (DeployLowerCaseFilenames(StagedFileType.SystemNonUFS))
 			{
@@ -738,7 +738,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Determines whether we should stage a UE4CommandLine.txt for this platform
+		/// Determines whether we should stage a UECommandLine.txt for this platform
 		/// </summary>
 		public virtual bool ShouldStageCommandLine(ProjectParams Params, DeploymentContext SC)
 		{
