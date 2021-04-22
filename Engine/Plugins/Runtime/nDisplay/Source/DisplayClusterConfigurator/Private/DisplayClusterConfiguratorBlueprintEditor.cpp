@@ -943,8 +943,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 	check(Blueprint != nullptr && Blueprint->SimpleConstructionScript != nullptr);
 
 	// Update the selection visualization
-	AActor* EditorActorInstance = Blueprint->SimpleConstructionScript->GetComponentEditorActorInstance();
-	if (EditorActorInstance != nullptr)
+	if (ADisplayClusterRootActor* EditorActorInstance = Cast<ADisplayClusterRootActor>(Blueprint->SimpleConstructionScript->GetComponentEditorActorInstance()))
 	{
 		auto IsComponentSelected = [SelectedNodes, EditorActorInstance](UActorComponent* InComponent) -> bool
 		{
@@ -968,27 +967,15 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 				{
 					/*
 					 *  Check for display cluster visualization components which should be highlighted on selection.
-					 *  To get them to have an outline around them we have to 'select' the owning actor so `ShouldRenderSelected`
-					 *  of the component is true. There isn't a good way around this without overloading `ShouldRenderSelected`
-					 *  of the component or `IsSelectedInEditor` of the owning actor.
 					 */
 					
 					if (UActorComponent* OwningComp = Cast<UActorComponent>(PrimitiveComponent->GetOuter()))
 					{
 						if (IsComponentSelected(OwningComp))
 						{
-							const bool bIsActorSelected = GSelectedActorAnnotation.Get(EditorActorInstance);
-							if (!bIsActorSelected)
-							{
-								GSelectedActorAnnotation.Set(EditorActorInstance);
-							}
-
+							EditorActorInstance->SetIsSelectedInEditor(true);
 							PrimitiveComponent->PushSelectionToProxy();
-
-							if (!bIsActorSelected)
-							{
-								GSelectedActorAnnotation.Clear(EditorActorInstance);
-							}
+							EditorActorInstance->SetIsSelectedInEditor(false);
 							
 							continue;
 						}

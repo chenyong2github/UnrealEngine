@@ -155,6 +155,16 @@ void ADisplayClusterRootActor::UpdateXformGizmos()
 	}
 }
 
+bool ADisplayClusterRootActor::IsSelectedInEditor() const
+{
+	return bIsSelectedInEditor || Super::IsSelectedInEditor();
+}
+
+void ADisplayClusterRootActor::SetIsSelectedInEditor(bool bValue)
+{
+	bIsSelectedInEditor = bValue;
+}
+
 IDisplayClusterViewport* ADisplayClusterRootActor::FindPreviewViewport(const FString& InViewportId) const
 {
 	if (PreviewViewportManager.IsValid())

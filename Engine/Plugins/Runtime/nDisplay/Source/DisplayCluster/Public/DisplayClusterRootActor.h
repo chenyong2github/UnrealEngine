@@ -308,6 +308,12 @@ public:
 
 	void UpdateXformGizmos();
 
+	virtual bool IsSelectedInEditor() const override;
+	void SetIsSelectedInEditor(bool bValue);
+
+private:
+	bool bIsSelectedInEditor = false;
+	
 protected:
 	FString GeneratePreviewComponentName(const FString& NodeId, const FString& ViewportId) const;
 	void RenderPreview_Editor();
