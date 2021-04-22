@@ -38,6 +38,8 @@ public:
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
 	void SendUnfreezeFrame();
 
+	void OnNewSecondarySession();
+
 private:
 	//
 	// webrtc::PeerConnectionObserver implementation.
@@ -66,7 +68,7 @@ private:
 	FStreamer& Streamer;
 	FPlayerId PlayerId;
 	bool bOriginalQualityController;
-	TAtomic<FPixelStreamingVideoEncoder*> VideoEncoder{ nullptr };
+	FPixelStreamingVideoEncoder* VideoEncoder = nullptr;
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection;
 	rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;
 	FThreadSafeBool bDisconnecting = false;

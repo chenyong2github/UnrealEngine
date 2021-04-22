@@ -2,28 +2,14 @@
 
 #pragma once
 
-#include "PixelStreamingPrivate.h"
 #include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
-
-#include "HAL/ThreadSafeBool.h"
-
-class FRenderTarget;
-class IFileHandle;
-class FSocket;
-class FThread;
 
 class FVideoCapturer;
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;
 
-namespace AVEncoder
-{
-class FVideoEncoderFactory;
-}
-
-class FStreamer:
-	public FSignallingServerConnectionObserver
+class FStreamer : public FSignallingServerConnectionObserver
 {
 public:
 	static bool CheckPlatformCompatibility();
@@ -31,18 +17,23 @@ public:
 	explicit FStreamer(const FString& SignallingServerUrl);
 	virtual ~FStreamer() override;
 
+	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
+	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
+	void SendCachedFreezeFrameTo(FPlayerSession& Player); 
+	void SendUnfreezeFrame();
+
+	void SetStreamingStarted(bool started) { bStreamingStarted = started; }
+	FSignallingServerConnection* GetSignallingServerConnection() const { return SignallingServerConnection.Get(); }
+	FPixelStreamingVideoEncoderFactory* GetVideoEncoderFactory() const { return VideoEncoderFactory; }
+
+	void OnQualityOwnership(FPlayerId PlayerId);
+
 	// data coming from the engine
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
-
-	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
-
-	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
-	void SendUnfreezeFrame();
 
 private:
 	// window procedure for WebRTC inter-thread communication
 	void WebRtcSignallingThreadFunc();
-
 	void ConnectToSignallingServer();
 
 	// ISignallingServerConnectionObserver impl
@@ -57,24 +48,12 @@ private:
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
 	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
-
 	void AddStreams(FPlayerId PlayerId);
-
-	void OnQualityOwnership(FPlayerId PlayerId);
-
-	void SendResponse(const FString& Descriptor);
-	void SendCachedFreezeFrameTo(FPlayerSession& Player);
 	void SendVideoEncoderQP();
-
-	friend FPlayerSession;
 
 private:
 	FString SignallingServerUrl;
 
-	rtc::scoped_refptr<FVideoCapturer> VideoCapturer;
-	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory = nullptr;
-	std::unique_ptr<webrtc::VideoEncoderFactory> VideoEncoderFactoryStrong;
-	
 	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	DWORD WebRtcSignallingThreadId = 0;
 	TUniquePtr<FThread> WebRtcSignallingThread;
@@ -85,19 +64,18 @@ private:
 	TUniquePtr<FSignallingServerConnection> SignallingServerConnection;
 	double LastSignallingServerConnectionAttemptTimestamp = 0;
 
+	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory;
+	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
+
+	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory;
+	rtc::scoped_refptr<FVideoCapturer> VideoCapturer;
+	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
+
 	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;
 	// `Players` is modified only in WebRTC signalling thread, but can be accessed (along with contained `FPlayerSession` instances) 
 	// from other threads. All `Players` modifications in WebRTC thread and all accesses in other threads should be locked.
 	FCriticalSection PlayersCS;
-	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory;
-	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
-
-	// These are used only if using UnifiedPlan semantics
-	//rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack = nullptr;
-	//rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = nullptr;
-
-	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
-
+	
 	// When we send a freeze frame we retain the data to handle connection
 	// scenarios.
 	TArray64<uint8> CachedJpegBytes;

@@ -8,7 +8,7 @@
 class FPixelStreamingFrameBuffer : public webrtc::VideoFrameBuffer
 {
 public:
-	explicit FPixelStreamingFrameBuffer(const AVEncoder::FVideoEncoderInputFrame* InputFrame, TSharedPtr<AVEncoder::FVideoEncoderInput> InputVideoEncoderInput)
+	explicit FPixelStreamingFrameBuffer(AVEncoder::FVideoEncoderInputFrame* InputFrame, TSharedPtr<AVEncoder::FVideoEncoderInput> InputVideoEncoderInput)
 		: Frame(InputFrame), VideoEncoderInput(InputVideoEncoderInput)
 	{
 		Frame->Obtain();
@@ -56,15 +56,15 @@ public:
 	// HACK (M84FIX) Don't blame me this const_cast is from the reference implimentation
 	AVEncoder::FVideoEncoderInputFrame* GetFrame() const
 	{
-		return const_cast<AVEncoder::FVideoEncoderInputFrame*>(Frame);
+		return Frame;
 	}
 
 	TSharedPtr<AVEncoder::FVideoEncoderInput> GetVideoEncoderInput() const
 	{
-		return ConstCastSharedPtr<AVEncoder::FVideoEncoderInput>(VideoEncoderInput);
+		return VideoEncoderInput;
 	}
 
 private:
-	const AVEncoder::FVideoEncoderInputFrame* Frame;
+	AVEncoder::FVideoEncoderInputFrame* Frame;
 	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput;
 };

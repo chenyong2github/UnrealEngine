@@ -12,14 +12,12 @@
 #include "CudaModule.h"
 #endif
 
-//#include "VulkanRHIPrivate.h"
-
 extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderUseBackBufferSize;
 extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer()
 {
-	this->CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
+	CurrentState = webrtc::MediaSourceInterface::SourceState::kInitializing;
 
 	LastTimestampUs = rtc::TimeMicros();
 
@@ -29,44 +27,36 @@ FVideoCapturer::FVideoCapturer()
 
 #if PLATFORM_WINDOWS
 		if (RHIName == TEXT("D3D11"))
-		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true);
-		}
 		else if (RHIName == TEXT("D3D12"))
-		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), Width, Height, true);
-		}
 		else
 #endif
 #if WITH_CUDA
-		{
 			VideoEncoderInput = AVEncoder::FVideoEncoderInput::CreateForCUDA(FModuleManager::GetModuleChecked<FCUDAModule>("CUDA").GetCudaContext(), Width, Height, true);
-		}
 #else
-		{
 			unimplemented();
-		}
 #endif
 	}
 }
 
 void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 {
+	FIntPoint Resolution = FrameBuffer->GetSizeXY();
 	int64 TimestampUs = rtc::TimeMicros();
 
-	if(this->CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
+	int outWidth, outHeight, cropWidth, cropHeight, cropX, cropY;
+	if (!AdaptFrame(Resolution.X, Resolution.Y, TimestampUs, &outWidth, &outHeight, &cropWidth, &cropHeight, &cropX, &cropY))
 	{
-		this->CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
+		return;
 	}
 
-	// Adjust capture resolution to match frame buffer
-	this->SetCaptureResolution(FrameBuffer->GetSizeX(), FrameBuffer->GetSizeY());
-
-	/* TODO (M84FIX) this currently does nothing
-
-	FIntPoint Resolution = FrameBuffer->GetSizeXY();
+	if (CurrentState != webrtc::MediaSourceInterface::SourceState::kLive)
+		CurrentState = webrtc::MediaSourceInterface::SourceState::kLive;
+	
 	if (CVarPixelStreamingEncoderUseBackBufferSize.GetValueOnRenderThread() == 0)
 	{
+		// set resolution based on cvars
 		FString EncoderTargetSize = CVarPixelStreamingEncoderTargetSize.GetValueOnRenderThread();
 		FString TargetWidth, TargetHeight;
 		bool bValidSize = EncoderTargetSize.Split(TEXT("x"), &TargetWidth, &TargetHeight);
@@ -80,11 +70,11 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 			UE_LOG(PixelStreamer, Error, TEXT("CVarPixelStreamingEncoderTargetSize is not in a valid format: %s. It should be e.g: \"1920x1080\""), *EncoderTargetSize);
 			CVarPixelStreamingEncoderTargetSize->Set(*FString::Printf(TEXT("%dx%d"), Resolution.X, Resolution.Y));
 		}
+
+		SetCaptureResolution(Resolution.X, Resolution.Y);
 	}
-
-	*/
-
-	// TODO (M84FIX) it should be possible to limit the number of allowed back buffers here to save texture memory
+	else
+		SetCaptureResolution(outWidth, outHeight); // set resolution based on back buffer
 
 	AVEncoder::FVideoEncoderInputFrame* InputFrame = VideoEncoderInput->ObtainInputFrame();
 	InputFrame->PTS = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTicks();
@@ -306,16 +296,16 @@ void FVideoCapturer::CopyTexture(const FTexture2DRHIRef& SourceTexture, FTexture
 bool FVideoCapturer::SetCaptureResolution(int NewCaptureWidth, int NewCaptureHeight)
 {
 	// Check is requested resolution is same as current resolution, if so, do nothing.
-	if(this->Width == NewCaptureWidth && this->Height == NewCaptureHeight)
-	{
+	if(Width == NewCaptureWidth && Height == NewCaptureHeight)
 		return false;
-	}
 
 	verifyf(NewCaptureWidth > 0, TEXT("Capture width must be greater than zero."));
 	verifyf(NewCaptureHeight  > 0, TEXT("Capture height must be greater than zero."));
-	this->Width = NewCaptureWidth;
-	this->Height = NewCaptureHeight;
-	this->VideoEncoderInput->SetResolution(NewCaptureWidth, NewCaptureHeight);
-	this->VideoEncoderInput->Flush();
+
+	Width = NewCaptureWidth;
+	Height = NewCaptureHeight;
+	VideoEncoderInput->SetResolution(Width, Height);
+	VideoEncoderInput->Flush();
+
 	return true;
 }

@@ -4,29 +4,45 @@
 #include "AudioCapturer.h"
 #include "VideoCapturer.h"
 #include "PlayerSession.h"
-#include "VideoEncoder.h"
 #include "VideoEncoderFactory.h"
-
-#include "WebRTCLogging.h"
 #include "PixelStreamerDelegates.h"
-
-#include "Modules/ModuleManager.h"
-#include "WebSocketsModule.h"
-#include "HAL/Thread.h"
-
 #include "PixelStreamingEncoderFactory.h"
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
 extern TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxBitrate;
 
+TAutoConsoleVariable<FString> CVarPixelStreamingDegradationPreference(
+	TEXT("PixelStreaming.DegradationPreference"),
+	TEXT("BALANCED"),
+	TEXT("PixelStreaming degradation preference. Supported modes are `BALANCED`, `MAINTAIN_FRAMERATE`, `MAINTAIN_RESOLUTION`"),
+	ECVF_Default);
+
+namespace
+{
+	std::map<FString, webrtc::DegradationPreference> const StringToDegradationPrefMap {
+		{"BALANCED", webrtc::DegradationPreference::BALANCED},
+		{"MAINTAIN_FRAMERATE", webrtc::DegradationPreference::MAINTAIN_FRAMERATE},
+		{"MAINTAIN_RESOLUTION", webrtc::DegradationPreference::MAINTAIN_RESOLUTION},
+	};
+
+	webrtc::DegradationPreference GetDegradationPreferenceCVar()
+	{
+		auto const prefStr = CVarPixelStreamingDegradationPreference.GetValueOnAnyThread();
+		auto const it = StringToDegradationPrefMap.find(prefStr);
+		if (it == std::end(StringToDegradationPrefMap))
+			return webrtc::DegradationPreference::BALANCED;
+		return it->second;
+	}
+}
+
 bool FStreamer::CheckPlatformCompatibility()
 {
 	return AVEncoder::FVideoEncoderFactory::Get().HasEncoderForCodec(AVEncoder::ECodecType::H264);
 }
 
-FStreamer::FStreamer(const FString& InSignallingServerUrl) :
-	SignallingServerUrl(InSignallingServerUrl)
+FStreamer::FStreamer(const FString& InSignallingServerUrl)
+	: SignallingServerUrl(InSignallingServerUrl)
 {
 	RedirectWebRtcLogsToUE4(rtc::LoggingSeverity::LS_VERBOSE);
 
@@ -35,17 +51,6 @@ FStreamer::FStreamer(const FString& InSignallingServerUrl) :
 	// required for communication with Signalling Server and must be called in the game thread, while it's used in signalling thread
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
-	// Despite the name "factory", this is not really a true factory class.
-	// It does indeed inherit from WebRTC's VideoEncoderFactory, but that is purely to satisfy WebRTC.
-	// In actual fact Pixel Streaming is designed such that a single instance of the actual hardware encoder is used 
-	// for multiple streams/players to provide multicasting functionality.
-	VideoEncoderFactoryStrong = std::make_unique<FPixelStreamingVideoEncoderFactory>();
-
-	// HACK: Keep a pointer to the Video encoder factory, so we can use it to figure out the
-	// FPlayerSession <-> FVideoEncoder relationship later on
-	VideoEncoderFactory = static_cast<FPixelStreamingVideoEncoderFactory*>(VideoEncoderFactoryStrong.get());
-
-	// only now that a VideoEncoderFactory is created we can create signalling thread
 #if PLATFORM_WINDOWS
 	WebRtcSignallingThread = MakeUnique<FThread>(TEXT("PixelStreamerSignallingThread"), [this]() { WebRtcSignallingThreadFunc(); });
 #else
@@ -100,6 +105,9 @@ void FStreamer::WebRtcSignallingThreadFunc()
 	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
 	PeerConnectionConfig = {};
 
+	auto videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>();
+	VideoEncoderFactory = videoEncoderFactory.get();
+
 	PeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
 		nullptr, // network_thread
 		nullptr, // worker_thread
@@ -107,7 +115,7 @@ void FStreamer::WebRtcSignallingThreadFunc()
 		new rtc::RefCountedObject<FAudioCapturer>(), // audio device manager
 		webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
 		webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-		std::move(VideoEncoderFactoryStrong),
+		std::move(videoEncoderFactory),
 		std::make_unique<webrtc::InternalDecoderFactory>(),
 		nullptr, // audio_mixer
 		nullptr); // audio_processing
@@ -145,6 +153,9 @@ void FStreamer::WebRtcSignallingThreadFunc()
 
 	PeerConnectionConfig = {};
 
+	auto videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>();
+	VideoEncoderFactory = videoEncoderFactory.get();
+
 	PeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
 		nullptr, // network_thread
 		nullptr, // worker_thread
@@ -152,7 +163,7 @@ void FStreamer::WebRtcSignallingThreadFunc()
 		new rtc::RefCountedObject<FAudioCapturer>(), // audio device manager
 		webrtc::CreateAudioEncoderFactory<webrtc::AudioEncoderOpus>(),
 		webrtc::CreateAudioDecoderFactory<webrtc::AudioDecoderOpus>(),
-		std::move(VideoEncoderFactoryStrong),
+		std::move(videoEncoderFactory),
 		std::make_unique<webrtc::InternalDecoderFactory>(),
 		nullptr, // audio_mixer
 		nullptr); // audio_processing
@@ -194,6 +205,12 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 	checkf(Player, TEXT("just created player %d not found"), PlayerId);
 
 	Player->OnOffer(MoveTemp(Sdp));
+
+	{
+		FScopeLock PlayersLock(&PlayersCS);
+		for (auto&& PlayerEntry : Players)
+			PlayerEntry.Value->OnNewSecondarySession();
+	}
 }
 
 void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
@@ -342,6 +359,7 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 			UE_LOG(PixelStreamer, Error, TEXT("Failed to add AudioTrack to PeerConnection of player %u. Msg=%s"), Session->GetPlayerId(), ANSI_TO_TCHAR(Res.error().message()));
 		}
 	}
+
 	{
 
 		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> Res = Session->GetPeerConnection().AddTrack(VideoTrack, { TCHAR_TO_ANSI(*StreamId) });
@@ -353,13 +371,15 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 		}
 		else
 		{
-
-			rtc::scoped_refptr<webrtc::RtpSenderInterface>& RtpSender = Res.value();
-			webrtc::RtpParameters RtpParams = RtpSender->GetParameters();
-			//Set degradation preferences for when bitrate degrades, framerate, resolution, or balanced.
-			RtpParams.degradation_preference = webrtc::DegradationPreference::BALANCED;
-			RtpSender->SetParameters(RtpParams);
-			
+			switch (GetDegradationPreferenceCVar())
+			{
+			case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
+				VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
+				break;
+			case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
+				VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
+				break;
+			}
 		}
 	}
 }

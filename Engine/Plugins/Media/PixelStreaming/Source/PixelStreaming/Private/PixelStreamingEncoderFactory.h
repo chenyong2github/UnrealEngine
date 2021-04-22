@@ -19,7 +19,7 @@ class FPixelStreamingVideoEncoderFactory : public webrtc::VideoEncoderFactory
 
 public:
 	FPixelStreamingVideoEncoderFactory();
-	virtual ~FPixelStreamingVideoEncoderFactory();
+	virtual ~FPixelStreamingVideoEncoderFactory() override;
 
 	/**
 	* This is used from the FPlayerSession::OnSucess to let the factory know

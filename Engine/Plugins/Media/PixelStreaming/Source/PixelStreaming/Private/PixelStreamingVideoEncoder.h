@@ -13,12 +13,9 @@ class FPixelStreamingVideoEncoder : public webrtc::VideoEncoder
 public:
 
 	FPixelStreamingVideoEncoder(FPlayerSession* OwnerSession, FEncoderContext* context);
-	~FPixelStreamingVideoEncoder();
+	virtual ~FPixelStreamingVideoEncoder() override;
 
-	bool IsQualityController() const
-	{
-		return bControlsQuality;
-	}
+	bool IsQualityController() const { return bControlsQuality; }
 	void SetQualityController(bool bControlsQuality);
 
 	// WebRTC Interface
@@ -36,11 +33,16 @@ public:
 	// virtual void OnLossNotification(const LossNotification& loss_notification) override;
 	// End WebRTC Interface.
 
-	virtual void SetMaxBitrate(int32 MaxBitrate);
-	virtual void SetTargetBitrate(int32 TargetBitrate);
+	void SetMaxBitrate(int32 MaxBitrate);
+	void SetTargetBitrate(int32 TargetBitrate);
+	void SetMinQP(int32 maxqp);
+	void SetRateControl(AVEncoder::FVideoEncoder::RateControlMode mode);
+	void EnableFillerData(bool enable);
 	void SendEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
 	FPlayerId GetPlayerId();
 	bool IsRegisteredWithWebRTC();
+
+	void ForceKeyFrame() { ForceNextKeyframe = true; }
 
 private:
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
@@ -56,4 +58,6 @@ private:
 	// The alternative is encoding separate streams for each peer, this is too much processing until we have layered
 	// video encoding like hardware accelerated VP9/AV1.
 	FThreadSafeBool bControlsQuality = false;
+
+	bool ForceNextKeyframe = false;
 };

@@ -41,8 +41,8 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 	(
 		[this]() // on success
 		{
-			Streamer.SignallingServerConnection->SendAnswer(PlayerId, *PeerConnection->local_description());
-			Streamer.bStreamingStarted = true;
+			Streamer.GetSignallingServerConnection()->SendAnswer(PlayerId, *PeerConnection->local_description());
+			Streamer.SetStreamingStarted(true);
 		},
 		[this](const FString& Error) // on failure
 		{
@@ -67,7 +67,7 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 		// this `FPlayerSession` into encoder factory queue and pop it out of the queue when encoder instance
 		// is created. Unfortunately I (Andriy) don't see a way to put `check`s to verify it works correctly.
 		
-		Streamer.VideoEncoderFactory->AddSession(*this);
+		Streamer.GetVideoEncoderFactory()->AddSession(*this);
 
 		PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
 	};
@@ -116,7 +116,7 @@ void FPlayerSession::DisconnectPlayer(const FString& Reason)
 		return; // already notified SignallingServer to disconnect this player
 
 	bDisconnecting = true;
-	Streamer.SignallingServerConnection->SendDisconnectPlayer(PlayerId, Reason);
+	Streamer.GetSignallingServerConnection()->SendDisconnectPlayer(PlayerId, Reason);
 }
 
 //
@@ -165,7 +165,7 @@ void FPlayerSession::OnIceCandidate(const webrtc::IceCandidateInterface* Candida
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%u"), TEXT("FPlayerSession::OnIceCandidate"), PlayerId);
 
-	Streamer.SignallingServerConnection->SendIceCandidate(PlayerId, *Candidate);
+	Streamer.GetSignallingServerConnection()->SendIceCandidate(PlayerId, *Candidate);
 }
 
 void FPlayerSession::OnIceCandidatesRemoved(const std::vector<cricket::Candidate>& candidates)
@@ -227,7 +227,7 @@ bool FPlayerSession::IsOriginalQualityController() const
 
 bool FPlayerSession::IsQualityController() const
 {
-	return VideoEncoder != nullptr && VideoEncoder.Load()->IsQualityController();
+	return VideoEncoder != nullptr && VideoEncoder->IsQualityController();
 }
 
 void FPlayerSession::SetQualityController(bool bControlsQuality)
@@ -237,7 +237,7 @@ void FPlayerSession::SetQualityController(bool bControlsQuality)
 		return;
 	}
 
-	VideoEncoder.Load()->SetQualityController(bControlsQuality);
+	VideoEncoder->SetQualityController(bControlsQuality);
 	rtc::CopyOnWriteBuffer Buf(2);
 	Buf[0] = static_cast<uint8_t>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
 	Buf[1] = bControlsQuality ? 1 : 0;
@@ -300,6 +300,12 @@ void FPlayerSession::SendUnfreezeFrame()
 	rtc::CopyOnWriteBuffer Buffer(2);
 	Buffer[0] = static_cast<uint8_t>(PixelStreamingProtocol::EToPlayerMsg::UnfreezeFrame);
 	DataChannel->Send(webrtc::DataBuffer(Buffer, true));
+}
+
+void FPlayerSession::OnNewSecondarySession()
+{
+	if (IsQualityController())
+		VideoEncoder->ForceKeyFrame();
 }
 
 void FPlayerSession::OnBufferedAmountChange(uint64_t PreviousAmount)

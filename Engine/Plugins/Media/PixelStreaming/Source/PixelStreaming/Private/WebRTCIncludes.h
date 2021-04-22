@@ -22,7 +22,7 @@ THIRD_PARTY_INCLUDES_START
 // for some unknown reasons we have to disable it inside those UE4's windows-related includes
 // C6323: Use of arithmetic operator on Boolean type(s).
 #pragma warning(push)
-#pragma warning(disable: 4582 4583 6323)
+#pragma warning(disable: 4582 4596 6323)
 
 #include "rtc_base/win32.h"
 #include "rtc_base/win32_socket_init.h"
@@ -55,7 +55,7 @@ THIRD_PARTY_INCLUDES_START
 // C6319: Use of the comma-operator in a tested expression causes the left argument to be ignored when it has no side-effects.
 // C6323: Use of arithmetic operator on Boolean type(s).
 #pragma warning(push)
-#pragma warning(disable: 4582 6319 6323)
+#pragma warning(disable: 4582 4583 6319 6323)
 
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
@@ -67,7 +67,6 @@ THIRD_PARTY_INCLUDES_START
 #include "api/audio_codecs/opus/audio_decoder_opus.h"
 #include "api/audio_codecs/opus/audio_encoder_opus.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
-//#include "api/test/fake_constraints.h"
 #include "api/video_codecs/video_decoder.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video/video_frame.h"
@@ -78,7 +77,6 @@ THIRD_PARTY_INCLUDES_START
 
 #include "rtc_base/thread.h"
 #include "rtc_base/logging.h"
-//#include "rtc_base/flags.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/arraysize.h"
 #include "rtc_base/net_helpers.h"
@@ -88,12 +86,9 @@ THIRD_PARTY_INCLUDES_START
 #include "pc/session_description.h"
 #include "pc/video_track_source.h"
 
-//#include "media/base/video_capturer.h"
-//#include "media/engine/webrtc_video_capturer_factory.h"
 #include "media/engine/internal_decoder_factory.h"
 #include "media/engine/internal_encoder_factory.h"
 #include "media/base/h264_profile_level_id.h"
-//#include "media/engine/webrtcvideoencoderfactory.h"
 #include "media/base/adapted_video_track_source.h"
 #include "media/base/media_channel.h"
 #include "media/base/video_common.h"
