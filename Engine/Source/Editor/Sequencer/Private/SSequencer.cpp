@@ -2583,7 +2583,6 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		}
 
 		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleKeepCursorInPlaybackRangeWhileScrubbing );
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleKeepCursorInPlaybackRange );
 
 		if (!SequencerPtr.Pin()->IsLevelEditorSequencer())
 		{

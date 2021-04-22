@@ -5194,17 +5194,6 @@ void FSequencer::SetLocalTimeLooped(FFrameTime NewLocalTime)
 			NewGlobalTime = (PlaybackSpeed > 0 ? MaxInclusiveTime : MinInclusiveTime) * LocalToRootTransform;
 			NewPlaybackStatus = EMovieScenePlayerStatus::Stopped;
 		}
-		// Constrain to the play range if necessary
-		else if (Settings->ShouldKeepCursorInPlayRange())
-		{
-			// Clamp to bound or jump back if necessary
-			if (NewLocalTime < MinInclusiveTime || NewLocalTime >= MaxInclusiveTime)
-			{
-				NewGlobalTime = (PlaybackSpeed > 0 ? MinInclusiveTime : MaxInclusiveTime) * LocalToRootTransform;
-
-				bResetPosition = true;
-			}
-		}
 		// Ensure the time is within the working range
 		else if (!WorkingRange.Contains(NewLocalTime / LocalTickResolution))
 		{
@@ -13367,12 +13356,6 @@ void FSequencer::BindCommands()
 		FExecuteAction::CreateLambda([this] { Settings->SetKeepCursorInPlayRangeWhileScrubbing(!Settings->ShouldKeepCursorInPlayRangeWhileScrubbing()); }),
 		FCanExecuteAction::CreateLambda([] { return true; }),
 		FIsActionChecked::CreateLambda([this] { return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); }));
-
-	SequencerCommandBindings->MapAction(
-		Commands.ToggleKeepCursorInPlaybackRange,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetKeepCursorInPlayRange( !Settings->ShouldKeepCursorInPlayRange() ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldKeepCursorInPlayRange(); } ) );
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepPlaybackRangeInSectionBounds,

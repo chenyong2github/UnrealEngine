@@ -249,11 +249,6 @@ public:
 	/** Set whether or not the cursor should be kept within the playback range while scrubbing in sequencer */
 	void SetKeepCursorInPlayRangeWhileScrubbing(bool bInKeepCursorInPlayRangeWhileScrubbing);
 
-	/** @return true if the cursor should be kept within the playback range during playback in sequencer, false otherwise */
-	bool ShouldKeepCursorInPlayRange() const;
-	/** Set whether or not the cursor should be kept within the playback range during playback in sequencer */
-	void SetKeepCursorInPlayRange(bool bInKeepCursorInPlayRange);
-
 	/** @return true if the playback range should be synced to the section bounds, false otherwise */
 	bool ShouldKeepPlayRangeInSectionBounds() const;
 	/** Set whether or not the playback range should be synced to the section bounds */
@@ -486,10 +481,6 @@ protected:
 	/** Enable or disable keeping the cursor in the current playback range while scrubbing. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bKeepCursorInPlayRangeWhileScrubbing;
-
-	/** Enable or disable keeping the cursor in the current playback range during playback. */
-	UPROPERTY( config, EditAnywhere, Category=Timeline )
-	bool bKeepCursorInPlayRange;
 
 	/** Enable or disable keeping the playback range constrained to the section bounds. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

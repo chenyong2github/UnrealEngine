@@ -38,7 +38,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
 	bSnapKeysAndSectionsToPlayRange = false;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
-	bKeepCursorInPlayRange = true;
 	bKeepPlayRangeInSectionBounds = true;
 	bCompileDirectorOnEvaluate = true;
 	ZeroPadFrames = 0;
@@ -443,20 +442,6 @@ void USequencerSettings::SetKeepCursorInPlayRangeWhileScrubbing(bool bInKeepCurs
 	if (bKeepCursorInPlayRangeWhileScrubbing != bInKeepCursorInPlayRangeWhileScrubbing)
 	{
 		bKeepCursorInPlayRangeWhileScrubbing = bInKeepCursorInPlayRangeWhileScrubbing;
-		SaveConfig();
-	}
-}
-
-bool USequencerSettings::ShouldKeepCursorInPlayRange() const
-{
-	return bKeepCursorInPlayRange;
-}
-
-void USequencerSettings::SetKeepCursorInPlayRange(bool bInKeepCursorInPlayRange)
-{
-	if (bKeepCursorInPlayRange != bInKeepCursorInPlayRange)
-	{
-		bKeepCursorInPlayRange = bInKeepCursorInPlayRange;
 		SaveConfig();
 	}
 }
