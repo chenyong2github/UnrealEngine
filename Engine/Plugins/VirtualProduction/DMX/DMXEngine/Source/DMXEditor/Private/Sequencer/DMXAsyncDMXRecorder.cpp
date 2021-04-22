@@ -70,7 +70,14 @@ namespace
 						return MatrixStartingIndex + SizeOfCell * CellIndex + OffsetWithinCell;
 					}();
 
-					MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, &UniverseData[AttributeStartingChannelIndex]);
+					if (bNormalizedValues)
+					{
+						MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToNormalizedValue(CellAttribute.DataType, CellAttribute.bUseLSBMode, &UniverseData[AttributeStartingChannelIndex]);
+					}
+					else
+					{
+						MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(CellAttribute.DataType, CellAttribute.bUseLSBMode, &UniverseData[AttributeStartingChannelIndex]);
+					}
 
 					bAcquiredValue = true;
 				}
@@ -90,7 +97,14 @@ namespace
 						const FDMXFixtureFunction& Function = *FixtureFunctionPtr;
 						int32 AttributeIndex = AbsoluteStartingChannel + Function.Channel - 2; // FixturePatch Channel - 1, Function Channel - 1
 
-						MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(Function.DataType, Function.bUseLSBMode, &UniverseData[AttributeIndex]);
+						if (bNormalizedValues)
+						{
+							MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToNormalizedValue(Function.DataType, Function.bUseLSBMode, &UniverseData[AttributeIndex]);
+						}
+						else
+						{
+							MovieSceneFloatValue.Value = UDMXEntityFixtureType::BytesToInt(Function.DataType, Function.bUseLSBMode, &UniverseData[AttributeIndex]);
+						}
 
 						bAcquiredValue = true;
 					}
