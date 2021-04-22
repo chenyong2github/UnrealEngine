@@ -28,6 +28,31 @@ void UDisplayClusterBlueprint::GetReparentingRules(TSet<const UClass*>& AllowedC
 
 #endif
 
+void UDisplayClusterBlueprint::UpdateConfigExportProperty()
+{
+	bool bConfigExported = false;
+
+	if (UDisplayClusterConfigurationData* Config = GetOrLoadConfig())
+	{
+		bConfigExported = IDisplayClusterConfiguration::Get().ConfigAsString(Config, ConfigExport);
+	}
+
+	if (!bConfigExported)
+	{
+		ConfigExport = TEXT("");
+	}
+}
+
+void UDisplayClusterBlueprint::Serialize(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		UpdateConfigExportProperty();
+	}
+
+	Super::Serialize(Ar);
+}
+
 UDisplayClusterBlueprintGeneratedClass* UDisplayClusterBlueprint::GetGeneratedClass() const
 {
 	return Cast<UDisplayClusterBlueprintGeneratedClass>(*GeneratedClass);
