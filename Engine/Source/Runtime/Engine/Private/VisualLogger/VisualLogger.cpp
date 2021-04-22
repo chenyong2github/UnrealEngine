@@ -39,9 +39,9 @@ namespace
 		}
 
 #endif
-		if (!GIsEditor && World == nullptr)
+		if (!GIsEditor && World == nullptr && GEngine)
 		{
-			World = GEngine ? GEngine->GetWorld() : nullptr;
+			World =  GEngine->GetWorld();
 		}
 
 		return World;

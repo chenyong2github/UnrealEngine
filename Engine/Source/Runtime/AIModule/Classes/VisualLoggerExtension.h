@@ -26,8 +26,6 @@ class UCanvas;
 class FVisualLoggerExtension : public FVisualLogExtensionInterface
 {
 public:
-	FVisualLoggerExtension();
-
 	virtual void ResetData(IVisualLoggerEditorInterface* EdInterface) override;
 	virtual void DrawData(IVisualLoggerEditorInterface* EdInterface, UCanvas* Canvas) override;
 	virtual void OnItemsSelectionChanged(IVisualLoggerEditorInterface* EdInterface) override;
@@ -38,8 +36,8 @@ private:
 	void DisableEQSRendering(AActor* HelperActor);
 
 protected:
-	uint32 SelectedEQSId;
-	float CurrentTimestamp;
+	int32 SelectedEQSId = INDEX_NONE;
+	float CurrentTimestamp = FLT_MIN;
 	TArray<TWeakObjectPtr<class UEQSRenderingComponent> >	EQSRenderingComponents;
 };
 #endif //ENABLE_VISUAL_LOG

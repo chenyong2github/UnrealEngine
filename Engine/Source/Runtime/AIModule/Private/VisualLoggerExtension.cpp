@@ -11,13 +11,6 @@
 #include "EnvironmentQuery/EQSRenderingComponent.h"
 
 #if ENABLE_VISUAL_LOG
-FVisualLoggerExtension::FVisualLoggerExtension()
-	: SelectedEQSId(INDEX_NONE)
-	, CurrentTimestamp(FLT_MIN)
-{
-
-}
-
 void FVisualLoggerExtension::DisableEQSRendering(AActor* HelperActor)
 {
 #if USE_EQS_DEBUGGER
