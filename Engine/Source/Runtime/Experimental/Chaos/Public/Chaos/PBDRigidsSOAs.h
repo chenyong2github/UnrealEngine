@@ -176,6 +176,7 @@ class FPBDRigidsSOAs
 {
 public:
 	FPBDRigidsSOAs()
+		: bDisableParticleDeletion(false)
 	{
 #if CHAOS_DETERMINISTIC
 		BiggestParticleID = 0;
@@ -296,6 +297,12 @@ public:
 		UpdateViews();
 	}
 
+	// WARNING
+	// Only ever use DisableParticleDeletion when debugging the particle clean up. 
+	// This introduces a massive memory leak.
+	bool bDisableParticleDeletion;
+	void SetDisableParticleDeletion(bool bIn) { bDisableParticleDeletion = bIn; }
+
 	void DestroyParticle(FGeometryParticleHandle* Particle)
 	{
 		auto PBDRigid = Particle->CastToRigidParticle();
@@ -333,8 +340,14 @@ public:
 			GetDynamicParticles().GetSleepDataLock().WriteUnlock();
 		}
 
-		ParticleHandles.DestroyHandleSwap(Particle);
-		
+		// WARNING
+		// Only ever use DisableParticleDeletion when debugging the particle clean up. 
+		// This introduces a massive memory leak.
+		if (!bDisableParticleDeletion)
+		{
+			ParticleHandles.DestroyHandleSwap(Particle);
+		}
+
 		UpdateViews();
 	}
 
