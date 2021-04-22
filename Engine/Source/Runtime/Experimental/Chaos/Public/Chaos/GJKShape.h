@@ -59,11 +59,19 @@ namespace Chaos
 	{
 		using FImplicitObjectType = T_SHAPE;
 
-		TGJKCoreShape(const FImplicitObjectType& InShape) : Shape(InShape) {}
+		TGJKCoreShape(const FImplicitObjectType& InShape) 
+			: Shape(InShape)
+			, Margin(InShape.GetMargin())
+		{}
+
+		TGJKCoreShape(const FImplicitObjectType& InShape, FReal InMargin)
+			: Shape(InShape)
+			, Margin(InMargin)
+		{}
 
 		FReal GetMargin() const
 		{
-			return Shape.GetMargin();
+			return Margin;
 		}
 
 		FVec3 SupportCore(const FVec3 Dir, FReal InMargin) const
@@ -77,6 +85,7 @@ namespace Chaos
 		}
 
 		const FImplicitObjectType& Shape;
+		const FReal Margin;
 	};
 
 

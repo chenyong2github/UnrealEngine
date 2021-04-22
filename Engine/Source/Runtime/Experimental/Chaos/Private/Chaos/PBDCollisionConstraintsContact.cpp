@@ -44,32 +44,32 @@ namespace Chaos
 		int32 Chaos_Collision_UseShockPropagation = 1;
 		FAutoConsoleVariableRef CVarChaosCollisionUseShockPropagation(TEXT("p.Chaos.Collision.UseShockPropagation"), Chaos_Collision_UseShockPropagation, TEXT(""));
 
-		FReal Chaos_Collision_CollisionClipTolerance = 0.1f;
+		FReal Chaos_Collision_CollisionClipTolerance = 0.01f;
 		FAutoConsoleVariableRef CVarChaosCollisionClipTolerance(TEXT("p.Chaos.Collision.ClipTolerance"), Chaos_Collision_CollisionClipTolerance, TEXT(""));
 
 		bool Chaos_Collision_CheckManifoldComplete = false;
 		FAutoConsoleVariableRef CVarChaosCollisionCheckManifoldComplete(TEXT("p.Chaos.Collision.CheckManifoldComplete"), Chaos_Collision_CheckManifoldComplete, TEXT(""));
 
-		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
+		void Update(FRigidBodyPointContactConstraint& Constraint, const FReal Dt)
 		{
 			const FRigidTransform3 Transform0 = GetTransform(Constraint.Particle[0]);
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
-			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodyPointContactConstraint>(Constraint, Transform0, Transform1, CullDistance, Dt);
+			Constraint.ResetPhi(Constraint.GetCullDistance());
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodyPointContactConstraint>(Constraint, Transform0, Transform1, Dt);
 		}
 
-		void UpdateSwept(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
+		void UpdateSwept(FRigidBodySweptPointContactConstraint& Constraint, const FReal Dt)
 		{
 			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
 			// Note: This is unusual but we are using a mix of the previous and current transform
 			// This is due to how CCD only rewinds the position
 			const FRigidTransform3 TransformXQ0(Particle0->X(), Particle0->Q());
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
-			Constraint.ResetPhi(CullDistance);
+			Constraint.ResetPhi(Constraint.GetCullDistance());
 			
 			// Update as a point constraint (base class).
-			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodySweptPointContactConstraint>(Constraint, TransformXQ0, Transform1, CullDistance, Dt);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodySweptPointContactConstraint>(Constraint, TransformXQ0, Transform1, Dt);
 		}
 
 
@@ -215,11 +215,11 @@ namespace Chaos
 				bool bRequiresCollisionUpdate = true;
 				if (bRequiresCollisionUpdate)
 				{
-					Collisions::Update(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
+					Collisions::Update(Constraint, IterationParameters.Dt);
 				}
 
 				// Permanently disable a constraint that is beyond the cull distance
-				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
+				if (Constraint.GetPhi() >= Constraint.GetCullDistance())
 				{
 					if (ParticleParameters.bCanDisableContacts)
 					{
@@ -266,10 +266,9 @@ namespace Chaos
 			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
 			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
-			const FReal ExpandedCullDistance = ParticleParameters.CullDistance + IterationParameters.Dt * Particle0->V().Size() * 2.0f; // Particle will move at most by this much during PBD solve
-			Collisions::UpdateSwept(Constraint, ExpandedCullDistance, IterationParameters.Dt);
+			Collisions::UpdateSwept(Constraint, IterationParameters.Dt);
 			
-			const FContactParticleParameters CCDParticleParamaters{ ExpandedCullDistance, ParticleParameters.RestitutionVelocityThreshold, true, ParticleParameters.Collided };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.RestitutionVelocityThreshold, true, ParticleParameters.Collided };
 			if (Constraint.TimeOfImpact == 1)
 			{
 				// If TOI = 1 (normal constraint) we don't want to split timestep at TOI.
@@ -336,10 +335,10 @@ namespace Chaos
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
-				Update(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
+				Update(Constraint, IterationParameters.Dt);
 
 				// Ignore contacts where the closest point is greater than cull distance
-				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
+				if (Constraint.GetPhi() >= Constraint.GetCullDistance())
 				{
 					// Optionally permanently disable the contact for the remaining iterations
 					if (ParticleParameters.bCanDisableContacts)

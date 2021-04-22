@@ -16,44 +16,56 @@
 
 namespace Chaos
 {
+extern float Chaos_Bounds_MaxInflationScale;
 
-// @todo(ccaulfield): COLLISION - get rid of these?
-extern FRealSingle MinBoundsThickness;
-extern FRealSingle BoundsThicknessMultiplier;
-
-inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
+inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal MinBoundsThickness, FReal MaxBoundsThickness, FReal BoundsVelocityInflation)
 {
-	// @todo(ccaulfield): this expands the bounds in negative velocity direction as well...maybe we don't want that?
 	for (int i = 0; i < 3; ++i)
 	{
-		Vel[i] = FMath::Max(MinBoundsThickness, BoundsThicknessMultiplier * (BoundsThickness + FMath::Abs(Vel[i]) * Dt * BoundsVelocityInflation));
+		const FReal BoundsThickness = FMath::Abs(Vel[i]) * Dt * BoundsVelocityInflation;
+		Vel[i] = FMath::Clamp(BoundsThickness, MinBoundsThickness, MaxBoundsThickness);
 	}
 	return Vel;
 }
 
-inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal BoundsThickness, FReal BoundsVelocityInflation)
+inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal MinBoundsThickness, FReal BoundsVelocityInflation)
 {
-	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, BoundsThickness, !InParticles.CCDEnabled(BodyIndex) ? FReal(0) : BoundsVelocityInflation);
+	// See comments in ComputeBoundsThickness<THandle> below
+	FReal MaxBoundsThickness = TNumericLimits<FReal>::Max();
+	const bool bIsBounded = InParticles.HasBounds(BodyIndex);
+	const bool bIsCCD = InParticles.CCDEnabled(BodyIndex);
+	if (bIsBounded && !bIsCCD)
+	{
+		MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * InParticles.LocalBounds(BodyIndex).Extents().GetMax();
+	}
+
+	return ComputeBoundsThickness(InParticles.V(BodyIndex), Dt, MinBoundsThickness, MaxBoundsThickness, BoundsVelocityInflation);
 }
 
 template <typename THandle>
-FVec3 ComputeBoundsThickness(const THandle& PBDRigid, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
+FVec3 ComputeBoundsThickness(const THandle& ParticleHandle, FReal Dt, FReal MinBoundsThickness, FReal BoundsVelocityInflation)
 {
-	FReal NewBoundsVelocityInflation = BoundsVelocityInflation;
-	auto* RigidBody = PBDRigid.CastToRigidParticle();
-	if (RigidBody && !RigidBody->CCDEnabled())
+	const typename THandle::FDynamicParticleHandleType* RigidParticle = ParticleHandle.CastToRigidParticle();
+	const typename THandle::FKinematicParticleHandleType* KinematicParticle = ParticleHandle.CastToKinematicParticle();
+
+	// Limit the bounds expansion based on the size of the object. This prevents objects that are moved a large
+	// distance without resetting physics from having excessive bounds. Objects that move more than their size per
+	// tick without CCD enabled will have simulation issues anyway, so expanding bounds beyond this is unnecessary.
+	FReal MaxBoundsThickness = TNumericLimits<FReal>::Max();
+	const bool bIsBounded = ParticleHandle.HasBounds();
+	const bool bIsCCD = (RigidParticle != nullptr) && RigidParticle->CCDEnabled();
+	if (bIsBounded && !bIsCCD)
 	{
-		NewBoundsVelocityInflation = 0.0f;
+		MaxBoundsThickness = Chaos_Bounds_MaxInflationScale * ParticleHandle.LocalBounds().Extents().GetMax();
 	}
 
-	FVec3 Vel{ 0 };
-	auto* KinematicBody = PBDRigid.CastToKinematicParticle();
-	if (KinematicBody)
+	FVec3 Vel(0);
+	if (KinematicParticle != nullptr)
 	{
-		Vel = KinematicBody->V();
+		Vel = KinematicParticle->V();
 	}
 
-	return ComputeBoundsThickness(Vel, Dt, BoundsThickness, NewBoundsVelocityInflation);
+	return ComputeBoundsThickness(Vel, Dt, MinBoundsThickness, MaxBoundsThickness, BoundsVelocityInflation);
 }
 
 template<class OBJECT_ARRAY>
@@ -165,7 +177,6 @@ TAABB<T, d> ComputeWorldSpaceBoundingBox(const TPBDRigidParticles<T, d>& Objects
 	
 	if (bUseVelocity)
 	{
-		// @todo(ccaulfield): COLLISION - thickness
 		WorldSpaceBox.ThickenSymmetrically(ComputeBoundsThickness(Objects, Dt, i, 0, 1));
 	}
 	return WorldSpaceBox;
@@ -357,7 +368,6 @@ typename TEnableIf<TModels<CParticleView, ParticleView>::Value>::Type ComputeAll
 			{
 				if (const auto PBDRigid = Particle.AsDynamic())
 				{
-					// @todo(ccaulfield): COLLISION - thickness
 					WorldSpaceBoxes.Last().ThickenSymmetrically(ComputeBoundsThickness(*PBDRigid, Dt, 0, 1));
 				}
 			}
