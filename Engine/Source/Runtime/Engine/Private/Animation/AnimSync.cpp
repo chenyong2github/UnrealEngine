@@ -34,6 +34,7 @@ void FAnimSync::AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSy
 	else
 	{
 		UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()].Add(InTickRecord);
+		UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()].Top().MirrorDataTable = MirrorDataTable;
 	}
 }
 

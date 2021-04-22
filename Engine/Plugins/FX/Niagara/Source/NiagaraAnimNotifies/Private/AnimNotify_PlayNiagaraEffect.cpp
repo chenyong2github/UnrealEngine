@@ -76,13 +76,15 @@ void UAnimNotify_PlayNiagaraEffect::ValidateAssociatedAssets()
 
 void UAnimNotify_PlayNiagaraEffect::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
+}
+
+void UAnimNotify_PlayNiagaraEffect::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
 	//Store the spawned effect in a protected variable
 	SpawnedEffect = SpawnEffect(MeshComp, Animation);
 	
 	//Call to BP to allows setting of Niagara User Variables
-	Super::Notify(MeshComp, Animation);
-	
-	
+	Super::Notify(MeshComp, Animation, EventReference);
 }
 
 FString UAnimNotify_PlayNiagaraEffect::GetNotifyName_Implementation() const

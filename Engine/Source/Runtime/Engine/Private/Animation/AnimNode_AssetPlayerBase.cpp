@@ -40,6 +40,10 @@ void FAnimNode_AssetPlayerBase::CreateTickRecordForNode(const FAnimationUpdateCo
 
 	UE::Anim::FAnimSyncParams SyncParams(GroupNameToUse, SyncGroupRole, MethodToUse);
 	FAnimTickRecord TickRecord(Sequence, bLooping, PlayRate, FinalBlendWeight, /*inout*/ InternalTimeAccumulator, MarkerTickRecord);
+	if(Context.GetSharedContext())
+	{
+		Context.GetSharedContext()->MessageStack.MakeEventContextData(TickRecord.ContextData);
+	}
 	TickRecord.RootMotionWeightModifier = Context.GetRootMotionWeightModifier();
 
 	SyncScope.AddTickRecord(TickRecord, SyncParams, UE::Anim::FAnimSyncDebugInfo(Context));

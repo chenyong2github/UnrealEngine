@@ -8,6 +8,7 @@
 struct FAnimationUpdateSharedContext;
 struct FAnimationBaseContext;
 struct FAnimNode_Base;
+class IAnimNotifyEventContextDataInterface;
 
 // Simple RTTI implementation for graph messages
 
@@ -23,8 +24,47 @@ struct FAnimNode_Base;
 #define IMPLEMENT_ANIMGRAPH_MESSAGE(ClassName) \
 	const FName ClassName::TypeName = TEXT(#ClassName);
 
+#define IMPLEMENT_NOTIFY_CONTEXT_INTERFACE(ClassName) \
+	IMPLEMENT_ANIMGRAPH_MESSAGE(ClassName);
+
+#define DECLARE_NOTIFY_CONTEXT_INTERFACE(ClassName) \
+	DECLARE_ANIMGRAPH_MESSAGE(ClassName)
+
 namespace UE { namespace Anim {
 
+class ENGINE_API IAnimNotifyEventContextDataInterface
+{
+public:
+	virtual ~IAnimNotifyEventContextDataInterface() = default;
+	// RTTI support functions
+	static FName GetStaticTypeName()
+	{ 
+		return BaseTypeName;
+	}
+
+	virtual FName GetTypeName() const = 0;
+	
+	template<typename Type> 
+	bool Is() const 
+	{ 
+		return GetTypeName() == Type::GetStaticTypeName(); 
+	}
+
+	template<typename Type> 
+	const Type& As() const 
+	{ 
+		return *static_cast<const Type*>(this);
+	}
+
+	template<typename Type> 
+    Type& As() 
+	{ 
+		return *static_cast<Type*>(this);
+	}
+private:
+	static const FName BaseTypeName;
+};
+	
 // Base class for all messages/events/scopes that are fired during execution
 // Note that these messages are events/callbacks only, no blending is involved.
 class ENGINE_API IGraphMessage
@@ -57,6 +97,12 @@ public:
 	Type& As() 
 	{ 
 		return *static_cast<Type*>(this);
+	}
+
+	virtual TSharedPtr<const IAnimNotifyEventContextDataInterface> MakeEventContextData() const
+	{
+		TSharedPtr<const IAnimNotifyEventContextDataInterface> NullPtr;
+		return NullPtr; 
 	}
 
 private:
@@ -223,6 +269,10 @@ public:
 	// Copies the relevant parts of each stack only, ready for cached update.
 	// @param	InStack		The stack to copy from
 	void CopyForCachedUpdate(const FMessageStack& InStack);
+
+	// Call MakeEventContextData for the top entry of each MessageType, returning interfaces for types that return event data
+	// @param	ContextData		An array of valid IAnimNotifyEventContextDataInterface.  Only one entry will exist per message type
+	void MakeEventContextData(TArray<TSharedPtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const;
 
 private:
 	// Push a message onto the stack

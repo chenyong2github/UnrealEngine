@@ -8,25 +8,33 @@
 
 /** Type referenced by a row in the mirror data table */
 UENUM()
-enum EMirrorRowType
+namespace EMirrorRowType
 {
-	Bone,
-	AnimationNotify,
-	Curve,
-	SyncMarker
-};
+	enum Type
+	{
+		Bone,
+		AnimationNotify,
+		Curve,
+		SyncMarker,
+		Custom
+	};
+}
+
 
 /** Find and Replace Method for FMirrorFindReplaceExpression. */
 UENUM()
-enum EMirrorFindReplaceMethod
+namespace EMirrorFindReplaceMethod
 {
-	/** Only find and replace matching strings at the start of the name  */
-	Prefix,
-	/** Only find and replace matching strings at the end of the name  */
-	Suffix,
-	/** Use regular expressions for find and replace, including support for captures $1 - $10 */
-	RegularExpression
-};
+	enum Type
+	{
+		/** Only find and replace matching strings at the start of the name  */
+		Prefix,
+        /** Only find and replace matching strings at the end of the name  */
+        Suffix,
+        /** Use regular expressions for find and replace, including support for captures $1 - $10 */
+        RegularExpression
+    };
+}
 
 /**  Base Mirror Table containing all data required by the animation mirroring system. */
 USTRUCT()
@@ -41,7 +49,7 @@ struct FMirrorTableRow : public FTableRowBase
 	FName MirroredName;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Mirroring)
-	TEnumAsByte<EMirrorRowType> MirrorEntryType;
+	TEnumAsByte<EMirrorRowType::Type> MirrorEntryType;
 
 	FMirrorTableRow()
 		: Name(NAME_None)
@@ -68,14 +76,14 @@ struct FMirrorFindReplaceExpression
 	FName ReplaceExpression;
 
 	UPROPERTY(EditAnywhere, Category = Mirroring)
-	TEnumAsByte<EMirrorFindReplaceMethod> FindReplaceMethod;
+	TEnumAsByte<EMirrorFindReplaceMethod::Type> FindReplaceMethod;
 
 	FMirrorFindReplaceExpression() 
 		: FindExpression(NAME_None)
 		, ReplaceExpression(NAME_None)
 		, FindReplaceMethod(EMirrorFindReplaceMethod::Prefix) {}
 
-	FMirrorFindReplaceExpression(FName InFindExpression, FName InReplaceExpression, EMirrorFindReplaceMethod Method)
+	FMirrorFindReplaceExpression(FName InFindExpression, FName InReplaceExpression, EMirrorFindReplaceMethod::Type Method)
 		: FindExpression(InFindExpression)
 		, ReplaceExpression(InReplaceExpression)
 		, FindReplaceMethod(Method)

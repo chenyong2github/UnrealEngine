@@ -11,6 +11,17 @@ namespace UE { namespace Anim {
 
 class FAnimSyncGroupScope;
 
+class ENGINE_API FAnimNotifyMirrorContext : public IAnimNotifyEventContextDataInterface
+{
+	DECLARE_NOTIFY_CONTEXT_INTERFACE(FAnimNotifyMirrorContext)
+	public:
+	FAnimNotifyMirrorContext() {} 
+	FAnimNotifyMirrorContext(const UMirrorDataTable* MirrorDataTable) : MirrorTable(MirrorDataTable) {bAnimationMirrored = MirrorDataTable != nullptr;} 
+	bool bAnimationMirrored = true; 
+	UPROPERTY(transient)
+	TObjectPtr<const UMirrorDataTable> MirrorTable; 
+};
+	
 // Scoped graph message used to synchronize mirroring 
 class ENGINE_API FMirrorSyncScope : public IGraphMessage
 {
@@ -19,7 +30,7 @@ public:
 	FMirrorSyncScope(const FAnimationBaseContext& InContext, const UMirrorDataTable* InMirrorDataTable);
 	virtual ~FMirrorSyncScope();
 	int32 GetMirrorScopeDepth() const;
-	
+	TSharedPtr<const IAnimNotifyEventContextDataInterface> MakeEventContextData() const override;
 private:
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 	int32 MirrorScopeDepth = 1; 

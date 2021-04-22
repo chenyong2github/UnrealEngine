@@ -5,6 +5,7 @@
 #include "Animation/PoseAsset.h"
 #include "AnimationRuntime.h"
 #include "Animation/BlendSpace.h"
+#include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimationUtils.h"
 #include "Logging/MessageLog.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
@@ -22,6 +23,8 @@
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSyncScope.h"
+#include "Animation/AnimNotifyStateMachineInspectionLibrary.h"
+#include "Animation/MirrorDataTable.h"
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -345,6 +348,13 @@ void FAnimInstanceProxy::Uninitialize(UAnimInstance* InAnimInstance)
 	DefaultLinkedInstanceInputNode = nullptr;
 	ResetAnimationCurves();
 	MaterialParametersToClear.Reset();
+	ActiveAnimNotifiesSinceLastTick.Reset();
+}
+
+void FAnimInstanceProxy::UpdateActiveAnimNotifiesSinceLastTick(const FAnimNotifyQueue& AnimInstanceQueue)
+{
+	ActiveAnimNotifiesSinceLastTick.Reset(AnimInstanceQueue.AnimNotifies.Num());
+	ActiveAnimNotifiesSinceLastTick.Append(AnimInstanceQueue.AnimNotifies);
 }
 
 void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds)
@@ -2252,6 +2262,160 @@ const TArray<FMontageEvaluationState>& FAnimInstanceProxy::GetMontageEvaluationD
 	check(MainMontageEvaluationData);
 	return *MainMontageEvaluationData;
 }
+bool FAnimInstanceProxy::WasAnimNotifyStateActiveInAnyState(TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->NotifyStateClass 
+			&& NotifyEvent->NotifyStateClass->IsA(AnimNotifyStateType))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyStateActiveInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->NotifyStateClass && NotifyEvent->NotifyStateClass->IsA(AnimNotifyStateType))
+		{
+			return UAnimNotifyStateMachineInspectionLibrary::IsStateMachineInEventContext(Ref, MachineIndex);
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyStateActiveInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->NotifyStateClass && NotifyEvent->NotifyStateClass->IsA(AnimNotifyStateType))
+		{
+			return UAnimNotifyStateMachineInspectionLibrary::IsStateInStateMachineInEventContext(Ref, StateIndex, MachineIndex);
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotify> AnimNotifyType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->Notify && NotifyEvent->Notify->IsA(AnimNotifyType))
+		{
+			return UAnimNotifyStateMachineInspectionLibrary::IsStateInStateMachineInEventContext(Ref, StateIndex, MachineIndex);
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyNameTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, FName NotifyName) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent)
+		{
+			FName LookupName = NotifyEvent->NotifyName;
+			if (Ref.GetMirrorDataTable())
+			{
+				const FName* MirroredName = Ref.GetMirrorDataTable()->AnimNotifyToMirrorAnimNotifyMap.Find(LookupName);
+				if (MirroredName)
+				{
+					LookupName = *MirroredName; 
+				}
+			}
+			if(LookupName == NotifyName)
+			{
+				return UAnimNotifyStateMachineInspectionLibrary::IsStateInStateMachineInEventContext(Ref, StateIndex, MachineIndex);
+			}
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyTriggeredInStateMachine(int32 MachineIndex,TSubclassOf<UAnimNotify> AnimNotifyType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->Notify && NotifyEvent->Notify->IsA(AnimNotifyType))
+		{
+			return UAnimNotifyStateMachineInspectionLibrary::IsStateMachineInEventContext(Ref, MachineIndex);
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyTriggeredInAnyState(TSubclassOf<UAnimNotify> AnimNotifyType) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent && NotifyEvent->Notify && NotifyEvent->Notify->IsA(AnimNotifyType))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyNameTriggeredInAnyState(FName NotifyName) const
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent)
+		{
+			FName LookupName = NotifyEvent->NotifyName;
+			if (Ref.GetMirrorDataTable())
+			{
+				const FName* MirroredName = Ref.GetMirrorDataTable()->AnimNotifyToMirrorAnimNotifyMap.Find(LookupName);
+				if (MirroredName)
+				{
+					LookupName = *MirroredName; 
+				}
+			}
+			if(LookupName == NotifyName)
+			{
+				return true;
+			}
+		}
+	}
+	return false; 
+}
+
+bool FAnimInstanceProxy::WasAnimNotifyNameTriggeredInStateMachine(int32 MachineIndex, FName NotifyName)
+{
+	for (const FAnimNotifyEventReference& Ref : ActiveAnimNotifiesSinceLastTick)
+	{
+		const FAnimNotifyEvent* NotifyEvent = Ref.GetNotify();
+		if (NotifyEvent)
+		{
+			FName LookupName = NotifyEvent->NotifyName;
+			if (Ref.GetMirrorDataTable())
+			{
+				const FName* MirroredName = Ref.GetMirrorDataTable()->AnimNotifyToMirrorAnimNotifyMap.Find(LookupName);
+				if (MirroredName)
+				{
+					LookupName = *MirroredName; 
+				}
+			}
+			if(LookupName == NotifyName)
+			{
+				return UAnimNotifyStateMachineInspectionLibrary::IsStateMachineInEventContext(Ref, MachineIndex);
+			}
+		}
+	}
+	return false;
+}
 
 const FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex) const
 {
@@ -2545,6 +2709,27 @@ int32 FAnimInstanceProxy::GetStateMachineIndex(FName MachineName) const
 	}
 
 	return INDEX_NONE;
+}
+
+int32  FAnimInstanceProxy::GetStateMachineIndex(FAnimNode_StateMachine* StateMachine) const
+{
+	if (AnimClassInterface)
+	{
+		const TArray<FStructProperty*>& AnimNodeProperties = AnimClassInterface->GetAnimNodeProperties();
+		for (int32 MachineIndex = 0; MachineIndex < AnimNodeProperties.Num(); MachineIndex++)
+		{
+			FStructProperty* Property = AnimNodeProperties[AnimNodeProperties.Num() - 1 - MachineIndex];
+			if (Property && Property->Struct->IsChildOf(FAnimNode_StateMachine::StaticStruct()))
+			{
+				FAnimNode_StateMachine* CurStateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
+				if (CurStateMachine == StateMachine)
+				{
+					return MachineIndex;
+				}
+			}
+		}
+	}
+	return INDEX_NONE; 	
 }
 
 void FAnimInstanceProxy::GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription) const

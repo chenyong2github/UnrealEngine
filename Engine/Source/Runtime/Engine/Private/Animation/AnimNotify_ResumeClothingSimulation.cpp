@@ -13,6 +13,10 @@ UAnimNotify_ResumeClothingSimulation::UAnimNotify_ResumeClothingSimulation()
 
 void UAnimNotify_ResumeClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
+}
+
+void UAnimNotify_ResumeClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
 	MeshComp->ResumeClothingSimulation();
 }
 

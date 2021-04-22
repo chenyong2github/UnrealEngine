@@ -156,7 +156,7 @@ struct FAnimSegment
 	 * Supports playing backwards (CurrentTrackPosition<PreviousTrackPosition).
 	 * Only supports contiguous range, does NOT support looping and wrapping over.
 	 */
-	UE_DEPRECATED(4.19, "Use the GetAnimNotifiesFromTrackPositions that takes FAnimNotifyEventReferences instead")
+	UE_DEPRECATED(4.19, "Use the GetAnimNotifiesFromTrackPositions that takes FAnimNotifyContext instead")
 	void GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const;
 	
 	/**
@@ -165,7 +165,10 @@ struct FAnimSegment
 	* Supports playing backwards (CurrentTrackPosition<PreviousTrackPosition).
 	* Only supports contiguous range, does NOT support looping and wrapping over.
 	*/
+	UE_DEPRECATED(5.0, "Use the GetAnimNotifiesFromTrackPositions that takes FAnimNotifyContext instead")
 	ENGINE_API void GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<FAnimNotifyEventReference> & OutActiveNotifies) const;
+
+	ENGINE_API void GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, FAnimNotifyContext& NotifyContext) const;
 
 	/** 
 	 * Given a Track delta position [StartTrackPosition, EndTrackPosition]
@@ -284,7 +287,16 @@ struct FAnimTrack
 	* Supports playing backwards (CurrentTrackPosition<PreviousTrackPosition).
 	* Only supports contiguous range, does NOT support looping and wrapping over.
 	*/
+	UE_DEPRECATED(5.0, "Use the GetAnimNotifiesFromTrackPositions that takes FAnimNotifyContext instead")
 	ENGINE_API void GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const;
+
+	/**
+	* Retrieves AnimNotifies between two Track time positions. ]PreviousTrackPosition, CurrentTrackPosition]
+	* Between PreviousTrackPosition (exclusive) and CurrentTrackPosition (inclusive).
+	* Supports playing backwards (CurrentTrackPosition<PreviousTrackPosition).
+	* Only supports contiguous range, does NOT support looping and wrapping over.
+	*/
+	ENGINE_API void GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, FAnimNotifyContext& NotifyContext) const;
 
 	/** return true if anim notify is available */
 	bool IsNotifyAvailable() const;

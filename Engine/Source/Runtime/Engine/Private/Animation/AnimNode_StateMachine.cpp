@@ -10,6 +10,7 @@
 #include "Animation/AnimNode_LinkedAnimLayer.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/ActiveStateMachineScope.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Animation/AnimBlueprintGeneratedClass.h"
@@ -345,6 +346,7 @@ void FAnimNode_StateMachine::LogInertializationRequestError(const FAnimationUpda
 // Temporarily turned off while we track down and fix https://jira.ol.epicgames.net/browse/OR-17066
 TAutoConsoleVariable<int32> CVarAnimStateMachineRelevancyReset(TEXT("a.AnimNode.StateMachine.EnableRelevancyReset"), 1, TEXT("Reset State Machine when it becomes relevant"));
 
+
 void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Context)
 {
 	Context.AnimInstanceProxy->RecordMachineWeight(StateMachineIndexInClass, Context.GetFinalBlendWeight());
@@ -481,6 +483,8 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 	}
 	while (bFoundValidTransition && (TransitionCountThisFrame < MaxTransitionsPerFrame));
 
+	UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FActiveStateMachineScope> Message(bCreateNotifyMetaData, Context, Context, this, CurrentState);
+	
 	if (bFirstUpdate)
 	{
 		if (bSkipFirstUpdateTransition)

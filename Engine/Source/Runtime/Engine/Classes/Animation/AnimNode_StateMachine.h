@@ -141,6 +141,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bReinitializeOnBecomingRelevant;
 
+	// Tag Notifies with meta data such as the active state and mirroring state.  Producing this
+	// data has a  slight performance cost.
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bCreateNotifyMetaData;
 private:
 	// true if it is the first update.
 	bool bFirstUpdate;
@@ -202,6 +206,7 @@ public:
 		, MaxTransitionsPerFrame(3)
 		, bSkipFirstUpdateTransition(true)
 		, bReinitializeOnBecomingRelevant(true)
+		, bCreateNotifyMetaData(true)
 		, bFirstUpdate(true)
 		, CurrentState(INDEX_NONE)
 		, ElapsedTime(0.0f)

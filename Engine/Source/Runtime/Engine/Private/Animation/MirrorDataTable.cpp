@@ -217,7 +217,7 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 
 	bool bChangedTable = false;
 
-	auto AddMirrorRow = [this, &bChangedTable, &NamesByCategory](const FName& Name, const FName& MirroredName, EMirrorRowType RowType)
+	auto AddMirrorRow = [this, &bChangedTable, &NamesByCategory](const FName& Name, const FName& MirroredName, EMirrorRowType::Type RowType)
 	{
 		// directly add rows to avoid using FDataTableEditorUtils, which is not appropriate at this point
 		// equivalent to FDataTableEditorUtils::AddRow(DataTable, BoneName);

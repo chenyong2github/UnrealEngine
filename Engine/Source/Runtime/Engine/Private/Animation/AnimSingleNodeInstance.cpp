@@ -350,14 +350,15 @@ void UAnimSingleNodeInstance::SetPositionWithPreviousTime(float InPosition, floa
 		UAnimSequenceBase * SequenceBase = Cast<UAnimSequenceBase> (CurrentAsset);
 		if (SequenceBase)
 		{
+			FAnimTickRecord TickRecord;
+			FAnimNotifyContext NotifyContext(TickRecord);
 			NotifyQueue.Reset(GetSkelMeshComponent());
 
-			TArray<FAnimNotifyEventReference> Notifies;
-			SequenceBase->GetAnimNotifiesFromDeltaPositions(InPreviousTime, Proxy.GetCurrentTime(), Notifies);
-			if ( Notifies.Num() > 0 )
+			SequenceBase->GetAnimNotifiesFromDeltaPositions(InPreviousTime, Proxy.GetCurrentTime(), NotifyContext);
+			if ( NotifyContext.ActiveNotifies.Num() > 0 )
 			{
 				// single node instance only has 1 asset at a time
-				NotifyQueue.AddAnimNotifies(Notifies, 1.0f);
+				NotifyQueue.AddAnimNotifies(NotifyContext.ActiveNotifies, 1.0f);
 			}
 
 			TriggerAnimNotifies(0.f);

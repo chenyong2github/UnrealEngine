@@ -5,8 +5,9 @@
 #include "Animation/AnimInstanceProxy.h"
 
 namespace UE { namespace Anim {
-
 const FName IGraphMessage::BaseTypeName("IGraphMessage");
+	
+const FName IAnimNotifyEventContextDataInterface::BaseTypeName("IAnimNotifyEventContextDataInterface");
 
 FScopedGraphTag::FScopedGraphTag(const FAnimationBaseContext& InContext, FName InTag)
 	: SharedContext(InContext.SharedContext)
@@ -188,4 +189,22 @@ void FMessageStack::CopyForCachedUpdate(const FMessageStack& InStack)
 	}
 }
 
+void FMessageStack::MakeEventContextData(TArray<TSharedPtr<const IAnimNotifyEventContextDataInterface>>& ContextData) const
+{
+	ContextData.Empty();
+	for (const TPair<FName, FMessageStackEntry>& MessageStackPair : MessageStacks)
+	{
+		const FMessageStackEntry& StackEntry = MessageStackPair.Value;
+		if(StackEntry.Num())
+		{
+			const FMessageEntry& MessageEntry = StackEntry.Top();
+			TSharedPtr<const IAnimNotifyEventContextDataInterface> NotifyData = MessageEntry.Message->MakeEventContextData();
+			if(NotifyData)
+			{
+				ContextData.Emplace(NotifyData);
+			}
+		}
+	}
+}
+	
 }}	// namespace UE::Anim

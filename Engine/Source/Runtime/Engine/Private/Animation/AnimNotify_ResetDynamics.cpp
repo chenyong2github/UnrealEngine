@@ -13,6 +13,10 @@ UAnimNotify_ResetDynamics::UAnimNotify_ResetDynamics()
 
 void UAnimNotify_ResetDynamics::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
+}
+
+void UAnimNotify_ResetDynamics::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
 	MeshComp->ResetAnimInstanceDynamics();
 }
 

@@ -27,7 +27,11 @@ UAnimNotify_PlaySound::UAnimNotify_PlaySound()
 #endif // WITH_EDITORONLY_DATA
 }
 
-void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
+void UAnimNotify_PlaySound::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
+{
+}
+
+void UAnimNotify_PlaySound::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	// Don't call super to avoid call back in to blueprints
 	if (Sound && MeshComp)

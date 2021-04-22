@@ -134,6 +134,24 @@ FName FAnimNotifyEvent::GetNotifyEventName() const
 	return NAME_None;
 }
 
+FName FAnimNotifyEvent::GetNotifyEventName(const UMirrorDataTable* MirrorDataTable) const
+{
+	if (MirrorDataTable)
+	{
+		if(NotifyName == NAME_None)
+		{
+			return NAME_None;
+		}
+		const FName* MirroredName = MirrorDataTable->AnimNotifyToMirrorAnimNotifyMap.Find(NotifyName);
+		if (MirroredName)
+		{
+			const FString EventName = FString::Printf(TEXT("AnimNotify_%s"), *MirroredName->ToString());
+			return FName(*EventName);
+		}
+	}
+	return GetNotifyEventName(); 
+}
+
 ////////////////////////////
 //
 // FAnimSyncMarker
@@ -210,7 +228,12 @@ void FMarkerSyncData::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, 
 	}
 }
 
-FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength, const UMirrorDataTable* MirrorTable) const
+FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength) const
+{
+	return GetMarkerSyncPositionFromMarkerIndicies(PrevMarker, NextMarker, CurrentTime, SequenceLength, nullptr);
+}
+
+FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionFromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength, const UMirrorDataTable* MirrorTable) const
 {
 	FMarkerSyncAnimPosition SyncPosition;
 	float PrevTime, NextTime;

@@ -70,11 +70,12 @@ float FAnimSegment::ConvertTrackPosToAnimPos(const float& TrackPosition) const
 
 void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const
 {
-	TArray<FAnimNotifyEventReference> NotifyRefs;
-	GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyRefs);
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyContext);
 
-	OutActiveNotifies.Reset(NotifyRefs.Num());
-	for (FAnimNotifyEventReference& NotifyRef : NotifyRefs)
+	OutActiveNotifies.Reset(NotifyContext.ActiveNotifies.Num());
+	for (FAnimNotifyEventReference& NotifyRef : NotifyContext.ActiveNotifies)
 	{
 		if (const FAnimNotifyEvent* Notify = NotifyRef.GetNotify())
 		{
@@ -84,6 +85,15 @@ void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackP
 }
 
 void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<FAnimNotifyEventReference> & OutActiveNotifies) const
+{
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyContext);
+	// Slow copy due assumption of calling code that OutActiveNotifies is only extended
+	OutActiveNotifies.Append(NotifyContext.ActiveNotifies);
+}
+
+void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, FAnimNotifyContext& NotifyContext) const
 {
 	if( PreviousTrackPosition == CurrentTrackPosition )
 	{
@@ -130,14 +140,14 @@ void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackP
 				{
 					const float PlayRate = ValidPlayRate * (bTrackPlayingBackwards ? -1.f : 1.f);
 					const float AnimEndPosition = (TrackTimeToGo * PlayRate) + AnimStartPosition;
-					AnimSequenceBase->GetAnimNotifiesFromDeltaPositions(AnimStartPosition, AnimEndPosition, OutActiveNotifies);
+					AnimSequenceBase->GetAnimNotifiesFromDeltaPositions(AnimStartPosition, AnimEndPosition, NotifyContext);
 					break;
 				}
 				// Otherwise we hit the end point of the animation first...
 				else
 				{
 					// Add that piece for extraction.
-					AnimSequenceBase->GetAnimNotifiesFromDeltaPositions(AnimStartPosition, AnimEndPoint, OutActiveNotifies);
+					AnimSequenceBase->GetAnimNotifiesFromDeltaPositions(AnimStartPosition, AnimEndPoint, NotifyContext);
 
 					// decrease our TrackTimeToGo if we have to do another iteration.
 					// and put ourselves back at the beginning of the animation.
@@ -644,11 +654,12 @@ bool FAnimTrack::ContainRecursive(const TArray<UAnimCompositeBase*>& CurrentAccu
 
 void FAnimTrack::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const
 {
-	TArray<FAnimNotifyEventReference> NotifyRefs;
-	GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyRefs);
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyContext);
 
-	OutActiveNotifies.Reset(NotifyRefs.Num());
-	for (FAnimNotifyEventReference& NotifyRef : NotifyRefs)
+	OutActiveNotifies.Reset(NotifyContext.ActiveNotifies.Num());
+	for (FAnimNotifyEventReference& NotifyRef : NotifyContext.ActiveNotifies)
 	{
 		if (const FAnimNotifyEvent* Notify = NotifyRef.GetNotify())
 		{
@@ -659,11 +670,25 @@ void FAnimTrack::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPos
 
 void FAnimTrack::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, TArray<FAnimNotifyEventReference> & OutActiveNotifies) const
 {
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
 	for (int32 SegmentIndex = 0; SegmentIndex<AnimSegments.Num(); ++SegmentIndex)
 	{
 		if (AnimSegments[SegmentIndex].IsValid())
 		{
-			AnimSegments[SegmentIndex].GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, OutActiveNotifies);
+			AnimSegments[SegmentIndex].GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyContext);
+		}
+	}
+	Swap(OutActiveNotifies, NotifyContext.ActiveNotifies);
+}
+
+void FAnimTrack::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, FAnimNotifyContext& NotifyContext) const
+{
+	for (int32 SegmentIndex = 0; SegmentIndex<AnimSegments.Num(); ++SegmentIndex)
+	{
+		if (AnimSegments[SegmentIndex].IsValid())
+		{
+			AnimSegments[SegmentIndex].GetAnimNotifiesFromTrackPositions(PreviousTrackPosition, CurrentTrackPosition, NotifyContext);
 		}
 	}
 }

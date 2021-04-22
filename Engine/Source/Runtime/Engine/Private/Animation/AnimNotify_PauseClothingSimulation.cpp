@@ -16,6 +16,11 @@ void UAnimNotify_PauseClothingSimulation::Notify(class USkeletalMeshComponent* M
 	MeshComp->SuspendClothingSimulation();
 }
 
+void UAnimNotify_PauseClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	MeshComp->SuspendClothingSimulation();
+}
+
 FString UAnimNotify_PauseClothingSimulation::GetNotifyName_Implementation() const
 {
 	return TEXT("Pause Clothing Sim");

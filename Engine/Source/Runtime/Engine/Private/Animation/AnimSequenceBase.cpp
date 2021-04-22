@@ -12,6 +12,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Animation/MirrorDataTable.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Modules/ModuleManager.h"
 
@@ -259,11 +260,13 @@ bool UAnimSequenceBase::IsNotifyAvailable() const
 
 void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const
 {
-	TArray<FAnimNotifyEventReference> NotifyRefs;
-	GetAnimNotifies(StartTime, DeltaTime, bAllowLooping, NotifyRefs);
+	FAnimTickRecord TickRecord;
+	TickRecord.bLooping = bAllowLooping; 
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifies(StartTime, DeltaTime, NotifyContext);
 
-	OutActiveNotifies.Reset(NotifyRefs.Num());
-	for (FAnimNotifyEventReference& NotifyRef : NotifyRefs)
+	OutActiveNotifies.Reset(NotifyContext.ActiveNotifies.Num());
+	for (FAnimNotifyEventReference NotifyRef : NotifyContext.ActiveNotifies)
 	{
 		if (const FAnimNotifyEvent* Notify = NotifyRef.GetNotify())
 		{
@@ -272,7 +275,16 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 	}
 }
 
-void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<FAnimNotifyEventReference> & OutActiveNotifies) const
+void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, const bool bAllowLooping, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const
+{
+	FAnimTickRecord TickRecord;
+	TickRecord.bLooping = bAllowLooping;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifies(StartTime, DeltaTime, NotifyContext);
+	Swap(NotifyContext.ActiveNotifies, OutActiveNotifies);
+}
+
+void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, FAnimNotifyContext& NotifyContext) const
 {
 	if(DeltaTime == 0.f)
 	{
@@ -299,10 +311,10 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 		ensureMsgf(bPlayingBackwards ? (CurrentPosition <= PreviousPosition) : (CurrentPosition >= PreviousPosition), TEXT("in Animation %s(Skeleton %s) : bPlayingBackwards(%d), PreviousPosition(%0.2f), Current Position(%0.2f)"), 
 			*GetName(), *GetNameSafe(GetSkeleton()), bPlayingBackwards, PreviousPosition, CurrentPosition);
 		
-		GetAnimNotifiesFromDeltaPositions(PreviousPosition, CurrentPosition, OutActiveNotifies);
+		GetAnimNotifiesFromDeltaPositions(PreviousPosition, CurrentPosition, NotifyContext);
 	
 		// If we've hit the end of the animation, and we're allowed to loop, keep going.
-		if( (AdvanceType == ETAA_Finished) &&  bAllowLooping )
+		if( (AdvanceType == ETAA_Finished) &&  NotifyContext.TickRecord && NotifyContext.TickRecord->bLooping )
 		{
 			const float ActualDeltaMove = (CurrentPosition - PreviousPosition);
 			DesiredDeltaMove -= ActualDeltaMove; 
@@ -320,11 +332,12 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 
 void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float& CurrentPosition, TArray<const FAnimNotifyEvent *> & OutActiveNotifies) const
 {
-	TArray<FAnimNotifyEventReference> NotifyRefs;
-	GetAnimNotifiesFromDeltaPositions(PreviousPosition, CurrentPosition, NotifyRefs);
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifiesFromDeltaPositions(PreviousPosition, CurrentPosition, NotifyContext);
 
-	OutActiveNotifies.Reset(NotifyRefs.Num());
-	for (FAnimNotifyEventReference NotifyRef : NotifyRefs)
+	OutActiveNotifies.Reset(NotifyContext.ActiveNotifies.Num());
+	for (FAnimNotifyEventReference NotifyRef : NotifyContext.ActiveNotifies)
 	{
 		if (const FAnimNotifyEvent* Notify = NotifyRef.GetNotify())
 		{
@@ -333,7 +346,15 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 	}
 }
 
-void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float& CurrentPosition, TArray<FAnimNotifyEventReference> & OutActiveNotifies) const
+void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float & CurrentPosition, TArray<FAnimNotifyEventReference>& OutActiveNotifies) const
+{
+	FAnimTickRecord TickRecord;
+	FAnimNotifyContext NotifyContext(TickRecord);
+	GetAnimNotifiesFromDeltaPositions(PreviousPosition, CurrentPosition,NotifyContext);
+	Swap(NotifyContext.ActiveNotifies, OutActiveNotifies);
+}
+
+void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float& CurrentPosition,  FAnimNotifyContext& NotifyContext) const
 {
 	// Early out if we have no notifies
 	if( (Notifies.Num() == 0) || (PreviousPosition == CurrentPosition) )
@@ -354,7 +375,15 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 
 			if( (NotifyStartTime < PreviousPosition) && (NotifyEndTime >= CurrentPosition) )
 			{
-				OutActiveNotifies.Emplace(&AnimNotifyEvent, this);
+				if (NotifyContext.TickRecord)
+				{
+					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, NotifyContext.TickRecord->MirrorDataTable);
+					NotifyContext.ActiveNotifies.Top().SetContextDataInterfaces(NotifyContext.TickRecord->ContextData);
+				}
+				else
+				{
+					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, nullptr);
+				}
 			}
 		}
 	}
@@ -368,7 +397,16 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 
 			if( (NotifyStartTime <= CurrentPosition) && (NotifyEndTime > PreviousPosition) )
 			{
-				OutActiveNotifies.Emplace(&AnimNotifyEvent, this);
+				if (NotifyContext.TickRecord)
+				{
+					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, NotifyContext.TickRecord->MirrorDataTable);
+					NotifyContext.ActiveNotifies.Top().SetContextDataInterfaces(NotifyContext.TickRecord->ContextData); 
+				}
+				else
+				{
+					NotifyContext.ActiveNotifies.Emplace(&AnimNotifyEvent, this, nullptr);
+				}
+
 			}
 		}
 	}
@@ -487,13 +525,13 @@ void UAnimSequenceBase::TickByMarkerAsLeader(FMarkerTickRecord& Instance, FMarke
 		
 	}
 
-	MarkerContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionfromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
+	MarkerContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionFromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
 
 	OutPreviousTime = CurrentTime;
 
 	AdvanceMarkerPhaseAsLeader(bLooping, MoveDelta, MarkerContext.GetValidMarkerNames(), CurrentTime, Instance.PreviousMarker, Instance.NextMarker, MarkerContext.MarkersPassedThisTick, MirrorTable);
 
-	MarkerContext.SetMarkerSyncEndPosition(GetMarkerSyncPositionfromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
+	MarkerContext.SetMarkerSyncEndPosition(GetMarkerSyncPositionFromMarkerIndicies(Instance.PreviousMarker.MarkerIndex, Instance.NextMarker.MarkerIndex, CurrentTime, MirrorTable));
 
 	UE_LOG(LogAnimMarkerSync, Log, TEXT("Leader (%s) (TickByMarker) PreviousTime(%0.2f) CurrentTime(%0.2f) MoveDelta(%0.2f) Looping(%d) %s"), *GetName(), OutPreviousTime, CurrentTime, MoveDelta, bLooping ? 1 : 0, *MarkerContext.ToString());
 }
@@ -908,9 +946,9 @@ void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedC
 void UAnimSequenceBase::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
 {
 	// Harvest and record notifies
-	TArray<FAnimNotifyEventReference> AnimNotifies;
-	GetAnimNotifies(PreviousTime, MoveDelta, Instance.bLooping, AnimNotifies);
-	NotifyQueue.AddAnimNotifies(Context.ShouldGenerateNotifies(),AnimNotifies, Instance.EffectiveBlendWeight);
+	FAnimNotifyContext NotifyContext(Instance);
+	GetAnimNotifies(PreviousTime, MoveDelta, NotifyContext);
+	NotifyQueue.AddAnimNotifies(Context.ShouldGenerateNotifies(), NotifyContext.ActiveNotifies, Instance.EffectiveBlendWeight);
 }
 
 #if WITH_EDITOR

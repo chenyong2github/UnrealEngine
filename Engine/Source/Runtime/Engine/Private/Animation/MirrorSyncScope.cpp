@@ -7,6 +7,8 @@
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::FMirrorSyncScope);
 
+IMPLEMENT_NOTIFY_CONTEXT_INTERFACE(UE::Anim::FAnimNotifyMirrorContext)
+
 namespace UE { namespace Anim {
 
 bool IsMirrorSyncIdentical(const UMirrorDataTable* MirrorTableA, const UMirrorDataTable* MirrorTableB)
@@ -69,5 +71,10 @@ int32 FMirrorSyncScope::GetMirrorScopeDepth() const
 {
 	return MirrorScopeDepth;
 }
-	
+
+TSharedPtr<const IAnimNotifyEventContextDataInterface> FMirrorSyncScope::MakeEventContextData() const
+{
+	return MakeShared<FAnimNotifyMirrorContext>(MirrorDataTable);
+}
+
 }}	// namespace UE::Anim

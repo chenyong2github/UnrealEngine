@@ -20,6 +20,7 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimSync.h"
 #include "Animation/AnimSyncScope.h"
+#include "Animation/ActiveStateMachineScope.h"
 #include "AnimInstanceProxy.generated.h"
 
 class UBlendSpace;
@@ -576,7 +577,8 @@ public:
 	friend struct FAnimTrace;
 	friend struct UE::Anim::FAnimSync;
 	friend class UE::Anim::FAnimSyncGroupScope;
-
+	friend class UE::Anim::FActiveStateMachineScope;
+	
 protected:
 	/** Called when our anim instance is being initialized */
 	virtual void Initialize(UAnimInstance* InAnimInstance);
@@ -584,6 +586,9 @@ protected:
 	/** Called when our anim instance is being uninitialized */
 	virtual void Uninitialize(UAnimInstance* InAnimInstance);
 
+	/** Let us copy the full notify queue from the last frame */
+	void UpdateActiveAnimNotifiesSinceLastTick(const FAnimNotifyQueue& AnimInstanceQueue);
+	
 	/** Called before update so we can copy any data we need */
 	virtual void PreUpdate(UAnimInstance* InAnimInstance, float DeltaSeconds);
 
@@ -858,6 +863,33 @@ protected:
 	/** Get the current accumulated time as a fraction of the length of the most relevant animation in the source state */
 	float GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex) const;
 
+	/** Get whether a particular notify state was active in any state machine last tick. */
+	bool WasAnimNotifyStateActiveInAnyState(TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
+
+	/** Get whether a particular notify state is active in a specific state machine last tick. */
+	bool WasAnimNotifyStateActiveInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
+
+	/** Get whether the most relevant animation was in a particular notify state last tick. */
+	bool WasAnimNotifyStateActiveInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType) const;
+	
+	/** Get whether the most relevant animation triggered the given notify last tick. */
+	bool WasAnimNotifyTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotify> AnimNotifyType) const;
+
+	/** Get whether the most relevant animation triggered the given notify last tick. */
+	bool WasAnimNotifyNameTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, FName NotifyName) const;
+
+	/** Get whether a particular notify type was active in a specific state machine last tick.  */
+	bool WasAnimNotifyTriggeredInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotify> AnimNotifyType) const;
+
+	/**  Get whether an animation notify of a given type was triggered last tick. */
+    bool WasAnimNotifyTriggeredInAnyState(TSubclassOf<UAnimNotify> AnimNotifyType) const;
+
+	/** Get whether the animation notify with the specified name triggered last tick. */
+    bool WasAnimNotifyNameTriggeredInAnyState(FName NotifyName) const;
+	
+	/** Get whether the given state machine triggered the animation notify with the specified name last tick. */
+    bool WasAnimNotifyNameTriggeredInStateMachine(int32 MachineIndex, FName NotifyName);
+	
 	// Sets up a native transition delegate between states with PrevStateName and NextStateName, in the state machine with name MachineName.
 	// Note that a transition already has to exist for this to succeed
 	void AddNativeTransitionBinding(const FName& MachineName, const FName& PrevStateName, const FName& NextStateName, const FCanTakeTransition& NativeTransitionDelegate, const FName& TransitionName = NAME_None);
@@ -885,6 +917,9 @@ protected:
 
 	/** Gets the index of the state machine matching MachineName */
 	int32 GetStateMachineIndex(FName MachineName) const;
+
+	/** Gets the index of the state machine */
+	int32 GetStateMachineIndex(FAnimNode_StateMachine* StateMachine) const;
 
 	void GetStateMachineIndexAndDescription(FName InMachineName, int32& OutMachineIndex, const FBakedAnimationStateMachine** OutMachineDescription) const;
 
@@ -1025,6 +1060,9 @@ private:
 	TArray<FName> MaterialParametersToClear;
 
 protected:
+	// Animation Notifies that has been triggered since the last tick. These can be safely consumed at any point.
+	TArray<FAnimNotifyEventReference> ActiveAnimNotifiesSinceLastTick;
+	
 	// Counters for synchronization
 	FGraphTraversalCounter InitializationCounter;
 	FGraphTraversalCounter CachedBonesCounter;

@@ -290,16 +290,18 @@ void UAnimInstance::UninitializeAnimation()
 			for(int32 Index=0; Index<ActiveAnimNotifyState.Num(); Index++)
 			{
 				const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
+				const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 				{
 					TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
-					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), EventReference);
 				}
 			}
 		}
 	}
 
 	ActiveAnimNotifyState.Reset();
+	ActiveAnimNotifyEventReference.Reset(); 
 	NotifyQueue.Reset(SkelMeshComp);
 
 	SlotGroupInertializationRequestMap.Reset();
@@ -542,6 +544,8 @@ void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
 
 	bNeedsUpdate = true;
 
+	GetProxyOnGameThread<FAnimInstanceProxy>().UpdateActiveAnimNotifiesSinceLastTick(NotifyQueue);
+	
 	NotifyQueue.Reset(GetSkelMeshComponent());
 	RootMotionBlendQueue.Reset();
 
@@ -1355,8 +1359,13 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	TArray<FAnimNotifyEvent> NewActiveAnimNotifyState;
 	NewActiveAnimNotifyState.Reserve(NotifyQueue.AnimNotifies.Num());
 
+	TArray<FAnimNotifyEventReference> NewActiveAnimNotifyEventReference;
+	NewActiveAnimNotifyEventReference.Reserve(NotifyQueue.AnimNotifies.Num());
+
+	
 	// AnimNotifyState freshly added that need their 'NotifyBegin' event called.
 	TArray<const FAnimNotifyEvent *> NotifyStateBeginEvent;
+	TArray<const FAnimNotifyEventReference *> NotifyStateBeginEventReference;
 
 	for (int32 Index=0; Index<NotifyQueue.AnimNotifies.Num(); Index++)
 	{
@@ -1369,13 +1378,23 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 				{
 					// Queue up calls to 'NotifyBegin', so they happen after 'NotifyEnd'.
 					NotifyStateBeginEvent.Add(AnimNotifyEvent);
+					NotifyStateBeginEventReference.Add(&NotifyQueue.AnimNotifies[Index]);
 				}
+				else if(!ActiveAnimNotifyEventReference.IsEmpty())
+				{
+					// Remove the matching Event Reference
+					bool bRemovedEvent = ActiveAnimNotifyEventReference.RemoveSingleSwap(NotifyQueue.AnimNotifies[Index]) ==1;
+					check(bRemovedEvent);
+				}
+
 				NewActiveAnimNotifyState.Add(*AnimNotifyEvent);
+				FAnimNotifyEventReference& EventRef = NewActiveAnimNotifyEventReference.Add_GetRef(NotifyQueue.AnimNotifies[Index]);
+				EventRef.SetNotify(&NewActiveAnimNotifyState.Top());
 				continue;
 			}
 
 			// Trigger non 'state' AnimNotifies
-			TriggerSingleAnimNotify(AnimNotifyEvent);
+			TriggerSingleAnimNotify(NotifyQueue.AnimNotifies[Index]);
 		}
 	}
 
@@ -1383,10 +1402,11 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 	for (int32 Index = 0; Index < ActiveAnimNotifyState.Num(); ++Index)
 	{
 		const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
+		const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 		if (AnimNotifyEvent.NotifyStateClass && ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 		{
 			TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
-			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()));
+			AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), EventReference);
 		}
 		// The NotifyEnd callback above may have triggered actor destruction and the tear down
 		// of this instance via UninitializeAnimation which empties ActiveAnimNotifyState.
@@ -1398,33 +1418,45 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 		}
 	}
 
-	// Call 'NotifyBegin' event on freshly added AnimNotifyState.
-	for (const FAnimNotifyEvent* AnimNotifyEvent : NotifyStateBeginEvent)
+	check(NotifyStateBeginEventReference.Num() == NotifyStateBeginEvent.Num());
+	for (int32 Index = 0; Index < NotifyStateBeginEvent.Num(); Index++)
 	{
+		const FAnimNotifyEvent* AnimNotifyEvent = NotifyStateBeginEvent[Index];
+		const FAnimNotifyEventReference * AnimNotifyEventReference = NotifyStateBeginEventReference[Index];
 		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent->NotifyStateClass))
 		{
 			TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Begin);
-			AnimNotifyEvent->NotifyStateClass->NotifyBegin(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent->NotifyStateClass->GetOuter()), AnimNotifyEvent->GetDuration());
+			AnimNotifyEvent->NotifyStateClass->NotifyBegin(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent->NotifyStateClass->GetOuter()), AnimNotifyEvent->GetDuration(), *AnimNotifyEventReference);
 		}
 	}
 
 	// Switch our arrays.
 	ActiveAnimNotifyState = MoveTemp(NewActiveAnimNotifyState);
-
+	ActiveAnimNotifyEventReference = MoveTemp(NewActiveAnimNotifyEventReference);
 	// Tick currently active AnimNotifyState
-	for(const FAnimNotifyEvent& AnimNotifyEvent : ActiveAnimNotifyState)
+	for (int32 Index = 0; Index < ActiveAnimNotifyState.Num(); Index++)
 	{
+		const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
+		const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 		if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 		{
 			TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, Tick);
-			AnimNotifyEvent.NotifyStateClass->NotifyTick(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), DeltaSeconds);
+			AnimNotifyEvent.NotifyStateClass->NotifyTick(SkelMeshComp, Cast<UAnimSequenceBase>(AnimNotifyEvent.NotifyStateClass->GetOuter()), DeltaSeconds, EventReference);
 		}
 	}
 }
 
 void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEvent)
 {
+	FAnimNotifyEventReference EventReference(AnimNotifyEvent, this);
+	
+	TriggerSingleAnimNotify(EventReference); 
+}
+
+void UAnimInstance::TriggerSingleAnimNotify(FAnimNotifyEventReference& EventReference)
+{
 	// This is for non 'state' anim notifies.
+	const FAnimNotifyEvent* AnimNotifyEvent = EventReference.GetNotify();
 	if (AnimNotifyEvent && (AnimNotifyEvent->NotifyStateClass == NULL))
 	{
 		if (HandleNotify(*AnimNotifyEvent))
@@ -1436,12 +1468,12 @@ void UAnimInstance::TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEv
 		{	
 			// Implemented notify: just call Notify. UAnimNotify will forward this to the event which will do the work.
 			TRACE_ANIM_NOTIFY(this, *AnimNotifyEvent, Event);
-			AnimNotifyEvent->Notify->Notify(GetSkelMeshComponent(), Cast<UAnimSequenceBase>(AnimNotifyEvent->Notify->GetOuter()));
+			AnimNotifyEvent->Notify->Notify(GetSkelMeshComponent(), Cast<UAnimSequenceBase>(AnimNotifyEvent->Notify->GetOuter()), EventReference);
 		}
 		else if (AnimNotifyEvent->NotifyName != NAME_None)
 		{
 			// Custom Event based notifies. These will call a AnimNotify_* function on the AnimInstance.
-			const FName FuncName = AnimNotifyEvent->GetNotifyEventName();
+			FName FuncName = AnimNotifyEvent->GetNotifyEventName(EventReference.GetMirrorDataTable());
 
 			auto NotifyAnimInstance = [this, AnimNotifyEvent, FuncName](UAnimInstance* InAnimInstance)
 			{
@@ -1501,15 +1533,18 @@ void UAnimInstance::EndNotifyStates()
 {
 	USkeletalMeshComponent* SkelMeshComp = GetSkelMeshComponent();
 
-	for (FAnimNotifyEvent& Event : ActiveAnimNotifyState)
+	for (int32 Index = 0; Index < ActiveAnimNotifyState.Num(); Index++)
 	{
+		const FAnimNotifyEvent& Event = ActiveAnimNotifyState[Index];
+		const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 		if (UAnimNotifyState* NotifyState = Event.NotifyStateClass)
 		{
 			TRACE_ANIM_NOTIFY(this, Event, End);
-			NotifyState->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(NotifyState->GetOuter()));
+			NotifyState->NotifyEnd(SkelMeshComp, Cast<UAnimSequenceBase>(NotifyState->GetOuter()), EventReference);
 		}
 	}
 	ActiveAnimNotifyState.Reset();
+	ActiveAnimNotifyEventReference.Reset();
 }
 
 //to debug montage weight
@@ -1727,6 +1762,7 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 		for (int32 Index = ActiveAnimNotifyState.Num() - 1; ActiveAnimNotifyState.IsValidIndex(Index); --Index)
 		{
 			const FAnimNotifyEvent& AnimNotifyEvent = ActiveAnimNotifyState[Index];
+			const FAnimNotifyEventReference& EventReference = ActiveAnimNotifyEventReference[Index];
 			UAnimMontage* NotifyMontage = Cast<UAnimMontage>(AnimNotifyEvent.NotifyStateClass->GetOuter());
 
 			if (NotifyMontage && (NotifyMontage == MontageEndedEvent.Montage))
@@ -1734,7 +1770,7 @@ void UAnimInstance::TriggerMontageEndedEvent(const FQueuedMontageEndedEvent& Mon
 				if (ShouldTriggerAnimNotifyState(AnimNotifyEvent.NotifyStateClass))
 				{
 					TRACE_ANIM_NOTIFY(this, AnimNotifyEvent, End);
-					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, NotifyMontage);
+					AnimNotifyEvent.NotifyStateClass->NotifyEnd(SkelMeshComp, NotifyMontage, EventReference);
 				}
 
 				if (ActiveAnimNotifyState.IsValidIndex(Index))
@@ -3382,6 +3418,51 @@ float UAnimInstance::GetRelevantAnimTime(int32 MachineIndex, int32 StateIndex)
 float UAnimInstance::GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex)
 {
 	return GetProxyOnAnyThread<FAnimInstanceProxy>().GetRelevantAnimTimeFraction(MachineIndex, StateIndex);
+}
+
+bool UAnimInstance::WasAnimNotifyStateActiveInAnyState(TSubclassOf<UAnimNotifyState> AnimNotifyStateType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyStateActiveInAnyState(AnimNotifyStateType);
+}
+
+bool UAnimInstance::WasAnimNotifyStateActiveInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyStateActiveInStateMachine(MachineIndex, AnimNotifyStateType);
+}
+
+bool UAnimInstance::WasAnimNotifyStateActiveInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyStateActiveInSourceState(MachineIndex, StateIndex, AnimNotifyStateType);
+}
+
+bool UAnimInstance::WasAnimNotifyTriggeredInSourceState(int32 MachineIndex, int32 StateIndex,  TSubclassOf<UAnimNotify> AnimNotifyType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyTriggeredInSourceState(MachineIndex, StateIndex, AnimNotifyType);
+}
+
+bool UAnimInstance::WasAnimNotifyNameTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, FName NotifyName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyNameTriggeredInSourceState(MachineIndex, StateIndex, NotifyName);
+}
+
+bool UAnimInstance::WasAnimNotifyTriggeredInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotify> AnimNotifyType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyTriggeredInStateMachine(MachineIndex, AnimNotifyType);
+}
+
+bool UAnimInstance::WasAnimNotifyNameTriggeredInStateMachine(int32 MachineIndex, FName NotifyName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyNameTriggeredInStateMachine(MachineIndex, NotifyName);
+}
+
+bool UAnimInstance::WasAnimNotifyTriggeredInAnyState(TSubclassOf<UAnimNotify> AnimNotifyType)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyTriggeredInAnyState(AnimNotifyType);
+}
+
+bool UAnimInstance::WasAnimNotifyNameTriggeredInAnyState(FName NotifyName)
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().WasAnimNotifyNameTriggeredInAnyState(NotifyName);
 }
 
 const FAnimNode_StateMachine* UAnimInstance::GetStateMachineInstance(int32 MachineIndex) const

@@ -2,7 +2,6 @@
 
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/AnimTypes.h"
 
 bool operator==(const FAnimNotifyEventReference& Lhs, const FAnimNotifyEvent& Rhs)
 {
@@ -11,6 +10,11 @@ bool operator==(const FAnimNotifyEventReference& Lhs, const FAnimNotifyEvent& Rh
 		return (*(Lhs.Notify)) == Rhs;
 	}
 	return false;
+}
+
+void FAnimNotifyEventReference::SetContextDataInterfaces(const TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>>& InContextData)
+{
+	ContextData = InContextData; 
 }
 
 bool FAnimNotifyQueue::PassesFiltering(const FAnimNotifyEvent* Notify) const

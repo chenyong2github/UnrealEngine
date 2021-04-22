@@ -1014,6 +1014,42 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition"))
 	float GetRelevantAnimTimeFraction(int32 MachineIndex, int32 StateIndex);
 
+	/** Get whether a particular notify state was active in any state machine last tick.*/
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+	bool WasAnimNotifyStateActiveInAnyState(TSubclassOf<UAnimNotifyState> AnimNotifyStateType);
+
+	/** Get whether a particular notify state is active in a specific state machine last tick.  */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+	bool WasAnimNotifyStateActiveInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType);
+
+	/** Get whether a particular notify state is active in a specific state last tick. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+	bool WasAnimNotifyStateActiveInSourceState(int32 MachineIndex, int32 StateIndex, TSubclassOf<UAnimNotifyState> AnimNotifyStateType);
+
+	/** Get whether the most relevant animation was in a particular notify state last tick. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyTriggeredInSourceState(int32 MachineIndex, int32 StateIndex,  TSubclassOf<UAnimNotify> AnimNotifyType);
+
+	/** Get whether the most relevant animation triggered the animation notify with the specified name last tick.. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyNameTriggeredInSourceState(int32 MachineIndex, int32 StateIndex, FName NotifyName);
+
+	/** Get whether a particular notify type was active in a specific state machine last tick.  */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyTriggeredInStateMachine(int32 MachineIndex, TSubclassOf<UAnimNotify> AnimNotifyType);
+
+	/** Get whether the given state machine triggered the animation notify with the specified name last tick. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyNameTriggeredInStateMachine(int32 MachineIndex, FName NotifyName);
+	
+	/**  Get whether an animation notify of a given type was triggered last tick. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyTriggeredInAnyState(TSubclassOf<UAnimNotify> AnimNotifyType);
+
+	/** Get whether the animation notify with the specified name triggered last tick. */
+	UFUNCTION(BlueprintPure, Category = "Asset Player", meta = (BlueprintInternalUseOnly = "true", AnimGetter = "true", GetterContext = "Transition", Keywords = "Window,TransitionWindow,NotifyState,NotifyStateTransition"))
+    bool WasAnimNotifyNameTriggeredInAnyState(FName NotifyName);
+	
 	/** Gets the runtime instance of the specified state machine by Name */
 	const FAnimNode_StateMachine* GetStateMachineInstanceFromName(FName MachineName) const;
 
@@ -1263,6 +1299,9 @@ public:
 	UPROPERTY(transient)
 	TArray<FAnimNotifyEvent> ActiveAnimNotifyState;
 
+	UPROPERTY(transient)
+	TArray<FAnimNotifyEventReference> ActiveAnimNotifyEventReference;
+	
 private:
 	/** Reset Animation Curves */
 	void ResetAnimationCurves();
@@ -1339,7 +1378,12 @@ public:
 
 	/** Trigger AnimNotifies **/
 	void TriggerAnimNotifies(float DeltaSeconds);
+
+	/** Trigger an AnimNotify.  Note that this version does not provide any context for the event **/ 
 	void TriggerSingleAnimNotify(const FAnimNotifyEvent* AnimNotifyEvent);
+
+	/** Trigger an AnimNotify using an EventReference that provide context used in derived notify events**/ 
+	void TriggerSingleAnimNotify(FAnimNotifyEventReference& EventReference);
 
 	/** Triggers end on active notify states and clears the array */
 	void EndNotifyStates();

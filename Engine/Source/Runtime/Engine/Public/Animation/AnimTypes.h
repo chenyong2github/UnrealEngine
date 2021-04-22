@@ -442,6 +442,9 @@ public:
 
 	/** Get the NotifyName pre-appended to "AnimNotify_", for calling the event */
 	ENGINE_API FName GetNotifyEventName() const;
+	
+	/** Get the mirrored NotifyName pre-appended to "AnimNotify_", for calling the event. If Notify is not mirrored returns result of GetNotifyEventName()*/
+	ENGINE_API FName GetNotifyEventName(const UMirrorDataTable* MirrorDataTable) const;
 };
 
 #if WITH_EDITORONLY_DATA
@@ -643,7 +646,10 @@ struct FMarkerSyncData
 	TArray<FName>				UniqueMarkerNames;
 
 	void GetMarkerIndicesForTime(float CurrentTime, bool bLooping, const TArray<FName>& ValidMarkerNames, FMarkerPair& OutPrevMarker, FMarkerPair& OutNextMarker, float SequenceLength) const;
-	FMarkerSyncAnimPosition GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength, const UMirrorDataTable* MirrorTable = nullptr) const;
+	
+	UE_DEPRECATED(5.0, "Use other GetMarkerSyncPositionFromMarkerIndicies signature")
+	FMarkerSyncAnimPosition GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength) const;
+	FMarkerSyncAnimPosition GetMarkerSyncPositionFromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength, const UMirrorDataTable* MirrorTable = nullptr) const;
 	void CollectUniqueNames();
 	void CollectMarkersInRange(float PrevPosition, float NewPosition, TArray<FPassedMarker>& OutMarkersPassedThisTick, float TotalDeltaMove);
 };

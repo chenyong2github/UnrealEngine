@@ -18,35 +18,58 @@ UAnimNotifyState::UAnimNotifyState(const FObjectInitializer& ObjectInitializer)
 	bIsNativeBranchingPoint = false;
 }
 
-
 void UAnimNotifyState::NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration)
 {
-	Received_NotifyBegin(MeshComp, Animation, TotalDuration);
 }
 
 void UAnimNotifyState::NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime)
 {
-	Received_NotifyTick(MeshComp, Animation, FrameDeltaTime);
 }
 
 void UAnimNotifyState::NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation)
 {
-	Received_NotifyEnd(MeshComp, Animation);
+}
+
+void UAnimNotifyState::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NotifyBegin(MeshComp, Animation, TotalDuration);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Received_NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+}
+
+void UAnimNotifyState::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NotifyTick(MeshComp, Animation, FrameDeltaTime);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Received_NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
+}
+
+void UAnimNotifyState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NotifyEnd(MeshComp, Animation);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Received_NotifyEnd(MeshComp, Animation, EventReference);
 }
 
 void UAnimNotifyState::BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload)
 {
-	NotifyBegin(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, BranchingPointPayload.NotifyEvent ? BranchingPointPayload.NotifyEvent->GetDuration() : 0.f);
+	const FAnimNotifyEventReference EventReference;
+	NotifyBegin(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, BranchingPointPayload.NotifyEvent ? BranchingPointPayload.NotifyEvent->GetDuration() : 0.f, EventReference);
 }
 
 void UAnimNotifyState::BranchingPointNotifyTick(FBranchingPointNotifyPayload& BranchingPointPayload, float FrameDeltaTime)
 {
-	NotifyTick(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, FrameDeltaTime);
+	const FAnimNotifyEventReference EventReference;
+	NotifyTick(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, FrameDeltaTime, EventReference);
 }
 
 void UAnimNotifyState::BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload)
 {
-	NotifyEnd(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset);
+	const FAnimNotifyEventReference EventReference;
+	NotifyEnd(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, EventReference);
 }
 
 /// @cond DOXYGEN_WARNINGS

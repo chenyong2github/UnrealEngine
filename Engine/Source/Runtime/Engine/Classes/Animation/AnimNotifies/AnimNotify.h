@@ -7,12 +7,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/ScriptMacros.h"
+#include "Animation/AnimNotifyQueue.h"
 #include "AnimNotify.generated.h"
 
 class UAnimSequenceBase;
 class USkeletalMeshComponent;
 struct FAnimNotifyEvent;
-
 USTRUCT()
 struct FBranchingPointNotifyPayload
 {
@@ -51,7 +51,7 @@ class ENGINE_API UAnimNotify : public UObject
 	FString GetNotifyName() const;
 
 	UFUNCTION(BlueprintImplementableEvent)
-	bool Received_Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) const;
+	bool Received_Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) const;
 
 #if WITH_EDITORONLY_DATA
 	/** Color of Notify in editor */
@@ -65,7 +65,9 @@ class ENGINE_API UAnimNotify : public UObject
 	virtual void ValidateAssociatedAssets() {}
 #endif
 
+	UE_DEPRECATED(5.0, "Please use the other Notify function instead")
 	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation);
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference);
 	virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload);
 
 	// @todo document 

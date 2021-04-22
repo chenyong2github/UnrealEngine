@@ -24,15 +24,23 @@ UAnimNotify::UAnimNotify(const FObjectInitializer& ObjectInitializer)
 
 void UAnimNotify::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
+}
+
+void UAnimNotify::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
 	USkeletalMeshComponent* PrevContext = MeshContext;
 	MeshContext = MeshComp;
-	Received_Notify(MeshComp, Animation);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Notify(MeshComp, Animation);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Received_Notify(MeshComp, Animation, EventReference);
 	MeshContext = PrevContext;
 }
 
 void UAnimNotify::BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload)
 {
-	Notify(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset);
+	const FAnimNotifyEventReference EventReference;
+	Notify(BranchingPointPayload.SkelMeshComponent, BranchingPointPayload.SequenceAsset, EventReference);
 }
 
 class UWorld* UAnimNotify::GetWorld() const

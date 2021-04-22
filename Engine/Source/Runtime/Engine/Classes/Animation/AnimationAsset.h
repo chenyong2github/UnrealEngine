@@ -26,7 +26,11 @@ class USkeleton;
 class UAnimSequenceBase;
 class UBlendSpace;
 class UPoseAsset;
-class UMirrorDataTable; 
+class UMirrorDataTable;
+
+namespace UE { namespace Anim {
+class IAnimNotifyEventContextDataInterface;
+}}
 
 namespace MarkerIndexSpecialValues
 {
@@ -307,6 +311,7 @@ struct FAnimTickRecord
 	bool bLooping = false;
 	const UMirrorDataTable* MirrorDataTable = nullptr;
 
+	TArray<TSharedPtr<const UE::Anim::IAnimNotifyEventContextDataInterface>> ContextData;	
 	union
 	{
 		struct
