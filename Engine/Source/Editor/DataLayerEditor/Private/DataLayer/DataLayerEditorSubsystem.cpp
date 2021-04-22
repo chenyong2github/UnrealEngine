@@ -1143,13 +1143,14 @@ void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayer* DataLayerToDelete)
 	}
 }
 
-bool UDataLayerEditorSubsystem::RenameDataLayer(UDataLayer* DataLayer, const FName& DataLayerLabel)
+bool UDataLayerEditorSubsystem::RenameDataLayer(UDataLayer* DataLayer, const FName& InDataLayerLabel)
 {
-	if (DataLayer->GetDataLayerLabel() != DataLayerLabel)
+	const FName DataLayerLabelSanitized = UDataLayer::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	if (DataLayer->GetDataLayerLabel() != DataLayerLabelSanitized)
 	{
 		if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 		{
-			FName UniqueNewDataLayerLabel = WorldDataLayers->GenerateUniqueDataLayerLabel(DataLayerLabel);
+			FName UniqueNewDataLayerLabel = WorldDataLayers->GenerateUniqueDataLayerLabel(DataLayerLabelSanitized);
 			DataLayer->Modify();
 			DataLayer->SetDataLayerLabel(UniqueNewDataLayerLabel);
 			DataLayerChanged.Broadcast(EDataLayerAction::Rename, DataLayer, "DataLayerLabel");

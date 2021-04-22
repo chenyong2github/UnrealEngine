@@ -66,6 +66,9 @@ public:
 	UFUNCTION(Category = "Data Layer - Runtime", BlueprintCallable)
 	EDataLayerState GetInitialState() const { return IsDynamicallyLoaded() ? InitialState : EDataLayerState::Unloaded; }
 
+	/** Returns a sanitized version of the provided Data Layer Label */
+	static FName GetSanitizedDataLayerLabel(FName InDataLayerLabel);
+
 private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

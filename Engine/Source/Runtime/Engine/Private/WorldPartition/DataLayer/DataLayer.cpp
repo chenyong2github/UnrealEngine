@@ -37,6 +37,9 @@ void UDataLayer::PostLoad()
 
 	// Initialize bIsVisible with persistent flag bIsInitiallyVisible
 	bIsVisible = bIsInitiallyVisible;
+
+	// Sanitize Label
+	DataLayerLabel = UDataLayer::GetSanitizedDataLayerLabel(DataLayerLabel);
 #endif
 }
 
@@ -58,15 +61,22 @@ bool UDataLayer::IsVisible() const
 #endif
 }
 
+FName UDataLayer::GetSanitizedDataLayerLabel(FName InDataLayerLabel)
+{
+	// Removes all quotes as well as whitespace characters from the startand end
+	return FName(InDataLayerLabel.ToString().TrimStartAndEnd().Replace(TEXT("\""), TEXT("")));
+}
+
 #if WITH_EDITOR
 void UDataLayer::SetDataLayerLabel(FName InDataLayerLabel)
 {
-	if (DataLayerLabel != InDataLayerLabel)
+	FName DataLayerLabelSanitized = UDataLayer::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	if (DataLayerLabel != DataLayerLabelSanitized)
 	{
 		Modify();
 		AWorldDataLayers* WorldDataLayers = GetOuterAWorldDataLayers();
-		check(!WorldDataLayers || !WorldDataLayers->GetDataLayerFromLabel(InDataLayerLabel))
-		DataLayerLabel = InDataLayerLabel;
+		check(!WorldDataLayers || !WorldDataLayers->GetDataLayerFromLabel(DataLayerLabelSanitized))
+		DataLayerLabel = DataLayerLabelSanitized;
 	}
 }
 

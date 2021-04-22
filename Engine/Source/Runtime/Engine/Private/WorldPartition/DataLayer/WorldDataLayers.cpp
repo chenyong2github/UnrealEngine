@@ -79,10 +79,11 @@ AWorldDataLayers* AWorldDataLayers::Get(UWorld* World, bool bCreateIfNotFound)
 FName AWorldDataLayers::GenerateUniqueDataLayerLabel(const FName& InDataLayerLabel) const
 {
 	int32 DataLayerIndex = 0;
-	FName UniqueNewDataLayerLabel = InDataLayerLabel;
+	const FName DataLayerLabelSanitized = UDataLayer::GetSanitizedDataLayerLabel(InDataLayerLabel);
+	FName UniqueNewDataLayerLabel = DataLayerLabelSanitized;
 	while (GetDataLayerFromLabel(UniqueNewDataLayerLabel))
 	{
-		UniqueNewDataLayerLabel = FName(*FString::Printf(TEXT("%s%d"), *InDataLayerLabel.ToString(), ++DataLayerIndex));
+		UniqueNewDataLayerLabel = FName(*FString::Printf(TEXT("%s%d"), *DataLayerLabelSanitized.ToString(), ++DataLayerIndex));
 	};
 	return UniqueNewDataLayerLabel;
 }
@@ -186,16 +187,17 @@ const UDataLayer* AWorldDataLayers::GetDataLayerFromName(const FName& InDataLaye
 
 const UDataLayer* AWorldDataLayers::GetDataLayerFromLabel(const FName& InDataLayerLabel) const
 {
+	const FName DataLayerLabelSanitized = UDataLayer::GetSanitizedDataLayerLabel(InDataLayerLabel);
 #if WITH_EDITOR	
 	for (const UDataLayer* DataLayer : WorldDataLayers)
 	{
-		if (DataLayer->GetDataLayerLabel() == InDataLayerLabel)
+		if (DataLayer->GetDataLayerLabel() == DataLayerLabelSanitized)
 		{
 			return DataLayer;
 		}
 	}
 #else
-	if (const UDataLayer* const* FoundDataLayer = LabelToDataLayer.Find(InDataLayerLabel))
+	if (const UDataLayer* const* FoundDataLayer = LabelToDataLayer.Find(DataLayerLabelSanitized))
 	{
 		return *FoundDataLayer;
 	}

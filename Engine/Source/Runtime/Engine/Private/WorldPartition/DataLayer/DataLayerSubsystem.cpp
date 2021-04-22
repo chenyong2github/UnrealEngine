@@ -266,21 +266,94 @@ void UDataLayerSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC)
 	DrawLayerNames(TEXT("Active Data Layers"), FColor::White, ActiveDataLayerNames);
 }
 
+TArray<UDataLayer*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs)
+{
+	TSet<UDataLayer*> OutDataLayers;
+
+	const TCHAR* QuoteChar = TEXT("\"");
+	bool bQuoteStarted = false;
+	TStringBuilder<512> Builder;
+	TArray<FString> Args;
+	for (const FString& Arg : InArgs)
+	{
+		if (!bQuoteStarted && Arg.StartsWith(QuoteChar))
+		{
+			Builder.Append(Arg.Replace(QuoteChar, TEXT("")));
+			if (Arg.EndsWith(QuoteChar) && Arg.Len() > 1)
+			{
+				Args.Add(Builder.ToString());
+				Builder.Reset();
+			}
+			else
+			{
+				bQuoteStarted = true;
+			}
+		}
+		else if (bQuoteStarted)
+		{
+			Builder.Append(TEXT(" "));
+			Builder.Append(Arg.Replace(QuoteChar, TEXT("")));
+			if (Arg.EndsWith(QuoteChar))
+			{
+				bQuoteStarted = false;
+				Args.Add(Builder.ToString());
+				Builder.Reset();
+			}
+		}
+		else
+		{
+			Args.Add(Arg);
+		}
+	}
+	if (bQuoteStarted)
+	{
+		Args.Add(Builder.ToString());
+	}
+
+	for (const FString& Arg : Args)
+	{
+		FName DataLayerLabel = FName(Arg);
+		if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(World))
+		{
+			UDataLayer* DataLayer = const_cast<UDataLayer*>(WorldDataLayers->GetDataLayerFromLabel(DataLayerLabel));
+			if (!DataLayer)
+			{
+				// Try to find Data Layer by ignoring whitespaces and case
+				FString DataLayerLabelToFind = DataLayerLabel.ToString().Replace(TEXT(" "), TEXT(""));
+				WorldDataLayers->ForEachDataLayer([&DataLayerLabelToFind, &DataLayer](UDataLayer* It)
+				{
+					if (It->GetDataLayerLabel().ToString().Replace(TEXT(" "), TEXT("")).Compare(DataLayerLabelToFind, ESearchCase::IgnoreCase) == 0)
+					{
+						DataLayer = It;
+						return false;
+					}
+					return true;
+				});
+			}
+			if (DataLayer)
+			{
+				OutDataLayers.Add(DataLayer);
+			}
+		}
+	}
+
+	return OutDataLayers.Array();
+}
+
 FAutoConsoleCommand UDataLayerSubsystem::ToggleDataLayerActivation(
 	TEXT("wp.Runtime.ToggleDataLayerActivation"),
 	TEXT("Toggles DataLayers active state. Args [DataLayerLabels]"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
+	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs)
 	{
-		for (const FString& Arg : Args)
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
 		{
-			FName DataLayerLabel = FName(Arg);
-			for (const FWorldContext& Context : GEngine->GetWorldContexts())
+			UWorld* World = Context.World();
+			if (World && World->IsGameWorld())
 			{
-				UWorld* World = Context.World();
-				if (World && World->IsGameWorld())
+				if (UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
 				{
-					UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
-					if (const UDataLayer* DataLayer = DataLayerSubsystem ? DataLayerSubsystem->GetDataLayerFromLabel(DataLayerLabel) : nullptr)
+					TArray<UDataLayer*> DataLayers = UDataLayerSubsystem::ConvertArgsToDataLayers(World, InArgs);
+					for (UDataLayer* DataLayer : DataLayers)
 					{
 						DataLayerSubsystem->SetDataLayerState(DataLayer, DataLayerSubsystem->GetDataLayerState(DataLayer) == EDataLayerState::Activated ? EDataLayerState::Unloaded : EDataLayerState::Activated);
 					}
