@@ -1749,6 +1749,7 @@ bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, c
 	FilterText.ToString().ParseIntoArray(FilterTerms, TEXT(" "), true);
 
 	int32 DisplayNameMatchCount = 0;
+	FString DisplayNameWithoutSpaces = Item->DisplayName.ToString().Replace(TEXT(" "), TEXT(""));
 	for(int32 FilterIndex = 0; FilterIndex < FilterTerms.Num(); FilterIndex++)
 	{
 		FString FilterTerm = FilterTerms[FilterIndex];
@@ -1757,6 +1758,13 @@ bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, c
 		{
 			DisplayNameMatchCount++;
 		}
+	}
+
+	// we also want to include items that would match the filter text if the spaces are removed.
+	// i.e. typing "oneminus" should also allow the action "one minus"
+	if(DisplayNameWithoutSpaces.Contains(FilterText.ToString()))
+	{
+		return true;
 	}
 
 	if(DisplayNameMatchCount >= FilterTerms.Num() / 2.f)

@@ -353,9 +353,28 @@ FReply SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut(FInputChord InChord, cons
 			for (int32 ActionIdx = 0; ActionIdx < Actions.Num(); ActionIdx++)
 			{
 				TSharedPtr<FNiagaraAction_NewNode>& NiagaraAction = Actions[ActionIdx];
-
+				
 				bool bMatch = false;
-				if (NiagaraAction->DisplayName.ToString().Equals(Settings->GraphCreationShortcuts[i].Name, ESearchCase::IgnoreCase))
+				bool bCanMatch = true;
+				TArray<FString> CategoryParsedTerms;
+				Settings->GraphCreationShortcuts[i].Name.ParseIntoArray(CategoryParsedTerms, TEXT("::"), true);
+				FString ActionDisplayName = CategoryParsedTerms.Last();
+
+				// if we have more than one term, the shortcut has at least one category specified. In that case, we require the category chain to be identical
+				if(CategoryParsedTerms.Num() > 1 && CategoryParsedTerms.Num() - 1 == NiagaraAction->Categories.Num())
+				{
+					for(int32 CategoryIndex = 0; CategoryIndex < CategoryParsedTerms.Num() - 1; CategoryIndex++)
+					{
+						if(!CategoryParsedTerms[CategoryIndex].Equals(NiagaraAction->Categories[CategoryIndex], ESearchCase::IgnoreCase))
+						{
+							bCanMatch = false;
+							break;
+						}
+					}					
+				}
+
+				// we can match either only via DisplayName or via Category1::...:::ActionDisplayName 
+				if (bCanMatch && NiagaraAction->DisplayName.ToString().Equals(ActionDisplayName, ESearchCase::IgnoreCase))
 				{
 					bMatch = true;
 				}
