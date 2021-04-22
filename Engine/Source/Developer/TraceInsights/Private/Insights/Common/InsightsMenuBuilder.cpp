@@ -6,6 +6,8 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 
+#define LOCTEXT_NAMESPACE "InsightsMenuBuilder"
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FInsightsMenuBuilder::FInsightsMenuBuilder()
@@ -44,7 +46,22 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 {
 #if !WITH_EDITOR
 	FGlobalTabmanager::Get()->PopulateLocalTabSpawnerMenu(MenuBuilder);
+
+	static FName WidgetReflectorTabId("WidgetReflector");
+	bool bAllowDebugTools = FGlobalTabmanager::Get()->HasTabSpawner(WidgetReflectorTabId);
+	if (bAllowDebugTools)
+	{
+		MenuBuilder.BeginSection("WidgetTools");
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenWidgetReflector", "Widget Reflector"),
+			LOCTEXT("OpenWidgetReflectorToolTip", "Opens the Widget Reflector, a handy tool for diagnosing problems with live widgets."),
+			FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "WidgetReflector.Icon"),
+			FUIAction(FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->InvokeTab(WidgetReflectorTabId); })));
+		MenuBuilder.EndSection();
+	}
 #endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#undef LOCTEXT_NAMESPACE

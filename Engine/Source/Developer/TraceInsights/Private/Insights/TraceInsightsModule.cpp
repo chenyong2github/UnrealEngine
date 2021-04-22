@@ -243,7 +243,7 @@ void FTraceInsightsModule::CreateSessionViewer(bool bAllowDebugTools)
 
 	AddAreaForSessionViewer(DefaultLayout);
 
-	AddAreaForWidgetReflector(DefaultLayout, bAllowDebugTools);
+	AddAreaForWidgetReflector(DefaultLayout, false);
 
 	// Load layout from ini file.
 	PersistentLayout = FLayoutSaveRestore::LoadFromConfig(UnrealInsightsLayoutIni, DefaultLayout);
@@ -300,18 +300,18 @@ void FTraceInsightsModule::AddAreaForSessionViewer(TSharedRef<FTabManager::FLayo
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTraceInsightsModule::AddAreaForWidgetReflector(TSharedRef<FTabManager::FLayout> Layout, bool bAllowDebugTools)
+void FTraceInsightsModule::AddAreaForWidgetReflector(TSharedRef<FTabManager::FLayout> Layout, bool bIsOpenedTab)
 {
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(10.0f, 10.0f);
 
 	// Create area and tab for Slate's WidgetReflector.
 	Layout->AddArea
 	(
-		FTabManager::NewArea(600.0f * DPIScaleFactor, 600.0f * DPIScaleFactor)
+		FTabManager::NewArea(800.0f * DPIScaleFactor, 400.0f * DPIScaleFactor)
 		->SetWindow(FVector2D(10.0f * DPIScaleFactor, 10.0f * DPIScaleFactor), false)
 		->Split
 		(
-			FTabManager::NewStack()->AddTab("WidgetReflector", bAllowDebugTools ? ETabState::OpenedTab : ETabState::ClosedTab)
+			FTabManager::NewStack()->AddTab(FTabId("WidgetReflector"), bIsOpenedTab ? ETabState::OpenedTab : ETabState::ClosedTab)
 		)
 	);
 }
