@@ -75,25 +75,29 @@ void ComputeDistanceFieldAssetWantedMipsCS(
 	{
 		FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
 
+		uint WantedNumMips = 1;
 		if (DebugForceNumMips == 0)
 		{
 			FDFObjectBounds DFObjectBounds = LoadDFObjectBounds(ObjectIndex);
-
 			float OuterDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip1WorldCenter, Mip1WorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
-
-			int WantedNumMips = 1;
-				
+ 
 			if (OuterDistanceSq <= 0)
 			{
 				float InnerDistanceSq = ComputeSquaredDistanceBetweenAABBs(Mip2WorldCenter, Mip2WorldExtent, DFObjectBounds.Center, DFObjectBounds.BoxExtent);
 				WantedNumMips = InnerDistanceSq <= 0 ? 3 : 2;
 			}
-			
-			InterlockedMax(RWDistanceFieldAssetWantedNumMips[DFObjectData.AssetIndex], WantedNumMips);
 		}
 		else
 		{
-			InterlockedMax(RWDistanceFieldAssetWantedNumMips[DFObjectData.AssetIndex], DebugForceNumMips);
+			WantedNumMips = DebugForceNumMips;
+		}
+
+		// RWDistanceFieldAssetWantedNumMips is already cleared to 1 so we can skip some memory loads and atomics
+		BRANCH
+		if (WantedNumMips > 1)
+		{
+			FDFObjectData DFObjectData = LoadDFObjectData(ObjectIndex);
+			InterlockedMax(RWDistanceFieldAssetWantedNumMips[DFObjectData.AssetIndex], WantedNumMips);
 		}
 	}
 }
@@ -115,7 +119,7 @@ void GenerateDistanceFieldAssetStreamingRequestsCS(
 		uint NumMips = LoadDFAssetData(AssetIndex, 0).NumMips;
 		uint WantedNumMips = DistanceFieldAssetWantedNumMips[AssetIndex];
 
-		if (WantedNumMips != 0 && NumMips != WantedNumMips)
+		if (WantedNumMips != 0 && NumMips != 0 && NumMips != WantedNumMips)
 		{
 			uint StreamingRequestIndex;
 			InterlockedAdd(RWDistanceFieldAssetStreamingRequests[0], 1, StreamingRequestIndex);
