@@ -1047,6 +1047,12 @@ namespace MoviePipeline
 	{
 		struct FAudioSegment
 		{
+			FAudioSegment()
+			{
+				Id = FGuid::NewGuid();
+			}
+
+			FGuid Id;
 			FMoviePipelineFrameOutputState OutputState;
 
 			float NumChannels;

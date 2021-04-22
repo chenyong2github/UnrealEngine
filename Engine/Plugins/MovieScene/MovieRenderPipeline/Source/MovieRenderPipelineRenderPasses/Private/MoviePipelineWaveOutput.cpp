@@ -13,6 +13,7 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "AudioThread.h"
+#include "MoviePipelineUtils.h"
 
 static FAudioDevice* GetAudioDeviceFromWorldContext(const UObject* WorldContextObject)
 {
@@ -81,116 +82,130 @@ void UMoviePipelineWaveOutput::BeginFinalizeImpl()
 	}
 
 	UMoviePipelineOutputSetting* OutputSetting = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
-	
-	// Use our file name format on the end of the shared common directory.
-	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / FileNameFormat;
+	FString OutputFilename = FileNameFormatOverride.Len() > 0 ? FileNameFormatOverride : OutputSetting->FileNameFormat;
+	FString FileNameFormatString = OutputSetting->OutputDirectory.Path / OutputFilename;
 
-	// Place {file_dupe} onto the end of the format string so (2) gets added to the end (before ext is added).
-	FileNameFormatString += TEXT("{file_dup}");
+	const bool bIncludeRenderPass = false;
+	const bool bTestFrameNumber = false;
+	UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
+	// Strip any frame number tags so we don't get one audio file per frame.
+	UE::MoviePipeline::RemoveFrameNumberFormatStrings(FileNameFormatString, true);
 
-	// Check to see if we need to split our audio into more than one segment, otherwise we combine them all into one.
-	const bool bSplitOnShots = FileNameFormatString.Contains(TEXT("{shot_name}"));
-	const bool bSplitOnCameras = FileNameFormatString.Contains(TEXT("{camera_name}"));
-
-	TArray<MoviePipeline::FAudioState::FAudioSegment> OutputBuffers;
-
-	// Merge them based on their file format specifier.
-	if (bSplitOnCameras)
+	struct FOutputSegment
 	{
-		// By default we store all all audio segments per camera cut, so we'll just pass it on as is.
-		OutputBuffers = GetPipeline()->GetAudioState().FinishedSegments;
-	}
-	else if (bSplitOnShots)
+		FString FilePath;
+		Audio::TSampleBuffer<int16> SampleBuffer;
+		int32 ShotIndex;
+	};
+
+	TArray<FOutputSegment> FinalSegments;
+
+	// Won't have finished segments for shots that didn't get rendered
+	for (int32 SegmentIndex = 0; SegmentIndex < GetPipeline()->GetAudioState().FinishedSegments.Num(); SegmentIndex++)
 	{
-		// Create a mapping between shot indexes and all of their segments within them.
-		TMap<int32, TArray<MoviePipeline::FAudioState::FAudioSegment>> ShotMap;
-		for (const MoviePipeline::FAudioState::FAudioSegment& Segment : GetPipeline()->GetAudioState().FinishedSegments)
+		const MoviePipeline::FAudioState::FAudioSegment& Segment = GetPipeline()->GetAudioState().FinishedSegments[SegmentIndex];
+		if (AlreadyWrittenSegments.Contains(Segment.Id))
 		{
-			ShotMap.FindOrAdd(Segment.OutputState.ShotIndex).Add(Segment);
+			continue;
 		}
 
-		// Then convert the array of segments into combined segments
-		for (TPair<int32, TArray<MoviePipeline::FAudioState::FAudioSegment>>& KVP : ShotMap)
-		{
-			MoviePipeline::FAudioState::FAudioSegment& CombinedSegment = OutputBuffers.AddDefaulted_GetRef();
-			for (MoviePipeline::FAudioState::FAudioSegment& Segment : KVP.Value)
-			{
-				CombinedSegment.NumChannels = Segment.NumChannels;
-				CombinedSegment.SampleRate = Segment.SampleRate;
+		// This function may get called many times over the course of a rendering (if flushing to disk). But because we don't own the audio
+		// data we can't remove it after we've written it to disk. So we keep track of which segments we've already written to disk for and
+		// skip them. This avoids us generating extra output futures for previous shots when we render a new shot.
+		AlreadyWrittenSegments.Add(Segment.Id);
 
-				Audio::AlignedFloatBuffer& Buffer = Segment.SegmentData;
-				CombinedSegment.SegmentData.Append(MoveTemp(Buffer));
-			}
-		}
-	}
-	else
-	{
-		MoviePipeline::FAudioState::FAudioSegment& CombinedSegment = OutputBuffers.AddDefaulted_GetRef();
-
-		// Loop through all of our segments and combine them into one.
-		for (const MoviePipeline::FAudioState::FAudioSegment& Segment : GetPipeline()->GetAudioState().FinishedSegments)
-		{
-			CombinedSegment.NumChannels = Segment.NumChannels;
-			CombinedSegment.SampleRate = Segment.SampleRate;
-
-			CombinedSegment.SegmentData.Append(Segment.SegmentData);
-		}
-	}
-
-	// Write each segment to disk.
-	for (const MoviePipeline::FAudioState::FAudioSegment& Segment : OutputBuffers)
-	{
-		const Audio::AlignedFloatBuffer& Buffer = Segment.SegmentData;
-		
-		double StartTime = FPlatformTime::Seconds();
-		Audio::TSampleBuffer<int16> SampleBuffer = Audio::TSampleBuffer<int16>(Buffer.GetData(), Buffer.Num(), Segment.NumChannels, Segment.SampleRate);
-		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Audio Segment took %f seconds to convert to a sample buffer."), (FPlatformTime::Seconds() - StartTime));
-
-		// We don't provide an extension override because the FSoundWavePCMWriter API forces their own.
+		// Generate a filename for this output file.
 		TMap<FString, FString> FormatOverrides;
-		FormatOverrides.Add(TEXT("shot_name"), TEXT("Unsupported_Shot_Name_For_Output_File_BugIt"));
-		FormatOverrides.Add(TEXT("camera_name"), TEXT("Unsupported_Camera_Name_For_Output_File_BugIt"));
-		
-		// Create a full absolute path
+		FormatOverrides.Add(TEXT("render_pass"), TEXT("Audio"));
+		FormatOverrides.Add(TEXT("ext"), TEXT("wav"));
+
 		FMoviePipelineFormatArgs FinalFormatArgs;
 		FString FinalFilePath;
-		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, /*Out*/ FinalFilePath, /*Out*/ FinalFormatArgs, &Segment.OutputState);
+		GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalFilePath, FinalFormatArgs, &Segment.OutputState);
 
-		// Remove the .{ext} string added by resolving the name format. Works for all the other types, but incompatible with our API.
-		if (FinalFilePath.EndsWith(TEXT(".{ext}")))
+		if (FPaths::IsRelative(FinalFilePath))
 		{
-			FinalFilePath.LeftChopInline(6);
-		}
-		
-		FString FileName = "UnnamedAudio";
-		FString FileFolder = FinalFilePath;
-
-		// And then extract out just the filename to fit the API.
-		FPaths::NormalizeFilename(FinalFilePath);
-
-		int32 LastFolderSeparator;
-		FinalFilePath.FindLastChar(TEXT('/'), LastFolderSeparator);
-		if (LastFolderSeparator != INDEX_NONE)
-		{
-			FileFolder = FinalFilePath.Left(LastFolderSeparator);
-			FileName = FinalFilePath.RightChop(LastFolderSeparator + 1);
+			FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
 		}
 
-		const bool bIsRelativePath = FPaths::IsRelative(FileFolder);
-		if (bIsRelativePath)
+		// Look to see if we already have a output file to append this to.
+		FOutputSegment* OutputSegment = nullptr;
+		for(int32 Index = 0; Index < FinalSegments.Num(); Index++)
 		{
-			FileFolder = FPaths::ConvertRelativePathToFull(FileFolder);
+			if (FinalSegments[Index].FilePath == FinalFilePath)
+			{
+				OutputSegment = &FinalSegments[Index];
+				break;
+			}
 		}
-		
+
+		if (!OutputSegment)
+		{
+			FinalSegments.AddDefaulted();
+			OutputSegment = &FinalSegments[FinalSegments.Num() -1];
+			OutputSegment->FilePath = FinalFilePath;
+			OutputSegment->ShotIndex = Segment.OutputState.ShotIndex;
+		}
+
+		// Convert our samples and append them to the existing array
+		double StartTime = FPlatformTime::Seconds();
+		Audio::TSampleBuffer<int16> SampleBuffer = Audio::TSampleBuffer<int16>(Segment.SegmentData.GetData(), Segment.SegmentData.Num(), Segment.NumChannels, Segment.SampleRate);
+		OutputSegment->SampleBuffer.Append(SampleBuffer.GetData(), Segment.SegmentData.Num(), Segment.NumChannels, Segment.SampleRate);
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Audio Segment took %f seconds to convert to a sample buffer."), (FPlatformTime::Seconds() - StartTime));
+	}
+
+	for(FOutputSegment& Segment : FinalSegments)
+	{
+		MoviePipeline::FMoviePipelineOutputFutureData OutputData;
+		OutputData.Shot = GetPipeline()->GetActiveShotList()[Segment.ShotIndex];
+		OutputData.PassIdentifier = FMoviePipelinePassIdentifier(TEXT("Audio"));
+
+		// Do this before we start manipulating the filepath for the audio API
+		OutputData.FilePath = Segment.FilePath;
+
+		FString FileName = FPaths::GetBaseFilename(Segment.FilePath);
+		FString FileFolder = FPaths::GetPath(Segment.FilePath);
+
+		TPromise<bool> Completed;
+		GetPipeline()->AddOutputFuture(Completed.GetFuture(), OutputData);
+
 		OutstandingWrites++;
 		TUniquePtr<Audio::FSoundWavePCMWriter> Writer = MakeUnique<Audio::FSoundWavePCMWriter>();
-		Writer->BeginWriteToWavFile(SampleBuffer, FileName, FileFolder, [this]()
+		bool bSuccess = Writer->BeginWriteToWavFile(Segment.SampleBuffer, FileName, FileFolder, [this]()
 		{
 			this->OutstandingWrites--;
 		});
 
+		Completed.SetValue(bSuccess);
 		ActiveWriters.Add(MoveTemp(Writer));
 	}
+
+	// The FSoundWavePCMWriter is unfortunately async, and the completion callbacks don't work unless the main thread
+	// can be spun (as it enqueus a callback onto the main thread). We're going to just cheat here and stall the main thread
+	// for 0.5s to give it a chance to write to disk. It'll only potentially be an issue with command line encoding if it takes
+	// longer than 0.5s to write to disk.
+	FPlatformProcess::Sleep(0.5f);
+}
+
+void UMoviePipelineWaveOutput::OnShotFinishedImpl(const UMoviePipelineExecutorShot* InShot, const bool bFlushToDisk)
+{
+	if (bFlushToDisk)
+	{
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("UMoviePipelineWaveOutput flushing disk..."));
+		const double FlushBeginTime = FPlatformTime::Seconds();
+
+		BeginFinalizeImpl();
+		FinalizeImpl();
+
+		const float ElapsedS = float((FPlatformTime::Seconds() - FlushBeginTime));
+		UE_LOG(LogMovieRenderPipeline, Log, TEXT("Finished flushing tasks to disk after %2.2fs!"), ElapsedS);
+	}
+}
+
+void UMoviePipelineWaveOutput::FinalizeImpl()
+{
+	// Finalize won't get called until HasFinishedProcessingImpl returns true.
+	ActiveWriters.Empty();
 }
 
 bool UMoviePipelineWaveOutput::HasFinishedProcessingImpl()
