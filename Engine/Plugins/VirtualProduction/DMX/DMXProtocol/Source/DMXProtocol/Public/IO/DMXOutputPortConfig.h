@@ -24,14 +24,10 @@ struct DMXPROTOCOL_API FDMXOutputPortConfig
 {
 	GENERATED_BODY()
 
-	// Allow UScriptScrtuct to create default objects
-	friend class UScriptStruct;
-
-private:
+public:
 	/** Hidden default constructor, create with a valid guid instead */
 	FDMXOutputPortConfig() = default;
 
-public:
 	/** Constructs a default config with a Guid */
 	explicit FDMXOutputPortConfig(const FGuid& InPortGuid);
 
