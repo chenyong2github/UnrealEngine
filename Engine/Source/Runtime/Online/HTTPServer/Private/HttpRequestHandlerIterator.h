@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IHttpRouter.h"
 #include "HttpRequestHandler.h"
 #include "HttpRequestHandlerRegistrar.h"
 
@@ -54,7 +55,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	FHttpRequestHandlerIterator(TSharedPtr<FHttpServerRequest> InRequest, const FHttpRequestHandlerRegistrar& InRequestHandlerRegistrar);
+	FHttpRequestHandlerIterator(TSharedPtr<FHttpServerRequest> InRequest, const FHttpRequestHandlerRegistrar& InRequestHandlerRegistrar, TArray<FHttpRequestHandler> InRequestPreprocessors = {});
 
 	/** 
 	* Determines the next registered request handler
@@ -72,4 +73,10 @@ private:
 
 	/** The associative route/handler registration  */
 	const FHttpRequestHandlerRegistrar& RequestHandlerRegistrar;
+
+	/** Handlers that should be queried before routing the http request */
+	TArray<FHttpRequestHandler> RequestPreprocessors;
+
+	/** The index to the next preprocessor to execute with the request. */
+	int32 CurrentPreprocessorIndex = 0;
 };

@@ -76,9 +76,9 @@ namespace WebRemoteControl
 		}
 
 		FGuid Id{PropertyLabelOrId};
-        if (Id.IsValid())
+        if (TSharedPtr<EntityType> Entity = Preset->GetExposedEntity<EntityType>(Id).Pin())
         {
-        	return Preset->GetExposedEntity<EntityType>(Id).Pin();
+        	return Entity;
         }
 
 		return Preset->GetExposedEntity<EntityType>(Preset->GetExposedEntityId(*PropertyLabelOrId)).Pin();
@@ -87,9 +87,9 @@ namespace WebRemoteControl
 	URemoteControlPreset* GetPreset(FString PresetNameOrId)
 	{
 		FGuid Id{PresetNameOrId};
-		if (Id.IsValid())
+		if (URemoteControlPreset* ResolvedPreset = IRemoteControlModule::Get().ResolvePreset(Id))
 		{
-			return IRemoteControlModule::Get().ResolvePreset(Id);
+			return ResolvedPreset;
 		}
 
 		return IRemoteControlModule::Get().ResolvePreset(*PresetNameOrId);
@@ -135,6 +135,21 @@ void FWebRemoteControlModule::ShutdownModule()
 #if WITH_EDITOR
 	UnregisterSettings();
 #endif
+}
+
+FDelegateHandle FWebRemoteControlModule::RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor)
+{
+	FDelegateHandle Handle;
+	if (HttpRouter)
+	{
+		Handle = HttpRouter->RegisterRequestPreprocessor(MoveTemp(RequestPreprocessor));
+	}
+	return Handle;
+}
+
+void FWebRemoteControlModule::UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle)
+{
+	HttpRouter->UnregisterRequestPreprocessor(RequestPreprocessorHandle);
 }
 
 void FWebRemoteControlModule::RegisterRoute(const FRemoteControlRoute& Route)
@@ -1442,9 +1457,9 @@ void FWebRemoteControlModule::RegisterSettings()
 {
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
-		TSharedPtr<ISettingsSection> SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "WebRemoteControl",
-			LOCTEXT("RemoteControlSettingsName", "Web Remote Control"),
-			LOCTEXT("RemoteControlSettingsDescription", "Configure the Web Remote Control settings."),
+		TSharedPtr<ISettingsSection> SettingsSection = SettingsModule->RegisterSettings("Project", "Plugins", "Remote Control Web Server",
+			LOCTEXT("RemoteControlWebServerSettingsName", "Remote Control Web Server"),
+			LOCTEXT("RemoteControlWebServerSettingsDescription", "Configure the Web Remote Control Server settings."),
 			GetMutableDefault<UWebRemoteControlSettings>());
 
 		SettingsSection->OnModified().BindRaw(this, &FWebRemoteControlModule::OnSettingsModified);

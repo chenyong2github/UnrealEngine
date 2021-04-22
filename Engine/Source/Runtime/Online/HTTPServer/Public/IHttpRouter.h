@@ -6,6 +6,8 @@
 
 struct FHttpPath;
 
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnPreprocessHttpRequest, const TSharedPtr<FHttpServerRequest>& /*Request*/, const FHttpResultCallback& /*OnProcessingComplete*/);
+
 class IHttpRouter : public TSharedFromThis<IHttpRouter>
 {
 public:
@@ -33,6 +35,20 @@ public:
 	 *  @param  RouteHandle The handle to the route to unbind (callers must retain from BindRoute)
 	 */
 	virtual void UnbindRoute(const FHttpRouteHandle& RouteHandle) = 0;
+	
+	/**
+     * Register a request preprocessor.
+     * Useful for cases where you want to drop or handle incoming requests before they are dispatched to their respective handler.
+     * @param RequestPreprocessor The function called to process the incoming request.
+     * @return FDelegateHandle The handle to the delegate, used for unregistering preprocessors. 
+     */
+    virtual FDelegateHandle RegisterRequestPreprocessor(FHttpRequestHandler RequestPreprocessor) = 0;
+
+	/**
+	 * Unregister a request preprocessor.
+	 * @param RequestPreprocessorHandle The handle to the preprocessor delegate to unregister.
+	 */
+	virtual void UnregisterRequestPreprocessor(const FDelegateHandle& RequestPreprocessorHandle) = 0;
 
 protected:
 
