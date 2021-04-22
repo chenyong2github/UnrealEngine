@@ -970,14 +970,14 @@ namespace UE
 							}
 
 							Texture = Cast< UTexture >( TextureFactory->ImportObject( UTexture::StaticClass(), Outer, NAME_None, ObjectFlags, ResolvedTexturePath, TEXT( "" ), bOutCancelled ) );
+						}
 
-							if ( Texture )
-							{
-								UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT( "USDAssetImportData" ) );
-								ImportData->PrimPath = PrimPath;
-								ImportData->UpdateFilenameOnly( ResolvedTexturePath );
-								Texture->AssetImportData = ImportData;
-							}
+						if ( Texture )
+						{
+							UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( Texture, TEXT( "USDAssetImportData" ) );
+							ImportData->PrimPath = PrimPath;
+							ImportData->UpdateFilenameOnly( ResolvedTexturePath );
+							Texture->AssetImportData = ImportData;
 						}
 					}
 				}
