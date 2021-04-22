@@ -1154,7 +1154,7 @@ namespace Gauntlet
 
 				if (Directory.Exists(SourceSavedDir))
 				{
-					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, DestSavedDir, Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
+					Utils.SystemHelpers.CopyDirectory(SourceSavedDir, Utils.SystemHelpers.GetFullyQualifiedPath(DestSavedDir), Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
 					Log.Info("Archived artifacts to to {0}", DestSavedDir);
 				}
 				else
@@ -1186,7 +1186,7 @@ namespace Gauntlet
 					{
 						// Grab the final dir name to copy everything into so everything's not just going into root artifact dir.
 						string IntendedCopyLocation = Path.Combine(InDestArtifactPath, DirToCopy.Name);
-						Utils.SystemHelpers.CopyDirectory(SourcePath, IntendedCopyLocation, Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
+						Utils.SystemHelpers.CopyDirectory(SourcePath, Utils.SystemHelpers.GetFullyQualifiedPath(IntendedCopyLocation), Utils.SystemHelpers.CopyOptions.Default, TruncateLongPathFilter);
 					}
 				}
 			}

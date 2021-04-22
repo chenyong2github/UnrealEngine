@@ -65,7 +65,7 @@ namespace Gauntlet
 						string TargetPath = Path.Combine(OutputArtifactPath, Name ?? Path.GetFileName(ArtifactPath));
 						string TargetDirectry = Path.GetDirectoryName(TargetPath);
 						if (!Directory.Exists(TargetDirectry)) { Directory.CreateDirectory(TargetDirectry); }
-						File.Copy(Globals.LongPathPrefix + Path.GetFullPath(ArtifactPath), Path.GetFullPath(TargetPath));
+						File.Copy(Utils.SystemHelpers.GetFullyQualifiedPath(ArtifactPath), Utils.SystemHelpers.GetFullyQualifiedPath(TargetPath));
 						return true;
 					}
 					catch (Exception Ex)

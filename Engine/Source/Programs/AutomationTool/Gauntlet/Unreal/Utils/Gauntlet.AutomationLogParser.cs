@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -147,9 +148,9 @@ namespace Gauntlet
 
 			if (ReportPathMatch.Any())
 			{
-				AutomationReportPath = ReportPathMatch.First().Groups[1].ToString();
+				AutomationReportPath = Path.GetFullPath(ReportPathMatch.First().Groups[1].ToString());
 			}
-			IEnumerable<Match> ReportUrlMatch = Parser.GetAllMatches(@"LogAutomationController.+Report can be viewed at.+'(.+)'");
+			IEnumerable<Match> ReportUrlMatch = Parser.GetAllMatches(@"LogAutomationController.+Report can be viewed.+'(.+)'");
 
 			if (ReportUrlMatch.Any())
 			{
@@ -224,6 +225,10 @@ namespace Gauntlet
 							Events.Add(Event);
 						}
 					}
+				}
+				else
+				{
+					Events.Add(string.Format("Gauntlet.AutomationLogParser: Error: Test {0} incomplete.", DisplayName));
 				}
 
 				AutomationTestResult Result = new AutomationTestResult(DisplayName, LongName, Completed, Passed, Events);
