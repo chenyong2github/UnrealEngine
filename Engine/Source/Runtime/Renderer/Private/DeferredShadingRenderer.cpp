@@ -2717,7 +2717,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 	// If Lumen is not using HWRT shadows, we can wait until here: before Lumen diffuse indirect
-	if (!Lumen::UseHardwareRayTracedShadows(Views[0]))
+	// Also catch the case of path tracer or RT debug output
+	if (!Lumen::UseHardwareRayTracedShadows(Views[0]) || !bCanOverlayRayTracingOutput)
 	{
 		WaitForRayTracingScene(GraphBuilder);
 	}
