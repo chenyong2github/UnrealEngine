@@ -104,7 +104,7 @@ public:
 					// Create a term for the switch case value
 					FBPTerminal* CaseValueTerm = new FBPTerminal();
 					Context.Literals.Add(CaseValueTerm);
-					CaseValueTerm->Name = Pin->PinName.ToString();
+					CaseValueTerm->Name = SwitchNode->GetExportTextForPin(Pin);
 					CaseValueTerm->Type = SwitchNode->GetInnerCaseType();
 					CaseValueTerm->SourcePin = Pin;
 					CaseValueTerm->bIsLiteral = true;
@@ -300,7 +300,7 @@ void UK2Node_Switch::CreateFunctionPin()
 	FunctionPin->bHidden = true;
 
 	UFunction* Function = FindUField<UFunction>(FunctionClass, FunctionName);
-	const bool bIsStaticFunc = Function->HasAllFunctionFlags(FUNC_Static);
+	const bool bIsStaticFunc = Function ? Function->HasAllFunctionFlags(FUNC_Static) : false;
 	if (bIsStaticFunc)
 	{
 		// Wire up the self to the CDO of the class if it's not us
@@ -348,6 +348,11 @@ FText UK2Node_Switch::GetMenuCategory() const
 		CachedCategory.SetCachedText(FEditorCategoryUtils::BuildCategoryString(FCommonEditorCategory::FlowControl, LOCTEXT("ActionMenuCategory", "Switch")), this);
 	}
 	return CachedCategory;
+}
+
+FString UK2Node_Switch::GetExportTextForPin(const UEdGraphPin* Pin) const
+{
+	return Pin->PinName.ToString();
 }
 
 FEdGraphPinType UK2Node_Switch::GetInnerCaseType() const
