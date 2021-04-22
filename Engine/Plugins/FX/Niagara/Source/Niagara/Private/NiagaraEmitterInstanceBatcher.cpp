@@ -1597,6 +1597,7 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugReadbacks(FRHICommandListImmedia
 			}
 		);
 	}
+	GpuDebugReadbackInfos.Empty();
 
 	if (bWaitCompletion)
 	{
