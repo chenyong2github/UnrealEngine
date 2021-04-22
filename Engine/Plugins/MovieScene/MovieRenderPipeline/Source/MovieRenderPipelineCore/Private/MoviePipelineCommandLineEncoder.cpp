@@ -420,7 +420,7 @@ static bool HasMultipleRenderPasses(const TArray<FMoviePipelineShotOutputData>& 
 	for (const FMoviePipelineShotOutputData& Data : InData)
 	{
 		int32 RenderPassCount = 0;
-		for (const TTuple<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData> Pair : Data.RenderPassData)
+		for (const TTuple<FMoviePipelinePassIdentifier, FMoviePipelineRenderPassOutputData>& Pair : Data.RenderPassData)
 		{
 			if (Pair.Key.Name != TEXT("Audio"))
 			{
