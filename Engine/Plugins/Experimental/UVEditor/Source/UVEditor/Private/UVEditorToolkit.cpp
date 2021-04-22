@@ -2,8 +2,9 @@
 
 #include "UVEditorToolkit.h"
 
-#include "PreviewScene.h"
 #include "AssetEditorModeManager.h"
+#include "Misc/MessageDialog.h"
+#include "PreviewScene.h"
 #include "SAssetEditorViewport.h"
 #include "ToolMenus.h"
 #include "UVEditor.h"

@@ -6,6 +6,9 @@
 
 #include "Toolkits/BaseToolkit.h"
 
+class SBorder;
+class STextBlock;
+
 /**
  * The UV editor mode toolkit is responsible for the panel on the side in the UV editor
  * that shows mode and tool properties. Tool buttons would go in Init().

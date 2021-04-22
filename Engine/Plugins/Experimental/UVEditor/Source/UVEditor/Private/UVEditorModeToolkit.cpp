@@ -2,8 +2,15 @@
 
 #include "UVEditorModeToolkit.h"
 
-#include "UVEditorCommands.h"
+#include "EditorStyleSet.h" //FEditorStyle
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "IDetailsView.h"
 #include "Tools/UEdMode.h"
+#include "UVEditorCommands.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 

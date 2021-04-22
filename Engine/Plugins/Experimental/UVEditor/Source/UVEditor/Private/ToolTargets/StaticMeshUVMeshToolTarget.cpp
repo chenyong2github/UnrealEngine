@@ -20,6 +20,11 @@ namespace StaticMeshUVMeshToolTargetLocals
 	const double UVScalingFactor = 1000;
 }
 
+bool UStaticMeshUVMeshToolTarget::IsValid() const
+{
+	return OriginalAsset && !OriginalAsset->IsPendingKillOrUnreachable() && OriginalAsset->IsValidLowLevel();
+}
+
 int32 UStaticMeshUVMeshToolTarget::GetNumUVLayers()
 {
 	using namespace StaticMeshUVMeshToolTargetLocals;

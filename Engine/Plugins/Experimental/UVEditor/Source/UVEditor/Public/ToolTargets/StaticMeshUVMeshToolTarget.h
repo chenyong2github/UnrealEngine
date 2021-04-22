@@ -34,6 +34,9 @@ public:
 	virtual TSharedPtr<FDynamicMesh3> GetMesh(int32 LayerIndex) override;
 	virtual void SaveBackToUVs(const FDynamicMesh3* MeshToSave, int32 LayerIndex) override;
 
+	// UToolTarget
+	virtual bool IsValid() const override;
+
 protected:
 	UPROPERTY()
 	UStaticMesh* OriginalAsset = nullptr;
