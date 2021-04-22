@@ -118,6 +118,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Initial set of anim nodes converted to use constants held in sparse class data
 		AnimNodeConstantDataRefactorPhase0,
 
+		// Explicitly serialized bSavedCachedExpressionData for Material(Instance)
+		MaterialSavedCachedData,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

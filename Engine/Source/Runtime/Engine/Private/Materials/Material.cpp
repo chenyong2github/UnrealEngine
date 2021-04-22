@@ -1014,6 +1014,8 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 
 	PhysMaterial = nullptr;
 	PhysMaterialMask = nullptr;
+
+	bLoadedCachedExpressionData = false;
 }
 
 void UMaterial::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -2139,7 +2141,7 @@ void UMaterial::UpdateCachedExpressionData()
 {
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialCookStats::UpdateCachedExpressionDataSec));
 
-	if (bSavedCachedExpressionData)
+	if (bLoadedCachedExpressionData)
 	{
 		// Don't need to rebuild cached data if it was serialized
 		return;
@@ -3298,19 +3300,7 @@ void UMaterial::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
-
-	if (Ar.IsCooking())
-	{
-		if (CachedExpressionData)
-		{
-			bSavedCachedExpressionData = true;
-		}
-		else
-		{
-			// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
-			checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material %s, missing CachedExpressionData"), *GetName());
-		}
-	}
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -3340,14 +3330,43 @@ void UMaterial::Serialize(FArchive& Ar)
 #endif
 	}
 
-#if !WITH_EDITORONLY_DATA
-	checkf(bSavedCachedExpressionData, TEXT("Material %s must have saved cached expression data, if editor-only data is not present"), *GetName());
+	bool bSavedCachedExpressionData = false;
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MaterialSavedCachedData)
+	{
+		if (Ar.IsCooking())
+		{
+			if (CachedExpressionData)
+			{
+				bSavedCachedExpressionData = true;
+			}
+			else
+			{
+				// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
+				checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material %s, missing CachedExpressionData"), *GetName());
+			}
+		}
+
+		Ar << bSavedCachedExpressionData;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && bSavedCachedExpressionData_DEPRECATED)
+	{
+		bSavedCachedExpressionData_DEPRECATED = false;
+		bSavedCachedExpressionData = true;
+	}
 #endif
+
+#if !WITH_EDITORONLY_DATA
+	checkf(!Ar.IsLoading() || bSavedCachedExpressionData, TEXT("Material %s must have saved cached expression data, if editor-only data is not present"), *GetName());
+#endif
+
 	if (bSavedCachedExpressionData)
 	{
 		if (Ar.IsLoading())
 		{
 			CachedExpressionData = new FMaterialCachedExpressionData();
+			bLoadedCachedExpressionData = true;
 		}
 		check(CachedExpressionData);
 		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();

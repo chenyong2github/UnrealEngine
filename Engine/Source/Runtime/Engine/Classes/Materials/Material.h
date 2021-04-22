@@ -973,8 +973,12 @@ private:
 	/** Flag used to guarantee that the RT is finished using various resources in this UMaterial before cleanup. */
 	FThreadSafeBool ReleasedByRT;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	bool bSavedCachedExpressionData;
+	bool bSavedCachedExpressionData_DEPRECATED;
+#endif
+
+	bool bLoadedCachedExpressionData;
 
 	FMaterialCachedExpressionData* CachedExpressionData;
 

@@ -445,8 +445,12 @@ private:
 	UPROPERTY()
 	FStaticParameterSet StaticParameters;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	bool bSavedCachedData;
+	bool bSavedCachedData_DEPRECATED;
+#endif
+
+	bool bLoadedCachedData;
 
 	FMaterialInstanceCachedData* CachedData;
 

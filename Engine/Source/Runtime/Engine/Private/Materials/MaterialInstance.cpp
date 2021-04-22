@@ -47,6 +47,7 @@
 #include "ShaderPlatformQualitySettings.h"
 #include "MaterialShaderQualitySettings.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -590,6 +591,7 @@ UMaterialInstance::UMaterialInstance(const FObjectInitializer& ObjectInitializer
 	, ReleasedByRT(true)
 {
 	bHasStaticPermutationResource = false;
+	bLoadedCachedData = false;
 #if WITH_EDITOR
 	ReentrantFlag[0] = false;
 	ReentrantFlag[1] = false;
@@ -3317,19 +3319,7 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	SCOPE_CYCLE_COUNTER(STAT_MaterialInstance_Serialize);
 
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
-
-	if (Ar.IsCooking())
-	{
-		if (CachedData)
-		{
-			bSavedCachedData = true;
-		}
-		else
-		{
-			// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
-			checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material instance %s, missing CachedExpressionData"), *GetName());
-		}
-	}
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 		
@@ -3356,14 +3346,42 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 	}
 #endif // WITH_EDITOR
 
+	bool bSavedCachedData = false;
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::MaterialSavedCachedData)
+	{
+		if (Ar.IsCooking())
+		{
+			if (CachedData)
+			{
+				bSavedCachedData = true;
+			}
+			else
+			{
+				// ClassDefault object is expected to be missing cached data, but in all other cases it should have been created when the material was loaded, in PostLoad
+				checkf(HasAllFlags(RF_ClassDefaultObject), TEXT("Trying to save cooked material instance %s, missing CachedExpressionData"), *GetName());
+			}
+		}
+
+		Ar << bSavedCachedData;
+	}
+#if WITH_EDITORONLY_DATA
+	if (Ar.IsLoading() && bSavedCachedData_DEPRECATED)
+	{
+		bSavedCachedData_DEPRECATED = false;
+		bSavedCachedData = true;
+	}
+#endif // WITH_EDITORONLY_DATA
+
 #if !WITH_EDITORONLY_DATA
-	//checkf(bSavedCachedData, TEXT("MaterialInstance %s must have saved cached data, if editor-only data is not present"), *GetName());
+	checkf(!Ar.IsLoading() || bSavedCachedData, TEXT("MaterialInstance %s must have saved cached data, if editor-only data is not present"), *GetName());
 #endif
+
 	if (bSavedCachedData)
 	{
 		if (Ar.IsLoading())
 		{
 			CachedData = new FMaterialInstanceCachedData();
+			bLoadedCachedData = true;
 		}
 		check(CachedData);
 		UScriptStruct* Struct = FMaterialInstanceCachedData::StaticStruct();
@@ -4111,7 +4129,7 @@ void UMaterialInstance::UpdateCachedLayerParameters()
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialInstanceCookStats::UpdateCachedExpressionDataSec));
 
 	// Don't need to rebuild cached data if it was serialized
-	if (!bSavedCachedData)
+	if (!bLoadedCachedData)
 	{
 		UMaterialInstance* ParentInstance = nullptr;
 		FMaterialCachedExpressionData CachedExpressionData;
