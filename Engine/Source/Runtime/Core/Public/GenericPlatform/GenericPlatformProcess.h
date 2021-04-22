@@ -525,7 +525,6 @@ struct CORE_API FGenericPlatformProcess
 	 * @see GetSynchEventFromPool, ReturnSynchEventToPool
 	 */
 	// Message to others in the future, don't try to delete this function as it isn't exactly deprecated, but it should only ever be called from FEventPool::GetEventFromPool()
-	UE_DEPRECATED(4.8, "Please use GetSynchEventFromPool to create a new event, and ReturnSynchEventToPool to release the event.")
 	static class FEvent* CreateSynchEvent(bool bIsManualReset = false);
 
 	/**
