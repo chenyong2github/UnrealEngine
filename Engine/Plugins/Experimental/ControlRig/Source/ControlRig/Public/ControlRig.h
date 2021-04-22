@@ -648,9 +648,6 @@ private:
 	
 public:	
 	
-	/** Creates the snapshot VM if required and returns it */
-	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
-
 	/** Adds a breakpoint in the VM at the InstructionIndex */
 	void AddBreakpoint(int32 InstructionIndex);
 
@@ -659,9 +656,8 @@ public:
 	
 	FRigVMDebugInfo& GetDebugInfo() { return DebugInfo; }
 
-	URigVM* GetVMSnapshot() { return VMSnapshotBeforeExecution; }
-
-	void SetVMSnapshot(URigVM* InVMSnapshot) { VMSnapshotBeforeExecution = InVMSnapshot; }
+	/** Creates the snapshot VM if required and returns it */
+	URigVM* GetSnapshotVM(bool bCreateIfNeeded = true);
 #endif	
 
 	// UObject interface

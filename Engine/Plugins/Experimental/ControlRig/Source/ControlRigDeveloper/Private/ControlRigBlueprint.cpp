@@ -618,13 +618,6 @@ void UControlRigBlueprint::RecompileVM()
 			CDO->SetVM(NewObject<URigVM>(CDO, TEXT("VM")));
 		}
 
-#if WITH_EDITOR
-		if (CDO->GetVMSnapshot() == nullptr || CDO->GetVMSnapshot()->GetOuter() != CDO)
-		{
-			CDO->SetVMSnapshot(NewObject<URigVM>(CDO, NAME_None, RF_Transient));
-		}
-#endif
-
 		if (!HasAnyFlags(RF_Transient | RF_Transactional))
 		{
 			CDO->Modify(false);

@@ -1107,6 +1107,15 @@ void UControlRig::PostLoad()
 			DynamicHierarchy->SetFlags(DynamicHierarchy->GetFlags() | RF_Public | RF_DefaultSubObject);
 		}
 	}
+
+#if WITH_EDITORONLY_DATA
+	if (VMSnapshotBeforeExecution)
+	{
+		// Some VMSnapshots might have been created without the Transient flag.
+		// Assets from that version require the snapshot to be flagged as below.
+		VMSnapshotBeforeExecution->SetFlags(VMSnapshotBeforeExecution->GetFlags() | RF_Transient);
+	}
+#endif
 }
 
 TArray<FRigControlElement*> UControlRig::AvailableControls() const
@@ -2364,8 +2373,7 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBP
 
 URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 {
-// temporarily disabled #todo
-#if 0 && WITH_EDITOR
+#if WITH_EDITOR
 	if(VMSnapshotBeforeExecution != nullptr)
 	{
 		if(VMSnapshotBeforeExecution->GetOuter() != this)
