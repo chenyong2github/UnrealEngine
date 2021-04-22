@@ -4,6 +4,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "ComposureLayersEditor/Private/ICompElementManager.h"
@@ -13,7 +14,6 @@
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/PlayerController.h"
 #include "LensDistortionModelHandlerBase.h"
-#include "LensDistortionSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
 
@@ -87,7 +87,7 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 		{
 			if (UCineCameraComponent* SrcCineCameraComponent = Cast<UCineCameraComponent>(Src))
 			{ 			
-				ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 				if (SubSystem)
 				{
 					if (ULensDistortionModelHandlerBase* LensDistortionHandler = SubSystem->GetDistortionModelHandler(SrcCineCameraComponent))

@@ -2,7 +2,7 @@
 
 #include "LiveLinkLensController.h"
 
-#include "LensDistortionSubsystem.h"
+#include "CameraCalibrationSubsystem.h"
 #include "LiveLinkLensRole.h"
 #include "LiveLinkLensTypes.h"
 #include "Logging/LogMacros.h"
@@ -19,7 +19,7 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 	{
 		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
 		{
-			ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+			UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 			TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
 			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensModel);
 
@@ -160,7 +160,7 @@ void ULiveLinkLensController::PostEditChangeProperty(struct FPropertyChangedEven
 			else
 			{
 				// Static lens model data may not be available because the controller may not be ticking, so query the subsystem for any distortion handler
-				ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+				UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 				ULensDistortionModelHandlerBase* Handler = SubSystem->GetDistortionModelHandler(CineCameraComponent);
 
 				// Try to remove the post-process material from the cine camera's blendables. 

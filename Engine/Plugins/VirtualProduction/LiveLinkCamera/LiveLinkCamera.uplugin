@@ -20,7 +20,7 @@
 			"Enabled": true
 		},
 		{
-			"Name": "LensDistortion",
+			"Name": "CameraCalibration",
 			"Enabled": true
 		}
 	],

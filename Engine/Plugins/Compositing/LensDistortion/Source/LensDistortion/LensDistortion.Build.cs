@@ -9,14 +9,11 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"CinematicCamera",
 					"Core",
 					"CoreUObject",
-					"DeveloperSettings",
-					"Engine",
-					"RHI",
 					"Engine",
 					"RenderCore",
+					"RHI",
 				}
 			);
 
@@ -26,12 +23,7 @@ namespace UnrealBuildTool.Rules
                     "Projects",
 				}
 			);
-			
-			PrivateIncludePaths.AddRange(
-            				new string[] {
-            					//required for ScreenPass
-            					"../../../../Source/Runtime/Renderer/Private",
-            				});
+
 		}
 	}
 }

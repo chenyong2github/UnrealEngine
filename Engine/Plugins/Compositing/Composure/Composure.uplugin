@@ -34,7 +34,7 @@
 	],
 	"Plugins": [
 		{
-			"Name": "LensDistortion",
+			"Name": "CameraCalibration",
 			"Enabled": true
 		},
 		{

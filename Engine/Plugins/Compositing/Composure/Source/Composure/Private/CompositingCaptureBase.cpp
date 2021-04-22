@@ -2,9 +2,9 @@
 
 #include "CompositingCaptureBase.h"
 
+#include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
-#include "LensDistortionSubsystem.h"
 
 ACompositingCaptureBase::ACompositingCaptureBase()
 {
@@ -28,7 +28,7 @@ void ACompositingCaptureBase::UpdateDistortion()
  	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCamera->GetCameraComponent()))
 	{
 		// Get the CineCameraComponent's LensDistortionDataHandler, if it exists, or create a new one if it does not
-		ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+		UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 		if (SubSystem)
 		{
 			LensDistortionHandler = SubSystem->GetDistortionModelHandler(CineCameraComponent);
