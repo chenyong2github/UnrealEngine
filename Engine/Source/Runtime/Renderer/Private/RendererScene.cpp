@@ -74,6 +74,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #endif
 
+#define VALIDATE_PRIMITIVE_PACKED_INDEX 0
 
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
@@ -1260,18 +1261,23 @@ static int32 GWarningOnRedundantTransformUpdate = 0;
 static FAutoConsoleVariableRef CVarWarningOnRedundantTransformUpdate(
 	TEXT("r.WarningOnRedundantTransformUpdate"),
 	GWarningOnRedundantTransformUpdate,
-	TEXT("Produce a warning when UpdatePrimitiveTransform_RenderThread is called redundantly."),
+	TEXT("Produce a warning when UpdatePrimitiveTransform is called redundantly."),
+	ECVF_Default
+);
+
+static int32 GSkipRedundantTransformUpdate = 1;
+static FAutoConsoleVariableRef CVarSkipRedundantTransformUpdate(
+	TEXT("r.SkipRedundantTransformUpdate"),
+	GSkipRedundantTransformUpdate,
+	TEXT("Skip updates UpdatePrimitiveTransform is called redundantly, if the proxy allows it."),
 	ECVF_Default
 );
 
 void FScene::UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& AttachmentRootPosition, const TOptional<FTransform>& PreviousTransform)
 {
 	check(IsInRenderingThread());
-	if (GWarningOnRedundantTransformUpdate && PrimitiveSceneProxy->WouldSetTransformBeRedundant(LocalToWorld, WorldBounds, LocalBounds, AttachmentRootPosition))
-	{
-		UE_LOG(LogRenderer, Warning, TEXT("Redundant UpdatePrimitiveTransform_RenderThread Owner: %s, Resource: %s, Level: %s"), *PrimitiveSceneProxy->GetOwnerName().ToString(), *PrimitiveSceneProxy->GetResourceName().ToString(), *PrimitiveSceneProxy->GetLevelName().ToString());
-	}
 
+#if VALIDATE_PRIMITIVE_PACKED_INDEX
 	if (AddedPrimitiveSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()))
 	{
 		check(PrimitiveSceneProxy->GetPrimitiveSceneInfo()->PackedIndex == INDEX_NONE);
@@ -1282,6 +1288,8 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* Primiti
 	}
 
 	check(!RemovedPrimitiveSceneInfos.Contains(PrimitiveSceneProxy->GetPrimitiveSceneInfo()));
+#endif
+
 	UpdatedTransforms.Add(PrimitiveSceneProxy, { WorldBounds, LocalBounds, LocalToWorld, AttachmentRootPosition });
 
 	if (PreviousTransform.IsSet())
@@ -1298,21 +1306,21 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 	// Save the world transform for next time the primitive is added to the scene
 	const float WorldTime = GetWorld()->GetTimeSeconds();
 	float DeltaTime = WorldTime - Primitive->LastSubmitTime;
-	if ( DeltaTime < -0.0001f || Primitive->LastSubmitTime < 0.0001f )
+	if (DeltaTime < -0.0001f || Primitive->LastSubmitTime < 0.0001f)
 	{
 		// Time was reset?
 		Primitive->LastSubmitTime = WorldTime;
 	}
-	else if ( DeltaTime > 0.0001f )
+	else if (DeltaTime > 0.0001f)
 	{
 		// First call for the new frame?
 		Primitive->LastSubmitTime = WorldTime;
 	}
 
-	if(Primitive->SceneProxy)
+	if (Primitive->SceneProxy)
 	{
 		// Check if the primitive needs to recreate its proxy for the transform update.
-		if(Primitive->ShouldRecreateProxyOnUpdateTransform())
+		if (Primitive->ShouldRecreateProxyOnUpdateTransform())
 		{
 			// Re-add the primitive from scratch to recreate the primitive's proxy.
 			RemovePrimitive(Primitive);
@@ -1323,7 +1331,7 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 			FVector AttachmentRootPosition(0);
 
 			AActor* Actor = Primitive->GetAttachmentRootActor();
-			if (Actor != NULL)
+			if (Actor != nullptr)
 			{
 				AttachmentRootPosition = Actor->GetActorLocation();
 			}
@@ -1348,16 +1356,65 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 			UpdateParams.LocalBounds = Primitive->CalcBounds(FTransform::Identity);
 			UpdateParams.PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(Primitive);
 
-			// Help track down primitive with bad bounds way before the it gets to the Renderer
-			ensureMsgf(!Primitive->Bounds.BoxExtent.ContainsNaN() && !Primitive->Bounds.Origin.ContainsNaN() && !FMath::IsNaN(Primitive->Bounds.SphereRadius) && FMath::IsFinite(Primitive->Bounds.SphereRadius),
-				TEXT("Nans found on Bounds for Primitive %s: Origin %s, BoxExtent %s, SphereRadius %f"), *Primitive->GetName(), *Primitive->Bounds.Origin.ToString(), *Primitive->Bounds.BoxExtent.ToString(), Primitive->Bounds.SphereRadius);
+			// Help track down primitive with bad bounds way before the it gets to the renderer.
+			ensureMsgf(!UpdateParams.WorldBounds.BoxExtent.ContainsNaN() && !UpdateParams.WorldBounds.Origin.ContainsNaN() && !FMath::IsNaN(UpdateParams.WorldBounds.SphereRadius) && FMath::IsFinite(UpdateParams.WorldBounds.SphereRadius),
+				TEXT("NaNs found on Bounds for Primitive %s: Owner: %s, Resource: %s, Level: %s, Origin: %s, BoxExtent: %s, SphereRadius: %f"),
+				*Primitive->GetName(),
+				*Primitive->SceneProxy->GetOwnerName().ToString(),
+				*Primitive->SceneProxy->GetResourceName().ToString(),
+				*Primitive->SceneProxy->GetLevelName().ToString(),
+				*UpdateParams.WorldBounds.Origin.ToString(),
+				*UpdateParams.WorldBounds.BoxExtent.ToString(),
+				UpdateParams.WorldBounds.SphereRadius
+			);
 
-			ENQUEUE_RENDER_COMMAND(UpdateTransformCommand)(
-				[UpdateParams](FRHICommandListImmediate& RHICmdList)
+			bool bPerformUpdate = true;
+
+			const bool bAllowSkip = GSkipRedundantTransformUpdate && Primitive->SceneProxy->CanSkipRedundantTransformUpdates();
+			if (bAllowSkip || GWarningOnRedundantTransformUpdate)
+			{
+				if (Primitive->SceneProxy->WouldSetTransformBeRedundant_AnyThread(
+					UpdateParams.LocalToWorld,
+					UpdateParams.WorldBounds,
+					UpdateParams.LocalBounds,
+					UpdateParams.AttachmentRootPosition))
 				{
-					FScopeCycleCounter Context(UpdateParams.PrimitiveSceneProxy->GetStatId());
-					UpdateParams.Scene->UpdatePrimitiveTransform_RenderThread(UpdateParams.PrimitiveSceneProxy, UpdateParams.WorldBounds, UpdateParams.LocalBounds, UpdateParams.LocalToWorld, UpdateParams.AttachmentRootPosition, UpdateParams.PreviousTransform);
-				});
+					if (bAllowSkip)
+					{
+						// Do not perform the transform update!
+						bPerformUpdate = false;
+					}
+					else
+					{
+						// Not skipping, and warnings are enabled.
+						UE_LOG(LogRenderer, Warning,
+							TEXT("Redundant UpdatePrimitiveTransform for Primitive %s: Owner: %s, Resource: %s, Level: %s"),
+							*Primitive->GetName(),
+							*Primitive->SceneProxy->GetOwnerName().ToString(),
+							*Primitive->SceneProxy->GetResourceName().ToString(),
+							*Primitive->SceneProxy->GetLevelName().ToString()
+						);
+					}
+				}
+			}
+
+			if (bPerformUpdate)
+			{
+				ENQUEUE_RENDER_COMMAND(UpdateTransformCommand)(
+					[UpdateParams](FRHICommandListImmediate& RHICmdList)
+					{
+						FScopeCycleCounter Context(UpdateParams.PrimitiveSceneProxy->GetStatId());
+						UpdateParams.Scene->UpdatePrimitiveTransform_RenderThread(
+							UpdateParams.PrimitiveSceneProxy,
+							UpdateParams.WorldBounds,
+							UpdateParams.LocalBounds,
+							UpdateParams.LocalToWorld,
+							UpdateParams.AttachmentRootPosition,
+							UpdateParams.PreviousTransform
+						);
+					}
+				);
+			}
 		}
 	}
 	else

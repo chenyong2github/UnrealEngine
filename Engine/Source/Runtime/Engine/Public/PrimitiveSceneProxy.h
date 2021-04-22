@@ -394,6 +394,14 @@ public:
 	}
 
 	/**
+	* @return true if the proxy can skip redundant transform updates where applicable.
+	*/
+	bool CanSkipRedundantTransformUpdates() const
+	{
+		return bCanSkipRedundantTransformUpdates;
+	}
+
+	/**
 	* @return true if the proxy uses distance cull fade.
 	*/
 	virtual bool IsUsingDistanceCullFade() const
@@ -899,6 +907,9 @@ private:
 	/** Whether this component has any collision enabled */
 	uint8 bCollisionEnabled : 1;
 
+	/** Whether this component can skip redundant transform updates where applicable. */
+	uint8 bCanSkipRedundantTransformUpdates : 1;
+
 	/** Whether the primitive should be treated as part of the background for occlusion purposes. */
 	uint8 bTreatAsBackgroundForOcclusion : 1;
 
@@ -1170,7 +1181,7 @@ private:
 	 */
 	ENGINE_API void SetTransform(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
 
-	ENGINE_API bool WouldSetTransformBeRedundant(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition);
+	ENGINE_API bool WouldSetTransformBeRedundant_AnyThread(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FVector& InActorPosition) const;
 
 	/** Updates the hidden editor view visibility map on the render thread */
 	void SetHiddenEdViews_RenderThread( uint64 InHiddenEditorViews );

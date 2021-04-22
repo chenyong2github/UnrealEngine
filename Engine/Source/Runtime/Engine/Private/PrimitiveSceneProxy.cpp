@@ -132,6 +132,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bRequiresVisibleLevelToRender(false)
 ,	bIsComponentLevelVisible(false)
 ,	bCollisionEnabled(InComponent->IsCollisionEnabled())
+,	bCanSkipRedundantTransformUpdates(true)
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
 ,	bGoodCandidateForCachedShadowmap(true)
 ,	bUsingWPOMaterial(false)
@@ -188,7 +189,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	DynamicIndirectShadowMinVisibility(0)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
-,	PrimitiveSceneInfo(NULL)
+,	PrimitiveSceneInfo(nullptr)
 ,	OwnerName(InComponent->GetOwner() ? InComponent->GetOwner()->GetFName() : NAME_None)
 ,	ResourceName(InResourceName)
 ,	LevelName(InComponent->GetOwner() ? InComponent->GetOwner()->GetLevel()->GetOutermost()->GetFName() : NAME_None)
@@ -461,24 +462,34 @@ void FPrimitiveSceneProxy::SetTransform(const FMatrix& InLocalToWorld, const FBo
 	OnTransformChanged();
 }
 
-bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, FVector InActorPosition)
+bool FPrimitiveSceneProxy::WouldSetTransformBeRedundant_AnyThread(const FMatrix& InLocalToWorld, const FBoxSphereBounds& InBounds, const FBoxSphereBounds& InLocalBounds, const FVector& InActorPosition) const
 {
-	if (LocalToWorld != InLocalToWorld)
-	{
-		return false;
-	}
-	if (Bounds != InBounds)
-	{
-		return false;
-	}
-	if (LocalBounds != InLocalBounds)
-	{
-		return false;
-	}
+	// Order is based on cheapest tests first.
+	// Actor position checks if the actor has moved in the world, and local bounds
+	// then covers if the actor's size has changed. Other tests then follow suit.
+
+	// Can be called by any thread, so be careful about modifying this.
+
 	if (ActorPosition != InActorPosition)
 	{
 		return false;
 	}
+
+	if (LocalBounds != InLocalBounds)
+	{
+		return false;
+	}
+
+	if (Bounds != InBounds)
+	{
+		return false;
+	}
+
+	if (LocalToWorld != InLocalToWorld)
+	{
+		return false;
+	}
+
 	return true;
 }
 
