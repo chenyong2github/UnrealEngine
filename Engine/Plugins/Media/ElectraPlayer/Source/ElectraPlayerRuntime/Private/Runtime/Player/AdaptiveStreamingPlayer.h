@@ -10,6 +10,7 @@
 #include "ParameterDictionary.h"
 #include "StreamTypes.h"
 #include "AdaptiveStreamingPlayerMetrics.h"
+#include "AdaptiveStreamingPlayerEvents.h"
 #include "AdaptiveStreamingPlayerResourceRequest.h"
 
 class IOptionPointerValueContainer;
@@ -46,6 +47,13 @@ public:
 	//
 	virtual void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) = 0;
 	virtual void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) = 0;
+
+	
+	//-------------------------------------------------------------------------
+	// Application Event or Metadata Stream (AEMS) receiver
+	//   Please refer to ISO/IEC 23009-1:2019/DAM 1:2020(E)
+	virtual void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) = 0;
+	virtual void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) = 0;
 
 
 	//-------------------------------------------------------------------------

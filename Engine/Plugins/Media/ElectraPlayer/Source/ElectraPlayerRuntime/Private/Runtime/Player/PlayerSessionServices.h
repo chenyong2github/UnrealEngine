@@ -18,6 +18,7 @@ namespace Electra
 	class IAdaptiveStreamingPlayerResourceProvider;
 	class IPlayerEntityCache;
 	class IPlaylistReader;
+	class IAdaptiveStreamingPlayerAEMSHandler;
 
 
 	class IPlayerMessage
@@ -114,6 +115,11 @@ namespace Electra
 		 */
 		virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() = 0;
 
+
+		/**
+		 * Returns the "Application Event or Metadata Streams" (AEMS) handler.
+		 */
+		virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() = 0;
 
 		/**
 		 * Returns the mutable player option dictionary. Other than initial options this serves as an interface to

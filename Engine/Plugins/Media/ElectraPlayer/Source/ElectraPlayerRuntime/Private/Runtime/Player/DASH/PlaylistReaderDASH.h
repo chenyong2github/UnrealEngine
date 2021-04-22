@@ -46,12 +46,23 @@ public:
 	/**
 	 * Requests an MPD update.
 	 */
-	virtual void RequestMPDUpdate(bool bForcedUpdate) = 0;
+	enum class EMPDRequestType
+	{
+		MinimumUpdatePeriod,		// Triggered through MPD@minimumUpdatePeriod
+		GetLatestSegment,			// Locating the segment in the Live period
+		EventMessage				// Triggered through an event message
+	};
+	virtual void RequestMPDUpdate(EMPDRequestType InRequestType) = 0;
 
 	/**
 	 * Access the current internal MPD
 	 */
 	virtual TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() = 0;
+
+	/**
+	 * Informs whether or not a currently playing stream is using inband events.
+	 */
+	virtual void SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents) = 0;
 };
 
 

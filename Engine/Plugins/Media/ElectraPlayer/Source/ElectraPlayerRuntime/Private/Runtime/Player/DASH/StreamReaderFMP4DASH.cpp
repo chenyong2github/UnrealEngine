@@ -12,6 +12,8 @@
 #include "Player/PlayerEntityCache.h"
 #include "Player/DASH/PlaylistReaderDASH.h"
 #include "Player/DASH/OptionKeynamesDASH.h"
+#include "Player/DASH/PlayerEventDASH.h"
+#include "Player/DASH/PlayerEventDASH_Internal.h"
 #include "Utilities/Utilities.h"
 
 #define INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR					1
@@ -210,15 +212,8 @@ IStreamReader::EAddResult FStreamReaderFMP4DASH::AddRequest(uint32 CurrentPlayba
 		}
 
 		Request->SetPlaybackSequenceID(CurrentPlaybackSequenceID);
-		// Only add the request if this is not an EOS segment.
-		// A segment that is already at EOS is not meant to be loaded as it does not exist and there
-		// would not be another segment following it either. They are meant to indicate to the player
-		// that a stream has ended and will not be delivering any more data.
-		if (!Request->bIsEOSSegment)
-		{
-			Handler->CurrentRequest = Request;
-			Handler->SignalWork();
-		}
+		Handler->CurrentRequest = Request;
+		Handler->SignalWork();
 	}
 	return IStreamReader::EAddResult::Added;
 }
@@ -463,6 +458,112 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 	}
 }
 
+void FStreamReaderFMP4DASH::FStreamHandler::CheckForInbandDASHEvents()
+{
+	bool bHasInbandEvent = false;
+	if (!CurrentRequest->bIsEOSSegment)
+	{
+		for(int32 i=0; i<CurrentRequest->Segment.InbandEventStreams.Num(); ++i)
+		{
+			const FManifestDASHInternal::FSegmentInformation::FInbandEventStream& ibs = CurrentRequest->Segment.InbandEventStreams[i];
+			if (ibs.SchemeIdUri.Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012))
+			{
+				bHasInbandEvent = true;
+				break;
+			}
+		}
+	}
+	TSharedPtrTS<IPlaylistReader> ManifestReader = PlayerSessionService->GetManifestReader();
+	IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(ManifestReader.Get());
+	if (Reader)
+	{
+		Reader->SetStreamInbandEventUsage(CurrentRequest->GetType(), bHasInbandEvent);
+	}
+}
+
+void FStreamReaderFMP4DASH::FStreamHandler::HandleEventMessages()
+{
+	// Are there 'emsg' boxes we need to handle?
+	if (MP4Parser->GetNumberOfEventMessages())
+	{
+		FTimeValue AbsPeriodStart = CurrentRequest->PeriodStart + CurrentRequest->AST + CurrentRequest->AdditionalAdjustmentTime + CurrentRequest->PlayerLoopState.LoopBasetime;
+		// We may need the EPT from the 'sidx' if there is one.
+		const IParserISO14496_12::ISegmentIndex* Sidx = MP4Parser->GetSegmentIndexByIndex(0);
+		for(int32 nEmsg=0, nEmsgs=MP4Parser->GetNumberOfEventMessages(); nEmsg<nEmsgs; ++nEmsg)
+		{
+			const IParserISO14496_12::IEventMessage* Emsg = MP4Parser->GetEventMessageByIndex(nEmsg);
+			// This event must be described by an <InbandEventStream> in order to be processed.
+			for(int32 i=0; i<CurrentRequest->Segment.InbandEventStreams.Num(); ++i)
+			{
+				const FManifestDASHInternal::FSegmentInformation::FInbandEventStream& ibs = CurrentRequest->Segment.InbandEventStreams[i];
+				if (ibs.SchemeIdUri.Equals(Emsg->GetSchemeIdUri()) &&
+					(ibs.Value.IsEmpty() || ibs.Value.Equals(Emsg->GetValue())))
+				{
+					TSharedPtrTS<DASH::FPlayerEvent> NewEvent = MakeSharedTS<DASH::FPlayerEvent>();
+					NewEvent->SetOrigin(IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream);
+					NewEvent->SetSchemeIdUri(Emsg->GetSchemeIdUri());
+					NewEvent->SetValue(Emsg->GetValue());
+					NewEvent->SetID(LexToString(Emsg->GetID()));
+					uint32 Timescale = Emsg->GetTimescale();
+					uint32 Duration = Emsg->GetEventDuration();
+					FTimeValue PTS;
+					if (Emsg->GetVersion() == 0)
+					{
+						// Version 0 uses a presentation time delta relative to the EPT of the SIDX, if it exists, or if not
+						// to the PTS of the first AU, which should be the same as the segment media start time.
+						FTimeValue PTD((int64)Emsg->GetPresentationTimeDelta(), Timescale);
+						FTimeValue EPT;
+						if (Sidx)
+						{
+							EPT.SetFromND((int64)Sidx->GetEarliestPresentationTime(), Sidx->GetTimescale());
+						}
+						else
+						{
+							EPT.SetFromND((int64)CurrentRequest->Segment.Time, CurrentRequest->Segment.Timescale);
+						}
+						FTimeValue PTO(CurrentRequest->Segment.PTO, CurrentRequest->Segment.Timescale);
+						PTS = AbsPeriodStart - PTO + EPT + PTD;
+					}
+					else if (Emsg->GetVersion() == 1)
+					{
+						FTimeValue EventTime(Emsg->GetPresentationTime(), Timescale);
+						FTimeValue PTO(FTimeValue::GetZero());
+						PTS = AbsPeriodStart - PTO + EventTime;
+					}
+					NewEvent->SetPresentationTime(PTS);
+					if (Duration != 0xffffffff)
+					{
+						NewEvent->SetDuration(FTimeValue((int64)Duration, Timescale));
+					}
+					NewEvent->SetMessageData(Emsg->GetMessageData());
+					NewEvent->SetPeriodID(CurrentRequest->Period->GetUniqueIdentifier());
+					// Add the event to the handler.
+					if (PTS.IsValid())
+					{
+						/*
+							Check that we have no seen this event in this segment already. This is for the case where the 'emsg' appears
+							inbetween multiple 'moof' boxes. As per ISO/IEC 23009-1:2019 Section 5.10.3.3.1 General:
+								A Media Segment if based on the ISO BMFF container may contain one or more event message ('emsg') boxes. If present, any 'emsg' box shall be placed as follows:
+								- It may be placed before the first 'moof' box of the segment.
+								- It may be placed in between any 'mdat' and 'moof' box. In this case, an equivalent 'emsg' with the same id value shall be present before the first 'moof' box of any Segment.
+						*/
+						int32 EventIdx = SegmentEventsFound.IndexOfByPredicate([&NewEvent](const TSharedPtrTS<DASH::FPlayerEvent>& This) {
+							return NewEvent->GetSchemeIdUri().Equals(This->GetSchemeIdUri()) &&
+								   NewEvent->GetID().Equals(This->GetID()) &&
+								   (NewEvent->GetValue().IsEmpty() || NewEvent->GetValue().Equals(This->GetValue()));
+						});
+						if (EventIdx == INDEX_NONE)
+						{
+							PlayerSessionService->GetAEMSEventHandler()->AddEvent(NewEvent, CurrentRequest->Period->GetUniqueIdentifier(), IAdaptiveStreamingPlayerAEMSHandler::EEventAddMode::AddIfNotExists);
+							SegmentEventsFound.Emplace(MoveTemp(NewEvent));
+						}
+					}
+					break;
+				}
+			}
+		}
+	}
+}
 
 void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 {
@@ -510,6 +611,24 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	ds.RetryNumber  	= Request->NumOverallRetries;
 	ds.ABRState.Reset();
 
+	// Clear out the list of events found the last time.
+	SegmentEventsFound.Empty();
+	CheckForInbandDASHEvents();
+	/*
+		Actually handle the request only if this is not an EOS segment.
+		A segment that is already at EOS is not meant to be loaded as it does not exist and there
+		would not be another segment following it either. They are meant to indicate to the player
+		that a stream has ended and will not be delivering any more data.
+		
+		NOTE:
+		  We had to handle this request up to detecting the use of inband event streams in order to
+		  signal that this stream has now ended and will not be receiving any further inband events!
+	*/
+	if (Request->bIsEOSSegment)
+	{
+		CurrentRequest.Reset();
+		return;
+	}
 
 	// Does this request have an availability window?
 	if (Request->ASAST.IsValid())
@@ -622,6 +741,8 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 							check(Track);
 							if (Track)
 							{
+								HandleEventMessages();
+
 								CSD->CodecSpecificData = Track->GetCodecSpecificData();
 								CSD->RawCSD = Track->GetCodecSpecificDataRAW();
 								CSD->ParsedInfo = Track->GetCodecInformation();
@@ -1044,6 +1165,26 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 		}
 	}
 
+	// If we failed to get the segment and there is an inband DASH event stream which triggers MPD events and
+	// we did not get such an event in the 'emsg' boxes, then we err on the safe side and assume this segment
+	// would have carried an MPD update event and fire an artificial event.
+	if (!ds.bWasSuccessful && CurrentRequest->Segment.InbandEventStreams.FindByPredicate([](const FManifestDASHInternal::FSegmentInformation::FInbandEventStream& This){ return This.SchemeIdUri.Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012); }))
+	{
+		if (SegmentEventsFound.IndexOfByPredicate([](const TSharedPtrTS<DASH::FPlayerEvent>& This){return This->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012);}) == INDEX_NONE)
+		{
+			TSharedPtrTS<DASH::FPlayerEvent> NewEvent = MakeSharedTS<DASH::FPlayerEvent>();
+			NewEvent->SetOrigin(IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream);
+			NewEvent->SetSchemeIdUri(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012);
+			NewEvent->SetValue(TEXT("1"));
+			NewEvent->SetID("$missed$");
+			FTimeValue EPT((int64)CurrentRequest->Segment.Time, CurrentRequest->Segment.Timescale);
+			FTimeValue PTO(CurrentRequest->Segment.PTO, CurrentRequest->Segment.Timescale);
+			NewEvent->SetPresentationTime(TimeOffset - PTO + EPT);
+			NewEvent->SetPeriodID(CurrentRequest->Period->GetUniqueIdentifier());
+			PlayerSessionService->GetAEMSEventHandler()->AddEvent(NewEvent, CurrentRequest->Period->GetUniqueIdentifier(), IAdaptiveStreamingPlayerAEMSHandler::EEventAddMode::AddIfNotExists);
+		}
+	}
+
 	StreamSelector->ReportDownloadEnd(ds);
 
 	// Remember the next expected timestamp.
@@ -1054,6 +1195,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	CurrentRequest.Reset();
 	ReadBuffer.Reset();
 	MP4Parser.Reset();
+	SegmentEventsFound.Empty();
 
 	Parameters.EventListener->OnFragmentClose(FinishedRequest);
 }

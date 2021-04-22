@@ -11,6 +11,7 @@
 #include "Renderer/RendererAudio.h"
 #include "VideoDecoderResourceDelegate.h"
 #include "Crypto/StreamCryptoAES128.h"
+#include "Utilities/Utilities.h"
 
 #include "Async/Async.h"
 
@@ -209,6 +210,11 @@ bool FElectraPlayer::OpenInternal(const FString& Url, const FParamDict & PlayerO
 	NewPlayer->AdaptivePlayer->SetStaticResourceProviderCallback(StaticResourceProvider);
 	NewPlayer->AdaptivePlayer->SetVideoDecoderResourceDelegate(VideoDecoderResourceDelegate);
 
+	// Create a new media player event receiver and register it.
+	MediaPlayerEventReceiver = MakeSharedTS<FAEMSEventReceiver>();
+	MediaPlayerEventReceiver->GetEventReceivedDelegate().BindRaw(this, &FElectraPlayer::OnMediaPlayerEventReceived);
+	NewPlayer->AdaptivePlayer->AddAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
+
 	if (!NewPlayer->AdaptivePlayer->Initialize(PlayerOptions))
 	{
 		// FIXME: Can Initialize() fail? If so, we'd need to handle the error here.
@@ -301,6 +307,13 @@ void FElectraPlayer::CloseInternal(bool bKillAfterClose)
 	check(Player->AdaptivePlayer.IsValid());
 	if (Player->AdaptivePlayer.IsValid())
 	{
+		if (MediaPlayerEventReceiver.IsValid())
+		{
+			MediaPlayerEventReceiver->GetEventReceivedDelegate().Unbind();
+			Player->AdaptivePlayer->RemoveAEMSReceiver(MediaPlayerEventReceiver, TEXT("*"), TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
+			MediaPlayerEventReceiver.Reset();
+		}
+
 		// Unregister ourselves as the provider for static resources.
 		Player->AdaptivePlayer->SetStaticResourceProviderCallback(nullptr);
 		// Also unregister us from receiving further metric callbacks.
@@ -1010,6 +1023,19 @@ bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 	return false;
 }
 
+
+
+void FElectraPlayer::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)
+{
+	const TCHAR* const Origins[] = { TEXT("Playlist"), TEXT("Inband"), TEXT("TimedMetadata"), TEXT("???") };
+	UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] %s event %s with \"%s\", \"%s\", \"%s\" PTS @ %.3f for %.3fs"), this, CurrentPlayer.Get(),
+		Origins[Electra::Utils::Min((int32)InEvent->GetOrigin(), (int32)UE_ARRAY_COUNT(Origins)-1)],
+		InDispatchMode==IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnReceive?TEXT("received"):TEXT("started"),
+		*InEvent->GetSchemeIdUri(), *InEvent->GetValue(), *InEvent->GetID(),
+		InEvent->GetPresentationTime().GetAsSeconds(), InEvent->GetDuration().GetAsSeconds());
+}
+
+
 TSharedPtr<FElectraPlayer::FAnalyticsEvent> FElectraPlayer::CreateAnalyticsEvent(FString InEventName)
 {
 	// Since analytics are popped from the outside only we check if we have accumulated a lot without them having been retrieved.
@@ -1440,6 +1466,7 @@ void FElectraPlayer::HandlePlayerEventDataAvailabilityChange(const Electra::Metr
 void FElectraPlayer::HandlePlayerEventBufferingStart(Electra::Metrics::EBufferingReason BufferingReason)
 {
 	Status = Status | EPlayerStatus::Buffering;
+	DeferredEvents.Enqueue(IElectraPlayerAdapterDelegate::EPlayerEvent::MediaBuffering);
 
 	// Update statistics
 	FScopeLock Lock(&StatisticsLock);

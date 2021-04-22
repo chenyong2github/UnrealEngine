@@ -652,7 +652,7 @@ public:
 	virtual void AddMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
 	virtual void RemoveMetricsReceiver(IAdaptiveStreamingPlayerMetrics* InMetricsReceiver) override;
 
-	// Matrics receiver accessor for event dispatcher thread.
+	// Metrics receiver accessor for event dispatcher thread.
 	void LockMetricsReceivers()
 	{
 		MetricListenerCriticalSection.Lock();
@@ -666,6 +666,9 @@ public:
 		return MetricListeners;
 	}
 
+
+	virtual void AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
+	virtual void RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 
 	virtual bool Initialize(const FParamDict& Options) override;
 
@@ -721,6 +724,7 @@ private:
 	virtual IPlayerStreamFilter* GetStreamFilter() override;
 	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
 	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
+	virtual IAdaptiveStreamingPlayerAEMSHandler* GetAEMSEventHandler() override;
 	virtual FParamDict& GetOptions() override;
 
 	// Methods from IPlayerStreamFilter
@@ -1290,6 +1294,7 @@ private:
 	void HandleDeselectedBuffers();
 	void HandleDecoderChanges();
 	void HandleMetadataChanges();
+	void HandleAEMSEvents();
 
 	void CheckForStreamEnd();
 
@@ -1335,6 +1340,7 @@ private:
 	FPlaybackState														PlaybackState;
 	FStreamPreferences													StreamPreferences;
 	ISynchronizedUTCTime*												SynchronizedUTCTime;
+	IAdaptiveStreamingPlayerAEMSHandler*								AEMSEventHandler;
 
 	TSharedPtrTS<FMediaRenderClock>										RenderClock;
 

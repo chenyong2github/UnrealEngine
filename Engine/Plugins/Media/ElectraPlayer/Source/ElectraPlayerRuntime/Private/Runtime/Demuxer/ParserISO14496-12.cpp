@@ -265,6 +265,15 @@ private:
 			return CurrentSidxBox;
 		}
 
+		int32 GetNumberOfEMSGBoxes() const
+		{
+			return EMSGBoxes.Num();
+		}
+		FMP4Box* GetEMSGBox(int32 Index) const
+		{
+			return Index < EMSGBoxes.Num() ? EMSGBoxes[Index] : nullptr;
+		}
+
 		FMP4Box* GetCurrentTrackBox() const
 		{
 			return CurrentTrackBox;
@@ -322,6 +331,11 @@ private:
 			CurrentSidxBox = SidxBox;
 		}
 
+		void AddEMSGBox(FMP4Box* EmsgBox)
+		{
+			EMSGBoxes.Emplace(EmsgBox);
+		}
+
 		void SetCurrentTrackBox(FMP4Box* TrackBox)
 		{
 			CurrentTrackBox = TrackBox;
@@ -364,6 +378,8 @@ private:
 		FMP4Box* CurrentTrackBox = nullptr;			//!< trak/traf being parsed at the moment.
 		FMP4Box* CurrentHandlerBox = nullptr;		//!< hdlr being parsed at the moment.
 		FMP4Box* CurrentMediaHandlerBox = nullptr;	//!< media handler being parsed at the moment ('vmhd', 'smhd', 'sthd', nmhd')
+
+		TArray<FMP4Box*> EMSGBoxes;
 
 		IPlayerSessionServices* PlayerSession = nullptr;
 		int32 NumTotalBoxesParsed = 0;
@@ -2240,7 +2256,7 @@ private:
 	 * 'emsg' box.
 	 * ISO/IEC 23009-1:2019 - 5.10.3.3 Event Message Box
 	 */
-	class FMP4BoxEMSG : public FMP4BoxFull
+	class FMP4BoxEMSG : public FMP4BoxFull, public IParserISO14496_12::IEventMessage
 	{
 	public:
 		FMP4BoxEMSG(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
@@ -2251,6 +2267,43 @@ private:
 
 		virtual ~FMP4BoxEMSG()
 		{
+		}
+
+		virtual int32 GetVersion() const override
+		{ 
+			return Version; 
+		}
+		virtual const FString& GetSchemeIdUri() const override
+		{ 
+			return SchemeIdUri; 
+		}
+		virtual const FString& GetValue() const override
+		{ 
+			return Value; 
+		}
+		virtual uint32 GetTimescale() const override
+		{
+			return Timescale;
+		}
+		virtual uint32 GetPresentationTimeDelta() const override
+		{
+			return PresentationTimeDelta;
+		}
+		virtual uint64 GetPresentationTime() const override
+		{
+			return PresentationTime;
+		}
+		virtual uint32 GetEventDuration() const override
+		{
+			return EventDuration;
+		}
+		virtual uint32 GetID() const override
+		{
+			return ID;
+		}
+		virtual const TArray<uint8>& GetMessageData() const override
+		{
+			return MessageData;
 		}
 
 	private:
@@ -4094,6 +4147,7 @@ private:
 							break;
 						case FMP4Box::kBox_emsg:
 							NextBox = new FMP4BoxEMSG(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							AddEMSGBox(NextBox);
 							break;
 						case FMP4Box::kBox_iods:
 						case FMP4Box::kBox_esds:
@@ -4335,12 +4389,14 @@ private:
 		virtual TMediaOptionalValue<FTimeFraction> GetMovieDuration() const override;
 		virtual int32 GetNumberOfTracks() const override;
 		virtual int32 GetNumberOfSegmentIndices() const override;
+		virtual int32 GetNumberOfEventMessages() const override;
 		virtual int32 GetNumberOfBrands() const override;
 		virtual FBrandType GetBrandByIndex(int32 Index) const override;
 		virtual bool HasBrand(const FBrandType InBrand) const override;
 		virtual const ITrack* GetTrackByIndex(int32 Index) const override;
 		virtual const ITrack* GetTrackByTrackID(int32 TrackID) const override;
 		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
+		virtual const IEventMessage* GetEventMessageByIndex(int32 Index) const override;
 
 		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
 
@@ -5986,6 +6042,12 @@ private:
 		return ParsedData ? (ParsedData->GetCurrentSidxBox() ? 1 : 0) : 0;
 	}
 
+	int32 FParserISO14496_12::GetNumberOfEventMessages() const
+	{
+		return ParsedData ? ParsedData->GetNumberOfEMSGBoxes() : 0;
+	}
+
+
 	const FParserISO14496_12::ITrack* FParserISO14496_12::GetTrackByIndex(int32 Index) const
 	{
 		return ParsedTrackInfo ? ParsedTrackInfo->GetTrackByIndex(Index) : nullptr;
@@ -6001,6 +6063,11 @@ private:
 		// There is either none or one right now.
 		// See GetNumberOfSegmentIndices()
 		return Index < GetNumberOfSegmentIndices() ? static_cast<FMP4BoxSIDX*>(ParsedData->GetCurrentSidxBox()) : nullptr;
+	}
+
+	const FParserISO14496_12::IEventMessage* FParserISO14496_12::GetEventMessageByIndex(int32 Index) const
+	{
+		return ParsedData ? static_cast<FMP4BoxEMSG*>(ParsedData->GetEMSGBox(Index)) : nullptr;
 	}
 
 	int32 FParserISO14496_12::GetNumberOfBrands() const

@@ -256,6 +256,17 @@ void FManifestDASH::GetTrackMetadata(TArray<FTrackMetadata>& OutMetadata, EStrea
 void FManifestDASH::UpdateDynamicRefetchCounter()
 {
 	++CurrentPeriodAndAdaptationXLinkResolveID;
+
+	// Since we don't know which streams will be used now we have to let the manifest reader know
+	// that currently no stream is active that is providing inband events.
+	TSharedPtrTS<IPlaylistReader> ManifestReader = PlayerSessionServices->GetManifestReader();
+	IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(ManifestReader.Get());
+	if (Reader)
+	{
+		Reader->SetStreamInbandEventUsage(EStreamType::Video, false);
+		Reader->SetStreamInbandEventUsage(EStreamType::Audio, false);
+		Reader->SetStreamInbandEventUsage(EStreamType::Subtitle, false);
+	}
 }
 
 IStreamReader* FManifestDASH::CreateStreamReaderHandler()
@@ -472,6 +483,9 @@ void FDASHPlayPeriod::PrepareForPlay()
 			TSharedPtrTS<IPlaybackAssetRepresentation> AudioRepr = GetRepresentationFromAdaptationByMaxBandwidth(AudioAS, 128 * 1000);
 			ActiveAudioRepresentationID = AudioRepr->GetUniqueIdentifier();
 		}
+
+		// Emit all <EventStream> events of the period to the AEMS event handler.
+		Manifest->SendEventsFromAllPeriodEventStreams(Period);
 
 	//	ReadyState = EReadyState::Preparing;
 		ReadyState = EReadyState::IsReady;
@@ -823,7 +837,7 @@ IManifest::FResult FDASHPlayPeriod::GetNextOrRetrySegment(TSharedPtrTS<IStreamSe
 
 		IPlaylistReaderDASH* Reader = static_cast<IPlaylistReaderDASH*>(PlayerSessionServices->GetManifestReader().Get());
 		check(Reader->GetPlaylistType().Equals(TEXT("dash")));
-		Reader->RequestMPDUpdate(false);
+		Reader->RequestMPDUpdate(IPlaylistReaderDASH::EMPDRequestType::GetLatestSegment);
 		return IManifest::FResult().RetryAfterMilliseconds(250);
 	}
 	else if (SearchResult == FManifestDASHInternal::FRepresentation::ESearchResult::Gone)
@@ -1480,8 +1494,30 @@ FString FManifestDASHInternal::FRepresentation::ApplyTemplateStrings(FString Tem
 		}
 	}
 	return NewURL;
+}
 
+void FManifestDASHInternal::FRepresentation::CollectInbandEventStreams(IPlayerSessionServices* InPlayerSessionServices, FSegmentInformation& InOutSegmentInfo)
+{
+	TSharedPtrTS<FDashMPD_RepresentationType> MPDRepresentation = Representation.Pin();
 
+	TArray<TSharedPtrTS<FDashMPD_EventStreamType>> EvS = MPDRepresentation->GetInbandEventStreams();
+	for(TSharedPtrTS<const IDashMPDElement> Parent = MPDRepresentation->GetParentElement(); Parent.IsValid(); Parent=Parent->GetParentElement())
+	{
+		if (Parent->GetElementType() == IDashMPDElement::EType::AdaptationSet)
+		{
+			EvS.Append(static_cast<const FDashMPD_AdaptationSetType*>(Parent.Get())->GetInbandEventStreams());
+			break;
+		}
+	}
+	for(int32 i=0; i<EvS.Num(); ++i)
+	{
+		FSegmentInformation::FInbandEventStream ibs;
+		ibs.SchemeIdUri = EvS[i]->GetSchemeIdUri();
+		ibs.Value = EvS[i]->GetValue();
+		ibs.PTO = (int64) EvS[i]->GetPresentationTimeOffset().GetWithDefault(0);
+		ibs.Timescale = EvS[i]->GetTimescale().GetWithDefault(1);
+		InOutSegmentInfo.InbandEventStreams.Emplace(MoveTemp(ibs));
+	}
 }
 
 
@@ -1771,6 +1807,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 		OutSegmentInfo.Timescale = SidxTimescale;
 		OutSegmentInfo.ATO = ATO;
 		OutSegmentInfo.bIsLastInPeriod = CurrentT + CurrentD >= MediaLocalPeriodEnd;
+		CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
 		if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentBase))
 		{
 			bIsUsable = false;
@@ -1924,6 +1961,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 	OutSegmentInfo.bMayBeMissing = SegmentNum + 1 >= MaxSegmentsInPeriod;
 	OutSegmentInfo.bIsLastInPeriod = OutSegmentInfo.bMayBeMissing && InSearchOptions.bHasFollowingPeriod;
 	OutSegmentInfo.ATO = ATO;
+	CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
 	if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate))
 	{
 		bIsUsable = false;
@@ -2250,6 +2288,7 @@ FManifestDASHInternal::FRepresentation::ESearchResult FManifestDASHInternal::FRe
 			LogMessage(InPlayerSessionServices, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Representation \"%s\" <SegmentTimeline> gap encountered for needed 't' value of %lld. Replacing with an empty filler segment."), *MPDRepresentation->GetID(), (long long int)CurrentT));
 		}
 		OutSegmentInfo.ATO = ATO;
+		CollectInbandEventStreams(InPlayerSessionServices, OutSegmentInfo);
 		if (!PrepareDownloadURLs(InPlayerSessionServices, OutSegmentInfo, SegmentTemplate))
 		{
 			bIsUsable = false;

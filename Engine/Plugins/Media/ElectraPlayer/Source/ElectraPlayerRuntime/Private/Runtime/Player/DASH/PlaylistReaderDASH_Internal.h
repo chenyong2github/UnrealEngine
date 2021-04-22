@@ -133,6 +133,13 @@ public:
 			FString CDN;
 			FString CustomHeader;
 		};
+		struct FInbandEventStream
+		{
+			FString SchemeIdUri;
+			FString Value;
+			int64 PTO = 0;
+			uint32 Timescale = 0;
+		};
 		FURL InitializationURL;
 		FURL MediaURL;
 		FTimeValue ATO;
@@ -151,6 +158,7 @@ public:
 		bool bMayBeMissing = false;					//!< true if the last segment in <SegmentTemplate> that might not exist.
 		bool bIsMissing = false;					//!< Set to true if known to be missing.
 		bool bSawLMSG = false;						//!< Will be set to true by the stream reader if the 'lmsg' brand was found.
+		TArray<FInbandEventStream> InbandEventStreams;
 
 		FTimeValue CalculateASAST(const FTimeValue& AST, const FTimeValue& PeriodStart, bool bIsStatic)
 		{
@@ -252,8 +260,9 @@ public:
 		ESearchResult FindSegment_Timeline(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& OutSegmentInfo, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, const FSegmentSearchOption& InSearchOptions, const TSharedPtrTS<FDashMPD_RepresentationType>& MPDRepresentation, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentTemplate, const TSharedPtrTS<FDashMPD_SegmentTimelineType>& SegmentTimeline);
 
 		bool PrepareDownloadURLs(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo, const TArray<TSharedPtrTS<FDashMPD_SegmentBaseType>>& SegmentBase);
-		bool PrepareDownloadURLs(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentBase);
+		bool PrepareDownloadURLs(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo, const TArray<TSharedPtrTS<FDashMPD_SegmentTemplateType>>& SegmentTemplate);
 		FString ApplyTemplateStrings(FString TemplateURL, const FSegmentInformation& InSegmentInfo);
+		void CollectInbandEventStreams(IPlayerSessionServices* PlayerSessionServices, FSegmentInformation& InOutSegmentInfo);
 
 		void SegmentIndexDownloadComplete(TSharedPtrTS<FMPDLoadRequestDASH> Request, bool bSuccess);
 		friend class FManifestDASHInternal;
@@ -392,6 +401,22 @@ public:
 			}
 			return nullptr;
 		}
+
+		void EndPresentationAt(const FTimeValue& EndsAt)
+		{
+			FTimeValue NewDur = EndsAt - Start;
+			if (NewDur >= FTimeValue::GetZero())
+			{
+				Duration = NewDur;
+				End = Start + NewDur;
+				TSharedPtrTS<FDashMPD_PeriodType> MPDPeriod = Period.Pin();
+				if (MPDPeriod.IsValid())
+				{
+					MPDPeriod->SetDuration(NewDur);
+				}
+			}
+		}
+
 /*
 		TSharedPtrTS<FRepresentation> GetRepresentationFromAdaptationSetIDs(const FString& AdaptationSetID, const FString& RepresentationID) const
 		{
@@ -562,6 +587,8 @@ public:
 
 	void PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> InPeriod, bool bRequestXlink);
 
+	void SendEventsFromAllPeriodEventStreams(TSharedPtrTS<FPeriod> InPeriod);
+
 	const TArray<FURL_RFC3986::FQueryParam>& GetURLFragmentComponents() const
 	{
 		return URLFragmentComponents;
@@ -598,6 +625,8 @@ public:
 	bool UsesAST() const;
 	FTimeValue GetAvailabilityEndTime() const;
 	FTimeValue GetTimeshiftBufferDepth() const;
+
+	void EndPresentationAt(const FTimeValue& EndsAt, const FString& InPeriod);
 
 private:
 	FErrorDetail PrepareRemoteElementLoadRequest(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> ElementWithXLink, int64 RequestID);
