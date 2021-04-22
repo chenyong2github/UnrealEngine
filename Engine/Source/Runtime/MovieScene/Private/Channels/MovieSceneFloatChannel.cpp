@@ -1157,7 +1157,10 @@ bool FMovieSceneFloatChannel::Serialize(FArchive& Ar)
 	Ar << bHasDefaultValue;
 	Ar << TickResolution.Numerator;
 	Ar << TickResolution.Denominator;
-
+	if (Ar.IsTransacting())
+	{
+		Ar << KeyHandles;
+	}
 	return true;
 }
 
