@@ -45,7 +45,7 @@
 
 		// Windows or Linux based platform
 #if !defined(FRAMEPRO_WIN_BASED_PLATFORM) //@EPIC begin - allow external definition
-		#define FRAMEPRO_WIN_BASED_PLATFORM (PLATFORM_WINDOWS)
+		#define FRAMEPRO_WIN_BASED_PLATFORM (PLATFORM_WINDOWS || PLATFORM_XBOXONE)
 #endif //@EPIC: end
 		#define FRAMEPRO_LINUX_BASED_PLATFORM (!FRAMEPRO_WIN_BASED_PLATFORM && !PLATFORM_SWITCH)
 
@@ -53,8 +53,13 @@
 
 		// Port
 #if !defined(FRAMEPRO_PORT) //@EPIC begin - allow external definition
-		#define FRAMEPRO_PORT "8428"
+		#if PLATFORM_XBOXONE
+			#define FRAMEPRO_PORT "4420"
+		#else
+			#define FRAMEPRO_PORT "8428"
+		#endif
 #endif //@EPIC: end
+
 		// x64 or x32
 		#define FRAMEPRO_X64 PLATFORM_64BITS
 
@@ -90,6 +95,8 @@
 		#define FRAMEPRO_ALIGN_STRUCT(a) GCC_ALIGN(a)
 
 		#define FRAMEPRO_ENUMERATE_ALL_MODULES 0
+
+		#define FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING 0
 
 	#endif		// #ifndef FRAMEPRO_UE4_INCLUDED
 

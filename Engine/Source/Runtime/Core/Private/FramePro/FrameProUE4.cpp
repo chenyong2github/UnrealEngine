@@ -22,8 +22,13 @@
 	Add FramePro.cpp to your project to allow FramePro to communicate with your application.
 */
 //------------------------------------------------------------------------
+#ifdef __UNREAL__
 #include "FramePro/FrameProUE4.h"
 #include "FramePro/FramePro.h"
+#else
+#include "FrameProUE4.h"
+#include "FramePro.h"
+#endif
 
 //------------------------------------------------------------------------
 //                         FRAMEPRO_PLATFORM_UE4
@@ -126,7 +131,7 @@
 		//------------------------------------------------------------------------
 		int64 Platform::GetTimerFrequency()
 		{
-			return (int64)(1.0 / FPlatformTime::GetSecondsPerCycle());
+			return (int64)(1.0 / FPlatformTime::GetSecondsPerCycle64());
 		}
 
 		//------------------------------------------------------------------------
@@ -146,6 +151,8 @@
 		{
 			#if defined(FRAMEPRO_UNREAL_PLATFORM) //@EPIC: allow external definition
 				return FRAMEPRO_UNREAL_PLATFORM;  //@EPIC end
+			#elif PLATFORM_XBOXONE
+				return Platform::XBoxOne;
 			#elif PLATFORM_WINDOWS
 				return Platform::Windows;
 			#elif PLATFORM_LINUX
@@ -170,15 +177,33 @@
 		}
 
 		//------------------------------------------------------------------------
+		namespace PS4ContextSwitches
+		{
+			void* CreateContextSwitchRecorder(Allocator* p_allocator);
+			void DestroyContextSwitchRecorder(void* p_obj, Allocator* p_allocator);
+			bool StartRecordingContextSitches(void* p_obj, Platform::ContextSwitchCallbackFunction callback_function, void* p_context, DynamicString& error, Allocator* p_allocator);
+			void StopRecordingContextSitches(void* p_obj);
+			void FlushContextSwitches(void*);
+		}
+
+		//------------------------------------------------------------------------
 		void* Platform::CreateContextSwitchRecorder(Allocator* p_allocator)
 		{
-			return GenericPlatform::CreateContextSwitchRecorder(p_allocator);
+			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
+				return PS4ContextSwitches::CreateContextSwitchRecorder(p_allocator);
+			#else
+				return GenericPlatform::CreateContextSwitchRecorder(p_allocator);
+			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::DestroyContextSwitchRecorder(void* p_context_switch_recorder, Allocator* p_allocator)
 		{
-			GenericPlatform::DestroyContextSwitchRecorder(p_context_switch_recorder, p_allocator);
+			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
+				PS4ContextSwitches::DestroyContextSwitchRecorder(p_context_switch_recorder, p_allocator);
+			#else
+				GenericPlatform::DestroyContextSwitchRecorder(p_context_switch_recorder, p_allocator);
+			#endif
 		}
 
 		//------------------------------------------------------------------------
@@ -186,29 +211,49 @@
 			void* p_context_switch_recorder,
 			ContextSwitchCallbackFunction p_callback,
 			void* p_context,
-			DynamicString& error)
+			DynamicString& error,
+			Allocator* p_allocator)
 		{
-			return GenericPlatform::StartRecordingContextSitches(
-				p_context_switch_recorder,
-				p_callback,
-				p_context,
-				error);
+			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
+				return PS4ContextSwitches::StartRecordingContextSitches(
+					p_context_switch_recorder,
+					p_callback,
+					p_context,
+					error,
+					p_allocator);
+			#else
+				FRAMEPRO_UNREFERENCED(p_allocator);
+
+				return GenericPlatform::StartRecordingContextSitches(
+					p_context_switch_recorder,
+					p_callback,
+					p_context,
+					error);
+			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::StopRecordingContextSitches(void* p_context_switch_recorder)
 		{
-			GenericPlatform::StopRecordingContextSitches(p_context_switch_recorder);
+			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
+				PS4ContextSwitches::StopRecordingContextSitches(p_context_switch_recorder);
+			#else
+				GenericPlatform::StopRecordingContextSitches(p_context_switch_recorder);
+			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::FlushContextSwitches(void* p_context_switch_recorder)
 		{
-			GenericPlatform::FlushContextSwitches(p_context_switch_recorder);
+			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
+				PS4ContextSwitches::FlushContextSwitches(p_context_switch_recorder);
+			#else
+				GenericPlatform::FlushContextSwitches(p_context_switch_recorder);
+			#endif
 		}
 
 		//------------------------------------------------------------------------
-		#if PLATFORM_PS4
+		#if PLATFORM_PS4 && FRAMEPRO_ENUMERATE_ALL_MODULES
 			namespace EnumModulesPS4 { void EnumerateModules(Array<ModulePacket*>& module_packets, Allocator* p_allocator); }
 		#endif
 
@@ -236,6 +281,9 @@
 					EnumModulesSwitch::EnumerateModules(module_packets, p_allocator);
 				#else
 					ModulePacket* p_module_packet = (ModulePacket*)p_allocator->Alloc(sizeof(ModulePacket));
+					if (!p_module_packet)
+						return;
+
 					memset(p_module_packet, 0, sizeof(ModulePacket));
 
 					p_module_packet->m_PacketType = PacketType::ModulePacket;
@@ -432,7 +480,7 @@
 			{
 				return false;
 			}
-			
+
 			FString ProcessName = FPaths::GetCleanFilename(ProcessNameOrPath);
 			const char* p_process_name = TCHAR_TO_ANSI(*ProcessName);
 //@EPIC END
@@ -440,7 +488,7 @@
 			size_t max_length = max_name_length - 1;
 
 			int copy_length = length < max_length ? length : max_length;
-			FCStringAnsi::Strncpy( p_name, p_process_name, copy_length);
+			FCStringAnsi::Strncpy(p_name, p_process_name, copy_length);
 
 			return true;
 		}
@@ -461,7 +509,7 @@
 				p_event = FPlatformProcess::GetSynchEventFromPool(!auto_reset);
 			}
 			else
-			{				
+			{
 #if PLATFORM_WINDOWS
 				p_event = new FEventWin();
 				p_event->Create(!auto_reset);
@@ -605,13 +653,13 @@
 				else
 				{
 #if PLATFORM_WINDOWS
-					CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE)mp_ThreadMain, mp_Context, 0, NULL );
+					CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)mp_ThreadMain, mp_Context, 0, NULL);
 #elif PLATFORM_USE_PTHREADS
-					typedef void *(*PthreadEntryPoint)(void *arg);
+					typedef void* (*PthreadEntryPoint)(void* arg);
 					pthread_t thread_id;
-					pthread_create( &thread_id, nullptr, (PthreadEntryPoint)mp_ThreadMain, mp_Context );
+					pthread_create(&thread_id, nullptr, (PthreadEntryPoint)mp_ThreadMain, mp_Context);
 #else
-					checkf(false,TEXT("unsupported platform for -nothreading"));
+					checkf(false, TEXT("unsupported platform for -nothreading"));
 #endif
 				}
 //@EPIC END
@@ -641,7 +689,7 @@
 		}
 
 		//------------------------------------------------------------------------
-		void Platform::CreateThread(
+		bool Platform::CreateThread(
 			void* p_os_thread_mem,
 			int os_thread_mem_size,
 			ThreadMain p_thread_main,
@@ -651,6 +699,8 @@
 			FRAMEPRO_ASSERT(os_thread_mem_size >= sizeof(UE4Thread*));
 
 			GetOSThread(p_os_thread_mem) = new UE4Thread(p_thread_main, p_context);
+
+			return true;
 		}
 
 		//------------------------------------------------------------------------

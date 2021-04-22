@@ -1,35 +1,27 @@
 /*
-	This software is provided 'as-is', without any express or implied warranty.
-	In no event will the author(s) be held liable for any damages arising from
-	the use of this software.
+Copyright 2019 PureDev Software Limited
 
-	Permission is granted to anyone to use this software for any purpose, including
-	commercial applications, and to alter it and redistribute it freely, subject to
-	the following restrictions:
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
 
-	1. The origin of this software must not be misrepresented; you must not
-	claim that you wrote the original software. If you use this software
-	in a product, an acknowledgment in the product documentation would be
-	appreciated but is not required.
-	2. Altered source versions must be plainly marked as such, and must not be
-	misrepresented as being the original software.
-	3. This notice may not be removed or altered from any source distribution.
-
-	Author: Stewart Lynch
-	www.puredevsoftware.com
-	slynch@puredevsoftware.com
-
-	Add FramePro.cpp to your project to allow FramePro to communicate with your application.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
 //------------------------------------------------------------------------
 //
-// FramePro.hpp
+// FramePro.h
 //
 //------------------------------------------------------------------------
 /*
 	FramePro
-	Version:	1.5.20.0
+	Version:	1.10.10.0
 */
 //------------------------------------------------------------------------
 #ifndef FRAMEPRO_H_INCLUDED
@@ -38,11 +30,13 @@
 //------------------------------------------------------------------------
 #ifndef FRAMEPRO_ENABLED
 	// *** enable/disable FramePro here
+	//@EPIC BEGIN: Only enable for engine / game, not external tools
 	#ifdef __UNREAL__
 		#define FRAMEPRO_ENABLED 0
 	#else
 		#define FRAMEPRO_ENABLED 1
 	#endif
+	//@EPIC END
 #endif
 
 //------------------------------------------------------------------------
@@ -53,9 +47,10 @@
 	#define FRAMEPRO_FRAME_START()															FramePro::FrameStart()
 	#define FRAMEPRO_SHUTDOWN()																FramePro::Shutdown()
 	#define FRAMEPRO_SET_PORT(port)															FramePro::SetPort(port)
-	#define FRAMEPRO_SET_SESSION_INFO(name, build_id)										FramePro::SendSessionInfo(name, build_id)
+	#define FRAMEPRO_SESSION_INFO(name, value)												FramePro::SendSessionInfo(name, value)
 	#define FRAMEPRO_SET_ALLOCATOR(p_allocator)												FramePro::SetAllocator(p_allocator)
 	#define FRAMEPRO_SET_THREAD_NAME(name)													FramePro::SetThreadName(name)
+	#define FRAMEPRO_SET_THREAD_ID_NAME(thread_id, name)									FramePro::SetThreadName(thread_id, name)
 	#define FRAMEPRO_THREAD_ORDER(thread_name)												FramePro::SetThreadOrder(FramePro::RegisterString(thread_name))
 	#define FRAMEPRO_REGISTER_STRING(str)													FramePro::RegisterString(str)
 	#define FRAMEPRO_START_RECORDING(filename, context_switches, callstacks, max_file_size)	FramePro::StartRecording(filename, context_switches, callstacks, max_file_size)
@@ -73,42 +68,43 @@
 	#define FRAMEPRO_SET_CONDITIONAL_SCOPE_MIN_TIME(microseconds)							FramePro::SetConditionalScopeMinTimeInMicroseconds(microseconds)
 
 	// scope macros
-	#define FRAMEPRO_SCOPE()																FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_SOURCE_STRING)
+	#define FRAMEPRO_SCOPE()																FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_NAMED_SCOPE(name)														FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(name "|" FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_NAMED_SCOPE_W(name)													FramePro::TimerScopeW FRAMEPRO_UNIQUE(timer_scope)(name L"|" FRAMEPRO_SOURCE_STRING_W)
 	#define FRAMEPRO_ID_SCOPE(name_id)														FramePro::IdTimerScope FRAMEPRO_UNIQUE(timer_scope)(name_id, FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_DYNAMIC_SCOPE(dynamic_string)											FramePro::IdTimerScope FRAMEPRO_UNIQUE(timer_scope)(FramePro::IsConnected() ? FramePro::RegisterString(dynamic_string) : -1, FRAMEPRO_SOURCE_STRING)
-	#define FRAMEPRO_CONDITIONAL_SCOPE()													FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_SOURCE_STRING)
+	#define FRAMEPRO_CONDITIONAL_SCOPE()													FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_CONDITIONAL_ID_SCOPE(name)												FramePro::ConditionalTimerScopeId FRAMEPRO_UNIQUE(timer_scope)(name, FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_CONDITIONAL_NAMED_SCOPE(name)											FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(name "|" FRAMEPRO_SOURCE_STRING)
 	#define FRAMEPRO_CONDITIONAL_NAMED_SCOPE_W(name)										FramePro::ConditionalTimerScopeW FRAMEPRO_UNIQUE(timer_scope)(name L"|" FRAMEPRO_SOURCE_STRING_W)
-	#define FRAMEPRO_CONDITIONAL_BOOL_SCOPE(b)												FramePro::ConditionalBoolTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_SOURCE_STRING, (b))
+	#define FRAMEPRO_CONDITIONAL_BOOL_SCOPE(b)												FramePro::ConditionalBoolTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_SOURCE_STRING, (b))
 	#define FRAMEPRO_CONDITIONAL_BOOL_ID_SCOPE(name, b)										FramePro::ConditionalBoolTimerScopeId FRAMEPRO_UNIQUE(timer_scope)(name, FRAMEPRO_SOURCE_STRING, (b))
 	#define FRAMEPRO_CONDITIONAL_BOOL_NAMED_SCOPE(name, b)									FramePro::ConditionalBoolTimerScope FRAMEPRO_UNIQUE(timer_scope)(name "|" FRAMEPRO_SOURCE_STRING, (b))
 	#define FRAMEPRO_CONDITIONAL_BOOL_NAMED_SCOPE_W(name, b)								FramePro::ConditionalBoolTimerScopeW FRAMEPRO_UNIQUE(timer_scope)(name L"|" FRAMEPRO_SOURCE_STRING_W, (b))
-	#define FRAMEPRO_START_NAMED_SCOPE(name)												FramePro::int64 framepro_start_##name=0; FRAMEPRO_GET_CLOCK_COUNT(framepro_start_##name);
-	#define FRAMEPRO_STOP_NAMED_SCOPE(name)													MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end_##name; FRAMEPRO_GET_CLOCK_COUNT(framepro_end_##name); FramePro::AddTimeSpan(#name "|" FRAMEPRO_SOURCE_STRING, framepro_start_##name, framepro_end_##name); } )
-	#define FRAMEPRO_CONDITIONAL_START_SCOPE()												FramePro::int64 framepro_start=0; MULTI_STATEMENT( if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start); } )
-	#define FRAMEPRO_CONDITIONAL_STOP_NAMED_SCOPE(name)										MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(name "|" FRAMEPRO_SOURCE_STRING, framepro_start, framepro_end); } )
-	#define FRAMEPRO_CONDITIONAL_STOP_DYNAMIC_SCOPE(dynamic_string)							MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(FramePro::RegisterString(dynamic_string), FRAMEPRO_SOURCE_STRING, framepro_start, framepro_end); } )
+	#define FRAMEPRO_START_NAMED_SCOPE(name)												FramePro::int64 framepro_start_##name=0; MULTI_STATEMENT( if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start_##name); FramePro::StartScope(); } )
+	#define FRAMEPRO_STOP_NAMED_SCOPE(name)													MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end_##name; FRAMEPRO_GET_CLOCK_COUNT(framepro_end_##name); FramePro::AddTimeSpan(#name "|" FRAMEPRO_SOURCE_STRING, framepro_start_##name, framepro_end_##name); FramePro::StopScope(); } )
+	#define FRAMEPRO_CONDITIONAL_START_SCOPE()												FramePro::int64 framepro_start=0; MULTI_STATEMENT( if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start); FramePro::StartScope(); } )
+	#define FRAMEPRO_CONDITIONAL_STOP_NAMED_SCOPE(name)										MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(name "|" FRAMEPRO_SOURCE_STRING, framepro_start, framepro_end); FramePro::StopScope();} )
+	#define FRAMEPRO_CONDITIONAL_STOP_DYNAMIC_SCOPE(dynamic_string)							MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(FramePro::RegisterString(dynamic_string), FRAMEPRO_SOURCE_STRING, framepro_start, framepro_end); FramePro::StopScope(); } )
 	#define FRAMEPRO_CONDITIONAL_PARENT_SCOPE(name, callback, pre_duration, post_duration)	FramePro::ConditionalParentTimerScope FRAMEPRO_UNIQUE(timer_scope)(name, FRAMEPRO_SOURCE_STRING, callback, pre_duration, post_duration)
 	#define FRAMEPRO_SET_SCOPE_COLOUR(name, colour)											MULTI_STATEMENT( FramePro::SetScopeColour(FramePro::RegisterString(name), colour); )
+	#define FRAMEPRO_CALLSTACK()															FramePro::SendScopeCallstack()
 
 	// idle scope macros
-	#define FRAMEPRO_IDLE_SCOPE()															FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_SOURCE_STRING_IDLE)
+	#define FRAMEPRO_IDLE_SCOPE()															FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_NAMED_SCOPE(name)													FramePro::TimerScope FRAMEPRO_UNIQUE(timer_scope)(name "|" FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_NAMED_SCOPE_W(name)												FramePro::TimerScopeW FRAMEPRO_UNIQUE(timer_scope)(name L"|" FRAMEPRO_SOURCE_STRING_IDLE_W)
 	#define FRAMEPRO_IDLE_ID_SCOPE(name_id)													FramePro::IdTimerScope FRAMEPRO_UNIQUE(timer_scope)(name_id, FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_DYNAMIC_SCOPE(dynamic_string)										FramePro::IdTimerScope FRAMEPRO_UNIQUE(timer_scope)(FramePro::IsConnected() ? FramePro::RegisterString(dynamic_string) : -1, FRAMEPRO_SOURCE_STRING_IDLE)
-	#define FRAMEPRO_IDLE_CONDITIONAL_SCOPE()												FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_SOURCE_STRING_IDLE)
+	#define FRAMEPRO_IDLE_CONDITIONAL_SCOPE()												FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_CONDITIONAL_ID_SCOPE(name)										FramePro::ConditionalTimerScopeId FRAMEPRO_UNIQUE(timer_scope)(name, FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_CONDITIONAL_NAMED_SCOPE(name)										FramePro::ConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(name "|" FRAMEPRO_SOURCE_STRING_IDLE)
 	#define FRAMEPRO_IDLE_CONDITIONAL_NAMED_SCOPE_W(name)									FramePro::ConditionalTimerScopeW FRAMEPRO_UNIQUE(timer_scope)(name L"|" FRAMEPRO_SOURCE_STRING_IDLE_W)
-	#define FRAMEPRO_IDLE_START_NAMED_SCOPE(name)											FramePro::int64 framepro_start_##name=0; FRAMEPRO_GET_CLOCK_COUNT(framepro_start_##name);
-	#define FRAMEPRO_IDLE_STOP_NAMED_SCOPE(name)											MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end_##name; FRAMEPRO_GET_CLOCK_COUNT(framepro_end_##name); FramePro::AddTimeSpan(#name "|" FRAMEPRO_SOURCE_STRING_IDLE, framepro_start_##name, framepro_end_##name); } )
-	#define FRAMEPRO_IDLE_CONDITIONAL_START_SCOPE()											FramePro::int64 framepro_start=0; MULTI_STATEMENT( if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start); } )
-	#define FRAMEPRO_IDLE_CONDITIONAL_STOP_NAMED_SCOPE(name)								MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(name "|" FRAMEPRO_SOURCE_STRING_IDLE, framepro_start, framepro_end); } )
-	#define FRAMEPRO_IDLE_CONDITIONAL_STOP_DYNAMIC_SCOPE(dynamic_string)					MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(FramePro::RegisterString(dynamic_string), FRAMEPRO_SOURCE_STRING_IDLE, framepro_start, framepro_end); } )
+	#define FRAMEPRO_IDLE_START_NAMED_SCOPE(name)											FramePro::int64 framepro_start_##name=0; if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start_##name); FramePro::StartScope(); }
+	#define FRAMEPRO_IDLE_STOP_NAMED_SCOPE(name)											MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end_##name; FRAMEPRO_GET_CLOCK_COUNT(framepro_end_##name); FramePro::AddTimeSpan(#name "|" FRAMEPRO_SOURCE_STRING_IDLE, framepro_start_##name, framepro_end_##name); FramePro::StopScope(); } )
+	#define FRAMEPRO_IDLE_CONDITIONAL_START_SCOPE()											FramePro::int64 framepro_start=0; MULTI_STATEMENT( if(FramePro::IsConnected()) { FRAMEPRO_GET_CLOCK_COUNT(framepro_start); FramePro::StartScope(); } )
+	#define FRAMEPRO_IDLE_CONDITIONAL_STOP_NAMED_SCOPE(name)								MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(name "|" FRAMEPRO_SOURCE_STRING_IDLE, framepro_start, framepro_end); FramePro::StopScope(); } )
+	#define FRAMEPRO_IDLE_CONDITIONAL_STOP_DYNAMIC_SCOPE(dynamic_string)					MULTI_STATEMENT( if(FramePro::IsConnected()) { FramePro::int64 framepro_end; FRAMEPRO_GET_CLOCK_COUNT(framepro_end); if(framepro_end - framepro_start > FramePro::GetConditionalScopeMinTime()) FramePro::AddTimeSpan(FramePro::RegisterString(dynamic_string), FRAMEPRO_SOURCE_STRING_IDLE, framepro_start, framepro_end); FramePro::StopScope(); } )
 
 	// custom stat macros
 	#define FRAMEPRO_CUSTOM_STAT(name, value, graph, unit, colour)							MULTI_STATEMENT( if(FramePro::IsConnected()) FramePro::AddCustomStat(name, value, graph, unit, colour); )
@@ -121,9 +117,10 @@
 	// high-res timers
 	#define FRAMEPRO_HIRES_SCOPE(name)														FramePro::HiResTimerScope FRAMEPRO_UNIQUE(hires_scope)(name)
 
-	// global high-res timers
-	#define FRAMEPRO_DECL_GLOBAL_HIRES_TIMER(name)											FramePro::GlobalHiResTimer g_FrameProHiResTimer##name(#name)
-	#define FRAMEPRO_GLOBAL_HIRES_SCOPE(name)												FramePro::GlobalHiResTimerScope FRAMEPRO_UNIQUE(timer_scope)(g_FrameProHiResTimer##name)
+	// custom stat timers
+	#define FRAMEPRO_DECL_CUSTOM_STAT_TIMER(name)											FramePro::CustomStatTimer g_FrameProCustomStatTimer##name(#name)
+	#define FRAMEPRO_EXTERN_CUSTOM_STAT_TIMER(name)											extern FramePro::CustomStatTimer g_FrameProCustomStatTimer##name
+	#define FRAMEPRO_CUSTOM_STAT_TIMER_SCOPE(name)											FramePro::CustomStatTimerScope FRAMEPRO_UNIQUE(timer_scope)(g_FrameProCustomStatTimer##name)
 
 	// events
 	#define FRAMEPRO_EVENT(name, colour)													FramePro::AddEvent(name, colour)
@@ -136,9 +133,10 @@
 	#define FRAMEPRO_FRAME_START()															((void)0)
 	#define FRAMEPRO_SHUTDOWN()																((void)0)
 	#define FRAMEPRO_SET_PORT(port)															((void)0)
-	#define FRAMEPRO_SET_SESSION_INFO(name, id)												((void)0)
+	#define FRAMEPRO_SESSION_INFO(name, id)													((void)0)
 	#define FRAMEPRO_SET_ALLOCATOR(p_allocator)												((void)0)
 	#define FRAMEPRO_SET_THREAD_NAME(name)													((void)0)
+	#define FRAMEPRO_SET_THREAD_ID_NAME(thread_id, name)									((void)0)
 	#define FRAMEPRO_THREAD_ORDER(thread_name)												((void)0)
 	#define FRAMEPRO_REGISTER_STRING(str)													0
 	#define FRAMEPRO_START_RECORDING(filename, context_switches, callstacks, max_file_size)	((void)0)
@@ -174,6 +172,7 @@
 	#define FRAMEPRO_CONDITIONAL_STOP_DYNAMIC_SCOPE(dynamic_string)							((void)0)
 	#define FRAMEPRO_CONDITIONAL_PARENT_SCOPE(name, callback, pre_duration, post_duration)	((void)0)
 	#define FRAMEPRO_SET_SCOPE_COLOUR(name, colour)											((void)0)
+	#define FRAMEPRO_CALLSTACK()															((void)0)
 
 	#define FRAMEPRO_IDLE_SCOPE()															((void)0)
 	#define FRAMEPRO_IDLE_NAMED_SCOPE(name)													((void)0)
@@ -199,8 +198,9 @@
 
 	#define FRAMEPRO_HIRES_SCOPE(name)														((void)0)
 
-	#define FRAMEPRO_DECL_GLOBAL_HIRES_TIMER(name)											
-	#define FRAMEPRO_GLOBAL_HIRES_SCOPE(name)												((void)0)
+	#define FRAMEPRO_DECL_CUSTOM_STAT_TIMER(name)											
+	#define FRAMEPRO_EXTERN_CUSTOM_STAT_TIMER(name)
+	#define FRAMEPRO_CUSTOM_STAT_TIMER_SCOPE(name)											((void)0)
 
 	#define FRAMEPRO_EVENT(name, colour)													((void)0)
 
@@ -257,7 +257,7 @@ namespace FramePro
 #define FRAMEPRO_ENABLE_CONTEXT_SWITCH_TRACKING 1
 
 //------------------------------------------------------------------------
-#define FRAMEPRO_ENABLE_CALLSTACKS 1
+#define FRAMEPRO_ENABLE_CALLSTACKS 0
 
 //------------------------------------------------------------------------
 // If this is disabled and two dynamic strings happen to hash to the same value you may see
@@ -269,6 +269,13 @@ namespace FramePro
 //------------------------------------------------------------------------
 #define FRAMEPRO_STACK_TRACE_SIZE 128
 
+//------------------------------------------------------------------------
+// FramePro will assert if a hires scope doesn't have a parent scope. Enabling
+// this define make the code detect that case and throw the hires scope away
+// instead of asserting.
+// This adds extra overhead to all scopes (function calls to increment/decrement
+// on each start/end scope) and so if off by default
+#define FRAMEPRO_ALLOW_UNPARENTED_HIRES_SCOPES 0
 
 //------------------------------------------------------------------------
 // DOCUMENTATION
@@ -344,11 +351,11 @@ namespace FramePro
 // Cleans up all FramePro resources. No thread can call into FramePro after this is called.
 
 
-// FRAMEPRO_SET_SESSION_INFO(name, build_id)
-// -----------------------------------------
-// name: string - name of the session
-// build_id: string - build id of the build being profiled
-// The session name is typically the game name. The build can be anything. These values are shown in the session info panel in FramePro.
+// FRAMEPRO_SESSION_INFO(name, value)
+// ----------------------------------
+// name: string
+// value: string
+// The name/value pair will be displayed in the FramePro SessionInfo panel. Use it for things such as the build name, version, etc.
 
 
 // FRAMEPRO_SET_ALLOCATOR(p_allocator)
@@ -363,6 +370,14 @@ namespace FramePro
 // -----------------------------------------
 // name: string (literal or dynamic)
 // Tell FramePro the name of the current thread.
+// FramePro will pick a colour based on the thread name which will always stay the same.
+
+
+// FRAMEPRO_SET_THREAD_ID_NAME(thread_id, name)
+// -----------------------------------------
+// thread_id: id of the thread to set
+// name: string (literal or dynamic)
+// Tell FramePro the name of the specified thread.
 // FramePro will pick a colour based on the thread name which will always stay the same.
 
 
@@ -455,7 +470,7 @@ namespace FramePro
 
 // FRAMEPRO_THREAD_SCOPE(thread_name)
 // ----------------------------------
-// thraed_name: string (literal or dynamic)
+// thread_name: string (literal or dynamic)
 // Calls FRAMEPRO_SET_THREAD_NAME at the start of the scope, and FRAMEPRO_CLEANUP_THREAD at the end of the scope.
 // Ensure that this is called outside of any other scopes.
 
@@ -659,6 +674,11 @@ namespace FramePro
 // This is a slow macro, so please only call once, not every frame.
 
 
+// FRAMEPRO_CALLSTACK()
+// --------------------------
+// capture the callstack and send for the current scope
+
+
 //--------------------------------------------------------------------------------------------------------
 // idle scope macros
 
@@ -808,33 +828,38 @@ namespace FramePro
 
 
 //--------------------------------------------------------------------------------------------------------
-// global hires timers
+// custom stat timers
 
-// Global high resolution timers are used when you want to time scopes that happen many thousands of times a frame
-// and don't want the overhead of recording a timespan for each scope. The scope simple adds to a global
-// value which stores total duration and count, and then sends that value once a frame. The timer is reset
-// at the start of each frame.
+// Custom stat timers are very low overhead high resolution timers. A custom stat timer is simply
+// a global timer value that is added to on every CUSTOM_STAT_TIMER_SCOPE. The timer is sent and
+// reset at the end of a frame. Custom stat timers are useful for timing events that happen
+// thousands of timer a frame.
 
 // Usage:
-//		// this defines a global timer with name "my_timer"
-//		FRAMEPRO_DECL_GLOBAL_HIRES_TIMER(my_timer)
+//		// this defines a custom stat timer with name "my_timer"
+//		FRAMEPRO_DECL_CUSTOM_STAT_TIMER(my_timer)
 //
 //		void MyFunction()
 //		{
-//			FRAMEPRO_HIRES_SCOPE(my_timer)
+//			FRAMEPRO_CUSTOM_STAT_TIMER_SCOPE(my_timer)
 //			...
 //		}
 
-// FRAMEPRO_DECL_GLOBAL_HIRES_TIMER(name)
-// ---------------------------------------------
-// name: unquoted string		the name of the global timer object
-// Declares a high resolution timer with the specified name.
+// FRAMEPRO_DECL_CUSTOM_STAT_TIMER(name)
+// -------------------------------------
+// name: unquoted string		the name of the custom stat timer object
+// Declares a custom stat timer with the specified name.
 
-// FRAMEPRO_GLOBAL_HIRES_SCOPE(name)
-// ---------------------------------
-// name: unquoted string		the name of the global timer declared with FRAMEPRO_GLOBAL_HIRES_SCOPE
-// Times the current scope and adds the value to the specified high-res timer. The high-res timer must
-// have already been declared with FRAMEPRO_GLOBAL_HIRES_SCOPE.
+// FRAMEPRO_EXTERN_CUSTOM_STAT_TIMER(name)
+// ---------------------------------------
+// name: unquoted string		the name of the custom stat timer object
+// Declares an extern to a custom stat timer with the specified name.
+
+// FRAMEPRO_CUSTOM_STAT_TIMER_SCOPE(name)
+// --------------------------------------
+// name: unquoted string		the name of the custom stat timer
+// Times the current scope and adds the value to the specified timer. The timer must have already been declared
+// with FRAMEPRO_DECL_CUSTOM_STAT_TIMER.
 
 
 //--------------------------------------------------------------------------------------------------------
@@ -860,7 +885,6 @@ namespace FramePro
 // Measure how long a thread waits on an event. For Win32 Events put this around the WaitForSingleObject
 // call. For Win32 critical sections put this around the EnterCriticalSection call. In order to not flood
 // the channel with events, the wait event is only sent if it is longer than FRAMEPRO_WAIT_EVENT_MIN_TIME.
-// FramePro will also only show a wait event if it was triggered with FRAMEPRO_STOP_WAIT_EVENT.
 
 // FRAMEPRO_TRIGGER_WAIT_EVENT(event_id)
 // ----------------------------------
@@ -891,10 +915,12 @@ namespace FramePro
 
 //------------------------------------------------------------------------
 // enable debug here to get FramePro asserts
-#if defined(DEBUG) || defined(_DEBUG)
-	#define FRAMEPRO_DEBUG 1
-#else
-	#define FRAMEPRO_DEBUG 0
+#ifndef FRAMEPRO_DEBUG
+	#if defined(DEBUG) || defined(_DEBUG)
+		#define FRAMEPRO_DEBUG 1
+	#else
+		#define FRAMEPRO_DEBUG 0
+	#endif
 #endif
 
 //------------------------------------------------------------------------
@@ -914,19 +940,15 @@ namespace FramePro
 #if defined(__UNREAL__)
 	#define FRAMEPRO_PLATFORM_UE4 1
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
-#if defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
-	#define FRAMEPRO_PLATFORM_WIN 1
-#else
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 0
-#endif
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
 	#define FRAMEPRO_PLATFORM_ANDROID 0
 #elif defined(_XBOX_ONE) || defined(_DURANGO)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 1
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -934,7 +956,7 @@ namespace FramePro
 #elif defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 1
+	#define FRAMEPRO_PLATFORM_UWP 1
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -942,7 +964,7 @@ namespace FramePro
 #elif defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 1
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -950,7 +972,7 @@ namespace FramePro
 #elif defined(__ORBIS__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 1
@@ -958,7 +980,7 @@ namespace FramePro
 #elif defined(__ANDROID__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -966,7 +988,7 @@ namespace FramePro
 #elif defined(unix) || defined(__unix__) || defined(__unix)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_HOLOLENS 0
+	#define FRAMEPRO_PLATFORM_UWP 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 1
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -976,10 +998,10 @@ namespace FramePro
 #endif
 
 //------------------------------------------------------------------------
-#define FRAMEPRO_SOURCE_STRING			__FILE__ "|" FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_STRINGIZE(__LINE__) "|"
-#define FRAMEPRO_SOURCE_STRING_W		FRAMEPRO_WIDESTR(__FILE__) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_FUNCTION_NAME) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_STRINGIZE(__LINE__)) L"|"
-#define FRAMEPRO_SOURCE_STRING_IDLE		__FILE__ "|" FRAMEPRO_FUNCTION_NAME "|" FRAMEPRO_STRINGIZE(__LINE__) "|Idle"
-#define FRAMEPRO_SOURCE_STRING_IDLE_W	FRAMEPRO_WIDESTR(__FILE__) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_FUNCTION_NAME) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_STRINGIZE(__LINE__)) L"|Idle"
+#define FRAMEPRO_SOURCE_STRING			__FILE__ "|" FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_STRINGIZE(__LINE__) "|"
+#define FRAMEPRO_SOURCE_STRING_W		FRAMEPRO_WIDESTR(__FILE__) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_FUNCTION_NAME_LITERAL) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_STRINGIZE(__LINE__)) L"|"
+#define FRAMEPRO_SOURCE_STRING_IDLE		__FILE__ "|" FRAMEPRO_FUNCTION_NAME_LITERAL "|" FRAMEPRO_STRINGIZE(__LINE__) "|Idle"
+#define FRAMEPRO_SOURCE_STRING_IDLE_W	FRAMEPRO_WIDESTR(__FILE__) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_FUNCTION_NAME_LITERAL) L"|" FRAMEPRO_WIDESTR(FRAMEPRO_STRINGIZE(__LINE__)) L"|Idle"
 
 //------------------------------------------------------------------------
 #if FRAMEPRO_DEBUG
@@ -1036,9 +1058,9 @@ namespace FramePro
 			RequestStringLiteralPacket,
 			SetConditionalScopeMinTimePacket,
 			ConnectResponsePacket,
-			SessionInfoPacket,
+			SessionStatsPacket,
 			RequestRecordedDataPacket,
-			SessionDetailsPacket,
+			legacy_SessionDetailsPacket,
 			ContextSwitchPacket,
 			ContextSwitchRecordingStartedPacket,
 			ProcessNamePacket,
@@ -1057,14 +1079,18 @@ namespace FramePro
 			StringLiteralNamedTimeSpanWithCallstack,
 			ModulePacket,
 			SetCallstackRecordingEnabledPacket,
-			CustomStatPacketW,
+			CustomStatPacketW_Depreciated2,
 			TimeSpanCustomStatPacketW,
-			CustomStatPacket,
+			CustomStatPacket_Depreciated2,
 			TimeSpanCustomStatPacket,
 			ScopeColourPacket,
 			CustomStatColourPacket,
 			CustomStatGraphPacket,
 			CustomStatUnitPacket,
+			CallstackPacket,
+			SessionInfoPacket,
+			CustomStatPacket,
+			CustomStatPacketW,
 		};
 	};
 }
@@ -1093,7 +1119,7 @@ namespace FramePro
 		enum Enum
 		{
 			Windows = 0,
-			Windows_HoloLens,
+			Windows_UWP,
 			XBoxOne,
 			Unused,
 			Linux,
@@ -1122,7 +1148,7 @@ namespace FramePro
 
 //------------------------------------------------------------------------
 //
-// FrameProPlatform.hpp
+// FrameProPlatform.h
 //
 #if FRAMEPRO_ENABLED
 
@@ -1190,9 +1216,9 @@ namespace FramePro
 	#define FRAMEPRO_ENUMERATE_ALL_MODULES (FRAMEPRO_X64 && 1)
 
 //------------------------------------------------------------------------
-//                         FRAMEPRO_PLATFORM_HOLOLENS
+//                         FRAMEPRO_PLATFORM_UWP
 //------------------------------------------------------------------------
-#elif FRAMEPRO_PLATFORM_HOLOLENS
+#elif FRAMEPRO_PLATFORM_UWP
 
 	__int64 FramePro_QueryPerformanceCounter();
 	#define FRAMEPRO_GET_CLOCK_COUNT(time) time = FramePro_QueryPerformanceCounter()
@@ -1215,7 +1241,7 @@ namespace FramePro
 	#define FRAMEPRO_TCHAR _TCHAR
 	
 	#define MULTI_STATEMENT(s) do { s } while(true,false)
-	
+
 	#if !defined(__clang__)
 		#define FRAMEPRO_FUNCTION_DEFINE_IS_STRING_LITERAL 1
 	#else
@@ -1415,7 +1441,7 @@ namespace FramePro
 
 		void DestroyContextSwitchRecorder(void* p_context_switch_recorder, Allocator* p_allocator);
 
-		bool StartRecordingContextSitches(void* p_context_switch_recorder, ContextSwitchCallbackFunction p_callback, void* p_context, DynamicString& error);
+		bool StartRecordingContextSitches(void* p_context_switch_recorder, ContextSwitchCallbackFunction p_callback, void* p_context, DynamicString& error, Allocator* p_allocator);
 		
 		void StopRecordingContextSitches(void* p_context_switch_recorder);
 
@@ -1479,7 +1505,7 @@ namespace FramePro
 
 		void HandleSocketError();
 
-		void CreateThread(
+		bool CreateThread(
 			void* p_os_thread_mem,
 			int os_thread_mem_size,
 			ThreadMain p_thread_main,
@@ -1523,28 +1549,36 @@ namespace FramePro
 #include <atomic>
 
 //------------------------------------------------------------------------
-#if FRAMEPRO_FUNCTION_DEFINE_IS_STRING_LITERAL
-	#define FRAMEPRO_FUNCTION_NAME __FUNCTION__
+#if FRAMEPRO_WIN_BASED_PLATFORM
+	#define FRAMEPRO_FUNCTION_NAME __FUNCSIG__
 #else
-	#define FRAMEPRO_FUNCTION_NAME ""		// __FUNCTION__ is not a string literal on Linux platforms so we can't combine it with other string literals
+	#define FRAMEPRO_FUNCTION_NAME __PRETTY_FUNCTION__
+#endif
 
-	// On non-windows based platforms __FUNCTION__ can't be concatonated with
-	// other string literals so we need to pass in the name separately.
+//------------------------------------------------------------------------
+#if FRAMEPRO_FUNCTION_DEFINE_IS_STRING_LITERAL
+	#define FRAMEPRO_FUNCTION_NAME_LITERAL FRAMEPRO_FUNCTION_NAME
+#else
+	#define FRAMEPRO_FUNCTION_NAME_LITERAL ""		// FRAMEPRO_FUNCTION_NAME is not a string literal on Linux platforms so we can't combine it with other string literals
+
+	// If FRAMEPRO_FUNCTION_NAME is not a string literal it can't be
+	// concatonated with other string literals so we need to pass in
+	// the name separately.
 	#ifdef FRAMEPRO_SCOPE
 		#undef FRAMEPRO_SCOPE
-		#define FRAMEPRO_SCOPE() 					FramePro::StringLiteralNamedTimerScope FRAMEPRO_UNIQUE(timer_scope)(__FUNCTION__, FRAMEPRO_SOURCE_STRING)
+		#define FRAMEPRO_SCOPE() 					FramePro::StringLiteralNamedTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME, FRAMEPRO_SOURCE_STRING)
 	#endif
 	#ifdef FRAMEPRO_CONDITIONAL_SCOPE
 		#undef FRAMEPRO_CONDITIONAL_SCOPE
-		#define FRAMEPRO_CONDITIONAL_SCOPE()		FramePro::StringLiteralNamedConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(__FUNCTION__, FRAMEPRO_SOURCE_STRING)
+		#define FRAMEPRO_CONDITIONAL_SCOPE()		FramePro::StringLiteralNamedConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME, FRAMEPRO_SOURCE_STRING)
 	#endif
 	#ifdef FRAMEPRO_IDLE_SCOPE
 		#undef FRAMEPRO_IDLE_SCOPE
-		#define FRAMEPRO_IDLE_SCOPE()				FramePro::StringLiteralNamedTimerScope FRAMEPRO_UNIQUE(timer_scope)(__FUNCTION__, FRAMEPRO_SOURCE_STRING_IDLE)
+		#define FRAMEPRO_IDLE_SCOPE()				FramePro::StringLiteralNamedTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME, FRAMEPRO_SOURCE_STRING_IDLE)
 	#endif
 	#ifdef FRAMEPRO_IDLE_CONDITIONAL_SCOPE
 		#undef FRAMEPRO_IDLE_CONDITIONAL_SCOPE
-		#define FRAMEPRO_IDLE_CONDITIONAL_SCOPE()	FramePro::StringLiteralNamedConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(__FUNCTION__, FRAMEPRO_SOURCE_STRING_IDLE)
+		#define FRAMEPRO_IDLE_CONDITIONAL_SCOPE()	FramePro::StringLiteralNamedConditionalTimerScope FRAMEPRO_UNIQUE(timer_scope)(FRAMEPRO_FUNCTION_NAME, FRAMEPRO_SOURCE_STRING_IDLE)
 	#endif
 #endif
 
@@ -1589,9 +1623,9 @@ namespace FramePro
 
 	FRAMEPRO_API void DebugBreak();
 
-	FRAMEPRO_API void SendSessionInfo(const char* p_name, const char* p_build_id);
+	FRAMEPRO_API void SendSessionInfo(const char* p_name, const char* p_value);
 
-	FRAMEPRO_API void SendSessionInfo(const wchar_t* p_name, const wchar_t* p_build_id);
+	FRAMEPRO_API void SendSessionInfo(const wchar_t* p_name, const wchar_t* p_value);
 
 	FRAMEPRO_API void SetAllocator(class Allocator* p_allocator);		// if you call this you must call it BEFORE any other calls
 
@@ -1649,11 +1683,13 @@ namespace FramePro
 
 	FRAMEPRO_API void AddEvent(const char* p_name, uint colour);
 
-	FRAMEPRO_API void AddWaitEvent(int64 event_id, int64 start_time, int64 end_time);
+	FRAMEPRO_API void AddWaitEvent(int64 event_id, int64 start_time, int start_core, int64 end_time, int end_core);
 
 	FRAMEPRO_API void TriggerWaitEvent(int64 event_id);
 
 	FRAMEPRO_API void SetThreadName(const char* p_name);
+
+	FRAMEPRO_API void SetThreadName(int thread_id, const char* p_name);
 
 	FRAMEPRO_API void SetThreadOrder(StringId thread_name);
 
@@ -1679,7 +1715,7 @@ namespace FramePro
 
 	FRAMEPRO_API void UnblockSockets();
 
-	FRAMEPRO_API void AddGlobalHiResTimer(class GlobalHiResTimer* p_timer);
+	FRAMEPRO_API void AddCustomStatTimer(class CustomStatTimer* p_timer);
 
 	FRAMEPRO_API void CleanupThread();
 
@@ -1692,8 +1728,6 @@ namespace FramePro
 	FRAMEPRO_API void StartHiResTimer(const char* p_name);
 
 	FRAMEPRO_API void StopHiResTimer();
-
-	FRAMEPRO_API void SubmitHiResTimers(int64 current_time);
 
 	FRAMEPRO_API void Log(const char* p_message);
 
@@ -1730,6 +1764,18 @@ namespace FramePro
 	FRAMEPRO_API void SetCustomStatUnit(StringId name, StringId unit);
 
 	FRAMEPRO_API void SetCustomStatColour(StringId name, uint colour);
+
+	FRAMEPRO_API void SendScopeCallstack();
+
+	FRAMEPRO_API int GetCore();
+
+#if FRAMEPRO_DEBUG || FRAMEPRO_ALLOW_UNPARENTED_HIRES_SCOPES
+	FRAMEPRO_API void StartScope();
+	FRAMEPRO_API void StopScope();
+#else
+	inline void StartScope() {}
+	inline void StopScope() {}
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -1746,69 +1792,36 @@ namespace FramePro
 	};
 
 	//------------------------------------------------------------------------
-	template<class T>
-	inline T* New(Allocator* p_allocator)
-	{
-		T* p = (T*)p_allocator->Alloc(sizeof(T));
-		new (p)T();
-		return p;
-	}
-
-	//------------------------------------------------------------------------
-	template<class T, typename Targ1>
-	inline T* New(Allocator* p_allocator, Targ1 arg1)
-	{
-		T* p = (T*)p_allocator->Alloc(sizeof(T));
-		new (p)T(arg1);
-		return p;
-	}
-
-	//------------------------------------------------------------------------
-	template<class T, typename Targ1, typename Targ2, typename TArg3>
-	inline T* New(Allocator* p_allocator, Targ1 arg1, Targ2 arg2, TArg3 arg3)
-	{
-		T* p = (T*)p_allocator->Alloc(sizeof(T));
-		new (p)T(arg1, arg2, arg3);
-		return p;
-	}
-
-	//------------------------------------------------------------------------
-	template<typename T>
-	inline void Delete(Allocator* p_allocator, T* p)
-	{
-		p->~T();
-		p_allocator->Free(p);
-	}
-
-	//------------------------------------------------------------------------
 	class TimerScope
 	{
 	public:
 		TimerScope(const char* p_name_and_source_info)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~TimerScope()
 		{
-			if(m_Connected)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const char* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -1818,30 +1831,32 @@ namespace FramePro
 	{
 	public:
 		TimerScopeW(const wchar_t* p_name_and_source_info)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~TimerScopeW()
 		{
-			if(m_Connected)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const wchar_t* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -1851,29 +1866,30 @@ namespace FramePro
 	{
 	public:
 		ConditionalParentTimerScope(const char* p_name, const char* p_source_info, ConditionalParentScopeCallback p_callback, int64 pre_duration, int64 post_duration)
-		:	mp_Name(p_name),
-			mp_SourceInfo(p_source_info),
-			m_StartTime(0),
-			mp_Callback(p_callback)
+		:	mp_Callback(p_callback)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			if (connected)
+			if (FramePro::IsConnected())
 			{
+				mp_Name = p_name;
+				mp_SourceInfo = p_source_info;
+
 				FramePro::PushConditionalParentScope(p_name, pre_duration, post_duration);
 
-				int64 start_time;
-				FRAMEPRO_GET_CLOCK_COUNT(start_time);
-				if (connected)
-					FramePro::SubmitHiResTimers(start_time);
-				m_StartTime = start_time;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_Name = nullptr;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
 			}
 		}
 
 		~ConditionalParentTimerScope()
 		{
-			if (m_Connected)
+			if (mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
@@ -1882,11 +1898,12 @@ namespace FramePro
 				FramePro::PopConditionalParentScope(add_children);
 
 				FramePro::AddTimeSpan(mp_Name, mp_SourceInfo, m_StartTime, end_time);
+
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const char* mp_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
@@ -1899,31 +1916,34 @@ namespace FramePro
 	{
 	public:
 		IdTimerScope(StringId name, const char* p_source_info)
-		:	m_Name(name),
-			mp_SourceInfo(p_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				m_Name = name;
+				mp_SourceInfo = p_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				m_Name = 0;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~IdTimerScope()
 		{
-			if(m_Connected)
+			if(mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				FramePro::AddTimeSpan(m_Name, mp_SourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		StringId m_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
@@ -1935,31 +1955,34 @@ namespace FramePro
 	public:
 		// p_name must be a string literal
 		StringLiteralNamedTimerScope(const char* p_name, const char* p_source_info)
-		:	mp_Name(p_name),
-			mp_SourceInfo(p_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_Name = p_name;
+				mp_SourceInfo = p_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_Name = nullptr;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~StringLiteralNamedTimerScope()
 		{
-			if(m_Connected)
+			if(mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				FramePro::AddTimeSpan(mp_Name, mp_SourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const char* mp_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
@@ -1970,31 +1993,33 @@ namespace FramePro
 	{
 	public:
 		ConditionalTimerScope(const char* p_name_and_source_info)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~ConditionalTimerScope()
 		{
-			if(m_Connected)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const char* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -2004,32 +2029,35 @@ namespace FramePro
 	{
 	public:
 		ConditionalTimerScopeId(StringId name, const char* p_source_info)
-		:	m_Name(name),
-			mp_SourceInfo(p_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				m_Name = name;
+				mp_SourceInfo = p_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				m_Name = 0;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~ConditionalTimerScopeId()
 		{
-			if(m_Connected)
+			if(mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(m_Name, mp_SourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		StringId m_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
@@ -2040,31 +2068,33 @@ namespace FramePro
 	{
 	public:
 		ConditionalTimerScopeW(const wchar_t* p_name_and_source_info)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~ConditionalTimerScopeW()
 		{
-			if(m_Connected)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const wchar_t* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -2074,33 +2104,33 @@ namespace FramePro
 	{
 	public:
 		ConditionalBoolTimerScope(const char* p_name_and_source_info, bool b)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool send_scope = b && FramePro::IsConnected();
-			m_SendScope = send_scope;
-
-			if (send_scope)
+			if (b && FramePro::IsConnected())
 			{
-				int64 start_time;
-				FRAMEPRO_GET_CLOCK_COUNT(start_time);
-				FramePro::SubmitHiResTimers(start_time);
-				m_StartTime = start_time;
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
 			}
 		}
 
 		~ConditionalBoolTimerScope()
 		{
-			if(m_SendScope)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_SendScope;
 		const char* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -2110,34 +2140,35 @@ namespace FramePro
 	{
 	public:
 		ConditionalBoolTimerScopeId(StringId name, const char* p_source_info, bool b)
-		:	m_Name(name),
-			mp_SourceInfo(p_source_info)
 		{
-			bool send_scope = b && FramePro::IsConnected();
-			m_SendScope = send_scope;
-
-			if (send_scope)
+			if (b && FramePro::IsConnected())
 			{
-				int64 start_time;
-				FRAMEPRO_GET_CLOCK_COUNT(start_time);
-				FramePro::SubmitHiResTimers(start_time);
-				m_StartTime = start_time;
+				m_Name = name;
+				mp_SourceInfo = p_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				m_Name = 0;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
 			}
 		}
 
 		~ConditionalBoolTimerScopeId()
 		{
-			if(m_SendScope)
+			if(mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(m_Name, mp_SourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_SendScope;
 		StringId m_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
@@ -2148,33 +2179,33 @@ namespace FramePro
 	{
 	public:
 		ConditionalBoolTimerScopeW(const wchar_t* p_name_and_source_info, bool b)
-		:	mp_NameAndSourceInfo(p_name_and_source_info)
 		{
-			bool send_scope = b && FramePro::IsConnected();
-			m_SendScope = send_scope;
-
-			if (send_scope)
+			if (b && FramePro::IsConnected())
 			{
-				int64 start_time;
-				FRAMEPRO_GET_CLOCK_COUNT(start_time);
-				FramePro::SubmitHiResTimers(start_time);
-				m_StartTime = start_time;
+				mp_NameAndSourceInfo = p_name_and_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_NameAndSourceInfo = nullptr;
+				m_StartTime = 0;
 			}
 		}
 
 		~ConditionalBoolTimerScopeW()
 		{
-			if(m_SendScope)
+			if(mp_NameAndSourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(mp_NameAndSourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_SendScope;
 		const wchar_t* mp_NameAndSourceInfo;
 		int64 m_StartTime;
 	};
@@ -2184,62 +2215,71 @@ namespace FramePro
 	{
 	public:
 		StringLiteralNamedConditionalTimerScope(const char* p_name, const char* p_source_info)
-		:	mp_Name(p_name),
-			mp_SourceInfo(p_source_info)
 		{
-			bool connected = FramePro::IsConnected();
-			m_Connected = connected;
-
-			int64 start_time;
-			FRAMEPRO_GET_CLOCK_COUNT(start_time);
-			if (connected)
-				FramePro::SubmitHiResTimers(start_time);
-			m_StartTime = start_time;
+			if (FramePro::IsConnected())
+			{
+				mp_Name = p_name;
+				mp_SourceInfo = p_source_info;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+				FramePro::StartScope();
+			}
+			else
+			{
+				mp_Name = nullptr;
+				mp_SourceInfo = nullptr;
+				m_StartTime = 0;
+			}
 		}
 
 		~StringLiteralNamedConditionalTimerScope()
 		{
-			if(m_Connected)
+			if(mp_SourceInfo)
 			{
 				int64 end_time = 0;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 				if(end_time - m_StartTime > FramePro::GetConditionalScopeMinTime())
 					FramePro::AddTimeSpan(mp_Name, mp_SourceInfo, m_StartTime, end_time);
+				FramePro::StopScope();
 			}
 		}
 
 	private:
-		bool m_Connected;
 		const char* mp_Name;
 		const char* mp_SourceInfo;
 		int64 m_StartTime;
 	};
 
 	//------------------------------------------------------------------------
-	class GlobalHiResTimer
+	class CustomStatTimer
 	{
 	public:
-		GlobalHiResTimer(const char* p_name) : m_Value(0), mp_Next(NULL), mp_Name(p_name)
+		CustomStatTimer(const char* p_name)
+		:	m_Value(0),
+			mp_Next(NULL)
 		{
-			FramePro::AddGlobalHiResTimer(this);
+			mp_Name = p_name;
+			FramePro::AddCustomStatTimer(this);
 		}
 
 		void Add(uint value)
 		{
-			uint64 existing_value = m_Value.load(std::memory_order_relaxed);
-			uint64 new_value;
-			do
+			if (mp_Name)
 			{
-				uint64 duration = existing_value & 0xffffffffff;
-				uint64 count = (existing_value >> 40) & 0xffffff;
-				duration += value;
-				++count;
-				new_value = (count << 40) | duration;
+				uint64 existing_value = m_Value.load(std::memory_order_relaxed);
+				uint64 new_value;
+				do
+				{
+					uint64 duration = existing_value & 0xffffffffff;
+					uint64 count = (existing_value >> 40) & 0xffffff;
+					duration += value;
+					++count;
+					new_value = (count << 40) | duration;
 
-				FRAMEPRO_ASSERT(count <= 0xffffff);
-				FRAMEPRO_ASSERT(duration <= 0xffffffffffL);
+					FRAMEPRO_ASSERT(count <= 0xffffff);
+					FRAMEPRO_ASSERT(duration <= 0xffffffffffL);
 
-			} while (!m_Value.compare_exchange_weak(existing_value, new_value, std::memory_order_relaxed, std::memory_order_relaxed));
+				} while (!m_Value.compare_exchange_weak(existing_value, new_value, std::memory_order_relaxed, std::memory_order_relaxed));
+			}
 		}
 
 		void GetAndClear(uint64& value, uint& count)
@@ -2252,47 +2292,54 @@ namespace FramePro
 			count = (existing_value >> 40) & 0xffffff;
 		}
 
-		void SetNext(GlobalHiResTimer* p_next) { mp_Next = p_next; }
+		void SetNext(CustomStatTimer* p_next) { mp_Next = p_next; }
 
-		GlobalHiResTimer* GetNext() const { return mp_Next; }
+		CustomStatTimer* GetNext() const { return mp_Next; }
 
 		const char* GetName() const { return mp_Name; }
 
 	private:
 		std::atomic<uint64> m_Value;
 
-		GlobalHiResTimer* mp_Next;
+		CustomStatTimer* mp_Next;
 
 		const char* mp_Name;
 	};
 
 	//------------------------------------------------------------------------
-	class GlobalHiResTimerScope
+	class CustomStatTimerScope
 	{
 	public:
-		GlobalHiResTimerScope(GlobalHiResTimer& timer)
-		:	m_Timer(timer)
-		{
-			FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
-		}
-
-		~GlobalHiResTimerScope()
+		CustomStatTimerScope(CustomStatTimer& timer)
 		{
 			if (FramePro::IsConnected())
+			{
+				mp_Timer = &timer;
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+			}
+			else
+			{
+				mp_Timer = nullptr;
+			}
+		}
+
+		~CustomStatTimerScope()
+		{
+			if (mp_Timer)
 			{
 				int64 end_time;
 				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 
-				m_Timer.Add((uint)(end_time - m_StartTime));
+				mp_Timer->Add((uint)(end_time - m_StartTime));
 			}
 		}
 
 	private:
-		GlobalHiResTimerScope(const GlobalHiResTimerScope&);
-		GlobalHiResTimerScope& operator=(const GlobalHiResTimerScope&);
+		CustomStatTimerScope(const CustomStatTimerScope&);
+		CustomStatTimerScope& operator=(const CustomStatTimerScope&);
 
 		int64 m_StartTime;
-		GlobalHiResTimer& m_Timer;
+		CustomStatTimer* mp_Timer;
 	};
 
 	//------------------------------------------------------------------------
@@ -2338,22 +2385,36 @@ namespace FramePro
 	{
 	public:
 		WaitEventScope(int64 event_id)
-		:	m_EventId(event_id)
 		{
-			FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+			if (FramePro::IsConnected())
+			{
+				m_EventId = event_id;
+				m_StartCore = FramePro::GetCore();
+				FRAMEPRO_GET_CLOCK_COUNT(m_StartTime);
+			}
+			else
+			{
+				m_EventId = 0;
+				m_StartCore = 0;
+				m_StartTime = 0;
+			}
 		}
 
 		~WaitEventScope()
 		{
-			int64 end_time;
-			FRAMEPRO_GET_CLOCK_COUNT(end_time);
+			if (m_EventId)
+			{
+				int64 end_time;
+				FRAMEPRO_GET_CLOCK_COUNT(end_time);
 
-			FramePro::AddWaitEvent(m_EventId, m_StartTime, end_time);
+				FramePro::AddWaitEvent(m_EventId, m_StartTime, m_StartCore, end_time, FramePro::GetCore());
+			}
 		}
 
 	private:
 		int64 m_EventId;
 		int64 m_StartTime;
+		int m_StartCore;
 	};
 
 	//------------------------------------------------------------------------
@@ -2391,13 +2452,100 @@ namespace FramePro
 			return hash;
 		#endif
 	}
+
+	//------------------------------------------------------------------------
+	namespace ThreadState
+	{
+		enum Enum
+		{
+			Initialized = 0,
+			Ready,
+			Running,
+			Standby,
+			Terminated,
+			Waiting,
+			Transition,
+			DeferredReady,
+
+			Reserved1,
+			Reserved2,
+			Reserved3,
+			Reserved4,
+			Reserved5,
+			Reserved6,
+			Reserved7,
+			Reserved8,
+			Reserved9,
+			Reserved10,
+			Reserved11,
+			Reserved12,
+		};
+	}
+
+	//------------------------------------------------------------------------
+	namespace ThreadWaitReason
+	{
+		enum Enum
+		{
+			Executive = 0,
+			FreePage,
+			PageIn,
+			PoolAllocation,
+			DelayExecution,
+			Suspended,
+			UserRequest,
+			WrExecutive,
+			WrFreePage,
+			WrPageIn,
+			WrPoolAllocation,
+			WrDelayExecution,
+			WrSuspended,
+			WrUserRequest,
+			WrEventPair,
+			WrQueue,
+			WrLpcReceive,
+			WrLpcReply,
+			WrVirtualMemory,
+			WrPageOut,
+			WrRendezvous,
+			WrKeyedEvent,
+			WrTerminated,
+			WrProcessInSwap,
+			WrCpuRateControl,
+			WrCalloutStack,
+			WrKernel,
+			WrResource,
+			WrPushLock,
+			WrMutex,
+			WrQuantumEnd,
+			WrDispatchInt,
+			WrPreempted,
+			WrYieldExecution,
+			WrFastMutex,
+			WrGuardedMutex,
+			WrRundown,
+			MaximumWaitReason,
+		};
+	}
+
+	//------------------------------------------------------------------------
+	struct ContextSwitch
+	{
+		int64 m_Timestamp;
+		int m_ProcessId;
+		int m_CPUId;
+		int m_OldThreadId;
+		int m_NewThreadId;
+		ThreadState::Enum m_OldThreadState;
+		ThreadWaitReason::Enum m_OldThreadWaitReason;
+	};
 }
 
 //------------------------------------------------------------------------
 
 //------------------------------------------------------------------------
 //
-// Array.hpp
+// Array.h
 //
 #include <memory.h>
 
@@ -2460,13 +2608,18 @@ namespace FramePro
 		}
 
 		//--------------------------------------------------------------------
-		void Add(const T& value)
+		bool Add(const T& value)
 		{
-			if(m_Count == m_Capacity)
-				Grow();
+			if (m_Count == m_Capacity)
+			{
+				if (!Grow())
+					return false;
+			}
 
 			mp_Array[m_Count] = value;
 			++m_Count;
+
+			return true;
 		}
 
 		//--------------------------------------------------------------------
@@ -2512,7 +2665,7 @@ namespace FramePro
 		}
 
 		//--------------------------------------------------------------------
-		void Resize(int count)
+		bool Resize(int count)
 		{
 			int new_capacity = m_Count + count;
 
@@ -2523,6 +2676,12 @@ namespace FramePro
 					m_Capacity *= 2;
 
 				T* p_new_array = (T*)mp_Allocator->Alloc(sizeof(T)*m_Capacity);
+				if (!p_new_array)
+				{
+					mp_Array = NULL;
+					return false;
+				}
+
 				if (mp_Array)
 					memcpy(p_new_array, mp_Array, sizeof(T)*m_Count);
 				mp_Allocator->Free(mp_Array);
@@ -2530,18 +2689,30 @@ namespace FramePro
 			}
 
 			m_Count = count;
+
+			return true;
 		}
 
 	private:
 		//--------------------------------------------------------------------
-		void Grow()
+		bool Grow()
 		{
 			m_Capacity = m_Capacity ? 2*m_Capacity : 32;
+			
 			T* p_new_array = (T*)mp_Allocator->Alloc(sizeof(T)*m_Capacity);
+			if (!p_new_array)
+			{
+				mp_Array = NULL;
+				return false;
+			}
+
 			if(mp_Array)
 				memcpy(p_new_array, mp_Array, sizeof(T)*m_Count);
+
 			mp_Allocator->Free(mp_Array);
 			mp_Array = p_new_array;
+
+			return true;
 		}
 
 		//------------------------------------------------------------------------
@@ -2564,3 +2735,4 @@ namespace FramePro
 
 //------------------------------------------------------------------------
 #endif		// #ifndef FRAMEPRO_H_INCLUDED
+
