@@ -882,6 +882,7 @@ void FOpenGLDynamicRHI::SetupUAVsForProgram(FOpenGLContextState& ContextState, c
 
 static bool IsImageTextureFormatSupported(GLenum Format)
 {
+#if PLATFORM_ANDROID
 	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		// from GLES 3.1 spec
@@ -905,6 +906,7 @@ static bool IsImageTextureFormatSupported(GLenum Format)
 				return false;
 		}
 	}
+#endif
 	return true;
 }
 
