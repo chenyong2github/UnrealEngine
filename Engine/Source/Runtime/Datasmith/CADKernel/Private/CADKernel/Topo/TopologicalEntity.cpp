@@ -1,0 +1,15 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "CADKernel/Topo/TopologicalEntity.h"
+
+
+using namespace CADKernel;
+
+#ifdef CADKERNEL_DEV
+FInfoEntity& FTopologicalEntity::GetInfo(FInfoEntity& Info) const
+{
+	return FEntityGeom::GetInfo(Info)
+		.Add(TEXT("IsMesh"), IsMeshed());
+}
+#endif
+
+

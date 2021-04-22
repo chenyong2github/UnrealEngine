@@ -1,0 +1,128 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CADKernel/Core/Types.h"
+#include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Math/Geometry.h"
+#include "CADKernel/UI/Message.h"
+
+namespace CADKernel
+{
+	class FGrid;
+	class FIsoNode;
+	class FIsoSegment;
+	class FPoint2D;
+
+	struct FSegment4IntersectionTools
+	{
+		const TSegment<FPoint2D> Segment2D;
+
+		/**
+		 * Segment's axis aligned bounding box
+		 */
+		const FSurfacicBoundary Boundary;
+
+		const FIsoSegment* IsoSegment;
+
+		/**
+		 * Uses as criterion to sort segments to optimize 
+		 * AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min 
+		 */
+		double AxisMin;
+
+		FSegment4IntersectionTools(const FGrid& Grid, const FIsoSegment& InSegment);
+
+		FSegment4IntersectionTools(const FPoint2D& StartPoint, const FPoint2D& EndPoint)
+			: Segment2D(StartPoint, EndPoint)
+			, Boundary(StartPoint, EndPoint)
+			, IsoSegment(nullptr)
+		{
+			AxisMin = Boundary[EIso::IsoU].Min + Boundary[EIso::IsoV].Min;
+		}
+
+		/**
+		 * @return false if their Boundaries are not intersecting 
+		 */
+		bool CouldItIntersect(const FSegment4IntersectionTools& Segment) const
+		{
+			if ((Boundary[EIso::IsoU].Min > Segment.Boundary[EIso::IsoU].Max) || (Boundary[EIso::IsoV].Min > Segment.Boundary[EIso::IsoV].Max))
+			{
+				return false;
+			}
+
+			if ((Boundary[EIso::IsoU].Max < Segment.Boundary[EIso::IsoU].Min) || (Boundary[EIso::IsoV].Max < Segment.Boundary[EIso::IsoV].Min))
+			{
+				return false;
+			}
+			return true;
+		}
+	};
+
+	class FIntersectionSegmentTool
+	{
+		TArray<FSegment4IntersectionTools> Segments;
+		const FGrid& Grid;
+
+	public:
+		FIntersectionSegmentTool(const FGrid& InGrid)
+			: Grid(InGrid)
+		{
+		}
+
+		void Reserve(int32 InMaxNum)
+		{
+			Segments.Reserve(InMaxNum);
+		}
+
+		void SetNum(int32 NewMaxNum)
+		{
+			Segments.Reserve(NewMaxNum);
+		}
+
+		int32 Num()
+		{
+			return Segments.Num();
+		}
+
+		void AddSegment(const TArray<FIsoSegment*>& InNewSegments)
+		{
+			Segments.Reserve(InNewSegments.Num() + Segments.Num());
+			for (FIsoSegment* Segment : InNewSegments)
+			{
+				AddSegment(*Segment);
+			}
+		}
+
+		void AddSegment(const FIsoSegment& Segment)
+		{
+			Segments.Emplace(Grid, Segment);
+		}
+
+		bool DoesIntersect(const FIsoSegment& Segment) const;
+
+		bool DoesIntersect(const FPoint2D& StartPoint, const FPoint2D& EndPoint) const;
+
+		/**
+		 * Allow StartNode to be connected to one segment
+		 */
+		bool DoesIntersect(const FIsoNode& StartNode, const FPoint2D& EndPoint) const;
+
+		/**
+		 * Allow StartNode and EndNode to be connected to one segment
+		 */
+		bool DoesIntersect(const FIsoNode& StartNode, const FIsoNode& EndNode) const;
+
+		/**
+		 * segments are sorted by DMin increasing
+		 */
+		void Sort()
+		{
+			Algo::Sort(Segments, [](const FSegment4IntersectionTools& Segment1, const FSegment4IntersectionTools& Segment2) { return Segment1.AxisMin < Segment2.AxisMin; });
+		}
+
+#ifdef CADKERNEL_DEV
+		void Display(const TCHAR* Message) const;
+#endif
+	};
+} // namespace CADKernel
+

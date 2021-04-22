@@ -1,0 +1,139 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CADKernel/Geo/Curves/NURBSCurve.h"
+
+#include "CADKernel/Geo/GeoPoint.h"
+#include "CADKernel/Geo/Sampling/PolylineTools.h"
+#include "CADKernel/Math/BSpline.h"
+#include "CADKernel/Utils/Util.h"
+
+#include "Algo/ForEach.h"
+#include "Algo/Reverse.h"
+
+using namespace CADKernel;
+
+FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, int8 InDimension)
+	: FCurve(InTolerance, InDimension)
+	, Degree(InDegre)
+	, NodalVector(InNodalVector)
+	, Poles(InPoles)
+	, bIsRational(false)
+{
+	Weights.Init(1.0, InPoles.Num());
+	Finalize();
+}
+
+FNURBSCurve::FNURBSCurve(const double InTolerance, int32 InDegre, const TArray<double>& InNodalVector, const TArray<FPoint>& InPoles, const TArray<double>& InWeights, int8 InDimension)
+	: FCurve(InTolerance, InDimension)
+	, Degree(InDegre)
+	, NodalVector(InNodalVector)
+	, Weights(InWeights)
+	, Poles(InPoles)
+	, bIsRational(true)
+{
+	Finalize();
+}
+
+TSharedPtr<FEntityGeom> FNURBSCurve::ApplyMatrix(const FMatrixH& InMatrix) const
+{
+	TArray<FPoint> TransformedPoles;
+
+	TransformedPoles.Reserve(Poles.Num());
+	for (FPoint Pole : Poles) 
+	{
+		TransformedPoles.Emplace(InMatrix.Multiply(Pole));
+	}
+
+	return FEntity::MakeShared<FNURBSCurve>(Tolerance, Degree, NodalVector, TransformedPoles, Weights, Dimension);
+}
+
+#ifdef CADKERNEL_DEV
+FInfoEntity& FNURBSCurve::GetInfo(FInfoEntity& Info) const
+{
+	return FCurve::GetInfo(Info).Add(TEXT("Degre"), Degree)
+		.Add(TEXT("Nodal vector"), NodalVector)
+		.Add(TEXT("Poles"), Poles)
+		.Add(TEXT("Weights"), Weights);
+}
+#endif
+
+void FNURBSCurve::Finalize()
+{
+	// Check if the curve is really rational, otherwise remove the weights
+	if (bIsRational)
+	{
+		const double FirstWeigth = Weights[0];
+
+		bool bIsReallyRational = false;
+		for (const double& Weight : Weights)
+		{
+			if (!FMath::IsNearlyEqual(Weight, FirstWeigth))
+			{
+				bIsReallyRational = true;
+				break;
+			}
+		}
+
+		if (!bIsReallyRational)
+		{
+			if (!FMath::IsNearlyEqual(1., FirstWeigth))
+			{
+				for (FPoint& Pole : Poles)
+				{
+					Pole /= FirstWeigth;
+				}
+			}
+			bIsRational = false;
+		}
+	}
+
+	PoleDimension = Dimension + (bIsRational ? 1 : 0);
+	HomogeneousPoles.SetNum(Poles.Num() * PoleDimension);
+
+	if (bIsRational)
+	{
+		if (Dimension == 2)
+		{
+			for (int32 Index = 0, Jndex = 0; Index < Poles.Num(); Index++)
+			{
+				HomogeneousPoles[Jndex++] = Poles[Index].X * Weights[Index];
+				HomogeneousPoles[Jndex++] = Poles[Index].Y * Weights[Index];
+				HomogeneousPoles[Jndex++] = Weights[Index];
+			}
+		}
+		else
+		{
+			for (int32 Index = 0, Jndex = 0; Index < Poles.Num(); Index++)
+			{
+				HomogeneousPoles[Jndex++] = Poles[Index].X * Weights[Index];
+				HomogeneousPoles[Jndex++] = Poles[Index].Y * Weights[Index];
+				HomogeneousPoles[Jndex++] = Poles[Index].Z * Weights[Index];
+				HomogeneousPoles[Jndex++] = Weights[Index];
+			}
+		}
+	}
+	else
+	{
+		int32 Jndex = 0;
+		if (Dimension == 2)
+		{
+			for (FPoint& Pole : Poles)
+			{
+				HomogeneousPoles[Jndex++] = Pole.X;
+				HomogeneousPoles[Jndex++] = Pole.Y;
+			}
+		}
+		else
+		{
+			memcpy(HomogeneousPoles.GetData(), Poles.GetData(), sizeof(FPoint) * Poles.Num());
+		}
+	}
+
+	Boundary.Set(NodalVector[Degree], NodalVector[NodalVector.Num() - 1 - Degree]);
+}
+
+void FNURBSCurve::ExtendTo(const FPoint& Point)
+{
+	PolylineTools::ExtendTo(Poles, Point);
+	Finalize();
+}

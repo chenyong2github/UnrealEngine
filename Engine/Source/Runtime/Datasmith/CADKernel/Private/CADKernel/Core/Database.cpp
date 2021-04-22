@@ -1,0 +1,477 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CADKernel/Core/Database.h"
+
+#include "CADKernel/Core/CADKernelArchive.h"
+#include "CADKernel/Core/Group.h"
+#include "CADKernel/Core/Session.h"
+#include "CADKernel/Mesh/Structure/ModelMesh.h"
+#include "CADKernel/Topo/Body.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
+#include "CADKernel/Topo/Linkable.h"
+#include "CADKernel/Topo/Model.h"
+#include "CADKernel/Topo/Shell.h"
+#include "CADKernel/Topo/TopologicalVertex.h"
+#include "CADKernel/Ui/Message.h"
+
+#include "HAL/FileManager.h"
+
+using namespace CADKernel;
+
+static const int32 DataBaseInitialSize = 10000;
+
+FDatabase::FDatabase()
+{
+	Model = FEntity::MakeShared<FModel>();
+
+	DatabaseEntities.Reserve(DataBaseInitialSize);
+	AvailableIdents.Reserve(DataBaseInitialSize);
+	DatabaseEntities.Add(TSharedPtr<FEntity>());
+}
+
+TSharedRef<FModel> FDatabase::GetModel()
+{
+	if (!Model.IsValid())
+	{
+		Model = FEntity::MakeShared<FModel>();
+	}
+	return Model.ToSharedRef();
+}
+
+FIdent FDatabase::CreateId()
+{
+	if (AvailableIdents.Num() > 0)
+	{
+		return  AvailableIdents.Pop(false);
+	}
+	else
+	{
+		FIdent NewIdent = (FIdent)DatabaseEntities.Num();
+		DatabaseEntities.Add(TSharedPtr<FEntity>());
+		return NewIdent;
+	}
+}
+
+void FDatabase::RemoveEntity(FIdent EntityId)
+{
+	if (EntityId >= (FIdent)DatabaseEntities.Num())
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the Id=%d is not yet defined, the entity has never exist.\n"), EntityId);
+	}
+	else if (DatabaseEntities[EntityId].IsValid())
+	{
+		DatabaseEntities[EntityId] = TSharedPtr<FEntity>();
+		AvailableIdents.Add(EntityId);
+	}
+	else
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::RemoveEntity: the entity with Id=%d is already deleted.\n"), EntityId);
+	}
+}
+
+TSharedPtr<FEntity> FDatabase::GetEntity(FIdent EntityId) const
+{
+	if (EntityId >= (FIdent)DatabaseEntities.Num())
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::GetEntity: the Id=%d is not yet defined\n"), EntityId);
+		return TSharedPtr<FEntity>();
+	}
+	if (!DatabaseEntities[EntityId].IsValid())
+	{
+		FMessage::Printf(Debug, TEXT("Warning in FDataBasse::GetEntity: the entity with Id=%d no longer exists.\n"), EntityId);
+	}
+	return DatabaseEntities[EntityId];
+}
+
+void FDatabase::GetEntities(const TArray<FIdent>& EntityIds, TArray<TSharedPtr<FEntity>>& Entities) const
+{
+	Entities.Empty(EntityIds.Num());
+
+	// to avoid duplicated components
+	TSet<FIdent> AddedComponents;
+	AddedComponents.Reserve(EntityIds.Num());
+
+	for (FIdent EntityId : EntityIds)
+	{
+		TSharedPtr<FEntity> Entity = GetEntity(EntityId);
+		if (AddedComponents.Find(EntityId) == nullptr)
+		{
+			AddedComponents.Add(EntityId);
+			Entities.Add(Entity);
+		}
+	}
+}
+
+void FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TWeakPtr<FEntity>& Entity)
+{
+	Session.Database.SetReferencedEntityOrAddToWaitingList(ArchiveId, Entity);
+}
+
+void FCADKernelArchive::SetReferencedEntityOrAddToWaitingList(FIdent ArchiveId, TSharedPtr<FEntity>& Entity)
+{
+	Session.Database.SetReferencedEntityOrAddToWaitingList(ArchiveId, Entity);
+}
+
+void FCADKernelArchive::AddEntityToSave(FIdent Id)
+{
+	Session.Database.AddEntityToSave(Id);
+}
+
+void FCADKernelArchive::AddEntityFromArchive(TSharedRef<FEntity>& Entity)
+{
+	Session.Database.AddEntityFromArchive(Entity);
+}
+
+void FDatabase::SerializeSelection(FCADKernelArchive& Ar, const TArray<FIdent>& SelectionIds)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Serialize);
+
+	ensure(Ar.IsSaving());
+
+	bIsRecursiveSerialization = true;
+
+	Ar.Session.Serialize(Ar);
+
+	int32 DatabaseSize = DatabaseEntities.Num();
+	Ar << DatabaseSize;
+
+	EntitiesToBeSerialized.Empty();
+	NotYetSerialized.Empty();
+	for (FIdent EntityId : SelectionIds)
+	{
+		AddEntityToSave(EntityId);
+	}
+
+	int32 Index = 0;
+	FIdent EntityIdToSave;
+	while(NotYetSerialized.Dequeue(EntityIdToSave))
+	{
+		TSharedPtr<FEntity> Entity = GetEntity(EntityIdToSave);
+		if (!Entity.IsValid())
+		{
+			continue;
+		}
+
+		EEntity Type = Entity->GetEntityType();
+		Ar << Type;
+		Entity->Serialize(Ar);
+		Index++;
+	}
+
+	EntitiesToBeSerialized.Empty();
+	NotYetSerialized.Empty();
+	bIsRecursiveSerialization = false;
+
+	FMessage::Printf(Log, TEXT("End Serialisation of %d entities\n"), Index);
+}
+
+void FDatabase::Serialize(FCADKernelArchive& Ar)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Serialize);
+
+	ensure(Ar.IsSaving());
+
+	SpawnEntityIdent((TSharedPtr<FEntity>&) Model, true);
+
+	Ar.Session.Serialize(Ar);
+
+	int32 DatabaseSize = DatabaseEntities.Num();
+	Ar << DatabaseSize;
+
+	int32 Index = 0;
+	FProgress Progess(DatabaseEntities.Num());
+	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
+	{
+		Progess.Increase();
+
+		if (!Entity.IsValid())
+		{
+			EEntity Type = EEntity::NullEntity;
+			Ar << Type;
+			continue;
+		}
+
+		EEntity Type = Entity->GetEntityType();
+		Ar << Type;
+		Entity->Serialize(Ar);
+		Index++;
+	}
+	FMessage::Printf(Log, TEXT("End Serialisation of %d %d entity\n"), DatabaseEntities.Num(), Index);
+}
+
+void FDatabase::Deserialize(FCADKernelArchive& Ar)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDatabase::Deserialize);
+
+	ensure(Ar.IsLoading());
+
+	Ar.Session.Serialize(Ar);
+
+	int32 ArchiveSize = 0;
+	Ar << ArchiveSize;
+
+	DatabaseEntities.Reserve((int32)(DatabaseEntities.Num() + ArchiveSize * 1.5));
+	ArchiveIdToWaitingPointers.SetNum(ArchiveSize);
+	ArchiveIdToWaitingWeakPointers.SetNum(ArchiveSize);
+	ArchiveEntities.Init(TSharedPtr<FEntity>(), ArchiveSize);
+
+	int64 TotalSize = Ar.TotalSize();
+	FProgress Progress(ArchiveSize);
+	int32 Index = 0;
+	for( ; Ar.Tell() < TotalSize; ++Index)
+	{
+		Progress.Increase();
+		TSharedPtr<FEntity> Entity = FEntity::Deserialize(Ar);
+		if (!Entity.IsValid())
+		{
+			FMessage::Printf(Log, TEXT("Failed at index %d\n"), Index);
+		}
+	}
+
+	// this is a partial archive, a clean of entities has to be performed to remove invalid references in entity descriptions
+	if(Index < ArchiveSize)
+	{
+		CleanArchiveEntities();
+	}
+
+	ArchiveIdToWaitingPointers.Empty();
+	ArchiveEntities.Empty();
+	
+	FMessage::Printf(Log, TEXT("End Deserialisation of %d %d entity\n"), DatabaseEntities.Num(), ArchiveSize);
+}
+
+void FDatabase::CleanArchiveEntities()
+{
+	for (TSharedPtr<FEntity> Entity : ArchiveEntities)
+	{
+		if (Entity.IsValid())
+		{
+			switch (Entity->GetEntityType())
+			{
+			case EEntity::EdgeLink:
+			{
+				StaticCastSharedPtr<FEdgeLink>(Entity)->CleanLink();
+				break;
+			}
+			case EEntity::VertexLink:
+			{
+				StaticCastSharedPtr<FVertexLink>(Entity)->CleanLink();
+				break;
+			}
+			}
+		}
+	}
+}
+
+void FDatabase::Empty()
+{
+	Model.Reset();
+	DatabaseEntities.Empty(DataBaseInitialSize);
+	DatabaseEntities.Add(TSharedPtr<FEntity>());
+	AvailableIdents.Empty(DataBaseInitialSize);
+}
+
+uint32 FDatabase::SpawnEntityIdent(const TArray<TSharedPtr<FEntity>>& SelectedEntities, bool bInForceSpawning)
+{
+	bForceSpawning = bInForceSpawning;
+	EntityCount = 0;
+	for (TSharedPtr<FEntity> Entity : SelectedEntities)
+	{
+		Entity->SpawnIdent(*this);
+	}
+	bForceSpawning = false;
+	return EntityCount;
+}
+
+uint32 FDatabase::SpawnEntityIdent(TSharedPtr<FEntity>& Entity, bool bInForceSpawning)
+{
+	bForceSpawning = bInForceSpawning;
+	EntityCount = 0;
+	Entity->SpawnIdent(*this);
+	bForceSpawning = false;
+	return EntityCount;
+}
+
+
+// =========================================================================================================================================================================================================
+// =========================================================================================================================================================================================================
+// =========================================================================================================================================================================================================
+//
+//
+//                                                                            NOT YET REVIEWED
+//
+//
+// =========================================================================================================================================================================================================
+// =========================================================================================================================================================================================================
+// =========================================================================================================================================================================================================
+
+void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filters, TArray<TSharedPtr<FEntity>>& Selection) const
+{
+	TSet<TSharedPtr<FEntity>> EntitySet;
+	ExpandSelection(Entities, Filters, EntitySet);
+	for (TSharedPtr<FEntity> Entity : EntitySet)
+	{
+		Selection.Add(Entity);
+	}
+}
+
+void FDatabase::ExpandSelection(const TArray<TSharedPtr<FEntity>>& Entities, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
+{
+	for (TSharedPtr<FEntity> Entity : Entities)
+	{
+		ExpandSelection(Entity, Filter, Selection);
+	}
+}
+
+void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>& Filter, TSet<TSharedPtr<FEntity>>& Selection) const
+{
+	EEntity Type = Entity->GetEntityType();
+
+	if (Filter.Contains(Type))
+	{
+		Selection.Add(Entity);
+	}
+
+	switch (Entity->GetEntityType())
+	{
+
+	case EEntity::TopologicalEdge:
+	{
+		ensureCADKernel(false);
+		TSharedPtr<FTopologicalEdge>Edge = StaticCastSharedPtr<FTopologicalEdge>(Entity);
+		ExpandSelection(Edge->GetCurve(), Filter, Selection);
+		break;
+	}
+
+	case EEntity::Group:
+	{
+		ensureCADKernel(false);
+		TSharedPtr<FGroup>Group = StaticCastSharedPtr<FGroup>(Entity);
+		for (TSharedPtr<FEntity> GroupEntity : Group->GetEntities())
+		{
+			ExpandSelection(GroupEntity, Filter, Selection);
+		}
+		break;
+	}
+
+	case EEntity::Model:
+	{
+		TSharedPtr<FModel> InModel = StaticCastSharedPtr<FModel>(Entity);
+		for (TSharedPtr<FBody> Body : InModel->GetBodyList())
+		{
+			ExpandSelection(Body, Filter, Selection);
+		}
+
+		for (TSharedPtr<FTopologicalFace> Domain : InModel->GetFaces())
+		{
+			ExpandSelection(Domain, Filter, Selection);
+		}
+		break;
+	}
+
+	case EEntity::Body:
+	{
+		TSharedPtr<FBody> Body = StaticCastSharedPtr<FBody>(Entity);
+		for (const TSharedPtr<FShell> Shell : Body->GetShells())
+		{
+			for (const FOrientedFace& Face : Shell->GetFaces())
+			{
+				ExpandSelection(Face.Entity, Filter, Selection);
+			}
+		}
+		break;
+	}
+
+	case EEntity::MeshModel:
+	{
+		TSharedPtr<FModelMesh> MeshModel = StaticCastSharedPtr<FModelMesh>(Entity);
+		for (TSharedPtr<FMesh> Mesh : MeshModel->GetMeshes())
+		{
+			ExpandSelection(Mesh, Filter, Selection);
+		}
+		break;
+	}
+
+	default:
+	{
+		break;
+	}
+	}
+
+}
+
+void FDatabase::TopologicalEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FTopologicalEntity>>& OutTopoEntities, bool bFindSurfaces, bool bFindEdges, bool bFindVertices) const
+{
+	TSet<EEntity> Filter;
+	if (bFindSurfaces)	Filter.Add(EEntity::TopologicalFace);
+	if (bFindEdges)		Filter.Add(EEntity::TopologicalEdge);
+	if (bFindVertices) 	Filter.Add(EEntity::TopologicalVertex);
+
+	OutTopoEntities.Empty(FMath::Max(Entities.Num(), (int32)100));
+	ExpandSelection(Entities, Filter, (TArray<TSharedPtr<FEntity>>&) OutTopoEntities);
+}
+
+void FDatabase::CadEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutCADEntities) const
+{
+	TSet<EEntity> Filter;
+	Filter.Add(EEntity::TopologicalFace);
+	Filter.Add(EEntity::TopologicalEdge);
+	Filter.Add(EEntity::TopologicalVertex);
+	Filter.Add(EEntity::Curve);
+	Filter.Add(EEntity::Surface);
+
+	OutCADEntities.Empty(FMath::Max(Entities.Num(), (int32)100));
+	ExpandSelection(Entities, Filter, OutCADEntities);
+}
+
+void FDatabase::MeshEntitiesSelection(const TArray<TSharedPtr<FEntity>>& Entities, TArray<TSharedPtr<FEntity>>& OutMeshEntities) const
+{
+	TSet<EEntity> Filter;
+	Filter.Add(EEntity::Mesh);
+
+	OutMeshEntities.Empty(FMath::Max(Entities.Num(), (int32)100));
+	ExpandSelection(Entities, Filter, OutMeshEntities);
+}
+
+void FDatabase::GetEntitiesOfType(EEntity Type, TArray<TSharedPtr<FEntity>>& OutEntities) const
+{
+	TSet<EEntity> Filter;
+	Filter.Add(Type);
+
+	GetEntitiesOfTypes(Filter, OutEntities);
+}
+
+void FDatabase::GetEntitiesOfTypes(const TSet<EEntity>& Filter, TArray<TSharedPtr<FEntity>>& OutEntities) const
+{
+	OutEntities.Empty(100);
+	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
+	{
+		if (!Entity.IsValid())
+		{
+			continue;
+		}
+
+		if (Filter.Contains(Entity->GetEntityType()))
+		{
+			OutEntities.Add(Entity);
+		}
+	}
+}
+
+TSharedPtr<FEntity>FDatabase::GetFirstEntityOfType(EEntity Type) const
+{
+	for (TSharedPtr<FEntity> Entity : DatabaseEntities)
+	{
+		if (!Entity.IsValid())
+		{
+			continue;
+		}
+
+		if (Entity->GetEntityType() == Type)
+		{
+			return Entity;
+		}
+	}
+	return nullptr;
+}
+

@@ -1,0 +1,355 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CADKernel/Core/Types.h"
+
+#include "CADKernel/Geo/Curves/Curve.h"
+#include "CADKernel/Geo/Sampling/PolylineTools.h"
+#include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/UI/Display.h"
+
+#include "Serialization/Archive.h"
+
+namespace CADKernel
+{
+	class FInfoEntity;
+
+	class FSurfacicPolyline
+	{
+
+	public:
+
+		TArray<double> Coordinates;
+		TArray<FPoint2D> Points2D;
+		TArray<FPoint> Points3D;
+		TArray<FPoint> Normals;
+		TArray<FPoint> Tangents;
+
+		bool bWithNormals;
+		bool bWithTangent;
+
+		FSurfacicPolyline(FCADKernelArchive& Archive)
+		{
+			Serialize(Archive);
+		}
+
+		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D, const double Tolerance);
+
+		FSurfacicPolyline(TSharedRef<FSurface> InCarrierSurface, TSharedRef<FCurve> InCurve2D, const double ChordTolerance, const double ParamTolerance, bool bInWithNormals/* = false*/, bool bWithTangent/* = false*/);
+
+		FSurfacicPolyline(bool bInWithNormals = false, bool bInWithTangent = false)
+			: bWithNormals(bInWithNormals)
+			, bWithTangent(bInWithTangent)
+		{
+		}
+
+		void Serialize(FCADKernelArchive& Ar)
+		{
+			Ar << Points3D;
+			Ar << Points2D;
+			Ar << Normals;
+			Ar << Coordinates;
+			Ar << bWithNormals;
+			Ar << bWithTangent;
+		}
+
+		FInfoEntity& GetInfo(FInfoEntity&) const;
+
+		TSharedPtr<FEntityGeom> ApplyMatrix(const FMatrixH&) const;
+
+		void CheckIfDegenerated(const double Tolerance3D, const double Tolerance2D, const FLinearBoundary& Boudary, bool& bDegeneration2D, bool& bDegeneration3D, double& Length3D) const;
+
+		FPoint Approximate3DPoint(double InCoordinate) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			return Approximator3D.ApproximatePoint(InCoordinate);
+		}
+
+		void Approximate3DPoints(const TArray<double>& InCoordinates, TArray<FPoint>& OutPoints) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			Approximator3D.ApproximatePoints(InCoordinates, OutPoints);
+		}
+
+		FPoint2D Approximate2DPoint(double InCoordinate) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+			return Approximator.ApproximatePoint(InCoordinate);
+		}
+
+		void Approximate2DPoints(const TArray<double>& InCoordinates, TArray<FPoint2D>& OutPoints) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+			Approximator.ApproximatePoints(InCoordinates, OutPoints);
+		}
+
+		void ApproximatePolyline(FSurfacicPolyline& OutPolyline) const
+		{
+			TFunction<void(FIndexOfCoordinateFinder&)> ComputePoints = [&](FIndexOfCoordinateFinder& Finder)
+			{
+				int32 CoordinateCount = OutPolyline.Coordinates.Num();
+
+				TArray<int32> SegmentIndexes;
+				SegmentIndexes.Reserve(CoordinateCount);
+
+				TArray<double> SegmentCoordinates;
+				SegmentCoordinates.Reserve(CoordinateCount);
+
+
+				//for (int32 Index = 0; Index < CoordinateCount; ++Index)
+				for (const double Coordinate : OutPolyline.Coordinates)
+				{
+					const int32& Index = SegmentIndexes.Emplace_GetRef(Finder.Find(Coordinate));
+					SegmentCoordinates.Emplace(PolylineTools::SectionCoordinate(Coordinates, Index, Coordinate));
+				}
+
+				OutPolyline.Points2D.Reserve(CoordinateCount);
+				for (int32 Index = 0; Index < CoordinateCount; ++Index)
+				{
+					int32 SegmentIndex = SegmentIndexes[Index];
+					double SegmentCoordinate = SegmentCoordinates[Index];
+					OutPolyline.Points2D.Emplace(PolylineTools::LinearInterpolation(Points2D, SegmentIndex, SegmentCoordinate));
+				}
+
+				OutPolyline.Points3D.Reserve(CoordinateCount);
+				for (int32 Index = 0; Index < CoordinateCount; ++Index)
+				{
+					int32 SegmentIndex = SegmentIndexes[Index];
+					double SegmentCoordinate = SegmentCoordinates[Index];
+					OutPolyline.Points3D.Emplace(PolylineTools::LinearInterpolation(Points3D, SegmentIndex, SegmentCoordinate));
+				}
+
+				if (bWithNormals)
+				{
+					for (int32 Index = 0; Index < CoordinateCount; ++Index)
+					{
+						int32 SegmentIndex = SegmentIndexes[Index];
+						double SegmentCoordinate = SegmentCoordinates[Index];
+						OutPolyline.Normals.Emplace(PolylineTools::LinearInterpolation(Normals, SegmentIndex, SegmentCoordinate));
+					}
+				}
+
+				if (bWithTangent)
+				{
+					for (int32 Index = 0; Index < CoordinateCount; ++Index)
+					{
+						int32 SegmentIndex = SegmentIndexes[Index];
+						double SegmentCoordinate = SegmentCoordinates[Index];
+						OutPolyline.Tangents.Emplace(PolylineTools::LinearInterpolation(Tangents, SegmentIndex, SegmentCoordinate));
+					}
+				}
+			};
+
+			FDichotomyFinder DichotomyFinder(Coordinates);
+			int32 StartIndex = 0;
+			int32 EndIndex;
+
+			bool bUseDichotomy = false;
+			StartIndex = DichotomyFinder.Find(OutPolyline.Coordinates[0]);
+			EndIndex = DichotomyFinder.Find(OutPolyline.Coordinates.Last());
+			bUseDichotomy = PolylineTools::IsDichotomyToBePreferred(EndIndex - StartIndex, Coordinates.Num());
+
+
+			if (bUseDichotomy)
+			{
+				DichotomyFinder.StartLower = StartIndex;
+				DichotomyFinder.StartUpper = EndIndex;
+				ComputePoints(DichotomyFinder);
+			}
+			else
+			{
+				FLinearFinder LinearFinder(Coordinates, StartIndex);
+				ComputePoints(LinearFinder);
+			}
+		}
+
+
+		void Sample(const FLinearBoundary& Boundary, const double DesiredSegmentLength, TArray<double>& OutCoordinates) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			Approximator3D.SamplePolyline(Boundary, DesiredSegmentLength, OutCoordinates);
+		}
+
+		double GetCoordinateOfProjectedPoint(const FLinearBoundary& Boundary, const FPoint& PointOnEdge, FPoint& ProjectedPoint) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			return Approximator3D.ProjectPointToPolyline(Boundary, PointOnEdge, ProjectedPoint);
+		}
+
+		void ProjectPoints(const FLinearBoundary& InBoundary, const TArray<FPoint>& InPointsToProject, TArray<double>& ProjectedPointCoordinates, TArray<FPoint>& ProjectedPoints) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			Approximator3D.ProjectPointsToPolyline(InBoundary, InPointsToProject, ProjectedPointCoordinates, ProjectedPoints);
+		}
+
+		/**
+		 * Project each point of a coincidental polyline on the Polyline.
+		 */
+		void ProjectCoincidentalPolyline(const TArray<FPoint>& InPointsToProject, bool bSameOrientation, TArray<double>& OutProjectedPointCoordinates) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			Approximator3D.ProjectCoincidentalPolyline(InPointsToProject, bSameOrientation, OutProjectedPointCoordinates);
+		}
+
+		const TArray<double>& GetCoordinates() const
+		{
+			return Coordinates;
+		}
+
+		const TArray<FPoint2D>& Get2DPoints() const
+		{
+			return Points2D;
+		}
+
+		const TArray<FPoint>& GetPoints() const
+		{
+			return Points3D;
+		}
+
+		const TArray<FPoint>& GetNormals() const
+		{
+			return Normals;
+		}
+
+		const TArray<FPoint>& GetTangents() const
+		{
+			return Tangents;
+		}
+
+		void SwapCoordinates(TArray<double>& NewCoordinates)
+		{
+			Swap(NewCoordinates, Coordinates);
+		}
+
+		/**
+		 * @return the size of the polyline i.e. the count of points.
+		 */
+		int32 Size() const
+		{
+			return Points2D.Num();
+		}
+
+		/**
+		 * Get the sub 2d polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
+		 */
+		void GetSubPolyline(const FLinearBoundary& InBoundary, const EOrientation InOrientation, TArray<FPoint2D>& OutPoints) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+			Approximator.GetSubPolyline(InBoundary, InOrientation, OutPoints);
+		}
+
+		/**
+		 * Get the sub polyline bounded by the input InBoundary in the orientation of the input InOrientation and append it to the output OutPoints
+		 */
+		void GetSubPolyline(const FLinearBoundary& InBoundary, const EOrientation InOrientation, TArray<FPoint>& OutPoints) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			Approximator3D.GetSubPolyline(InBoundary, InOrientation, OutPoints);
+		}
+
+		/**
+		 * Reserves memory such that the polyline can contain at least Number elements.
+		 *
+		 * @param Number The number of elements that the polyline should be able to contain after allocation.
+		 */
+		void Reserve(int32 Number)
+		{
+			Points3D.Reserve(Number);
+			Points2D.Reserve(Number);
+			Coordinates.Reserve(Number);
+			if (bWithNormals)
+			{
+				Normals.Reserve(Number);
+			}
+		}
+
+		/**
+		 * Empties the polyline.
+		 *
+		 * @param Slack (Optional) The expected usage size after empty operation. Default is 0.
+		 */
+		void Empty(int32 Slack = 0)
+		{
+			Points3D.Empty(Slack);
+			Points2D.Empty(Slack);
+			Normals.Empty(Slack);
+			Coordinates.Empty(Slack);
+		}
+
+		void EmplaceAt(int32 Index, FSurfacicPolyline& Polyline, int32 PointIndex)
+		{
+			Coordinates.EmplaceAt(Index, Polyline.Coordinates[PointIndex]);
+
+			Points2D.EmplaceAt(Index, Polyline.Points2D[PointIndex]);
+			Points3D.EmplaceAt(Index, Polyline.Points3D[PointIndex]);
+			if (bWithNormals)
+			{
+				Normals.EmplaceAt(Index, Polyline.Normals[PointIndex]);
+			}
+			if (bWithTangent)
+			{
+				Tangents.EmplaceAt(Index, Polyline.Tangents[PointIndex]);
+			}
+		}
+
+		void RemoveAt(int32 Index)
+		{
+			Coordinates.RemoveAt(Index);
+			Points2D.RemoveAt(Index);
+			Points3D.RemoveAt(Index);
+			if (bWithNormals)
+			{
+				Normals.RemoveAt(Index);
+			}
+			if (bWithTangent)
+			{
+				Tangents.RemoveAt(Index);
+			}
+		}
+
+		void Pop()
+		{
+			Coordinates.Pop(false);
+			Points2D.Pop(false);
+			Points3D.Pop(false);
+			if (bWithNormals)
+			{
+				Normals.Pop(false);
+			}
+			if (bWithTangent)
+			{
+				Tangents.Pop(false);
+			}
+		}
+
+		void Reverse()
+		{
+			Algo::Reverse(Coordinates);
+			Algo::Reverse(Points2D);
+			Algo::Reverse(Points3D);
+			if (bWithNormals)
+			{
+				Algo::Reverse(Normals);
+			}
+			if (bWithTangent)
+			{
+				Algo::Reverse(Tangents);
+			}
+		}
+
+		double GetLength(const FLinearBoundary& InBoundary) const
+		{
+			TPolylineApproximator<FPoint> Approximator3D(Coordinates, Points3D);
+			return Approximator3D.ComputeLengthOfSubPolyline(InBoundary);
+		}
+
+		double Get2DLength(const FLinearBoundary& InBoundary) const
+		{
+			TPolylineApproximator<FPoint2D> Approximator(Coordinates, Points2D);
+			return Approximator.ComputeLengthOfSubPolyline(InBoundary);
+		}
+
+	};
+
+}
+

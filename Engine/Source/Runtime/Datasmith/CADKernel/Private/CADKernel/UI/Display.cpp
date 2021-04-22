@@ -1,0 +1,1044 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "CADKernel/UI/Display.h"
+
+#include "CADKernel/Core/Chrono.h"
+#include "CADKernel/Core/Group.h"
+#include "CADKernel/Core/System.h"
+#include "CADKernel/Geo/Curves/RestrictionCurve.h"
+#include "CADKernel/Geo/Curves/BezierCurve.h"
+#include "CADKernel/Geo/Curves/NURBSCurve.h"
+#include "CADKernel/Geo/Curves/RestrictionCurve.h"
+#include "CADKernel/Geo/Sampler/SamplerOnChord.h"
+#include "CADKernel/Geo/Sampler/SamplerOnParam.h"
+#include "CADKernel/Geo/Surfaces/BezierSurface.h"
+#include "CADKernel/Geo/Surfaces/NURBSSurface.h"
+#include "CADKernel/Geo/Surfaces/Surface.h"
+#include "CADKernel/Math/AABB.h"
+#include "CADKernel/Math/Boundary.h"
+#include "CADKernel/Math/Plane.h"
+#include "CADKernel/Mesh/Structure/EdgeMesh.h"
+#include "CADKernel/Mesh/Structure/ModelMesh.h"
+#include "CADKernel/Mesh/Structure/FaceMesh.h"
+#include "CADKernel/Mesh/Structure/VertexMesh.h"
+#include "CADKernel/Topo/Body.h"
+#include "CADKernel/Topo/TopologicalEdge.h"
+#include "CADKernel/Topo/Model.h"
+#include "CADKernel/Topo/Shell.h"
+#include "CADKernel/Topo/TopologicalFace.h"
+
+
+namespace CADKernel
+{
+	void Open3DDebugSession(FString name, const TArray<FIdent>& IdArray)
+	{
+		FSystem::Get().GetVisu()->Open3DDebugSession(*name, IdArray);
+	}
+
+	void Close3DDebugSession()
+	{
+		FSystem::Get().GetVisu()->Close3DDebugSession();
+	}
+
+	void Wait(bool bMakeWait)
+	{
+		if (bMakeWait)
+		{
+#ifdef CADKERNEL_DEV
+			system("PAUSE");
+			printf("Hello\n");
+#endif
+		}
+	}
+
+	void Open3DDebugSegment(FIdent Ident)
+	{
+		FSystem::Get().GetVisu()->Open3DDebugSegment(Ident);
+	}
+
+	void Close3DDebugSegment()
+	{
+		FSystem::Get().GetVisu()->Close3DDebugSegment();
+	}
+
+	void FlushVisu()
+	{
+		FSystem::Get().GetVisu()->UpdateViewer();
+	}
+
+	void DrawElement(int32 Dimension, TArray<FPoint>& Points, EVisuProperty Property)
+	{
+		FSystem::Get().GetVisu()->DrawElement(Dimension, Points, Property);
+	}
+
+	void DrawMesh(const TSharedPtr<FMesh>& Mesh)
+	{
+		FSystem::Get().GetVisu()->DrawMesh(Mesh->GetId());
+	}
+
+	void Draw(const FLinearBoundary& Boundary, const TSharedPtr<FRestrictionCurve>& Curve, EVisuProperty Property)
+	{
+		if (Boundary.IsDegenerated())
+		{
+			return;
+		}
+
+		bool bShowOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
+
+		TArray<FPoint> Polyline;
+		Curve->GetDiscretizationPoints<FPoint>(Curve->GetBoundary(), EOrientation::Front, Polyline);
+		Draw(Polyline, Property);
+
+		if (bShowOrientation)
+		{
+			double Length = 0;
+			for (int32 Index = 1; Index < Polyline.Num(); ++Index)
+			{
+				Length += Polyline[Index].Distance(Polyline[Index - 1]);
+			}
+
+			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
+			FCurvePoint Point;
+			Curve->EvaluatePoint(Coordinate, Point, 1);
+
+			double Height = Length / 20.0;
+			double Base = Height / 2;
+
+			DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		}
+	}
+
+	void Draw2D(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	{
+		if (Boundary.IsDegenerated())
+		{
+			return;
+		}
+
+		double DiscVisu = ((double)(FSystem::Get().GetVisu()->GetParameters()->ChordError)) / 10.;
+		bool bVoirOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
+
+		FPolyline2D Polyline;
+		FCurve2DSamplerOnChord Sampler(*Curve, Boundary, DiscVisu, Polyline);
+		Sampler.Sample();
+
+		Draw(Polyline.GetPoints(), Property);
+
+		if (bVoirOrientation)
+		{
+			double Length = Polyline.GetLength(Boundary);
+
+			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
+			FCurvePoint Point;
+			Curve->EvaluatePoint(Coordinate, Point, 1);
+
+			double Height = Length / 20.0;
+			double Base = Height / 2;
+
+			DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		}
+	}
+
+	void Draw3D(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	{
+		if (Boundary.IsDegenerated())
+		{
+			return;
+		}
+
+		double DiscVisu = FSystem::Get().GetVisu()->GetParameters()->ChordError;
+		bool bVoirOrientation = FSystem::Get().GetVisu()->GetParameters()->bDisplayCADOrient;
+
+		FPolyline3D Polyline;
+		FCurveSamplerOnChord Sampler(*Curve, Boundary, DiscVisu, Polyline);
+		Sampler.Sample();
+
+		Draw(Polyline.GetPoints(), Property);
+
+		if (bVoirOrientation)
+		{
+			double Length = Polyline.GetLength(Boundary);
+
+			double Coordinate = (Boundary.Max + Boundary.Min) / 2.;
+			FCurvePoint Point;
+			Curve->EvaluatePoint(Coordinate, Point, 1);
+
+			double Height = Length / 20.0;
+			double Base = Height / 2;
+
+			DrawQuadripode(Height, Base, Point.Point, Point.Gradient);
+		}
+	}
+
+	void Draw(const TSharedPtr<FCurve>& Curve, const FLinearBoundary& Boundary, EVisuProperty Property)
+	{
+		if (Curve->GetDimension() == 3)
+		{
+			Draw3D(Curve, Boundary, Property);
+		}
+		else
+		{
+			Draw2D(Curve, Boundary, Property);
+		}
+	}
+
+
+	void Draw(const TSharedPtr<FCurve>& Curve, EVisuProperty Property)
+	{
+		const FLinearBoundary& Bounds = Curve->GetBoundary();
+		Draw(Curve, Bounds, Property);
+	}
+
+	void DrawQuadripode(double Height, double Base, FPoint& Center, FPoint& InDirection)
+	{
+		FPoint Direction = InDirection;
+		Direction.Normalize();
+
+		FPoint Normal(-Direction[1], Direction[0], 0.0);
+
+		double UVNorm = Normal.Length();
+		Normal /= UVNorm;
+
+		FPoint BiNormal(-Direction[2] * Normal[1], Direction[2] * Normal[0], UVNorm);
+
+		FPoint Point0 = Center;
+		FPoint PointBase = Point0 - Direction * Height;
+
+		Normal *= Base;
+		BiNormal *= Base;
+
+		FPoint Point1 = PointBase + Normal;
+		FPoint Point2 = PointBase + BiNormal;
+		FPoint Point3 = PointBase - Normal;
+		FPoint Point4 = PointBase - BiNormal;
+
+		TArray<FPoint> Polygone;
+		Polygone.Reserve(7);
+
+		Polygone.Add(Point1);
+		Polygone.Add(Point0);
+		Polygone.Add(Point2);
+		Polygone.Add(Point0);
+		Polygone.Add(Point3);
+		Polygone.Add(Point0);
+		Polygone.Add(Point4);
+
+		Draw(Polygone);
+	}
+
+	void DisplayEntity(const TSharedPtr<FEntity>& Entity)
+	{
+		if (!Entity.IsValid())
+		{
+			FMessage::Printf(Log, TEXT("Entity not found"));
+			return;
+		}
+
+		FTimePoint StartTime = FChrono::Now();
+
+		FProgress Progress;
+
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity->GetTypeName(), Entity->GetId()), { Entity->GetId() });
+
+		switch (Entity->GetEntityType())
+		{
+		case EEntity::TopologicalVertex:
+			Display((const TSharedPtr<FTopologicalVertex>) StaticCastSharedPtr<FTopologicalVertex>(Entity));
+			break;
+		case EEntity::Curve:
+			Display(StaticCastSharedPtr<FCurve>(Entity));
+			break;
+		case EEntity::Surface:
+			Display(StaticCastSharedPtr<FSurface>(Entity));
+			break;
+		case EEntity::TopologicalFace:
+			Display(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			break;
+		case EEntity::TopologicalLoop:
+			Display(StaticCastSharedPtr<FTopologicalLoop>(Entity));
+			break;
+		case EEntity::Shell:
+			Display(StaticCastSharedPtr<FShell>(Entity));
+			break;
+		case EEntity::Body:
+			Display(StaticCastSharedPtr<FBody>(Entity));
+			break;
+		case EEntity::TopologicalEdge:
+			Display(StaticCastSharedPtr<FTopologicalEdge>(Entity));
+			break;
+		case EEntity::Model:
+			Display(StaticCastSharedPtr<FModel>(Entity));
+			break;
+		case EEntity::Group:
+			Display(StaticCastSharedPtr<FGroup>(Entity));
+			break;
+		case EEntity::Mesh:
+			DisplayMesh(StaticCastSharedPtr<FMesh>(Entity));
+			break;
+		case EEntity::MeshModel:
+			Display(StaticCastSharedPtr<FModelMesh>(Entity));
+			break;
+		default:
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+		}
+
+		FDuration DisplayDuration = FChrono::Elapse(StartTime);
+		FChrono::PrintClockElapse(Log, TEXT("  "), TEXT("Display "), DisplayDuration);
+
+	}
+
+	void DisplayEntity2D(const TSharedPtr<FEntity>& Entity)
+	{
+		if (!Entity.IsValid())
+		{
+			FMessage::Printf(Log, TEXT("Entity not found"));
+			return;
+		}
+
+		FTimePoint StartTime = FChrono::Now();
+
+		FProgress Progress;
+
+		F3DDebugSession GraphicSession(FString::Printf(TEXT("%s %d"), Entity->GetTypeName(), Entity->GetId()), { Entity->GetId() });
+
+		switch (Entity->GetEntityType())
+		{
+		case EEntity::Surface:
+			Display2D(StaticCastSharedPtr<FSurface>(Entity));
+			break;
+		case EEntity::TopologicalFace:
+			Display2D(StaticCastSharedPtr<FTopologicalFace>(Entity));
+			break;
+		case EEntity::TopologicalLoop:
+			Display2D(StaticCastSharedPtr<FTopologicalLoop>(Entity));
+			break;
+		case EEntity::TopologicalEdge:
+			Display2D(StaticCastSharedPtr<FTopologicalEdge>(Entity));
+			break;
+		default:
+			FMessage::Printf(Log, TEXT("Unable to display Entity of type %s"), FEntity::GetTypeName(Entity->GetEntityType()));
+		}
+
+		FDuration DisplayDuration = FChrono::Elapse(StartTime);
+		FChrono::PrintClockElapse(Log, TEXT("  "), TEXT("Display "), DisplayDuration);
+
+	}
+
+	void Display(const FPlane& Plane, FIdent Ident)
+	{
+		FPoint Normal = Plane.GetNormal();
+		if (Normal.Length() < SMALL_NUMBER)
+		{
+			return;
+		}
+
+		FPoint UAxis;
+		// Find the first frame axis non collinear to the plane normal
+		for (int32 Index = 0; Index < 3; ++Index)
+		{
+			FPoint Axis = FPoint::ZeroPoint;
+			Axis[Index] = 1;
+			UAxis = Normal ^ Axis;
+			if (UAxis.Length() > SMALL_NUMBER)
+			{
+				break;
+			}
+		}
+		FPoint VAxis = UAxis ^ Normal;
+
+		UAxis.Normalize();
+		UAxis *= 10;
+		VAxis.Normalize();
+		VAxis *= 10;
+
+		TArray<FPoint> Points;
+		Points.Init(FPoint(), 5);
+		const FPoint& Point = Plane.GetPoint();
+		Points[0] = Point + UAxis + VAxis;
+		Points[1] = Point + UAxis - VAxis;
+		Points[2] = Point - UAxis - VAxis;
+		Points[3] = Point - UAxis + VAxis;
+		Points[4] = Point + UAxis + VAxis;
+
+		F3DDebugSegment G(Ident);
+		DrawElement(2, Points);
+	}
+
+	void DisplayEdgeCriteriaGrid(int32 EdgeId, const TArray<FPoint>& Points3D)
+	{
+		FString Name = FString::Printf(TEXT("Edge Grid %d"), EdgeId);
+		F3DDebugSession G(Name);
+		{
+			F3DDebugSession _(TEXT("CriteriaGrid Point 3d"));
+			for (int32 Index = 0; Index < Points3D.Num(); Index += 2)
+			{
+				DisplayPoint(Points3D[Index]);
+			}
+		}
+		{
+			F3DDebugSession _(TEXT("CriteriaGrid IntermediateU"));
+			for (int32 Index = 1; Index < Points3D.Num(); Index += 2)
+			{
+				DisplayPoint(Points3D[Index], EVisuProperty::ControlPoint);
+			}
+		}
+	}
+
+	void DisplayAABB(const FAABB& Aabb, FIdent Ident)
+	{
+		TFunction<void(int32, FPoint&, FPoint&)> GetWire = [&](int32 Segment, FPoint& A, FPoint& B)
+		{
+			int32 Corner1;
+			int32 Corner2;
+
+			if (Segment < 4)
+			{
+				Corner1 = Segment * 2;
+				Corner2 = Corner1 + 1;
+			}
+			else if (Segment < 8)
+			{
+				if (Segment < 6)
+				{
+					Corner1 = Segment - 4;
+				}
+				else
+				{
+					Corner1 = Segment - 2;
+				}
+				Corner2 = Corner1 + 2;
+			}
+			else if (Segment < 12)
+			{
+				Corner1 = Segment - 8;
+				Corner2 = Corner1 + 4;
+			}
+			else
+			{
+				Corner1 = 0;
+				Corner2 = 1;
+				ERROR_NOT_EXPECTED;
+			}
+			A = Aabb.GetCorner(Corner1);
+			B = Aabb.GetCorner(Corner2);
+		};
+
+		F3DDebugSegment G(Ident);
+		for (int32 SegmentIndex = 0; SegmentIndex < 12; SegmentIndex++)
+		{
+			TArray<FPoint> Points;
+			Points.SetNum(2);
+			GetWire(SegmentIndex, Points[0], Points[1]);
+			Draw(Points);
+		}
+	}
+
+	void DisplayAABB2D(const FAABB2D& aabb, FIdent Ident)
+	{
+		FPoint A(aabb.GetMin().U, aabb.GetMin().V, 0.);
+		FPoint B(aabb.GetMin().U, aabb.GetMax().V, 0.);
+		FPoint C(aabb.GetMax().U, aabb.GetMax().V, 0.);
+		FPoint D(aabb.GetMax().U, aabb.GetMin().V, 0.);
+
+		TArray<FPoint> Points;
+		Points.Add(A);
+		Points.Add(B);
+		Points.Add(C);
+		Points.Add(D);
+		Points.Add(A);
+		Draw(Points);
+	}
+
+	void Display(const TSharedPtr<FTopologicalVertex>& Vertex)
+	{
+		F3DDebugSegment G(Vertex->GetId());
+		DrawPoint(Vertex->GetCoordinates());
+	}
+
+	void Display(const TSharedPtr<FCurve>& Curve)
+	{
+		F3DDebugSegment G(Curve->GetId());
+		Draw(Curve, Curve->GetBoundary());
+	}
+
+	void Display(const TSharedPtr<FShell>& Shell)
+	{
+		Draw(Shell);
+	}
+
+	void Draw(const TSharedPtr<FShell>& Shell)
+	{
+		FProgress Progress(Shell->GetFaces().Num(), TEXT("Display Shell"));
+		for (const FOrientedFace& Face : Shell->GetFaces())
+		{
+			Display(Face.Entity);
+		}
+	}
+
+	void Display(const TSharedPtr<FBody>& Body)
+	{
+		FProgress Progress(Body->GetShells().Num(), TEXT("Display Body"));
+		for (TSharedPtr<FShell> Shell : Body->GetShells())
+		{
+			if (!Shell.IsValid())
+			{
+				continue;
+			}
+			Draw(Shell);
+		}
+	}
+
+	void Display(const TSharedPtr<FSurface>& Surface)
+	{
+		FProgress Progress(TEXT("Display Surface"));
+
+		int32 IsoUNum = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
+		int32 IsoVNum = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
+
+		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
+
+		FPolyline3D Polyline;
+		FIsoCurve3DSamplerOnChord Sampler(*Surface.Get(), VisuSag, Polyline);
+
+		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
+		{
+			const FLinearBoundary& CurveBounds = Surface->GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
+			const FLinearBoundary& Bounds = Surface->GetBoundary().Get(IsoType);
+
+			double Coordinate = Bounds.Min;
+			IsoCount++;
+			const double Step = (Bounds.Max - Bounds.Min) / IsoCount;
+
+			for (int32 Index = 0; Index <= IsoCount; Index++)
+			{
+				Polyline.Empty();
+				Sampler.Set(IsoType, Coordinate, CurveBounds);
+				Sampler.Sample();
+
+				Draw(Polyline.GetPoints(), EVisuProperty::Iso);
+				Coordinate += Step;
+			}
+		};
+
+		DrawIsos(IsoVNum, EIso::IsoV);
+		DrawIsos(IsoUNum, EIso::IsoU);
+	}
+
+	void Display2D(const TSharedPtr<FSurface>& Surface)
+	{
+		double StepU, StepV;
+
+		F3DDebugSegment G(Surface->GetId());
+
+		int32 IsoUCount = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
+		int32 IsoVCount = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
+		FSurfacicBoundary Bounds = Surface->GetBoundary();
+
+		StepU = (Bounds.UVBoundaries[EIso::IsoU].Max - Bounds.UVBoundaries[EIso::IsoU].Min) / (IsoUCount + 1);
+		StepV = (Bounds.UVBoundaries[EIso::IsoV].Max - Bounds.UVBoundaries[EIso::IsoV].Min) / (IsoVCount + 1);
+
+		for (int32 iIso = 0; iIso <= (IsoUCount + 1); iIso++)
+		{
+			FPoint2D StartPoint(Bounds.UVBoundaries[EIso::IsoU].Min + (iIso)*StepU, Bounds.UVBoundaries[EIso::IsoV].Min);
+			FPoint2D EndPoint(Bounds.UVBoundaries[EIso::IsoU].Min + (iIso)*StepU, Bounds.UVBoundaries[EIso::IsoV].Max);
+			DrawSegment(StartPoint, EndPoint, EVisuProperty::Iso);
+		}
+
+		for (int32 iIso = 0; iIso <= (IsoVCount + 1); iIso++)
+		{
+			FPoint2D StartPoint(Bounds.UVBoundaries[EIso::IsoU].Min, Bounds.UVBoundaries[EIso::IsoV].Min + (iIso)*StepV);
+			FPoint2D EndPoint(Bounds.UVBoundaries[EIso::IsoU].Max, Bounds.UVBoundaries[EIso::IsoV].Min + (iIso)*StepV);
+			DrawSegment(StartPoint, EndPoint, EVisuProperty::Iso);
+		}
+	}
+
+	void DisplayIsoCurve(const TSharedPtr<FSurface>& Surface, double Coordinate, EIso IsoType)
+	{
+		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
+
+		F3DDebugSegment G(Surface->GetId());
+
+		const FLinearBoundary& CurveBounds = Surface->GetBoundary().Get(IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU);
+
+		FPolyline3D Polyline;
+		FIsoCurve3DSamplerOnChord Sampler(*Surface.Get(), VisuSag, Polyline);
+		Sampler.Set(IsoType, Coordinate, CurveBounds);
+		Draw(Polyline.GetPoints(), EVisuProperty::Iso);
+	}
+
+
+
+	void DisplayControlPolygon(const TSharedPtr<FCurve>& Entity)
+	{
+		TFunction<void(const TArray<FPoint>&)> DisplayHull = [](const TArray<FPoint>& Poles)
+		{
+			for (const FPoint& Pole : Poles)
+			{
+				Display(Pole, EVisuProperty::GreenPoint);
+			}
+
+			for (int32 Index = 1; Index < Poles.Num(); Index++)
+			{
+				FPoint Segment = Poles[Index] - Poles[Index - 1];
+				DisplaySegment(Poles[Index - 1] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::GreenCurve);
+			}
+		};
+
+		F3DDebugSegment GraphicSegment(Entity->GetId());
+		if (Entity->GetCurveType() == ECurve::Bezier)
+		{
+			const TSharedPtr<FBezierCurve>& Bezier = StaticCastSharedPtr<FBezierCurve>(Entity);
+			DisplayHull(Bezier->GetPoles());
+			return;
+		}
+		if (Entity->GetCurveType() == ECurve::Nurbs)
+		{
+			const TSharedPtr<FNURBSCurve>& Nurbs = StaticCastSharedPtr<FNURBSCurve>(Entity);
+			const TArray<FPoint>& Poles = Nurbs->GetPoles();
+			DisplayHull(Nurbs->GetPoles());
+			return;
+		}
+	}
+
+	void DisplayControlPolygon(const TSharedPtr<FSurface>& Entity)
+	{
+		TFunction<void(const TArray<FPoint>&, int32, int32)> DisplayHull = [](const TArray<FPoint>& Poles, int32 PoleUNum, int32 PoleVNum)
+		{
+			for (int32 Index = 0; Index < Poles.Num(); Index++)
+			{
+				Display(Poles[Index], EVisuProperty::GreenPoint);
+			}
+
+			for (int32 IndexV = 0, Index = 0; IndexV < PoleVNum; IndexV++)
+			{
+				Index = Index + 1;
+				for (int32 IndexU = 1; IndexU < PoleUNum; IndexU++, Index++)
+				{
+					FPoint Segment = Poles[Index] - Poles[Index - 1];
+					DisplaySegment(Poles[Index - 1] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::GreenCurve);
+				}
+			}
+
+			for (int32 IndexU = 0; IndexU < PoleUNum; IndexU++)
+			{
+				for (int32 IndexV = 1, Index = PoleUNum + IndexU; IndexV < PoleVNum; IndexV++, Index += PoleUNum)
+				{
+					FPoint Segment = Poles[Index] - Poles[Index - PoleUNum];
+					DisplaySegment(Poles[Index - PoleUNum] + Segment * 0.1, Poles[Index] - Segment * 0.1, 0, EVisuProperty::GreenCurve);
+				}
+			}
+		};
+
+		F3DDebugSegment GraphicSegment(Entity->GetId());
+		if (Entity->GetSurfaceType() == ESurface::Bezier)
+		{
+			const TSharedPtr<FBezierSurface>& Bezier = StaticCastSharedPtr<FBezierSurface>(Entity);
+			DisplayHull(Bezier->GetPoles(), Bezier->GetUDegre() + 1, Bezier->GetVDegre() + 1);
+			return;
+		}
+		if (Entity->GetSurfaceType() == ESurface::Nurbs)
+		{
+			const TSharedPtr<FNURBSSurface>& Nurbs = StaticCastSharedPtr<FNURBSSurface>(Entity);
+			DisplayHull(Nurbs->GetPoles(), Nurbs->GetPoleCount(EIso::IsoU), Nurbs->GetPoleCount(EIso::IsoV));
+			return;
+		}
+	}
+
+	void Display(const TSharedPtr<FTopologicalFace>& Face)
+	{
+		F3DDebugSegment GraphicSegment(Face->GetId());
+		Draw(Face);
+	}
+
+	void Display2D(const TSharedPtr<FTopologicalFace>& Face)
+	{
+		F3DDebugSegment GraphicSegment(Face->GetId());
+		Draw2D(Face);
+	}
+
+	void Draw(const TSharedPtr<FTopologicalFace>& Face)
+	{
+		{
+			for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+			{
+				for (const FOrientedEdge& Edge : Loop->GetEdges())
+				{
+					EVisuProperty Property = EVisuProperty::BlueCurve;
+					switch (Edge.Entity->GetTwinsEntityCount())
+					{
+					case 1:
+						Property = EVisuProperty::BorderEdge;
+						break;
+					case 2:
+						Property = EVisuProperty::BlueCurve;
+						break;
+					default:
+						Property = EVisuProperty::NonManifoldEdge;
+					}
+					Draw(Edge.Entity, Property);
+				}
+			}
+		}
+
+		DrawIsoCurves(Face);
+	}
+
+	void Draw2D(const TSharedPtr<FTopologicalFace>& Face)
+	{
+		TArray<TArray<FPoint2D>> BoundaryApproximation;
+		Face->Get2DLoopSampling(BoundaryApproximation);
+
+		for (const TArray<FPoint2D>& Boudary : BoundaryApproximation)
+		{
+			Draw(Boudary, EVisuProperty::BlueCurve);
+		}
+
+		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
+		{
+			EIso OtherIso = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
+			const FLinearBoundary& Bounds = Face->GetBoundary().Get(IsoType);
+			const FLinearBoundary& CurveBounds = Face->GetBoundary().Get(OtherIso);
+
+
+			double Coordinate = Bounds.Min;
+			IsoCount++;
+			const double Step = (Bounds.Max - Bounds.Min) / IsoCount;
+
+			for (int32 iIso = 1; iIso < IsoCount; iIso++)
+			{
+				Coordinate += Step;
+
+				TArray<double> Intersections;
+				FindLoopIntersectionsWithIso(IsoType, Coordinate, BoundaryApproximation, Intersections);
+
+				FPoint2D Start;
+				FPoint2D End;
+
+				Start[IsoType] = Coordinate;
+				End[IsoType] = Coordinate;
+
+				if (Intersections.Num() % 2 != 0)
+				{
+					Start[OtherIso] = Intersections[Intersections.Num() - 1];
+					End[OtherIso] = CurveBounds.GetMax();
+					DrawSegment(Start, End, EVisuProperty::YellowCurve);
+					Intersections.Pop();
+				}
+
+				for (int32 ISection = 0; ISection < Intersections.Num(); ISection += 2)
+				{
+					Start[OtherIso] = Intersections[ISection];
+					End[OtherIso] = Intersections[ISection + 1];
+					DrawSegment(Start, End, EVisuProperty::Iso);
+				}
+			}
+		};
+
+		int32 IsoUCount = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
+		int32 IsoVCount = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
+
+		DrawIsos(IsoUCount, EIso::IsoU);
+		DrawIsos(IsoVCount, EIso::IsoV);
+	}
+
+
+	void DrawIsoCurves(const TSharedPtr<FTopologicalFace>& Face)
+	{
+		TArray<TArray<FPoint2D>> BoundaryApproximation;
+		Face->Get2DLoopSampling(BoundaryApproximation);
+
+		const double VisuSag = FSystem::Get().GetVisu()->GetParameters()->ChordError;
+
+		FPolyline3D Polyline;
+		const FSurface& Surface = Face->GetCarrierSurface().Get();
+		FIsoCurve3DSamplerOnChord Sampler(Surface, VisuSag, Polyline);
+
+		TFunction <void(const int32, const EIso)> DrawIsos = [&](int32 IsoCount, const EIso IsoType)
+		{
+			const FLinearBoundary& Bounds = Face->GetBoundary().Get(IsoType);
+
+			EIso Other = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
+
+			double Coordinate = Bounds.Min;
+			IsoCount++;
+			const double Step = (Bounds.Max - Bounds.Min) / IsoCount;
+
+			for (int32 iIso = 1; iIso < IsoCount; iIso++)
+			{
+				Coordinate += Step;
+
+				TArray<double> Intersections;
+				FindLoopIntersectionsWithIso(IsoType, Coordinate, BoundaryApproximation, Intersections);
+				int32 IntersectionCount = Intersections.Num();
+				if (IntersectionCount == 0)
+				{
+					return;
+				}
+
+				FLinearBoundary CurveBounds(Intersections[0], Intersections.Last());
+
+				Polyline.Empty();
+				Sampler.Set(IsoType, Coordinate, CurveBounds);
+				Sampler.Sample();
+
+				if (IntersectionCount % 2 != 0)
+				{
+					TArray<FPoint> SubPolyline;
+					FLinearBoundary Boundary(Intersections[IntersectionCount - 1], CurveBounds.GetMax());
+					Polyline.GetSubPolyline(Boundary, EOrientation::Front, SubPolyline);
+					Draw(SubPolyline, EVisuProperty::YellowCurve);
+					Intersections.Pop();
+					IntersectionCount--;
+				}
+
+				for (int32 ISection = 0; ISection < IntersectionCount; ISection += 2)
+				{
+					TArray<FPoint> SubPolyline;
+					FLinearBoundary Boundary(Intersections[ISection], Intersections[ISection + 1]);
+					Polyline.GetSubPolyline(Boundary, EOrientation::Front, SubPolyline);
+					Draw(SubPolyline, EVisuProperty::Iso);
+				}
+			}
+		};
+
+		int32 IsoUCount = FSystem::Get().GetVisu()->GetParameters()->IsoUNumber;
+		int32 IsoVCount = FSystem::Get().GetVisu()->GetParameters()->IsoVNumber;
+
+		DrawIsos(IsoUCount, EIso::IsoU);
+		DrawIsos(IsoVCount, EIso::IsoV);
+	}
+
+	void Display(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
+	{
+		F3DDebugSegment GraphicSegment(Edge->GetId());
+		Draw(Edge, Property);
+	}
+
+	void Display2D(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
+	{
+		F3DDebugSegment GraphicSegment(Edge->GetId());
+		TArray<FPoint2D> Polyline;
+		Edge->GetCurve()->GetDiscretizationPoints(Edge->GetBoundary(), EOrientation::Front, Polyline);
+		DisplayPolyline(Polyline, Property);
+	}
+
+	void Draw(const TSharedPtr<FTopologicalEdge>& Edge, EVisuProperty Property)
+	{
+		const FLinearBoundary& Boundary = Edge->GetBoundary();
+		Draw(Boundary, Edge->GetCurve(), Property);
+	}
+
+	void Display(const TSharedPtr<FModel>& Model)
+	{
+		FProgress MainProgress(2, TEXT("Display model"));
+		{
+			const TArray<TSharedPtr<FBody>>& Bodies = Model->GetBodyList();
+			FProgress BodyProgress((int32)Bodies.Num(), TEXT("Bodies"));
+			for (const TSharedPtr<FBody>& Body : Bodies)
+			{
+				Display(Body);
+			}
+		}
+
+		{
+			const TArray<TSharedPtr<FTopologicalFace>>& Surfaces = Model->GetSurfaceList();
+			FProgress SurfaceProgress((int32)Surfaces.Num(), TEXT("surfaces"));
+			for (const TSharedPtr<FTopologicalFace>& Surface : Surfaces)
+			{
+				Display(Surface);
+			}
+		}
+	}
+
+	void Display(const TSharedPtr<FGroup>& Group)
+	{
+		TArray<TSharedPtr<FEntity>> Entities;
+
+		Group->GetValidEntities(Entities);
+
+		FProgress Progress(Entities.Num());
+		for (const TSharedPtr<FEntity>& Entity : Entities)
+		{
+			DisplayEntity(Entity);
+		}
+	}
+
+	void DisplayMesh(const TSharedPtr<FMesh>& Mesh)
+	{
+		ensureCADKernel(Mesh.IsValid());
+		switch (Mesh->GetGeometricEntity()->GetEntityType())
+		{
+		case EEntity::TopologicalFace:
+			DisplayMesh(StaticCastSharedRef<FFaceMesh>(Mesh.ToSharedRef()));
+			break;
+		case EEntity::TopologicalEdge:
+			DisplayMesh(StaticCastSharedRef<FEdgeMesh>(Mesh.ToSharedRef()));
+			break;
+		case EEntity::TopologicalVertex:
+			DisplayMesh(StaticCastSharedRef<FVertexMesh>(Mesh.ToSharedRef()));
+			break;
+		default:
+			break;
+		}
+	}
+
+	void DisplayMesh(const TSharedRef<FFaceMesh>& Mesh)
+	{
+		TMap<int32, const FPoint*> NodeIdToCoordinates;
+		Mesh->GetNodeIdToCoordinates(NodeIdToCoordinates);
+
+		TArray<FPoint> Points;
+		Points.SetNum(3);
+		double EdgeMeanLength = 0;
+		const TArray<int32>& TriangleIndices = Mesh->TrianglesVerticesIndex;
+		const TArray<int32>& VertexIndices = Mesh->VerticesGlobalIndex;
+		for (int32 Index = 0; Index < TriangleIndices.Num();)
+		{
+			Points[0] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
+			Points[1] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
+			Points[2] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
+			DrawElement(2, Points, EVisuProperty::Element);
+			DrawSegment(Points[0], Points[1], EVisuProperty::EdgeMesh);
+			DrawSegment(Points[1], Points[2], EVisuProperty::EdgeMesh);
+			DrawSegment(Points[2], Points[0], EVisuProperty::EdgeMesh);
+			EdgeMeanLength += Points[0].Distance(Points[1]);
+			EdgeMeanLength += Points[1].Distance(Points[2]);
+			EdgeMeanLength += Points[2].Distance(Points[0]);
+		}
+		EdgeMeanLength /= 10 * TriangleIndices.Num();
+
+		for (const int32& Index : VertexIndices)
+		{
+			F3DDebugSegment GraphicSegment(Index);
+			DrawPoint(*NodeIdToCoordinates[Index], EVisuProperty::NodeMesh);
+		}
+
+		bool test = FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals;
+		if (FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals)
+		{
+			double NormalLength = FSystem::Get().GetVisu()->GetParameters()->NormalLength;
+			const TArray<FPoint>& Normals = Mesh->Normals;
+			for (int32 Index = 0; Index < VertexIndices.Num(); ++Index)
+			{
+				F3DDebugSegment GraphicSegment(Index);
+				FPoint Normal = Normals[Index];
+				Normal.Normalize();
+				Normal *= NormalLength;
+				DrawSegment(*NodeIdToCoordinates[VertexIndices[Index]], *NodeIdToCoordinates[VertexIndices[Index]] + Normal, EVisuProperty::EdgeMesh);
+			}
+		}
+	}
+
+	void DisplayMesh(const TSharedRef<FEdgeMesh>& Mesh)
+	{
+		const TSharedRef<FModelMesh> MeshModel = Mesh->GetMeshModel();
+
+		const TArray<int32>& NodeIds = Mesh->EdgeVerticesIndex;
+		const TArray<FPoint>& NodeCoordinates = Mesh->GetNodeCoordinates();
+
+		int32 StartNodeId = NodeIds[0];
+		int32 LastNodeId = NodeIds.Last();
+
+		{
+			F3DDebugSegment GraphicSegment(Mesh->GetGeometricEntity()->GetId());
+			if (NodeCoordinates.Num() == 0)
+			{
+				DrawSegment(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
+			}
+			else
+			{
+				DrawSegment(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], NodeCoordinates[0], EVisuProperty::EdgeMesh);
+				if (NodeCoordinates.Num() > 1)
+				{
+					for (int32 Index = 0; Index < NodeCoordinates.Num() - 1; Index++)
+					{
+						DrawSegment(NodeCoordinates[Index], NodeCoordinates[Index + 1], EVisuProperty::EdgeMesh);
+					}
+				}
+				DrawSegment(NodeCoordinates.Last(), MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::EdgeMesh);
+			}
+		}
+
+		{
+			F3DDebugSegment GraphicSegment(StartNodeId);
+			DrawPoint(MeshModel->GetMeshOfVertexNodeId(StartNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
+		}
+
+		{
+			F3DDebugSegment GraphicSegment(LastNodeId);
+			DrawPoint(MeshModel->GetMeshOfVertexNodeId(LastNodeId)->GetNodeCoordinates()[0], EVisuProperty::NodeMesh);
+		}
+
+		if (NodeCoordinates.Num() > 1)
+		{
+			for (int32 Index = 0; Index < NodeCoordinates.Num(); Index++)
+			{
+				F3DDebugSegment GraphicSegment(NodeIds[Index]);
+				DrawPoint(NodeCoordinates[Index], EVisuProperty::NodeMesh);
+			}
+		}
+	}
+
+	void DisplayMesh(const TSharedRef<FVertexMesh>& Mesh)
+	{
+		DisplayPoint(Mesh->GetNodeCoordinates()[0], EVisuProperty::NodeMesh, Mesh->GetId());
+	}
+
+	void Display(const TSharedPtr<FModelMesh>& MeshModel)
+	{
+		for (TSharedPtr<FMesh> Mesh : MeshModel->GetMeshes())
+		{
+			if (Mesh.IsValid())
+			{
+				DisplayMesh(Mesh.ToSharedRef());
+			}
+		}
+	}
+
+	void DisplaySegment(const FPoint& Point1, const FPoint& Point2, FIdent Ident, EVisuProperty Property)
+	{
+		F3DDebugSegment G(Ident);
+		DrawSegment(Point1, Point2, Property);
+	}
+
+	void DisplaySegment(const FPoint2D& Point1, const FPoint2D& Point2, FIdent Ident, EVisuProperty Property, bool bWithOrientation)
+	{
+		F3DDebugSegment G(Ident);
+		if (bWithOrientation)
+		{
+			DrawSegmentOrientation(Point1, Point2, Property);
+		}
+		DrawSegment(Point1, Point2, Property);
+	}
+
+	void DisplaySegment(const FPointH& Point1, const FPointH& Point2, FIdent Ident, EVisuProperty Property)
+	{
+		F3DDebugSegment G(Ident);
+		DrawSegment(Point1, Point2, Property);
+	}
+
+	void DisplayLoop(const TSharedPtr<FTopologicalFace>& Surface)
+	{
+		for (const TSharedPtr<FTopologicalLoop> Loop : Surface->GetLoops())
+		{
+			Display(Loop);
+		}
+	}
+
+
+	void Display(const TSharedPtr<FTopologicalLoop>& Loop)
+	{
+		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			Display(Edge.Entity);
+		}
+	}
+
+	void Display2D(const TSharedPtr<FTopologicalLoop>& Loop)
+	{
+		for (const FOrientedEdge& Edge : Loop->GetEdges())
+		{
+			Display2D(Edge.Entity);
+		}
+	}
+} // namespace CADKernel
