@@ -478,6 +478,16 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 		.AutoWidth()
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 		[
+			SNew(SButton)
+			.Text(LOCTEXT("ByMemoryPageBtn_Text", "By Memory Page"))
+			.ToolTipText(LOCTEXT("ByMemoryRegionBtn_Tooltip", "Memory Page Breakdown View\nConfigure the tree view to show a breakdown of allocations by memory page."))
+			.OnClicked(this, &SMemAllocTableTreeView::OnMemoryPageClicked)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
 			SNew(SCheckBox)
 			.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 			.HAlign(HAlign_Center)
@@ -562,15 +572,16 @@ FReply SMemAllocTableTreeView::OnDetailedViewClicked()
 
 	FColumnConfig Preset[] =
 	{
-		{ FTable::GetHierarchyColumnId(),           true,  200.0f },
-		{ FMemAllocTableColumns::StartTimeColumnId, true,  100.0f },
-		{ FMemAllocTableColumns::EndTimeColumnId,   true,  100.0f },
-		{ FMemAllocTableColumns::DurationColumnId,  true,  100.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   true,  120.0f },
-		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
-		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       true,  120.0f },
-		{ FMemAllocTableColumns::FunctionColumnId,  true,  550.0f },
+		{ FTable::GetHierarchyColumnId(),                true,  200.0f },
+		{ FMemAllocTableColumns::StartTimeColumnId,      true,  100.0f },
+		{ FMemAllocTableColumns::EndTimeColumnId,        true,  100.0f },
+		{ FMemAllocTableColumns::DurationColumnId,       true,  100.0f },
+		{ FMemAllocTableColumns::AddressColumnId,        true,  120.0f },
+		{ FMemAllocTableColumns::MemoryPageColumnId,     true,  120.0f },
+		{ FMemAllocTableColumns::CountColumnId,          true,  100.0f },
+		{ FMemAllocTableColumns::SizeColumnId,           true,  100.0f },
+		{ FMemAllocTableColumns::TagColumnId,            true,  120.0f },
+		{ FMemAllocTableColumns::FunctionColumnId,       true,  550.0f },
 	};
 	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
 
@@ -606,14 +617,62 @@ FReply SMemAllocTableTreeView::OnSizeViewClicked()
 
 	FColumnConfig Preset[] =
 	{
+		{ FTable::GetHierarchyColumnId(),              true,  200.0f },
+		{ FMemAllocTableColumns::StartTimeColumnId,    false, 0.0f },
+		{ FMemAllocTableColumns::EndTimeColumnId,      false, 0.0f },
+		{ FMemAllocTableColumns::DurationColumnId,     false, 0.0f },
+		{ FMemAllocTableColumns::AddressColumnId,      true,  120.0f },
+		{ FMemAllocTableColumns::MemoryPageColumnId,   false, 0.0f },
+		{ FMemAllocTableColumns::CountColumnId,        true,  100.0f },
+		{ FMemAllocTableColumns::SizeColumnId,         true,  100.0f },
+		{ FMemAllocTableColumns::TagColumnId,          true,  120.0f },
+		{ FMemAllocTableColumns::FunctionColumnId,     true,  400.0f },
+	};
+	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
+
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+FReply SMemAllocTableTreeView::OnMemoryPageClicked()
+{
+	ColumnBeingSorted = FTable::GetHierarchyColumnId();
+	ColumnSortMode = EColumnSortMode::Type::Ascending;
+	UpdateCurrentSortingByColumn();
+
+	PreChangeGroupings();
+
+	CurrentGroupings.Reset();
+
+	check(AvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+	CurrentGroupings.Add(AvailableGroupings[0]);
+
+	TSharedPtr<FTreeNodeGrouping>* MemoryPageGrouping = AvailableGroupings.FindByPredicate(
+		[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+	{
+		return Grouping->Is<FTreeNodeGroupingByUniqueValueInt64>() &&
+			Grouping->As<FTreeNodeGroupingByUniqueValueInt64>().GetColumnId() == FMemAllocTableColumns::MemoryPageColumnId;
+	});
+	if (MemoryPageGrouping)
+	{
+		CurrentGroupings.Add(*MemoryPageGrouping);
+	}
+
+	PostChangeGroupings();
+
+	FColumnConfig Preset[] =
+	{
 		{ FTable::GetHierarchyColumnId(),           true,  200.0f },
 		{ FMemAllocTableColumns::StartTimeColumnId, false, 0.0f },
 		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
 		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
-		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
+		{ FMemAllocTableColumns::AddressColumnId,   true,  120.0f },
+		{ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f },
 		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
 		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
-		{ FMemAllocTableColumns::TagColumnId,       true,  120.0f },
+		{ FMemAllocTableColumns::TagColumnId,       false, 0.0f },
 		{ FMemAllocTableColumns::FunctionColumnId,  true,  400.0f },
 	};
 	ApplyColumnConfig(TArrayView<FColumnConfig>(Preset, UE_ARRAY_COUNT(Preset)));
@@ -656,6 +715,7 @@ FReply SMemAllocTableTreeView::OnTagViewClicked()
 		{ FMemAllocTableColumns::EndTimeColumnId,   false, 0.0f },
 		{ FMemAllocTableColumns::DurationColumnId,  false, 0.0f },
 		{ FMemAllocTableColumns::AddressColumnId,   false, 0.0f },
+		{ FMemAllocTableColumns::MemoryPageColumnId,false, 0.0f },
 		{ FMemAllocTableColumns::CountColumnId,     true,  100.0f },
 		{ FMemAllocTableColumns::SizeColumnId,      true,  100.0f },
 		{ FMemAllocTableColumns::TagColumnId,       false, 0.0f },

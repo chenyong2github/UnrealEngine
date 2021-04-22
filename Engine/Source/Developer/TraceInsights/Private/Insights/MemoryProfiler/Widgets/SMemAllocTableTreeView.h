@@ -103,6 +103,7 @@ private:
 	FReply OnDetailedViewClicked();
 	FReply OnSizeViewClicked();
 	FReply OnTagViewClicked();
+	FReply OnMemoryPageClicked();
 	FReply OnCallstackViewClicked(bool bIsInverted);
 
 	FText GetSymbolResolutionStatus() const;

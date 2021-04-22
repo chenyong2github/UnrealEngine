@@ -22,6 +22,7 @@ public:
 	double GetEndTime() const { return EndTime; }
 	double GetDuration() const { return EndTime - StartTime; }
 	uint64 GetAddress() const { return Address; }
+	uint64 GetPage() const { return Address & ~(4llu*1024-1); }
 	uint64 GetSize() const { return Size; }
 	const TCHAR* GetTag() const { return Tag; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }

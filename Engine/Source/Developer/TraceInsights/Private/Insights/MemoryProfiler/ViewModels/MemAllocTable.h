@@ -26,6 +26,7 @@ struct FMemAllocTableColumns
 	static const FName SizeColumnId;
 	static const FName TagColumnId;
 	static const FName FunctionColumnId;
+	static const FName MemoryPageColumnId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
