@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 
+class AActor;
 class FLevelSnapshotsModule;
+class FProperty;
+class UActorComponent;
 
 class LEVELSNAPSHOTS_API FSnapshotRestorability
 {
@@ -14,6 +17,7 @@ class LEVELSNAPSHOTS_API FSnapshotRestorability
 	 * Using cached module halves execution time of IsRestorableProperty.
 	 */
 	static FLevelSnapshotsModule* Module;
+	
 public:
 
 	/* Is this actor captured by the snapshot system? */
