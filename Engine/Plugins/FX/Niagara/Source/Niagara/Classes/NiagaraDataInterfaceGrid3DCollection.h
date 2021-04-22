@@ -79,6 +79,8 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FGrid3DBuffer* CurrentData = nullptr;
 	FGrid3DBuffer* DestinationData = nullptr;
 
+	FReadBuffer PerAttributeData;
+
 	FTextureRHIRef RenderTargetToCopyTo;
 
 	void BeginSimulate(FRHICommandList& RHICmdList);
@@ -204,6 +206,8 @@ public:
 
 	static const FString NumTilesName;
 	static const FString OneOverNumTilesName;
+	static const FString UnitClampMinName;
+	static const FString UnitClampMaxName;
 
 	static const FString GridName;
 	static const FString OutputGridName;
@@ -235,10 +239,7 @@ public:
 	static const FName GetPreviousFloatValueFunctionName;
 	static const FName SamplePreviousGridFloatFunctionName;
 	static const FString AttributeIndicesBaseName;
-	static const FString AttributePixelOffsetName;
-	static const FString AttributeUVOffsetName;
-	static const FString AttributeUVClampMinName;
-	static const FString AttributeUVClampMaxName;
+	static const FString PerAttributeDataName;
 	static const TCHAR* VectorComponentNames[];
 
 	static const FName SetNumCellsFunctionName;
