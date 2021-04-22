@@ -12,6 +12,7 @@
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 #include "RenderCore/Public/GenerateMips.h"
+#include <limits>
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
