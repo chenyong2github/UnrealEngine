@@ -66,9 +66,19 @@ namespace UE
 }
 namespace UnrealToUsdImpl = UE::USDExporter::Private;
 
+UUsdConversionBlueprintContext::~UUsdConversionBlueprintContext()
+{
+	Cleanup();
+}
+
 void UUsdConversionBlueprintContext::SetStageRootLayer( FFilePath StageRootLayerPath )
 {
+	Cleanup();
+
+	TArray< UE::FUsdStage > PreviouslyOpenedStages = UnrealUSDWrapper::GetAllStagesFromCache();
+
 	Stage = UnrealUSDWrapper::OpenStage( *StageRootLayerPath.FilePath, EUsdInitialLoadSet::LoadAll );
+	bEraseFromStageCache = !PreviouslyOpenedStages.Contains( Stage );
 }
 
 FFilePath UUsdConversionBlueprintContext::GetStageRootLayer()
@@ -110,6 +120,19 @@ FFilePath UUsdConversionBlueprintContext::GetEditTarget()
 
 	UE_LOG( LogUsd, Error, TEXT( "There is no stage currently open!" ) );
 	return {};
+}
+
+void UUsdConversionBlueprintContext::Cleanup()
+{
+	if ( Stage )
+	{
+		if ( bEraseFromStageCache )
+		{
+			UnrealUSDWrapper::EraseStageFromCache( Stage );
+		}
+
+		Stage = UE::FUsdStage();
+	}
 }
 
 bool UUsdConversionBlueprintContext::ConvertLightComponent( const ULightComponentBase* Component, const FString& PrimPath, float TimeCode )
