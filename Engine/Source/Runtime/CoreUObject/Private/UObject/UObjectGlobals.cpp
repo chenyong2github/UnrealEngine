@@ -78,6 +78,16 @@ static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
 	ECVF_Default
 );
 
+COREUOBJECT_API bool GetAllowNativeComponentClassOverrides()
+{
+	static const bool bAllowNativeComponentClassOverrides = []()
+	{
+		bool bAllow;
+		GConfig->GetBool(TEXT("Kismet"), TEXT("bAllowNativeComponentClassOverrides"), bAllow, GEngineIni);
+		return bAllow;
+	}();
+	return bAllowNativeComponentClassOverrides;
+}
 DEFINE_STAT(STAT_InitProperties);
 DEFINE_STAT(STAT_ConstructObject);
 DEFINE_STAT(STAT_AllocateObject);
@@ -2687,7 +2697,7 @@ void FObjectInitializer::Construct_Internal()
 	ThreadContext.ConstructedObject = Obj;
 	ThreadContext.PushInitializer(this);
 
-	if (Obj)
+	if (Obj && GetAllowNativeComponentClassOverrides())
 	{
 		Obj->GetClass()->SetupObjectInitializer(*this);
 	}

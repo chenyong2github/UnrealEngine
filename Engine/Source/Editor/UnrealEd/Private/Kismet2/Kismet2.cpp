@@ -807,16 +807,19 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		}
 
 		// If we have overriden the class of a native component then ensure that the component still exists and that the overriden class is a valid subclass of it
-		if (const FBPComponentClassOverride* BPCO = CastChecked<UBlueprintGeneratedClass>(BlueprintClass)->ComponentClassOverrides.FindByKey(Component->GetFName()))
+		if (GetAllowNativeComponentClassOverrides())
 		{
-			if (BPCO->ComponentClass == Component->GetClass())
+			if (const FBPComponentClassOverride* BPCO = CastChecked<UBlueprintGeneratedClass>(BlueprintClass)->ComponentClassOverrides.FindByKey(Component->GetFName()))
 			{
-				if (UObject* OverridenComponent = (UObject*)FindObjectWithOuter(NativeCDO, UActorComponent::StaticClass(), Component->GetFName()))
+				if (BPCO->ComponentClass == Component->GetClass())
 				{
-					if (Component->IsA(OverridenComponent->GetClass()))
+					if (UObject* OverridenComponent = (UObject*)FindObjectWithOuter(NativeCDO, UActorComponent::StaticClass(), Component->GetFName()))
 					{
-						NewNativeComponents.Add(Component);
-						continue;
+						if (Component->IsA(OverridenComponent->GetClass()))
+						{
+							NewNativeComponents.Add(Component);
+							continue;
+						}
 					}
 				}
 			}

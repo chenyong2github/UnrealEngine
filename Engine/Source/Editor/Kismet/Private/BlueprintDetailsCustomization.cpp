@@ -5936,40 +5936,43 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 			]
 		];
 
-		// Remove UI to specify overriden component class until undo/redo can be made to work with crashing
-		/*UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
-		if (ComponentTemplate)
+		// Keep an easy way to disable UI to specify overriden component class until there is confidence that it is robust
+		if (GetAllowNativeComponentClassOverrides())
 		{
-			UClass* BaseClass = ComponentTemplate->GetClass();
-
-			if (const FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplate->GetFName()))
+			UActorComponent* ComponentTemplate = (CachedNodePtr->IsNativeComponent() ? CachedNodePtr->GetComponentTemplate() : nullptr);
+			if (ComponentTemplate)
 			{
-				AActor* Owner = ComponentTemplate->GetOwner();
-				AActor* OwnerArchetype = CastChecked<AActor>(Owner->GetArchetype());
-				if (UActorComponent* ArchetypeComponent = Cast<UActorComponent>((UObject*)FindObjectWithOuter(OwnerArchetype, UActorComponent::StaticClass(), ComponentTemplate->GetFName())))
+				UClass* BaseClass = ComponentTemplate->GetClass();
+
+				if (const FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplate->GetFName()))
 				{
-					BaseClass = ArchetypeComponent->GetClass();
+					AActor* Owner = ComponentTemplate->GetOwner();
+					AActor* OwnerArchetype = CastChecked<AActor>(Owner->GetArchetype());
+					if (UActorComponent* ArchetypeComponent = Cast<UActorComponent>((UObject*)FindObjectWithOuter(OwnerArchetype, UActorComponent::StaticClass(), ComponentTemplate->GetFName())))
+					{
+						BaseClass = ArchetypeComponent->GetClass();
+					}
 				}
+
+				const FText ComponentClassTooltip = LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideTooltip", "The class to use when creating this component for this class. This can only be done for components defined in native at this time.");
+
+				VariableCategory.AddCustomRow( LOCTEXT("BlueprintComponentDetails_ComponentClassOverride", "Component Class") )
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideLabel", "Component Class"))
+					.ToolTipText(ComponentClassTooltip)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+				]
+				.ValueContent()
+				[
+					SNew(SClassPropertyEntryBox)
+					.MetaClass(BaseClass)
+					.AllowNone(false)
+					.SelectedClass(this, &FBlueprintComponentDetails::GetSelectedEntryClass)
+					.OnSetClass(this, &FBlueprintComponentDetails::HandleNewEntryClassSelected)];
 			}
-
-			const FText ComponentClassTooltip = LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideTooltip", "The class to use when creating this component for this class. This can only be done for components defined in native at this time.");
-
-			VariableCategory.AddCustomRow( LOCTEXT("BlueprintComponentDetails_ComponentClassOverride", "Component Class") )
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideLabel", "Component Class"))
-				.ToolTipText(ComponentClassTooltip)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			[
-				SNew(SClassPropertyEntryBox)
-				.MetaClass(BaseClass)
-				.AllowNone(false)
-				.SelectedClass(this, &FBlueprintComponentDetails::GetSelectedEntryClass)
-				.OnSetClass(this, &FBlueprintComponentDetails::HandleNewEntryClassSelected)];
-		}*/
+		}
 
 		IDetailCategoryBuilder& SocketsCategory = DetailLayout.EditCategory("Sockets", LOCTEXT("BlueprintComponentDetailsCategory", "Sockets"), ECategoryPriority::Important);
 

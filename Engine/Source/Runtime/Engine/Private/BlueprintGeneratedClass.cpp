@@ -136,7 +136,7 @@ void UBlueprintGeneratedClass::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 
 	// Update any component names that have been redirected
-	if (!FPlatformProperties::RequiresCookedData())
+	if (!FPlatformProperties::RequiresCookedData() && GetAllowNativeComponentClassOverrides())
 	{
 		for (FBPComponentClassOverride& Override : ComponentClassOverrides)
 		{
@@ -1517,12 +1517,15 @@ void UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies(TArray<UObjec
 		}
 	}
 
-	// Add the classes that will be used for overriding components defined in base classes
-	for (const FBPComponentClassOverride& Override : ComponentClassOverrides)
+	if (GetAllowNativeComponentClassOverrides())
 	{
-		if (Override.ComponentClass)
+		// Add the classes that will be used for overriding components defined in base classes
+		for (const FBPComponentClassOverride& Override : ComponentClassOverrides)
 		{
-			OutDeps.Add(Override.ComponentClass);
+			if (Override.ComponentClass)
+			{
+				OutDeps.Add(Override.ComponentClass);
+			}
 		}
 	}
 }

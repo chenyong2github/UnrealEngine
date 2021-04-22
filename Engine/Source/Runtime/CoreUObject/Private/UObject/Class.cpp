@@ -6301,9 +6301,12 @@ void UDynamicClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	Collector.AddReferencedObjects(This->ComponentTemplates, This);
 	Collector.AddReferencedObjects(This->Timelines, This);
 
-	for (TPair<FName, UClass*>& Override : This->ComponentClassOverrides)
+	if (GetAllowNativeComponentClassOverrides())
 	{
-		Collector.AddReferencedObject(Override.Value);
+		for (TPair<FName, UClass*>& Override : This->ComponentClassOverrides)
+		{
+			Collector.AddReferencedObject(Override.Value);
+		}
 	}
 
 	Collector.AddReferencedObject(This->AnimClassImplementation, This);

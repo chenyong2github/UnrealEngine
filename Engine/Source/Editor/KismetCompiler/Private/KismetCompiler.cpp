@@ -4059,7 +4059,10 @@ void FKismetCompilerContext::CompileClassLayout(EInternalCompilerFlags InternalF
 	// This validation requires CDO object.
 	ValidateVariableNames();
 
-	ValidateComponentClassOverrides();
+	if (GetAllowNativeComponentClassOverrides())
+	{
+		ValidateComponentClassOverrides();
+	}
 
 	OldCDO = NULL;
 	OldGenLinkerIdx = INDEX_NONE;
