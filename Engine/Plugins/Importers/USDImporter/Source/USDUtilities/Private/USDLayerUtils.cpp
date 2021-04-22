@@ -304,12 +304,13 @@ void UsdUtils::AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double
 		return;
 	}
 
-	if ( StartTimeCode < Layer->GetStartTimeCode() )
+	// The HasTimeCode check is needed or else we can't author anything with a StartTimeCode lower than the default of 0
+	if ( StartTimeCode < Layer->GetStartTimeCode() || !Layer->HasStartTimeCode() )
 	{
 		Layer->SetStartTimeCode( StartTimeCode );
 	}
 
-	if ( EndTimeCode > Layer->GetEndTimeCode() )
+	if ( EndTimeCode > Layer->GetEndTimeCode() || !Layer->HasEndTimeCode() )
 	{
 		Layer->SetEndTimeCode( StartTimeCode );
 	}
