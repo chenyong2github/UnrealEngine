@@ -1426,6 +1426,9 @@ void AUsdStageActor::ReloadAnimations()
 #endif // WITH_EDITOR
 		}
 
+		// We need to guarantee we'll record our change of LevelSequence into the transaction, as Init() will create a new one
+		Modify();
+
 		LevelSequence = LevelSequenceHelper.Init( UsdStage );
 		LevelSequenceHelper.BindToUsdStageActor( this );
 
