@@ -396,7 +396,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoCompileChaos", Value = "false")]
 		[CommandLine("-CompileChaos", Value = "true")]
-		public bool bCompileChaos = true;
+		public bool bCompileChaos = false;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseChaos", Value = "false")]
 		[CommandLine("-UseChaos", Value = "true")]
-		public bool bUseChaos = true;
+		public bool bUseChaos = false;
 
 		/// <summary>
 		/// Whether to compile in checked chaos features for debugging
@@ -428,20 +428,20 @@ namespace UnrealBuildTool
 		/// Whether to include PhysX support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompilePhysX = false;
+		public bool bCompilePhysX = true;
 
 		/// <summary>
 		/// Whether to include PhysX APEX support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileApex")]
-		public bool bCompileAPEX = false;
+		public bool bCompileAPEX = true;
 
 		/// <summary>
 		/// Whether to include NvCloth.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileNvCloth = false;
+		public bool bCompileNvCloth = true;
 
 		/// <summary>
 		/// Whether to include ICU unicode/i18n support in Core.
