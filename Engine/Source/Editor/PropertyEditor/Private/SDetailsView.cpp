@@ -1076,6 +1076,11 @@ void SDetailsView::SetGroupFavorite(FStringView GroupPath, bool IsFavorite)
 
 bool SDetailsView::IsCustomBuilderFavorite(FStringView Path) const
 {
+	if (Path.IsEmpty())
+	{
+		return false;
+	}
+
 	UEditorMetadataOverrides* EditorMetadata = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
 	if (!EditorMetadata)
 	{
@@ -1107,6 +1112,11 @@ bool SDetailsView::IsCustomBuilderFavorite(FStringView Path) const
 
 void SDetailsView::SetCustomBuilderFavorite(FStringView Path, bool IsFavorite)
 {
+	if (Path.IsEmpty())
+	{
+		return;
+	}
+
 	UEditorMetadataOverrides* MetadataOverrides = GEditor->GetEditorSubsystem<UEditorMetadataOverrides>();
 	if (!MetadataOverrides)
 	{

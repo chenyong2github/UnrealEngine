@@ -850,7 +850,7 @@ bool SDetailSingleItemRow::CanFavorite() const
 
 	if (Customization->HasCustomBuilder())
 	{
-		return Customization->CustomBuilderRow->GetCustomBuilderName() != NAME_None;
+		return Customization->CustomBuilderRow->GetOriginalPath().IsEmpty() == false;
 	}
 
 	return false;
@@ -871,15 +871,14 @@ bool SDetailSingleItemRow::IsFavorite() const
 			TSharedPtr<FDetailCategoryImpl> ParentCategory = OwnerTreeNodePinned->GetParentCategory();
 			if (ParentCategory.IsValid())
 			{
-				FName BuilderName = Customization->CustomBuilderRow->GetCustomBuilderName();
-				if (BuilderName != NAME_None)
+				if (ParentCategory->IsFavoriteCategory())
 				{
-					TStringBuilder<256> PathToNode;
-					PathToNode.Append(ParentCategory->GetCategoryPathName());
-					PathToNode.Append(TEXT("."));
-					PathToNode.Append(BuilderName.ToString());
+					return true;
+				}
 
-					return OwnerTreeNodePinned->GetDetailsView()->IsCustomBuilderFavorite(PathToNode);
+				if (Customization->CustomBuilderRow->GetOriginalPath().IsEmpty() == false)
+				{
+					return OwnerTreeNodePinned->GetDetailsView()->IsCustomBuilderFavorite(Customization->CustomBuilderRow->GetOriginalPath());
 				}
 			}
 		}
@@ -914,13 +913,10 @@ void SDetailSingleItemRow::OnFavoriteMenuToggle()
 		TSharedPtr<FDetailCategoryImpl> ParentCategory = OwnerTreeNodePinned->GetParentCategory();
 		if (ParentCategory.IsValid())
 		{
-			TStringBuilder<256> PathToNode;
-			PathToNode.Append(ParentCategory->GetCategoryPathName());
-			PathToNode.Append(TEXT("."));
-			PathToNode.Append(Customization->CustomBuilderRow->GetCustomBuilderName().ToString());
+			const FString& OriginalPath = Customization->CustomBuilderRow->GetOriginalPath();
 
-			bNewValue = !DetailsView->IsCustomBuilderFavorite(PathToNode);
-			DetailsView->SetCustomBuilderFavorite(PathToNode, bNewValue);
+			bNewValue = !DetailsView->IsCustomBuilderFavorite(OriginalPath);
+			DetailsView->SetCustomBuilderFavorite(OriginalPath, bNewValue);
 		}
 	}
 

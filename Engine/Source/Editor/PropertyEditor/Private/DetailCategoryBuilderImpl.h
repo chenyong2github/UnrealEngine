@@ -300,6 +300,9 @@ public:
 	 */
 	void SetCategoryAsSpecialFavorite() { bFavoriteCategory = true; bForceAdvanced = true; }
 
+	/** Is this the Favorites category? */
+	bool IsFavoriteCategory() const { return bFavoriteCategory; }
+
 	FDetailLayoutCustomization* GetDefaultCustomization(TSharedRef<FPropertyNode> PropertyNode);
 
 private:

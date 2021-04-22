@@ -168,21 +168,31 @@ void FDetailCategoryImpl::AddCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> 
 	NewCustomization.bAdvanced = bForAdvanced;
 	NewCustomization.CustomBuilderRow = MakeShareable(new FDetailCustomBuilderRow(InCustomBuilder));
 
-	if (GetDetailsView() != nullptr && !bFavoriteCategory)
+	if (!InCustomBuilder->GetName().IsNone())
 	{
 		TStringBuilder<256> PathToNode;
 		PathToNode.Append(GetCategoryPathName());
 		PathToNode.Append(TEXT("."));
 		PathToNode.Append(InCustomBuilder->GetName().ToString());
+		NewCustomization.CustomBuilderRow->SetOriginalPath(PathToNode.ToString());
+	}
 
-		if (GetDetailsView()->IsCustomBuilderFavorite(PathToNode))
+	if (GetDetailsView() != nullptr && !bFavoriteCategory)
+	{
+		if (GetDetailsView()->IsCustomBuilderFavorite(NewCustomization.CustomBuilderRow->GetOriginalPath()))
 		{
 			TSharedPtr<FDetailLayoutBuilderImpl> LayoutBuilder = DetailLayoutBuilder.Pin();
 			if (LayoutBuilder.IsValid())
 			{
 				static const FName FavoritesCategoryName(TEXT("Favorites"));
 				FDetailCategoryImpl& FavoritesCategory = LayoutBuilder->DefaultCategory(FavoritesCategoryName);
-				FavoritesCategory.AddCustomBuilder(InCustomBuilder, false);
+
+				FDetailLayoutCustomization FavoritesCustomization;
+				FavoritesCustomization.bCustom = true;
+				FavoritesCustomization.bAdvanced = false;
+				FavoritesCustomization.CustomBuilderRow = MakeShareable(new FDetailCustomBuilderRow(InCustomBuilder));
+				FavoritesCustomization.CustomBuilderRow->SetOriginalPath(NewCustomization.CustomBuilderRow->GetOriginalPath());
+				FavoritesCategory.AddCustomLayout(FavoritesCustomization);
 			}
 		}
 	}

@@ -29,6 +29,8 @@ public:
 	bool IsInitiallyCollapsed() const;
 	FDetailWidgetRow GetWidgetRow();
 	bool AreChildCustomizationsHidden() const;
+	void SetOriginalPath(FStringView Path) { OriginalPath = Path; }
+	const FString& GetOriginalPath() const { return OriginalPath; }
 
 private:
 	/** Whether or not our parent is enabled */
@@ -37,4 +39,5 @@ private:
 	TSharedRef<class IDetailCustomNodeBuilder> CustomNodeBuilder;
 	TSharedPtr<class FCustomChildrenBuilder> ChildrenBuilder;
 	TWeakPtr<FDetailCategoryImpl> ParentCategory;
+	FString OriginalPath;
 };
