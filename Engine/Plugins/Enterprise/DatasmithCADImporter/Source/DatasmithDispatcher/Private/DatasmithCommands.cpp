@@ -61,12 +61,7 @@ namespace DatasmithDispatcher
 
 	void FImportParametersCommand::SerializeImpl(FArchive& Ar)
 	{
-		Ar << ImportParameters.ChordTolerance;
-		Ar << ImportParameters.MaxEdgeLength;
-		Ar << ImportParameters.MaxNormalAngle;
-		Ar << ImportParameters.MetricUnit;
-		Ar << ImportParameters.ScaleFactor;
-		Ar << (uint32&)ImportParameters.StitchingTechnique;
+		Ar << ImportParameters;
 	}
 
 }

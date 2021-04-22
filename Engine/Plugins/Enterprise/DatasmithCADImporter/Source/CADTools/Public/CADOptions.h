@@ -43,6 +43,7 @@ namespace CADLibrary
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;
 		bool bEnableCacheUsage = true;
+		bool bEnableKernelIOTessellation = true;
 
 		uint32 GetHash() const
 		{
@@ -58,6 +59,24 @@ namespace CADLibrary
 			Hash = HashCombine(Hash, GetTypeHash(bScaleUVMap));
 			return Hash;
 		}
+
+		friend FArchive& operator<<(FArchive& Ar, FImportParameters& ImportParameters)
+		{
+			Ar << ImportParameters.MetricUnit;
+			Ar << ImportParameters.ScaleFactor;
+			Ar << ImportParameters.ChordTolerance;
+			Ar << ImportParameters.MaxEdgeLength;
+			Ar << ImportParameters.MaxNormalAngle;
+			Ar << (uint32&) ImportParameters.StitchingTechnique;
+			Ar << (uint8&) ImportParameters.ModelCoordSys;
+			Ar << (uint8&) ImportParameters.Propagation;
+			Ar << (uint8&) ImportParameters.DisplayPreference;
+			Ar << ImportParameters.bScaleUVMap;
+			Ar << ImportParameters.bEnableCacheUsage;
+			Ar << ImportParameters.bEnableKernelIOTessellation;
+			return Ar;
+		}
+
 	};
 
 	struct FMeshParameters
