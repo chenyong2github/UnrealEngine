@@ -364,10 +364,6 @@ void ADisplayClusterRootActor::InitializeRootActor()
 		ViewportManager = MakeUnique<FDisplayClusterViewportManager>();
 	}
 
-#if WITH_EDITOR
-	UpdatePreviewConfiguration_Editor();
-#endif
-
 	// Packaged, PIE and -game runtime
 	if (IsRunningGameOrPIE())
 	{
@@ -396,6 +392,8 @@ void ADisplayClusterRootActor::InitializeRootActor()
 	// Initialize from file property by default in Editor
 	else
 	{
+		UpdatePreviewConfiguration_Editor();
+
 		if (CurrentConfigData)
 		{
 			ResetHierarchyMap();
