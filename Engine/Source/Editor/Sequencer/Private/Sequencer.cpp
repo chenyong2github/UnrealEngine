@@ -7371,7 +7371,7 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 				{
 					bAlreadySelected = Selection.GetSelectedOutlinerNodes().Contains(Node);					
 				}
-				else if (bAlreadySelected == false)
+				if (bAlreadySelected == false)
 				{
 					NodesToSelect.Add(Node);
 					if (bSelect == false) //make sure all children not selected
