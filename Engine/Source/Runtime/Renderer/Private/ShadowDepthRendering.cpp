@@ -942,8 +942,6 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				TShaderMapRef<FCopyShadowMapsCubeGS> GeometryShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GeometryShader.GetGeometryShader();
-				InstanceCount = 6;
-
 				ScreenVertexShader = VertexShader;
 			}
 			else
@@ -953,6 +951,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				TShaderMapRef<TScreenVSForGS<true>> VertexShader(View.ShaderMap);
 				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 				ScreenVertexShader = VertexShader;
+
+				InstanceCount = 6;
 			}
 
 			auto* PassParameters = GraphBuilder.AllocParameters<FCopyShadowMapsCubePS::FParameters>();
