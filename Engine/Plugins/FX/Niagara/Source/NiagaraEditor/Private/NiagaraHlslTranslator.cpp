@@ -3275,6 +3275,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	{\n"
 			"		bRunUpdateLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart != 1;\n"
 			"		bRunSpawnLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart == 1;\n"
+			"		GSpawnStartInstance = IterationInterfaceInstanceCount;\n"
 			"	}\n"
 			"	else\n"
 			"	#endif // USE_SIMULATION_STAGES\n"
