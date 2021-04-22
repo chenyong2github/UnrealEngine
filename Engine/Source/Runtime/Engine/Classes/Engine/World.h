@@ -3920,6 +3920,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWorldPostActorTick, UWorld* /*World*/, ELevelTick/**Tick Type*/, float/**Delta Seconds*/);
 	static FOnWorldPostActorTick OnWorldPostActorTick;
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldPreSendAllEndOfFrameUpdates, UWorld* /*World*/);
+	static FOnWorldPreSendAllEndOfFrameUpdates OnWorldPreSendAllEndOfFrameUpdates;
+
 	// Callback for world creation
 	static FWorldEvent OnPostWorldCreation;
 	

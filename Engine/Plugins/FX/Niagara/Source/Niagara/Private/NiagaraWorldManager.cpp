@@ -176,6 +176,7 @@ FDelegateHandle FNiagaraWorldManager::OnPostWorldCleanupHandle;
 FDelegateHandle FNiagaraWorldManager::OnPreWorldFinishDestroyHandle;
 FDelegateHandle FNiagaraWorldManager::OnWorldBeginTearDownHandle;
 FDelegateHandle FNiagaraWorldManager::TickWorldHandle;
+FDelegateHandle FNiagaraWorldManager::OnWorldPreSendAllEndOfFrameUpdatesHandle;
 FDelegateHandle FNiagaraWorldManager::PreGCHandle;
 FDelegateHandle FNiagaraWorldManager::PostReachabilityAnalysisHandle;
 FDelegateHandle FNiagaraWorldManager::PostGCHandle;
@@ -343,6 +344,15 @@ void FNiagaraWorldManager::OnStartup()
 	OnPreWorldFinishDestroyHandle = FWorldDelegates::OnPreWorldFinishDestroy.AddStatic(&FNiagaraWorldManager::OnPreWorldFinishDestroy);
 	OnWorldBeginTearDownHandle = FWorldDelegates::OnWorldBeginTearDown.AddStatic(&FNiagaraWorldManager::OnWorldBeginTearDown);
 	TickWorldHandle = FWorldDelegates::OnWorldPostActorTick.AddStatic(&FNiagaraWorldManager::TickWorld);
+	OnWorldPreSendAllEndOfFrameUpdatesHandle = FWorldDelegates::OnWorldPreSendAllEndOfFrameUpdates.AddLambda(
+		[](UWorld* InWorld)
+		{
+			if ( FNiagaraWorldManager* FoundManager = WorldManagers.FindRef(InWorld) )
+			{
+				FoundManager->PreSendAllEndOfFrameUpdates();
+			}
+		}
+	);
 
 	PreGCHandle = FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddStatic(&FNiagaraWorldManager::OnPreGarbageCollect);
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddStatic(&FNiagaraWorldManager::OnPostReachabilityAnalysis);
@@ -358,6 +368,7 @@ void FNiagaraWorldManager::OnShutdown()
 	FWorldDelegates::OnPreWorldFinishDestroy.Remove(OnPreWorldFinishDestroyHandle);
 	FWorldDelegates::OnWorldBeginTearDown.Remove(OnWorldBeginTearDownHandle);
 	FWorldDelegates::OnWorldPostActorTick.Remove(TickWorldHandle);
+	FWorldDelegates::OnWorldPreSendAllEndOfFrameUpdates.Remove(OnWorldPreSendAllEndOfFrameUpdatesHandle);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().Remove(PreGCHandle);
 	FCoreUObjectDelegates::PostReachabilityAnalysis.Remove(PostReachabilityAnalysisHandle);
@@ -743,6 +754,18 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		RequestedDebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
 		DebugPlaybackMode = ENiagaraDebugPlaybackMode::Paused;
 	}
+}
+
+void FNiagaraWorldManager::PreSendAllEndOfFrameUpdates()
+{
+	for (const auto& Simulation : SimulationsWithPostActorWork)
+	{
+		if (Simulation->IsValid())
+		{
+			Simulation->WaitForInstancesTickComplete();
+		}
+	}
+	SimulationsWithPostActorWork.Reset();
 }
 
 void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulation* SystemSimulation)
