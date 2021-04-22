@@ -1141,7 +1141,8 @@ public:
 		int IStart, int ICount, int Depth, int MinTriCount,
 		FBoxesSet& Tris, FBoxesSet& Nodes, FAxisAlignedBox3d& Box)
 	{
-		Box = FAxisAlignedBox3d::Empty();
+		Box = (Triangles.Num() > 0) ?
+			FAxisAlignedBox3d::Empty() : FAxisAlignedBox3d(FVector3d::Zero(), 0.0);
 		int IBox = -1;
 
 		if (ICount < MinTriCount)
