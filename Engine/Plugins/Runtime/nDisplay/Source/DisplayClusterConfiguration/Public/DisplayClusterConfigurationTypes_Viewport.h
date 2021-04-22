@@ -11,6 +11,7 @@
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 
 #include "OpenColorIOColorSpace.h"
+#include "Engine/Scene.h"
 
 #include "DisplayClusterConfigurationTypes_Viewport.generated.h"
 
