@@ -200,6 +200,21 @@ static TAutoConsoleVariable<int32> CVarRayTracingAutoInstance(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GRayTracingDebugDisableTriangleCull = 0;
+static FAutoConsoleVariableRef CVarRayTracingDebugDisableTriangleCull(
+	TEXT("r.RayTracing.DebugDisableTriangleCull"),
+	GRayTracingDebugDisableTriangleCull,
+	TEXT("Forces all ray tracing geometry instances to be double-sided by disabling back-face culling. This is useful for debugging and profiling. (default = 0)")
+);
+
+
+static int32 GRayTracingDebugForceOpaque = 0;
+static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
+	TEXT("r.RayTracing.DebugForceOpaque"),
+	GRayTracingDebugForceOpaque,
+	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
+);
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	TEXT("r.Test.ForceBlackVelocityBuffer"), 0,
@@ -462,6 +477,18 @@ static void RenderOpaqueFX(
 }
 
 #if RHI_RAYTRACING
+
+static void AddDebugRayTracingInstanceFlags(ERayTracingInstanceFlags& InOutFlags)
+{
+	if (GRayTracingDebugForceOpaque)
+	{
+		InOutFlags |= ERayTracingInstanceFlags::ForceOpaque;
+	}
+	if (GRayTracingDebugDisableTriangleCull)
+	{
+		InOutFlags |= ERayTracingInstanceFlags::TriangleCullDisable;
+	}
+}
 
 bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICommandListImmediate& RHICmdList, FViewInfo& View, FRayTracingScene& RayTracingScene)
 {
@@ -956,6 +983,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					{
 						RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 					}
+					AddDebugRayTracingInstanceFlags(RayTracingInstance.Flags);
 
 					if (Instance.InstanceGPUTransformsSRV.IsValid())
 					{
@@ -1145,6 +1173,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				}
 
 				RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
+				AddDebugRayTracingInstanceFlags(RayTracingScene.Instances.Last().Flags);
 			}
 			else
 			{
@@ -1223,6 +1252,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					{
 						RayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 					}
+					AddDebugRayTracingInstanceFlags(RayTracingInstance.Flags);
 				}
 			}
 		}
