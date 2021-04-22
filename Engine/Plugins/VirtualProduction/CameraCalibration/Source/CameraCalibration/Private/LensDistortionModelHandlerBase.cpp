@@ -48,12 +48,20 @@ void ULensDistortionModelHandlerBase::PostInitProperties()
 			CurrentState.DistortionInfo.Parameters.Init(0.0f, NumDistortionParameters);
 		}
 
-		DisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortedUVDisplacementMap")));
-		DisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RGBA32f;
-		DisplacementMapRT->ClearColor = FLinearColor::Gray;
-		DisplacementMapRT->bAutoGenerateMips = false;
-		DisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
-		DisplacementMapRT->UpdateResourceImmediate(true);
+		// TODO: Delay this to an initialization step where the user can specify whether to create one or both render targets
+		UndistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("UndistortionDisplacementMapRT")));
+		UndistortionDisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
+		UndistortionDisplacementMapRT->ClearColor = FLinearColor::Black;
+		UndistortionDisplacementMapRT->bAutoGenerateMips = false;
+		UndistortionDisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
+		UndistortionDisplacementMapRT->UpdateResourceImmediate(true);
+
+		DistortionDisplacementMapRT = NewObject<UTextureRenderTarget2D>(this, MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DistortionDisplacementMapRT")));
+		DistortionDisplacementMapRT->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG16f;
+		DistortionDisplacementMapRT->ClearColor = FLinearColor::Black;
+		DistortionDisplacementMapRT->bAutoGenerateMips = false;
+		DistortionDisplacementMapRT->InitAutoFormat(DisplacementMapWidth, DisplacementMapHeight);
+		DistortionDisplacementMapRT->UpdateResourceImmediate(true);
 	}
 }
 
@@ -64,19 +72,22 @@ void ULensDistortionModelHandlerBase::PostEditChangeChainProperty(struct FProper
 	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionModelHandlerBase, CurrentState))
 	{
 		// Will need to revisit this init logic once we move to arbitrary lens model support 
-		if (!DistortionPostProcessMID || !DisplacementMapMID)
+		if (!DistortionPostProcessMID || !UndistortionDisplacementMapMID || !DistortionDisplacementMapMID)
 		{
 			InitDistortionMaterials();
 		}
 
-		SetDistortionState(CurrentState);
+		bIsDirty = true;
+		InterpretDistortionParameters();
+		SetOverscanFactor(ComputeOverscanFactor());
+		ProcessCurrentDistortion();
 	}
 }
 #endif	
 
 void ULensDistortionModelHandlerBase::SetOverscanFactor(float InOverscanFactor)
 {
-	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	if (!DistortionPostProcessMID || !UndistortionDisplacementMapMID || !DistortionDisplacementMapMID)
 	{
 		InitDistortionMaterials();
 	}
@@ -143,14 +154,14 @@ TArray<FVector2D> ULensDistortionModelHandlerBase::GetDistortedUVs(TConstArrayVi
 	return DistortedUVs;
 }
 
-bool ULensDistortionModelHandlerBase::DrawDisplacementMap(UTextureRenderTarget2D* DestinationTexture)
+bool ULensDistortionModelHandlerBase::DrawUndistortionDisplacementMap(UTextureRenderTarget2D* DestinationTexture)
 {
 	if(DestinationTexture == nullptr)
 	{
 		return false;
 	}
 	
-	if (!DistortionPostProcessMID || !DisplacementMapMID)
+	if (!DistortionPostProcessMID || !UndistortionDisplacementMapMID)
 	{
 		InitDistortionMaterials();
 	}
@@ -158,7 +169,27 @@ bool ULensDistortionModelHandlerBase::DrawDisplacementMap(UTextureRenderTarget2D
 	UpdateMaterialParameters();
 
 	// Draw the updated displacement map render target 
-	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DestinationTexture, DisplacementMapMID);
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DestinationTexture, UndistortionDisplacementMapMID);
+
+	return true;
+}
+
+bool ULensDistortionModelHandlerBase::DrawDistortionDisplacementMap(UTextureRenderTarget2D* DestinationTexture)
+{
+	if (DestinationTexture == nullptr)
+	{
+		return false;
+	}
+
+	if (!DistortionPostProcessMID || !DistortionDisplacementMapMID)
+	{
+		InitDistortionMaterials();
+	}
+
+	UpdateMaterialParameters();
+
+	// Draw the updated displacement map render target 
+	UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DestinationTexture, DistortionDisplacementMapMID);
 
 	return true;
 }
@@ -173,7 +204,10 @@ void ULensDistortionModelHandlerBase::ProcessCurrentDistortion()
 
 		UpdateMaterialParameters();
 
-		// Draw the updated displacement map render target
-		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DisplacementMapRT, DisplacementMapMID);
+		// Draw the undistortion displacement map
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, UndistortionDisplacementMapRT, UndistortionDisplacementMapMID);
+
+		// Draw the distortion displacement map
+		UKismetRenderingLibrary::DrawMaterialToRenderTarget(this, DistortionDisplacementMapRT, DistortionDisplacementMapMID);
 	}
 }

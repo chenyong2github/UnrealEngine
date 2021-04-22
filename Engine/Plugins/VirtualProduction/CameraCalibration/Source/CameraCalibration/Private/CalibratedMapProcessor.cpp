@@ -28,8 +28,9 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionSTMapSampler)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<FVector2D>, OutDistortedUV)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutDisplacementMap)
-	END_SHADER_PARAMETER_STRUCT()
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, OutUndistortionDisplacementMap)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, OutDistortionDisplacementMap)
+		END_SHADER_PARAMETER_STRUCT()
 
 public:
 	// Called by the engine to determine which permutations to compile for this shader
@@ -112,7 +113,8 @@ bool FCalibratedMapProcessor::PushDerivedDistortionDataJob(FDerivedDistortionDat
 	//Validate arguments before pushing the job
 	if (!JobArgs.JobCompletedCallback.IsBound()
 		|| !JobArgs.SourceDistortionMap.IsValid()
-		|| !JobArgs.OutputDisplacementMap.IsValid())
+		|| !JobArgs.OutputUndistortionDisplacementMap.IsValid()
+		|| !JobArgs.OutputDistortionDisplacementMap.IsValid())
 	{
 		return false;
 	}
@@ -141,11 +143,14 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 	{
 		//Early validation of inputs in case some textures are now invalid
 		UTexture* SourceTexture = Job->JobArgs.SourceDistortionMap.Get();
-		UTextureRenderTarget2D* DestinationTexture = Job->JobArgs.OutputDisplacementMap.Get();
-		if(SourceTexture == nullptr 
-		|| DestinationTexture == nullptr
+		UTextureRenderTarget2D* DestinationUndistortionTexture = Job->JobArgs.OutputUndistortionDisplacementMap.Get();
+		UTextureRenderTarget2D* DestinationDistortionTexture = Job->JobArgs.OutputDistortionDisplacementMap.Get();
+		if(SourceTexture == nullptr
+		|| DestinationUndistortionTexture == nullptr
+		|| DestinationDistortionTexture == nullptr
 		|| SourceTexture->Resource == nullptr
-		|| DestinationTexture->Resource == nullptr)
+		|| DestinationUndistortionTexture->Resource == nullptr
+		|| DestinationDistortionTexture->Resource == nullptr)
 		{
 			Job->State = EDerivedDistortionDataJobState::Completed;
 			Job->Output.Result = EDerivedDistortionDataResult::Error;
@@ -154,7 +159,8 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 		}
 		
 		FTextureResource* SourceDistortionMap = SourceTexture->Resource;
-		FTextureResource* DestinationDisplacementMap = DestinationTexture->Resource;
+		FTextureResource* DestinationUndistortionDisplacementMap = DestinationUndistortionTexture->Resource;
+		FTextureResource* DestinationDistortionDisplacementMap = DestinationDistortionTexture->Resource;
 
 		{
 			FScopeLock Lock(&RunningJobsCriticalSection);
@@ -162,13 +168,14 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 		}
 		
 		ENQUEUE_RENDER_COMMAND(FCalibratedMapProcessor_ComputeDerivedDistortionData)(
-		[DestinationDisplacementMap, SourceDistortionMap, Job](FRHICommandListImmediate& RHICmdList)
+		[DestinationUndistortionDisplacementMap, DestinationDistortionDisplacementMap, SourceDistortionMap, Job](FRHICommandListImmediate& RHICmdList)
         {
             FRDGBuilder GraphBuilder(RHICmdList);
 
 			FRDGTextureRef SourceSTMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(SourceDistortionMap->TextureRHI, TEXT("SourceSTMap")));
-			FRDGTextureRef DisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationDisplacementMap->TextureRHI, TEXT("DestinationDisplacementMap")));
-            
+			FRDGTextureRef UndistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationUndistortionDisplacementMap->TextureRHI, TEXT("UndistortionDestinationDisplacementMap")));
+			FRDGTextureRef DistortionDisplacementMap = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationDistortionDisplacementMap->TextureRHI, TEXT("DistortionDestinationDisplacementMap")));
+
 			const int32 EntriesCount = Job->Output.EdgePointCount;
 			const int32 ReadbackDataByteCount = Job->Output.EdgePointsDistortedUVs.GetTypeSize();
 			FRDGBufferDesc EdgePointsDistortedUVDesc = FRDGBufferDesc::CreateBufferDesc(ReadbackDataByteCount, EntriesCount);
@@ -178,12 +185,13 @@ void FCalibratedMapProcessor::ExecuteJob(TSharedPtr<FDerivedDistortionDataJob> J
 			FCalibratedMapDerivedDataCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCalibratedMapDerivedDataCS::FParameters>();
             Parameters->DistortionSTMap = SourceSTMap;
            	Parameters->DistortionSTMapSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-           	Parameters->TexelSize = FVector2D(1.0f / DisplacementMap->Desc.Extent.X, 1.0f / DisplacementMap->Desc.Extent.Y);
-            Parameters->TextureSize = FIntPoint(DisplacementMap->Desc.Extent.X, DisplacementMap->Desc.Extent.Y);
+           	Parameters->TexelSize = FVector2D(1.0f / UndistortionDisplacementMap->Desc.Extent.X, 1.0f / UndistortionDisplacementMap->Desc.Extent.Y);
+            Parameters->TextureSize = FIntPoint(UndistortionDisplacementMap->Desc.Extent.X, UndistortionDisplacementMap->Desc.Extent.Y);
 
-            //Create UAVs for comput shader outputs
+            //Create UAVs for compute shader outputs
            	Parameters->OutDistortedUV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(EdgePointsBuffer, PF_G32R32F));
-            Parameters->OutDisplacementMap = GraphBuilder.CreateUAV(DisplacementMap);
+			Parameters->OutUndistortionDisplacementMap = GraphBuilder.CreateUAV(UndistortionDisplacementMap);
+			Parameters->OutDistortionDisplacementMap = GraphBuilder.CreateUAV(DistortionDisplacementMap);
 
             FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 			TShaderMapRef<FCalibratedMapDerivedDataCS> ComputeShader(GlobalShaderMap);

@@ -6,7 +6,8 @@
 
 UCameraCalibrationSettings::UCameraCalibrationSettings()
 {
-	DefaultDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_SphericalDistortionDisplacementMap.M_SphericalDistortionDisplacementMap"))));
+	DefaultUndistortionDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_SphericalUndistortionDisplacementMap.M_SphericalUndistortionDisplacementMap"))));
+	DefaultDistortionDisplacementMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_SphericalDistortionDisplacementMap.M_SphericalDistortionDisplacementMap"))));
 	DefaultDistortionMaterials.Add(USphericalLensDistortionModelHandler::StaticClass(), TSoftObjectPtr<UMaterialInterface>(FSoftObjectPath(TEXT("/CameraCalibration/Materials/M_DistortionPostProcess.M_DistortionPostProcess"))));
 }
 
@@ -28,14 +29,24 @@ ULensFile* UCameraCalibrationSettings::GetStartupLensFile() const
 	return StartupLensFile.LoadSynchronous();
 }
 
-UMaterialInterface* UCameraCalibrationSettings::GetDefaultDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const
+UMaterialInterface* UCameraCalibrationSettings::GetDefaultUndistortionDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const
 {
-	const TSoftObjectPtr<UMaterialInterface>* DisplacementMaterial = DefaultDisplacementMaterials.Find(InModelHandler);
-	if (!DisplacementMaterial)
+	const TSoftObjectPtr<UMaterialInterface>* UndistortionDisplacementMaterial = DefaultUndistortionDisplacementMaterials.Find(InModelHandler);
+	if (!UndistortionDisplacementMaterial)
 	{
 		return nullptr;
 	}
-	return DisplacementMaterial->LoadSynchronous();
+	return UndistortionDisplacementMaterial->LoadSynchronous();
+}
+
+UMaterialInterface* UCameraCalibrationSettings::GetDefaultDistortionDisplacementMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const
+{
+	const TSoftObjectPtr<UMaterialInterface>* DistortionDisplacementMaterial = DefaultDistortionDisplacementMaterials.Find(InModelHandler);
+	if (!DistortionDisplacementMaterial)
+	{
+		return nullptr;
+	}
+	return DistortionDisplacementMaterial->LoadSynchronous();
 }
 
 UMaterialInterface* UCameraCalibrationSettings::GetDefaultDistortionMaterial(const TSubclassOf<ULensDistortionModelHandlerBase>& InModelHandler) const

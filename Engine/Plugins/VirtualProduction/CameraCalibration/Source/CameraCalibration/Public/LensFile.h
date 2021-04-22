@@ -77,9 +77,13 @@ struct CAMERACALIBRATION_API FDerivedDistortionData
 	UPROPERTY(VisibleAnywhere, Category = "Distortion")
 	FDistortionData DistortionData;
 
+	/** Computed displacement map based on undistortion data */
+	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
+	UTextureRenderTarget2D* UndistortionDisplacementMap = nullptr;
+
 	/** Computed displacement map based on distortion data */
 	UPROPERTY(Transient, VisibleAnywhere, Category = "Distortion")
-	UTextureRenderTarget2D* DisplacementMap = nullptr;
+	UTextureRenderTarget2D* DistortionDisplacementMap = nullptr;
 
 	/** When dirty, derived data needs to be recomputed */
 	bool bIsDirty = true;
@@ -144,7 +148,8 @@ public:
 	bool IsValid() const 
 	{ 
 		return (DistortionMap != nullptr 
-			&& DerivedDistortionData.DisplacementMap != nullptr 
+			&& DerivedDistortionData.UndistortionDisplacementMap != nullptr
+			&& DerivedDistortionData.DistortionDisplacementMap != nullptr
 			&& DerivedDistortionData.bIsDirty == false);
 	}
 
@@ -343,9 +348,14 @@ protected:
 	/** Processor handling derived data out of calibrated st maps */
 	TUniquePtr<ICalibratedMapProcessor> CalibratedMapProcessor;
 
-	/** Texture used to store temporary displacement map when using map blending */
+	/** Texture used to store temporary undistortion displacement map when using map blending */
 	UPROPERTY(Transient)
-	TArray<UTextureRenderTarget2D*>  DisplacementMapHolders;
+	TArray<UTextureRenderTarget2D*> UndistortionDisplacementMapHolders;
+
+	/** Texture used to store temporary distortion displacement map when using map blending */
+	UPROPERTY(Transient)
+	TArray<UTextureRenderTarget2D*> DistortionDisplacementMapHolders;
+
 	static constexpr int32 DisplacementMapHolderCount = 4;
 
 	/** UV coordinates of 8 points (4 corners + 4 mid points) */

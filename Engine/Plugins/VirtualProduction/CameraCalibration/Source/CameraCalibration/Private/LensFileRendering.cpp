@@ -65,7 +65,7 @@ namespace LensFileRendering
 
 				const FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(DestinationTextureResource->TextureRHI, TEXT("OutputDisplacement")));
 
-				FLinearColor NoDistortionColor(0.5f, 0.5f, 0.5f, 0.5f);
+				FLinearColor NoDistortionColor(0.0f, 0.0f, 0.0f, 0.0f);
 				AddClearRenderTargetPass(GraphBuilder, OutputTexture, NoDistortionColor);
 
 				GraphBuilder.Execute();

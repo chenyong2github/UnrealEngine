@@ -33,8 +33,11 @@ struct FDerivedDistortionDataJobArgs
 	//When coefficient route is supported, we might look at how we can have a mutual interface
 	TWeakObjectPtr<UTexture> SourceDistortionMap;
 
-	/** Output derived displacement map */
-	TWeakObjectPtr<UTextureRenderTarget2D> OutputDisplacementMap;
+	/** Output derived undistortion displacement map */
+	TWeakObjectPtr<UTextureRenderTarget2D> OutputUndistortionDisplacementMap;
+
+	/** Output derived distortion displacement map */
+	TWeakObjectPtr<UTextureRenderTarget2D> OutputDistortionDisplacementMap;
 
 	/** Delegate to be called when job is completed */
 	FOnDerivedDistortionJobCompleted JobCompletedCallback;
