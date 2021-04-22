@@ -205,12 +205,7 @@ public:
 
 	static bool UseIntermediateTangents();
 
-	inline uint64 GetExtraRequiredMemoryAndReset()
-	{
-		uint64 OriginalValue = ExtraRequiredMemory;
-		ExtraRequiredMemory = 0;
-		return OriginalValue;
-	}
+	ENGINE_API uint64 GetExtraRequiredMemoryAndReset();
 
 	enum
 	{
@@ -472,6 +467,9 @@ protected:
 
 	void IncrementDispatchCounter(FRHICommandListImmediate& RHICmdList);
 	int32 DispatchCounter = 0;
+
+	void PrintMemorySummary() const;
+	FString GetSkeletalMeshObjectName(const FSkeletalMeshObjectGPUSkin* GPUSkin) const;
 };
 
 DECLARE_STATS_GROUP(TEXT("GPU Skin Cache"), STATGROUP_GPUSkinCache, STATCAT_Advanced);
