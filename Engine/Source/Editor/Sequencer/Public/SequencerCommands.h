@@ -127,9 +127,6 @@ public:
 	/** Toggle constraining the time cursor to the playback range while scrubbing */
 	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRangeWhileScrubbing;
 
-	/** Toggle constraining the time cursor to the playback range during playback */
-	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRange;
-
 	/** Toggle constraining the playback range to the section bounds */
 	TSharedPtr< FUICommandInfo > ToggleKeepPlaybackRangeInSectionBounds;
 
