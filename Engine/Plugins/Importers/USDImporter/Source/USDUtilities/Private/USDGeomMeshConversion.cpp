@@ -1312,7 +1312,6 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 	FScopedUsdAllocs UsdAllocs;
 
 	pxr::UsdStageRefPtr Stage = UsdPrim.GetStage();
-
 	if ( !Stage )
 	{
 		return false;
@@ -1400,6 +1399,17 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			EditContext.Emplace( VariantSet.GetVariantEditContext() );
 		}
 
+		// Author material bindings on the dedicated stage if we have one
+		pxr::UsdStageRefPtr MaterialStage;
+		if ( StageForMaterialAssignments )
+		{
+			MaterialStage = *StageForMaterialAssignments;
+		}
+		else
+		{
+			MaterialStage = Stage;
+		}
+
 		pxr::UsdGeomMesh TargetMesh;
 		pxr::UsdPrim MaterialPrim = UsdPrim;
 		if ( bExportMultipleLODs )
@@ -1408,11 +1418,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			pxr::UsdPrim UsdLODPrim = Stage->DefinePrim( LODPrimPath, UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdLODPrim };
 
-			if ( StageForMaterialAssignments )
-			{
-				pxr::UsdStageRefPtr MaterialStage{ *StageForMaterialAssignments };
-				MaterialPrim = MaterialStage->OverridePrim( LODPrimPath );
-			}
+			MaterialPrim = MaterialStage->OverridePrim( LODPrimPath );
 		}
 		else
 		{
@@ -1420,11 +1426,7 @@ bool UnrealToUsd::ConvertStaticMesh( const UStaticMesh* StaticMesh, pxr::UsdPrim
 			UsdPrim = Stage->DefinePrim( UsdPrim.GetPath(), UnrealToUsd::ConvertToken( TEXT("Mesh") ).Get() );
 			TargetMesh = pxr::UsdGeomMesh{ UsdPrim };
 
-			if ( StageForMaterialAssignments )
-			{
-				pxr::UsdStageRefPtr MaterialStage{ *StageForMaterialAssignments };
-				MaterialPrim = MaterialStage->OverridePrim( UsdPrim.GetPath() );
-			}
+			MaterialPrim = MaterialStage->OverridePrim( UsdPrim.GetPath() );
 		}
 
 		UsdGeomMeshImpl::ConvertStaticMeshLOD( LODIndex, RenderMesh, TargetMesh, MaterialAssignments, TimeCode, MaterialPrim );
