@@ -377,6 +377,8 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 			LogStaticMesh.SetVerbosity( PrevLogStaticMeshVerbosity );
 		}
 
+		DataprepCorePrivateUtils::Analytics::RecipeExecuted( DataprepAssetInterface );
+
 		return bSuccessfulExecute;
 	}
 
