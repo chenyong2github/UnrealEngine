@@ -434,7 +434,9 @@ public:
 	int32 GetNumHairGroups() const;
 
 	int32 GetLODCount() const;
+#if WITH_EDITORONLY_DATA
 	void StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResources);
+#endif // WITH_EDITORONLY_DATA
 
 	/** Debug data for derived asset generation (strands textures, ...). */
 	bool HasDebugData() const;

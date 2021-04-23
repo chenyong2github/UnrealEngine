@@ -2691,6 +2691,7 @@ int32 UGroomAsset::GetLODCount() const
 	return MaxLODCount;
 }
 
+#if WITH_EDITORONLY_DATA
 void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResources)
 {
 	// Assume that the LOD are ordered from 0 ... Max
@@ -2731,6 +2732,7 @@ void UGroomAsset::StripLODs(const TArray<int32>& LODsToKeep, bool bRebuildResour
 		}
 	}
 }
+#endif // WITH_EDITORONLY_DATA
 
 bool UGroomAsset::HasDebugData() const
 {
