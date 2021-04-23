@@ -31,13 +31,19 @@ FElementSnapshot::FElementSnapshot(const ISceneGraphNode& Node)
 	}
 
 	// Reference part
-	for (int32 ProxyIndex = 0; ProxyIndex < Node.GetReferenceProxyCount(); ++ProxyIndex)
+	const int32 ProxyGroupCount = Node.GetReferenceProxyCount();
+	RefSnapshot.Groups.Reserve(ProxyGroupCount);
+	for (int32 ProxyIndex = 0; ProxyIndex < ProxyGroupCount; ++ProxyIndex)
 	{
+		const IReferenceProxy* RefProxy = Node.GetReferenceProxy(ProxyIndex);
+		int32 ReferenceCount = RefProxy->Num();
+
+		// Note: It is not an option to skip empty groups here.
+		// An empty array is a legitimate value like any other, and must be serialized and sent to the remote.
+		// (If we skip empty groups, updates of references will fail to remove references on the remote graph)
+
 		FReferenceSnapshot::FReferenceGroup& ReferenceGroup = RefSnapshot.Groups.AddDefaulted_GetRef();
 		ReferenceGroup.Name = Node.GetReferenceProxyName(ProxyIndex);
-
-		IReferenceProxy* RefProxy = Node.GetReferenceProxy(ProxyIndex);
-		int32 ReferenceCount = RefProxy->Num();
 		ReferenceGroup.ReferencedIds.Reserve(ReferenceCount);
 
 		for (int32 ReferenceIndex = 0; ReferenceIndex < ReferenceCount; ReferenceIndex++)

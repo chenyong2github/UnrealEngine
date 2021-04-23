@@ -114,8 +114,7 @@ TSharedPtr<FSceneSnapshot> SnapshotScene(ISceneGraphNode* RootElement)
 			ISceneGraphNode* Node = Nodes[FSetElementId::FromInteger(NodeIndex)];
 			OutPairs.Emplace(Node->GetNodeId(), MakeShared<FElementSnapshot>(*Node));
 		}
-	},
-	EParallelForFlags::None);
+	});
 
 	// Join
 	{
