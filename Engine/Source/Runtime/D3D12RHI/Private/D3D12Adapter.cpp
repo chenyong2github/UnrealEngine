@@ -1230,7 +1230,9 @@ void FD3D12Adapter::EndFrame()
 		GetUploadHeapAllocator(GPUIndex).CleanUpAllocations(FrameLag);
 	}
 	GetDeferredDeletionQueue().ReleaseResources(false, false);
-	GetTransientResourceSystem().GarbageCollect();
+
+	TransientResourceSystem->GarbageCollect();
+	TransientResourceSystem->UpdateStats();
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	SubmitGapRecorderTimestamps();

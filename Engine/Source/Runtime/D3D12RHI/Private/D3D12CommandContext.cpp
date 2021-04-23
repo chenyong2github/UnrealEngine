@@ -704,8 +704,6 @@ void FD3D12CommandContextBase::UpdateMemoryStats()
 	SET_MEMORY_STAT(STAT_D3D12DemotedVideoMemory, MemoryInfo.DemotedLocalMemory);
 	SET_MEMORY_STAT(STAT_D3D12TotalVideoMemory, MemoryInfo.LocalMemoryInfo.Budget);
 
-	ParentAdapter->GetTransientResourceSystem().UpdateStats();
-
 	uint64 MaxTexAllocWastage = 0;
 	for (uint32 GPUIndex : GPUMask)
 	{

@@ -52,6 +52,8 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 
 	// Allocate new one
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderGraphResourcePool::CreateBuffer);
+
 		uint32 NumBytes = Desc.GetTotalNumBytes();
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);

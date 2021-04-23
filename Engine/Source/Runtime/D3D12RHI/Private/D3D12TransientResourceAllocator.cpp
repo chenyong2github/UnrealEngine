@@ -128,8 +128,10 @@ FD3D12TransientResourceAllocator::FD3D12TransientResourceAllocator(FD3D12Transie
 
 FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName)
 {
-	D3D12_RESOURCE_DESC Desc = FD3D12TextureBase::GetResourceDesc(InCreateInfo);
-	D3D12_RESOURCE_ALLOCATION_INFO Info = AllocationInfoQueryDevice->GetResourceAllocationInfo(Desc);
+	FD3D12DynamicRHI* DynamicRHI = FD3D12DynamicRHI::GetD3DRHI();
+
+	const D3D12_RESOURCE_DESC Desc = DynamicRHI->GetResourceDesc(InCreateInfo);
+	const D3D12_RESOURCE_ALLOCATION_INFO Info = AllocationInfoQueryDevice->GetResourceAllocationInfo(Desc);
 
 	return Allocator.CreateTexture(InCreateInfo, InDebugName, Info.SizeInBytes, Info.Alignment,
 		[&](const FRHITransientResourceAllocator::FResourceInitializer& Initializer)
@@ -145,43 +147,8 @@ FRHITransientTexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHI
 			InitialState = ERHIAccess::DSVWrite;
 		}
 
-		FRHIResourceCreateInfo ResourceCreateInfo(InDebugName, InCreateInfo.ClearValue);
-		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation);
-		FRHITexture* Texture = nullptr;
-
-		const bool bTextureArray = InCreateInfo.ArraySize > 1;
-
-		switch (InCreateInfo.Dimension)
-		{
-		case ETextureDimension::Texture2D:
-		{
-			const bool bCubeTexture = false;
-			Texture = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 1, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, ResourceCreateInfo, &ResourceAllocatorAdapter);
-		}
-		break;
-		case ETextureDimension::Texture3D:
-		{
-			Texture = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture3D(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, InCreateInfo.Depth, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.Flags, InitialState, ResourceCreateInfo, &ResourceAllocatorAdapter);
-		}
-		break;
-		case ETextureDimension::TextureCube:
-		{
-			const bool bCubeTexture = true;
-			check(InCreateInfo.Extent.X == InCreateInfo.Extent.Y);
-			Texture = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, InCreateInfo.Extent.X, InCreateInfo.Extent.Y, 6, bTextureArray, bCubeTexture, InCreateInfo.Format, InCreateInfo.NumMips, InCreateInfo.NumSamples, InCreateInfo.Flags, InitialState, ResourceCreateInfo, &ResourceAllocatorAdapter);
-		}
-		break;
-		}
-
-		// The D3D12_RESOURCE_DESC's are built in two different functions right now. This checks that they actually match what we expect.
-#if DO_CHECK
-		{
-			CD3DX12_RESOURCE_DESC CreatedDesc(GetD3D12TextureFromRHITexture(Texture)->GetResource()->GetDesc());
-			CD3DX12_RESOURCE_DESC DerivedDesc(Desc);
-			check(CreatedDesc == DerivedDesc);
-		}
-#endif
-
+		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation, Desc);
+		FRHITexture* Texture = DynamicRHI->CreateTexture(InCreateInfo, InDebugName, InitialState, &ResourceAllocatorAdapter);
 		return new FRHITransientTexture(Texture, Initializer.Hash, InCreateInfo);
 	});
 }
@@ -190,6 +157,15 @@ void FD3D12TransientResourceAllocator::FResourceAllocatorAdapter::AllocateResour
 	uint32 GPUIndex, D3D12_HEAP_TYPE, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32, ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
 {
+	// The D3D12_RESOURCE_DESC's are built in two different functions right now. This checks that they actually match what we expect.
+#if DO_CHECK
+	{
+		CD3DX12_RESOURCE_DESC CreatedDesc(InDesc);
+		CD3DX12_RESOURCE_DESC DerivedDesc(Desc);
+		check(CreatedDesc == DerivedDesc);
+	}
+#endif
+
 	FD3D12Resource* NewResource = nullptr;
 	VERIFYD3D12RESULT(GetParentAdapter()->CreatePlacedResource(InDesc, Heap.GetLinkedObject(GPUIndex)->Get(), Allocation.Offset, InCreateState, InResourceStateMode, D3D12_RESOURCE_STATE_TBD, InClearValue, &NewResource, InName));
 
@@ -205,23 +181,14 @@ FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBu
 	EBufferUsageFlags BufferUsage = InCreateInfo.Usage;
 	FD3D12Buffer::GetResourceDescAndAlignment(InCreateInfo.Size, InCreateInfo.Stride, BufferUsage, Desc, Alignment);
 
-	return Allocator.CreateBuffer(InCreateInfo, InDebugName, Desc.Width, Alignment,
+	Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	uint64 Size = Align(Desc.Width, Alignment);
+
+	return Allocator.CreateBuffer(InCreateInfo, InDebugName, Size, Alignment,
 		[&](const FRHITransientResourceAllocator::FResourceInitializer& Initializer)
 	{
-		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation);
-		FRHIResourceCreateInfo ResourceCreateInfo(InDebugName);
-
-		FD3D12Buffer* Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateD3D12Buffer(nullptr, InCreateInfo.Size, BufferUsage, InCreateInfo.Stride, ERHIAccess::UAVMask, ResourceCreateInfo, &ResourceAllocatorAdapter);
-
-		// The D3D12_RESOURCE_DESC's are built in two different functions right now. This checks that they actually match what we expect.
-#if DO_CHECK
-		{
-			CD3DX12_RESOURCE_DESC CreatedDesc(Buffer->GetResource()->GetDesc());
-			CD3DX12_RESOURCE_DESC DerivedDesc(Desc);
-			check(CreatedDesc == DerivedDesc);
-		}
-#endif
-
+		FResourceAllocatorAdapter ResourceAllocatorAdapter(GetParentAdapter(), static_cast<FD3D12TransientHeap&>(Initializer.Heap), Initializer.Allocation, Desc);
+		FRHIBuffer* Buffer = FD3D12DynamicRHI::GetD3DRHI()->CreateBuffer(InCreateInfo, InDebugName, ERHIAccess::UAVMask, &ResourceAllocatorAdapter);
 		return new FRHITransientBuffer(Buffer, Initializer.Hash, InCreateInfo);
 	});
 }

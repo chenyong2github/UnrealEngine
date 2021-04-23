@@ -1295,6 +1295,35 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 }
 
+FRHITexture* FD3D12DynamicRHI::CreateTexture(const FRHITextureCreateInfo& CreateInfo, const TCHAR* DebugName, ERHIAccess InitialState, ID3D12ResourceAllocator* ResourceAllocator)
+{
+	FRHIResourceCreateInfo ResourceCreateInfo(DebugName, CreateInfo.ClearValue);
+
+	const bool bTextureArray = CreateInfo.IsTextureArray();
+	const bool bTextureCube = CreateInfo.IsTextureCube();
+
+	switch (CreateInfo.Dimension)
+	{
+	case ETextureDimension::Texture2D:
+		return CreateD3D12Texture2D<FD3D12BaseTexture2D>(nullptr, CreateInfo.Extent.X, CreateInfo.Extent.Y, 1, bTextureArray, bTextureCube, CreateInfo.Format, CreateInfo.NumMips, CreateInfo.NumSamples, CreateInfo.Flags, InitialState, ResourceCreateInfo, ResourceAllocator);
+
+	case ETextureDimension::Texture2DArray:
+		return CreateD3D12Texture2D<FD3D12BaseTexture2DArray>(nullptr, CreateInfo.Extent.X, CreateInfo.Extent.Y, 1, bTextureArray, bTextureCube, CreateInfo.Format, CreateInfo.NumMips, CreateInfo.NumSamples, CreateInfo.Flags, InitialState, ResourceCreateInfo, ResourceAllocator);
+
+	case ETextureDimension::TextureCube:
+	case ETextureDimension::TextureCubeArray:
+		return CreateD3D12Texture2D<FD3D12BaseTextureCube>(nullptr, CreateInfo.Extent.X, CreateInfo.Extent.Y, 6, bTextureArray, bTextureCube, CreateInfo.Format, CreateInfo.NumMips, CreateInfo.NumSamples, CreateInfo.Flags, InitialState, ResourceCreateInfo, ResourceAllocator);
+
+	case ETextureDimension::Texture3D:
+		return CreateD3D12Texture3D(nullptr, CreateInfo.Extent.X, CreateInfo.Extent.Y, CreateInfo.Depth, CreateInfo.Format, CreateInfo.NumMips, CreateInfo.Flags, InitialState, ResourceCreateInfo, ResourceAllocator);
+
+	default:
+		checkNoEntry();
+	}
+
+	return nullptr;
+}
+
 /*-----------------------------------------------------------------------------
 	2D texture support.
 	-----------------------------------------------------------------------------*/
@@ -1916,7 +1945,7 @@ void* TD3D12Texture2D<RHIResourceType>::Lock(class FRHICommandListImmediate* RHI
 	return Data;
 }
 
-D3D12_RESOURCE_DESC FD3D12TextureBase::GetResourceDesc(const FRHITextureCreateInfo& CreateInfo)
+D3D12_RESOURCE_DESC FD3D12DynamicRHI::GetResourceDesc(const FRHITextureCreateInfo& CreateInfo) const
 {
 	D3D12_RESOURCE_DESC Desc;
 

@@ -58,10 +58,11 @@ private:
 	class FResourceAllocatorAdapter final : public FD3D12AdapterChild, public ID3D12ResourceAllocator
 	{
 	public:
-		FResourceAllocatorAdapter(FD3D12Adapter* Adapter, FD3D12TransientHeap& InHeap, const FRHITransientHeapAllocation& InAllocation)
+		FResourceAllocatorAdapter(FD3D12Adapter* Adapter, FD3D12TransientHeap& InHeap, const FRHITransientHeapAllocation& InAllocation, const D3D12_RESOURCE_DESC& InDesc)
 			: FD3D12AdapterChild(Adapter)
 			, Heap(InHeap)
 			, Allocation(InAllocation)
+			, Desc(InDesc)
 		{}
 
 		void AllocateResource(
@@ -70,6 +71,7 @@ private:
 
 		FD3D12TransientHeap& Heap;
 		const FRHITransientHeapAllocation& Allocation;
+		const D3D12_RESOURCE_DESC Desc;
 	};
 
 	FRHITransientResourceAllocator Allocator;

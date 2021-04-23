@@ -340,6 +340,7 @@ Done:
 
 	if (!Found)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderTargetPool::CreateTexture);
 		UE_LOG(LogRenderTargetPool, Display, TEXT("%d MB, NewRT %s %s"), (AllocationLevelInKB + 1023) / 1024, *Desc.GenerateInfoString(), InDebugName);
 
 		// not found in the pool, create a new element
