@@ -21,6 +21,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 
 extern ENGINE_API void ToggleLightmapPreview_GameThread(UWorld* InWorld);
 
