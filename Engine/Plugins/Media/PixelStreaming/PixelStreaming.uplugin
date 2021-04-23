@@ -19,32 +19,28 @@
 			"Name": "PixelStreaming",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Linux" ],
-			"BlacklistPlatforms": [ "Linux" ],
-			"BlacklistTargets": [ "Client", "Editor", "Game", "Server" ]
+			"WhitelistPlatforms": [ "Win32", "Win64" ],
+			"BlacklistTargets": [ "Server" ]
 		},
 		{
 			"Name": "PixelStreamingPlayerFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Linux" ],
-			"BlacklistPlatforms": [ "Linux" ],
-			"BlacklistTargets": [ "Client", "Editor", "Game", "Server" ]
+			"WhitelistPlatforms": [ "Win32", "Win64" ],
+			"BlacklistTargets": [ "Server" ]
 		},
 		{
 			"Name": "PixelStreamingPlayerFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostDefault",
-			"WhitelistPlatforms": [ "Linux" ],
-			"BlacklistPlatforms": [ "Linux" ],
-			"BlacklistTargets": [ "Client", "Editor", "Game", "Server" ]
+			"WhitelistPlatforms": [ "Win32", "Win64" ],
+			"BlacklistTargets": [ "Server" ]
 		}
 	],
 	"Plugins": [
 		{
 			"Name": "WmfMedia",
 			"Enabled": true,
-			"WhitelistPlatforms": [ "Linux" ],
 			"BlacklistPlatforms": [ "Linux" ]
 		}
 	]
