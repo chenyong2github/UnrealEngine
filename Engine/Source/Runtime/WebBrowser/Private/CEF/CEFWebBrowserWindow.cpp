@@ -2505,6 +2505,24 @@ TSharedPtr<SWindow> FCEFWebBrowserWindow::GetParentWindow() const
 void FCEFWebBrowserWindow::SetParentWindow(TSharedPtr<SWindow> Window)
 {
 	ParentWindow = Window;
+#if PLATFORM_WINDOWS
+	if (IsValid())
+	{
+		CefRefPtr<CefBrowserHost> BrowserHost = InternalCefBrowser->GetHost();
+
+		HWND NativeWindowHandle = BrowserHost->GetWindowHandle();
+		if (NativeWindowHandle != nullptr)
+		{
+			TSharedPtr<SWindow> ParentWindowPtr = ParentWindow.Pin();
+			void* ParentWindowHandle = (ParentWindow.IsValid() && ParentWindowPtr->GetNativeWindow().IsValid()) ? ParentWindowPtr->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+			if (ParentWindowHandle != nullptr)
+			{
+				// When rendering directly to a HWND update its parent windown
+				::SetParent(NativeWindowHandle, (HWND)ParentWindowHandle);
+			}
+		}
+	}
+#endif
 }
 
 CefRefPtr<CefDictionaryValue> FCEFWebBrowserWindow::GetProcessInfo()

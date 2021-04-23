@@ -266,6 +266,8 @@ public:
 	/** Navigate forwards. */
 	void GoForward();
 
+	/** Set parent SWindow for this browser. */
+	void SetParentWindow(TSharedPtr<SWindow> Window);
 private:
 
 	void SetupParentWindowHandlers();

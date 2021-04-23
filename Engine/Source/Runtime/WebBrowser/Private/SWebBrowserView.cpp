@@ -720,4 +720,14 @@ bool SWebBrowserView::UnhandledKeyChar(const FCharacterEvent& CharacterEvent)
 }
 
 
+void SWebBrowserView::SetParentWindow(TSharedPtr<SWindow> Window)
+{
+	SetupParentWindowHandlers();
+	if (BrowserWindow.IsValid())
+	{
+		BrowserWindow->SetParentWindow(Window);
+	}
+}
+
+
 #undef LOCTEXT_NAMESPACE

@@ -386,4 +386,13 @@ void SWebBrowser::UnbindInputMethodSystem()
 	}
 }
 
+void SWebBrowser::SetParentWindow(TSharedPtr<SWindow> Window)
+{
+	if (BrowserView.IsValid())
+	{
+		BrowserView->SetParentWindow(Window);
+	}
+}
+
+
 #undef LOCTEXT_NAMESPACE
