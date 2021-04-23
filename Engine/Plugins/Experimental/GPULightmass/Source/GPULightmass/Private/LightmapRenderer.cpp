@@ -329,19 +329,24 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 	}
 }
 
-void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Scene)
+void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Scene, int32 LODIndex)
 {
 #if RHI_RAYTRACING
+	SceneLODIndex = LODIndex;
+
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	{
 		RayTracingGeometryInstances.Reserve(Scene.StaticMeshInstanceRenderStates.Elements.Num());
+		StaticMeshInstanceIndices.AddZeroed(Scene.StaticMeshInstanceRenderStates.Elements.Num());
 
 		for (int32 StaticMeshIndex = 0; StaticMeshIndex < Scene.StaticMeshInstanceRenderStates.Elements.Num();  StaticMeshIndex++)
 		{
 			FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[StaticMeshIndex];
 
-			TArray<FMeshBatch> MeshBatches = Instance.GetMeshBatchesForGBufferRendering(Instance.ClampedMinLOD);
+			int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
+
+			TArray<FMeshBatch> MeshBatches = Instance.GetMeshBatchesForGBufferRendering(LODIndexToUse);
 
 			bool bAllSegmentsUnlit = true;
 			bool bAllSegmentsOpaque = true;
@@ -364,8 +369,9 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 			if (!bAllSegmentsUnlit)
 			{
 				int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
+				StaticMeshInstanceIndices[StaticMeshIndex] = InstanceIndex;
 				FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
-				RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[Instance.ClampedMinLOD].RayTracingGeometry.RayTracingGeometryRHI;
+				RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
 				RayTracingInstance.Transforms.Add(Instance.LocalToWorld);
 				RayTracingInstance.NumTransforms = 1;
 				RayTracingInstance.UserData.Add((uint32)StaticMeshIndex);
@@ -381,16 +387,23 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 					RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 				}
 			}
+			else
+			{
+				StaticMeshInstanceIndices[StaticMeshIndex] = INDEX_NONE;
+			}
 		}
 
 		RayTracingGeometryInstances.Reserve(Scene.InstanceGroupRenderStates.Elements.Num());
+		InstanceGroupInstanceIndices.AddZeroed(Scene.InstanceGroupRenderStates.Elements.Num());
 
 		{
 			for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
 			{
 				FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
 
-				TArray<FMeshBatch> MeshBatches = InstanceGroup.GetMeshBatchesForGBufferRendering(0, FTileVirtualCoordinates{});
+				int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+
+				TArray<FMeshBatch> MeshBatches = InstanceGroup.GetMeshBatchesForGBufferRendering(LODIndexToUse, FTileVirtualCoordinates{});
 
 				bool bAllSegmentsUnlit = true;
 				bool bAllSegmentsOpaque = true;
@@ -413,8 +426,9 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				if (!bAllSegmentsUnlit)
 				{
 					int32 InstanceIndex = RayTracingGeometryInstances.AddDefaulted(1);
+					InstanceGroupInstanceIndices[InstanceGroupIndex] = InstanceIndex;
 					FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceIndex];
-					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[0].RayTracingGeometry.RayTracingGeometryRHI;
+					RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
 
 					RayTracingInstance.Transforms.AddZeroed(InstanceGroup.InstancedRenderData->PerInstanceRenderData->InstanceBuffer.GetNumInstances());
 
@@ -443,6 +457,10 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 						RayTracingMeshProcessor.AddMeshBatch(MeshBatches[SegmentIndex], 1, nullptr);
 					}
 				}
+				else
+				{
+					InstanceGroupInstanceIndices[InstanceGroupIndex] = INDEX_NONE;
+				}
 			}
 		}
 	}
@@ -451,7 +469,38 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 #endif // RHI_RAYTRACING
 }
 
-void FSceneRenderState::SetupRayTracingScene()
+void FCachedRayTracingSceneData::UpdateLODRayTracingGeometry(FSceneRenderState& Scene, int32 LODIndex)
+{
+	SceneLODIndex = LODIndex;
+
+	for (int32 StaticMeshIndex = 0; StaticMeshIndex < Scene.StaticMeshInstanceRenderStates.Elements.Num(); StaticMeshIndex++)
+	{
+		FStaticMeshInstanceRenderState& Instance = Scene.StaticMeshInstanceRenderStates.Elements[StaticMeshIndex];
+
+		int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, Instance.ClampedMinLOD, Instance.RenderData->LODResources.Num() - 1);
+
+		if (StaticMeshInstanceIndices[StaticMeshIndex] != INDEX_NONE)
+		{
+			FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[StaticMeshInstanceIndices[StaticMeshIndex]];
+			RayTracingInstance.GeometryRHI = Instance.RenderData->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
+		}
+	}
+
+	for (int32 InstanceGroupIndex = 0; InstanceGroupIndex < Scene.InstanceGroupRenderStates.Elements.Num(); InstanceGroupIndex++)
+	{
+		FInstanceGroupRenderState& InstanceGroup = Scene.InstanceGroupRenderStates.Elements[InstanceGroupIndex];
+
+		int32 LODIndexToUse = FMath::Clamp(SceneLODIndex, 0, InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources.Num() - 1);
+
+		if (InstanceGroupInstanceIndices[InstanceGroupIndex] != INDEX_NONE)
+		{
+			FRayTracingGeometryInstance& RayTracingInstance = RayTracingGeometryInstances[InstanceGroupInstanceIndices[InstanceGroupIndex]];
+			RayTracingInstance.GeometryRHI = InstanceGroup.ComponentUObject->GetStaticMesh()->GetRenderData()->LODResources[LODIndexToUse].RayTracingGeometry.RayTracingGeometryRHI;
+		}
+	}
+}
+
+void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SetupRayTracingScene);
 
@@ -467,9 +516,13 @@ void FSceneRenderState::SetupRayTracingScene()
 	{
 		CachedRayTracingScene = MakeUnique<FCachedRayTracingSceneData>();
 		CachedRayTracingScene->SetupViewUniformBufferFromSceneRenderState(*this);
-		CachedRayTracingScene->SetupFromSceneRenderState(*this);
+		CachedRayTracingScene->SetupFromSceneRenderState(*this, LODIndex);
 		
 		CalculateDistributionPrefixSumForAllLightmaps();
+	}
+	else if (CachedRayTracingScene->SceneLODIndex != LODIndex)
+	{
+		CachedRayTracingScene->UpdateLODRayTracingGeometry(*this, LODIndex);
 	}
 
 #if 0 // Debug: verify cached ray tracing scene has up-to-date shader bindings
@@ -729,13 +782,34 @@ void FSceneRenderState::SetupRayTracingScene()
 				}
 
 				{
-					// Data is kept alive at the high level and explicitly deleted on RHI timeline,
-					// so we can avoid copying parameters to the command list and simply pass raw pointers around.
-					const bool bCopyDataToInlineStorage = false;
-					BindingWriter->Commit(
-						RHICmdList,
+					uint32 NumTotalBindings = 0;
+
+					for (const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk(); Chunk; Chunk = Chunk->Next)
+					{
+						NumTotalBindings += Chunk->Num;
+					}
+
+					const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
+					FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
+						? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+						: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+
+					uint32 MergedBindingIndex = 0;
+					for (const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk(); Chunk; Chunk = Chunk->Next)
+					{
+						const uint32 Num = Chunk->Num;
+						for (uint32_t i = 0; i < Num; ++i)
+						{
+							MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
+							MergedBindingIndex++;
+						}
+					}
+
+					const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
+					RHICmdList.SetRayTracingHitGroups(
 						RayTracingScene,
 						RayTracingPipelineState,
+						NumTotalBindings, MergedBindings,
 						bCopyDataToInlineStorage);
 				}
 
@@ -1357,7 +1431,47 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 
-	Scene->SetupRayTracingScene();
+	bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
+
+	int32 MostCommonLODIndex = 0;
+
+	int32 NumRequestsPerLOD[MAX_STATIC_MESH_LODS] = { 0 };
+
+	for (const FLightmapTileRequest& Tile : PendingTileRequests)
+	{
+		NumRequestsPerLOD[Tile.RenderState->GeometryInstanceRef.LODIndex]++;
+	}
+
+	if (bInsideBackgroundTick && bIsViewportNonRealtime)
+	{
+		// Pick the most common LOD level
+		for (int32 Index = 0; Index < MAX_STATIC_MESH_LODS; Index++)
+		{
+			if (NumRequestsPerLOD[Index] > NumRequestsPerLOD[MostCommonLODIndex])
+			{
+				MostCommonLODIndex = Index;
+			}
+		}
+	}
+	else
+	{
+		// Alternate between LOD levels when in realtime preview
+		TArray<int32> NonZeroLODIndices;
+
+		for (int32 Index = 0; Index < MAX_STATIC_MESH_LODS; Index++)
+		{
+			if (NumRequestsPerLOD[Index] > 0)
+			{
+				NonZeroLODIndices.Add(Index);
+			}
+		}
+
+		check(NonZeroLODIndices.Num() > 0);
+
+		MostCommonLODIndex = NonZeroLODIndices[FrameNumber % NonZeroLODIndices.Num()];
+	}
+
+	Scene->SetupRayTracingScene(MostCommonLODIndex);
 
 	FLightmapGBufferParams LightmapGBufferParameters{};
 	LightmapGBufferParameters.ScratchTilePoolLayer0 = ScratchTilePoolGPU->PooledRenderTargets[0]->GetRenderTargetItem().UAV;
@@ -1467,11 +1581,12 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
-	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bLastFewFramesIdle) ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
+	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bIsViewportNonRealtime) ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
 
 	{
-		TArray<FLightmapTileRequest> PendingGITileRequests = PendingTileRequests.FilterByPredicate([NumGISamples = Scene->Settings->GISamples](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumGISamples); });
+		TArray<FLightmapTileRequest> PendingGITileRequests = PendingTileRequests.FilterByPredicate([NumGISamples = Scene->Settings->GISamples, MostCommonLODIndex](const FLightmapTileRequest& Tile) {
+			return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumGISamples) && Tile.RenderState->GeometryInstanceRef.LODIndex == MostCommonLODIndex;
+		});
 
 		// Render GI
 		for (int32 SampleIndex = 0; SampleIndex < NumSamplesPerFrame; SampleIndex++)
@@ -1758,7 +1873,9 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 
 		// Render shadow mask
 		{
-			TArray<FLightmapTileRequest> PendingShadowTileRequestsOnAllGPUs = PendingTileRequests.FilterByPredicate([NumShadowSamples = Scene->Settings->StationaryLightShadowSamples](const FLightmapTileRequest& Tile) { return !Tile.RenderState->IsTileShadowConverged(Tile.VirtualCoordinates, NumShadowSamples); });
+			TArray<FLightmapTileRequest> PendingShadowTileRequestsOnAllGPUs = PendingTileRequests.FilterByPredicate([NumShadowSamples = Scene->Settings->StationaryLightShadowSamples, MostCommonLODIndex](const FLightmapTileRequest& Tile) { 
+				return !Tile.RenderState->IsTileShadowConverged(Tile.VirtualCoordinates, NumShadowSamples) && Tile.RenderState->GeometryInstanceRef.LODIndex == MostCommonLODIndex;
+			});
 
 			if (PendingShadowTileRequestsOnAllGPUs.Num() > 0)
 			{
@@ -2771,15 +2888,15 @@ void FLightmapRenderer::BackgroundTick()
 		}
 	}
 
-	bool bLastFewFramesIdle = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
+	bool bIsViewportNonRealtime = GCurrentLevelEditingViewportClient && !GCurrentLevelEditingViewportClient->IsRealtime();
 
-	if (bLastFewFramesIdle && !bWasRunningAtFullSpeed)
+	if (bIsViewportNonRealtime && !bWasRunningAtFullSpeed)
 	{
 		bWasRunningAtFullSpeed = true;
 		UE_LOG(LogGPULightmass, Log, TEXT("GPULightmass is now running at full speed"));
 	}
 
-	if (!bLastFewFramesIdle && bWasRunningAtFullSpeed)
+	if (!bIsViewportNonRealtime && bWasRunningAtFullSpeed)
 	{
 		bWasRunningAtFullSpeed = false;
 		UE_LOG(LogGPULightmass, Log, TEXT("GPULightmass is now throttled for realtime preview"));
@@ -2789,7 +2906,7 @@ void FLightmapRenderer::BackgroundTick()
 
 	if (!bOnlyBakeWhatYouSee)
 	{
-		const int32 NumWorkPerFrame = !bLastFewFramesIdle ? 32 : 512;
+		const int32 NumWorkPerFrame = !bIsViewportNonRealtime ? 32 : 512;
 
 		if (Mip0WorkDoneLastFrame < NumWorkPerFrame)
 		{
@@ -2798,40 +2915,59 @@ void FLightmapRenderer::BackgroundTick()
 
 			TArray<FString> SelectedLightmapNames;
 
-			for (FLightmapRenderState& Lightmap : Scene->LightmapRenderStates.Elements)
+			// We schedule VLM work to be after lightmaps (which forces LOD 0). Making LOD 0 last here reduces the chance of rebuilding cached scene
+			for (int32 LODIndex = MAX_STATIC_MESH_LODS - 1; LODIndex >= 0; LODIndex--)
 			{
-				bool bAnyTileSelected = false;
-
-				for (int32 Y = 0; Y < Lightmap.GetPaddedSizeInTiles().Y; Y++)
+				for (FLightmapRenderState& Lightmap : Scene->LightmapRenderStates.Elements)
 				{
-					for (int32 X = 0; X < Lightmap.GetPaddedSizeInTiles().X; X++)
+					if (Lightmap.GeometryInstanceRef.LODIndex != LODIndex)
 					{
-						FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
+						continue;
+					}
 
-						if (!Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && Lightmap.RetrieveTileState(VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+					bool bAnyTileSelected = false;
+
+					for (int32 Y = 0; Y < Lightmap.GetPaddedSizeInTiles().Y; Y++)
+					{
+						for (int32 X = 0; X < Lightmap.GetPaddedSizeInTiles().X; X++)
 						{
-							bAnyTileSelected = true;
+							FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
 
-							FVTProduceTargetLayer TargetLayers[3];
-
-							Lightmap.LightmapPreviewVirtualTexture->ProducePageData(
-								RHICmdList,
-								ERHIFeatureLevel::SM5,
-								EVTProducePageFlags::None,
-								FVirtualTextureProducerHandle(),
-								0b111,
-								0,
-								FMath::MortonCode2(X) | (FMath::MortonCode2(Y) << 1),
-								0,
-								TargetLayers);
-
-							WorkGenerated++;
-
-							if (WorkGenerated >= WorkToGenerate)
+							if (!Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, CurrentRevision) && Lightmap.RetrieveTileState(VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 							{
-								break;
+								bAnyTileSelected = true;
+
+								FVTProduceTargetLayer TargetLayers[3];
+
+								Lightmap.LightmapPreviewVirtualTexture->ProducePageData(
+									RHICmdList,
+									ERHIFeatureLevel::SM5,
+									EVTProducePageFlags::None,
+									FVirtualTextureProducerHandle(),
+									0b111,
+									0,
+									FMath::MortonCode2(X) | (FMath::MortonCode2(Y) << 1),
+									0,
+									TargetLayers);
+
+								WorkGenerated++;
+
+								if (WorkGenerated >= WorkToGenerate)
+								{
+									break;
+								}
 							}
 						}
+
+						if (WorkGenerated >= WorkToGenerate)
+						{
+							break;
+						}
+					}
+
+					if (bAnyTileSelected)
+					{
+						SelectedLightmapNames.Add(Lightmap.Name);
 					}
 
 					if (WorkGenerated >= WorkToGenerate)
@@ -2840,18 +2976,13 @@ void FLightmapRenderer::BackgroundTick()
 					}
 				}
 
-				if (bAnyTileSelected)
-				{
-					SelectedLightmapNames.Add(Lightmap.Name);
-				}
-
 				if (WorkGenerated >= WorkToGenerate)
 				{
 					break;
 				}
 			}
 
-			if (bLastFewFramesIdle && FrameNumber % 100 == 0)
+			if (bIsViewportNonRealtime && FrameNumber % 100 == 0)
 			{
 				FString AllNames;
 				for (FString& Name : SelectedLightmapNames)
@@ -2867,7 +2998,7 @@ void FLightmapRenderer::BackgroundTick()
 
 	if (bOnlyBakeWhatYouSee)
 	{
-		if (bLastFewFramesIdle)
+		if (bIsViewportNonRealtime)
 		{
 			int32 WorkGenerated = 0;
 
@@ -2875,27 +3006,15 @@ void FLightmapRenderer::BackgroundTick()
 
 			if (RecordedTileRequests.Num() > 0)
 			{
-				for (FLightmapTileRequest& Tile : RecordedTileRequests)
+				for (int32 LODIndex = MAX_STATIC_MESH_LODS - 1; LODIndex >= 0; LODIndex--)
 				{
-					if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+					for (FLightmapTileRequest& Tile : RecordedTileRequests)
 					{
-						PendingTileRequests.AddUnique(Tile);
-
-						WorkGenerated++;
-
-						if (WorkGenerated >= WorkToGenerate)
+						if (Tile.RenderState->GeometryInstanceRef.LODIndex != LODIndex)
 						{
-							break;
+							continue;
 						}
-					}
-				}
-			}
-			else
-			{
-				for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
-				{
-					for (FLightmapTileRequest& Tile : FrameRequests)
-					{
+
 						if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
 						{
 							PendingTileRequests.AddUnique(Tile);
@@ -2907,6 +3026,44 @@ void FLightmapRenderer::BackgroundTick()
 								break;
 							}
 						}
+					}
+
+					if (WorkGenerated >= WorkToGenerate)
+					{
+						break;
+					}
+				}
+			}
+			else
+			{
+				for (int32 LODIndex = MAX_STATIC_MESH_LODS - 1; LODIndex >= 0; LODIndex--)
+				{
+					for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
+					{
+						for (FLightmapTileRequest& Tile : FrameRequests)
+						{
+							if (Tile.RenderState->GeometryInstanceRef.LODIndex != LODIndex)
+							{
+								continue;
+							}
+
+							if (!Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, CurrentRevision) && Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).OngoingReadbackRevision != CurrentRevision)
+							{
+								PendingTileRequests.AddUnique(Tile);
+
+								WorkGenerated++;
+
+								if (WorkGenerated >= WorkToGenerate)
+								{
+									break;
+								}
+							}
+						}
+					}
+
+					if (WorkGenerated >= WorkToGenerate)
+					{
+						break;
 					}
 				}
 			}
@@ -2920,7 +3077,7 @@ void FLightmapRenderer::BackgroundTick()
 
 	bInsideBackgroundTick = false;
 
-	if (bLastFewFramesIdle) // Indicates that the viewport is non-realtime
+	if (bIsViewportNonRealtime) // Indicates that the viewport is non-realtime
 	{
 		// Purge resources when 'realtime' is not checked on editor viewport to avoid leak & slowing down
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
