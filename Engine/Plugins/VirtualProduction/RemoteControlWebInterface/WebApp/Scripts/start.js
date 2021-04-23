@@ -6,7 +6,7 @@ const cp = require('child_process');
 const root = path.resolve(__dirname, '..');
 const server = path.join(root, 'Server');
 
-function execute(command, cwd, description) {
+function execute(command, cwd, description, output) {
   return new Promise((resolve, reject) => {
     const child = cp.exec(command, { encoding: 'utf8', cwd });
     child.addListener('error', reject);
@@ -18,7 +18,7 @@ function execute(command, cwd, description) {
     });
 
     // Print to console only if stage is announced
-    if (description)
+    if (output)
       child.stdout.on('data', console.log);
   });
 }
@@ -58,10 +58,10 @@ async function build() {
     }
 
     console.log('Installing dependencies');
-    await execute('npm install', root);
+    await execute('npm install', root, 'Install dependencies');
 	
     console.log('Building WebApp');
-    await execute('npm run build', root, 'Build WebApp');
+    await execute('npm run build', root, 'Build WebApp', true);
     if (!fs.existsSync(build))
       return false;
       
@@ -79,7 +79,7 @@ async function start() {
     console.log('Starting WebApp...');
     const args = process.argv.slice(2).map(arg => `"${arg}"`).join(' ');
     const compiled = path.join(server, 'build/Server');
-    await execute(`node "${compiled}" ${args}`, server, 'Run WebApp');
+    await execute(`node "${compiled}" ${args}`, server, 'Run WebApp', true);
   
   } catch (err) {
     printError(err);
