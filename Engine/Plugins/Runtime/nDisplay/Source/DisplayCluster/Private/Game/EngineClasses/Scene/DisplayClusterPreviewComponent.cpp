@@ -15,6 +15,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include "RHI.h"
 #include "Engine/RendererSettings.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/Texture2D.h"
@@ -41,6 +42,8 @@ UDisplayClusterPreviewComponent::UDisplayClusterPreviewComponent(const FObjectIn
 }
 
 #if WITH_EDITOR
+
+const uint32 UDisplayClusterPreviewComponent::MaxRenderTargetDimension = 2048;
 
 void UDisplayClusterPreviewComponent::OnComponentCreated()
 {
@@ -229,6 +232,19 @@ bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSi
 
 		FIntPoint ViewportSize = Viewport->GetRenderSettings().Rect.Size();
 		OutSize = FIntPoint(ViewportSize.X * PreviewScale, ViewportSize.Y * PreviewScale);
+
+		// Need to clamp the texture size to the engine's max 2D texture dimension, while preserving the original aspect ratio
+		const uint32 MaxDimension = FMath::Min(GetMax2DTextureDimension(), MaxRenderTargetDimension);
+		if ((uint32)OutSize.X > MaxDimension)
+		{
+			OutSize.Y = OutSize.Y * MaxDimension / (float)OutSize.X;
+			OutSize.X = MaxDimension;
+		}
+		if ((uint32)OutSize.Y > MaxDimension)
+		{
+			OutSize.X = OutSize.X * MaxDimension / (float)OutSize.Y;
+			OutSize.Y = MaxDimension;
+		}
 
 		//! Get gamma from current FViewport
 		OutGamma = 2.2f;

@@ -250,13 +250,27 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InViewPassNum, co
 		}
 	}
 
+	static int MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
+
+	// Make sure the frame target rect doesn't exceed the maximum resolution, and preserve its aspect ratio if it needs to be clamped
+	if (FrameTargetRect.Max.X > MaximumSupportedResolution)
+	{
+		FrameTargetRect.Max.Y = FrameTargetRect.Max.Y * MaximumSupportedResolution / (float)FrameTargetRect.Max.X;
+		FrameTargetRect.Max.X = MaximumSupportedResolution;
+	}
+
+	if (FrameTargetRect.Max.Y > MaximumSupportedResolution)
+	{
+		FrameTargetRect.Max.X = FrameTargetRect.Max.X * MaximumSupportedResolution / (float)FrameTargetRect.Max.Y;
+		FrameTargetRect.Max.Y = MaximumSupportedResolution;
+	}
+
 	// Special case mono->stereo
 	uint32 ViewportContextAmmount = RenderSettings.bForceMono ? 1 : FrameTargetsAmmount;
 
 
 	FIntPoint ContextSize = FrameTargetRect.Size();
 
-	static int MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
 
 	// Get valid viewport size for render:
 	{
