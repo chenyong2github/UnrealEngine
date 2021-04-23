@@ -27,7 +27,7 @@ FDisplayClusterClusterSyncClient::FDisplayClusterClusterSyncClient(const FString
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolClusterSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterSyncClient::WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime)
+void FDisplayClusterClusterSyncClient::WaitForGameStart()
 {
 	static TSharedPtr<FDisplayClusterPacketInternal> Request(
 		new FDisplayClusterPacketInternal(
@@ -36,33 +36,13 @@ void FDisplayClusterClusterSyncClient::WaitForGameStart(double* ThreadWaitTime, 
 			DisplayClusterClusterSyncStrings::ProtocolName)
 	);
 
-	TSharedPtr<FDisplayClusterPacketInternal> Response;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay ClusterSyncClient::%s"), *Request->GetName()), CpuChannel);
-		Response = SendRecvPacket(Request);
-	}
-
-	if (Response.IsValid())
-	{
-		if (ThreadWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForGameStart::ArgThreadTime), *ThreadWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForGameStart::ArgThreadTime);
-			}
-		}
-
-		if (BarrierWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForGameStart::ArgBarrierTime), *BarrierWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForGameStart::ArgBarrierTime);
-			}
-		}
+		SendRecvPacket(Request);
 	}
 }
 
-void FDisplayClusterClusterSyncClient::WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime)
+void FDisplayClusterClusterSyncClient::WaitForFrameStart()
 {
 	static const TSharedPtr<FDisplayClusterPacketInternal> Request(
 		new FDisplayClusterPacketInternal(
@@ -71,33 +51,13 @@ void FDisplayClusterClusterSyncClient::WaitForFrameStart(double* ThreadWaitTime,
 			DisplayClusterClusterSyncStrings::ProtocolName)
 	);
 
-	TSharedPtr<FDisplayClusterPacketInternal> Response;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay ClusterSyncClient::%s"), *Request->GetName()), CpuChannel);
-		Response = SendRecvPacket(Request);
-	}
-
-	if (Response.IsValid())
-	{
-		if (ThreadWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForFrameStart::ArgThreadTime), *ThreadWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForFrameStart::ArgThreadTime);
-			}
-		}
-
-		if (BarrierWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForFrameStart::ArgBarrierTime), *BarrierWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForFrameStart::ArgBarrierTime);
-			}
-		}
+		SendRecvPacket(Request);
 	}
 }
 
-void FDisplayClusterClusterSyncClient::WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime)
+void FDisplayClusterClusterSyncClient::WaitForFrameEnd()
 {
 	static const TSharedPtr<FDisplayClusterPacketInternal> Request(
 		new FDisplayClusterPacketInternal(
@@ -106,29 +66,9 @@ void FDisplayClusterClusterSyncClient::WaitForFrameEnd(double* ThreadWaitTime, d
 			DisplayClusterClusterSyncStrings::ProtocolName)
 	);
 
-	TSharedPtr<FDisplayClusterPacketInternal> Response;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay ClusterSyncClient::%s"), *Request->GetName()), CpuChannel);
-		Response = SendRecvPacket(Request);
-	}
-
-	if (Response.IsValid())
-	{
-		if (ThreadWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForFrameEnd::ArgThreadTime), *ThreadWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForFrameEnd::ArgThreadTime);
-			}
-		}
-
-		if (BarrierWaitTime)
-		{
-			if (!Response->GetTextArg(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, FString(DisplayClusterClusterSyncStrings::WaitForFrameEnd::ArgBarrierTime), *BarrierWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Error, TEXT("Argument %s not available"), DisplayClusterClusterSyncStrings::WaitForFrameEnd::ArgBarrierTime);
-			}
-		}
+		SendRecvPacket(Request);
 	}
 }
 

@@ -17,13 +17,13 @@ class IDisplayClusterProtocolClusterSync
 {
 public:
 	// Game start barrier
-	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForGameStart() = 0;
 
 	// Frame start barrier
-	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForFrameStart() = 0;
 
 	// Frame end barrier
-	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) = 0;
+	virtual void WaitForFrameEnd() = 0;
 
 	// Engine time
 	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) = 0;

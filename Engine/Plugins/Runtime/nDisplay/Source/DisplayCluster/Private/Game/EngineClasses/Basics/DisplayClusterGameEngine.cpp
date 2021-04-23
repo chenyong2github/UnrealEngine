@@ -278,14 +278,8 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 	{
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame start barrier
-		{
-			double ThreadTime  = 0.f;
-			double BarrierTime = 0.f;
-
-			UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Sync frame start"));
-			NodeController->WaitForFrameStart(&ThreadTime, &BarrierTime);
-			UE_LOG(LogDisplayClusterEngine, VeryVerbose, TEXT("FrameStartBarrier: ThreadTime=%f, BarrierTime=%f"), ThreadTime, BarrierTime);
-		}
+		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Sync frame start"));
+		NodeController->WaitForFrameStart();
 
 		// Perform StartFrame notification
 		GDisplayCluster->StartFrame(GFrameCounter);
@@ -313,7 +307,7 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame end barrier
-		NodeController->WaitForFrameEnd(nullptr, nullptr);
+		NodeController->WaitForFrameEnd();
 
 		// Perform EndFrame notification
 		GDisplayCluster->EndFrame(GFrameCounter);
@@ -397,7 +391,7 @@ void UDisplayClusterGameEngine::CheckGameStartBarrier()
 {
 	if (!BarrierAvoidanceOn())
 	{
-		NodeController->WaitForGameStart(nullptr, nullptr);
+		NodeController->WaitForGameStart();
 	}
 	else
 	{
@@ -407,7 +401,7 @@ void UDisplayClusterGameEngine::CheckGameStartBarrier()
 			UE_LOG(LogDisplayClusterEngine, Display, TEXT("CheckGameStartBarrier - we are no longer out of sync. Restoring Play."));
 			if (RunningMode == EDisplayClusterRunningMode::Startup)
 			{
-				NodeController->WaitForGameStart(nullptr, nullptr);
+				NodeController->WaitForGameStart();
 			}
 			UGameplayStatics::SetGamePaused(WorldContextObject,false);
 			RunningMode = EDisplayClusterRunningMode::Synced;
