@@ -398,7 +398,7 @@ void SDataprepGraphBaseActionNode::Initialize(TWeakPtr<FDataprepEditor> InDatapr
 FVector2D SDataprepGraphBaseActionNode::ComputeDesiredSize(float f) const 
 {
 	const FVector2D Size = SGraphNodeResizable::ComputeDesiredSize(f);
-	return FVector2D(FMath::Max(Size.X, UserSize.X), FMath::Max(Size.Y, UserSize.Y));
+	return FVector2D(FMath::Max(Size.X, UserSize.X), Size.Y);
 }
 
 FVector2D SDataprepGraphBaseActionNode::GetNodeMinimumSize() const
