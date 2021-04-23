@@ -1290,6 +1290,11 @@ void UGroomAsset::SetNumGroup(uint32 InGroupCount, bool bResetGroupData)
 		}
 	}
 
+	if (InGroupCount != HairGroupsInfo.Num())
+	{
+		HairGroupsInfo.Init(FHairGroupInfoWithVisibility(), InGroupCount);
+	}
+
 	EffectiveLODBias.SetNum(InGroupCount);
 
 #if WITH_EDITORONLY_DATA
