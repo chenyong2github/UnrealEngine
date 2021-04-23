@@ -222,7 +222,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		RHICmdList.Transition(FRHITransitionInfo(VoxelizationVolumeMips[0]->GetRenderTargetItem().UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVGraphics));
 	}
 
-
+	// Setup ray tracing scene with LOD 0
 	Scene->SetupRayTracingScene();
 
 	FMemMark Mark(FMemStack::Get());
