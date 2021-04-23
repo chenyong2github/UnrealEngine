@@ -2,8 +2,7 @@
 
 #include "WmfMp4Writer.h"
 
-// TODO (M84FIX) add back in
-// #include "Microsoft/AVEncoderIMFSampleWrapper.h"
+#include "IMFSampleWrapper.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -106,34 +105,30 @@ bool FWmfMp4Writer::Start()
 
 bool FWmfMp4Writer::Write(const AVEncoder::FMediaPacket& InSample, DWORD StreamIndex)
 {
-	// TODO (M84FIX)
-	
-	// AVEncoder::FIMFSampleWrapper Sample { InSample.Type };
+	AVEncoder::FIMFSampleWrapper Sample { InSample.Type };
 
-	// if (!Sample.CreateSample())
-	// {
-	// 	return false;
-	// }
+	if (!Sample.CreateSample())
+	{
+		return false;
+	}
 
-	// TRefCountPtr<IMFMediaBuffer> WmfBuffer;
-	// CHECK_HR_DEFAULT(MFCreateAlignedMemoryBuffer(InSample.Data.Num(), MF_1_BYTE_ALIGNMENT, WmfBuffer.GetInitReference()));
-	// uint8* Dst = nullptr;
-	// CHECK_HR_DEFAULT(WmfBuffer->Lock(&Dst, nullptr, nullptr));
-	// FMemory::Memcpy(Dst, InSample.Data.GetData(), InSample.Data.Num());
-	// CHECK_HR_DEFAULT(WmfBuffer->Unlock());
+	TRefCountPtr<IMFMediaBuffer> WmfBuffer;
+	CHECK_HR_DEFAULT(MFCreateAlignedMemoryBuffer(InSample.Data.Num(), MF_1_BYTE_ALIGNMENT, WmfBuffer.GetInitReference()));
+	uint8* Dst = nullptr;
+	CHECK_HR_DEFAULT(WmfBuffer->Lock(&Dst, nullptr, nullptr));
+	FMemory::Memcpy(Dst, InSample.Data.GetData(), InSample.Data.Num());
+	CHECK_HR_DEFAULT(WmfBuffer->Unlock());
 
-	// WmfBuffer->SetCurrentLength(InSample.Data.Num());
-	// Sample.GetSample()->AddBuffer(WmfBuffer);
-	// Sample.SetTime(InSample.Timestamp);
-	// Sample.SetDuration(InSample.Duration);
+	WmfBuffer->SetCurrentLength(InSample.Data.Num());
+	Sample.GetSample()->AddBuffer(WmfBuffer);
+	Sample.SetTime(InSample.Timestamp);
+	Sample.SetDuration(InSample.Duration);
 
-	// CHECK_HR(Writer->WriteSample(StreamIndex, const_cast<IMFSample*>(Sample.GetSample())));
+	CHECK_HR(Writer->WriteSample(StreamIndex, const_cast<IMFSample*>(Sample.GetSample())));
 
-	// UE_LOG(MP4, VeryVerbose, TEXT("stream #%d: time %.3f, duration %.3f%s"), StreamIndex, Sample.GetTime().GetTotalSeconds(), Sample.GetDuration().GetTotalSeconds(), InSample.IsVideoKeyFrame() ? TEXT(", key-frame") : TEXT(""));
+	UE_LOG(MP4, VeryVerbose, TEXT("stream #%d: time %.3f, duration %.3f%s"), StreamIndex, Sample.GetTime().GetTotalSeconds(), Sample.GetDuration().GetTotalSeconds(), InSample.IsVideoKeyFrame() ? TEXT(", key-frame") : TEXT(""));
 
-	// return true;
-	
-	return false;
+	return true;
 }
 
 bool FWmfMp4Writer::Finalize()
