@@ -118,6 +118,7 @@ public:
 	bool bApplyColorScaleAndOffsetToAllLayers;
 
 	bool bLateLatching;
+	bool bPhaseSync;
 
 public:
 	FSettings();

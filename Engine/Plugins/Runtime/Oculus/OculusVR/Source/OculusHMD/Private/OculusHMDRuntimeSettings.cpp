@@ -27,6 +27,7 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bRecenterHMDWithController = DefaultSettings.Flags.bRecenterHMDWithController;
 	bFocusAware = DefaultSettings.Flags.bFocusAware;
 	bLateLatching = DefaultSettings.bLateLatching;
+	bPhaseSync = DefaultSettings.bPhaseSync;
 	bEnableSpecificColorGamut = DefaultSettings.bEnableSpecificColorGamut;
 	ColorSpace = DefaultSettings.ColorSpace;
 	bRequiresSystemKeyboard = DefaultSettings.Flags.bRequiresSystemKeyboard;
@@ -47,6 +48,7 @@ UOculusHMDRuntimeSettings::UOculusHMDRuntimeSettings(const FObjectInitializer& O
 	bRecenterHMDWithController = true;
 	bFocusAware = true;
 	bLateLatching = false;
+	bPhaseSync = false;
 	bEnableSpecificColorGamut = false;
 	ColorSpace = EColorSpace::Unknown;
 	bRequiresSystemKeyboard = false;
