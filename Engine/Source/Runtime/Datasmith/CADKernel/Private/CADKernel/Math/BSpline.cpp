@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifdef _WINDOWS
-#pragma warning(disable:4996)
-#endif
-
 #include "CADKernel/Math/BSpline.h"
 
 #include "CADKernel/Geo/Curves/NURBSCurve.h"

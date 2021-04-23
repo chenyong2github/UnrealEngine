@@ -9,9 +9,6 @@
 
 #include "Misc/VarArgs.h"
 
-#pragma warning(disable:4996) // unsafe sprintf
-
-
 namespace CADKernel
 {
 	const char* VerboseLevelConstNames[] = {
