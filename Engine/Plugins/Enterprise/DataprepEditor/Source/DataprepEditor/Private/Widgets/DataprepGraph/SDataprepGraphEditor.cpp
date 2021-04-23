@@ -956,12 +956,14 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			{
 				MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Ungroup Actions" ),
 										  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
-										  FSlateIcon(),
+										  FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), "DataprepEditor.Pipeline.UngroupActions"),
 										  BreakGroupAction);
+
+				const FName EnableDisableIcon = bShouldDisable ? FName("DataprepEditor.Pipeline.DisableActionGroup") : FName("DataprepEditor.Pipeline.EnableActionGroup");
 
 				MenuBuilder->AddMenuEntry( FText::Format( LOCTEXT( "EnableOrDisableEnableGroupLabel", "{0} Action Group" ), EnableOrDisableText ),
 										   FText::Format( LOCTEXT( "EnableOrDisableEnableGroupTooltip", "{0} Action Group" ), EnableOrDisableText ),
-										   FSlateIcon(),
+										   FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), EnableDisableIcon),
 										   EnableOrDisableGroupAction);
 			}
 			MenuBuilder->EndSection();
@@ -1052,9 +1054,10 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 				});
 
 				FText Label = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
+				const FName IconStyle = bShouldDisable ? FName("DataprepEditor.Pipeline.DisableActions") : FName("DataprepEditor.Pipeline.EnableActions");
 				MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "EnableOrDisableItemsAction", "{0}" ), Label ),
 										  FText::Format( LOCTEXT( "EnableOrDisableItemsActionTooltip", "{0} steps/actions" ), Label ),
-										  FSlateIcon(),
+										  FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), IconStyle),
 										  EnableOrDisableItemsAction);
 			}
 
@@ -1127,9 +1130,9 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 					});
 
 					FText Label = FText::FromString("Group Actions");
-					MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "CollapsActionsAction", "{0}" ), Label ),
-											  FText::Format( LOCTEXT( "CollapsActionsActionTooltip", "{0} steps/actions" ), Label ),
-											  FSlateIcon(),
+					MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "CollapseActionsAction", "{0}" ), Label ),
+											  FText::Format( LOCTEXT( "CollapseActionsActionTooltip", "{0} steps/actions" ), Label ),
+											  FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), "DataprepEditor.Pipeline.GroupActions"),
 											  CollapseActions);
 				}
 			}
@@ -1243,7 +1246,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 						});
 					MenuBuilder->AddMenuEntry(LOCTEXT("InverseFilter", "Inverse Filter(s) Selection"),
 						LOCTEXT("InverseFilterTooltip", "Inverse the resulting selection from a filter"),
-						FSlateIcon(),
+						FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), "DataprepEditor.Pipeline.InversePreviewFilter"),
 						InverseFilterAction);
 
 					if ( TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin() )
@@ -1280,7 +1283,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 
 							MenuBuilder->AddMenuEntry(LOCTEXT("ClearFilterPreview", "Clear the previewed Filter(s)"),
 								LOCTEXT("ClearFilterPreviewTooltip", "Clear the columns of the scene preview and asset preview tabs of the Filter Preview."),
-								FSlateIcon(),
+								FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), "DataprepEditor.Pipeline.ClearPreviewFilter"),
 								ClearFilterPreview);
 						}
 						else
@@ -1295,7 +1298,7 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 
 							MenuBuilder->AddMenuEntry(LOCTEXT("SetFilterPreview", "Preview Filter(s)"),
 								bAreFilterFromSameAction ? LOCTEXT("SetFilterPreviewTooltip", "Change the columns of the scene preview and asset preview tabs to display a preview of what the filters would select from the current scene") : LOCTEXT("SetFilterPreviewFailTooltip", "The filters can only be previewed if they are from the same action."),
-								FSlateIcon(),
+								FSlateIcon(FDataprepEditorStyle::GetStyleSetName(), "DataprepEditor.Pipeline.PreviewFilter"),
 								SetFilterPreview);
 						}
 					}
