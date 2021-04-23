@@ -345,6 +345,8 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 			bool bAllSegmentsUnlit = true;
 			bool bAllSegmentsOpaque = true;
+			bool bAnySegmentsCastShadow = false;
+			uint8 InstanceMask = 0;
 
 			for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 			{
@@ -353,7 +355,11 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 				bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 				bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
+				bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
+				InstanceMask |= ComputeBlendModeMask(Material.GetBlendMode());
 			}
+
+			InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
 			if (!bAllSegmentsUnlit)
 			{
@@ -363,7 +369,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 				RayTracingInstance.Transforms.Add(Instance.LocalToWorld);
 				RayTracingInstance.NumTransforms = 1;
 				RayTracingInstance.UserData.Add((uint32)StaticMeshIndex);
-				RayTracingInstance.Mask = 0xFF;
+				RayTracingInstance.Mask = InstanceMask;
 				RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
 
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
@@ -388,6 +394,8 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 				bool bAllSegmentsUnlit = true;
 				bool bAllSegmentsOpaque = true;
+				bool bAnySegmentsCastShadow = false;
+				uint8 InstanceMask = 0;
 
 				for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 				{
@@ -396,7 +404,11 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 
 					bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 					bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
+					bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
+					InstanceMask |= ComputeBlendModeMask(Material.GetBlendMode());
 				}
+
+				InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
 				if (!bAllSegmentsUnlit)
 				{
@@ -419,7 +431,7 @@ void FCachedRayTracingSceneData::SetupFromSceneRenderState(FSceneRenderState& Sc
 					RayTracingInstance.NumTransforms = RayTracingInstance.Transforms.Num();
 
 					RayTracingInstance.UserData.Add((uint32)(Scene.StaticMeshInstanceRenderStates.Elements.Num() + InstanceGroupIndex));
-					RayTracingInstance.Mask = 0xFF;
+					RayTracingInstance.Mask = InstanceMask;
 					RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
 
 					for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
@@ -586,7 +598,6 @@ void FSceneRenderState::SetupRayTracingScene()
 						RayTracingInstance.Transforms.Add(FMatrix::Identity);
 						RayTracingInstance.NumTransforms = 1;
 						RayTracingInstance.UserData.Add((uint32)InstanceIndex);
-						RayTracingInstance.Mask = 0xFF;
 
 						TArray<FMeshBatch> MeshBatches = Landscape.GetMeshBatchesForGBufferRendering(0);
 
@@ -601,6 +612,8 @@ void FSceneRenderState::SetupRayTracingScene()
 
 						bool bAllSegmentsUnlit = true;
 						bool bAllSegmentsOpaque = true;
+						bool bAnySegmentsCastShadow = false;
+						uint8 InstanceMask = 0;
 
 						for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 						{
@@ -615,11 +628,19 @@ void FSceneRenderState::SetupRayTracingScene()
 
 							bAllSegmentsUnlit &= Material.GetShadingModels().HasOnlyShadingModel(MSM_Unlit) || !MeshBatches[SegmentIndex].CastShadow;
 							bAllSegmentsOpaque &= Material.GetBlendMode() == EBlendMode::BLEND_Opaque;
+							bAnySegmentsCastShadow |= MeshBatches[SegmentIndex].CastRayTracedShadow && Material.CastsRayTracedShadows();
+							InstanceMask |= ComputeBlendModeMask(Material.GetBlendMode());
 						}
+
+						InstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
 						if (bAllSegmentsUnlit)
 						{
 							RayTracingInstance.Mask = 0;
+						}
+						else
+						{
+							RayTracingInstance.Mask = InstanceMask;
 						}
 
 						RayTracingInstance.bForceOpaque = bAllSegmentsOpaque;
@@ -1665,11 +1686,20 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 										PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
+										PassParameters->PathTracingData.MaxBounces = 32;
+										PassParameters->PathTracingData.MaxNormalBias = 0.1;
+										PassParameters->PathTracingData.EnableDirectLighting = 1;
+										PassParameters->PathTracingData.EnableEmissive = 1;
+										PassParameters->PathTracingData.MISMode = 2;
+										PassParameters->PathTracingData.ApproximateCaustics = 0;
+
 										SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, PassParameters);
 
 										// TODO: find a way to share IES atlas with path tracer ...
 										PassParameters->IESTexture = GWhiteTexture->TextureRHI;
 										PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+										PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
 
 										FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
 										PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
