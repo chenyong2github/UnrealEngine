@@ -538,9 +538,6 @@ private:
 	TArray<FString> CardsDerivedDataKey;
 	TArray<FString> MeshesDerivedDataKey;
 
-	UPROPERTY()
-	bool bIsCacheable = true;
-
 	TStrongObjectPtr<UGroomAsset> GroomAssetStrongPtr;
 	bool bRetryLoadFromGameThread = false;
 #endif
