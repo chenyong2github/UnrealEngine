@@ -20,6 +20,7 @@ namespace Chaos
 
 		virtual void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled) { }
 		virtual bool IsConstraintEnabled(int32 ConstraintIndex) const { return true; }
+		virtual void DisconnectConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>&) {}
 
 	protected:
 		// friend access to the Constraint Handle's container API

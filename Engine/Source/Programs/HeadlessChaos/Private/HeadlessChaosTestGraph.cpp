@@ -6,6 +6,10 @@
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDRigidsEvolution.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/PBDPositionConstraints.h"
+#include "Chaos/PBDSuspensionConstraints.h"
+#include "Chaos/PBDRigidDynamicSpringConstraints.h"
+#include "Chaos/PBDJointConstraints.h"
 #include "Chaos/Utilities.h"
 #include "HeadlessChaos.h"
 #include "HeadlessChaosTestUtility.h"
@@ -1078,6 +1082,187 @@ namespace ChaosTest {
 		}
 	}
 
+	/**
+	 * Test validity of all Particle Handle pointers held by ConstraintGraph.
+	 */
+	class ConstraintGraphValidation
+	{
+	public:
+		static bool IsParticleHandleValid(const FGeometryParticleHandle* Handle)
+		{
+			// Null is valid because we are allowing holes in the Nodes array that get re-filled using a Free List of empty slots 
+			if (Handle == nullptr)
+			{
+				return true;
+			}
+
+			// We're really testing if Handle is pointing to a valid particle handle; the return bool is inconsequential.
+			if (Handle->HasBounds())
+			{
+				return true;
+			}
+
+			return true;
+		}
+
+		static void ValidateConstraintGraphParticleHandles(const FPBDConstraintGraph& ConstraintGraph)
+		{
+			// Are all keys, values in the ParticleToNodeIndex Valid?
+			const int32 NodeCount = ConstraintGraph.Nodes.Num();
+			for (const TPair<FGeometryParticleHandle*, int32>& HandleAndIndex : ConstraintGraph.ParticleToNodeIndex)
+			{
+				EXPECT_TRUE(IsParticleHandleValid(HandleAndIndex.Key));
+				EXPECT_GE(HandleAndIndex.Value, 0);
+				EXPECT_LT(HandleAndIndex.Value, NodeCount);
+			}
+
+			// Are all Islands holding valid particle handles?
+			const int32 NumIslands = ConstraintGraph.NumIslands();
+			for (int32 IslandIdx = 0; IslandIdx < NumIslands; ++IslandIdx)
+			{
+				const TArray<FGeometryParticleHandle*>& IslandParticles = ConstraintGraph.GetIslandParticles(IslandIdx);
+				for (const FGeometryParticleHandle* Handle : IslandParticles)
+				{
+					EXPECT_TRUE(IsParticleHandleValid(Handle));
+				}
+			}
+
+			// Are all Graph Nodes valid?
+			for (const FPBDConstraintGraph::FGraphNode& Node : ConstraintGraph.Nodes)
+			{
+				ensure(IsParticleHandleValid(Node.Particle));
+				EXPECT_TRUE(IsParticleHandleValid(Node.Particle));
+			}
+
+			// Are all Graph Edges valid?
+			for (const FPBDConstraintGraph::FGraphEdge& Edge : ConstraintGraph.Edges)
+			{
+				EXPECT_GE(Edge.FirstNode, 0);
+				EXPECT_LT(Edge.FirstNode, NodeCount);
+				EXPECT_GE(Edge.SecondNode, -1); // position and suspension constraints don't have a valid second node
+				EXPECT_LT(Edge.SecondNode, NodeCount);
+			}
+		}
+	};
+
+	/**
+	 * Create a particles variously constrained.
+	 * Eliminate blocks of particles and test that ConstraintGraph is not holding dangling particles.
+	 */
+	void GraphDestroyParticles()
+	{
+		// Create some particles - doesn't matter what position or other state they have
+		TArray<TGeometryParticleHandle<FReal, 3>*> AllParticles;
+
+		FPBDRigidsSOAs SOAs;
+		TArray<FPBDRigidParticleHandle*> Dynamics = SOAs.CreateDynamicParticles(500);
+		for (auto Dynamic : Dynamics) { AllParticles.Add(Dynamic); }
+
+		// Set up the particle graph
+		FPBDConstraintGraph Graph;
+		Graph.InitializeGraph(SOAs.GetNonDisabledView());
+		
+		const int32 NumParticles = AllParticles.Num();
+
+		// Put together constraint lists
+		TArray<TVec2<int32>> ConstrainedParticles0;
+		ConstrainedParticles0.Reserve(150);
+		TArray<TVec2<int32>> ConstrainedParticles1;
+		ConstrainedParticles1.Reserve(150);
+		TArray<TVec2<int32>> ConstrainedParticles2;
+		ConstrainedParticles2.Reserve(150);
+		for (int32 ConstraintIdx = 0; ConstraintIdx < 150; ++ConstraintIdx)
+		{
+			ConstrainedParticles0.Add({ (ConstraintIdx * 2) % NumParticles, (ConstraintIdx * 3) % NumParticles });
+			ConstrainedParticles1.Add({ (ConstraintIdx * 4) % NumParticles, (ConstraintIdx * 5) % NumParticles });
+			ConstrainedParticles2.Add({ (ConstraintIdx * 6) % NumParticles, (ConstraintIdx * 7) % NumParticles });
+		}
+		
+		// Create some position constraints
+		Graph.ReserveConstraints(ConstrainedParticles0.Num());
+		FPBDPositionConstraints PositionConstraints;
+		for (const TVec2<int32>& Indices : ConstrainedParticles0)
+		{
+			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
+			auto* NewConstraint = PositionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0 ));
+			Graph.AddConstraint(0, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, nullptr));
+		}
+
+		// Create some suspension constraints
+		Graph.ReserveConstraints(ConstrainedParticles1.Num());
+		FPBDSuspensionConstraints SuspensionConstraints;
+		for (const TVec2<int32>& Indices : ConstrainedParticles1)
+		{
+			FPBDSuspensionSettings Settings;
+			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
+			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
+			auto* NewConstraint = SuspensionConstraints.AddConstraint(Particle0, FVec3(0, 0, 0), Settings);
+			Graph.AddConstraint(1, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+		}
+
+		// Create some dynamic spring constraints.
+		Graph.ReserveConstraints(ConstrainedParticles2.Num());
+		FPBDRigidDynamicSpringConstraints SpringConstraints;
+		for (const TVec2<int32>& Indices : ConstrainedParticles2)
+		{
+			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
+			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
+			auto* NewConstraint = SpringConstraints.AddConstraint(FPBDRigidDynamicSpringConstraints::FConstrainedParticlePair(Particle0, Particle1));
+			Graph.AddConstraint(2, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+		}
+		
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
+		// Add new particles
+		TArray<TPBDRigidParticleHandle<FReal, 3>*> NewDynamics = SOAs.CreateDynamicParticles(20);
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
+		// Remove some constraints
+		PositionConstraints.RemoveConstraint(0);
+		SuspensionConstraints.RemoveConstraint(0);
+		SpringConstraints.RemoveConstraint(0);
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+		
+		// Add new constraints
+		Graph.ReserveConstraints(ConstrainedParticles1.Num());
+		FPBDJointConstraints JointConstraints;
+		for (const TVec2<int32>& Indices : ConstrainedParticles1)
+		{
+			FPBDRigidParticleHandle* Particle0 = AllParticles[Indices[0]]->CastToRigidParticle();
+			FPBDRigidParticleHandle* Particle1 = AllParticles[Indices[1]]->CastToRigidParticle();
+			auto* NewConstraint = JointConstraints.AddConstraint(FPBDJointConstraints::FParticlePair(Particle0,Particle1), FRigidTransform3());
+			Graph.AddConstraint(3, NewConstraint, TVec2<FGeometryParticleHandle*>(Particle0, Particle1));
+		}
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
+		// Remove a block of particles
+		for (int32 Idx = 0; Idx < 10; ++Idx)
+		{
+			Graph.RemoveParticle(Dynamics[Idx]);
+			SOAs.DestroyParticle(Dynamics[Idx]);
+		}
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
+		// Disable a block of particles
+		for (int32 Idx = 10; Idx < 20; ++Idx)
+		{
+			Graph.DisableParticle({ Dynamics[Idx] });
+			SOAs.DisableParticle(Dynamics[Idx]);
+		}
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+
+		// Re-enable the block of particles
+		for (int32 Idx = 10; Idx < 20; ++Idx)
+		{
+			Graph.EnableParticle(Dynamics[Idx], nullptr);
+			SOAs.EnableParticle(Dynamics[Idx]);
+		}
+		ConstraintGraphValidation::ValidateConstraintGraphParticleHandles(Graph);
+		
+	}
+
+
+
 
 	TEST(GraphTests,TestGraphIslands)
 	{
@@ -1124,5 +1309,9 @@ namespace ChaosTest {
 
 		SUCCEED();
 	}
-}
 
+	TEST(GraphTests, TestParticleDestruction)
+	{
+		GraphDestroyParticles();
+	}
+}

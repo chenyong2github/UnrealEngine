@@ -432,24 +432,29 @@ namespace Chaos
 		}
 	}
 
+
+
 	
-	void FPBDJointConstraints::DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	void FPBDJointConstraints::DisconnectConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
 	{
-		for (TGeometryParticleHandle<FReal, 3>* RemovedParticle : RemovedParticles)
+		for (TGeometryParticleHandle<FReal, 3>*RemovedParticle : RemovedParticles)
 		{
 			for (FConstraintHandle* ConstraintHandle : RemovedParticle->ParticleConstraints())
 			{
-				ConstraintHandle->SetEnabled(false); // constraint lifespan is managed by the proxy
-				int ConstraintIndex = ConstraintHandle->GetConstraintIndex();
-				if (ConstraintIndex != INDEX_NONE)
+				if (ConstraintHandle->As<FPBDJointConstraintHandle>())
 				{
-					if (ConstraintParticles[ConstraintIndex][0] == RemovedParticle)
+					ConstraintHandle->SetEnabled(false); // constraint lifespan is managed by the proxy
+					int ConstraintIndex = ConstraintHandle->GetConstraintIndex();
+					if (ConstraintIndex != INDEX_NONE)
 					{
-						ConstraintParticles[ConstraintIndex][0] = nullptr;
-					}
-					if (ConstraintParticles[ConstraintIndex][1] == RemovedParticle)
-					{
-						ConstraintParticles[ConstraintIndex][1] = nullptr;
+						if (ConstraintParticles[ConstraintIndex][0] == RemovedParticle)
+						{
+							ConstraintParticles[ConstraintIndex][0] = nullptr;
+						}
+						if (ConstraintParticles[ConstraintIndex][1] == RemovedParticle)
+						{
+							ConstraintParticles[ConstraintIndex][1] = nullptr;
+						}
 					}
 				}
 			}

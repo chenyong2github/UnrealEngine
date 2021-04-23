@@ -328,7 +328,7 @@ public:
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
 		// disable constraint before disabling the particle in the graph because of dependencies 
-		RemoveConstraintsFromConstraintGraph(Particle->ParticleConstraints());
+		DisableConstraints({ Particle });
 		ConstraintGraph.DisableParticle(Particle);
 	}
 
@@ -338,14 +338,7 @@ public:
 	{
 		for (FGeometryParticleHandle* Particle : ParticlesIn)
 		{
-			RemoveParticleFromAccelerationStructure(*Particle);
-			Particles.DisableParticle(Particle);
-			RemoveConstraintsFromConstraintGraph(Particle->ParticleConstraints());
-		}
-		// make sure we do this has a second loop to make sure constraints have valid particles when removed from the constraint graph in the first loop
-		for (FGeometryParticleHandle* Particle : ParticlesIn)
-		{
-			ConstraintGraph.DisableParticle(Particle);
+			DisableParticle(Particle);
 		}
 	}
 
@@ -396,7 +389,7 @@ public:
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		UniqueIndicesPendingRelease.Add(Particle->UniqueIdx());
-		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
+		DisconnectConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
 		ConstraintGraph.RemoveParticle(Particle);
 		Particles.DestroyParticle(Particle);
 	}
@@ -442,18 +435,6 @@ public:
 				IslandsToWake.Enqueue(Particle->Island());
 			}
 		}
-	}
-
-	CHAOS_API void DisableParticles(const TSet<FGeometryParticleHandle*>& InParticles)
-	{
-		for (FGeometryParticleHandle* Particle : InParticles)
-		{
-			Particles.DisableParticle(Particle);
-			RemoveParticleFromAccelerationStructure(*Particle);
-		}
-
-		ConstraintGraph.DisableParticles(InParticles);
-		DisableConstraints(InParticles);
 	}
 
 	CHAOS_API void WakeIslands()
@@ -508,10 +489,10 @@ public:
 		}
 	}
 
-	/** Disable constraints from a set of particles to be removed (or destroyed) 
+	/** Disconnect constraints from a set of particles to be removed (or destroyed) 
 	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr
 	*/
-	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
+	CHAOS_API void DisconnectConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
 		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
 		{
@@ -520,7 +501,24 @@ public:
 
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{
-			ConstraintRule->DisableConstraints(RemovedParticles);
+			ConstraintRule->DisconnectConstraints(RemovedParticles);
+		}
+	}
+
+	/** Disconnect constraints from a set of particles to be removed (or destroyed)
+	* this will set the constraints to Enbaled = false, but leave connections to the 
+	* particles. 
+	*/
+	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& DisabledParticles)
+	{
+		for (FGeometryParticleHandle* ParticleHandle : DisabledParticles)
+		{
+			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
+		}
+
+		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
+		{
+			ConstraintRule->SetConstraintsEnabled(DisabledParticles, false);
 		}
 	}
 

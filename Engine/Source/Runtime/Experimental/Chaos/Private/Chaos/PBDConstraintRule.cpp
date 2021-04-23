@@ -51,13 +51,6 @@ namespace Chaos
 	}
 
 	template<class T_CONSTRAINTS>
-	void TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
-	{
-		Constraints.DisableConstraints(RemovedParticles);
-	}
-
-
-	template<class T_CONSTRAINTS>
 	int32 TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::NumConstraints() const
 	{ 
 		return Constraints.NumConstraints(); 
