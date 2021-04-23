@@ -131,6 +131,9 @@ public:
 	/** Snaps the selected actor to the camera. */
 	TSharedPtr< FUICommandInfo > SnapObjectToCamera;
 
+	/** Copy the file path where the actor is saved. */
+	TSharedPtr< FUICommandInfo > CopyActorFilePathtoClipboard;
+
 	/** Goes to the source code for the selected actor's class. */
 	TSharedPtr< FUICommandInfo > GoToCodeForActor;
 
@@ -1254,6 +1257,11 @@ public:
 	* Snaps a selected actor to the camera view.
 	*/
 	static void SnapObjectToView_Clicked();
+
+	/**
+	* Copy the file path where the actor is saved.
+	*/
+	static void CopyActorFilePathtoClipboard_Clicked();
 
 	/** 
 	 * Moves the selected elements to the last selected element.

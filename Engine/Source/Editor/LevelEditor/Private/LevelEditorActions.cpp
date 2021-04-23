@@ -8,6 +8,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Layout/WidgetPath.h"
@@ -2627,7 +2628,25 @@ void FLevelEditorActionCallbacks::SnapObjectToView_Clicked()
 
 		LevelDirtyCallback.Request();
 	}
+}
 
+void FLevelEditorActionCallbacks::CopyActorFilePathtoClipboard_Clicked()
+{
+	FString Result;
+
+	for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+	{
+		const AActor* Actor = Cast<AActor>(*It);
+		const UPackage* Package = Actor->GetPackage();
+		const FString LocalFullPath(Package->GetLoadedPath().GetLocalFullPath());
+		Result += FPaths::ConvertRelativePathToFull(LocalFullPath);
+		Result += TEXT("\n");
+	}
+
+	if (Result.Len())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(*Result);
+	}
 }
 
 void FLevelEditorActionCallbacks::OnEnableActorSnap()
@@ -3245,6 +3264,8 @@ void FLevelEditorCommands::RegisterCommands()
 
 	UI_COMMAND( SnapCameraToObject, "Snap View to Object", "Snaps the view to the selected object", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SnapObjectToCamera, "Snap Object to View", "Snaps the selected object to the view", EUserInterfaceActionType::Button, FInputChord() );
+
+	UI_COMMAND( CopyActorFilePathtoClipboard, "Copy Actor File Path", "Copy the file path where this actor is saved", EUserInterfaceActionType::Button, FInputChord() );
 
 	UI_COMMAND( GoToCodeForActor, "Go to C++ Code for Actor", "Opens a code editing IDE and navigates to the source file associated with the seleced actor", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( GoToDocsForActor, "Go to Documentation for Actor", "Opens documentation for the Actor in the default web browser", EUserInterfaceActionType::Button, FInputChord() );
