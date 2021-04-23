@@ -205,7 +205,7 @@ void FParametricMesher::ApplyEdgeCriteria(TSharedRef<FTopologicalEdge> Edge)
 	ActiveEdge->EvaluatePoints(Coordinates, 0, Points3D);
 
 	const TArray<TSharedPtr<FCriterion>>& Criteria = GetMeshModel()->GetCriteria();
-	for (const TSharedPtr<FCriterion> Criterion : Criteria)
+	for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 	{
 		Criterion->ApplyOnEdgeParameters(ActiveEdge, CrossingPointUs, Points3D);
 	}

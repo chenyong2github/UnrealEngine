@@ -238,7 +238,7 @@ const void FTopologicalFace::Get2DLoopSampling(TArray<TArray<FPoint2D>>& LoopSam
 {
 	LoopSamplings.Empty(GetLoops().Num());
 
-	for (const TSharedPtr<FTopologicalLoop> Loop : GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : GetLoops())
 	{
 		TArray<FPoint2D>& LoopSampling2D = LoopSamplings.Emplace_GetRef();
 		Loop->Get2DSampling(LoopSampling2D);

@@ -21,7 +21,7 @@ namespace CADKernel
 		TPolylineApproximator<PointType> Approximator;
 
 		TPolylineCurve(const double InTolerance, const TArray<PointType>& InPoints, const TArray<double>& InCoordinates, int8 InDimension)
-			: FCurve(InTolerance, Dimension)
+			: FCurve(InTolerance, InDimension)
 			, Approximator(this->Coordinates, this->Points)
 		{
 			this->Coordinates = InCoordinates;
@@ -31,7 +31,7 @@ namespace CADKernel
 		}
 
 		TPolylineCurve(const double InTolerance, const TArray<PointType>& InPoints, int8 InDimension)
-			: FCurve(InTolerance, Dimension)
+			: FCurve(InTolerance, InDimension)
 			, TPolyline<PointType>(InPoints)
 			, Approximator(this->Coordinates, this->Points)
 		{

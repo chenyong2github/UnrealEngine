@@ -67,15 +67,15 @@ namespace CADKernel
 
 #define ERROR_FUNCTION_CALL_NOT_EXPECTED \
 { \
-	FMessage::Printf(Log, L"CALL of \" %s \" NOT EXPECTED at line %d of the file %s\n", __func__, __LINE__, __FILE__); \
+	FMessage::Printf(Log, TEXT("CALL of \" %s \" NOT EXPECTED at line %d of the file %s\n"), __func__, __LINE__, __FILE__); \
 }
 
 #define ERROR_NOT_EXPECTED \
 { \
-	FMessage::Printf(Log, L"Error not expected in \" %S \" at line %d of the file %S\n", __func__, __LINE__, __FILE__); \
+	FMessage::Printf(Log, TEXT("Error not expected in \" %S \" at line %d of the file %S\n"), __func__, __LINE__, __FILE__); \
 }
 
 #define NOT_IMPLEMENTED \
 { \
-	FMessage::Printf(Log, L"The function \" %s \" at line %d of the file %s is not implemented", __func__, __LINE__, __FILE__); \
+	FMessage::Printf(Log, TEXT("The function \" %s \" at line %d of the file %s is not implemented"), __func__, __LINE__, __FILE__); \
 }

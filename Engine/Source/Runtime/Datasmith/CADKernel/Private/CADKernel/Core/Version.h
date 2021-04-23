@@ -3,11 +3,11 @@
 
 //** ** Version du Toolkit** **//
 #define TOOLKIT_VERSION 7, 0, 4
-#define TOOLKIT_VERSION_ASCII L"7.0.4"
+#define TOOLKIT_VERSION_ASCII TEXT("7.0.4")
 
 //** ** Numero du TAG** **//
 #define TAG_VERSION 2000
-#define TAG_VERSION_ASCII L".2000" 
+#define TAG_VERSION_ASCII TEXT(".2000")
 
 #define RELEASE_DATE	 __DATE__
 

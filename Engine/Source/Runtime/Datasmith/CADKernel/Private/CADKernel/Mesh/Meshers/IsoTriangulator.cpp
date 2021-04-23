@@ -295,12 +295,12 @@ void FIsoTriangulator::FillMeshNodes()
 namespace
 {
 	const double MaxSlopeToBeIso = 0.125;
-	const constexpr double LimitValueMin(double Slope)
+	const double LimitValueMin(double Slope)
 	{
 		return Slope - MaxSlopeToBeIso;
 	}
 
-	const constexpr double LimitValueMax(double Slope)
+	const double LimitValueMax(double Slope)
 	{
 		return Slope + MaxSlopeToBeIso;
 	}
@@ -441,7 +441,7 @@ void FIsoTriangulator::BuildThinZoneSegments()
 		ThinZoneSegments.Add(&Segment);
 	};
 
-	for (const TSharedPtr<FTopologicalLoop> Loop : Grid.GetFace()->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Grid.GetFace()->GetLoops())
 	{
 		for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
 		{

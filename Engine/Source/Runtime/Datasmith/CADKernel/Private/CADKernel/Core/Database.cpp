@@ -12,7 +12,7 @@
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
-#include "CADKernel/Ui/Message.h"
+#include "CADKernel/UI/Message.h"
 
 #include "HAL/FileManager.h"
 

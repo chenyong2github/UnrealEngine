@@ -370,6 +370,8 @@ protected:
 		// Final sampling of the curve. This polyline will be completed at each iteration
 		PolylineType& Sampling;
 
+		PolylineType CandidatePoints;
+
 		const TArray<double>& TmpPolylineCoordinates;
 		const TArray<double>& SamplingCoordinates;
 
@@ -392,9 +394,6 @@ protected:
 		 * FirstCandidateIndex and (LastCandidateIndex - 1) are the index of the first and the last intermediate points
 		 */
 		TSamplingPoint EndStudySegment;
-
-
-		PolylineType CandidatePoints;
 
 		/** Coordinates of the new candidate points for the next iteration */
 		TArray<double> NextCoordinates;

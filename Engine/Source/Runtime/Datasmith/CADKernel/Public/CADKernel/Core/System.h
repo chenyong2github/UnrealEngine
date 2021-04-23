@@ -19,7 +19,7 @@ namespace CADKernel
 
 	protected:
 
-		FString ProductName = L"CADKernel";
+		FString ProductName = FString(TEXT("CADKernel"));
 
 		TSharedRef<FKernelParameters> Parameters;
 

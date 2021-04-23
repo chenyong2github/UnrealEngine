@@ -14,7 +14,7 @@
 #include "CADKernel/Geo/Surfaces/BezierSurface.h"
 #include "CADKernel/Geo/Surfaces/NURBSSurface.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
-#include "CADKernel/Math/AABB.h"
+#include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Math/Plane.h"
 #include "CADKernel/Mesh/Structure/EdgeMesh.h"
@@ -1019,7 +1019,7 @@ namespace CADKernel
 
 	void DisplayLoop(const TSharedPtr<FTopologicalFace>& Surface)
 	{
-		for (const TSharedPtr<FTopologicalLoop> Loop : Surface->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 		{
 			Display(Loop);
 		}

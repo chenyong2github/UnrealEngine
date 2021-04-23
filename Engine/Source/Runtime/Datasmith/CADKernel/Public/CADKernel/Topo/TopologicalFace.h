@@ -4,7 +4,7 @@
 #include "CADKernel/Core/MetadataDictionary.h"
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
-#include "CADKernel/Math/AABB.h"
+#include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/Curvature.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
 #include "CADKernel/Topo/TopologicalLoop.h"

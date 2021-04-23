@@ -4,7 +4,7 @@
 #include "CADKernel/Core/Types.h"
 
 #include "CADKernel/Geo/GeoEnum.h"
-#include "CADKernel/Math/AABB.h"
+#include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/MathConst.h"
 #include "CADKernel/Math/MatrixH.h"
 #include "CADKernel/Math/Point.h"

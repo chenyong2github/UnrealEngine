@@ -1080,7 +1080,7 @@ namespace CADKernel
 		F3DDebugSession _(TEXT("GetLoopMesh"));
 #endif
 
-		for (const TSharedPtr<FTopologicalLoop> Loop : Face->GetLoops())
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
 		{
 			int32 LoopNodeCount = 0;
 

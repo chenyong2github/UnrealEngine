@@ -14,7 +14,7 @@ using namespace CADKernel;
 void FFaceMesh::GetNodeIdToCoordinates(TMap<int32, const FPoint*>& NodeIdToCoordinates) const
 {
 	const TSharedRef<FTopologicalFace> Face = StaticCastSharedRef<FTopologicalFace>(GetGeometricEntity());
-	for (const TSharedPtr<FTopologicalLoop> Loop : Face->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
 	{
 		const TArray<FOrientedEdge>& Edges = Loop->GetEdges();
 
