@@ -5997,8 +5997,11 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit()
 {
-#if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
+#if !WITH_ENGINE
+#if STATS
+	FThreadStats::StopThread();
+#endif
 	FTaskGraphInterface::Shutdown();
 #endif // WITH_ENGINE
 
