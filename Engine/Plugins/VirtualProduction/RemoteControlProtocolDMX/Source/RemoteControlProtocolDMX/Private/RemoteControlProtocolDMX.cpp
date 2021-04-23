@@ -2,14 +2,66 @@
 
 #include "RemoteControlProtocolDMX.h"
 
+#include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
+#include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixtureType.h"
 
+
 TStatId FRemoteControlProtocolDMX::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FRemoteControlProtocolDMX, STATGROUP_Tickables);
+}
+
+FRemoteControlDMXProtocolEntity::~FRemoteControlDMXProtocolEntity()
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	if (PortConfigsChangedHandle.IsValid())
+	{
+		ProtocolSettings->OnPortConfigsChanged.Remove(PortConfigsChangedHandle);
+	}
+}
+
+void FRemoteControlDMXProtocolEntity::Initialize()
+{
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+
+	// Add Delegates
+	PortConfigsChangedHandle = ProtocolSettings->OnPortConfigsChanged.AddRaw(this, &FRemoteControlDMXProtocolEntity::UpdateInputPort);
+
+    // Assign InputPortReference
+	UpdateInputPort();
+}
+
+void FRemoteControlDMXProtocolEntity::UpdateInputPort()
+{
+	// Reset port Id;
+	InputPortId = FGuid();
+	
+	UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
+	
+	const TArray<FDMXInputPortSharedRef>& InputPorts = FDMXPortManager::Get().GetInputPorts();
+	for (const FDMXInputPortConfig& PortConfig : ProtocolSettings->InputPortConfigs)
+	{
+		const FGuid& InputPortGuid = PortConfig.GetPortGuid();
+
+		const FDMXInputPortSharedRef* InputPortPtr = InputPorts.FindByPredicate([&InputPortGuid](const FDMXInputPortSharedRef& InputPort) {
+            return InputPort->GetPortGuid() == InputPortGuid;
+            });
+
+		if (InputPortPtr == nullptr)
+		{
+			break;
+		}
+
+		const FDMXInputPortSharedRef& InputPort = *InputPortPtr;
+		if (InputPort->IsLocalUniverseInPortRange(Universe))
+		{
+			InputPortId = InputPortGuid;
+		}
+	}
 }
 
 void FRemoteControlProtocolDMX::Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
@@ -28,7 +80,7 @@ void FRemoteControlProtocolDMX::Bind(FRemoteControlProtocolEntityPtr InRemoteCon
 				const FRemoteControlDMXProtocolEntity* ComparedDMXProtocolEntity = ProtocolEntity->CastChecked<FRemoteControlDMXProtocolEntity>();
 
 				if (ComparedDMXProtocolEntity->Universe == DMXProtocolEntity->Universe &&
-					ComparedDMXProtocolEntity->StartingChannel == DMXProtocolEntity->StartingChannel &&
+					ComparedDMXProtocolEntity->ExtraSetting.StartingChannel == DMXProtocolEntity->ExtraSetting.StartingChannel &&
 					ComparedDMXProtocolEntity->GetPropertyId() == DMXProtocolEntity->GetPropertyId())
 				{
 					return true;
@@ -43,6 +95,8 @@ void FRemoteControlProtocolDMX::Bind(FRemoteControlProtocolEntityPtr InRemoteCon
 	{
 		ProtocolsBindings.Emplace(InRemoteControlProtocolEntityPtr);
 	}
+
+	DMXProtocolEntity->Initialize();
 }
 
 void FRemoteControlProtocolDMX::Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
@@ -58,62 +112,68 @@ void FRemoteControlProtocolDMX::Unbind(FRemoteControlProtocolEntityPtr InRemoteC
 
 void FRemoteControlProtocolDMX::Tick(float DeltaTime)
 {
-	static TArray<uint8> CachedDMXValues = TArray<uint8>();
-	CachedDMXValues.SetNumZeroed(1);
-
 	if (!ProtocolsBindings.Num())
 	{
 		return;
 	}
 
 	const TArray<FDMXInputPortSharedRef>& InputPorts = FDMXPortManager::Get().GetInputPorts();
-
-	// Tick all input Ports
-	for (const FDMXInputPortSharedRef& InputPort : InputPorts)
+	for (const FRemoteControlProtocolEntityWeakPtr& ProtocolEntityWeakPtr : ProtocolsBindings)
 	{
-		// Loop through all protocol entities
-		for (const FRemoteControlProtocolEntityWeakPtr& ProtocolEntityWeakPtr : ProtocolsBindings)
+		if (const FRemoteControlProtocolEntityPtr& ProtocolEntity = ProtocolEntityWeakPtr.Pin())
 		{
-			if (const FRemoteControlProtocolEntityPtr& ProtocolEntity = ProtocolEntityWeakPtr.Pin())
+			FRemoteControlDMXProtocolEntity* DMXProtocolEntity = ProtocolEntity->CastChecked<FRemoteControlDMXProtocolEntity>();
+
+			const FGuid& PortId =  DMXProtocolEntity->InputPortId;				
+
+			const FDMXInputPortSharedRef* InputPortPtr = InputPorts.FindByPredicate([&PortId](const FDMXInputPortSharedRef& InputPort) {
+                return InputPort->GetPortGuid() == PortId;
+                });
+
+			if (InputPortPtr == nullptr)
 			{
-				FRemoteControlDMXProtocolEntity* DMXProtocolEntity = ProtocolEntity->CastChecked<FRemoteControlDMXProtocolEntity>();
+				break;
+			}
 
-				// Get universe DMX signal
-				InputPort->GameThreadGetDMXSignal(DMXProtocolEntity->Universe, DMXProtocolEntity->LastSignalPtr);
+			const FDMXInputPortSharedRef& InputPort = *InputPortPtr;
 
-				if (DMXProtocolEntity->LastSignalPtr.IsValid())
-				{					
-					const int32 DMXOffset = DMXProtocolEntity->StartingChannel - 1;
-					const uint8* BytesData = &DMXProtocolEntity->LastSignalPtr->ChannelData[DMXOffset];
-					check(DMXOffset >= 0 && DMXOffset < DMX_UNIVERSE_SIZE);
-					
-					ProcessAndApplyProtocolValue(BytesData, ProtocolEntity);
-				}
+			// Get universe DMX signal
+			InputPort->GameThreadGetDMXSignal(DMXProtocolEntity->Universe, DMXProtocolEntity->LastSignalPtr);
+			if (DMXProtocolEntity->LastSignalPtr.IsValid())
+			{					
+				const int32 DMXOffset = DMXProtocolEntity->ExtraSetting.StartingChannel - 1;
+				check(DMXOffset >= 0 && DMXOffset < DMX_UNIVERSE_SIZE);
+				
+				ProcessAndApplyProtocolValue(DMXProtocolEntity->LastSignalPtr, DMXOffset, ProtocolEntity);
 			}
 		}
 	}
 }
 
-void FRemoteControlProtocolDMX::ProcessAndApplyProtocolValue(const uint8* InChannelData, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr)
+void FRemoteControlProtocolDMX::ProcessAndApplyProtocolValue(const FDMXSignalSharedPtr& InSignal, int32 InDMXOffset, const FRemoteControlProtocolEntityPtr& InProtocolEntityPtr)
 {
+	if (!InSignal->ChannelData.IsValidIndex(InDMXOffset))
+	{
+		return;
+	}
+	
+	const uint8* ChannelData = &InSignal->ChannelData[InDMXOffset];	
 	FRemoteControlDMXProtocolEntity* DMXProtocolEntity = InProtocolEntityPtr->CastChecked<FRemoteControlDMXProtocolEntity>();
 	const uint8 NumChannelsToOccupy = UDMXEntityFixtureType::NumChannelsToOccupy(DMXProtocolEntity->DataType);
 
-	// Initialize cache buffer if that is 0 or resize the buffer 
-	if (DMXProtocolEntity->CacheDMXBuffer.Num() == 0 || DMXProtocolEntity->CacheDMXBuffer.Num() != NumChannelsToOccupy)
+	if(DMXProtocolEntity->CacheDMXBuffer.Num() != NumChannelsToOccupy ||
+		FMemory::Memcmp(DMXProtocolEntity->CacheDMXBuffer.GetData(), ChannelData, NumChannelsToOccupy) != 0)
 	{
-		DMXProtocolEntity->CacheDMXBuffer = TArray<uint8>(InChannelData, NumChannelsToOccupy);
-	}
+		const uint32 DMXValue = UDMXEntityFixtureType::BytesToInt(DMXProtocolEntity->DataType, DMXProtocolEntity->bUseLSB, ChannelData);
 
-	// Apply the property if the buffer has been changed
-	if (FMemory::Memcmp(DMXProtocolEntity->CacheDMXBuffer.GetData(), InChannelData, NumChannelsToOccupy) != 0)
-	{
-		const uint32 DMXValue = UDMXEntityFixtureType::BytesToInt(DMXProtocolEntity->DataType, DMXProtocolEntity->bUseLSB, InChannelData);
-
-		DMXProtocolEntity->ApplyProtocolValueToProperty(DMXValue);
+		// Check if the protocol value was successfully applied
+		if(!DMXProtocolEntity->ApplyProtocolValueToProperty(DMXValue))
+		{
+			ensure(false);
+		}
 
 		// update cached buffer
-		DMXProtocolEntity->CacheDMXBuffer = TArray<uint8>(InChannelData, NumChannelsToOccupy);
+		DMXProtocolEntity->CacheDMXBuffer = TArray<uint8>(ChannelData, NumChannelsToOccupy);
 	}
 }
 
