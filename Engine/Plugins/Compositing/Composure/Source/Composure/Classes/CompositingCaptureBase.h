@@ -8,6 +8,8 @@
 
 #include "CompositingCaptureBase.generated.h"
 
+class USceneCaptureComponent2D;
+
 /**
  * Base class for CG Compositing Elements
  */
