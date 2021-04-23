@@ -24,7 +24,7 @@ public:
 #endif // WITH_EDITOR
 	
 	//~ Begin UObject Interface
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	//~ End UObject Interface
 
 	class UDisplayClusterBlueprintGeneratedClass* GetGeneratedClass() const;
