@@ -147,7 +147,6 @@ namespace
 				}
 			}
 
-			// TODO
 			for (const FDMXOutputPortSharedRef& OutputPort : DMXLibrary->GetOutputPorts())
 			{
 				OutputPort->SendDMX(FixturePatch->UniverseID, ChannelToValueMap);
