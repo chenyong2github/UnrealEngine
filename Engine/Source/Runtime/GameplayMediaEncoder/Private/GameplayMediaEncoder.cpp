@@ -563,7 +563,7 @@ void FGameplayMediaEncoder::ProcessVideoFrame(const FTexture2DRHIRef& FrameBuffe
 	if (!BackBufferMap.Contains(InputFrame))
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("GameplayMediaEncoderBackBuffer"));
-		auto Texture = GDynamicRHI->RHICreateTexture2D(VideoConfig.Width, VideoConfig.Height, EPixelFormat::PF_A8R8G8B8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
+		auto Texture = GDynamicRHI->RHICreateTexture2D(VideoConfig.Width, VideoConfig.Height, EPixelFormat::PF_R8G8B8A8, 1, 1, TexCreate_Shared | TexCreate_RenderTargetable | TexCreate_UAV, ERHIAccess::CopyDest, CreateInfo);
 		BackBufferMap.Add(InputFrame, Texture);
 
 #if PLATFORM_WINDOWS
