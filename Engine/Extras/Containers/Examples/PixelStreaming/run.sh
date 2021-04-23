@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Determine which release of the Unreal Engine we will be running container images for
-UNREAL_ENGINE_RELEASE=master
+UNREAL_ENGINE_RELEASE="4.27"
 if [[ ! -z "$1" ]]; then
 	UNREAL_ENGINE_RELEASE="$1"
 fi
