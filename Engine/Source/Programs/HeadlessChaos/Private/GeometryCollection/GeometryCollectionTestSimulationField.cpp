@@ -58,6 +58,7 @@ namespace GeometryCollectionTest
 		Collection->PhysObject->BufferCommand(UnitTest.Solver, { TargetNameTmp, RadialMaskTmp });
 
 		UnitTest.Initialize();
+		UnitTest.Advance();
 
 		UnitTest.Solver->RegisterSimOneShotCallback([&]()
 		{
