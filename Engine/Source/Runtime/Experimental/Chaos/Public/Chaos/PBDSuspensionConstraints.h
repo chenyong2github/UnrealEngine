@@ -119,6 +119,16 @@ namespace Chaos
 			}
 		}
 
+		bool IsConstraintEnabled(int32 ConstraintIndex) const
+		{
+			return ConstraintEnabledStates[ConstraintIndex];
+		}
+
+		void SetConstraintEnabled(int32 ConstraintIndex, bool bEnabled)
+		{
+			ConstraintEnabledStates[ConstraintIndex] = bEnabled;
+		}
+
 		//
 		// Constraint API
 		//
@@ -218,6 +228,7 @@ namespace Chaos
 		TArray<FGeometryParticleHandle*> ConstrainedParticles;
 		TArray<FVec3> SuspensionLocalOffset;
 		TArray<FPBDSuspensionSettings> ConstraintSettings;
+		TArray<bool> ConstraintEnabledStates;
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
