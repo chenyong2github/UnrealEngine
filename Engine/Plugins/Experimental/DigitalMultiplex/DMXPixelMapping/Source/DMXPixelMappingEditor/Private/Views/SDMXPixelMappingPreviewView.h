@@ -4,6 +4,7 @@
 
 #include "Widgets/SDMXPixelMappingSurface.h"
 
+
 class FDMXPixelMappingToolkit;
 class SDMXPixelMappingPreviewViewport;
 struct FOptionalSize;
@@ -75,9 +76,6 @@ private:
 	FText GetSelectedComponentNameText() const;
 	FText GetSelectedComponentParentNameText() const;
 	EVisibility GetTitleBarVisibility() const;
-
-private:
-	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
 
 	TSharedPtr<SDMXPixelMappingPreviewViewport> PreviewViewport;
 

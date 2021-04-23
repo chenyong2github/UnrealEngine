@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingPreviewViewport.h"
-#include "Viewports/DMXPixelMappingPreviewViewportClient.h"
-#include "Toolkits/DMXPixelMappingToolkit.h"
-#include "Components/DMXPixelMappingOutputDMXComponent.h"
-#include "Viewports/DMXPixelMappingSceneViewport.h"
 
-#include "Slate/SceneViewport.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Viewports/DMXPixelMappingSceneViewport.h"
+#include "Viewports/DMXPixelMappingPreviewViewportClient.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Slate/SceneViewport.h"
 #include "Widgets/SViewport.h"
 #include "Widgets/Layout/SBox.h"
-#include "Engine/TextureRenderTarget2D.h"
 
 void SDMXPixelMappingPreviewViewport::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InViewport)
 {
@@ -58,77 +59,33 @@ void SDMXPixelMappingPreviewViewport::Tick(const FGeometry& AllottedGeometry, co
 
 FOptionalSize SDMXPixelMappingPreviewViewport::GetPreviewAreaWidth() const
 {
-	float Size = 1.f;
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+	check(Toolkit.IsValid());
 
-	for (UDMXPixelMappingBaseComponent* Component : GetActiveOutputComponents())
+	if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
 	{
-		if (UDMXPixelMappingOutputDMXComponent* OutputDMXComponent = Cast<UDMXPixelMappingOutputDMXComponent>(Component))
-		{
-			return OutputDMXComponent->GetSize().X;
-		}
+		UTextureRenderTarget2D* OutputTexture = RendererComponent->GetPreviewRenderTarget();
+		check(OutputTexture) // Preview Texture should be valid in any case
 		
+		return OutputTexture->SizeX;
 	}
 
-	for (const FTextureResource* Resource : GetOutputTextureResources())
-	{
-			Size = Resource->GetSizeX();
-	}
-
-	return Size;
+	return 1.f;
 }
 
 FOptionalSize SDMXPixelMappingPreviewViewport::GetPreviewAreaHeight() const
 {
-	float Size = 1.f;
+	const TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin();
+	check(Toolkit.IsValid());
 
-	for (UDMXPixelMappingBaseComponent* Component : GetActiveOutputComponents())
+	if (UDMXPixelMappingRendererComponent* RendererComponent = Toolkit->GetActiveRendererComponent())
 	{
-		if (UDMXPixelMappingOutputDMXComponent* OutputDMXComponent = Cast<UDMXPixelMappingOutputDMXComponent>(Component))
-		{
-			return OutputDMXComponent->GetSize().Y;
-		}
-
+		UTextureRenderTarget2D* OutputTexture = RendererComponent->GetPreviewRenderTarget();
+		check(OutputTexture) // Preview Texture should be valid in any case
+		
+		return OutputTexture->SizeY;
 	}
 
-	for (const FTextureResource* Resource : GetOutputTextureResources())
-	{
-		if (Resource->GetSizeY() > Size)
-		{
-			Size = Resource->GetSizeY();
-		}
-	}
-
-	return Size;
+	return 1.f;
 }
 
-TArray<UTexture*> SDMXPixelMappingPreviewViewport::GetOutputTextures() const
-{
-	TArray<UTexture*> OutputTextures;
-	for (UDMXPixelMappingOutputComponent* OutputComponent : GetActiveOutputComponents())
-	{
-		OutputTextures.Add(OutputComponent->GetOutputTexture());
-	}
-
-	return OutputTextures;
-}
-
-TArray<const FTextureResource*> SDMXPixelMappingPreviewViewport::GetOutputTextureResources() const
-{
-	TArray<const FTextureResource*> OutputTextureResources;
-	for (const UTexture* Texture : GetOutputTextures())
-	{
-		OutputTextureResources.Add(Texture->Resource);
-	}
-
-	return OutputTextureResources;
-}
-
-TArray<UDMXPixelMappingOutputComponent*> SDMXPixelMappingPreviewViewport::GetActiveOutputComponents() const
-{
-	if (TSharedPtr<FDMXPixelMappingToolkit> Toolkit = ToolkitWeakPtr.Pin())
-	{
-		return Toolkit->GetActiveOutputComponents();
-	}
-
-	return TArray<UDMXPixelMappingOutputComponent*>();
-}

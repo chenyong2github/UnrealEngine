@@ -5,7 +5,6 @@
 #include "Widgets/SDMXPixelMappingDesignerCanvas.h"
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
 #include "Widgets/SDMXPixelMappingRuler.h"
-#include "Widgets/SDMXPixelMappingPreviewViewport.h"
 #include "Widgets/SDMXPixelMappingZoomPan.h"
 #include "Widgets/SDMXPixelMappingTransformHandle.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
@@ -28,7 +27,6 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Input/HittestGrid.h"
-#include "Misc/IFilter.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
@@ -38,8 +36,6 @@
 
 void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
 {
-	ToolkitWeakPtr = InToolkit;
-
 	bMovingExistingWidget = false;
 
 	DelegateHandleChangeComponents = InToolkit->GetOnComponenetAddedOrDeletedDelegate().AddSP(this, &SDMXPixelMappingDesignerView::HandleChangeComponents);
@@ -173,7 +169,7 @@ void SDMXPixelMappingDesignerView::Construct(const FArguments& InArgs, const TSh
 				]
 			]
 		]
-	);
+	, InToolkit);
 
 	ZoomToFit(true);
 

@@ -15,7 +15,9 @@
 #include "SNodePanel.h"
 #include "Templates/UniquePtr.h"
 
+
 class FActiveTimerHandle;
+class FDMXPixelMappingToolkit;
 class FSlateWindowElementList;
 
 /**
@@ -37,7 +39,7 @@ public:
 		SLATE_ATTRIBUTE(bool, AllowContinousZoomInterpolation)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit);
 
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -146,6 +148,9 @@ protected:
 	/** Does the user need to press Control in order to over-zoom. */
 	bool bRequireControlToOverZoom;
 
+	/** Toolkit weak pointer */
+	TWeakPtr<FDMXPixelMappingToolkit> ToolkitWeakPtr;
+
 private:
 	/** Active timer that handles deferred zooming until the target zoom is reached */
 	EActiveTimerReturnType HandleZoomToFit(double InCurrentTime, float InDeltaTime);
@@ -155,4 +160,7 @@ private:
 
 	// A flag noting if we have a pending zoom to extents operation to perform next tick.
 	bool bDeferredZoomToExtents;
+
+	/** Recenter the graph an first tick */
+	bool bRecenteredOnFirstTick;
 };

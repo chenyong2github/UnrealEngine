@@ -4,8 +4,14 @@
 
 #include "DMXPixelMappingRuntimeCommon.h"
 #include "UObject/Object.h"
+#include "Stats/Stats.h"
 #include "Tickable.h"
 #include "DMXPixelMappingBaseComponent.generated.h"
+
+
+DECLARE_STATS_GROUP(TEXT("DMXPixelMapping"), STATGROUP_DMXPIXELMAPPING, STATCAT_Advanced);
+
+class UDMXPixelMappingRendererComponent;
 
 /**
  * Base class for all DMX Pixel Mapping components
@@ -45,9 +51,9 @@ public:
 	// ~Begin FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override {}
 	virtual TStatId GetStatId() const override;
-	virtual bool IsTickableInEditor() const { return true; }
-	virtual bool IsTickableWhenPaused() const { return true; }
-	virtual bool IsTickable() const { return false; }
+	virtual bool IsTickableInEditor() const override { return true; }
+	virtual bool IsTickableWhenPaused() const override { return true; }
+	virtual bool IsTickable() const override { return false; }
 	// ~End FTickableGameObject interface
 
 	/*----------------------------------------------------------
@@ -67,7 +73,7 @@ public:
 		{
 			FoundObject = InObject;
 			return;
-		});
+		}, true);
 
 		return FoundObject;
 	}
@@ -133,25 +139,36 @@ public:
 	/** Get root component of the component tree */
 	UDMXPixelMappingRootComponent* GetRootComponent();
 
+	/** Get the root component and not allow a null option. */
+	UDMXPixelMappingRootComponent* GetRootComponentChecked();
+
+	/**
+	 * Get renderer component associated with current component
+	 * It could be this component itself if this component is root component
+	 * It could be parent component if that is pixel component
+	 * It could be nullptr if that is Root component
+	 */
+	UDMXPixelMappingRendererComponent* GetRendererComponent();
+
 	/*----------------------------------------------------------
 		Public blueprint accessible function
 	----------------------------------------------------------*/
 
 	/** Reset all sending DMX channels to 0 for this component and all children */
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
-	virtual void ResetDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::ResetDMX);
+	virtual void ResetDMX() {};
 
 	/** Send DMX values of this component and all children */
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
-	virtual void SendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::SendDMX);
+	virtual void SendDMX() {};
 
 	/** Render downsample texture for this component and all children */
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
-	virtual void Render() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::Render);
+	virtual void Render() {};
 
 	/** Render downsample texture and send DMX for this component and all children */
 	UFUNCTION(BlueprintCallable, Category = "DMX|PixelMapping")
-	virtual void RenderAndSendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::RenderAndSendDMX);
+	virtual void RenderAndSendDMX() {};
 
 public:
 	/*----------------------------------------------------------

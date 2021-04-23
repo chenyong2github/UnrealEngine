@@ -12,6 +12,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Misc/IFilter.h"
 
+
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingPreviewView"
 
 void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSharedPtr<FDMXPixelMappingToolkit>& InToolkit)
@@ -100,7 +101,7 @@ void SDMXPixelMappingPreviewView::Construct(const FArguments& InArgs, const TSha
 				]
 			]
 		]
-	);
+	, InToolkit);
 
 	ZoomToFit(true);
 }

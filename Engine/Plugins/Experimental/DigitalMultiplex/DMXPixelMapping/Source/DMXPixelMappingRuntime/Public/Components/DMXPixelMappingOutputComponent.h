@@ -11,8 +11,6 @@
 #include "DMXPixelMappingOutputComponent.generated.h"
 
 class UDMXEntityFixturePatch;
-
-class UTextureRenderTarget2D;
 class SBox;
 
 
@@ -42,9 +40,6 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingOutputComponent
 	/*----------------------------------
 		Types defenition
 	----------------------------------*/
-	using GetSurfaceSafeCallback = TFunction<void(const TArray<FColor>&, const FIntRect&)>;
-	using UpdateSurfaceSafeCallback = TFunction<void(TArray<FColor>&, FIntRect&)>;
-
 public:
 	/** Default Constructor */
 	UDMXPixelMappingOutputComponent();
@@ -56,13 +51,6 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
 	// ~End UObject Interface
-
-	// ~Begin UDMXPixelMappingBaseComponent Interface
-	virtual void ResetDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::ResetDMX);
-	virtual void SendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::SendDMX);
-	virtual void Render() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::Render);
-	virtual void RenderAndSendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::RenderAndSendDMX);
-	// ~End UDMXPixelMappingBaseComponent Interface
 
 	/*----------------------------------
 		UDMXPixelMappingOutputComponent Interface
@@ -83,11 +71,8 @@ public:
 	/** Change widget visuals whether it selected or not */
 	virtual void ToggleHighlightSelection(bool bIsSelected) { bHighlighted = bIsSelected; };
 
-	/** Rendering a texture for a preview view */
-	virtual void RenderEditorPreviewTexture() {};
-
 	/** Update the content in designer widget */
-	virtual void UpdateWidget() {};
+	virtual void UpdateWidget() {}
 
 	/** Whether component can be re-sized or re-position at the editor */
 	virtual bool IsLockInDesigner() const { return bLockInDesigner; }
@@ -100,24 +85,30 @@ public:
 	/** Get rendering position of the component. Using for determining UV map input rendering offset */
 	virtual FVector2D GetPosition() { return FVector2D(0.f); }
 
+	/** Get pixel index in downsample texture */
+	virtual int32 GetDownsamplePixelIndex() const { return 0; }
+
 	/** Set rendering size of component */
 	virtual void SetSize(const FVector2D& InSize);
 
-	/** Get rendering component postion */
+	/** Get rendering component position */
 	virtual void SetPosition(const FVector2D& InPosition);
+	
+	/** Queue rendering to downsample rendering target */
+	virtual void QueueDownsample() {}
 
 	/*----------------------------------
 		Blueprint interface
 	----------------------------------*/
 
-	/** Get output rendering texture */
-	UFUNCTION(BlueprintPure, Category = "DMX|PixelMapping")
-	virtual UTextureRenderTarget2D* GetOutputTexture() { return nullptr; }
-
 	/*----------------------------------------------------------
 		Non virtual functions, not intended to be overridden
 	----------------------------------------------------------*/
 
+	/** Queue rendering to downsample rendering target and send dmx */
+	void QueueDownsampleAndSendDMX();
+
+public:
 #if WITH_EDITOR
 	/** Get designer UI cached widget */
 	TSharedPtr<SWidget> GetCachedWidget() const;
@@ -137,28 +128,6 @@ protected:
 #endif //WITH_EDITORONLY_DATA
 
 protected:
-	/**
-	 * Thread safe CPU color buffer set
-	 *
-	 * @param SurfaceBuffer		Color values to set
-	 * @param InRect			Rect of the texture to set
-	 */
-	void SetSurfaceBuffer(TArray<FColor>& SurfaceBuffer, FIntRect& InRect);
-
-	/**
-	 * Thread safe CPU color buffer get
-	 *
-	 * @param Callback			Access to a const color buffer within the thread-safe callback
-	 */
-	void GetSurfaceBuffer(GetSurfaceSafeCallback Callback);
-
-	/**
-	 * Thread safe CPU color buffer update
-	 *
-	 * @param Callback			Access to a color buffer within the thread-safe callback
-	 */
-	void UpdateSurfaceBuffer(UpdateSurfaceSafeCallback Callback);
-
 	/** Helper function to get the correct word size of an attribute */
 	uint8 GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName);
 	
@@ -201,16 +170,6 @@ protected:
 	/** Cached label box */
 	TSharedPtr<SBox> CachedLabelBox;
 #endif
-
-private:
-	/** CPU texture color buffer */
-	TArray<FColor> SurfaceBuffer;
-
-	/** Texture size */
-	FIntRect SurfaceRect;
-
-	/** Critical section for set, update and get color array */
-	FCriticalSection SurfaceCS;
 
 public:
 #if WITH_EDITOR

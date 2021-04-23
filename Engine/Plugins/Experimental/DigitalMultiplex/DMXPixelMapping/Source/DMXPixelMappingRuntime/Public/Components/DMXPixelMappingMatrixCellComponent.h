@@ -3,14 +3,14 @@
 #pragma once
 
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
-#include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
 #include "Library/DMXEntityReference.h"
 
 #include "DMXPixelMappingMatrixCellComponent.generated.h"
 
+
 class SUniformGridPanel;
 class UTextureRenderTarget2D;
-class FProperty;
 enum class EDMXColorMode : uint8;
 
 /**
@@ -27,8 +27,6 @@ public:
 	UDMXPixelMappingMatrixCellComponent();
 
 	//~ Begin UObject implementation
-	virtual void PostLoad() override;
-
 	virtual void PostInitProperties() override;
 
 #if WITH_EDITOR
@@ -41,8 +39,6 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void Render() override;
-	virtual void RenderAndSendDMX() override;
 	virtual void PostParentAssigned() override;
 
 #if WITH_EDITOR
@@ -58,22 +54,24 @@ public:
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR	
 
-	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() const override;
+
 	virtual FVector2D GetPosition() override;
+	virtual int32 GetDownsamplePixelIndex() const override { return DownsamplePixelIndex; }
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
+
+	virtual void QueueDownsample() override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	virtual void RenderWithInputAndSendDMX() override;
-	virtual void RendererOutputTexture() override;
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
 	void SetPositionFromParent(const FVector2D& InPosition);
 	void SetSizeFromParent(const FVector2D& InSize);
 
-	void SetPixelCoordinate(FIntPoint InPixelCoordinate) { CellCoordinate = InPixelCoordinate; }
+	void SetPixelCoordinate(FIntPoint InPixelCoordinate);
 	const FIntPoint& GetPixelCoordinate() { return CellCoordinate; }
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
@@ -104,12 +102,27 @@ public:
 	float RelativePositionY;
 #endif // WITH_EDITORONLY_DATA
 
-private:
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* OutputTarget;
+	/** Matrix cell R offset */
+	TOptional<uint8> ByteOffsetR;
 
+	/** Matrix cell R offset */
+	TOptional<uint8> ByteOffsetG;
+
+	/** Matrix cell R offset */
+	TOptional<uint8> ByteOffsetB;
+
+	/** Matrix cell R offset */
+	TOptional<uint8> ByteOffsetM;
+
+private:
 	UPROPERTY()
 	FIntPoint CellCoordinate;
+
+	/** Index of the cell pixel in downsample target buffer */
+	int32 DownsamplePixelIndex;
+
+	/** Store binding of attribute and DMX channel */
+	TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
