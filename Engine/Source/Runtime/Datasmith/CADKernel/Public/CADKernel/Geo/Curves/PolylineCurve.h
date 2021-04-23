@@ -65,7 +65,7 @@ namespace CADKernel
 
 		virtual void EvaluateCurvesPoint(double InCoordinate, PointCurveType& OutPoint, int32 InDerivativeOrder = 0) const
 		{
-			Approximator.ApproximatePoint<PointCurveType>(InCoordinate, OutPoint, InDerivativeOrder);
+			template Approximator.ApproximatePoints<PointCurveType>(InCoordinate, OutPoint, InDerivativeOrder);
 		}
 
 		PointType EvaluatePointAt(double InCoordinate) const
@@ -75,7 +75,7 @@ namespace CADKernel
 
 		virtual void EvaluateCurvesPoints(const TArray<double>& InCoordinates, TArray<PointCurveType>& OutPoints, int32 InDerivativeOrder = 0) const
 		{
-			Approximator.ApproximatePoints<PointCurveType>(InCoordinates, OutPoints, InDerivativeOrder);
+			template Approximator.ApproximatePoints<PointCurveType>(InCoordinates, OutPoints, InDerivativeOrder);
 		}
 
 		virtual double ComputeSubLength(const FLinearBoundary& InBoundary) const

@@ -243,9 +243,9 @@ namespace CADKernel
 				ensureCADKernel(false);
 			}
 
-			// CenterU  = 1/D * (Cv.|B|² - By.|C|²) = 1/D * CBv ^ SquareNorms 
-			// CenterV  = 1/D * (Bu.|B|² - Cu.|C|²) = -1/D * SquareNorms ^ CBu 
-			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (| B |², | C |²)
+			// CenterU  = 1/D * (Cv.|B|.|B| - By.|C|.|C|) = 1/D * CBv ^ SquareNorms 
+			// CenterV  = 1/D * (Bu.|B|.|B| - Cu.|C|.|C|) = -1/D * SquareNorms ^ CBu 
+			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (|B|.|B|, |C|.|C|)
 			FPoint2D CBu(C.U, B.U);
 			FPoint2D CBv(C.V, B.V);
 			FPoint2D SquareNorms(B.SquareLength(), C.SquareLength());
@@ -273,9 +273,9 @@ namespace CADKernel
 				return FPoint2D::ZeroPoint;
 			}
 
-			// CenterU  = 1/D * (Cv.|B|² - Bv.|C|²) = 1/D * CBv ^ SquareNorms 
-			// CenterV  = 1/D * (Bu.|C|² - Cu.|B|²) = 1/D * SquareNorms ^ CBu  
-			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (| B |², | C |²)
+			// CenterU  = 1/D * (Cv.|B|.|B| - Bv.|C|.|C|) = 1/D * CBv ^ SquareNorms 
+			// CenterV  = 1/D * (Bu.|C|.|C| - Cu.|B|.|B|) = 1/D * SquareNorms ^ CBu  
+			// with CBu = (Cu, Bu), CBv = (Cv, Bv), SquareNorms = (|B|.|B|, |C|.|C|)
 			FPoint2D CBu(C.U, B.U);
 			FPoint2D CBv(C.V, B.V);
 			FPoint2D SquareNorms(C.SquareLength(), B.SquareLength());
@@ -444,11 +444,9 @@ namespace CADKernel
 	template<class PointType>
 	inline double CoordinateOfProjectedPointOnSegment(const PointType& Point, const PointType& InSegmentA, const PointType& InSegmentB, bool bRestrictCoodinateToInside = true)
 	{
-		double SquareLength;
-
 		PointType Segment = InSegmentB - InSegmentA;
 
-		double SquareLength = Segment * Segment;
+		double SquareLength = FMath::Square(Segment);
 
 		if (SquareLength <= 0.0)
 		{

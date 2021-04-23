@@ -6,7 +6,8 @@
 namespace CADKernel
 {
 	class FProgressBase;
-	
+	class FProgress;
+
 	class CADKERNEL_API FProgressManager
 	{
 		friend class FProgress;

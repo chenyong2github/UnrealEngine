@@ -347,7 +347,7 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 	{
 		ensureCADKernel(false);
 		TSharedPtr<FGroup>Group = StaticCastSharedPtr<FGroup>(Entity);
-		for (TSharedPtr<FEntity> GroupEntity : Group->GetEntities())
+		for (const TSharedPtr<FEntity>& GroupEntity : Group->GetEntities())
 		{
 			ExpandSelection(GroupEntity, Filter, Selection);
 		}
@@ -357,12 +357,12 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 	case EEntity::Model:
 	{
 		TSharedPtr<FModel> InModel = StaticCastSharedPtr<FModel>(Entity);
-		for (TSharedPtr<FBody> Body : InModel->GetBodyList())
+		for (const TSharedPtr<FBody>& Body : InModel->GetBodyList())
 		{
 			ExpandSelection(Body, Filter, Selection);
 		}
 
-		for (TSharedPtr<FTopologicalFace> Domain : InModel->GetFaces())
+		for (const TSharedPtr<FTopologicalFace>& Domain : InModel->GetFaces())
 		{
 			ExpandSelection(Domain, Filter, Selection);
 		}
@@ -372,7 +372,7 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 	case EEntity::Body:
 	{
 		TSharedPtr<FBody> Body = StaticCastSharedPtr<FBody>(Entity);
-		for (const TSharedPtr<FShell> Shell : Body->GetShells())
+		for (const TSharedPtr<FShell>& Shell : Body->GetShells())
 		{
 			for (const FOrientedFace& Face : Shell->GetFaces())
 			{
@@ -385,7 +385,7 @@ void FDatabase::ExpandSelection(TSharedPtr<FEntity> Entity, const TSet<EEntity>&
 	case EEntity::MeshModel:
 	{
 		TSharedPtr<FModelMesh> MeshModel = StaticCastSharedPtr<FModelMesh>(Entity);
-		for (TSharedPtr<FMesh> Mesh : MeshModel->GetMeshes())
+		for (const TSharedPtr<FMesh>& Mesh : MeshModel->GetMeshes())
 		{
 			ExpandSelection(Mesh, Filter, Selection);
 		}

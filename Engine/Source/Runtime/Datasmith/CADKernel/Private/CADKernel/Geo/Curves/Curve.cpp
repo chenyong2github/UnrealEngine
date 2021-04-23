@@ -130,18 +130,6 @@ namespace CADKernel
 		return FEntity::MakeShared<FBoundedCurve>(Tolerance, StaticCastSharedRef<FCurve>(AsShared()), NewBoundary, Dimension);
 	}
 
-	//double FCurve::ComputeLength(const FLinearBoundary& InBoundary) const
-	//{
-	//	if (GetDimension() == 3)
-	//	{
-	//		return ComputeLength3D(InBoundary);
-	//	}
-	//	else
-	//	{
-	//		return ComputeLength2D(InBoundary);
-	//	}
-	//}
-
 	double FCurve::ComputeLength(const FLinearBoundary& InBoundary) const
 	{
 		FPolyline3D Polyline;
@@ -149,28 +137,6 @@ namespace CADKernel
 		Sampler.Sample();
 		return Polyline.GetLength(Boundary);
 	}
-
-	//double FCurve::ComputeLength2D(const FLinearBoundary& InBoundary) const
-	//{
-	//	double Gap = Boundary.Length() / 30;
-	//	int32 PointCount = (int32) (InBoundary.Length() / Gap + 1);
-	//	Gap = InBoundary.Length() / PointCount;
-	//	TArray<double> Coordinates;
-	//	PointCount++;
-	//	Coordinates.Reserve(PointCount);
-	//	double Coordinate = InBoundary.GetMin();
-	//	for (int32 Index = 0; Index < PointCount; ++Index)
-	//	{
-	//		Coordinates.Add(Coordinate);
-	//		Coordinate += Gap;
-	//	}
-
-	//	TArray<FPoint2D> Polyline;
-	//	Evaluate2DPoints(Coordinates, Polyline);
-
-	//	TPolylineApproximator<FPoint2D> Approximator(Coordinates, Polyline);
-	//	return Approximator.ComputeLength();
-	//}
 
 	void FCurve::Presample(const FLinearBoundary& InBoundary, TArray<double>& OutSampling) const
 	{

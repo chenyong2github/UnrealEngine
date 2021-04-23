@@ -15,8 +15,6 @@
 #include <signal.h>
 #endif 
 
-#pragma warning(disable:4996) // unsafe sprintf
-
 using namespace CADKernel;
 
 TUniquePtr<FSystem> FSystem::Instance = nullptr;
@@ -39,22 +37,13 @@ void FSystem::Initialize(bool bIsDll, const FString& LogFilePath, const FString&
 {
 	SetVerboseLevel(Log);
 
-	TCHAR* DebugFolderPath = _wgetenv(TEXT("DS_DBG"));
-	if (DebugFolderPath) 
+	if (LogFilePath.Len() > 0)
 	{
-		DefineLogFile(FString(DebugFolderPath) + TEXT("\\") + ProductName + TEXT(".log"));
-		DefineSpyFile(FString(DebugFolderPath) + TEXT("\\") + ProductName + TEXT(".py"));
+		DefineLogFile(LogFilePath);
 	}
-	else 
+	if (SpyFilePath.Len() > 0)
 	{
-		if (LogFilePath.Len() > 0)
-		{
-			DefineLogFile(LogFilePath);
-		}
-		if (SpyFilePath.Len() > 0)
-		{
-			DefineSpyFile(SpyFilePath);
-		}
+		DefineSpyFile(SpyFilePath);
 	}
 
 	PrintHeader();
@@ -139,11 +128,3 @@ void FSystem::PrintHeader()
 	FMessage::Printf(Log, TEXT("_______________________________________________________________________________\n"));
 	FMessage::Printf(Log, TEXT("\n"));
 }
-
-extern "C"
-{
-#ifdef COMPILER_MSC
-#pragma warning( disable : 4297)
-#endif
-}
-

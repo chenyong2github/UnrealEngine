@@ -58,29 +58,29 @@ void FCoonsSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int32 In
 void FCoonsSurface::EvaluatePoint(const FPoint2D& InPoint2D, FSurfacicPoint& OutPoint3D, int32 InDerivativeOrder) const
 {
 	TFunction<void(const TSharedPtr<FCurve>*, const FPoint2D&, EIso, FPoint&, FCurvePoint[])> \
-	ComputePointOnRuledSurface = [&](const TSharedPtr<FCurve>* Curves, const FPoint2D& Coord, EIso Iso, FPoint& OutPoint, FCurvePoint OutCurvePoints[2])
+	ComputePointOnRuledSurface = [&](const TSharedPtr<FCurve>* InCurves, const FPoint2D& Coord, EIso Iso, FPoint& OutPoint, FCurvePoint OutCurvePoints[2])
 	{
 		const int32 IndexCurve0 = Iso * 2;
 		const int32 IndexCurve1 = Iso * 2 + 1;
 
 		EIso OtherIso = Iso == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
 
-		double CoordinateCurve0 = Curves[IndexCurve0]->GetUMin() + Coord[Iso] * (Curves[IndexCurve0]->GetUMax() - Curves[IndexCurve0]->GetUMin());
-		double CoordinateCurve1 = Curves[IndexCurve1]->GetUMin() + Coord[Iso] * (Curves[IndexCurve1]->GetUMax() - Curves[IndexCurve1]->GetUMin());
+		double CoordinateCurve0 = InCurves[IndexCurve0]->GetUMin() + Coord[Iso] * (InCurves[IndexCurve0]->GetUMax() - InCurves[IndexCurve0]->GetUMin());
+		double CoordinateCurve1 = InCurves[IndexCurve1]->GetUMin() + Coord[Iso] * (InCurves[IndexCurve1]->GetUMax() - InCurves[IndexCurve1]->GetUMin());
 
-		Curves[IndexCurve0]->EvaluatePoint(CoordinateCurve0, OutCurvePoints[0], InDerivativeOrder);
-		Curves[IndexCurve1]->EvaluatePoint(CoordinateCurve1, OutCurvePoints[1], InDerivativeOrder);
+		InCurves[IndexCurve0]->EvaluatePoint(CoordinateCurve0, OutCurvePoints[0], InDerivativeOrder);
+		InCurves[IndexCurve1]->EvaluatePoint(CoordinateCurve1, OutCurvePoints[1], InDerivativeOrder);
 
 		OutPoint = OutCurvePoints[0].Point + (OutCurvePoints[1].Point - OutCurvePoints[0].Point) * Coord[OtherIso];
 
 		if (InDerivativeOrder > 0)
 		{
-			OutCurvePoints[0].Gradient *= (Curves[IndexCurve0]->GetUMax() - Curves[IndexCurve0]->GetUMin());
-			OutCurvePoints[1].Gradient *= (Curves[IndexCurve1]->GetUMax() - Curves[IndexCurve1]->GetUMin());
+			OutCurvePoints[0].Gradient *= (InCurves[IndexCurve0]->GetUMax() - InCurves[IndexCurve0]->GetUMin());
+			OutCurvePoints[1].Gradient *= (InCurves[IndexCurve1]->GetUMax() - InCurves[IndexCurve1]->GetUMin());
 			if (InDerivativeOrder > 1)
 			{
-				OutCurvePoints[0].Laplacian *= FMath::Square(Curves[IndexCurve0]->GetUMax() - Curves[IndexCurve0]->GetUMin());
-				OutCurvePoints[1].Laplacian *= FMath::Square(Curves[IndexCurve1]->GetUMax() - Curves[IndexCurve1]->GetUMin());
+				OutCurvePoints[0].Laplacian *= FMath::Square(InCurves[IndexCurve0]->GetUMax() - InCurves[IndexCurve0]->GetUMin());
+				OutCurvePoints[1].Laplacian *= FMath::Square(InCurves[IndexCurve1]->GetUMax() - Curves[IndexCurve1]->GetUMin());
 			}
 		}
 	};

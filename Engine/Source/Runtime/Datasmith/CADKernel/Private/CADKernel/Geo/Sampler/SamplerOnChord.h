@@ -169,7 +169,6 @@ namespace CADKernel
 
 		virtual void EvaluatesNewCandidatePoints() override
 		{
-			CandidatePoints;
 			Curve.Evaluate2DPoints(CandidatePoints.Coordinates, CandidatePoints.Points);
 		};
 

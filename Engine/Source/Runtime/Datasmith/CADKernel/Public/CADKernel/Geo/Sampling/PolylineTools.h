@@ -535,12 +535,12 @@ namespace CADKernel
 			OutCoordinates.Empty(EndIndex - StartIndex + 2);
 			OutPoints.Empty(EndIndex - StartIndex + 2);
 
-			if (FMath::IsNearlyEqual(PolylineCoordinates[StartIndex + 1], InBoundary.Min, KINDA_SMALL_NUMBER))
+			if (FMath::IsNearlyEqual(PolylineCoordinates[StartIndex + 1], InBoundary.Min, (double) KINDA_SMALL_NUMBER))
 			{
 				StartIndex++;
 			}
 
-			if (!FMath::IsNearlyEqual(PolylineCoordinates[EndIndex], InBoundary.Max, KINDA_SMALL_NUMBER))
+			if (!FMath::IsNearlyEqual(PolylineCoordinates[EndIndex], InBoundary.Max, (double) KINDA_SMALL_NUMBER))
 			{
 				EndIndex--;
 			}

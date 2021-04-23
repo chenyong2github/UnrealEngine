@@ -90,14 +90,14 @@ void FParameter::SetFromString(const FString& String)
 	{
 	case EValue::Double:
 		{
-			double TmpValue = _wtof(*String);
+			double TmpValue = FCString::Atod(*String);
 			SetValue(TmpValue);
 		}
 		break;
 
 	case EValue::Integer:
 		{
-			int32 TmpValue = _wtoi(*String);
+			int32 TmpValue = FCString::Atoi(*String);
 			SetValue(TmpValue);
 		}
 		break;

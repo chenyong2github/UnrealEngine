@@ -45,7 +45,7 @@ void FCompositeSurface::LinesNotDerivables(const FSurfacicBoundary& Bounds, int3
 	}
 
 	int32 SurfaceIndex = 0;
-	for (const TSharedPtr<FSurface> Surface : Surfaces)
+	for (const TSharedPtr<FSurface>& Surface : Surfaces)
 	{
 		FCoordinateGrid SurfaceNotDerivableCoordinates;
 		Surface->LinesNotDerivables(InDerivativeOrder, SurfaceNotDerivableCoordinates);

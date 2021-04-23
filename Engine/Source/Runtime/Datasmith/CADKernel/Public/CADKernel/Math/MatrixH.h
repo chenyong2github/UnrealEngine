@@ -48,9 +48,9 @@ namespace CADKernel
 			BuildChangeOfCoordinateSystemMatrix(Ox, Oy, Oz, Origin);
 		}
 
-		friend FArchive& operator<<(FArchive& Ar, FMatrixH& Matrix)
+		friend FArchive& operator<<(FArchive& Ar, FMatrixH& InMatrix)
 		{
-			Ar.Serialize(Matrix.Matrix, 16 * sizeof(double));
+			Ar.Serialize(InMatrix.Matrix, 16 * sizeof(double));
 			return Ar;
 		}
 

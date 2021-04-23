@@ -224,11 +224,16 @@ namespace CADKernel
 		void FindCoordinateIndex(const TArray<double>& InCoordinates, double Coordinate, int32& OutIndex) const
 		{
 			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
+
 			while (Coordinate < InCoordinates[OutIndex] && OutIndex > 0)
 			{
 				OutIndex--;
 			}
-			for (; OutIndex + 2 < InCoordinates.Num() && Coordinate > InCoordinates[OutIndex + 1]; ++OutIndex);
+
+			for (; OutIndex + 2 < InCoordinates.Num() && Coordinate > InCoordinates[OutIndex + 1]; ++OutIndex)
+			{
+			}
+
 			ensureCADKernel(InCoordinates.IsValidIndex(OutIndex));
 		};
 
