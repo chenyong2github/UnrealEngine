@@ -13,10 +13,10 @@ namespace Audio
 	ICompressedAudioInfo* FBackCompatInput::GetInfo(
 		FFormatDescriptorSection* OutDescriptor /*= nullptr*/) const
 	{
-		FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
-
 		if (!OldInfoObject.IsValid())
 		{
+			FAudioDeviceHandle Handle = FAudioDeviceManager::Get()->GetActiveAudioDevice();
+
 			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
 			audio_ensure(OldInfoObject.IsValid());
 
