@@ -2,7 +2,7 @@
 
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 
-#include "CADKernel/math/SlopeUtils.h"
+#include "CADKernel/Math/SlopeUtils.h"
 
 using namespace CADKernel;
 

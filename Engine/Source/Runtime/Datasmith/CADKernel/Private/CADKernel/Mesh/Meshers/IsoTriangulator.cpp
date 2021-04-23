@@ -295,11 +295,12 @@ void FIsoTriangulator::FillMeshNodes()
 namespace
 {
 	const double MaxSlopeToBeIso = 0.125;
-	constexpr double LimitValueMin(double Slope)
+	const constexpr double LimitValueMin(double Slope)
 	{
 		return Slope - MaxSlopeToBeIso;
 	}
-	constexpr double LimitValueMax(double Slope)
+
+	const constexpr double LimitValueMax(double Slope)
 	{
 		return Slope + MaxSlopeToBeIso;
 	}
@@ -368,19 +369,19 @@ bool FIsoTriangulator::BuildLoopSegments()
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < LimitValueMax(2) && SegmentSlop > LimitValueMin(2))
+		if (SegmentSlop < LimitValueMax(2.) && SegmentSlop > LimitValueMin(2.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop < LimitValueMax(4) && SegmentSlop > LimitValueMin(4))
+		if (SegmentSlop < LimitValueMax(4.) && SegmentSlop > LimitValueMin(4.))
 		{
 			Segment->SetAsIsoU();
 		}
-		if (SegmentSlop < LimitValueMax(6) && SegmentSlop > LimitValueMin(6))
+		if (SegmentSlop < LimitValueMax(6.) && SegmentSlop > LimitValueMin(6.))
 		{
 			Segment->SetAsIsoV();
 		}
-		if (SegmentSlop > LimitValueMin(8))
+		if (SegmentSlop > LimitValueMin(8.))
 		{
 			Segment->SetAsIsoU();
 		}

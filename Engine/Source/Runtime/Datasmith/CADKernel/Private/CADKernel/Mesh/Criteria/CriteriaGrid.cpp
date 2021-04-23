@@ -84,7 +84,7 @@ void FCriteriaGrid::ApplyCriteria(const TArray<TSharedPtr<FCriterion>>& Criteria
 			double LengthUV;
 			double SagUV = FCriterion::EvaluateSag(Point, PointUV, PointUVMid, LengthUV);
 
-			for (const TSharedPtr< FCriterion> Criterion : Criteria)
+			for (const TSharedPtr<FCriterion>& Criterion : Criteria)
 			{
 				Criterion->UpdateDelta((GetCoordinate(EIso::IsoU, IndexU + 1) - GetCoordinate(EIso::IsoU, IndexU)), SagU, SagUV, SagV, LengthU, LengthUV, DeltaUMaxArray[IndexU], DeltaUMiniArray[IndexU], SurfaceCurvature[EIso::IsoU]);
 				Criterion->UpdateDelta((GetCoordinate(EIso::IsoV, IndexV + 1) - GetCoordinate(EIso::IsoV, IndexV)), SagV, SagUV, SagU, LengthV, LengthUV, DeltaVMaxArray[IndexV], DeltaVMinArray[IndexV], SurfaceCurvature[EIso::IsoV]);
@@ -151,14 +151,14 @@ void FCriteriaGrid::Display()
 	Close3DDebugSession();
 
 	Open3DDebugSession(TEXT("Loop 3D"));
-	for (const TSharedPtr<FTopologicalLoop> Loop : Surface->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 	{
 		::Display(Loop);
 	}
 	Close3DDebugSession();
 
 	Open3DDebugSession(TEXT("Loop 2D"));
-	for (const TSharedPtr<FTopologicalLoop> Loop : Surface->GetLoops())
+	for (const TSharedPtr<FTopologicalLoop>& Loop : Surface->GetLoops())
 	{
 		::Display2D(Loop);
 	}

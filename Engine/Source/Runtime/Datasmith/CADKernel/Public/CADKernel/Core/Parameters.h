@@ -71,7 +71,9 @@ namespace CADKernel
 		}
 
 		friend FArchive& operator<<(FArchive& Ar, FParameters& Database)
-		{}
+		{
+			return Ar;
+		}
 
 	};
 } 

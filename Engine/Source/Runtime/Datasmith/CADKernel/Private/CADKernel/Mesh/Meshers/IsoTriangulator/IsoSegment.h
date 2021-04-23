@@ -3,7 +3,7 @@
 
 #include "CADKernel/Core/Types.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
-#include "CADKernel/Ui/Display.h"
+#include "CADKernel/UI/Display.h"
 
 namespace CADKernel
 {
