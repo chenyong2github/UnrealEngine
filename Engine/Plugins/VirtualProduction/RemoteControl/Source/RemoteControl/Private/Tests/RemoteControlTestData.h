@@ -5,13 +5,13 @@
 #include "RemoteControlTestData.generated.h"
 
 USTRUCT()
-struct FInnerStruct
+struct FRemoteControlTestInnerStruct
 {
 	GENERATED_BODY()
 
-	FInnerStruct() {}
+	FRemoteControlTestInnerStruct() {}
 
-	FInnerStruct(uint8 Index)
+	FRemoteControlTestInnerStruct(uint8 Index)
 		: Color(FColor(Index, Index, Index, Index))
 	{}
 
@@ -33,7 +33,7 @@ public:
 			IntArray.Add(i+1);
 			IntSet.Add(i+1);
 			IntMap.Add(i, i+1);
-			IntInnerStructMap.Add((int32)i, FInnerStruct((uint8)i));
+			IntInnerStructMap.Add((int32)i, FRemoteControlTestInnerStruct((uint8)i));
 		}
 
 		StringColorMap.Add(TEXT("mykey"), FColor{1,2,3,4});
@@ -52,7 +52,7 @@ public:
 	TMap<int32, int32> IntMap;
 
 	UPROPERTY()
-	TMap<int32, FInnerStruct> IntInnerStructMap;
+	TMap<int32, FRemoteControlTestInnerStruct> IntInnerStructMap;
 
 	UPROPERTY()
 	TMap<FString, FColor> StringColorMap;
