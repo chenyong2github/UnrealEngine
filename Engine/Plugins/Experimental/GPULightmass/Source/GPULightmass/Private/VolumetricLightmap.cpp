@@ -554,11 +554,20 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->ViewUniformBuffer = Scene->ReferenceView->ViewUniformBuffer;
 					PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
+					PassParameters->PathTracingData.MaxBounces = 32;
+					PassParameters->PathTracingData.MaxNormalBias = 0.1;
+					PassParameters->PathTracingData.EnableDirectLighting = 1;
+					PassParameters->PathTracingData.EnableEmissive = 1;
+					PassParameters->PathTracingData.MISMode = 2;
+					PassParameters->PathTracingData.ApproximateCaustics = 0;
+
 					SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, PassParameters);
 
 					// TODO: find a way to share IES atlas with path tracer ...
 					PassParameters->IESTexture = GWhiteTexture->TextureRHI;
 					PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+					PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
 
 					FSceneRenderState* SceneRenderState = Scene; // capture member variable
 					GraphBuilder.AddPass(
