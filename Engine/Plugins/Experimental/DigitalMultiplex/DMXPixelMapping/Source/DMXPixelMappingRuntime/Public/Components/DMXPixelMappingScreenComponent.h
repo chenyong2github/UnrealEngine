@@ -10,11 +10,12 @@
 
 #include "DMXPixelMappingScreenComponent.generated.h"
 
+
 enum class EDMXCellFormat : uint8;
 class FDMXOutputPort;
 class SDMXPixelMappingScreenLayout;
 class UTextureRenderTarget2D;
-
+class UDMXPixelMappingRendererComponent;
 
 /**
  * DMX Screen(Grid) rendering component
@@ -25,12 +26,13 @@ class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingScreenComponent
 {
 	GENERATED_BODY()
 public:
+	using ForEachPixelCallback = TFunctionRef<void(const int32 /* IndexXY */, const int32 /* IndexX */, const int32 /* IndexY */)>;
+
+public:
 	/** Default Constructor */
 	UDMXPixelMappingScreenComponent();
 
 	//~ Begin UObject implementation
-	virtual void PostLoad() override;
-
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
@@ -40,14 +42,11 @@ public:
 	virtual const FName& GetNamePrefix() override;
 	virtual void ResetDMX() override;
 	virtual void SendDMX() override;
-	virtual void Render() override;
-	virtual void RenderAndSendDMX() override;
-	virtual void PostParentAssigned() override;
 	//~ End UDMXPixelMappingBaseComponent implementation
 
 	//~ Begin FTickableGameObject begin
 	virtual void Tick(float DeltaTime) override;
-	virtual bool IsTickable() const { return true; }
+	virtual bool IsTickable() const override { return true; }
 	//~ End FTickableGameObject end
 
 	//~ Begin UDMXPixelMappingOutputComponent implementation
@@ -60,20 +59,26 @@ public:
 	virtual void UpdateWidget() override;
 #endif // WITH_EDITOR
 
-	virtual UTextureRenderTarget2D* GetOutputTexture() override;
 	virtual FVector2D GetSize() const override;
 	virtual FVector2D GetPosition() override;
 	virtual void SetPosition(const FVector2D& InPosition) override;
 	virtual void SetSize(const FVector2D& InSize) override;
+
+	virtual void QueueDownsample() override;
 	//~ End UDMXPixelMappingOutputComponent implementation
 
 	//~ Begin UDMXPixelMappingOutputDMXComponent implementation
 	virtual void RenderWithInputAndSendDMX() override;
-	virtual void RendererOutputTexture() override;
 	//~ End UDMXPixelMappingOutputDMXComponent implementation
 
 	/** Check if a Component can be moved under another one (used for copy/move/duplicate) */
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
+
+	/** Calculate screen size of the single pixel in screen component */
+	const FVector2D GetScreenPixelSize() const;
+
+	/** Loop through X and Y pixels in screen component */  
+	void ForEachPixel(ForEachPixelCallback InCallback);
 
 private:
 #if WITH_EDITOR
@@ -84,9 +89,6 @@ private:
 
 	/** Set size of the rendering texture and designer widget */
 	void SetSizeInternal(const FVector2D& InSize);
-
-	/** Resize rendering texture */
-	void ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY);
 
 	/** Prepare the final color to send */
 	void AddColorToSendBuffer(const FColor& Color, TArray<uint8>& OutDMXSendBuffer);
@@ -102,6 +104,13 @@ public:
 
 	/** Returns the output Ports of the renderer component */
 	FORCEINLINE TSet<FDMXOutputPortSharedRef> GetOutputPorts() const { return OutputPorts; }
+
+	/** Get range of the downsample pixel positions */
+	const TTuple<int32, int32> GetPixelDownsamplePositionRange() const { return PixelDownsamplePositionRange; }
+
+private:
+	/** Helper that returns the renderer component this component belongs to */
+	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
 
 private:
 	/** The output port instances, generated from OutputPortReferences */
@@ -147,8 +156,8 @@ public:
 #endif
 
 private:
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* OutputTarget;
+	/**Range of the downsample pixel positions */
+	TTuple<int32, int32> PixelDownsamplePositionRange;
 
 #if WITH_EDITORONLY_DATA
 	FSlateBrush Brush;
@@ -157,7 +166,7 @@ private:
 #endif
 
 private:
-	static const FVector2D MixGridSize;
+	static const FVector2D MinGridSize;
 
 #if WITH_EDITORONLY_DATA
 	static const uint32 MaxGridUICells;

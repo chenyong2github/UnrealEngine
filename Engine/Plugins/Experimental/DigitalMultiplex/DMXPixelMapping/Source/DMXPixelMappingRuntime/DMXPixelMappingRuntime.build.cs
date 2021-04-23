@@ -14,7 +14,8 @@ public class DMXPixelMappingRuntime : ModuleRules
 				"Core",
 				"CoreUObject",
 				"DMXRuntime",
-				"RHI"
+				"DMXPixelMappingRenderer",
+				"RHI",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -27,7 +28,6 @@ public class DMXPixelMappingRuntime : ModuleRules
 				"DMXProtocol",
 				"DMXRuntime",
 				"DMXPixelMappingCore",
-				"DMXPixelMappingRenderer",
 			}
 		);
 

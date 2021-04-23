@@ -5,21 +5,19 @@
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingRuntimeCommon.h"
 #include "DMXPixelMappingTypes.h"
-#include "DMXPixelMappingUtils.h"
-#include "DMXProtocolConstants.h"
 #include "DMXSubsystem.h"
-#include "IDMXPixelMappingRenderer.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "Interfaces/IDMXProtocol.h"
-#include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXEntityFixtureType.h"
+#include "Components/DMXPixelMappingRootComponent.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityFixtureType.h"
 
-#include "Engine/TextureRenderTarget2D.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Text/STextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixComponent"
 
@@ -54,8 +52,6 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 
 	PositionXCached = PositionX;
 	PositionYCached = PositionY;
-
-	ResizeOutputTarget(SizeX, SizeY);
 }
 
 void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
@@ -145,7 +141,35 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 			}, true);
 
 		PreviousEditorColor = EditorColor;
-	}	
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeR))
+	{
+		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
+		{
+			InComponent->ByteOffsetR.Reset();
+		});
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeG))
+	{
+		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
+        {
+            InComponent->ByteOffsetG.Reset();
+        });
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, AttributeB))
+	{
+		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
+        {
+            InComponent->ByteOffsetB.Reset();
+        });
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, MonochromeIntensity))
+	{
+		UpdateEachChild([this](UDMXPixelMappingMatrixCellComponent* InComponent)
+        {
+            InComponent->ByteOffsetM.Reset();
+        });
+	}
 	
 	if (PropertyChangedChainEvent.ChangeType != EPropertyChangeType::Interactive)
 	{
@@ -163,37 +187,6 @@ void UDMXPixelMappingMatrixComponent::PostEditChangeChainProperty(FPropertyChang
 			PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingMatrixComponent, SizeY))
 		{
 			SetSizeInternal(FVector2D(SizeX, SizeY));
-		}
-	}
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-void UDMXPixelMappingMatrixComponent::RenderEditorPreviewTexture()
-{
-	UTextureRenderTarget2D* OutTarget = GetOutputTexture();
-
-	if (UDMXPixelMappingRendererComponent* RendererComponent = GetFirstParentByClass<UDMXPixelMappingRendererComponent>(this))
-	{
-		const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = RendererComponent->GetRenderer();
-		{
-			TArray<FDMXPixelMappingRendererPreviewInfo> GroupRender;
-			ForEachChild([this, &GroupRender](UDMXPixelMappingBaseComponent* InComponent) {
-				if (UDMXPixelMappingOutputDMXComponent* Component = Cast<UDMXPixelMappingOutputDMXComponent>(InComponent))
-				{
-					FDMXPixelMappingRendererPreviewInfo Config;
-					if (UTextureRenderTarget2D* OutputTeture = Component->GetOutputTexture())
-					{
-						Config.TextureResource = OutputTeture->Resource;
-					}
-					Config.TextureSize = Component->GetSize();
-					Config.TexturePosition = Component->GetPosition() - GetPosition();
-
-					GroupRender.Add(Config);
-				}
-			}, false);
-
-			Renderer->RenderPreview_GameThread(OutTarget->Resource, GroupRender);
 		}
 	}
 }
@@ -341,28 +334,19 @@ void UDMXPixelMappingMatrixComponent::SendDMX()
 	}
 }
 
-void UDMXPixelMappingMatrixComponent::Render()
+void UDMXPixelMappingMatrixComponent::QueueDownsample()
 {
 	ForEachChild([&](UDMXPixelMappingBaseComponent* InComponent) {
 		if (UDMXPixelMappingOutputComponent* Component = Cast<UDMXPixelMappingOutputComponent>(InComponent))
 		{
-			Component->Render();
+			Component->QueueDownsample();
 		}
 	}, false);
-}
-
-void UDMXPixelMappingMatrixComponent::RenderAndSendDMX()
-{
-	Render();
-	SendDMX();
 }
 
 void UDMXPixelMappingMatrixComponent::PostParentAssigned()
 {
 	Super::PostParentAssigned();
-
-	ResizeOutputTarget(SizeX, SizeY);
-
 #if WITH_EDITOR
 	AutoMapAttributes();
 #endif // WITH_EDITOR
@@ -440,19 +424,6 @@ void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 #endif // WITH_EDITOR
 }
 
-UTextureRenderTarget2D* UDMXPixelMappingMatrixComponent::GetOutputTexture()
-{
-	if (OutputTarget == nullptr)
-	{
-		const FName TargetName = MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("OutputTexture"));
-		OutputTarget = NewObject<UTextureRenderTarget2D>(this, TargetName);
-		OutputTarget->ClearColor = FLinearColor(0.f, 0.f, 0.f, 0.f);
-		OutputTarget->InitCustomFormat(10, 10, EPixelFormat::PF_B8G8R8A8, false);
-	}
-
-	return OutputTarget;
-}
-
 FVector2D UDMXPixelMappingMatrixComponent::GetSize() const
 {
 	return FVector2D(SizeX, SizeY);
@@ -525,21 +496,7 @@ void UDMXPixelMappingMatrixComponent::SetSizeInternal(const FVector2D& InSize)
 	CachedWidget->SetWidthOverride(TotalPixelSizeX);
 	CachedWidget->SetHeightOverride(TotalPixelSizeY);
 	CachedLabelBox->SetWidthOverride(TotalPixelSizeX);
-
-	ResizeOutputTarget(TotalPixelSizeX, TotalPixelSizeY);
 #endif // WITH_EDITOR
-}
-
-void UDMXPixelMappingMatrixComponent::ResizeOutputTarget(uint32 InSizeX, uint32 InSizeY)
-{
-	UTextureRenderTarget2D* Target = GetOutputTexture();
-	check(Target);
-	
-	if ((InSizeX > 0 && InSizeY > 0) && (Target->SizeX != InSizeX || Target->SizeY != InSizeY))
-	{
-		Target->ResizeTarget(InSizeX, InSizeY);
-		Target->UpdateResourceImmediate();
-	}
 }
 
 void UDMXPixelMappingMatrixComponent::SetPositionWithChildren()
@@ -555,6 +512,14 @@ void UDMXPixelMappingMatrixComponent::SetPositionWithChildren()
 #if WITH_EDITOR
 	Slot->Offset(FMargin(PositionX, PositionY, 0.f, 0.f));
 #endif // WITH_EDITOR
+}
+
+void UDMXPixelMappingMatrixComponent::UpdateEachChild(ChildCallback InCallback)
+{
+	ForEachComponentOfClass<UDMXPixelMappingMatrixCellComponent>([this, InCallback](UDMXPixelMappingMatrixCellComponent* InComponent)
+        {
+            InCallback(InComponent);
+        }, true);
 }
 
 void UDMXPixelMappingMatrixComponent::SetSizeWithinMaxBoundaryBox()
@@ -598,8 +563,6 @@ void UDMXPixelMappingMatrixComponent::SetSizeWithinMaxBoundaryBox()
 	CachedWidget->SetWidthOverride(SizeX);
 	CachedWidget->SetHeightOverride(SizeY);
 	CachedLabelBox->SetWidthOverride(SizeX);
-
-	ResizeOutputTarget(SizeX, SizeY);
 #endif // WITH_EDITOR
 }
 

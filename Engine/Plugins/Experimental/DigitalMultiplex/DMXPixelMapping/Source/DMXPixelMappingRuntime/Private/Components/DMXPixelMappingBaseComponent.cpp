@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingBaseComponent.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "DMXPixelMapping.h"
 #include "DMXPixelMappingRuntimeCommon.h"
+
 
 UDMXPixelMappingBaseComponent::UDMXPixelMappingBaseComponent()
 	: ChildIndex(INDEX_NONE)
@@ -75,6 +77,24 @@ UDMXPixelMappingRootComponent* UDMXPixelMappingBaseComponent::GetRootComponent()
 		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Parent should be UDMXPixelMappingRootComponent!"));
 		return nullptr;
 	}
+}
+
+UDMXPixelMappingRootComponent* UDMXPixelMappingBaseComponent::GetRootComponentChecked()
+{
+	UDMXPixelMappingRootComponent* RootComponent = GetRootComponent();
+	check(RootComponent);
+	return RootComponent;
+}
+
+UDMXPixelMappingRendererComponent* UDMXPixelMappingBaseComponent::GetRendererComponent()
+{
+	UDMXPixelMappingRendererComponent* RendererComponent = Cast<UDMXPixelMappingRendererComponent>(this);
+	if (RendererComponent == nullptr)
+	{
+		RendererComponent = GetFirstParentByClass<UDMXPixelMappingRendererComponent>(this);
+	}
+
+	return RendererComponent;
 }
 
 void UDMXPixelMappingBaseComponent::ForComponentAndChildren(UDMXPixelMappingBaseComponent* Component, TComponentPredicate Predicate)

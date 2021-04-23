@@ -3,10 +3,7 @@
 #include "DMXPixelMappingPinFactory.h"
 #include "Widgets/SDMXPixelMappingComponentPin.h"
 #include "DMXPixelMapping.h"
-#include "K2Node_PixelMappingOutputDMXComponent.h"
 #include "K2Node_PixelMappingRendererComponent.h"
-#include "K2Node_PixelMappingFixtureGroupComponent.h"
-#include "K2Node_PixelMappingMatrixComponent.h"
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingFixtureGroupComponent.h"
@@ -36,10 +33,7 @@ TSharedPtr<class SGraphPin> FDMXPixelMappingPinFactory::CreatePin(class UEdGraph
 {
 	UObject* Outer = InPin->GetOuter();
 
-	DMX_PIXEL_MAPPING_ADD_COMPONENT_PIN(OutputDMXComponent);
 	DMX_PIXEL_MAPPING_ADD_COMPONENT_PIN(RendererComponent);
-	DMX_PIXEL_MAPPING_ADD_COMPONENT_PIN(FixtureGroupComponent);
-	DMX_PIXEL_MAPPING_ADD_COMPONENT_PIN(MatrixComponent);
 
 	return FGraphPanelPinFactory::CreatePin(InPin);
 }

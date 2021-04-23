@@ -2,10 +2,8 @@
 
 #include "Components/DMXPixelMappingOutputComponent.h"
 
-#include "Components/DMXPixelMappingRendererComponent.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SBox.h"
 
 
@@ -51,6 +49,12 @@ TSharedRef<SWidget> UDMXPixelMappingOutputComponent::BuildSlot(TSharedRef<SConst
 		];
 
 	return CachedWidget.ToSharedRef();
+}
+
+void UDMXPixelMappingOutputComponent::QueueDownsampleAndSendDMX()
+{
+	QueueDownsample();
+	SendDMX();
 }
 
 TSharedPtr<SWidget> UDMXPixelMappingOutputComponent::GetCachedWidget() const
@@ -130,25 +134,6 @@ void UDMXPixelMappingOutputComponent::SetPosition(const FVector2D& InPosition)
 {
 	PositionX = FMath::RoundHalfToZero(InPosition.X);
 	PositionY = FMath::RoundHalfToZero(InPosition.Y);
-}
-
-void UDMXPixelMappingOutputComponent::SetSurfaceBuffer(TArray<FColor>& InSurfaceBuffer, FIntRect& InRect)
-{
-	FScopeLock ScopeLock(&SurfaceCS);
-	SurfaceBuffer = MoveTemp(InSurfaceBuffer);
-	SurfaceRect = InRect;
-}
-
-void UDMXPixelMappingOutputComponent::GetSurfaceBuffer(GetSurfaceSafeCallback Callback)
-{
-	FScopeLock ScopeLock(&SurfaceCS);
-	Callback(SurfaceBuffer, SurfaceRect);
-}
-
-void UDMXPixelMappingOutputComponent::UpdateSurfaceBuffer(UpdateSurfaceSafeCallback Callback)
-{
-	FScopeLock ScopeLock(&SurfaceCS);
-	Callback(SurfaceBuffer, SurfaceRect);
 }
 
 uint8 UDMXPixelMappingOutputComponent::GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)

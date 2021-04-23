@@ -2,22 +2,16 @@
 
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 
-#include "Components/DMXPixelMappingMatrixComponent.h"
-#include "IDMXPixelMappingRenderer.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "DMXPixelMappingTypes.h"
-#include "DMXSubsystem.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityController.h"
-#include "Library/DMXLibrary.h"
-#include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityController.h"
+#include "Components/DMXPixelMappingMatrixComponent.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "Components/DMXPixelMappingRootComponent.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "Library/DMXEntityController.h"
+#include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXEntityFixtureType.h"
 
-#include "Widgets/Images/SImage.h"
-#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture.h"
 #include "Widgets/Layout/SBox.h"
 
 #if WITH_EDITOR
@@ -25,11 +19,14 @@
 #endif // WITH_EDITOR
 
 
+DECLARE_CYCLE_STAT(TEXT("Send Matrix Cell"), STAT_DMXPixelMaping_SendMatrixCell, STATGROUP_DMXPIXELMAPPING);
+
 #define LOCTEXT_NAMESPACE "DMXPixelMappingMatrixPixelComponent"
 
 const FVector2D UDMXPixelMappingMatrixCellComponent::MixPixelSize = FVector2D(1.f);
 
 UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
+	: DownsamplePixelIndex(0)
 {
 	SizeX = 100.f;
 	SizeY = 100.f;
@@ -44,13 +41,6 @@ UDMXPixelMappingMatrixCellComponent::UDMXPixelMappingMatrixCellComponent()
 
 	ZOrder = 2;
 #endif // WITH_EDITOR
-}
-
-void UDMXPixelMappingMatrixCellComponent::PostLoad()
-{
-	Super::PostLoad();
-
-	GetOutputTexture();
 }
 
 void UDMXPixelMappingMatrixCellComponent::PostInitProperties()
@@ -172,8 +162,6 @@ void UDMXPixelMappingMatrixCellComponent::UpdateWidget()
 void UDMXPixelMappingMatrixCellComponent::PostParentAssigned()
 {
 	Super::PostParentAssigned();
-
-	GetOutputTexture();
 }
 
 #if WITH_EDITOR
@@ -196,182 +184,185 @@ const FName& UDMXPixelMappingMatrixCellComponent::GetNamePrefix()
 
 void UDMXPixelMappingMatrixCellComponent::ResetDMX()
 {
-	UpdateSurfaceBuffer([this](TArray<FColor>& InSurfaceBuffer, FIntRect& InSurfaceRect)
-		{
-			for (FColor& Color : InSurfaceBuffer)
-			{
-				Color = FColor::Black;
-			}
-		});
+	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
+	if (!ensure(RendererComponent))
+	{
+		return;
+	}
+	RendererComponent->ResetColorDownsampleBufferPixel(DownsamplePixelIndex);
 
 	SendDMX();
 }
 
 void UDMXPixelMappingMatrixCellComponent::SendDMX()
 {
+	SCOPE_CYCLE_COUNTER(STAT_DMXPixelMaping_SendMatrixCell);
+
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch();
-	UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
 	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent);
-
-	if (MatrixComponent != nullptr && DMXSubsystem != nullptr && FixturePatch != nullptr)
+	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
+	if (!ensure(FixturePatch))
 	{
-		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+		return;
+	}
 
-		if(ModePtr)
+	if (!ensure(MatrixComponent))
+	{
+		return;
+	}
+
+	if (!ensure(RendererComponent))
+	{
+		return;
+	}
+
+	if (AttributeNameChannelMap.Num() == 0)
+	{
+		if (FixturePatch->GetMatrixCellChannelsAbsoluteWithValidation(CellCoordinate, AttributeNameChannelMap))
 		{
-			const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
+			return;
+		}
+	}
 
-			// If there are any cell attribures
-			int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
-			if (NumChannels > 0)
+	if (MatrixComponent->AttributeRExpose && !ByteOffsetR.IsSet())
+	{
+		ByteOffsetR = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
+	}
+
+	if (MatrixComponent->AttributeGExpose && !ByteOffsetG.IsSet())
+	{
+		ByteOffsetG = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
+	}
+
+	if (MatrixComponent->AttributeBExpose && !ByteOffsetB.IsSet())
+	{
+		ByteOffsetB = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
+	}
+
+	if (MatrixComponent->bMonochromeExpose && !ByteOffsetM.IsSet())
+	{
+		ByteOffsetM = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
+	}
+
+
+	if (const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode())
+	{
+		const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
+
+		// If there are any cell attributes
+		const int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
+		if (NumChannels > 0)
+		{
+			const TOptional<FColor> Color = RendererComponent->GetDownsampleBufferPixel(DownsamplePixelIndex);
+
+			if (Color.IsSet())
 			{
-				TArray<FColor> LocalSurfaceBuffer;
-				GetSurfaceBuffer([this, &LocalSurfaceBuffer](const TArray<FColor>& InSurfaceBuffer, const FIntRect& InSurfaceRect)
-					{
-						LocalSurfaceBuffer = InSurfaceBuffer;
-					});
-
-				if (LocalSurfaceBuffer.Num() == 1)
+				if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
 				{
-					const FColor& Color = LocalSurfaceBuffer[0];
-
-					if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
+					if (MatrixComponent->AttributeRExpose)
 					{
-						if (MatrixComponent->AttributeRExpose)
-						{
-							const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeR.Name) - 1;
-							const int32 ColorRValue = int32(Color.R) << (ByteOffset * 8);
+						const int32 ColorRValue = static_cast<int32>(Color->R) << (*ByteOffsetR * 8);
 
-							FixturePatch->SendMatrixCellValue(CellCoordinate, MatrixComponent->AttributeR.Name, ColorRValue);
-						}
-
-						if (MatrixComponent->AttributeGExpose)
-						{
-							const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeG.Name) - 1;
-							const int32 ColorGValue = int32(Color.G) << (ByteOffset * 8);
-
-							FixturePatch->SendMatrixCellValue(CellCoordinate, MatrixComponent->AttributeG.Name, ColorGValue);
-						}
-
-						if (MatrixComponent->AttributeBExpose)
-						{
-							const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->AttributeB.Name) - 1;
-							const int32 ColorBValue = int32(Color.B) << (ByteOffset * 8);
-
-							FixturePatch->SendMatrixCellValue(CellCoordinate, MatrixComponent->AttributeB.Name, ColorBValue);
-						}
+						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeR.Name, ColorRValue, AttributeNameChannelMap);
 					}
-					else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
-					{
-						if (MatrixComponent->bMonochromeExpose)
-						{
-							const uint8 ByteOffset = GetNumChannelsOfAttribute(FixturePatch, MatrixComponent->MonochromeIntensity.Name) - 1;
 
-							// https://www.w3.org/TR/AERT/#color-contrast
-							int32 Intensity = int32(0.299 * Color.R + 0.587 * Color.G + 0.114 * Color.B) << (ByteOffset * 8);
-							FixturePatch->SendMatrixCellValue(CellCoordinate, MatrixComponent->MonochromeIntensity.Name, Intensity);
-						}
+					if (MatrixComponent->AttributeGExpose)
+					{
+						const int32 ColorGValue = static_cast<int32>(Color->G) << (*ByteOffsetG * 8);
+
+						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeG.Name, ColorGValue, AttributeNameChannelMap);
+					}
+
+					if (MatrixComponent->AttributeBExpose)
+					{
+						const int32 ColorBValue = static_cast<int32>(Color->B) << (*ByteOffsetB * 8);
+
+						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->AttributeB.Name, ColorBValue, AttributeNameChannelMap);
 					}
 				}
-
-				// Send Extra Cell Attributes
-				UDMXPixelMappingMatrixComponent* ParentMatrix = CastChecked<UDMXPixelMappingMatrixComponent>(Parent);
-				for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ParentMatrix->ExtraCellAttributes)
+				else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
 				{
-					FixturePatch->SendMatrixCellValue(CellCoordinate, ExtraAttribute.Attribute, ExtraAttribute.Value);
+					if (MatrixComponent->bMonochromeExpose)
+					{
+						// https://www.w3.org/TR/AERT/#color-contrast
+						const int32 Intensity = static_cast<int32>(0.299 * Color->R + 0.587 * Color->G + 0.114 * Color->B) << (*ByteOffsetM * 8);
+						FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, MatrixComponent->MonochromeIntensity.Name, Intensity, AttributeNameChannelMap);
+					}
 				}
+			}
+
+			// Send Extra Cell Attributes
+			UDMXPixelMappingMatrixComponent* ParentMatrix = CastChecked<UDMXPixelMappingMatrixComponent>(Parent);
+			for (const FDMXPixelMappingExtraAttribute& ExtraAttribute : ParentMatrix->ExtraCellAttributes)
+			{
+				FixturePatch->SendMatrixCellValueWithAttributeMap(CellCoordinate, ExtraAttribute.Attribute, ExtraAttribute.Value, AttributeNameChannelMap);
 			}
 		}
 	}
 }
 
-void UDMXPixelMappingMatrixCellComponent::Render()
+void UDMXPixelMappingMatrixCellComponent::QueueDownsample()
 {
-	RendererOutputTexture();
-}
-
-void UDMXPixelMappingMatrixCellComponent::RenderAndSendDMX()
-{
-	Render();
-	SendDMX();
-}
-
-void UDMXPixelMappingMatrixCellComponent::RendererOutputTexture()
-{
+	// Queue pixels into the downsample rendering
 	UDMXPixelMappingMatrixComponent* MatrixComponent = Cast<UDMXPixelMappingMatrixComponent>(Parent);
 	UDMXPixelMappingRendererComponent* RendererComponent = GetRendererComponent();
 
-	if (MatrixComponent != nullptr && RendererComponent != nullptr)
+	if (!ensure(MatrixComponent))
 	{
-		UTexture* Texture = RendererComponent->GetRendererInputTexture();
-		const TSharedPtr<IDMXPixelMappingRenderer>& Renderer = RendererComponent->GetRenderer();
-
-		if (Texture != nullptr && Renderer.IsValid())
-		{
-			GetOutputTexture();
-
-			const uint32 TexureSizeX = Texture->Resource->GetSizeX();
-			const uint32 TexureSizeY = Texture->Resource->GetSizeY();
-
-			const FVector2D Position = FVector2D(0.f, 0.f);
-			const FVector2D Size = FVector2D(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
-			const FVector2D UV = FVector2D(PositionX / TexureSizeX, PositionY / TexureSizeY);
-
-			const FVector2D UVSize(SizeX / TexureSizeX, SizeY / TexureSizeY);
-			const FVector2D UVCellSize = UVSize / 2.f;
-
-			const FIntPoint TargetSize(OutputTarget->Resource->GetSizeX(), OutputTarget->Resource->GetSizeY());
-			const FIntPoint TextureSize(1, 1);
-
-			const bool bStaticCalculateUV = true;
-
-			FVector4 ExposeFactor;
-			FIntVector4 InvertFactor;
-			if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
-			{
-				ExposeFactor = FVector4(MatrixComponent->AttributeRExpose ? 1.f : 0.f, MatrixComponent->AttributeGExpose ? 1.f : 0.f, MatrixComponent->AttributeBExpose ? 1.f : 0.f, 1.f);
-				InvertFactor = FIntVector4(MatrixComponent->AttributeRInvert, MatrixComponent->AttributeGInvert, MatrixComponent->AttributeBInvert, 0);
-			}
-			else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
-			{
-				static const FVector4 Expose(1.f, 1.f, 1.f, 1.f);
-				static const FVector4 NoExpose(0.f, 0.f, 0.f, 0.f);
-				ExposeFactor = FVector4(MatrixComponent->bMonochromeExpose ? Expose : NoExpose);
-				InvertFactor = FIntVector4(MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, 0);
-			}
-
-			Renderer->DownsampleRender_GameThread(
-				Texture->Resource,
-				OutputTarget->Resource,
-				OutputTarget->GameThread_GetRenderTargetResource(),
-				ExposeFactor,
-				InvertFactor,
-				Position,
-				Size,
-				UV,
-				UVSize,
-				UVCellSize,
-				TargetSize,
-				TextureSize,
-				CellBlendingQuality,
-				bStaticCalculateUV,
-				[=](TArray<FColor>& InSurfaceBuffer, FIntRect& InRect) { SetSurfaceBuffer(InSurfaceBuffer, InRect); }
-			);
-		}
-	}
-}
-
-UTextureRenderTarget2D* UDMXPixelMappingMatrixCellComponent::GetOutputTexture()
-{
-	if (OutputTarget == nullptr)
-	{
-		const FName TargetName = MakeUniqueObjectName(this, UTextureRenderTarget2D::StaticClass(), TEXT("DstTarget"));
-		OutputTarget = NewObject<UTextureRenderTarget2D>(this, TargetName);
-		OutputTarget->ClearColor = FLinearColor(0.f, 0.f, 0.f, 0.f);
-		OutputTarget->InitCustomFormat(1, 1, EPixelFormat::PF_B8G8R8A8, false);
+		return;
 	}
 
-	return OutputTarget;
+	if (!ensure(RendererComponent))
+	{
+		return;
+	}
+
+	UTexture* InputTexture = RendererComponent->GetRendererInputTexture();
+	if (!ensure(InputTexture))
+	{
+		return;
+	}
+
+	// Store downsample index
+	DownsamplePixelIndex = RendererComponent->GetDownsamplePixelNum();
+
+	const uint32 TextureSizeX = InputTexture->Resource->GetSizeX();
+	const uint32 TextureSizeY = InputTexture->Resource->GetSizeY();
+	check(TextureSizeX > 0 && TextureSizeY > 0);
+	const FIntPoint PixelPosition = RendererComponent->GetPixelPosition(DownsamplePixelIndex);
+	const FVector2D UV = FVector2D(PositionX / TextureSizeX, PositionY / TextureSizeY);
+	const FVector2D UVSize(SizeX / TextureSizeX, SizeY / TextureSizeY);
+	const FVector2D UVCellSize = UVSize / 2.f;
+	constexpr bool bStaticCalculateUV = true;
+
+	FVector4 ExposeFactor;
+	FIntVector4 InvertFactor;
+	if (MatrixComponent->ColorMode == EDMXColorMode::CM_RGB)
+	{
+		ExposeFactor = FVector4(MatrixComponent->AttributeRExpose ? 1.f : 0.f, MatrixComponent->AttributeGExpose ? 1.f : 0.f, MatrixComponent->AttributeBExpose ? 1.f : 0.f, 1.f);
+		InvertFactor = FIntVector4(MatrixComponent->AttributeRInvert, MatrixComponent->AttributeGInvert, MatrixComponent->AttributeBInvert, 0);
+	}
+	else if (MatrixComponent->ColorMode == EDMXColorMode::CM_Monochrome)
+	{
+		static const FVector4 Expose(1.f, 1.f, 1.f, 1.f);
+		static const FVector4 NoExpose(0.f, 0.f, 0.f, 0.f);
+		ExposeFactor = FVector4(MatrixComponent->bMonochromeExpose ? Expose : NoExpose);
+		InvertFactor = FIntVector4(MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, MatrixComponent->bMonochromeInvert, 0);
+	}
+			
+	FDMXPixelMappingDownsamplePixelParam DownsamplePixelParam
+	{
+		ExposeFactor,
+		InvertFactor,
+		PixelPosition,
+		UV,
+		UVSize,
+		UVCellSize,
+		CellBlendingQuality,
+		bStaticCalculateUV
+	};
+
+	RendererComponent->AddPixelToDownsampleSet(MoveTemp(DownsamplePixelParam));
 }
 
 FVector2D UDMXPixelMappingMatrixCellComponent::GetSize() const
@@ -493,6 +484,12 @@ void UDMXPixelMappingMatrixCellComponent::SetSizeFromParent(const FVector2D& InS
 #endif // WITH_EDITOR
 }
 
+void UDMXPixelMappingMatrixCellComponent::SetPixelCoordinate(FIntPoint InPixelCoordinate)
+{
+	CellCoordinate = InPixelCoordinate;
+	AttributeNameChannelMap.Empty();
+}
+
 void UDMXPixelMappingMatrixCellComponent::SetSize(const FVector2D& InSize)
 {
 	SizeX = FMath::RoundHalfToZero(InSize.X);
@@ -527,12 +524,7 @@ bool UDMXPixelMappingMatrixCellComponent::CanBeMovedTo(const UDMXPixelMappingBas
 
 UDMXPixelMappingRendererComponent* UDMXPixelMappingMatrixCellComponent::GetRendererComponent() const
 {
-	if (Parent)
-	{
-		return Cast<UDMXPixelMappingRendererComponent>(Parent->Parent);
-	}
-
-	return nullptr;
+	return Parent ? Cast<UDMXPixelMappingRendererComponent>(Parent->Parent) : nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
