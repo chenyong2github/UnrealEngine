@@ -111,6 +111,10 @@ void UDMXProtocolSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	const FName PropertyName = PropertyChangedChainEvent.GetPropertyName();
+	const FProperty* Property = PropertyChangedChainEvent.Property;
+	const UScriptStruct* InputPortConfigStruct = FDMXInputPortConfig::StaticStruct();
+	const UScriptStruct* OutputPortConfigStruct = FDMXOutputPortConfig::StaticStruct();
+	const UStruct* PropertyOwnerStruct = Property ? Property->GetOwnerStruct() : nullptr;
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{
@@ -140,13 +144,15 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 	}
 	else if	(
 		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs) ||
+		(InputPortConfigStruct == PropertyOwnerStruct || OutputPortConfigStruct || PropertyOwnerStruct)
+		)
 	{
 		FDMXPortManager::Get().UpdateFromProtocolSettings();
 
 		OnPortConfigsChanged.Broadcast();
 	}
-
+	
 	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 }
 #endif // WITH_EDITOR
