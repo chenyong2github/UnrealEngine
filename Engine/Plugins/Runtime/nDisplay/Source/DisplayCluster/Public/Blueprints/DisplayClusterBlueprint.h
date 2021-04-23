@@ -24,7 +24,7 @@ public:
 #endif // WITH_EDITOR
 	
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform);
 	//~ End UObject Interface
 
 	class UDisplayClusterBlueprintGeneratedClass* GetGeneratedClass() const;
