@@ -20,7 +20,7 @@ FDisplayClusterRenderSyncClient::FDisplayClusterRenderSyncClient(const FString& 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterRenderSyncClient::WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime)
+void FDisplayClusterRenderSyncClient::WaitForSwapSync()
 {
 	static const TSharedPtr<FDisplayClusterPacketInternal> Request(
 		new FDisplayClusterPacketInternal(
@@ -29,28 +29,8 @@ void FDisplayClusterRenderSyncClient::WaitForSwapSync(double* ThreadWaitTime, do
 			DisplayClusterRenderSyncStrings::ProtocolName)
 	);
 
-	TSharedPtr<FDisplayClusterPacketInternal> Response;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(*FString::Printf(TEXT("nDisplay RenderSyncClient::%s"), *Request->GetName()), CpuChannel);
-		Response = SendRecvPacket(Request);
-	}
-
-	if (Response.IsValid())
-	{
-		if (ThreadWaitTime)
-		{
-			if (!Response->GetTextArg(FString(DisplayClusterRenderSyncStrings::ArgumentsDefaultCategory), FString(DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgThreadTime), *ThreadWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Argument %s not available"), DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgThreadTime);
-			}
-		}
-
-		if (BarrierWaitTime)
-		{
-			if (!Response->GetTextArg(FString(DisplayClusterRenderSyncStrings::ArgumentsDefaultCategory), FString(DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgBarrierTime), *BarrierWaitTime))
-			{
-				UE_LOG(LogDisplayClusterNetwork, Verbose, TEXT("Argument %s not available"), DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgBarrierTime);
-			}
-		}
+		SendRecvPacket(Request);
 	}
 }

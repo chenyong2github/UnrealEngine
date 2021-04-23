@@ -69,13 +69,13 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolClusterSync - default overrides
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForGameStart(double* ThreadWaitTime, double* BarrierWaitTime) override
+	virtual void WaitForGameStart() override
 	{ }
 
-	virtual void WaitForFrameStart(double* ThreadWaitTime, double* BarrierWaitTime) override
+	virtual void WaitForFrameStart() override
 	{ }
 
-	virtual void WaitForFrameEnd(double* ThreadWaitTime, double* BarrierWaitTime) override
+	virtual void WaitForFrameEnd() override
 	{ }
 
 	virtual void GetTimeData(float& InOutDeltaTime, double& InOutGameTime, TOptional<FQualifiedFrameTime>& InOutFrameTime) override
@@ -94,7 +94,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProtocolRenderSync - default overrides
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) override
+	virtual void WaitForSwapSync() override
 	{ }
 
 protected:

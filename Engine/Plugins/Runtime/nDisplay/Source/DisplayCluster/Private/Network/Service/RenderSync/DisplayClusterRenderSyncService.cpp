@@ -95,14 +95,7 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterRenderSyncService::Proc
 	// Dispatch the packet
 	if (Request->GetName().Equals(DisplayClusterRenderSyncStrings::WaitForSwapSync::Name, ESearchCase::IgnoreCase))
 	{
-		double ThreadTime  = 0.f;
-		double BarrierTime = 0.f;
-
-		WaitForSwapSync(&ThreadTime, &BarrierTime);
-
-		Response->SetTextArg(DisplayClusterRenderSyncStrings::ArgumentsDefaultCategory, DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgThreadTime,  ThreadTime);
-		Response->SetTextArg(DisplayClusterRenderSyncStrings::ArgumentsDefaultCategory, DisplayClusterRenderSyncStrings::WaitForSwapSync::ArgBarrierTime, BarrierTime);
-
+		WaitForSwapSync();
 		return Response;
 	}
 
@@ -116,9 +109,9 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterRenderSyncService::Proc
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProtocolRenderSync
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterRenderSyncService::WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime)
+void FDisplayClusterRenderSyncService::WaitForSwapSync()
 {
-	if (BarrierSwap.Wait(ThreadWaitTime, BarrierWaitTime) != FDisplayClusterBarrier::WaitResult::Ok)
+	if (BarrierSwap.Wait() != FDisplayClusterBarrier::WaitResult::Ok)
 	{
 		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on swap barrier. Exit required."));
 	}
