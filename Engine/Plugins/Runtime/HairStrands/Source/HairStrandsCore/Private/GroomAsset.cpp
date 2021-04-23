@@ -581,11 +581,11 @@ void UGroomAsset::UpdateHairGroupsInfo()
 	{
 		FHairGroupInfoWithVisibility& Info = HairGroupsInfo[GroupIndex];
 		Info.GroupID = GroupIndex;
-		Info.NumCurves = Data.Strands.Data.GetNumCurves();
-		Info.NumGuides = Data.Guides.Data.GetNumCurves();
-		Info.NumCurveVertices = Data.Strands.Data.GetNumPoints();
-		Info.NumGuideVertices = Data.Guides.Data.GetNumPoints();
-		Info.MaxCurveLength = Data.Strands.Data.StrandsCurves.MaxLength;
+		Info.NumCurves = Data.Strands.BulkData.GetNumCurves();
+		Info.NumGuides = Data.Guides.BulkData.GetNumCurves();
+		Info.NumCurveVertices = Data.Strands.BulkData.GetNumPoints();
+		Info.NumGuideVertices = Data.Guides.BulkData.GetNumPoints();
+		Info.MaxCurveLength = Data.Strands.BulkData.GetMaxLength();
 		if (bForceReset)
 		{
 			Info.bIsVisible = true;
@@ -745,9 +745,9 @@ void UGroomAsset::PostLoad()
 		for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 		{
 			const bool bNeedToBuildData = 
-				(HairGroupsData[GroupIndex].Guides.Data.GetNumCurves() == 0 ||
-				HairGroupsData[GroupIndex].Strands.InterpolationData.Num() == 0) &&
-				HairGroupsData[GroupIndex].Strands.Data.GetNumCurves() > 0; // Empty groom has no data to build
+				(HairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves() == 0 ||
+				 HairGroupsData[GroupIndex].Strands.InterpolationBulkData.GetPointCount() == 0) &&
+				 HairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves() > 0; // Empty groom has no data to build
 			if (bNeedToBuildData)
 			{
 				FGroomBuilder::BuildData(HairGroupsData[GroupIndex], HairGroupsInterpolation[GroupIndex], GroupIndex );
@@ -1767,7 +1767,7 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 	// Handle the case where the cards data is already cached in the DDC
 	// Need to populate the strands data with it
 	FHairGroupData& GroupData = HairGroupsData[GroupIndex];
-	if (StrandsDerivedDataKey[GroupIndex].IsEmpty() && GroupData.Strands.Data.GetNumPoints() == 0)
+	if (StrandsDerivedDataKey[GroupIndex].IsEmpty() && GroupData.Strands.BulkData.GetNumPoints() == 0)
 	{
 		for (int32 LODIt = 0; LODIt < GroupData.Cards.LODs.Num(); ++LODIt)
 		{
@@ -1778,6 +1778,9 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 
 				GroupData.Strands.Data = LOD.Guides.Data;
 				GroupData.Guides.Data = LOD.Guides.Data;
+
+				GroupData.Strands.BulkData = LOD.Guides.BulkData;
+				GroupData.Guides.BulkData = LOD.Guides.BulkData;
 
 				break;
 			}
@@ -2005,10 +2008,13 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 				// There could be no strands data when importing cards into an empty groom so get them from the card guides
 				bool bCopyRenderData = false;
-				if (GroupData.Guides.Data.GetNumPoints() == 0)
+				if (GroupData.Guides.BulkData.GetNumPoints() == 0)
 				{
 					GroupData.Strands.Data = LOD.Guides.Data;
 					GroupData.Guides.Data = LOD.Guides.Data;
+
+					GroupData.Strands.BulkData = LOD.Guides.BulkData;
+					GroupData.Guides.BulkData = LOD.Guides.BulkData;
 
 					// The RenderData is filled out by BuildData
 					bCopyRenderData = true;

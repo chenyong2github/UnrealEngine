@@ -3685,6 +3685,7 @@ bool ImportGeometry(
 
 		Out.Cards.BoundingBox += Out.Cards.Positions[VertexIndex];
 	}
+	OutBulk.BoundingBox = Out.Cards.BoundingBox;
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
 	const uint32 PointCount = Out.Cards.Positions.Num();
@@ -3741,6 +3742,7 @@ void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out, FHairCar
 	OutBulk.Normals = In.RenderData.Normals;
 	OutBulk.Indices = In.RenderData.Indices;
 	OutBulk.UVs = In.RenderData.UVs;
+	OutBulk.BoundingBox = In.Cards.BoundingBox;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4012,6 +4014,7 @@ void BuildGeometry(
 
 		Out.Meshes.BoundingBox += OutBulk.Positions[PointIt];
 	}
+	OutBulk.BoundingBox = Out.Meshes.BoundingBox;
 
 	const uint32 IndexCount = Out.Meshes.Indices.Num();
 	OutBulk.Indices.SetNum(IndexCount);
@@ -4056,6 +4059,7 @@ void ImportGeometry(
 	}
 
 	// Fill in render resources (do we need to keep it separated? e.g, format compression, packing)
+	OutBulk.BoundingBox = Out.Meshes.BoundingBox;
 	const uint32 PointCount = Out.Meshes.Positions.Num();
 	OutBulk.Positions.SetNum(PointCount);
 	OutBulk.Normals.SetNum(PointCount * FHairCardsNormalFormat::ComponentCount);

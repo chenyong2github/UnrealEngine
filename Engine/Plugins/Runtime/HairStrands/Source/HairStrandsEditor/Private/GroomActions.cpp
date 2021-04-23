@@ -187,8 +187,8 @@ void FGroomActions::ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) 
 					{
 						FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
 						OutGroup.GroupID    = GroupIndex;
-						OutGroup.CurveCount = GroomAsset->HairGroupsData[GroupIndex].Strands.Data.GetNumCurves();
-						OutGroup.GuideCount = GroomAsset->HairGroupsData[GroupIndex].Guides.Data.GetNumCurves();
+						OutGroup.CurveCount = GroomAsset->HairGroupsData[GroupIndex].Strands.BulkData.GetNumCurves();
+						OutGroup.GuideCount = GroomAsset->HairGroupsData[GroupIndex].Guides.BulkData.GetNumCurves();
 						OutGroup.InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
 					}
 				}

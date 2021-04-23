@@ -50,10 +50,14 @@ void FHairCardsBulkData::Serialize(FArchive& Ar)
 	Ar << Indices;
 }
 
-void FHairCardsDatas::Serialize(FArchive& Ar, FHairCardsBulkData& BulkData)
+void FHairCardsDatas::Serialize(FArchive& Ar, FHairCardsBulkData& InBulkData)
 {
 	Ar << Cards;
-	BulkData.Serialize(Ar);
+	InBulkData.Serialize(Ar);
+	if (Ar.IsLoading())
+	{
+		InBulkData.BoundingBox = Cards.BoundingBox;
+	}
 }
 
 FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationVertex& CardInterpVertex)
@@ -99,6 +103,10 @@ void FHairMeshesDatas::Serialize(FArchive& Ar, FHairMeshesBulkData& InBulkData)
 {
 	Ar << Meshes;
 	InBulkData.Serialize(Ar);
+	if (Ar.IsLoading())
+	{
+		InBulkData.BoundingBox = Meshes.BoundingBox;
+	}
 }
 
 void FHairMeshesBulkData::Serialize(FArchive& Ar)

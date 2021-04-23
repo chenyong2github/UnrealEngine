@@ -102,7 +102,7 @@ static FHairGroupDesc GetGroomGroupsDesc(const UGroomAsset* Asset, UGroomCompone
 	}
 
 	FHairGroupDesc O = Component->GroomGroupsDesc[GroupIndex];
-	O.HairLength = Asset->HairGroupsData[GroupIndex].Strands.Data.StrandsCurves.MaxLength;
+	O.HairLength = Asset->HairGroupsData[GroupIndex].Strands.BulkData.MaxLength;
 	O.LODBias 	 = Asset->EffectiveLODBias[GroupIndex] > 0 ? FMath::Max(O.LODBias, Asset->EffectiveLODBias[GroupIndex]) : O.LODBias;
 
 	if (!O.HairWidth_Override)					{ O.HairWidth					= Asset->HairGroupsRendering[GroupIndex].GeometrySettings.HairWidth;					}
@@ -1340,7 +1340,7 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 			{
 				if (IsHairStrandsEnabled(EHairStrandsShaderType::Strands) && GroupData.Strands.HasValidData())
 				{
-					LocalBounds += GroupData.Strands.Data.BoundingBox;
+					LocalBounds += GroupData.Strands.GetBounds();
 				}
 				else if (IsHairStrandsEnabled(EHairStrandsShaderType::Cards) && GroupData.Cards.HasValidData())
 				{
@@ -1352,7 +1352,7 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 				}
 				else if (GroupData.Guides.HasValidData())
 				{
-					LocalBounds += GroupData.Guides.Data.BoundingBox;
+					LocalBounds += GroupData.Guides.GetBounds();
 				}
 			}
 			return FBoxSphereBounds(LocalBounds.TransformBy(InLocalToWorld));
@@ -2106,7 +2106,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						check(GroupData.Strands.ClusterCullingResource->Data.LODVisibility[LODIt] == LODVisibilities[LODIt]);
 					}
 				}
-				HairGroupInstance->HairGroupPublicData->SetClusters(HairGroupInstance->Strands.ClusterCullingResource->Data.ClusterCount, GroupData.Strands.Data.GetNumPoints());
+				HairGroupInstance->HairGroupPublicData->SetClusters(HairGroupInstance->Strands.ClusterCullingResource->Data.ClusterCount, GroupData.Strands.BulkData.GetNumPoints());
 				BeginInitResource(HairGroupInstance->HairGroupPublicData);
 			}
 

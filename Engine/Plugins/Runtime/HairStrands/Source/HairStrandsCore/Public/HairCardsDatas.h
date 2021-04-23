@@ -268,6 +268,7 @@ struct FHairCardsBulkData
 
 	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
 	uint32 GetNumVertices() const { return Positions.Num(); }
+	const FBox& GetBounds() const { return BoundingBox; }
 
 	UTexture2D* DepthTexture = nullptr;
 	UTexture2D* TangentTexture = nullptr;
@@ -278,6 +279,7 @@ struct FHairCardsBulkData
 	TArray<FHairCardsNormalFormat::Type> Normals;
 	TArray<FHairCardsUVFormat::Type> UVs;
 	TArray<FHairCardsIndexFormat::Type> Indices;
+	FBox BoundingBox;
 
 	void Serialize(FArchive& Ar);
 };
@@ -446,11 +448,14 @@ struct FHairMeshesBulkData
 
 	uint32 GetNumTriangles() const { return Indices.Num() / 3; }
 	uint32 GetNumVertices() const { return Positions.Num(); }
+	const FBox& GetBounds() const { return BoundingBox; }
 
 	TArray<FHairCardsPositionFormat::Type> Positions;
 	TArray<FHairCardsNormalFormat::Type> Normals;
 	TArray<FHairCardsUVFormat::Type> UVs;
 	TArray<FHairCardsIndexFormat::Type> Indices;
+	FBox BoundingBox;
+
 	void Serialize(FArchive& Ar);
 };
 

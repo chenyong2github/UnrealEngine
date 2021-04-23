@@ -77,8 +77,10 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FBase
 	{
-		bool HasValidData() const	{ return Data.GetNumPoints() > 0;}
-		bool IsValid() const		{ return RestResource != nullptr; }
+		bool HasValidData() const		{ return BulkData.GetNumPoints() > 0;}
+		bool IsValid() const			{ return RestResource != nullptr; }
+		const FBox& GetBounds() const	{ return BulkData.GetBounds(); }
+
 		FHairStrandsDatas					Data;
 		FHairStrandsBulkData				BulkData;
 		FHairStrandsRestResource*			RestResource = nullptr;
@@ -147,7 +149,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		{
 			for (const FLOD& LOD : LODs)
 			{
-				if (LOD.IsValid()) return LOD.Data.Cards.BoundingBox;
+				if (LOD.IsValid()) return LOD.BulkData.BoundingBox;
 			}
 			return FBox();
 		}
@@ -178,8 +180,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				return Total;
 			}
 
-			bool HasValidData() const { return Data.IsValid(); }
-			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
+			bool HasValidData() const { return BulkData.IsValid(); }
+			bool IsValid() const { return BulkData.IsValid() && RestResource != nullptr; }
+
 			// Main data & Resources
 			FHairCardsDatas						Data;
 			FHairCardsBulkData					BulkData;
@@ -222,7 +225,7 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		{
 			for (const FLOD& LOD : LODs)
 			{
-				if (LOD.IsValid()) return LOD.Data.Meshes.BoundingBox;
+				if (LOD.IsValid()) return LOD.BulkData.BoundingBox;
 			}
 			return FBox();
 		}
@@ -251,8 +254,9 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 				return Total;
 			}
 
-			bool HasValidData() const { return Data.IsValid(); }
-			bool IsValid() const { return Data.IsValid() && RestResource != nullptr; }
+			bool HasValidData() const { return BulkData.IsValid(); }
+			bool IsValid() const { return BulkData.IsValid() && RestResource != nullptr; }
+
 			FHairMeshesDatas Data;
 			FHairMeshesBulkData BulkData;
 			FHairMeshesRestResource* RestResource = nullptr;

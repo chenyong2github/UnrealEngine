@@ -409,6 +409,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	float  GetMaxLength() const	{ return MaxLength; };
 	float  GetMaxRadius() const { return MaxRadius; }
 	FVector GetPositionOffset() const { return BoundingBox.GetCenter(); }
+	const FBox& GetBounds() const { return BoundingBox; }
 
 	uint32 CurveCount = 0;
 	uint32 PointCount = 0;
