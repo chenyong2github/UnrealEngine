@@ -98,6 +98,22 @@ private:
 	friend class UAnimGraphNode_SequenceEvaluator;
 
 #if WITH_EDITORONLY_DATA
+	// The group name (NAME_None if it is not part of any group)
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	FName GroupName = NAME_None;
+
+	// The role this player can assume within the group (ignored if GroupIndex is INDEX_NONE)
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	TEnumAsByte<EAnimGroupRole::Type> GroupRole = EAnimGroupRole::CanBeLeader;
+
+	// How synchronization is determined
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	EAnimSyncMethod Method = EAnimSyncMethod::DoNotSync;
+
+	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
+	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(FoldProperty, PinHiddenByDefault))
+	bool bIgnoreForRelevancyTest = false;
+	
 	// The animation sequence asset to evaluate
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, FoldProperty))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
@@ -134,6 +150,16 @@ public:
 	virtual bool GetTeleportToExplicitTime() const override;
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override;
 	virtual float GetStartPosition() const override;
+
+	// FAnimNode_AssetPlayerBase interface
+	virtual FName GetGroupName() const override;
+	virtual EAnimGroupRole::Type GetGroupRole() const override;
+	virtual EAnimSyncMethod GetGroupMethod() const override;
+	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual void SetGroupName(FName InGroupName) override;
+	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override;
+	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override;
+	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;
 };
 
 // Sequence evaluator node that can be used standalone (without constant folding)
@@ -143,6 +169,22 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SequenceEvaluator_Standalone : public FAni
 	GENERATED_BODY()
 
 private:
+	// The group name (NAME_None if it is not part of any group)
+	UPROPERTY(EditAnywhere, Category=Sync)
+	FName GroupName = NAME_None;
+
+	// The role this player can assume within the group (ignored if GroupIndex is INDEX_NONE)
+	UPROPERTY(EditAnywhere, Category=Sync)
+	TEnumAsByte<EAnimGroupRole::Type> GroupRole = EAnimGroupRole::CanBeLeader;
+
+	// How synchronization is determined
+	UPROPERTY(EditAnywhere, Category=Sync)
+	EAnimSyncMethod Method = EAnimSyncMethod::DoNotSync;
+
+	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
+	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(PinHiddenByDefault))
+	bool bIgnoreForRelevancyTest = false;
+	
 	// The animation sequence asset to evaluate
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
@@ -181,4 +223,14 @@ public:
 	virtual bool GetTeleportToExplicitTime() const override { return bTeleportToExplicitTime; }
 	virtual TEnumAsByte<ESequenceEvalReinit::Type> GetReinitializationBehavior() const override { return ReinitializationBehavior; }
 	virtual float GetStartPosition() const override { return StartPosition; }
+
+	// FAnimNode_AssetPlayerBase interface
+	virtual FName GetGroupName() const override { return GroupName; }
+	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
+	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
+	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
+	virtual void SetGroupName(FName InGroupName) override { GroupName = InGroupName; }
+	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; }
+	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; }
+	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; }
 };

@@ -157,3 +157,51 @@ float FAnimNode_SequenceEvaluator::GetStartPosition() const
 {
 	return GET_ANIM_NODE_DATA(float, StartPosition);
 }
+
+FName FAnimNode_SequenceEvaluator::GetGroupName() const
+{
+	return GET_ANIM_NODE_DATA(FName, GroupName);
+}
+
+EAnimGroupRole::Type FAnimNode_SequenceEvaluator::GetGroupRole() const
+{
+	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+}
+
+EAnimSyncMethod FAnimNode_SequenceEvaluator::GetGroupMethod() const
+{
+	return GET_ANIM_NODE_DATA(EAnimSyncMethod, Method);
+}
+
+bool FAnimNode_SequenceEvaluator::GetIgnoreForRelevancyTest() const
+{
+	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
+}
+
+void FAnimNode_SequenceEvaluator::SetGroupName(FName InGroupName)
+{
+#if WITH_EDITORONLY_DATA	
+	GroupName = InGroupName;
+#endif
+}
+
+void FAnimNode_SequenceEvaluator::SetGroupRole(EAnimGroupRole::Type InRole)
+{
+#if WITH_EDITORONLY_DATA
+	GroupRole = InRole;
+#endif
+}
+
+void FAnimNode_SequenceEvaluator::SetGroupMethod(EAnimSyncMethod InMethod)
+{
+#if WITH_EDITORONLY_DATA
+	Method = InMethod;
+#endif
+}
+
+void FAnimNode_SequenceEvaluator::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+{
+#if WITH_EDITORONLY_DATA
+	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
+#endif
+}

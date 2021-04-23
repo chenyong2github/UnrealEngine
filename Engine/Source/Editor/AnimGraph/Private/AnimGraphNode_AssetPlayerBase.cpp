@@ -31,7 +31,7 @@ void UAnimGraphNode_AssetPlayerBase::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
-	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimSyncGroupsExplicitSyncMethod)
+	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimSyncGroupsExplicitSyncMethod)
 	{
 		if(SyncGroup_DEPRECATED.GroupName != NAME_None)
 		{
@@ -39,14 +39,14 @@ void UAnimGraphNode_AssetPlayerBase::Serialize(FArchive& Ar)
 		}
 	}
 
-	if(Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimNodeConstantDataRefactorPhase0)
+	if(Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::AnimNodeConstantDataRefactorPhase0)
 	{
 		FStructProperty* NodeProperty = GetFNodeProperty();
 		if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
 		{
 			FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
 			Node->SetGroupName(SyncGroup_DEPRECATED.GroupName);
-			Node->GetGroupRole(SyncGroup_DEPRECATED.GroupRole);
+			Node->SetGroupRole(SyncGroup_DEPRECATED.GroupRole);
 			Node->SetGroupMethod(SyncGroup_DEPRECATED.Method);
 		}
 	}
@@ -59,13 +59,13 @@ void UAnimGraphNode_AssetPlayerBase::PostEditChangeProperty(FPropertyChangedEven
 	FStructProperty* NodeProperty = GetFNodeProperty();
 	if(NodeProperty->Struct->IsChildOf(FAnimNode_AssetPlayerBase::StaticStruct()))
 	{
-		if(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FAnimNode_AssetPlayerBase, Method))
+		if(PropertyChangedEvent.GetPropertyName() == TEXT("Method"))
 		{
 			FAnimNode_AssetPlayerBase* Node = NodeProperty->ContainerPtrToValuePtr<FAnimNode_AssetPlayerBase>(this);
 			if(Node->GetGroupMethod() != EAnimSyncMethod::SyncGroup)
 			{
 				Node->SetGroupName(NAME_None);
-				Node->GetGroupRole(EAnimGroupRole::CanBeLeader);
+				Node->SetGroupRole(EAnimGroupRole::CanBeLeader);
 			}
 		}
 	}

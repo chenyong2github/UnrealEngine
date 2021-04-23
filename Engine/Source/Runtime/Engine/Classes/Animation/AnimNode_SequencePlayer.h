@@ -82,6 +82,22 @@ protected:
 	friend class UAnimGraphNode_SequencePlayer;
 
 #if WITH_EDITORONLY_DATA
+	// The group name (NAME_None if it is not part of any group)
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	FName GroupName = NAME_None;
+
+	// The role this player can assume within the group (ignored if GroupIndex is INDEX_NONE)
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	TEnumAsByte<EAnimGroupRole::Type> GroupRole = EAnimGroupRole::CanBeLeader;
+
+	// How synchronization is determined
+	UPROPERTY(EditAnywhere, Category=Sync, meta=(FoldProperty))
+	EAnimSyncMethod Method = EAnimSyncMethod::DoNotSync;
+
+	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
+	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(FoldProperty, PinHiddenByDefault))
+	bool bIgnoreForRelevancyTest = false;
+	
 	// The animation sequence asset to play
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="AnimMontage", FoldProperty))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
@@ -128,6 +144,16 @@ public:
 	virtual float GetStartPosition() const override;
 	virtual bool GetLoopAnimation() const override;
 	virtual bool GetStartFromMatchingPose() const override;
+
+	// FAnimNode_AssetPlayerBase interface
+	virtual FName GetGroupName() const override;
+	virtual EAnimGroupRole::Type GetGroupRole() const override;
+	virtual EAnimSyncMethod GetGroupMethod() const override;
+	virtual bool GetIgnoreForRelevancyTest() const override;
+	virtual void SetGroupName(FName InGroupName) override;
+	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override;
+	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override;
+	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override;	
 };
 
 // Sequence player node that can be used standalone (without constant folding)
@@ -137,6 +163,22 @@ struct ENGINE_API FAnimNode_SequencePlayer_Standalone : public FAnimNode_Sequenc
 	GENERATED_BODY()
 
 protected:
+	// The group name (NAME_None if it is not part of any group)
+	UPROPERTY(EditAnywhere, Category=Sync)
+	FName GroupName = NAME_None;
+
+	// The role this player can assume within the group (ignored if GroupIndex is INDEX_NONE)
+	UPROPERTY(EditAnywhere, Category=Sync)
+	TEnumAsByte<EAnimGroupRole::Type> GroupRole = EAnimGroupRole::CanBeLeader;
+
+	// How synchronization is determined
+	UPROPERTY(EditAnywhere, Category=Sync)
+	EAnimSyncMethod Method = EAnimSyncMethod::DoNotSync;
+
+	// If true, "Relevant anim" nodes that look for the highest weighted animation in a state will ignore this node
+	UPROPERTY(EditAnywhere, Category=Relevancy, meta=(PinHiddenByDefault))
+	bool bIgnoreForRelevancyTest = false;
+
 	// The animation sequence asset to play
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="AnimMontage"))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
@@ -170,13 +212,23 @@ protected:
 
 public:
 	// FAnimNode_SequencePlayerBase interface
-	virtual void SetSequence(UAnimSequenceBase* InSequence) override;
-	virtual void SetLoopAnimation(bool bInLoopAnimation) override;
-	virtual UAnimSequenceBase* GetSequence() const override;
-	virtual float GetPlayRateBasis() const override;
-	virtual float GetPlayRate() const override;
-	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override;
-	virtual float GetStartPosition() const override;
-	virtual bool GetLoopAnimation() const override;
-	virtual bool GetStartFromMatchingPose() const override;
+	virtual void SetSequence(UAnimSequenceBase* InSequence) override { Sequence = InSequence; }
+	virtual void SetLoopAnimation(bool bInLoopAnimation) override { bLoopAnimation = bInLoopAnimation; }
+	virtual UAnimSequenceBase* GetSequence() const override { return Sequence; }
+	virtual float GetPlayRateBasis() const override { return PlayRateBasis; }
+	virtual float GetPlayRate() const override { return PlayRate; }
+	virtual const FInputScaleBiasClampConstants& GetPlayRateScaleBiasClampConstants() const override { return PlayRateScaleBiasClampConstants; }
+	virtual float GetStartPosition() const override { return StartPosition; }
+	virtual bool GetLoopAnimation() const override { return bLoopAnimation; }
+	virtual bool GetStartFromMatchingPose() const override { return bStartFromMatchingPose; }
+
+	// FAnimNode_AssetPlayerBase interface
+	virtual FName GetGroupName() const override { return GroupName; }
+	virtual EAnimGroupRole::Type GetGroupRole() const override { return GroupRole; }
+	virtual EAnimSyncMethod GetGroupMethod() const override { return Method; }
+	virtual bool GetIgnoreForRelevancyTest() const override { return bIgnoreForRelevancyTest; }
+	virtual void SetGroupName(FName InGroupName) override { GroupName = InGroupName; }
+	virtual void SetGroupRole(EAnimGroupRole::Type InRole) override { GroupRole = InRole; }
+	virtual void SetGroupMethod(EAnimSyncMethod InMethod) override { Method = InMethod; }
+	virtual void SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest) override { bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest; }
 };

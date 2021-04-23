@@ -170,7 +170,7 @@ float FAnimNode_SequencePlayerBase::GetEffectiveStartPosition(const FAnimationBa
 
 void FAnimNode_SequencePlayer::SetSequence(UAnimSequenceBase* InSequence)
 {
-#if WITH_EDITORONLY_DATA	
+#if WITH_EDITORONLY_DATA
 	TObjectPtr<UAnimSequenceBase>& SequenceToSet = GET_MUTABLE_ANIM_NODE_DATA(TObjectPtr<UAnimSequenceBase>, Sequence);
 	SequenceToSet = InSequence;
 #endif
@@ -178,9 +178,8 @@ void FAnimNode_SequencePlayer::SetSequence(UAnimSequenceBase* InSequence)
 
 void FAnimNode_SequencePlayer::SetLoopAnimation(bool bInLoopAnimation)
 {
-#if WITH_EDITORONLY_DATA	
-	bool& bValueToSet = GET_MUTABLE_ANIM_NODE_DATA(bool, bLoopAnimation);
-	bValueToSet = bInLoopAnimation;
+#if WITH_EDITORONLY_DATA
+	bLoopAnimation = bInLoopAnimation;
 #endif
 }
 
@@ -219,49 +218,52 @@ bool FAnimNode_SequencePlayer::GetStartFromMatchingPose() const
 	return GET_ANIM_NODE_DATA(bool, bStartFromMatchingPose);
 }
 
-void FAnimNode_SequencePlayer_Standalone::SetSequence(UAnimSequenceBase* InSequence)
+FName FAnimNode_SequencePlayer::GetGroupName() const
 {
-	Sequence = InSequence;
+	return GET_ANIM_NODE_DATA(FName, GroupName);
 }
 
-void FAnimNode_SequencePlayer_Standalone::SetLoopAnimation(bool bInLoopAnimation)
+EAnimGroupRole::Type FAnimNode_SequencePlayer::GetGroupRole() const
 {
-	bLoopAnimation = bInLoopAnimation;
+	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
 }
 
-UAnimSequenceBase* FAnimNode_SequencePlayer_Standalone::GetSequence() const
+EAnimSyncMethod FAnimNode_SequencePlayer::GetGroupMethod() const
 {
-	return Sequence;
+	return GET_ANIM_NODE_DATA(EAnimSyncMethod, Method);
 }
 
-float FAnimNode_SequencePlayer_Standalone::GetPlayRateBasis() const
+bool FAnimNode_SequencePlayer::GetIgnoreForRelevancyTest() const
 {
-	return PlayRateBasis;
+	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
 }
 
-float FAnimNode_SequencePlayer_Standalone::GetPlayRate() const
+void FAnimNode_SequencePlayer::SetGroupName(FName InGroupName)
 {
-	return PlayRate;
+#if WITH_EDITORONLY_DATA
+	GroupName = InGroupName;
+#endif
 }
 
-const FInputScaleBiasClampConstants& FAnimNode_SequencePlayer_Standalone::GetPlayRateScaleBiasClampConstants() const
+void FAnimNode_SequencePlayer::SetGroupRole(EAnimGroupRole::Type InRole)
 {
-	return PlayRateScaleBiasClampConstants;
+#if WITH_EDITORONLY_DATA
+	GroupRole = InRole;
+#endif
 }
 
-float FAnimNode_SequencePlayer_Standalone::GetStartPosition() const
+void FAnimNode_SequencePlayer::SetGroupMethod(EAnimSyncMethod InMethod)
 {
-	return StartPosition;
+#if WITH_EDITORONLY_DATA
+	Method = InMethod;
+#endif
 }
 
-bool FAnimNode_SequencePlayer_Standalone::GetLoopAnimation() const
+void FAnimNode_SequencePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
 {
-	return bLoopAnimation;
-}
-
-bool FAnimNode_SequencePlayer_Standalone::GetStartFromMatchingPose() const
-{
-	return bStartFromMatchingPose;
+#if WITH_EDITORONLY_DATA
+	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

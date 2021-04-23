@@ -234,3 +234,51 @@ UBlendSpace* FAnimNode_BlendSpacePlayer::GetBlendSpace() const
 {
 	return GET_ANIM_NODE_DATA(TObjectPtr<UBlendSpace>, BlendSpace);
 }
+
+FName FAnimNode_BlendSpacePlayer::GetGroupName() const
+{
+	return GET_ANIM_NODE_DATA(FName, GroupName);
+}
+
+EAnimGroupRole::Type FAnimNode_BlendSpacePlayer::GetGroupRole() const
+{
+	return GET_ANIM_NODE_DATA(EAnimGroupRole::Type, GroupRole);
+}
+
+EAnimSyncMethod FAnimNode_BlendSpacePlayer::GetGroupMethod() const
+{
+	return GET_ANIM_NODE_DATA(EAnimSyncMethod, Method);
+}
+
+bool FAnimNode_BlendSpacePlayer::GetIgnoreForRelevancyTest() const
+{
+	return GET_ANIM_NODE_DATA(bool, bIgnoreForRelevancyTest);
+}
+
+void FAnimNode_BlendSpacePlayer::SetGroupName(FName InGroupName)
+{
+#if WITH_EDITORONLY_DATA	
+	GroupName = InGroupName;
+#endif
+}
+
+void FAnimNode_BlendSpacePlayer::SetGroupRole(EAnimGroupRole::Type InRole)
+{
+#if WITH_EDITORONLY_DATA
+	GroupRole = InRole;
+#endif
+}
+
+void FAnimNode_BlendSpacePlayer::SetGroupMethod(EAnimSyncMethod InMethod)
+{
+#if WITH_EDITORONLY_DATA
+	Method = InMethod;
+#endif
+}
+
+void FAnimNode_BlendSpacePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRelevancyTest)
+{
+#if WITH_EDITORONLY_DATA
+	bIgnoreForRelevancyTest = bInIgnoreForRelevancyTest;
+#endif
+}
