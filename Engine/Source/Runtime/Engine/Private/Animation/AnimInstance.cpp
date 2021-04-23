@@ -1374,17 +1374,18 @@ void UAnimInstance::TriggerAnimNotifies(float DeltaSeconds)
 			// AnimNotifyState
 			if (AnimNotifyEvent->NotifyStateClass)
 			{
-				if (!ActiveAnimNotifyState.RemoveSingleSwap(*AnimNotifyEvent, false))
+				int32 ExistingItemIndex = INDEX_NONE;
+
+				if (ActiveAnimNotifyState.Find(*AnimNotifyEvent, ExistingItemIndex))
 				{
-					// Queue up calls to 'NotifyBegin', so they happen after 'NotifyEnd'.
+					check(ActiveAnimNotifyState.Num() == ActiveAnimNotifyEventReference.Num());
+					ActiveAnimNotifyState.RemoveAtSwap(ExistingItemIndex, 1, false); 
+					ActiveAnimNotifyEventReference.RemoveAtSwap(ExistingItemIndex, 1, false);
+				}
+				else
+				{
 					NotifyStateBeginEvent.Add(AnimNotifyEvent);
 					NotifyStateBeginEventReference.Add(&NotifyQueue.AnimNotifies[Index]);
-				}
-				else if(!ActiveAnimNotifyEventReference.IsEmpty())
-				{
-					// Remove the matching Event Reference
-					bool bRemovedEvent = ActiveAnimNotifyEventReference.RemoveSingleSwap(NotifyQueue.AnimNotifies[Index]) ==1;
-					check(bRemovedEvent);
 				}
 
 				NewActiveAnimNotifyState.Add(*AnimNotifyEvent);
