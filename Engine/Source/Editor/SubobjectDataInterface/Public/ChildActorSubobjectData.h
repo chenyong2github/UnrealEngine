@@ -1,0 +1,27 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "InheritedSubobjectData.h"
+
+/**
+ * Container that represents the subobejct data of a child actor component.
+ */
+struct SUBOBJECTDATAINTERFACE_API FChildActorSubobjectData final : public FInheritedSubobjectData
+{
+	explicit FChildActorSubobjectData(UObject* ContextObject, const FSubobjectDataHandle& ParentHandle, const bool InbIsInheritedSCS);
+
+	// FSubobjectData interface
+	virtual FText GetDisplayName() const override;
+	virtual FText GetActorDisplayText() const override;
+	virtual bool IsChildActor() const override;
+	virtual bool CanDelete() const override;
+	virtual bool CanReparent() const override;
+	virtual bool CanDuplicate() const override;
+	// End FSubobjectData
+
+	inline const UChildActorComponent* GetChildActorComponent(bool bEvenIfPendingKill = false) const
+	{
+		return GetObject<UChildActorComponent>(bEvenIfPendingKill);
+	}
+};

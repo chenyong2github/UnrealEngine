@@ -86,7 +86,7 @@ inline bool operator==(const FEdGraphTerminalType& A, const FEdGraphTerminalType
 }
 
 /** Struct used to define the type of information carried on this pin */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FEdGraphPinType
 {
 	GENERATED_USTRUCT_BODY()
