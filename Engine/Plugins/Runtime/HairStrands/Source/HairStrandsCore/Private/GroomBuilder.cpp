@@ -35,6 +35,15 @@ FString FGroomBuilder::GetVersion()
 	return TEXT("1g");
 }
 
+namespace FHairStrandsDecimation
+{
+	void Decimate(
+		const FHairStrandsDatas& InData,
+		float CurveDecimationPercentage,
+		float VertexDecimationPercentage,
+		FHairStrandsDatas& OutData);
+}
+
 namespace HairStrandsBuilder
 {
 	FVector2D SignNotZero(const FVector2D& v)
@@ -1105,7 +1114,10 @@ namespace HairInterpolationBuilder
 	}
 
 	/** Build data for interpolation between simulation and rendering */
-	void BuildRenderData(const FHairStrandsInterpolationDatas& HairInterpolation, const FHairStrandsDatas& SimDatas, FHairStrandsInterpolationBulkData& OutBulkData)
+	void BuildRenderData(
+		const FHairStrandsDatas& SimDatas, 
+		const FHairStrandsInterpolationDatas& HairInterpolation, 
+		FHairStrandsInterpolationBulkData& OutBulkData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::BuildRenderData);
 
@@ -1293,9 +1305,9 @@ private:
 	TArray<FIntVector> GuideIndices;
 };
 
-bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescription, FProcessedHairDescription& Out)
+bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescription, FHairDescriptionGroups& Out)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::ProcessHairDescription);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildHairDescriptionGroups);
 
 	// Convert HairDescription to HairStrandsDatas
 	// For now, just convert HairDescription to HairStrandsDatas
@@ -1346,7 +1358,7 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 	TStrandAttributesConstRef<float> StrandWidths = HairDescription.StrandAttributes().GetAttributesRef<float>(HairAttribute::Strand::Width);
 
 	TStrandAttributesConstRef<FVector2D> StrandRootUV = HairDescription.StrandAttributes().GetAttributesRef<FVector2D>(HairAttribute::Strand::RootUV);
-	Out.bHasUVData = StrandRootUV.IsValid();
+	const bool bHasUVData = StrandRootUV.IsValid();
 
 	TStrandAttributesConstRef<int> StrandGuides = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::Guide);
 	TStrandAttributesConstRef<int> GroupIDs = HairDescription.StrandAttributes().GetAttributesRef<int>(HairAttribute::Strand::GroupID);
@@ -1359,7 +1371,21 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 
 	// To use ClosestGuides and GuideWeights attributes, guides must be imported from HairDescription and
 	// must include StrandID attribute since ClosestGuides references those IDs
-	Out.bCanUseClosestGuidesAndWeights = bImportGuides && StrandIDs.IsValid() && ClosestGuides.IsValid() && GuideWeights.IsValid();
+	const bool bCanUseClosestGuidesAndWeights = bImportGuides && StrandIDs.IsValid() && ClosestGuides.IsValid() && GuideWeights.IsValid();
+
+	auto FindOrAdd = [&Out](int32 GroupID) -> FHairDescriptionGroup&
+	{
+		for (FHairDescriptionGroup& Group : Out.HairGroups)
+		{
+			if (Group.Info.GroupID == GroupID)
+			{
+				return Group;
+			}
+		}
+		FHairDescriptionGroup& Group = Out.HairGroups.AddDefaulted_GetRef();
+		Group.Info.GroupID = GroupID;
+		return Group;
+	};
 
 	int32 GlobalVertexIndex = 0;
 	int32 NumHairPoints = 0;
@@ -1389,23 +1415,21 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 		}
 
 		FHairStrandsDatas* CurrentHairStrandsDatas = nullptr;
-		FProcessedHairDescription::FHairGroup& Group = Out.HairGroups.FindOrAdd(GroupID);
-		FHairGroupInfo& GroupInfo = Group.Key;
-		FHairGroupData& GroupData = Group.Value;
-		GroupInfo.GroupID = GroupID;
+		FHairDescriptionGroup& Group = FindOrAdd(GroupID);
+		check(Group.Info.GroupID == GroupID);
 		if (!bIsGuide)
 		{
 			NumHairPoints += CurveNumVertices;
-			CurrentHairStrandsDatas = &GroupData.Strands.Data;
+			CurrentHairStrandsDatas = &Group.Strands;
 
-			++GroupInfo.NumCurves;
+			++Group.Info.NumCurves;
 		}
 		else if (bImportGuides)
 		{
 			NumGuidePoints += CurveNumVertices;
-			CurrentHairStrandsDatas = &GroupData.Guides.Data;
+			CurrentHairStrandsDatas = &Group.Guides;
 
-			++GroupInfo.NumGuides;
+			++Group.Info.NumGuides;
 		}
 		else
 		{
@@ -1419,7 +1443,7 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 
 		CurrentHairStrandsDatas->StrandsCurves.CurvesCount.Add(CurveNumVertices);
 
-		if (Out.bCanUseClosestGuidesAndWeights)
+		if (bCanUseClosestGuidesAndWeights)
 		{
 			// ClosesGuides needs mapping of StrandID (the strand index in the HairDescription)
 			CurrentHairStrandsDatas->StrandsCurves.StrandIDs.Add(CurveIndex);
@@ -1430,7 +1454,7 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 			CurrentHairStrandsDatas->StrandsCurves.GroomIDToIndex.Add(ImportedGroomID, StrandCurveIndex);
 		}
 
-		if (Out.bHasUVData)
+		if (bHasUVData)
 		{
 			CurrentHairStrandsDatas->StrandsCurves.CurvesRootUV.Add(StrandRootUV[StrandID]);
 		}
@@ -1464,69 +1488,79 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 			CurrentHairStrandsDatas->StrandsPoints.PointsRadius.Add(VertexWidth * 0.5f);
 		}
 	}
+
+	// Sort groups by ascending GroupID
+	Out.HairGroups.Sort([](const FHairDescriptionGroup& A, const FHairDescriptionGroup& B)
+	{
+		return A.Info.GroupID < B.Info.GroupID;
+	});
+
 	// Sparse->Dense Groups
-	FProcessedHairDescription::FHairGroups CompactGroups;
-	int32 GroupIndex = 0;
-	for (auto& HairGroupIt : Out.HairGroups)
+	// Change GroupID to be contiguous
 	{
-		FProcessedHairDescription::FHairGroup& Group = CompactGroups.FindOrAdd(GroupIndex);
-		Group = HairGroupIt.Value;
-
-		FHairGroupInfo& GroupInfo = Group.Key;
-		FHairGroupData& GroupData = Group.Value;
-
-		GroupInfo.GroupID = GroupIndex;
-
-		++GroupIndex;
-	}
-	Out.HairGroups = CompactGroups;
-	return true;
-}
-
-bool FGroomBuilder::BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset)
-{
-	if (!GroomAsset)
-	{
-		return false;
-	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildGroom);
-
-	FProcessedHairDescription ProcessedHairDescription;
-	if (!ProcessHairDescription(HairDescription, ProcessedHairDescription))
-	{
-		return false;
-	}
-
-	const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
-	const uint32 GroupCount = ProcessedHairDescription.HairGroups.Num();
-	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
-	{
-		bool bSucceed = BuildGroom(ProcessedHairDescription, GroomAsset, GroupIndex);
-		if (!bSucceed)
+		int32 GroupIndex = 0;
+		for (FHairDescriptionGroup& Group : Out.HairGroups)
 		{
-			return false;
+			Group.Info.GroupID = GroupIndex++;
+			Group.bCanUseClosestGuidesAndWeights = bCanUseClosestGuidesAndWeights;
+			Group.bHasUVData = bHasUVData;
 		}
-		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius, GroupIndex);
+	}
+
+	// Compute bound radius
+	{
+		FVector GroomBoundMin(FLT_MAX);
+		FVector GroomBoundMax(-FLT_MAX);
+		for (const FHairDescriptionGroup& Group : Out.HairGroups)
+		{
+			GroomBoundMin.X = FMath::Min(GroomBoundMin.X, Group.Strands.BoundingBox.Min.X);
+			GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, Group.Strands.BoundingBox.Min.Y);
+			GroomBoundMin.Z = FMath::Min(GroomBoundMin.Z, Group.Strands.BoundingBox.Min.Z);
+
+			GroomBoundMax.X = FMath::Max(GroomBoundMax.X, Group.Strands.BoundingBox.Max.X);
+			GroomBoundMax.Y = FMath::Max(GroomBoundMax.Y, Group.Strands.BoundingBox.Max.Y);
+			GroomBoundMax.Z = FMath::Max(GroomBoundMax.Z, Group.Strands.BoundingBox.Max.Z);
+		}
+
+		Out.BoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
+	}
+
+	// Update GroupInfo
+	for (FHairDescriptionGroup& Group : Out.HairGroups)
+	{
+		// Sanity check
+		check(Group.Strands.GetNumCurves() == Group.Info.NumCurves);
+		check(Group.Guides.GetNumCurves() == Group.Info.NumGuides);
+
+		// Update infos
+		Group.Info.NumCurveVertices = Group.Strands.GetNumPoints();
+		Group.Info.NumGuideVertices = Group.Guides.GetNumPoints();
+
+		// Prepare/Resize all attributes based on position/curves counts
+		Group.Strands.StrandsPoints.SetNum(Group.Strands.GetNumPoints());
+		Group.Strands.StrandsCurves.SetNum(Group.Strands.GetNumCurves());
+
+		// Prepare/Resize all attributes based on position/curves counts
+		Group.Guides.StrandsPoints.SetNum(Group.Guides.GetNumPoints());
+		Group.Guides.StrandsCurves.SetNum(Group.Guides.GetNumCurves());
 	}
 
 	return true;
 }
 
-bool FGroomBuilder::BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex)
+void FGroomBuilder::BuildData(FHairStrandsDatas& OutStrands)
 {
-	if (!GroomAsset)
-	{
-		return false;
-	}
+	HairStrandsBuilder::BuildInternalData(OutStrands, false);
+}
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildGroom);
-
-	const uint32 GroupCount = ProcessedHairDescription.HairGroups.Num();
-	check(GroupIndex < GroupCount);
-	check(uint32(GroomAsset->GetNumHairGroups()) == GroupCount);
-
-	const FHairGroupsInterpolation& InSettings = GroomAsset->HairGroupsInterpolation[GroupIndex];
+void FGroomBuilder::BuildData(
+	const FHairDescriptionGroup& InHairDescriptionGroup, 
+	const FHairGroupsInterpolation& InSettings, 
+	FHairGroupInfo& OutGroupInfo, 
+	FHairStrandsDatas& OutRen,
+	FHairStrandsDatas& OutSim)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildData);
 
 	// Sanitize decimation values. Do not update the 'InSettings' values directly as this would change 
 	// the groom asset and thus would change the DDC key
@@ -1534,158 +1568,119 @@ bool FGroomBuilder::BuildGroom(FProcessedHairDescription& ProcessedHairDescripti
 	const float VertexDecimation	= FMath::Clamp(InSettings.DecimationSettings.VertexDecimation, 0.f, 1.f);
 	const float HairToGuideDensity	= FMath::Clamp(InSettings.InterpolationSettings.HairToGuideDensity, 0.f, 1.f);	
 
-	for (TPair<int32, FProcessedHairDescription::FHairGroup>& HairGroupIt : ProcessedHairDescription.HairGroups)
 	{
-		int32 GroupID = HairGroupIt.Key;
-		if (GroupIndex != GroupID)
-		{
-			continue;
-		}
-
-		FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
-		FHairGroupInfo& GroupInfo = Group.Key;
-		FHairGroupData& GroupData = Group.Value;
+		OutGroupInfo.GroupID = InHairDescriptionGroup.Info.GroupID;
 
 		// Rendering data
 		{
-			FHairStrandsDatas& RenData = GroupData.Strands.Data;
+			OutRen = InHairDescriptionGroup.Strands;
 
-			const int32 RenGroupNumCurves = RenData.StrandsCurves.Num();
-			RenData.StrandsCurves.SetNum(RenGroupNumCurves);
-			GroupInfo.NumCurves = RenGroupNumCurves;
-
-			const int32 RenGroupNumPoints = RenData.StrandsPoints.Num();
-			RenData.StrandsPoints.SetNum(RenGroupNumPoints);
-
-			HairStrandsBuilder::BuildInternalData(RenData, !ProcessedHairDescription.bHasUVData);
+			HairStrandsBuilder::BuildInternalData(OutRen, !InHairDescriptionGroup.bHasUVData);
 
 			// Decimate
 			if (CurveDecimation < 1 || VertexDecimation < 1)
 			{
-				FHairStrandsDatas FullData = RenData;
-				RenData.Reset();
-				Decimate(FullData, CurveDecimation, VertexDecimation, RenData);
+				FHairStrandsDatas FullData = OutRen;
+				OutRen.Reset();
+				FHairStrandsDecimation::Decimate(FullData, CurveDecimation, VertexDecimation, OutRen);
 			}
+			OutGroupInfo.NumCurves			= OutRen.GetNumCurves();
+			OutGroupInfo.NumCurveVertices	= OutRen.GetNumPoints();
+
+			// Sanity check
+			check(OutGroupInfo.NumCurves		<= InHairDescriptionGroup.Info.NumCurves);
+			check(OutGroupInfo.NumCurveVertices <= InHairDescriptionGroup.Info.NumCurveVertices);
+
 		}
 
 		// Simulation data
 		{
-			FHairStrandsDatas& SimData = GroupData.Guides.Data;
-			const int32 SimGroupNumGuides = SimData.StrandsCurves.Num();
-
-			if (SimGroupNumGuides > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
+			OutSim = InHairDescriptionGroup.Guides;
+			if (InHairDescriptionGroup.Info.NumCurves > 0 && !InSettings.InterpolationSettings.bOverrideGuides)
 			{
-				GroupInfo.NumGuides = SimGroupNumGuides;
-				SimData.StrandsCurves.SetNum(SimGroupNumGuides);
-
-				const int32 GroupNumPoints = SimData.StrandsPoints.Num();
-				SimData.StrandsPoints.SetNum(GroupNumPoints);
-
-				HairStrandsBuilder::BuildInternalData(SimData, true); // Imported guides don't currently have root UVs so force computing them
+				HairStrandsBuilder::BuildInternalData(OutSim, true); // Imported guides don't currently have root UVs so force computing them
 			}
 			else
 			{
-				SimData.Reset();
-				Decimate(GroupData.Strands.Data, HairToGuideDensity, 1, SimData);
+				OutSim.Reset();
+				FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, OutSim);
 			}
-		}
-	}
 
-	for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : ProcessedHairDescription.HairGroups)
-	{
-		int32 GroupID = HairGroupIt.Key;
-		if (GroupIndex != GroupID)
-		{
-			continue;
-		}
+			OutGroupInfo.NumGuides			= OutSim.GetNumCurves();
+			OutGroupInfo.NumGuideVertices	= OutSim.GetNumPoints();
 
-		FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
-		FHairGroupInfo& GroupInfo = Group.Key;
-		FHairGroupData& GroupData = Group.Value;
-		GroomAsset->HairGroupsData[GroupIndex] = MoveTemp(GroupData);
+			// Sanity check
+			check(OutGroupInfo.NumCurves		<= InHairDescriptionGroup.Info.NumCurves);
+			check(OutGroupInfo.NumCurveVertices <= InHairDescriptionGroup.Info.NumCurveVertices);
+		}
 	}
 
 	// If there's usable closest guides and guide weights attributes, fill them into the asset
 	// This step requires the HairSimulationData (guides) to be filled prior to this
-	// TODO
-	//if (ProcessedHairDescription.bCanUseClosestGuidesAndWeights)
+	//if (InHairDescriptionGroup.bCanUseClosestGuidesAndWeights)
 	//{
 	//	HairInterpolationBuilder::FillInterpolationData(GroomAsset, HairDescription);
 	//}
-
-	
-	FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIndex];
-	BuildData(GroupData, InSettings, GroupIndex);
-
-	return true;
 }
 
-void FGroomBuilder::BuildData(UGroomAsset* GroomAsset)
+void FGroomBuilder::BuildBulkData(
+	const FHairGroupInfo& InInfo,
+	const FHairStrandsDatas& InData,
+	FHairStrandsBulkData& OutBulkData)
 {
-	if (!GroomAsset)
+	const int32 NumCurves = InData.GetNumCurves();
+	FRandomStream Random;
+	Random.Initialize(InInfo.GroupID);
+	TArray<uint8> CurveSeeds;
+	CurveSeeds.SetNumUninitialized(NumCurves);
+	for (int32 Index = 0; Index < NumCurves; ++Index)
 	{
-		return;
+		CurveSeeds[Index] = Random.RandHelper(255);
 	}
-
-	TRACE_CPUPROFILER_EVENT_SCOPE(FGroomBuilder::BuildData);
-
-	for (int32 Index = 0, GroupCount = GroomAsset->GetNumHairGroups(); Index < GroupCount; ++Index)
-	{
-		FHairGroupsInterpolation& IntepolationSettings = GroomAsset->HairGroupsInterpolation[Index];
-		FHairGroupData& GroupData = GroomAsset->HairGroupsData[Index];
-		BuildData(GroupData, IntepolationSettings, Index);
-	}
+	HairStrandsBuilder::BuildRenderData(InData, CurveSeeds, OutBulkData);
 }
 
-void FGroomBuilder::BuildData(
-	const FHairStrandsDatas& RenData,
-	const FHairStrandsDatas& SimData,
-	FHairStrandsBulkData& RenBulkData,
-	FHairStrandsBulkData& SimBulkData,
-	FHairStrandsInterpolationDatas& InterpolationData,
-	FHairStrandsInterpolationBulkData& InterpolationBulkData,
-	const FHairInterpolationSettings& InterpolationSettings,
-	const bool bBuildRen,
-	const bool bBuildSim,
-	const bool bBuildInterpolation,
-	uint32 Seed)
+void FGroomBuilder::BuildInterplationData(
+	const FHairGroupInfo& InInfo,
+	const FHairStrandsDatas& InRenData,
+	const FHairStrandsDatas& InSimData,
+	const FHairInterpolationSettings& InInterpolationSettings,
+	FHairStrandsInterpolationDatas& OutInterpolationData)
 {
-	// Sanity check
-	check(RenData.GetNumCurves() > 0);
-	check(SimData.GetNumCurves() > 0);
-
-	// Precompute the random values used to build the data
-	// In particular, BuildInterpolationData needs this because it parallelizes its computation
-	FGroomDataRandomizer Random(Seed, RenData.GetNumCurves(), SimData.GetNumCurves());
-
-	// Build RenderData for HairStrandsDatas
-	if (bBuildRen) { HairStrandsBuilder::BuildRenderData(RenData, Random.GetRenderCurveSeeds(),	RenBulkData); }
-	if (bBuildSim) { HairStrandsBuilder::BuildRenderData(SimData, Random.GetSimCurveSeeds(),	SimBulkData); }
-
 	// Build Rendering data for InterpolationData
-	if (bBuildInterpolation)
+	// Build InterpolationData from render and simulation HairStrandsDatas
+	// Skip building if interpolation data was provided by the source file
+	if (OutInterpolationData.Num() == 0)
 	{
-		// Build InterpolationData from render and simulation HairStrandsDatas
-		// Skip building if interpolation data was provided by the source file
-		if (InterpolationData.Num() == 0)
+		// This randomization makes certain strands being affected by 1, 2, or 3 guides
+		FRandomStream Random;
+		Random.Initialize(InInfo.GroupID);
+		const int32 NumRenderCurves = InRenData.GetNumCurves();
+		TArray<FIntVector> GuideIndices;
+		GuideIndices.SetNumUninitialized(NumRenderCurves);
+		for (int32 Index = 0; Index < NumRenderCurves; ++Index)
 		{
-			HairInterpolationBuilder::BuildInterpolationData(InterpolationData, SimData, RenData, InterpolationSettings, Random.GetRandomGuideIndices());
+			FIntVector& RandomIndices = GuideIndices[Index];
+			for (int GuideIndex = 0; GuideIndex < HairInterpolationBuilder::FMetrics::Count; ++GuideIndex)
+			{
+				RandomIndices[GuideIndex] = Random.RandRange(0, HairInterpolationBuilder::FMetrics::Count - 1);
+			}
 		}
-		HairInterpolationBuilder::BuildRenderData(InterpolationData, SimData, InterpolationBulkData);
+
+		HairInterpolationBuilder::BuildInterpolationData(OutInterpolationData, InSimData, InRenData, InInterpolationSettings, GuideIndices);
 	}
 }
 
-void FGroomBuilder::BuildData(FHairGroupData& GroupData, const FHairGroupsInterpolation& InSettings, uint32 GroupIndex)
+void FGroomBuilder::BuildInterplationBulkData(
+	const FHairStrandsDatas& InSimData,
+	const FHairStrandsInterpolationDatas& InInterpolationData,
+	FHairStrandsInterpolationBulkData& OutInterpolationData)
 {
-	BuildData(
-		GroupData.Strands.Data,
-		GroupData.Guides.Data,
-		GroupData.Strands.BulkData,
-		GroupData.Guides.BulkData,
-		GroupData.Strands.InterpolationData,
-		GroupData.Strands.InterpolationBulkData,
-		InSettings.InterpolationSettings, true, true, true, GroupIndex);
+	HairInterpolationBuilder::BuildRenderData(InSimData, InInterpolationData, OutInterpolationData);
 }
+
+namespace FHairStrandsDecimation
+{
 
 inline uint32 DecimatePointCount(uint32 InCount, float InDecimationFactor)
 {
@@ -1731,7 +1726,7 @@ static void DecimateCurve(
 	}
 }
 
-void FGroomBuilder::Decimate(
+void Decimate(
 	const FHairStrandsDatas& InData, 
 	float CurveDecimationPercentage, 
 	float VertexDecimationPercentage, 
@@ -1840,6 +1835,7 @@ void FGroomBuilder::Decimate(
 
 	HairStrandsBuilder::BuildInternalData(OutData, false);
 }
+} // namespace FHairStrandsDecimation
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2042,48 +2038,7 @@ inline uint32 to10Bits(float V)
 	return FMath::Clamp(uint32(V * 1024), 0u, 1023u);
 }
 
-float FGroomBuilder::ComputeGroomBoundRadius(const FProcessedHairDescription& Description)
-{
-	FVector GroomBoundMin(FLT_MAX);
-	FVector GroomBoundMax(-FLT_MAX);
-	for (auto& Group : Description.HairGroups)
-	{
-		const FHairGroupData::FStrands& Strands = Group.Value.Value.Strands;
-		GroomBoundMin.X = FMath::Min(GroomBoundMin.X, Strands.Data.BoundingBox.Min.X);
-		GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, Strands.Data.BoundingBox.Min.Y);
-		GroomBoundMin.Z = FMath::Min(GroomBoundMin.Z, Strands.Data.BoundingBox.Min.Z);
-
-		GroomBoundMax.X = FMath::Max(GroomBoundMax.X, Strands.Data.BoundingBox.Max.X);
-		GroomBoundMax.Y = FMath::Max(GroomBoundMax.Y, Strands.Data.BoundingBox.Max.Y);
-		GroomBoundMax.Z = FMath::Max(GroomBoundMax.Z, Strands.Data.BoundingBox.Max.Z);
-	}
-
-	const float GroomBoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
-	return GroomBoundRadius;
-}
-
-float FGroomBuilder::ComputeGroomBoundRadius(const TArray<FHairGroupData>& HairGroupsData)
-{
-	// Compute the bounding box of all the groups. This is used for scaling LOD sceensize 
-	// for each group & cluster respectively to their relative size
-	FVector GroomBoundMin(FLT_MAX);
-	FVector GroomBoundMax(-FLT_MAX);
-	for (const FHairGroupData& LocalGroupData : HairGroupsData)
-	{
-		GroomBoundMin.X = FMath::Min(GroomBoundMin.X, LocalGroupData.Strands.Data.BoundingBox.Min.X);
-		GroomBoundMin.Y = FMath::Min(GroomBoundMin.Y, LocalGroupData.Strands.Data.BoundingBox.Min.Y);
-		GroomBoundMin.Z = FMath::Min(GroomBoundMin.Z, LocalGroupData.Strands.Data.BoundingBox.Min.Z);
-
-		GroomBoundMax.X = FMath::Max(GroomBoundMax.X, LocalGroupData.Strands.Data.BoundingBox.Max.X);
-		GroomBoundMax.Y = FMath::Max(GroomBoundMax.Y, LocalGroupData.Strands.Data.BoundingBox.Max.Y);
-		GroomBoundMax.Z = FMath::Max(GroomBoundMax.Z, LocalGroupData.Strands.Data.BoundingBox.Max.Z);
-	}
-
-	const float GroomBoundRadius = FVector::Distance(GroomBoundMax, GroomBoundMin) * 0.5f;
-	return GroomBoundRadius;
-}
-
-static void InternalBuildClusterData(
+void FGroomBuilder::BuildClusterData(
 	const FHairStrandsDatas& InRenStrandsData,
 	const float InGroomAssetRadius, 
 	const FHairGroupsLOD& InSettings, 
@@ -2494,52 +2449,5 @@ static void InternalBuildClusterData(
 		}
 	}
 }
-
-void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const float GroomBoundRadius)
-{
-	if (GroomAsset)
-	{
-		const uint32 GroupCount = GroomAsset->HairGroupsData.Num();
-		for (uint32 GroupIt = 0; GroupIt < GroupCount; GroupIt++)
-		{
-			FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
-			InternalBuildClusterData(
-				GroupData.Strands.Data,
-				GroomBoundRadius,
-				GroomAsset->HairGroupsLOD[GroupIt],
-				GroupData.Strands.ClusterCullingData);
-		}
-	}
-}
-void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const float GroomBoundRadius, uint32 GroupIndex)
-{
-	if (GroomAsset)
-	{
-		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIndex];
-		InternalBuildClusterData(
-			GroupData.Strands.Data,
-			GroomBoundRadius,
-			GroomAsset->HairGroupsLOD[GroupIndex],
-			GroupData.Strands.ClusterCullingData);
-	}
-}
-
-void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription)
-{
-	if (GroomAsset)
-	{
-		const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
-		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius);
-	}
-}
-void FGroomBuilder::BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription, uint32 GroupIndex)
-{
-	if (GroomAsset)
-	{
-		const float GroomBoundRadius = FGroomBuilder::ComputeGroomBoundRadius(ProcessedHairDescription);
-		FGroomBuilder::BuildClusterData(GroomAsset, GroomBoundRadius, GroupIndex);
-	}
-}
-
 
 #undef LOCTEXT_NAMESPACE

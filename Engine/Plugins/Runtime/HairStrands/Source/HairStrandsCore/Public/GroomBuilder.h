@@ -11,45 +11,71 @@ struct FHairStrandsDatas;
 struct FHairStrandsClusterCullingData;
 struct FHairGroupsLOD;
 struct FHairGroupData;
-struct FProcessedHairDescription;
+struct FHairDescriptionGroups;
 struct FHairGroupsInterpolation;
 struct FHairStrandsInterpolationDatas;
 struct FHairInterpolationSettings;
 struct FHairStrandsBulkData;
 struct FHairStrandsInterpolationBulkData;
+struct FHairDescriptionGroup;
+struct FHairGroupInfo;
 class FHairDescription;
 class UGroomAsset;
 
+// Data flow overview
+// ==================
+// HairDescription -> HairDescriptionGroups -> HairStrandsData -> HairStrandsBulkData*
+//															   -> HairStrandsInterpolationData ->HairStrandsInterpolationBulkData*
+//															   -> HairStrandsClusterData*
+//
+// * Data used at runtime. Other type of data are intermediate data used only during building/within the editor
 struct HAIRSTRANDSCORE_API FGroomBuilder
 {
 	static FString GetVersion();
 
-	static bool ProcessHairDescription(const FHairDescription& HairDescription, FProcessedHairDescription& Out);
-	static void Decimate(const FHairStrandsDatas& InData, float CurveDecimationPercentage, float VertexDecimationPercentage, FHairStrandsDatas& OutData);
+	// 1. Build hair group based on the hair description
+	static bool BuildHairDescriptionGroups(
+		const FHairDescription& HairDescription, 
+		FHairDescriptionGroups& Out);
 
-	static void BuildData(FHairGroupData& GroupData, const FHairGroupsInterpolation& InterpolationSettings, uint32 GroupIndex);
-	static void BuildData(UGroomAsset* GroomAsset);
+	// 2.a Build FHairStrandsDatas for Strands & Guides, based on HairDescriptionGroups and DecimationSettings
 	static void BuildData(
-		const FHairStrandsDatas& RenData,
-		const FHairStrandsDatas& SimData,
-		FHairStrandsBulkData& RenBulkData,
-		FHairStrandsBulkData& SimBulkData,
-		FHairStrandsInterpolationDatas& InterpolationData,
-		FHairStrandsInterpolationBulkData& InterpolationBulkData,
-		const FHairInterpolationSettings& InterpolationSettings,
-		const bool bBuildRen,
-		const bool bBuildSim,
-		const bool bBuildInterpolation,
-		uint32 Seed);
+		const FHairDescriptionGroup& InHairDescriptionGroup,
+		const FHairGroupsInterpolation& InSettings,
+		FHairGroupInfo& OutGroupInfo,
+		FHairStrandsDatas& OutStrands,
+		FHairStrandsDatas& OutGuides);
 
-	static bool BuildGroom(FProcessedHairDescription& ProcessedHairDescription, UGroomAsset* GroomAsset, uint32 GroupIndex);
-	static bool BuildGroom(const FHairDescription& HairDescription, UGroomAsset* GroomAsset);
+	// 2.b Build FHairStrandsDatas for Strands or Guides. 
+	// This version:
+	// * Suppose OutStrands already contains curves & points data. 
+	// * Compute only offset data/bounding box/max length/max radius/...
+	static void BuildData(FHairStrandsDatas& OutStrands);
 
-	static float ComputeGroomBoundRadius(const FProcessedHairDescription& Description);
-	static float ComputeGroomBoundRadius(const TArray<FHairGroupData>& HairGroupsData);
+	// 3. Build bulk data for Strands / Guides
+	static void BuildBulkData(
+		const FHairGroupInfo& InInfo,
+		const FHairStrandsDatas& InData,
+		FHairStrandsBulkData& OutBulkData);
 
-	static void BuildClusterData(UGroomAsset* GroomAsset, const float InGroomAssetRadius);
-	static void BuildClusterData(UGroomAsset* GroomAsset, const float InGroomAssetRadius, uint32 GroupIndex);
-	static void BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription);
-	static void BuildClusterData(UGroomAsset* GroomAsset, const FProcessedHairDescription& ProcessedHairDescription, uint32 GroupIndex);
+	// 4. Build interplation data based on the hairStrands data
+	static void BuildInterplationData(
+		const FHairGroupInfo& InInfo,
+		const FHairStrandsDatas& InRenData,
+		const FHairStrandsDatas& InSimData,
+		const FHairInterpolationSettings& InInterpolationSettings,
+		FHairStrandsInterpolationDatas& OutInterpolationData);
+
+	// 5. Build interplation bulk data
+	static void BuildInterplationBulkData(
+		const FHairStrandsDatas& InSimData,
+		const FHairStrandsInterpolationDatas& InInterpolationData,
+		FHairStrandsInterpolationBulkData& OutInterpolationData);
+
+	// 6. Build cluster data
+	static void BuildClusterData(
+		const FHairStrandsDatas& InRenData,
+		const float InGroomAssetRadius,
+		const FHairGroupsLOD& InSettings,
+		FHairStrandsClusterCullingData& OutClusterCullingData);
 };

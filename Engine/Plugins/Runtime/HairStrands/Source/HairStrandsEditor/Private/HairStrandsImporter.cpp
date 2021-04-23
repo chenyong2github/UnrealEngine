@@ -44,7 +44,6 @@ UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportCo
 	OutHairAsset->CommitHairDescription(MoveTemp(HairDescription));
 
 	// Populate the interpolation settings with the new settings from the importer	
-	FProcessedHairDescription ProcessedHairDescription;
 	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
 	{
 		// Insure the interpolation settings matches between the importer and the actual asset

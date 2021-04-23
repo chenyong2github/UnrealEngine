@@ -277,14 +277,21 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 	bool bIsCookedOut = false;
 };
 
-struct FProcessedHairDescription
+struct FHairDescriptionGroup
 {
-	typedef TPair<FHairGroupInfo, FHairGroupData> FHairGroup;
-	typedef TMap<int32, FHairGroup> FHairGroups;
-	FHairGroups HairGroups;
-	bool bCanUseClosestGuidesAndWeights = false;
-	bool bHasUVData = false;
-	bool IsValid() const;
+	FHairGroupInfo		Info;
+	FHairStrandsDatas	Strands;
+	FHairStrandsDatas	Guides;
+
+	bool  bCanUseClosestGuidesAndWeights = false;
+	bool  bHasUVData = false;
+};
+
+struct FHairDescriptionGroups
+{
+	TArray<FHairDescriptionGroup> HairGroups;
+	float BoundRadius = 0;
+	bool  IsValid() const;
 };
 
 USTRUCT(BlueprintType)
@@ -501,7 +508,7 @@ private:
 	FHairStrandsRaytracingResource*		AllocateCardsRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
 	FHairStrandsRaytracingResource*		AllocateMeshesRaytracingResources(uint32 GroupIndex, uint32 LODIndex);
 	FHairStrandsRaytracingResource*		AllocateStrandsRaytracingResources(uint32 GroupIndex);
-#endif
+#endif // RHI_RAYTRACING
 	friend class UGroomComponent;
 
 #if WITH_EDITORONLY_DATA
@@ -518,9 +525,9 @@ public:
 	/** Caches the computed (group) groom data with the given build settings from/to the Derived Data Cache, building it if needed.
 	 *  This function assumes the interpolation settings are properly populated, as they will be used to build the asset.
 	 */
-	bool CacheDerivedData(uint32 GroupIndex, FProcessedHairDescription& ProcessedHairDescription);
 	bool CacheDerivedDatas();
-	bool CacheStrandsData(uint32 GroupIndex, FProcessedHairDescription& ProcessedHairDescription, FString& OutDerivedDataKey);
+	bool CacheDerivedData(uint32 GroupIndex);
+	bool CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey);
 	bool CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKey);
 	bool CacheMeshesGeometry(uint32 GroupIndex);
 
@@ -530,10 +537,12 @@ public:
 	FString GetDerivedDataKeyForMeshes(uint32 GroupIndex);
 
 private:
+	const FHairDescriptionGroups& GetHairDescriptionGroups();
 	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const;
 	bool IsFullyCached();
 	TUniquePtr<FHairDescription> HairDescription;
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;
+	TUniquePtr<FHairDescriptionGroups> HairDescriptionGroups;
 
 	// Transient property for visualizing the groom in a certain debug mode. This is used by the groom editor
 	EHairStrandsDebugMode DebugMode = EHairStrandsDebugMode::NoneDebug;
@@ -544,7 +553,7 @@ private:
 
 	TStrongObjectPtr<UGroomAsset> GroomAssetStrongPtr;
 	bool bRetryLoadFromGameThread = false;
-#endif
+#endif // WITH_EDITORONLY_DATA
 	bool bIsInitialized = false;
 
 #if WITH_EDITOR
@@ -565,5 +574,5 @@ private:
 	// Queue of procedural assets which needs to be saved
 	TQueue<UStaticMesh*> AssetToSave_Meshes;
 	TQueue<FHairGroupCardsTextures*> AssetToSave_Textures;
-#endif
+#endif // WITH_EDITOR
 };

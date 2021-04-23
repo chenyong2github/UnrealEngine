@@ -75,7 +75,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
 	{
 		// Load the alembic file upfront to preview & report any potential issue
-		FProcessedHairDescription OutDescription;
+		FHairDescriptionGroups OutDescription;
 		{
 			FScopedSlowTask Progress((float)1, LOCTEXT("ImportHairAssetForPreview", "Importing hair asset for preview..."), true);
 			Progress.MakeDialog(true);
@@ -86,7 +86,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 				return nullptr;
 			}
 
-			FGroomBuilder::ProcessHairDescription(HairDescription, OutDescription);
+			FGroomBuilder::BuildHairDescriptionGroups(HairDescription, OutDescription);
 		
 			// Populate the interpolation settings based on the group count, as this is used later during the ImportHair() to define 
 			// the exact number of group to create
@@ -100,16 +100,12 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		// Convert the process hair description into hair groups
 		UGroomHairGroupsPreview* GroupsPreview = NewObject<UGroomHairGroupsPreview>();
 		{
-			uint32 GroupIndex = 0;
-			for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : OutDescription.HairGroups)
+			for (const FHairDescriptionGroup& Group : OutDescription.HairGroups)
 			{
-				const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
-				const FHairGroupInfo& GroupInfo = Group.Key;
-
 				FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
-				OutGroup.GroupID = GroupInfo.GroupID;
-				OutGroup.CurveCount = GroupInfo.NumCurves;
-				OutGroup.GuideCount = GroupInfo.NumGuides;
+				OutGroup.GroupID	= Group.Info.GroupID;
+				OutGroup.CurveCount = Group.Info.NumCurves;
+				OutGroup.GuideCount = Group.Info.NumGuides;
 
 				if (OutGroup.GroupID < OutDescription.HairGroups.Num())
 				{				

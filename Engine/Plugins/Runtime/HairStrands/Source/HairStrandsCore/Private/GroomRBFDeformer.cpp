@@ -376,8 +376,38 @@ static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& Deforme
 		VertexPositions[VertexID] = FlattenedDeformedPositions[VertexIndex];
 	}
 
-	FGroomBuilder::BuildGroom(HairDescription, GroomAsset);
-	FGroomBuilder::BuildClusterData(GroomAsset, FGroomBuilder::ComputeGroomBoundRadius(GroomAsset->HairGroupsData));
+	{
+		FHairDescriptionGroups HairDescriptionGroups;
+		FGroomBuilder::BuildHairDescriptionGroups(HairDescription, HairDescriptionGroups);
+
+		const int32 GroupCount = GroomAsset->HairGroupsInterpolation.Num();
+		check(HairDescriptionGroups.HairGroups.Num() == GroupCount);
+		for (int32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+		{
+			const bool bIsValid = HairDescriptionGroups.IsValid();
+			if (bIsValid)
+			{
+				const FHairDescriptionGroup& HairGroup = HairDescriptionGroups.HairGroups[GroupIndex];
+				check(GroupIndex <= HairDescriptionGroups.HairGroups.Num());
+				check(GroupIndex == HairGroup.Info.GroupID);
+				const FHairInterpolationSettings& InterpolationSettings = GroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings;
+				const FHairGroupsLOD& HairGroupLOD = GroomAsset->HairGroupsLOD[GroupIndex];
+
+				FHairGroupInfo& HairGroupsInfo = GroomAsset->HairGroupsInfo[GroupIndex];
+				FHairGroupData& HairGroupsData = GroomAsset->HairGroupsData[GroupIndex];
+
+				FGroomBuilder::BuildData(HairGroup, GroomAsset->HairGroupsInterpolation[GroupIndex], HairGroupsInfo, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data);
+
+				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Guides.Data,  HairGroupsData.Guides.BulkData);
+				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Strands.BulkData);
+
+				FGroomBuilder::BuildInterplationData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data, InterpolationSettings, HairGroupsData.Strands.InterpolationData);
+				FGroomBuilder::BuildInterplationBulkData(HairGroupsData.Guides.Data, HairGroupsData.Strands.InterpolationData, HairGroupsData.Strands.InterpolationBulkData);
+
+				FGroomBuilder::BuildClusterData(HairGroupsData.Strands.Data, HairDescriptionGroups.BoundRadius, HairGroupLOD, HairGroupsData.Strands.ClusterCullingData);
+			}
+		}
+	}
 	
 	GroomAsset->CommitHairDescription(MoveTemp(HairDescription));
 	GroomAsset->UpdateHairGroupsInfo();
@@ -469,8 +499,8 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 
 		// Use the vertices positions from the HairDescription instead of the GroomAsset since the latter
 		// may contain decimated or auto-generated guides depending on the import settings
-		FProcessedHairDescription ProcessedHairDescription;
-		FGroomBuilder::ProcessHairDescription(InGroomAsset->GetHairDescription(), ProcessedHairDescription);
+		FHairDescriptionGroups HairDescriptionGroups;
+		FGroomBuilder::BuildHairDescriptionGroups(InGroomAsset->GetHairDescription(), HairDescriptionGroups);
 
 		TArray<FRBFDeformedPositions> DeformedPositions;
 		DeformedPositions.SetNum(NumGroups);
@@ -484,17 +514,17 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 		// Note that the GroupID from the HairGroups cannot be used as the GroupIndex since 
 		// the former may not be strictly increasing nor consecutive
 		// but the ordering of the groups does represent the GroupIndex		
-		int32 GroupIndex = 0;
-		for (FProcessedHairDescription::FHairGroups::TConstIterator GroupIt = ProcessedHairDescription.HairGroups.CreateConstIterator(); GroupIt; ++GroupIt)
+		for (const FHairDescriptionGroup& Group : HairDescriptionGroups.HairGroups)
 		{
-			const FHairGroupData& OriginalHairGroupData = GroupIt->Value.Value;
+			const uint32 GroupIndex = Group.Info.GroupID;
+			const FHairStrandsDatas& OriginalGuides = Group.Guides;
 			const FHairGroupData& HairGroupData = InGroomAsset->HairGroupsData[GroupIndex];
 
 			// Get deformed guides
 			// If the groom override the value, we output dummy value for the guides, since they won't be used
 			if (InGroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides)
 			{
-				const uint32 OriginalVertexCount = OriginalHairGroupData.Guides.Data.StrandsPoints.Num();
+				const uint32 OriginalVertexCount = OriginalGuides.StrandsPoints.Num();
 				DeformedPositions[GroupIndex].GuideStrands.Init(FVector::ZeroVector, OriginalVertexCount);
 			}
 			else
@@ -516,8 +546,6 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 				SkeletalMeshData_Target,
 				BindingAsset->HairGroupDatas[GroupIndex].RenRootData.VertexToCurveIndexBuffer,
 				BindingAsset->HairGroupDatas[GroupIndex].RenRootData.MeshProjectionLODs[MeshLODIndex]);
-
-			++GroupIndex;
 		}
 
 		// Apply changes onto cards and meshes (OutGroomASset already contain duplicated mesh asset
