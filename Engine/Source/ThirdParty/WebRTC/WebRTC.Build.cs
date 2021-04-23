@@ -106,10 +106,6 @@ public class WebRTC : ModuleRules
 
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
 
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "protobuf_full.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "protobuf_lite.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "protoc_lib.lib"));
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "system_wrappers.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
