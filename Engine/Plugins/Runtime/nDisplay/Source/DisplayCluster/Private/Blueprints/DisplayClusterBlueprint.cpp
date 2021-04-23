@@ -2,7 +2,9 @@
 
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
+#include "Containers/Set.h"
 #include "DisplayClusterRootActor.h"
+#include "EngineAnalytics.h"
 #include "IDisplayClusterConfiguration.h"
 #include "Misc/DisplayClusterLog.h"
 
@@ -43,14 +45,51 @@ void UDisplayClusterBlueprint::UpdateConfigExportProperty()
 	}
 }
 
-void UDisplayClusterBlueprint::Serialize(FArchive& Ar)
+namespace DisplayClusterBlueprint
 {
-	if (Ar.IsSaving())
+	void SendAnalytics(const FString& EventName, const UDisplayClusterConfigurationData* const ConfigData)
 	{
-		UpdateConfigExportProperty();
-	}
+		if (!FEngineAnalytics::IsAvailable())
+		{
+			return;
+		}
 
-	Super::Serialize(Ar);
+		// Gather attributes related to this config
+		TArray<FAnalyticsEventAttribute> EventAttributes;
+
+		if (ConfigData)
+		{
+			if (ConfigData->Cluster)
+			{
+				// Number of Nodes
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumNodes"), ConfigData->Cluster->Nodes.Num()));
+
+				// Number of Viewports
+				TSet<FString> UniquelyNamedViewports;
+
+				for (auto NodesIt = ConfigData->Cluster->Nodes.CreateConstIterator(); NodesIt; ++NodesIt)
+				{
+					for (auto ViewportsIt = ConfigData->Cluster->Nodes.CreateConstIterator(); ViewportsIt; ++ViewportsIt)
+					{
+						UniquelyNamedViewports.Add(ViewportsIt->Key);
+					}
+				}
+
+				// Number of uniquely named viewports
+				EventAttributes.Add(FAnalyticsEventAttribute(TEXT("NumUniquelyNamedViewports"), UniquelyNamedViewports.Num()));
+			}
+		}
+
+		FEngineAnalytics::GetProvider().RecordEvent(EventName, EventAttributes);
+	}
+}
+
+void UDisplayClusterBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	UpdateConfigExportProperty();
+	DisplayClusterBlueprint::SendAnalytics(TEXT("Usage.nDisplay.ConfigSaved"), ConfigData);
 }
 
 UDisplayClusterBlueprintGeneratedClass* UDisplayClusterBlueprint::GetGeneratedClass() const
