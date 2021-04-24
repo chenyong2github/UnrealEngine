@@ -664,7 +664,7 @@ protected:
 	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;
 
 	/** Populate the dynamic particle data for the render thread. */
-	FGeometryCollectionDynamicData* InitDynamicData();
+	FGeometryCollectionDynamicData* InitDynamicData(bool bInitialization);
 
 	/** Reset the dynamic collection from the current rest state. */
 	void ResetDynamicCollection();
