@@ -112,9 +112,6 @@ public:
 	virtual void PostLoad() override;
 	//~ End UMeshComponent Interface.
 
-	/** Return the guide hairs datas */
-	FHairStrandsDatas* GetGuideStrandsDatas(uint32 GroupIndex);
-
 	/** Return the guide hairs rest resources*/
 	FHairStrandsRestResource* GetGuideStrandsRestResource(uint32 GroupIndex);
 

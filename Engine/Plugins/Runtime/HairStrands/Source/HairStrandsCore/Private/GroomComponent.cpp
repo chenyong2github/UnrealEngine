@@ -1533,20 +1533,6 @@ UMaterialInterface* UGroomComponent::GetMaterial(int32 ElementIndex) const
 	return GetMaterial(ElementIndex, GeometryType, true);
 }
 
-FHairStrandsDatas* UGroomComponent::GetGuideStrandsDatas(uint32 GroupIndex)
-{
-	if (!GroomAsset || GroupIndex >= uint32(GroomAsset->GetNumHairGroups()))
-	{
-		return nullptr;
-	}
-
-	if (!GroomAsset->HairGroupsData[GroupIndex].Guides.HasValidData())
-	{
-		return nullptr;
-	}
-	return &GroomAsset->HairGroupsData[GroupIndex].Guides.Data;
-}
-
 FHairStrandsRestResource* UGroomComponent::GetGuideStrandsRestResource(uint32 GroupIndex)
 {
 	if (!GroomAsset || GroupIndex >= uint32(GroomAsset->GetNumHairGroups()))

@@ -23,7 +23,7 @@ struct FNDIHairStrandsData;
 struct FNDIHairStrandsBuffer : public FRenderResource
 {
 	/** Set the asset that will be used to affect the buffer */
-	void Initialize(const FHairStrandsDatas*  HairStrandsDatas, 
+	void Initialize(
 		const FHairStrandsRestResource*  HairStrandsRestResource, 
 		const FHairStrandsDeformedResource*  HairStrandsDeformedResource, 
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource, 
@@ -31,7 +31,7 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 		const TStaticArray<float, 32 * NumScales>& InParamsScale);  
 
 	/** Set the asset that will be used to affect the buffer */
-	void Update(const FHairStrandsDatas* HairStrandsDatas,
+	void Update(
 		const FHairStrandsRestResource* HairStrandsRestResource,
 		const FHairStrandsDeformedResource* HairStrandsDeformedResource,
 		const FHairStrandsRestRootResource* HairStrandsRestRootResource,
@@ -60,9 +60,6 @@ struct FNDIHairStrandsBuffer : public FRenderResource
 
 	/** Params scale buffer */
 	FRWBuffer ParamsScaleBuffer;
-
-	/** The strand asset datas from which to sample */
-	const FHairStrandsDatas* SourceDatas;
 
 	/** The strand asset resource from which to sample */
 	const FHairStrandsRestResource* SourceRestResources;
@@ -97,7 +94,7 @@ struct FNDIHairStrandsData
 	void Release();
 
 	/** Update the buffers */
-	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld);
+	void Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsBulkData* HairStrandsDatas, UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld);
 
 	inline void ResetDatas()
 	{
@@ -365,7 +362,6 @@ public:
 	/** Extract datas and resources */
 	void ExtractDatasAndResources(
 		FNiagaraSystemInstance* SystemInstance, 
-		FHairStrandsDatas*& OutStrandsDatas,
 		FHairStrandsRestResource*& OutStrandsRestResource, 
 		FHairStrandsDeformedResource*& OutStrandsDeformedResource, 
 		FHairStrandsRestRootResource*& OutStrandsRestRootResource, 

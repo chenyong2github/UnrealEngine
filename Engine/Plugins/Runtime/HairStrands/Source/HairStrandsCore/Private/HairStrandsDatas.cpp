@@ -241,30 +241,8 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar)
 
 	Ar << Positions;
 	Ar << Attributes;
-
-	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::HairStrandsVertexFormatChange && Ar.IsLoading())
-	{
-		check(Positions.Num() == Attributes.Num());
-		const uint32 VertexCount = Positions.Num();
-		for (uint32 VertexIt = 0; VertexIt < VertexCount; ++VertexIt)
-		{
-			// Prior to FUE5ReleaseStreamObjectVersion::HairStrandsVertexFormatChange, UCoord and NormalizedLength were swapped
-			const uint8 UCoord = Attributes[VertexIt].NormalizedLength;
-			const uint8 NormalizedLength = Positions[VertexIt].UCoord;
-			Attributes[VertexIt].NormalizedLength = NormalizedLength;
-			Positions[VertexIt].UCoord = UCoord;
-		}
-	}
-
-	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
-	{
-		Ar << Materials;
-	}
-	else
-	{
-		const uint32 ElementCount = Attributes.Num();
-		Materials.InsertZeroed(0, ElementCount);
-	}
+	Ar << Materials;
+	Ar << CurveOffsets;
 }
 
 void FHairStrandsDatas::Serialize(FArchive& Ar, FHairStrandsBulkData& BulkData)

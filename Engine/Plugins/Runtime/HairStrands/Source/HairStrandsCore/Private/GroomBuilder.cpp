@@ -32,7 +32,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("1g");
+	return TEXT("1hc");
 }
 
 namespace FHairStrandsDecimation
@@ -225,10 +225,12 @@ namespace HairStrandsBuilder
 		TArray<FHairStrandsPositionFormat::Type>& OutPackedPositions = OutBulkData.Positions;
 		TArray<FHairStrandsAttributeFormat::Type>& OutPackedAttributes = OutBulkData.Attributes;
 		TArray<FHairStrandsMaterialFormat::Type>& OutPackedMaterials = OutBulkData.Materials;
+		TArray<FHairStrandsRootIndexFormat::Type>& OutCurveOffsets = OutBulkData.CurveOffsets;
 
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
 		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
+		OutCurveOffsets.SetNum(NumCurves);
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -281,6 +283,7 @@ namespace HairStrandsBuilder
 				Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
 				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 			}
+			OutCurveOffsets[CurveIndex] = IndexOffset;
 		}
 
 		OutBulkData.BoundingBox = HairStrands.BoundingBox;

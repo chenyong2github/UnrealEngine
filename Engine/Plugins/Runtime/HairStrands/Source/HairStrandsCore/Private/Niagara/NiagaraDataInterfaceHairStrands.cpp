@@ -290,14 +290,12 @@ struct FNDIHairStrandsParametersName
 //------------------------------------------------------------------------------------------------------------
 
 void FNDIHairStrandsBuffer::Initialize(
-	const FHairStrandsDatas*  HairStrandsDatas,
 	const FHairStrandsRestResource* HairStrandsRestResource,
 	const FHairStrandsDeformedResource*  HairStrandsDeformedResource,
 	const FHairStrandsRestRootResource* HairStrandsRestRootResource,
 	const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource,
 	const TStaticArray<float, 32 * NumScales>& InParamsScale)
 {
-	SourceDatas = HairStrandsDatas;
 	SourceRestResources = HairStrandsRestResource;
 	SourceDeformedResources = HairStrandsDeformedResource;
 	SourceRestRootResources = HairStrandsRestRootResource;
@@ -307,13 +305,11 @@ void FNDIHairStrandsBuffer::Initialize(
 }
 
 void FNDIHairStrandsBuffer::Update(
-	const FHairStrandsDatas* HairStrandsDatas,
 	const FHairStrandsRestResource* HairStrandsRestResource,
 	const FHairStrandsDeformedResource* HairStrandsDeformedResource,
 	const FHairStrandsRestRootResource* HairStrandsRestRootResource,
 	const FHairStrandsDeformedRootResource* HairStrandsDeformedRootResource)
 {
-	SourceDatas = HairStrandsDatas;
 	SourceRestResources = HairStrandsRestResource;
 	SourceDeformedResources = HairStrandsDeformedResource;
 	SourceRestRootResources = HairStrandsRestRootResource;
@@ -322,7 +318,7 @@ void FNDIHairStrandsBuffer::Update(
 
 void FNDIHairStrandsBuffer::Transfer(const TStaticArray<float, 32 * NumScales>& InParamsScale)
 {
-	if (SourceDatas != nullptr && SourceRestResources != nullptr)
+	if (SourceRestResources != nullptr)
 	{
 		const uint32 ScaleCount = 32 * NumScales;
 		const uint32 ScaleBytes = sizeof(float) * ScaleCount;
@@ -335,8 +331,9 @@ void FNDIHairStrandsBuffer::Transfer(const TStaticArray<float, 32 * NumScales>& 
 
 void FNDIHairStrandsBuffer::InitRHI()
 {
-	if (SourceDatas != nullptr && SourceRestResources != nullptr)
+	if (SourceRestResources != nullptr)
 	{
+		const FHairStrandsBulkData* SourceDatas = &SourceRestResources->BulkData;
 		{
 			const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
 			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
@@ -344,7 +341,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 			CurvesOffsetsBuffer.Initialize(TEXT("CurvesOffsetsBuffer"), sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
 			void* OffsetBufferData = RHILockBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
 
-			FMemory::Memcpy(OffsetBufferData, SourceDatas->StrandsCurves.CurvesOffset.GetData(), OffsetBytes);
+			FMemory::Memcpy(OffsetBufferData, SourceDatas->CurveOffsets.GetData(), OffsetBytes);
 			RHIUnlockBuffer(CurvesOffsetsBuffer.Buffer);
 		}
 		{
@@ -419,7 +416,7 @@ void FNDIHairStrandsData::Release()
 	}
 }
 
-void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsDatas* StrandsDatas,
+void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FNiagaraSystemInstance* SystemInstance, const FHairStrandsBulkData* StrandsDatas,
 	UGroomAsset* GroomAsset, const int32 GroupIndex, const int32 LODIndex, const FTransform& LocalToWorld)
 {
 	if (Interface != nullptr)
@@ -493,7 +490,6 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 
 	if (Interface != nullptr)
 	{
-		FHairStrandsDatas* StrandsDatas = nullptr;
 		FHairStrandsRestResource* StrandsRestResource = nullptr;
 		FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
 		FHairStrandsRestRootResource* StrandsRestRootResource = nullptr;
@@ -504,11 +500,11 @@ bool FNDIHairStrandsData::Init(UNiagaraDataInterfaceHairStrands* Interface, FNia
 
 		{
 			FTransform LocalToWorld = FTransform::Identity;
-			Interface->ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
-			Update(Interface, SystemInstance, StrandsDatas, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+			Interface->ExtractDatasAndResources(SystemInstance, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+			Update(Interface, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
 
 			HairStrandsBuffer = new FNDIHairStrandsBuffer();
-			HairStrandsBuffer->Initialize(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, ParamsScale);
+			HairStrandsBuffer->Initialize(StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, ParamsScale);
 
 			BeginInitResource(HairStrandsBuffer);
 
@@ -928,7 +924,6 @@ void UNiagaraDataInterfaceHairStrands::ExtractSourceComponent(FNiagaraSystemInst
 
 void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 	FNiagaraSystemInstance* SystemInstance,
-	FHairStrandsDatas*& OutStrandsDatas,
 	FHairStrandsRestResource*& OutStrandsRestResource,
 	FHairStrandsDeformedResource*& OutStrandsDeformedResource,
 	FHairStrandsRestRootResource*& OutStrandsRestRootResource,
@@ -940,7 +935,6 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 {
 	ExtractSourceComponent(SystemInstance);
 
-	OutStrandsDatas = nullptr;
 	OutStrandsRestResource = nullptr;
 	OutStrandsDeformedResource = nullptr;
 	OutStrandsRestRootResource = nullptr;
@@ -966,7 +960,6 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 		}
 		if (OutGroupIndex >= 0 && OutGroupIndex < SourceComponent->NiagaraComponents.Num())
 		{
-			OutStrandsDatas = SourceComponent->GetGuideStrandsDatas(OutGroupIndex);
 			OutStrandsRestResource = SourceComponent->GetGuideStrandsRestResource(OutGroupIndex);
 			OutStrandsDeformedResource = SourceComponent->GetGuideStrandsDeformedResource(OutGroupIndex);
 			OutStrandsRestRootResource = SourceComponent->GetGuideStrandsRestRootResource(OutGroupIndex);
@@ -983,7 +976,6 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 		OutLocalToWorld = FTransform::Identity;
 		if (OutGroupIndex < DefaultSource->GetNumHairGroups())
 		{
-			OutStrandsDatas = &DefaultSource->HairGroupsData[OutGroupIndex].Strands.Data;
 			OutStrandsRestResource = DefaultSource->HairGroupsData[OutGroupIndex].Strands.RestResource;
 			OutGroomAsset = DefaultSource;
 		}
@@ -1029,7 +1021,6 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 {
 	FNDIHairStrandsData* InstanceData = static_cast<FNDIHairStrandsData*>(PerInstanceData);
 
-	FHairStrandsDatas* StrandsDatas = nullptr;
 	FHairStrandsRestResource* StrandsRestResource = nullptr;
 	FHairStrandsDeformedResource* StrandsDeformedResource = nullptr;
 	FHairStrandsRestRootResource* StrandsRestRootResource = nullptr;
@@ -1041,8 +1032,8 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 	InstanceData->TickCount = FMath::Min(GHairSimulationMaxDelay + 1, InstanceData->TickCount + 1);
 
 	FTransform LocalToWorld = FTransform::Identity;
-	ExtractDatasAndResources(SystemInstance, StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
-	InstanceData->HairStrandsBuffer->Update(StrandsDatas, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource);
+	ExtractDatasAndResources(SystemInstance, StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+	InstanceData->HairStrandsBuffer->Update(StrandsRestResource, StrandsDeformedResource, StrandsRestRootResource, StrandsDeformedRootResource);
 
 	if (SourceComponent != nullptr)
 	{
@@ -1053,7 +1044,7 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 		}
 		InstanceData->ForceReset = bRequiresReset;
 	}
-	InstanceData->Update(this, SystemInstance, StrandsDatas, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
+	InstanceData->Update(this, SystemInstance, StrandsRestResource ? &StrandsRestResource->BulkData : nullptr, GroomAsset, GroupIndex, LODIndex, LocalToWorld);
 	return false;
 }
 

@@ -417,10 +417,10 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	float MaxRadius = 0;
 	FBox BoundingBox;
 
-	TArray<FHairStrandsPositionFormat::Type>	Positions;
-	TArray<FHairStrandsAttributeFormat::Type>	Attributes;
-	TArray<FHairStrandsMaterialFormat::Type>	Materials;
-	TArray<FHairStrandsRootIndexFormat::Type>	RootIndices; // Vertex to strands Index
+	TArray<FHairStrandsPositionFormat::Type>	Positions;		// Size = PointCount
+	TArray<FHairStrandsAttributeFormat::Type>	Attributes;		// Size = PointCount
+	TArray<FHairStrandsMaterialFormat::Type>	Materials;		// Size = PointCount
+	TArray<FHairStrandsRootIndexFormat::Type>	CurveOffsets;	// Size = CurveCount  - Store the root point index for the curve
 };
 
 /** Hair strands debug data */
