@@ -138,7 +138,8 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			{
 				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
 				return VertexFactory[Index];
-			} 
+			}
+			void InitVertexFactory();
 
 		};
 		TArray<FLOD> LODs;
@@ -173,6 +174,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
 				return VertexFactory[Index];
 			}
+			void InitVertexFactory();
 		};
 		TArray<FLOD> LODs;
 	} Meshes;

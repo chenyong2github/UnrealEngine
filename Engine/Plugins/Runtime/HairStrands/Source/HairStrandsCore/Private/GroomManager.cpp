@@ -43,6 +43,24 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FHairGroupInstance::FCards::FLOD::InitVertexFactory()
+{
+	VertexFactory[0]->InitResources();
+	if (DeformedResource)
+	{
+		VertexFactory[1]->InitResources();
+	}
+}
+
+void FHairGroupInstance::FMeshes::FLOD::InitVertexFactory()
+{
+	VertexFactory[0]->InitResources();
+	if (DeformedResource)
+	{
+		VertexFactory[1]->InitResources();
+	}
+}
+
 static bool IsInstanceFrustumCullingEnable()
 {
 	return GHairStrands_InterpolationFrustumCullingEnable > 0;
@@ -630,7 +648,7 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 			if (InstanceLOD.RaytracingResource)	InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
 			#endif
 
-			InstanceLOD.GetVertexFactory()->InitResources();
+			InstanceLOD.InitVertexFactory();
 		}
 		else if (GeometryType == EHairGeometryType::Cards)
 		{
@@ -642,7 +660,7 @@ static void RunHairLODSelection(FRDGBuilder& GraphBuilder, const FHairStrandsIns
 			#if RHI_RAYTRACING
 			if (InstanceLOD.RaytracingResource)				InstanceLOD.RaytracingResource->Allocate(GraphBuilder);
 			#endif
-			InstanceLOD.GetVertexFactory()->InitResources();
+			InstanceLOD.InitVertexFactory();
 		}
 		else if (GeometryType == EHairGeometryType::Strands)
 		{
