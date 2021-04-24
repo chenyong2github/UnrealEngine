@@ -451,7 +451,8 @@ class DevicenDisplay(DeviceUnreal):
         # Overridden classes at runtime
         ini_engine = "-ini:Engine"\
             ":[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine"\
-            ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"
+            ",[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient"\
+            ",[/Script/Engine.UserInterfaceSettings]:bAllowHighDPIInGameMode=True"
 
         ini_game = "-ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 
