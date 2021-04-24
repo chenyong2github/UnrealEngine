@@ -1489,12 +1489,6 @@ bool FGroomBuilder::BuildHairDescriptionGroups(const FHairDescription& HairDescr
 		}
 	}
 
-	// Sort groups by ascending GroupID
-	Out.HairGroups.Sort([](const FHairDescriptionGroup& A, const FHairDescriptionGroup& B)
-	{
-		return A.Info.GroupID < B.Info.GroupID;
-	});
-
 	// Sparse->Dense Groups
 	// Change GroupID to be contiguous
 	{
