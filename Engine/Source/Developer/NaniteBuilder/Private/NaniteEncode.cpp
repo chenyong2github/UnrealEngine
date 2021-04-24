@@ -690,6 +690,14 @@ static int32 CalculateQuantizedPositionsUniformGrid(TArray< FCluster >& Clusters
 		}
 		double AvgLogSize = TotalNum > 0 ? TotalLogSize / TotalNum : 0.0;
 		PositionPrecision = 7 - FMath::RoundToInt(AvgLogSize);
+
+		// Clamp precision. The user now needs to explicitly opt-in to the lowest precision settings.
+		// These settings are likely to cause issues and contribute little to disk size savings (~0.4% on test project),
+		// so we shouldn't pick them automatically.
+		// Example: A very low resolution road or building frame that needs little precision to look right in isolation,
+		// but still requires fairly high precision in a scene because smaller meshes are placed on it or in it.
+		const int32 AUTO_MIN_PRECISION = 4;	// 1/16cm
+		PositionPrecision = FMath::Max(PositionPrecision, AUTO_MIN_PRECISION);
 	}
 
 	float QuantizationScale = FMath::Exp2((float)PositionPrecision);
@@ -1427,8 +1435,9 @@ static void EncodeGeometryData(	const uint32 LocalClusterIndex, const FCluster& 
 			uint32 PackedUV = PackedUVs[ NumClusterVerts * TexCoordIndex + VertexIndex ];
 			BitWriter_Attribute.PutBits(PackedUV, TexCoordBits[TexCoordIndex]);
 		}
-		BitWriter_Attribute.Flush(sizeof(uint32));
+		BitWriter_Attribute.Flush(1);
 	}
+	BitWriter_Attribute.Flush(sizeof(uint32));
 #endif
 }
 
@@ -2022,11 +2031,11 @@ static void WritePages(	FResources& Resources,
 			uint8* AttribData = PagePointer.GetPtr<uint8>();
 			for (uint32 i = 0; i < Page.NumClusters; i++)
 			{
-				const uint32 BytesPerAttribute = (PackedClusters[i].GetBitsPerAttribute() + 31) / 32 * 4;
-
+				const uint32 BytesPerAttribute = (PackedClusters[i].GetBitsPerAttribute() + 7) / 8;
 				ClusterDiskHeaders[i].AttributeDataOffset = PagePointer.Offset();
-				PagePointer.Advance<uint8>(CodedVerticesPerCluster[i] * BytesPerAttribute);
+				PagePointer.Advance<uint8>(Align(CodedVerticesPerCluster[i] * BytesPerAttribute, 4));
 			}
+			check((uint32)(PagePointer.GetPtr<uint8>() - AttribData) == CombinedAttributeData.Num() * CombinedAttributeData.GetTypeSize());
 			FMemory::Memcpy(AttribData, CombinedAttributeData.GetData(), CombinedAttributeData.Num()* CombinedAttributeData.GetTypeSize());
 		}
 
