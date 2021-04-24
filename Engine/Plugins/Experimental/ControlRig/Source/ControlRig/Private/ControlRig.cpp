@@ -998,10 +998,10 @@ void UControlRig::SetVM(URigVM* NewVM)
 	
 	if (NewVM)
 	{
-		if (!NewVM->ExecutionReachedExit().IsBoundToObject(this))
-		{
-			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
-		}
+// 		if (!NewVM->ExecutionReachedExit().IsBoundToObject(this))
+// 		{
+// 			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
+// 		}
 	}
 
 	VM = NewVM;
