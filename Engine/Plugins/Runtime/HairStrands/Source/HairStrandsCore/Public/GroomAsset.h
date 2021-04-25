@@ -171,7 +171,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			{
 				uint32 Total = 0;
 				if (RestResource) Total += RestResource->GetResourcesSize();
-				if (ProceduralResource) Total += ProceduralResource->GetResourcesSize();
 				if (InterpolationResource) Total += InterpolationResource->GetResourcesSize();
 				#if RHI_RAYTRACING
 				if (RaytracingResource) Total += RaytracingResource->GetResourcesSize();
@@ -186,10 +185,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			FHairCardsDatas						Data;
 			FHairCardsBulkData					BulkData;
 			FHairCardsRestResource*				RestResource = nullptr;
-
-			// Procedural data & resources
-			FHairCardsProceduralDatas			ProceduralData;
-			FHairCardsProceduralResource*		ProceduralResource = nullptr;
 
 			// Interpolation data & resources
 			FHairCardsInterpolationBulkData		InterpolationBulkData;

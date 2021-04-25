@@ -620,7 +620,6 @@ void UGroomAsset::ReleaseResource()
 		for (FHairGroupData::FCards::FLOD& LOD : GroupData.Cards.LODs)
 		{
 			InternalReleaseResource(LOD.RestResource);
-			InternalReleaseResource(LOD.ProceduralResource);
 			InternalReleaseResource(LOD.InterpolationResource);
 			InternalReleaseResource(LOD.Guides.RestResource);
 			InternalReleaseResource(LOD.Guides.InterpolationResource);
@@ -2012,7 +2011,6 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 
 			// 0. Release geometry resources
 			InternalReleaseResource(LOD.RestResource);
-			InternalReleaseResource(LOD.ProceduralResource);
 			InternalReleaseResource(LOD.InterpolationResource);
 			InternalReleaseResource(LOD.Guides.RestResource);
 			InternalReleaseResource(LOD.Guides.InterpolationResource);
