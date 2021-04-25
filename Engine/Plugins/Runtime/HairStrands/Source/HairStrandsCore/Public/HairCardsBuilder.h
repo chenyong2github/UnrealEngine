@@ -54,12 +54,10 @@ namespace FHairMeshesBuilder
 	void BuildGeometry(
 		const struct FHairStrandsDatas& In,
 		const struct FHairStrandsDatas& InSim,
-		FHairMeshesDatas& Out,
 		FHairMeshesBulkData& OutBulk);
 
 	void ImportGeometry(
 		const UStaticMesh* StaticMesh,
-		FHairMeshesDatas& Out,
 		FHairMeshesBulkData& OutBulk);
 
 	FString GetVersion();

@@ -439,7 +439,6 @@ struct FHairMeshesDatas
 	bool IsValid() const { return Meshes.Positions.Num() > 0; }
 
 	FHairMeshes Meshes;
-	void Serialize(FArchive& Ar, FHairMeshesBulkData& InBulkData);
 };
 
 struct FHairMeshesBulkData

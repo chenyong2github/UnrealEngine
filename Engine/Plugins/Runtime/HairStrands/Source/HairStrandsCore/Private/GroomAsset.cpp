@@ -1121,14 +1121,13 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FMeshes::FLOD& MeshLODData)
 {
 	if (!Ar.IsCooking() || !MeshLODData.bIsCookedOut)
 	{
-		MeshLODData.Data.Serialize(Ar, MeshLODData.BulkData);
+		MeshLODData.BulkData.Serialize(Ar);
 	}
 	else
 	{
 		// LOD has been marked to be cooked out so serialize empty data
-		FHairMeshesDatas NoMeshesData;
 		FHairMeshesBulkData NoMeshesBulkData;
-		NoMeshesData.Serialize(Ar, NoMeshesBulkData);
+		NoMeshesBulkData.Serialize(Ar);
 	}
 
 	return Ar;
@@ -1331,7 +1330,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("FCAFECFFD02A4509A0D86775505E97F2")
+#define GROOM_DERIVED_DATA_VERSION TEXT("81DC2B98E96241E2BDFC03DE84A6A8DD")
 
 #if WITH_EDITORONLY_DATA
 
@@ -2177,7 +2176,7 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 		int32 SourceIt = 0;
 		if (const FHairGroupsMeshesSourceDescription* Desc = GetSourceDescription(HairGroupsMeshes, GroupIndex, LODIt, SourceIt))
 		{
-			bIsAlreadyBuilt[LODIt] = GroupData.Meshes.LODs.IsValidIndex(LODIt) && GroupData.Meshes.LODs[LODIt].Data.Meshes.GetNumVertices() > 0 && !Desc->HasMeshChanged();
+			bIsAlreadyBuilt[LODIt] = GroupData.Meshes.LODs.IsValidIndex(LODIt) && GroupData.Meshes.LODs[LODIt].BulkData.GetNumVertices() > 0 && !Desc->HasMeshChanged();
 			bHasChanged |= !bIsAlreadyBuilt[LODIt];
 		}
 	}
@@ -2256,7 +2255,6 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 				Desc->ImportedMesh->ConditionalPostLoad();
 				FHairMeshesBuilder::ImportGeometry(
 					Desc->ImportedMesh,
-					LOD.Data,
 					LOD.BulkData);
 			}
 			else
@@ -2265,7 +2263,6 @@ bool UGroomAsset::BuildMeshesGeometry(uint32 GroupIndex)
 				FHairMeshesBuilder::BuildGeometry(
 					GroupData.Strands.Data,
 					GroupData.Guides.Data,
-					LOD.Data,
 					LOD.BulkData);
 			}
 
@@ -2369,7 +2366,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(u
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		FHairGroupData::FMeshes::FLOD& LOD = GroupData.Meshes.LODs[LODIndex];
-		check(LOD.Data.IsValid());
+		check(LOD.BulkData.IsValid());
 
 		if (LOD.RaytracingResource == nullptr)
 		{

@@ -250,7 +250,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool HasValidData() const { return BulkData.IsValid(); }
 			bool IsValid() const { return BulkData.IsValid() && RestResource != nullptr; }
 
-			FHairMeshesDatas Data;
 			FHairMeshesBulkData BulkData;
 			FHairMeshesRestResource* RestResource = nullptr;
 			#if RHI_RAYTRACING

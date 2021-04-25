@@ -78,42 +78,12 @@ FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationVertex& CardInterpVert
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairMeshes& HairMesh)
-{
-	Ar << HairMesh.UVs;
-	Ar << HairMesh.Normals;
-	Ar << HairMesh.Tangents;
-	Ar << HairMesh.Positions;
-	Ar << HairMesh.Indices;
-
-	// Bounds should be serialized
-	if (Ar.IsLoading())
-	{
-		HairMesh.BoundingBox.Init();
-		for (const FVector& P : HairMesh.Positions)
-		{
-			HairMesh.BoundingBox += P;
-		}
-	}
-
-	return Ar;
-}
-
-void FHairMeshesDatas::Serialize(FArchive& Ar, FHairMeshesBulkData& InBulkData)
-{
-	Ar << Meshes;
-	InBulkData.Serialize(Ar);
-	if (Ar.IsLoading())
-	{
-		InBulkData.BoundingBox = Meshes.BoundingBox;
-	}
-}
-
 void FHairMeshesBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Positions;
 	Ar << Normals;
 	Ar << UVs;
 	Ar << Indices;
+	Ar << BoundingBox;
 }
 

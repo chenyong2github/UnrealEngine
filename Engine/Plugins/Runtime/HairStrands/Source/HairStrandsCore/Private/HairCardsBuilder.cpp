@@ -3904,7 +3904,6 @@ FString GetVersion()
 void BuildGeometry(
 	const FHairStrandsDatas& InRen,
 	const FHairStrandsDatas& InSim,
-	FHairMeshesDatas& Out,
 	FHairMeshesBulkData& OutBulk)
 {
 	const FVector Center = InRen.BoundingBox.GetCenter();
@@ -3913,6 +3912,8 @@ void BuildGeometry(
 	// Simple (incorrect normal/tangent) cube geomtry in place of the hair rendering
 	const uint32 TotalPointCount = 8;
 	const uint32 TotalIndexCount = 36;
+
+	FHairMeshesDatas Out;
 
 	Out.Meshes.Positions.SetNum(TotalPointCount);
 	Out.Meshes.Normals.SetNum(TotalPointCount);
@@ -4026,9 +4027,10 @@ void BuildGeometry(
 
 void ImportGeometry(
 	const UStaticMesh* StaticMesh,
-	FHairMeshesDatas& Out,
 	FHairMeshesBulkData& OutBulk)
 {
+	FHairMeshesDatas Out;
+
 	const uint32 MeshLODIndex = 0;
 
 	// Note: if there are multiple section we only import the first one. Support for multiple section could be added later on. 
