@@ -174,33 +174,7 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Interpolation0;
 	Ar << Interpolation1;
-	// TODO add here SimRootIndices serializaztion once changed.
-//	Ar << SimRootPointIndex;
-}
-
-void FHairStrandsInterpolationDatas::Serialize(FArchive& Ar, FHairStrandsInterpolationBulkData& BulkData)
-{
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-	Ar << PointsSimCurvesVertexWeights;
-	Ar << PointsSimCurvesVertexIndex;
-	Ar << PointsSimCurvesIndex;
-
-	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion3)
-	{
-		Ar << PointsSimCurvesVertexLerp;
-	}
-	else if (Ar.IsLoading())
-	{
-		const uint32 ElmentCount = PointsSimCurvesVertexIndex.Num();
-		PointsSimCurvesVertexLerp.SetNum(ElmentCount);
-		for (FVector& S : PointsSimCurvesVertexLerp)
-		{
-			S = FVector::ZeroVector;
-		}
-	}
-
-	BulkData.Serialize(Ar);
+	Ar << SimRootPointIndex;
 }
 
 void FHairStrandsPoints::Serialize(FArchive& Ar)

@@ -211,8 +211,9 @@ static bool BuildHairGroup(
 		FGroomBuilder::BuildBulkData(HairGroup.Info, OutHairGroupsData[GroupIndex].Guides.Data, OutHairGroupsData[GroupIndex].Guides.BulkData);
 		FGroomBuilder::BuildBulkData(HairGroup.Info, OutHairGroupsData[GroupIndex].Strands.Data, OutHairGroupsData[GroupIndex].Strands.BulkData);
 
-		FGroomBuilder::BuildInterplationData(HairGroup.Info, OutHairGroupsData[GroupIndex].Strands.Data, OutHairGroupsData[GroupIndex].Guides.Data, HairGroupsInterpolation[GroupIndex].InterpolationSettings, OutHairGroupsData[GroupIndex].Strands.InterpolationData);
-		FGroomBuilder::BuildInterplationBulkData(OutHairGroupsData[GroupIndex].Guides.Data, OutHairGroupsData[GroupIndex].Strands.InterpolationData, OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData);
+		FHairStrandsInterpolationDatas InterpolationData;
+		FGroomBuilder::BuildInterplationData(HairGroup.Info, OutHairGroupsData[GroupIndex].Strands.Data, OutHairGroupsData[GroupIndex].Guides.Data, HairGroupsInterpolation[GroupIndex].InterpolationSettings, InterpolationData);
+		FGroomBuilder::BuildInterplationBulkData(OutHairGroupsData[GroupIndex].Guides.Data, InterpolationData, OutHairGroupsData[GroupIndex].Strands.InterpolationBulkData);
 
 		FGroomBuilder::BuildClusterData(OutHairGroupsData[GroupIndex].Strands.Data, HairDescriptionGroups.BoundRadius, HairGroupsLOD[GroupIndex], OutHairGroupsData[GroupIndex].Strands.ClusterCullingData);
 	}
@@ -1094,10 +1095,10 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 	if (!Ar.IsCooking() || !CardLODData.bIsCookedOut)
 	{
 		CardLODData.Data.Serialize(Ar, CardLODData.BulkData);
-		CardLODData.InterpolationData.Serialize(Ar, CardLODData.InterpolationBulkData);
+		CardLODData.InterpolationBulkData.Serialize(Ar);
 
 		CardLODData.Guides.Data.Serialize(Ar, CardLODData.Guides.BulkData);
-		CardLODData.Guides.InterpolationData.Serialize(Ar, CardLODData.Guides.InterpolationBulkData);
+		CardLODData.Guides.InterpolationBulkData.Serialize(Ar);
 	}
 	else
 	{
@@ -1106,13 +1107,12 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 		FHairCardsBulkData NoCardsBulkData;
 		NoCardsData.Serialize(Ar, NoCardsBulkData);
 
-		FHairCardsInterpolationDatas NoInterpolationData;
 		FHairCardsInterpolationBulkData NoInterpolationBulkData;
-		NoInterpolationData.Serialize(Ar, NoInterpolationBulkData);
+		NoInterpolationBulkData.Serialize(Ar);
 
 		FHairGroupData::FBaseWithInterpolation NoGuideData;
 		NoGuideData.Data.Serialize(Ar, NoGuideData.BulkData);
-		NoGuideData.InterpolationData.Serialize(Ar, NoGuideData.InterpolationBulkData);
+		NoGuideData.InterpolationBulkData.Serialize(Ar);
 	}
 
 	return Ar;
@@ -1144,7 +1144,7 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 	{
 		GroupData.Strands.Data.Serialize(Ar, GroupData.Strands.BulkData);
 		GroupData.Guides.Data.Serialize(Ar, GroupData.Guides.BulkData);
-		GroupData.Strands.InterpolationData.Serialize(Ar, GroupData.Strands.InterpolationBulkData);
+		GroupData.Strands.InterpolationBulkData.Serialize(Ar);
 
 	}
 	else
@@ -1154,7 +1154,7 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData& GroupData)
 		// simulation or RBF deformation) on the target platform
 		NoStrandsData.Strands.Data.Serialize(Ar, NoStrandsData.Strands.BulkData);
 		GroupData.Guides.Data.Serialize(Ar, GroupData.Guides.BulkData);
-		NoStrandsData.Strands.InterpolationData.Serialize(Ar, NoStrandsData.Strands.InterpolationBulkData);
+		NoStrandsData.Strands.InterpolationBulkData.Serialize(Ar);
 	}
 
 	if (Ar.CustomVer(FAnimObjectVersion::GUID) >= FAnimObjectVersion::SerializeHairClusterCullingData)
@@ -1332,7 +1332,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("04296541C35C4CE0999D08B6170BB67A")
+#define GROOM_DERIVED_DATA_VERSION TEXT("FCAFECFFD02A4509A0D86775505E97F2")
 
 #if WITH_EDITORONLY_DATA
 
@@ -2032,7 +2032,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			if (CardsMesh != nullptr)
 			{
 				CardsMesh->ConditionalPostLoad();
-				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.BulkData, LOD.Guides.Data, LOD.InterpolationData, LOD.InterpolationBulkData);
+				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.BulkData, LOD.Guides.Data, LOD.InterpolationBulkData);
 				if (!bInitResources)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *CardsMesh->GetName(), GroupIndex, LODIt);
@@ -2091,8 +2091,9 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				FGroomBuilder::BuildData(LOD.Guides.Data);
 				FGroomBuilder::BuildBulkData(DummyGroupInfo, LOD.Guides.Data, LOD.Guides.BulkData);
 
-				FGroomBuilder::BuildInterplationData(DummyGroupInfo, LOD.Guides.Data, GroupData.Guides.Data, CardsInterpolationSettings, LOD.Guides.InterpolationData);
-				FGroomBuilder::BuildInterplationBulkData(GroupData.Guides.Data, LOD.Guides.InterpolationData, LOD.Guides.InterpolationBulkData);
+				FHairStrandsInterpolationDatas LODGuideInterpolationData;
+				FGroomBuilder::BuildInterplationData(DummyGroupInfo, LOD.Guides.Data, GroupData.Guides.Data, CardsInterpolationSettings, LODGuideInterpolationData);
+				FGroomBuilder::BuildInterplationBulkData(GroupData.Guides.Data, LODGuideInterpolationData, LOD.Guides.InterpolationBulkData);
 
 				if (bCopyRenderData)
 				{
@@ -2839,7 +2840,6 @@ bool UGroomAsset::IsMaterialUsed(int32 MaterialIndex) const
 #if WITH_EDITOR
 struct FHairProceduralCardsQuery
 {
-	FHairCardsInterpolationDatas InterpolationData;
 	FHairCardsInterpolationBulkData InterpolationBulkData;
 	FHairCardsProceduralDatas ProceduralData;
 	FHairStrandsDatas GuideData;
@@ -2909,7 +2909,6 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		Desc->ProceduralSettings,
 		Q.ProceduralData,
 		Q.GuideData,
-		Q.InterpolationData,
 		Q.InterpolationBulkData,
 		Desc->Textures);
 	Q.Textures = &Desc->Textures;

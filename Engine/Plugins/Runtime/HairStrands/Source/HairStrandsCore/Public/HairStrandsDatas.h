@@ -260,9 +260,6 @@ struct FHairStrandsInterpolationBulkData;
 /** Hair strands points interpolation attributes */
 struct HAIRSTRANDSCORE_API FHairStrandsInterpolationDatas
 {
-	/** Serialize the interpolated points */
-	void Serialize(FArchive& Ar, FHairStrandsInterpolationBulkData& BulkData);
-
 	/** Set the number of interpolated points */
 	void SetNum(const uint32 NumPoints);
 
@@ -291,9 +288,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 {
 	void Serialize(FArchive& Ar);
 	uint32 GetPointCount() const { return Interpolation0.Num(); };
-	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;
-	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;
-	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;
+	TArray<FHairStrandsInterpolation0Format::Type> Interpolation0;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...)
+	TArray<FHairStrandsInterpolation1Format::Type> Interpolation1;	// Per-rendering-vertex interpolation data (closest guides, weight factors, ...)
+	TArray<FHairStrandsRootIndexFormat::Type> SimRootPointIndex;	// Per-rendering-vertex index of the sim-root vertex
 };
 
 /** Hair strands points attribute */

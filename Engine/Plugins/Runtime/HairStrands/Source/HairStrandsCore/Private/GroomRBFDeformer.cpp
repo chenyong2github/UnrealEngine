@@ -401,8 +401,9 @@ static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& Deforme
 				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Guides.Data,  HairGroupsData.Guides.BulkData);
 				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Strands.BulkData);
 
-				FGroomBuilder::BuildInterplationData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data, InterpolationSettings, HairGroupsData.Strands.InterpolationData);
-				FGroomBuilder::BuildInterplationBulkData(HairGroupsData.Guides.Data, HairGroupsData.Strands.InterpolationData, HairGroupsData.Strands.InterpolationBulkData);
+				FHairStrandsInterpolationDatas StrandsInterpolationData;
+				FGroomBuilder::BuildInterplationData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data, InterpolationSettings, StrandsInterpolationData);
+				FGroomBuilder::BuildInterplationBulkData(HairGroupsData.Guides.Data, StrandsInterpolationData, HairGroupsData.Strands.InterpolationBulkData);
 
 				FGroomBuilder::BuildClusterData(HairGroupsData.Strands.Data, HairDescriptionGroups.BoundRadius, HairGroupLOD, HairGroupsData.Strands.ClusterCullingData);
 			}

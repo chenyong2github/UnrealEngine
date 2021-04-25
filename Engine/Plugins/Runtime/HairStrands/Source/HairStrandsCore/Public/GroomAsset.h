@@ -88,7 +88,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 
 	struct FBaseWithInterpolation : FBase
 	{
-		FHairStrandsInterpolationDatas		InterpolationData;
 		FHairStrandsInterpolationBulkData	InterpolationBulkData;
 		FHairStrandsInterpolationResource*	InterpolationResource = nullptr;
 	};
@@ -193,7 +192,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			FHairCardsProceduralResource*		ProceduralResource = nullptr;
 
 			// Interpolation data & resources
-			FHairCardsInterpolationDatas		InterpolationData;
 			FHairCardsInterpolationBulkData		InterpolationBulkData;
 			FHairCardsInterpolationResource*	InterpolationResource = nullptr;
 

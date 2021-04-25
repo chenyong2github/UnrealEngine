@@ -22,7 +22,6 @@ namespace FHairCardsBuilder
 		FHairCardsDatas& OutCards,
 		FHairCardsBulkData& OutBulk,
 		FHairStrandsDatas& OutGuides,
-		FHairCardsInterpolationDatas& OutInterpolationData,
 		FHairCardsInterpolationBulkData& OutInterpolationBulkData);
 
 	void ExportGeometry(
@@ -36,7 +35,6 @@ namespace FHairCardsBuilder
 		const struct FHairGroupsProceduralCards& Settings,
 		FHairCardsProceduralDatas& Out,
 		FHairStrandsDatas& OutGuides,
-		FHairCardsInterpolationDatas& OutInterpolation,
 		FHairCardsInterpolationBulkData& OutInterpolationBulk,
 		FHairGroupCardsTextures& OutTextures);
 

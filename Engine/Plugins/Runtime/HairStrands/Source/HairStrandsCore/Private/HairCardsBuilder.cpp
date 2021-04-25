@@ -3382,7 +3382,6 @@ void BuildGeometry(
 	const FHairGroupsProceduralCards& Settings,
 	FHairCardsProceduralDatas& Out,
 	FHairStrandsDatas& OutGuides,
-	FHairCardsInterpolationDatas& OutInterpolation,
 	FHairCardsInterpolationBulkData& OutInterpolationBulk,
 	FHairGroupCardsTextures& OutTextures)
 {
@@ -3411,6 +3410,7 @@ void BuildGeometry(
 	//
 	// 
 	// TODO: add some caching about the different par so that we don't reprocess the entire group when something change
+	FHairCardsInterpolationDatas OutInterpolation;
 	HairCards::FVoxelVolume Voxels;
 	{
 		// Build voxel structure
@@ -3566,7 +3566,6 @@ bool ImportGeometry(
 	FHairCardsDatas& Out,
 	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
-	FHairCardsInterpolationDatas& OutInterpolationData,
 	FHairCardsInterpolationBulkData& OutInterpolationBulkData)
 {
 	const uint32 MeshLODIndex = 0;
@@ -3716,14 +3715,15 @@ bool ImportGeometry(
 	bool bSuccess = HairCards::CreateCardsGuides(Out.Cards, OutGuides, CardLengths);
 	if (bSuccess)
 	{
-		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, OutInterpolationData, CardLengths);
+		FHairCardsInterpolationDatas InterpolationData;
+		HairCards::CreateCardsInterpolation(Out.Cards, OutGuides, InterpolationData, CardLengths);
 
 		// Fill out the interpolation data
 		OutInterpolationBulkData.Interpolation.SetNum(PointCount);
 		for (uint32 PointIt = 0; PointIt < PointCount; ++PointIt)
 		{
-			const uint32 InterpVertexIndex = OutInterpolationData.PointsSimCurvesVertexIndex[PointIt];
-			const float VertexLerp = OutInterpolationData.PointsSimCurvesVertexLerp[PointIt];
+			const uint32 InterpVertexIndex = InterpolationData.PointsSimCurvesVertexIndex[PointIt];
+			const float VertexLerp = InterpolationData.PointsSimCurvesVertexLerp[PointIt];
 			FHairCardsInterpolationVertex PackedData;
 			PackedData.VertexIndex = InterpVertexIndex;
 			PackedData.VertexLerp = FMath::Clamp(uint32(VertexLerp * 0xFF), 0u, 0xFFu);

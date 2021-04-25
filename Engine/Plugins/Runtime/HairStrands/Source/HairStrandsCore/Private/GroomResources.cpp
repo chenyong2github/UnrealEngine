@@ -1043,14 +1043,6 @@ void FHairCardsInterpolationDatas::Reset()
 	PointsSimCurvesVertexLerp.Empty();
 }
 
-void FHairCardsInterpolationDatas::Serialize(FArchive& Ar, FHairCardsInterpolationBulkData& BulkData)
-{
-	Ar << PointsSimCurvesIndex;
-	Ar << PointsSimCurvesVertexIndex;
-	Ar << PointsSimCurvesVertexLerp;
-	BulkData.Serialize(Ar);
-}
-
 void FHairCardsInterpolationBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Interpolation;

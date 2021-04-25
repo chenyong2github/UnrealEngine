@@ -583,8 +583,6 @@ struct HAIRSTRANDSCORE_API FHairCardsInterpolationDatas
 
 	/** Lerp value between the closest vertex indices and the next one, ordered by closest influence */
 	TArray<float> PointsSimCurvesVertexLerp;
-
-	void Serialize(FArchive& Ar, FHairCardsInterpolationBulkData& BulkData);
 };
 
 struct HAIRSTRANDSCORE_API FHairCardsInterpolationBulkData

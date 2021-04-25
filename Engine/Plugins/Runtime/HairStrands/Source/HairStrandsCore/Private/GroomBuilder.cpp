@@ -15,6 +15,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogGroomBuilder, Log, All);
 
 #define LOCTEXT_NAMESPACE "GroomBuilder"
+#define ENABLE_EXTERNAL_INTERPOLATION_DATA 0
 
 // For debug purpose
 static float GHairInterpolationMetric_Distance = 1;
@@ -1175,6 +1176,7 @@ namespace HairInterpolationBuilder
 	}
 
 	/** Fill the GroomAsset with the interpolation data that exists in the HairDescription */
+	#if ENABLE_EXTERNAL_INTERPOLATION_DATA
 	void FillInterpolationData(UGroomAsset* GroomAsset, const FHairDescription& HairDescription)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::FillInterpolationData);
@@ -1264,6 +1266,7 @@ namespace HairInterpolationBuilder
 			SimulationData.StrandsCurves.StrandIDs.Empty();
 		}
 	}
+	#endif // ENABLE_EXTERNAL_INTERPOLATION_DATA
 }
 
 class FGroomDataRandomizer
@@ -1618,10 +1621,12 @@ void FGroomBuilder::BuildData(
 
 	// If there's usable closest guides and guide weights attributes, fill them into the asset
 	// This step requires the HairSimulationData (guides) to be filled prior to this
-	//if (InHairDescriptionGroup.bCanUseClosestGuidesAndWeights)
-	//{
-	//	HairInterpolationBuilder::FillInterpolationData(GroomAsset, HairDescription);
-	//}
+#if ENABLE_EXTERNAL_INTERPOLATION_DATA
+	if (InHairDescriptionGroup.bCanUseClosestGuidesAndWeights)
+	{
+		HairInterpolationBuilder::FillInterpolationData(GroomAsset, HairDescription);
+	}
+#endif
 }
 
 void FGroomBuilder::BuildBulkData(
