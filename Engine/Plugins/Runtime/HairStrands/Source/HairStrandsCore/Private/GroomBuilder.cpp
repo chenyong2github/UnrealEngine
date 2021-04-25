@@ -231,7 +231,7 @@ namespace HairStrandsBuilder
 		OutPackedPositions.SetNum(NumPoints * FHairStrandsPositionFormat::ComponentCount);
 		OutPackedAttributes.SetNum(NumPoints * FHairStrandsAttributeFormat::ComponentCount);
 		OutPackedMaterials.SetNum(NumPoints * FHairStrandsMaterialFormat::ComponentCount);
-		OutCurveOffsets.SetNum(NumCurves);
+		OutCurveOffsets = HairStrands.StrandsCurves.CurvesOffset;
 
 		const FVector HairBoxCenter = HairStrands.BoundingBox.GetCenter();
 
@@ -284,7 +284,6 @@ namespace HairStrandsBuilder
 				Material.BaseColorB = FMath::Clamp(uint32(FMath::Sqrt(Points.PointsBaseColor[PointIndex + IndexOffset].B) * 0xFF), 0u, 0xFFu);
 				Material.Roughness  = FMath::Clamp(uint32(Points.PointsRoughness[PointIndex + IndexOffset] * 0xFF), 0u, 0xFFu);
 			}
-			OutCurveOffsets[CurveIndex] = IndexOffset;
 		}
 
 		OutBulkData.BoundingBox = HairStrands.BoundingBox;
