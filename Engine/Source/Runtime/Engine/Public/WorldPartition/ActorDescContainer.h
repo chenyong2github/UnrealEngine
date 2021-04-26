@@ -26,6 +26,7 @@ public:
 	// Events
 	virtual void OnObjectPreSave(UObject* Object);
 	virtual void OnPackageDeleted(UPackage* Package);
+	virtual void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewObjectMap);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
 
