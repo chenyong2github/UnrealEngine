@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.33";
+        private static string VersionString = "4.34";
 
         public static string Get() { return VersionString; }
     };
@@ -268,7 +268,6 @@ namespace PerfReportTool
 			{
 				throw new Exception("File extension not supported for file " + inFilename);
 			}
-
 			string cacheFilename = inFilename + ".cache";
 			if (useCacheFiles && File.Exists(cacheFilename))
 			{
@@ -305,31 +304,37 @@ namespace PerfReportTool
 				}
 				else if (fileType == FileType.MetadataCachePrc)
 				{
-					// Reconstruct the dummy CSV from the metadata
-					dummyCsvStats = new CsvStats();
-					cachedSummaryMetadata = SummaryMetadata.TryReadFromCacheFile(inFilename);
-					foreach (KeyValuePair<string, SummaryMetadataValue> entry in cachedSummaryMetadata.dict)
+					// Read just the Csv metadata so we can filter
+					metadata = null;
+					cachedSummaryMetadata = SummaryMetadata.TryReadFromCacheFile(inFilename, true);
+					if (cachedSummaryMetadata != null)
 					{
-						if ( entry.Value.type == SummaryMetadataValue.Type.CsvMetadata )
+						foreach (KeyValuePair<string, SummaryMetadataValue> entry in cachedSummaryMetadata.dict)
 						{
-							if (dummyCsvStats.metaData == null)
+							if (entry.Value.type == SummaryMetadataValue.Type.CsvMetadata)
 							{
-								dummyCsvStats.metaData = new CsvMetadata();
+								if (metadata == null)
+								{
+									metadata = new CsvMetadata();
+								}
+								metadata.Values.Add(entry.Key, entry.Value.value);
 							}
-							dummyCsvStats.metaData.Values.Add(entry.Key, entry.Value.value);
-						}
-						if ( entry.Value.type == SummaryMetadataValue.Type.CsvStatAverage )
-						{
-							dummyCsvStats.AddStat(new StatSamples(entry.Key));
+							if (entry.Value.type == SummaryMetadataValue.Type.CsvStatAverage)
+							{
+								break;
+							}
 						}
 					}
-					metadata = dummyCsvStats.metaData;
+					else
+					{
+						Console.WriteLine("Invalid PRC file detected: " + inFilename);
+					}
 				}
 			}
 			filename = inFilename;
 
 			// Apply metadata mappings if we have metadata. Note: we skip for PRCs, since these already have mappings cached
-            if (dummyCsvStats != null && dummyCsvStats.metaData != null && fileType != FileType.MetadataCachePrc)
+            if (dummyCsvStats != null && dummyCsvStats.metaData != null)
             {
 				metadata = dummyCsvStats.metaData;
 				derivedMetadataMappings.ApplyMapping(metadata);
@@ -2601,27 +2606,40 @@ namespace PerfReportTool
 
 				if ( !bIsDuplicate && file.DoesMetadataMatchQuery(metadataQuery) )
 				{
-					file.reportTypeInfo = GetCsvReportTypeInfo(file, bulkMode);
-					if (file.reportTypeInfo != null)
+					if (metadataCacheOnlyMode)
 					{
-						file.ComputeSummaryTableCacheId(file.reportTypeInfo.GetSummaryTableCacheID());
-						if (summaryMetadataCacheDir != null)
+						// Assume the report type is valid if we have cached metadata, since we don't actually need the reporttype in metadata only mode
+						if (file.cachedSummaryMetadata != null)
 						{
-							// If a summary metadata cache is specified, try reading from it instead of reading the whole CSV
-							// Note that this will be disabled if we're not in bulk mode
-							file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.summaryTableCacheId);
+							// Just read the full cached metadata
+							file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCacheFile(fileInfo.filename);
+							fileInfo.isValid = true;
+						}
+					}
+					else
+					{ 
+						file.reportTypeInfo = GetCsvReportTypeInfo(file, bulkMode);
+						if (file.reportTypeInfo != null)
+						{
+							file.ComputeSummaryTableCacheId(file.reportTypeInfo.GetSummaryTableCacheID());
+							if (summaryMetadataCacheDir != null)
+							{
+								// If a summary metadata cache is specified, try reading from it instead of reading the whole CSV
+								// Note that this will be disabled if we're not in bulk mode
+								file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.summaryTableCacheId);
+								if (file.cachedSummaryMetadata == null)
+								{
+									Console.WriteLine("Failed to read summary metadata from cache for CSV: " + fileInfo.filename);
+								}
+							}
 							if (file.cachedSummaryMetadata == null)
 							{
-								Console.WriteLine("Failed to read summary metadata from cache for CSV: " + fileInfo.filename);
+								file.PrepareCsvData();
 							}
-						}
-						if (file.cachedSummaryMetadata == null)
-						{
-							file.PrepareCsvData();
-						}
 
-						// Only read the full file data if the metadata matches
-						fileInfo.isValid = true;
+							// Only read the full file data if the metadata matches
+							fileInfo.isValid = true;
+						}
 					}
 				}
 				fileInfo.cachedFile = file;

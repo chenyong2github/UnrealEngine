@@ -2032,6 +2032,7 @@ namespace PerfSummaries
 		{
 		}
 
+        // TODO: If this is bumped beyond 6, we need to implement backwards compatibility
 		static int CacheVersion = 6;
 
 		public static SummaryMetadata TryReadFromCache(string metadataCacheDir, string csvId)
@@ -2040,7 +2041,7 @@ namespace PerfSummaries
 			return TryReadFromCacheFile(filename);
 		}
 
-		public static SummaryMetadata TryReadFromCacheFile(string filename)
+		public static SummaryMetadata TryReadFromCacheFile(string filename, bool bReadJustInitialMetadata = false)
 		{
 			SummaryMetadata metaData = null;
 			if ( !File.Exists(filename) )
@@ -2056,19 +2057,30 @@ namespace PerfSummaries
 					int metadataValueVersion = reader.ReadInt32();
 					if (version == CacheVersion && metadataValueVersion == SummaryMetadataValue.CacheVersion)
 					{
+						bool bEarlyOut = false;
 						metaData = new SummaryMetadata();
 						int dictEntryCount = reader.ReadInt32();
 						for (int i = 0; i < dictEntryCount; i++)
 						{
 							string key = reader.ReadString();
 							SummaryMetadataValue value = SummaryMetadataValue.ReadFromCache(reader);
+                            // If we're just reading initial metadata then skip everything after ToolMetadata and CsvMetadata
+							if ( bReadJustInitialMetadata && value.type!=SummaryMetadataValue.Type.ToolMetadata && value.type != SummaryMetadataValue.Type.CsvMetadata )
+							{
+								bEarlyOut = true;
+								break;
+							}
 							metaData.dict.Add(key, value);
 						}
-						string endString = reader.ReadString();
-						if (endString != "END")
+
+						if (!bEarlyOut)
 						{
-							Console.WriteLine("Corruption detected in " + filename + ". Skipping read");
-							metaData = null;
+							string endString = reader.ReadString();
+							if (endString != "END")
+							{
+								Console.WriteLine("Corruption detected in " + filename + ". Skipping read");
+								metaData = null;
+							}
 						}
 					}
 					reader.Close();
