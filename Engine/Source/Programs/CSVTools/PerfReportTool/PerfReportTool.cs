@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.34";
+        private static string VersionString = "4.40";
 
         public static string Get() { return VersionString; }
     };
@@ -248,7 +248,7 @@ namespace PerfReportTool
 		{
 			TextCsv,
 			BinaryCsv,
-			MetadataCachePrc
+			SummaryTableCachePrc
 		};
 		public CachedCsvFile(string inFilename, bool useCacheFiles, DerivedMetadataMappings derivedMetadataMappings)
 		{
@@ -262,7 +262,7 @@ namespace PerfReportTool
 			}
 			else if (inFilename.ToLower().EndsWith(".prc"))
 			{
-				fileType = FileType.MetadataCachePrc;
+				fileType = FileType.SummaryTableCachePrc;
 			}
 			else
 			{
@@ -302,16 +302,16 @@ namespace PerfReportTool
 						dummyCsvStats = new CsvStats();
 					}
 				}
-				else if (fileType == FileType.MetadataCachePrc)
+				else if (fileType == FileType.SummaryTableCachePrc)
 				{
 					// Read just the Csv metadata so we can filter
 					metadata = null;
-					cachedSummaryMetadata = SummaryMetadata.TryReadFromCacheFile(inFilename, true);
-					if (cachedSummaryMetadata != null)
+					cachedSummaryTableRowData = SummaryTableRowData.TryReadFromCacheFile(inFilename, true);
+					if (cachedSummaryTableRowData != null)
 					{
-						foreach (KeyValuePair<string, SummaryMetadataValue> entry in cachedSummaryMetadata.dict)
+						foreach (KeyValuePair<string, SummaryTableElement> entry in cachedSummaryTableRowData.dict)
 						{
-							if (entry.Value.type == SummaryMetadataValue.Type.CsvMetadata)
+							if (entry.Value.type == SummaryTableElement.Type.CsvMetadata)
 							{
 								if (metadata == null)
 								{
@@ -319,7 +319,7 @@ namespace PerfReportTool
 								}
 								metadata.Values.Add(entry.Key, entry.Value.value);
 							}
-							if (entry.Value.type == SummaryMetadataValue.Type.CsvStatAverage)
+							if (entry.Value.type == SummaryTableElement.Type.CsvStatAverage)
 							{
 								break;
 							}
@@ -418,12 +418,12 @@ namespace PerfReportTool
         public CsvStats dummyCsvStats;
 		public CsvStats finalCsv;
 		public CsvMetadata metadata;
-		public SummaryMetadata cachedSummaryMetadata;
+		public SummaryTableRowData cachedSummaryTableRowData;
 		public ReportTypeInfo reportTypeInfo;
 		FileType fileType;
 	};
 
-	class MetadataCacheStats
+	class SummaryTableCacheStats
 	{
 		public int WriteCount = 0;
 		public int HitCount = 0;
@@ -432,7 +432,7 @@ namespace PerfReportTool
 
 		public void LogStats()
 		{
-			Console.WriteLine("Metadata cache stats:");
+			Console.WriteLine("Summary Table Cache stats:");
 			Console.WriteLine("  Cache hits      : " + HitCount);
 			Console.WriteLine("  Cache misses    : " + MissCount);
 			Console.WriteLine("  Cache writes    : " + WriteCount);
@@ -454,7 +454,7 @@ namespace PerfReportTool
 			"PerfReportTool v" + Version.Get() + "\n" +
 			"\n" +
 			"Format: \n" +
-			"       -csv <filename> or -csvdir <directory path> or -metadataCacheIn <directory path>\n" +
+			"       -csv <filename> or -csvdir <directory path> or -summaryTableCacheIn <directory path>\n" +
 			"       -o <dir name>: output directory (will be created if necessary)\n" +
 			"\n" +
 			"Optional Args:\n" +
@@ -480,9 +480,9 @@ namespace PerfReportTool
 			"       -beginEvent <event> : strip data before this event\n" +
 			"       -endEvent <event> : strip data after this event\n" +
 			"       -noStripEvents : if specified, don't strip out samples between excluded events from the stats\n" +
-			"NOTE: these options disable metadata caching\n" +
+			"NOTE: these options disable Summary Table caching\n" +
 			"\n" +
-			"Optional bulk mode args: (use with -csvdir or -metadataCacheIn)\n" +
+			"Optional bulk mode args: (use with -csvdir or -summaryTableCacheIn)\n" +
 			"       -recurse \n" +
 			"       -searchpattern <pattern>, e.g -searchpattern csvprofile*\n" +
 			"       -customTable <comma seprated fields>\n" +
@@ -507,17 +507,17 @@ namespace PerfReportTool
 			"       -reverseTable: Reverses the order of summary tables\n"+
 			"       -scrollableTable: makes the summary table scrollable, with frozen first rows and columns\n" +
 			"       -maxSummaryTableStringLength <n>: strings longer than this will get truncated\n" +
-			"       -allowDuplicateCSVs : doesn't remove duplicate CSVs (can cause metadata cache locking issues)\n"+
+			"       -allowDuplicateCSVs : doesn't remove duplicate CSVs (Note: can cause summary table cache file locking issues)\n"+
 			"\n" +
 			"Performance args for bulk mode:\n" +
 			"       -precacheCount <n> : number of CSV files to precache in the lookahead cache (0 for no precache)\n" +
 			"       -precacheThreads <n> : number of threads to use for the CSV lookahead cache (default 8)\n" +
-			"       -metadataCacheIn <dir> : reads data directly from the metadata cache instead of from CSVs\n" +
-			"       -metadataCache <dir> : specifies a directory for metadata to be cached. Enables -readAllStats implicitly.\n  this avoids processing csvs on subsequent runs if -noDetailedReports is specified\n" +
-			"       -metadataCacheInvalidate : regenerates metadata disk cache entries (ie write only)\n" +
-			"       -metadataCacheReadOnly : only read from the cache, never write\n" +
-			"       -metadataCachePurgeInvalid : Purges invalid PRCs from the cache folder\n" +
-			"       -noCsvCacheFiles: disables usage of .csv.cache files. Cache files are much faster if filtering on metadata\n" +
+			"       -summaryTableCache <dir> : specifies a directory for summary table data to be cached. Enables -readAllStats implicitly.\n  this avoids processing csvs on subsequent runs if -noDetailedReports is specified\n" +
+			"       -summaryTableCacheInvalidate : regenerates summary table disk cache entries (ie write only)\n" +
+			"       -summaryTableCacheReadOnly : only read from the cache, never write\n" +
+			"       -summaryTableCachePurgeInvalid : Purges invalid PRCs from the cache folder\n" +
+			"       -summaryTableCacheIn <dir> : reads data directly from the summary table cache instead of from CSVs\n" +
+			"       -noCsvCacheFiles: disables usage of .csv.cache files. Cache files can be much faster if filtering on metadata\n" +
 			"";
 			/*
 			"Note on custom tables:\n" +
@@ -564,7 +564,7 @@ namespace PerfReportTool
             PerfLog perfLog = new PerfLog(GetBoolArg("perfLog"));
 
             bool bBulkMode = false;
-			bool bMetadataCacheOnlyMode = false;
+			bool bSummaryTableCacheOnlyMode = false;
 			// Read CSV filenames from a directory or list
 			string[] csvFilenames;
 			if (args.Length == 1)
@@ -575,7 +575,7 @@ namespace PerfReportTool
 			else
 			{
 				string csvDir = GetArg("csvDir");
-				string metadataCacheInDir = GetArg("metadataCacheIn");
+				string summaryTableCacheInDir = GetArg("summaryTableCacheIn");
 				if (csvDir.Length > 0)
 				{
 					bool recurse = GetBoolArg("recurse");
@@ -601,10 +601,10 @@ namespace PerfReportTool
 					bBulkMode = true;
                     perfLog.LogTiming("DirectoryScan");
                 }
-				else if (metadataCacheInDir.Length>0)
+				else if (summaryTableCacheInDir.Length>0)
 				{
 					bool recurse = GetBoolArg("recurse");
-					System.IO.FileInfo[] files = GetFilesWithSearchPattern(metadataCacheInDir, "*.prc", recurse);
+					System.IO.FileInfo[] files = GetFilesWithSearchPattern(summaryTableCacheInDir, "*.prc", recurse);
 					csvFilenames = new string[files.Length];
 					int i = 0;
 					foreach (FileInfo csvFile in files)
@@ -613,7 +613,7 @@ namespace PerfReportTool
 						i++;
 					}
 					bBulkMode = true;
-					bMetadataCacheOnlyMode = true;
+					bSummaryTableCacheOnlyMode = true;
 					perfLog.LogTiming("DirectoryScan");
 				}
 				else
@@ -636,15 +636,15 @@ namespace PerfReportTool
 			reportXML = new ReportXML(GetArg("graphxml", false), GetArg("reportxml", false), GetArg("reportxmlbasedir", false));
 			statDisplaynameMapping = reportXML.GetDisplayNameMapping();
 
-			MetadataCacheStats metadataCacheStats = new MetadataCacheStats();
+			SummaryTableCacheStats summaryTableCacheStats = new SummaryTableCacheStats();
 
 			perfLog.LogTiming("Initialization");
 
-			string summaryMetadataCacheDir = null;
+			string summaryTableCacheDir = null;
 			if (bBulkMode)
 			{
-				summaryMetadataCacheDir = GetArg("metadataCache", null);
-				if (summaryMetadataCacheDir != null)
+				summaryTableCacheDir = GetArg("summaryTableCache", null);
+				if (summaryTableCacheDir != null)
 				{
 					// Check for incompatible options. Could just feed these into the metadata key eventually
 					string incompatibleOptionsStr = "minx,maxx,beginevent,endevent,noStripEvents";
@@ -659,31 +659,31 @@ namespace PerfReportTool
 					}
 					if (badOptions.Count>0)
 					{
-						Console.WriteLine("Warning: Metadata cache disabled due to incompatible options ("+ string.Join(", ", badOptions) + "). See help for details.");
-						summaryMetadataCacheDir = null;
+						Console.WriteLine("Warning: Summary Table cache disabled due to incompatible options ("+ string.Join(", ", badOptions) + "). See help for details.");
+						summaryTableCacheDir = null;
 					}
 					else
 					{
-						Console.WriteLine("Using summary metadata cache: " + summaryMetadataCacheDir);
-						Directory.CreateDirectory(summaryMetadataCacheDir);
+						Console.WriteLine("Using summary table cache: " + summaryTableCacheDir);
+						Directory.CreateDirectory(summaryTableCacheDir);
 
-						if ( GetBoolArg("metadataCachePurgeInvalid"))
+						if ( GetBoolArg("summaryTableCachePurgeInvalid"))
 						{
-							Console.WriteLine("Purging invalid data from the metadata cache." );
-							DirectoryInfo di = new DirectoryInfo(summaryMetadataCacheDir);
+							Console.WriteLine("Purging invalid data from the summary table cache." );
+							DirectoryInfo di = new DirectoryInfo(summaryTableCacheDir);
 							FileInfo[] files = di.GetFiles("*.prc", SearchOption.TopDirectoryOnly);
 							int numFilesDeleted=0;
 							foreach (FileInfo file in files)
 							{
-								if ( SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.Name.Substring(0,file.Name.Length-4))==null )
+								if ( SummaryTableRowData.TryReadFromCache(summaryTableCacheDir, file.Name.Substring(0,file.Name.Length-4))==null )
 								{
 									File.Delete(file.FullName);
 									numFilesDeleted++;
 								}
 							}
-							metadataCacheStats.PurgeCount = numFilesDeleted;
+							summaryTableCacheStats.PurgeCount = numFilesDeleted;
 							Console.WriteLine(numFilesDeleted+" of "+files.Length+" cache entries deleted");
-							perfLog.LogTiming("PurgeMetadataCache");
+							perfLog.LogTiming("PurgeSummaryTableCache");
 						}
 					}
 				}
@@ -730,8 +730,8 @@ namespace PerfReportTool
 
 			bool bReadAllStats = GetBoolArg("readAllStats");
 
-			bool bMetadataCacheReadonly = GetBoolArg("metadataCacheReadOnly");
-			bool bMetadataCacheInvalidate = GetBoolArg("metadataCacheInvalidate");
+			bool bSummaryTableCacheReadonly = GetBoolArg("summaryTableCacheReadOnly");
+			bool bSummaryTableCacheInvalidate = GetBoolArg("summaryTableCacheInvalidate");
 			string cleanCsvOutputFilename = GetArg("cleanCsvOut", null);
 			if (cleanCsvOutputFilename != null && bBulkMode)
 			{
@@ -745,19 +745,19 @@ namespace PerfReportTool
 				bShowHiddenStats = true;
 			}
 
-			string summaryMetadataCacheDirForRead = summaryMetadataCacheDir;
-			if ( bMetadataCacheInvalidate || writeDetailedReports )
+			string summaryTableCacheForRead = summaryTableCacheDir;
+			if (bSummaryTableCacheInvalidate || writeDetailedReports )
 			{
 				// Don't read from the summary metadata cache if we're generating full reports
-				summaryMetadataCacheDirForRead = null;
+				summaryTableCacheForRead = null;
 			}
 
-			if (bMetadataCacheOnlyMode)
+			if (bSummaryTableCacheOnlyMode)
 			{
-				// Override these options in metadatacacheonly mode
-				bMetadataCacheReadonly = true;
-				summaryMetadataCacheDirForRead = null;
-				bMetadataCacheInvalidate = false;
+				// Override these options in summaryTableCacheOnly mode
+				bSummaryTableCacheReadonly = true;
+				summaryTableCacheForRead = null;
+				bSummaryTableCacheInvalidate = false;
 			}
 
 			ReportTypeParams reportTypeParams = new ReportTypeParams
@@ -767,9 +767,9 @@ namespace PerfReportTool
 			};
 
 			bool bRemoveDuplicates = !GetBoolArg("allowDuplicateCSVs");
-			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads, !GetBoolArg("noCsvCacheFiles"), metadataQuery, reportXML, reportTypeParams, bBulkMode, bMetadataCacheOnlyMode, bRemoveDuplicates, summaryMetadataCacheDirForRead);
-            SummaryMetadataTable metadataTable = new SummaryMetadataTable();
-			bool bWriteToMetadataCache = summaryMetadataCacheDir != null && !bMetadataCacheReadonly;
+			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads, !GetBoolArg("noCsvCacheFiles"), metadataQuery, reportXML, reportTypeParams, bBulkMode, bSummaryTableCacheOnlyMode, bRemoveDuplicates, summaryTableCacheForRead);
+            SummaryTable summaryTable = new SummaryTable();
+			bool bWriteToSummaryTableCache = summaryTableCacheDir != null && !bSummaryTableCacheReadonly;
 
 			int csvCount = csvFilenames.Length;
 			for ( int i=0; i<csvCount; i++)
@@ -792,16 +792,16 @@ namespace PerfReportTool
 					}
 					else
                     {
-						SummaryMetadata metadata = cachedCsvFile.cachedSummaryMetadata;
-						if (metadata == null)
+						SummaryTableRowData rowData = cachedCsvFile.cachedSummaryTableRowData;
+						if (rowData == null)
 						{
-							if (summaryMetadataCacheDirForRead != null)
+							if (summaryTableCacheForRead != null)
 							{
-								metadataCacheStats.MissCount++;
+								summaryTableCacheStats.MissCount++;
 							}
 							if (bBulkMode)
 							{
-								metadata = new SummaryMetadata();
+								rowData = new SummaryTableRowData();
 							}
 							if (cleanCsvOutputFilename != null)
 							{
@@ -810,27 +810,27 @@ namespace PerfReportTool
 							}
 							else
 							{
-								GenerateReport(cachedCsvFile, outputDir, bBulkMode, metadata, bBatchedGraphs, writeDetailedReports, bReadAllStats || bWriteToMetadataCache, cachedCsvFile.reportTypeInfo);
+								GenerateReport(cachedCsvFile, outputDir, bBulkMode, rowData, bBatchedGraphs, writeDetailedReports, bReadAllStats || bWriteToSummaryTableCache, cachedCsvFile.reportTypeInfo);
 								perfLog.LogTiming("  GenerateReport");
-								if (metadata != null && bWriteToMetadataCache)
+								if (rowData != null && bWriteToSummaryTableCache)
 								{
-									if (metadata.WriteToCache(summaryMetadataCacheDir, cachedCsvFile.summaryTableCacheId))
+									if (rowData.WriteToCache(summaryTableCacheDir, cachedCsvFile.summaryTableCacheId))
 									{
-										Console.WriteLine("Cached summary metadata for CSV: " + cachedCsvFile.filename);
-										metadataCacheStats.WriteCount++;
-										perfLog.LogTiming("  WriteMetadataCache");
+										Console.WriteLine("Cached summary rowData for CSV: " + cachedCsvFile.filename);
+										summaryTableCacheStats.WriteCount++;
+										perfLog.LogTiming("  WriteSummaryTableCache");
 									}
 								}
 							}
 						}
 						else
 						{
-							metadataCacheStats.HitCount++;
+							summaryTableCacheStats.HitCount++;
 						}
-						if (metadata != null)
+						if (rowData != null)
                         {
-                            metadataTable.AddMetadata(metadata, bReadAllStats, bShowHiddenStats);
-							perfLog.LogTiming("  AddMetadata");
+                            summaryTable.AddRowData(rowData, bReadAllStats, bShowHiddenStats);
+							perfLog.LogTiming("  AddRowData");
 						}
 					}
                 }
@@ -850,8 +850,8 @@ namespace PerfReportTool
 
             Console.WriteLine("-------------------------------------------------");
 
-            // Write out the metadata table, if there is one
-            if (metadataTable.Count > 0)
+            // Write out the summary table, if there is one
+            if (summaryTable.Count > 0)
 			{
 				string summaryTableFilename = GetArg("summaryTableFilename", "SummaryTable");
 				if ( summaryTableFilename.ToLower().EndsWith(".html"))
@@ -868,11 +868,11 @@ namespace PerfReportTool
 					{
 						customSummaryTableRowSort = "buildversion,deviceprofile";
 					}
-					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings, null);
+					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings, null);
 
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings, null);
+						WriteSummaryTableReport(outputDir, summaryTableFilename+"_Collated", summaryTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings, null);
 					}
 				}
 				else
@@ -883,10 +883,10 @@ namespace PerfReportTool
 						summaryTableName = "default";
 					}
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(summaryTableName);
-					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, false, bCsvTable, bSpreadsheetFriendlyStrings );
+					WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, false, bCsvTable, bSpreadsheetFriendlyStrings );
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, tableInfo, true, bCsvTable, bSpreadsheetFriendlyStrings);
+						WriteSummaryTableReport(outputDir, summaryTableFilename, summaryTable, tableInfo, true, bCsvTable, bSpreadsheetFriendlyStrings);
 					}
 				}
 
@@ -895,25 +895,25 @@ namespace PerfReportTool
 				if (GetBoolArg("emailSummary") || GetBoolArg("emailTable") || condensedSummaryTable != null)
 				{
 					SummaryTableInfo tableInfo = reportXML.GetSummaryTable(condensedSummaryTable == null ? "condensed" : condensedSummaryTable);
-					WriteMetadataTableReport(outputDir, summaryTableFilename+"_Email", metadataTable, tableInfo, true, false, bSpreadsheetFriendlyStrings);
+					WriteSummaryTableReport(outputDir, summaryTableFilename+"_Email", summaryTable, tableInfo, true, false, bSpreadsheetFriendlyStrings);
 				}
                 perfLog.LogTiming("WriteSummaryTable");
             }
 
-			if ( summaryMetadataCacheDir != null )
+			if ( summaryTableCacheDir != null )
 			{
-				metadataCacheStats.LogStats();
+				summaryTableCacheStats.LogStats();
 			}
 			Console.WriteLine("Duplicate CSVs skipped: " + csvFileCache.duplicateCount);
             perfLog.LogTotalTiming();
         }
 
-        void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
+        void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
 		{
-			WriteMetadataTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary);
+			WriteSummaryTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary);
 		}
 
-		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo)
+		void WriteSummaryTableReport(string outputDir, string filenameWithoutExtension, SummaryTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo)
 		{
 			bool reverseSort = GetBoolArg("reverseTable");
 			bool bScrollableTable = GetBoolArg("scrollableTable");
@@ -923,7 +923,7 @@ namespace PerfReportTool
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
 
-            SummaryMetadataTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort);
+            SummaryTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort);
 			if (bCollated)
 			{
 				filteredTable = filteredTable.CollateSortedTable(rowSortList, addMinMaxColumns);
@@ -1043,7 +1043,7 @@ namespace PerfReportTool
 			return csvStats;
 		}
 
-		void GenerateReport(CachedCsvFile csvFile, string outputDir, bool bBulkMode, SummaryMetadata summaryMetadata, bool bBatchedGraphs, bool writeDetailedReport, bool bReadAllStats, ReportTypeInfo reportTypeInfo)
+		void GenerateReport(CachedCsvFile csvFile, string outputDir, bool bBulkMode, SummaryTableRowData rowData, bool bBatchedGraphs, bool writeDetailedReport, bool bReadAllStats, ReportTypeInfo reportTypeInfo)
         {
             PerfLog perfLog = new PerfLog(GetBoolArg("perfLog"));
             string shortName = ReplaceFileExtension(MakeShortFilename(csvFile.filename), "");
@@ -1155,7 +1155,7 @@ namespace PerfReportTool
 
 
 			// Generate CSV metadata
-			if (summaryMetadata != null)
+			if (rowData != null)
 			{
                 Uri currentDirUri = new Uri(Directory.GetCurrentDirectory() + "/", UriKind.Absolute);
                 if ( outputDir.Length > 0 && !outputDir.EndsWith("/"))
@@ -1175,18 +1175,18 @@ namespace PerfReportTool
                 Uri csvFileUri = new Uri(csvFile.filename, UriKind.Absolute);
 
                 string relativeCsvPath = finalDirUri.MakeRelativeUri(csvFileUri).ToString();
-				summaryMetadata.Add(SummaryMetadataValue.Type.ToolMetadata, "Csv File", "<a href='" + relativeCsvPath + "'>" + shortName + ".csv" + "</a>", null, relativeCsvPath);
+				rowData.Add(SummaryTableElement.Type.ToolMetadata, "Csv File", "<a href='" + relativeCsvPath + "'>" + shortName + ".csv" + "</a>", null, relativeCsvPath);
 
 				if (htmlFilename != null)
 				{
-					summaryMetadata.Add(SummaryMetadataValue.Type.ToolMetadata, "Report", "<a href='" + htmlFilename + "'>Link</a>");
+					rowData.Add(SummaryTableElement.Type.ToolMetadata, "Report", "<a href='" + htmlFilename + "'>Link</a>");
 				}
 				// Pass through all the metadata from the CSV
 				if (csvStats.metaData != null)
 				{
 					foreach (KeyValuePair<string, string> pair in csvStats.metaData.Values.ToList())
 					{
-						summaryMetadata.Add(SummaryMetadataValue.Type.CsvMetadata, pair.Key.ToLower(), pair.Value);
+						rowData.Add(SummaryTableElement.Type.CsvMetadata, pair.Key.ToLower(), pair.Value);
 					}
 				}
 
@@ -1195,7 +1195,7 @@ namespace PerfReportTool
 					// Add every stat avg value to the metadata
 					foreach ( StatSamples stat in csvStats.Stats.Values )
 					{
-						summaryMetadata.Add(SummaryMetadataValue.Type.CsvStatAverage, stat.Name, stat.average.ToString());
+						rowData.Add(SummaryTableElement.Type.CsvStatAverage, stat.Name, stat.average.ToString());
 					}
 				}
 
@@ -1207,7 +1207,7 @@ namespace PerfReportTool
             }
 
             // Write the report
-            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, unstrippedCsvStats, numFramesStripped, minX, maxX, bBulkMode, summaryMetadata);
+            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, unstrippedCsvStats, numFramesStripped, minX, maxX, bBulkMode, rowData);
             perfLog.LogTiming("    WriteReport");
 
             // Delete the temp files
@@ -1313,7 +1313,7 @@ namespace PerfReportTool
       
 
 
-        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats unstrippedCsvStats, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryMetadata summaryMetadata)
+        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats unstrippedCsvStats, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryTableRowData summaryRowData)
         {
  
             ReportGraph[] graphs = reportTypeInfo.graphs.ToArray();
@@ -1386,12 +1386,12 @@ namespace PerfReportTool
 
 			}
 
-			if (summaryMetadata != null)
+			if (summaryRowData != null)
             {
-                summaryMetadata.Add(SummaryMetadataValue.Type.ToolMetadata, "framecount", csvStats.SampleCount.ToString());
+                summaryRowData.Add(SummaryTableElement.Type.ToolMetadata, "framecount", csvStats.SampleCount.ToString());
                 if (numFramesStripped > 0)
                 {
-                    summaryMetadata.Add(SummaryMetadataValue.Type.ToolMetadata, "framecountExcluded", numFramesStripped.ToString());
+                    summaryRowData.Add(SummaryTableElement.Type.ToolMetadata, "framecountExcluded", numFramesStripped.ToString());
                 }
 			}
 
@@ -1401,7 +1401,7 @@ namespace PerfReportTool
             PeakSummary peakSummary = null;
             foreach (Summary summary in reportTypeInfo.summaries)
             {
-                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bIncludeSummaryCsv, summaryMetadata, htmlFilename);
+                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bIncludeSummaryCsv, summaryRowData, htmlFilename);
                 if ( summary.GetType() == typeof(PeakSummary) )
                 {
                     peakSummary = (PeakSummary)summary;
@@ -2481,7 +2481,7 @@ namespace PerfReportTool
 
 	class CsvFileCache
     {
-        public CsvFileCache( string[] inCsvFilenames, int inLookaheadCount, int inThreadCount, bool inUseCacheFiles, QueryExpression inMetadataQuery, ReportXML inReportXml, ReportTypeParams inReportTypeParams, bool inBulkMode, bool inMetadataCacheOnlyMode, bool inRemoveDuplicates, string inSummaryMetadataCacheDir = null )
+        public CsvFileCache( string[] inCsvFilenames, int inLookaheadCount, int inThreadCount, bool inUseCacheFiles, QueryExpression inMetadataQuery, ReportXML inReportXml, ReportTypeParams inReportTypeParams, bool inBulkMode, bool inSummaryTableCacheOnlyMode, bool inRemoveDuplicates, string inSummaryTableCacheDir = null )
         {
             csvFileInfos = new CsvFileInfo[inCsvFilenames.Length];
             for (int i = 0; i < inCsvFilenames.Length; i++)
@@ -2496,10 +2496,10 @@ namespace PerfReportTool
             countFreedSinceLastGC = 0;
 			reportXml = inReportXml;
 			bulkMode = inBulkMode;
-			metadataCacheOnlyMode = inMetadataCacheOnlyMode;
+			summaryTableCacheOnlyMode = inSummaryTableCacheOnlyMode;
 			metadataQuery = inMetadataQuery;
 			derivedMetadataMappings = inReportXml.derivedMetadataMappings;
-			summaryMetadataCacheDir = inSummaryMetadataCacheDir;
+			summaryTableCacheDir = inSummaryTableCacheDir;
 			reportTypeParams = inReportTypeParams;
 			bRemoveDuplicates = inRemoveDuplicates;
 
@@ -2547,7 +2547,7 @@ namespace PerfReportTool
 				fileInfo.cachedFile = null;
 				countFreedSinceLastGC++;
 				// Periodically GC
-				if (countFreedSinceLastGC > 16 && metadataCacheOnlyMode == false)
+				if (countFreedSinceLastGC > 16 && summaryTableCacheOnlyMode == false)
 				{
 					GC.Collect();
 					GC.WaitForPendingFinalizers();
@@ -2606,13 +2606,13 @@ namespace PerfReportTool
 
 				if ( !bIsDuplicate && file.DoesMetadataMatchQuery(metadataQuery) )
 				{
-					if (metadataCacheOnlyMode)
+					if (summaryTableCacheOnlyMode)
 					{
 						// Assume the report type is valid if we have cached metadata, since we don't actually need the reporttype in metadata only mode
-						if (file.cachedSummaryMetadata != null)
+						if (file.cachedSummaryTableRowData != null)
 						{
 							// Just read the full cached metadata
-							file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCacheFile(fileInfo.filename);
+							file.cachedSummaryTableRowData = SummaryTableRowData.TryReadFromCacheFile(fileInfo.filename);
 							fileInfo.isValid = true;
 						}
 					}
@@ -2622,17 +2622,17 @@ namespace PerfReportTool
 						if (file.reportTypeInfo != null)
 						{
 							file.ComputeSummaryTableCacheId(file.reportTypeInfo.GetSummaryTableCacheID());
-							if (summaryMetadataCacheDir != null)
+							if (summaryTableCacheDir != null)
 							{
 								// If a summary metadata cache is specified, try reading from it instead of reading the whole CSV
 								// Note that this will be disabled if we're not in bulk mode
-								file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.summaryTableCacheId);
-								if (file.cachedSummaryMetadata == null)
+								file.cachedSummaryTableRowData = SummaryTableRowData.TryReadFromCache(summaryTableCacheDir, file.summaryTableCacheId);
+								if (file.cachedSummaryTableRowData == null)
 								{
 									Console.WriteLine("Failed to read summary metadata from cache for CSV: " + fileInfo.filename);
 								}
 							}
-							if (file.cachedSummaryMetadata == null)
+							if (file.cachedSummaryTableRowData == null)
 							{
 								file.PrepareCsvData();
 							}
@@ -2678,9 +2678,9 @@ namespace PerfReportTool
         int countFreedSinceLastGC;
 		bool useCacheFiles;
 		bool bulkMode;
-		bool metadataCacheOnlyMode;
+		bool summaryTableCacheOnlyMode;
 		QueryExpression metadataQuery;
-		string summaryMetadataCacheDir;
+		string summaryTableCacheDir;
 		ReportXML reportXml;
 		ReportTypeParams reportTypeParams;
 		DerivedMetadataMappings derivedMetadataMappings;

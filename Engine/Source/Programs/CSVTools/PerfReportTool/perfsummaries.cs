@@ -245,7 +245,7 @@ namespace PerfSummaries
             StatThresholds = new Dictionary<string, ColourThresholdList>();
 
         }
-        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         { }
 
         public virtual void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -511,7 +511,7 @@ namespace PerfSummaries
 		}
 
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         {
             System.IO.StreamWriter statsCsvFile = null;
             if (bIncludeSummaryCsv)
@@ -593,15 +593,15 @@ namespace PerfSummaries
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 			}
 
-			// Output metadata
-			if (metadata != null)
+			// Output row data
+			if (rowData != null)
             {
                 for (int i = 0; i < ColumnNames.Count; i++)
                 {
                     string columnName = ColumnNames[i];
 
-                    // Output simply MVP to metadata instead of MVP30 etc
-                    if ( columnName.StartsWith("MVP"))
+					// Output simply MVP to rowData instead of MVP30 etc
+					if ( columnName.StartsWith("MVP"))
                     {
                         columnName = "MVP";
                     }
@@ -609,18 +609,18 @@ namespace PerfSummaries
 					if (ColumnIsAvgValueList[i] && columnName.EndsWith(" Avg"))
 					{
 						string originalStatName = columnName.Substring(0, columnName.Length - 4).ToLower();
-						SummaryMetadataValue smv;
-						if ( metadata.dict.TryGetValue(originalStatName, out smv) )
+						SummaryTableElement smv;
+						if ( rowData.dict.TryGetValue(originalStatName, out smv) )
 						{
-							if (smv.type == SummaryMetadataValue.Type.CsvStatAverage)
+							if (smv.type == SummaryTableElement.Type.CsvStatAverage)
 							{
-								smv.SetFlag(SummaryMetadataValue.Flags.Hidden, true);
+								smv.SetFlag(SummaryTableElement.Flags.Hidden, true);
 							}
 						}
 					}
-					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, columnName, ColumnValues[i], ColumnColorThresholds[i]);
+					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, columnName, ColumnValues[i], ColumnColorThresholds[i]);
                 }
-                metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, "TargetFPS", fps.ToString());
+                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "TargetFPS", fps.ToString());
             }
 
             // Output HTML
@@ -780,12 +780,12 @@ namespace PerfSummaries
         public EventSummary(XElement element, string baseXmlDirectory)
         {
             title = element.GetSafeAttibute("title","Events");
-            metadataKey = element.Attribute("metadataKey").Value;
+            summaryStatName = element.Attribute("summaryStatName").Value;
             events = element.Element("events").Value.Split(',');
 			colourThresholds = ReadColourThresholdsXML(element.Element("colourThresholds"));
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         {
             Dictionary<string, int> eventCountsDict = new Dictionary<string, int>();
             int eventCount= 0;
@@ -828,7 +828,7 @@ namespace PerfSummaries
             }
 
             // Output metadata
-            if (metadata != null)
+            if (rowData != null)
             {
 
                 ColourThresholdList thresholdList = null;
@@ -841,7 +841,7 @@ namespace PerfSummaries
                         thresholdList.Add(new ThresholdInfo(colourThresholds[i], null));
                     }
                 }
-                metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, metadataKey, eventCount.ToString(), thresholdList);
+                rowData.Add(SummaryTableElement.Type.SummaryTableMetric, summaryStatName, eventCount.ToString(), thresholdList);
             }
         }
         public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -850,7 +850,7 @@ namespace PerfSummaries
         string[] events;
         double[] colourThresholds;
         string title;
-        string metadataKey;
+        string summaryStatName;
     };
 
     class HitchSummary : Summary
@@ -867,7 +867,7 @@ namespace PerfSummaries
             }
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not output metadata)
 			if (htmlFile == null)
@@ -975,7 +975,7 @@ namespace PerfSummaries
             }
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not output metadata)
 			if (htmlFile == null)
@@ -1215,7 +1215,7 @@ namespace PerfSummaries
             htmlFile.WriteLine("  </table>");
         }
 
-        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+        public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
         {
 			// Only HTML reporting is supported (does not output metadata)
 			if (htmlFile == null)
@@ -1234,9 +1234,9 @@ namespace PerfSummaries
 					}
 
 					var statValue = csvStats.Stats[statName.ToLower()];
-					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryTableElement.Type.SummaryTableMetric, statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
 				}
 			}
 
@@ -1352,7 +1352,7 @@ namespace PerfSummaries
 			public string name;
 			public string formula;
 			public double value;
-			public string metadataKey;
+			public string summaryStatName;
 			public string statName;
 			public bool perSecond;
 			public bool filterOutZeros;
@@ -1394,10 +1394,10 @@ namespace PerfSummaries
 					}
 				}
 
-				XAttribute metadataKeyAtt = columnEl.Attribute("metadataKey");
-				if (metadataKeyAtt!=null)
+				XAttribute summaryStatNameAtt = columnEl.Attribute("summaryStatName");
+				if (summaryStatNameAtt != null)
 				{
-					column.metadataKey = metadataKeyAtt.Value;
+					column.summaryStatName = summaryStatNameAtt.Value;
 				}
 				column.statName = columnEl.Attribute("stat").Value.ToLower();
 				if ( !stats.Contains(column.statName) )
@@ -1416,7 +1416,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
 		{
 			int startFrame = -1;
 			int endFrame = int.MaxValue;
@@ -1620,9 +1620,9 @@ namespace PerfSummaries
 			{
 				foreach (Column col in filteredColumns)
 				{
-					if ( col.metadataKey != null )
+					if ( col.summaryStatName != null )
 					{
-						metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, col.metadataKey, col.value.ToString("0.00"), col.colourThresholdList);
+						metadata.Add(SummaryTableElement.Type.SummaryTableMetric, col.summaryStatName, col.value.ToString("0.00"), col.colourThresholdList);
 					}
 				}
 			}
@@ -1649,7 +1649,7 @@ namespace PerfSummaries
 			{
 			}
 			public string name;
-			public string metadataKey;
+			public string summaryStatName;
 			public string shortName;
 			public string lineColor;
 		};
@@ -1661,13 +1661,13 @@ namespace PerfSummaries
 				positionStatNames[0] = element.GetSafeAttibute<string>("xStat");
 				positionStatNames[1] = element.GetSafeAttibute<string>("yStat");
 				positionStatNames[2] = element.GetSafeAttibute<string>("zStat");
-				metadataPrefix = element.GetSafeAttibute<string>("metadataPrefix");
+				summaryStatNamePrefix = element.GetSafeAttibute<string>("summaryStatNamePrefix"); // unused!
 				lineColor = element.GetSafeAttibute<string>("lineColor","#ffffff");
 				foreach (XElement eventEl in element.Elements("event"))
 				{
 					MapOverlayEvent ev = new MapOverlayEvent(eventEl.Attribute("name").Value);
 					ev.shortName = eventEl.GetSafeAttibute<string>("shortName");
-					ev.metadataKey = eventEl.GetSafeAttibute<string>("metadataKey");
+					ev.summaryStatName = eventEl.GetSafeAttibute<string>("summaryStatName"); // unused!
 					ev.lineColor = eventEl.GetSafeAttibute<string>("lineColor");
 					if (eventEl.GetSafeAttibute<bool>("isStartEvent", false))
 					{
@@ -1682,7 +1682,7 @@ namespace PerfSummaries
 
 			}
 			public string [] positionStatNames = new string[3];
-			public string metadataPrefix;
+			public string summaryStatNamePrefix;
 			public MapOverlayEvent startEvent;
 			public string lineColor;
 			public List<MapOverlayEvent> events = new List<MapOverlayEvent>();
@@ -1736,7 +1736,7 @@ namespace PerfSummaries
 			return (int)(svgY + 0.5f);
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryMetadata metadata, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bIncludeSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			// Output HTML
 			if (htmlFile != null)
@@ -1871,8 +1871,8 @@ namespace PerfSummaries
 				htmlFile.WriteLine("</svg>");
 			}
 
-			// Output metadata
-			if (metadata != null)
+			// Output row data
+			if (rowData != null)
 			{
 			}
 		}
@@ -1893,11 +1893,12 @@ namespace PerfSummaries
 		List<MapOverlay> overlays = new List<MapOverlay>();
 	};
 
-	class SummaryMetadataValue
+	class SummaryTableElement
     {
 		// Bump this when making changes!
 		public static int CacheVersion = 1;
 
+		// NOTE: this is serialized. Don't change the order!
 		public enum Type
 		{
 			CsvStatAverage,
@@ -1911,11 +1912,11 @@ namespace PerfSummaries
 			Hidden = 0x01
 		};
 
-		private SummaryMetadataValue()
+		private SummaryTableElement()
 		{
 
 		}
-		public SummaryMetadataValue(Type inType, string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
+		public SummaryTableElement(Type inType, string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
 		{
 			type = inType;
 			name = inName;
@@ -1926,7 +1927,7 @@ namespace PerfSummaries
 			tooltip = inToolTip;
 			flags = inFlags;
 		}
-		public SummaryMetadataValue(Type inType, string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
+		public SummaryTableElement(Type inType, string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
         {
 			type = inType;
 			name = inName;
@@ -1938,9 +1939,9 @@ namespace PerfSummaries
 			flags = inFlags;
 		}
 
-		public static SummaryMetadataValue ReadFromCache(BinaryReader reader)
+		public static SummaryTableElement ReadFromCache(BinaryReader reader)
 		{
-			SummaryMetadataValue val = new SummaryMetadataValue();
+			SummaryTableElement val = new SummaryTableElement();
 			val.type = (Type)reader.ReadUInt32();
 			val.name = reader.ReadString();
 			val.value = reader.ReadString();
@@ -1996,9 +1997,9 @@ namespace PerfSummaries
 			}
 		}
 
-		public SummaryMetadataValue Clone()
+		public SummaryTableElement Clone()
 		{
-			return (SummaryMetadataValue)MemberwiseClone();
+			return (SummaryTableElement)MemberwiseClone();
 		}
 
 		public void SetFlag(Flags flag, bool value)
@@ -2026,24 +2027,24 @@ namespace PerfSummaries
 		public bool isNumeric;
 		public uint flags;
     }
-    class SummaryMetadata 
+    class SummaryTableRowData 
     {
-		public SummaryMetadata()
+		public SummaryTableRowData()
 		{
 		}
 
         // TODO: If this is bumped beyond 6, we need to implement backwards compatibility
 		static int CacheVersion = 6;
 
-		public static SummaryMetadata TryReadFromCache(string metadataCacheDir, string csvId)
+		public static SummaryTableRowData TryReadFromCache(string summaryTableCacheDir, string csvId)
 		{
-			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
+			string filename = Path.Combine(summaryTableCacheDir, csvId + ".prc");
 			return TryReadFromCacheFile(filename);
 		}
 
-		public static SummaryMetadata TryReadFromCacheFile(string filename, bool bReadJustInitialMetadata = false)
+		public static SummaryTableRowData TryReadFromCacheFile(string filename, bool bReadJustInitialMetadata = false)
 		{
-			SummaryMetadata metaData = null;
+			SummaryTableRowData metaData = null;
 			if ( !File.Exists(filename) )
 			{
 				return null;
@@ -2055,17 +2056,17 @@ namespace PerfSummaries
 					BinaryReader reader = new BinaryReader(fileStream);
 					int version = reader.ReadInt32();
 					int metadataValueVersion = reader.ReadInt32();
-					if (version == CacheVersion && metadataValueVersion == SummaryMetadataValue.CacheVersion)
+					if (version == CacheVersion && metadataValueVersion == SummaryTableElement.CacheVersion)
 					{
 						bool bEarlyOut = false;
-						metaData = new SummaryMetadata();
+						metaData = new SummaryTableRowData();
 						int dictEntryCount = reader.ReadInt32();
 						for (int i = 0; i < dictEntryCount; i++)
 						{
 							string key = reader.ReadString();
-							SummaryMetadataValue value = SummaryMetadataValue.ReadFromCache(reader);
+							SummaryTableElement value = SummaryTableElement.ReadFromCache(reader);
                             // If we're just reading initial metadata then skip everything after ToolMetadata and CsvMetadata
-							if ( bReadJustInitialMetadata && value.type!=SummaryMetadataValue.Type.ToolMetadata && value.type != SummaryMetadataValue.Type.CsvMetadata )
+							if ( bReadJustInitialMetadata && value.type!=SummaryTableElement.Type.ToolMetadata && value.type != SummaryTableElement.Type.CsvMetadata )
 							{
 								bEarlyOut = true;
 								break;
@@ -2094,19 +2095,19 @@ namespace PerfSummaries
 			return metaData;
 		}
 
-		public bool WriteToCache(string metadataCacheDir, string csvId)
+		public bool WriteToCache(string summaryTableCacheDir, string csvId)
 		{
-			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
+			string filename = Path.Combine(summaryTableCacheDir, csvId + ".prc");
 			try
 			{
 				using (FileStream fileStream = new FileStream(filename, FileMode.Create))
 				{
 					BinaryWriter writer = new BinaryWriter(fileStream);
 					writer.Write(CacheVersion);
-					writer.Write(SummaryMetadataValue.CacheVersion);
+					writer.Write(SummaryTableElement.CacheVersion);
 
 					writer.Write(dict.Count);
-					foreach (KeyValuePair<string, SummaryMetadataValue> entry in dict)
+					foreach (KeyValuePair<string, SummaryTableElement> entry in dict)
 					{
 						writer.Write(entry.Key);
 						entry.Value.WriteToCache(writer);
@@ -2132,7 +2133,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public void Add(SummaryMetadataValue.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "", uint flags=0)
+		public void Add(SummaryTableElement.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "", uint flags=0)
         {
 			string key = name.ToLower();
 			double numericValue = double.MaxValue;
@@ -2142,14 +2143,14 @@ namespace PerfSummaries
             }
             catch { }
 
-            SummaryMetadataValue metadataValue = null;
+            SummaryTableElement metadataValue = null;
             if (numericValue != double.MaxValue)
             {
-                metadataValue = new SummaryMetadataValue(type, name, numericValue, colorThresholdList, tooltip, flags);
+                metadataValue = new SummaryTableElement(type, name, numericValue, colorThresholdList, tooltip, flags);
             }
             else
             {
-                metadataValue = new SummaryMetadataValue(type, name, value, colorThresholdList, tooltip, flags);
+                metadataValue = new SummaryTableElement(type, name, value, colorThresholdList, tooltip, flags);
             }
 
 			try
@@ -2162,14 +2163,14 @@ namespace PerfSummaries
 			}
 		}
 
-        public void AddString(SummaryMetadataValue.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
+        public void AddString(SummaryTableElement.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
         {
 			string key = name.ToLower();
-			SummaryMetadataValue metadataValue = new SummaryMetadataValue(type, name, value, colorThresholdList, tooltip);
+			SummaryTableElement metadataValue = new SummaryTableElement(type, name, value, colorThresholdList, tooltip);
             dict.Add(key, metadataValue);
         }
 
-        public Dictionary<string, SummaryMetadataValue> dict = new Dictionary<string, SummaryMetadataValue>();
+        public Dictionary<string, SummaryTableElement> dict = new Dictionary<string, SummaryTableElement>();
 	};
 
 	class SummarySectionBoundaryInfo
@@ -2215,7 +2216,7 @@ namespace PerfSummaries
 	}
 
 
-	class SummaryMetadataColumn
+	class SummaryTableColumn
 	{
 		public string name;
 		public bool isNumeric = false;
@@ -2226,15 +2227,15 @@ namespace PerfSummaries
 
 		List<ColourThresholdList> colourThresholds = new List<ColourThresholdList>();
 		ColourThresholdList colourThresholdOverride = null;
-		public SummaryMetadataColumn(string inName, bool inIsNumeric, string inDisplayName = null)
+		public SummaryTableColumn(string inName, bool inIsNumeric, string inDisplayName = null)
 		{
 			name = inName;
 			isNumeric = inIsNumeric;
 			displayName = inDisplayName;
 		}
-		public SummaryMetadataColumn Clone()
+		public SummaryTableColumn Clone()
 		{
-			SummaryMetadataColumn newColumn = new SummaryMetadataColumn(name, isNumeric, displayName);
+			SummaryTableColumn newColumn = new SummaryTableColumn(name, isNumeric, displayName);
 			newColumn.floatValues.AddRange(floatValues);
 			newColumn.stringValues.AddRange(stringValues);
 			newColumn.colourThresholds.AddRange(colourThresholds);
@@ -2461,24 +2462,24 @@ namespace PerfSummaries
 
 
 
-	class SummaryMetadataTable
+	class SummaryTable
     {
-        public SummaryMetadataTable()
+        public SummaryTable()
         {
         }
 
-		public SummaryMetadataTable CollateSortedTable(List<string> collateByList, bool addMinMaxColumns)
+		public SummaryTable CollateSortedTable(List<string> collateByList, bool addMinMaxColumns)
 		{
 			int numSubColumns=addMinMaxColumns ? 3 : 1;
 
-			List<SummaryMetadataColumn> newColumns = new List<SummaryMetadataColumn>();
+			List<SummaryTableColumn> newColumns = new List<SummaryTableColumn>();
 			List<string> finalSortByList = new List<string>();
 			foreach (string collateBy in collateByList)
 			{
 				string key = collateBy.ToLower();
 				if (columnLookup.ContainsKey(key))
 				{
-					newColumns.Add(new SummaryMetadataColumn(columnLookup[key].name, false, columnLookup[key].displayName));
+					newColumns.Add(new SummaryTableColumn(columnLookup[key].name, false, columnLookup[key].displayName));
 					finalSortByList.Add(key);
 				}
 			}
@@ -2488,22 +2489,22 @@ namespace PerfSummaries
 				throw new Exception("None of the metadata strings were found:" + collateByList.ToString());
 			}
 
-            newColumns.Add(new SummaryMetadataColumn("Count", true));
+            newColumns.Add(new SummaryTableColumn("Count", true));
             int countColumnIndex = newColumns.Count-1;
 
             int numericColumnStartIndex = newColumns.Count;
 			List<int> srcToDestBaseColumnIndex = new List<int>();
-			foreach ( SummaryMetadataColumn column in columns )
+			foreach ( SummaryTableColumn column in columns )
 			{
                 // Add avg/min/max columns for this column if it's numeric and we didn't already add it above 
 				if ( column.isNumeric && !finalSortByList.Contains(column.name.ToLower()))
 				{
 					srcToDestBaseColumnIndex.Add( newColumns.Count );
-					newColumns.Add(new SummaryMetadataColumn("Avg " + column.name, true));
+					newColumns.Add(new SummaryTableColumn("Avg " + column.name, true));
 					if (addMinMaxColumns)
 					{
-						newColumns.Add(new SummaryMetadataColumn("Min " + column.name, true));
-						newColumns.Add(new SummaryMetadataColumn("Max " + column.name, true));
+						newColumns.Add(new SummaryTableColumn("Min " + column.name, true));
+						newColumns.Add(new SummaryTableColumn("Max " + column.name, true));
 					}
 				}
 				else
@@ -2555,7 +2556,7 @@ namespace PerfSummaries
 				// Compute min/max/total for all numeric columns
 				for (int j = 0; j < columns.Count; j++)
 				{
-					SummaryMetadataColumn column = columns[j];
+					SummaryTableColumn column = columns[j];
 					if (column.isNumeric)
 					{
 						float value = column.GetValue(i);
@@ -2620,7 +2621,7 @@ namespace PerfSummaries
 				CurrentRowSortKey = nextSortKey;
 			}
 
-			SummaryMetadataTable newTable = new SummaryMetadataTable();
+			SummaryTable newTable = new SummaryTable();
 			newTable.columns = newColumns;
 			newTable.InitColumnLookup();
 			newTable.rowCount = destRowIndex;
@@ -2630,19 +2631,19 @@ namespace PerfSummaries
 			return newTable;
 		}
 
-		public SummaryMetadataTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile", bool bReverseSort=false)
+		public SummaryTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile", bool bReverseSort=false)
 		{
 			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList(), bReverseSort);
 		}
 
-		public SummaryMetadataTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort)
+		public SummaryTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort)
 		{
-			SummaryMetadataTable newTable = SortRows(rowSortList, bReverseSort);
+			SummaryTable newTable = SortRows(rowSortList, bReverseSort);
 
 			// Make a list of all unique keys
 			List<string> allMetadataKeys = new List<string>();
-			Dictionary<string, SummaryMetadataColumn> nameLookup = new Dictionary<string, SummaryMetadataColumn>();
-			foreach (SummaryMetadataColumn col in newTable.columns)
+			Dictionary<string, SummaryTableColumn> nameLookup = new Dictionary<string, SummaryTableColumn>();
+			foreach (SummaryTableColumn col in newTable.columns)
 			{
 				string key = col.name.ToLower();
 				if (!nameLookup.ContainsKey(key))
@@ -2687,7 +2688,7 @@ namespace PerfSummaries
 				}
 			}
 
-			List<SummaryMetadataColumn> newColumnList = new List<SummaryMetadataColumn>();
+			List<SummaryTableColumn> newColumnList = new List<SummaryTableColumn>();
 			// Add all the ordered keys that exist, ignoring duplicates
 			foreach (string key in orderedKeysWithDupes)
 			{
@@ -2710,7 +2711,7 @@ namespace PerfSummaries
 		public void ApplyDisplayNameMapping(Dictionary<string, string> statDisplaynameMapping)
 		{
 			// Convert to a display-friendly name
-			foreach (SummaryMetadataColumn column in columns)
+			foreach (SummaryTableColumn column in columns)
 			{
 				if (statDisplaynameMapping != null && column.displayName == null )
 				{
@@ -2755,7 +2756,7 @@ namespace PerfSummaries
 		{
 			System.IO.StreamWriter csvFile = new System.IO.StreamWriter(csvFilename, false);
 			List<string> headerRow = new List<string>(); 
-			foreach (SummaryMetadataColumn column in columns)
+			foreach (SummaryTableColumn column in columns)
 			{
 				headerRow.Add(column.name);
 			}
@@ -2764,7 +2765,7 @@ namespace PerfSummaries
 			for (int i = 0; i < rowCount; i++)
 			{
 				List<string> rowStrings= new List<string>();
-				foreach (SummaryMetadataColumn column in columns)
+				foreach (SummaryTableColumn column in columns)
 				{
 					string cell = column.GetStringValue(i, false);
 					// Sanitize so it opens in a spreadsheet (e.g. for buildversion) 
@@ -2778,7 +2779,7 @@ namespace PerfSummaries
 
 		private void AutoColorizeColumns(string[] summaryTableLowIsBadStatList)
 		{
-			foreach (SummaryMetadataColumn column in columns)
+			foreach (SummaryTableColumn column in columns)
 			{
 				if (column.isNumeric)
 				{
@@ -3012,7 +3013,7 @@ namespace PerfSummaries
 			}
 			else
 			{
-				foreach (SummaryMetadataColumn column in columns)
+				foreach (SummaryTableColumn column in columns)
 				{
 					HeaderRow += "<th>" + column.GetDisplayName() + "</th>";
 				}
@@ -3030,7 +3031,7 @@ namespace PerfSummaries
 					string sectionName = "";
 					if (sectionBoundaryInfo != null && columnLookup.ContainsKey(sectionBoundaryInfo.statName))
 					{
-						SummaryMetadataColumn col = columnLookup[sectionBoundaryInfo.statName];
+						SummaryTableColumn col = columnLookup[sectionBoundaryInfo.statName];
 						string currentValue = col.GetStringValue(i);
 						// Only use the start and end tokens if the table is collated
 						if (isCollated)
@@ -3062,7 +3063,7 @@ namespace PerfSummaries
 
 				htmlFile.Write("<tr"+rowClassStr+">");
 				int columnIndex = 0;
-				foreach (SummaryMetadataColumn column in columns)
+				foreach (SummaryTableColumn column in columns)
 				{
 					// Add the tooltip for non-collated tables
 					string toolTipString = "";
@@ -3106,7 +3107,7 @@ namespace PerfSummaries
 			htmlFile.Close();
         }
 
-		SummaryMetadataTable SortRows(List<string> rowSortList, bool reverseSort)
+		SummaryTable SortRows(List<string> rowSortList, bool reverseSort)
 		{
 			List<KeyValuePair<string, int>> columnRemapping = new List<KeyValuePair<string, int>>();
 			for (int i = 0; i < rowCount; i++)
@@ -3116,7 +3117,7 @@ namespace PerfSummaries
 				{
                     if (columnLookup.ContainsKey(s.ToLower()))
                     {
-                        SummaryMetadataColumn column = columnLookup[s.ToLower()];
+                        SummaryTableColumn column = columnLookup[s.ToLower()];
                         key += "{" + column.GetStringValue(i) + "}";
                     }
                     else
@@ -3133,10 +3134,10 @@ namespace PerfSummaries
 			});
 
 			// Reorder the metadata rows
-			List<SummaryMetadataColumn> newColumns = new List<SummaryMetadataColumn>();
-			foreach (SummaryMetadataColumn srcCol in columns)
+			List<SummaryTableColumn> newColumns = new List<SummaryTableColumn>();
+			foreach (SummaryTableColumn srcCol in columns)
 			{
-				SummaryMetadataColumn destCol = new SummaryMetadataColumn(srcCol.name, srcCol.isNumeric);
+				SummaryTableColumn destCol = new SummaryTableColumn(srcCol.name, srcCol.isNumeric);
 				for (int i = 0; i < rowCount; i++)
 				{
 					int srcIndex = columnRemapping[i].Value;
@@ -3154,7 +3155,7 @@ namespace PerfSummaries
 				}
 				newColumns.Add(destCol);
 			}
-			SummaryMetadataTable newTable = new SummaryMetadataTable();
+			SummaryTable newTable = new SummaryTable();
 			newTable.columns = newColumns;
 			newTable.rowCount = rowCount;
 			newTable.firstStatColumnIndex = firstStatColumnIndex;
@@ -3166,30 +3167,30 @@ namespace PerfSummaries
 		void InitColumnLookup()
 		{
 			columnLookup.Clear();
-			foreach (SummaryMetadataColumn col in columns)
+			foreach (SummaryTableColumn col in columns)
 			{
 				columnLookup.Add(col.name.ToLower(), col);
 			}
 		}
 	
-		public void AddMetadata(SummaryMetadata metadata, bool bIncludeCsvStatAverages, bool bIncludeHiddenStats)
+		public void AddRowData(SummaryTableRowData metadata, bool bIncludeCsvStatAverages, bool bIncludeHiddenStats)
 		{
 			foreach (string key in metadata.dict.Keys)
 			{
-				SummaryMetadataValue value = metadata.dict[key];
-				if ( value.type == SummaryMetadataValue.Type.CsvStatAverage && !bIncludeCsvStatAverages )
+				SummaryTableElement value = metadata.dict[key];
+				if ( value.type == SummaryTableElement.Type.CsvStatAverage && !bIncludeCsvStatAverages )
 				{
 					continue;
 				}
-				if ( value.GetFlag(SummaryMetadataValue.Flags.Hidden) && !bIncludeHiddenStats)
+				if ( value.GetFlag(SummaryTableElement.Flags.Hidden) && !bIncludeHiddenStats)
 				{
 					continue;
 				}
-				SummaryMetadataColumn column = null;
+				SummaryTableColumn column = null;
 
 				if (!columnLookup.ContainsKey(key))
 				{
-					column = new SummaryMetadataColumn(value.name, value.isNumeric);
+					column = new SummaryTableColumn(value.name, value.isNumeric);
 					columnLookup.Add(key, column);
 					columns.Add(column);
 				}
@@ -3217,8 +3218,8 @@ namespace PerfSummaries
 			get { return rowCount; }
 		}
 
-		Dictionary<string, SummaryMetadataColumn> columnLookup = new Dictionary<string, SummaryMetadataColumn>();
-		List<SummaryMetadataColumn> columns = new List<SummaryMetadataColumn>();
+		Dictionary<string, SummaryTableColumn> columnLookup = new Dictionary<string, SummaryTableColumn>();
+		List<SummaryTableColumn> columns = new List<SummaryTableColumn>();
 		int rowCount = 0;
 		int firstStatColumnIndex = 0;
 		bool isCollated = false;

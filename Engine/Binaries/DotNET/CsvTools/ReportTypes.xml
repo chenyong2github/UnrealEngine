@@ -25,7 +25,7 @@
 	</csvEventsToStrip>
 
 	<!-- Preset summary tables -->
-	<!-- In bulk mode (-csvdir), a metadata summary is produced with data from all summaries -->
+	<!-- In bulk mode (-csvdir), summary table row data is produced for each CSV. This includes data from all active summaries -->
 	<!-- The preset Summary Tables below can be used to provide a filtered and sorted view of that data (see -summaryTable). -->
 	<summaryTables>
 		<summaryTable name="all" rowSort="buildversion,Platform,deviceprofile">
