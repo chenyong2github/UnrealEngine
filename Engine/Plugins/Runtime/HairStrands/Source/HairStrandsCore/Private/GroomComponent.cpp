@@ -1971,6 +1971,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		GroomCacheBuffers = MakeShared<FGroomCacheBuffers, ESPMode::ThreadSafe>();
 		UpdateGroomCache(ElapsedTime);
 	}
+	else
+	{
+		GroomCacheBuffers.Reset();
+	}
 
 	FTransform HairLocalToWorld = GetComponentTransform();
 	FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform::Identity;

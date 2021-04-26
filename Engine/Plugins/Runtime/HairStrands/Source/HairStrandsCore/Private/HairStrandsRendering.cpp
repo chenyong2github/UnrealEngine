@@ -190,8 +190,8 @@ class FGroomCacheUpdatePassCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InAnimatedBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InRestPoseBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, InDeformedOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutDeformedBuffer)
-		SHADER_PARAMETER(FVector, InHairPositionOffset)
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -205,57 +205,48 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FGroomCacheUpdatePassCS, "/Engine/Private/HairStrands/HairStrandsInterpolation.usf", "MainCS", SF_Compute);
 
-template<typename DataType>
-void InternalCreateStructuredBufferRDG(FRDGBuilder& GraphBuilder, const TArray<DataType>& InData, EPixelFormat Format, FRDGExternalBuffer& Out, const TCHAR* DebugName)
-{
-	FRDGBufferRef Buffer = nullptr;
-
-	const uint32 DataCount = InData.Num();
-	const uint32 DataSizeInBytes = sizeof(DataType) * DataCount;
-	if (DataSizeInBytes == 0)
-	{
-		Out.Buffer = nullptr;
-		return;
-	}
-
-	const FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(DataType), InData.Num());
-
-	Buffer =  CreateStructuredBuffer(
-		GraphBuilder,
-		DebugName,
-		sizeof(DataType),
-		DataCount,
-		InData.GetData(),
-		DataSizeInBytes,
-		ERDGInitialDataFlags::None);
-
-	ConvertToExternalBufferWithViews(GraphBuilder, Buffer, Out, Format);
-}
-
 static void AddGroomCacheUpdatePass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
 	uint32 ElementCount,
 	const FGroomCacheGroupData& GroomCacheData,
-	const FVector& InInitialHairWorldOffset,
 	FRDGBufferSRVRef InBuffer,
-	FRDGBufferUAVRef OutBuffer)
+	FRDGBufferSRVRef InDeformedOffsetBuffer,
+	FRDGBufferUAVRef OutBuffer
+	)
 {
 	if (ElementCount == 0) return;
 
 	const uint32 GroupSize = 64;
 	const FIntVector DispatchCount = ComputeDispatchCount(ElementCount, GroupSize);
 
-	FRDGExternalBuffer Buffer;
-	InternalCreateStructuredBufferRDG(GraphBuilder, GroomCacheData.VertexData.PointsPosition, EPixelFormat::PF_Unknown, Buffer, TEXT("GroomCache_PositionBuffer"));
+	FRDGBufferRef VertexBuffer = nullptr;
+
+	const uint32 DataCount = GroomCacheData.VertexData.PointsPosition.Num();
+	const uint32 DataSizeInBytes = sizeof(FVector) * DataCount;
+	if (DataSizeInBytes != 0)
+	{
+		VertexBuffer = CreateStructuredBuffer(
+			GraphBuilder,
+			TEXT("GroomCache_PositionBuffer"),
+			sizeof(FVector),
+			GroomCacheData.VertexData.PointsPosition.Num(),
+			GroomCacheData.VertexData.PointsPosition.GetData(),
+			DataSizeInBytes,
+			ERDGInitialDataFlags::None);
+	}
+	else
+	{
+		return;
+	}
 
 	FGroomCacheUpdatePassCS::FParameters* Parameters = GraphBuilder.AllocParameters<FGroomCacheUpdatePassCS::FParameters>();
 	Parameters->DispatchCountX = DispatchCount.X;
 	Parameters->ElementCount = ElementCount;
-	Parameters->InAnimatedBuffer = RegisterAsSRV(GraphBuilder, Buffer);
+	Parameters->InAnimatedBuffer = GraphBuilder.CreateSRV(VertexBuffer);
 	Parameters->InRestPoseBuffer = InBuffer;
+	Parameters->InDeformedOffsetBuffer = InDeformedOffsetBuffer;
 	Parameters->OutDeformedBuffer = OutBuffer;
-	Parameters->InHairPositionOffset = InInitialHairWorldOffset;
 
 	TShaderMapRef<FGroomCacheUpdatePassCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
@@ -1532,14 +1523,23 @@ void ComputeHairStrandsInterpolation(
 				FScopeLock Lock(Instance->Debug.GroomCacheBuffers->GetCriticalSection());
 				const FGroomCacheGroupData& GroomCacheGroupData = Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData[Instance->Debug.GroupIndex];
 
+				Instance->Guides.DeformedResource->SetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current, GroomCacheGroupData.BoundingBox.GetCenter());
+
+				AddHairStrandUpdatePositionOffsetPass(
+					GraphBuilder,
+					ShaderMap,
+					MeshLODIndex,
+					Instance->Guides.DeformedRootResource,
+					Instance->Guides.DeformedResource);
+
 				// Pass to upload GroomCache guide positions
 				AddGroomCacheUpdatePass(
 					GraphBuilder,
 					ShaderMap,
 					Instance->Guides.RestResource->GetVertexCount(),
 					GroomCacheGroupData,
-					Instance->Guides.RestResource->PositionOffset,
 					RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->RestPositionBuffer),
+					RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
 					RegisterAsUAV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)));
 			}
 
@@ -1584,17 +1584,25 @@ void ComputeHairStrandsInterpolation(
 				FScopeLock Lock(Instance->Debug.GroomCacheBuffers->GetCriticalSection());
 				const FGroomCacheGroupData& GroomCacheGroupData = Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData[Instance->Debug.GroupIndex];
 
+				Instance->Strands.DeformedResource->SetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current, GroomCacheGroupData.BoundingBox.GetCenter());
+
+				AddHairStrandUpdatePositionOffsetPass(
+					GraphBuilder,
+					ShaderMap,
+					MeshLODIndex,
+					Instance->Strands.DeformedRootResource,
+					Instance->Strands.DeformedResource);
+
 				// Pass to upload GroomCache strands positions
 				AddGroomCacheUpdatePass(
 					GraphBuilder,
 					ShaderMap,
 					Instance->Strands.RestResource->GetVertexCount(),
 					GroomCacheGroupData,
-					Instance->Strands.RestResource->PositionOffset,
 					RegisterAsSRV(GraphBuilder, Instance->Strands.RestResource->RestPositionBuffer),
-					Strands_DeformedPosition.UAV);
-
-				Instance->Strands.DeformedResource->SetPositionOffset(FHairStrandsDeformedResource::EFrameType::Current, GroomCacheGroupData.BoundingBox.GetCenter());
+					RegisterAsSRV(GraphBuilder, Instance->Strands.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
+					Strands_DeformedPosition.UAV
+					);
 			}
 		}
 

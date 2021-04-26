@@ -28,7 +28,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Groom")
 	UGroomAsset* GroomAsset;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "GroomCache")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "GroomCache", meta = (EditCondition = "BindingAsset == nullptr"))
 	UGroomCache* GroomCache;
 
 	/** Niagara components that will be attached to the system*/
@@ -40,7 +40,7 @@ public:
 	class USkeletalMesh* SourceSkeletalMesh;
 
 	/** Optional binding asset for binding a groom onto a skeletal mesh. If the binding asset is not provided the projection is done at runtime, which implies a large GPU cost at startup time. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Groom")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Groom", meta = (EditCondition = "GroomCache == nullptr"))
 	class UGroomBindingAsset* BindingAsset;
 
 	/** Physics asset to be used for hair simulation */

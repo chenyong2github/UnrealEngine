@@ -749,10 +749,9 @@ void MainCS(
 uint ElementCount;
 uint DispatchCountX;
 
-float3 InHairPositionOffset;
-
-Buffer<float3> InAnimatedBuffer;
+StructuredBuffer<float3> InAnimatedBuffer;
 Buffer<uint4> InRestPoseBuffer;
+Buffer<float4> InDeformedOffsetBuffer;
 RWBuffer<uint4> OutDeformedBuffer;
 
 #define GROUP_SIZE 64
@@ -767,7 +766,8 @@ void MainCS(
 	}
 
 	uint4 PackedRestPosition = InRestPoseBuffer[Index];
-	float3 WorldVertexPosition = InAnimatedBuffer[Index] - InHairPositionOffset;
+	float3 HairPositionOffset = InDeformedOffsetBuffer[0];
+	float3 WorldVertexPosition = InAnimatedBuffer[Index] - HairPositionOffset;
 	OutDeformedBuffer[Index] = uint4(f32tof16(WorldVertexPosition) , PackedRestPosition.w);
 }
 
