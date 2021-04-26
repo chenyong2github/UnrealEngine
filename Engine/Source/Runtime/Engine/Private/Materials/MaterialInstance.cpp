@@ -460,6 +460,49 @@ static void SwapLayerParameterIndicesArray(TArray<ParameterType>& Parameters, in
 	}
 }
 
+template<typename ParameterType>
+static void RemoveLayerParameterIndicesArray(TArray<ParameterType>& Parameters, int32 RemoveIndex)
+{
+	int32 ParameterIndex = 0;
+	while (ParameterIndex < Parameters.Num())
+	{
+		ParameterType& Parameter = Parameters[ParameterIndex];
+		bool bRemovedParameter = false;
+		if (Parameter.ParameterInfo.Association == LayerParameter)
+		{
+			const int32 Index = Parameter.ParameterInfo.Index;
+			if (Index == RemoveIndex)
+			{
+				bRemovedParameter = true;
+			}
+			else if (Index > RemoveIndex)
+			{
+				Parameter.ParameterInfo.Index--;
+			}
+		}
+		else if (Parameter.ParameterInfo.Association == BlendParameter)
+		{
+			const int32 Index = Parameter.ParameterInfo.Index + 1;
+			if (Index == RemoveIndex)
+			{
+				bRemovedParameter = true;
+			}
+			else if (Index > RemoveIndex)
+			{
+				Parameter.ParameterInfo.Index--;
+			}
+		}
+		if (bRemovedParameter)
+		{
+			Parameters.RemoveAt(ParameterIndex);
+		}
+		else
+		{
+			++ParameterIndex;
+		}
+	}
+}
+
 void UMaterialInstance::SwapLayerParameterIndices(int32 OriginalIndex, int32 NewIndex)
 {
 	if (OriginalIndex != NewIndex)
@@ -472,6 +515,17 @@ void UMaterialInstance::SwapLayerParameterIndices(int32 OriginalIndex, int32 New
 		SwapLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, OriginalIndex, NewIndex);
 		SwapLayerParameterIndicesArray(StaticParameters.MaterialLayersParameters, OriginalIndex, NewIndex);
 	}
+}
+
+void UMaterialInstance::RemoveLayerParameterIndex(int32 Index)
+{
+	RemoveLayerParameterIndicesArray(ScalarParameterValues, Index);
+	RemoveLayerParameterIndicesArray(VectorParameterValues, Index);
+	RemoveLayerParameterIndicesArray(TextureParameterValues, Index);
+	RemoveLayerParameterIndicesArray(RuntimeVirtualTextureParameterValues, Index);
+	RemoveLayerParameterIndicesArray(FontParameterValues, Index);
+	RemoveLayerParameterIndicesArray(StaticParameters.StaticSwitchParameters, Index);
+	RemoveLayerParameterIndicesArray(StaticParameters.MaterialLayersParameters, Index);
 }
 #endif // WITH_EDITOR
 
@@ -3955,6 +4009,7 @@ void UMaterialInstance::UpdateParameterNames()
 		InitResources();
 	}
 }
+
 #endif // WITH_EDITOR
 
 void UMaterialInstance::RecacheUniformExpressions(bool bRecreateUniformBuffer) const
