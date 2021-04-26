@@ -450,6 +450,21 @@ struct FSetEntityMetadataRequest : public FRCRequest
 };
 
 /**
+ * Holds a request to set an entity's label.
+ */
+USTRUCT()
+struct FSetEntityLabelRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	/**
+	 * The new label to assign.
+	 */
+	UPROPERTY()
+	FString NewLabel;
+};
+
+/**
  * Holds a request to get an asset's thumbnail.
  */
 USTRUCT()

@@ -421,6 +421,27 @@ void FWebRemoteControlModule::RegisterRoutes()
         FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleEntityMetadataOperationsRoute)
     });
 
+	RegisterRoute({
+		TEXT("Set an exposed property's label"),
+		FHttpPath(TEXT("/remote/preset/:preset/property/:label/label")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleEntitySetLabelRoute)
+	});
+	
+	RegisterRoute({
+		TEXT("Set an exposed function's label"),
+		FHttpPath(TEXT("/remote/preset/:preset/function/:label/label")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleEntitySetLabelRoute)
+	});
+	
+	RegisterRoute({
+		TEXT("Set an exposed actor's label"),
+		FHttpPath(TEXT("/remote/preset/:preset/actor/:label/label")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleEntitySetLabelRoute)
+	});
+
 	//**************************************
 	// Special websocket route just using http request
 	RegisterWebsocketRoute({
@@ -1404,6 +1425,57 @@ bool FWebRemoteControlModule::HandleEntityMetadataOperationsRoute(const FHttpSer
 		Entity->RemoveMetadataEntry(*Key);
 	}
 
+	Response->Code = EHttpServerResponseCodes::Ok;
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandleEntitySetLabelRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	FString Label = Request.PathParams.FindChecked(TEXT("label"));
+	
+	if (!WebRemoteControlUtils::ValidateContentType(Request, TEXT("application/json"), OnComplete))
+	{
+		return true;
+	}
+	
+	URemoteControlPreset* Preset = WebRemoteControl::GetPreset(*PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	TSharedPtr<FRemoteControlEntity> Entity = WebRemoteControl::GetRCEntity<FRemoteControlEntity>(Preset, Label);
+
+	if (!Entity.IsValid())
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset entity."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	FSetEntityLabelRequest SetEntityLabelRequest;
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetEntityLabelRequest))
+	{
+		return true;
+	}
+
+#if WITH_EDITOR
+	FScopedTransaction Transaction( LOCTEXT("SetEntityLabel", "Modify exposed entity's label"));
+	Preset->Modify();
+#endif
+	
+	FName AssignedLabel = Entity->Rename(*SetEntityLabelRequest.NewLabel);
+	
+	WebRemoteControlUtils::SerializeResponse(FSetEntityLabelResponse{ AssignedLabel.ToString() }, Response->Body);
 	Response->Code = EHttpServerResponseCodes::Ok;
 
 	OnComplete(MoveTemp(Response));

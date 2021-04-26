@@ -173,6 +173,23 @@ struct FGetMetadataResponse
 };
 
 USTRUCT()
+struct FSetEntityLabelResponse
+{
+	GENERATED_BODY()
+
+	FSetEntityLabelResponse() = default;
+
+	FSetEntityLabelResponse(FString&& InString)
+		: AssignedLabel(MoveTemp(InString))
+	{
+	}
+
+	/** The label that was assigned when requesting to modify an entity's label. */
+	UPROPERTY()
+	FString AssignedLabel;
+};
+
+USTRUCT()
 struct FRCPresetFieldsRenamedEvent
 {
 	GENERATED_BODY()
@@ -195,7 +212,6 @@ struct FRCPresetFieldsRenamedEvent
 	UPROPERTY()
 	TArray<FRCPresetFieldRenamed> RenamedFields;
 };
-
 
 USTRUCT()
 struct FRCPresetMetadataModified
