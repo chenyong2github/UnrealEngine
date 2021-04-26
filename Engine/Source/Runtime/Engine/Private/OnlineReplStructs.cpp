@@ -12,6 +12,7 @@
 #include "Dom/JsonValue.h"
 #include "EngineLogs.h"
 #include "Net/OnlineEngineInterface.h"
+#include "Misc/ConfigCacheIni.h"
 
 namespace
 {
