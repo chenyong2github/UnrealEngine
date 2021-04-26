@@ -43,6 +43,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 
 #if WITH_EDITOR
 #include "PakFileUtilities.h"
+#include "PipelineCacheUtilities.h"
 #endif
 
 // FORT-93125
@@ -61,7 +62,7 @@ static uint32 GShaderPipelineArchiveVersion = 1;
 
 static FString ShaderExtension = TEXT(".ushaderbytecode");
 static FString ShaderAssetInfoExtension = TEXT(".assetinfo.json");
-static FString StableExtension = TEXT(".scl.csv");
+static FString StableExtension = TEXT(".shk");
 static FString PipelineExtension = TEXT(".ushaderpipelines");
 
 int32 GShaderCodeLibrarySeperateLoadingCache = 0;
@@ -377,16 +378,30 @@ void FCompactFullName::AppendString(FAnsiStringBuilderBase& Out) const
 void FCompactFullName::ParseFromString(const FStringView& InSrc)
 {
 	TArray<FStringView, TInlineAllocator<64>> Fields;
-	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT(' '), TEXT('.'), TEXT('/'), TEXT('\t')},
+	// do not split by '/' as this splits the original FName into per-path components
+	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT(' '), TEXT('.'), /*TEXT('/'),*/ TEXT('\t')},
 		[&Fields](FStringView Field) { if (!Field.IsEmpty()) { Fields.Add(Field); } });
 	if (Fields.Num() == 1 && Fields[0] == TEXT("empty"_SV))
 	{
 		Fields.Empty();
 	}
-	ObjectClassAndPath.Empty(Fields.Num());
-	for (const FStringView& Item : Fields)
+	// fix up old format that removed the leading '/'
+	else if (Fields.Num() == 3 && Fields[1][0] != TEXT('/'))
 	{
-		ObjectClassAndPath.Emplace(Item);
+		ObjectClassAndPath.Empty(3);
+		ObjectClassAndPath.Emplace(Fields[0]);
+		FString Fixup(TEXT("/"));
+		Fixup += Fields[1];
+		ObjectClassAndPath.Emplace(Fixup);
+		ObjectClassAndPath.Emplace(Fields[2]);
+	}
+	else
+	{
+		ObjectClassAndPath.Empty(Fields.Num());
+		for (const FStringView& Item : Fields)
+		{
+			ObjectClassAndPath.Emplace(Item);
+		}
 	}
 }
 
@@ -1640,13 +1655,11 @@ struct FEditorShaderStableInfo
 		{
 			if (ShaderFileName.Contains(LibraryName + TEXT("-") + FormatName.ToString() + TEXT(".")))
 			{
-				TArray<FString> SourceFileContents;
-				if (FFileHelper::LoadFileToStringArray(SourceFileContents, *GetStableInfoArchiveFilename(OutputDir, LibraryName, FormatName)))
+				TArray<FStableShaderKeyAndValue> StableKeys;
+				if (UE::PipelineCacheUtilities::LoadStableKeysFile(GetStableInfoArchiveFilename(OutputDir, LibraryName, FormatName), StableKeys))
 				{
-					for (int32 Index = 1; Index < SourceFileContents.Num(); Index++)
+					for (FStableShaderKeyAndValue& Item : StableKeys)
 					{
-						FStableShaderKeyAndValue Item;
-						Item.ParseFromStringCached(SourceFileContents[Index], NameCache);
 						AddShader(Item);
 					}
 				}
@@ -1673,22 +1686,38 @@ struct FEditorShaderStableInfo
 
 			// Write directly to the file
 			{
-				TUniquePtr<FArchive> IntermediateFormatAr(IFileManager::Get().CreateFileWriter(*IntermediateFormatPath));
-
-				FString HeaderText = FStableShaderKeyAndValue::HeaderLine();
-				HeaderText += TCHAR('\n');
-				auto HeaderSrc = StringCast<ANSICHAR>(*HeaderText, HeaderText.Len());
-
-				IntermediateFormatAr->Serialize((ANSICHAR*)HeaderSrc.Get(), HeaderSrc.Length() * sizeof(ANSICHAR));
-
-				TAnsiStringBuilder<512> LineBuffer;
-
-				for (const FStableShaderKeyAndValue& Item : StableMap)
+				if (!UE::PipelineCacheUtilities::SaveStableKeysFile(IntermediateFormatPath, StableMap))
 				{
-					LineBuffer.Reset();
-					Item.AppendString(LineBuffer);
-					LineBuffer << '\n';
-					IntermediateFormatAr->Serialize(const_cast<ANSICHAR*>(LineBuffer.ToString()), LineBuffer.Len() * sizeof(ANSICHAR));
+					UE_LOG(LogShaderLibrary, Error, TEXT("Could not save stable map to file '%s'"), *IntermediateFormatPath);
+				}
+
+				// check that it works in a Debug build pm;u
+				if (UE_BUILD_DEBUG)
+				{
+					TArray<FStableShaderKeyAndValue> LoadedBack;
+					if (!UE::PipelineCacheUtilities::LoadStableKeysFile(IntermediateFormatPath, LoadedBack))
+					{
+						UE_LOG(LogShaderLibrary, Error, TEXT("Saved stable map could not be loaded back (from file '%s')"), *IntermediateFormatPath);
+					}
+					else
+					{
+						if (LoadedBack.Num() != StableMap.Num())
+						{
+							UE_LOG(LogShaderLibrary, Error, TEXT("Loaded stable map has a different number of entries (%d) than a saved one (%d)"), LoadedBack.Num(), StableMap.Num());
+						}
+						else
+						{
+							for (FStableShaderKeyAndValue& Value : LoadedBack)
+							{
+								Value.ComputeKeyHash();
+								if (!StableMap.Contains(Value))
+								{
+									UE_LOG(LogShaderLibrary, Error, TEXT("Loaded stable map has an entry that is not present in the saved one"));
+									UE_LOG(LogShaderLibrary, Error, TEXT("  %s"), *Value.ToString());
+								}
+							}
+						}
+					}
 				}
 			}
 
