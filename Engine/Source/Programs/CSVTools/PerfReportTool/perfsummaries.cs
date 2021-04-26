@@ -2036,14 +2036,17 @@ namespace PerfSummaries
 
 		public static SummaryMetadata TryReadFromCache(string metadataCacheDir, string csvId)
 		{
-			SummaryMetadata metaData = null;
 			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
+			return TryReadFromCacheFile(filename);
+		}
 
+		public static SummaryMetadata TryReadFromCacheFile(string filename)
+		{
+			SummaryMetadata metaData = null;
 			if ( !File.Exists(filename) )
 			{
 				return null;
 			}
-
 			try
 			{
 				using (FileStream fileStream = new FileStream(filename, FileMode.Open))
@@ -2078,6 +2081,7 @@ namespace PerfSummaries
 			}
 			return metaData;
 		}
+
 		public bool WriteToCache(string metadataCacheDir, string csvId)
 		{
 			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
