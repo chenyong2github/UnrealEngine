@@ -32,8 +32,8 @@ class FOnlineSubsystemEOS;
 #define ID_HALF_BYTE_SIZE 16
 #define EOS_ID_BYTE_SIZE (ID_HALF_BYTE_SIZE * 2)
 
-typedef TSharedPtr<const class FUniqueNetIdEOS, UNIQUENETID_ESPMODE> FUniqueNetIdEOSPtr;
-typedef TSharedRef<const class FUniqueNetIdEOS, UNIQUENETID_ESPMODE> FUniqueNetIdEOSRef;
+typedef TSharedPtr<const class FUniqueNetIdEOS> FUniqueNetIdEOSPtr;
+typedef TSharedRef<const class FUniqueNetIdEOS> FUniqueNetIdEOSRef;
 
 /**
  * Unique net id wrapper for a EOS account ids. The underlying string is a combination
@@ -46,7 +46,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdEOSRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdEOS, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdEOS>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */

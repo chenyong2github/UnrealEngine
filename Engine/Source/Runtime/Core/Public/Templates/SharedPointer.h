@@ -1841,7 +1841,7 @@ FORCEINLINE SharedPointerInternals::FRawPtrProxy< ObjectType > MakeShareable( Ob
  * 	  template <typename ObjectType>
  *	  friend class SharedPointerInternals::TIntrusiveReferenceController;
  */
-template <typename InObjectType, ESPMode InMode = ESPMode::Fast, typename... InArgTypes>
+template <typename InObjectType, ESPMode InMode = ESPMode::ThreadSafe, typename... InArgTypes>
 FORCEINLINE TSharedRef<InObjectType, InMode> MakeShared(InArgTypes&&... Args)
 {
 	SharedPointerInternals::TIntrusiveReferenceController<InObjectType>* Controller = SharedPointerInternals::NewIntrusiveReferenceController<InObjectType>(Forward<InArgTypes>(Args)...);

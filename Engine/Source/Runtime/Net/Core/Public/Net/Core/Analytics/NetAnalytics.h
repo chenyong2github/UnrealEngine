@@ -48,11 +48,7 @@ class FNetAnalyticsAggregator;
 #define NET_ANALYTICS_MULTITHREADING 0
 
 
-#if NET_ANALYTICS_MULTITHREADING || FORCE_THREADSAFE_SHAREDPTRS
-	constexpr const ESPMode NetAnalyticsThreadSafety = ESPMode::ThreadSafe;
-#else
-	constexpr const ESPMode NetAnalyticsThreadSafety = ESPMode::NotThreadSafe;
-#endif
+constexpr const ESPMode NetAnalyticsThreadSafety = ESPMode::ThreadSafe;
 
 
 // Forward Declarations

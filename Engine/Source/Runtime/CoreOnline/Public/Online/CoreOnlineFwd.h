@@ -7,6 +7,6 @@
 class FUniqueNetId;
 struct FUniqueNetIdWrapper;
 
-using FUniqueNetIdPtr = TSharedPtr<const FUniqueNetId, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdRef = TSharedRef<const FUniqueNetId, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdWeakPtr = TWeakPtr<const FUniqueNetId, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdPtr = TSharedPtr<const FUniqueNetId>;
+using FUniqueNetIdRef = TSharedRef<const FUniqueNetId>;
+using FUniqueNetIdWeakPtr = TWeakPtr<const FUniqueNetId>;

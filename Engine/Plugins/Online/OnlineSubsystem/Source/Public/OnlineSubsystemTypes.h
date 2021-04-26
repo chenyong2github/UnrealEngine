@@ -815,8 +815,8 @@ public:
 // placeholder "type" until we can make FUniqueNetIdString sufficiently abstract
 static FName NAME_Unset = TEXT("UNSET");
 
-using FUniqueNetIdStringRef = TSharedRef<const class FUniqueNetIdString, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdStringPtr = TSharedPtr<const class FUniqueNetIdString, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdStringRef = TSharedRef<const class FUniqueNetIdString>;
+using FUniqueNetIdStringPtr = TSharedPtr<const class FUniqueNetIdString>;
 
 /**
  * Unique net id wrapper for a string
@@ -832,7 +832,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdStringRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdString, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdString>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */
@@ -891,8 +891,7 @@ public:
 		return ::GetTypeHash(A.UniqueNetIdStr);
 	}
 
-	// Public constructors are deprecated, but we are piggybacking on the ESPMode deprecation and making these public in ESPMode::Fast and protected in ESPMode::ThreadSafe
-UNIQUENETID_CONSTRUCTORVIS:
+public:
 	FUniqueNetIdString() = default;
 
 	/**
@@ -940,15 +939,15 @@ UNIQUENETID_CONSTRUCTORVIS:
 
 
 #define TEMP_UNIQUENETIDSTRING_SUBCLASS(SUBCLASSNAME, TYPE) \
-using SUBCLASSNAME##Ptr = TSharedPtr<const class SUBCLASSNAME, UNIQUENETID_ESPMODE>; \
-using SUBCLASSNAME##Ref = TSharedRef<const class SUBCLASSNAME, UNIQUENETID_ESPMODE>; \
+using SUBCLASSNAME##Ptr = TSharedPtr<const class SUBCLASSNAME>; \
+using SUBCLASSNAME##Ref = TSharedRef<const class SUBCLASSNAME>; \
 class SUBCLASSNAME : public FUniqueNetIdString \
 { \
 public: \
 	template<typename... TArgs> \
 	static SUBCLASSNAME##Ref Create(TArgs&&... Args) \
 	{ \
-		return MakeShared<SUBCLASSNAME, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...); \
+		return MakeShared<SUBCLASSNAME>(Forward<TArgs>(Args)...); \
 	} \
 	friend class SharedPointerInternals::TIntrusiveReferenceController<SUBCLASSNAME>; \
 	static SUBCLASSNAME##Ref Cast(const FUniqueNetIdRef& InNetId) \
@@ -983,7 +982,7 @@ public: \
 		static const SUBCLASSNAME##Ref EmptyId(Create()); \
 		return EmptyId; \
 	} \
-UNIQUENETID_CONSTRUCTORVIS: \
+public: \
 	SUBCLASSNAME() \
 		: FUniqueNetIdString() \
 	{ \

@@ -71,7 +71,7 @@ struct FJoinabilitySettings
  * Abstraction of a profile service online Id
  * The class is meant to be opaque
  */
-class FUniqueNetId : public TSharedFromThis<FUniqueNetId, UNIQUENETID_ESPMODE>
+class FUniqueNetId : public TSharedFromThis<FUniqueNetId>
 {
 protected:
 

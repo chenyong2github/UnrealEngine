@@ -17,8 +17,8 @@ class FOnlineSubsystemEOSPlus;
 
 #define BASE_NETID_TYPE_SIZE 1
 
-using FUniqueNetIdEOSPlusPtr = TSharedPtr<const class FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdEOSPlusRef = TSharedRef<const class FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdEOSPlusPtr = TSharedPtr<const class FUniqueNetIdEOSPlus>;
+using FUniqueNetIdEOSPlusRef = TSharedRef<const class FUniqueNetIdEOSPlus>;
 
 /**
  * Unique net id wrapper for a EOS plus another account id. The underlying string is a combination
@@ -31,7 +31,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdEOSPlusRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdEOSPlus, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdEOSPlus>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */
@@ -61,8 +61,8 @@ private:
 	TArray<uint8> RawBytes;
 };
 
-using FUniqueNetIdBinaryPtr = TSharedPtr<const class FUniqueNetIdBinary, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdBinaryRef = TSharedRef<const class FUniqueNetIdBinary, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdBinaryPtr = TSharedPtr<const class FUniqueNetIdBinary>;
+using FUniqueNetIdBinaryRef = TSharedRef<const class FUniqueNetIdBinary>;
 
 class FUniqueNetIdBinary :
 	public FUniqueNetId
@@ -73,7 +73,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdBinaryRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdBinary, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdBinary>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */

@@ -41,7 +41,7 @@ struct FStrawberry : public IBerry
 	virtual FString Name() override { return TEXT("Strawberry"); }
 };
 
-template<ESPMode Mode = ESPMode::Fast>
+template<ESPMode Mode = ESPMode::ThreadSafe>
 struct ISmoothie
 {
 	virtual ~ISmoothie() { }
@@ -49,7 +49,7 @@ struct ISmoothie
 	virtual TSharedRef<IFruit, Mode> GetFruit() = 0;
 };
 
-template<ESPMode Mode = ESPMode::Fast>
+template<ESPMode Mode = ESPMode::ThreadSafe>
 struct TSmoothie : public ISmoothie<Mode>
 {
 	TSmoothie(TSharedRef<IFruit, Mode> InFruit, TSharedRef<IBerry, Mode> InBerry) : Berry(InBerry), Fruit(InFruit) { }
@@ -60,7 +60,7 @@ struct TSmoothie : public ISmoothie<Mode>
 	TSharedRef<IFruit, Mode> Fruit;
 };
 
-template<ESPMode Mode = ESPMode::Fast>
+template<ESPMode Mode = ESPMode::ThreadSafe>
 struct TTwoSmoothies
 {
 	TSharedPtr<ISmoothie<Mode>, Mode> One;
@@ -75,9 +75,6 @@ DECLARE_DELEGATE_RetVal_TwoParams(TSharedRef<ISmoothie<>>, FSmoothieFactoryDeleg
 Expose_TNameOf(IBerry)
 Expose_TNameOf(IFruit)
 Expose_TNameOf(ISmoothie<>)
-#if !FORCE_THREADSAFE_SHAREDPTRS
-Expose_TNameOf(ISmoothie<ESPMode::ThreadSafe>)
-#endif
 
 
 /* Tests

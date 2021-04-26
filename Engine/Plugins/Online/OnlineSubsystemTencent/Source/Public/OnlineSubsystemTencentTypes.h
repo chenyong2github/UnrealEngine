@@ -27,8 +27,8 @@ using TRailIdMap = TMap<rail::RailID, ValueType, FDefaultSetAllocator, FRailIdKe
 /** Key/Value pairs stored per user on the Rail platform */
 using FMetadataPropertiesRail = FOnlineKeyValuePairs<FString, FVariantData>;
 
-using FUniqueNetIdRailRef = TSharedRef<const class FUniqueNetIdRail, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdRailPtr = TSharedPtr<const class FUniqueNetIdRail, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdRailRef = TSharedRef<const class FUniqueNetIdRail>;
+using FUniqueNetIdRailPtr = TSharedPtr<const class FUniqueNetIdRail>;
 
 /**
  * Rail specific implementation of the unique net id
@@ -47,7 +47,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdRailRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdRail, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdRail>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */

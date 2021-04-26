@@ -63,7 +63,7 @@ enum class ETypeContainerScope
  * Note: Type containers depend on variadic templates and are therefore not available
  * on XboxOne at this time, which means they should only be used for desktop applications.
  */
-template<ESPMode Mode = ESPMode::Fast>
+template<ESPMode Mode = ESPMode::ThreadSafe>
 class TTypeContainer
 {
 	/** Interface for object instance providers. */
@@ -423,5 +423,5 @@ private:
 };
 
 
-/** Thread-unsafe type container (for backwards compatibility). */
-class FTypeContainer : public TTypeContainer<ESPMode::Fast> { };
+/** For backwards compatibility. */
+class FTypeContainer : public TTypeContainer<ESPMode::ThreadSafe> { };

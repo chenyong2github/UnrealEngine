@@ -10,8 +10,8 @@
 #define PICTURE_DATA_SILHOUETTE "is_silhouette"
 #define PICTURE_DATA_URL "url"
 
-using FUniqueNetIdFacebookPtr = TSharedPtr<const class FUniqueNetIdFacebook, UNIQUENETID_ESPMODE>;
-using FUniqueNetIdFacebookRef = TSharedRef<const class FUniqueNetIdFacebook, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdFacebookPtr = TSharedPtr<const class FUniqueNetIdFacebook>;
+using FUniqueNetIdFacebookRef = TSharedRef<const class FUniqueNetIdFacebook>;
 
 /**
  * Facebook specific implementation of the unique net id
@@ -27,7 +27,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdFacebookRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdFacebook, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
+		return MakeShared<FUniqueNetIdFacebook>(Forward<TArgs>(Args)...);
 	}
 
 	/** Allow MakeShared to see private constructors */

@@ -18,10 +18,6 @@ public class CoreOnline : ModuleRules
 		);
 
 		ConfigCache.ReadSettings(DirectoryReference.FromFile(Target.ProjectFile), Target.Platform, this);
-		PublicDefinitions.Add("UNIQUENETID_ESPMODE=ESPMode::" + (bEnableThreadSafeUniqueNetIds ? "ThreadSafe" : "Fast"));
-		// This is to ease migration to ESPMode::ThreadSafe. We have deprecated public FUniqueNetId constructors, by including it in the
-		// ESPMode::Fast deprecation mechanism. The constructors are public when the ESPMode is Fast, and protected when it is ThreadSafe.
-		PublicDefinitions.Add("UNIQUENETID_CONSTRUCTORVIS=" + (bEnableThreadSafeUniqueNetIds ? "protected" : "public"));
 	}
 
 }

@@ -12,7 +12,6 @@
 
 
 /** Default behavior. */
-#define	FORCE_THREADSAFE_SHAREDPTRS PLATFORM_WEAKLY_CONSISTENT_MEMORY
 #define THREAD_SANITISE_UNSAFEPTR 0
 
 #if THREAD_SANITISE_UNSAFEPTR
@@ -30,25 +29,23 @@ enum class ESPMode
 	/** Forced to be not thread-safe. */
 	NotThreadSafe = 0,
 
-	/**
-		*	Fast, doesn't ever use atomic interlocks.
-		*	Some code requires that all shared pointers are thread-safe.
-		*	It's better to change it here, instead of replacing ESPMode::Fast to ESPMode::ThreadSafe throughout the code.
-		*/
-	Fast = FORCE_THREADSAFE_SHAREDPTRS ? 1 : 0,
+	/** Thread-safe, never spin locks, but slower */
+	ThreadSafe = 1,
 
-	/** Conditionally thread-safe, never spin locks, but slower */
-	ThreadSafe = 1
+	/**
+	 * Fast was sometimes ThreadSafe and sometimes NotThreadSafe, but Fast is a misnomer.
+	 * Deprecated since ThreadSafe became the default.
+	 */
+	Fast UE_DEPRECATED(5.0, "ESPMode::Fast has been deprecated - please use ESPMode::ThreadSafe instead") = 1
 };
 
 
-// Forward declarations.  Note that in the interest of fast performance, thread safety
-// features are mostly turned off (Mode = ESPMode::Fast).  If you need to access your
-// object on multiple threads, you should use ESPMode::ThreadSafe!
-template< class ObjectType, ESPMode Mode = ESPMode::Fast > class TSharedRef;
-template< class ObjectType, ESPMode Mode = ESPMode::Fast > class TSharedPtr;
-template< class ObjectType, ESPMode Mode = ESPMode::Fast > class TWeakPtr;
-template< class ObjectType, ESPMode Mode = ESPMode::Fast > class TSharedFromThis;
+// Forward declarations.  By default, thread safety features are turned on. (Mode = ESPMode::ThreadSafe).
+// If you need more concerned with performance of ref-counting, you should use ESPMode::NotThreadSafe.
+template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedRef;
+template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedPtr;
+template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TWeakPtr;
+template< class ObjectType, ESPMode Mode = ESPMode::ThreadSafe > class TSharedFromThis;
 
 
 /**

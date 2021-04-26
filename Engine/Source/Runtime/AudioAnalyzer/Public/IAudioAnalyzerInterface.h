@@ -79,7 +79,7 @@ namespace Audio
 		virtual TUniquePtr<IAnalyzerResult> NewResult() const = 0;
 
 		// Convenience function to create a new shared result by calling NewResult.
-		template<ESPMode Mode = ESPMode::Fast>
+		template<ESPMode Mode = ESPMode::ThreadSafe>
 		TSharedPtr<IAnalyzerResult, Mode> NewResultShared() const
 		{
 			TUniquePtr<Audio::IAnalyzerResult> Result = NewResult();
