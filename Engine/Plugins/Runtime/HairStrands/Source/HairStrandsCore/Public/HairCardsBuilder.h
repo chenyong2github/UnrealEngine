@@ -19,10 +19,13 @@ namespace FHairCardsBuilder
 {
 	bool ImportGeometry(
 		const UStaticMesh* StaticMesh,
-		FHairCardsDatas& OutCards,
 		FHairCardsBulkData& OutBulk,
 		FHairStrandsDatas& OutGuides,
 		FHairCardsInterpolationBulkData& OutInterpolationBulkData);
+
+	HAIRSTRANDSCORE_API bool ExtractCardsData(
+		const UStaticMesh* StaticMesh, 
+		FHairCardsDatas& Out);
 
 	void ExportGeometry(
 		const FHairCardsDatas& InCardsData, 
@@ -34,6 +37,7 @@ namespace FHairCardsBuilder
 		const struct FHairStrandsDatas& InSim,
 		const struct FHairGroupsProceduralCards& Settings,
 		FHairCardsProceduralDatas& Out,
+		FHairCardsBulkData& OutBulk,
 		FHairStrandsDatas& OutGuides,
 		FHairCardsInterpolationBulkData& OutInterpolationBulk,
 		FHairGroupCardsTextures& OutTextures);
@@ -43,8 +47,6 @@ namespace FHairCardsBuilder
 		FHairCardsRestResource* RestResource,
 		FHairCardsProceduralResource* AtlasResource,
 		FHairGroupCardsTextures* Textures);
-
-	void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out, FHairCardsBulkData& OutBulk);
 
 	FString GetVersion();
 }

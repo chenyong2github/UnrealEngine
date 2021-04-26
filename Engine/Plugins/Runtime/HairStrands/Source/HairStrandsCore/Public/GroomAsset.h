@@ -182,7 +182,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 			bool IsValid() const { return BulkData.IsValid() && RestResource != nullptr; }
 
 			// Main data & Resources
-			FHairCardsDatas						Data;
 			FHairCardsBulkData					BulkData;
 			FHairCardsRestResource*				RestResource = nullptr;
 

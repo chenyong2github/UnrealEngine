@@ -246,8 +246,6 @@ struct FHairCardsDatas
 	bool IsValid() const { return Cards.Positions.Num() > 0; }
 
 	FHairCardsGeometry Cards;
-
-	void Serialize(FArchive& Ar, FHairCardsBulkData& BulkData);
 };
 
 struct FHairCardsBulkData

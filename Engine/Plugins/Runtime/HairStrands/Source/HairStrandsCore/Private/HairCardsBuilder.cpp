@@ -3327,7 +3327,7 @@ namespace FHairCardsBuilder
 FString GetVersion()
 {
 	// Important to update the version when cards building or importing changes
-	return TEXT("8");
+	return TEXT("9ai");
 }
 
 void AllocateAtlasTexture(UTexture2D* Out, const FIntPoint& Resolution, uint32 MipCount, EPixelFormat PixelFormat, ETextureSourceFormat SourceFormat)
@@ -3381,6 +3381,7 @@ void BuildGeometry(
 	const FHairStrandsDatas& InSim,
 	const FHairGroupsProceduralCards& Settings,
 	FHairCardsProceduralDatas& Out,
+	FHairCardsBulkData& OutBulk,
 	FHairStrandsDatas& OutGuides,
 	FHairCardsInterpolationBulkData& OutInterpolationBulk,
 	FHairGroupCardsTextures& OutTextures)
@@ -3467,6 +3468,13 @@ void BuildGeometry(
 	{
 		Out.RenderData.Indices[IndexIt] = Out.Cards.Indices[IndexIt];
 	}
+
+	// Copy transient Procedural cards bulk data into the final bulk data
+	OutBulk.Positions 	= Out.RenderData.Positions;
+	OutBulk.Normals 	= Out.RenderData.Normals;
+	OutBulk.Indices 	= Out.RenderData.Indices;
+	OutBulk.UVs 		= Out.RenderData.UVs;
+	OutBulk.BoundingBox = Out.Cards.BoundingBox;
 
 	const uint32 CardCount = Out.Cards.Lengths.Num();
 	Out.RenderData.CardsRect.SetNum(CardCount);
@@ -3561,7 +3569,7 @@ void SanitizeMeshDescription(FMeshDescription* MeshDescription)
 	}
 }
 
-bool ImportGeometry(
+bool InternalImportGeometry(
 	const UStaticMesh* StaticMesh,
 	FHairCardsDatas& Out,
 	FHairCardsBulkData& OutBulk,
@@ -3734,15 +3742,32 @@ bool ImportGeometry(
 	return bSuccess;
 }
 
-void Convert(const FHairCardsProceduralDatas& In, FHairCardsDatas& Out, FHairCardsBulkData& OutBulk)
+bool ImportGeometry(
+	const UStaticMesh* StaticMesh,
+	FHairCardsBulkData& OutBulk,
+	FHairStrandsDatas& OutGuides,
+	FHairCardsInterpolationBulkData& OutInterpolationBulkData)
 {
-	Out.Cards = In.Cards;
+	FHairCardsDatas CardData;
+	return InternalImportGeometry(
+		StaticMesh,
+		CardData,
+		OutBulk,
+		OutGuides,
+		OutInterpolationBulkData);
+}
 
-	OutBulk.Positions = In.RenderData.Positions;
-	OutBulk.Normals = In.RenderData.Normals;
-	OutBulk.Indices = In.RenderData.Indices;
-	OutBulk.UVs = In.RenderData.UVs;
-	OutBulk.BoundingBox = In.Cards.BoundingBox;
+bool ExtractCardsData(const UStaticMesh* StaticMesh, FHairCardsDatas& Out)
+{
+	FHairCardsBulkData OutBulk;
+	FHairStrandsDatas OutGuides;
+	FHairCardsInterpolationBulkData OutInterpolationBulkData;
+	return InternalImportGeometry(
+		StaticMesh,
+		Out,
+		OutBulk,
+		OutGuides,
+		OutInterpolationBulkData); 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

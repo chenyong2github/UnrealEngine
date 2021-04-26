@@ -15,49 +15,13 @@ FArchive& operator<<(FArchive& Ar, FUIntPoint& Point)
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FHairCardsGeometry& CardGeometry)
-{
-	Ar << CardGeometry.UVs;
-	Ar << CardGeometry.Normals;
-	Ar << CardGeometry.Tangents;
-	Ar << CardGeometry.Positions;
-	Ar << CardGeometry.Indices;
-
-	Ar << CardGeometry.PointOffsets; // No longer used, kept only for backward compatibility
-	Ar << CardGeometry.PointCounts;  // No longer used, kept only for backward compatibility
-
-	Ar << CardGeometry.IndexOffsets;
-	Ar << CardGeometry.IndexCounts;
-
-	// Bounds should be serialized
-	if (Ar.IsLoading())
-	{
-		CardGeometry.BoundingBox.Init();
-		for (const FVector& P : CardGeometry.Positions)
-		{
-			CardGeometry.BoundingBox += P;
-		}
-	}
-
-	return Ar;
-}
-
 void FHairCardsBulkData::Serialize(FArchive& Ar)
 {
 	Ar << Positions;
 	Ar << Normals;
 	Ar << UVs;
 	Ar << Indices;
-}
-
-void FHairCardsDatas::Serialize(FArchive& Ar, FHairCardsBulkData& InBulkData)
-{
-	Ar << Cards;
-	InBulkData.Serialize(Ar);
-	if (Ar.IsLoading())
-	{
-		InBulkData.BoundingBox = Cards.BoundingBox;
-	}
+	Ar << BoundingBox;
 }
 
 FArchive& operator<<(FArchive& Ar, FHairCardsInterpolationVertex& CardInterpVertex)

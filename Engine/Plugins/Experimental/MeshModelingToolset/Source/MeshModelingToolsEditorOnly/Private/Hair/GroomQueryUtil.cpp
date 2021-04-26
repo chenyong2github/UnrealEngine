@@ -6,6 +6,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "FaceGroupUtil.h"
+#include "HairCardsBuilder.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -48,8 +49,32 @@ void UE::GroomQueries::ExtractAllHairCards(AGroomActor* GroomActor,
 			continue;
 		}
 
-		const FHairGroupData::FCards::FLOD& CardLOD = GroupData.Cards.LODs[LODIndex];
-		const FHairCardsDatas& CardData = CardLOD.Data;
+		UStaticMesh* StaticMesh = nullptr;
+		for (const FHairGroupsCardsSourceDescription& Desc : Asset->HairGroupsCards)
+		{
+			if (Desc.GroupIndex == GroupIdx && Desc.LODIndex == LODIndex)
+			{
+				if (Desc.SourceType == EHairCardsSourceType::Imported)
+				{
+					StaticMesh = Desc.ImportedMesh;
+				}
+				else if (Desc.SourceType == EHairCardsSourceType::Procedural)
+				{
+					StaticMesh = Desc.ProceduralMesh;
+				}
+			}
+		}
+		
+		if (!StaticMesh)
+		{
+			continue;
+		}
+
+		FHairCardsDatas CardData;
+		if (!FHairCardsBuilder::ExtractCardsData(StaticMesh, CardData))
+		{
+			continue;
+		}
 		const FHairCardsGeometry& CardGeo = CardData.Cards;
 
 		int32 NumVerts = CardGeo.GetNumVertices();

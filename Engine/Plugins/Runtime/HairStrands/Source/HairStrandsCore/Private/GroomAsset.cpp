@@ -1093,7 +1093,7 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 {
 	if (!Ar.IsCooking() || !CardLODData.bIsCookedOut)
 	{
-		CardLODData.Data.Serialize(Ar, CardLODData.BulkData);
+		CardLODData.BulkData.Serialize(Ar);
 		CardLODData.InterpolationBulkData.Serialize(Ar);
 
 		CardLODData.Guides.Data.Serialize(Ar, CardLODData.Guides.BulkData);
@@ -1102,9 +1102,8 @@ FArchive& operator<<(FArchive& Ar, FHairGroupData::FCards::FLOD& CardLODData)
 	else
 	{
 		// LOD has been marked to be cooked out so serialize empty data
-		FHairCardsDatas NoCardsData;
 		FHairCardsBulkData NoCardsBulkData;
-		NoCardsData.Serialize(Ar, NoCardsBulkData);
+		NoCardsBulkData.Serialize(Ar);
 
 		FHairCardsInterpolationBulkData NoInterpolationBulkData;
 		NoInterpolationBulkData.Serialize(Ar);
@@ -2006,7 +2005,7 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			}
 
 			FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIt];
-			LOD.Data.Cards.Reset();
+			LOD.BulkData.Reset();
 
 			// 0. Release geometry resources
 			InternalReleaseResource(LOD.RestResource);
@@ -2029,12 +2028,10 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 			if (CardsMesh != nullptr)
 			{
 				CardsMesh->ConditionalPostLoad();
-				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.Data, LOD.BulkData, LOD.Guides.Data, LOD.InterpolationBulkData);
+				bInitResources = FHairCardsBuilder::ImportGeometry(CardsMesh, LOD.BulkData, LOD.Guides.Data, LOD.InterpolationBulkData);
 				if (!bInitResources)
 				{
 					UE_LOG(LogHairStrands, Warning, TEXT("Failed to import cards from %s for Group %d LOD %d."), *CardsMesh->GetName(), GroupIndex, LODIt);
-
-					LOD.Data.Cards.Reset();
 					LOD.BulkData.Reset();
 				}
 			}
@@ -2106,8 +2103,8 @@ bool UGroomAsset::BuildCardsGeometry(uint32 GroupIndex)
 				BeginInitResource(LOD.Guides.InterpolationResource);
 
 				// Update card stats to display
-				Desc->CardsInfo.NumCardVertices = LOD.Data.Cards.GetNumVertices();
-				Desc->CardsInfo.NumCards = LOD.Data.Cards.IndexOffsets.Num();
+				Desc->CardsInfo.NumCardVertices = LOD.BulkData.GetNumVertices();
+				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.CurveCount;// LOD.Data.Cards.IndexOffsets.Num();
 			}
 		}
 	}
@@ -2348,7 +2345,7 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 	{
 		FHairGroupData& GroupData = HairGroupsData[GroupIndex];
 		FHairGroupData::FCards::FLOD& LOD = GroupData.Cards.LODs[LODIndex];
-		check(LOD.Data.IsValid());
+		check(LOD.BulkData.IsValid());
 
 		if (LOD.RaytracingResource == nullptr)
 		{
@@ -2536,8 +2533,8 @@ void UGroomAsset::InitCardsResources()
 			if (Desc)
 			{
 				// Update card stats to display
-				Desc->CardsInfo.NumCardVertices = LOD.Data.Cards.GetNumVertices();
-				Desc->CardsInfo.NumCards = LOD.Data.Cards.GetNumCards();
+				Desc->CardsInfo.NumCardVertices = LOD.BulkData.GetNumVertices();
+				Desc->CardsInfo.NumCards = LOD.Guides.BulkData.CurveCount;// LOD.Data.Cards.GetNumCards();
 			}
 		}
 	}
@@ -2903,12 +2900,11 @@ void UGroomAsset::SaveProceduralCards(uint32 DescIndex)
 		GroupData.Guides.Data,
 		Desc->ProceduralSettings,
 		Q.ProceduralData,
+		Q.BulkData,
 		Q.GuideData,
 		Q.InterpolationBulkData,
 		Desc->Textures);
 	Q.Textures = &Desc->Textures;
-
-	FHairCardsBuilder::Convert(Q.ProceduralData, Q.Data, Q.BulkData);
 
 	// 3. Create resources and enqueue texture generation (GPU, kicked by the render thread) 
 	Q.Resources = new FHairCardsRestResource(Q.BulkData);
