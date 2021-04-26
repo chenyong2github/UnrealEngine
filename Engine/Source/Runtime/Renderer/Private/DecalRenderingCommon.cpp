@@ -52,7 +52,7 @@ namespace DecalRendering
 		}
 
 		// Convert GBuffer modes to DBuffer.
-		uint32 DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBassPass;
+		uint32 DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBasePass;
 		DBufferStageMask |= bWriteEmissive ? (1 << (uint32)EDecalRenderStage::Emissive) : 0;
 
 		if (bIsDBufferPlatform && bIsForwardPlatform && !bIsMobilePlatform)
@@ -65,7 +65,7 @@ namespace DecalRendering
 				break;
 			case DBM_Normal:
 				DecalBlendMode = DBM_DBuffer_Normal;
-				DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBassPass;
+				DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBasePass;
 				break;
 			case DBM_Emissive:
 				DecalBlendMode = DBM_DBuffer_Emissive;
@@ -222,9 +222,9 @@ namespace DecalRendering
 
 	EDecalRenderStage GetBaseRenderStage(FDecalBlendDesc DecalBlendDesc)
 	{
-		if (DecalBlendDesc.RenderStageMask & (1 << (uint32)EDecalRenderStage::BeforeBassPass))
+		if (DecalBlendDesc.RenderStageMask & (1 << (uint32)EDecalRenderStage::BeforeBasePass))
 		{
-			return EDecalRenderStage::BeforeBassPass;
+			return EDecalRenderStage::BeforeBasePass;
 		}
 		if (DecalBlendDesc.RenderStageMask & (1 << (uint32)EDecalRenderStage::BeforeLighting))
 		{
@@ -246,7 +246,7 @@ namespace DecalRendering
 	{
 		switch(DecalRenderStage)
 		{
-			case EDecalRenderStage::BeforeBassPass:
+			case EDecalRenderStage::BeforeBasePass:
 				return EDecalRenderTargetMode::DBuffer;
 			case EDecalRenderStage::BeforeLighting:
 				return DecalBlendDesc.bWriteNormal ? EDecalRenderTargetMode::SceneColorAndGBuffer : EDecalRenderTargetMode::SceneColorAndGBufferNoNormal;
@@ -955,7 +955,7 @@ namespace DecalRendering
 		const uint32 RenderTargetWriteMask = GetRenderTargetWriteMask(DecalBlendDesc, DecalRenderStage, RenderTargetMode);
 
 		OutEnvironment.SetDefine(TEXT("IS_DECAL"), 1);
-		OutEnvironment.SetDefine(TEXT("IS_DBUFFER_DECAL"), DecalRenderStage == EDecalRenderStage::BeforeBassPass ? 1 : 0);
+		OutEnvironment.SetDefine(TEXT("IS_DBUFFER_DECAL"), DecalRenderStage == EDecalRenderStage::BeforeBasePass ? 1 : 0);
 
 		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE"), (uint32)DecalRenderStage);
 		OutEnvironment.SetDefine(TEXT("DECAL_RENDERTARGETMODE"), (uint32)RenderTargetMode);
@@ -966,7 +966,7 @@ namespace DecalRendering
 		OutEnvironment.SetDefine(TEXT("DECAL_OUT_MRT2"), (RenderTargetWriteMask & 4) != 0 ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("DECAL_OUT_MRT3"), (RenderTargetWriteMask & 8) != 0 ? 1 : 0);
 
-		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE_BEFOREBASEPASS"), (uint32)EDecalRenderStage::BeforeBassPass);
+		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE_BEFOREBASEPASS"), (uint32)EDecalRenderStage::BeforeBasePass);
 		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE_BEFORELIGHTING"), (uint32)EDecalRenderStage::BeforeLighting);
 		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE_MOBILE"), (uint32)EDecalRenderStage::Mobile);
 		OutEnvironment.SetDefine(TEXT("DECAL_RENDERSTAGE_MOBILEBEFORELIGHTING"), (uint32)EDecalRenderStage::MobileBeforeLighting);

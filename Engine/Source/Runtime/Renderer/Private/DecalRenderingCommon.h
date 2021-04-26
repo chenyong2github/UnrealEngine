@@ -34,7 +34,7 @@ enum class EDecalRenderStage : uint8
 	None = 0,
 
 	// DBuffer decal pass.
-	BeforeBassPass = 1,
+	BeforeBasePass = 1,
 	// GBuffer decal pass.
 	BeforeLighting = 2,
 

@@ -514,7 +514,7 @@ void ProcessBeforeBasePass(
 			if (bDBuffer)
 			{
 				FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, &DBufferTextures);
-				AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeBassPass);
+				AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeBasePass);
 			}
 
 			if (bNeedSSAO)

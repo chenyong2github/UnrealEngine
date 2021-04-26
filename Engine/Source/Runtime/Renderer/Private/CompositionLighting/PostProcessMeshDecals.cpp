@@ -322,7 +322,7 @@ void RenderMeshDecals(
 
 	switch (DecalRenderStage)
 	{
-	case EDecalRenderStage::BeforeBassPass:
+	case EDecalRenderStage::BeforeBasePass:
 		DrawDecalMeshCommands(GraphBuilder, View, DecalPassTextures, DecalRenderStage, EDecalRenderTargetMode::DBuffer);
 		break;
 

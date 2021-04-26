@@ -420,7 +420,7 @@ static FRHIDepthStencilState* GetDecalDepthState(uint32& StencilRef, FDecalDepth
 
 static bool IsStencilOptimizationAvailable(EDecalRenderStage RenderStage)
 {
-	return RenderStage == EDecalRenderStage::BeforeLighting || RenderStage == EDecalRenderStage::BeforeBassPass || RenderStage == EDecalRenderStage::Emissive;
+	return RenderStage == EDecalRenderStage::BeforeLighting || RenderStage == EDecalRenderStage::BeforeBasePass || RenderStage == EDecalRenderStage::Emissive;
 }
 
 static EDecalDBufferMaskTechnique GetDBufferMaskTechnique(EShaderPlatform ShaderPlatform)
@@ -444,7 +444,7 @@ static const TCHAR* GetStageName(EDecalRenderStage Stage)
 {
 	switch (Stage)
 	{
-	case EDecalRenderStage::BeforeBassPass: return TEXT("BeforeBassPass");
+	case EDecalRenderStage::BeforeBasePass: return TEXT("BeforeBasePass");
 	case EDecalRenderStage::BeforeLighting: return TEXT("BeforeLighting");
 	case EDecalRenderStage::Mobile: return TEXT("Mobile");
 	case EDecalRenderStage::MobileBeforeLighting: return TEXT("MobileBeforeLighting");
@@ -503,7 +503,7 @@ void AddDeferredDecalPass(
 	EDecalRenderStage DecalRenderStage)
 {
 	check(PassTextures.Depth.IsValid());
-	check(DecalRenderStage != EDecalRenderStage::BeforeBassPass || PassTextures.DBufferTextures);
+	check(DecalRenderStage != EDecalRenderStage::BeforeBasePass || PassTextures.DBufferTextures);
 
 	const FSceneViewFamily& ViewFamily = *(View.Family);
 
@@ -523,7 +523,7 @@ void AddDeferredDecalPass(
 	FTransientDecalRenderDataList* SortedDecals = nullptr;
 
 	checkf(DecalRenderStage != EDecalRenderStage::AmbientOcclusion || PassTextures.ScreenSpaceAO, TEXT("Attepting to render AO decals without SSAO having emitted a valid render target."));
-	checkf(DecalRenderStage != EDecalRenderStage::BeforeBassPass || IsUsingDBuffers(ShaderPlatform), TEXT("Only DBuffer decals are supported before the base pass."));
+	checkf(DecalRenderStage != EDecalRenderStage::BeforeBasePass || IsUsingDBuffers(ShaderPlatform), TEXT("Only DBuffer decals are supported before the base pass."));
 
 	if (DecalCount)
 	{
@@ -603,7 +603,7 @@ void AddDeferredDecalPass(
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DeferredDecals %s", GetStageName(DecalRenderStage));
 
-		if (MeshDecalCount > 0 && (DecalRenderStage == EDecalRenderStage::BeforeBassPass || DecalRenderStage == EDecalRenderStage::BeforeLighting || DecalRenderStage == EDecalRenderStage::Emissive || DecalRenderStage == EDecalRenderStage::AmbientOcclusion))
+		if (MeshDecalCount > 0 && (DecalRenderStage == EDecalRenderStage::BeforeBasePass || DecalRenderStage == EDecalRenderStage::BeforeLighting || DecalRenderStage == EDecalRenderStage::Emissive || DecalRenderStage == EDecalRenderStage::AmbientOcclusion))
 		{
 			RenderMeshDecals(GraphBuilder, View, PassTextures, DecalRenderStage);
 		}
@@ -637,7 +637,7 @@ void AddDeferredDecalPass(
 
 	// Last D-Buffer pass in the frame decodes the write mask (if supported and decals were rendered).
 	if (DBufferMaskTechnique == EDecalDBufferMaskTechnique::WriteMask &&
-		DecalRenderStage == EDecalRenderStage::BeforeBassPass &&
+		DecalRenderStage == EDecalRenderStage::BeforeBasePass &&
 		PassTextures.DBufferTextures->IsValid() &&
 		View.IsLastInFamily())
 	{
