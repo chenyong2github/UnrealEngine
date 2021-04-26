@@ -201,6 +201,7 @@ namespace UnrealGameSync
 			public Queue<List<string>> Batches { get; }
 
 			List<string> Commands;
+			List<string> DeleteCommands;
 			long Size;
 
 			public SyncBatchBuilder(int MaxCommandsPerList, long MaxSizePerList)
@@ -212,15 +213,28 @@ namespace UnrealGameSync
 
 			public void Add(string NewCommand, long NewSize)
 			{
-				if (Commands == null || Commands.Count >= MaxCommandsPerList || Size + NewSize >= MaxSizePerList)
+				if (NewSize == 0)
 				{
-					Commands = new List<string>();
-					Batches.Enqueue(Commands);
-					Size = 0;
-				}
+					if (DeleteCommands == null || DeleteCommands.Count >= MaxCommandsPerList)
+					{
+						DeleteCommands = new List<string>();
+						Batches.Enqueue(DeleteCommands);
+					}
 
-				Commands.Add(NewCommand);
-				Size += NewSize;
+					DeleteCommands.Add(NewCommand);
+				}
+				else
+				{
+					if (Commands == null || Commands.Count >= MaxCommandsPerList || Size + NewSize >= MaxSizePerList)
+					{
+						Commands = new List<string>();
+						Batches.Enqueue(Commands);
+						Size = 0;
+					}
+
+					Commands.Add(NewCommand);
+					Size += NewSize;
+				}
 			}
 		}
 
