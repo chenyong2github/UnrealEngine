@@ -412,6 +412,7 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		FText CachedDescription;
 
 		check(InCommand.Operation->GetName() == GetName());
 		TSharedRef<FCheckIn, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FCheckIn>(InCommand.Operation);
@@ -445,6 +446,17 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			{
 				InCommand.bCommandSuccessful = false;
 			}
+		}
+		else if (!Operation->GetDescription().IsEmpty())
+		{
+			FPerforceSourceControlModule& PerforceSourceControl = FPerforceSourceControlModule::Get();
+			FSourceControlChangelistStateRef ChangelistState = PerforceSourceControl.GetProvider().GetStateInternal(InCommand.Changelist);
+
+			// Retrieves cached description to restore it in case of submit failure.
+			CachedDescription = ChangelistState->GetDescriptionText();
+
+			int32 UpdatedChangelistNumber = Connection.EditPendingChangelist(Operation->GetDescription(), InCommand.Changelist.ToInt(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
+			InCommand.bCommandSuccessful = (UpdatedChangelistNumber != 0) && (UpdatedChangelistNumber == InCommand.Changelist.ToInt());
 		}
 
 		// Only submit if reopen was successful (when starting from the default changelist) or always otherwise
@@ -491,22 +503,30 @@ bool FPerforceCheckInWorker::Execute(FPerforceSourceControlCommand& InCommand)
 			}
 		}
 
-		// If the submit failed, clean up the changelist created above
-		if (!InCommand.bCommandSuccessful && InCommand.Changelist.IsDefault())
+		if (!InCommand.bCommandSuccessful)
 		{
-			// Reopen the assets to the default changelist to remove them from the changelist we created above
-			if (ReopenedFiles.Num() > 0)
+			// If the submit failed, clean up the changelist created above
+			if (InCommand.Changelist.IsDefault())
 			{
-				RunReopenCommand(InCommand, ReopenedFiles, InCommand.Changelist);
-			}
+				// Reopen the assets to the default changelist to remove them from the changelist we created above
+				if (ReopenedFiles.Num() > 0)
+				{
+					RunReopenCommand(InCommand, ReopenedFiles, InCommand.Changelist);
+				}
 
-			// Delete the changelist we created above
+				// Delete the changelist we created above
+				{
+					FP4RecordSet Records;
+					TArray<FString> ChangeParams;
+					ChangeParams.Add(TEXT("-d"));
+					ChangeParams.Add(ChangeList.ToString());
+					Connection.RunCommand(TEXT("change"), ChangeParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				}
+			}
+			// If we modified description and we have the previous one, restore it.
+			else if ((!Operation->GetDescription().IsEmpty()) && (!CachedDescription.IsEmpty()))
 			{
-				FP4RecordSet Records;
-				TArray<FString> ChangeParams;
-				ChangeParams.Add(TEXT("-d"));
-				ChangeParams.Add(ChangeList.ToString());
-				Connection.RunCommand(TEXT("change"), ChangeParams, Records, InCommand.ResultInfo.ErrorMessages, FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.bConnectionDropped);
+				Connection.EditPendingChangelist(CachedDescription, InCommand.Changelist.ToInt(), FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), InCommand.ResultInfo.ErrorMessages);
 			}
 		}
 	}

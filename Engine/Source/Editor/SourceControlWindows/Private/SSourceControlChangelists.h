@@ -106,15 +106,14 @@ private:
 	TSharedRef<SWidget> MakeToolBar();
 
 	/**
-	 * Modifies the changelist description if needed, appending validation tag.
+	 * Returns a new changelist description if needed, appending validation tag.
 	 * 
 	 * @param bInValidationResult	The result of the validation step
 	 * @param InOriginalChangelistDescription	Description of the changelist before modification
-	 * @param InChangelistState	Changelist to be modified
 	 * 
 	 * @return The new changelist description
 	 */
-	FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InOriginalChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState) const;
+	FText UpdateChangelistDescriptionToSubmitIfNeeded(const bool bInValidationResult, const FText& InOriginalChangelistDescription) const;
 	
 	/** Returns true if the provided changelist description contains a validation tag. */
 	bool HasValidationTag(const FText& InChangelistDescription) const;
