@@ -2398,9 +2398,15 @@ void SetupSceneTextureUniformParameters(
 
 		if (bSetupCustomDepth)
 		{
-			check(SceneContext.CustomDepth && SceneContext.CustomStencilSRV);
-			CustomDepth = GetRDG(SceneContext.CustomDepth);
-			CustomStencilSRV = SceneContext.CustomStencilSRV;
+			if (SceneContext.CustomDepth)
+			{
+				CustomDepth = GetRDG(SceneContext.CustomDepth);
+			}
+
+			if (SceneContext.CustomStencilSRV)
+			{
+				CustomStencilSRV = SceneContext.CustomStencilSRV;
+			}
 		}
 
 		SceneTextureParameters.CustomDepthTexture = CustomDepth;
@@ -2502,7 +2508,7 @@ static void SetupMobileSceneTextureUniformParameters(
 	FRDGTextureRef CustomDepth = MaxFP16Depth2D;
 	FRDGTextureRef CustomStencil = BlackDefault2D;
 
-	const bool bUseCustomDepth = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::CustomDepth) && SceneContext.bCustomDepthIsValid;
+	const bool bUseCustomDepth = EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::CustomDepth);
 
 	if (bUseCustomDepth)
 	{
