@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 #include "NiagaraTypes.h"
+#include "Engine/EngineTypes.h"
 #include "UObject/Object.h"
 #include "NiagaraVersionMetaData.generated.h"
 
