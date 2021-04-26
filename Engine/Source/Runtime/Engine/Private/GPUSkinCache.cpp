@@ -17,6 +17,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "MeshMaterialShader.h"
 #include "RenderGraphResources.h"
 #include "Algo/Unique.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumChunks);
 DEFINE_STAT(STAT_GPUSkinCache_TotalNumVertices);
@@ -175,7 +176,8 @@ FAutoConsoleVariableRef CVarGPUSkinCacheMaxRayTracingPrimitivesPerCmdList(
 	TEXT("Maximum amount of primitives which are batched together into a single command list to fix potential TDRs."),
 	ECVF_RenderThreadSafe
 );
-#endif
+
+#endif // RHI_RAYTRACING
 
 const float MBSize = 1048576.f; // 1024 x 1024 bytes
 
@@ -1672,6 +1674,14 @@ void FGPUSkinCache::ProcessEntry(
 }
 
 #if RHI_RAYTRACING
+
+static bool IsGPUSkinCacheRayTracingSupported()
+{
+	static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Geometry.SupportSkeletalMeshes"));
+	static const bool SupportSkeletalMeshes = CVar->GetInt() != 0;
+	return IsRayTracingEnabled() && SupportSkeletalMeshes && GEnableGPUSkinCache;
+}
+
 void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 	FRHICommandListImmediate& RHICmdList,
 	FGPUSkinCacheEntry* SkinCacheEntry,
@@ -1680,7 +1690,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 	bool bAnySegmentUsesWorldPositionOffset
 	)
 {
-	if (IsRayTracingEnabled() && GEnableGPUSkinCache && SkinCacheEntry && SkinCacheEntry->GPUSkin->bSupportRayTracing)
+	if (IsGPUSkinCacheRayTracingSupported() && SkinCacheEntry && SkinCacheEntry->GPUSkin->bSupportRayTracing)
 	{
 		FRayTracingGeometry& RayTracingGeometry = SkinCacheEntry->GPUSkin->RayTracingGeometry;
 
@@ -1802,7 +1812,7 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 	DoDispatch(RHICmdList);
 
 #if RHI_RAYTRACING
-	if (IsRayTracingEnabled() && GEnableGPUSkinCache)
+	if (IsGPUSkinCacheRayTracingSupported())
 	{
 		TSet<FGPUSkinCacheEntry*> SkinCacheEntriesProcessed;
 
@@ -2259,7 +2269,7 @@ void FGPUSkinCache::CVarSinkFunction()
 
 	if (GEnableGPUSkinCacheShaders)
 	{
-		if (GIsRHIInitialized && IsRayTracingEnabled())
+		if (GIsRHIInitialized && IsGPUSkinCacheRayTracingSupported())
 		{
 			// Skin cache is *required* for ray tracing.
 			NewGPUSkinCacheValue = 1;

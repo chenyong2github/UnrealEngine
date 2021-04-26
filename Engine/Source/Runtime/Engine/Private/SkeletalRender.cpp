@@ -19,6 +19,15 @@ const float MinMorphTargetBlendWeight = SMALL_NUMBER;
 // largest blend weight for vertex anims
 const float MaxMorphTargetBlendWeight = 5.0f;
 
+#if RHI_RAYTRACING
+static bool IsSkeletalMeshRayTracingSupported()
+{
+	static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Geometry.SupportSkeletalMeshes"));
+	static const bool SupportSkeletalMeshes = CVar->GetInt() != 0;
+	return SupportSkeletalMeshes;
+}
+#endif // RHI_RAYTRACING
+
 /*-----------------------------------------------------------------------------
 FSkeletalMeshObject
 -----------------------------------------------------------------------------*/
@@ -31,7 +40,7 @@ FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent,
 ,   bHasBeenUpdatedAtLeastOnce(false)
 #if RHI_RAYTRACING
 , bRequireRecreatingRayTracingGeometry(false)
-, bSupportRayTracing(InMeshComponent->SkeletalMesh->bSupportRayTracing)
+, bSupportRayTracing(IsSkeletalMeshRayTracingSupported() && InMeshComponent->SkeletalMesh->bSupportRayTracing)
 #endif
 #if !UE_BUILD_SHIPPING
 , DebugName(InMeshComponent->SkeletalMesh->GetFName())
