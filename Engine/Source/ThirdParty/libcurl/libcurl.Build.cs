@@ -12,7 +12,7 @@ public class libcurl : ModuleRules
 
 		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_65_3/";
 		string WinLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/curl-7.55.1/";
-		string AndroidLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/";
+		string AndroidLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_75_0/";
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -34,14 +34,10 @@ public class libcurl : ModuleRules
 				"x64",
 			};
  
+			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/");
 			foreach(var Architecture in Architectures)
 			{
-				PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/" + Architecture);
-
 				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcurl.a");
-//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcrypto.a");
-//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libssl.a");
-//				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libdl.a");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)

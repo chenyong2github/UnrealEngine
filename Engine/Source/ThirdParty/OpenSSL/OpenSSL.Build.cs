@@ -9,7 +9,6 @@ public class OpenSSL : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string OpenSSL101sPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1_0_1s");
 		string OpenSSL111Path = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1");
 		string OpenSSL111cPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1c");
 		string OpenSSL111kPath = Path.Combine(Target.UEThirdPartySourceDirectory, "OpenSSL", "1.1.1k");
@@ -72,12 +71,20 @@ public class OpenSSL : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
 		{
-			string IncludePath = OpenSSL101sPath + "/include/Android";
-			PublicIncludePaths.Add(IncludePath);
+			string[] Architectures = new string[] {
+				"ARMv7",
+				"ARM64",
+				"x86",
+				"x64",
+			};
 
-			// unneeded since included in libcurl
-			// string LibPath = Path.Combine(OpenSSL101sPath, "lib", PlatformSubdir);
-			//PublicLibraryPaths.Add(LibPath);
+			PublicIncludePaths.Add(OpenSSL111kPath + "/include/Android/");
+
+			foreach(var Architecture in Architectures)
+			{
+				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libcrypto.a");
+				PublicAdditionalLibraries.Add(OpenSSL111kPath + "/lib/Android/" + Architecture + "/libssl.a");
+			}
 		}
 	}
 }
