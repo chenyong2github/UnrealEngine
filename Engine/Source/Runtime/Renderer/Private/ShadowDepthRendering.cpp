@@ -677,7 +677,7 @@ bool GetShadowDepthPassShaders(
 	// Vertex related shaders
 	if (bOnePassPointLightShadow)
 	{
-		if (GShadowUseGS)
+		if (GShadowUseGS && RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
 		{
 			if (bPositionOnlyVS)
 			{
@@ -688,17 +688,8 @@ bool GetShadowDepthPassShaders(
 				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OnePassPointLight, false, false, true>>();
 			}
 
-			if (RHISupportsGeometryShaders(GShaderPlatformForFeatureLevel[FeatureLevel]))
-			{
-				// Use the geometry shader which will clone output triangles to all faces of the cube map
-				ShaderTypes.AddShaderType<FOnePassPointShadowDepthGS>();
-			}
-
-			if (bInitializeTessellationShaders)
-			{
-				ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OnePassPointLight, false>>();
-				ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OnePassPointLight, false>>();
-			}
+			// Use the geometry shader which will clone output triangles to all faces of the cube map
+			ShaderTypes.AddShaderType<FOnePassPointShadowDepthGS>();
 		}
 		else
 		{
@@ -711,6 +702,13 @@ bool GetShadowDepthPassShaders(
 				ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_VSLayer, false, false, false> >();
 			}
 		}
+
+		if (bInitializeTessellationShaders)
+		{
+			ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OnePassPointLight, false>>();
+			ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OnePassPointLight, false>>();
+		}
+
 	}
 	else if (bUsePerspectiveCorrectShadowDepths)
 	{
