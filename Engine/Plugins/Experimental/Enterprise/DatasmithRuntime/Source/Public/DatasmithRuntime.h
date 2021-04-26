@@ -219,9 +219,6 @@ public:
 	static void OnStartupModule(bool bCADRuntimeSupported);
 
 private:
-	void EnableSelector(bool bEnable);
-
-private:
 	TSharedPtr< DatasmithRuntime::FSceneImporter > SceneImporter;
 
 	TSharedPtr<DatasmithRuntime::FDestinationProxy> DirectLinkHelper;
@@ -242,9 +239,6 @@ private:
 	int32 EnableThreadedImport = MAX_int32;
 	int32 EnableCADCache = MAX_int32;
 #endif
-
-	static TSharedPtr< FDatasmithMasterMaterialSelector > ExistingRevitSelector;
-	static TSharedPtr< FDatasmithMasterMaterialSelector > RuntimeRevitSelector;
 
 	static TUniquePtr<DatasmithRuntime::FTranslationThread> TranslationThread;
 

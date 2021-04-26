@@ -5,8 +5,11 @@
 #include "DatasmithRuntime.h"
 #include "DirectLinkUtils.h"
 #include "LogCategory.h"
+#include "MaterialImportUtils.h"
+#include "MaterialSelectors/DatasmithRuntimeMaterialSelector.h"
 
 #include "DatasmithTranslatorModule.h"
+#include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
 #if WITH_EDITOR
 #include "Settings/ProjectPackagingSettings.h"
@@ -109,12 +112,16 @@ public:
 
 		DatasmithRuntime::FDestinationProxy::InitializeEndpointProxy();
 
+		FDatasmithMasterMaterialManager::Get().RegisterSelector(DatasmithRuntime::MATERIAL_HOST, MakeShared< FDatasmithRuntimeMaterialSelector >());
+
 		ADatasmithRuntimeActor::OnStartupModule(bCADRuntimeSupported);
 	}
 
 	virtual void ShutdownModule() override
 	{
 		ADatasmithRuntimeActor::OnShutdownModule();
+		
+		FDatasmithMasterMaterialManager::Get().UnregisterSelector(DatasmithRuntime::MATERIAL_HOST);
 
 		DatasmithRuntime::FDestinationProxy::ShutdownEndpointProxy();
 	}

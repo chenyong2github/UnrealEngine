@@ -151,7 +151,7 @@ namespace DatasmithRuntime
 
 			TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = StaticCastSharedPtr< IDatasmithMasterMaterialElement >( Element );
 
-			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement, SceneElement->GetHost());
+			bCreationSuccessful = LoadMasterMaterial(MaterialInstance, MaterialElement);
 		}
 		else if ( Element->IsA( EDatasmithElementType::UEPbrMaterial ) )
 		{

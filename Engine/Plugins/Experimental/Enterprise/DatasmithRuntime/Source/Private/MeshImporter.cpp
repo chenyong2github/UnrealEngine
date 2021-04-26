@@ -131,6 +131,8 @@ namespace DatasmithRuntime
 			return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
 		};
 
+		// #ue_dsruntime: TODO - Move the creation of StaticMaterials to the CreateStaticMesh method
+		//				  Just make sure the materials are added to the list of assets to track
 		TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
 		StaticMaterials.SetNum(MaterialSlotCount);
 
@@ -694,7 +696,7 @@ namespace DatasmithRuntime
 
 					TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
 
-					if (MeshActorElement->GetMaterialOverride(0)->GetId() == -1)
+					if (MeshActorElement->GetMaterialOverride(0)->GetId() < 0)
 					{
 						TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(0);
 
@@ -708,10 +710,12 @@ namespace DatasmithRuntime
 					}
 					else
 					{
-						TMap<FString, int32> SlotMapping;
-						SlotMapping.Reserve(StaticMaterials.Num());
+						const int32 StaticMaterialCount = StaticMaterials.Num();
 
-						for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
+						TMap<FString, int32> SlotMapping;
+						SlotMapping.Reserve(StaticMaterialCount);
+
+						for (int32 Index = 0; Index < StaticMaterialCount; ++Index)
 						{
 							const FStaticMaterial& StaticMaterial = StaticMaterials[Index];
 
@@ -725,14 +729,22 @@ namespace DatasmithRuntime
 						{
 							TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(Index);
 
-							FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
-
-							if (SlotMapping.Contains(MaterialSlotName))
+							if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 							{
-								if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
-								{
-									const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+								const FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
+								int32 MaterialIndex = INDEX_NONE;
 
+								if (SlotMapping.Contains(MaterialSlotName))
+								{
+									MaterialIndex = SlotMapping[MaterialSlotName];
+								}
+								else if (MaterialIDElement->GetId() < StaticMaterialCount)
+								{
+									MaterialIndex = MaterialIDElement->GetId();
+								}
+
+								if (MaterialIndex != INDEX_NONE)
+								{
 									DependencyList.Add(MaterialIDElement->GetNodeId(), { EDataType::Actor, ActorData.ElementId, (uint16)Index });
 
 									AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });

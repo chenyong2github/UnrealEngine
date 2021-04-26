@@ -12,6 +12,7 @@ class UMaterialInstanceDynamic;
 
 namespace DatasmithRuntime
 {
+	extern const TCHAR* MATERIAL_HOST;
 
 	namespace EMaterialRequirements
 	{
@@ -34,7 +35,7 @@ namespace DatasmithRuntime
 
 	int32 ProcessMaterialElement(IDatasmithUEPbrMaterialElement* PbrMaterialElement, FTextureCallback TextureCallback);
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement, const FString& HostString);
+	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement);
 
 	bool LoadPbrMaterial(IDatasmithUEPbrMaterialElement& UEPbrMaterial, UMaterialInstanceDynamic* MaterialInstance);
 }

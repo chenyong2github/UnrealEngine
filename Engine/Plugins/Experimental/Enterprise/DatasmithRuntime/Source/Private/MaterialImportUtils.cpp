@@ -19,6 +19,8 @@
 
 namespace DatasmithRuntime
 {
+	const TCHAR* MATERIAL_HOST = TEXT("_Runtime_");
+
 	namespace EPbrTexturePropertySlot
 	{
 		enum Type
@@ -165,14 +167,14 @@ namespace DatasmithRuntime
 			// Material with displacement or support for PNT requires adjacency and has their TessellationMultiplier set
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
-				if (Material->TessellationMultiplier.Expression != nullptr || Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+			if (Material->TessellationMultiplier.Expression != nullptr || Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
 #else
-				if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
+			if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
 #endif
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				{
-					MaterialRequirement |= EMaterialRequirements::RequiresAdjacency;
-				}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			{
+				MaterialRequirement |= EMaterialRequirements::RequiresAdjacency;
+			}
 
 			const TMap< FName, int32 >& TextureParams = GetMaterialParameters(Material).TextureParams;
 
@@ -196,13 +198,13 @@ namespace DatasmithRuntime
 		return MaterialRequirement;
 	}
 
-	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement, const FString& HostString )
+	bool LoadMasterMaterial(UMaterialInstanceDynamic* MaterialInstance, TSharedPtr<IDatasmithMasterMaterialElement>& MaterialElement )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::LoadMasterMaterial);
 
 		FDatasmithMasterMaterialManager& MaterialManager = FDatasmithMasterMaterialManager::Get();
-		const FString Host = MaterialManager.GetHostFromString( HostString );
-		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( *Host );
+		const FString Host = MaterialManager.GetHostFromString( MATERIAL_HOST );
+		TSharedPtr< FDatasmithMasterMaterialSelector > MaterialSelector = MaterialManager.GetSelector( MATERIAL_HOST );
 
 		UMaterial* MasterMaterial = nullptr;
 
