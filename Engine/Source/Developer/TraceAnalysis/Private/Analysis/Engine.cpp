@@ -692,6 +692,18 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FString& Out) c
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventData::GetSize() const
+{
+	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;
+	uint32 Size = Info->Size;
+	for (const FAuxData& Data : *(Info->AuxCollector))
+	{
+		Size += Data.DataSize;
+	}
+	return Size;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 void IAnalyzer::FEventData::SerializeToCbor(TArray<uint8>& Out) const
 {
 	const auto* Info = (const FAnalysisEngine::FEventDataInfo*)this;

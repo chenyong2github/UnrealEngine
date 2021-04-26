@@ -156,6 +156,9 @@ public:
 		bool GetString(const ANSICHAR* FieldName, FStringView& Out) const;
 		bool GetString(const ANSICHAR* FieldName, FString& Out) const;
 
+		/** The size of the event in uncompressed bytes excluding the header */
+		uint32 GetSize() const;
+
 		/** Serializes the event to Cbor object.
 		 * @param Recipient of the Cbor serialization. Data is appeneded to Out. */
 		void SerializeToCbor(TArray<uint8>& Out) const;
