@@ -418,6 +418,13 @@ const ANSICHAR* IAnalyzer::FEventTypeInfo::GetLoggerName() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+uint32 IAnalyzer::FEventTypeInfo::GetSize() const
+{
+	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;
+	return Inner->EventSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 uint32 IAnalyzer::FEventTypeInfo::GetFieldCount() const
 {
 	const auto* Inner = (const FAnalysisEngine::FDispatch*)this;

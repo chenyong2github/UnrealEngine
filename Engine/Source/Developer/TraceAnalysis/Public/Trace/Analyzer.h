@@ -81,6 +81,9 @@ public:
 		/** Returns the logger name the event is associated with. */
 		const ANSICHAR* GetLoggerName() const;
 
+		/** Returns the base size of the event. */
+		uint32 GetSize() const;
+
 		/** The number of member fields this event has. */
 		uint32 GetFieldCount() const;
 
