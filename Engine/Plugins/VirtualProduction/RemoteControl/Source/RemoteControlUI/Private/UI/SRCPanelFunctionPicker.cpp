@@ -38,9 +38,8 @@ namespace FunctionPickerUtils
 	{
 		auto FunctionFilter = [](const UFunction* TestFunction)
 		{
-			return TestFunction->HasAnyFunctionFlags(FUNC_Public)
-				&& TestFunction->HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_Event | FUNC_BlueprintEvent)
-				&& !TestFunction->HasAnyFunctionFlags(FUNC_Delegate | FUNC_MulticastDelegate);
+			return !TestFunction->HasAnyFunctionFlags(FUNC_Delegate | FUNC_MulticastDelegate) 
+				&& (TestFunction->HasAnyFunctionFlags(FUNC_Public) || TestFunction->HasAnyFunctionFlags(FUNC_BlueprintCallable | FUNC_Event | FUNC_BlueprintEvent));
 		};
 		
 		auto CategoryFilter = [] (const UFunction* TestFunction)
@@ -81,7 +80,6 @@ namespace FunctionPickerUtils
 		for (TFieldIterator<UFunction> FunctionIter(Class, EFieldIteratorFlags::IncludeSuper); FunctionIter; ++FunctionIter)
 		{
 			UFunction* TestFunction = *FunctionIter;
-
 			if (FunctionFilter(TestFunction) && CategoryFilter(TestFunction) && NameFilter(TestFunction))
 			{
 				if (!ExposableFunctions.FindByPredicate([FunctionName = TestFunction->GetFName()](const UFunction* Func) { return Func->GetFName() == FunctionName; }))

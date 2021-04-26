@@ -356,7 +356,11 @@ void SRCPanelExposedEntitiesList::SelectActorsInlevel(const TArray<UObject*>& Ob
 	{
 		// Don't change selection if the target's component is already selected
 		USelection* Selection = GEditor->GetSelectedComponents();
-		if (Selection->Num() == 1 && Objects.Num() == 1 && Selection->GetSelectedObject(0)->GetTypedOuter<AActor>() == Objects[0])
+		
+		if (Selection->Num() == 1
+			&& Objects.Num() == 1
+			&& Selection->GetSelectedObject(0) != nullptr
+			&& Selection->GetSelectedObject(0)->GetTypedOuter<AActor>() == Objects[0])
 		{
 			return;
 		}
