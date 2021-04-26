@@ -9,6 +9,8 @@
 #include "Misc/CString.h"
 #include "Templates/UnrealTemplate.h"
 
+#include <type_traits>
+
 namespace UE {
 namespace Trace {
 namespace Private {
@@ -41,6 +43,7 @@ struct FControlCommands
 	}			Commands[Max];
 	uint8		Count;
 };
+static_assert(std::is_trivial<FControlCommands>(), "FControlCommands must be trivial");
 
 
 
