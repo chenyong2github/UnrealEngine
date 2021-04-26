@@ -468,7 +468,7 @@ void FOpenXRARSystem::EndMeshUpdates()
 	{
 		FScopeLock sl(&SUPlaneUpdateListSync);
 		SUPlaneUpdateList.Add(SUCurrentPlaneUpdate);
-		bNeedsThreadQueueing = MeshUpdateList.Num() == 1;
+		bNeedsThreadQueueing = SUPlaneUpdateList.Num() == 1;
 	}
 	SUCurrentPlaneUpdate = nullptr;
 
