@@ -55,6 +55,9 @@ struct CORE_API FHoloLensProcess : public FGenericPlatformProcess
 	static const TCHAR* GetTempAppDataLowLevelPath();
 	static const TCHAR* GetLocalAppDataRedirectPath();
 	static const TCHAR* GetTempAppDataRedirectPath();
+	
+	static bool CanLaunchURL(const TCHAR* URL);
+	static void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
 
 private:
 	/**
