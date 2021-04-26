@@ -198,7 +198,7 @@ void FTakeRecorderModule::RegisterMenus()
 			InSection.AddMenuEntry(
 				"OpenInTakeRecorder_Label",
 				LOCTEXT("OpenInTakeRecorder_Label", "Open in Take Recorder"),
-				LOCTEXT("OpenInTakeRecorder_Tooltip", "Opens this level sequence asset in Take Recorder"),
+				LOCTEXT("OpenInTakeRecorder_Tooltip", "Opens this level sequence asset in Take Recorder by copying its contents into the pending take"),
 				FSlateIcon(FTakeRecorderStyle::StyleName, "TakeRecorder.TabIcon"),
 				FExecuteAction::CreateLambda(
 					[LevelSequence]
@@ -219,6 +219,25 @@ void FTakeRecorderModule::RegisterMenus()
 							{
 								TabContent->SetupForViewing(LevelSequence);
 							}
+						}
+					}
+				)
+			);
+			InSection.AddMenuEntry(
+				"RecordIntoTakeRecorder_Label",
+				LOCTEXT("RecordWithTakeRecorder_Label", "Record with Take Recorder"),
+				LOCTEXT("RecordWithTakeRecorder_Tooltip", "Opens this level sequence asset for recording into with Take Recorder"),
+				FSlateIcon(FTakeRecorderStyle::StyleName, "TakeRecorder.TabIcon"),
+				FExecuteAction::CreateLambda(
+					[LevelSequence]
+					{
+						FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+						TSharedPtr<SDockTab> DockTab = LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(ITakeRecorderModule::TakeRecorderTabName);
+						if (DockTab.IsValid())
+						{
+							TSharedRef<STakeRecorderTabContent> TabContent = StaticCastSharedRef<STakeRecorderTabContent>(DockTab->GetContent());
+
+							TabContent->SetupForRecordingInto(LevelSequence);
 						}
 					}
 				)

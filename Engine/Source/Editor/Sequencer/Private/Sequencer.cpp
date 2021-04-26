@@ -100,7 +100,6 @@
 #include "VirtualTrackArea.h"
 #include "SequencerUtilities.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
-#include "ISequenceRecorder.h"
 #include "CineCameraActor.h"
 #include "CameraRig_Rail.h"
 #include "CameraRig_Crane.h"
@@ -270,7 +269,6 @@ struct FSequencerViewModifierInfo
 
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
-
 	bIsEditingWithinLevelEditor = InitParams.bEditWithinLevelEditor;
 	ScrubStyle = InitParams.ViewParams.ScrubberStyle;
 	HostCapabilities = InitParams.HostCapabilities;
@@ -413,13 +411,6 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
 	}
 
-
-	{
-		ISequenceRecorder* Recorder = FModuleManager::Get().GetModulePtr<ISequenceRecorder>("SequenceRecorder");
-		
-		Recorder->OnRecordingStarted().AddSP(this, &FSequencer::HandleRecordingStarted);
-		Recorder->OnRecordingFinished().AddSP(this, &FSequencer::HandleRecordingFinished);
-	}
 	ToolkitHost = InitParams.ToolkitHost;
 
 	PlaybackSpeed = 1.f;
@@ -534,6 +525,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	ZoomCurve = ZoomAnimation.AddCurve(0.f, 0.2f, ECurveEaseFunction::QuadIn);
 	OverlayAnimation = FCurveSequence();
 	OverlayCurve = OverlayAnimation.AddCurve(0.f, 0.2f, ECurveEaseFunction::QuadIn);
+	RecordingAnimation = FCurveSequence();
+	RecordingAnimation.AddCurve(0.f, 1.5f, ECurveEaseFunction::Linear);
 
 	// Update initial movie scene data
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::ActiveMovieSceneChanged );
@@ -827,23 +820,6 @@ void FSequencer::Tick(float InDeltaTime)
 		if (bNeedsEvaluate)
 		{
 			EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
-		}
-	}
-
-	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
-	if(SequenceRecorder.IsRecording())
-	{
-		UMovieSceneSubSection* Section = UMovieSceneSubSection::GetRecordingSection();
-		if(Section != nullptr && Section->HasStartFrame())
-		{
-			FFrameRate   SectionResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-			FFrameNumber RecordingLength   = SequenceRecorder.GetCurrentRecordingLength().ConvertTo(SectionResolution).CeilToFrame();
-
-			if (RecordingLength > 0)
-			{
-				FFrameNumber EndFrame = Section->GetInclusiveStartFrame() + RecordingLength;
-				Section->SetRange(TRange<FFrameNumber>(Section->GetInclusiveStartFrame(), TRangeBound<FFrameNumber>::Exclusive(EndFrame)));
-			}
 		}
 	}
 
@@ -4350,7 +4326,7 @@ void FSequencer::SetPlaybackStatus(EMovieScenePlayerStatus::Type InPlaybackStatu
 
 	// Inform the renderer when Sequencer is in a 'paused' state for the sake of inter-frame effects
 	ESequencerState SequencerState = ESS_None;
-	if (InPlaybackStatus == EMovieScenePlayerStatus::Playing || InPlaybackStatus == EMovieScenePlayerStatus::Recording)
+	if (InPlaybackStatus == EMovieScenePlayerStatus::Playing)
 	{
 		SequencerState = ESS_Playing;
 	}
@@ -4434,102 +4410,6 @@ void FSequencer::ResetPerMovieSceneData()
 
 	// @todo run through all tracks for new movie scene changes
 	//  needed for audio track decompression
-}
-
-
-void FSequencer::RecordSelectedActors()
-{
-	// Keep track of how many people actually used record new sequence
-	if (FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordSelectedActors"));
-	}
-
-	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
-	if (SequenceRecorder.IsRecording())
-	{
-		FNotificationInfo Info(LOCTEXT("UnableToRecord_AlreadyRecording", "Cannot start a new recording while one is already in progress."));
-		Info.bUseLargeFont = false;
-		FSlateNotificationManager::Get().AddNotification(Info);
-		return;
-	}
-
-	if (Settings->ShouldRewindOnRecord())
-	{
-		JumpToStart();
-	}
-	
-	TArray<ACameraActor*> SelectedCameras;
-	TArray<AActor*> EntireSelection;
-
-	GEditor->GetSelectedActors()->GetSelectedObjects(SelectedCameras);
-	GEditor->GetSelectedActors()->GetSelectedObjects(EntireSelection);
-
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
-	// Figure out what we're recording into - a sub track, or a camera cut track, or a shot track
-	UMovieSceneTrack* DestinationTrack = nullptr;
-	if (SelectedCameras.Num())
-	{
-		DestinationTrack = MovieScene->FindMasterTrack<UMovieSceneCinematicShotTrack>();
-		if (!DestinationTrack)
-		{
-			DestinationTrack = MovieScene->AddMasterTrack<UMovieSceneCinematicShotTrack>();
-		}
-	}
-	else if (EntireSelection.Num())
-	{
-		DestinationTrack = MovieScene->FindMasterTrack<UMovieSceneSubTrack>();
-		if (!DestinationTrack)
-		{
-			DestinationTrack = MovieScene->AddMasterTrack<UMovieSceneSubTrack>();
-		}
-	}
-	else
-	{
-		FNotificationInfo Info(LOCTEXT("UnableToRecordNoSelection", "Unable to start recording because no actors are selected"));
-		Info.bUseLargeFont = false;
-		FSlateNotificationManager::Get().AddNotification(Info);
-		return;
-	}
-
-	if (!DestinationTrack)
-	{
-		FNotificationInfo Info(LOCTEXT("UnableToRecord", "Unable to start recording because a valid sub track could not be found or created"));
-		Info.bUseLargeFont = false;
-		FSlateNotificationManager::Get().AddNotification(Info);
-		return;
-	}
-
-	int32 MaxRow = -1;
-	for (UMovieSceneSection* Section : DestinationTrack->GetAllSections())
-	{
-		MaxRow = FMath::Max(Section->GetRowIndex(), MaxRow);
-	}
-	// @todo: Get row at current time
-	UMovieSceneSubSection* NewSection = CastChecked<UMovieSceneSubSection>(DestinationTrack->CreateNewSection());
-	NewSection->SetRowIndex(MaxRow + 1);
-	DestinationTrack->AddSection(*NewSection);
-	NewSection->SetAsRecording(true);
-
-	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-
-	if (UMovieSceneSubSection::IsSetAsRecording())
-	{
-		TArray<AActor*> ActorsToRecord;
-		for (AActor* Actor : EntireSelection)
-		{
-			AActor* CounterpartActor = EditorUtilities::GetSimWorldCounterpartActor(Actor);
-			ActorsToRecord.Add(CounterpartActor ? CounterpartActor : Actor);
-		}
-
-		const FString& PathToRecordTo = UMovieSceneSubSection::GetRecordingSection()->GetTargetPathToRecordTo();
-		const FString& SequenceName = UMovieSceneSubSection::GetRecordingSection()->GetTargetSequenceName();
-		SequenceRecorder.StartRecording(
-			ActorsToRecord,
-			PathToRecordTo,
-			SequenceName);
-	}
 }
 
 TSharedRef<SWidget> FSequencer::MakeTransportControls(bool bExtended)
@@ -4673,21 +4553,36 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportLoopMode()
 
 TSharedRef<SWidget> FSequencer::OnCreateTransportRecord()
 {
-	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
-
 	TSharedRef<SButton> RecordButton = SNew(SButton)
 		.OnClicked(this, &FSequencer::OnRecord)
 		.ButtonStyle( FEditorStyle::Get(), "NoBorder" )
-		.ToolTipText_Lambda([&](){ return SequenceRecorder.IsRecording() ? LOCTEXT("StopRecord_Tooltip", "Stop recording current sub-track.") : LOCTEXT("Record_Tooltip", "Record the primed sequence sub-track."); })
-		.Visibility(this, &FSequencer::GetRecordButtonVisibility)
+		.ToolTipText_Lambda([&]()
+		{
+			FText OutTooltipText;
+			if (OnGetCanRecord().IsBound())
+			{
+				OnGetCanRecord().Execute(OutTooltipText);
+			}
+
+			if (!OutTooltipText.IsEmpty())
+			{
+				return OutTooltipText;
+			}
+			else
+			{
+				return OnGetIsRecording().IsBound() && OnGetIsRecording().Execute() ? LOCTEXT("StopRecord_Tooltip", "Stop recording") : LOCTEXT("Record_Tooltip", "Start recording"); 
+			}
+		})
+		.Visibility_Lambda([&] { return HostCapabilities.bSupportsRecording && OnGetCanRecord().IsBound() ? EVisibility::Visible : EVisibility::Collapsed; })
+		.IsEnabled_Lambda([&] { FText OutErrorText; return OnGetCanRecord().IsBound() && OnGetCanRecord().Execute(OutErrorText); })
 		.ContentPadding(2.0f);
 
 	TWeakPtr<SButton> WeakButton = RecordButton;
 
 	RecordButton->SetContent(SNew(SImage)
-		.Image_Lambda([&SequenceRecorder, WeakButton]()
+		.Image_Lambda([this, WeakButton]()
 		{
-			if (SequenceRecorder.IsRecording())
+			if (OnGetIsRecording().IsBound() && OnGetIsRecording().Execute())
 			{
 				return WeakButton.IsValid() && WeakButton.Pin()->IsPressed() ? 
 					&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Recording").Pressed : 
@@ -4698,11 +4593,25 @@ TSharedRef<SWidget> FSequencer::OnCreateTransportRecord()
 				&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Pressed : 
 				&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("Animation.Record").Normal;
 		})
+		.ColorAndOpacity_Lambda([this]()
+		{
+			if (OnGetIsRecording().IsBound() && OnGetIsRecording().Execute())
+			{
+				if (!RecordingAnimation.IsPlaying())
+				{
+					RecordingAnimation.Play(SequencerWidget.ToSharedRef(), true);
+				}
+
+				return FLinearColor(1.f, 1.f, 1.f, 0.2f + 0.8f * RecordingAnimation.GetLerp());
+			}
+
+			RecordingAnimation.Pause();
+			return FLinearColor::White;		
+		})
 	);
 
 	return RecordButton;
 }
-
 
 UObject* FSequencer::FindSpawnedObjectOrTemplate(const FGuid& BindingId)
 {
@@ -4797,7 +4706,6 @@ FSequencer::FCachedViewState::RestoreViewState()
 	GameViewStates.Empty();
 }
 
-
 FReply FSequencer::OnPlay(bool bTogglePlay)
 {
 	if( PlaybackState == EMovieScenePlayerStatus::Playing && bTogglePlay )
@@ -4828,107 +4736,10 @@ FReply FSequencer::OnPlay(bool bTogglePlay)
 	return FReply::Handled();
 }
 
-
-EVisibility FSequencer::GetRecordButtonVisibility() const
-{
-	return UMovieSceneSubSection::IsSetAsRecording() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-
 FReply FSequencer::OnRecord()
 {
-	ISequenceRecorder& SequenceRecorder = FModuleManager::LoadModuleChecked<ISequenceRecorder>("SequenceRecorder");
-
-	if(UMovieSceneSubSection::IsSetAsRecording() && !SequenceRecorder.IsRecording())
-	{
-		AActor* ActorToRecord = UMovieSceneSubSection::GetActorToRecord();
-		if (ActorToRecord != nullptr)
-		{
-			AActor* OutActor = EditorUtilities::GetSimWorldCounterpartActor(ActorToRecord);
-			if (OutActor != nullptr)
-			{
-				ActorToRecord = OutActor;
-			}
-		}
-
-		const FString& PathToRecordTo = UMovieSceneSubSection::GetRecordingSection()->GetTargetPathToRecordTo();
-		const FString& SequenceName = UMovieSceneSubSection::GetRecordingSection()->GetTargetSequenceName();
-		SequenceRecorder.StartRecording(ActorToRecord, PathToRecordTo, SequenceName);
-	}
-	else if(SequenceRecorder.IsRecording())
-	{
-		SequenceRecorder.StopRecording();
-	}
-
+	OnRecordDelegate.Broadcast();
 	return FReply::Handled();
-}
-
-void FSequencer::HandleRecordingStarted(UMovieSceneSequence* Sequence)
-{
-	OnPlayForward(false);
-
-	// Make sure Slate ticks during playback
-	SequencerWidget->RegisterActiveTimerForPlayback();
-
-	// sync recording section to start
-	UMovieSceneSubSection* Section = UMovieSceneSubSection::GetRecordingSection();
-	if(Section != nullptr)
-	{
-		FFrameRate   TickResolution  = GetFocusedTickResolution();
-		FFrameNumber StartFrame      = GetLocalTime().ConvertTo(TickResolution).CeilToFrame();
-		int32        Duration        = FFrameRate::TransformTime(1, GetFocusedDisplayRate(), TickResolution).CeilToFrame().Value;
-
-		Section->SetRange(TRange<FFrameNumber>(StartFrame, StartFrame + Duration));
-	}
-}
-
-void FSequencer::HandleRecordingFinished(UMovieSceneSequence* Sequence)
-{
-	// toggle us to no playing if we are still playing back
-	// as the post processing takes such a long time we don't really care if the sequence doesnt carry on
-	if(PlaybackState == EMovieScenePlayerStatus::Playing)
-	{
-		OnPlayForward(true);
-	}
-
-	// now patchup the section that was recorded to
-	UMovieSceneSubSection* Section = UMovieSceneSubSection::GetRecordingSection();
-	if(Section != nullptr)
-	{
-		Section->SetAsRecording(false);
-		Section->SetSequence(Sequence);
-
-		FFrameNumber EndFrame = Section->GetInclusiveStartFrame() + UE::MovieScene::DiscreteSize(Sequence->GetMovieScene()->GetPlaybackRange());
-		Section->SetRange(TRange<FFrameNumber>(Section->GetInclusiveStartFrame(), TRangeBound<FFrameNumber>::Exclusive(EndFrame)));
-
-		if (Section->IsA<UMovieSceneCinematicShotSection>())
-		{
-			const FMovieSceneSpawnable* SpawnedCamera = Sequence->GetMovieScene()->FindSpawnable(
-				[](FMovieSceneSpawnable& InSpawnable){
-					return InSpawnable.GetObjectTemplate() && InSpawnable.GetObjectTemplate()->IsA<ACameraActor>();
-				}
-			);
-
-			if (SpawnedCamera && !Sequence->GetMovieScene()->GetCameraCutTrack())
-			{
-				UMovieSceneTrack* CameraCutTrack = Sequence->GetMovieScene()->AddCameraCutTrack(UMovieSceneCameraCutTrack::StaticClass());
-				UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(CameraCutTrack->CreateNewSection());
-				CameraCutSection->SetCameraGuid(SpawnedCamera->GetGuid());
-				CameraCutSection->SetRange(Sequence->GetMovieScene()->GetPlaybackRange());
-				CameraCutTrack->AddSection(*CameraCutSection);
-			}
-		}
-	}
-
-	bNeedTreeRefresh = true;
-
-	// If viewing the same sequence, rebuild
-	if (RootSequence.IsValid() && RootSequence.Get() == Sequence)
-	{
-		ResetToNewRootSequence(*RootSequence.Get());
-
-		NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshAllImmediately);
-	}
 }
 
 FReply FSequencer::OnPlayForward(bool bTogglePlay)

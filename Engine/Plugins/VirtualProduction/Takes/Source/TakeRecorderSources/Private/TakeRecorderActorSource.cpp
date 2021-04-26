@@ -1587,16 +1587,22 @@ FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor*
 
 FTrackRecorderSettings UTakeRecorderActorSource::GetTrackRecorderSettings() const
 {
+	FTrackRecorderSettings TrackRecorderSettings;
+
+	UTakeRecorderSources* Sources = GetTypedOuter<UTakeRecorderSources>();
+	if (!Sources)
+	{
+		return TrackRecorderSettings;
+	}
+			
 	FTakeRecorderParameters Parameters;
 	Parameters.User = GetDefault<UTakeRecorderUserSettings>()->Settings;
 	Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
-	FTrackRecorderSettings TrackRecorderSettings;
-
 	TrackRecorderSettings.bRecordToPossessable = GetRecordToPossessable();
 	TrackRecorderSettings.bReduceKeys = bReduceKeys;
 	TrackRecorderSettings.bRemoveRedundantTracks = Parameters.User.bRemoveRedundantTracks;
-	TrackRecorderSettings.bSaveRecordedAssets = Parameters.User.bSaveRecordedAssets || GEditor == nullptr;
+	TrackRecorderSettings.bSaveRecordedAssets = Sources->GetSettings().bSaveRecordedAssets || GEditor == nullptr;
 	TrackRecorderSettings.ReduceKeysTolerance = Parameters.User.ReduceKeysTolerance;
 
 	TrackRecorderSettings.DefaultTracks = Parameters.Project.DefaultTracks;
@@ -1617,7 +1623,10 @@ bool UTakeRecorderActorSource::GetRecordToPossessable() const
 {
 	if (RecordType == ETakeRecorderActorRecordType::ProjectDefault)
 	{
-		return GetDefault<UTakeRecorderProjectSettings>()->Settings.bRecordToPossessable;
+		if (UTakeRecorderSources* Sources = GetTypedOuter<UTakeRecorderSources>())
+		{
+			return Sources->GetSettings().bRecordToPossessable;
+		}
 	}
 
 	return RecordType == ETakeRecorderActorRecordType::Possessable;

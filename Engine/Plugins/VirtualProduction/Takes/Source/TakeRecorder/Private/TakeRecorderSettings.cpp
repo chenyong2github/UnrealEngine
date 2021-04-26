@@ -10,6 +10,7 @@ UTakeRecorderUserSettings::UTakeRecorderUserSettings()
 	Settings.EngineTimeDilation = 1.f;
 	Settings.bRemoveRedundantTracks = true;
 	Settings.bSaveRecordedAssets = true;
+	Settings.bAutoLock = true;
 	Settings.bAutoSerialize     = false;
 	PresetSaveDir.Path    = TEXT("/Game/Cinematics/Takes/Presets/");
 	bIsSequenceOpen       = true;

@@ -17,6 +17,8 @@ enum class ETakeRecorderPanelMode : uint8
 {
 	/** The panel is setting up a new recording */
 	NewRecording,
+	/** The panel is setting up recording into an existing level sequence */
+	RecordingInto,
 	/** The panel is editing a Take Preset asset */
 	EditingPreset,
 	/** The panel is reviewing a previously recorded take */
@@ -52,6 +54,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel", DisplayName="Set Mode (Recording w/ Level Sequence)")
 	void SetupForRecording_LevelSequence(ULevelSequence* LevelSequenceAsset);
+
+	/**
+	 * Setup this panel such that it is ready to start recording using the specified
+	 * level sequence asset to record into.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel", DisplayName="Set Mode (Recording into Level Sequence)")
+	void SetupForRecordingInto_LevelSequence(ULevelSequence* LevelSequenceAsset);
 
 	/**
 	 * Setup this panel as an editor for the specified take preset asset.
@@ -130,6 +139,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
 	void StopRecording() const;
 
+	/**
+	 * Whether the panel is ready to start recording
+	 */
+	UFUNCTION(BlueprintCallable, Category="Take Recorder|Panel")
+	bool CanStartRecording(FText& OutErrorText) const;
 
 public:
 

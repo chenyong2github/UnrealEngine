@@ -468,8 +468,6 @@ public:
 	/** Called when an actor is dropped into Sequencer */
 	void OnActorsDropped( const TArray<TWeakObjectPtr<AActor> >& Actors );
 
-	void RecordSelectedActors();
-
 	/** Functions to push on to the transport controls we use */
 	FReply OnRecord();
 	FReply OnPlayForward(bool bTogglePlay);
@@ -489,15 +487,6 @@ public:
 
 	void OnTogglePilotCamera();
 	bool IsPilotCamera() const;
-
-	/** Get the visibility of the record button */
-	EVisibility GetRecordButtonVisibility() const;
-
-	/** Delegate handler for recording starting */
-	void HandleRecordingStarted(UMovieSceneSequence* Sequence);
-
-	/** Delegate handler for recording finishing */
-	void HandleRecordingFinished(UMovieSceneSequence* Sequence);
 
 	/** Set the new global time, accounting for looping options */
 	void SetLocalTimeLooped(FFrameTime InTime);
@@ -823,6 +812,7 @@ public:
 	virtual FOnGlobalTimeChanged& OnGlobalTimeChanged() override { return OnGlobalTimeChangedDelegate; }
 	virtual FOnPlayEvent& OnPlayEvent() override { return OnPlayDelegate; }
 	virtual FOnStopEvent& OnStopEvent() override { return OnStopDelegate; }
+	virtual FOnRecordEvent& OnRecordEvent() override { return OnRecordDelegate; }
 	virtual FOnBeginScrubbingEvent& OnBeginScrubbingEvent() override { return OnBeginScrubbingDelegate; }
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() override { return OnEndScrubbingDelegate; }
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() override { return OnMovieSceneDataChangedDelegate; }
@@ -1290,6 +1280,8 @@ private:
 	FCurveSequence OverlayAnimation;
 	FCurveHandle OverlayCurve;
 
+	FCurveSequence RecordingAnimation;
+
 	/** Whether we are playing, recording, etc. */
 	EMovieScenePlayerStatus::Type PlaybackState;
 
@@ -1345,6 +1337,9 @@ private:
 
 	/** A delegate which is called whenever the user stops playing the sequence. */
 	FOnStopEvent OnStopDelegate;
+
+	/** A delegate which is called whenever the user toggles recording. */
+	FOnRecordEvent OnRecordDelegate;
 
 	/** A delegate which is called whenever the treeview changes. */
 	FOnTreeViewChanged OnTreeViewChangedDelegate;

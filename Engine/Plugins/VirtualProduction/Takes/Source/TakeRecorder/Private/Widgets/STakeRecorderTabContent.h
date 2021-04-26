@@ -33,6 +33,8 @@ public:
 
 	void SetupForRecording(UTakePreset* BasePreset);
 
+	void SetupForRecordingInto(ULevelSequence* LevelSequenceAsset);
+
 	void SetupForEditing(TSharedPtr<FTakePresetToolkit> InToolkit);
 
 	void SetupForViewing(ULevelSequence* LevelSequence);
@@ -56,6 +58,8 @@ public:
 	void StopRecording() const;
 
 	void ClearPendingTake();
+
+	bool CanStartRecording(FText& ErrorText) const;
 
 private:
 

@@ -112,9 +112,13 @@ struct FSequencerHostCapabilities
 	/** Do we support the curve editor */
 	bool bSupportsCurveEditor;
 
+	/** Do we support recording */
+	bool bSupportsRecording;
+
 	FSequencerHostCapabilities()
 		: bSupportsSaveMovieSceneAsset(false)
 		, bSupportsCurveEditor(false)
+		, bSupportsRecording(false)
 	{}
 };
 
