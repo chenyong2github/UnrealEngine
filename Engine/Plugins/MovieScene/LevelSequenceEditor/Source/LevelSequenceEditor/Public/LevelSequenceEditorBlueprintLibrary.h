@@ -50,10 +50,16 @@ public:
 	static bool OpenLevelSequence(ULevelSequence* LevelSequence);
 
 	/*
-	 * Get the currently opened level sequence asset
+	 * Get the currently opened root/master level sequence asset
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static ULevelSequence* GetCurrentLevelSequence();
+
+	/*
+	 * Get the currently focused/viewed level sequence asset if there is a hierarchy of sequences.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static ULevelSequence* GetFocusedLevelSequence();
 
 	/*
 	 * Close
@@ -76,16 +82,28 @@ public:
 public:
 
 	/**
-	 * Set playback position for the current level sequence in frames
+	 * Set global playback position for the current level sequence in frames
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static void SetCurrentTime(int32 NewFrame);
 
 	/**
-	 * Get the current playback position in frames
+	 * Get the current global playback position in frames
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
 	static int32 GetCurrentTime();
+
+	/**
+	 * Set local playback position for the current level sequence in frames
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetCurrentLocalTime(int32 NewFrame);
+
+	/**
+	 * Get the current local playback position in frames
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static int32 GetCurrentLocalTime();
 
 	/**
 	 * Play from the current time to the requested time in frames
