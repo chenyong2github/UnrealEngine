@@ -221,8 +221,7 @@ float TraceLocalLight(
 	uint SamplesPerRay,
 	float CotMaxRayAngleFromLight,
 	const half Noise,
-	const bool bCullBackface, 
-	inout float InOutHitDistance)
+	const bool bCullBackface)
 {
 	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
@@ -305,12 +304,6 @@ float TraceLocalLight(
 					RayEnd,
 					SamplesPerRay,
 					StepOffset);
-			}
-
-			if ( Result.bValidHit )
-			{
-				// TODO: Min over all the rays with > 1 spp?
-				InOutHitDistance = Result.OccluderDistance;
 			}
 
 			RayMissFactor += Result.bValidHit ? 0 : 1;

@@ -191,9 +191,6 @@
 	/** Diffuse indirect using spherical harmonic. */
 	#define SIGNAL_PROCESSING_DIFFUSE_PROBE_HIERARCHY 7
 
-	/** Virtual shadow map mask */
-	#define SIGNAL_PROCESSING_VIRTUAL_SHADOW_MAP_MASK 8
-
 
 
 /** Defines the color space bitfield. */

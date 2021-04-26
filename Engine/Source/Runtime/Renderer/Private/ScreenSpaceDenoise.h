@@ -163,11 +163,6 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, SphericalHarmonic, [kSphericalHarmonicTextureCount])
 	END_SHADER_PARAMETER_STRUCT()
 
-	/** All the inputs of the virtual shadow map denoiser. */
-	BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapMaskInputs, )
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Signal)
-	END_SHADER_PARAMETER_STRUCT()
-
 		
 	/** What the shadow ray tracing needs to output */
 	enum class EShadowRequirements
@@ -339,15 +334,6 @@ public:
 		const FSSDSignalTextures& InputSignal,
 		FRDGTextureRef CompressedDepthTexture,
 		FRDGTextureRef CompressedShadingModelTexture);
-
-	/** Entry point to denoise virtual shadow map mask. */
-	static FSSDSignalTextures DenoiseVirtualShadowMapMask(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FSceneTextureParameters& SceneTextures,
-		const FLightSceneInfo* LightSceneInfo,
-		FIntRect LightScissorRect,
-		const FVirtualShadowMapMaskInputs& InputParameters);
 
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();

@@ -158,8 +158,7 @@ float TraceDirectional(
 	uint RayCount,
 	uint SamplesPerRay,
 	float RayLengthScale,
-	const half Noise,
-	inout float InOutHitDistance)
+	const half Noise)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
@@ -197,12 +196,6 @@ float TraceDirectional(
 			RayDir * RayLength,
 			SamplesPerRay,
 			StepOffset);
-
-		if (Result.bValidHit)
-		{
-			// TODO: min over all the rays if we keep denoiser with > 1 spp?
-			InOutHitDistance = Result.OccluderDistance;
-		}
 
 		RayMissCount += Result.bValidHit ? 0 : 1;
 

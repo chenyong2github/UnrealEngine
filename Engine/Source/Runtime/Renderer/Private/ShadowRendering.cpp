@@ -188,18 +188,7 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserDirectional(
-	TEXT("r.Shadow.Virtual.Denoiser.EnableDirectional"),
-	0,
-	TEXT("Apply denoiser to directional light virtual shadow maps."),
-	ECVF_RenderThreadSafe);
 FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
-
-static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserLocal(
-	TEXT("r.Shadow.Virtual.Denoiser.EnableLocal"),
-	0,
-	TEXT("Apply denoiser to local light virtual shadow maps."),
-	ECVF_RenderThreadSafe);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair
@@ -2004,12 +1993,10 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 				if (ScissorRect.Area() > 0)
 				{
 					// Project virtual shadow maps
-					FRDGTextureRef SignalTexture;
-					bool bUseDenoiser = false;
+					FRDGTextureRef ShadowFactorTexture;
 					if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 					{
-						bUseDenoiser = CVarVirtualSmDenoiserDirectional.GetValueOnRenderThread() != 0;
-						SignalTexture = RenderVirtualShadowMapProjection(
+						ShadowFactorTexture = RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
 							View,
@@ -2020,9 +2007,8 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 					}
 					else
 					{
-						bUseDenoiser = CVarVirtualSmDenoiserLocal.GetValueOnRenderThread() != 0;
 						check(VirtualShadowMaps.Num() == 1);
-						SignalTexture = RenderVirtualShadowMapProjection(
+						ShadowFactorTexture = RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
 							View,
@@ -2032,39 +2018,16 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 							VirtualShadowMaps[0]);
 					}
 
-					// Shadow filtering via denoiser
-					if (bUseDenoiser)
-					{
-						const IScreenSpaceDenoiser* Denoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
-
-						RDG_EVENT_SCOPE(GraphBuilder, "%s %dx%d",
-							Denoiser->GetDebugName(),
-							View.ViewRect.Width(), View.ViewRect.Height());
-
-						IScreenSpaceDenoiser::FVirtualShadowMapMaskInputs Inputs;
-						Inputs.Signal = SignalTexture;
-
-						FSSDSignalTextures DenoisedSignal = Denoiser->DenoiseVirtualShadowMapMask(
-							GraphBuilder,
-							View,
-							SceneTextureParameters,
-							LightSceneInfo,
-							ScissorRect,
-							Inputs);
-
-						SignalTexture = DenoisedSignal.Textures[0];
-					}
-
 					// Composite into screen shadow mask
-					CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, SignalTexture, ScreenShadowMaskTexture);
+					CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, ShadowFactorTexture, ScreenShadowMaskTexture);
 
 					// Sub-pixel shadow (no denoising for hair)
 					if (HairStrands::HasViewHairStrandsData(View) && ScreenShadowMaskSubPixelTexture)
 					{
-						FRDGTextureRef HairSignalTexture;
+						FRDGTextureRef HairShadowFactorTexture;
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
-							HairSignalTexture = RenderVirtualShadowMapProjection(
+							HairShadowFactorTexture = RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
 								View,
@@ -2076,7 +2039,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						else
 						{
 							check(VirtualShadowMaps.Num() == 1);
-							HairSignalTexture = RenderVirtualShadowMapProjection(
+							HairShadowFactorTexture = RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
 								View,
@@ -2087,7 +2050,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 						}
 
 						// Composite into sub pixel mask
-						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, HairSignalTexture, ScreenShadowMaskSubPixelTexture);
+						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, HairShadowFactorTexture, ScreenShadowMaskSubPixelTexture);
 					}
 				}
 			}

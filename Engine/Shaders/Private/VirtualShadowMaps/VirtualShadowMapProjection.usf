@@ -51,20 +51,14 @@ float4 EncodeLightAttenuationFromMask(float ShadowMask)
 	return EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
 }
 
-Texture2D<float4> InputSignal;
+Texture2D<float> InputShadowFactor;
 
 void VirtualShadowMapCompositePS(
 	in float4 SvPosition : SV_Position,
-	out float4 OutShadowMask : SV_Target
-	)
+	out float4 OutShadowMask : SV_Target)
 {
-	// NOTE: The signal is encoded as per SSDSignalBufferEncoding.ush, SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
-	float4 Input = InputSignal.Load(int3(SvPosition.xy, 0));
-	float SampleCount = Input.g;
-	float ShadowFactor = Input.r;
-	float Shadow = (SampleCount > 0 ? ShadowFactor : 1.0f);
-	
-	OutShadowMask = EncodeLightAttenuationFromMask(Shadow);
+	float ShadowFactor = InputShadowFactor.Load(int3(SvPosition.xy, 0));	
+	OutShadowMask = EncodeLightAttenuationFromMask(ShadowFactor);
 }
 
 
@@ -89,40 +83,12 @@ float ProjectSingleSample(
 	float3 L,
 	float3 TranslatedWorldPosition,
 	float3 EstimatedGeoWorldNormal,
-	float ContactShadowLengthWorld,
-	inout float InOutHitDistance)
+	float ContactShadowLengthWorld)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
-
 	FVirtualShadowMapSampleResult Sample =
 		SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, ContactShadowLengthWorld, EstimatedGeoWorldNormal);
-
-	if (Sample.bOccluded)
-	{
-		InOutHitDistance = Sample.OccluderDistance;
-	}
-
 	return Sample.ShadowFactor;
-}
-
-float4 EncodeOutput(
-	float3 TranslatedWorldPosition,
-	FLightShaderParameters Light,
-	uint LightType,
-	float RayMissFactor,
-	float HitDistance,
-	int SampleCount)
-{
-	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION in SSDSignalBufferEncoding.ush
-	// We fuse that logic in here to avoid needing another pass, but it's hard to call the functions directly as they depend on a large
-	// number of preprocessor defines and logic that we don't want to mirror here.
-	// Unfortunately that means this logic can get out of date when the denoiser changes, but that's the trade-off for now.
-	float4 OutputSignal = float4(RayMissFactor, SampleCount, WORLD_RADIUS_MISS, RayMissFactor);
-	if (RayMissFactor < 1.0f)
-	{
-		OutputSignal.z = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, HitDistance);
-	}
-	return OutputSignal;
 }
 
 float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float2 ScreenUV)
@@ -193,7 +159,7 @@ RWTexture2D< uint > RWShadowMaskBits;
 // Single light per pass
 // Light parameters loaded via GetRootLightShaderParameters();
 int LightUniformVirtualShadowMapId;
-RWTexture2D< float4 > RWSignal;
+RWTexture2D< float4 > RWShadowFactor;
 
 // Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
 #define INPUT_TYPE_GBUFFER 0
@@ -203,8 +169,6 @@ uint InputType;
 struct FProjectLightResult
 {
 	half ShadowFactor;
-	// NOTE: The signal is encoded as per SSDSignalBufferEncoding.ush, SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
-	float4 Signal;
 };
 
 FProjectLightResult ProjectLight(
@@ -242,8 +206,6 @@ FProjectLightResult ProjectLight(
 #endif // DIRECTIONAL_LIGHT
 
 	float ShadowFactor = 1.0f;
-	float HitDistance = WORLD_RADIUS_MISS;
-	uint SampleCount = 0;
 
 	BRANCH
 	if (bInLightRegion)
@@ -255,7 +217,6 @@ FProjectLightResult ProjectLight(
 
 		if (SMRTRayCount > 0)
 		{
-			SampleCount = SMRTRayCount;
 		#if DIRECTIONAL_LIGHT
 			ShadowFactor = TraceDirectional(
 				VirtualShadowMapId,
@@ -267,8 +228,7 @@ FProjectLightResult ProjectLight(
 				SMRTRayCount,
 				SMRTSamplesPerRay,
 				SMRTRayLengthScale,
-				Noise,
-				/* out */ HitDistance);
+				Noise);
 		#else
 			ShadowFactor = TraceLocalLight(
 				VirtualShadowMapId,
@@ -282,20 +242,17 @@ FProjectLightResult ProjectLight(
 				SMRTSamplesPerRay,
 				SMRTCotMaxRayAngleFromLight,
 				Noise,
-				/*bCullBackface*/ !bIsHair,
-				/* out */ HitDistance);
+				/*bCullBackface*/ !bIsHair);
 		#endif // DIRECTIONAL_LIGHT
 		}
 		else
 		{
-			SampleCount = 1;
 			ShadowFactor = ProjectSingleSample(
 				VirtualShadowMapId,
 				L,
 				TranslatedWorldPosition,
 				EstimatedGeoWorldNormal,
-				ContactShadowLengthWorld,
-				HitDistance);
+				ContactShadowLengthWorld);
 		}
 
 		// Do not run contact shadow when computing the hair shadow mask (i.e. shadow mask applied on hair, has the scene 
@@ -306,7 +263,6 @@ FProjectLightResult ProjectLight(
 			if (ContactShadowHitDistance >= 0.0f)
 			{
 				ShadowFactor = 0.0f;
-				HitDistance = ContactShadowHitDistance;
 			}
 		}
 
@@ -389,7 +345,6 @@ FProjectLightResult ProjectLight(
 					VirtualVoxel.PageTexture,
 					TraversalSettings);
 
-				HitDistance = Result.HitT;
 				ShadowFactor = min(ShadowFactor, saturate(1 - Result.HairCount));
 			}
 		}
@@ -398,7 +353,6 @@ FProjectLightResult ProjectLight(
 
 	FProjectLightResult Result;
 	Result.ShadowFactor = ShadowFactor;
-	Result.Signal = EncodeOutput(TranslatedWorldPosition, Light, LightType, ShadowFactor, HitDistance, SampleCount);
 	return Result;
 }
 
@@ -489,6 +443,6 @@ void VirtualShadowMapProjection(
 		GBufferNormal,
 		Noise);
 
-	RWSignal[ PixelPos ] = Result.Signal;
+	RWShadowFactor[ PixelPos ] = Result.ShadowFactor;
 #endif // ONE_PASS_PROJECTION
 }
