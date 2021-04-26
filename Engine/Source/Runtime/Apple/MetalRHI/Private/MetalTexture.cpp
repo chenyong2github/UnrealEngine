@@ -268,6 +268,15 @@ mtlpp::PixelFormat ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
 
 mtlpp::PixelFormat ToSRGBFormat(mtlpp::PixelFormat MTLFormat)
 {
+#if PLATFORM_MAC
+	// Mojave doesn't support Apple Silicon and also doesn't have the Device supportsFamily: selector
+	static bool bUnsupportedFamilyCheck = FPlatformMisc::MacOSXVersionCompare(10,15,0) < 0;
+	if(bUnsupportedFamilyCheck)
+	{
+		return ToSRGBFormat_NonAppleMacGPU(MTLFormat);
+	}
+#endif
+
 	if([GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1])
 	{
 		MTLFormat = ToSRGBFormat_AppleGPU(MTLFormat);
