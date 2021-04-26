@@ -124,5 +124,8 @@ namespace SavePackageUtilities
 	/** Call the PostSaveRoot function on the given object. */
 	COREUOBJECT_API void CallPostSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext, bool bCleanupRequired);
 
+	/** Add any required TopLevelFlags based on the save parameters. */
+	COREUOBJECT_API EObjectFlags NormalizeTopLevelFlags(EObjectFlags TopLevelFlags, bool bIsCooking);
+
 }
 }

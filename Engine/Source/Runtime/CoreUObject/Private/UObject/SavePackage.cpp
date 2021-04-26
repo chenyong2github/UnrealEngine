@@ -2061,11 +2061,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #if WITH_EDITOR
 	TMap<UObject*, UObject*> ReplacedImportOuters;
 
-	// Add the external package flag when not cooking
-	if (TopLevelFlags != RF_NoFlags && !bIsCooking)
-	{
-		TopLevelFlags |= RF_HasExternalPackage;
-	}
+	TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(TopLevelFlags, bIsCooking);
 
 	// if the in memory package filename is different the filename we are saving it to,
 	// regenerate a new persistent id for it.

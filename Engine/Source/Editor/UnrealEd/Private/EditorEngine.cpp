@@ -4289,6 +4289,8 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 
 	FScopedSlowTask SlowTask(100, FText(), bSlowTask);
 
+	bool bIsCooking = TargetPlatform != nullptr;
+	TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(TopLevelFlags, bIsCooking);
 	UObject* Base = InBase;
 	if (!Base && InOuter)
 	{
@@ -4306,10 +4308,18 @@ FSavePackageResultStruct UEditorEngine::Save( UPackage* InOuter, UObject* InBase
 			GetObjectsWithPackage(InOuter, PotentialAssets, false);
 			for (UObject* Object : PotentialAssets)
 			{
-				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
+				if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object) &&
+					(TopLevelFlags == RF_NoFlags || Object->HasAnyFlags(TopLevelFlags)))
 				{
-					Base = Object;
-					break;
+					if (FAssetData::IsUAsset(Object))
+					{
+						Base = Object;
+						break;
+					}
+					if (!Base)
+					{
+						Base = Object;
+					}
 				}
 			}
 		}

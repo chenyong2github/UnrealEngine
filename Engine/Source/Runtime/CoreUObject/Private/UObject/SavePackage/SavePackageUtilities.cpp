@@ -762,6 +762,16 @@ void CallPostSaveRoot(UObject* Object, FObjectSaveContextData& ObjectSaveContext
 	Object->PostSaveRoot(FObjectPostSaveRootContext(ObjectSaveContext));
 }
 
+EObjectFlags NormalizeTopLevelFlags(EObjectFlags TopLevelFlags, bool bIsCooking)
+{
+	// if we aren't cooking and top level flags aren't empty, add RF_HasExternalPackage to them to catch external packages data
+	if (TopLevelFlags != RF_NoFlags && !bIsCooking)
+	{
+		TopLevelFlags |= RF_HasExternalPackage;
+	}
+	return TopLevelFlags;
+}
+
 }
 } // end namespace UE::SavePackageUtilities
 

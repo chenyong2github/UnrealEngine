@@ -94,11 +94,7 @@ public:
 			TargetPackagePath.SetHeaderExtension(EPackageExtension::EmptyString);
 		}
 
-		// if we aren't cooking and top level flags aren't empty, add RF_HasExternalPackage to them to catch external packages data
-		if (SaveArgs.TopLevelFlags != RF_NoFlags && !IsCooking())
-		{
-			SaveArgs.TopLevelFlags |= RF_HasExternalPackage;
-		}
+		SaveArgs.TopLevelFlags = UE::SavePackageUtilities::NormalizeTopLevelFlags(SaveArgs.TopLevelFlags, IsCooking());
 
 		bCanUseUnversionedPropertySerialization = CanUseUnversionedPropertySerialization(SaveArgs.TargetPlatform);
 		bTextFormat = FString(Filename).EndsWith(FPackageName::GetTextAssetPackageExtension()) || FString(Filename).EndsWith(FPackageName::GetTextMapPackageExtension());
