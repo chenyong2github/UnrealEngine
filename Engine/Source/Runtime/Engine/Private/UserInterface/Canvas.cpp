@@ -863,6 +863,23 @@ void FCanvas::Flush_GameThread(bool bForce)
 			RHICmdList.Transition(FRHITransitionInfo(FlushParameters.CanvasRenderTarget->GetRenderTargetTexture(), ERHIAccess::RTV, ERHIAccess::SRVMask));
 		});
 	}
+	else
+	{
+		// iterate over the FCanvasSortElements in sorted order and delete all the batched items for each entry
+		for (int32 Idx = 0; Idx < SortedElements.Num(); Idx++)
+		{
+			FCanvasSortElement& SortElement = SortedElements[Idx];
+			for (int32 BatchIdx = 0; BatchIdx < SortElement.RenderBatchArray.Num(); BatchIdx++)
+			{
+				FCanvasBaseRenderItem* RenderItem = SortElement.RenderBatchArray[BatchIdx];
+				if (RenderItem)
+				{
+					delete RenderItem;
+				}
+			}
+			SortElement.RenderBatchArray.Empty();
+		}
+	}
 	
 	if( AllowedModes & Allow_DeleteOnRender )
 	{
