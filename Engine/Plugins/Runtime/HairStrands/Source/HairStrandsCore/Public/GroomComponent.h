@@ -15,7 +15,7 @@
 
 #include "GroomComponent.generated.h"
 
-UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
+UCLASS(HideCategories = (Object, Physics, Activation, Mobility, Collision, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
 class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface
 {
 	GENERATED_UCLASS_BODY()
@@ -39,8 +39,12 @@ public:
 	class UGroomBindingAsset* BindingAsset;
 
 	/** Physics asset to be used for hair simulation */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Simulation")
 	class UPhysicsAsset* PhysicsAsset;
+
+	/** Groom's simulation settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Simulation")
+	FHairSimulationSettings SimulationSettings;
 
 	/* Reference of the default/debug materials for each geometric representation */
 	UPROPERTY()
@@ -76,6 +80,9 @@ public:
 
 	/** Release Niagara components */
 	void ReleaseHairSimulation();
+
+	/** Check if the simulation is enabled or not */
+	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const;
 
 	/** Update Group Description */
 	void UpdateHairGroupsDesc();
@@ -141,6 +148,10 @@ public:
 	/* Accessor function for changing Groom binding asset from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Groom")
 	void SetBindingAsset(UGroomBindingAsset* InBinding);
+
+	/* Accessor function for changing the enable simulation flag from blueprint/sequencer */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	void SetEnableSimulation(bool bInEnableSimulation);
 
 	void SetStableRasterization(bool bEnable);
 	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding);

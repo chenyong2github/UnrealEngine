@@ -425,12 +425,14 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 
 		GlobalInterpolation = (Interface->IsComponentValid() && Interface->SourceComponent->BindingAsset && Interface->SourceComponent->GroomAsset) ?
 			Interface->SourceComponent->GroomAsset->EnableGlobalInterpolation : false;
-		HairGroupInstance = Interface->SourceComponent->GetGroupInstance(GroupIndex);
+		HairGroupInstance = Interface->IsComponentValid() ? Interface->SourceComponent->GetGroupInstance(GroupIndex) : nullptr;
 
 		TickingGroup = Interface->IsComponentValid() ? ComputeTickingGroup(Interface->SourceComponent) : NiagaraFirstTickGroup;
 
-		if (StrandsDatas != nullptr && GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsPhysics.Num() &&
-			GroomAsset->IsSimulationEnable(GroupIndex, LODIndex))
+		const bool bIsSimulationEnable = Interface->IsComponentValid() ? Interface->SourceComponent->IsSimulationEnable(GroupIndex, LODIndex) : 
+																		    GroomAsset ? GroomAsset->IsSimulationEnable(GroupIndex, LODIndex) : false;
+
+		if (StrandsDatas != nullptr && GroomAsset != nullptr && GroupIndex >= 0 && GroupIndex < GroomAsset->HairGroupsPhysics.Num() && bIsSimulationEnable)
 		{
 			FHairGroupsPhysics& HairPhysics = GroomAsset->HairGroupsPhysics[GroupIndex];
 			StrandsSize = static_cast<uint8>(HairPhysics.StrandsParameters.StrandsSize);
@@ -476,6 +478,28 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 			const FBox& StrandsBox = StrandsDatas->BoundingBox;
 
 			NumStrands = StrandsDatas->GetNumCurves();
+
+			if (Interface->IsComponentValid())
+			{
+				const FHairSimulationSettings& SimulationSettings = Interface->SourceComponent->SimulationSettings;
+				if (SimulationSettings.bOverrideSettings)
+				{
+					GravityVector = SimulationSettings.ExternalForces.GravityVector;
+					AirDrag = SimulationSettings.ExternalForces.AirDrag;
+					AirVelocity = SimulationSettings.ExternalForces.AirVelocity;
+
+					BendDamping = SimulationSettings.MaterialConstraints.BendDamping;
+					BendStiffness = SimulationSettings.MaterialConstraints.BendStiffness;
+
+					StretchDamping = SimulationSettings.MaterialConstraints.StretchDamping;
+					StretchStiffness = SimulationSettings.MaterialConstraints.StretchStiffness;
+
+					StaticFriction = SimulationSettings.MaterialConstraints.StaticFriction;
+					KineticFriction = SimulationSettings.MaterialConstraints.KineticFriction;
+					StrandsViscosity = SimulationSettings.MaterialConstraints.StrandsViscosity;
+					CollisionRadius = SimulationSettings.MaterialConstraints.CollisionRadius;
+				}
+			}
 		}
 		else
 		{

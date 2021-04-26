@@ -274,3 +274,95 @@ struct HAIRSTRANDSCORE_API FHairGroupsPhysics
 
 	bool operator==(const FHairGroupsPhysics& A) const;
 };
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSimulationSolver
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Enable the simulation for the group */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SolverSettings", meta = (ToolTip = "Enable the simulation of the groom groups/LODs if both this boolean and the one in the groom asset are true"))
+	bool bEnableSimulation = false;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSimulationForces
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Acceleration vector in cm/s2 to be used for the gravity*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "ExternalForces", meta = (ToolTip = "Acceleration vector in cm/s2 to be used for the gravity"))
+	FVector GravityVector = FVector(0.0, 0.0, -981.0);
+
+	/** Coefficient between 0 and 1 to be used for the air drag */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "ExternalForces", meta = (ToolTip = "Coefficient between 0 and 1 to be used for the air drag"))
+	float AirDrag = 0.1f;
+
+	/** Velocity of the surrounding air in cm/s */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "ExternalForces", meta = (ToolTip = "Velocity of the surrounding air in cm/s"))
+	FVector AirVelocity = FVector(0.0, 0.0, 0.0);
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSimulationConstraints
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Damping for the bend constraint between 0 and 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, AdvancedDisplay, Category = "BendConstraint", meta = (ToolTip = "Damping for the bend constraint between 0 and 1"))
+	float BendDamping = 0.001;
+
+	/** Stiffness for the bend constraint in GPa */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "BendConstraint", meta = (ToolTip = "Stiffness for the bend constraint in GPa", EditCondition = "bOverrideSettings"))
+	float BendStiffness = 0.01;
+
+	/** Damping for the stretch constraint between 0 and 1 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, AdvancedDisplay, Category = "StretchConstraint", meta = (ToolTip = "Damping for the stretch constraint between 0 and 1"))
+	float StretchDamping = 0.001;
+
+	/** Stiffness for the stretch constraint in GPa */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "StretchConstraint", meta = (ToolTip = "Stiffness for the stretch constraint in GPa"))
+	float StretchStiffness = 1.0;
+
+	/** Static friction used for collision against the physics asset */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, AdvancedDisplay, Category = "Collision Constraint", meta = (ToolTip = "Static friction used for collision against the physics asset"))
+	float StaticFriction = 0.1;
+
+	/** Kinetic friction used for collision against the physics asset*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, AdvancedDisplay, Category = "CollisionConstraint", meta = (ToolTip = "Kinetic friction used for collision against the physics asset"))
+	float KineticFriction = 0.1;
+
+	/** Viscosity parameter between 0 and 1 that will be used for self collision */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "CollisionConstraint", meta = (ToolTip = "Viscosity parameter between 0 and 1 that will be used for self collision"))
+	float StrandsViscosity = 1.0;
+
+	/** Radius that will be used for the collision detection against the physics asset */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "CollisionConstraint", meta = (ToolTip = "Radius that will be used for the collision detection against the physics asset"))
+	float CollisionRadius = 0.001;
+};
+
+USTRUCT(BlueprintType)
+struct HAIRSTRANDSCORE_API FHairSimulationSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	/** Reset the simulation in time*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsSimulation", meta = (ToolTip = "Boolean to control if we want to reset trhe simulation at some point in time"))
+	bool bResetSimulation = false;
+
+	/** Override the asset simulation settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsSimulation", meta = (ToolTip = "Boolean to control if we are going to override the groom asset physics settings"))
+	bool bOverrideSettings = false;
+
+	/** Solver settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "Solver Settings for the hair physics", EditCondition = "bOverrideSettings"))
+	FHairSimulationSolver SolverSettings;
+
+	/** Externalk forces */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "External Forces for the hair physics", EditCondition = "bOverrideSettings"))
+	FHairSimulationForces ExternalForces;
+
+	/** Material Constraints */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "GroupsPhysics", meta = (ToolTip = "Material Constraints for the hair physics", EditCondition = "bOverrideSettings"))
+	FHairSimulationConstraints MaterialConstraints;
+};

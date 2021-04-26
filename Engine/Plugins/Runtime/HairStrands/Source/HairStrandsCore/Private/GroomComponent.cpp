@@ -980,6 +980,16 @@ void UGroomComponent::ReleaseHairSimulation()
 	}
 	NiagaraComponents.Empty();
 }
+bool UGroomComponent::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const
+{
+	bool bIsSimulationEnable = GroomAsset ? GroomAsset->IsSimulationEnable(GroupIndex, LODIndex) : false;
+	if (SimulationSettings.bOverrideSettings)
+	{
+		bIsSimulationEnable = bIsSimulationEnable && SimulationSettings.SolverSettings.bEnableSimulation;
+	}
+
+	return bIsSimulationEnable;
+}
 
 static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent, const bool bHasWorldReady)
 {
@@ -1001,7 +1011,7 @@ static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent, const 
 		for (int32 i = 0; i < NumGroups; ++i)
 		{
 			const int32 LODIndex = GroomComponent->GroomGroupsDesc[i].LODForcedIndex;
-			ValidComponents[i] = GroomAsset->IsSimulationEnable(i, LODIndex);
+			ValidComponents[i] = GroomComponent->IsSimulationEnable(i, LODIndex);
 			if (ValidComponents[i] && (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings))
 			{
 				NeedSpringsSolver = true;
@@ -1285,6 +1295,19 @@ void UGroomComponent::SetBindingAsset(UGroomBindingAsset* InBinding)
 			BindingAsset = InBinding;
 			InitResources();
 		}
+	}
+}
+
+void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
+{
+	if (SimulationSettings.SolverSettings.bEnableSimulation != bInEnableSimulation)
+	{
+		SimulationSettings.SolverSettings.bEnableSimulation = bInEnableSimulation;
+
+		ReleaseResources();
+		UpdateHairGroupsDesc();
+		UpdateHairSimulation();
+		InitResources();
 	}
 }
 
@@ -1835,7 +1858,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			// * Force global interpolation to be enable for meshes with skinning binding as we use RBF defomation for 'sticking' meshes onto skel. mesh surface			
 			bHasNeedSkeletalMesh	  = bHasNeedSkeletalMesh || BindingType == EGroomBindingType::Rigid;
 			bHasNeedSkinningBinding   = bHasNeedSkinningBinding || BindingType == EGroomBindingType::Skinning;
-			bHasNeedSimulation		  = bHasNeedSimulation || GroomAsset->IsSimulationEnable(GroupIt, LODIt);
+			bHasNeedSimulation		  = bHasNeedSimulation || IsSimulationEnable(GroupIt, LODIt);
 			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || (BindingType == EGroomBindingType::Skinning && (GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || GeometryType == EGroomGeometryType::Meshes));
 		}
 	}
@@ -1926,7 +1949,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				// * Force global interpolation to be enable for meshes with skinning binding as we use RBF defomation for 'sticking' meshes onto skel. mesh surface
 				// * Global deformation are allowed only with 'Skinning' binding type
 				const EHairGeometryType GeometryType = ToHairGeometryType(GetEffectiveGeometryType(GroomAsset->GetGeometryType(GroupIt, LODIt), bUseCards));
-				const bool LODSimulation = GroomAsset->IsSimulationEnable(GroupIt, LODIt);
+				const bool LODSimulation = IsSimulationEnable(GroupIt, LODIt);
 				const bool LODGlobalInterpolation = LocalBindingAsset && (BindingType == EHairBindingType::Skinning && (GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || GeometryType == EHairGeometryType::Meshes));
 				bNeedStrandsData = bNeedStrandsData || GeometryType == EHairGeometryType::Strands;
 
@@ -1978,7 +2001,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 			// Initialize the simulation and the global deformation to its default behavior by setting it with LODIndex = -1
 			const int32 LODIndex = -1;
-			HairGroupInstance->Guides.bIsSimulationEnable = GroomAsset->IsSimulationEnable(GroupIt,LODIndex);
+			HairGroupInstance->Guides.bIsSimulationEnable = IsSimulationEnable(GroupIt,LODIndex);
 			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
 		}
 
@@ -2399,8 +2422,8 @@ void UGroomComponent::PostLoad()
 #if WITH_EDITOR
 void UGroomComponent::Invalidate()
 {
-	UpdateHairSimulation();
 	UpdateHairGroupsDescAndInvalidateRenderState();
+	UpdateHairSimulation();
 	ValidateMaterials(false);
 }
 
@@ -2540,6 +2563,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 				PrevBoneMatrix = NextBoneMatrix;
 			}
 		}
+		bResetSimulation |= SimulationSettings.bResetSimulation;
 	}
 	bInitSimulation = false;
 
@@ -2648,6 +2672,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bSourceSkeletalMeshChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, SourceSkeletalMesh);
 	const bool bBindingAssetChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, BindingAsset);
 	const bool bIsBindingCompatible = UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable);
+	const bool bEnableSolverChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairSimulationSolver, bEnableSimulation);
 	if (!bIsBindingCompatible || !UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable))
 	{
 		BindingAsset = nullptr;
@@ -2683,7 +2708,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	#endif
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged;
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get
