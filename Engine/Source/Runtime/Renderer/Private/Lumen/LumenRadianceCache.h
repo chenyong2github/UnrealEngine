@@ -9,6 +9,7 @@
 class FViewInfo;
 class FRadianceCacheState;
 class FLumenCardTracingInputs;
+class FSceneTextureParameters;
 class FScreenProbeParameters;
 
 namespace LumenRadianceCache
@@ -80,3 +81,21 @@ extern void RenderRadianceCache(
 	const void* MarkUsedProbesData,
 	FRadianceCacheState& RadianceCacheState,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
+
+extern void RenderLumenHardwareRayTracingRadianceCache(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FViewInfo& View,
+	const FLumenCardTracingInputs& TracingInputs,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	float DiffuseConeHalfAngle,
+	int32 MaxNumProbes,
+	FIntPoint ProbeTraceTileResolution,
+
+	FRDGBufferRef ProbeTraceData,
+	FRDGBufferRef ProbeTraceTileData,
+	FRDGBufferRef ProbeTraceTileAllocator,
+	FRDGBufferRef TraceProbesIndirectArgs,
+	FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs,
+	FRDGTextureUAVRef RadianceProbeAtlasTextureUAV,
+	FRDGTextureUAVRef DepthProbeTextureUAV);

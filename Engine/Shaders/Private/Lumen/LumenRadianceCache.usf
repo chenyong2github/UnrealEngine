@@ -730,6 +730,7 @@ void GenerateProbeTraceTilesCS(
 }
 
 RWBuffer<uint> RWTraceProbesIndirectArgs;
+RWBuffer<uint> RWRadianceCacheHardwareRayTracingIndirectArgs;
 Buffer<uint> ProbeTraceTileAllocator;
 
 #define TRACE_TILE_GROUP_STRIDE 128
@@ -745,6 +746,12 @@ void SetupTraceFromProbesCS()
 	RWTraceProbesIndirectArgs[0] = TRACE_TILE_GROUP_STRIDE;
 	RWTraceProbesIndirectArgs[1] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
 	RWTraceProbesIndirectArgs[2] = 1;
+
+	uint GroupSize = THREADGROUP_SIZE * THREADGROUP_SIZE;
+	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
+	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = TRACE_TILE_GROUP_STRIDE * GroupSize;
+	RWRadianceCacheHardwareRayTracingIndirectArgs[2] = 1;
+
 }
 
 Buffer<uint2> ProbeTraceTileData;

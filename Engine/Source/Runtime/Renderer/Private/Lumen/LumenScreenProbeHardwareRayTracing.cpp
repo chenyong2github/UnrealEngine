@@ -107,33 +107,6 @@ namespace Lumen
 
 #if RHI_RAYTRACING
 
-// A temporary hack for RGS to access array declaration.
-// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, )
-SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMin, [LumenRadianceCache::MaxClipmaps])
-SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapSamplingJitter, [LumenRadianceCache::MaxClipmaps])
-SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScale, [LumenRadianceCache::MaxClipmaps])
-SHADER_PARAMETER_ARRAY(FVector, WorldPositionToRadianceProbeCoordBias, [LumenRadianceCache::MaxClipmaps])
-SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [LumenRadianceCache::MaxClipmaps])
-SHADER_PARAMETER_ARRAY(FVector, RadianceProbeCoordToWorldPositionBias, [LumenRadianceCache::MaxClipmaps])
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, "RGSRadianceCacheParameters");
-
-void SetupRGSRadianceCacheParametersNew(const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRGSRadianceCacheParameters& RGSRadianceCacheParameters)
-{
-	for (int i = 0; i < LumenRadianceCache::MaxClipmaps; ++i)
-	{
-		RGSRadianceCacheParameters.RadianceProbeClipmapTMin[i] = RadianceCacheParameters.RadianceProbeClipmapTMin[i];
-		RGSRadianceCacheParameters.RadianceProbeClipmapSamplingJitter[i] = RadianceCacheParameters.RadianceProbeClipmapSamplingJitter[i];
-		RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordScale[i] = RadianceCacheParameters.WorldPositionToRadianceProbeCoordScale[i];
-		RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordBias[i] = RadianceCacheParameters.WorldPositionToRadianceProbeCoordBias[i];
-		RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionScale[i] = RadianceCacheParameters.RadianceProbeCoordToWorldPositionScale[i];
-		RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionBias[i] = RadianceCacheParameters.RadianceProbeCoordToWorldPositionBias[i];
-	}
-}
-
 class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 {
 	DECLARE_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS)
@@ -299,7 +272,7 @@ void RenderHardwareRayTracingScreenProbe(
 
 		// Radiance cache arguments
 		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-		SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
+		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
 		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
@@ -362,7 +335,7 @@ void RenderHardwareRayTracingScreenProbe(
 
 		// Radiance cache arguments
 		FRGSRadianceCacheParameters RGSRadianceCacheParameters;
-		SetupRGSRadianceCacheParametersNew(RadianceCacheParameters, RGSRadianceCacheParameters);
+		SetupRGSRadianceCacheParameters(RadianceCacheParameters, RGSRadianceCacheParameters);
 		PassParameters->RGSRadianceCacheParameters = CreateUniformBufferImmediate(RGSRadianceCacheParameters, UniformBuffer_SingleFrame);
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;

@@ -78,4 +78,20 @@ void SetLumenHardwareRayTracingSharedParameters(
 	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);
 }
 
+void SetupRGSRadianceCacheParameters(const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FRGSRadianceCacheParameters& RGSRadianceCacheParameters)
+{
+	for (int i = 0; i < LumenRadianceCache::MaxClipmaps; ++i)
+	{
+		RGSRadianceCacheParameters.RadianceProbeClipmapTMin[i] = RadianceCacheParameters.RadianceProbeClipmapTMin[i];
+		RGSRadianceCacheParameters.RadianceProbeClipmapSamplingJitter[i] = RadianceCacheParameters.RadianceProbeClipmapSamplingJitter[i];
+		RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordScale[i] = RadianceCacheParameters.WorldPositionToRadianceProbeCoordScale[i];
+		RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordBias[i] = RadianceCacheParameters.WorldPositionToRadianceProbeCoordBias[i];
+		RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionScale[i] = RadianceCacheParameters.RadianceProbeCoordToWorldPositionScale[i];
+		RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionBias[i] = RadianceCacheParameters.RadianceProbeCoordToWorldPositionBias[i];
+	}
+}
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, "RGSRadianceCacheParameters");
+
 #endif // RHI_RAYTRACING

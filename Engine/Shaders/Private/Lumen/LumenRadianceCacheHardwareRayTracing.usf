@@ -1,0 +1,268 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+// TODO: Remove hair dependency
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
+#include "../Common.ush"
+#include "../MonteCarlo.ush"
+#include "../MortonCode.ush"
+#include "../SceneTextureParameters.ush"
+
+#include "LumenRadianceCacheCommon.ush"
+#include "LumenCardCommon.ush"
+#include "LumenTracingCommon.ush"
+#include "LumenReflectionCommon.ush"
+#include "LumenOctahedralProbe.ush"
+
+float MinTraceDistance;
+float MaxTraceDistance;
+float SurfaceBias;
+
+Buffer<float4> ProbeTraceData;
+Buffer<uint2> ProbeTraceTileData;
+Buffer<uint> ProbeTraceTileAllocator;
+Buffer<uint> RWTraceProbesIndirectArgs;
+uint2 ProbeTraceTileResolution;
+uint ThreadGroupSize;
+RWTexture2D<float3> RWRadianceProbeAtlasTexture;
+RWTexture2D<float> RWDepthProbeAtlasTexture;
+
+uint TraceTileGroupCount;
+#define TRACE_TILE_GROUP_STRIDE 128
+
+// Create shared header
+uint2 UnpackTraceTileInfo(uint2 TraceTileInfo)
+{
+	uint2 TraceTileCoord;
+	TraceTileCoord.x = TraceTileInfo.x & 0xFF;
+	TraceTileCoord.y = (TraceTileInfo.x >> 8) & 0xFF;
+	return TraceTileCoord;
+}
+
+// TODO: unify with similar function in other visualizations
+float3 HashToColor(uint H)
+{
+	return 0.5 + 0.3 * cos(2 * PI * ((H & 0xFFFFFF) * 5.96046447754e-08 + float3(0.0, 0.333, 0.6666)));
+}
+
+void UnpackTraceTileInfo(uint2 TraceTileInfo, out uint2 TraceTileCoord, out uint Level, out uint ProbeTraceIndex)
+{
+	TraceTileCoord = UnpackTraceTileInfo(TraceTileInfo);
+	Level = (TraceTileInfo.x >> 16) & 0xFF;
+	ProbeTraceIndex = TraceTileInfo.y;
+}
+
+void GetProbeTraceDataNoOffset(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
+{
+	ProbeWorldCenter = ProbeTraceData[ProbeTraceIndex].xyz;
+	uint PackedW = asuint(ProbeTraceData[ProbeTraceIndex].w);
+	ClipmapIndex = PackedW >> 24;
+	ProbeIndex = PackedW & 0xFFFFFF;
+}
+
+void GetProbeTraceData(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
+{
+	float3 ProbeWorldCenterNoOffset;
+	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenterNoOffset, ClipmapIndex, ProbeIndex);
+	ProbeWorldCenter = ProbeWorldCenterNoOffset + ProbeWorldOffset[ProbeIndex].xyz;
+}
+
+#if LUMEN_HARDWARE_RAYTRACING
+#include "LumenHardwareRayTracingCommon.ush"
+
+#ifndef DIM_NORMAL_MODE
+#define DIM_NORMAL_MODE SDF_NORMAL_TYPE
+#endif
+
+#ifndef DIM_LIGHTING_MODE
+#define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
+#endif
+
+#ifndef DIM_DEFERRED_MATERIAL_MODE
+#define DIM_DEFERRED_MATERIAL_MODE 0
+#endif
+
+RaytracingAccelerationStructure TLAS;
+RWTexture2D<float4> RWTraceTileRadianceAndHitDistanceTexture;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingIntoTemporaryBufferRGS)
+{
+	uint TraceTileIndex = DispatchRaysIndex().x * TRACE_TILE_GROUP_STRIDE + DispatchRaysIndex().y / (THREADGROUP_SIZE * THREADGROUP_SIZE);
+	if (TraceTileIndex >= ProbeTraceTileAllocator[0])
+	{
+		return;
+	}
+
+	uint2 TraceTileCoord;
+	uint TraceTileLevel;
+	uint ProbeTraceIndex;
+	UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
+
+	float3 ProbeWorldCenter;
+	uint ClipmapIndex;
+	uint ProbeIndex;
+	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
+
+	uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+	uint TraceTileRayIndex = DispatchRaysIndex().y % (THREADGROUP_SIZE * THREADGROUP_SIZE);
+	uint2 LocalTexelCoord = uint2(TraceTileRayIndex % 8, TraceTileRayIndex / 8);
+	{
+		uint2 ProbeTexelCoord = TraceTileCoord * THREADGROUP_SIZE + LocalTexelCoord;
+		if (all(ProbeTexelCoord < TraceResolution))
+		{
+			float2 ProbeTexelCenter = float2(0.5, 0.5);
+			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
+			float FinalMaxTraceDistance = MaxTraceDistance;
+
+			// Evenly distributing the sphere solid angle among all cones instead of based on Octahedron distortion
+			float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(TraceResolution * TraceResolution));
+
+			RayDesc Ray;
+			Ray.Origin = ProbeWorldCenter;
+			Ray.Direction = WorldConeDirection;
+			Ray.TMin = FinalMinTraceDistance;
+			Ray.TMax = FinalMaxTraceDistance;
+
+			FRayCone RayCone = (FRayCone)0;
+			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
+
+			FRayTracedLightingContext Context;
+			Context.TLAS = TLAS;
+			Context.RayCone = RayCone;
+			Context.TraceCoord = ProbeTexelCoord;
+			Context.LinearCoord = ProbeTexelCoord.y * THREADGROUP_SIZE + ProbeTexelCoord.x;
+
+			float3 SampleRadiance = 0.0;
+			float SampleHitDistance = MaxHalfFloat;
+
+			bool bIsHit = false;
+			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
+			if (bUseMinimalPayload)
+			{
+				bIsHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, SampleHitDistance, SampleRadiance);
+			}
+			else
+			{
+				bIsHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, SampleHitDistance, SampleRadiance);
+			}
+
+			// Apply environment contribution on miss
+			if (!bIsHit)
+			{
+				FConeTraceResult TraceResult = (FConeTraceResult)0;
+				TraceResult.Transparency = 1;
+				EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
+				SampleRadiance = TraceResult.Lighting;
+				SampleHitDistance = MaxTraceDistance;
+			}
+
+			uint2 OutputIndex = DispatchRaysIndex().xy;
+			RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, SampleHitDistance);
+		}
+	}
+}
+
+#endif // LUMEN_HARDWARE_RAYTRACING
+
+#if 1
+Texture2D<float4> RadianceAndHitDistanceTexture;
+
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void SplatRadianceCacheIntoAtlasCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 GroupThreadId : SV_GroupThreadID
+)
+{
+	//uint TraceTileIndex = GroupId.x * TRACE_TILE_GROUP_STRIDE + GroupId.y;
+	uint TraceTileIndex = GroupId.y * TRACE_TILE_GROUP_STRIDE + GroupId.x;
+	if (TraceTileIndex >= ProbeTraceTileAllocator[0])
+	{
+		return;
+	}
+
+	uint2 TraceTileCoord;
+	uint TraceTileLevel;
+	uint ProbeTraceIndex;
+	UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
+
+	uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+	uint2 ProbeTexelCoord = TraceTileCoord * THREADGROUP_SIZE + GroupThreadId.xy;
+
+
+	float3 ProbeWorldCenter;
+	uint ClipmapIndex;
+	uint ProbeIndex;
+	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
+
+	uint2 ProbeAtlasBaseCoord = RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+
+	if (TraceResolution < RadianceProbeResolution)
+	{
+		uint UpsampleFactor = RadianceProbeResolution / TraceResolution;
+		ProbeAtlasBaseCoord += (THREADGROUP_SIZE * TraceTileCoord + GroupThreadId.xy) * UpsampleFactor;
+
+		//uint2 RadianceAndHitDistanceTextureIndex = uint2(GroupId.x, GroupId.y * THREADGROUP_SIZE * THREADGROUP_SIZE + (GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x));
+		uint2 RadianceAndHitDistanceTextureIndex = uint2(GroupId.y, GroupId.x * THREADGROUP_SIZE * THREADGROUP_SIZE + (GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x));
+		float4 Data = RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex];
+		float3 Lighting = Data.rgb;
+
+		for (uint Y = 0; Y < UpsampleFactor; Y++)
+		for (uint X = 0; X < UpsampleFactor; X++)
+		{
+			RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = Lighting;
+		}
+
+#if RADIANCE_CACHE_STORE_DEPTHS
+		float HitDistance = min(Data.a, MaxHalfFloat);
+
+		for (uint Y = 0; Y < UpsampleFactor; Y++)
+		for (uint X = 0; X < UpsampleFactor; X++)
+		{
+			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord + uint2(X, Y)] = HitDistance;
+		}
+#endif
+	}
+	else
+	{
+		uint DownsampleFactor = TraceResolution / RadianceProbeResolution;
+		uint WriteTileSize = THREADGROUP_SIZE / DownsampleFactor;
+
+		if (all(GroupThreadId.xy < WriteTileSize))
+		{
+			float3 Lighting = 0;
+
+			for (uint Y = 0; Y < DownsampleFactor; Y++)
+			for (uint X = 0; X < DownsampleFactor; X++)
+			{
+				uint TraceTileRayIndex = (GroupThreadId.y * DownsampleFactor + Y) * THREADGROUP_SIZE + GroupThreadId.x * DownsampleFactor + X;
+				//uint2 RadianceAndHitDistanceTextureIndex = uint2(GroupId.x, GroupId.y * THREADGROUP_SIZE * THREADGROUP_SIZE + TraceTileRayIndex);
+				uint2 RadianceAndHitDistanceTextureIndex = uint2(GroupId.y, GroupId.x * THREADGROUP_SIZE * THREADGROUP_SIZE + TraceTileRayIndex);
+
+				Lighting += RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex].rgb;
+			}
+
+			ProbeAtlasBaseCoord += WriteTileSize * TraceTileCoord + GroupThreadId.xy;
+			RWRadianceProbeAtlasTexture[ProbeAtlasBaseCoord] = Lighting / (float)(DownsampleFactor * DownsampleFactor);
+
+#if RADIANCE_CACHE_STORE_DEPTHS
+			float HitDistance = MaxHalfFloat;
+
+			for (uint Y = 0; Y < DownsampleFactor; Y++)
+			for (uint X = 0; X < DownsampleFactor; X++)
+			{
+				uint TraceTileRayIndex = (GroupThreadId.y * DownsampleFactor + Y) * THREADGROUP_SIZE + GroupThreadId.x * DownsampleFactor + X;
+				uint2 RadianceAndHitDistanceTextureIndex = uint2(TraceTileIndex, TraceTileRayIndex);
+
+				HitDistance = min(HitDistance, RadianceAndHitDistanceTexture[RadianceAndHitDistanceTextureIndex].a);
+			}
+
+			RWDepthProbeAtlasTexture[ProbeAtlasBaseCoord] = HitDistance;
+#endif
+		}
+	}
+}
+#endif

@@ -39,10 +39,11 @@ namespace Lumen
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	bool IsPrimitiveToDFObjectMappingRequired();
 
-	// Hardware ray-traced reflections
+	// Hardware ray tracing
 	bool UseHardwareRayTracing();
 	bool UseHardwareRayTracedReflections();
 	bool UseHardwareRayTracedScreenProbeGather();
+	bool UseHardwareRayTracedRadianceCache();
 	bool UseHardwareRayTracedShadows(const FViewInfo& View);
 
 	enum class EHardwareRayTracingLightingMode
@@ -54,6 +55,7 @@ namespace Lumen
 	};
 	EHardwareRayTracingLightingMode GetReflectionsHardwareRayTracingLightingMode(const FViewInfo& View);
 	EHardwareRayTracingLightingMode GetScreenProbeGatherHardwareRayTracingLightingMode();
+	EHardwareRayTracingLightingMode GetRadianceCacheHardwareRayTracingLightingMode();
 	EHardwareRayTracingLightingMode GetVisualizeHardwareRayTracingLightingMode();
 
 	const TCHAR* GetRayTracedLightingModeName(EHardwareRayTracingLightingMode LightingMode);
