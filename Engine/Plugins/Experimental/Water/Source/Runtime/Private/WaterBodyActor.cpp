@@ -334,13 +334,16 @@ bool AWaterBody::IsNavigationRelevant() const
 
 float AWaterBody::FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const
 {
-	return GetWaterSpline()->FindInputKeyClosestToWorldLocation(WorldLocation);
+	UWaterSplineComponent* WaterSpline = GetWaterSpline();
+	return WaterSpline ? WaterSpline->FindInputKeyClosestToWorldLocation(WorldLocation) : 0.0f;
 }
 
 float AWaterBody::GetConstantSurfaceZ() const
 {
+	UWaterSplineComponent* WaterSpline = GetWaterSpline();
+
 	// A single Z doesn't really make sense for non-flat water bodies, but it can be useful for when using FixedZ post process for example. Take the first spline key in that case : 
-	float WaterSurfaceZ = IsFlatSurface() ? GetActorLocation().Z : GetWaterSpline()->GetLocationAtSplineInputKey(0.0f, ESplineCoordinateSpace::World).Z;
+	float WaterSurfaceZ = (IsFlatSurface() || WaterSpline == nullptr) ? GetActorLocation().Z : WaterSpline->GetLocationAtSplineInputKey(0.0f, ESplineCoordinateSpace::World).Z;
 	
 	// Apply body height offset if applicable (ocean)
 	if (IsHeightOffsetSupported())
@@ -354,7 +357,8 @@ float AWaterBody::GetConstantSurfaceZ() const
 float AWaterBody::GetConstantDepth() const
 {
 	// Only makes sense when you consider the water depth to be constant for the whole water body, in which case we just use the first spline key's : 
-	return GetWaterSpline()->GetFloatPropertyAtSplineInputKey(0.0f, GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth));
+	UWaterSplineComponent* WaterSpline = GetWaterSpline();
+	return WaterSpline ? WaterSpline->GetFloatPropertyAtSplineInputKey(0.0f, GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth)) : 0.0f;
 }
 
 void AWaterBody::GetSurfaceMinMaxZ(float& OutMinZ, float& OutMaxZ) const
@@ -582,20 +586,21 @@ FWaterBodyQueryResult AWaterBody::QueryWaterInfoClosestToWorldLocation(const FVe
 
 float AWaterBody::GetWaterVelocityAtSplineInputKey(float InKey) const
 {
-	return WaterSplineMetadata->WaterVelocityScalar.Eval(InKey, 0.f);
+	return WaterSplineMetadata ? WaterSplineMetadata->WaterVelocityScalar.Eval(InKey, 0.f) : 0.0f;
 }
 
 FVector AWaterBody::GetWaterVelocityVectorAtSplineInputKey(float InKey) const
 {
+	UWaterSplineComponent* WaterSpline = GetWaterSpline();
 	float WaterVelocityScalar = GetWaterVelocityAtSplineInputKey(InKey);
-	const FVector SplineDirection = GetWaterSpline()->GetDirectionAtSplineInputKey(InKey, ESplineCoordinateSpace::World);
+	const FVector SplineDirection = WaterSpline ? WaterSpline->GetDirectionAtSplineInputKey(InKey, ESplineCoordinateSpace::World) : FVector::ZeroVector;
 	return SplineDirection * WaterVelocityScalar;
 }
 
 
 float AWaterBody::GetAudioIntensityAtSplineInputKey(float InKey) const
 {
-	return WaterSplineMetadata->AudioIntensity.Eval(InKey, 0.f);
+	return WaterSplineMetadata ? WaterSplineMetadata->AudioIntensity.Eval(InKey, 0.f) : 0.0f;
 }
 
 TArray<AWaterBodyIsland*> AWaterBody::GetIslands() const
@@ -714,7 +719,7 @@ void AWaterBody::UpdateMaterialInstances()
 bool AWaterBody::UpdateWaterHeight()
 {
 	bool bWaterBodyChanged = false;
-	if (IsFlatSurface())
+	if (IsFlatSurface() && SplineComp)
 	{
 		const int32 NumSplinePoints = SplineComp->GetNumberOfSplinePoints();
 
@@ -1198,12 +1203,18 @@ void AWaterBody::UpdateSplineComponent()
 
 void AWaterBody::OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged)
 {
-	UpdateAll(bShapeOrPositionChanged);
-
-	// Some of the spline parameters need to be transferred to the underwater post process MID, if any : 
-	if (bShapeOrPositionChanged)
+	// It's possible to get called without a water spline after the Redo of a water body deletion (i.e. the water body actor gets deleted again, hence its SplineComp is restored to nullptr)
+	//  This is a very-edgy case that needs to be checked everywhere that UpdateAll might hook into so it's simpler to just skip it all. The actor is in limbo by then anyway (it only survives because
+	//  of the editor transaction) :
+	if (GetWaterSpline())
 	{
-		SetDynamicParametersOnUnderwaterPostProcessMID(UnderwaterPostProcessMID);
+		UpdateAll(bShapeOrPositionChanged);
+
+		// Some of the spline parameters need to be transferred to the underwater post process MID, if any : 
+		if (bShapeOrPositionChanged)
+		{
+			SetDynamicParametersOnUnderwaterPostProcessMID(UnderwaterPostProcessMID);
+		}
 	}
 
 #if WITH_EDITOR

@@ -68,16 +68,19 @@ void AWaterBodyIsland::GetBrushRenderDependencies(TSet<UObject*>& OutDependencie
 
 void AWaterBodyIsland::UpdateHeight()
 {
-	const int32 NumSplinePoints = SplineComp->GetNumberOfSplinePoints();
-
-	const float ActorZ = GetActorLocation().Z;
-
-	for (int32 PointIndex = 0; PointIndex < NumSplinePoints; ++PointIndex)
+	if (SplineComp)
 	{
-		FVector WorldLoc = SplineComp->GetLocationAtSplinePoint(PointIndex, ESplineCoordinateSpace::World);
+		const int32 NumSplinePoints = SplineComp->GetNumberOfSplinePoints();
 
-		WorldLoc.Z = ActorZ;
-		SplineComp->SetLocationAtSplinePoint(PointIndex, WorldLoc, ESplineCoordinateSpace::World);
+		const float ActorZ = GetActorLocation().Z;
+
+		for (int32 PointIndex = 0; PointIndex < NumSplinePoints; ++PointIndex)
+		{
+			FVector WorldLoc = SplineComp->GetLocationAtSplinePoint(PointIndex, ESplineCoordinateSpace::World);
+
+			WorldLoc.Z = ActorZ;
+			SplineComp->SetLocationAtSplinePoint(PointIndex, WorldLoc, ESplineCoordinateSpace::World);
+		}
 	}
 }
 
@@ -161,10 +164,13 @@ void AWaterBodyIsland::UpdateOverlappingWaterBodies()
 {
 	TArray<FOverlapResult> Overlaps;
 
-	FCollisionShape OverlapShape;
-	// Expand shape in Z to ensure we get overlaps for islands slighty above or below water level
-	OverlapShape.SetBox(SplineComp->Bounds.BoxExtent+FVector(0,0,10000));
-	GetWorld()->OverlapMultiByObjectType(Overlaps, SplineComp->Bounds.Origin, FQuat::Identity, FCollisionObjectQueryParams::AllObjects, OverlapShape);
+	if (SplineComp)
+	{
+		FCollisionShape OverlapShape;
+		// Expand shape in Z to ensure we get overlaps for islands slighty above or below water level
+		OverlapShape.SetBox(SplineComp->Bounds.BoxExtent+FVector(0,0,10000));
+		GetWorld()->OverlapMultiByObjectType(Overlaps, SplineComp->Bounds.Origin, FQuat::Identity, FCollisionObjectQueryParams::AllObjects, OverlapShape);
+	}
 
 	// Find any new overlapping bodies and notify them that this island influences them
 	TSet<AWaterBody*> ExistingOverlappingBodies;

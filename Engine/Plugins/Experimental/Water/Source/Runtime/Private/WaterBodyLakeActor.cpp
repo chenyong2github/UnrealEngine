@@ -110,52 +110,53 @@ void ULakeGenerator::OnUpdateBody(bool bWithExclusionVolumes)
 		LakeCollision = nullptr;
 	}
 
-	UWaterSplineComponent* WaterSpline = OwnerBody->GetWaterSpline();
-
-	UStaticMesh* WaterMesh = OwnerBody->GetWaterMeshOverride() ? OwnerBody->GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
-
-	const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
-
-	FVector WorldLoc(WaterSpline->Bounds.Origin);
-	WorldLoc.Z = OwnerBody->GetActorLocation().Z;
-
-	if (WaterMesh)
+	if (UWaterSplineComponent* WaterSpline = OwnerBody->GetWaterSpline())
 	{
-		FTransform MeshCompToWorld = WaterSpline->GetComponentToWorld();
-		// Scale the water mesh so that it is the size of the bounds
-		FVector MeshExtent = WaterMesh->GetBounds().BoxExtent;
-		MeshExtent.Z = 1.0f;
+		UStaticMesh* WaterMesh = OwnerBody->GetWaterMeshOverride() ? OwnerBody->GetWaterMeshOverride() : UWaterSubsystem::StaticClass()->GetDefaultObject<UWaterSubsystem>()->DefaultLakeMesh;
 
-		const FVector LocalSplineExtent = WaterSpline->Bounds.TransformBy(MeshCompToWorld.Inverse()).BoxExtent;
+		const FVector SplineExtent = WaterSpline->Bounds.BoxExtent;
 
-		const FVector ScaleRatio = SplineExtent / MeshExtent;
-		LakeMeshComp->SetWorldScale3D(FVector(ScaleRatio.X, ScaleRatio.Y, 1));
-		LakeMeshComp->SetWorldLocation(WorldLoc);
-		LakeMeshComp->SetWorldRotation(FQuat::Identity);
-		LakeMeshComp->SetAbsolute(false, false, true);
-		LakeMeshComp->SetStaticMesh(WaterMesh);
-		LakeMeshComp->SetMaterial(0, OwnerBody->GetWaterMaterial());
-		LakeMeshComp->SetCastShadow(false);
-		LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	}
+		FVector WorldLoc(WaterSpline->Bounds.Origin);
+		WorldLoc.Z = OwnerBody->GetActorLocation().Z;
 
-	LakeMeshComp->SetMobility(OwnerBody->GetRootComponent()->Mobility);
+		if (WaterMesh)
+		{
+			FTransform MeshCompToWorld = WaterSpline->GetComponentToWorld();
+			// Scale the water mesh so that it is the size of the bounds
+			FVector MeshExtent = WaterMesh->GetBounds().BoxExtent;
+			MeshExtent.Z = 1.0f;
 
-	if (LakeCollision)
-	{
-		check(OwnerBody->bGenerateCollisions);
-		LakeCollision->bFillCollisionUnderneathForNavmesh = OwnerBody->bFillCollisionUnderWaterBodiesForNavmesh;
-		LakeCollision->SetMobility(OwnerBody->GetRootComponent()->Mobility);
-		LakeCollision->SetCollisionProfileName(OwnerBody->GetCollisionProfileName());
-		LakeCollision->SetGenerateOverlapEvents(true);
+			const FVector LocalSplineExtent = WaterSpline->Bounds.TransformBy(MeshCompToWorld.Inverse()).BoxExtent;
 
-		const float Depth = OwnerBody->GetChannelDepth() / 2;
-		FVector Scale = OwnerBody->GetActorScale();
-		// Avoid dividing by 0 but keep the scale's sign :
-		Scale = Scale.GetSignVector() * FVector::Max(Scale.GetAbs(), FVector::OneVector * 0.001f);
-		FVector LakeCollisionExtent = FVector(SplineExtent.X, SplineExtent.Y, Depth) / Scale;
-		LakeCollision->SetWorldLocation(WorldLoc + FVector(0, 0, -Depth));
-		LakeCollision->UpdateCollision(LakeCollisionExtent, true);
+			const FVector ScaleRatio = SplineExtent / MeshExtent;
+			LakeMeshComp->SetWorldScale3D(FVector(ScaleRatio.X, ScaleRatio.Y, 1));
+			LakeMeshComp->SetWorldLocation(WorldLoc);
+			LakeMeshComp->SetWorldRotation(FQuat::Identity);
+			LakeMeshComp->SetAbsolute(false, false, true);
+			LakeMeshComp->SetStaticMesh(WaterMesh);
+			LakeMeshComp->SetMaterial(0, OwnerBody->GetWaterMaterial());
+			LakeMeshComp->SetCastShadow(false);
+			LakeMeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+
+		LakeMeshComp->SetMobility(OwnerBody->GetRootComponent()->Mobility);
+
+		if (LakeCollision)
+		{
+			check(OwnerBody->bGenerateCollisions);
+			LakeCollision->bFillCollisionUnderneathForNavmesh = OwnerBody->bFillCollisionUnderWaterBodiesForNavmesh;
+			LakeCollision->SetMobility(OwnerBody->GetRootComponent()->Mobility);
+			LakeCollision->SetCollisionProfileName(OwnerBody->GetCollisionProfileName());
+			LakeCollision->SetGenerateOverlapEvents(true);
+
+			const float Depth = OwnerBody->GetChannelDepth() / 2;
+			FVector Scale = OwnerBody->GetActorScale();
+			// Avoid dividing by 0 but keep the scale's sign :
+			Scale = Scale.GetSignVector() * FVector::Max(Scale.GetAbs(), FVector::OneVector * 0.001f);
+			FVector LakeCollisionExtent = FVector(SplineExtent.X, SplineExtent.Y, Depth) / Scale;
+			LakeCollision->SetWorldLocation(WorldLoc + FVector(0, 0, -Depth));
+			LakeCollision->UpdateCollision(LakeCollisionExtent, true);
+		}
 	}
 }
 
