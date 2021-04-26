@@ -1431,7 +1431,7 @@ void FRDGBuilder::Compile()
 		// Last async compute pass in the graph needs to be manually joined back to the epilogue pass.
 		if (PrevAsyncComputePass)
 		{
-			InsertAsyncToGraphicsComputeJoin(PrevAsyncComputePass, EpiloguePass);
+			InsertAsyncToGraphicsComputeJoin(PrevAsyncComputePass, PrevGraphicsJoinPass);
 			PrevAsyncComputePass->bAsyncComputeEndExecute = 1;
 		}
 	}
