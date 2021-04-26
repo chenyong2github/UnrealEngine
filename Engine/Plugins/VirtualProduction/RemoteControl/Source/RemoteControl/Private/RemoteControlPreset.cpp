@@ -728,6 +728,18 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 		return nullptr;
 	}
 
+	FProperty* Property = FieldPath.GetResolvedData().Field;
+	check(Property);
+
+	FString FieldName;
+
+#if WITH_EDITOR
+	FieldName = Property->GetDisplayNameText().ToString();
+#else
+	FieldName = FieldPath.GetFieldName().ToString();
+#endif
+
+
 	FName DesiredName = *Args.Label;
 
 	if (DesiredName == NAME_None)
@@ -748,7 +760,7 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 			ObjectName = Object->GetName();
 		}
 
-		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldPath.GetFieldName().ToString(), *ObjectName);
+		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldName, *ObjectName);
 	}
 
 	FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(DesiredName), MoveTemp(FieldPath), { FindOrAddBinding(Object) } };
@@ -1428,12 +1440,12 @@ void URemoteControlPreset::CacheFieldLayoutData()
 void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event)
 {
 	// Objects modified should have run through the preobjectmodified. If interesting, they will be cached
-	for (auto Iter = PreObjectModifiedCache.CreateIterator(); Iter; ++Iter)
+	for (auto Iter = PreObjectsModifiedCache.CreateIterator(); Iter; ++Iter)
 	{
 		FGuid& PropertyId = Iter.Key();
-		FPreObjectModifiedCache& CacheEntry = Iter.Value();
+		FPreObjectsModifiedCache& CacheEntry = Iter.Value();
 
-		if (CacheEntry.Object == Object
+		if (CacheEntry.Objects.Contains(Object)
 			&& CacheEntry.Property == Event.Property)
 		{
 			if (TSharedPtr<FRemoteControlProperty> Property = Registry->GetExposedEntity<FRemoteControlProperty>(PropertyId))
@@ -1445,12 +1457,12 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 		}
 	}
 
-	for (auto Iter = PreObjectModifiedActorCache.CreateIterator(); Iter; ++Iter)
+	for (auto Iter = PreObjectsModifiedActorCache.CreateIterator(); Iter; ++Iter)
 	{
 		FGuid& ActorId = Iter.Key();
-		FPreObjectModifiedCache& CacheEntry = Iter.Value();
+		FPreObjectsModifiedCache& CacheEntry = Iter.Value();
 
-		if ((CacheEntry.Object == Object)
+		if (CacheEntry.Objects.Contains(Object)
 			&& CacheEntry.Property == Event.Property)
 		{
 			if (TSharedPtr<FRemoteControlActor> RCActor = GetExposedEntity<FRemoteControlActor>(ActorId).Pin())
@@ -1486,64 +1498,62 @@ void URemoteControlPreset::OnPreObjectPropertyChanged(UObject* Object, const cla
 			FString ActorPath = RCActor->Path.ToString();
 			if (Object->GetPathName() == ActorPath || Object->GetTypedOuter<AActor>()->GetPathName() == ActorPath)
 			{
-				FPreObjectModifiedCache& CacheEntry = PreObjectModifiedActorCache.FindOrAdd(RCActor->GetId());
+				FPreObjectsModifiedCache& CacheEntry = PreObjectsModifiedActorCache.FindOrAdd(RCActor->GetId());
+				
 				// Don't recreate entries for a property we have already cached
 				// or if the property was already cached by a child component.
+				
+				bool bParentObjectCached = CacheEntry.Objects.ContainsByPredicate([Object](UObject* InObjectToCompare){ return InObjectToCompare->GetTypedOuter<AActor>() == Object; }); 
 				if (CacheEntry.Property == PropertyChain.GetActiveNode()->GetValue()
 					|| CacheEntry.MemberProperty == PropertyChain.GetActiveMemberNode()->GetValue()
-					|| (CacheEntry.Object && CacheEntry.Object->GetTypedOuter<AActor>() == Object))
+					|| bParentObjectCached)
 				{
 					continue;
 				}
-				CacheEntry.Object = Object;
+				
+				CacheEntry.Objects.AddUnique(Object);
 				CacheEntry.Property = PropertyChain.GetActiveNode()->GetValue();
 				CacheEntry.MemberProperty = PropertyChain.GetActiveMemberNode()->GetValue();
 			}
 		}
 	}
 
-	for (TPair<FName, FRemoteControlTarget>& Pair : RemoteControlTargets)
+	for (TSharedPtr<FRemoteControlProperty> RCProperty : Registry->GetExposedEntities<FRemoteControlProperty>())
 	{
-		FRemoteControlTarget& Target = Pair.Value;
-		TArray<UObject*> BoundObjects = Target.ResolveBoundObjects();
-
-		// At the moment targets can only have one bound objects.
-		if (BoundObjects.Num() != 1)
+		//If this property is already cached, skip it
+		if (PreObjectsModifiedCache.Contains(RCProperty->GetId()))
+		{
+			continue;
+		}
+		
+		TArray<UObject*> BoundObjects = RCProperty->GetBoundObjects();
+		if (BoundObjects.Num() == 0)
 		{
 			continue;
 		}
 
-		UObject* BoundObject = BoundObjects[0];
-
-		// Handle case where we get a change callback on the object's outer directly instead of the component.
-		if (BoundObject == Object || BoundObject->GetOuter() == Object)
+		for (UObject* BoundObject : BoundObjects)
 		{
-			for (const FRemoteControlProperty& Property : Target.ExposedProperties)
+			if (BoundObject == Object || BoundObject->GetOuter() == Object)
 			{
-				//If this property is already cached, skip it
-				if (PreObjectModifiedCache.Contains(Property.GetId()))
-				{
-					continue;
-				}
-
-				if (TOptional<FExposedProperty> ExposedProprety = Target.ResolveExposedProperty(Property.GetId()))
+				if (FProperty* ExposedProperty = RCProperty->GetProperty())
 				{
 					bool bHasFound = false;
 					PropertyNode* Current = Tail;
 					while (Current && bHasFound == false)
 					{
 						//Verify if the exposed property was changed
-						if (ExposedProprety->Property == Current->GetValue())
+						if (ExposedProperty == Current->GetValue())
 						{
 							bHasFound = true;
 
-							FPreObjectModifiedCache& NewEntry = PreObjectModifiedCache.FindOrAdd(Property.GetId());
-							NewEntry.Object = Object;
+							FPreObjectsModifiedCache& NewEntry = PreObjectsModifiedCache.FindOrAdd(RCProperty->GetId());
+							NewEntry.Objects.AddUnique(Object);
 							NewEntry.Property = PropertyChain.GetActiveNode()->GetValue();
 							NewEntry.MemberProperty = PropertyChain.GetActiveMemberNode()->GetValue();
 						}
 
-						//Go backward to walk up the property hierarchy to see if an owning property is exposed
+						// Go backward to walk up the property hierarchy to see if an owning property is exposed.
 						Current = Current->GetPrevNode();
 					}
 				}
