@@ -356,12 +356,15 @@ public:
 
 	void RegisterMenuExtensions()
 	{
-		// Register level editor menu extender
-		LevelEditorMenuExtenderDelegate = FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FTakeRecorderSourcesModule::ExtendLevelViewportContextMenu);
-		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-		auto& MenuExtenders = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
-		MenuExtenders.Add(LevelEditorMenuExtenderDelegate);
-		LevelEditorExtenderDelegateHandle = MenuExtenders.Last().GetHandle();
+		if (GEditor)
+		{
+			// Register level editor menu extender
+			LevelEditorMenuExtenderDelegate = FLevelEditorModule::FLevelViewportMenuExtender_SelectedActors::CreateRaw(this, &FTakeRecorderSourcesModule::ExtendLevelViewportContextMenu);
+			FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+			auto& MenuExtenders = LevelEditorModule.GetAllLevelViewportContextMenuExtenders();
+			MenuExtenders.Add(LevelEditorMenuExtenderDelegate);
+			LevelEditorExtenderDelegateHandle = MenuExtenders.Last().GetHandle();
+		}
 	}
 
 	void UnregisterMenuExtensions()
