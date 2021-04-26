@@ -1392,7 +1392,6 @@ private:
 	int32																BitrateCeiling;
 	int32																VideoResolutionLimitWidth;
 	int32																VideoResolutionLimitHeight;
-	int32																MaxVideoTextureResolutionLimitHeight;
 
 	FStreamBitrateInfo													CurrentVideoStreamBitrate;
 
