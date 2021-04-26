@@ -21,7 +21,6 @@
 
 #include "CADData.h"
 #include "CADOptions.h"
-
 #include "DatasmithUtils.h"
 #include "HAL/FileManager.h"
 #include "Internationalization/Text.h"
@@ -329,7 +328,7 @@ namespace CADLibrary
 
 		CoreTechFileReaderUtils::AddFaceIdAttribut(MainId);
 
-		if (Context.ImportParameters.StitchingTechnique != StitchingNone)
+		if (Context.ImportParameters.StitchingTechnique != StitchingNone && Context.ImportParameters.bEnableKernelIOTessellation)
 		{
 			CADLibrary::CTKIO_Repair(MainId, Context.ImportParameters.StitchingTechnique, 10.);
 		}
@@ -536,9 +535,22 @@ namespace CADLibrary
 
 		for (CT_OBJECT_ID BodyId : Bodies)
 		{
-			if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
+			CT_FLAGS BodyProperties;
+			CT_BODY_IO::AskProperties(BodyId, BodyProperties);
+
+			if (Context.ImportParameters.bEnableKernelIOTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
 			{
-				Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+				if (ReadKioBody(BodyId, ComponentId, DefaultMaterialHash, false))
+				{
+					Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+				}
+			}
+			else
+			{
+				//if (ReadBody(BodyId, ComponentId, DefaultMaterialHash, false))
+				//{
+				//	Context.SceneGraphArchive.ComponentSet[Index].Children.Add(BodyId);
+				//}
 			}
 		}
 
@@ -630,7 +642,7 @@ namespace CADLibrary
 		return ReadNode(ReferenceNodeId, DefaultMaterialHash);
 	}
 
-	bool FCoreTechFileReader::ReadBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
+	bool FCoreTechFileReader::ReadKioBody(CT_OBJECT_ID BodyId, CT_OBJECT_ID ParentId, uint32 DefaultMaterialHash, bool bNeedRepair)
 	{
 		// Is this body a constructive geometry ?
 		CT_LIST_IO FaceList;
@@ -1273,7 +1285,6 @@ namespace CADLibrary
 		}
 	}
 
-
 	namespace CoreTechFileReaderUtils
 	{
 		template<typename ValueType>
@@ -1467,29 +1478,30 @@ namespace CADLibrary
 			}
 
 			Tessellation.PatchId = CoreTechFileReaderUtils::GetIntegerParameterDataValue(FaceID, TEXT("DatasmithFaceId"));
-			Tessellation.IndexArray.SetNum(IndexCount);
+
+			Tessellation.VertexIndices.SetNum(IndexCount);
 
 			switch (IndexType)
 			{
 			case CT_TESS_UBYTE:
-				FillArrayOfInt<uint8>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+				FillArrayOfInt<uint8>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 				break;
 			case CT_TESS_USHORT:
-				FillArrayOfInt<uint16>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+				FillArrayOfInt<uint16>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 				break;
 			case CT_TESS_UINT:
-				FillArrayOfInt<uint32>(IndexCount, IndexArray, Tessellation.IndexArray.GetData());
+				FillArrayOfInt<uint32>(IndexCount, IndexArray, Tessellation.VertexIndices.GetData());
 				break;
 			}
 
-			Tessellation.VertexArray.SetNum(VertexCount);
+			Tessellation.PositionArray.SetNum(VertexCount);
 			switch (VertexType)
 			{
 			case CT_TESS_FLOAT:
-				FillArrayOfVector<float>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+				FillArrayOfVector<float>(VertexCount, VertexArray, Tessellation.PositionArray.GetData());
 				break;
 			case CT_TESS_DOUBLE:
-				FillArrayOfVector<double>(VertexCount, VertexArray, Tessellation.VertexArray.GetData());
+				FillArrayOfVector<double>(VertexCount, VertexArray, Tessellation.PositionArray.GetData());
 				break;
 			}
 
@@ -1536,7 +1548,7 @@ namespace CADLibrary
 				}
 			}
 
-			return Tessellation.IndexArray.Num() / 3;
+			return Tessellation.VertexIndices.Num() / 3;
 		}
 
 
@@ -1868,6 +1880,7 @@ namespace CADLibrary
 				FaceIndex++;
 			}
 		}
+
 	}
 }
 

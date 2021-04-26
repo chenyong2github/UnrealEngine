@@ -91,13 +91,13 @@ protected:
 	TArray<CADLibrary::FArchiveSceneGraph> ArchiveMockUps;
 	TMap<uint32, CADLibrary::FArchiveSceneGraph*> CADFileToSceneGraphArchive;
 
-	TMap< CADUUID, TSharedPtr< IDatasmithMeshElement > > BodyUuidToMeshElement;
+	TMap< FCADUUID, TSharedPtr< IDatasmithMeshElement > > BodyUuidToMeshElement;
 
-	TMap< CADUUID, TSharedPtr< IDatasmithUEPbrMaterialElement > > MaterialUuidMap;
+	TMap< FCADUUID, TSharedPtr< IDatasmithUEPbrMaterialElement > > MaterialUuidMap;
 	TSharedPtr<IDatasmithUEPbrMaterialElement > DefaultMaterial;
 
-	TMap<CADUUID, CADLibrary::FArchiveColor> ColorNameToColorArchive; 
-	TMap<CADUUID, CADLibrary::FArchiveMaterial> MaterialNameToMaterialArchive; 
+	TMap<FCADUUID, CADLibrary::FArchiveColor> ColorNameToColorArchive; 
+	TMap<FCADUUID, CADLibrary::FArchiveMaterial> MaterialNameToMaterialArchive; 
 
 	TArray<uint32> AncestorSceneGraphHash;
 

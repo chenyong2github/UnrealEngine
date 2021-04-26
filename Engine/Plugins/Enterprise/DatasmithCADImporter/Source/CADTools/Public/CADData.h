@@ -9,10 +9,10 @@
 
 class FArchive;
 
-using CadId = uint32; // Identifier defined in the input CAD file
-using ColorId = uint32; // Identifier defined in the input CAD file
-using MaterialId = uint32; // Identifier defined in the input CAD file
-using CADUUID = uint32;  // Universal unique identifier that be used for the unreal asset name (Actor, Material)
+using FCadId = uint32; // Identifier defined in the input CAD file
+using FColorId = uint32; // Identifier defined in the input CAD file
+using FMaterialId = uint32; // Identifier defined in the input CAD file
+using FCADUUID = uint32;  // Universal unique identifier that be used for the unreal asset name (Actor, Material)
 
 
 namespace CADLibrary
@@ -39,9 +39,9 @@ public:
 
 struct CADTOOLS_API FObjectDisplayDataId
 {
-	CADUUID DefaultMaterialName = 0;
-	MaterialId Material = 0;
-	ColorId Color = 0; // => FastHash == ColorId+Transparency
+	FCADUUID DefaultMaterialName = 0;
+	FMaterialId Material = 0;
+	FColorId Color = 0; // => FastHash == ColorId+Transparency
 };
 
 struct CADTOOLS_API FFileDescription
@@ -87,32 +87,44 @@ struct CADTOOLS_API FFileDescription
 };
 
 /**
- * Helper struct to store tessellation data from CoreTech
+ * Helper struct to store tessellation data from CoreTech or CADKernel
+ *
+ * FBodyMesh and FTessellationData are design to manage mesh from CoreTech and CADKernel.
+ * FTessellationData is the mesh of a face
+ * FBodyMesh is the mesh of a body composed by an array of FTessellationData (one FTessellationData by body face)
+ *
+ * CoreTech mesh are defined surface by surface. The mesh is not connected
+ * CADKernel mesh is connected.
  */
 struct CADTOOLS_API FTessellationData
 {
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
-	int32    PatchId = 0;
+	/** Empty with CADKernel as set in FBodyMesh, Set by CoreTech (this is only the vertices of the face) */
+	TArray<FVector> PositionArray;
 
-	TArray<FVector> VertexArray;
+	/** Index of each vertex in FBody::VertexArray. Empty with CoreTech and filled by FillKioVertexPosition */
+	TArray<int32> PositionIndices;
+
+	/** Index of Vertices of each face in the local Vertices set (i.e. VerticesBodyIndex for CADKernel, VertexArray for Coretech) */
+	TArray<int32> VertexIndices;
+
+	/** Normal of each vertex */
 	TArray<FVector> NormalArray;
-	TArray<int32> IndexArray;
+
+	/** UV coordinates of each vertex */
 	TArray<FVector2D> TexCoordArray;
 
-	uint32    StartVertexIndex = 0;
+	FCADUUID ColorName = 0;
+	FCADUUID MaterialName = 0;
 
-	CADUUID ColorName = 0;
-	CADUUID MaterialName = 0;
-
-	TArray<int32> VertexIdSet;  // StaticMesh FVertexID NO Serialize
-	TArray<int32> SymVertexIdSet; // StaticMesh FVertexID for sym part NO Serialize
+	int32 PatchId;
 };
 
 class CADTOOLS_API FBodyMesh
 {
 public:
-	FBodyMesh(CadId InBodyID = 0) : BodyID(InBodyID)
+	FBodyMesh(FCadId InBodyID = 0) : BodyID(InBodyID)
 	{
 		BBox.Init();
 	}
@@ -120,12 +132,16 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
 
 public:
+	TArray<FVector> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
 	TArray<FTessellationData> Faces;
 	FBox BBox;
 
 	uint32 TriangleCount = 0;
-	CadId BodyID = 0;
-	CADUUID MeshActorName = 0;
+	FCadId BodyID = 0;
+	FCADUUID MeshActorName = 0;
+
+	TArray<int32> VertexIds;  // StaticMesh FVertexID NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
+	TArray<int32> SymmetricVertexIds; // StaticMesh FVertexID for sym part NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
 
 	TSet<uint32> MaterialSet;
 	TSet<uint32> ColorSet;

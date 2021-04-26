@@ -13,7 +13,7 @@ namespace CADLibrary
 class CADINTERFACES_API ICADArchiveObject
 {
 public:
-	ICADArchiveObject(CadId Id = 0)
+	ICADArchiveObject(FCadId Id = 0)
 		: ObjectId(Id)
 	{
 	}
@@ -28,7 +28,7 @@ public:
 class CADINTERFACES_API FArchiveInstance : public ICADArchiveObject
 {
 public:
-	FArchiveInstance(CadId Id = 0)
+	FArchiveInstance(FCadId Id = 0)
 		: ICADArchiveObject(Id)
 	{
 	}
@@ -37,7 +37,7 @@ public:
 
 public:
 	FMatrix TransformMatrix = FMatrix::Identity;
-	CadId ReferenceNodeId = 0;
+	FCadId ReferenceNodeId = 0;
 	bool bIsExternalRef = false;
 	FFileDescription ExternalRef;
 };
@@ -45,7 +45,7 @@ public:
 class CADINTERFACES_API FArchiveComponent : public ICADArchiveObject
 {
 public:
-	FArchiveComponent(CadId Id = 0)
+	FArchiveComponent(FCadId Id = 0)
 		: ICADArchiveObject(Id)
 	{
 	}
@@ -53,13 +53,13 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveComponent& C);
 
 public:
-	TArray<CadId> Children;
+	TArray<FCadId> Children;
 };
 
 class CADINTERFACES_API FArchiveUnloadedComponent : public FArchiveComponent
 {
 public:
-	FArchiveUnloadedComponent(CadId Id = 0)
+	FArchiveUnloadedComponent(FCadId Id = 0)
 		: FArchiveComponent(Id)
 	{
 	}
@@ -74,7 +74,7 @@ public:
 class CADINTERFACES_API FArchiveBody : public ICADArchiveObject
 {
 public:
-	FArchiveBody(CadId Id = 0)
+	FArchiveBody(FCadId Id = 0)
 		: ICADArchiveObject(Id)
 	{
 	}
@@ -82,17 +82,17 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveBody& C);
 
 public:
-	CADUUID MeshActorName;
+	FCADUUID MeshActorName;
 
-	TSet<MaterialId> MaterialFaceSet;
-	TSet<ColorId> ColorFaceSet;
+	TSet<FMaterialId> MaterialFaceSet;
+	TSet<FColorId> ColorFaceSet;
 
 };
 
 class CADINTERFACES_API FArchiveColor
 {
 public:
-	FArchiveColor(ColorId Id = 0)
+	FArchiveColor(FColorId Id = 0)
 		: ObjectId(Id)
 	{
 	}
@@ -100,15 +100,15 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveColor& C);
 
 public:
-	ColorId ObjectId;
+	FColorId ObjectId;
 	FColor Color;
-	CADUUID UEMaterialName;
+	FCADUUID UEMaterialName;
 };
 
 class CADINTERFACES_API FArchiveMaterial
 {
 public:
-	FArchiveMaterial(MaterialId Id = 0)
+	FArchiveMaterial(FMaterialId Id = 0)
 		: ObjectId(Id)
 	{
 	}
@@ -116,8 +116,8 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FArchiveMaterial& C);
 
 public:
-	MaterialId ObjectId;
-	CADUUID UEMaterialName;
+	FMaterialId ObjectId;
+	FCADUUID UEMaterialName;
 	FCADMaterial Material;
 };
 
@@ -135,18 +135,18 @@ public:
 	FString FullPath;
 	TSet<FFileDescription> ExternalRefSet;
 
-	TMap<ColorId, FArchiveColor> ColorHIdToColor;
-	TMap<MaterialId, FArchiveMaterial> MaterialHIdToMaterial;
+	TMap<FColorId, FArchiveColor> ColorHIdToColor;
+	TMap<FMaterialId, FArchiveMaterial> MaterialHIdToMaterial;
 
 	TArray<FArchiveBody> BodySet;
 	TArray<FArchiveComponent> ComponentSet;
 	TArray<FArchiveUnloadedComponent> UnloadedComponentSet;
 	TArray<FArchiveInstance> Instances;
 
-	TMap<CadId, int32> CADIdToBodyIndex;
-	TMap<CadId, int32> CADIdToComponentIndex;
-	TMap<CadId, int32> CADIdToUnloadedComponentIndex;
-	TMap<CadId, int32> CADIdToInstanceIndex;
+	TMap<FCadId, int32> CADIdToBodyIndex;
+	TMap<FCadId, int32> CADIdToComponentIndex;
+	TMap<FCadId, int32> CADIdToUnloadedComponentIndex;
+	TMap<FCadId, int32> CADIdToInstanceIndex;
 };
 
 

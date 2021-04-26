@@ -136,7 +136,7 @@ void FDatasmithSceneGraphBuilder::FillAnchorActor(const TSharedRef<IDatasmithAct
 		return;
 	}
 
-	CadId RootId = 1;
+	FCadId RootId = 1;
 	int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 	if (!Index)
 	{
@@ -202,7 +202,7 @@ FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FAr
 
 bool FDatasmithSceneBaseGraphBuilder::Build()
 {
-	CadId RootId = 1;
+	FCadId RootId = 1;
 	int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 	if (!Index)
 	{
@@ -320,7 +320,7 @@ TSharedPtr< IDatasmithActorElement >  FDatasmithSceneBaseGraphBuilder::BuildInst
 				{
 					AncestorSceneGraphHash.Add(InstanceSceneGraphHash);
 
-					CadId RootId = 1;
+					FCadId RootId = 1;
 					int32* Index = SceneGraph->CADIdToComponentIndex.Find(RootId);
 					if (Index)
 					{
@@ -433,7 +433,7 @@ void FDatasmithSceneBaseGraphBuilder::GetNodeUUIDAndName(
 	}
 	CleanName(OutName);
 
-	CADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
+	FCADUUID UEUUID = HashCombine(GetTypeHash(InParentUEUUID), GetTypeHash(InComponentIndex));
 
 	if (InstanceUUID)
 	{

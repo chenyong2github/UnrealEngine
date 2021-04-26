@@ -36,7 +36,7 @@ protected:
 	void LoadMeshFiles(TMap<uint32, FString>& CADFileToMeshFile);
 
 	TArray<TArray<CADLibrary::FBodyMesh>> BodyMeshes;
-	TMap<CADUUID, CADLibrary::FBodyMesh*> MeshActorNameToBodyMesh;
+	TMap<FCADUUID, CADLibrary::FBodyMesh*> MeshActorNameToBodyMesh;
 
 	CADLibrary::FImportParameters ImportParameters;
 };

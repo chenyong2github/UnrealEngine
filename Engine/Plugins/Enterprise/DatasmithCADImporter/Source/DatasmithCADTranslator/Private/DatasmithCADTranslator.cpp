@@ -21,6 +21,12 @@ static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
 	TEXT("Activate to parallelise CAD file processing.\n"),
 	ECVF_Default);
 
+static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
+	TEXT("r.CADTranslator.EnableKernelIOTessellation"),
+	1,
+	TEXT("Activate to use KernelIO Tessellation.\n"),
+	ECVF_Default);
+
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
@@ -77,6 +83,11 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
+	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
+#ifdef CADKERNEL_DEBUG
+	//ImportParameters.bEnableKernelIOTessellation = false;
+#endif
+
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
 	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
@@ -125,31 +136,31 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		ImportParameters.bEnableCacheUsage = true;
 	}
 
+	// Only use multi-processed translation if it is required and cache's usage is enabled
+	if (ImportParameters.bEnableCacheUsage)
+	{
 		bool bWithProcessor = (CVarStaticCADTranslatorEnableThreadedImport.GetValueOnAnyThread() != 0);
 
 #ifdef CAD_TRANSLATOR_DEBUG
 		bWithProcessor = false;
 #endif //CAD_TRANSLATOR_DEBUG
 
-	// Only use multi-processed translation if it is required and cache's usage is enabled
-	if (bWithProcessor && ImportParameters.bEnableCacheUsage)
-	{
 		TMap<uint32, FString> CADFileToUEFileMap;
 		int32 NumCores = FPlatformMisc::NumberOfCores();
 		{
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescription);
 
-		Dispatcher.Process(bWithProcessor);
+			Dispatcher.Process(bWithProcessor);
+		}
+
+		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+		SceneGraphBuilder.Build();
+
+		MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
+
+		return true;
 	}
-
-	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
-	SceneGraphBuilder.Build();
-
-	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUEGeomMap, CachePath, ImportParameters);
-
-	return true;
-}
 
 	ImportParameters.bEnableCacheUsage = false;
 
