@@ -1036,7 +1036,7 @@ void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUnif
 	ViewUniformShaderParameters.NumGlobalSDFClipmaps = 0;
 
 	ViewUniformShaderParameters.GlobalDistanceFieldPageAtlasTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
-	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
+	ViewUniformShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DIfNull(GBlackUintVolumeTexture->TextureRHI.GetReference());
 	ViewUniformShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(GBlackVolumeTexture->TextureRHI.GetReference());
 }
 
