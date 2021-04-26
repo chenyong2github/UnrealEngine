@@ -420,7 +420,7 @@ namespace UnrealBuildTool
 				Arguments.Add(String.Format("/Yc\"{0}\"", PchThroughHeaderFile.FullName));
 				Arguments.Add(String.Format("/Fp\"{0}\"", CreatePchFile.FullName));
 			}
-			if (UsingPchFile != null)
+			if (UsingPchFile != null && CompilerType != WindowsCompiler.Clang)
 			{
 				Arguments.Add(String.Format("/Yu\"{0}\"", PchThroughHeaderFile.FullName));
 				Arguments.Add(String.Format("/Fp\"{0}\"", UsingPchFile.FullName));
