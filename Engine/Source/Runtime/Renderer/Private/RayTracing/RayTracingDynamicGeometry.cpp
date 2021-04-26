@@ -136,6 +136,12 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 	uint32 VertexBufferOffset = 0;
 	bool bUseSharedVertexBuffer = false;
 
+	if (ReferencedUniformBuffers.Num() == 0 || ReferencedUniformBuffers.Last() != View->ViewUniformBuffer)
+	{
+		// Keep ViewUniformBuffer alive until EndUpdate()
+		ReferencedUniformBuffers.Add(View->ViewUniformBuffer);
+	}
+
 	// If update params didn't provide a buffer then use a shared vertex position buffer
 	if (RWBuffer == nullptr)
 	{
@@ -503,6 +509,8 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 
 void FRayTracingDynamicGeometryCollection::EndUpdate(FRHICommandListImmediate& RHICmdList)
 {
+	ReferencedUniformBuffers.Empty(ReferencedUniformBuffers.Max());
+
 	// Move ownership to RHI thread for another frame
 	RHICmdList.EnqueueLambda([ArrayOwnedByRHIThread = MoveTemp(Segments)](FRHICommandListImmediate&){});
 }

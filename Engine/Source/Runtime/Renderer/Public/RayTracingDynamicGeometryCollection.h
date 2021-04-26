@@ -35,6 +35,9 @@ private:
 	};
 	TArray<FVertexPositionBuffer*> VertexPositionBuffers;
 
+	// Any uniform buffers that must be kept alive until EndUpdate (after DispatchUpdates is called)
+	TArray<FUniformBufferRHIRef> ReferencedUniformBuffers;
+
 	// Generation ID when the shared vertex buffers have been reset. The current generation ID is stored in the FRayTracingGeometry to keep track
 	// if the vertex buffer data is still valid for that frame - validated before generation the TLAS
 	int64 SharedBufferGenerationID = 0;
