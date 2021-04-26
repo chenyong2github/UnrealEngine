@@ -212,13 +212,13 @@ public:
 	bool bIsShared = false;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
 	bool bIsEnabled = true;
 
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	bool bFixedAspectRatio;
 
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
 	bool bIsVisible = true;
 #endif
 };

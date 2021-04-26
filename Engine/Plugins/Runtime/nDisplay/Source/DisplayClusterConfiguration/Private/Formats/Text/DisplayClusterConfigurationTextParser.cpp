@@ -48,7 +48,7 @@ bool FDisplayClusterConfigurationTextParser::AsString(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
+	UDisplayClusterConfigurationData* Config = UDisplayClusterConfigurationData::CreateNewConfigData(ConfigDataOwner, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
@@ -177,7 +177,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 		// Nodes
 		for (const FDisplayClusterConfigurationTextClusterNode& CfgNode: CfgClusterNodes)
 		{
-			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config, *CfgNode.Id, RF_Transactional);
+			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config->Cluster, *CfgNode.Id, RF_Transactional);
 			check(Node);
 
 			// Base parameters
@@ -218,7 +218,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationTextParser::Conver
 
 					if (CfgViewport)
 					{
-						UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config, *ViewportId, RF_Transactional);
+						UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Node, *ViewportId, RF_Transactional | RF_ArchetypeObject | RF_Public);
 						check(Viewport);
 
 						Viewport->RenderSettings.BufferRatio = CfgViewport->BufferRatio;

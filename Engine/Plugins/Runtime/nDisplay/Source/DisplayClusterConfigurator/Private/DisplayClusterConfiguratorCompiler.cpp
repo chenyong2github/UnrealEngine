@@ -87,19 +87,9 @@ void FDisplayClusterConfiguratorKismetCompilerContext::CopyTermDefaultsToDefault
 		return;
 	}
 	
-	ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(DefaultObject);
-	UDisplayClusterConfigurationData* BlueprintData = DCBlueprint->GetOrLoadConfig();
-	check(BlueprintData);
-	
-	{
-		// Embed the config data directly on the default object as an instanced subobject. This is required so it can load properly in packaged builds.
-		UDisplayClusterConfigurationData* ConfigData = CastChecked<UDisplayClusterConfigurationData>(StaticDuplicateObject(BlueprintData, RootActor));
-		ConfigData->SetFlags(RF_ArchetypeObject | RF_Public);
-		RootActor->UpdateConfigDataInstance(ConfigData);
-	}
-
 	if (Blueprint->bIsNewlyCreated)
 	{
+		ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(DefaultObject);
 		RootActor->PreviewNodeId = DisplayClusterConfigurationStrings::gui::preview::PreviewNodeAll;
 	}
 }

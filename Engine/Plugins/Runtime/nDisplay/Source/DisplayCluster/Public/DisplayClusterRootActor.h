@@ -57,12 +57,19 @@ public:
 	void InitializeFromConfig(const FString& ConfigFile);
 	void ApplyConfigDataToComponents();
 
-	void UpdateConfigDataInstance(UDisplayClusterConfigurationData* ConfigData);
+	/**
+	 * Update or create the config data object. The config sub object is only instantiated once.
+	 * Subsequent calls will only update ConfigDataName unless bForceRecreate is true.
+	 *
+	 * @param ConfigDataTemplate The config template to use for this actors' config data object.
+	 * @param bForceRecreate Deep copies properties from the config data template to this actors' config data object.
+	 */
+	void UpdateConfigDataInstance(UDisplayClusterConfigurationData* ConfigDataTemplate, bool bForceRecreate = false);
 
 	bool IsRunningGameOrPIE() const;
 
 	UDisplayClusterConfigurationData* GetDefaultConfigDataFromAsset() const;
-	UDisplayClusterConfigurationData* GetConfigData() const { return CurrentConfigData; }
+	UDisplayClusterConfigurationData* GetConfigData() const;
 
 	// Return hidden in game privitives set
 	bool GetHiddenInGamePrimitives(TSet<FPrimitiveComponentId>& OutPrimitives);
@@ -185,7 +192,7 @@ private:
 	/**
 	 * If set from the DisplayCluster BP Compiler it will be loaded from the class default subobjects in run-time.
 	 */
-	UPROPERTY(VisibleAnywhere, Instanced, DuplicateTransient, Category = "Config Data")
+	UPROPERTY(VisibleAnywhere, Instanced, Category = "Config Data")
 	UDisplayClusterConfigurationData* CurrentConfigData;
 
 	/**

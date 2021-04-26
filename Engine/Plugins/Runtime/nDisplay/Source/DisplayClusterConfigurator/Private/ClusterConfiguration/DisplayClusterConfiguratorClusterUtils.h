@@ -23,7 +23,7 @@ public:
 	 * @param Toolkit - The blueprint editor toolkit being used.
 	 * @param Cluster - The initial cluster the user wants to add the cluster node to.
 	 * @param PresetRect - The initial rectangle to configure the new cluster node with in the dialog box.
-	 * @param Host - Optional initial host string to configure the new cluster node with in the dialog box.
+	 * @param PresetHost - Optional initial host string to configure the new cluster node with in the dialog box.
 	 * @return The newly created cluster node, or null if the user cancelled out of the dialog box.
 	 */
 	static UDisplayClusterConfigurationClusterNode* CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect, FString PresetHost = "");
@@ -78,7 +78,7 @@ public:
 	/**
 	 * Gets a unique name for a host owned by the specified cluster.
 	 * @param InitialName - The initial name the host wants
-	 * @param ParentClusterNode - The cluster the host belongs to
+	 * @param ParentCluster - The cluster the host belongs to
 	 * @param bAddZero - Whether to add an "_0" to the initial name if it is unique
 	 * @returns A unique name for the host
 	 */
@@ -122,7 +122,7 @@ public:
 	/**
 	 * Gets a unique name for a cluster node owned by the specified cluster.
 	 * @param InitialName - The initial name the cluster node wants
-	 * @param ParentClusterNode - The cluster the cluster node belongs to
+	 * @param ParentCluster - The cluster the cluster node belongs to
 	 * @param bAddZero - Whether to add an "_0" to the initial name if it is unique
 	 * @returns A unique name for the cluster node
 	 */
@@ -133,8 +133,9 @@ public:
 	 * @param ClusterNode - The cluster node to add
 	 * @param Cluster - The cluster to add the cluster node to
 	 * @param NewClusterNodeName - Optional name to add the new cluster node under in the cluster. If not supplied, the cluster node's current name is used, if possible.
+	 * @return An updated pointer to the cluster node added to the cluster.
 	 */
-	static void AddClusterNodeToCluster(UDisplayClusterConfigurationClusterNode* ClusterNode, UDisplayClusterConfigurationCluster* Cluster, FString NewClusterNodeName = "");
+	static UDisplayClusterConfigurationClusterNode* AddClusterNodeToCluster(UDisplayClusterConfigurationClusterNode* ClusterNode, UDisplayClusterConfigurationCluster* Cluster, FString NewClusterNodeName = "");
 
 	/**
 	 * Removes a cluster node from the cluster that owns it. The owning cluster is retrieved using the cluster node's Outer.
@@ -178,8 +179,9 @@ public:
 	 * @param Viewport - The viewport to add
 	 * @param ClusterNode - The cluster node to add the viewport to
 	 * @param NewViewportName - Optional name to add the new viewport under in the cluster node. If not supplied, the viewport's current name is used, if possible.
+	 * @return An updated pointer to the viewport added to the cluster.
 	 */
-	static void AddViewportToClusterNode(UDisplayClusterConfigurationViewport* Viewport, UDisplayClusterConfigurationClusterNode* ClusterNode, FString NewViewportName = "");
+	static UDisplayClusterConfigurationViewport* AddViewportToClusterNode(UDisplayClusterConfigurationViewport* Viewport, UDisplayClusterConfigurationClusterNode* ClusterNode, FString NewViewportName = "");
 
 	/**
 	 * Removes a viewport from the cluster node that owns it. The owning cluster node is retrieved using the viewport's Outer.

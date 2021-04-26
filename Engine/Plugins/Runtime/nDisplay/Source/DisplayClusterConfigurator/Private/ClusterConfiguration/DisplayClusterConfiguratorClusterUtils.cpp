@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "DisplayClusterConfiguratorStyle.h"
 #include "DisplayClusterConfiguratorUtils.h"
 #include "ClusterConfiguration/SDisplayClusterConfiguratorNewClusterItemDialog.h"
@@ -11,6 +12,7 @@
 #include "Views/DragDrop/DisplayClusterConfiguratorViewportDragDropOp.h"
 
 #include "Factories.h"
+#include "ISinglePropertyView.h"
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UnrealExporter.h"
@@ -26,6 +28,8 @@ const FVector2D FDisplayClusterConfiguratorClusterUtils::NewClusterItemDialogSiz
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewHostName = TEXT("Host");
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewClusterNodeName = TEXT("Node");
 const FString FDisplayClusterConfiguratorClusterUtils::DefaultNewViewportName = TEXT("VP");
+
+using namespace DisplayClusterConfiguratorPropertyUtils;
 
 UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils::CreateNewClusterNodeFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationCluster* Cluster, const FDisplayClusterConfigurationRectangle& PresetRect, FString PresetHost)
 {
@@ -72,9 +76,8 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 	if (DialogContent->WasAccepted())
 	{
 		const FString ItemName = DialogContent->GetItemName();
-		NewNode = DuplicateObject(NodeTemplate, Cluster);
-		NewNode->SetFlags(RF_Transactional);
-		AddClusterNodeToCluster(NewNode, Cluster, ItemName);
+		NodeTemplate->SetFlags(RF_Transactional);
+		NewNode = AddClusterNodeToCluster(NodeTemplate, Cluster, ItemName);
 
 		// If the newly added cluster node is the only node in the cluster, it should be the master node, so set it as the master
 		if (Cluster->Nodes.Num() == 1)
@@ -85,11 +88,11 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 		if (bAddViewport)
 		{
 			const FString ViewportName = GetUniqueNameForViewport(DefaultNewViewportName, NewNode, true);
-			UDisplayClusterConfigurationViewport* NewViewport = NewObject<UDisplayClusterConfigurationViewport>(NewNode, NAME_None, RF_Transactional);
+			UDisplayClusterConfigurationViewport* NewViewport = NewObject<UDisplayClusterConfigurationViewport>(NewNode, NAME_None, RF_Transactional | RF_ArchetypeObject | RF_Public);
 			NewViewport->Region.W = NewNode->WindowRect.W;
 			NewViewport->Region.H = NewNode->WindowRect.H;
 
-			AddViewportToClusterNode(NewViewport, NewNode, ViewportName);
+			NewViewport = AddViewportToClusterNode(NewViewport, NewNode, ViewportName);
 		}
 	}
 
@@ -101,7 +104,7 @@ UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils
 
 UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::CreateNewViewportFromDialog(const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& Toolkit, UDisplayClusterConfigurationClusterNode* ClusterNode, const FDisplayClusterConfigurationRectangle& PresetRect)
 {
-	UDisplayClusterConfigurationViewport* ViewportTemplate = NewObject<UDisplayClusterConfigurationViewport>(Toolkit->GetBlueprintObj());
+	UDisplayClusterConfigurationViewport* ViewportTemplate = NewObject<UDisplayClusterConfigurationViewport>(Toolkit->GetBlueprintObj(), NAME_None, RF_Transactional | RF_ArchetypeObject | RF_Public);
 	ViewportTemplate->Region = FDisplayClusterConfigurationRectangle(PresetRect);
 
 	UDisplayClusterConfigurationCluster* Cluster = Toolkit->GetEditorData()->Cluster;
@@ -147,7 +150,7 @@ UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::C
 
 		NewViewport = DuplicateObject(ViewportTemplate, ParentNode);
 		NewViewport->SetFlags(RF_Transactional);
-		AddViewportToClusterNode(NewViewport, ParentNode, ItemName);
+		NewViewport = AddViewportToClusterNode(NewViewport, ParentNode, ItemName);
 	}
 
 	// Clean up the template object so that it gets GCed once this schema action has been destroyed
@@ -247,6 +250,8 @@ void FDisplayClusterConfiguratorClusterUtils::SortClusterNodesByHost(const TMap<
 {
 	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodePair : InClusterNodes)
 	{
+		check(ClusterNodePair.Value)
+
 		FString Host = ClusterNodePair.Value->Host;
 		if (!OutSortedNodes.Contains(Host))
 		{
@@ -372,10 +377,7 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveHost(UDisplayClusterConfigur
 
 	for (FString ClusterNodeToRemove : ClusterNodesToRemove)
 	{
-		Cluster->Nodes[ClusterNodeToRemove]->Modify();
-
-		Cluster->Modify();
-		Cluster->Nodes.Remove(ClusterNodeToRemove);
+		RemoveClusterNodeFromCluster(Cluster->Nodes[ClusterNodeToRemove]);
 	}
 
 	FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(Cluster, true);
@@ -448,7 +450,7 @@ FString FDisplayClusterConfiguratorClusterUtils::GetUniqueNameForClusterNode(FSt
 	return UniqueName;
 }
 
-void FDisplayClusterConfiguratorClusterUtils::AddClusterNodeToCluster(UDisplayClusterConfigurationClusterNode* ClusterNode, UDisplayClusterConfigurationCluster* Cluster, FString NewClusterNodeName)
+UDisplayClusterConfigurationClusterNode* FDisplayClusterConfiguratorClusterUtils::AddClusterNodeToCluster(UDisplayClusterConfigurationClusterNode* ClusterNode, UDisplayClusterConfigurationCluster* Cluster, FString NewClusterNodeName)
 {
 	FString ClusterNodeName = "";
 
@@ -460,7 +462,9 @@ void FDisplayClusterConfiguratorClusterUtils::AddClusterNodeToCluster(UDisplayCl
 			ClusterNodeName = *OldKeyPtr;
 
 			ClusterNodeParent->Modify();
-			ClusterNodeParent->Nodes.Remove(*OldKeyPtr);
+
+			const FName FieldName = GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes);
+			RemoveKeyFromMap(ClusterNodeParent, FieldName, *OldKeyPtr);
 		}
 	}
 
@@ -477,10 +481,13 @@ void FDisplayClusterConfiguratorClusterUtils::AddClusterNodeToCluster(UDisplayCl
 	ClusterNodeName = GetUniqueNameForClusterNode(ClusterNodeName, Cluster);
 
 	Cluster->Modify();
-	Cluster->Nodes.Add(ClusterNodeName, ClusterNode);
-
 	ClusterNode->Modify();
 	ClusterNode->Rename(*ClusterNodeName, Cluster, REN_DontCreateRedirectors);
+
+	const FName FieldName = GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes);
+	ClusterNode = CastChecked<UDisplayClusterConfigurationClusterNode>(AddKeyWithInstancedValueToMap(Cluster, FieldName, ClusterNodeName, ClusterNode));
+
+	return ClusterNode;
 }
 
 bool FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(UDisplayClusterConfigurationClusterNode* ClusterNode)
@@ -492,9 +499,10 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveClusterNodeFromCluster(UDisp
 			ClusterNode->Modify();
 
 			ClusterNodeParent->Modify();
-			ClusterNodeParent->Nodes.Remove(*KeyPtr);
+			RemoveKeyFromMap(ClusterNodeParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes), *KeyPtr);
 
-			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ClusterNode, true);
+			ClusterNode->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
+			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ClusterNodeParent, true);
 			
 			return true;
 		}
@@ -521,10 +529,13 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameClusterNode(UDisplayClusterC
 
 			const FString UniqueName = GetUniqueNameForClusterNode(NewClusterNodeName, ClusterNodeParent);
 
-			ClusterNodeParent->Nodes.Remove(*KeyPtr);
-			ClusterNodeParent->Nodes.Add(UniqueName, ClusterNode);
+			const FName FieldName = GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes);
+			RemoveKeyFromMap(ClusterNodeParent, FieldName, *KeyPtr);
 
+			// Rename after remove, before add.
 			ClusterNode->Rename(*UniqueName, nullptr, REN_DontCreateRedirectors);
+			
+			ClusterNode = CastChecked<UDisplayClusterConfigurationClusterNode>(AddKeyWithInstancedValueToMap(ClusterNodeParent, FieldName, UniqueName, ClusterNode));
 
 			// If the cluster node was a master node before the rename, we need to update the master reference in the cluster with the new name
 			if (bIsMaster)
@@ -593,7 +604,7 @@ FString FDisplayClusterConfiguratorClusterUtils::GetUniqueNameForViewport(FStrin
 	return UniqueName;
 }
 
-void FDisplayClusterConfiguratorClusterUtils::AddViewportToClusterNode(UDisplayClusterConfigurationViewport* Viewport, UDisplayClusterConfigurationClusterNode* ClusterNode, FString NewViewportName)
+UDisplayClusterConfigurationViewport* FDisplayClusterConfiguratorClusterUtils::AddViewportToClusterNode(UDisplayClusterConfigurationViewport* Viewport, UDisplayClusterConfigurationClusterNode* ClusterNode, FString NewViewportName)
 {
 	FString ViewportName = "";
 
@@ -605,7 +616,8 @@ void FDisplayClusterConfiguratorClusterUtils::AddViewportToClusterNode(UDisplayC
 			ViewportName = *OldKeyPtr;
 
 			ViewportParent->Modify();
-			ViewportParent->Viewports.Remove(*OldKeyPtr);
+			
+			RemoveKeyFromMap(ViewportParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports), *OldKeyPtr);
 		}
 	}
 
@@ -622,12 +634,15 @@ void FDisplayClusterConfiguratorClusterUtils::AddViewportToClusterNode(UDisplayC
 	ViewportName = GetUniqueNameForViewport(ViewportName, ClusterNode);
 
 	ClusterNode->Modify();
-	ClusterNode->Viewports.Add(ViewportName, Viewport);
-
 	Viewport->Modify();
-	Viewport->Rename(*ViewportName, ClusterNode, REN_DontCreateRedirectors);
+	Viewport->Rename(*ViewportName, ClusterNode, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders);
+
+	const FName FieldName = GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports);
+	Viewport = CastChecked<UDisplayClusterConfigurationViewport>(AddKeyWithInstancedValueToMap(ClusterNode, FieldName, ViewportName, Viewport));
 
 	FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(Viewport, true);
+
+	return Viewport;
 }
 
 bool FDisplayClusterConfiguratorClusterUtils::RemoveViewportFromClusterNode(UDisplayClusterConfigurationViewport* Viewport)
@@ -639,9 +654,11 @@ bool FDisplayClusterConfiguratorClusterUtils::RemoveViewportFromClusterNode(UDis
 			Viewport->Modify();
 
 			ViewportParent->Modify();
-			ViewportParent->Viewports.Remove(*KeyPtr);
 
-			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(Viewport, true);
+			RemoveKeyFromMap(ViewportParent, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports), *KeyPtr);
+
+			Viewport->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_DoNotDirty);
+			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(ViewportParent, true);
 			
 			return true;
 		}
@@ -661,16 +678,23 @@ bool FDisplayClusterConfiguratorClusterUtils::RenameViewport(UDisplayClusterConf
 				return false;
 			}
 
+			const FString UniqueName = GetUniqueNameForViewport(NewViewportName, ViewportParent);
+			
 			Viewport->Modify();
 			ViewportParent->Modify();
+			
+			const FName FieldName = GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports);
 
-			const FString UniqueName = GetUniqueNameForViewport(NewViewportName, ViewportParent);
+			// Remove and re-add. We can't just call RenameKeyInMap because when we rename the viewport after
+			// it will lose sync with instances.
+			
+			RemoveKeyFromMap(ViewportParent, FieldName, *KeyPtr);
 
-			ViewportParent->Viewports.Remove(*KeyPtr);
-			ViewportParent->Viewports.Add(UniqueName, Viewport);
-
+			// Rename after removing. If this is done after adding instances will lose sync with the CDO.
 			Viewport->Rename(*UniqueName, nullptr, REN_DontCreateRedirectors);
-
+			
+			AddKeyWithInstancedValueToMap(ViewportParent, FieldName, UniqueName, Viewport);
+			
 			FDisplayClusterConfiguratorUtils::MarkDisplayClusterBlueprintAsModified(Viewport, true);
 			
 			return true;
@@ -872,7 +896,7 @@ TArray<UObject*> FDisplayClusterConfiguratorClusterUtils::PasteClusterItemsFromC
 		{
 			UDisplayClusterConfigurationClusterNode* ClusterNodeCopy = DuplicateObject(ClusterNode, ClusterRoot);
 			ClusterNodeCopy->SetFlags(RF_Transactional);
-			AddClusterNodeToCluster(ClusterNodeCopy, ClusterRoot, ClusterNode->GetName());
+			ClusterNodeCopy = AddClusterNodeToCluster(ClusterNodeCopy, ClusterRoot, ClusterNode->GetName());
 
 			// If the host string isn't empty, it means the user is pasting the cluster node into a particular host, so set the cluster node's host string.
 			if (!HostStr.IsEmpty())
@@ -925,7 +949,7 @@ TArray<UObject*> FDisplayClusterConfiguratorClusterUtils::PasteClusterItemsFromC
 		{
 			UDisplayClusterConfigurationViewport* ViewportCopy = DuplicateObject(Viewport, ClusterNode);
 			ViewportCopy->SetFlags(RF_Transactional);
-			AddViewportToClusterNode(ViewportCopy, ClusterNode, Viewport->GetName());
+			ViewportCopy = AddViewportToClusterNode(ViewportCopy, ClusterNode, Viewport->GetName());
 
 			if (PasteLocation.IsSet())
 			{

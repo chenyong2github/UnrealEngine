@@ -16,9 +16,6 @@ class FDisplayClusterConfiguratorUtils
 {
 
 public:
-	/** Creates new ConfigurationData from scratch. */
-	static UDisplayClusterConfigurationData* GenerateNewConfigData();
-
 	/** Loads a config file into memory and generates a root actor from it. */
 	static ADisplayClusterRootActor* GenerateRootActorFromConfigFile(const FString& InFilename);
 	

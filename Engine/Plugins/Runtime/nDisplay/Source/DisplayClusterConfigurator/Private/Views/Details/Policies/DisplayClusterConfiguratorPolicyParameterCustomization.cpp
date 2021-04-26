@@ -5,22 +5,23 @@
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorUtils.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "Views/Details/Widgets/SDisplayClusterConfigurationSearchableComboBox.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
 #include "Misc/DisplayClusterHelpers.h"
+#include "DisplayClusterProjectionStrings.h"
+#include "Misc/DisplayClusterTypesConverter.h"
 
 #include "EditorDirectories.h"
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
-#include "DisplayClusterProjectionStrings.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailGroup.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "Misc/DisplayClusterTypesConverter.h"
 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -38,13 +39,14 @@ FPolicyParameterInfo::FPolicyParameterInfo(
 	const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
 	UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle,
 	const FString* InInitialValue)
 {
 	ParamDisplayName = InDisplayName;
 	ParamKey = InKey;
 	BlueprintOwnerPtr = InBlueprint;
 	ConfigurationViewportPtr = InConfigurationViewport;
-
+	ParametersHandle = InParametersHandle;
 	BlueprintEditorPtrCached = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(InBlueprint);
 
 	if (InInitialValue)
@@ -63,13 +65,15 @@ FText FPolicyParameterInfo::GetOrAddCustomParameterValueText() const
 	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
 	check(ConfigurationViewport != nullptr);
 
-	FString& ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.FindOrAdd(GetParameterKey());
-	if (ParameterValue.IsEmpty() && InitialValue.IsValid())
+	FString* ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+	if (ParameterValue == nullptr)
 	{
-		ParameterValue = *InitialValue;
+		UpdateCustomParameterValueText(InitialValue.IsValid() ? *InitialValue : TEXT(""), false);
+		ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
 	}
+	check(ParameterValue)
 	
-	return FText::FromString(ParameterValue);
+	return FText::FromString(*ParameterValue);
 }
 
 bool FPolicyParameterInfo::IsParameterAlreadyAdded() const
@@ -80,17 +84,25 @@ bool FPolicyParameterInfo::IsParameterAlreadyAdded() const
 	return ConfigurationViewport->ProjectionPolicy.Parameters.Contains(GetParameterKey());
 }
 
-void FPolicyParameterInfo::UpdateCustomParameterValueText(const FString& NewValue)
+void FPolicyParameterInfo::UpdateCustomParameterValueText(const FString& NewValue, bool bNotify) const
 {
 	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
 	check(ConfigurationViewport != nullptr);
 	ConfigurationViewport->Modify();
-	ConfigurationViewport->ProjectionPolicy.Parameters.Add(GetParameterKey(), NewValue);
-	
-	if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+
+	FStructProperty* StructProperty = FindFProperty<FStructProperty>(ConfigurationViewport->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+	check(StructProperty);
+
+	uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(ConfigurationViewport);
+	DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, ParametersHandle, GetParameterKey(), NewValue);
+
+	if (bNotify)
 	{
-		BlueprintEditor->ClusterChanged(true);
-		BlueprintEditor->RefreshDisplayClusterPreviewActor();
+		if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+		{
+			BlueprintEditor->ClusterChanged(true);
+			BlueprintEditor->RefreshDisplayClusterPreviewActor();
+		}
 	}
 }
 
@@ -101,7 +113,8 @@ EVisibility FPolicyParameterInfo::IsParameterVisible() const
 
 FPolicyParameterInfoCombo::FPolicyParameterInfoCombo(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TArray<FString>& InValues, const FString* InInitialItem, bool bSort) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InInitialItem)
+	const TSharedPtr<IPropertyHandle>& InParametersHandle,
+	const TArray<FString>& InValues, const FString* InInitialItem, bool bSort) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, InInitialItem)
 {
 	for (const FString& Value : InValues)
 	{
@@ -167,7 +180,8 @@ FPolicyParameterInfoComponentCombo::FPolicyParameterInfoComponentCombo(
 	const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
 	UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	TSubclassOf<UActorComponent> InComponentClass) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, {}, nullptr)
+	const TSharedPtr<IPropertyHandle>& InParametersHandle,
+	TSubclassOf<UActorComponent> InComponentClass) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, {}, nullptr)
 {
 	ComponentType = InComponentClass;
 	if (BlueprintEditorPtrCached)
@@ -202,8 +216,9 @@ void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRo
 
 FPolicyParameterInfoText::FPolicyParameterInfoText(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport)
+	UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
 {
 }
 
@@ -229,8 +244,9 @@ void FPolicyParameterInfoText::CreateCustomRowWidget(IDetailChildrenBuilder& InD
 }
 
 FPolicyParameterInfoBool::FPolicyParameterInfoBool(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport)
+	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
 {
 }
 
@@ -393,8 +409,9 @@ void FPolicyParameterInfoFloatReference::OnValueCommitted(float NewValue, ETextC
 
 FPolicyParameterInfoMatrix::FPolicyParameterInfoMatrix(const FString& InDisplayName, const FString& InKey,
                                                        UDisplayClusterBlueprint* InBlueprint,
-                                                       UDisplayClusterConfigurationViewport* InConfigurationViewport):
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport),
+                                                       UDisplayClusterConfigurationViewport* InConfigurationViewport,
+														const TSharedPtr<IPropertyHandle>& InParametersHandle):
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
 	CachedTranslationX(MakeShared<float>()),
 	CachedTranslationY(MakeShared<float>()),
 	CachedTranslationZ(MakeShared<float>()),
@@ -558,8 +575,9 @@ void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 
 FPolicyParameterInfoRotator::FPolicyParameterInfoRotator(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport),
+	UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
 	CachedRotationYaw(MakeShared<float>()),
 	CachedRotationPitch(MakeShared<float>()),
 	CachedRotationRoll(MakeShared<float>())
@@ -614,8 +632,9 @@ void FPolicyParameterInfoRotator::FormatTextAndUpdateParameter()
 }
 
 FPolicyParameterInfoFrustumAngle::FPolicyParameterInfoFrustumAngle(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport),
+	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
+	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
 	CachedAngleL(MakeShared<float>()),
 	CachedAngleR(MakeShared<float>()),
 	CachedAngleT(MakeShared<float>()),

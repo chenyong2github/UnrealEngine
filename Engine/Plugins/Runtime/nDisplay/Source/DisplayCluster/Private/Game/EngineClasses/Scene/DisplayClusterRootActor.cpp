@@ -25,6 +25,8 @@
 #include "DisplayClusterConfigurationTypes.h"
 
 #include "DisplayClusterPlayerInput.h"
+#include "Blueprints/DisplayClusterBlueprint.h"
+#include "Blueprints/DisplayClusterBlueprintGeneratedClass.h"
 
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
@@ -162,19 +164,48 @@ UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfi
 	return nullptr;
 }
 
-void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigurationData* InConfigData)
+void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigurationData* ConfigDataTemplate, bool bForceRecreate)
 {
-	if (InConfigData == nullptr)
+	if (ConfigDataTemplate == nullptr)
 	{
 		CurrentConfigData = nullptr;
+		ConfigDataName = TEXT("");
 	}
 	else
 	{
-		if (CurrentConfigData != InConfigData)
+		if (CurrentConfigData == nullptr)
 		{
-		CurrentConfigData = InConfigData;
-		ConfigDataName = CurrentConfigData->GetFName();
+			// Only create config data once. Do not create in constructor as default sub objects or individual properties won't sync
+			// properly with instanced values.
+
+			const EObjectFlags CommonFlags = RF_Public | RF_Transactional;
+			
+			CurrentConfigData = NewObject<UDisplayClusterConfigurationData>(
+				this,
+				UDisplayClusterConfigurationData::StaticClass(),
+				NAME_None,
+				IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags,
+				ConfigDataTemplate);
+			
+			if (CurrentConfigData->Cluster == nullptr)
+			{
+				CurrentConfigData->Cluster = NewObject<UDisplayClusterConfigurationCluster>(
+					CurrentConfigData,
+					UDisplayClusterConfigurationCluster::StaticClass(),
+					NAME_None,
+					IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
+			}
 		}
+		else if (bForceRecreate)
+		{
+			UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+			Params.bAggressiveDefaultSubobjectReplacement = true;
+			Params.bNotifyObjectReplacement = false;
+			Params.bDoDelta = false;
+			UEngine::CopyPropertiesForUnrelatedObjects(ConfigDataTemplate, CurrentConfigData, Params);
+		}
+
+		ConfigDataName = CurrentConfigData->GetFName();
 	}
 }
 
@@ -191,6 +222,11 @@ UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetDefaultConfigData
 	}
 
 	return nullptr;
+}
+
+UDisplayClusterConfigurationData* ADisplayClusterRootActor::GetConfigData() const
+{
+	return CurrentConfigData;
 }
 
 template <typename TComp>

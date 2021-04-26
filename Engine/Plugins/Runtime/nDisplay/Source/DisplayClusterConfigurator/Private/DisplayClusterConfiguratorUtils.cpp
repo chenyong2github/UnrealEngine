@@ -22,13 +22,6 @@
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorUtils"
 
 
-UDisplayClusterConfigurationData* FDisplayClusterConfiguratorUtils::GenerateNewConfigData()
-{
-	UDisplayClusterConfigurationData* NewConfigData = NewObject<UDisplayClusterConfigurationData>();
-	// TODO: Add in specific configuration data for new blueprints here.
-	return NewConfigData;
-}
-
 ADisplayClusterRootActor* FDisplayClusterConfiguratorUtils::GenerateRootActorFromConfigFile(const FString& InFilename)
 {
 	UDisplayClusterConfigurationData* NewConfig = IDisplayClusterConfiguration::Get().LoadConfig(InFilename);

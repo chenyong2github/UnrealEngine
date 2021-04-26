@@ -349,17 +349,17 @@ public:
 	bool bFixedAspectRatio;
 #endif
 
-	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, UDisplayClusterConfigurationViewport*> Viewports;
 
 	UPROPERTY(VisibleInstanceOnly, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
 	TMap<FString, FDisplayClusterConfigurationPostprocess> Postprocess;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
 	bool bIsVisible;
 
-	UPROPERTY()
+	UPROPERTY(EditDefaultsOnly, Category = "nDisplay", meta = (nDisplayHidden))
 	bool bIsEnabled;
 
 	UPROPERTY(EditDefaultsOnly, Category = nDisplay)
@@ -435,11 +435,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationNetworkSettings Network;
 
-	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties, nDisplayInstanceOnly))
+	UPROPERTY(VisibleInstanceOnly, EditFixedSize, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, nDisplayInstanceOnly, ShowInnerProperties))
 	TMap<FString, UDisplayClusterConfigurationClusterNode*> Nodes;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	TMap<FString, UDisplayClusterConfigurationHostDisplayData*> HostDisplayData;
 #endif
 
@@ -450,7 +450,6 @@ public:
 	// Return all references to meshes from policy, and other
 	void GetReferencedMeshNames(TArray<FString>& OutMeshNames) const;
 };
-
 
 USTRUCT()
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationDiagnostics
@@ -504,10 +503,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY(Export)
+	UPROPERTY()
 	UDisplayClusterConfigurationScene* Scene;
 
-	UPROPERTY(Export, VisibleAnywhere, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
+	UPROPERTY(VisibleInstanceOnly, Instanced, Category = nDisplay, meta = (DisplayThumbnail = false, ShowInnerProperties))
 	UDisplayClusterConfigurationCluster* Cluster;
 
 	UPROPERTY(EditAnywhere, Category = nDisplay)
@@ -516,6 +515,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = nDisplay)
 	FDisplayClusterConfigurationDiagnostics Diagnostics;
 
+	/** Create empty config data. */
+	static UDisplayClusterConfigurationData* CreateNewConfigData(UObject* Owner = nullptr, EObjectFlags ObjectFlags = RF_NoFlags);
 #if WITH_EDITORONLY_DATA
 
 public:

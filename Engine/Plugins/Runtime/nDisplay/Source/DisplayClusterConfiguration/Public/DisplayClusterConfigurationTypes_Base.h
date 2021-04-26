@@ -84,8 +84,11 @@ public:
 	 * This is needed in the event a custom policy is selected
 	 * but the custom type is a default policy. This allows users
 	 * to further customize default policies if necessary.
+	 *
+	 * EditAnywhere is required so we can manipulate the property
+	 * through a handle. Details will hide it from showing.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = nDisplay)
 	bool bIsCustom = false;
 #endif
 };

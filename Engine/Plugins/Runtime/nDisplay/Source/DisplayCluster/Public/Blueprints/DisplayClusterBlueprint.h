@@ -20,6 +20,7 @@ public:
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual UClass* GetBlueprintClass() const override;
 	virtual void GetReparentingRules(TSet<const UClass*>& AllowedChildrenOfClasses, TSet<const UClass*>& DisallowedChildrenOfClasses) const override;
+	virtual bool SupportsNativization(FText* OutReason) const override;
 	// ~UBlueprint
 #endif // WITH_EDITOR
 	
@@ -31,8 +32,15 @@ public:
 
 	UDisplayClusterConfigurationData* GetOrLoadConfig();
 	UDisplayClusterConfigurationData* GetConfig() const { return ConfigData; }
-	
-	void SetConfigData(UDisplayClusterConfigurationData* InConfigData);
+
+	/**
+	 * Set the config data on the CDO and update the config file path.
+	 * When bForceRecreate is false this only updates the config path after initial creation.
+	 * 
+	 * @param InConfigData New config data to set. This will be a template for the CDO to use if being created initially or force recreated.
+	 * @param bForceRecreate Force recreate the config data on the CDO. This will break instance sync and only recommended for importing.
+	 */
+	void SetConfigData(UDisplayClusterConfigurationData* InConfigData, bool bForceRecreate = false);
 
 	const FString& GetConfigPath() const { return PathToConfig; }
 	void SetConfigPath(const FString& InPath);
@@ -51,7 +59,7 @@ protected:
 	UPROPERTY()
 	FString PathToConfig;
 
-	UPROPERTY(Export)
+	UPROPERTY()
 	UDisplayClusterConfigurationData* ConfigData;
 
 private:

@@ -99,6 +99,9 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& InLayoutBuilder) override;
 	/** End IDetailCustomization interface */
+
+protected:
+	TSharedPtr<IPropertyHandle> ClusterNodesHandle;
 };
 
 class FDisplayClusterConfiguratorViewportDetailCustomization final
@@ -273,7 +276,6 @@ protected:
 
 private:
 	TSharedPtr<IPropertyHandle> RenderSyncPolicyHandle;
-
 	TSharedPtr<IPropertyHandle> InputSyncPolicyHandle;
 
 };
@@ -292,10 +294,10 @@ protected:
 
 protected:
 	TSharedPtr<IPropertyHandle> TypeHandle;
-
 	TSharedPtr<IPropertyHandle> ParametersHandle;
-
-	IDetailChildrenBuilder* ChildBuilder;
+	TSharedPtr<IPropertyHandle> IsCustomHandle;
+	
+	IDetailChildrenBuilder* ChildBuilder = nullptr;
 };
 
 /**
@@ -334,8 +336,9 @@ private:
 	bool IsCustomTypeInConfig() const;
 
 	void OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType);
-
-
+	
+	void AddToParameterMap(const FString& Key, const FString& Value);
+	void RemoveFromParameterMap(const FString& Key);
 private:
 	TSharedPtr<FString>	NvidiaOption;
 
@@ -351,13 +354,13 @@ private:
 
 	TSharedPtr<SSpinBox<int32>> SwapBarrierSpinBox;
 
-	int32 SwapGroupValue;
+	int32 SwapGroupValue = 0;
 
-	int32 SwapBarrierValue;
+	int32 SwapBarrierValue = 0;
 
 	TSharedPtr<SEditableTextBox> CustomPolicyRow;
 
-	bool bIsCustomPolicy;
+	bool bIsCustomPolicy = false;
 
 	FString CustomPolicy;
 

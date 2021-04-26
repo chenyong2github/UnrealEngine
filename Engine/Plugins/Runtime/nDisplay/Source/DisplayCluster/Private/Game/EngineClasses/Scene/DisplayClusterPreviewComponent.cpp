@@ -124,6 +124,13 @@ bool UDisplayClusterPreviewComponent::UpdatePreviewMesh()
 					{
 						OriginalMaterial = MatInterface->GetMaterial();
 					}
+					
+					if (!ensure(ViewportConfig))
+					{
+						// Can be null during a reimport.
+						// @TODO reimport: See if we can avoid this during reimport.
+						return false;
+					}
 
 					// Update saved proj policy parameters
 					WarpMeshSavedProjectionPolicy = ViewportConfig->ProjectionPolicy;

@@ -37,8 +37,6 @@ FIntRect FDisplayClusterConfigurationRectangle::ToRect() const
 UDisplayClusterConfigurationData::UDisplayClusterConfigurationData()
 {
 	Scene   = CreateDefaultSubobject<UDisplayClusterConfigurationScene>(TEXT("Scene"));
-	Cluster = CreateDefaultSubobject<UDisplayClusterConfigurationCluster>(TEXT("Cluster"));
-	Cluster->SetFlags(RF_Transactional);
 }
 
 const UDisplayClusterConfigurationClusterNode* UDisplayClusterConfigurationData::GetClusterNode(const FString& NodeId) const
@@ -214,6 +212,7 @@ UDisplayClusterConfigurationHostDisplayData::UDisplayClusterConfigurationHostDis
 {
 	bIsVisible = true;
 	bIsEnabled = true;
+	SetFlags(RF_Public);
 }
 
 void UDisplayClusterConfigurationClusterNode::GetObjectsToExport(TArray<UObject*>& OutObjects)
@@ -319,6 +318,11 @@ void UDisplayClusterConfigurationClusterNode::GetReferencedMeshNames(TArray<FStr
 {
 	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& It : Viewports)
 	{
+		if (It.Value == nullptr)
+		{
+			// Could be null temporarily during a reimport when this is called.
+			continue;
+		}
 		It.Value->GetReferencedMeshNames(OutMeshNames);
 	}
 }
@@ -327,14 +331,30 @@ void UDisplayClusterConfigurationCluster::GetReferencedMeshNames(TArray<FString>
 {
 	for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& It : Nodes)
 	{
+		if (It.Value == nullptr)
+		{
+			// Could be null temporarily during a reimport when this is called.
+			continue;
+		}
 		It.Value->GetReferencedMeshNames(OutMeshNames);
 	}
 }
 
 void UDisplayClusterConfigurationData::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
 {
-	if (Cluster !=nullptr)
+	if (Cluster != nullptr)
 	{
 		Cluster->GetReferencedMeshNames(OutMeshNames);
 	}
+}
+
+UDisplayClusterConfigurationData* UDisplayClusterConfigurationData::CreateNewConfigData(UObject* Owner, EObjectFlags ObjectFlags)
+{
+	UDisplayClusterConfigurationData* NewConfigData = NewObject<UDisplayClusterConfigurationData>(Owner ? Owner : GetTransientPackage(), NAME_None,
+		ObjectFlags | RF_ArchetypeObject | RF_Public | RF_Transactional);
+	
+	NewConfigData->Cluster = NewObject<UDisplayClusterConfigurationCluster>(NewConfigData, NAME_None,
+		RF_ArchetypeObject | RF_Public | RF_Transactional);
+
+	return NewConfigData;
 }

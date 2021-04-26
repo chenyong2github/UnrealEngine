@@ -429,19 +429,12 @@ void FDisplayClusterConfiguratorBlueprintEditor::RefreshDisplayClusterPreviewAct
 	UpdatePreviewActor(GetBlueprintObj(), bCreatePreviewActor);
 
 	AActor* NewPreviewActor = GetPreviewActor();
-	ADisplayClusterRootActor* RootActor = CastChecked<ADisplayClusterRootActor>(NewPreviewActor);
-
+	
 	// For the new preview actor, update the state of its Xform gizmos to match the
 	// project settings for the display cluster editor
 	UpdateXformGizmos();
 
 	CurrentPreviewActor = NewPreviewActor;
-
-	if (ADisplayClusterRootActor* PreviewActor = Cast<ADisplayClusterRootActor>(NewPreviewActor))
-	{
-		check(LoadedBlueprint.IsValid());
-		PreviewActor->UpdateConfigDataInstance(LoadedBlueprint->GetOrLoadConfig());
-	}
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::RestoreLastEditedState()
@@ -526,7 +519,7 @@ bool FDisplayClusterConfiguratorBlueprintEditor::LoadFromFile(const FString& Fil
 	check(LoadedBlueprint.IsValid());
 	if (ADisplayClusterRootActor* NewRootActor = FDisplayClusterConfiguratorUtils::GenerateRootActorFromConfigFile(FilePath))
 	{
-		LoadedBlueprint->SetConfigData(const_cast<UDisplayClusterConfigurationData*>(NewRootActor->GetConfigData()));
+		LoadedBlueprint->SetConfigData(const_cast<UDisplayClusterConfigurationData*>(NewRootActor->GetConfigData()), true);
 		FDisplayClusterConfiguratorUtils::AddRootActorComponentsToBlueprint(LoadedBlueprint.Get(), NewRootActor);
 		return true;
 	}
@@ -811,6 +804,36 @@ void FDisplayClusterConfiguratorBlueprintEditor::ExtendToolbar()
 
 void FDisplayClusterConfiguratorBlueprintEditor::OnPostCompiled(UBlueprint* InBlueprint)
 {
+	TArray<UObject*> PrevSelectedObjects = SelectedObjects;
+	OnConfigReloaded.Broadcast();
+
+	UDisplayClusterConfigurationData* CurrentConfigData = GetConfig();
+	check(CurrentConfigData);
+	
+	TArray<UObject*> NewObjects;
+	for (UObject* Object : SelectedObjects)
+	{
+		if (Object->GetPackage() != GetTransientPackage())
+		{
+			// Object wasn't trashed, okay to re-add.
+			NewObjects.Add(Object);
+			continue;
+		}
+		
+		// The object is trashed, first find the original config data.
+		if (UDisplayClusterConfigurationData* OuterStop = Object->GetTypedOuter<UDisplayClusterConfigurationData>())
+		{
+			// Build out the full name based on the original config data.
+			FString FullPathName = Object->GetPathName(OuterStop);
+			if (UObject* ReInstancedObject = StaticFindObject(Object->GetClass(), CurrentConfigData, *FullPathName))
+			{
+				// Find the current one from the new config data.
+				NewObjects.Add(ReInstancedObject);
+			}
+		}
+	}
+
+	SelectObjects(NewObjects);
 }
 
 void FDisplayClusterConfiguratorBlueprintEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)

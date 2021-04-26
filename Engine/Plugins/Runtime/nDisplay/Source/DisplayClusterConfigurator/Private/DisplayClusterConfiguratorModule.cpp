@@ -36,6 +36,22 @@ void FDisplayClusterConfiguratorModule::StartupModule()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
+	/*
+	 * Hack for instanced property sync.
+	 *
+	 * We must clear CPF_EditConst for these properties. They are VisibleInstanceOnly but we are modifying them through their handles
+	 * programmatically. If CPF_EditConst is present that operation will fail. We do not want them to be editable on the details panel either.
+	 */
+	{
+		FProperty* Property = FindFProperty<FProperty>(UDisplayClusterConfigurationCluster::StaticClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
+		Property->ClearPropertyFlags(CPF_EditConst);
+	}
+	
+	{
+		FProperty* Property = FindFProperty<FProperty>(UDisplayClusterConfigurationClusterNode::StaticClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports));
+		Property->ClearPropertyFlags(CPF_EditConst);
+	}
+	
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FDisplayClusterConfiguratorAssetTypeActions(EAssetTypeCategories::Media)));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FDisplayClusterConfiguratorActorAssetTypeActions(EAssetTypeCategories::None)));
 

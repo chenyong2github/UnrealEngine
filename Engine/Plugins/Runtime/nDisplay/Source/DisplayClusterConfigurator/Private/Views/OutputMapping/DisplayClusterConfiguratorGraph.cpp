@@ -161,6 +161,12 @@ UDisplayClusterConfiguratorWindowNode* UDisplayClusterConfiguratorGraph::BuildWi
 
 UDisplayClusterConfiguratorViewportNode* UDisplayClusterConfiguratorGraph::BuildViewportNode(UDisplayClusterConfiguratorBaseNode* ParentNode, FString NodeName, UDisplayClusterConfigurationViewport* ViewportConfig)
 {
+	if (!ensure(ViewportConfig))
+	{
+		// TODO: Remove or verify this is okay.. When deleting viewports this can be null during a rebuild.
+		return nullptr;
+	}
+	
 	FGraphNodeCreator<UDisplayClusterConfiguratorViewportNode> NodeCreator(*this);
 	UDisplayClusterConfiguratorViewportNode* NewNode = NodeCreator.CreateNode(false);
 	NewNode->Initialize(NodeName, ViewportConfig, ToolkitPtr.Pin().ToSharedRef());

@@ -5,6 +5,8 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorStyle.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
+#include "ISinglePropertyView.h"
 #include "ClusterConfiguration/DisplayClusterConfiguratorClusterUtils.h"
 #include "Views/DragDrop/DisplayClusterConfiguratorValidatedDragDropOp.h"
 #include "Views/DragDrop/DisplayClusterConfiguratorClusterNodeDragDropOp.h"
@@ -16,6 +18,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "ISinglePropertyView.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorTreeItemClusterNode"
 
@@ -46,7 +49,11 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::SetVisible(bool bIsVisible)
 
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(ClusterNode, false);
-	ClusterNode->bIsVisible = bIsVisible;
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsVisible));
+	
+	PropertyView->GetPropertyHandle()->SetValue(bIsVisible);
 
 	// Set the visible state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -65,7 +72,11 @@ void FDisplayClusterConfiguratorTreeItemClusterNode::SetEnabled(bool bIsEnabled)
 
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(ClusterNode, false);
-	ClusterNode->bIsEnabled = bIsEnabled;
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsEnabled));
+
+	PropertyView->GetPropertyHandle()->SetValue(bIsEnabled);
 
 	// Set the enabled state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -417,7 +428,11 @@ FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnVisibilityButtonClicked
 
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(ClusterNode, false);
-	ClusterNode->bIsVisible = !ClusterNode->bIsVisible;
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsVisible));
+
+	PropertyView->GetPropertyHandle()->SetValue(!ClusterNode->bIsVisible);
 
 	// Set the visible state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
@@ -455,7 +470,11 @@ FReply FDisplayClusterConfiguratorTreeItemClusterNode::OnEnabledButtonClicked()
 
 	// Use SaveToTransactionBuffer to avoid marking the package as dirty
 	SaveToTransactionBuffer(ClusterNode, false);
-	ClusterNode->bIsEnabled = !ClusterNode->bIsEnabled;
+
+	const TSharedPtr<ISinglePropertyView> PropertyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+		ClusterNode, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, bIsEnabled));
+
+	PropertyView->GetPropertyHandle()->SetValue(!ClusterNode->bIsEnabled);
 
 	// Set the enabled state of this cluster node's children to match it.
 	for (TSharedPtr<IDisplayClusterConfiguratorTreeItem> Child : Children)
