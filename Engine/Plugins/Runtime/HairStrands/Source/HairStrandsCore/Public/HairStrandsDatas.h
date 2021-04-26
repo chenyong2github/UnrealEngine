@@ -15,8 +15,7 @@ struct FPackedHairVertex
 	typedef uint64 BulkType;
 
 	FFloat16 X, Y, Z;
-	uint8 ControlPointType : 2;
-	uint8 NormalizedRadius : 6;
+	uint8 PackedRadiusAndType;
 	uint8 UCoord;
 };
 
@@ -148,7 +147,7 @@ struct FHairStrandsInterpolation0Format
 struct FHairStrandsInterpolation1Format
 {
 	typedef FHairInterpolation1Vertex Type;
-	typedef uint64 BulkType;
+	typedef uint32 BulkType;
 
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);

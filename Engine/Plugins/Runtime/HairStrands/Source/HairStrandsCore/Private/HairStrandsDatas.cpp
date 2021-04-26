@@ -66,21 +66,9 @@ FArchive& operator<<(FArchive& Ar, FPackedHairVertex& Vertex)
 	Ar << Vertex.X;
 	Ar << Vertex.Y;
 	Ar << Vertex.Z;
-
+	Ar << Vertex.PackedRadiusAndType;
 	Ar << Vertex.UCoord;
 
-	if (Ar.IsLoading())
-	{
-		uint8 Value;
-		Ar << Value;
-		Vertex.ControlPointType = Value & 0x03; // first 2 bits
-		Vertex.NormalizedRadius = Value >> 2;
-	}
-	else
-	{
-		uint8 Value = Vertex.ControlPointType | (Vertex.NormalizedRadius << 2);
-		Ar << Value;
-	}
 	return Ar;
 }
 
@@ -172,6 +160,10 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
+	static_assert(sizeof(FHairInterpolation0Vertex::BulkType) == sizeof(FHairInterpolation0Vertex));
+	static_assert(sizeof(FHairInterpolation1Vertex::BulkType) == sizeof(FHairInterpolation1Vertex));
+	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type));
+
 	Interpolation0.BulkSerialize(Ar);
 	Interpolation1.BulkSerialize(Ar);
 	SimRootPointIndex.BulkSerialize(Ar);
@@ -179,6 +171,11 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 
 void FHairStrandsBulkData::Serialize(FArchive& Ar)
 {
+	static_assert(sizeof(FHairStrandsPositionFormat::BulkType) == sizeof(FHairStrandsPositionFormat::Type));
+	static_assert(sizeof(FHairStrandsAttributeFormat::BulkType) == sizeof(FHairStrandsAttributeFormat::Type));
+	static_assert(sizeof(FHairStrandsMaterialFormat::BulkType) == sizeof(FHairStrandsMaterialFormat::Type));
+	static_assert(sizeof(FHairStrandsRootIndexFormat::BulkType) == sizeof(FHairStrandsRootIndexFormat::Type)); 
+
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
