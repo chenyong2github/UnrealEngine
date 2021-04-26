@@ -72,7 +72,7 @@ namespace RCPresetRebindingManager
 
 	TArray<UClass*> GetRelevantClassesForObject(const TArray<UClass*>& InClasses, UObject* InObject)
 	{
-		return InClasses.FilterByPredicate([&InObject](UClass* InClass) { return InObject->IsA(InClass); });
+		return InClasses.FilterByPredicate([&InObject](UClass* InClass) { return InClass && InObject->IsA(InClass); });
 	};
 
 	/**

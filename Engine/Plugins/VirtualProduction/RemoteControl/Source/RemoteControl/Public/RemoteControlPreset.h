@@ -850,16 +850,16 @@ private:
 	/** Delegate triggered when an exposed actor's property is modified. */
 	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
 
-	struct FPreObjectModifiedCache
+	struct FPreObjectsModifiedCache
 	{
-		UObject* Object;
+		TArray<UObject*> Objects;
 		FProperty* Property;
 		FProperty* MemberProperty;
 	};
 
 	/** Caches object modifications during a frame. */
-	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
-	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedActorCache;
+	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedCache;
+	TMap<FGuid, FPreObjectsModifiedCache> PreObjectsModifiedActorCache;
 	/** Cache entities updated during a frame. */
 	TSet<FGuid> PerFrameUpdatedEntities; 
 
