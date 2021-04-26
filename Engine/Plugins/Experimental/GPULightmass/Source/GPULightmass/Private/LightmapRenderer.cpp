@@ -13,7 +13,6 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Async/ParallelFor.h"
 #include "Async/Async.h"
-#include "Rendering/SkyLightImportanceSampling.h"
 #include "LightmapPreviewVirtualTexture.h"
 #include "RHIGPUReadback.h"
 #include "LightmapStorage.h"
@@ -2078,9 +2077,6 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingCDFX"));
 								RayGuidingCDFY = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[7], TEXT("RayGuidingCDFY"));
 							}
-
-							// These two buffers must have lifetime extended beyond GraphBuilder.Execute()
-							TUniformBufferRef<FSkyLightData> SkyLightDataUniformBuffer;
 
 							FIntPoint RayTracingResolution;
 							RayTracingResolution.X = GPreviewLightmapPhysicalTileSize * GPUBatchedTileRequests.BatchedTilesDesc.Num();

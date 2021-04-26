@@ -17,4 +17,4 @@ class FRDGBuilder;
 class FScene;
 class FViewInfo;
 
-bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, bool IsSkylightCachingEnabled, FPathTracingSkylight* SkylightParameters);
+bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters);

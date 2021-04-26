@@ -25,12 +25,6 @@ StructuredBuffer<FSkyLightVisibilityRays> SkyLightVisibilityRays;
 #include "../HairStrands/HairStrandsRaytracing.ush"
 #endif
 
-// Evaluates the radiance for the current sky light in a given direction
-float3 EvaluateSkyLightRadiance(float3 Direction)
-{
-	return SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, Direction, 0).rgb;
-}
-
 // Evaluates the current sky light at a given location on a surface by integrating over the sky light via casting occlusion rays
 // SampleCoord - Used for accessing the decoupled visibility ray buffer and should reflect some sort of uniformly distributed 2d coordinate to properly importance sample from the sky light. If bGBufferSampleOrigin is true this must be
 //               the pixel location of the g-buffer sample for proper camera ray bias and depth reconstruction.
@@ -58,15 +52,6 @@ void SkyLightEvaluate(
 	inout float AmbientOcclusion,
 	inout float HitDistance)
 {
-	float FaceCdf[7];
-
-	if (!bDecoupleSampleGeneration)
-	{
-		// Cache Cubeface CDF
-		const uint MipCount = log2(SkyLight.MipDimensions.x);
-		BuildFaceCdf(MipCount, FaceCdf);
-	}
-
 	float3 CurrentWorldNormal = WorldNormal;
 	float RayDistance = 0.0;
 	float HitCount = 0.0;
@@ -77,6 +62,9 @@ void SkyLightEvaluate(
 	DiffuseExitantRadiance = float3(0.0f, 0.0f, 0.0f);
 	AmbientOcclusion = 0.0f;
 	HitDistance = -1.0f;
+
+	// split samples between strategies unless the skylight pdf is 0 due to MIS compensation (which implies a constant map)
+	const float SkyLightSamplingStrategyPdf = SkyLight_Estimate() > 0 ? 0.5 : 0.0;
 
 	// Iterate up to the requested sample count
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
@@ -103,29 +91,38 @@ void SkyLightEvaluate(
 			RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SamplesPerPixel);
 
 			// Determine sky light or lambert ray
-			float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
+			float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 			// Generate a visibility ray for the current sample
-			float SkyLightSamplingStrategyPdf = 0.5;
-			float MisWeight = 1.0;
-			float RayPdf = 0.0;
+			float SkyLightPdf = 0;
+			float CosinePdf = 0;
 			BRANCH
 			if (RandSample.x < SkyLightSamplingStrategyPdf)
 			{
 				RandSample.x /= SkyLightSamplingStrategyPdf;
-				GenerateSkyLightOcclusionRay(FaceCdf, RandSample, Ray.Direction, RayPdf);
-				MisWeight = RayPdf / (SkyLightSamplingStrategyPdf * RayPdf + (1.0 - SkyLightSamplingStrategyPdf) * PdfCosineHemisphericalOcclusionRay(CurrentWorldNormal, Ray.Direction));
+
+				FSkyLightSample SkySample = SkyLight_SampleLight(RandSample);
+				Ray.Direction = SkySample.Direction;
+				SkyLightPdf = SkySample.Pdf;
+
+				CosinePdf = saturate(dot(CurrentWorldNormal, Ray.Direction)) / PI;
 			}
 			else
 			{
-				GenerateCosineHemisphericalOcclusionRay(CurrentWorldNormal, RandSample.yz, Ray.Direction, RayPdf);
-				MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(FaceCdf, Ray.Direction));
+				RandSample.x = (RandSample.x - SkyLightSamplingStrategyPdf) / (1.0 - SkyLightSamplingStrategyPdf);
+
+				float4 CosSample = CosineSampleHemisphere(RandSample, CurrentWorldNormal);
+				Ray.Direction = CosSample.xyz;
+				CosinePdf = CosSample.w;
+
+				SkyLightPdf = SkyLight_EvalLight(Ray.Direction).w;
 			}
 
 			Ray.Origin = WorldPosition;
 			Ray.TMin = 0.0;
 			Ray.TMax = SkyLight.MaxRayDistance;
-			RayWeight = MisWeight / RayPdf;
+			// MIS / pdf
+			RayWeight = 1.0 / lerp(CosinePdf, SkyLightPdf, SkyLightSamplingStrategyPdf);
 		}
 
 		// Recompute the current WorldNormal if lighting a hair fiber
@@ -216,7 +213,7 @@ void SkyLightEvaluate(
 				LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 			}
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
-			float3 IncomingRadiance = EvaluateSkyLightRadiance(Ray.Direction);
+			float3 IncomingRadiance = SkyLight_EvalLight(Ray.Direction).xyz;
 
 			ExitantRadiance += IncomingRadiance * Brdf * RayWeight;
 			float3 DiffuseThroughput = LightingSample.Diffuse;
