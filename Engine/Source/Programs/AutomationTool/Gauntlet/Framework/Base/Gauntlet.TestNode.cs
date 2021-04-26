@@ -24,6 +24,7 @@ namespace Gauntlet
 		WantRetry,
 		Cancelled,
 		TimedOut,
+		InsufficientDevices,
 	};
 
 	/// <summary>
