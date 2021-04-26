@@ -26,6 +26,10 @@ void FAnimNode_LayeredBoneBlend::Initialize_AnyThread(const FAnimationInitialize
 		{
 			BlendPoses[ChildIndex].Initialize(Context);
 		}
+		
+		// initialize mask weight now
+    	check (Context.AnimInstanceProxy->GetSkeleton());
+    	ReinitializeBoneBlendWeights(Context.AnimInstanceProxy->GetRequiredBones(), Context.AnimInstanceProxy->GetSkeleton());
 	}
 }
 
