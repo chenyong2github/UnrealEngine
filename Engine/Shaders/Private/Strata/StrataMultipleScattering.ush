@@ -42,7 +42,7 @@ float3 StrataEvaluateMultipleScatteringConductor(float3 F0, FStrataGGXLUTResult 
 	//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
 	
 	const float3 E_R = F0 * LUT.A_R + (1 - F0) * LUT.B_R;
-	const float3 Safe_E_R = max(1e-8f, 0.0f);	// the threshold making E_R safe is lower than any of the non-zero values in the current LUT
+	const float3 Safe_E_R = max(1e-8f, E_R);	// the threshold making E_R safe is lower than any of the non-zero values in the current LUT
 	return (1 + F0 * (1 - E_R) / Safe_E_R);
 }
 
