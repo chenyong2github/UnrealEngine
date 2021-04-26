@@ -14,10 +14,10 @@ enum class EMainTAAPassConfig : uint8
 	Disabled,
 
 	// Uses old UE4's Temporal AA maintained for Gen4 consoles
-	Gen4,
+	TAA,
 
-	// Uses Gen5 Temporal AA
-	Gen5,
+	// Uses Temporal Super Resolution
+	TSR,
 
 	// Uses third party View.Family->GetTemporalUpscalerInterface()
 	ThirdParty,

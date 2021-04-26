@@ -800,18 +800,18 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		EMainTAAPassConfig MainTAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
 
 		// Low quality is really bad with modern temporal upscalers.
-		bool bAllowLowQuality = MainTAAConfig == EMainTAAPassConfig::Disabled || MainTAAConfig == EMainTAAPassConfig::Gen4;
+		bool bAllowLowQuality = MainTAAConfig == EMainTAAPassConfig::Disabled || MainTAAConfig == EMainTAAPassConfig::TAA;
 		if (!bAllowLowQuality)
 		{
 			return EQuality::High;
 		}
 
 		// Quality is forced to high when the CVar is set to 'auto' and TAA is NOT enabled.
-		// Gen4 TAA improves quality through temporal filtering and clamping box, making it less necessary to use
+		// TAA improves quality through temporal filtering and clamping box, making it less necessary to use
 		// high quality mode.
 		if (QualityCVar == -1)
 		{
-			if (MainTAAConfig == EMainTAAPassConfig::Gen4)
+			if (MainTAAConfig == EMainTAAPassConfig::TAA)
 			{
 				return EQuality::Low;
 			}

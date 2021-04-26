@@ -1611,7 +1611,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		// through whether the velocity has been drawn by the base pass.
 		ViewUniformShaderParameters.ForceDrawAllVelocities = (
 			CVarBasePassForceOutputsVelocity.GetValueOnRenderThread() ||
-			MainTAAPass != EMainTAAPassConfig::Gen4);
+			MainTAAPass != EMainTAAPassConfig::TAA);
 	}
 
 	uint32 FrameIndex = 0;

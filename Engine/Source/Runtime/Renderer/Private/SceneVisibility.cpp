@@ -3289,7 +3289,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			// Compute number of TAA samples.
 			int32 TemporalAASamples;
 			{
-				if (TAAConfig == EMainTAAPassConfig::Gen5)
+				if (TAAConfig == EMainTAAPassConfig::TSR)
 				{
 					// Force the number of AA sample to make sure the quality doesn't get
 					// compromised by previously set settings for Gen4 TAA
@@ -3313,7 +3313,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 				// Use immediately higher prime number to break up coherence between the TAA jitter sequence and any
 				// other random signal that are power of two of View.StateFrameIndex
-				if (TAAConfig == EMainTAAPassConfig::Gen5)
+				if (TAAConfig == EMainTAAPassConfig::TSR)
 				{
 					static const int8 kFirstPrimeNumbers[25] = {
 						2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97,
