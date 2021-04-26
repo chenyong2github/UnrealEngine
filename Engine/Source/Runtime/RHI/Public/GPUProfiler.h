@@ -29,6 +29,20 @@ public:
 	{
 	}
 
+	FGPUProfilerEventNodeStats(const FGPUProfilerEventNodeStats& rhs)
+	{
+		NumDraws = rhs.NumDraws;
+		NumPrimitives = rhs.NumPrimitives;
+		NumVertices = rhs.NumVertices;
+		NumDispatches = rhs.NumDispatches;
+		NumTotalDispatches = rhs.NumTotalDispatches;
+		NumTotalDraws = rhs.NumDraws;
+		NumTotalPrimitives = rhs.NumPrimitives;
+		NumTotalVertices = rhs.NumVertices;
+		TimingResult = rhs.TimingResult;
+		NumEvents = rhs.NumEvents;
+	}
+
 	/** Exclusive number of draw calls rendered in this event. */
 	uint32 NumDraws;
 

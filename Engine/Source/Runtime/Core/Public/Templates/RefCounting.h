@@ -76,6 +76,8 @@ class CORE_API FRefCountedObject
 public:
 	FRefCountedObject(): NumRefs(0) {}
 	virtual ~FRefCountedObject() { check(!NumRefs); }
+	FRefCountedObject(const FRefCountedObject& Rhs) = delete;
+	FRefCountedObject& operator=(const FRefCountedObject& Rhs) = delete;
 	uint32 AddRef() const
 	{
 		return uint32(++NumRefs);
@@ -105,6 +107,8 @@ class CORE_API FThreadSafeRefCountedObject
 public:
 	FThreadSafeRefCountedObject() : NumRefs(0) {}
 	virtual ~FThreadSafeRefCountedObject() { check(NumRefs.GetValue() == 0); }
+	FThreadSafeRefCountedObject(const FThreadSafeRefCountedObject& Rhs) = delete;
+	FThreadSafeRefCountedObject& operator=(const FThreadSafeRefCountedObject& Rhs) = delete;
 	uint32 AddRef() const
 	{
 		return uint32(NumRefs.Increment());

@@ -344,7 +344,9 @@ public:
 	};
 #endif // WITH_EDITORONLY_DATA
 
-	RENDERCORE_API ~FShaderMapResourceCode();
+	RENDERCORE_API FShaderMapResourceCode() {}
+	RENDERCORE_API FShaderMapResourceCode(const FShaderMapResourceCode& Other);
+    RENDERCORE_API ~FShaderMapResourceCode();
 
 	RENDERCORE_API void Finalize();
 

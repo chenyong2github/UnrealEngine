@@ -150,6 +150,18 @@ static void RemoveResourceStats(FShaderMapResourceCode& Resource)
 #endif // STATS
 }
 
+FShaderMapResourceCode::FShaderMapResourceCode(const FShaderMapResourceCode& Other)
+{
+	ResourceHash = Other.ResourceHash;
+	ShaderHashes = Other.ShaderHashes;
+	ShaderEntries = Other.ShaderEntries;
+
+#if WITH_EDITORONLY_DATA
+	PlatformDebugData = Other.PlatformDebugData;
+	PlatformDebugDataHashes = Other.PlatformDebugDataHashes;
+#endif // WITH_EDITORONLY_DATA
+}
+
 FShaderMapResourceCode::~FShaderMapResourceCode()
 {
 	RemoveResourceStats(*this);
@@ -424,6 +436,8 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 
 TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 ShaderIndex)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResource_InlineCode::CreateRHIShader);
+
 	// we can't have this called on the wrong platform's shaders
 	if (!ArePlatformsCompatible(GMaxRHIShaderPlatform, GetPlatform()))
 	{
