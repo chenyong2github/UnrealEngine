@@ -1212,6 +1212,7 @@ void SMaterialLayersFunctionsInstanceTree::RemoveLayer(int32 Index)
 	const FScopedTransaction Transaction(LOCTEXT("RemoveLayerAndBlend", "Remove a Layer and the attached Blend"));
 	FunctionInstanceHandle->NotifyPreChange();
 	FunctionInstance->RemoveBlendedLayerAt(Index);
+	MaterialEditorInstance->SourceInstance->RemoveLayerParameterIndex(Index);
 	FunctionInstanceHandle->NotifyPostChange();
 	CreateGroupsWidget();
 	RequestTreeRefresh();

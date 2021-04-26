@@ -594,6 +594,7 @@ public:
 	ENGINE_API void UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext = nullptr);
 
 	ENGINE_API void SwapLayerParameterIndices(int32 OriginalIndex, int32 NewIndex);
+	ENGINE_API void RemoveLayerParameterIndex(int32 Index);
 
 #endif // WITH_EDITOR
 
