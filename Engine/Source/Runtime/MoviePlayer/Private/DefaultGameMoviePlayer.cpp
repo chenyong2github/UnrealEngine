@@ -420,7 +420,7 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 {
 	const bool bEnforceMinimumTime = LoadingScreenAttributes.MinimumLoadingScreenDisplayTime >= 0.0f;
 
-	if (LoadingScreenIsPrepared() && ( IsMovieCurrentlyPlaying() || !bEnforceMinimumTime ) )
+	if (LoadingScreenIsPrepared() && IsMovieCurrentlyPlaying())
 	{
 	
 		if (SyncMechanism)
