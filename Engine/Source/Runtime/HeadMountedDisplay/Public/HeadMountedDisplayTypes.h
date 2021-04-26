@@ -8,6 +8,7 @@
 #include "RHI.h"
 #include "RHIResources.h"
 #include "InputCoreTypes.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "HeadMountedDisplayTypes.generated.h"
 
 struct FFilterVertex;
@@ -269,6 +270,22 @@ enum class EHandKeypoint : uint8
 };
 
 const int32 EHandKeypointCount = static_cast<int32>(EHandKeypoint::LittleTip) + 1;
+
+UCLASS()
+class HEADMOUNTEDDISPLAY_API UHandKeypointConversion : public UBlueprintFunctionLibrary
+{
+	GENERATED_BODY()
+
+public:
+	// Convert EHandKeypoint to int to use directly as indices in FXRMotionControllerData arrays.
+
+	/** Interpret a HandKeypoint as an int input */
+	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (CompactNodeTitle = "->", BlueprintAutocast))
+	static int32 Conv_HandKeypointToInt32(EHandKeypoint input)
+	{
+		return static_cast<int32>(input);
+	}
+};
 
 UENUM(BlueprintType)
 enum class EXRVisualType : uint8
