@@ -3129,12 +3129,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				ContextName = FString::Printf(TEXT("Context.%s."), *TranslationStages[i].PassNamespace);
 			}
 
-			HlslOutput += TEXT("\t\tif (bValid)\n\t\t{\n");
-
 			if (bRequiresPersistentIDs && !TranslationStages[i].bPartialParticleUpdate)
 			{
-				HlslOutput += FString::Printf(TEXT("\t\t\tUpdateID(0, %sParticles.ID.Index, WriteIndex);\n"), *ContextName);
+				HlslOutput += FString::Printf(TEXT("\t\tUpdateID(0, bValid ? %sParticles.ID.Index : -1, WriteIndex);\n"), *ContextName);
 			}
+
+			HlslOutput += TEXT("\t\tif (bValid)\n\t\t{\n");
 
 			for (int32 DataSetIndex = 0, IntCounter = 0, FloatCounter = 0, HalfCounter = 0; DataSetIndex < DataSetWrites.Num(); ++DataSetIndex)
 			{

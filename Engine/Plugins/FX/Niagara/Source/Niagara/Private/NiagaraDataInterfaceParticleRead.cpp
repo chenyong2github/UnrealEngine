@@ -47,6 +47,8 @@ static const FName GetColorByIndexFunctionName("Get Color By Index");
 static const FName GetQuatByIndexFunctionName("Get Quaternion By Index");
 static const FName GetIDByIndexFunctionName("Get ID By Index");
 
+static const FName GetParticleIndexFromIDTableName("Get Particle Index From ID Table");
+
 static const FName ParticleReadIDName(TEXT("ID"));
 
 static const FString NumSpawnedParticlesBaseName(TEXT("NumSpawnedParticles_"));
@@ -765,6 +767,21 @@ void UNiagaraDataInterfaceParticleRead::GetPersistentIDFunctions(TArray<FNiagara
 		OutFunctions.Add(Sig);
 	}
 
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = GetParticleIndexFromIDTableName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Particle Reader")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("ID Table Index")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Valid")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Particle Index")));
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bExperimental = true;
+#if WITH_EDITORONLY_DATA
+		Sig.Description = NSLOCTEXT("Niagara", "NiagaraDataInterfaceParticleRead_GetParticleIndexFromIDTable", "Returns the particle index from the ID table, or -1 if that index or particle is not valid.\nThe ID to Index table is guaranteed to give a stable particle index over a range should the source emitter only ever spawn and not kill particles.");
+#endif
+	}
+
 	//
 	// Get attribute by ID
 	//
@@ -1091,6 +1108,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetNumSpawnedPa
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetSpawnedIDAtIndex);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetNumParticles);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetParticleIndex);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetParticleIndexFromIDTable);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadInt);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadBool);
 DEFINE_NDI_DIRECT_FUNC_BINDER_WITH_PAYLOAD(UNiagaraDataInterfaceParticleRead, ReadFloat);
@@ -1141,6 +1159,12 @@ void UNiagaraDataInterfaceParticleRead::GetVMExternalFunction(const FVMExternalF
 	if (BindingInfo.Name == GetParticleIndexFunctionName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetParticleIndex)::Bind(this, OutFunc);
+		return;
+	}
+
+	if (BindingInfo.Name == GetParticleIndexFromIDTableName)
+	{
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceParticleRead, GetParticleIndexFromIDTable)::Bind(this, OutFunc);
 		return;
 	}
 
@@ -1390,6 +1414,44 @@ void UNiagaraDataInterfaceParticleRead::GetParticleIndex(FVectorVMContext& Conte
 		}
 
 		*OutIndex.GetDestAndAdvance() = ParticleIndex;
+	}
+}
+
+void UNiagaraDataInterfaceParticleRead::GetParticleIndexFromIDTable(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIParticleRead_InstanceData> InstData(Context);
+	FNDIInputParam<int32> InIDTableIndex(Context);
+	FNDIOutputParam<bool> OutValid(Context);
+	FNDIOutputParam<int32> OutParticleIndex(Context);
+
+	const FNiagaraEmitterInstance* EmitterInstance = InstData.Get()->EmitterInstance;
+	const FNiagaraDataBuffer* CurrentData = EmitterInstance ? EmitterInstance->GetData().GetCurrentData() : nullptr;
+
+	if ( !CurrentData )
+	{
+		for ( int32 i=0; i < Context.NumInstances; ++i )
+		{
+			OutValid.SetAndAdvance(false);
+			OutParticleIndex.SetAndAdvance(INDEX_NONE);
+		}
+		return;
+	}
+
+	const TArray<int32>& IDTable = CurrentData->GetIDTable();
+	for (int32 i = 0; i < Context.NumInstances; ++i)
+	{
+		const int32 IDTableIndex = InIDTableIndex.GetAndAdvance();
+		if ( IDTable.IsValidIndex(IDTableIndex) )
+		{
+			const int32 ParticleIndex = IDTable[IDTableIndex];
+			OutValid.SetAndAdvance(ParticleIndex != INDEX_NONE);
+			OutParticleIndex.SetAndAdvance(ParticleIndex);
+		}
+		else
+		{
+			OutValid.SetAndAdvance(false);
+			OutParticleIndex.SetAndAdvance(INDEX_NONE);
+		}
 	}
 }
 
@@ -1975,6 +2037,25 @@ bool UNiagaraDataInterfaceParticleRead::GetFunctionHLSL(const FNiagaraDataInterf
 		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
 		return true;
 	}
+
+	if (FunctionInfo.DefinitionName == GetParticleIndexFromIDTableName)
+	{
+		static const TCHAR* FuncTemplate = TEXT(
+			"void {FunctionName}(int IDTableIndex, out bool bValid, out int ParticleIndex)\n"
+			"{\n"
+			"    ParticleIndex = (IDTableIndex >= 0) ? {IDToIndexTableName}[IDTableIndex] : -1;\n"
+			"    bValid = (IDTableIndex >= 0) && (ParticleIndex != -1);\n"
+			"}\n\n"
+		);
+
+		TMap<FString, FStringFormatArg> FuncTemplateArgs;
+		FuncTemplateArgs.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
+		FuncTemplateArgs.Add(TEXT("IDToIndexTableName"), IDToIndexTableBaseName + ParamInfo.DataInterfaceHLSLSymbol);
+
+		OutHLSL += FString::Format(FuncTemplate, FuncTemplateArgs);
+		return true;
+	}
+
 
 	//
 	// Get attribute by ID
