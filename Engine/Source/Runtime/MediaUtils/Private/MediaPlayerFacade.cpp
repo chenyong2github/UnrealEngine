@@ -1213,15 +1213,6 @@ const TRange<FMediaTimeStamp> & FMediaPlayerFacade::FBlockOnRange::GetRange() co
 		return BlockOnRange;
 	}
 
-	EMediaState PlayerState = CurrentPlayer->GetControls().GetState();
-	if (PlayerState != EMediaState::Paused && PlayerState != EMediaState::Playing)
-	{
-		// Return an empty range. Note that the "isSet()" method will still report a set block - so all code will remain in "external clock" mode,
-		// but no samples will be requested (and no actual blocking should take place)
-		static auto EmptyRange(TRange<FMediaTimeStamp>::Empty());
-		return EmptyRange;
-	}
-
 	FTimespan Duration(CurrentPlayer->GetControls().GetDuration());
 	FTimespan Start(CurrentTimeRange.GetLowerBoundValue());
 	FTimespan End(CurrentTimeRange.GetUpperBoundValue());
