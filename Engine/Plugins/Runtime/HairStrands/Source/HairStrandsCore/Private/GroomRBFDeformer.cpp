@@ -396,16 +396,19 @@ static void ApplyDeformationToGroom(const TArray<FRBFDeformedPositions>& Deforme
 				FHairGroupInfo& HairGroupsInfo = GroomAsset->HairGroupsInfo[GroupIndex];
 				FHairGroupData& HairGroupsData = GroomAsset->HairGroupsData[GroupIndex];
 
-				FGroomBuilder::BuildData(HairGroup, GroomAsset->HairGroupsInterpolation[GroupIndex], HairGroupsInfo, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data);
+				FHairStrandsDatas StrandsData;
+				FHairStrandsDatas GuidesData;
+				FGroomBuilder::BuildData(HairGroup, GroomAsset->HairGroupsInterpolation[GroupIndex], HairGroupsInfo, StrandsData, GuidesData);
+				//GroomAsset->GetHairStrandsDatas(GroupIndex, StrandsData, GuidesData);
 
-				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Guides.Data,  HairGroupsData.Guides.BulkData);
-				FGroomBuilder::BuildBulkData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Strands.BulkData);
+				FGroomBuilder::BuildBulkData(HairGroup.Info, GuidesData,  HairGroupsData.Guides.BulkData);
+				FGroomBuilder::BuildBulkData(HairGroup.Info, StrandsData, HairGroupsData.Strands.BulkData);
 
 				FHairStrandsInterpolationDatas StrandsInterpolationData;
-				FGroomBuilder::BuildInterplationData(HairGroup.Info, HairGroupsData.Strands.Data, HairGroupsData.Guides.Data, InterpolationSettings, StrandsInterpolationData);
-				FGroomBuilder::BuildInterplationBulkData(HairGroupsData.Guides.Data, StrandsInterpolationData, HairGroupsData.Strands.InterpolationBulkData);
+				FGroomBuilder::BuildInterplationData(HairGroup.Info, StrandsData, GuidesData, InterpolationSettings, StrandsInterpolationData);
+				FGroomBuilder::BuildInterplationBulkData(GuidesData, StrandsInterpolationData, HairGroupsData.Strands.InterpolationBulkData);
 
-				FGroomBuilder::BuildClusterData(HairGroupsData.Strands.Data, HairDescriptionGroups.BoundRadius, HairGroupLOD, HairGroupsData.Strands.ClusterCullingData);
+				FGroomBuilder::BuildClusterData(StrandsData, HairDescriptionGroups.BoundRadius, HairGroupLOD, HairGroupsData.Strands.ClusterCullingData);
 			}
 		}
 	}
@@ -521,6 +524,11 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			const FHairStrandsDatas& OriginalGuides = Group.Guides;
 			const FHairGroupData& HairGroupData = InGroomAsset->HairGroupsData[GroupIndex];
 
+			FHairStrandsDatas StrandsData;
+			FHairStrandsDatas GuidesData;
+			FHairGroupInfo DummyInfo;
+			FGroomBuilder::BuildData(Group, InGroomAsset->HairGroupsInterpolation[GroupIndex], DummyInfo, StrandsData, GuidesData);
+
 			// Get deformed guides
 			// If the groom override the value, we output dummy value for the guides, since they won't be used
 			if (InGroomAsset->HairGroupsInterpolation[GroupIndex].InterpolationSettings.bOverrideGuides)
@@ -532,7 +540,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			{
 				DeformedPositions[GroupIndex].GuideStrands = GetDeformedHairStrandsPositions(
 					MeshVertexPositionsBuffer_Target,
-					HairGroupData.Guides.Data,
+					GuidesData,
 					MeshLODIndex,
 					SkeletalMeshData_Target,
 					BindingAsset->HairGroupDatas[GroupIndex].SimRootData.VertexToCurveIndexBuffer,
@@ -542,7 +550,7 @@ void FGroomRBFDeformer::GetRBFDeformedGroomAsset(const UGroomAsset* InGroomAsset
 			// Get deformed render strands
 			DeformedPositions[GroupIndex].RenderStrands = GetDeformedHairStrandsPositions(
 				MeshVertexPositionsBuffer_Target,
-				HairGroupData.Strands.Data,
+				StrandsData,
 				MeshLODIndex,
 				SkeletalMeshData_Target,
 				BindingAsset->HairGroupDatas[GroupIndex].RenRootData.VertexToCurveIndexBuffer,

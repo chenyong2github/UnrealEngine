@@ -177,37 +177,6 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 	Ar << SimRootPointIndex;
 }
 
-void FHairStrandsPoints::Serialize(FArchive& Ar)
-{
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-
-	Ar << PointsPosition;
-	Ar << PointsRadius;
-	Ar << PointsCoordU;
-
-	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
-	{
-		Ar << PointsBaseColor;
-		Ar << PointsRoughness;
-	}
-	else
-	{
-		const uint32 ElementCount = PointsPosition.Num();
-		PointsBaseColor.InsertZeroed(0, ElementCount);
-		PointsRoughness.InsertZeroed(0, ElementCount);
-	}
-}
-
-void FHairStrandsCurves::Serialize(FArchive& Ar)
-{
-	Ar << CurvesCount;
-	Ar << CurvesOffset;
-	Ar << CurvesLength;
-	Ar << CurvesRootUV;
-	Ar << MaxLength;
-	Ar << MaxRadius;
-}
-
 void FHairStrandsBulkData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
@@ -217,25 +186,13 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar)
 	Ar << Attributes;
 	Ar << Materials;
 	Ar << CurveOffsets;
-}
 
-void FHairStrandsDatas::Serialize(FArchive& Ar, FHairStrandsBulkData& BulkData)
-{
-	StrandsPoints.Serialize(Ar);
-	StrandsCurves.Serialize(Ar);
-	Ar << HairDensity;
+	Ar << CurveCount;
+	Ar << PointCount;
+	Ar << MaxLength;
+	Ar << MaxRadius;
 	Ar << BoundingBox;
 
-	BulkData.Serialize(Ar);
-
-	if (Ar.IsLoading())
-	{
-		BulkData.CurveCount = StrandsCurves.Num();
-		BulkData.PointCount = StrandsPoints.Num();
-		BulkData.MaxLength  = StrandsCurves.MaxLength;
-		BulkData.MaxRadius  = StrandsCurves.MaxRadius;
-		BulkData.BoundingBox= BoundingBox;
-	}
 }
 
 void FHairStrandsDatas::Reset()

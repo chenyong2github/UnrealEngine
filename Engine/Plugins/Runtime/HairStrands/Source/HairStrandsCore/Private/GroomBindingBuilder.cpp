@@ -1835,13 +1835,18 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	UGroomBindingAsset::FHairGroupDatas& OutHairGroupDatas = BindingAsset->HairGroupDatas;
 	OutHairGroupDatas.Empty();
 
+	uint32 GroupIndex = 0;
 	TArray<uint32> NumSamples;
 	NumSamples.Init(NumInterpolationPoints, MeshLODCount);
 	for (const FHairGroupData& GroupData : GroomAsset->HairGroupsData)
 	{
+		FHairStrandsDatas StrandsData;
+		FHairStrandsDatas GuidesData;
+		GroomAsset->GetHairStrandsDatas(GroupIndex, StrandsData, GuidesData);
+
 		UGroomBindingAsset::FHairGroupData& Data = OutHairGroupDatas.AddDefaulted_GetRef();
-		Data.RenRootData = FHairStrandsRootData(&GroupData.Strands.Data, MeshLODCount, NumSamples);
-		Data.SimRootData = FHairStrandsRootData(&GroupData.Guides.Data, MeshLODCount, NumSamples);
+		Data.RenRootData = FHairStrandsRootData(&StrandsData, MeshLODCount, NumSamples);
+		Data.SimRootData = FHairStrandsRootData(&GuidesData, MeshLODCount, NumSamples);
 
 		const uint32 CardsLODCount = GroupData.Cards.LODs.Num();
 		Data.CardsRootData.SetNum(GroupData.Cards.LODs.Num());
@@ -1849,9 +1854,13 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		{
 			if (GroupData.Cards.IsValid(CardsLODIt))
 			{
-				Data.CardsRootData[CardsLODIt] = FHairStrandsRootData(&GroupData.Cards.LODs[CardsLODIt].Guides.Data, MeshLODCount, NumSamples);
+				FHairStrandsDatas LODGuidesData;
+				const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(GroupIndex, CardsLODIt, LODGuidesData);
+				check(bIsValid);
+				Data.CardsRootData[CardsLODIt] = FHairStrandsRootData(&LODGuidesData, MeshLODCount, NumSamples);
 			}
 		}
+		++GroupIndex;
 	}
 
 	UGroomBindingAsset::FHairGroupResources& OutHairGroupResources = BindingAsset->HairGroupResources;
@@ -1910,8 +1919,12 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	bool bSucceed = false;
 	for (uint32 GroupIt=0; GroupIt < GroupCount; ++GroupIt)
 	{
+		FHairStrandsDatas StrandsData;
+		FHairStrandsDatas GuidesData;
+		GroomAsset->GetHairStrandsDatas(GroupIt, StrandsData, GuidesData);
+
 		bSucceed = GroomBinding_RootProjection::Project(
-			BindingAsset->Groom->HairGroupsData[GroupIt].Strands.Data,
+			StrandsData,
 			TargetMeshData.Get(),
 			TransferredPositions,
 			BindingAsset->HairGroupDatas[GroupIt].RenRootData);
@@ -1924,7 +1937,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		SlowTask.EnterProgressFrame();
 
 		bSucceed = GroomBinding_RootProjection::Project(
-			BindingAsset->Groom->HairGroupsData[GroupIt].Guides.Data,
+			GuidesData,
 			TargetMeshData.Get(),
 			TransferredPositions,
 			BindingAsset->HairGroupDatas[GroupIt].SimRootData);
@@ -1941,11 +1954,16 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 		{
 			if (BindingAsset->Groom->HairGroupsData[GroupIt].Cards.IsValid(CardsLODIt))
 			{
+				FHairStrandsDatas LODGuidesData;
+				const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(GroupIt, CardsLODIt, LODGuidesData);
+				check(bIsValid);
+				
 				bSucceed = GroomBinding_RootProjection::Project(
-					BindingAsset->Groom->HairGroupsData[GroupIt].Cards.LODs[CardsLODIt].Guides.Data,
+					LODGuidesData,
 					TargetMeshData.Get(),
 					TransferredPositions,
 					BindingAsset->HairGroupDatas[GroupIt].CardsRootData[CardsLODIt]);
+
 				if (!bSucceed) 
 				{
 					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. Some cards guide roots are not close enough to the target mesh to be projected onto it."));

@@ -3927,12 +3927,11 @@ FString GetVersion()
 }
 
 void BuildGeometry(
-	const FHairStrandsDatas& InRen,
-	const FHairStrandsDatas& InSim,
+	const FBox& InBox,
 	FHairMeshesBulkData& OutBulk)
 {
-	const FVector Center = InRen.BoundingBox.GetCenter();
-	const FVector Extent = InRen.BoundingBox.GetExtent();
+	const FVector Center = InBox.GetCenter();
+	const FVector Extent = InBox.GetExtent();
 
 	// Simple (incorrect normal/tangent) cube geomtry in place of the hair rendering
 	const uint32 TotalPointCount = 8;

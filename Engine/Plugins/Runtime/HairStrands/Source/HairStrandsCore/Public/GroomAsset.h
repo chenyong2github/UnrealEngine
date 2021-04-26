@@ -81,7 +81,6 @@ struct HAIRSTRANDSCORE_API FHairGroupData
 		bool IsValid() const			{ return RestResource != nullptr; }
 		const FBox& GetBounds() const	{ return BulkData.GetBounds(); }
 
-		FHairStrandsDatas					Data;
 		FHairStrandsBulkData				BulkData;
 		FHairStrandsRestResource*			RestResource = nullptr;
 	};
@@ -514,6 +513,10 @@ public:
 	/** Commits a HairDescription to buffer for serialization */
 	void CommitHairDescription(FHairDescription&& HairDescription);
 	FHairDescription GetHairDescription() const;
+
+	/** Get/Build render & guides data based on the hair description and interpolation settings */
+	bool GetHairStrandsDatas(const int32 GroupIndex, FHairStrandsDatas& OutStrandsData, FHairStrandsDatas& OutGuidesData);
+	bool GetHairCardsGuidesDatas(const int32 GroupIndex, const int32 LODIndex, FHairStrandsDatas& OutCardsGuidesData);
 
 	/** Caches the computed (group) groom data with the given build settings from/to the Derived Data Cache, building it if needed.
 	 *  This function assumes the interpolation settings are properly populated, as they will be used to build the asset.

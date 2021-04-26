@@ -525,8 +525,12 @@ void UE::GroomQueries::ProcessHairCurves(AGroomActor* GroomActor,
 		//int32 NumCurves = GroupInfo.NumCurves;
 		//int32 NumGuides = GroupInfo.NumGuides;
 
+		FHairStrandsDatas StrandsData;
+		FHairStrandsDatas GuidesData;
+		Asset->GetHairStrandsDatas(GroupIdx, StrandsData, GuidesData);
+
 		//const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GroupData.HairSimulationData : GroupData.HairRenderData;
-		const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GroupData.Guides.Data : GroupData.Strands.Data;
+		const FHairStrandsDatas& GroupStrandData = (bUseGuides) ? GuidesData : StrandsData;
 
 		const FHairStrandsPoints& GroupStrandPoints = GroupStrandData.StrandsPoints;
 		const TArray<FVector>& Positions = GroupStrandPoints.PointsPosition;

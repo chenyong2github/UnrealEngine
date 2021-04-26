@@ -258,9 +258,15 @@ static void InternalBuildFollicleTexture_CPU(const TArray<FFollicleInfo>& InInfo
 			case FFollicleInfo::A: Channel = 3; break;
 		}
 
+		uint32 GroupIndex = 0;
 		for (const FHairGroupData& HairGroupData : Info.GroomAsset->HairGroupsData)
 		{
-			RasterToTexture(Resolution.X, Info.KernelSizeInPixels, Channel, HairGroupData.Strands.Data, Pixels);
+			FHairStrandsDatas StrandsData;
+			FHairStrandsDatas GuidesData;
+			Info.GroomAsset->GetHairStrandsDatas(GroupIndex, StrandsData, GuidesData);
+
+			RasterToTexture(Resolution.X, Info.KernelSizeInPixels, Channel, StrandsData, Pixels);
+			++GroupIndex;
 		}
 	}
 	OutTexture->Source.UnlockMip(0);
@@ -297,10 +303,15 @@ static void InternalBuildFollicleTexture_GPU(
 		}
 
 		// Create root UVs buffer
+		uint32 GroupIndex = 0;
 		for (const FHairGroupData& GroupData : Info.GroomAsset->HairGroupsData)
 		{
-			GroupData.Strands.Data.StrandsCurves.CurvesRootUV.GetData();
-			const uint32 DataCount = GroupData.Strands.Data.StrandsCurves.CurvesRootUV.Num();
+			FHairStrandsDatas StrandsData;
+			FHairStrandsDatas GuidesData;
+			Info.GroomAsset->GetHairStrandsDatas(GroupIndex, StrandsData, GuidesData);
+
+			StrandsData.StrandsCurves.CurvesRootUV.GetData();
+			const uint32 DataCount = StrandsData.StrandsCurves.CurvesRootUV.Num();
 			const uint32 DataSizeInBytes = sizeof(FVector2D) * DataCount;
 			check(DataSizeInBytes != 0);
 
@@ -309,10 +320,12 @@ static void InternalBuildFollicleTexture_GPU(
 				GraphBuilder, 
 				TEXT("RootUVBuffer"),
 				Desc,
-				GroupData.Strands.Data.StrandsCurves.CurvesRootUV.GetData(),
+				StrandsData.StrandsCurves.CurvesRootUV.GetData(),
 				DataSizeInBytes,
 				ERDGInitialDataFlags::None);
 			RootUVBuffers[Info.Channel].Add(RootBuffer);
+
+			GroupIndex++;
 		}
 	}
 

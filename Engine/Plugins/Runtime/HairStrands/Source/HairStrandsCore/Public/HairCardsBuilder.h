@@ -54,8 +54,7 @@ namespace FHairCardsBuilder
 namespace FHairMeshesBuilder
 {
 	void BuildGeometry(
-		const struct FHairStrandsDatas& In,
-		const struct FHairStrandsDatas& InSim,
+		const FBox& InBox,
 		FHairMeshesBulkData& OutBulk);
 
 	void ImportGeometry(

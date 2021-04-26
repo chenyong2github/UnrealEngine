@@ -296,9 +296,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsInterpolationBulkData
 /** Hair strands points attribute */
 struct HAIRSTRANDSCORE_API FHairStrandsPoints
 {
-	/** Serialize the points */
-	void Serialize(FArchive& Ar);
-
 	/** Set the number of points */
 	void SetNum(const uint32 NumPoints);
 
@@ -327,9 +324,6 @@ struct HAIRSTRANDSCORE_API FHairStrandsPoints
 /** Hair strands Curves attribute */
 struct HAIRSTRANDSCORE_API FHairStrandsCurves
 {
-	/** Serialize the curves */
-	void Serialize(FArchive& Ar);
-
 	/** Set the number of Curves */
 	void SetNum(const uint32 NumPoints);
 
@@ -369,9 +363,6 @@ struct FHairStrandsBulkData;
 /** Hair strands datas that are stored on CPU */
 struct HAIRSTRANDSCORE_API FHairStrandsDatas
 {
-	/** Serialize all the hair strands datas */
-	void Serialize(FArchive& Ar, FHairStrandsBulkData& BulkData);
-
 	/* Get the total number of points */
 	uint32 GetNumPoints() const { return StrandsPoints.Num(); }
 
