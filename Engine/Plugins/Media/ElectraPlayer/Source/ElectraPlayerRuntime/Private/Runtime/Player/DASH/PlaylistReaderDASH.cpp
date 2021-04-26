@@ -14,8 +14,11 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
+#include "Player/AdaptiveStreamingPlayerEvents.h"
 #include "Player/PlayerEntityCache.h"
 #include "Player/DASH/OptionKeynamesDASH.h"
+#include "Player/DASH/PlayerEventDASH.h"
+#include "Player/DASH/PlayerEventDASH_Internal.h"
 
 #include "Misc/DateTime.h"
 
@@ -34,7 +37,7 @@ namespace Electra
 /**
  * This class is responsible for downloading a DASH MPD and parsing it.
  */
-class FPlaylistReaderDASH : public TSharedFromThis<FPlaylistReaderDASH, ESPMode::ThreadSafe>, public IPlaylistReaderDASH, public FMediaThread
+class FPlaylistReaderDASH : public TSharedFromThis<FPlaylistReaderDASH, ESPMode::ThreadSafe>, public IPlaylistReaderDASH, public IAdaptiveStreamingPlayerAEMSReceiver, public FMediaThread
 {
 public:
 	FPlaylistReaderDASH();
@@ -51,11 +54,15 @@ public:
 	virtual FString GetURL() const override;
 	virtual TSharedPtrTS<IManifest> GetManifest() override;
 	virtual void AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& RemoteElementLoadRequests) override;
-	virtual void RequestMPDUpdate(bool bForcedUpdate) override;
+	virtual void RequestMPDUpdate(EMPDRequestType InRequestType) override;
 	virtual TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() override
 	{
 		return Manifest;
 	}
+	virtual void SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents) override;
+
+
+	virtual void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override;
 
 private:
 	using FResourceLoadRequestPtr = TSharedPtrTS<FMPDLoadRequestDASH>;
@@ -94,6 +101,7 @@ private:
 	void Timesync_httphead_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
 	void Timesync_httpxsdate_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
 	void Timesync_httpiso_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
+	void Callback_Completed(FResourceLoadRequestPtr Request, bool bSuccess);
 
 	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MPDURL;
@@ -110,13 +118,18 @@ private:
 	FTimeValue												NextMPDUpdateTime;
 	FTimeValue												MostRecentMPDUpdateTime;
 	bool													bIsMPDUpdateInProgress = false;
-	enum class EUpdateRequestType
+	struct FMPDUpdateRequest
 	{
-		None,
-		Regular,
-		Forced
+		IPlaylistReaderDASH::EMPDRequestType Type = IPlaylistReaderDASH::EMPDRequestType::MinimumUpdatePeriod;
+		FString	PublishTime;
+		FString	PeriodId;
+		FTimeValue ValidUntil;
+		FTimeValue NewDuration;
+		FString NewMPD;
 	};
-	EUpdateRequestType										UpdateRequested = EUpdateRequestType::None;
+	TArray<TSharedPtrTS<FMPDUpdateRequest>>					UpdateRequested;
+
+	bool													bInbandEventByStreamType[3] { false, false, false };
 
 	TUniquePtr<IManifestBuilderDASH>						Builder;
 
@@ -136,18 +149,6 @@ private:
 };
 
 
-namespace DASHTimingSources
-{
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_httphead2014 = TEXT("urn:mpeg:dash:utc:http-head:2014");
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpxsdate2014 = TEXT("urn:mpeg:dash:utc:http-xsdate:2014");
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpiso2014 = TEXT("urn:mpeg:dash:utc:http-iso:2014");
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_direct2014 = TEXT("urn:mpeg:dash:utc:direct:2014");
-/* not currently supported
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_httpntp2014 = TEXT("urn:mpeg:dash:utc:http-ntp:2014");
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_ntp2014 = TEXT("urn:mpeg:dash:utc:ntp:2014");
-    const TCHAR* const Scheme_urn_mpeg_dash_utc_sntp2014 = TEXT("urn:mpeg:dash:utc:sntp:2014");
-*/
-};
 
 
 /***************************************************************************************************************************************************/
@@ -271,36 +272,148 @@ void FPlaylistReaderDASH::LoadAndParse(const FString& URL)
 
 void FPlaylistReaderDASH::CheckForMPDUpdate()
 {
+	// Get the time now and do not pass it in from the worker thread as the clock could have been
+	// resynchronized to the server time in the meantime.
+	FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+
 	RequestsLock.Lock();
-	FTimeValue Next = NextMPDUpdateTime;
 	bool bRequestNow = false;
-	bool bIsForced = false;
-	if (UpdateRequested == EUpdateRequestType::Forced)
+	bool bTimedRequestAdded = false;
+
+	// Check if the time to update the MPD through the MPD@minimumUpdatePeriod has come.
+	if (NextMPDUpdateTime.IsValid())
 	{
-		bIsForced = true;
-		Next.SetToZero();
-	}
-	else if (UpdateRequested == EUpdateRequestType::Regular)
-	{
-		if (!Next.IsValid())
-		{
-			Next.SetToZero();
-		}
-	}
-	if (!bIsMPDUpdateInProgress && Next.IsValid())
-	{
-		// Get the time now and do not pass it in from the worker thread as the clock could have been
-		// resynchronized to the server time in the meantime.
-		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		// Limit the frequency of the updates.
 		bool bIsPossible = !MostRecentMPDUpdateTime.IsValid() || Now - MostRecentMPDUpdateTime > MinTimeBetweenUpdates;
-		if (Next < Now && bIsPossible)
+		if (NextMPDUpdateTime < Now && bIsPossible)
 		{
-			bRequestNow = true;
+			// When it's time to do the update add a request to the request queue. This gets handled
+			// right away next thing. Doing it that way means we can put the handling into one spot.
 			NextMPDUpdateTime.SetToInvalid();
+			TSharedPtrTS<FMPDUpdateRequest> Request = MakeSharedTS<FMPDUpdateRequest>();
+			Request->Type = IPlaylistReaderDASH::EMPDRequestType::MinimumUpdatePeriod;
+			UpdateRequested.Emplace(MoveTemp(Request));
+			bTimedRequestAdded = true;
 		}
 	}
-	UpdateRequested = EUpdateRequestType::None;
+
+	// Go over all currently pending update requests.
+	while(UpdateRequested.Num())
+	{
+		TSharedPtrTS<FMPDUpdateRequest> Request = UpdateRequested[0];
+		UpdateRequested.RemoveAt(0);
+		if (Request->Type == IPlaylistReaderDASH::EMPDRequestType::MinimumUpdatePeriod ||
+			Request->Type == IPlaylistReaderDASH::EMPDRequestType::GetLatestSegment)
+		{
+			// If the request to update is because we need the latest segment and there is currently
+			// no MPD update by time we ask for one with the next check.
+			if (Request->Type == IPlaylistReaderDASH::EMPDRequestType::GetLatestSegment)
+			{
+				if (!bTimedRequestAdded && !NextMPDUpdateTime.IsValid())
+				{
+					NextMPDUpdateTime.SetToZero();
+				}
+				continue;
+			}
+
+			if (!bIsMPDUpdateInProgress)
+			{
+				bRequestNow = true;
+				/*
+					If there is any stream receiving inband events we do not load the MPD through
+					expiration of time. The events have sole control and responsibility here.
+
+					Note: The expectation at the moment is that inband MPD event streams are only
+						  used with Live streams and are carried in the audio stream instead of
+						  each and every video stream. This here being the worker thread to
+						  refresh the MPD and downloading remote entities (index segments, xlink
+						  elements and such) it has no immediate knowledge which streams are
+						  actively used in the playing session and whether these are carrying
+						  inband event streams or not. Instead it relies on the segment downloader
+						  to tell it if a particular type of stream (video, audio, etc.) is
+						  using inband events as each segment is downloaded.
+						  Meaning that if a stream type stops downloading (ie it reaching its end)
+						  it cannot clear this flag and we assume we are still receiving events
+						  from it. Hence the expectation this is used with Live streams that
+						  just do not end and keep running.
+						  In addition this is only done when MPD@minimumUpdatePeriod is zero
+						  as per DASH-IF-IOP v4.3 Setion 4.5.
+				*/
+				FTimeValue mup = Manifest.IsValid() && Manifest->GetMPDRoot().IsValid() ? Manifest->GetMPDRoot()->GetMinimumUpdatePeriod() : FTimeValue::GetInvalid();
+				// check video and audio only
+				if ((bInbandEventByStreamType[0] || bInbandEventByStreamType[1]) && mup == FTimeValue::GetZero())
+				{
+					bRequestNow = false;
+				}
+			}
+		}
+		else if (Request->Type == IPlaylistReaderDASH::EMPDRequestType::EventMessage)
+		{
+			// Unconditional update?
+			if (Request->PublishTime.IsEmpty() && !Request->NewDuration.IsValid() && !Request->ValidUntil.IsValid())
+			{
+				// Note: We could check the publish time against the current MPD's publish time to see if the event
+				//       still applies, but that seem superfluous considering we're only reloading the MPD.
+				bRequestNow = true;
+			}
+			else
+			{
+				// Does this terminate the presentation at a specified time?
+				if (Request->ValidUntil.IsValid() && Request->NewDuration.IsValid())
+				{
+					bool bEventApplies = true;
+
+					if (Manifest.IsValid())
+					{
+						// Have to check the event publish time against the current MPD publish time to see if the event still applies
+						// to the current MPD.
+						TSharedPtrTS<const FDashMPD_MPDType> MPDRoot = Manifest->GetMPDRoot();
+						FTimeValue CurrentPUBT = MPDRoot.IsValid() ? MPDRoot->GetPublishTime() : FTimeValue::GetInvalid();
+						FTimeValue EventPUBT;
+						ISO8601::ParseDateTime(EventPUBT, Request->PublishTime);
+						// We take it that if neither PUBT is valid the event is still to be used.
+						// Only if the times are given and the event PUBT has already passed we ignore the event.
+						if (CurrentPUBT.IsValid() && EventPUBT.IsValid() && CurrentPUBT > EventPUBT)
+						{
+							bEventApplies = false;
+						}
+						if (bEventApplies)
+						{
+							Manifest->EndPresentationAt(Request->ValidUntil + Request->NewDuration, Request->PeriodId);
+						}
+					}
+					if (bEventApplies)
+					{
+						// Set internal times such that no MPD reloads will trigger based on time.
+						NextMPDUpdateTime.SetToPositiveInfinity();
+						MostRecentMPDUpdateTime.SetToPositiveInfinity();
+						// Clear out all current requests.
+						bRequestNow = false;
+						UpdateRequested.Empty();
+						// Send a fake update message to the player to have it evaluate the media timeline again.
+						PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(FErrorDetail(), nullptr, Playlist::EListType::Master, Playlist::ELoadType::Update));
+					}
+				}
+				else
+				{
+					// The event could provide a new MPD to be used. This case is not supported yet though.
+					if (!Request->NewMPD.IsEmpty())
+					{
+						// Something to implement in the future.
+						LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("DASH events providing a new MPD are not supported yet. Triggering an MPD reload instead.")));
+					}
+					// Just trigger an MPD reload instead.
+					// This is also where we a failed segment download of a segment with an inband event will arrive.
+					bRequestNow = true;
+				}
+			}
+		}
+		else
+		{
+			check(!"Unhandled update type");
+		}
+	}
+
 	RequestsLock.Unlock();
 	if (bRequestNow)
 	{
@@ -427,16 +540,30 @@ void FPlaylistReaderDASH::AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoa
 	}
 }
 
-void FPlaylistReaderDASH::RequestMPDUpdate(bool bForcedUpdate)
+void FPlaylistReaderDASH::RequestMPDUpdate(IPlaylistReaderDASH::EMPDRequestType InRequestType)
 {
+	// This method must not be used with event messages since it does not have all the required values.
+	check(InRequestType != 	IPlaylistReaderDASH::EMPDRequestType::EventMessage);
+
+	TSharedPtrTS<FMPDUpdateRequest> Request = MakeSharedTS<FMPDUpdateRequest>();
+	Request->Type = InRequestType;
+
 	FScopeLock lock(&RequestsLock);
-	if (bForcedUpdate)
+	UpdateRequested.Emplace(MoveTemp(Request));
+}
+
+void FPlaylistReaderDASH::SetStreamInbandEventUsage(EStreamType InStreamType, bool bUsesInbandDASHEvents)
+{
+	switch(InStreamType)
 	{
-		UpdateRequested = EUpdateRequestType::Forced;
-	}
-	else if (UpdateRequested == EUpdateRequestType::None)
-	{
-		UpdateRequested = EUpdateRequestType::Regular;
+		case EStreamType::Video: 
+			bInbandEventByStreamType[0] = bUsesInbandDASHEvents; 
+			break;
+		case EStreamType::Audio: 
+			bInbandEventByStreamType[1] = bUsesInbandDASHEvents; 
+			break;
+		default:
+			break;
 	}
 }
 
@@ -476,7 +603,7 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 			*/
 			for(int32 i=0; i<UTCTimings.Num(); ++i)
 			{
-				if (UTCTimings[i]->GetSchemeIdUri().Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
+				if (UTCTimings[i]->GetSchemeIdUri().Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_direct2014))
 				{
 					FTimeValue DirectTime;
 					if (ISO8601::ParseDateTime(DirectTime, UTCTimings[i]->GetValue()) == UEMEDIA_ERROR_OK)
@@ -513,21 +640,21 @@ void FPlaylistReaderDASH::TriggerTimeSynchronization()
 
 				TSharedPtrTS<FMPDLoadRequestDASH> TimeSyncRequest;
 				// Check for supported schemes. They appear in the manifest in the order the author has prioritized them.
-				if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
+				if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpxsdate2014))
 				{
 					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
 					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
 					TimeSyncRequest->URL = GetRequestURL(Value, 0);
 					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpxsdate_Completed);
 				}
-				else if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014))
+				else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httpiso2014))
 				{
 					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
 					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
 					TimeSyncRequest->URL = GetRequestURL(Value, 0);
 					TimeSyncRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Timesync_httpiso_Completed);
 				}
-				else if (SchemeIdUri.Equals(DASHTimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
+				else if (SchemeIdUri.Equals(DASH::Schemes::TimingSources::Scheme_urn_mpeg_dash_utc_httphead2014))
 				{
 					TimeSyncRequest = MakeSharedTS<FMPDLoadRequestDASH>();
 					TimeSyncRequest->LoadType = FMPDLoadRequestDASH::ELoadType::TimeSync;
@@ -574,6 +701,15 @@ void FPlaylistReaderDASH::WorkerThread()
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MPDReaderDASH_Worker);
 
+	bInbandEventByStreamType[0] = false;
+	bInbandEventByStreamType[1] = false;
+	bInbandEventByStreamType[2] = false;
+
+	// Register event callbacks
+	PlayerSessionServices->GetAEMSEventHandler()->AddAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart, false);
+	PlayerSessionServices->GetAEMSEventHandler()->AddAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_callback_2015, TEXT("1"), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart, false);
+	PlayerSessionServices->GetAEMSEventHandler()->AddAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_ttfn_2016, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart, false);
+
 	// Get the minimum MPD update time limit.
 	MinTimeBetweenUpdates = PlayerSessionServices->GetOptions().GetValue(DASH::OptionKey_MinTimeBetweenMPDUpdates).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000));
 
@@ -603,6 +739,11 @@ void FPlaylistReaderDASH::WorkerThread()
 		// Check if the MPD must be updated.
 		CheckForMPDUpdate();
 	}
+
+	// Unregister event callbacks
+	PlayerSessionServices->GetAEMSEventHandler()->RemoveAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_ttfn_2016, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
+	PlayerSessionServices->GetAEMSEventHandler()->RemoveAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_callback_2015, TEXT("1"), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
+	PlayerSessionServices->GetAEMSEventHandler()->RemoveAEMSReceiver(AsShared(), DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012, TEXT(""), IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode::OnStart);
 
 	// Cleanup!
 	RequestsLock.Lock();
@@ -928,7 +1069,6 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 				ETag = ConnInfo->ResponseHeaders[i].Value;
 			}
 		}
-		MostRecentMPDUpdateTime = FetchTime;
 
 		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
 
@@ -938,7 +1078,7 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		{
 			Builder.Reset(IManifestBuilderDASH::Create(PlayerSessionServices));
 			TSharedPtrTS<FManifestDASHInternal> NewManifest;
-			LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, FetchTime, ETag);
+			LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, ETag);
 			if (LastErrorDetail.IsOK() || LastErrorDetail.IsTryAgain())
 			{
 				if (NewManifest.IsValid())
@@ -947,16 +1087,27 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 					TArray<FURL_RFC3986::FQueryParam> URLFragmentComponents;
 					FURL_RFC3986::GetQueryParams(URLFragmentComponents, Fragment, false);	// The fragment is already URL escaped, so no need to do it again.
 					NewManifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
-					// If the URL has a special fragment part to turn this presentation into an event, do so.
-					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
-					NewManifest->TransformIntoEpicEvent();
 				}
 				Manifest = NewManifest;
 				TriggerTimeSynchronization();
+				if (Manifest.IsValid())
+				{
+					// Note: This is not like the standard defines FetchTime. It should be the time the server is processing the request
+					//       but we can't know this. Also if there is a direct <UTCTiming> element in the MPD it may be different from
+					//       what our local clock is set to at the moment. So instead we set FetchTime to NOW.
+					FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+					Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
+					MostRecentMPDUpdateTime = FetchTime;
+
+					// If the URL has a special fragment part to turn this presentation into an event, do so.
+					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
+					Manifest->TransformIntoEpicEvent();
+				}
+
 				PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
 
 				// Check if the MPD defines an @minimumUpdatePeriod
-				FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+				FTimeValue mup = Manifest.IsValid() ? Manifest->GetMinimumUpdatePeriod() : FTimeValue::GetInvalid();
 				// If the update time is zero then updates happen just in time when segments are required or through
 				// an inband event stream. Either way, we do not need to update periodically.
 				if (mup.IsValid() && mup > FTimeValue::GetZero())
@@ -1025,7 +1176,9 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 		FString EffectiveURL;
 		FTimeValue FetchTime;
 		EffectiveURL = ConnInfo->EffectiveURL;
-		FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
+		// See above why we use NOW for FetchTime.
+		//FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
+		FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 		for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 		{
 			if (ConnInfo->ResponseHeaders[i].Header.Equals(TEXT("ETag")))
@@ -1060,7 +1213,7 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 			if (LastErrorDetail.IsOK())
 			{
 				TSharedPtrTS<FManifestDASHInternal> NewManifest;
-				LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, FetchTime, ETag);
+				LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, ETag);
 				if (LastErrorDetail.IsOK() || LastErrorDetail.IsTryAgain())
 				{
 					// Copy over the initial document URL fragments.
@@ -1075,9 +1228,14 @@ void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPt
 					PlayerManifest->UpdateInternalManifest(Manifest);
 
 					TriggerTimeSynchronization();
+					if (Manifest.IsValid())
+					{
+						Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
+						MostRecentMPDUpdateTime = FetchTime;
+					}
 
 					// Check if the new MPD also defines an @minimumUpdatePeriod
-					FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+					FTimeValue mup = Manifest.IsValid() ? Manifest->GetMinimumUpdatePeriod() : FTimeValue::GetInvalid();
 					if (mup.IsValid() && mup > FTimeValue::GetZero())
 					{
 						if (mup.GetAsMilliseconds() < 1000)
@@ -1186,13 +1344,19 @@ void FPlaylistReaderDASH::Timesync_httpxsdate_Completed(FResourceLoadRequestPtr 
 		FString Response;
 		if (GetResponseString(Response, Request).IsOK())
 		{
-			FTimeValue DirectTime;
+			FTimeValue NewTime;
 			// Note: Yes, this is a bit weird, but the xs:dateTime format is actually exactly the same as ISO-8601
 			//       so it is not clear why there is a distinction made in the UTCTiming scheme.
 			//       We keep the different callback handlers here though for completeness sake.
-			if (ISO8601::ParseDateTime(DirectTime, Response) == UEMEDIA_ERROR_OK)
+			if (ISO8601::ParseDateTime(NewTime, Response) == UEMEDIA_ERROR_OK)
 			{
-				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
+			}
+			// If parsing failed then maybe the response is just a number (possibly with frational digits) giving the
+			// current Unix epoch time.
+			else if (UnixEpoch::ParseFloatString(NewTime, Response))
+			{
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
 			}
 		}
 	}
@@ -1208,10 +1372,10 @@ void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Req
 		FString Response;
 		if (GetResponseString(Response, Request).IsOK())
 		{
-			FTimeValue DirectTime;
-			if (ISO8601::ParseDateTime(DirectTime, Response) == UEMEDIA_ERROR_OK)
+			FTimeValue NewTime;
+			if (ISO8601::ParseDateTime(NewTime, Response) == UEMEDIA_ERROR_OK)
 			{
-				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DirectTime);
+				PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(NewTime);
 			}
 		}
 	}
@@ -1219,6 +1383,80 @@ void FPlaylistReaderDASH::Timesync_httpiso_Completed(FResourceLoadRequestPtr Req
 	AttemptedTimesyncDescriptors.Empty();
 	bTimeSyncInProgress = false;
 }
+
+void FPlaylistReaderDASH::OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)
+{
+	if (InEvent->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_2012))
+	{
+		// This cast is safe because we only exist when the format is DASH and the events must therefore be of that type.
+		const DASH::FPlayerEvent* DASHEvent = static_cast<const DASH::FPlayerEvent*>(InEvent.Get());
+		FString EventPeriodId = DASHEvent->GetPeriodID();
+
+		// ISO/IEC 23009-1:2019 Section 5.10.4 DASH-specific events
+		if (InEvent->GetOrigin() == IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream)
+		{
+			// For an MPD triggered event there is no point in including a patch or a full MPD.
+			// If either was already available when the current MPD was generated the MPD could
+			// have already included the changes. As such we only handle value 1 here which
+			// sets a validity expiration, which for an event coming from the MPD means to just
+			// fetch a new MPD now.
+			if (InEvent->GetValue().Equals(TEXT("1")))
+			{
+				// Add a new MPD update event. Set EventMessage for type but leave the other fields empty.
+				TSharedPtrTS<FMPDUpdateRequest> Request = MakeSharedTS<FMPDUpdateRequest>();
+				Request->Type = IPlaylistReaderDASH::EMPDRequestType::EventMessage;
+				Request->PeriodId = EventPeriodId;
+				FScopeLock lock(&RequestsLock);
+				UpdateRequested.Emplace(MoveTemp(Request));
+			}
+		}
+		else if (InEvent->GetOrigin() == IAdaptiveStreamingPlayerAEMSEvent::EOrigin::InbandEventStream)
+		{
+			// An inband event needs more consideration.
+			TSharedPtrTS<FMPDUpdateRequest> Request = MakeSharedTS<FMPDUpdateRequest>();
+			Request->Type = IPlaylistReaderDASH::EMPDRequestType::EventMessage;
+			Request->PeriodId = EventPeriodId;
+			Request->ValidUntil = InEvent->GetPresentationTime();
+			Request->NewDuration = InEvent->GetDuration();
+			int32 NULPos = INDEX_NONE;
+			if (InEvent->GetMessageData().Num() && InEvent->GetMessageData().Find(0, NULPos))
+			{
+				Request->PublishTime = StringHelpers::ArrayToString(TArray<uint8>(InEvent->GetMessageData().GetData(), NULPos));
+				FString NewMPD;
+				if (InEvent->GetValue().Equals(TEXT("3")))
+				{
+					Request->NewMPD = StringHelpers::ArrayToString(TArray<uint8>(InEvent->GetMessageData().GetData() + NULPos + 1, InEvent->GetMessageData().Num() - NULPos - 1));
+				}
+			}
+			FScopeLock lock(&RequestsLock);
+			UpdateRequested.Emplace(MoveTemp(Request));
+		}
+	}
+	else if (InEvent->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_callback_2015))
+	{
+		FString URL = StringHelpers::ArrayToString(InEvent->GetMessageData());
+		if (!URL.IsEmpty())
+		{
+			TSharedPtrTS<FMPDLoadRequestDASH> CallbackRequest;
+			CallbackRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+			CallbackRequest->LoadType = FMPDLoadRequestDASH::ELoadType::Callback;
+			CallbackRequest->URL = URL;
+			CallbackRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::Callback_Completed);
+			EnqueueResourceRequest(MoveTemp(CallbackRequest));
+		}
+	}
+	else if (InEvent->GetSchemeIdUri().Equals(DASH::Schemes::ManifestEvents::Scheme_urn_mpeg_dash_event_ttfn_2016))
+	{
+		// TBD
+	}
+}
+
+void FPlaylistReaderDASH::Callback_Completed(FResourceLoadRequestPtr Request, bool bSuccess)
+{
+	// Callback responses are ignored.
+}
+
+
 
 } // namespace Electra
 

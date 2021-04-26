@@ -27,12 +27,11 @@ public:
 	 * @param OutMPD
 	 * @param InOutMPDXML
 	 * @param EffectiveURL
-	 * @param FetchTime
 	 * @param ETag
 	 *
 	 * @return
 	 */
-	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag) = 0;
+	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FString& ETag) = 0;
 };
 
 

@@ -158,6 +158,8 @@ namespace Electra
 
 		virtual int32 GetNumberOfSegmentIndices() const = 0;
 
+		virtual int32 GetNumberOfEventMessages() const = 0;
+
 		class ITrackIterator
 		{
 		public:
@@ -259,6 +261,22 @@ namespace Electra
 			virtual const FEntry& GetEntry(int32 Index) const = 0;
 		};
 
+		class IEventMessage
+		{
+		public:
+			virtual ~IEventMessage() = default;
+			virtual int32 GetVersion() const = 0;
+			virtual const FString& GetSchemeIdUri() const = 0;
+			virtual const FString& GetValue() const = 0;
+			virtual uint32 GetTimescale() const = 0;
+			virtual uint32 GetPresentationTimeDelta() const = 0;
+			virtual uint64 GetPresentationTime() const = 0;
+			virtual uint32 GetEventDuration() const = 0;
+			virtual uint32 GetID() const = 0;
+			virtual const TArray<uint8>& GetMessageData() const = 0;
+		};
+
+
 		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const = 0;
 
 		virtual const ITrack* GetTrackByIndex(int32 Index) const = 0;
@@ -266,6 +284,7 @@ namespace Electra
 
 		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const = 0;
 
+		virtual const IEventMessage* GetEventMessageByIndex(int32 Index) const = 0;
 	};
 
 } // namespace Electra

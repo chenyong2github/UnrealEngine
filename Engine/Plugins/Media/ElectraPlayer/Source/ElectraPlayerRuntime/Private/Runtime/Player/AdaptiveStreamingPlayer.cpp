@@ -78,6 +78,9 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	// Create the render clock
 	RenderClock = MakeSharedTS<FMediaRenderClock>();
 
+	// Create the AEMS handler. This is needed early on for the client to register receivers on.
+	AEMSEventHandler = IAdaptiveStreamingPlayerAEMSHandler::Create();
+
 	bShouldBePaused  = false;
 	bShouldBePlaying = false;
 	bSeekPending	 = false;
@@ -118,6 +121,8 @@ FAdaptiveStreamingPlayer::~FAdaptiveStreamingPlayer()
 
 	RenderClock.Reset();
 	delete SynchronizedUTCTime;
+
+	delete AEMSEventHandler;
 
 	Electra::RemoveActivePlayerInstance();
 }
@@ -221,6 +226,15 @@ void FAdaptiveStreamingPlayer::RemoveMetricsReceiver(IAdaptiveStreamingPlayerMet
 	}
 }
 
+void FAdaptiveStreamingPlayer::AddAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)
+{
+	AEMSEventHandler->AddAEMSReceiver(InReceiver, InForSchemeIdUri, InForValue, InDispatchMode, true);
+}
+
+void FAdaptiveStreamingPlayer::RemoveAEMSReceiver(TWeakPtrTS<IAdaptiveStreamingPlayerAEMSReceiver> InReceiver, FString InForSchemeIdUri, FString InForValue, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode)
+{
+	AEMSEventHandler->RemoveAEMSReceiver(InReceiver, InForSchemeIdUri, InForValue, InDispatchMode);
+}
 
 
 //-----------------------------------------------------------------------------
@@ -809,6 +823,11 @@ TSharedPtrTS<IPlayerEntityCache> FAdaptiveStreamingPlayer::GetEntityCache()
 	return EntityCache;
 }
 
+IAdaptiveStreamingPlayerAEMSHandler* FAdaptiveStreamingPlayer::GetAEMSEventHandler()
+{
+	return AEMSEventHandler;
+}
+
 FParamDict& FAdaptiveStreamingPlayer::GetOptions()
 {
 	return PlayerOptions;
@@ -1328,6 +1347,8 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 			HandlePendingMediaSegmentRequests();
 			// Handle changes in metadata, like timeline changes or track availability.
 			HandleMetadataChanges();
+			// Handle AEMS events
+			HandleAEMSEvents();
 			// Handle buffer level changes
 			HandleNewBufferedData();
 			// Handle new output data (finish prerolling)
@@ -1436,12 +1457,25 @@ void FAdaptiveStreamingPlayer::HandleMetadataChanges()
 						}
 					}
 					
+					// Inform AEMS handler of the period transition.
+					AEMSEventHandler->PlaybackPeriodTransition(UpcomingPeriods[i].ID, UpcomingPeriods[i].TimeRange);
+
 					// Remove it and continue with the next.
 					UpcomingPeriods.RemoveAt(i);
 					++i;
 				}
 			}
 		}
+	}
+}
+
+
+void FAdaptiveStreamingPlayer::HandleAEMSEvents()
+{
+	if (CurrentState == EPlayerState::eState_Playing)
+	{
+		FTimeValue Current = GetCurrentPlayTime();
+		AEMSEventHandler->ExecutePendingEvents(Current);
 	}
 }
 
@@ -2434,6 +2468,9 @@ void FAdaptiveStreamingPlayer::AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPe
 			// Shift the time range by the current loop state.
 			Next.TimeRange.Start += CurrentLoopState.LoopBasetime;
 			Next.TimeRange.End += CurrentLoopState.LoopBasetime;
+			// Tell the AEMS handler that a new period will be coming up. It needs this information to cut overlapping events.
+			AEMSEventHandler->NewUpcomingPeriod(Next.ID, Next.TimeRange);
+
 			UpcomingPeriods.Emplace(MoveTemp(Next));
 		}
 	}
@@ -2971,6 +3008,9 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	}
 	bFirstSegmentRequestIsForLooping = false;
 
+	// Let the AEMS handler know that we are starting up.
+	AEMSEventHandler->PlaybackStartingUp();
+
 	return true;
 }
 
@@ -2985,6 +3025,8 @@ void FAdaptiveStreamingPlayer::InternalSetPlaybackEnded()
 	DispatchEvent(FMetricEvent::ReportPlaybackEnded());
 	// In case a seek back into the stream will happen we reset the first start state.
 	PrerollVars.bIsVeryFirstStart = true;
+	// Let the AEMS handler know as well.
+	AEMSEventHandler->PlaybackReachedEnd(GetCurrentPlayTime());
 }
 
 
@@ -3111,6 +3153,9 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	// Flush the renderers again, this time to discard everything the decoders may have emitted while being flushed.
 	AudioRender.Flush();
 	VideoRender.Flush(bHoldCurrentFrame);
+
+	// Flush dynamic events from the AEMS handler.
+	AEMSEventHandler->FlushDynamic();
 }
 
 
@@ -3155,6 +3200,8 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	CurrentLoopState.Reset();
 	NextLoopStates.Clear();
 
+	// Flush all events from the AEMS handler
+	AEMSEventHandler->FlushEverything();
 
 	// Clear error state.
 	LastErrorDetail.Clear();

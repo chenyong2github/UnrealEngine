@@ -25,5 +25,10 @@ namespace Electra
 		bool ParseNPTTime(FTimeValue& OutTimeValue, const FString& NPTtime);
 	}
 
+	namespace UnixEpoch
+	{
+		bool ParseFloatString(FTimeValue& OutTimeValue, const FString& Seconds);
+	}
+
 } // namespace Electra
 

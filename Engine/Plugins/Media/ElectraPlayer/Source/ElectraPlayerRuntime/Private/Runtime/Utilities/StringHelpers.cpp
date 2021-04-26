@@ -121,6 +121,24 @@ namespace Electra
 			return FPlatformString::Strncmp(s1, s2, n) == 0; 
 		}
 
+		void StringToArray(TArray<uint8>& OutArray, const FString& InString)
+		{
+			FTCHARToUTF8 cnv(*InString);
+			int32 Len = cnv.Length();
+			OutArray.AddUninitialized(Len);
+			FMemory::Memcpy(OutArray.GetData(), cnv.Get(), Len);
+		}
+
+		FString ArrayToString(const TArray<uint8>& InArray)
+		{
+			FUTF8ToTCHAR cnv((const ANSICHAR*)InArray.GetData(), InArray.Num());
+			FString UTF8Text(cnv.Length(), cnv.Get());
+			//return (TCHAR*)FUTF8ToTCHAR((const ANSICHAR*)InArray.GetData(), InArray.Num()).Get();
+			//FString UTF8Text(InArray.Num(), (TCHAR*)FUTF8ToTCHAR((const ANSICHAR*)InArray.GetData(), InArray.Num()).Get());
+			return MoveTemp(UTF8Text);
+		}
+
+
 	} // namespace StringHelpers
 } // namespace Electra
 

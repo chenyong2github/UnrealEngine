@@ -9,6 +9,7 @@
 #include "Player/PlayerEntityCache.h"
 #include "Player/DASH/OptionKeynamesDASH.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"
+#include "Player/DASH/PlayerEventDASH.h"
 
 #include "ManifestBuilderDASH.h"
 #include "ManifestParserDASH.h"
@@ -689,7 +690,7 @@ public:
 	FManifestBuilderDASH(IPlayerSessionServices* InPlayerSessionServices);
 	virtual ~FManifestBuilderDASH() = default;
 	
-	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag) override;
+	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FString& ETag) override;
 
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHMPDBuilder);
@@ -711,7 +712,7 @@ FManifestBuilderDASH::FManifestBuilderDASH(IPlayerSessionServices* InPlayerSessi
 {
 }
 
-FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag)
+FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FString& ETag)
 {
 	TSharedPtrTS<FDashMPD_MPDType> NewMPD;
 	TArray<TWeakPtrTS<IDashMPDElement>> XLinkElements;
@@ -728,7 +729,6 @@ FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHIntern
 	}
 	NewMPD = RootEntities.MPDs[0];
 	NewMPD->SetDocumentURL(EffectiveURL);
-	NewMPD->SetFetchTime(FetchTime);
 	NewMPD->SetETag(ETag);
 
 	// Check if this MPD uses a profile we can handle. (If our array is empty we claim to handle anything)
@@ -1177,6 +1177,13 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 		Periods.Emplace(MoveTemp(p));
 	}
 
+	// As per ISO/IEC 23009-1:2019/DAM 1 "Change 2: Event Stream and Timed Metadata Processing" Section A.11.11 Detailed processing
+	// all events from MPD EventStreams are to be collected right now.
+	for(int32 i=0; i<Periods.Num(); ++i)
+	{
+		SendEventsFromAllPeriodEventStreams(Periods[i]);
+	}
+
 	return Error;
 }
 
@@ -1542,6 +1549,63 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 
 
 
+void FManifestDASHInternal::SendEventsFromAllPeriodEventStreams(TSharedPtrTS<FPeriod> InPeriod)
+{
+	check(InPeriod.IsValid());
+	TSharedPtrTS<FDashMPD_PeriodType> MPDPeriod = InPeriod->Period.Pin();
+	if (MPDPeriod.IsValid())
+	{
+		FTimeValue PeriodTimeOffset = GetAnchorTime() + InPeriod->GetStart();
+		// Iterate of all the period event streams. We expect them to have been xlink resolved already.
+		const TArray<TSharedPtrTS<FDashMPD_EventStreamType>>& MPDEventStreams = MPDPeriod->GetEventStreams();
+		for(int32 nEvS=0; nEvS<MPDEventStreams.Num(); ++nEvS)
+		{
+			const TSharedPtrTS<FDashMPD_EventStreamType>& EvS = MPDEventStreams[nEvS];
+			uint32 Timescale = EvS->GetTimescale().GetWithDefault(1);
+			int64 PTO = (int64) EvS->GetPresentationTimeOffset().GetWithDefault(0);
+			
+			const TArray<TSharedPtrTS<FDashMPD_EventType>>& Events = EvS->GetEvents();
+			for(int32 i=0; i<Events.Num(); ++i)
+			{
+				const TSharedPtrTS<FDashMPD_EventType>& Event = Events[i];
+				TSharedPtrTS<DASH::FPlayerEvent> NewEvent = MakeSharedTS<DASH::FPlayerEvent>();
+				NewEvent->SetOrigin(IAdaptiveStreamingPlayerAEMSEvent::EOrigin::EventStream);
+				NewEvent->SetSchemeIdUri(EvS->GetSchemeIdUri());
+				NewEvent->SetValue(EvS->GetValue());
+				if (Event->GetID().IsSet())
+				{
+					NewEvent->SetID(LexToString(Event->GetID().Value()));
+				}
+				FTimeValue PTS((int64)Event->GetPresentationTime() - PTO, Timescale);
+				PTS += PeriodTimeOffset;
+				NewEvent->SetPresentationTime(PTS);
+				if (Event->GetDuration().IsSet())
+				{
+					NewEvent->SetDuration(FTimeValue((int64)Event->GetDuration().Value(), Timescale));
+				}
+				FString Data = Event->GetData();
+				if (Data.IsEmpty())
+				{
+					Data = Event->GetMessageData();
+				}
+				// If the data is still empty then there could have been an entire XML element tree which we have parsed.
+				// We could reconstruct the XML from it here and pass that along, but for now we do not do this.
+				/*
+					if (Data.IsEmpty())
+					{
+					}
+				*/
+				NewEvent->SetMessageData(Data, Event->GetContentEncoding().Equals(TEXT("base64")));
+				NewEvent->SetPeriodID(InPeriod->GetUniqueIdentifier());
+				// Add the event to the handler.
+				PlayerSessionServices->GetAEMSEventHandler()->AddEvent(NewEvent, InPeriod->GetID(), IAdaptiveStreamingPlayerAEMSHandler::EEventAddMode::UpdateIfExists);
+			}
+		}
+	}
+}
+
+
+
 /**
  * Resolves an xlink request made by the initial load of the MPD.
  */
@@ -1834,7 +1898,10 @@ FTimeValue FManifestDASHInternal::GetLastPeriodEndTime() const
 	}
 
 	FTimeValue End = ast + MediaPresentationDuration;
-	if (MPDRoot->GetMinimumUpdatePeriod().IsValid())
+	// If MUP is zero then it is expected that InbandEventStream is used to signal when to update the MPD.
+	// Since the MPD will not update through MUP in this case we need to return that the period goes up
+	// to mediaPresentationDuration, in this case infinity.
+	if (MPDRoot->GetMinimumUpdatePeriod().IsValid() && MPDRoot->GetMinimumUpdatePeriod() > FTimeValue::GetZero())
 	{
 		FTimeValue CheckTime = FetchTime + MPDRoot->GetMinimumUpdatePeriod();
 		return CheckTime < End ? CheckTime : End;
@@ -1982,6 +2049,32 @@ FTimeValue FManifestDASHInternal::GetDuration() const
 		return FTimeValue::GetPositiveInfinity();
 	}
 }
+
+
+void FManifestDASHInternal::EndPresentationAt(const FTimeValue& EndsAt, const FString& InPeriod)
+{
+	TSharedPtrTS<FPeriod> Period;
+	if (InPeriod.IsEmpty() && Periods.Num())
+	{
+		Period = Periods.Last();
+	}
+	else
+	{
+		Period = GetPeriodByUniqueID(InPeriod);
+	}
+	if (Period.IsValid())
+	{
+		Period->EndPresentationAt(EndsAt - GetAnchorTime());
+	}
+	// Updates no longer expected.
+	MPDRoot->SetMinimumUpdatePeriod(FTimeValue::GetInvalid());
+	if (Periods.Num())
+	{
+		FTimeValue NewDuration = EndsAt - (GetAnchorTime() + Periods[0]->GetStart());
+		MPDRoot->SetMediaPresentationDuration(NewDuration);
+	}
+}
+
 
 
 FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
