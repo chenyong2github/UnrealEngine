@@ -107,7 +107,7 @@ void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, const FPropertySel
 		return;
 	}
 
-	const TArray<TWeakObjectPtr<UObject>> SelectedPaths = PropertiesToSerialize.GetKeys();
+	const TArray<FSoftObjectPath> SelectedPaths = PropertiesToSerialize.GetKeys();
 #if WITH_EDITOR
 	const int32 NumActorsToRecreate = PropertiesToSerialize.GetDeletedActorsToRespawn().Num();
 	const int32 NumMatchingActors = SelectedPaths.Num();
@@ -289,13 +289,13 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 	}
 }
 
-void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<TWeakObjectPtr<UObject>>& SelectedPaths, const FPropertySelectionMap& PropertiesToSerialize)
+void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, const FPropertySelectionMap& PropertiesToSerialize)
 {
 #if WITH_EDITOR
 	FScopedSlowTask ExitingActorTask(SelectedPaths.Num(), LOCTEXT("ApplyToWorld.MatchingPropertiesKey", "Writing existing actors"));
 	ExitingActorTask.MakeDialogDelayed(1.f, true);
 #endif
-	for (const TWeakObjectPtr<UObject>& SelectedObject : SelectedPaths)
+	for (const FSoftObjectPath& SelectedObject : SelectedPaths)
 	{
 #if WITH_EDITOR
 		ExitingActorTask.EnterProgressFrame();
@@ -308,12 +308,12 @@ void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActo
 		if (SelectedObject.IsValid())
 		{
 			AActor* OriginalWorldActor = nullptr;
-			
-			if (AActor* AsActor = Cast<AActor>(SelectedObject.Get()))
+			UObject* ResolvedObject = SelectedObject.ResolveObject();
+			if (AActor* AsActor = Cast<AActor>(ResolvedObject))
 			{
 				OriginalWorldActor = AsActor;
 			}
-			else if (UActorComponent* AsComponent = Cast<UActorComponent>(SelectedObject.Get()))
+			else if (UActorComponent* AsComponent = Cast<UActorComponent>(ResolvedObject))
 			{
 				if (AActor* OwningActor = AsComponent->GetOwner())
 				{

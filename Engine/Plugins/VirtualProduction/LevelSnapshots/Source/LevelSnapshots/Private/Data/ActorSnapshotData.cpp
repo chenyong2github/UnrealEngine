@@ -182,6 +182,10 @@ void FActorSnapshotData::DeserializeIntoWorldActor(UWorld* SnapshotWorld, AActor
         }
 		
         SerializeComponent(SerializedCompData, CompData, Comp, *DeserializedCompCounterpart);
+		
+		// We may have modified render information, e.g. for lights we may have changed intensity or colour
+		// It may be more efficient to track whether we actually changed render state
+		Comp->MarkRenderStateDirty();
     });
 
 	OriginalActor->UpdateComponentTransforms();

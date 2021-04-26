@@ -11,6 +11,7 @@
 #include "PropertySelection.h"
 
 #include "Algo/Find.h"
+#include "DebugViewModeHelpers.h"
 #include "EditorStyleSet.h"
 #include "GameFramework/Actor.h"
 #include "IDetailPropertyRow.h"
@@ -21,6 +22,7 @@
 #include "SnapshotRestorability.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Stats/StatsMisc.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -1687,7 +1689,7 @@ FReply SLevelSnapshotsEditorResults::OnClickApplyToWorld()
 			BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
 		}
 
-		UWorld* World = GEditor->GetEditorWorldContext().World();
+		UWorld* World = EditorDataPtr->GetSelectedWorld();
 		ActiveLevelSnapshot.GetValue()->ApplySnapshotToWorld(World, EditorDataPtr->GetFilterResults()->GetPropertiesToRollback());
 
 		RefreshResults();
@@ -1964,13 +1966,13 @@ void SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(const
 	struct Local
 	{
 		/* Returns true if the actor group would have any visible properties after filtering. */
-		static bool DoesActorContainAnyVisibleProperties(TSet <TWeakObjectPtr<UObject>>& EvaluatedObjects, FFilterListData& FilterListData)
+		static bool DoesActorContainAnyVisibleProperties(TSet<FSoftObjectPath>& EvaluatedObjects, FFilterListData& FilterListData)
 		{
 			bool bHasAnyVisibleProperties = false;
 
-			const TArray<TWeakObjectPtr<UObject>>& SelectionMapKeys = FilterListData.GetModifiedActorsSelectedProperties().GetKeys();
+			const TArray<FSoftObjectPath>& SelectionMapKeys = FilterListData.GetModifiedActorsSelectedProperties().GetKeys();
 
-			for (const TWeakObjectPtr<UObject>& Key : SelectionMapKeys)
+			for (const FSoftObjectPath& Key : SelectionMapKeys)
 			{
 				if (!EvaluatedObjects.Contains(Key))
 				{
@@ -1978,7 +1980,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(const
 
 					if (Key.IsValid())
 					{
-						const FPropertySelection* SelectedProperties = FilterListData.GetModifiedActorsSelectedProperties().GetSelectedProperties(Key.Get());
+						const FPropertySelection* SelectedProperties = FilterListData.GetModifiedActorsSelectedProperties().GetSelectedProperties(Key);
 						if (!bHasAnyVisibleProperties
 							&& ensure(SelectedProperties) && !SelectedProperties->IsEmpty())
 						{
@@ -1997,7 +1999,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(const
 
 	TreeViewModifiedActorGroupObjects.Empty();
 
-	TSet <TWeakObjectPtr<UObject>> EvaluatedObjects;
+	TSet<FSoftObjectPath> EvaluatedObjects;
 
 	for (const TWeakObjectPtr<AActor>& WeakWorldActor : ActorsToConsider)
 	{
