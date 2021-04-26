@@ -4851,7 +4851,7 @@ void AActor::PostUnregisterAllComponents()
 void AActor::RegisterAllComponents()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_AActor_RegisterAllComponents);
-
+	
 	PreRegisterAllComponents();
 
 	// 0 - means register all components

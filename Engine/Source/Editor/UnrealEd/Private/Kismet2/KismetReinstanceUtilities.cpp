@@ -2124,9 +2124,14 @@ static void ReplaceActorHelper(AActor* OldActor, UClass* OldClass, UObject*& New
 
 	// reset properties/streams
 	NewActor->ResetPropertiesForConstruction();
-	// register native components
-	NewActor->RegisterAllComponents();
 
+	// Only register the components if the world is already initialized
+	if (World->bIsWorldInitialized)
+	{
+		// register native components
+		NewActor->RegisterAllComponents();
+	}
+	
 	// 
 	// clean up the old actor (unselect it, remove it from the world, etc.)...
 

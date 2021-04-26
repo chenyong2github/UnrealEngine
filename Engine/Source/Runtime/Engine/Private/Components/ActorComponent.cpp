@@ -1315,6 +1315,7 @@ void UActorComponent::RegisterComponent()
 	UWorld* MyOwnerWorld = (MyOwner ? MyOwner->GetWorld() : nullptr);
 	if (ensure(MyOwnerWorld))
 	{
+		ensure(MyOwnerWorld->bIsWorldInitialized);
 		RegisterComponentWithWorld(MyOwnerWorld);
 	}
 }

@@ -3,6 +3,7 @@
 #include "Engine/SCS_Node.h"
 #include "UObject/LinkerLoad.h"
 #include "Engine/Blueprint.h"
+#include "Engine/World.h"
 #include "Misc/SecureHash.h"
 #include "UObject/PropertyPortFlags.h"
 #include "Engine/InheritableComponentHandler.h"
@@ -116,6 +117,10 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 		USceneComponent* NewSceneComp = Cast<USceneComponent>(NewActorComp);
 		if (NewSceneComp != nullptr)
 		{
+			// Only register scene components if the world is initialized
+			UWorld* World = Actor->GetWorld();
+			bool bRegisterComponent = World && World->bIsWorldInitialized;
+
 			// If NULL is passed in, we are the root, so set transform and assign as RootComponent on Actor, similarly if the 
 			// NewSceneComp is the ParentComponent then we are the root component. This happens when the root component is recycled
 			// by StaticAllocateObject.
@@ -140,7 +145,7 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 				Actor->SetRootComponent(NewSceneComp);
 
 				// This will be true if we deferred the RegisterAllComponents() call at spawn time. In that case, we can call it now since we have set a scene root.
-				if (Actor->HasDeferredComponentRegistration())
+				if (Actor->HasDeferredComponentRegistration() && bRegisterComponent)
 				{
 					// Register the root component along with any components whose registration may have been deferred pending SCS execution in order to establish a root.
 					Actor->RegisterAllComponents();
@@ -153,7 +158,10 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 			}
 
 			// Register SCS scene components now (if necessary). Non-scene SCS component registration is deferred until after SCS execution, as there can be dependencies on the scene hierarchy.
-			USimpleConstructionScript::RegisterInstancedComponent(NewSceneComp);
+			if (bRegisterComponent)
+			{
+				USimpleConstructionScript::RegisterInstancedComponent(NewSceneComp);
+			}
 		}
 
 		// If we want to save this to a property, do it here

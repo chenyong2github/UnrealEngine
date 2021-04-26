@@ -771,7 +771,7 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 			}
 
 			// Ensure that we've called RegisterAllComponents(), in case it was deferred and the SCS could not be fully executed.
-			if (HasDeferredComponentRegistration())
+			if (HasDeferredComponentRegistration() && GetWorld()->bIsWorldInitialized)
 			{
 				RegisterAllComponents();
 			}
@@ -782,7 +782,7 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 			for (UActorComponent* ActorComponent : PostSCSComponents)
 			{
 				// Limit registration to components that are known to have been created during SCS execution
-				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill()
+				if (!ActorComponent->IsRegistered() && ActorComponent->bAutoRegister && !ActorComponent->IsPendingKill() && GetWorld()->bIsWorldInitialized
 					&& (ActorComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript || !PreSCSComponents.Contains(ActorComponent)))
 				{
 					USimpleConstructionScript::RegisterInstancedComponent(ActorComponent);
@@ -858,7 +858,7 @@ bool AActor::ExecuteConstruction(const FTransform& Transform, const FRotationCon
 			}
 
 			// Ensure that we've called RegisterAllComponents(), in case it was deferred and the SCS could not be executed (due to error).
-			if (HasDeferredComponentRegistration())
+			if (HasDeferredComponentRegistration() && GetWorld()->bIsWorldInitialized)
 			{
 				RegisterAllComponents();
 			}
