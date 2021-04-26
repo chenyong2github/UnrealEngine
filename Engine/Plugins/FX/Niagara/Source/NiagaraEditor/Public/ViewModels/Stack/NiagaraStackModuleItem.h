@@ -69,6 +69,8 @@ public:
 
 	/** Reassigns the function script for the module without resetting the inputs. */
 	void ReassignModuleScript(UNiagaraScript* ModuleScript);
+	
+	void ChangeScriptVersion(FGuid NewScriptVersion);
 
 	void SetInputValuesFromClipboardFunctionInputs(const TArray<const UNiagaraClipboardFunctionInput*>& ClipboardFunctionInputs);
 
@@ -125,6 +127,7 @@ private:
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
 	void RefreshIsEnabled();
 	void OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages);
+	FStackIssueFixDelegate GetUpgradeVersionFix();
 
 private:
 	UNiagaraNodeOutput* OutputNode;

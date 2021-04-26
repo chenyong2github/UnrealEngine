@@ -53,7 +53,8 @@ public class NiagaraEditor : ModuleRules
 				"EditorWidgets",
 				"DeveloperSettings",
 				"SessionServices",
-				"SessionFrontend"
+				"SessionFrontend",
+				"PythonScriptPlugin"
 			}
         );
 

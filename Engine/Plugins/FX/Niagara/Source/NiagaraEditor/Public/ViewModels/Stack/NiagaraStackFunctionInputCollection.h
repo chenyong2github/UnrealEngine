@@ -64,8 +64,6 @@ private:
 
 	void AddInvalidChildStackIssue(FName PinName, TArray<FStackIssue>& OutIssues);
 
-	bool IsInheritedModule() const;
-
 	struct FInputData
 	{
 		const UEdGraphPin* Pin;

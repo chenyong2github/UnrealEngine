@@ -1,62 +1,66 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraEditorModule.h"
+
+#include "AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "ContentBrowserModule.h"
+#include "EdGraphSchema_Niagara.h"
+#include "EditorStyleSet.h"
+#include "IContentBrowserSingleton.h"
 #include "INiagaraEditorTypeUtilities.h"
-#include "NiagaraNodeInput.h"
-#include "NiagaraNodeFunctionCall.h"
-#include "NiagaraNodeParameterMapSet.h"
-#include "NiagaraDataInterface.h"
+#include "IPythonScriptPlugin.h"
+#include "NiagaraClipboard.h"
 #include "NiagaraComponent.h"
-#include "UObject/StructOnScope.h"
+#include "NiagaraConstants.h"
+#include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
 #include "NiagaraGraph.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeInput.h"
+#include "NiagaraNodeOutput.h"
+#include "NiagaraNodeParameterMapSet.h"
+#include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraOverviewNode.h"
+#include "NiagaraParameterMapHistory.h"
+#include "NiagaraScript.h"
+#include "NiagaraScriptSource.h"
+#include "NiagaraSimulationStageBase.h"
+#include "NiagaraStackEditorData.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
-#include "NiagaraScriptSource.h"
-#include "NiagaraScript.h"
-#include "NiagaraNodeOutput.h"
-#include "NiagaraOverviewNode.h"
-#include "NiagaraConstants.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/SBoxPanel.h"
-#include "HAL/PlatformApplicationMisc.h"
-#include "NiagaraEditorStyle.h"
-#include "EditorStyleSet.h"
-#include "ViewModels/NiagaraSystemViewModel.h"
-#include "ViewModels/NiagaraEmitterViewModel.h"
-#include "ViewModels/NiagaraEmitterHandleViewModel.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
-#include "ViewModels/NiagaraSystemSelectionViewModel.h"
-#include "AssetRegistryModule.h"
-#include "Misc/FeedbackContext.h"
-#include "EdGraphSchema_Niagara.h"
-#include "HAL/PlatformFilemanager.h"
-#include "Misc/FileHelper.h"
-#include "EdGraph/EdGraphPin.h"
-#include "ViewModels/Stack/NiagaraParameterHandle.h"
-#include "NiagaraNodeStaticSwitch.h"
-#include "NiagaraParameterMapHistory.h"
 #include "ScopedTransaction.h"
-#include "NiagaraStackEditorData.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
-#include "Modules/ModuleManager.h"
-#include "AssetToolsModule.h"
-#include "NiagaraCustomVersion.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "UObject/TextProperty.h"
+#include "UpgradeNiagaraScriptResults.h"
+#include "EdGraph/EdGraphPin.h"
 #include "Editor/EditorEngine.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Styling/CoreStyle.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "NiagaraSimulationStageBase.h"
-#include "NiagaraEditorSettings.h"
-#include "Widgets/SNiagaraParameterName.h"
+#include "HAL/PlatformFilemanager.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/FileHelper.h"
+#include "Misc/ScopeExit.h"
+#include "Modules/ModuleManager.h"
+#include "Styling/CoreStyle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "UObject/StructOnScope.h"
+#include "UObject/TextProperty.h"
+#include "ViewModels/NiagaraEmitterHandleViewModel.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/Stack/NiagaraParameterHandle.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/SNiagaraParameterPanel.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -2939,6 +2943,135 @@ void FNiagaraEditorUtilities::CollectPinTypeChangeActions(FGraphActionListBuilde
 	}
 
 	bOutCreateRemainingActions = false;
+}
+
+TArray<UNiagaraPythonScriptModuleInput*> GetFunctionCallInputs(const FNiagaraScriptVersionUpgradeContext& UpgradeContext)
+{
+	TArray<UNiagaraPythonScriptModuleInput*> ScriptInputs;
+	UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+	UpgradeContext.CreateClipboardCallback(ClipboardContent);
+	for (const UNiagaraClipboardFunctionInput* FunctionInput : ClipboardContent->FunctionInputs)
+	{
+		UNiagaraPythonScriptModuleInput* ScriptInput = NewObject<UNiagaraPythonScriptModuleInput>();
+		ScriptInput->Input = FunctionInput;
+		ScriptInputs.Add(ScriptInput);
+	}
+	return ScriptInputs;
+}
+
+void AddStackWarning(const FNiagaraAssetVersion& FromVersion, const FNiagaraAssetVersion& ToVersion, const FString& ToAdd, bool& bLoggedWarning, FString& OutWarnings)
+{
+	if (!bLoggedWarning)
+	{
+		OutWarnings.Appendf(TEXT("%i.%i -> %i.%i:\n"), FromVersion.MajorVersion, FromVersion.MinorVersion, ToVersion.MajorVersion, ToVersion.MinorVersion);
+	}
+	bLoggedWarning = true;
+	OutWarnings.Appendf(TEXT("  * %s\n"), *ToAdd);
+}
+
+const FString PythonUpgradeScriptStub = TEXT(
+	"import sys\n"
+	"import unreal as ue\n"
+	"upgrade_context = ue.load_object(None, '{0}')\n"
+	"### User Upgrade Script ###\n"
+	"{1}\n"
+	"### End User Script ###\n"
+	"upgrade_context.cancelled_by_python_error = False\n");
+
+void FNiagaraEditorUtilities::RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode,	const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings)
+{
+	UUpgradeNiagaraScriptResults* Results = NewObject<UUpgradeNiagaraScriptResults>();
+	FGuid SavedVersion = SourceNode->SelectedScriptVersion;
+	
+	for (int i = 1; i < UpgradeVersionData.Num(); i++)
+	{
+		FVersionedNiagaraScriptData* PreviousData = UpgradeVersionData[i - 1];
+		FVersionedNiagaraScriptData* NewData = UpgradeVersionData[i];
+		if (NewData == nullptr || PreviousData == nullptr)
+		{
+			continue;
+		}
+
+		FString PythonScript;
+		if (NewData->UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry)
+		{
+			PythonScript = NewData->PythonUpdateScript;
+		}
+		else if (NewData->UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset && !NewData->ScriptAsset.FilePath.IsEmpty())
+		{
+			FFileHelper::LoadFileToString(PythonScript, *NewData->ScriptAsset.FilePath);
+		}
+
+		bool bLoggedWarning = false;
+		if (!PythonScript.IsEmpty())
+		{
+			// set up script context
+			if (SourceNode->SelectedScriptVersion != PreviousData->Version.VersionGuid)
+			{
+				SourceNode->SelectedScriptVersion = PreviousData->Version.VersionGuid;
+				SourceNode->RefreshFromExternalChanges();
+			}
+			Results->OldInputs = GetFunctionCallInputs(UpgradeContext);
+			SourceNode->SelectedScriptVersion = NewData->Version.VersionGuid;
+			SourceNode->RefreshFromExternalChanges();
+			Results->NewInputs = GetFunctionCallInputs(UpgradeContext);
+			Results->Init();
+			
+			// save python script to a temp file to execute
+			FString TempScriptFile = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("VersionUpgrade-"), TEXT(".py"));
+			IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+			ON_SCOPE_EXIT
+			{
+				// Delete temp script file
+				PlatformFile.DeleteFile(*TempScriptFile);
+			};
+			if (!FFileHelper::SaveStringToFile(FString::Format(*PythonUpgradeScriptStub, {Results->GetPathName(), PythonScript}), *TempScriptFile))
+			{
+				UE_LOG(LogNiagaraEditor, Error, TEXT("Unable to save python script to file %s"), *TempScriptFile);
+				AddStackWarning(PreviousData->Version, NewData->Version, "Cannot create python script file!", bLoggedWarning, OutWarnings);
+				continue;
+			}
+
+			Results->bCancelledByPythonError = true;
+			FPythonCommandEx PythonCommand = FPythonCommandEx();
+			PythonCommand.ExecutionMode = EPythonCommandExecutionMode::ExecuteFile;
+			PythonCommand.Command = TempScriptFile;
+
+			// execute python script
+			IPythonScriptPlugin::Get()->ExecPythonCommandEx(PythonCommand);
+
+			if (Results->bCancelledByPythonError)
+			{
+				UE_LOG(LogNiagaraEditor, Error, TEXT("%s\n\nPython script:\n%s"), *PythonCommand.CommandResult, *PythonCommand.Command);
+				AddStackWarning(PreviousData->Version, NewData->Version, "Python script ended with error!", bLoggedWarning, OutWarnings);
+			}
+			else
+			{
+				UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+				for (UNiagaraPythonScriptModuleInput* ModuleInput : Results->NewInputs)
+				{
+					ClipboardContent->FunctionInputs.Add(ModuleInput->Input);	
+				}
+				if (ClipboardContent->FunctionInputs.Num() > 0)
+				{
+					FText Warnings;
+					UpgradeContext.ApplyClipboardCallback(ClipboardContent, Warnings);
+					if (!Warnings.IsEmpty())
+					{
+						AddStackWarning(PreviousData->Version, NewData->Version, Warnings.ToString(), bLoggedWarning, OutWarnings);
+					}
+				}
+			}
+			if (PythonCommand.LogOutput.Num() > 0)
+			{
+				for (FPythonLogOutputEntry& Entry : PythonCommand.LogOutput)
+				{
+					AddStackWarning(PreviousData->Version, NewData->Version, Entry.Output, bLoggedWarning, OutWarnings);
+				}
+			}
+		}
+	}
+	SourceNode->SelectedScriptVersion = SavedVersion;
 }
 
 bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString)

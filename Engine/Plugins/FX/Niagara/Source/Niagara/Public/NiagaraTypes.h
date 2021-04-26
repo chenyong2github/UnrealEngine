@@ -398,7 +398,13 @@ enum class ENiagaraCoordinateSpace : uint32
 	//NewEnumerator2 = 2 UMETA(Hidden)
 };
 
-
+UENUM()
+enum class ENiagaraPythonUpdateScriptReference : uint8
+{
+	None,
+    ScriptAsset,
+    DirectTextEntry
+};
 
 USTRUCT()
 struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
