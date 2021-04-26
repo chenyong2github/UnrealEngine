@@ -9,12 +9,12 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
-PUSH_MACRO(TEXT)
+UE_PUSH_MACRO("TEXT")
 #undef TEXT
 THIRD_PARTY_INCLUDES_START
 #include "GfnRuntimeSdk_Wrapper.h"
 THIRD_PARTY_INCLUDES_END
-POP_MACRO(TEXT)
+UE_POP_MACRO("TEXT")
 
 GeForceNOWWrapper::GeForceNOWWrapper()
 	: bIsInitialized(false)

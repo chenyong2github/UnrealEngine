@@ -27,11 +27,11 @@ cannot undefine the value.
 	__pragma(warning(disable: 6297))  /* Arithmetic overflow:  32-bit value is shifted, then cast to 64-bit value.  Results might not be an expected value. */ \
 	__pragma(warning(disable: 6294))  /* Ill-defined for-loop:  initial condition does not satisfy test.  Loop body not executed. */ \
 	__pragma(warning(disable: 6201))  /* Index '<x>' is out of valid index range '<a>' to '<b>' for possibly stack allocated buffer '<variable>'. */ \
-	PUSH_MACRO(check)
+	UE_PUSH_MACRO("check")
 #else
 // TODO: when adding support for other platforms, this definition may require updating
-#define OPENCV_INCLUDES_START THIRD_PARTY_INCLUDES_START PUSH_MACRO(check)
+#define OPENCV_INCLUDES_START THIRD_PARTY_INCLUDES_START UE_PUSH_MACRO("check")
 #endif
 
-#define OPENCV_INCLUDES_END THIRD_PARTY_INCLUDES_END POP_MACRO(check)
+#define OPENCV_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check")
 	

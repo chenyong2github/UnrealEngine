@@ -11,7 +11,7 @@
 
 #if WITH_NVCLOTH
 
-PUSH_MACRO(check)
+UE_PUSH_MACRO("check")
 #undef check
 
 #if PLATFORM_MICROSOFT
@@ -43,6 +43,6 @@ PUSH_MACRO(check)
 	#endif
 #endif
 
-POP_MACRO(check)
+UE_POP_MACRO("check")
 
 #endif
