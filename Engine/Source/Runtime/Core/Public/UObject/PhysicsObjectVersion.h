@@ -42,6 +42,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Added the Long Range Attachment stiffness weight map
 		ChaosClothAddTetherStiffnessWeightMap,
 
+		// Fix corrupted LOD transition maps
+		ChaosClothFixLODTransitionMaps,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
