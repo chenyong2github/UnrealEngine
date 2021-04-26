@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Animation/AnimNotifyQueue.h"
 #include "AnimNotifyMirrorInspectionLibrary.generated.h"
+
 
 struct FAnimNotifyEventReference;
 /**

@@ -4,8 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AnimNodeMessages.h"
-
-class UMirrorDataTable;
+#include "Animation/MirrorDataTable.h"
 
 namespace UE { namespace Anim {
 
@@ -18,8 +17,8 @@ class ENGINE_API FAnimNotifyMirrorContext : public IAnimNotifyEventContextDataIn
 	FAnimNotifyMirrorContext() {} 
 	FAnimNotifyMirrorContext(const UMirrorDataTable* MirrorDataTable) : MirrorTable(MirrorDataTable) {bAnimationMirrored = MirrorDataTable != nullptr;} 
 	bool bAnimationMirrored = true; 
-	UPROPERTY(transient)
-	TObjectPtr<const UMirrorDataTable> MirrorTable; 
+
+	TWeakObjectPtr<const UMirrorDataTable> MirrorTable; 
 };
 	
 // Scoped graph message used to synchronize mirroring 
