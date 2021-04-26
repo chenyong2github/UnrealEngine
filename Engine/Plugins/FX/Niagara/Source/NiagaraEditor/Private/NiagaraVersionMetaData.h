@@ -3,16 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "NiagaraTypes.h"
 #include "UObject/Object.h"
 #include "NiagaraVersionMetaData.generated.h"
-
-UENUM()
-enum class ENiagaraPythonUpdateScriptReference : uint8
-{
-	None,
-    ScriptAsset,
-    DirectTextEntry
-};
 
 UCLASS()
 class NIAGARAEDITOR_API UNiagaraVersionMetaData : public UObject
@@ -38,17 +32,15 @@ public:
 	UPROPERTY(VisibleAnywhere, AdvancedDisplay, Category="Version Details")
 	FGuid VersionGuid;
 
-	// TODO: enable python script execution for version upgrades 
-	
 	/** Reference to a python script that is executed when the user updates from a previous version to this version. */
-	//UPROPERTY(EditAnywhere, Category="Scripting")
+	UPROPERTY(EditAnywhere, Category="Scripting")
 	ENiagaraPythonUpdateScriptReference UpdateScriptExecution;
 
 	/** Python script to run when updating to this script version. */
-	//UPROPERTY(EditAnywhere, Category="Scripting", meta=(MultiLine = true, EditCondition="UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry"))
-	FText PythonUpdateScript;
+	UPROPERTY(EditAnywhere, Category="Scripting", meta=(MultiLine = true, EditCondition="UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::DirectTextEntry"))
+	FString PythonUpdateScript;
 
 	/** Asset reference to a python script to run when updating to this script version. */
-	//UPROPERTY(EditAnywhere, Category="Scripting", meta=(EditCondition="UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset"))
-	FString ScriptAssetPath;
+	UPROPERTY(EditAnywhere, Category="Scripting", meta=(EditCondition="UpdateScriptExecution == ENiagaraPythonUpdateScriptReference::ScriptAsset"))
+	FFilePath ScriptAsset;
 };

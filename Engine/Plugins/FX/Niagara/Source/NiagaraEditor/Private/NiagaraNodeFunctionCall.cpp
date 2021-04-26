@@ -1285,19 +1285,67 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 	}
 }
 
-void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, bool bShowNotesInStack)
+void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack)
 {
-	if (NewScriptVersion == SelectedScriptVersion && !InvalidScriptVersionReference.IsValid())
+	bool bPreviousVersionValid = !InvalidScriptVersionReference.IsValid();
+	if (NewScriptVersion == SelectedScriptVersion && bPreviousVersionValid)
 	{
 		return;
 	}
 	Modify();
+
+	PythonUpgradeScriptWarnings.Empty();
+	if (bPreviousVersionValid && FunctionScript && !UpgradeContext.bSkipPythonScript)
+	{
+		// run python update scripts
+		TArray<FVersionedNiagaraScriptData*> UpgradeVersionData;
+		FVersionedNiagaraScriptData* PreviousData = FunctionScript->GetScriptData(SelectedScriptVersion);
+		FVersionedNiagaraScriptData* NewData = FunctionScript->GetScriptData(NewScriptVersion);
+		for (const FNiagaraAssetVersion& Version : FunctionScript->GetAllAvailableVersions())
+		{
+			if (PreviousData->Version <= Version && Version <= NewData->Version)
+			{
+				UpgradeVersionData.Add(FunctionScript->GetScriptData(Version.VersionGuid));
+			}
+		}
+		FNiagaraEditorUtilities::RunPythonUpgradeScripts(this, UpgradeVersionData, UpgradeContext, PythonUpgradeScriptWarnings);
+	}
+	
 	InvalidScriptVersionReference = FGuid();
 	PreviousScriptVersion = bShowNotesInStack ? SelectedScriptVersion : NewScriptVersion;
 	SelectedScriptVersion = NewScriptVersion;
 
+	if (FunctionScript)
+	{
+		// Automatically remove old inputs so it does not show a bunch of warnings to the user
+		TArray<FName> FunctionInputNames;
+		FPinCollectorArray OverridePins;
+		UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*this);
+		if (OverrideNode != nullptr)
+		{
+			OverrideNode->GetInputPins(OverridePins);
+			
+			TSet<const UEdGraphPin*> HiddenModulePins;
+			TArray<const UEdGraphPin*> ModuleInputPins;
+			GetStackFunctionInputPins(*this, ModuleInputPins, HiddenModulePins, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+			for (const UEdGraphPin* InputPin : ModuleInputPins)
+			{
+				FunctionInputNames.Add(FNiagaraParameterHandle(InputPin->PinName).GetName());
+			}
+		}
+		for (UEdGraphPin* OverridePin : OverridePins)
+		{
+			FName InputName = FNiagaraParameterHandle(OverridePin->PinName).GetName();
+			if (FNiagaraStackGraphUtilities::IsOverridePinForFunction(*OverridePin, *this) && FunctionInputNames.Contains(InputName) == false)
+			{
+				TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
+				FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverridePin, RemovedDataObjects);
+				OverrideNode->RemovePin(OverridePin);
+			}
+		}
+	}
+
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
-	//TODO MV: run update script
 }
 
 UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage, FCompileConstantResolver ConstantResolver) const

@@ -7,6 +7,7 @@
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "AssetData.h"
+#include "NiagaraStackEditorData.h"
 
 class UEdGraph;
 class UEdGraphPin;
@@ -50,11 +51,13 @@ namespace FNiagaraStackGraphUtilities
 
 	UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(UNiagaraNode& StackNode);
 
-	ENiagaraScriptUsage GetOutputNodeUsage(UNiagaraNode& StackNode);
+	NIAGARAEDITOR_API ENiagaraScriptUsage GetOutputNodeUsage(UNiagaraNode& StackNode);
 
 	const UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(const UNiagaraNode& StackNode);
 
 	UNiagaraNodeInput* GetEmitterInputNodeForStackNode(UNiagaraNode& StackNode);
+
+	void CheckForDeprecatedScriptVersion(UNiagaraNodeFunctionCall* InputFunctionCallNode, const FString& StackEditorDataKey, UNiagaraStackEntry::FStackIssueFixDelegate VersionUpgradeFix, TArray<UNiagaraStackEntry::FStackIssue>& OutIssues);
 
 	struct FStackNodeGroup
 	{

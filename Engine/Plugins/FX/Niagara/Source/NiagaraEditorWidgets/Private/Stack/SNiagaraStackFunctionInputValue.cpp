@@ -26,6 +26,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -323,9 +324,7 @@ TSharedRef<SWidget> SNiagaraStackFunctionInputValue::GetVersionSelectorDropdownM
 
 void SNiagaraStackFunctionInputValue::SwitchToVersion(FNiagaraAssetVersion Version)
 {
-	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing dynamic input version"));
-	FunctionInput->GetDynamicInputNode()->ChangeScriptVersion(Version.VersionGuid, true);
-	FunctionInput->ApplyModuleChanges();
+	FunctionInput->ChangeScriptVersion(Version.VersionGuid);
 }
 
 FSlateColor SNiagaraStackFunctionInputValue::GetVersionSelectorColor() const

@@ -236,7 +236,10 @@ TSharedRef<SWidget> FNiagaraFunctionCallNodeDetails::OnGetVersionMenuContent()
 void FNiagaraFunctionCallNodeDetails::SwitchToVersion(FNiagaraAssetVersion Version)
 {
 	FScopedTransaction ScopedTransaction(LOCTEXT("NiagaraChangeVersion_Transaction", "Changing script version"));
-	Node->ChangeScriptVersion(Version.VersionGuid);
+	FNiagaraScriptVersionUpgradeContext UpgradeContext = FNiagaraScriptVersionUpgradeContext();
+	// we skip the python script here because this version change is done directly in the graph and not in the stack, so we don't need to remap any inputs 
+	UpgradeContext.bSkipPythonScript = true;
+	Node->ChangeScriptVersion(Version.VersionGuid, UpgradeContext);
 	Node->RefreshFromExternalChanges();
 }
 

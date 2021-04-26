@@ -7,6 +7,8 @@
 #include "NiagaraEditorCommon.h"
 #include "NiagaraNodeWithDynamicPins.h"
 #include "NiagaraNodeInput.h"
+#include "UpgradeNiagaraScriptResults.h"
+
 #include "NiagaraNodeFunctionCall.generated.h"
 
 class UNiagaraScript;
@@ -84,6 +86,10 @@ public:
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid PreviousScriptVersion;
 
+	/** Can be used by the ui after a version change to display change notes */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FString PythonUpgradeScriptWarnings;
+
 	UPROPERTY()
 	ENiagaraFunctionDebugState DebugState;
 
@@ -129,7 +135,7 @@ public:
 
 	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
-	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, bool bShowNotesInStack = false);
+	NIAGARAEDITOR_API void ChangeScriptVersion(FGuid NewScriptVersion, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, bool bShowNotesInStack = false);
 
 	FString GetFunctionName() const { return FunctionDisplayName; }
 	NIAGARAEDITOR_API UNiagaraGraph* GetCalledGraph() const;

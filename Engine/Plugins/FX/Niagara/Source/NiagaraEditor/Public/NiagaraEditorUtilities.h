@@ -10,6 +10,7 @@
 #include "NiagaraActions.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
+#include "UpgradeNiagaraScriptResults.h"
 #include "EdGraph/EdGraphSchema.h"
 
 class UNiagaraNodeInput;
@@ -335,6 +336,9 @@ namespace FNiagaraEditorUtilities
 
 	/** Used to gather the actions for . */
 	void CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin);
+
+	// Executes python upgrade scripts on the given source node for all the given in-between versions
+	void RunPythonUpgradeScripts(UNiagaraNodeFunctionCall* SourceNode, const TArray<FVersionedNiagaraScriptData*>& UpgradeVersionData, const FNiagaraScriptVersionUpgradeContext& UpgradeContext, FString& OutWarnings);
 };
 
 namespace FNiagaraParameterUtilities

@@ -506,6 +506,18 @@ public:
 	UPROPERTY()
 	mutable FNiagaraVMExecutableDataId LastGeneratedVMId;
 
+	/** Reference to a python script that is executed when the user updates from a previous version to this version. */
+	UPROPERTY()
+	ENiagaraPythonUpdateScriptReference UpdateScriptExecution = ENiagaraPythonUpdateScriptReference::None;
+
+	/** Python script to run when updating to this script version. */
+	UPROPERTY()
+	FString PythonUpdateScript;
+
+	/** Asset reference to a python script to run when updating to this script version. */
+	UPROPERTY()
+	FFilePath ScriptAsset;
+
 	TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
 	
