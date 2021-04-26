@@ -642,8 +642,12 @@ bool UTakeRecorder::InitializeSequencer(ULevelSequence* LevelSequence, FText* Ou
 
 		if (!WeakSequencer.Pin().IsValid())
 		{
-			*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(LevelSequence->GetPathName()));
+			if (OutRrror)
+			{
+				*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(LevelSequence->GetPathName()));
+			}
 		}
+		return false;
 	}
 		
 	return true;
