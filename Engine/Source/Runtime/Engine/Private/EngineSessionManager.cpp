@@ -68,7 +68,7 @@ namespace SessionManagerDefs
 	static const FString WasDebuggerStoreKey(TEXT("WasEverDebugger"));
 	static const FString UserActivityStoreKey(TEXT("CurrentUserActivity"));
 	static const FString VanillaStoreKey(TEXT("IsVanilla"));
-	static const FString GlobalLockName(TEXT("UE4_SessionManager_Lock"));
+	static const FString GlobalLockName(TEXT("UE_SessionManager_Lock"));
 	static const FString FalseValueString(TEXT("0"));
 	static const FString TrueValueString(TEXT("1"));
 	static const FString EditorValueString(TEXT("Editor"));

@@ -811,7 +811,7 @@ public:
 
 		FEmbeddedDelegates::GetNativeToEmbeddedParamsDelegateForSubsystem(TEXT("engine")).AddLambda([](const FEmbeddedCallParamsHelper& Message)
 		{
-			if (Message.Command == TEXT("StartUE4Live"))
+			if (Message.Command == TEXT("StartUELive"))
 			{
 				FName Requester = *Message.Parameters.FindRef(TEXT("requester"));
 				bool bTickOnly = Message.Parameters.FindRef(TEXT("tickonly")) == TEXT("true");
@@ -819,7 +819,7 @@ public:
 				FEmbeddedCommunication::KeepAwake(Requester, !bTickOnly);
 				Message.OnCompleteDelegate({}, TEXT(""));
 			}
-			else if (Message.Command == TEXT("StopUE4Live"))
+			else if (Message.Command == TEXT("StopUELive"))
 			{
 				FName Requester = *Message.Parameters.FindRef(TEXT("requester"));
 				
