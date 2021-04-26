@@ -724,7 +724,8 @@ bool IDashMPDElement::ProcessElement(FManifestParserDASH* Builder, const TCHAR* 
 {
 	bool bEmitWarning = true;
 	// Since descriptors are largely application specific we cannot know if their elements are meaningful or not, so we don't show a warning.
-	if (GetElementType() == EType::Descriptor)
+	// Similarly, events may carry XML elements as their payload and we will sadly parse them, too.
+	if (GetElementType() == EType::Descriptor || GetElementType() == EType::Event || GetElementType() == EType::Other)
 	{
 		bEmitWarning = false;
 	}

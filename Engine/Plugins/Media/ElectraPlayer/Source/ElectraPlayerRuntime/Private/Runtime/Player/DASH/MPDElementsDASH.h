@@ -1581,6 +1581,11 @@ public:
 	const TMediaOptionalValue<bool>& GetBitstreamSwitching() const			{ return bBitstreamSwitching; }
 	virtual FXLink& GetXLink() override										{ return XLink; }
 
+	// Methods to manipulate the presentation type.
+	void SetDuration(const FTimeValue& NewDuration)
+	{
+		Duration = NewDuration;
+	}
 
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;

@@ -119,6 +119,20 @@ public:
 	void NotifyOfOptionChange() override;
 
 private:
+	DECLARE_DELEGATE_TwoParams(FOnMediaPlayerEventReceivedDelegate, TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> /*InEvent*/, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode /*InDispatchMode*/);
+	class FAEMSEventReceiver : public IAdaptiveStreamingPlayerAEMSReceiver
+	{
+	public:
+		virtual ~FAEMSEventReceiver() = default;
+		FOnMediaPlayerEventReceivedDelegate& GetEventReceivedDelegate()
+		{ return EventReceivedDelegate; }
+	private:
+		virtual void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode) override
+		{ EventReceivedDelegate.ExecuteIfBound(InEvent, InDispatchMode); }
+		FOnMediaPlayerEventReceivedDelegate EventReceivedDelegate;
+	};
+
+
 	struct FPlayerMetricEventBase
 	{
 		enum class EType
@@ -240,6 +254,8 @@ private:
 
 	void PlatformNotifyOfOptionChange();
 
+	void OnMediaPlayerEventReceived(TSharedPtrTS<IAdaptiveStreamingPlayerAEMSEvent> InEvent, IAdaptiveStreamingPlayerAEMSReceiver::EDispatchMode InDispatchMode);
+
 	// Methods from IAdaptiveStreamingPlayerMetrics
 	virtual void ReportOpenSource(const FString& URL) override
 	{ DeferredPlayerEvents.Enqueue(MakeSharedTS<FPlayerMetricEvent_OpenSource>(URL)); }
@@ -340,6 +356,7 @@ private:
 	/** Queued events */
 	TQueue<IElectraPlayerAdapterDelegate::EPlayerEvent>	DeferredEvents;
 	TQueue<TSharedPtrTS<FPlayerMetricEventBase>>	DeferredPlayerEvents;
+	TSharedPtrTS<FAEMSEventReceiver>				MediaPlayerEventReceiver;
 
 	/** The URL of the currently opened media. */
 	FString											MediaUrl;

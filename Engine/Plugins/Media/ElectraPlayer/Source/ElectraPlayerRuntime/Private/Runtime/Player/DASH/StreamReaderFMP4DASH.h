@@ -5,6 +5,7 @@
 #include "Player/PlayerStreamReader.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/DASH/PlaylistReaderDASH_Internal.h"
+#include "Player/DASH/PlayerEventDASH.h"
 #include "Demuxer/ParserISO14496-12.h"
 #include "HTTP/HTTPManager.h"
 
@@ -130,6 +131,8 @@ private:
 		FTimeValue 												DurationSuccessfullyRead;
 		FTimeValue 												DurationSuccessfullyDelivered;
 
+		TArray<TSharedPtrTS<DASH::FPlayerEvent>>				SegmentEventsFound;
+
 		FMediaCriticalSection									MetricUpdateLock;
 		int32													ProgressReportCount = 0;
 		TSharedPtrTS<IAdaptiveStreamSelector>					StreamSelector;
@@ -141,8 +144,10 @@ private:
 		void SignalWork();
 		void WorkerThread();
 		void HandleRequest();
-		
+
 		FErrorDetail GetInitSegment(TSharedPtrTS<const IParserISO14496_12>& OutMP4InitSegment, const TSharedPtrTS<FStreamSegmentRequestFMP4DASH>& InRequest);
+		void CheckForInbandDASHEvents();
+		void HandleEventMessages();
 
 		void LogMessage(IInfoLog::ELevel Level, const FString& Message);
 

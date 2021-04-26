@@ -569,6 +569,22 @@ namespace Electra
 	} // namespace RFC2326
 
 
+
+	namespace UnixEpoch
+	{
+		bool ParseFloatString(FTimeValue& OutTimeValue, const FString& Seconds)
+		{
+			FTimeFraction t;
+			if (t.SetFromFloatString(Seconds).IsValid())
+			{
+				OutTimeValue.SetFromTimeFraction(t);
+				return true;
+			}
+			return false;
+		}
+	}
+
+
 } // namespace Electra
 
 
