@@ -3,6 +3,8 @@
 #include "SlateNullRenderer.h"
 #include "Rendering/SlateDrawBuffer.h"
 
+static TUniquePtr<FSlateDrawBuffer> StaticDrawBuffer;
+
 FSlateNullRenderer::FSlateNullRenderer(const TSharedRef<FSlateFontServices>& InSlateFontServices, const TSharedRef<FSlateShaderResourceManager>& InResourceManager)
 	: FSlateRenderer(InSlateFontServices)
 	, ResourceManager(InResourceManager)
@@ -16,11 +18,11 @@ bool FSlateNullRenderer::Initialize()
 
 void FSlateNullRenderer::Destroy()
 {
+	StaticDrawBuffer = nullptr;
 }
 
 FSlateDrawBuffer& FSlateNullRenderer::GetDrawBuffer()
 {
-	static TUniquePtr<FSlateDrawBuffer> StaticDrawBuffer;
 	if (!StaticDrawBuffer.IsValid())
 	{
 		StaticDrawBuffer = MakeUnique<FSlateDrawBuffer>();
