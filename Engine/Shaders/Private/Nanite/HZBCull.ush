@@ -62,22 +62,6 @@ int MipLevelForRect( int4 RectPixels, int DesiredFootprintPixels )
 	// Transform coordinates down to coordinates of selected mip level and if they are not within reach increase level by one.
 	MipLevel += any((RectPixels.zw >> MipLevel) - (RectPixels.xy >> MipLevel) > MaxPixelOffset) ? 1 : 0;
 
-#if 0
-	// DEBUG: Validation code for mip calculation code above. Simply loop over all mip levels starting from 0 until footprint is within range.
-	int MipLevel2 = 0;
-	
-	while (true)
-	{
-		int4 Quant = RectPixels >> MipLevel2;
-		if (all(Quant.zw - Quant.xy <= MaxPixelOffset))
-			break;
-		MipLevel2++;
-	}
-
-	if (MipLevel2 != MipLevel)
-		SCE_BREAK();
-#endif
-
 	return MipLevel;
 }
 
