@@ -356,6 +356,7 @@ public:
 
 	void RegisterMenuExtensions()
 	{
+#if WITH_EDITOR
 		if (GEditor)
 		{
 			// Register level editor menu extender
@@ -365,6 +366,7 @@ public:
 			MenuExtenders.Add(LevelEditorMenuExtenderDelegate);
 			LevelEditorExtenderDelegateHandle = MenuExtenders.Last().GetHandle();
 		}
+#endif
 	}
 
 	void UnregisterMenuExtensions()
