@@ -1673,14 +1673,18 @@ void FGPUSkinCache::ProcessEntry(
 	}
 }
 
-#if RHI_RAYTRACING
-
 static bool IsGPUSkinCacheRayTracingSupported()
 {
+#if RHI_RAYTRACING
 	static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Geometry.SupportSkeletalMeshes"));
 	static const bool SupportSkeletalMeshes = CVar->GetInt() != 0;
 	return IsRayTracingEnabled() && SupportSkeletalMeshes && GEnableGPUSkinCache;
+#else
+	return false;
+#endif
 }
+
+#if RHI_RAYTRACING
 
 void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 	FRHICommandListImmediate& RHICmdList,
