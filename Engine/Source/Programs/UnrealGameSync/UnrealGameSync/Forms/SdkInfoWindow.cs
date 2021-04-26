@@ -245,7 +245,10 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				Process.Start(FileName);
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = FileName;
+				StartInfo.UseShellExecute = true;
+				Process.Start(StartInfo);
 			}
 			catch(Exception Ex)
 			{
