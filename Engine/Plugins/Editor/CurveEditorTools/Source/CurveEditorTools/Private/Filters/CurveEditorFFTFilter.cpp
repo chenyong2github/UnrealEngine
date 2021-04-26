@@ -23,9 +23,9 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 	UCurveEditorBakeFilter* BakeFilter = UCurveEditorBakeFilter::StaticClass()->GetDefaultObject<UCurveEditorBakeFilter>();
 		
 	// Since we're baking under the hood, we need to cache their bake interval, override it to a reasonable number, and restore it at the end.
-	float OriginalIntervalRate = BakeFilter->BakeInterval;
-	bool OriginalUseSnapRate = BakeFilter->bUseSnapRateForInterval;
-	BakeFilter->bUseSnapRateForInterval = false;
+	float OriginalIntervalRate = BakeFilter->BakeIntervalInSeconds;
+	bool bOriginalUseFrameBake = BakeFilter->bUseFrameBake;
+	BakeFilter->bUseFrameBake = false;
 
 	TArray<FKeyHandle> OriginalKeyHandles;
 	TArray<FKeyPosition> SelectedKeyPositions;
@@ -60,7 +60,7 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 			continue;
 		}
 		//Set interval range divded by twice the number of keys.
-		BakeFilter->BakeInterval = (MaxKey - MinKey) /  ( 2 * OriginalKeyHandles.Num());
+		BakeFilter->BakeIntervalInSeconds = (MaxKey - MinKey) /  ( 2 * OriginalKeyHandles.Num());
 		// This stores the position of all of the original keys. Once we've filtered the curve we will need to sample it at these positions.
 		TArray<FKeyPosition> OriginalKeyPositions;
 		TArray<FKeyAttributes> OriginalKeyAttributes;
@@ -167,6 +167,6 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 	}
 
 	// Restore their Bake Filter settings.
-	BakeFilter->BakeInterval = OriginalIntervalRate;
-	BakeFilter->bUseSnapRateForInterval = OriginalUseSnapRate;
+	BakeFilter->BakeIntervalInSeconds = OriginalIntervalRate;
+	BakeFilter->bUseFrameBake = bOriginalUseFrameBake;
 }
