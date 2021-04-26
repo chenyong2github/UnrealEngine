@@ -1601,6 +1601,11 @@ bool FMaterialResource::HasSpecularConnected() const
 	return HasMaterialAttributesConnected() || Material->HasSpecularConnected();
 }
 
+bool FMaterialResource::HasMetallicConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasMetallicConnected();
+}
+
 bool FMaterialResource::HasEmissiveColorConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();

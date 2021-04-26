@@ -339,10 +339,10 @@ class UMaterial : public UMaterialInterface
 
 	UPROPERTY()
 	FColorMaterialInput SpecularColor_DEPRECATED;
+#endif
 
 	UPROPERTY()
 	FColorMaterialInput BaseColor;
-#endif
 
 	UPROPERTY()
 	FScalarMaterialInput Metallic;
@@ -350,10 +350,8 @@ class UMaterial : public UMaterialInterface
 	UPROPERTY()
 	FScalarMaterialInput Specular;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FScalarMaterialInput Roughness;
-#endif
 
 	UPROPERTY()
 	FScalarMaterialInput Anisotropy;
@@ -364,7 +362,6 @@ class UMaterial : public UMaterialInterface
 	UPROPERTY()
 	FVectorMaterialInput Tangent;
 
-	// Emission.
 	UPROPERTY()
 	FColorMaterialInput EmissiveColor;
 
@@ -445,11 +442,11 @@ public:
 	/**  */
 	UPROPERTY()
 	FScalarMaterialInput ClearCoatRoughness;
+#endif
 
 	/** output ambient occlusion to the GBuffer */
 	UPROPERTY()
 	FScalarMaterialInput AmbientOcclusion;
-#endif
 
 	/**
 	 * output refraction index for translucent rendering
@@ -1766,18 +1763,12 @@ public:
 	void SaveShaderStableKeys(const class ITargetPlatform* TP);
 	ENGINE_API virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal) override;
 
-#if WITH_EDITORONLY_DATA
 	bool HasBaseColorConnected() const { return BaseColor.IsConnected(); }
 	bool HasRoughnessConnected() const { return Roughness.IsConnected(); }
 	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected(); }
-#else	
-	// Add to runtime data only if we need to call these at runtime
-	bool HasBaseColorConnected() const { check(0); return false; }
-	bool HasRoughnessConnected() const { check(0); return false; }
-	bool HasAmbientOcclusionConnected() const { check(0); return false; }
-#endif 	
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
 	bool HasSpecularConnected() const { return Specular.IsConnected(); }
+	bool HasMetallicConnected() const { return Metallic.IsConnected(); }
 	bool HasEmissiveColorConnected() const { return EmissiveColor.IsConnected(); }
 	bool HasAnisotropyConnected() const { return Anisotropy.IsConnected(); }
 	bool HasStrataFrontMaterialConnected() const { return FrontMaterial.IsConnected(); }

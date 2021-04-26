@@ -1700,6 +1700,7 @@ public:
 	virtual bool HasNormalConnected() const { return false; }
 	virtual bool HasRoughnessConnected() const { return false; }
 	virtual bool HasSpecularConnected() const { return false; }
+	virtual bool HasMetallicConnected() const { return false; }
 	virtual bool HasEmissiveColorConnected() const { return false; }
 	virtual bool HasAnisotropyConnected() const { return false; }
 	virtual bool HasAmbientOcclusionConnected() const { return false; }
@@ -2549,7 +2550,8 @@ public:
 	ENGINE_API virtual bool HasBaseColorConnected() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;
 	ENGINE_API virtual bool HasRoughnessConnected() const override;
-	ENGINE_API virtual bool HasSpecularConnected() const override;	
+	ENGINE_API virtual bool HasSpecularConnected() const override;
+	ENGINE_API virtual bool HasMetallicConnected() const override;
 	ENGINE_API virtual bool HasEmissiveColorConnected() const override;
 	ENGINE_API virtual bool HasAnisotropyConnected() const override;
 	ENGINE_API virtual bool HasAmbientOcclusionConnected() const override;
@@ -3131,8 +3133,13 @@ struct FMaterialShaderParameters
 			uint64 bShouldCastDynamicShadows : 1;
 			uint64 bWritesEveryPixel : 1;
 			uint64 bWritesEveryPixelShadowPass : 1;
+			uint64 bHasBaseColorConnected : 1;
 			uint64 bHasNormalConnected : 1;
+			uint64 bHasRoughnessConnected : 1;
+			uint64 bHasSpecularConnected : 1;
+			uint64 bHasMetallicConnected : 1;
 			uint64 bHasEmissiveColorConnected : 1;
+			uint64 bHasAmbientOcclusionConnected : 1;
 			uint64 bHasAnisotropyConnected : 1;
 			uint64 bHasVertexPositionOffsetConnected : 1;
 			uint64 bHasPixelDepthOffsetConnected : 1;
@@ -3186,8 +3193,13 @@ struct FMaterialShaderParameters
 		bShouldCastDynamicShadows = InMaterial->ShouldCastDynamicShadows();
 		bWritesEveryPixel = InMaterial->WritesEveryPixel(false);
 		bWritesEveryPixelShadowPass = InMaterial->WritesEveryPixel(true);
+		bHasBaseColorConnected = InMaterial->HasBaseColorConnected();
 		bHasNormalConnected = InMaterial->HasNormalConnected();
+		bHasRoughnessConnected = InMaterial->HasRoughnessConnected();
+		bHasSpecularConnected = InMaterial->HasSpecularConnected();
+		bHasMetallicConnected = InMaterial->HasMetallicConnected();
 		bHasEmissiveColorConnected = InMaterial->HasEmissiveColorConnected();
+		bHasAmbientOcclusionConnected = InMaterial->HasAmbientOcclusionConnected();
 		bHasAnisotropyConnected = InMaterial->HasAnisotropyConnected();
 		bHasVertexPositionOffsetConnected = InMaterial->HasVertexPositionOffsetConnected();
 		bHasPixelDepthOffsetConnected = InMaterial->HasPixelDepthOffsetConnected();
