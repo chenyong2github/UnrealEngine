@@ -650,7 +650,7 @@ void SDockingArea::UpdateWindowChromeAndSidebar()
 
 			if (ParentWindow->GetTitleBar())
 			{
-				ParentWindow->GetTitleBar()->SetUseLargeIcon(bAccountForMenuBarPadding);
+				ParentWindow->GetTitleBar()->SetAllowMenuBar(bAccountForMenuBarPadding);
 			}
 		}
 	}

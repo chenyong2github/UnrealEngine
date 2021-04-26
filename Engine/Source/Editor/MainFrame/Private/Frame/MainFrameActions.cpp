@@ -428,11 +428,6 @@ void FMainFrameActionCallbacks::ZipUpProject()
 	}
 }
 
-//void FMainFrameActionCallbacks::LocalizeProject()
-//{
-//	FModuleManager::LoadModuleChecked<ILocalizationDashboardModule>("LocalizationDashboard").Show();
-//}
-
 void FMainFrameActionCallbacks::SwitchProjectByIndex(int32 ProjectIndex)
 {
 	FUnrealEdMisc::Get().SwitchProject(RecentProjects[ProjectIndex].ProjectName);

@@ -282,12 +282,8 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 	LevelEditorModule.OnOverridePropertyEditorSelection().AddSP(this, &SLevelEditor::OnOverridePropertyEditorSelection);
 
 	TSharedRef<SWidget> ContentArea = RestoreContentArea( OwnerTab, OwnerWindow );
-	TSharedRef<SWidget> MenuBar =
-		SNew(SBox)
-		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("MainMenu")))
-		[
-			FLevelEditorMenu::MakeLevelEditorMenu(LevelEditorCommands, SharedThis(this))
-		];
+
+	FLevelEditorMenu::MakeLevelEditorMenu(LevelEditorCommands, SharedThis(this));
 		
 	ChildSlot
 	[

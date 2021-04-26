@@ -1000,7 +1000,9 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 	}
 
 	UpdateStats();
-	
+
+	FinishRestore();
+
 	return PrimaryDockArea;
 }
 
@@ -2540,7 +2542,9 @@ TSharedRef<FTabManager> FGlobalTabmanager::NewTabManager( const TSharedRef<SDock
 
 	const TSharedRef<FTabManager> NewTabManager = FTabManager::New( InOwnerTab, NomadTabSpawner );
 	SubTabManagers.Add( FSubTabManager(InOwnerTab, NewTabManager) );
+
 	UpdateStats();
+
 	return NewTabManager;
 }
 
@@ -2742,6 +2746,17 @@ void FGlobalTabmanager::OpenUnmanagedTab(FName PlaceholderId, const FSearchPrefe
 	else
 	{
 		FTabManager::OpenUnmanagedTab(PlaceholderId, SearchPreference, UnmanagedTab);
+	}
+}
+
+void FGlobalTabmanager::FinishRestore()
+{
+	for (FSubTabManager& SubManagerInfo : SubTabManagers)
+	{
+		if (TSharedPtr<FTabManager> Manager = SubManagerInfo.TabManager.Pin())
+		{
+			Manager->UpdateMainMenu(nullptr, false);
+		}
 	}
 }
 

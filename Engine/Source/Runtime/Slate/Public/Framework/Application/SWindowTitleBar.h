@@ -160,8 +160,7 @@ public:
 	}
 
 	//~ Begin IWindowTitleBar Interface
-
-	void Flash( ) override
+	void Flash() override
 	{
 		TitleFlashSequence = FCurveSequence(0, SWindowTitleBarDefs::WindowFlashDuration, ECurveEaseFunction::Linear);
 		TitleFlashSequence.Play(this->AsShared());
@@ -169,7 +168,7 @@ public:
 
 	virtual void UpdateWindowMenu(TSharedPtr<SWidget> MenuContent) override
 	{
-		if(MenuContent.IsValid())
+		if(MenuContent.IsValid() && bAllowMenuBar)
 		{
 			(*WindowMenuSlot)
 			[
@@ -209,11 +208,14 @@ public:
 		}
 	}
 
-	virtual void SetUseLargeIcon(bool bUseLargeIcon) override
+
+	virtual void SetAllowMenuBar(bool bInAllowMenuBar)
 	{
-		if(AppIconWidget)
+		bAllowMenuBar = bInAllowMenuBar;
+
+		if (AppIconWidget)
 		{
-			if (bUseLargeIcon)
+			if (bInAllowMenuBar)
 			{
 				AppIconWidget->SetIcon(FSlateApplicationBase::Get().GetAppIcon(), FAppStyle::Get().GetMargin("AppIconPadding", nullptr, FMargin(0)));
 			}
@@ -339,7 +341,7 @@ protected:
 				.Expose(WindowMenuSlot);
 
 			// Default everything to use thge small icon unless specifically set to use the large icon
-			SetUseLargeIcon(false);
+			SetAllowMenuBar(false);
 		}
 		else
 		{
@@ -760,5 +762,5 @@ private:
 
 	TSharedPtr<SAppIconWidget> AppIconWidget;
 	bool ShowAppIcon;
-
+	bool bAllowMenuBar = false;
 }; 

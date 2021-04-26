@@ -81,6 +81,7 @@ public class LevelEditor : ModuleRules
 				"EnvironmentLightingViewer",
 				"DesktopPlatform",
 				"DataLayerEditor",
+				"TranslationEditor",
 			}
 		);
 
@@ -108,6 +109,7 @@ public class LevelEditor : ModuleRules
                 "Persona",
 				"LevelAssetEditor",
 				"MergeActors",
+
 			}
 		);
 

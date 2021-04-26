@@ -155,7 +155,6 @@ UEditorExperimentalSettings::UEditorExperimentalSettings( const FObjectInitializ
 	, bEnableAsyncSkeletalMeshCompilation(false)
 	, bHDREditor(false)
 	, HDREditorNITLevel(160.0f)
-	, bEnableLocalizationDashboard(true)
 	, bUseOpenCLForConvexHullDecomp(false)
 	, bAllowPotentiallyUnsafePropertyEditing(false)
 {

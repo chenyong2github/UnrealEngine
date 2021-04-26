@@ -1020,6 +1020,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		/** Called when tab(s) have been added or windows created */
 		virtual void UpdateStats();
 		
+		/** Called at the end of RestoreFrom for tab managers to complete any work after all tabs have been restored */
+		virtual void FinishRestore() {};
+
 	private:
 		/** Checks all dock areas and adds up the number of open tabs and unique parent windows in the manager */
 		void GetRecordableStats( int32& OutTabCount, TArray<TSharedPtr<SWindow>>& OutUniqueParentWindows ) const;
@@ -1219,6 +1222,8 @@ protected:
 	virtual void UpdateStats() override;
 
 	virtual void OpenUnmanagedTab(FName PlaceholderId, const FSearchPreference& SearchPreference, const TSharedRef<SDockTab>& UnmanagedTab) override;
+
+	virtual void FinishRestore() override;
 
 public:
 	virtual void OnTabManagerClosing() override;

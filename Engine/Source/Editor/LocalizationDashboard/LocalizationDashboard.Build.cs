@@ -36,6 +36,7 @@ public class LocalizationDashboard : ModuleRules
 				"LocalizationService",
 				"InternationalizationSettings",
 				"ToolMenus",
+				"WorkspaceMenuStructure",
 			}
 		);
 

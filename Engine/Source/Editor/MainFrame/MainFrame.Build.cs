@@ -58,7 +58,6 @@ public class MainFrame : ModuleRules
 				"LevelEditor",
 				"Settings",
 				"SourceCodeAccess",
-				"LocalizationDashboard",
 			}
 		);
 
@@ -78,7 +77,6 @@ public class MainFrame : ModuleRules
 				"LevelEditor",
 				"SourceCodeAccess",
 				"HotReload",
-				"LocalizationDashboard",
 			}
 		);
 	}

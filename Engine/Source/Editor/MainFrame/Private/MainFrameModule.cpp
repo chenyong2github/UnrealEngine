@@ -258,6 +258,10 @@ void FMainFrameModule::CreateDefaultMainFrameAuxiliary(const bool bStartImmersiv
 				}
 			}
 
+
+			FToolMenuContext EmptyContext;
+			MakeMainMenu(FGlobalTabmanager::Get(), "MainFrame.NomadMainMenu", EmptyContext);
+		
 			MainFrameContent = FGlobalTabmanager::Get()->RestoreFrom(LoadedLayout, RootWindow, bEmbedTitleAreaContent, OutputCanBeNullptr);
 			// MainFrameContent will only be nullptr if its main area contains invalid tabs (probably some layout bug). If so, reset layout to avoid potential crashes
 			if (!MainFrameContent.IsValid())
@@ -330,15 +334,6 @@ TSharedRef<SWidget> FMainFrameModule::MakeMainMenu(const TSharedPtr<FTabManager>
 	return FMainMenu::MakeMainMenu(TabManager, MenuName, ToolMenuContext);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-TSharedRef<SWidget> FMainFrameModule::MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const
-{
-	return FMainMenu::MakeMainTabMenu(TabManager, MenuName, ToolMenuContext);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFrameDeveloperTool>& AdditionalTools ) const
 {
 	struct Local
@@ -513,7 +508,6 @@ TSharedRef<SWidget> FMainFrameModule::MakeDeveloperTools( const TArray<FMainFram
 			]
 		];
 }
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 
 void FMainFrameModule::SetLevelNameForWindowTitle( const FString& InLevelFileName )
@@ -808,6 +802,7 @@ void FMainFrameModule::HandleCodeAccessorLaunching()
 	CodeAccessorNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	CodeAccessorNotificationPtr.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
 }
+
 
 void FMainFrameModule::HandleCodeAccessorOpenFileFailed(const FString& Filename)
 {

@@ -54,7 +54,7 @@ public:
 	virtual void Flash( ) = 0;
 	virtual void UpdateWindowMenu(TSharedPtr<SWidget> MenuContent) = 0;
 	virtual void UpdateBackgroundContent(TSharedPtr<SWidget> BackgroundContent) = 0;
-	virtual void SetUseLargeIcon(bool bUseSmallIcon) = 0;
+	virtual void SetAllowMenuBar(bool bInAllowMenuBar) = 0;
 };
 
 class FSlateApplicationBase;

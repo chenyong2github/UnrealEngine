@@ -15,7 +15,6 @@
 /**
  * Editor main frame module
  */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FMainFrameModule
 	: public IMainFrameModule
 {
@@ -36,8 +35,6 @@ public:
 	virtual bool IsRecreatingDefaultMainFrame() const override;
 	virtual TSharedRef<SWidget> MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
 	
-	// deprecated in 4.26
-	virtual TSharedRef<SWidget> MakeMainTabMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext) const override;
 
 	virtual TSharedRef<SWidget> MakeDeveloperTools( const TArray<FMainFrameDeveloperTool>& AdditionalTools ) const override;
 
@@ -221,7 +218,6 @@ private:
 	{
 		DelayedShowMainFrameDelegate.Unbind();
 	}
-
 private:
 
 	// Weak pointer to the level editor's compile notification item.
@@ -266,5 +262,3 @@ private:
 	// Is recreating Default Main Frame
 	bool bRecreatingDefaultMainFrame;
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-

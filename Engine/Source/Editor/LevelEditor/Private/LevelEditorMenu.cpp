@@ -18,8 +18,10 @@
 #include "ToolMenus.h"
 #include "LevelEditorMenuContext.h"
 #include "Widgets/Input/SSpinBox.h"
-
 #include "Widgets/Input/SCheckBox.h"
+#include "Settings/EditorExperimentalSettings.h"
+#include "TranslationEditor/Public/ITranslationEditor.h"
+#include "LocalizationDashboard/Public/ILocalizationDashboardModule.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditorMenu"
 
@@ -244,6 +246,37 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 		static void ExtendToolsMenu()
 		{
 			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Tools", "MainFrame.MainMenu.Tools");
+
+			// Experimental section
+			{
+				// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
+				// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
+				const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
+
+				// Make sure at least one is enabled before creating the section
+				if (bTranslationPicker)
+				{
+					FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
+					{
+						// Translation Picker
+						if (bTranslationPicker)
+						{
+							Section.AddMenuEntry(
+								"TranslationPicker",
+								LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
+								LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
+								FSlateIcon(),
+								FUIAction(FExecuteAction::CreateLambda(
+									[]()
+									{
+										FModuleManager::Get().LoadModuleChecked("TranslationEditor");
+										ITranslationEditor::OpenTranslationPicker();
+									}))
+							);
+						}
+					}
+				}
+			}
 		}
 	};
 

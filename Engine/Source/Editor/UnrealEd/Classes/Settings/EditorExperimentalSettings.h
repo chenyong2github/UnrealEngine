@@ -47,10 +47,6 @@ public:
 	/** Allows usage of the procedural foliage system */
 	UPROPERTY(EditAnywhere, config, Category = Foliage, meta = (DisplayName = "Procedural Foliage"))
 	bool bProceduralFoliage;
-		
-	/** Allows usage of the Localization Dashboard */
-	UPROPERTY(EditAnywhere, config, Category = Tools, meta = (DisplayName = "Localization Dashboard"))
-	bool bEnableLocalizationDashboard;
 
 	/** Allows usage of the Translation Picker */
 	UPROPERTY(EditAnywhere, config, Category = Tools, meta = (DisplayName = "Translation Picker"))

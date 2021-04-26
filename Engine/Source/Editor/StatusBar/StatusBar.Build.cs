@@ -4,27 +4,37 @@ using UnrealBuildTool;
 
 public class StatusBar : ModuleRules
 {
-    public StatusBar(ReadOnlyTargetRules Target)
-         : base(Target)
-    {
+	public StatusBar(ReadOnlyTargetRules Target)
+		 : base(Target)
+	{
 		PublicIncludePaths.Add(ModuleDirectory + "/Public");
 
 		PrivateDependencyModuleNames.AddRange(
-            new string[] {
-                "Core",
-                "CoreUObject",
-                "Engine",           
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"Engine",
 				"Slate",
-                "SlateCore",
+				"SlateCore",
 				"InputCore",
-                "EditorStyle",
+				"EditorStyle",
 				"EditorFramework",
-                "UnrealEd",
+				"UnrealEd",
 				"ToolMenus",
 				"OutputLog",
 				"SourceControlWindows",
 				"EditorSubsystem",
+			});
+
+		DynamicallyLoadedModuleNames.AddRange(
+			new string[] {
 				"MainFrame",
-            });
-    }
+			});
+
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"MainFrame",
+			});
+	}
 }

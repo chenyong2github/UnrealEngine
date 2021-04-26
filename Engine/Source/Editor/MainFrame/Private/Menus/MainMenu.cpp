@@ -21,16 +21,14 @@
 #include "Menus/LayoutsMenu.h"
 #include "Menus/RecentProjectsMenu.h"
 #include "Menus/SettingsMenu.h"
-#include "Menus/MainFrameTranslationEditorMenu.h"
-
 #include "ToolMenus.h"
-
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Features/EditorFeatures.h"
 #include "Features/IModularFeatures.h"
 #include "UndoHistoryModule.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "ITranslationEditor.h"
 
 #define LOCTEXT_NAMESPACE "MainFileMenu"
 
@@ -176,59 +174,23 @@ void FMainMenu::RegisterWindowMenu()
 	{
 		if (USlateTabManagerContext* TabManagerContext = InData->FindContext<USlateTabManagerContext>())
 		{
-			TSharedPtr<FTabManager> TabManager = TabManagerContext->TabManager.Pin();
-			if (TabManager.IsValid())
+			
+			if (TSharedPtr<FTabManager> TabManager = TabManagerContext->TabManager.Pin())
 			{
-				// Local editor tabs
-				TabManager->PopulateLocalTabSpawnerMenu(InBuilder);
+				// The global tab manager will be the tab manager for nomad tabs that appear docked as major tabs. However major tabs are not spawned
+				// via the window menu so ignore anything from the global tab manager since it is responsible for major tabs only
+				if(TabManager != FGlobalTabmanager::Get())
+				{
+					// Local editor tabs
+					TabManager->PopulateLocalTabSpawnerMenu(InBuilder);
 
-				// General tabs
-				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-				TabManager->PopulateTabSpawnerMenu(InBuilder, MenuStructure.GetStructureRoot());
+					// General tabs
+					const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+					TabManager->PopulateTabSpawnerMenu(InBuilder, MenuStructure.GetStructureRoot());
+				}
 			}
 		}
 	}));
-
-	
-
-	// Experimental section
-	{
-		// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
-		// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
-		const bool bLocalizationDashboard = GetDefault<UEditorExperimentalSettings>()->bEnableLocalizationDashboard;
-		const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
-
-		// Make sure at least one is enabled before creating the section
-		if (bLocalizationDashboard || bTranslationPicker)
-		{
-			FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"), FToolMenuInsert("WindowLayout", EToolMenuInsertType::Before));
-			{
-				// Localization Dashboard
-				if (bLocalizationDashboard)
-				{
-					Section.AddMenuEntry(
-						"LocalizationDashboard",
-						LOCTEXT("LocalizationDashboardLabel", "Localization Dashboard"),
-						LOCTEXT("LocalizationDashboardToolTip", "Open the Localization Dashboard for this Project."),
-						FSlateIcon(FAppStyle::GetAppStyleSetName(), "LocalizationDashboard.MenuIcon"), 
-						FUIAction(FExecuteAction::CreateStatic(&FMainMenu::OpenLocalizationDashboard))
-						);
-				}
-
-				// Translation Picker
-				if (bTranslationPicker)
-				{
-					Section.AddMenuEntry(
-						"TranslationPicker",
-						LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
-						LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateStatic(&FMainFrameTranslationEditorMenu::HandleOpenTranslationPicker))
-						);
-				}
-			}
-		}
-	}
 
 	// Layout section
 	{
@@ -329,7 +291,9 @@ TSharedRef<SWidget> FMainMenu::MakeMainMenu(const TSharedPtr<FTabManager>& TabMa
 	// Cache all project names once
 	FMainFrameActionCallbacks::CacheProjectNames();
 
-	FMainMenu::RegisterMainMenu();
+	RegisterMainMenu();
+
+	RegisterNomadMainMenu();
 
 	ToolMenuContext.AppendCommandList(FMainFrameCommands::ActionList);
 
@@ -515,15 +479,45 @@ void FMainMenu::RegisterToolsMenu()
 			TSharedPtr<FTabManager> TabManager = TabManagerContext->TabManager.Pin();
 			if (TabManager.IsValid())
 			{
-				// Local editor tabs
-				TabManager->PopulateLocalTabSpawnerMenu(InBuilder);
-
 				// General tabs
 				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 				TabManager->PopulateTabSpawnerMenu(InBuilder, MenuStructure.GetToolsStructureRoot());
 			}
 		}
 	}));
+
+
+	// Experimental section
+	{
+		// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
+		// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
+		//const bool bLocalizationDashboard = GetDefault<UEditorExperimentalSettings>()->bEnableLocalizationDashboard;
+		const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
+
+		// Make sure at least one is enabled before creating the section
+		if ( bTranslationPicker)
+		{
+			FToolMenuSection& ExperimentalSection = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
+			{
+				// Translation Picker
+				if (bTranslationPicker)
+				{
+					ExperimentalSection.AddMenuEntry(
+						"TranslationPicker",
+						LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
+						LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda(
+							[]()
+							{
+								FModuleManager::Get().LoadModuleChecked("TranslationEditor");
+								ITranslationEditor::OpenTranslationPicker();
+							}))
+					);
+				}
+			}
+		}
+	}
 
 }
 
@@ -544,11 +538,10 @@ void FMainMenu::RegisterExitMenuItems()
 #endif
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-TSharedRef< SWidget > FMainMenu::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext )
+void FMainMenu::RegisterNomadMainMenu()
 {
-	return FMainMenu::MakeMainMenu( TabManager, MenuName, ToolMenuContext );
+	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("MainFrame.NomadMainMenu", "MainFrame.MainMenu");
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 
 #undef LOCTEXT_NAMESPACE

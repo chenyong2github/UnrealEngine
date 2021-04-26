@@ -78,8 +78,6 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	UE_DEPRECATED(4.26, "MakeMainTabMenu has been deprecated.  Use MakeMainMenu instead")
-	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FToolMenuContext& ToolMenuContext ) const = 0;
 
 	/**
 	 * Generates a menu for status and developer
