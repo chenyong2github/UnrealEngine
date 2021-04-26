@@ -34,7 +34,7 @@ UDisplayClusterBlueprint* UDisplayClusterConfiguratorEditorSubsystem::ImportAsse
 	check(OriginalConfigData);
 
 	UDisplayClusterConfigurationData* ConfigData = CastChecked<UDisplayClusterConfigurationData>(StaticDuplicateObject(OriginalConfigData, NewBlueprint));
-	NewBlueprint->SetConfigData(ConfigData);
+	NewBlueprint->SetConfigData(ConfigData, true);
 
 	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
 	FKismetEditorUtilities::CompileBlueprint(NewBlueprint);
@@ -70,7 +70,7 @@ UDisplayClusterConfigurationData* UDisplayClusterConfiguratorEditorSubsystem::Re
 			}
 			
 			NewConfig->PathToConfig = ReimportPath;
-			InBlueprint->SetConfigData(Cast<UDisplayClusterConfigurationData>(StaticDuplicateObject(NewConfig, InBlueprint)));
+			InBlueprint->SetConfigData(Cast<UDisplayClusterConfigurationData>(StaticDuplicateObject(NewConfig, InBlueprint)), true);
 
 			// Compile is necessary to update the CDO with the new config data. Otherwise manipulating the data in the editor won't work correctly.
 			FKismetEditorUtilities::CompileBlueprint(InBlueprint);

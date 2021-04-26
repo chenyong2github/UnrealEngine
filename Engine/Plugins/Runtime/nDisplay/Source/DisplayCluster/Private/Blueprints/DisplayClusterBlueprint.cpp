@@ -28,6 +28,11 @@ void UDisplayClusterBlueprint::GetReparentingRules(TSet<const UClass*>& AllowedC
 	AllowedChildrenOfClasses.Add(ADisplayClusterRootActor::StaticClass());
 }
 
+bool UDisplayClusterBlueprint::SupportsNativization(FText* OutReason) const
+{
+	return Super::SupportsNativization(OutReason);
+}
+
 #endif
 
 void UDisplayClusterBlueprint::UpdateConfigExportProperty()
@@ -99,41 +104,32 @@ UDisplayClusterBlueprintGeneratedClass* UDisplayClusterBlueprint::GetGeneratedCl
 
 UDisplayClusterConfigurationData* UDisplayClusterBlueprint::GetOrLoadConfig()
 {
-	if (ConfigData)
+	if (GeneratedClass)
 	{
-		return ConfigData;
+		if (ADisplayClusterRootActor* CDO = Cast<ADisplayClusterRootActor>(GeneratedClass->ClassDefaultObject))
+		{
+			ConfigData = CDO->GetConfigData();
+		}
 	}
 	
-	if (!ensure(PathToConfig.IsEmpty()))
-	{
-		UE_LOG(LogDisplayClusterBlueprint, Error, TEXT("GetOrLoadConfig - ConfigData object not exported and no PathToConfig set."));
-		return nullptr;
-	}
-	
-	ConfigData = IDisplayClusterConfiguration::Get().LoadConfig(PathToConfig);
 	return ConfigData;
 }
 
-void UDisplayClusterBlueprint::SetConfigData(UDisplayClusterConfigurationData* InConfigData)
+void UDisplayClusterBlueprint::SetConfigData(UDisplayClusterConfigurationData* InConfigData, bool bForceRecreate)
 {
 #if WITH_EDITOR
 	Modify();
 #endif
-	
-	if (InConfigData)
-	{
-		InConfigData->Rename(nullptr, this, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-		InConfigData->SetFlags(RF_Public);
-	}
 
-	if (ConfigData && ConfigData != InConfigData)
+	if (GeneratedClass)
 	{
-		// Makes sure the old data won't be exported and the rename will call modify. Probably not necessary.
-		ConfigData->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		if (ADisplayClusterRootActor* CDO = Cast<ADisplayClusterRootActor>(GeneratedClass->ClassDefaultObject))
+		{
+			CDO->UpdateConfigDataInstance(InConfigData, bForceRecreate);
+			GetOrLoadConfig();
+		}
 	}
 	
-	ConfigData = InConfigData;
-
 #if WITH_EDITORONLY_DATA
 	PathToConfig = InConfigData ? InConfigData->PathToConfig : "";
 #endif

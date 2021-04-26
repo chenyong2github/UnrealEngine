@@ -184,18 +184,19 @@ void FDisplayClusterConfiguratorProjectionCustomization::OnProjectionPolicySelec
 		{
 			bIsCustomPolicy = true;
 			CustomPolicy = ConfigurationViewport->ProjectionPolicy.Type;
-			ConfigurationViewport->ProjectionPolicy.bIsCustom = true;
+			IsCustomHandle->SetValue(true);
 		}
 		else
 		{
 			bIsCustomPolicy = false;
-			ConfigurationViewport->ProjectionPolicy.bIsCustom = false;
-			ConfigurationViewport->ProjectionPolicy.Type = SelectedPolicy;
+			IsCustomHandle->SetValue(false);
+			
+			TypeHandle->SetValue(SelectedPolicy);
 
 			if (CurrentSelectedPolicy.ToLower() != SelectedPolicy.ToLower())
 			{
 				// Reset when going from custom to another policy.
-				ConfigurationViewport->ProjectionPolicy.Parameters.Reset();
+				ensure(ParametersHandle->AsMap()->Empty() == FPropertyAccess::Result::Success);
 			}
 		}
 
@@ -263,12 +264,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::OnTextCommittedInCustom
 	}
 	
 	CustomPolicy = InValue.ToString();
-
-	// Update Config
-	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
-	check(ConfigurationViewport != nullptr);
-
-	ConfigurationViewport->ProjectionPolicy.Type = CustomPolicy;
+	TypeHandle->SetValue(CustomPolicy);
 
 	// Check if the custom config same as any of the ProjectionPolicies configs
 	// Turning this off for now in case users want to customize individual parameters..
@@ -367,6 +363,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateSimplePolicy(UDis
 		DisplayClusterProjectionStrings::cfg::simple::Screen,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		UDisplayClusterScreenComponent::StaticClass()));
 }
 
@@ -377,13 +374,15 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDis
 		DisplayClusterProjectionStrings::cfg::camera::Component,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		UCineCameraComponent::StaticClass()));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 		"Native",
 		DisplayClusterProjectionStrings::cfg::camera::Native,
 		Blueprint,
-		ConfigurationViewportPtr.Get()));
+		ConfigurationViewportPtr.Get(),
+		ParametersHandle));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDisplayClusterBlueprint* Blueprint)
@@ -393,6 +392,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMeshPolicy(UDispl
 		DisplayClusterProjectionStrings::cfg::mesh::Component,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		UStaticMeshComponent::StaticClass()));
 }
 
@@ -403,6 +403,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDispl
 		DisplayClusterProjectionStrings::cfg::domeprojection::File,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{"xml"}));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
@@ -410,13 +411,15 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateDomePolicy(UDispl
 		DisplayClusterProjectionStrings::cfg::domeprojection::Origin,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		USceneComponent::StaticClass()));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<int32>>(
 		"Channel",
 		DisplayClusterProjectionStrings::cfg::domeprojection::Channel,
 		Blueprint,
-		ConfigurationViewportPtr.Get()));
+		ConfigurationViewportPtr.Get(),
+		ParametersHandle));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisplayClusterBlueprint* Blueprint)
@@ -426,6 +429,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisp
 		DisplayClusterProjectionStrings::cfg::VIOSO::File,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{"vwf"}));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
@@ -433,13 +437,15 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateVIOSOPolicy(UDisp
 		DisplayClusterProjectionStrings::cfg::VIOSO::Origin,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		USceneComponent::StaticClass()));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoMatrix>(
 		"Matrix",
 		DisplayClusterProjectionStrings::cfg::VIOSO::BaseMatrix,
 		Blueprint,
-		ConfigurationViewportPtr.Get()));
+		ConfigurationViewportPtr.Get(),
+		ParametersHandle));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateEasyBlendPolicy(UDisplayClusterBlueprint* Blueprint)
@@ -449,6 +455,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateEasyBlendPolicy(U
 		DisplayClusterProjectionStrings::cfg::easyblend::File,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{"pol", "ol"}));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
@@ -456,13 +463,15 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateEasyBlendPolicy(U
 		DisplayClusterProjectionStrings::cfg::easyblend::Origin,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		USceneComponent::StaticClass()));
 
 	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 		"Scale",
 		DisplayClusterProjectionStrings::cfg::easyblend::Scale,
 		Blueprint,
-		ConfigurationViewportPtr.Get()));
+		ConfigurationViewportPtr.Get(),
+		ParametersHandle));
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDisplayClusterBlueprint* Blueprint)
@@ -490,6 +499,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 		RenderingKey,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{RenderingMono, RenderingStereo, RenderingMonoStereo},
 		& RenderingMono,
 		bSort);
@@ -501,6 +511,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 		FrustumKey,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{FrustumMatrix, FrustumAngles},
 		& FrustumMatrix,
 		bSort);
@@ -515,7 +526,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 			"Rotation",
 			DisplayClusterProjectionStrings::cfg::manual::Rotation,
 			Blueprint,
-			ConfigurationViewportPtr.Get()));
+			ConfigurationViewportPtr.Get(),
+			ParametersHandle));
 	}
 	
 	/*
@@ -539,7 +551,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 				"Matrix",
 				DisplayClusterProjectionStrings::cfg::manual::Matrix,
 				Blueprint,
-				ConfigurationViewportPtr.Get());
+				ConfigurationViewportPtr.Get(),
+				ParametersHandle);
 			CustomPolicyParameters.Add(MatrixPolicy);
 		}
 	}
@@ -562,7 +575,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 				"MatrixLeft",
 				DisplayClusterProjectionStrings::cfg::manual::MatrixLeft,
 				Blueprint,
-				ConfigurationViewportPtr.Get());
+				ConfigurationViewportPtr.Get(),
+				ParametersHandle);
 			CustomPolicyParameters.Add(MatrixLeftPolicy);
 
 			const TSharedPtr<FPolicyParameterInfoMatrix> MatrixRightPolicy =
@@ -570,7 +584,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 					"MatrixRight",
 					DisplayClusterProjectionStrings::cfg::manual::MatrixRight,
 					Blueprint,
-					ConfigurationViewportPtr.Get());
+					ConfigurationViewportPtr.Get(),
+					ParametersHandle);
 			CustomPolicyParameters.Add(MatrixRightPolicy);
 		}
 	}
@@ -594,7 +609,8 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 				"Frustum",
 				DisplayClusterProjectionStrings::cfg::manual::Frustum,
 				Blueprint,
-				ConfigurationViewportPtr.Get()));
+				ConfigurationViewportPtr.Get(),
+				ParametersHandle));
 		}
 
 		auto IsLeftRightFrustumVisible = [RenderingCombo, RenderingStereo, RenderingMonoStereo, FrustumCombo, FrustumAngles]() -> bool
@@ -612,13 +628,15 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateManualPolicy(UDis
 				"FrustumLeft",
 				DisplayClusterProjectionStrings::cfg::manual::FrustumLeft,
 				Blueprint,
-				ConfigurationViewportPtr.Get()));
+				ConfigurationViewportPtr.Get(),
+				ParametersHandle));
 
 			CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFrustumAngle>(
 				"FrustumRight",
 				DisplayClusterProjectionStrings::cfg::manual::FrustumRight,
 				Blueprint,
-				ConfigurationViewportPtr.Get()));
+				ConfigurationViewportPtr.Get(),
+				ParametersHandle));
 		}
 	}
 }
@@ -643,6 +661,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 		MPCDITypeKey,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		TArray<FString>{TypeMPCDI, TypePFM},
 		&TypeMPCDI,
 		bSort);
@@ -657,19 +676,22 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 			DisplayClusterProjectionStrings::cfg::mpcdi::File,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
+			ParametersHandle,
 			TArray<FString>{"mpcdi"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoText>(
 			"Buffer",
 			DisplayClusterProjectionStrings::cfg::mpcdi::Buffer,
 			Blueprint,
-			ConfigurationViewportPtr.Get()));
+			ConfigurationViewportPtr.Get(),
+			ParametersHandle));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoText>(
 			"Region",
 			DisplayClusterProjectionStrings::cfg::mpcdi::Region,
 			Blueprint,
-			ConfigurationViewportPtr.Get()));
+			ConfigurationViewportPtr.Get(),
+			ParametersHandle));
 	}
 	else if (Setting == TypePFM)
 	{
@@ -678,6 +700,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 			DisplayClusterProjectionStrings::cfg::mpcdi::FilePFM,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
+			ParametersHandle,
 			TArray<FString>{"pfm"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
@@ -685,32 +708,39 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 			DisplayClusterProjectionStrings::cfg::mpcdi::FileAlpha,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
+			ParametersHandle,
 			TArray<FString>{"png"}));
 		
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 			"Alpha Gamma",
 			DisplayClusterProjectionStrings::cfg::mpcdi::AlphaGamma,
 			Blueprint,
-			ConfigurationViewportPtr.Get(), 1.f));
+			ConfigurationViewportPtr.Get(),
+			ParametersHandle,
+			1.f));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoFile>(
 			"Beta Mask",
 			DisplayClusterProjectionStrings::cfg::mpcdi::FileBeta,
 			Blueprint,
 			ConfigurationViewportPtr.Get(),
+			ParametersHandle,
 			TArray<FString>{"png"}));
 
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoNumber<float>>(
 			"Scale",
 			DisplayClusterProjectionStrings::cfg::mpcdi::WorldScale,
 			Blueprint,
-			ConfigurationViewportPtr.Get(), 1.f));
+			ConfigurationViewportPtr.Get(), 
+			ParametersHandle,
+			1.f));
 		
 		CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoBool>(
 			"Use Unreal Axis",
 			DisplayClusterProjectionStrings::cfg::mpcdi::UseUnrealAxis,
 			Blueprint,
-			ConfigurationViewportPtr.Get()));
+			ConfigurationViewportPtr.Get(),
+			ParametersHandle));
 	}
 	
 	TSharedPtr<FPolicyParameterInfoCombo> Origin = MakeShared<FPolicyParameterInfoComponentCombo>(
@@ -718,6 +748,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::CreateMPCDIPolicy(UDisp
 		DisplayClusterProjectionStrings::cfg::mpcdi::Origin,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
+		ParametersHandle,
 		USceneComponent::StaticClass());
 }
 

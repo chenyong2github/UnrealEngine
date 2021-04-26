@@ -18,6 +18,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "DisplayClusterConfiguratorPropertyUtils.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
@@ -25,9 +26,9 @@
 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
-
 
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterConfiguratorDetailCustomization"
@@ -60,10 +61,13 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 			}
 		}
 	}
-	
-	if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited))
+
+	if (!RootActorPtr.IsValid() || ObjectBeingEdited->IsTemplate(RF_ClassDefaultObject))
 	{
-		ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(BPEditor->AsShared());
+		if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited))
+		{
+			ToolkitPtr = StaticCastSharedRef<FDisplayClusterConfiguratorBlueprintEditor>(BPEditor->AsShared());
+		}
 	}
 
 	check(RootActorPtr.IsValid() || ToolkitPtr.IsValid());
@@ -73,18 +77,21 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 	NDisplayCategory->InitiallyCollapsed(false);
 
 	// Hide properties that should only be visible on the instance. VisibleInstanceOnly doesn't work with these properties.
-	if (IsRunningForBlueprintEditor())
-	{
-		TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
-		NDisplayCategory->GetDefaultProperties(CategoryProperties);
+	TArray<TSharedRef<IPropertyHandle>> CategoryProperties;
+	NDisplayCategory->GetDefaultProperties(CategoryProperties);
 
-		for (TSharedRef<IPropertyHandle>& PropertyHandle : CategoryProperties)
+	for (TSharedRef<IPropertyHandle>& PropertyHandle : CategoryProperties)
+	{
+		FProperty* Property = PropertyHandle->GetProperty();
+
+		const bool bShouldHide = PropertyHandle->HasMetaData("nDisplayHidden") || 
+			(IsRunningForBlueprintEditor() ? 
+				PropertyHandle->HasMetaData("nDisplayInstanceOnly") || Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate) :
+				false);
+
+		if (bShouldHide)
 		{
-			FProperty* Property = PropertyHandle->GetProperty();
-			if (PropertyHandle->HasMetaData("nDisplayInstanceOnly") || (Property && Property->HasAnyPropertyFlags(CPF_DisableEditOnTemplate)))
-			{
-				PropertyHandle->MarkHiddenByCustomization();
-			}
+			PropertyHandle->MarkHiddenByCustomization();
 		}
 	}
 }
@@ -154,6 +161,10 @@ void FDisplayClusterConfiguratorDataDetailCustomization::CustomizeDetails(IDetai
 	TSharedRef<IPropertyHandle> DiagnosticsHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, Diagnostics));
 	check(DiagnosticsHandle->IsValidHandle());
 	NDisplayCategory->AddProperty(DiagnosticsHandle).ShouldAutoExpand(true);
+
+	TSharedPtr<IPropertyHandle> CustomParamsHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationData, CustomParameters));
+	check(CustomParamsHandle->IsValidHandle());
+	NDisplayCategory->AddProperty(CustomParamsHandle).ShouldAutoExpand(false);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,6 +188,34 @@ void FDisplayClusterConfiguratorClusterDetailCustomization::CustomizeDetails(IDe
 	NDisplayCategory->AddProperty(MasterNodeHandle).ShouldAutoExpand(true);
 	NDisplayCategory->AddProperty(SyncHandle).ShouldAutoExpand(true);
 	NDisplayCategory->AddProperty(NetworkHandle).ShouldAutoExpand(true);
+
+	ClusterNodesHandle = InLayoutBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Nodes));
+	check(ClusterNodesHandle->IsValidHandle());
+
+	if (!IsRunningForBlueprintEditor())
+	{
+		// Add a reset cluster nodes default button. Normal reset to defaults on the map won't display because of EditFixedSize flag.
+		// This is also handy since UE will stop propagating CDO container structure changes when an instanced value is modified.
+		
+		NDisplayCategory->AddCustomRow(ClusterNodesHandle->GetDefaultCategoryText())
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.HAlign(HAlign_Fill)
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("ResetClusterNodesButton_Label", "Reset Cluster Nodes"))
+				.ToolTipText(LOCTEXT("ResetClusterNodesButton_Tooltip", "Reset all cluster nodes to class defaults."))
+				.OnClicked(FOnClicked::CreateLambda([this]()
+				{
+					ClusterNodesHandle->ResetToDefault();
+					return FReply::Handled();
+				}))
+			]
+		];
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -285,12 +324,12 @@ void FDisplayClusterConfiguratorViewportDetailCustomization::OnCameraSelected(TS
 		// Handle empty case
 		if (InCamera->Equals(*NoneOption.Get()))
 		{
-			ConfigurationViewport->Camera = "";
+			CameraHandle->SetValue(TEXT(""));
 
 		}
 		else
 		{
-			ConfigurationViewport->Camera = *InCamera.Get();
+			CameraHandle->SetValue(*InCamera.Get());
 		}
 
 		// Reset available options
@@ -576,7 +615,11 @@ void FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeHeader(
 	check(TypeHandle->IsValidHandle());
 	ParametersHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationPolymorphicEntity, Parameters));
 	check(ParametersHandle->IsValidHandle());
+	IsCustomHandle = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationPolymorphicEntity, bIsCustom));
+	check(IsCustomHandle->IsValidHandle());
 
+	IsCustomHandle->MarkHiddenByCustomization();
+	
 	// Create header row
 	InHeaderRow.NameContent()
 	[
@@ -593,8 +636,6 @@ void FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeChildre
 	FDisplayClusterConfiguratorTypeCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
 
 	ChildBuilder = &InChildBuilder;
-
-
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -649,7 +690,7 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::CustomizeHeader(T
 void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
-
+	
 	// Hide properties 
 	TypeHandle->MarkHiddenByCustomization();
 
@@ -757,11 +798,8 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddNvidiaPolicyRo
 		})
 		.OnValueChanged_Lambda([this](int32 InValue)
 		{
-			UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-			check(ConfigurationCluster != nullptr);
-
 			SwapGroupValue = InValue;
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Add(SwapGroupName, FString::FromInt(SwapGroupValue));
+			AddToParameterMap(SwapGroupName, FString::FromInt(SwapGroupValue));
 		})
 	];
 
@@ -785,11 +823,8 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddNvidiaPolicyRo
 		})
 		.OnValueChanged_Lambda([this](int32 InValue)
 		{
-			UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
-			check(ConfigurationCluster != nullptr);
-
 			SwapBarrierValue = InValue;
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Add(SwapBarrierName, FString::FromInt(SwapBarrierValue));
+			AddToParameterMap(SwapBarrierName, FString::FromInt(SwapBarrierValue));
 		})
 	];
 }
@@ -830,7 +865,7 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolic
 		UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
 		check(ConfigurationCluster != nullptr);
 
-		FString SelectedPolicy = *InPolicy.Get();
+		const FString SelectedPolicy = *InPolicy.Get();
 
 		ConfigurationCluster->Modify();
 		ModifyBlueprint();
@@ -838,31 +873,30 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolic
 		if (SelectedPolicy.Equals(*CustomOption.Get()))
 		{
 			bIsCustomPolicy = true;
-			ConfigurationCluster->Sync.RenderSyncPolicy.Type = CustomPolicy;
-			ConfigurationCluster->Sync.RenderSyncPolicy.bIsCustom = true;
+			TypeHandle->SetValue(CustomPolicy);
+			IsCustomHandle->SetValue(true);
 		}
 		else
 		{
 			bIsCustomPolicy = false;
-			ConfigurationCluster->Sync.RenderSyncPolicy.Type = SelectedPolicy;
-			ConfigurationCluster->Sync.RenderSyncPolicy.bIsCustom = false;
+			TypeHandle->SetValue(SelectedPolicy);
+			IsCustomHandle->SetValue(false);
 		}
 
 		if (ConfigurationCluster->Sync.RenderSyncPolicy.Type.Equals(*NvidiaOption.Get()))
 		{
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Add(SwapGroupName, FString::FromInt(SwapGroupValue));
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Add(SwapBarrierName, FString::FromInt(SwapBarrierValue));
+			AddToParameterMap(SwapGroupName, FString::FromInt(SwapGroupValue));
+			AddToParameterMap(SwapBarrierName, FString::FromInt(SwapBarrierValue));
 		}
 		else
 		{
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Remove(SwapGroupName);
-			ConfigurationCluster->Sync.RenderSyncPolicy.Parameters.Remove(SwapBarrierName);
+			RemoveFromParameterMap(SwapGroupName);
+			RemoveFromParameterMap(SwapBarrierName);
 		}
 
 		// Reset available options
 		ResetRenderSyncPolicyOptions();
 		RenderSyncPolicyComboBox->ResetOptionsSource(&RenderSyncPolicyOptions);
-
 		RenderSyncPolicyComboBox->SetIsOpen(false);
 	}
 }
@@ -916,8 +950,8 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedIn
 	// Update Config
 	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
 	check(ConfigurationCluster != nullptr);
-
-	ConfigurationCluster->Sync.RenderSyncPolicy.Type = CustomPolicy;
+	
+	TypeHandle->SetValue(CustomPolicy);
 
 	// Check if the custom config same as any of the ProjectionPoliсies configs 
 	bIsCustomPolicy = true;
@@ -932,6 +966,37 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnTextCommittedIn
 			break;
 		}
 	}
+}
+
+void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddToParameterMap(const FString& Key,
+                                                                                 const FString& Value)
+{
+	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
+	check(ConfigurationCluster != nullptr);
+	
+	FStructProperty* SyncStructProperty = FindFProperty<FStructProperty>(ConfigurationCluster->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Sync));
+	check(SyncStructProperty);
+
+	FStructProperty* RenderStructProperty = FindFProperty<FStructProperty>(SyncStructProperty->Struct, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationClusterSync, RenderSyncPolicy));
+	check(RenderStructProperty);
+
+	uint8* MapContainer = RenderStructProperty->ContainerPtrToValuePtr<uint8>(&ConfigurationCluster->Sync);
+	DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, ParametersHandle, Key, Value);
+}
+
+void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::RemoveFromParameterMap(const FString& Key)
+{
+	UDisplayClusterConfigurationCluster* ConfigurationCluster = ConfigurationClusterPtr.Get();
+	check(ConfigurationCluster != nullptr);
+
+	FStructProperty* SyncStructProperty = FindFProperty<FStructProperty>(ConfigurationCluster->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationCluster, Sync));
+	check(SyncStructProperty);
+
+	FStructProperty* RenderStructProperty = FindFProperty<FStructProperty>(SyncStructProperty->Struct, GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationClusterSync, RenderSyncPolicy));
+	check(RenderStructProperty);
+
+	uint8* MapContainer = RenderStructProperty->ContainerPtrToValuePtr<uint8>(&ConfigurationCluster->Sync);
+	DisplayClusterConfiguratorPropertyUtils::RemoveKeyFromMap(MapContainer, ParametersHandle, Key);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -1021,8 +1086,8 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::OnInputSyncPolicyS
 		ConfigurationCluster->Modify();
 		ModifyBlueprint();
 		
-		ConfigurationCluster->Sync.InputSyncPolicy.Type = *InPolicy.Get();
-
+		TypeHandle->SetValue(*InPolicy.Get());
+		
 		// Reset available options
 		ResetInputSyncPolicyOptions();
 		InputSyncPolicyComboBox->ResetOptionsSource(&InputSyncPolicyOptions);

@@ -86,7 +86,7 @@ bool FDisplayClusterConfigurationJsonParser::AsString(const UDisplayClusterConfi
 
 UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::ConvertDataToInternalTypes()
 {
-	UDisplayClusterConfigurationData* Config = NewObject<UDisplayClusterConfigurationData>(ConfigDataOwner ? ConfigDataOwner : GetTransientPackage(), NAME_None, RF_MarkAsRootSet | RF_Transactional);
+	UDisplayClusterConfigurationData* Config = UDisplayClusterConfigurationData::CreateNewConfigData(ConfigDataOwner, RF_MarkAsRootSet);
 	check(Config && Config->Scene && Config->Cluster);
 
 	// Fill metadata
@@ -220,7 +220,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 		// Cluster nodes
 		for (const auto& CfgNode : CfgJson.Cluster.Nodes)
 		{
-			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config, *CfgNode.Key, RF_Transactional);
+			UDisplayClusterConfigurationClusterNode* Node = NewObject<UDisplayClusterConfigurationClusterNode>(Config->Cluster, *CfgNode.Key, RF_Transactional);
 			check(Node);
 
 			// Base parameters
@@ -232,7 +232,7 @@ UDisplayClusterConfigurationData* FDisplayClusterConfigurationJsonParser::Conver
 			// Viewports
 			for (const auto& CfgViewport : CfgNode.Value.Viewports)
 			{
-				UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Config, *CfgViewport.Key, RF_Transactional);
+				UDisplayClusterConfigurationViewport* Viewport = NewObject<UDisplayClusterConfigurationViewport>(Node, *CfgViewport.Key, RF_Transactional | RF_ArchetypeObject | RF_Public);
 				check(Viewport);
 
 				// Base parameters

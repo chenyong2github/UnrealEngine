@@ -164,7 +164,7 @@ void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBluepr
 	check(NewBlueprint);
 	
 	FDisplayClusterConfiguratorVersionUtils::SetToLatestVersion(NewBlueprint);
-	NewBlueprint->SetConfigData(FDisplayClusterConfiguratorUtils::GenerateNewConfigData());
+	NewBlueprint->SetConfigData(UDisplayClusterConfigurationData::CreateNewConfigData());
 	// Setup default components.
 	{
 		{
