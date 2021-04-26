@@ -30,6 +30,7 @@ IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 #define LOCTEXT_NAMESPACE "LiveCodingModule"
 
 bool GIsCompileActive = false;
+bool GTriggerReload = false;
 bool GHasLoadedPatch = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
@@ -38,18 +39,6 @@ FLiveCodingModule* GLiveCodingModule = nullptr;
 #if IS_MONOLITHIC
 extern const TCHAR* GLiveCodingEngineDir;
 extern const TCHAR* GLiveCodingProject;
-#endif
-
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wextern-initializer"
-#endif
-
-LPP_PRECOMPILE_HOOK(FLiveCodingModule::PreCompileHook);
-LPP_POSTCOMPILE_HOOK(FLiveCodingModule::PostCompileHook);
-
-#ifdef __clang__
-#pragma clang diagnostic pop
 #endif
 
 #if !WITH_EDITOR
@@ -376,32 +365,75 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 	extern void LppSyncPoint();
 	LppSyncPoint();
 
-	if (!GIsCompileActive && Reload.IsValid())
+	if ((!GIsCompileActive || GTriggerReload) && Reload.IsValid())
 	{
 		if (GHasLoadedPatch)
 		{
-			CheckForClassChanges();
+#if WITH_COREUOBJECT && WITH_ENGINE
+
+			// During the module loading process, the list of changed classes will be recorded.  Invoking this method will 
+			// result in the RegisterForReinstancing method being invoked which in turn records the classes in the ClassesToReinstance
+			// member variable being populated.
+			ProcessNewlyLoadedUObjects();
+
+			// Complete the process of re-instancing without doing a GC
+#if WITH_EDITOR
+			Reload->Finalize(false);
+#endif
+
+			// Loop through all of the classes looking for classes that have been re-instanced.  We have to clear
+			// the CDO in order for the CDO to be GC'ed.  Otherwise when the CDO is later GC'ed, it will invoke the
+			// wrong destructor.
+			TArray<UClass*> ReinstClasses;
+			if (Reload->GetEnableReinstancing(false))
+			{
+				for (TObjectIterator<UClass> It; It; ++It)
+				{
+					UClass* Class = *It;
+					if (Class->GetName().StartsWith(TEXT("LIVECODING_")))
+					{
+						ReinstClasses.Add(Class);
+						Class->ClassDefaultObject = nullptr;
+					}
+					else if (Class->GetName().StartsWith(TEXT("REINST_")))
+					{
+						Class->ClassDefaultObject = nullptr;
+					}
+				}
+			}
+
+			// Perform the GC to try and destruct all the objects which will be invoking the old destructors.
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+#endif
+
+			// Second sync point to finish off the patching
+			if (GTriggerReload)
+			{
+				LppSyncPoint();
+			}
+
+#if WITH_COREUOBJECT && WITH_ENGINE
+			// Re-create the default objects.  This is technically incorrect since the structure doesn't match.
+			// But we need a CDO just in case.
+			if (Reload->GetEnableReinstancing(false))
+			{
+				for (UClass* Class : ReinstClasses)
+				{
+					Class->GetDefaultObject(true);
+				}
+			}
+#endif
+
 			OnPatchCompleteDelegate.Broadcast();
 			GHasLoadedPatch = false;
 		}
+		else if (GTriggerReload)
+		{
+			LppSyncPoint();
+		}
 		Reload.Reset();
 	}
-}
-
-void FLiveCodingModule::CheckForClassChanges()
-{
-#if WITH_COREUOBJECT && WITH_ENGINE
-
-	// During the module loading process, the list of changed classes will be recorded.  Invoking this method will 
-	// result in the RegisterForReinstancing method being invoked which in turn records the classes in the ClassesToReinstance
-	// member variable being populated.
-	ProcessNewlyLoadedUObjects();
-
-#if WITH_EDITOR
-	Reload->Finalize();
-#endif
-
-#endif
+	GTriggerReload = false;
 }
 
 ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchCompleteDelegate()
@@ -460,6 +492,15 @@ bool FLiveCodingModule::StartLiveCoding()
 			Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *FPaths::ConvertRelativePathToFull(SourceProject));
 		}
 		LppSetBuildArguments(*Arguments);
+
+#if WITH_EDITOR
+		bool bEnableReinstancing = true;
+		GConfig->GetBool(TEXT("LiveCoding"), TEXT("bEnableReinstancing"), bEnableReinstancing, GEngineIni);
+		if (bEnableReinstancing)
+		{
+			LppEnableReinstancingFlow();
+		}
+#endif
 
 		// Create a mutex that allows UBT to detect that we shouldn't hot-reload into this executable. The handle to it will be released automatically when the process exits.
 		FString ExecutablePath = FPaths::ConvertRelativePathToFull(FPlatformProcess::ExecutablePath());
@@ -624,19 +665,6 @@ bool FLiveCodingModule::ShouldPreloadModule(const FName& Name, const FString& Fu
 	}
 }
 
-void FLiveCodingModule::PreCompileHook()
-{
-	UE_LOG(LogLiveCoding, Display, TEXT("Starting Live Coding compile."));
-	GIsCompileActive = true;
-	BeginReload();
-}
-
-void FLiveCodingModule::PostCompileHook()
-{
-	UE_LOG(LogLiveCoding, Display, TEXT("Live Coding compile done.  See Live Coding console for more information."));
-	GIsCompileActive = false;
-}
-
 void FLiveCodingModule::BeginReload()
 {
 	if (GLiveCodingModule != nullptr)
@@ -667,6 +695,30 @@ void LiveCodingBeginPatch()
 void LiveCodingEndCompile()
 {
 	GIsCompileActive = false;
+}
+
+// Invoked from LC_ClientCommandActions
+void LiveCodingPreCompile()
+{
+	UE_LOG(LogLiveCoding, Display, TEXT("Starting Live Coding compile."));
+	GIsCompileActive = true;
+	if (GLiveCodingModule != nullptr)
+	{
+		GLiveCodingModule->BeginReload();
+	}
+}
+
+// Invoked from LC_ClientCommandActions
+void LiveCodingPostCompile()
+{
+	UE_LOG(LogLiveCoding, Display, TEXT("Live Coding compile done.  See Live Coding console for more information."));
+	GIsCompileActive = false;
+}
+
+// Invoked from LC_ClientCommandActions
+void LiveCodingTriggerReload()
+{
+	GTriggerReload = true;
 }
 
 #undef LOCTEXT_NAMESPACE

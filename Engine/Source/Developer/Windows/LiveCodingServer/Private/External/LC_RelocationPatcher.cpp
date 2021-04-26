@@ -118,6 +118,9 @@ relocations::Record relocations::PatchRelocation
 	const symbols::Symbol* srcSymbol,
 	size_t newModuleIndex,
 	void* newModuleBases[]
+	// BEGIN EPIC MOD
+	, bool forceBackwards
+	// END EPIC MOD
 )
 {
 	Record record = { coff::Relocation::Type::UNKNOWN, 0u, 0u, {} };
@@ -193,7 +196,7 @@ relocations::Record relocations::PatchRelocation
 	}
 
 	// BEGIN EPIC MOD
-	bool backwards = symbols::IsUEReversePatchSymbol(dstSymbolName) || symbols::IsUEReversePatchSymbol(srcSymbolName);
+	bool backwards = forceBackwards || symbols::IsUEReversePatchSymbol(dstSymbolName) || symbols::IsUEReversePatchSymbol(srcSymbolName);
 	// END EPIC MOD
 
 	// find the relocation's destination symbol in the original .exe, and patch the relocation
@@ -284,7 +287,9 @@ relocations::Record relocations::PatchRelocation
 
 				Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 
-				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// BEGIN EPIC MOD
+				LC_LOG_DEV("Patched relocation from symbol %d:%s to %d:%s at 0x%p (0x%x + 0x%x) (relative offset)", newModuleIndex, srcSymbolName.c_str(), record.patchIndex, dstSymbolName.c_str(), record.patchIndex, newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// END EPIC MOD
 			}
 		}
 		break;
@@ -319,7 +324,9 @@ relocations::Record relocations::PatchRelocation
 
 					Process::WriteProcessMemory(processHandle, relocationAddress, sectionRelativeRva);
 
-					LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+					// BEGIN EPIC MOD
+					LC_LOG_DEV("Patched relocation from symbol %d:%s to %d:%s at 0x%p (0x%x + 0x%x) (section relative)", newModuleIndex, srcSymbolName.c_str(), record.patchIndex, dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+					// END EPIC MOD
 				}
 			}
 			else
@@ -395,7 +402,9 @@ relocations::Record relocations::PatchRelocation
 
 				Process::WriteProcessMemory(processHandle, relocationAddress, displacement);
 
-				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// BEGIN EPIC MOD
+				LC_LOG_DEV("Patched relocation from symbol %d:%s to %d:%s at 0x%p (0x%x + 0x%x) (RVA_32)", newModuleIndex, srcSymbolName.c_str(), record.patchIndex, dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// END EPIC MOD
 			}
 		}
 		break;
@@ -426,7 +435,9 @@ relocations::Record relocations::PatchRelocation
 
 				Process::WriteProcessMemory(processHandle, relocationAddress, va);
 
-				LC_LOG_DEV("Patched relocation from symbol %s to %s at 0x%p (0x%x + 0x%x)", srcSymbolName.c_str(), dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// BEGIN EPIC MOD
+				LC_LOG_DEV("Patched relocation from symbol %d:%s to %d:%s at 0x%p (0x%x + 0x%x) (VA_64)", newModuleIndex, srcSymbolName.c_str(), record.patchIndex, dstSymbolName.c_str(), newModuleBase, srcSymbol->rva, relocation->srcRva);
+				// END EPIC MOD
 			}
 		}
 		break;

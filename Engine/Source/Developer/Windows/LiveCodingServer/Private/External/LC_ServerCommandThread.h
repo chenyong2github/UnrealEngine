@@ -116,6 +116,10 @@ private:
 		DECLARE_ACTION(FinishedLazyLoadingModules);
 		// END EPIC MOD
 
+		// BEGIN EPIC MOD
+		DECLARE_ACTION(EnableReinstancingFlow);
+		// END EPIC MOD
+
 		#undef DECLARE_ACTION
 	};
 

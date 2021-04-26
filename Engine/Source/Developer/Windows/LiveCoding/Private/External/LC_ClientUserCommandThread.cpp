@@ -554,6 +554,15 @@ void* ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, W
 }
 // END EPIC MOD
 
+// BEGIN EPIC MOD
+void ClientUserCommandThread::EnableReinstancingFlow()
+{
+	ProxyCommand<commands::EnableReinstancingFlow>* proxy = new ProxyCommand<commands::EnableReinstancingFlow>(false, 0u);
+	proxy->m_command.processId = Process::Current::GetId();
+
+	PushUserCommand(proxy);
+}
+// END EPIC MOD
 
 void ClientUserCommandThread::InstallExceptionHandler(void)
 {
@@ -631,6 +640,11 @@ Thread::ReturnValue ClientUserCommandThread::ThreadFunction(Event* waitForStartE
 	moduleCommandMap.RegisterAction<actions::LeaveSyncPoint>();
 	moduleCommandMap.RegisterAction<actions::CallEntryPoint>();
 	moduleCommandMap.RegisterAction<actions::CallHooks>();
+	// BEGIN EPIC MOD
+	moduleCommandMap.RegisterAction<actions::PreCompile>();
+	moduleCommandMap.RegisterAction<actions::PostCompile>();
+	moduleCommandMap.RegisterAction<actions::TriggerReload>();
+	// END EPIC MOD
 
 	for (;;)
 	{

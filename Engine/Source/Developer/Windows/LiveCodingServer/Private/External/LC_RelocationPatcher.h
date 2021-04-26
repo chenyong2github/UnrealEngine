@@ -69,6 +69,9 @@ namespace relocations
 		const symbols::Symbol* srcSymbol,
 		size_t newModuleIndex,
 		void* newModuleBases[]
+// BEGIN EPIC MOD
+		, bool forceBackwards
+// END EPIC MOD
 	);
 
 	void PatchRelocation

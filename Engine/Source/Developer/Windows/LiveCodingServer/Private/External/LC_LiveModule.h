@@ -90,11 +90,6 @@ public:
 
 	bool HasInstalledPatches(void) const;
 
-	// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-	void CallPrecompileHooks();
-	void CallPostcompileHooks();
-	// END EPIC MOD
-
 private:
 	void UpdateDirectoryCache(const ImmutableString& path, symbols::Dependency* dependency, DirectoryCache* cache);
 

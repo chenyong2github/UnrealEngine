@@ -339,7 +339,14 @@ bool UObjectBase::IsValidLowLevelFast(bool bRecursive /*= true*/) const
 	// These should all be non-NULL (except CDO-alignment check which should be 0)
 	if (ClassPrivate == nullptr || ClassPrivate->ClassDefaultObject == nullptr || ((UPTRINT)ClassPrivate->ClassDefaultObject & AlignmentCheck) != 0)
 	{
-		UE_LOG(LogUObjectBase, Error, TEXT("Class pointer is invalid or CDO is invalid."));
+#if WITH_LIVE_CODING
+		// When live coding is re-instancing blueprint generated classes, we have to clear out the default object so it can get 
+		// GC'ed and deleted prior to live coding completing the patching process (of the destructor specifically)
+		if (!ClassPrivate->HasAnyClassFlags(CLASS_NewerVersionExists))
+#endif
+		{
+			UE_LOG(LogUObjectBase, Error, TEXT("Class pointer is invalid or CDO is invalid."));
+		}
 		return false;
 	}
 	// Avoid infinite recursion so call IsValidLowLevelFast on the class object with bRecirsive = false.

@@ -50,7 +50,7 @@ public:
 	/**
 	 * Perform any finalize processing for reloading.
 	 */
-	void Finalize();
+	void Finalize(bool bRunGC = true);
 
 	/**
 	 * Set the sending of the complete notification

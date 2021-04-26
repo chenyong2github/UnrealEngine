@@ -77,6 +77,10 @@ public:
 	void* EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void EnableReinstancingFlow();
+	// END EPIC MOD
+
 private:
 	Thread::ReturnValue ThreadFunction(const std::wstring& groupName, RunMode::Enum runMode);
 

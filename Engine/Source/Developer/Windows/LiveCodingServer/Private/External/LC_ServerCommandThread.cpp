@@ -1063,11 +1063,11 @@ void ServerCommandThread::CallPrecompileHooks(bool didAllProcessesMakeProgress)
 		return;
 	}
 
-	const size_t count = m_liveModules.size();
+	const size_t count = m_liveProcesses.size();
 	for (size_t i = 0u; i < count; ++i)
 	{
-		LiveModule* liveModule = m_liveModules[i];
-		liveModule->CallPrecompileHooks();
+		LiveProcess* liveProcess = m_liveProcesses[i];
+		liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::PreCompile{}, nullptr, 0u);
 	}
 }
 
@@ -1088,11 +1088,11 @@ void ServerCommandThread::CallPostcompileHooks(bool didAllProcessesMakeProgress)
 		return;
 	}
 
-	const size_t count = m_liveModules.size();
+	const size_t count = m_liveProcesses.size();
 	for (size_t i = 0u; i < count; ++i)
 	{
-		LiveModule* liveModule = m_liveModules[i];
-		liveModule->CallPostcompileHooks();
+		LiveProcess* liveProcess = m_liveProcesses[i];
+		liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::PostCompile{}, nullptr, 0u);
 	}
 }
 // END EPIC MOD
@@ -1369,6 +1369,9 @@ Thread::ReturnValue ServerCommandThread::CommandThread(DuplexPipeServer* pipe, E
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Support for lazy-loading modules
 	commandMap.RegisterAction<actions::EnableLazyLoadedModule>();
+	// END EPIC MOD
+	// BEGIN EPIC MOD
+	commandMap.RegisterAction<actions::EnableReinstancingFlow>();
 	// END EPIC MOD
 
 	for (;;)
@@ -1721,6 +1724,28 @@ bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const Command
 
 	// Tell the client we're done
 	pipe->SendCommandAndWaitForAck(commands::EnableModulesFinished { command->token }, nullptr, 0u);
+	return true;
+}
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+bool ServerCommandThread::actions::EnableReinstancingFlow::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
+{
+	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
+
+	// protect against accepting this command while compilation is already in progress
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
+
+	for (LiveProcess* process : commandThread->m_liveProcesses)
+	{
+		if (process->GetProcessId() == command->processId)
+		{
+			process->EnableReinstancingFlow();
+		}
+	}
+
+	pipe->SendAck();
+
 	return true;
 }
 // END EPIC MOD

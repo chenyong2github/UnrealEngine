@@ -97,6 +97,17 @@ public:
 	Windows::HMODULE GetLazyLoadedModuleBase(const std::wstring& moduleName) const;
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void EnableReinstancingFlow()
+	{
+		m_reinstancingFlow = true;
+	}
+	bool IsReinstancingFlowEnabled() const
+	{
+		return m_reinstancingFlow;
+	}
+	// END EPIC MOD
+
 private:
 	Process::Handle m_processHandle;
 	Process::Id m_processId;
@@ -121,6 +132,10 @@ private:
 	};
 
 	types::unordered_map<std::wstring, LazyLoadedModule> m_lazyLoadedModules;
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	bool m_reinstancingFlow = false;
 	// END EPIC MOD
 
 	// loaded modules are not identified by their full path, but by their executable image header.

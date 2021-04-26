@@ -1627,6 +1627,18 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	const PerProcessData* processData = m_perProcessData.data();
 	const size_t processCount = m_perProcessData.size();
 
+	// BEGIN EPIC MOD
+	bool enableReinstancingFlow = false;
+	if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+	{
+		for (size_t p = 0u; p < processCount; ++p)
+		{
+			const PerProcessData& data = processData[p];
+			enableReinstancingFlow |= data.liveProcess->IsReinstancingFlowEnabled();
+		}
+	}
+	// END EPIC MOD
+
 	// recompile changed files
 	if (m_runMode == RunMode::DEFAULT)
 	{
@@ -3693,124 +3705,135 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching relocations...");
 	// END EPIC MOD
 
-	LC_LOG_DEV("Patching relocations before calling entry point");
-
-	// walk all relocations in the .OBJ files, find their current locations in the .exe,
-	// and patch the relocations to point to the original symbols in the original .exe.
-	// we need to patch relocations *before* calling the DLL entry point, because global
-	// initializer code might refer to symbols that have been stripped by us.
-	// note that we only patch relocations to data symbols at this time, because functions haven't been
-	// hooked yet, and we need to ensure that dynamic initializers end up using new code paths (if available), while
-	// still referring to existing data symbols.
+	// BEGIN EPIC MOD
+	auto patchRelocationsPreEntryPoint = [&](bool forceBackwards)
 	{
-		telemetry::Scope patchingRelocationsScope("Patching relocations");
+	// END EPIC MOD
+		LC_LOG_DEV("Patching relocations before calling entry point");
 
-		uint32_t relocationsHandledCount = 0u;
-		size_t relocationsCount = 0u;
-
-		for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
+		// walk all relocations in the .OBJ files, find their current locations in the .exe,
+		// and patch the relocations to point to the original symbols in the original .exe.
+		// we need to patch relocations *before* calling the DLL entry point, because global
+		// initializer code might refer to symbols that have been stripped by us.
+		// note that we only patch relocations to data symbols at this time, because functions haven't been
+		// hooked yet, and we need to ensure that dynamic initializers end up using new code paths (if available), while
+		// still referring to existing data symbols.
 		{
-			const symbols::ObjPath& objPath = it->first;
+			telemetry::Scope patchingRelocationsScope("Patching relocations");
 
-			LC_LOG_DEV("Patching relocations for file %s", objPath.c_str());
-			LC_LOG_INDENT_DEV;
+			uint32_t relocationsHandledCount = 0u;
+			size_t relocationsCount = 0u;
 
-			const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
-			if (!coffDb)
+			for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
 			{
-				LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
-				continue;
-			}
+				const symbols::ObjPath& objPath = it->first;
 
-			const std::wstring wideObjPath = string::ToWideString(objPath);
+				LC_LOG_DEV("Patching relocations for file %s", objPath.c_str());
+				LC_LOG_INDENT_DEV;
 
-			// note that we need to take the original compiland here, to make sure that single split-files get assigned
-			// the same unique ID as the corresponding amalgamated file.
-			symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
-			const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
-
-			const types::StringSet& strippedSymbols = strippedSymbolsPerCompiland[objPath];
-			const types::StringSet& forceStrippedSymbols = forceStrippedSymbolsPerCompiland[objPath];
-
-			const size_t symbolCount = coffDb->symbols.size();
-			for (size_t i = 0u; i < symbolCount; ++i)
-			{
-				const coff::Symbol* symbol = coffDb->symbols[i];
-				relocationsCount += symbol->relocations.size();
-
-				// check if the patch knows this symbol.
-				// if not, it has probably been stripped and there is no need to walk all its relocations.
-				const ImmutableString& symbolName = symbols::TransformAnonymousNamespacePattern(coff::GetSymbolName(coffDb, symbol), compilandUniqueId);
-				const symbols::Symbol* realSymbol = symbols::FindSymbolByName(patch_symbolDB, symbolName);
-				if (!realSymbol)
+				const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
+				if (!coffDb)
 				{
-					// this symbol has been stripped from the executable.
-					// in optimized builds, the compiler will sometimes e.g. leave a static function in an OBJ file,
-					// which will be kicked out by the linker.
+					LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
 					continue;
 				}
 
-				// before patching relocations, check whether the symbol which relocations we want to patch originated from
-				// a compiland that is the same as the file we're working on.
-				// this might not be the case, especially when using static libraries, COMDATs, and compilands that use the
-				// same inline function but have slightly different compiler options (/hotpatch vs. no /hotpatch, e.g.
-				// __local_stdio_printf_options in the main module vs. in the dynamic runtime)
-				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
-				if (originalContribution)
+				const std::wstring wideObjPath = string::ToWideString(objPath);
+
+				// note that we need to take the original compiland here, to make sure that single split-files get assigned
+				// the same unique ID as the corresponding amalgamated file.
+				symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
+				const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
+
+				const types::StringSet& strippedSymbols = strippedSymbolsPerCompiland[objPath];
+				const types::StringSet& forceStrippedSymbols = forceStrippedSymbolsPerCompiland[objPath];
+
+				const size_t symbolCount = coffDb->symbols.size();
+				for (size_t i = 0u; i < symbolCount; ++i)
 				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
-					if (compilandName != objPath)
+					const coff::Symbol* symbol = coffDb->symbols[i];
+					relocationsCount += symbol->relocations.size();
+
+					// check if the patch knows this symbol.
+					// if not, it has probably been stripped and there is no need to walk all its relocations.
+					const ImmutableString& symbolName = symbols::TransformAnonymousNamespacePattern(coff::GetSymbolName(coffDb, symbol), compilandUniqueId);
+					const symbols::Symbol* realSymbol = symbols::FindSymbolByName(patch_symbolDB, symbolName);
+					if (!realSymbol)
 					{
-						LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
-							symbolName.c_str(), objPath.c_str(), compilandName.c_str());
+						// this symbol has been stripped from the executable.
+						// in optimized builds, the compiler will sometimes e.g. leave a static function in an OBJ file,
+						// which will be kicked out by the linker.
 						continue;
 					}
-				}
 
-				const size_t relocationCount = symbol->relocations.size();
-				for (size_t j = 0u; j < relocationCount; ++j)
-				{
-					const coff::Relocation* relocation = symbol->relocations[j];
-					if (relocation->dstIsSection)
+					// before patching relocations, check whether the symbol which relocations we want to patch originated from
+					// a compiland that is the same as the file we're working on.
+					// this might not be the case, especially when using static libraries, COMDATs, and compilands that use the
+					// same inline function but have slightly different compiler options (/hotpatch vs. no /hotpatch, e.g.
+					// __local_stdio_printf_options in the main module vs. in the dynamic runtime)
+					const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
+					if (originalContribution)
 					{
-						// don't patch relocations to sections
-						continue;
-					}
-
-					// ignore relocations to symbols in .msvcjmc (MSVC JustMyCode) sections
-					if (relocation->dstSectionIndex >= 0)
-					{
-						const uint32_t index = static_cast<uint32_t>(relocation->dstSectionIndex);
-						const coff::Section& section = coffDb->sections[index];
-						if (coff::IsMSVCJustMyCodeSection(section.name.c_str()))
+						const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
+						if (compilandName != objPath)
 						{
-							LC_LOG_DEV("Ignoring relocation to symbol in section %s", section.name.c_str());
+							LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
+								symbolName.c_str(), objPath.c_str(), compilandName.c_str());
 							continue;
 						}
 					}
 
-					ImmutableString dstSymbolName = symbols::TransformAnonymousNamespacePattern(GetRelocationDstSymbolName(coffDb, relocation), compilandUniqueId);
-					const bool refersToDataSymbol = !coff::IsFunctionSymbol(coff::GetRelocationDstSymbolType(relocation));
-					const bool refersToStrippedSymbol = (strippedSymbols.find(dstSymbolName) != strippedSymbols.end());
-					if (refersToDataSymbol || refersToStrippedSymbol)
+					const size_t relocationCount = symbol->relocations.size();
+					for (size_t j = 0u; j < relocationCount; ++j)
 					{
-						const relocations::Record& relocationRecord = relocations::PatchRelocation(relocation, coffDb, forceStrippedSymbols, m_moduleCache, symbolName, dstSymbolName, realSymbol, token, &loadedPatches[0]);
-						if (relocations::IsValidRecord(relocationRecord))
+						const coff::Relocation* relocation = symbol->relocations[j];
+						if (relocation->dstIsSection)
 						{
-							compiledModulePatch->RegisterPreEntryPointRelocation(relocationRecord);
+							// don't patch relocations to sections
+							continue;
 						}
 
-						++relocationsHandledCount;
+						// ignore relocations to symbols in .msvcjmc (MSVC JustMyCode) sections
+						if (relocation->dstSectionIndex >= 0)
+						{
+							const uint32_t index = static_cast<uint32_t>(relocation->dstSectionIndex);
+							const coff::Section& section = coffDb->sections[index];
+							if (coff::IsMSVCJustMyCodeSection(section.name.c_str()))
+							{
+								LC_LOG_DEV("Ignoring relocation to symbol in section %s", section.name.c_str());
+								continue;
+							}
+						}
+
+						ImmutableString dstSymbolName = symbols::TransformAnonymousNamespacePattern(GetRelocationDstSymbolName(coffDb, relocation), compilandUniqueId);
+						const bool refersToDataSymbol = !coff::IsFunctionSymbol(coff::GetRelocationDstSymbolType(relocation));
+						const bool refersToStrippedSymbol = (strippedSymbols.find(dstSymbolName) != strippedSymbols.end());
+						if (refersToDataSymbol || refersToStrippedSymbol)
+						{
+							// BEGIN EPIC MOD
+							const relocations::Record& relocationRecord = relocations::PatchRelocation(relocation, coffDb, forceStrippedSymbols, m_moduleCache, symbolName, dstSymbolName, realSymbol, token, &loadedPatches[0], forceBackwards);
+							if (!forceBackwards && relocations::IsValidRecord(relocationRecord))
+							{
+								compiledModulePatch->RegisterPreEntryPointRelocation(relocationRecord);
+							}
+							// END EPIC MOD
+
+							++relocationsHandledCount;
+						}
 					}
 				}
 			}
+
+			LC_LOG_TELEMETRY("Handled %d of %d relocations in %.3fms (avg: %.3fus)", relocationsHandledCount, relocationsCount,
+				patchingRelocationsScope.ReadMilliSeconds(), (patchingRelocationsScope.ReadMicroSeconds() / relocationsHandledCount));
 		}
+	// BEGIN EPIC MOD
+	};
+	// END EPIC MOD
 
-		LC_LOG_TELEMETRY("Handled %d of %d relocations in %.3fms (avg: %.3fus)", relocationsHandledCount, relocationsCount,
-			patchingRelocationsScope.ReadMilliSeconds(), (patchingRelocationsScope.ReadMicroSeconds() / relocationsHandledCount));
-	}
-
-
+	// BEGIN EPIC MOD
+	patchRelocationsPreEntryPoint(enableReinstancingFlow);
+	// END EPIC MOD
 
 	// BEGIN EPIC MOD
 	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching public functions in lib compilands...");
@@ -4165,257 +4188,284 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 	}
 
 
-
-	// dynamic initializers have run, patch the remaining relocations
 	// BEGIN EPIC MOD
-	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching remaining relocations...");
-	// END EPIC MOD
+	auto patchRelocations = [&](bool forceBackwards)
 	{
-		telemetry::Scope patchingRelocationsScope("Patching remaining relocations");
-
-		uint32_t relocationsHandledCount = 0u;
-		size_t relocationsCount = 0u;
-
-		LC_LOG_DEV("Patching relocations after calling entry point");
-
-		for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
+	// END EPIC MOD
+		// dynamic initializers have run, patch the remaining relocations
+		// BEGIN EPIC MOD
+		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching remaining relocations...");
+		// END EPIC MOD
 		{
-			const symbols::ObjPath& objPath = it->first;
+			telemetry::Scope patchingRelocationsScope("Patching remaining relocations");
 
-			LC_LOG_DEV("Patching relocations for file %s", objPath.c_str());
-			LC_LOG_INDENT_DEV;
+			uint32_t relocationsHandledCount = 0u;
+			size_t relocationsCount = 0u;
 
-			const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
-			if (!coffDb)
+			LC_LOG_DEV("Patching relocations after calling entry point");
+
+			for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
 			{
-				LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
-				continue;
-			}
+				const symbols::ObjPath& objPath = it->first;
 
-			const std::wstring wideObjPath = string::ToWideString(objPath);
+				LC_LOG_DEV("Patching relocations for file %s", objPath.c_str());
+				LC_LOG_INDENT_DEV;
 
-			// note that we need to take the original compiland here, to make sure that single split-files get assigned
-			// the same unique ID as the corresponding amalgamated file.
-			symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
-			const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
-
-			const types::StringSet& strippedSymbols = strippedSymbolsPerCompiland[objPath];
-			const types::StringSet& forceStrippedSymbols = forceStrippedSymbolsPerCompiland[objPath];
-
-			const size_t symbolCount = coffDb->symbols.size();
-			for (size_t i = 0u; i < symbolCount; ++i)
-			{
-				const coff::Symbol* symbol = coffDb->symbols[i];
-				relocationsCount += symbol->relocations.size();
-
-				// check if the patch knows this symbol.
-				// if not, it has probably been stripped and there is no need to walk all its relocations.
-				const ImmutableString& symbolName = coff::GetSymbolName(coffDb, symbol);
-				const symbols::Symbol* realSymbol = symbols::FindSymbolByName(patch_symbolDB, symbolName);
-				if (!realSymbol)
+				const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
+				if (!coffDb)
 				{
-					// this symbol has been stripped from the executable.
-					// in optimized builds, the compiler will sometimes e.g. leave a static function in an OBJ file,
-					// which will be kicked out by the linker.
+					LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
 					continue;
 				}
 
-				// before patching relocations, check whether the symbol which relocations we want to patch originated from
-				// a compiland that is the same as the file we're working on.
-				// this might not be the case, especially when using static libraries, COMDATs, and compilands that use the
-				// same inline function but have slightly different compiler options (/hotpatch vs. no /hotpatch, e.g.
-				// __local_stdio_printf_options in the main module vs. in the dynamic runtime)
-				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
-				if (originalContribution)
+				const std::wstring wideObjPath = string::ToWideString(objPath);
+
+				// note that we need to take the original compiland here, to make sure that single split-files get assigned
+				// the same unique ID as the corresponding amalgamated file.
+				symbols::Compiland* compiland = symbols::FindCompiland(m_compilandDB, objPath);
+				const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
+
+				const types::StringSet& strippedSymbols = strippedSymbolsPerCompiland[objPath];
+				const types::StringSet& forceStrippedSymbols = forceStrippedSymbolsPerCompiland[objPath];
+
+				const size_t symbolCount = coffDb->symbols.size();
+				for (size_t i = 0u; i < symbolCount; ++i)
 				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
-					if (compilandName != objPath)
+					const coff::Symbol* symbol = coffDb->symbols[i];
+					relocationsCount += symbol->relocations.size();
+
+					// check if the patch knows this symbol.
+					// if not, it has probably been stripped and there is no need to walk all its relocations.
+					const ImmutableString& symbolName = coff::GetSymbolName(coffDb, symbol);
+					const symbols::Symbol* realSymbol = symbols::FindSymbolByName(patch_symbolDB, symbolName);
+					if (!realSymbol)
 					{
-						LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
-							symbolName.c_str(), objPath.c_str(), compilandName.c_str());
+						// this symbol has been stripped from the executable.
+						// in optimized builds, the compiler will sometimes e.g. leave a static function in an OBJ file,
+						// which will be kicked out by the linker.
 						continue;
 					}
-				}
 
-				const size_t relocationCount = symbol->relocations.size();
-				for (size_t j = 0u; j < relocationCount; ++j)
-				{
-					const coff::Relocation* relocation = symbol->relocations[j];
-					if (relocation->dstIsSection)
+					// before patching relocations, check whether the symbol which relocations we want to patch originated from
+					// a compiland that is the same as the file we're working on.
+					// this might not be the case, especially when using static libraries, COMDATs, and compilands that use the
+					// same inline function but have slightly different compiler options (/hotpatch vs. no /hotpatch, e.g.
+					// __local_stdio_printf_options in the main module vs. in the dynamic runtime)
+					const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(patch_contributionDB, realSymbol->rva);
+					if (originalContribution)
 					{
-						// don't patch relocations to sections
-						continue;
-					}
-
-					// ignore relocations to symbols in .msvcjmc (MSVC JustMyCode) sections
-					if (relocation->dstSectionIndex >= 0)
-					{
-						const uint32_t index = static_cast<uint32_t>(relocation->dstSectionIndex);
-						const coff::Section& section = coffDb->sections[index];
-						if (coff::IsMSVCJustMyCodeSection(section.name.c_str()))
+						const ImmutableString& compilandName = symbols::GetContributionCompilandName(patch_contributionDB, originalContribution);
+						if (compilandName != objPath)
 						{
-							LC_LOG_DEV("Ignoring relocation to symbol in section %s", section.name.c_str());
+							LC_LOG_DEV("Ignoring relocations for symbol %s in file %s (original compiland: %s)",
+								symbolName.c_str(), objPath.c_str(), compilandName.c_str());
 							continue;
 						}
 					}
 
-					ImmutableString dstSymbolName = symbols::TransformAnonymousNamespacePattern(GetRelocationDstSymbolName(coffDb, relocation), compilandUniqueId);
-
-					// relocations to data symbols and stripped symbols have already been done
-					const bool refersToFunctionSymbol = coff::IsFunctionSymbol(coff::GetRelocationDstSymbolType(relocation));
-					const bool refersToStrippedSymbol = (strippedSymbols.find(dstSymbolName) != strippedSymbols.end());
-					if (refersToFunctionSymbol && !refersToStrippedSymbol)
+					const size_t relocationCount = symbol->relocations.size();
+					for (size_t j = 0u; j < relocationCount; ++j)
 					{
-						const relocations::Record& relocationRecord = relocations::PatchRelocation(relocation, coffDb, forceStrippedSymbols, m_moduleCache, symbolName, dstSymbolName, realSymbol, token, &loadedPatches[0]);
-						if (relocations::IsValidRecord(relocationRecord))
+						const coff::Relocation* relocation = symbol->relocations[j];
+						if (relocation->dstIsSection)
 						{
-							compiledModulePatch->RegisterPostEntryPointRelocation(relocationRecord);
+							// don't patch relocations to sections
+							continue;
 						}
 
-						++relocationsHandledCount;
+						// ignore relocations to symbols in .msvcjmc (MSVC JustMyCode) sections
+						if (relocation->dstSectionIndex >= 0)
+						{
+							const uint32_t index = static_cast<uint32_t>(relocation->dstSectionIndex);
+							const coff::Section& section = coffDb->sections[index];
+							if (coff::IsMSVCJustMyCodeSection(section.name.c_str()))
+							{
+								LC_LOG_DEV("Ignoring relocation to symbol in section %s", section.name.c_str());
+								continue;
+							}
+						}
+
+						ImmutableString dstSymbolName = symbols::TransformAnonymousNamespacePattern(GetRelocationDstSymbolName(coffDb, relocation), compilandUniqueId);
+
+						// relocations to data symbols and stripped symbols have already been done
+						const bool refersToFunctionSymbol = coff::IsFunctionSymbol(coff::GetRelocationDstSymbolType(relocation));
+						const bool refersToStrippedSymbol = (strippedSymbols.find(dstSymbolName) != strippedSymbols.end());
+						if (refersToFunctionSymbol && !refersToStrippedSymbol)
+						{
+							// BEGIN EPIC MOD
+							const relocations::Record& relocationRecord = relocations::PatchRelocation(relocation, coffDb, forceStrippedSymbols, m_moduleCache, symbolName, dstSymbolName, realSymbol, token, &loadedPatches[0], forceBackwards);
+							if (!forceBackwards && relocations::IsValidRecord(relocationRecord))
+							{
+								compiledModulePatch->RegisterPostEntryPointRelocation(relocationRecord);
+							}
+							// END EPIC MOD
+
+							++relocationsHandledCount;
+						}
 					}
 				}
 			}
+
+			LC_LOG_TELEMETRY("Handled %d of %d remaining relocations in %.3fms (avg: %.3fus)", relocationsHandledCount, relocationsCount,
+				patchingRelocationsScope.ReadMilliSeconds(), (patchingRelocationsScope.ReadMicroSeconds() / relocationsHandledCount));
 		}
-
-		LC_LOG_TELEMETRY("Handled %d of %d remaining relocations in %.3fms (avg: %.3fus)", relocationsHandledCount, relocationsCount,
-			patchingRelocationsScope.ReadMilliSeconds(), (patchingRelocationsScope.ReadMicroSeconds() / relocationsHandledCount));
-	}
-
-
-
 	// BEGIN EPIC MOD
-	GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching functions...");
+	};
 	// END EPIC MOD
 
-	// suspend the main processes before patching functions, because they might not use synchronization points.
-	for (size_t p = 0u; p < processCount; ++p)
+	// BEGIN EPIC MOD
+	patchRelocations(enableReinstancingFlow);
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	auto patchFunctions = [&](bool forceBackwards)
+	// END EPIC MOD
 	{
-		const PerProcessData& data = processData[p];
-		Process::Suspend(data.liveProcess->GetProcessHandle());
-	}
 
+		// BEGIN EPIC MOD
+		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Patching functions...");
+		// END EPIC MOD
 
-	// determining which functions have changed (or lead to a different execution path) would be very hard
-	// to do, therefore we hook all functions.
-	// even though internal functions can only be referenced from external ones, it is not enough to hook
-	// only those. the reason for that is that global/static instances might refer to internal functions
-	// by function-pointer, address, etc., so internal functions must also be hooked.
-	{
-		telemetry::Scope patchingFunctionsScope("Patching functions");
-
-		// the processes are all halted. fetch instruction pointers from all their threads.
-		typedef types::vector<const void*> PerProcessThreadIPs;
-		types::vector<PerProcessThreadIPs> processThreadIPs;
-		processThreadIPs.reserve(processCount);
+		// suspend the main processes before patching functions, because they might not use synchronization points.
 		for (size_t p = 0u; p < processCount; ++p)
 		{
 			const PerProcessData& data = processData[p];
-			processThreadIPs.emplace_back(EnumerateInstructionPointers(data.liveProcess->GetProcessId()));
+			Process::Suspend(data.liveProcess->GetProcessHandle());
 		}
 
-		uint32_t functionsPatchedCount = 0u;
-		size_t functionsCount = 0u;
 
-		// we deliberately do not hook functions in lib compilands because they cannot have changed, per definition.
-		// they are part of a static library that won't be recompiled during a Live++ session.
-		for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
+		// determining which functions have changed (or lead to a different execution path) would be very hard
+		// to do, therefore we hook all functions.
+		// even though internal functions can only be referenced from external ones, it is not enough to hook
+		// only those. the reason for that is that global/static instances might refer to internal functions
+		// by function-pointer, address, etc., so internal functions must also be hooked.
 		{
-			const symbols::ObjPath& objPath = it->first;
+			telemetry::Scope patchingFunctionsScope("Patching functions");
 
-			LC_LOG_DEV("Patching functions for file %s", objPath.c_str());
-			LC_LOG_INDENT_DEV;
-
-			const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
-			if (!coffDb)
+			// the processes are all halted. fetch instruction pointers from all their threads.
+			typedef types::vector<const void*> PerProcessThreadIPs;
+			types::vector<PerProcessThreadIPs> processThreadIPs;
+			processThreadIPs.reserve(processCount);
+			for (size_t p = 0u; p < processCount; ++p)
 			{
-				LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
-				continue;
+				const PerProcessData& data = processData[p];
+				processThreadIPs.emplace_back(EnumerateInstructionPointers(data.liveProcess->GetProcessId()));
 			}
 
-			const std::wstring& wideObjPath = string::ToWideString(objPath);
-			const symbols::Compiland* compiland = it->second;
-			const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
+			uint32_t functionsPatchedCount = 0u;
+			size_t functionsCount = 0u;
 
-			for (size_t i = 0u; i < coffDb->symbols.size(); ++i)
+			// we deliberately do not hook functions in lib compilands because they cannot have changed, per definition.
+			// they are part of a static library that won't be recompiled during a Live++ session.
+			for (auto it = patch_compilandDB->compilands.begin(); it != patch_compilandDB->compilands.end(); ++it)
 			{
-				const coff::Symbol* symbol = coffDb->symbols[i];
-				if (!coff::IsFunctionSymbol(symbol->type))
+				const symbols::ObjPath& objPath = it->first;
+
+				LC_LOG_DEV("Patching functions for file %s", objPath.c_str());
+				LC_LOG_INDENT_DEV;
+
+				const coff::CoffDB* coffDb = m_coffCache->Lookup(objPath);
+				if (!coffDb)
 				{
+					LC_ERROR_USER("Could not find COFF database for file %s", objPath.c_str());
 					continue;
 				}
 
-				++functionsCount;
+				const std::wstring& wideObjPath = string::ToWideString(objPath);
+				const symbols::Compiland* compiland = it->second;
+				const uint32_t compilandUniqueId = symbols::GetCompilandId(compiland, wideObjPath.c_str(), modifiedOrNewObjFiles);
 
-				const ImmutableString& functionName = symbols::TransformAnonymousNamespacePattern(coff::GetSymbolName(coffDb, symbol), compilandUniqueId);
-				if (symbols::IsExceptionRelatedSymbol(functionName))
+				for (size_t i = 0u; i < coffDb->symbols.size(); ++i)
 				{
-					LC_LOG_DEV("Ignoring exception-related function %s", functionName.c_str());
-					continue;
-				}
-
-				const symbols::Symbol* patchSymbol = symbols::FindSymbolByName(patch_symbolDB, functionName);
-				if (!patchSymbol)
-				{
-					LC_WARNING_DEV("Cannot find function %s in patch, possibly stripped by linker", functionName.c_str());
-					continue;
-				}
-
-				const ModuleCache::FindSymbolData& originalData = m_moduleCache->FindSymbolByName(token, functionName);
-				if (!originalData.symbol)
-				{
-					LC_LOG_DEV("Ignoring new function %s", functionName.c_str());
-					continue;
-				}
-
-				// if the original function to be patched did not come from a compiland, it cannot possibly have changed and
-				// therefore can be ignored.
-				const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(originalData.data->contributionDb, originalData.symbol->rva);
-				if (originalContribution)
-				{
-					const ImmutableString& compilandName = symbols::GetContributionCompilandName(originalData.data->contributionDb, originalContribution);
-					const symbols::Compiland* originalCompiland = symbols::FindCompiland(originalData.data->compilandDb, compilandName);
-					if (!originalCompiland)
+					const coff::Symbol* symbol = coffDb->symbols[i];
+					if (!coff::IsFunctionSymbol(symbol->type))
 					{
-						LC_LOG_DEV("Ignoring function %s originally contributed from lib compiland %s", functionName.c_str(), compilandName.c_str());
 						continue;
 					}
-				}
 
-				const size_t moduleProcessCount = originalData.data->processes.size();
-				for (size_t p = 0u; p < moduleProcessCount; ++p)
-				{
-					++functionsPatchedCount;
+					++functionsCount;
 
-					const ModuleCache::ProcessData& hookProcessData = originalData.data->processes[p];
-
-					const Process::Id pid = hookProcessData.processId;
-					void* moduleBase = hookProcessData.moduleBase;
-					Process::Handle processHandle = hookProcessData.processHandle;
-
-					char* originalAddress = pointer::Offset<char*>(moduleBase, originalData.symbol->rva);
-					char* patchAddress = pointer::Offset<char*>(loadedPatches[p], patchSymbol->rva);
-					types::unordered_set<const void*>& patchedAddresses = m_patchedAddressesPerProcess[pid];
-
-					const functions::Record& record = functions::PatchFunction(originalAddress, patchAddress, originalData.symbol->rva, patchSymbol->rva,
-						originalData.data->thunkDb, originalContribution, processHandle, moduleBase, originalData.data->index,
-						patchedAddresses, processThreadIPs[p], pid, functionName.c_str());
-
-					if (functions::IsValidRecord(record))
+					const ImmutableString& functionName = symbols::TransformAnonymousNamespacePattern(coff::GetSymbolName(coffDb, symbol), compilandUniqueId);
+					if (symbols::IsExceptionRelatedSymbol(functionName))
 					{
-						compiledModulePatch->RegisterFunctionPatch(record);
+						LC_LOG_DEV("Ignoring exception-related function %s", functionName.c_str());
+						continue;
+					}
+
+					const symbols::Symbol* patchSymbol = symbols::FindSymbolByName(patch_symbolDB, functionName);
+					if (!patchSymbol)
+					{
+						LC_WARNING_DEV("Cannot find function %s in patch, possibly stripped by linker", functionName.c_str());
+						continue;
+					}
+
+					const ModuleCache::FindSymbolData& originalData = m_moduleCache->FindSymbolByName(token, functionName);
+					if (!originalData.symbol)
+					{
+						LC_LOG_DEV("Ignoring new function %s", functionName.c_str());
+						continue;
+					}
+
+					// if the original function to be patched did not come from a compiland, it cannot possibly have changed and
+					// therefore can be ignored.
+					const symbols::Contribution* originalContribution = symbols::FindContributionByRVA(originalData.data->contributionDb, originalData.symbol->rva);
+					if (originalContribution)
+					{
+						const ImmutableString& compilandName = symbols::GetContributionCompilandName(originalData.data->contributionDb, originalContribution);
+						const symbols::Compiland* originalCompiland = symbols::FindCompiland(originalData.data->compilandDb, compilandName);
+						if (!originalCompiland)
+						{
+							LC_LOG_DEV("Ignoring function %s originally contributed from lib compiland %s", functionName.c_str(), compilandName.c_str());
+							continue;
+						}
+					}
+
+					const size_t moduleProcessCount = originalData.data->processes.size();
+					for (size_t p = 0u; p < moduleProcessCount; ++p)
+					{
+						++functionsPatchedCount;
+
+						const ModuleCache::ProcessData& hookProcessData = originalData.data->processes[p];
+
+						const Process::Id pid = hookProcessData.processId;
+						void* moduleBase = hookProcessData.moduleBase;
+						Process::Handle processHandle = hookProcessData.processHandle;
+
+						char* originalAddress = pointer::Offset<char*>(moduleBase, originalData.symbol->rva);
+						char* patchAddress = pointer::Offset<char*>(loadedPatches[p], patchSymbol->rva);
+						types::unordered_set<const void*>& patchedAddresses = m_patchedAddressesPerProcess[pid];
+
+						const functions::Record& record = functions::PatchFunction(originalAddress, patchAddress, originalData.symbol->rva, patchSymbol->rva,
+							originalData.data->thunkDb, originalContribution, processHandle, moduleBase, originalData.data->index,
+							patchedAddresses, processThreadIPs[p], pid, functionName.c_str());
+
+						// BEGIN EPIC MOD
+						if (!forceBackwards && functions::IsValidRecord(record))
+						{
+							compiledModulePatch->RegisterFunctionPatch(record);
+						}
+						// END EPIC MOD
 					}
 				}
 			}
 		}
-	}
 
-	// resume the main processes again
-	for (size_t p = 0u; p < processCount; ++p)
+		// resume the main processes again
+		for (size_t p = 0u; p < processCount; ++p)
+		{
+			const PerProcessData& data = processData[p];
+			Process::Resume(data.liveProcess->GetProcessHandle());
+		}
+	// BEGIN EPIC MOD
+	};
+	// END EPIC MOD
+
+	// BEGIN EPIC MOD
+	if (!enableReinstancingFlow)
 	{
-		const PerProcessData& data = processData[p];
-		Process::Resume(data.liveProcess->GetProcessHandle());
+		patchFunctions(enableReinstancingFlow);
 	}
+	// END EPIC MOD
 
 	{
 		// post-patch hooks must be called on the current executable because the hooks want to use the newest memory layout of
@@ -4440,6 +4490,26 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 			}
 		}
 	}
+
+	// BEGIN EPIC MOD
+	// pulse the sync point in all processes
+	if (enableReinstancingFlow)
+	{
+		if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
+		{
+			for (size_t p = 0u; p < processCount; ++p)
+			{
+				const PerProcessData& data = processData[p];
+				data.liveProcess->GetPipe()->SendCommandAndWaitForAck(commands::TriggerReload{}, nullptr, 0u);
+			}
+		}
+
+		// Re-patch everything so that things are patched as normally expected
+		patchRelocationsPreEntryPoint(false);
+		patchRelocations(false);
+		patchFunctions(false);
+	}
+	// END EPIC MOD
 
 	// leave sync point in all processes
 	if (updateType != LiveModule::UpdateType::NO_CLIENT_COMMUNICATION)
@@ -4793,45 +4863,3 @@ void LiveModule::OnCompiledFile(const symbols::ObjPath& objPath, symbols::Compil
 		LC_ERROR_USER("Failed to compile %s (%.3fs) (Exit code: 0x%X)", objPath.c_str(), compileTime, compileResult.exitCode);
 	}
 }
-
-// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-void LiveModule::CallPrecompileHooks()
-{
-	const ModuleCache::FindHookData& hookData = m_moduleCache->FindHooksInSectionBackwards(ModuleCache::SEARCH_ALL_MODULES, ImmutableString(LPP_PRECOMPILE_SECTION));
-	if ((hookData.firstRva != 0u) && (hookData.lastRva != 0u))
-	{
-		const size_t count = hookData.data->processes.size();
-		for (size_t p = 0u; p < count; ++p)
-		{
-			const ModuleCache::ProcessData& processData = hookData.data->processes[p];
-
-			const Process::Id pid = processData.processId;
-			void* moduleBase = processData.moduleBase;
-			const DuplexPipe* pipe = processData.pipe;
-
-			LC_LOG_USER("Calling precompile hooks (PID: %d)", pid);
-			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::PRECOMPILE, moduleBase, hookData), nullptr, 0u);
-		}
-	}
-}
-
-void LiveModule::CallPostcompileHooks()
-{
-	const ModuleCache::FindHookData& hookData = m_moduleCache->FindHooksInSectionBackwards(ModuleCache::SEARCH_ALL_MODULES, ImmutableString(LPP_POSTCOMPILE_SECTION));
-	if ((hookData.firstRva != 0u) && (hookData.lastRva != 0u))
-	{
-		const size_t count = hookData.data->processes.size();
-		for (size_t p = 0u; p < count; ++p)
-		{
-			const ModuleCache::ProcessData& processData = hookData.data->processes[p];
-
-			const Process::Id pid = processData.processId;
-			void* moduleBase = processData.moduleBase;
-			const DuplexPipe* pipe = processData.pipe;
-
-			LC_LOG_USER("Calling postcompile hooks (PID: %d)", pid);
-			pipe->SendCommandAndWaitForAck(MakeCallHooksCommand(hook::Type::POSTCOMPILE, moduleBase, hookData), nullptr, 0u);
-		}
-	}
-}
-// END EPIC MOD

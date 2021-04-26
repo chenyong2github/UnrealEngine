@@ -244,64 +244,10 @@ namespace commands
 		bool continueExecution;
 	};
 
-	// BEGIN EPIC MOD - Adding ShowConsole command
-	struct ShowConsole
-	{
-		static const uint32_t ID = HandleExceptionFinished::ID + 1u;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetVisible command
-	struct SetVisible
-	{
-		static const uint32_t ID = ShowConsole::ID + 1u;
-
-		bool visible;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetActive command
-	struct SetActive
-	{
-		static const uint32_t ID = SetVisible::ID + 1u;
-
-		bool active;
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Adding SetBuildArguments command
-	struct SetBuildArguments
-	{
-		static const uint32_t ID = SetActive::ID + 1u;
-
-		Process::Id processId;
-		wchar_t arguments[1024];
-	};
-	// END EPIC MOD
-
-	// BEGIN EPIC MOD - Support for lazy-loading modules
-	struct EnableLazyLoadedModule
-	{
-		static const uint32_t ID = SetBuildArguments::ID + 1u;
-
-		Process::Id processId;
-		wchar_t fileName[260];
-		Windows::HMODULE moduleBase;
-		void* token;
-	};
-
-	struct FinishedLazyLoadingModules
-	{
-		static const uint32_t ID = EnableLazyLoadedModule::ID + 1u;
-	};
-	// END EPIC MOD
-
 	// tell the EXE that a bool setting needs to be changed
 	struct ApplySettingBool
 	{
-		// BEGIN EPIC MOD - Support for lazy-loading modules
-		static const uint32_t ID = FinishedLazyLoadingModules::ID + 1u;
-		// END EPIC MOD
+		static const uint32_t ID = HandleExceptionFinished::ID + 1u;
 
 		char settingName[256];
 		int settingValue;
@@ -325,5 +271,71 @@ namespace commands
 		wchar_t settingValue[256];
 	};
 
-	static const uint32_t COUNT = ApplySettingString::ID + 1u;
+	// BEGIN EPIC MOD
+	struct ShowConsole
+	{
+		static const uint32_t ID = ApplySettingString::ID + 1u;
+	};
+
+	struct SetVisible
+	{
+		static const uint32_t ID = ShowConsole::ID + 1u;
+
+		bool visible;
+	};
+
+	struct SetActive
+	{
+		static const uint32_t ID = SetVisible::ID + 1u;
+
+		bool active;
+	};
+
+	struct SetBuildArguments
+	{
+		static const uint32_t ID = SetActive::ID + 1u;
+
+		Process::Id processId;
+		wchar_t arguments[1024];
+	};
+
+	struct EnableLazyLoadedModule
+	{
+		static const uint32_t ID = SetBuildArguments::ID + 1u;
+
+		Process::Id processId;
+		wchar_t fileName[260];
+		Windows::HMODULE moduleBase;
+		void* token;
+	};
+
+	struct FinishedLazyLoadingModules
+	{
+		static const uint32_t ID = EnableLazyLoadedModule::ID + 1u;
+	};
+
+	struct PreCompile
+	{
+		static const uint32_t ID = FinishedLazyLoadingModules::ID + 1u;
+	};
+
+	struct PostCompile
+	{
+		static const uint32_t ID = PreCompile::ID + 1u;
+	};
+
+	struct TriggerReload
+	{
+		static const uint32_t ID = PostCompile::ID + 1u;
+	};
+
+	struct EnableReinstancingFlow
+	{
+		static const uint32_t ID = TriggerReload::ID + 1u;
+
+		Process::Id processId;
+	};
+
+	static const uint32_t COUNT = EnableReinstancingFlow::ID + 1u;
+	// END EPIC MOD
 }

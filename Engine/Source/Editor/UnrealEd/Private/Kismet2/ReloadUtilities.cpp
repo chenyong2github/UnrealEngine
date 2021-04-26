@@ -941,7 +941,7 @@ void FReload::ReinstanceClass(UClass* NewClass, UClass* OldClass, const TSet<UOb
 	}
 }
 
-void FReload::Finalize()
+void FReload::Finalize(bool bRunGC)
 {
 	// If we have to collect the packages
 	if (bCollectPackages)
@@ -996,7 +996,10 @@ void FReload::Finalize()
 	ReplaceReferencesToReconstructedCDOs();
 
 	// Force GC to collect reinstanced objects
-	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+	if (bRunGC)
+	{
+		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+	}
 }
 
 void FReload::ReplaceReferencesToReconstructedCDOs()

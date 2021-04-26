@@ -91,16 +91,6 @@ bool actions::CallHooks::Execute(const CommandType* command, const DuplexPipe* p
 		case hook::Type::COMPILE_ERROR_MESSAGE:
 			hook::CallHooksInRange<hook::CompileErrorMessageFunction>(command->rangeBegin, command->rangeEnd, static_cast<const wchar_t*>(payload));
 			break;
-
-		// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-		case hook::Type::PRECOMPILE:
-			hook::CallHooksInRange<hook::PrecompileFunction>(command->rangeBegin, command->rangeEnd);
-			break;
-
-		case hook::Type::POSTCOMPILE:
-			hook::CallHooksInRange<hook::PostcompileFunction>(command->rangeBegin, command->rangeEnd);
-			break;
-		// END EPIC MOD
 	}
 
 	pipe->SendAck();
@@ -122,6 +112,12 @@ extern void LiveCodingBeginPatch();
 
 // BEGIN EPIC MOD - Notification that compilation has finished
 extern void LiveCodingEndCompile();
+// END EPIC MOD
+
+// BEGIN EPIC MOD
+extern void LiveCodingPreCompile();
+extern void LiveCodingPostCompile();
+extern void LiveCodingTriggerReload();
 // END EPIC MOD
 
 bool actions::LoadPatch::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
@@ -209,3 +205,34 @@ bool actions::HandleExceptionFinished::Execute(const CommandType* command, const
 	// don't continue execution
 	return false;
 }
+
+
+// BEGIN EPIC MOD
+bool actions::PreCompile::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
+{
+	LiveCodingPreCompile();
+	pipe->SendAck();
+
+	return true;
+}
+
+
+bool actions::PostCompile::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
+{
+	LiveCodingPostCompile();
+	pipe->SendAck();
+
+	return true;
+}
+
+
+bool actions::TriggerReload::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
+{
+	LiveCodingTriggerReload();
+	syncPoint::Leave();
+	syncPoint::Enter();
+	pipe->SendAck();
+
+	return true;
+}
+// END EPIC MOD

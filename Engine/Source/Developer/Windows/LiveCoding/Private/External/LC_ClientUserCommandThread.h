@@ -92,6 +92,10 @@ public:
 	void* EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase);
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD
+	void EnableReinstancingFlow();
+	// END EPIC MOD
+
 	void ApplySettingBool(const char* settingName, int value);
 	void ApplySettingInt(const char* settingName, int value);
 	void ApplySettingString(const char* settingName, const wchar_t* value);

@@ -60,6 +60,11 @@ Thread::ReturnValue ClientCommandThread::ThreadFunction(const std::wstring& proc
 	commandMap.RegisterAction<actions::CallHooks>();
 	commandMap.RegisterAction<actions::LogOutput>();
 	commandMap.RegisterAction<actions::CompilationFinished>();
+	// BEGIN EPIC MOD
+	commandMap.RegisterAction<actions::PreCompile>();
+	commandMap.RegisterAction<actions::PostCompile>();
+	commandMap.RegisterAction<actions::TriggerReload>();
+	// END EPIC MOD
 
 	HeartBeat heartBeat(processGroupName.c_str(), Process::Current::GetId());
 

@@ -41,9 +41,6 @@ public:
 	virtual void Tick() override;
 	virtual FOnPatchCompleteDelegate& GetOnPatchCompleteDelegate() override;
 
-	// Methods invoked by the LiveCodingConsole
-	static void PreCompileHook();
-	static void PostCompileHook();
 	static void BeginReload();
 
 private:
@@ -76,8 +73,6 @@ private:
 #else
 	TUniquePtr<IReload> Reload;
 #endif
-
-	void CheckForClassChanges();
 
 	bool StartLiveCoding();
 

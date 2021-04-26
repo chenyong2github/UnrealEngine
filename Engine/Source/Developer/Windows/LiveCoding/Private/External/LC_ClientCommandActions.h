@@ -31,6 +31,11 @@ namespace actions
 	DECLARE_ACTION(LogOutput);
 	DECLARE_ACTION(CompilationFinished);
 	DECLARE_ACTION(HandleExceptionFinished);
+	// BEGIN EPIC MOD
+	DECLARE_ACTION(PreCompile);
+	DECLARE_ACTION(PostCompile);
+	DECLARE_ACTION(TriggerReload);
+	// END EPIC MOD
 
 	#undef DECLARE_ACTION
 }

@@ -64,6 +64,10 @@ CommandMap::CommandMap(void)
 	RegisterDefaultAction<commands::HandleException>(m_actions);
 	RegisterDefaultAction<commands::HandleExceptionFinished>(m_actions);
 
+	RegisterDefaultAction<commands::ApplySettingBool>(m_actions);
+	RegisterDefaultAction<commands::ApplySettingInt>(m_actions);
+	RegisterDefaultAction<commands::ApplySettingString>(m_actions);
+
 	// BEGIN EPIC MOD - Adding ShowConsole command
 	RegisterDefaultAction<commands::ShowConsole>(m_actions);
 	// END EPIC MOD
@@ -80,9 +84,12 @@ CommandMap::CommandMap(void)
 	RegisterDefaultAction<commands::SetBuildArguments>(m_actions);
 	// END EPIC MOD
 
-	RegisterDefaultAction<commands::ApplySettingBool>(m_actions);
-	RegisterDefaultAction<commands::ApplySettingInt>(m_actions);
-	RegisterDefaultAction<commands::ApplySettingString>(m_actions);
+	// BEGIN EPIC MOD
+	RegisterDefaultAction<commands::PreCompile>(m_actions);
+	RegisterDefaultAction<commands::PostCompile>(m_actions);
+	RegisterDefaultAction<commands::TriggerReload>(m_actions);
+	RegisterDefaultAction<commands::EnableReinstancingFlow>(m_actions);
+	// END EPIC MOD
 }
 
 

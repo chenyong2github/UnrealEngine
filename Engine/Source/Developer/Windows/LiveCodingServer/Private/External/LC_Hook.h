@@ -27,10 +27,6 @@ namespace hook
 			COMPILE_SUCCESS,
 			COMPILE_ERROR,
 			COMPILE_ERROR_MESSAGE,
-			// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-			PRECOMPILE,
-			POSTCOMPILE
-			// END EPIC MOD
 		};
 	};
 
@@ -41,11 +37,6 @@ namespace hook
 	typedef void (*CompileSuccessFunction)(void);
 	typedef void (*CompileErrorFunction)(void);
 	typedef void (*CompileErrorMessageFunction)(const wchar_t*);
-
-	// BEGIN EPIC MOD - Add the ability for pre and post compile notifications
-	typedef void (*PrecompileFunction)(void);
-	typedef void (*PostcompileFunction)(void);
-	// END EPIC MOD
 
 	uint32_t FindFirstInSection(const symbols::ImageSectionDB* imageSectionDb, const ImmutableString& sectionName);
 	uint32_t FindLastInSection(const symbols::ImageSectionDB* imageSectionDb, const ImmutableString& sectionName);
