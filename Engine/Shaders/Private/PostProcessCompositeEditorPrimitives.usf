@@ -93,7 +93,7 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Depth)
 SCREEN_PASS_TEXTURE_VIEWPORT(PrevHistory)
 SCREEN_PASS_TEXTURE_VIEWPORT(History)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToDepth)
+FScreenTransform ColorToDepth;
 
 float2 DepthTextureJitter;
 uint bCameraCut;
@@ -371,7 +371,7 @@ void MainCompositeEditorPrimitivesPS(
 		EditorPrimitiveColor.rgb *= EditorPrimitiveColor.a;
 	}
 
-	float2 DepthUV = ColorUV * ColorToDepth_Scale + ColorToDepth_Bias;
+	float2 DepthUV = ApplyScreenTransform(ColorUV, ColorToDepth);
 
 	// Generate 2x2 square tiling pattern for foreground primitive that end up behind scene opaque primitives.
 	float PatternMask = ((ColorPixelPos.x/2 + ColorPixelPos.y/2) % 2) * 0.7f;

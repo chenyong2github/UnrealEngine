@@ -502,7 +502,7 @@ void MainCS(
 }
 
 SCREEN_PASS_TEXTURE_VIEWPORT(SSAOSmoothOutputViewport)
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(SSAOSmoothOutputToInput)
+FScreenTransform SSAOSmoothOutputToInput;
 
 Texture2D SSAOSmoothInputTexture;
 SamplerState SSAOSmoothInputSampler;
@@ -524,7 +524,7 @@ void MainSSAOSmoothCS(
 	uint2 DestPixelPos = SSAOSmoothOutputViewport_ViewportMin + DispatchThreadId;
 	float2 DestUV = DestPixelPos * SSAOSmoothOutputViewport_ExtentInverse;
 
-	float2 SampleUV = DestUV * SSAOSmoothOutputToInput_Scale + SSAOSmoothOutputToInput_Bias;
+	float2 SampleUV = ApplyScreenTransform(DestUV, SSAOSmoothOutputToInput);
 
 	// Use a 4x4 box filter because the random texture is tiled 4x4
 	float Result;

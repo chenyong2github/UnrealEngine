@@ -28,7 +28,7 @@ float MotionBlur_VelocityMax;
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Velocity)
 SCREEN_PASS_TEXTURE_VIEWPORT(VelocityTile)
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToVelocity)
+FScreenTransform ColorToVelocity;
 
 Texture2D ColorTexture;
 Texture2D VelocityTexture;
@@ -125,7 +125,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 	float2 TileJitter = (float2(Random, Random2) - 0.5) * 0.5;
 
 	// Map color UV to velocity UV space.
-	float2 VelocityUV = ColorUV * ColorToVelocity_Scale + ColorToVelocity_Bias;
+	float2 VelocityUV = ApplyScreenTransform(ColorUV, ColorToVelocity);
 
 	// Map velocity UV to velocity tile UV space with jitter.
 	float2 NearestVelocitySvPosition = floor(VelocityUV * Velocity_Extent) + 0.5;
@@ -241,7 +241,7 @@ float4 MainMotionBlurCommon(float2 ColorUV, float2 ColorPixelPos)
 			for (uint j = 0; j < 2; j++)
 			{
 				float3 SampleVelocityDepth = VelocityFlatTexture.SampleLevel(
-					SharedVelocityFlatSampler, SampleUV[j] * ColorToVelocity_Scale + ColorToVelocity_Bias, 0).xyz;
+					SharedVelocityFlatSampler, ApplyScreenTransform(SampleUV[j], ColorToVelocity), 0).xyz;
 
 				SampleColor[j] = ColorTexture.SampleLevel(ColorSampler, SampleUV[j], 0);
 				SampleDepth[j] = SampleVelocityDepth.z;

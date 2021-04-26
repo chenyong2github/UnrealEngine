@@ -20,7 +20,7 @@ SamplerState DepthSampler;
 
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Depth)
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToDepth)
+FScreenTransform ColorToDepth;
 
 float3 OutlineColor;
 float3 SubduedOutlineColor;
@@ -231,7 +231,7 @@ void MainPS(
 	// If this sum is zero, none of our neighbors are selected pixels and we can skip all the heavy processing.
 	if (ScoutSum > 0)
 	{
-		const float2 DepthUV = ColorUV * ColorToDepth_Scale + ColorToDepth_Bias;
+		const float2 DepthUV = ApplyScreenTransform(ColorUV, ColorToDepth);
 
 		float Center = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
 		float Left   = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV + float2(-1,  0) * Depth_ExtentInverse, 0).r;

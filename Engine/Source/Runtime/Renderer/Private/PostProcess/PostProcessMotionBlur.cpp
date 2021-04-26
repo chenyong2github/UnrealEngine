@@ -308,8 +308,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FMotionBlurFilterParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, VelocityTile)
 
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocity)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocityTile)
+	SHADER_PARAMETER(FScreenTransform, ColorToVelocity)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityFlatTexture)
@@ -376,8 +375,6 @@ public:
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Velocity)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToVelocity)
-
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocitySampler)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
@@ -420,8 +417,7 @@ struct FMotionBlurViewports
 		VelocityParameters = GetScreenPassTextureViewportParameters(Velocity);
 		VelocityTileParameters = GetScreenPassTextureViewportParameters(VelocityTile);
 
-		ColorToVelocityTransform = GetScreenPassTextureViewportTransform(ColorParameters, VelocityParameters);
-		ColorToVelocityTileTransform = GetScreenPassTextureViewportTransform(ColorParameters, VelocityTileParameters);
+		ColorToVelocityTransform = FScreenTransform::ChangeTextureUVCoordinateFromTo(Color, Velocity);
 	}
 
 	FScreenPassTextureViewport Color;
@@ -432,8 +428,7 @@ struct FMotionBlurViewports
 	FScreenPassTextureViewportParameters VelocityParameters;
 	FScreenPassTextureViewportParameters VelocityTileParameters;
 
-	FScreenPassTextureViewportTransform ColorToVelocityTransform;
-	FScreenPassTextureViewportTransform ColorToVelocityTileTransform;
+	FScreenTransform ColorToVelocityTransform;
 };
 
 void AddMotionBlurVelocityPass(
@@ -666,7 +661,6 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	MotionBlurFilterParameters.Velocity = Viewports.VelocityParameters;
 	MotionBlurFilterParameters.VelocityTile = Viewports.VelocityTileParameters;
 	MotionBlurFilterParameters.ColorToVelocity = Viewports.ColorToVelocityTransform;
-	MotionBlurFilterParameters.ColorToVelocityTile = Viewports.ColorToVelocityTileTransform;
 	MotionBlurFilterParameters.ColorTexture = ColorTexture;
 	MotionBlurFilterParameters.VelocityFlatTexture = VelocityFlatTexture;
 	MotionBlurFilterParameters.VelocityTileTexture = VelocityTileTexture;
@@ -748,7 +742,6 @@ FScreenPassTexture AddVisualizeMotionBlurPass(FRDGBuilder& GraphBuilder, const F
 	PassParameters->VelocityTexture = Inputs.SceneVelocity.Texture;
 	PassParameters->Color = Viewports.ColorParameters;
 	PassParameters->Velocity = Viewports.VelocityParameters;
-	PassParameters->ColorToVelocity = Viewports.ColorToVelocityTransform;
 	PassParameters->ColorSampler = GetMotionBlurColorSampler();
 	PassParameters->VelocitySampler = GetMotionBlurVelocitySampler();
 	PassParameters->DepthSampler = GetMotionBlurVelocitySampler();

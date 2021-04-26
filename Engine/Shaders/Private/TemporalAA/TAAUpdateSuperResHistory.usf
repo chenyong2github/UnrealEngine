@@ -95,7 +95,7 @@ void MainCS(
 	FSuperResHistory SubpixelHistory;
 	ISOLATE
 	{
-		float2 PrevHistoryBufferUV = (PrevHistoryInfo_ScreenPosToViewportScale * PrevScreenPos + PrevHistoryInfo_ScreenPosToViewportBias) * PrevHistoryInfo_ExtentInverse;
+		float2 PrevHistoryBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevHistoryBufferUV);
 		PrevHistoryBufferUV = clamp(PrevHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 
 		FBilinearSampleInfos SampleInfos = GetBilinearSampleLevelInfos(

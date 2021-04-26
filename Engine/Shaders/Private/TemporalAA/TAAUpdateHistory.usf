@@ -36,8 +36,9 @@ Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 
+float4 HistoryPixelPosToScreenPos;
+float4 HistoryPixelPosToPPCo;
 float3 HistoryQuantizationError;
-float HistoryPreExposureCorrection;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
@@ -87,17 +88,16 @@ void MainCS(
 		taa_short2(GroupId) * taa_short2(TILE_SIZE, TILE_SIZE) +
 		Map8x8Tile2x2Lane(GroupThreadIndex));
 
-	float2 ViewportUV = (float2(HistoryPixelPos) + 0.5f) * HistoryInfo_ViewportSizeInverse;
-	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+	float2 ScreenPos = ApplyScreenTransform(float2(HistoryPixelPos), HistoryPixelPosToScreenPos);
 	
 	// Pixel coordinate of the center of output pixel O in the input viewport.
-	float2 PPCo = ViewportUV * InputInfo_ViewportSize + InputJitter;
+	float2 PPCo = ApplyScreenTransform(float2(HistoryPixelPos), HistoryPixelPosToPPCo);
 
 	// Pixel coordinate of the center of the nearest input pixel K.
 	float2 PPCk = floor(PPCo) + 0.5;
 	
 	taa_short2 InputPixelPos = ClampPixelOffset(
-		taa_short2(InputPixelPosMin) + taa_short2(PPCo),
+		taa_short2(PPCo),
 		InputPixelPosMin, InputPixelPosMax);
 
 	// Fetch reprojections related informations.
@@ -283,7 +283,7 @@ void MainCS(
 
 		// Sample raw history
 		{
-			float2 PrevHistoryBufferUV = (PrevHistoryInfo_ScreenPosToViewportScale * PrevScreenPos + PrevHistoryInfo_ScreenPosToViewportBias) * PrevHistoryInfo_ExtentInverse;
+			float2 PrevHistoryBufferUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevHistoryBufferUV);
 			PrevHistoryBufferUV = clamp(PrevHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
 
 			#if 1

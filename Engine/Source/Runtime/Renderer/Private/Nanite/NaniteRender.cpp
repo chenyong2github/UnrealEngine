@@ -5147,12 +5147,8 @@ void GetEditorSelectionPassParameters(
 	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64				= VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
-	OutPassParameters->OutputToInputScale		= GetScreenPassTextureViewportTransform(
-		ViewportRect.Min, ViewportRect.Size(),
-		View.ViewRect.Min, View.ViewRect.Size()).Scale;
-	OutPassParameters->OutputToInputBias		= GetScreenPassTextureViewportTransform(
-		ViewportRect.Min, ViewportRect.Size(),
-		View.ViewRect.Min, View.ViewRect.Size()).Bias;
+	OutPassParameters->OutputToInputScale		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
+	OutPassParameters->OutputToInputBias		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Bias;
 }
 
 void DrawEditorSelection(
@@ -5221,12 +5217,8 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64 = VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
-	OutPassParameters->OutputToInputScale = GetScreenPassTextureViewportTransform(
-		ViewportRect.Min, ViewportRect.Size(),
-		View.ViewRect.Min, View.ViewRect.Size()).Scale;
-	OutPassParameters->OutputToInputBias = GetScreenPassTextureViewportTransform(
-		ViewportRect.Min, ViewportRect.Size(),
-		View.ViewRect.Min, View.ViewRect.Size()).Bias;
+	OutPassParameters->OutputToInputScale = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
+	OutPassParameters->OutputToInputBias = FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Bias;
 }
 
 void DrawEditorVisualizeLevelInstance(

@@ -149,6 +149,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, SuperResTextures, [FTemporalAAHistory::kSuperResRenderTargetCount])
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FTAAPrevHistoryParameters, )
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+	SHADER_PARAMETER(FScreenTransform, ScreenPosToPrevHistoryBufferUV)
+	SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+END_SHADER_PARAMETER_STRUCT()
+
 FTAAHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAAHistoryTextures& Textures)
 {
 	FTAAHistoryUAVs UAVs;
@@ -405,7 +411,6 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
 		SHADER_PARAMETER(FMatrix, RotationalClipToPrevClip)
 		SHADER_PARAMETER(FVector, OutputQuantizationError)
-		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
@@ -415,7 +420,7 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevClosestDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxFactorTexture)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResSceneColorOutput)
@@ -442,7 +447,7 @@ class FTAADetectInterferenceCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceSeedTexture)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
 		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
@@ -525,7 +530,7 @@ class FTAAUpdateSuperResHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
 		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
@@ -548,10 +553,11 @@ class FTAAUpdateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxFactorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 
+		SHADER_PARAMETER(FScreenTransform, HistoryPixelPosToScreenPos)
+		SHADER_PARAMETER(FScreenTransform, HistoryPixelPosToPPCo)
 		SHADER_PARAMETER(FVector, HistoryQuantizationError)
-		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAAPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
 
 		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
@@ -1311,20 +1317,20 @@ static void AddGen5MainTemporalAAPasses(
 	}
 
 	// Setup the previous frame history
-	FScreenPassTextureViewportParameters PrevHistoryInfo;
+	FTAAPrevHistoryParameters PrevHistoryParameters;
 	FTAAHistoryTextures PrevHistory;
 	{
+		FScreenPassTextureViewport PrevHistoryViewport(InputHistory.ReferenceBufferSize, InputHistory.ViewportRect);
 		if (bCameraCut)
 		{
-			PrevHistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-				FIntPoint(1, 1), FIntRect(FIntPoint(0, 0), FIntPoint(1, 1))));
+			PrevHistoryViewport.Extent = FIntPoint(1, 1);
+			PrevHistoryViewport.Rect = FIntRect(FIntPoint(0, 0), FIntPoint(1, 1));
 		}
-		else
-		{
-			PrevHistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-				InputHistory.ReferenceBufferSize,
-				InputHistory.ViewportRect));
-		}
+
+		PrevHistoryParameters.PrevHistoryInfo = GetScreenPassTextureViewportParameters(PrevHistoryViewport);
+		PrevHistoryParameters.ScreenPosToPrevHistoryBufferUV = FScreenTransform::ChangeTextureBasisFromTo(
+			PrevHistoryViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
+		PrevHistoryParameters.HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 
 		for (int32 i = 0; i < PrevHistory.LowResTextures.Num(); i++)
 		{
@@ -1443,7 +1449,6 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->RotationalClipToPrevClip = RotationalInvViewProj * RotationalPrevViewProj;
 		}
 		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PF_FloatR11G11B10);
-		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		{
 			float TanHalfFieldOfView = View.ViewMatrices.GetInvProjectionMatrix().M[0][0];
 
@@ -1458,7 +1463,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->PrevClosestDepthTexture = PrevClosestDepthTexture;
 		PassParameters->ParallaxFactorTexture = ParallaxFactorTexture;
 
-		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
+		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
 
 		if (bHalfResLowFrequency)
@@ -1539,7 +1544,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 		PassParameters->InterferenceSeedTexture = InterferenceSeedTexture;
 
-		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
+		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
@@ -1719,7 +1724,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 
-		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
+		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
@@ -1787,10 +1792,12 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->ParallaxFactorTexture = ParallaxFactorTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 
+		FScreenTransform HistoryPixelPosToViewportUV = (FScreenTransform::Identity + 0.5f) * CommonParameters.HistoryInfo.ViewportSizeInverse;
+		PassParameters->HistoryPixelPosToScreenPos = HistoryPixelPosToViewportUV * FScreenTransform::ViewportUVToScreenPos;
+		PassParameters->HistoryPixelPosToPPCo = HistoryPixelPosToViewportUV * CommonParameters.InputInfo.ViewportSize + CommonParameters.InputJitter + CommonParameters.InputPixelPosMin;
 		PassParameters->HistoryQuantizationError = ComputePixelFormatQuantizationError(History.Textures[0]->Desc.Format);
-		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 
-		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
+		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistory;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);

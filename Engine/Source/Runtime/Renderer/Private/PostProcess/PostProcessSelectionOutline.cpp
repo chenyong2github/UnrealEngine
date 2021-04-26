@@ -23,13 +23,13 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EditorPrimitivesDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, EditorPrimitivesStencil)
+		SHADER_PARAMETER(FScreenTransform, ColorToDepth)
 		SHADER_PARAMETER(FVector, OutlineColor)
 		SHADER_PARAMETER(float, SelectionHighlightIntensity)
 		SHADER_PARAMETER(FVector, SubduedOutlineColor)
@@ -168,7 +168,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->Color = GetScreenPassTextureViewportParameters(ColorViewport);
 		PassParameters->Depth = GetScreenPassTextureViewportParameters(DepthViewport);
-		PassParameters->ColorToDepth = GetScreenPassTextureViewportTransform(PassParameters->Color, PassParameters->Depth);
+		PassParameters->ColorToDepth = FScreenTransform::ChangeTextureUVCoordinateFromTo(ColorViewport, DepthViewport);
 		PassParameters->ColorTexture = Inputs.SceneColor.Texture;
 		PassParameters->ColorSampler = PointClampSampler;
 		PassParameters->DepthTexture = Inputs.SceneDepth.Texture;

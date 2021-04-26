@@ -39,7 +39,7 @@
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Bloom)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToBloom)
+FScreenTransform ColorToBloom;
 
 Texture2D ColorTexture;
 SamplerState ColorSampler;
@@ -519,7 +519,7 @@ float4 TonemapCommonPS(
 		half3 LinearColor = SceneColor.rgb * ColorScale0.rgb;
 
 		#if USE_BLOOM
-			float2 BloomUV = ColorToBloom_Scale * UV + ColorToBloom_Bias;
+			float2 BloomUV = ApplyScreenTransform(UV, ColorToBloom);
 			BloomUV = clamp(BloomUV, Bloom_UVViewportBilinearMin, Bloom_UVViewportBilinearMax);
 			#if ES3_1_PROFILE
 				BloomUV = FullViewUV.xy;

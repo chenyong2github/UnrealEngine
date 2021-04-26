@@ -20,6 +20,19 @@
 	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, UVViewportBilinearMin) \
 	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, UVViewportBilinearMax)
 
-#define SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(StructName) \
-	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, Scale) \
-	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, Bias)
+// Poor man's structure abstraction until HLSLCC is gone
+#define FScreenTransform float4
+
+float2 ApplyScreenTransform(float2 PInA, FScreenTransform AToB)
+{
+	return PInA * AToB.xy + AToB.zw;
+}
+
+#if PLATFORM_SUPPORTS_REAL_TYPES
+
+half2 ApplyScreenTransform(half2 PInA, FScreenTransform AToB)
+{
+	return PInA * half2(AToB.xy) + half2(AToB.zw);
+}
+
+#endif

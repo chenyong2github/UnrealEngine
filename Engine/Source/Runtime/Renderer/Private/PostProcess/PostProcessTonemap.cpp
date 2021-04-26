@@ -351,7 +351,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Bloom)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToBloom)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 	// SM5 and above use Texture2D for EyeAdaptationTexture
@@ -362,6 +361,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, ColorGradingLUTSampler)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomDirtMaskSampler)
+	SHADER_PARAMETER(FScreenTransform, ColorToBloom)
 	SHADER_PARAMETER(FVector4, ColorScale0)
 	SHADER_PARAMETER(FVector4, ColorScale1)
 	SHADER_PARAMETER(FVector4, BloomDirtMaskTint)
@@ -582,7 +582,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	{
 		const FScreenPassTextureViewport BloomViewport(Inputs.Bloom);
 		CommonParameters.Bloom = GetScreenPassTextureViewportParameters(BloomViewport);
-		CommonParameters.ColorToBloom = GetScreenPassTextureViewportTransform(CommonParameters.Color, CommonParameters.Bloom);
+		CommonParameters.ColorToBloom = FScreenTransform::ChangeTextureUVCoordinateFromTo(SceneColorViewport, BloomViewport);
 	}
 	CommonParameters.Output = GetScreenPassTextureViewportParameters(OutputViewport);
 	CommonParameters.ColorTexture = Inputs.SceneColor.Texture;

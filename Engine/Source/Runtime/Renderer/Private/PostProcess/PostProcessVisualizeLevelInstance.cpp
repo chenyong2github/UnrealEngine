@@ -22,7 +22,7 @@ public:
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Depth)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, ColorToDepth)
+		SHADER_PARAMETER(FScreenTransform, ColorToDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
@@ -138,7 +138,7 @@ FScreenPassTexture AddVisualizeLevelInstancePass(FRDGBuilder& GraphBuilder, cons
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->Color = GetScreenPassTextureViewportParameters(ColorViewport);
 		PassParameters->Depth = GetScreenPassTextureViewportParameters(DepthViewport);
-		PassParameters->ColorToDepth = GetScreenPassTextureViewportTransform(PassParameters->Color, PassParameters->Depth);
+		PassParameters->ColorToDepth = FScreenTransform::ChangeTextureUVCoordinateFromTo(ColorViewport, DepthViewport);
 		PassParameters->ColorTexture = Inputs.SceneColor.Texture;
 		PassParameters->ColorSampler = PointClampSampler;
 		PassParameters->DepthTexture = Inputs.SceneDepth.Texture;

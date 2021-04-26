@@ -30,11 +30,11 @@ SamplerState RandomNormalTextureSampler;
 
 Texture2D HZBTexture;
 SamplerState HZBSampler;
-SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(HZBRemapping)
+FScreenTransform HZBRemapping;
 
 float GetHZBDepth(float2 ScreenPos, float MipLevel)
 {
-	float2 HZBUV = HZBRemapping_Scale * ScreenPos + HZBRemapping_Bias;
+	float2 HZBUV = ApplyScreenTransform(ScreenPos, HZBRemapping);
 	float HZBDepth = Texture2DSampleLevel( HZBTexture, HZBSampler, HZBUV, MipLevel).r;
 	return ConvertFromDeviceZ(HZBDepth);
 }

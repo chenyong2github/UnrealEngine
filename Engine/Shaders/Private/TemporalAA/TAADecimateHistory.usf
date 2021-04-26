@@ -18,7 +18,6 @@
 
 float4x4 RotationalClipToPrevClip;
 float3 OutputQuantizationError;
-float HistoryPreExposureCorrection;
 
 Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<float2> DilatedVelocityTexture;

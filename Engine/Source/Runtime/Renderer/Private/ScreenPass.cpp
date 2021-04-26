@@ -8,6 +8,11 @@
 
 IMPLEMENT_GLOBAL_SHADER(FScreenPassVS, "/Engine/Private/ScreenPass.usf", "ScreenPassVS", SF_Vertex);
 
+
+RENDERER_API const FScreenTransform FScreenTransform::Identity(FVector2D(1.0f, 1.0f), FVector2D(0.0f, 0.0f));
+RENDERER_API const FScreenTransform FScreenTransform::ScreenPosToViewportUV(FVector2D(0.5f, -0.5f), FVector2D(0.5f, 0.5f));
+RENDERER_API const FScreenTransform FScreenTransform::ViewportUVToScreenPos(FVector2D(2.0f, -2.0f), FVector2D(-1.0f, 1.0f));
+
 const FTextureRHIRef& GetMiniFontTexture()
 {
 	if (GEngine->MiniFontTexture)
@@ -66,6 +71,16 @@ FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(cons
 	}
 
 	return Parameters;
+}
+
+// static
+FScreenTransform FScreenTransform::ChangeTextureUVCoordinateFromTo(
+	const FScreenPassTextureViewport& SrcViewport,
+	const FScreenPassTextureViewport& DestViewport)
+{
+	return (
+		ChangeTextureBasisFromTo(SrcViewport, ETextureBasis::TextureUV, ETextureBasis::ViewportUV) *
+		ChangeTextureBasisFromTo(DestViewport, ETextureBasis::ViewportUV, ETextureBasis::TextureUV));
 }
 
 void SetScreenPassPipelineState(FRHICommandList& RHICmdList, const FScreenPassPipelineState& ScreenPassDraw)

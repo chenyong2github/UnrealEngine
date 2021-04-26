@@ -605,7 +605,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, SSAOSmoothOutputViewport)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, SSAOSmoothOutputToInput)
+		SHADER_PARAMETER(FScreenTransform, SSAOSmoothOutputToInput)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSAOSmoothInputTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SSAOSmoothInputSampler)
@@ -632,7 +632,7 @@ FScreenPassTexture AddAmbientOcclusionSmoothPass(
 
  	FAmbientOcclusionSmoothCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionSmoothCS::FParameters>();
 	PassParameters->SSAOSmoothOutputViewport = OutputViewportParameters;
-	PassParameters->SSAOSmoothOutputToInput = GetScreenPassTextureViewportTransform(OutputViewportParameters, InputViewportParameters);
+	PassParameters->SSAOSmoothOutputToInput = FScreenTransform::ChangeTextureUVCoordinateFromTo(OutputViewport, InputViewport);
 	PassParameters->SSAOSmoothInputTexture = Input.Texture;
 	PassParameters->SSAOSmoothInputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	PassParameters->SSAOSmoothOutputTexture = GraphBuilder.CreateUAV(Output.Texture);

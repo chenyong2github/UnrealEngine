@@ -5,6 +5,7 @@
 #include "../TextureSampling.ush"
 #include "../FastMath.ush"
 #include "../MonteCarlo.ush"
+#include "../ScreenPass.ush"
 
 
 //------------------------------------------------------- COMPILER CONFIG
@@ -194,49 +195,32 @@ int2   InputPixelPosMax;
 
 float2 LowFrequencyInfo_Extent;
 float2 LowFrequencyInfo_ExtentInverse;
-float2 LowFrequencyInfo_ScreenPosToViewportScale;
-float2 LowFrequencyInfo_ScreenPosToViewportBias;
 uint2  LowFrequencyInfo_ViewportMin;
 uint2  LowFrequencyInfo_ViewportMax;
 float2 LowFrequencyInfo_ViewportSize;
 float2 LowFrequencyInfo_ViewportSizeInverse;
-float2 LowFrequencyInfo_UVViewportMin;
-float2 LowFrequencyInfo_UVViewportMax;
-float2 LowFrequencyInfo_UVViewportSize;
-float2 LowFrequencyInfo_UVViewportSizeInverse;
 float2 LowFrequencyInfo_UVViewportBilinearMin;
 float2 LowFrequencyInfo_UVViewportBilinearMax;
 
 float2 RejectionInfo_Extent;
 float2 RejectionInfo_ExtentInverse;
-float2 RejectionInfo_ScreenPosToViewportScale;
-float2 RejectionInfo_ScreenPosToViewportBias;
 uint2  RejectionInfo_ViewportMin;
 uint2  RejectionInfo_ViewportMax;
 float2 RejectionInfo_ViewportSize;
 float2 RejectionInfo_ViewportSizeInverse;
-float2 RejectionInfo_UVViewportMin;
-float2 RejectionInfo_UVViewportMax;
-float2 RejectionInfo_UVViewportSize;
-float2 RejectionInfo_UVViewportSizeInverse;
 float2 RejectionInfo_UVViewportBilinearMin;
 float2 RejectionInfo_UVViewportBilinearMax;
 
 float2 HistoryInfo_Extent;
 float2 HistoryInfo_ExtentInverse;
-float2 HistoryInfo_ScreenPosToViewportScale;
-float2 HistoryInfo_ScreenPosToViewportBias;
 uint2  HistoryInfo_ViewportMin;
 uint2  HistoryInfo_ViewportMax;
 float2 HistoryInfo_ViewportSize;
 float2 HistoryInfo_ViewportSizeInverse;
-float2 HistoryInfo_UVViewportMin;
-float2 HistoryInfo_UVViewportMax;
-float2 HistoryInfo_UVViewportSize;
-float2 HistoryInfo_UVViewportSizeInverse;
 float2 HistoryInfo_UVViewportBilinearMin;
 float2 HistoryInfo_UVViewportBilinearMax;
 
+// FTAAPrevHistoryParameters
 float2 PrevHistoryInfo_Extent;
 float2 PrevHistoryInfo_ExtentInverse;
 float2 PrevHistoryInfo_ScreenPosToViewportScale;
@@ -251,6 +235,8 @@ float2 PrevHistoryInfo_UVViewportSize;
 float2 PrevHistoryInfo_UVViewportSizeInverse;
 float2 PrevHistoryInfo_UVViewportBilinearMin;
 float2 PrevHistoryInfo_UVViewportBilinearMax;
+FScreenTransform ScreenPosToPrevHistoryBufferUV;
+float HistoryPreExposureCorrection;
 
 uint bCameraCut;
 uint bEnableInterferenceHeuristic;

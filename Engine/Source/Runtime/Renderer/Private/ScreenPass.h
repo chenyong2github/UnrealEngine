@@ -210,30 +210,115 @@ END_SHADER_PARAMETER_STRUCT()
 
 FScreenPassTextureViewportParameters RENDERER_API GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
 
-/** Contains a transform that maps UV coordinates from one screen pass texture viewport to another.
- *  Assumes normalized UV coordinates [0, 0]x[1, 1] where [0, 0] maps to the source view min
- *  coordinate and [1, 1] maps to the source view rect max coordinate.
+/** Generic affine 2D texture coordinate transformation x * S + B.
  *
- *  Example Usage:
- *     float2 DestinationUV = SourceUV * UVScaleBias.xy + UVScaleBias.zw;
+ * Construct:
+ *		FVector2D PointInA = ...;
+ *		FVector2D PointInB = PointInA * Scale0 + Bias0;
+ * 
+ *		FScreenTransform AToB(Scale0, Bias0);
+ *		FVector2D PointInB = PointInA * AToB;
+ * 
+ * Associativity:
+ *		FVector2D PointInA = ...;
+ *		FScreenTransform AToB = ...;
+ *		FScreenTransform BToC = ...;
+ *		FVector2D PointInC = (PointInA * AToB) * BToC;
+ *
+ *		FScreenTransform AToC = AToB * BToC;
+ *		FVector2D PointInC = PointInA * AToC;
+ * 
+ * Explicit construction by factorization:
+ *		FVector2D PointInA = ...;
+ *		FVector2D PointInB = PointInA * Scale0 + Bias0;
+ *		FVector2D PointInC = PointInB * Scale1 + Bias1;
+ * 
+ *		FScreenTransform AToC = (FScreenTransform::Identity * Scale0 + Bias0) * Scale1 + Bias1;
+ *		FVector2D PointInC = PointInA * AToC;
+ *
+ * Shader code:
+ *		#include "/Engine/Private/ScreenPass.ush"
+ * 
+ *		FScreenTransform AToC; // shader parameter in global scope
+ * 
+ *		{
+ *			float2 PointInA = ...;
+ *			float2 PointInC = ApplyScreenTransform(PointInA, AToC);
+ *		}
+ * 
  */
-BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, )
-	// A scale / bias factor to apply to the input UV coordinate, converting it to a output UV coordinate.
-	SHADER_PARAMETER(FVector2D, Scale)
-	SHADER_PARAMETER(FVector2D, Bias)
-END_SHADER_PARAMETER_STRUCT()
+struct FScreenTransform
+{
+	FVector2D Scale;
+	FVector2D Bias;
 
-// Constructs a view transform from source and destination texture viewports.
-FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
-	const FScreenPassTextureViewportParameters& Source,
-	const FScreenPassTextureViewportParameters& Destination);
+	inline FScreenTransform()
+	{ }
 
-// Constructs a view transform from source and destination UV offset / extent pairs.
-FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
-	FVector2D SourceUVOffset,
-	FVector2D SourceUVExtent,
-	FVector2D DestinationUVOffset,
-	FVector2D DestinationUVExtent);
+	inline FScreenTransform(const FVector2D& InScale, const FVector2D& InBias)
+		: Scale(InScale)
+		, Bias(InBias)
+	{ }
+
+	inline FScreenTransform(const FScreenTransform& AToB)
+		: Scale(AToB.Scale)
+		, Bias(AToB.Bias)
+	{ }
+
+
+	// A * FScreenTransform::Identity = A
+	static RENDERER_API const FScreenTransform Identity;
+
+	// Transforms ScreenPos to/from ViewportUV
+	static RENDERER_API const FScreenTransform ScreenPosToViewportUV;
+	static RENDERER_API const FScreenTransform ViewportUVToScreenPos;
+
+
+	/** Invert a transformation AToB to BToA. */
+	static inline FScreenTransform Invert(const FScreenTransform& AToB);
+
+	/** Change of coordinate to map from a rectangle to another. */
+	static FScreenTransform ChangeRectFromTo(
+		FVector2D SourceOffset, FVector2D SourceExtent,
+		FVector2D DestinationOffset, FVector2D DestinationExtent);
+	static FScreenTransform ChangeRectFromTo(const FIntRect& SrcViewport, const FIntRect& DestViewport);
+
+	/** Different texture coordinate basis. */
+	enum class ETextureBasis
+	{
+		// Viewport maps [-1.0,1.0] on X, ]1.0, -1.0[ on Y.
+		ScreenPosition,
+
+		// Viewport maps [0.0,1.0]
+		ViewportUV,
+
+		// Viewport maps [Viewport.Min,Viewport.Max] in pixel coordinate in the texture
+		// Used for instance for MyTexture[uint(TexelPosition)];
+		TexelPosition,
+
+		// Viewport maps [Viewport.Min / TextureExtent,Viewport.Max / TextureExtent]
+		// Used for MyTexture.SampleLevel(MySampler, TextureUV, 0);
+		TextureUV,
+	};
+
+	/** Change of basis for texture coordinate. */
+	static inline FScreenTransform ChangeTextureBasisFromTo(
+		const FIntPoint& TextureExtent, const FIntRect& TextureViewport,
+		ETextureBasis SrcBasis, ETextureBasis DestBasis);
+
+	static inline FScreenTransform ChangeTextureBasisFromTo(
+		const FScreenPassTextureViewport& TextureViewport,
+		ETextureBasis SrcBasis, ETextureBasis DestBasis)
+	{
+		return ChangeTextureBasisFromTo(TextureViewport.Extent, TextureViewport.Rect, SrcBasis, DestBasis);
+	}
+
+	/** Change TextureUV coordinate from one texture to another, taking into account change in texture extent too. */
+	static FScreenTransform ChangeTextureUVCoordinateFromTo(
+		const FScreenPassTextureViewport& SrcViewport,
+		const FScreenPassTextureViewport& DestViewport);
+
+}; // FScreenTransform
 
 // A utility shader parameter struct containing the viewport, texture, and sampler for a unique texture input to a shader.
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureInput, )
