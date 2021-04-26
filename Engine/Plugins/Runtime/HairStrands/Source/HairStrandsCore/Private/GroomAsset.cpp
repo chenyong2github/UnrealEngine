@@ -2762,6 +2762,7 @@ bool UGroomAsset::HasDebugData() const
 
 void UGroomAsset::CreateDebugData()
 {
+#if WITH_EDITORONLY_DATA
 	if (!IsHairStrandsEnabled(EHairStrandsShaderType::Strands))
 		return;
 
@@ -2792,6 +2793,7 @@ void UGroomAsset::CreateDebugData()
 				});
 		}
 	}
+#endif
 }
 
 int32 UGroomAsset::GetMaterialIndex(FName MaterialSlotName) const

@@ -308,8 +308,9 @@ static void InternalBuildFollicleTexture_GPU(
 		{
 			FHairStrandsDatas StrandsData;
 			FHairStrandsDatas GuidesData;
+#if WITH_EDITORONLY_DATA
 			Info.GroomAsset->GetHairStrandsDatas(GroupIndex, StrandsData, GuidesData);
-
+#endif
 			StrandsData.StrandsCurves.CurvesRootUV.GetData();
 			const uint32 DataCount = StrandsData.StrandsCurves.CurvesRootUV.Num();
 			const uint32 DataSizeInBytes = sizeof(FVector2D) * DataCount;
