@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DatasmithRuntimeRevitMaterialSelector.h"
+#include "DatasmithRuntimeMaterialSelector.h"
 
 #include "DatasmithSceneFactory.h"
 
@@ -9,20 +9,19 @@
 #include "UObject/SoftObjectPath.h"
 #include "Templates/Casts.h"
 
-FDatasmithRuntimeRevitMaterialSelector::FDatasmithRuntimeRevitMaterialSelector()
+FDatasmithRuntimeMaterialSelector::FDatasmithRuntimeMaterialSelector()
 {
-	// Master materials used by Revit based on material element's type
 	OpaqueMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Opaque.M_Opaque") );
 	TransparentMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Transparent.M_Transparent") );
 	CutoutMaterial.FromSoftObjectPath( FSoftObjectPath("/DatasmithRuntime/Materials/M_Cutout.M_Cutout") );
 }
 
-bool FDatasmithRuntimeRevitMaterialSelector::IsValid() const
+bool FDatasmithRuntimeMaterialSelector::IsValid() const
 {
 	return OpaqueMaterial.IsValid() && TransparentMaterial.IsValid() && CutoutMaterial.IsValid();
 }
 
-const FDatasmithMasterMaterial& FDatasmithRuntimeRevitMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
+const FDatasmithMasterMaterial& FDatasmithRuntimeMaterialSelector::GetMasterMaterial( const TSharedPtr< IDatasmithMasterMaterialElement >& InDatasmithMaterial ) const
 {
 	TSharedPtr< IDatasmithMasterMaterialElement > MaterialElement = ConstCastSharedPtr< IDatasmithMasterMaterialElement >(InDatasmithMaterial);
 
@@ -87,7 +86,7 @@ const FDatasmithMasterMaterial& FDatasmithRuntimeRevitMaterialSelector::GetMaste
 	return OpaqueMaterial;
 }
 
-void FDatasmithRuntimeRevitMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
+void FDatasmithRuntimeMaterialSelector::FinalizeMaterialInstance(const TSharedPtr<IDatasmithMasterMaterialElement>& InDatasmithMaterial, UMaterialInstanceConstant * MaterialInstance) const
 {
 	// Nothing to do there.
 }
