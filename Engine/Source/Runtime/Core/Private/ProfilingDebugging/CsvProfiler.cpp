@@ -3130,6 +3130,11 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 	}
 }
 
+void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
+{
+	FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true);
+}
+
 void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize)
 {
 	// Always gather CSV metadata, even if we're not currently capturing.
