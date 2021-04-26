@@ -26,7 +26,7 @@ struct FActorCluster
 	FDataLayersID				DataLayersID;
 
 	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView);
-	void Add(const FActorCluster& InActorCluster);
+	void Add(const FActorCluster& InActorCluster, const struct FActorContainerInstance& ContainerInstance);
 
 };
 

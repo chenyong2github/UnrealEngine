@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashGridHelper.h"
-
+#include "Algo/Transform.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
 FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize)
@@ -241,6 +241,13 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 					bAlwaysLoadedPromotedOutOfGrid ? TEXT(":PromotedOutOfGrid") : TEXT(""),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
 					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
+
+				if (ClusterInstance->DataLayers.Num())
+				{
+					TArray<FString> DataLayers;
+					Algo::Transform(ClusterInstance->DataLayers, DataLayers, [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
+					UE_LOG(LogWorldPartition, Verbose, TEXT("   - DataLayers: %s"), *FString::Join(DataLayers, TEXT(", ")));
+				}
 
 				for (const FGuid& ActorGuid : ActorCluster->Actors)
 				{

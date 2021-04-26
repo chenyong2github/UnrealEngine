@@ -44,7 +44,7 @@ FActorCluster::FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView
 	DataLayersID = FDataLayersID(DataLayers.Array());
 }
 
-void FActorCluster::Add(const FActorCluster& InActorCluster)
+void FActorCluster::Add(const FActorCluster& InActorCluster, const FActorContainerInstance& ContainerInstance)
 {
 	// Merge RuntimeGrid
 	RuntimeGrid = RuntimeGrid == InActorCluster.RuntimeGrid ? RuntimeGrid : NAME_None;
@@ -79,28 +79,44 @@ void FActorCluster::Add(const FActorCluster& InActorCluster)
 
 	if (DataLayersID != InActorCluster.DataLayersID)
 	{
+		auto LogActorGuid = [&ContainerInstance](const FGuid& ActorGuid)
+		{
+			const FWorldPartitionActorDescView* ActorDescView = ContainerInstance.ActorDescViewMap.Find(ActorGuid);
+			UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: %s (%s)"), ActorDescView ? *ActorDescView->GetActorPath().ToString() : TEXT("None"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+		};
+
+		auto LogDataLayers = [](const TSet<const UDataLayer*>& InDataLayers)
+		{
+			TArray<FString> DataLayerLabels;
+			Algo::Transform(InDataLayers, DataLayerLabels, [](const UDataLayer* DataLayer) { return DataLayer->GetDataLayerLabel().ToString(); });
+			UE_LOG(LogWorldPartition, Verbose, TEXT("   - DataLayers: %s"), *FString::Join(DataLayerLabels, TEXT(", ")));
+		};
+
 		if (DataLayers.Num() && InActorCluster.DataLayers.Num())
 		{
+			UE_SUPPRESS(LogWorldPartition, Verbose,
+			{
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Merging Data Layers for clustered actors with different sets of Data Layers."));
+				UE_LOG(LogWorldPartition, Verbose, TEXT("1st cluster :"));
+				LogDataLayers(DataLayers);
+				for (const FGuid& ActorGuid : Actors)
+				{
+					LogActorGuid(ActorGuid);
+				}
+				UE_LOG(LogWorldPartition, Verbose, TEXT("2nd cluster :"));
+				LogDataLayers(InActorCluster.DataLayers);
+				for (const FGuid& ActorGuid : InActorCluster.Actors)
+				{
+					LogActorGuid(ActorGuid);
+				}
+			});
+
 			// Merge Data Layers
 			for (const UDataLayer* DataLayer : InActorCluster.DataLayers)
 			{
 				check(DataLayer->IsDynamicallyLoaded());
 				DataLayers.Add(DataLayer);
 			}
-			UE_SUPPRESS(LogWorldPartition, Verbose,
-			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("Merging Data Layers for clustered actors with different sets of Data Layers."));
-				UE_LOG(LogWorldPartition, Verbose, TEXT("1st clustered actors :"));
-				for (const FGuid& ActorGuid : Actors)
-				{
-					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: (%s)"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-				}
-				UE_LOG(LogWorldPartition, Verbose, TEXT("2nd clustered actors :"));
-				for (const FGuid& ActorGuid : InActorCluster.Actors)
-				{
-					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: (%s)"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-				}
-			});
 		}
 		else
 		{
@@ -113,13 +129,13 @@ void FActorCluster::Add(const FActorCluster& InActorCluster)
 				const FActorCluster * ActorClusterWithDataLayer = DataLayers.Num() ? this : &InActorCluster;
 				for (const FGuid& ActorGuid : ActorClusterWithDataLayer->Actors)
 				{
-					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: (%s)"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+					LogActorGuid(ActorGuid);
 				}
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Clustered actors without Data Layer :"));
 				const FActorCluster * ActorClusterWithoutDataLayer = DataLayers.Num() ? &InActorCluster : this;
 				for (const FGuid& ActorGuid : ActorClusterWithoutDataLayer->Actors)
 				{
-					UE_LOG(LogWorldPartition, Verbose, TEXT("   - Actor: (%s)"), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+					LogActorGuid(ActorGuid);
 				}
 			});
 			DataLayers.Empty();
@@ -255,7 +271,7 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 						if (ReferenceCluster != ActorCluster)
 						{
 							// Merge reference cluster in Actor's cluster
-							ActorCluster->Add(*ReferenceCluster);
+							ActorCluster->Add(*ReferenceCluster, ContainerInstance);
 							for (const FGuid& ReferenceClusterActorGuid : ReferenceCluster->Actors)
 							{
 								ActorToActorCluster[ReferenceClusterActorGuid] = ActorCluster;
@@ -267,7 +283,7 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 					else
 					{
 						// Put Reference in Actor's cluster
-						ActorCluster->Add(FActorCluster(World, *ReferenceActorDescView));
+						ActorCluster->Add(FActorCluster(World, *ReferenceActorDescView), ContainerInstance);
 					}
 
 					// Map its cluster
