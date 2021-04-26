@@ -27,12 +27,6 @@ void UDisplayClusterBlueprint::GetReparentingRules(TSet<const UClass*>& AllowedC
 {
 	AllowedChildrenOfClasses.Add(ADisplayClusterRootActor::StaticClass());
 }
-
-bool UDisplayClusterBlueprint::SupportsNativization(FText* OutReason) const
-{
-	return Super::SupportsNativization(OutReason);
-}
-
 #endif
 
 void UDisplayClusterBlueprint::UpdateConfigExportProperty()
