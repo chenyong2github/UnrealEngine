@@ -48,6 +48,13 @@ namespace CrossCompiler
 		Metal_iOS,
 	};
 
+	/** Intermediate representation languages for ShaderConductor disassembly output. */
+	enum class EShaderConductorIR
+	{
+		Spirv,
+		Dxil,
+	};
+
 	/** Shader conductor output target descriptor. */
 	struct SHADERCOMPILERCOMMON_API FShaderConductorTarget
 	{
@@ -150,7 +157,7 @@ namespace CrossCompiler
 		static const FShaderConductorIdentifierTable& GetIdentifierTable();
 
 		/** Disassembles the specified SPIR-V module and returns its assembly as text representation. */
-		static bool DisassembleSpirv(const void* InSpirv, uint32 InSpirvByteSize, TArray<ANSICHAR>& OutAssemblyText);
+		static bool Disassemble(EShaderConductorIR Language, const void* Binary, uint32 BinaryByteSize, TArray<ANSICHAR>& OutAssemblyText);
 
 	public:
 		struct FShaderConductorIntermediates; // Pimpl idiom
