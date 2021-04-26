@@ -2331,17 +2331,17 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 					if (UAudioComponent* AudioComponent = UAudioComponent::GetAudioComponentFromID(AudioComponentID))
 					{
 						AActor* SoundOwner = AudioComponent->GetOwner();
-						UE_LOG(LogAudio, Warning, TEXT("%s Actor: %s AudioComponent: %s"), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName());
+						UE_LOG(LogAudio, Verbose, TEXT("%s Actor: %s AudioComponent: %s"), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName());
 					}
 					else
 					{
-						UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo);
+						UE_LOG(LogAudio, Verbose, TEXT("%s"), *SoundWarningInfo);
 					}
 				});
 			}
 			else
 			{
-				UE_LOG(LogAudio, Warning, TEXT("%s"), *SoundWarningInfo);
+				UE_LOG(LogAudio, Verbose, TEXT("%s"), *SoundWarningInfo);
 			}
 
 			ReportedSounds.Add(this);

@@ -1066,7 +1066,7 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree, bool bInAllowRetainedChu
 		}
 	}
 
-	UE_LOG(LogAudioStreamCaching, Display, TEXT("TrimMemory: NumElements Evicted: %d. Bytes Freed: %d"), NumElementsEvicted, BytesFreed);
+	UE_LOG(LogAudioStreamCaching, Verbose, TEXT("TrimMemory: NumElements Evicted: %d. Bytes Freed: %d"), NumElementsEvicted, BytesFreed);
 
 	return BytesFreed;
 }
