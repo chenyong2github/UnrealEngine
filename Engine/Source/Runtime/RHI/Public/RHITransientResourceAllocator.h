@@ -25,7 +25,7 @@ public:
 	virtual ~FRHITransientResource() = default;
 
 	// (Internal) Initializes the transient resource with a new allocation / name.
-	void Init(const TCHAR* InName, uint32 InAllocationIndex)
+	virtual void Init(const TCHAR* InName, uint32 InAllocationIndex)
 	{
 		Name = InName;
 		AllocationIndex = InAllocationIndex;
@@ -85,6 +85,8 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
+	void Init(const TCHAR* InName, uint32 InAllocationIndex) override;
+
 	// Returns the underlying RHI texture.
 	FRHITexture* GetRHI() const { return static_cast<FRHITexture*>(FRHITransientResource::GetRHI()); }
 
@@ -92,15 +94,16 @@ public:
 	FORCEINLINE const FRHITextureCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& CreateInfo);
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& CreateInfo);
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
 
-private:
-	FRHITextureCreateInfo CreateInfo;
-	TArray<TPair<FRHITextureUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
-	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
+	// The create info describing the texture.
+	const FRHITextureCreateInfo CreateInfo;
+
+	// The persistent view cache containing all views created for this texture.
+	FRHITextureViewCache ViewCache;
 };
 
 class RHI_API FRHITransientBuffer final : public FRHITransientResource
@@ -111,6 +114,8 @@ public:
 		, CreateInfo(InCreateInfo)
 	{}
 
+	void Init(const TCHAR* InName, uint32 InAllocationIndex) override;
+
 	// Returns the underlying RHI buffer.
 	FORCEINLINE FRHIBuffer* GetRHI() const { return static_cast<FRHIBuffer*>(FRHITransientResource::GetRHI()); }
 
@@ -118,18 +123,19 @@ public:
 	FORCEINLINE const FRHIBufferCreateInfo& GetCreateInfo() const { return CreateInfo; }
 
 	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& CreateInfo);
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateUAV(GetRHI(), InCreateInfo); }
 
 	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& CreateInfo);
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& InCreateInfo) { return ViewCache.GetOrCreateSRV(GetRHI(), InCreateInfo); }
 
-private:
-	FRHIBufferCreateInfo CreateInfo;
-	TArray<TPair<FRHIBufferUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
-	TArray<TPair<FRHIBufferSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
+	// The create info describing the texture.
+	const FRHIBufferCreateInfo CreateInfo;
+
+	// The persistent view cache containing all views created for this buffer.
+	FRHIBufferViewCache ViewCache;
 };
 
-class RHI_API IRHITransientResourceAllocator
+class IRHITransientResourceAllocator
 {
 public:
 	virtual ~IRHITransientResourceAllocator() = default;
@@ -146,5 +152,8 @@ public:
 	virtual void Freeze(FRHICommandListImmediate& RHICmdList) = 0;
 
 	// Releases the transient allocator and deletes the instance. Any FRHITransientResource* access after this call is not allowed.
-	virtual void Release(FRHICommandListImmediate& RHICmdList);
+	virtual void Release(FRHICommandListImmediate& RHICmdList)
+	{
+		delete this;
+	}
 };

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "RHI.h"
+#include "RHITransientResourceAllocator.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
@@ -2009,4 +2010,193 @@ SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format)
 	{
 		return static_cast<SIZE_T>(SizeX / GPixelFormats[Format].BlockSizeX) * (SizeY / GPixelFormats[Format].BlockSizeY) * GPixelFormats[Format].BlockBytes;
 	}
+}
+
+FRHIShaderResourceView* FRHITextureViewCache::GetOrCreateSRV(FRHITexture* Texture, const FRHITextureSRVCreateInfo& SRVCreateInfo)
+{
+	for (const auto& KeyValue : SRVs)
+	{
+		if (KeyValue.Key == SRVCreateInfo)
+		{
+			return KeyValue.Value.GetReference();
+		}
+	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView;
+
+	if (SRVCreateInfo.MetaData == ERHITextureMetaDataAccess::None)
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(Texture, SRVCreateInfo);
+	}
+	else
+	{
+		FRHITexture2D* Texture2D = Texture->GetTexture2D();
+		check(Texture2D);
+
+		switch (SRVCreateInfo.MetaData)
+		{
+		case ERHITextureMetaDataAccess::HTile:
+			check(GRHISupportsExplicitHTile);
+			RHIShaderResourceView = RHICreateShaderResourceViewHTile(Texture2D);
+			break;
+
+		case ERHITextureMetaDataAccess::FMask:
+			RHIShaderResourceView = RHICreateShaderResourceViewFMask(Texture2D);
+			break;
+
+		case ERHITextureMetaDataAccess::CMask:
+			RHIShaderResourceView = RHICreateShaderResourceViewWriteMask(Texture2D);
+			break;
+
+		default:
+			checkf(false, TEXT("Invalid texture metadata access used when creating SRV."));
+			return nullptr;
+		}
+	}
+
+	check(RHIShaderResourceView);
+	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
+	SRVs.Emplace(SRVCreateInfo, MoveTemp(RHIShaderResourceView));
+	return View;
+}
+
+FRHIUnorderedAccessView* FRHITextureViewCache::GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& UAVCreateInfo)
+{
+	for (const auto& KeyValue : UAVs)
+	{
+		if (KeyValue.Key == UAVCreateInfo)
+		{
+			return KeyValue.Value.GetReference();
+		}
+	}
+
+	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
+
+	if (UAVCreateInfo.MetaData == ERHITextureMetaDataAccess::None)
+	{
+		if (UAVCreateInfo.Format != PF_Unknown)
+		{
+			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel, UAVCreateInfo.Format);
+		}
+		else
+		{
+			RHIUnorderedAccessView = RHICreateUnorderedAccessView(Texture, UAVCreateInfo.MipLevel);
+		}
+	}
+	else
+	{
+		FRHITexture2D* Texture2D = Texture->GetTexture2D();
+		check(Texture2D);
+
+		switch (UAVCreateInfo.MetaData)
+		{
+		case ERHITextureMetaDataAccess::HTile:
+			check(GRHISupportsExplicitHTile);
+			RHIUnorderedAccessView = RHICreateUnorderedAccessViewHTile(Texture2D);
+			break;
+
+		case ERHITextureMetaDataAccess::Stencil:
+			RHIUnorderedAccessView = RHICreateUnorderedAccessViewStencil(Texture2D, UAVCreateInfo.MipLevel);
+			break;
+
+		default:
+			checkf(false, TEXT("Invalid texture metadata access used when creating UAV."));
+			return nullptr;
+		}
+	}
+
+	check(RHIUnorderedAccessView);
+	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
+	UAVs.Emplace(UAVCreateInfo, MoveTemp(RHIUnorderedAccessView));
+	return View;
+}
+
+FRHIShaderResourceView* FRHIBufferViewCache::GetOrCreateSRV(FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& SRVCreateInfo)
+{
+	for (const auto& KeyValue : SRVs)
+	{
+		if (KeyValue.Key == SRVCreateInfo)
+		{
+			return KeyValue.Value.GetReference();
+		}
+	}
+
+	FShaderResourceViewRHIRef RHIShaderResourceView;
+
+	if (SRVCreateInfo.Format != PF_Unknown)
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(Buffer, SRVCreateInfo.BytesPerElement, SRVCreateInfo.Format);
+	}
+	else
+	{
+		RHIShaderResourceView = RHICreateShaderResourceView(Buffer);
+	}
+
+	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
+	SRVs.Emplace(SRVCreateInfo, MoveTemp(RHIShaderResourceView));
+	return View;
+}
+
+FRHIUnorderedAccessView* FRHIBufferViewCache::GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& UAVCreateInfo)
+{
+	for (const auto& KeyValue : UAVs)
+	{
+		if (KeyValue.Key == UAVCreateInfo)
+		{
+			return KeyValue.Value.GetReference();
+		}
+	}
+
+	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
+
+	if (UAVCreateInfo.Format != PF_Unknown)
+	{
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVCreateInfo.Format);
+	}
+	else
+	{
+		RHIUnorderedAccessView = RHICreateUnorderedAccessView(Buffer, UAVCreateInfo.bSupportsAtomicCounter, UAVCreateInfo.bSupportsAppendBuffer);
+	}
+
+	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
+	UAVs.Emplace(UAVCreateInfo, MoveTemp(RHIUnorderedAccessView));
+	return View;
+}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void FRHITextureViewCache::SetDebugName(const TCHAR* DebugName)
+{
+	for (const auto& KeyValue : UAVs)
+	{
+		RHIBindDebugLabelName(KeyValue.Value, DebugName);
+	}
+}
+
+void FRHIBufferViewCache::SetDebugName(const TCHAR* DebugName)
+{
+	for (const auto& KeyValue : UAVs)
+	{
+		RHIBindDebugLabelName(KeyValue.Value, DebugName);
+	}
+}
+
+#endif
+
+void FRHITransientTexture::Init(const TCHAR* InName, uint32 InAllocationIndex)
+{
+	FRHITransientResource::Init(InName, InAllocationIndex);
+	ViewCache.SetDebugName(InName);
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	RHIBindDebugLabelName(GetRHI(), InName);
+#endif
+}
+
+void FRHITransientBuffer::Init(const TCHAR* InName, uint32 InAllocationIndex)
+{
+	FRHITransientResource::Init(InName, InAllocationIndex);
+	ViewCache.SetDebugName(InName);
+
+	// TODO: Add method to rename a buffer.
 }

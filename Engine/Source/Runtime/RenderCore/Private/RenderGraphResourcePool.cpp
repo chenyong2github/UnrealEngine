@@ -38,13 +38,8 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 		if (PooledBuffer->Desc == Desc)
 		{
 			PooledBuffer->LastUsedFrame = FrameCounter;
+			PooledBuffer->ViewCache.SetDebugName(InDebugName);
 			PooledBuffer->Name = InDebugName;
-			
-			//@todo - rename other resources too
-			for (const auto& Pair : PooledBuffer->UAVs)
-			{
-				RHIBindDebugLabelName(Pair.Value, InDebugName);
-			}
 
 			return PooledBuffer;
 		}

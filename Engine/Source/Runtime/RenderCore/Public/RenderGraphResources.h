@@ -343,34 +343,24 @@ class RENDERCORE_API FRDGPooledTexture final
 	: public FRefCountedObject
 {
 public:
-	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout, const FUnorderedAccessViewRHIRef& FirstMipUAV)
+	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureSubresourceLayout& InLayout)
 		: Texture(InTexture)
 		, Layout(InLayout)
 	{
-		InitViews(FirstMipUAV);
 		Reset();
 	}
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc);
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(Texture, UAVDesc); }
 
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& SRVDesc);
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHITextureSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(Texture, SRVDesc); }
 
-	FRHITexture* GetRHI() const
-	{
-		return Texture;
-	}
+	FORCEINLINE FRHITexture* GetRHI() const { return Texture; }
 
-	FRDGTexture* GetOwner() const
-	{
-		return Owner;
-	}
+	FORCEINLINE FRDGTexture* GetOwner() const { return Owner; }
 
 private:
-	/** Initializes cached views. Safe to call multiple times; each call will recreate. */
-	void InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV);
-
 	/** Prepares the pooled texture state for re-use across RDG builder instances. */
 	void Finalize();
 
@@ -381,15 +371,7 @@ private:
 	FRDGTexture* Owner = nullptr;
 	FRDGTextureSubresourceLayout Layout;
 	FRDGTextureSubresourceState State;
-
-	/** Cached views created for the RHI texture. */
-	TArray<FUnorderedAccessViewRHIRef, TInlineAllocator<1>> MipUAVs;
-	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
-	FUnorderedAccessViewRHIRef HTileUAV;
-	FShaderResourceViewRHIRef  HTileSRV;
-	FUnorderedAccessViewRHIRef StencilUAV;
-	FShaderResourceViewRHIRef  FMaskSRV;
-	FShaderResourceViewRHIRef  CMaskSRV;
+	FRHITextureViewCache ViewCache;
 
 	friend FRDGTexture;
 	friend FRDGBuilder;
@@ -507,6 +489,9 @@ private:
 		/** The assigned transient texture to use during execution. Never reset. */
 		FRHITransientTexture* TransientTexture;
 	};
+
+	/** The assigned view cache for this texture (sourced from transient / pooled texture). Never reset. */
+	FRHITextureViewCache* ViewCache = nullptr;
 
 	/** Cached state pointer from the pooled texture. */
 	FRDGTextureSubresourceState* State = nullptr;
@@ -661,8 +646,8 @@ class FRDGTextureUAVDesc final
 public:
 	FRDGTextureUAVDesc() = default;
 
-	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0, ERHITextureMetaDataAccess InMetaData = ERHITextureMetaDataAccess::None)
-		: FRHITextureUAVCreateInfo(InMipLevel, InMetaData)
+	FRDGTextureUAVDesc(FRDGTextureRef InTexture, uint8 InMipLevel = 0, EPixelFormat InFormat = PF_Unknown)
+		: FRHITextureUAVCreateInfo(InMipLevel, InFormat)
 		, Texture(InTexture)
 	{}
 
@@ -862,33 +847,23 @@ public:
 	const FRDGBufferDesc Desc;
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc);
+	FORCEINLINE FRHIUnorderedAccessView* GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc) { return ViewCache.GetOrCreateUAV(Buffer, UAVDesc); }
 
 	/** Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache. */
-	FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc);
+	FORCEINLINE FRHIShaderResourceView* GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc) { return ViewCache.GetOrCreateSRV(Buffer, SRVDesc); }
 
 	/** Returns the RHI buffer. */
-	FRHIBuffer* GetRHI() const
-	{
-		return Buffer;
-	}
+	FORCEINLINE FRHIBuffer* GetRHI() const { return Buffer; }
 
 	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FRHIBuffer* GetVertexBufferRHI() const
-	{
-		return Buffer;
-	}
+	FORCEINLINE FRHIBuffer* GetVertexBufferRHI() const { return Buffer; }
 
 	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FRHIBuffer* GetStructuredBufferRHI() const
-	{
-		return Buffer;
-	}
+	FORCEINLINE FRHIBuffer* GetStructuredBufferRHI() const { return Buffer; }
 
 private:
 	TRefCountPtr<FRHIBuffer> Buffer;
-	TArray<TPair<FRHIBufferUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
-	TArray<TPair<FRHIBufferSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
+	FRHIBufferViewCache ViewCache;
 
 	void Reset()
 	{
@@ -1004,6 +979,9 @@ private:
 		/** Assigned transient buffer pointer. Never reset once assigned. */
 		FRHITransientBuffer* TransientBuffer;
 	};
+
+	/** The assigned buffer view cache (sourced from the pooled / transient buffer. Never reset. */
+	FRHIBufferViewCache* ViewCache = nullptr;
 
 	/** Cached state pointer from the pooled / transient buffer. */
 	FRDGSubresourceState* State = nullptr;

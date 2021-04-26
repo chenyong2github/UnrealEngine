@@ -2514,7 +2514,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 				AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
 				{
-					Barriers.AddAlias(Texture, FRHITransientAliasingInfo::Acquire(Texture->GetRHIUnchecked(), Texture->TransientTexture->GetAliasingOverlaps()));
+					Barriers.AddAlias(Texture, FRHITransientAliasingInfo::Acquire(Texture->GetRHIUnchecked(), TransientTexture->GetAliasingOverlaps()));
 				});
 
 			#if STATS
@@ -2531,7 +2531,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 	Texture->FirstPass = PassHandle;
 
-	check(Texture->PooledTexture);
+	check(Texture->GetRHIUnchecked());
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle PassHandle, FRDGTextureSRVRef SRV)
@@ -2544,16 +2544,10 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle 
 	}
 
 	FRDGTextureRef Texture = SRV->Desc.Texture;
-	check(Texture->GetRHIUnchecked());
+	FRHITexture* TextureRHI = Texture->GetRHIUnchecked();
+	check(TextureRHI);
 
-	if (Texture->bTransient)
-	{
-		SRV->ResourceRHI = Texture->TransientTexture->GetOrCreateSRV(SRV->Desc);
-	}
-	else
-	{
-		SRV->ResourceRHI = Texture->PooledTexture->GetOrCreateSRV(SRV->Desc);
-	}
+	SRV->ResourceRHI = Texture->ViewCache->GetOrCreateSRV(TextureRHI, SRV->Desc);
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGTextureUAVRef UAV)
@@ -2568,15 +2562,10 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 	BeginResourceRHI(TransientResourceAllocator, PassHandle, UAV->Desc.Texture);
 
 	FRDGTextureRef Texture = UAV->Desc.Texture;
+	FRHITexture* TextureRHI = Texture->GetRHIUnchecked();
+	check(TextureRHI);
 
-	if (Texture->bTransient)
-	{
-		UAV->ResourceRHI = Texture->TransientTexture->GetOrCreateUAV(UAV->Desc);
-	}
-	else
-	{
-		UAV->ResourceRHI = Texture->PooledTexture->GetOrCreateUAV(UAV->Desc);
-	}
+	UAV->ResourceRHI = Texture->ViewCache->GetOrCreateUAV(TextureRHI, UAV->Desc);
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGBufferRef Buffer)
@@ -2610,7 +2599,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 
 				AddToPrologueBarriers(PassHandle, [&](FRDGBarrierBatchBegin& Barriers)
 				{
-					Barriers.AddAlias(Buffer, FRHITransientAliasingInfo::Acquire(Buffer->GetRHIUnchecked(), Buffer->TransientBuffer->GetAliasingOverlaps()));
+					Barriers.AddAlias(Buffer, FRHITransientAliasingInfo::Acquire(Buffer->GetRHIUnchecked(), TransientBuffer->GetAliasingOverlaps()));
 				});
 
 			#if STATS
@@ -2640,7 +2629,8 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle 
 	}
 
 	FRDGBufferRef Buffer = SRV->Desc.Buffer;
-	checkf(Buffer->GetRHIUnchecked(), TEXT("Pass parameters contained an SRV of RDG buffer %s, before that buffer was referenced as a UAV, which isn't supported.  Make sure to call ClearUnusedGraphResources to remove unbound parameters which can also cause this."), Buffer->Name);
+	FRHIBuffer* BufferRHI = Buffer->GetRHIUnchecked();
+	check(BufferRHI);
 
 	FRHIBufferSRVCreateInfo SRVCreateInfo = SRV->Desc;
 
@@ -2652,14 +2642,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle 
 		SRVCreateInfo.Format = PF_Unknown;
 	}
 
-	if (Buffer->bTransient)
-	{
-		SRV->ResourceRHI = Buffer->TransientBuffer->GetOrCreateSRV(SRVCreateInfo);
-	}
-	else
-	{
-		SRV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateSRV(SRVCreateInfo);
-	}
+	SRV->ResourceRHI = Buffer->ViewCache->GetOrCreateSRV(BufferRHI, SRVCreateInfo);
 }
 
 void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGBufferUAV* UAV)
@@ -2684,14 +2667,7 @@ void FRDGBuilder::BeginResourceRHI(FTransientResourceAllocator* TransientResourc
 		UAVCreateInfo.Format = PF_Unknown;
 	}
 
-	if (Buffer->bTransient)
-	{
-		UAV->ResourceRHI = Buffer->TransientBuffer->GetOrCreateUAV(UAVCreateInfo);
-	}
-	else
-	{
-		UAV->ResourceRHI = Buffer->PooledBuffer->GetOrCreateUAV(UAVCreateInfo);
-	}
+	UAV->ResourceRHI = Buffer->ViewCache->GetOrCreateUAV(Buffer->GetRHIUnchecked(), UAVCreateInfo);
 }
 
 void FRDGBuilder::EndResourceRHI(FTransientResourceAllocator& TransientResourceAllocator, FRDGPassHandle PassHandle, FRDGTextureRef Texture, uint32 ReferenceCount)

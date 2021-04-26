@@ -164,35 +164,6 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 	return false;
 }
 
-void FRDGPooledTexture::InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV)
-{
-	const ETextureCreateFlags Flags = Texture->GetFlags();
-	const uint32 NumMips = Texture->GetNumMips();
-
-	if (EnumHasAnyFlags(Flags, TexCreate_ShaderResource))
-	{
-		SRVs.Empty();
-	}
-
-	if (EnumHasAnyFlags(Flags, TexCreate_UAV))
-	{
-		MipUAVs.Empty(NumMips);
-
-		uint32 MipLevel = 0;
-
-		if (FirstMipUAV)
-		{
-			MipUAVs.Add(FirstMipUAV);
-			MipLevel++;
-		}
-
-		for (; MipLevel < NumMips; MipLevel++)
-		{
-			MipUAVs.Add(RHICreateUnorderedAccessView(Texture, MipLevel));
-		}
-	}
-}
-
 void FRDGPooledTexture::Finalize()
 {
 	for (FRDGSubresourceState& SubresourceState : State)
@@ -206,75 +177,6 @@ void FRDGPooledTexture::Reset()
 {
 	InitAsWholeResource(State);
 	Owner = nullptr;
-}
-
-FRHIShaderResourceView* FRDGPooledTexture::GetOrCreateSRV(const FRHITextureSRVCreateInfo& Desc)
-{
-	if (Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
-	{
-		check(GRHISupportsExplicitHTile);
-		if (!HTileSRV)
-		{
-			HTileSRV = RHICreateShaderResourceViewHTile((FRHITexture2D*)GetRHI());
-		}
-		return HTileSRV;
-	}
-
-	if (Desc.MetaData == ERDGTextureMetaDataAccess::FMask)
-	{
-		if (!FMaskSRV)
-		{
-			FMaskSRV = RHICreateShaderResourceViewFMask((FRHITexture2D*)GetRHI());
-		}
-		return FMaskSRV;
-	}
-
-	if (Desc.MetaData == ERDGTextureMetaDataAccess::CMask)
-	{
-		if (!CMaskSRV)
-		{
-			CMaskSRV = RHICreateShaderResourceViewWriteMask((FRHITexture2D*)GetRHI());
-		}
-		return CMaskSRV;
-	}
-
-	for (const auto& SRVPair : SRVs)
-	{
-		if (SRVPair.Key == Desc)
-		{
-			return SRVPair.Value;
-		}
-	}
-
-	FShaderResourceViewRHIRef RHIShaderResourceView = RHICreateShaderResourceView(GetRHI(), Desc);
-
-	FRHIShaderResourceView* View = RHIShaderResourceView;
-	SRVs.Emplace(Desc, MoveTemp(RHIShaderResourceView));
-	return View;
-}
-
-FRHIUnorderedAccessView* FRDGPooledTexture::GetOrCreateUAV(const FRHITextureUAVCreateInfo& UAVDesc)
-{
-	if (UAVDesc.MetaData == ERDGTextureMetaDataAccess::HTile)
-	{
-		check(GRHISupportsExplicitHTile);
-		if (!HTileUAV)
-		{
-			HTileUAV = RHICreateUnorderedAccessViewHTile((FRHITexture2D*)GetRHI());
-		}
-		return HTileUAV;
-	}
-
-	if (UAVDesc.MetaData == ERDGTextureMetaDataAccess::Stencil)
-	{
-		if (!StencilUAV)
-		{
-			StencilUAV = RHICreateUnorderedAccessViewStencil((FRHITexture2D*)GetRHI(), 0);
-		}
-		return StencilUAV;
-	}
-
-	return MipUAVs[UAVDesc.MipLevel];
 }
 
 FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
@@ -306,6 +208,7 @@ void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
 {
 	PooledTexture = InPooledTexture;
 	State = &PooledTexture->State;
+	ViewCache = &PooledTexture->ViewCache;
 
 	// Return the previous owner and assign this texture as the new one.
 	FRDGTextureRef PreviousOwner = PooledTexture->Owner;
@@ -325,7 +228,8 @@ void FRDGTexture::SetRHI(FRHITransientTexture* InTransientTexture, FRDGAllocator
 {
 	TransientTexture = InTransientTexture;
 	State = Allocator.AllocNoDestruct<FRDGTextureSubresourceState>();
-	ResourceRHI = TransientTexture->GetRHI();
+	ViewCache = &InTransientTexture->ViewCache;
+	ResourceRHI = InTransientTexture->GetRHI();
 
 	bTransient = true;
 }
@@ -380,6 +284,7 @@ void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 	PooledBuffer = InPooledBuffer;
 	Allocation = InPooledBuffer;
 	State = &PooledBuffer->State;
+	ViewCache = &PooledBuffer->ViewCache;
 	ResourceRHI = InPooledBuffer->GetRHI();
 }
 
@@ -387,7 +292,8 @@ void FRDGBuffer::SetRHI(FRHITransientBuffer* InTransientBuffer, FRDGAllocator& A
 {
 	TransientBuffer = InTransientBuffer;
 	State = Allocator.AllocNoDestruct<FRDGSubresourceState>();
-	ResourceRHI = TransientBuffer->GetRHI();
+	ViewCache = &InTransientBuffer->ViewCache;
+	ResourceRHI = InTransientBuffer->GetRHI();
 
 	bTransient = true;;
 }
@@ -419,56 +325,4 @@ void FRDGBuffer::Finalize()
 			Allocation = PooledBuffer;
 		}
 	}
-}
-
-FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(const FRHIBufferSRVCreateInfo& SRVDesc)
-{
-	for (const auto& KeyValue : SRVs)
-	{
-		if (KeyValue.Key == SRVDesc)
-		{
-			return KeyValue.Value.GetReference();
-		}
-	}
-
-	FShaderResourceViewRHIRef RHIShaderResourceView;
-
-	if (SRVDesc.Format != PF_Unknown)
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(GetRHI(), SRVDesc.BytesPerElement, SRVDesc.Format);
-	}
-	else
-	{
-		RHIShaderResourceView = RHICreateShaderResourceView(GetRHI());
-	}
-
-	FRHIShaderResourceView* View = RHIShaderResourceView.GetReference();
-	SRVs.Emplace(SRVDesc, MoveTemp(RHIShaderResourceView));
-	return View;
-}
-
-FRHIUnorderedAccessView* FRDGPooledBuffer::GetOrCreateUAV(const FRHIBufferUAVCreateInfo& UAVDesc)
-{
-	for (const auto& KeyValue : UAVs)
-	{
-		if (KeyValue.Key == UAVDesc)
-		{
-			return KeyValue.Value.GetReference();
-		}
-	}
-
-	FUnorderedAccessViewRHIRef RHIUnorderedAccessView;
-
-	if (UAVDesc.Format != PF_Unknown)
-	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(GetRHI(), UAVDesc.Format);
-	}
-	else
-	{
-		RHIUnorderedAccessView = RHICreateUnorderedAccessView(GetRHI(), UAVDesc.bSupportsAtomicCounter, UAVDesc.bSupportsAppendBuffer);
-	}
-
-	FRHIUnorderedAccessView* View = RHIUnorderedAccessView.GetReference();
-	UAVs.Emplace(UAVDesc, MoveTemp(RHIUnorderedAccessView));
-	return View;
 }

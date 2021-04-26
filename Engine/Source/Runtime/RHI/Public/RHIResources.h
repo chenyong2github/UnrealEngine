@@ -3135,14 +3135,20 @@ FORCEINLINE uint32 GetTypeHash(const FRHITextureSRVCreateInfo& Var)
 struct FRHITextureUAVCreateInfo
 {
 public:
-	explicit FRHITextureUAVCreateInfo(uint8 InMipLevel = 0u, ERHITextureMetaDataAccess InMetaData = ERHITextureMetaDataAccess::None)
-		: MipLevel(InMipLevel)
-		, MetaData(InMetaData)
+	FRHITextureUAVCreateInfo() = default;
+
+	explicit FRHITextureUAVCreateInfo(uint8 InMipLevel, EPixelFormat InFormat = PF_Unknown)
+		: Format(InFormat)
+		, MipLevel(InMipLevel)
+	{}
+
+	explicit FRHITextureUAVCreateInfo(ERHITextureMetaDataAccess InMetaData)
+		: MetaData(InMetaData)
 	{}
 
 	FORCEINLINE bool operator==(const FRHITextureUAVCreateInfo& Other)const
 	{
-		return MipLevel == Other.MipLevel && MetaData == Other.MetaData;
+		return Format == Other.Format && MipLevel == Other.MipLevel && MetaData == Other.MetaData;
 	}
 
 	FORCEINLINE bool operator!=(const FRHITextureUAVCreateInfo& Other)const
@@ -3150,8 +3156,9 @@ public:
 		return !(*this == Other);
 	}
 
-	uint8 MipLevel;
-	ERHITextureMetaDataAccess MetaData;
+	EPixelFormat Format = PF_Unknown;
+	uint8 MipLevel = 0;
+	ERHITextureMetaDataAccess MetaData = ERHITextureMetaDataAccess::None;
 };
 
 /** Descriptor used to create a buffer resource */
@@ -3231,4 +3238,46 @@ struct FRHIBufferUAVCreateInfo
 	/** Whether the uav supports atomic counter or append buffer operations (used for structured buffers) */
 	bool bSupportsAtomicCounter = false;
 	bool bSupportsAppendBuffer = false;
+};
+
+class RHI_API FRHITextureViewCache
+{
+public:
+	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
+	FRHIUnorderedAccessView* GetOrCreateUAV(FRHITexture* Texture, const FRHITextureUAVCreateInfo& CreateInfo);
+
+	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
+	FRHIShaderResourceView* GetOrCreateSRV(FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo);
+
+	// Sets the debug name of the RHI view resources.
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	void SetDebugName(const TCHAR* DebugName);
+#else
+	void SetDebugName(const TCHAR* DebugName) {}
+#endif
+
+private:
+	TArray<TPair<FRHITextureUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
+	TArray<TPair<FRHITextureSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
+};
+
+class RHI_API FRHIBufferViewCache
+{
+public:
+	// Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache.
+	FRHIUnorderedAccessView* GetOrCreateUAV(FRHIBuffer* Buffer, const FRHIBufferUAVCreateInfo& CreateInfo);
+
+	// Finds a SRV matching the descriptor in the cache or creates a new one and updates the cache.
+	FRHIShaderResourceView* GetOrCreateSRV(FRHIBuffer* Buffer, const FRHIBufferSRVCreateInfo& CreateInfo);
+
+	// Sets the debug name of the RHI view resources.
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	void SetDebugName(const TCHAR* DebugName);
+#else
+	void SetDebugName(const TCHAR* DebugName) {}
+#endif
+
+private:
+	TArray<TPair<FRHIBufferUAVCreateInfo, FUnorderedAccessViewRHIRef>, TInlineAllocator<1>> UAVs;
+	TArray<TPair<FRHIBufferSRVCreateInfo, FShaderResourceViewRHIRef>, TInlineAllocator<1>> SRVs;
 };

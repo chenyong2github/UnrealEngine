@@ -1006,29 +1006,6 @@ void FRenderTargetPool::TickPoolElements()
 		{
 			AllocationLevelInKB -= ComputeSizeInKB(*PooledRenderTargets[OldestElementIndex]);
 
-			// NOTE: Comment out because RHI resource shouldn't be deleted on the RenderThread
-			//       But command to request delete should be added to fix this
-			/*
-			// Don't defer delete because we know it hasn't been used for at least 2 frames 
-			// and defer deletion queue might not get immediatly flushed causing VRAM
-			// memory spikes
-			if (TRefCountPtr<FPooledRenderTarget>& PooledTarget = PooledRenderTargets[OldestElementIndex])
-			{
-				FRHITexture* TargetableRHI = PooledTarget->GetTargetableRHI();
-				FRHITexture* ShaderResourceRHI = PooledTarget->GetShaderResourceRHI();
-
-				if (TargetableRHI)
-				{
-					TargetableRHI->DoNoDeferDelete();
-				}
-
-				if (ShaderResourceRHI && ShaderResourceRHI != TargetableRHI)
-				{
-					ShaderResourceRHI->DoNoDeferDelete();
-				}
-			}
-			*/
-
 			// we assume because of reference counting the resource gets released when not needed any more
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
 			FreeElementAtIndex(OldestElementIndex);
@@ -1224,12 +1201,12 @@ void FPooledRenderTarget::InitRDG()
 
 	if (RenderTargetItem.TargetableTexture)
 	{
-		TargetableTexture = new FRDGPooledTexture(RenderTargetItem.TargetableTexture, Translate(Desc, ERenderTargetTexture::Targetable), RenderTargetItem.UAV);
+		TargetableTexture = new FRDGPooledTexture(RenderTargetItem.TargetableTexture, Translate(Desc, ERenderTargetTexture::Targetable));
 	}
 
 	if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 	{
-		ShaderResourceTexture = new FRDGPooledTexture(RenderTargetItem.ShaderResourceTexture, Translate(Desc, ERenderTargetTexture::ShaderResource), nullptr);
+		ShaderResourceTexture = new FRDGPooledTexture(RenderTargetItem.ShaderResourceTexture, Translate(Desc, ERenderTargetTexture::ShaderResource));
 	}
 	else
 	{
