@@ -249,8 +249,6 @@ private:
 	// ...
 	UHoloLensCameraImageTexture* CameraImage;
 	UARSessionConfig* SessionConfig;
-	UClass* MeshComponentClass;
-	UClass* QRComponentClass;
 	TMap< FName, UARPin* > AnchorIdToPinMap;
 	TArray<UARPin*> Pins;
 	//TMap<FGuid, UARTrackedGeometry*> TrackedGeometries;
