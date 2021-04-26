@@ -24,15 +24,12 @@ void ULevelSnapshotSelectionSet::AddObjectProperties(const FSoftObjectPath Objec
 
 void ULevelSnapshotSelectionSet::AddPropertyMap(const FPropertySelectionMap& SelectionMap)
 {
-	const TArray<TWeakObjectPtr<UObject>> WorldObjects = SelectionMap.GetKeys();
-	for (const TWeakObjectPtr<UObject>& WorldObject : WorldObjects)
+	const TArray<FSoftObjectPath> WorldObjects = SelectionMap.GetKeys();
+	for (const FSoftObjectPath& WorldObject : WorldObjects)
 	{
-		if (UObject* Object = WorldObject.Get())
-		{
-			const FPropertySelection* Selection = SelectionMap.GetSelectedProperties(Object);
-			check(Selection);
-			SelectedWorldObjectsToSelectedProperties.Add(Object, *Selection);
-		}
+		const FPropertySelection* Selection = SelectionMap.GetSelectedProperties(WorldObject);
+		check(Selection);
+		SelectedWorldObjectsToSelectedProperties.Add(WorldObject, *Selection);
 	}
 }
 

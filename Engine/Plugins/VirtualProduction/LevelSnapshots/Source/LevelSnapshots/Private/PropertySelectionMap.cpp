@@ -39,12 +39,17 @@ void FPropertySelectionMap::RemoveObjectPropertiesFromMap(UObject* WorldObject)
 
 const FPropertySelection* FPropertySelectionMap::GetSelectedProperties(UObject* WorldObject) const
 {
-	return SelectedWorldObjectsToSelectedProperties.Find(WorldObject); 
+	return GetSelectedProperties(FSoftObjectPath(WorldObject));
 }
 
-TArray<TWeakObjectPtr<UObject>> FPropertySelectionMap::GetKeys() const
+const FPropertySelection* FPropertySelectionMap::GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const
 {
-	TArray<TWeakObjectPtr<UObject>> Result;
+	return SelectedWorldObjectsToSelectedProperties.Find(WorldObjectPath); 
+}
+
+TArray<FSoftObjectPath> FPropertySelectionMap::GetKeys() const
+{
+	TArray<FSoftObjectPath> Result;
 	SelectedWorldObjectsToSelectedProperties.GenerateKeyArray(Result);
 	return Result;
 }

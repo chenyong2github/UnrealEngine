@@ -47,7 +47,7 @@ private:
 
 	void ApplyToWorld_HandleRemovingActors(const FPropertySelectionMap& PropertiesToSerialize);
 	void ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, const FPropertySelectionMap& PropertiesToSerialize);
-	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<TWeakObjectPtr<UObject>>& SelectedPaths, const FPropertySelectionMap& PropertiesToSerialize);
+	void ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, const FPropertySelectionMap& PropertiesToSerialize);
 	
 	enum class EResolveType
 	{

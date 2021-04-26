@@ -2,6 +2,8 @@
 
 #include "Data/PropertySelection.h"
 
+#include "PropertyInfoHelpers.h"
+
 FLevelSnapshotPropertyChain FLevelSnapshotPropertyChain::MakeAppended(const FProperty* Property) const
 {
 	FLevelSnapshotPropertyChain Result = *this;
@@ -28,7 +30,7 @@ bool FLevelSnapshotPropertyChain::EqualsSerializedProperty(const FArchiveSeriali
 		return bHaveSameLeaf;
 	}
 	
-	const bool bHaveSameChainLength = GetNumProperties() + 1 == ContainerChain->GetNumProperties();
+	const bool bHaveSameChainLength = GetNumProperties() == ContainerChain->GetNumProperties() + 1;
 	if (!bHaveSameLeaf
         || !bHaveSameChainLength)
 	{
@@ -36,7 +38,7 @@ bool FLevelSnapshotPropertyChain::EqualsSerializedProperty(const FArchiveSeriali
 	}
 	
 	// Walk up the chain and compare every element
-	for (int32 i = 0; i < GetNumProperties(); ++i)
+	for (int32 i = 0; i < ContainerChain->GetNumProperties(); ++i)
 	{
 		if (ContainerChain->GetPropertyFromRoot(i) != GetPropertyFromRoot(i))
 		{
@@ -52,10 +54,55 @@ bool FLevelSnapshotPropertyChain::IsEmpty() const
 	return GetNumProperties() == 0;
 }
 
+bool FPropertySelection::ShouldSerializeProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const
+{
+	if (IsPropertySelected(ContainerChain, LeafProperty))
+	{
+		return true;
+	}
+
+	// If it's a root property, it's not in any collection nor struct
+	const bool bIsRootProperty = !ContainerChain || ContainerChain->GetNumProperties() == 0; 
+	if (bIsRootProperty)
+	{
+		return false;
+	}
+	
+	for (int32 i = 0; i < ContainerChain->GetNumProperties(); ++i)
+	{
+		const FProperty* ParentProperty = ContainerChain->GetPropertyFromStack(i);
+		
+		// Edge case: structs can implement custom Serialize() implementations:
+		// Example: Suppose we're serializing AFooActor::MyStruct where MyStruct is of type FStructType
+		// struct FStructType
+		// {
+		//		FVector SomeVar;
+		//		Serialize(FArchive& Ar) { Ar << SomeVar;  }
+		// }
+		// LeafProperty will be FVector::X, which we need to allow.
+		const FStructProperty* StructProperty = CastField<FStructProperty>(ParentProperty);
+		if (StructProperty->Struct->UseNativeSerialization())
+		{
+			return true;
+		}
+		
+		// Always serialize all properties inside of collections
+		if (FPropertyInfoHelpers::IsPropertyCollection(ParentProperty))
+		{
+			// We assume this function is called by FArchive::ShouldSkipProperty,
+			// i.e. ShouldSerializeProperty would return true the previous elements
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 bool FPropertySelection::IsPropertySelected(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const
 {
 	return FindPropertyChain(ContainerChain, LeafProperty) != INDEX_NONE;
 }
+
 bool FPropertySelection::IsEmpty() const
 {
 	return SelectedProperties.Num() == 0;

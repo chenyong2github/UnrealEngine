@@ -8,12 +8,7 @@
 
 class AActor;
 
-/* Binds an object to its selected properties.
- * 
- * Similar to ULevelSnapshotsSelectionSet only that:
- *	- This struct uses weak object ptr instead of soft object paths to avoid StaticFindObject calls
- *	- This struct is more lightweight that creating a UObject for temporary results.
- */
+/* Binds an object to its selected properties */
 USTRUCT()
 struct LEVELSNAPSHOTS_API FPropertySelectionMap
 {
@@ -32,7 +27,8 @@ struct LEVELSNAPSHOTS_API FPropertySelectionMap
 	void RemoveObjectPropertiesFromMap(UObject* WorldObject);
 	
 	const FPropertySelection* GetSelectedProperties(UObject* WorldObject) const;
-	TArray<TWeakObjectPtr<UObject>> GetKeys() const;
+	const FPropertySelection* GetSelectedProperties(const FSoftObjectPath& WorldObjectPath) const;
+	TArray<FSoftObjectPath> GetKeys() const;
 	const TSet<FSoftObjectPath>& GetDeletedActorsToRespawn() const;
 	const TSet<TWeakObjectPtr<AActor>>& GetNewActorsToDespawn() const;
 
@@ -43,7 +39,7 @@ private:
 	/* Maps a world actor to the properties that should be restored to values in a snapshot.
 	 * The properties are located in the actor itself or any other subcontainer (structs, components, or subobjects)
 	 */
-	TMap<TWeakObjectPtr<UObject>, FPropertySelection> SelectedWorldObjectsToSelectedProperties;
+	TMap<FSoftObjectPath, FPropertySelection> SelectedWorldObjectsToSelectedProperties;
 
 	/* These actors were removed since the snapshot was taken. Re-create them.
 	 * This contains the original objects paths stored in the snapshot.

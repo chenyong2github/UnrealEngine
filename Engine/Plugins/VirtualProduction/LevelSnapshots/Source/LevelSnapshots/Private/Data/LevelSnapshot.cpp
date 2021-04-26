@@ -28,8 +28,8 @@ namespace
 			return true;
 		}
 
-		UObject* PossiblySubobject = SnapshotObject ? SnapshotObject : WorldObject;
-		AActor* PossiblyOwner = SnapshotObject ? SnapshotActor : WorldActor;
+		UObject* PossiblySubobject = WorldObject ? WorldObject : SnapshotObject;
+		AActor* PossiblyOwner = WorldObject ?  WorldActor : SnapshotActor;
 		// Handle subobjects created within actor
 		const bool bIsSubobject = PossiblySubobject->IsIn(PossiblyOwner);
 		if (bIsSubobject)

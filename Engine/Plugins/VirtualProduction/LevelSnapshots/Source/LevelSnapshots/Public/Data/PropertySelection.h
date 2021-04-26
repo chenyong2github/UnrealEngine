@@ -37,13 +37,27 @@ struct LEVELSNAPSHOTS_API FLevelSnapshotPropertyChain : FArchiveSerializedProper
 /* Holds all properties that should be restored for an object. */
 struct LEVELSNAPSHOTS_API FPropertySelection
 {
+	/** 
+	 * Checks whether the given property should be serialized. It should be serialized if:
+	 * - IsPropertySelected() returns true on the property
+	 * - The property is inside of a collection for which IsPropertySelected() returns true
+	 * - The property is not part of a struct for which IsPropertySelected() returns true; this happens when a struct implements a custom serializer and pushes other structs.
+	 *
+	 * As performance optimisation, we assume this function is called by FArchive::ShouldSkipProperty,
+	 * i.e. ShouldSerializeProperty would return true on the elements of ContainerChain.
+	 *
+	 * @param ContainerChain The chain of properties to the most nested owning struct: See FArchive::GetSerializedPropertyChain.
+	 * @param LeafProperty The leaf property in the struct
+	 */
+	bool ShouldSerializeProperty(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
 	/**
-	* Checks whether the given property is in this selection.
-	*
-	* @param ContainerChain The chain of properties to the most nested owning struct: See FArchive::GetSerializedPropertyChain.
-	* @param LeafProperty The leaf property in the struct
-	*/
+	 * Checks whether the given property is in this selection. When serializing, you probably want to be using ShouldSerializeProperty.
+	 *
+	 * @param ContainerChain The chain of properties to the most nested owning struct: See FArchive::GetSerializedPropertyChain.
+	 * @param LeafProperty The leaf property in the struct
+	 */
 	bool IsPropertySelected(const FArchiveSerializedPropertyChain* ContainerChain, const FProperty* LeafProperty) const;
+
 	bool IsEmpty() const;
 
 	void AddProperty(const FLevelSnapshotPropertyChain& SelectedProperty);
