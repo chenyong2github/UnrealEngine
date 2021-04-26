@@ -1510,24 +1510,29 @@ void FSequencer::DeleteSelectedKeys()
 		FMovieSceneChannel* Channel = ChannelInfo.Channel.Get();
 		if (Channel)
 		{
-			if (!ModifiedSections.Contains(ChannelInfo.OwningSection))
+			bool bModified = ModifiedSections.Contains(ChannelInfo.OwningSection);
+			if (!bModified)
 			{
-				ChannelInfo.OwningSection->Modify();
-				ModifiedSections.Add(ChannelInfo.OwningSection);
+				bModified = ChannelInfo.OwningSection->TryModify();
 			}
 
-			Channel->DeleteKeys(ChannelInfo.KeyHandles);
-			bAnythingRemoved = true;
+			if (bModified)
+			{
+				ModifiedSections.Add(ChannelInfo.OwningSection);
+
+				Channel->DeleteKeys(ChannelInfo.KeyHandles);
+				bAnythingRemoved = true;
+			}
 		}
 	}
 
 	if (bAnythingRemoved)
 	{
 		NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
-	}
 
-	Selection.EmptySelectedKeys();
-	SequencerHelpers::ValidateNodesWithSelectedKeysOrSections(*this);
+		Selection.EmptySelectedKeys();
+		SequencerHelpers::ValidateNodesWithSelectedKeysOrSections(*this);
+	}
 }
 
 
