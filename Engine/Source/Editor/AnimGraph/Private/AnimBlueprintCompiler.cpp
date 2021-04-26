@@ -1187,7 +1187,7 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		check(ParentAnimClass->GetSparseClassDataStruct());
 		
 		// Derive sparse class data from parent class
-		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
+		NewAnimBlueprintConstants = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
 		NewAnimBlueprintConstants->SetSuperStruct(ParentAnimClass->GetSparseClassDataStruct());
 
 		// Just link & assign sparse class data struct here, no additional members are added
@@ -1202,7 +1202,7 @@ void FAnimBlueprintCompilerContext::RecreateSparseClassData()
 		check(ParentClass);
 		
 	    // Create new sparse class data struct
-		NewAnimBlueprintConstants = NewObject<UScriptStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
+		NewAnimBlueprintConstants = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *ConstantsStructTypeName, RF_Public);
 
 		// Inherit from archetype struct if there is any 
 		UScriptStruct* ArchetypeStruct = ParentClass->GetSparseClassDataArchetypeStruct();
@@ -1224,7 +1224,7 @@ void FAnimBlueprintCompilerContext::RecreateMutables()
 		OldAnimBlueprintMutables->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional | REN_ForceNoResetLoaders);
 	}
 
-	NewAnimBlueprintMutables = NewObject<UScriptStruct>(NewAnimBlueprintClass->GetOuter(), *MutablesStructTypeName);
+	NewAnimBlueprintMutables = NewObject<UAnimBlueprintGeneratedStruct>(NewAnimBlueprintClass->GetOuter(), *MutablesStructTypeName);
 	NewAnimBlueprintMutables->SetSuperStruct(FAnimBlueprintMutableData::StaticStruct());
 }
 
