@@ -2049,7 +2049,7 @@ namespace PerfSummaries
 			}
 			try
 			{
-				using (FileStream fileStream = new FileStream(filename, FileMode.Open))
+				using (FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read))
 				{
 					BinaryReader reader = new BinaryReader(fileStream);
 					int version = reader.ReadInt32();

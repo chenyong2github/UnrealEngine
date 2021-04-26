@@ -780,7 +780,7 @@ namespace CSVStats
 
 		public static CsvStats ReadBinFile(string filename, string[] statNamesToRead=null, int numRowsToSkip=0, bool justHeader=false)
 		{
-			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Open);
+			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Open, FileAccess.Read);
 			System.IO.BinaryReader fileReader = new System.IO.BinaryReader(fileStream);
 
 			// Read the header
