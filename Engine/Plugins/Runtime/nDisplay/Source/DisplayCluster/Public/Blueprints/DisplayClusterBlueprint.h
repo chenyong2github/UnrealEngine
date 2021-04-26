@@ -20,7 +20,6 @@ public:
 	virtual bool SupportedByDefaultBlueprintFactory() const override { return false; }
 	virtual UClass* GetBlueprintClass() const override;
 	virtual void GetReparentingRules(TSet<const UClass*>& AllowedChildrenOfClasses, TSet<const UClass*>& DisallowedChildrenOfClasses) const override;
-	virtual bool SupportsNativization(FText* OutReason) const override;
 	// ~UBlueprint
 #endif // WITH_EDITOR
 	
