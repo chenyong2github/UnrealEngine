@@ -178,18 +178,13 @@ TArray<FString> SNiagaraStackItemGroupAddMenu::OnGetCategoriesForItem(
 TArray<ENiagaraMenuSections> SNiagaraStackItemGroupAddMenu::OnGetSectionsForItem(
 	const TSharedPtr<FNiagaraMenuAction_Generic>& Item)
 {
-	TArray<ENiagaraMenuSections> Sections;
-	if(ActionSelector->IsSearching())
+	
+	if(Item->Section == ENiagaraMenuSections::Suggested)
 	{
-		if(Item->Section == ENiagaraMenuSections::Suggested)
-		{
-			return { ENiagaraMenuSections::General, ENiagaraMenuSections::Suggested };
-		}
-		
-		return {Item->Section};
+		return { ENiagaraMenuSections::General, ENiagaraMenuSections::Suggested };
 	}
-
-	return { ENiagaraMenuSections::General };
+		
+	return {Item->Section};
 }
 
 bool SNiagaraStackItemGroupAddMenu::OnCompareSectionsForEquality(const ENiagaraMenuSections& SectionA,
