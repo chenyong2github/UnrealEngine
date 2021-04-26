@@ -246,7 +246,10 @@ public:
 	CORE_API static void RecordEvent(int32 CategoryIndex, const FString& EventText);
 	CORE_API static void RecordEventAtTimestamp(int32 CategoryIndex, const FString& EventText, uint64 Cycles64);
 
-	CORE_API static void SetMetadata(const TCHAR* Key, const TCHAR* Value);
+	CORE_API static void SetMetadata(const TCHAR* Key, const TCHAR* Value)
+	{
+		FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true);
+	}
 	
 	/** Set Thread name for a TLS. Needs to be called before the first event of that thread is sent. */
 	CORE_API static void SetThreadName(const FString& ThreadName);
@@ -330,6 +333,8 @@ public:
 
 private:
 	CORE_API static void VARARGS RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...);
+
+	void SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize=true);
 
 	static int32 GetCategoryIndex(const FString& Name);
 

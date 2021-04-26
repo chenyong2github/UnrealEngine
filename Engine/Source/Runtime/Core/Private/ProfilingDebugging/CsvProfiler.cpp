@@ -2505,11 +2505,19 @@ FCsvProfiler::FCsvProfiler()
 	FString BuildVersionString = FApp::GetBuildVersion();
 	FString EngineVersionString = FEngineVersion::Current().ToString();
 
-	MetadataMap.FindOrAdd(TEXT("Platform")) = PlatformStr;
-	MetadataMap.FindOrAdd(TEXT("Config")) = BuildConfigurationStr;
-	MetadataMap.FindOrAdd(TEXT("BuildVersion")) = BuildVersionString;
-	MetadataMap.FindOrAdd(TEXT("EngineVersion")) = EngineVersionString;
-	MetadataMap.FindOrAdd(TEXT("Commandline")) = CommandlineStr;
+	FString OSMajor, OSMinor;
+	FPlatformMisc::GetOSVersions(OSMajor, OSMinor);
+	OSMajor.TrimStartAndEndInline();
+	OSMinor.TrimStartAndEndInline();
+	FString OSString = FString::Printf(TEXT("%s %s"), *OSMajor, *OSMinor);
+
+	SetMetadataInternal(TEXT("Platform"), *PlatformStr);
+	SetMetadataInternal(TEXT("Config"), *BuildConfigurationStr);
+	SetMetadataInternal(TEXT("BuildVersion"), *BuildVersionString);
+	SetMetadataInternal(TEXT("EngineVersion"), *EngineVersionString);
+	SetMetadataInternal(TEXT("Commandline"), *CommandlineStr, false);
+	SetMetadataInternal(TEXT("OS"), *OSString);
+	SetMetadataInternal(TEXT("CPU"), *FPlatformMisc::GetDeviceMakeAndModel());
 }
 
 FCsvProfiler::~FCsvProfiler()
@@ -2633,7 +2641,7 @@ void FCsvProfiler::BeginFrame()
 							GCsvUseProcessingThread = false;
 						}
 					}
-
+					 
 					// Set the CSV ID and mirror it to the log
 					FString CsvId = FGuid::NewGuid().ToString();
 					SetMetadata(TEXT("CsvID"), *CsvId);
@@ -2659,6 +2667,11 @@ void FCsvProfiler::BeginFrame()
 #endif
 
 					SetMetadata(TEXT("PGOEnabled"), FPlatformMisc::IsPGOEnabled() ? TEXT("1") : TEXT("0"));
+
+					// Output the current time in seconds seconds since the Unix Epoch
+					SetMetadata(TEXT("StartTimestamp"), *FString::Printf(TEXT("%lld"), FDateTime::UtcNow().ToUnixTimestamp()));
+
+					SetMetadata(TEXT("NamedEvents"), (GCycleStatsShouldEmitNamedEvents > 0) ? TEXT("1") : TEXT("0"));
 
 					GCsvStatCounts = !!CVarCsvStatCounts.GetValueOnGameThread();
 
@@ -3117,19 +3130,42 @@ void FCsvProfiler::RecordEvent(int32 CategoryIndex, const FString& EventText)
 	}
 }
 
-void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
+void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize)
 {
-	TRACE_CSV_PROFILER_METADATA(Key, Value);
-
-	LLM_SCOPE(ELLMTag::CsvProfiler);
-
 	// Always gather CSV metadata, even if we're not currently capturing.
 	// Metadata is applied to the next CSV profile, when the file is written.
-	FCsvProfiler* CsvProfiler = FCsvProfiler::Get();
+	LLM_SCOPE(ELLMTag::CsvProfiler);
 	FString KeyLower = FString(Key).ToLower();
 
-	FScopeLock Lock(&CsvProfiler->MetadataCS);
-	CsvProfiler->MetadataMap.FindOrAdd(KeyLower) = Value;
+	if (Value == nullptr)
+	{
+		FScopeLock Lock(&MetadataCS);
+		if (MetadataMap.Contains(KeyLower))
+		{
+			UE_LOG(LogCsvProfiler, Display, TEXT("Metadata unset : %s"), *KeyLower);
+			MetadataMap.Remove(KeyLower);
+		}
+	}
+	else
+	{
+		TRACE_CSV_PROFILER_METADATA(Key, Value);
+		FString ValueStr = Value;
+		if (bSanitize)
+		{
+			check(!KeyLower.Contains(TEXT(",")));
+			if (ValueStr.ReplaceInline(TEXT(","), TEXT("&#44;")) > 0)
+			{
+				UE_LOG(LogCsvProfiler, Warning, TEXT("Metadata value sanitized due to invalid characters: %s=\"%s\""), *KeyLower, Value);
+			}
+		}
+		// Only log if the metadata changed, to prevent logspam 
+		FScopeLock Lock(&MetadataCS);
+		if (!MetadataMap.Contains(KeyLower) || MetadataMap[KeyLower]!=ValueStr)
+		{
+			UE_LOG(LogCsvProfiler, Display, TEXT("Metadata set : %s=\"%s\""), *KeyLower, *ValueStr);
+		}
+		MetadataMap.FindOrAdd(KeyLower) = ValueStr;
+	}
 }
 
 void FCsvProfiler::SetThreadName(const FString& InThreadName)
