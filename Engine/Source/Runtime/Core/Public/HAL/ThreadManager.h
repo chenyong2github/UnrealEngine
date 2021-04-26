@@ -46,14 +46,16 @@ public:
 	{
 		static FString GameThreadName(TEXT("GameThread"));
 		static FString RenderThreadName(TEXT("RenderThread"));
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (ThreadId == GGameThreadId)
 		{
 			return GameThreadName;
 		}
-		else if (IsInActualRenderingThread())
+		else if (ThreadId == GRenderThreadId)
 		{
 			return RenderThreadName;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Get().GetThreadNameInternal(ThreadId);
 	}
 
