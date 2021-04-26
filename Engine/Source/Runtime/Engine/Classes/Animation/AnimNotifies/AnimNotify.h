@@ -50,7 +50,7 @@ class ENGINE_API UAnimNotify : public UObject
 	UFUNCTION(BlueprintNativeEvent)
 	FString GetNotifyName() const;
 
-	UFUNCTION(BlueprintImplementableEvent)
+	UFUNCTION(BlueprintImplementableEvent, meta=(AutoCreateRefTerm="EventReference"))
 	bool Received_Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) const;
 
 #if WITH_EDITORONLY_DATA
