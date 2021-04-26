@@ -172,9 +172,9 @@ FArchive& operator<<(FArchive& Ar, FHairInterpolation1Vertex& Vertex)
 
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar)
 {
-	Ar << Interpolation0;
-	Ar << Interpolation1;
-	Ar << SimRootPointIndex;
+	Interpolation0.BulkSerialize(Ar);
+	Interpolation1.BulkSerialize(Ar);
+	SimRootPointIndex.BulkSerialize(Ar);
 }
 
 void FHairStrandsBulkData::Serialize(FArchive& Ar)
@@ -182,10 +182,10 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	Ar << Positions;
-	Ar << Attributes;
-	Ar << Materials;
-	Ar << CurveOffsets;
+	Positions.BulkSerialize(Ar);
+	Attributes.BulkSerialize(Ar);
+	Materials.BulkSerialize(Ar);
+	CurveOffsets.BulkSerialize(Ar);
 
 	Ar << CurveCount;
 	Ar << PointCount;
