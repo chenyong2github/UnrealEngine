@@ -162,9 +162,14 @@ private:
 	bool CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, FText* OutError);
 
 	/**
+	 * Setup a existing asset to record into based on the parameters
+	 */
+	bool SetupDestinationAsset(const FTakeRecorderParameters& InParameters, ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, FText* OutError);
+
+	/**
 	 * Attempt to open the sequencer UI for the asset to be recorded
 	 */
-	bool InitializeSequencer(FText* OutError);
+	bool InitializeSequencer(ULevelSequence* LevelSequence, FText* OutError);
 
 	/**
 	 * Discovers the source world to record from, and initializes it for recording
@@ -193,6 +198,9 @@ private:
 
 	/** FFrameTime in MovieScene Resolution we are at*/
 	FFrameTime CurrentFrameTime;
+
+	/** Optional frame to stop recording at*/
+	TOptional<FFrameNumber> StopRecordingFrame;
 
 	/** The asset that we should output recorded data into */
 	UPROPERTY(transient)
@@ -249,4 +257,7 @@ private:
 
 	EAllowEditsMode CachedAllowEditsMode;
 	EAutoChangeMode CachedAutoChangeMode;
+	EUpdateClockSource CachedClockSource;
+	
+	TRange<FFrameNumber> CachedPlaybackRange;
 };

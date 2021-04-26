@@ -385,9 +385,6 @@ public:
 	/** Rebinds all possessable references with their current bindings. */
 	TSharedPtr< FUICommandInfo > RebindPossessableReferences;
 
-	/** Record the selected actors into a sub sequence of the currently active sequence */
-	TSharedPtr< FUICommandInfo > RecordSelectedActors;
-
 	/** Imports animation from fbx. */
 	TSharedPtr< FUICommandInfo > ImportFBX;
 
