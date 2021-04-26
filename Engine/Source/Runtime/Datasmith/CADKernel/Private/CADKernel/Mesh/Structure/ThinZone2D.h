@@ -53,7 +53,7 @@ namespace CADKernel
 
 	public:
 
-		FThinZoneSide(FThinZoneSide& InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide);
+		FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide);
 		virtual ~FThinZoneSide() = default;
 
 		bool IsClosed() const
@@ -131,8 +131,8 @@ namespace CADKernel
 	public:
 
 		FThinZone2D(const TArray<FEdgeSegment*>& InFirstSideSegments, bool bInIsClosed1, const TArray<FEdgeSegment*>& InSecondSideSegments, bool bInIsClosed2, double ZoneThickness)
-			: FirstSide(SecondSide, InFirstSideSegments, true)
-			, SecondSide(FirstSide, InSecondSideSegments, false)
+			: FirstSide(&SecondSide, InFirstSideSegments, true)
+			, SecondSide(&FirstSide, InSecondSideSegments, false)
 			, Category(EThinZone2DType::Undefined)
 			, Thickness(ZoneThickness)
 		{
@@ -239,7 +239,7 @@ namespace CADKernel
 
 		bool HasClosedSide() const 
 		{
-			constexpr EHaveStates ATLeastOneClosed = EHaveStates::FirstSideClosed | EHaveStates::FirstSideClosed;
+			constexpr EHaveStates ATLeastOneClosed = EHaveStates::FirstSideClosed | EHaveStates::SecondSideClosed;
 			return EnumHasAnyFlags(States, ATLeastOneClosed);
 		}
 

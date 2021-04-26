@@ -104,6 +104,11 @@ namespace CADKernel
 
 		virtual int32 Find(const double InCoordinate) override
 		{
+			if (StartUpper < 0)
+			{
+				StartUpper = Coordinates.Num() - 2;
+			}
+
 			if ((StartUpper - StartLower < 1) || (InCoordinate < Coordinates[StartLower + 1]))
 			{
 				return StartLower;
@@ -116,7 +121,7 @@ namespace CADKernel
 			}
 
 			int32 LowerBound = StartLower;
-			int32 UpperBound = StartUpper < 0 ? Coordinates.Num() - 1 : StartUpper;
+			int32 UpperBound = StartUpper;
 
 			while (LowerBound <= UpperBound)
 			{

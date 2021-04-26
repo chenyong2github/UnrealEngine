@@ -14,6 +14,8 @@ namespace CADKernel
 	class FBody;
 	class FTopologicalFace;
 
+	struct FFaceSubset;
+
 	class CADKERNEL_API FOrientedFace : public TOrientedEntity<FTopologicalFace>
 	{
 	public:
@@ -115,6 +117,8 @@ namespace CADKernel
 		virtual void GetFaces(TArray<TSharedPtr<FTopologicalFace>>& OutFaces) override;
 
 		virtual void SpreadBodyOrientation() override;
+
+		void CheckTopology(TArray<FFaceSubset>& SubShells);
 
 		bool IsInner() const
 		{

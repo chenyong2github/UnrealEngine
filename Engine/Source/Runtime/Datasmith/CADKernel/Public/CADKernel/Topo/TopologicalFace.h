@@ -491,4 +491,12 @@ namespace CADKernel
 
 	};
 
+	struct FFaceSubset
+	{
+		TArray<TSharedPtr<FTopologicalFace>> Faces;
+		int32 BorderEdgeCount = 0;
+		int32 NonManifoldEdgeCount = 0;
+	};
+
+
 } // namespace CADKernel

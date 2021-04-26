@@ -25,7 +25,8 @@ namespace CADKernel
 
 		FJoiner(TArray<TSharedPtr<FTopologicalFace>>& surfaces, double Tolerance);
 
-		void JoinSurfaces(bool bProcessOnlyBorderEdges = false, bool bProcessOnlyNonManifoldEdges = false);
+		void JoinSurfaces();
+		void JoinSurfaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges);
 
 		void FixCollapsedEdges();
 

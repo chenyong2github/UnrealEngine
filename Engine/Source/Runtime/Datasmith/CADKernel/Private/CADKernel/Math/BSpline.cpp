@@ -478,7 +478,7 @@ namespace CADKernel
 			isoU ==> on cree nb_pt_u iso_u d'abord puis calcul de nb_pt_v points
 			Choisir le nombre Minimal d'evaluations*/
 
-			if ((1 + derivee) * (nb_pt_v * PoleUNum * VDegre * (VDegre + 1)) + (1 + 2 * derivee) * (nb_pt_u * nb_pt_v * UDegre * (UDegre + 1)) <(1 + derivee) * (nb_pt_u * PoleVNum * UDegre * (UDegre + 1)) + (1 + 2 * derivee) * (nb_pt_u * nb_pt_v * VDegre * (VDegre + 1)))
+			if (((1 + derivee) * (nb_pt_v * PoleUNum * VDegre * (VDegre + 1)) + (1 + 2 * derivee) * (nb_pt_u * nb_pt_v * UDegre * (UDegre + 1))) < ((1 + derivee) * (nb_pt_u * PoleVNum * UDegre * (UDegre + 1)) + (1 + 2 * derivee) * (nb_pt_u * nb_pt_v * VDegre * (VDegre + 1))))
 			{
 				/* choisir la strategie isoV*/
 				nb_pt1 = nb_pt_v;
@@ -516,7 +516,7 @@ namespace CADKernel
 				std::copy(tab_v, tab_v + nb_pt1, tab_t1.GetData());
 				std::copy(tab_u, tab_u + nb_pt2, tab_t2.GetData());
 			}
-			else if (IsoType == EIso::IsoU)
+			else // (IsoType == EIso::IsoU)
 			{
 				std::copy(tab_u, tab_u + nb_pt1, tab_t1.GetData());
 				std::copy(tab_v, tab_v + nb_pt2, tab_t2.GetData());
@@ -536,7 +536,7 @@ namespace CADKernel
 					}
 				}
 			}
-			else if (IsoType == EIso::IsoU)
+			else // (IsoType == EIso::IsoU)
 			{
 				for (IndexV = 0; IndexV <nb_pole1; IndexV++)
 				{
@@ -667,7 +667,7 @@ namespace CADKernel
 						}
 					}
 				}
-				else if (IsoType == EIso::IsoU)
+				else // (IsoType == EIso::IsoU)
 				{
 					for (IndexV = 0; IndexV <nb_pt2; IndexV++)
 					{
@@ -699,7 +699,7 @@ namespace CADKernel
 						}
 					}
 				}
-				else if (IsoType == EIso::IsoU)
+				else // (IsoType == EIso::IsoU)
 				{
 					for (IndexV = 0; IndexV <nb_pt2; IndexV++)
 					{

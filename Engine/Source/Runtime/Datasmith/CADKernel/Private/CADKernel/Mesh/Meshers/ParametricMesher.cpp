@@ -725,10 +725,10 @@ void FParametricMesher::IsolateQuadFace(TArray<FCostToFace>& QuadSurfaces, TArra
 			double LocalMinCurvature;
 			double LocalMaxCurvature;
 			Sort(Face->GetCurvature(EIso::IsoU).Max, Face->GetCurvature(EIso::IsoV).Max, LocalMinCurvature, LocalMaxCurvature);
-			if (LocalMaxCurvature > LocalMinCurvature)
+			if (LocalMaxCurvature > ConstMinCurvature)
 			{
 				QuadSurfaces.Emplace(LocalMaxCurvature, Face.ToSharedRef());
-				if (LocalMinCurvature > LocalMinCurvature)
+				if (LocalMinCurvature > ConstMinCurvature)
 				{
 					QuadSurfaces.Emplace(LocalMinCurvature, Face.ToSharedRef());
 				}
@@ -1502,7 +1502,10 @@ void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 			const FEdgeSegment* ClosedSegment = EdgeSegment->GetClosedSegment();
 			if (ClosedSegment == nullptr)
 			{
+#ifdef CADKERNEL_DEV
 				Wait();
+#endif
+				continue;
 			}
 			double OppositeCuttingPointSegmentU;
 			FPoint OppositeCuttingPoint3D = ClosedSegment->ProjectPoint(CuttingPoint3D, OppositeCuttingPointSegmentU);

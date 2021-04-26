@@ -2,8 +2,7 @@
 #pragma once
 
 #include "CADKernel/Core/Types.h"
-
-#include "CADKernel/Core/Metadata.h"
+#include "CADKernel/Math/MathConst.h"
 
 namespace CADKernel
 {
@@ -11,63 +10,41 @@ namespace CADKernel
 	{
 
 	private:
-		TMap<FString, TSharedPtr<FMetadata>> MetadataMap;
 
-		void AddValue(const FString& Name, TSharedPtr<FMetadata>& Attribute)
-		{
-			MetadataMap.Emplace(Name, Attribute);
-		}
+		FString Name;
+		int32 HostId = 0;
+		uint32 ColorId = 0;
+		uint32 MaterialId = 0;
+		int32 LayerId = -1; 
 
 	public:
 
 		FMetadataDictionary() = default;
 
-		template<typename ValueType>
-		void Add(const FString& Name, const ValueType& Value)
+		void SetHostId(const int32 InHostId)
 		{
-			TSharedRef<FMetadata> NewAttribute = FMetadata::Create(Value);
-			SetOrAdd(Name, NewAttribute);
+			HostId = InHostId;
 		}
 
-		void AddLayer(const FString& Name, const int32 LayerId, const FString& LayerName, const int32 LayerFlag)
+		void SetLayer(const int32 InLayerId)
 		{
-			TSharedRef<FMetadata> NewAttribute = FMetadata::CreateLayer(LayerId, LayerName, LayerFlag);
-			SetOrAdd(Name, NewAttribute);
+			LayerId = InLayerId;
 		}
 
-		void AddRGBColor(const FString& Name, const double RedValue, const double GreenValue, const double BlueValue)
+		void SetName(const FString& InName)
 		{
-			TSharedRef<FMetadata> NewAttribute = FMetadata::CreateRGBColor(RedValue, GreenValue, BlueValue);
-			SetOrAdd(Name, NewAttribute);
+			Name = InName;
 		}
 
-		const TSharedPtr<FMetadata> Get(const FString& Name)
+		void SetColorId(const uint32& InColorId)
 		{
-			TSharedPtr<FMetadata>* Attribute = MetadataMap.Find(Name);
-			return Attribute == nullptr ? TSharedPtr<FMetadata>() : *Attribute;
+			ColorId = InColorId;
 		}
 
-		int32 Count() const
+		void SetMaterialId(const uint32& InMaterialId)
 		{
-			return MetadataMap.Num();
+			MaterialId = InMaterialId;
 		}
-
-	private:
-
-		void SetOrAdd(const FString Name, const TSharedPtr<FMetadata> NewAttribute)
-		{
-			TSharedPtr<FMetadata>* OldAttribute = MetadataMap.Find(Name);
-			if (OldAttribute != nullptr)
-			{
-				(*OldAttribute).Reset();
-				*OldAttribute = NewAttribute;
-			}
-			else
-			{
-				MetadataMap.Add(Name, NewAttribute);
-			}
-		}
-
 	};
 }
 

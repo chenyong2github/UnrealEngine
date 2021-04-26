@@ -1040,7 +1040,7 @@ namespace CADKernel
 		}
 		else
 		{
-			SwapAndScale(EIso::IsoU);
+			SwapAndScale(EIso::IsoV);
 		}
 	}
 

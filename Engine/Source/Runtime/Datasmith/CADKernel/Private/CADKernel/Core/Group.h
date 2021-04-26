@@ -31,11 +31,11 @@ namespace CADKernel
 		{
 		}
 
-		FGroup(TArray<TSharedPtr<FEntity>>& Entities)
+		FGroup(TArray<TSharedPtr<FEntity>>& InEntities)
 			: FEntity()
 			, Origin(EGroupOrigin::Unknown)
 		{
-			Entities.Append(Entities);
+			Entities.Append(InEntities);
 		}
 
 		FGroup(FCADKernelArchive& Archive)

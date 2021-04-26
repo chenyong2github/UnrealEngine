@@ -103,7 +103,7 @@ namespace CADKernel
 		/**
 		 * Limit of flatness of quad face
 		 */
-		const double MinCurvature = 0.001;
+		const double ConstMinCurvature = 0.001;
 
 		TSharedRef<FModelMesh> MeshModel;
 		TSharedRef<FMesherParameters> Parameters;

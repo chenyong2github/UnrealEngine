@@ -746,8 +746,8 @@ void FThinZone2DFinder::BuildLoopSegments()
 	SortedLoopSegments = LoopSegments;
 }
 
-FThinZoneSide::FThinZoneSide(FThinZoneSide& InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide)
-	: FrontSide(InFrontSide)
+FThinZoneSide::FThinZoneSide(FThinZoneSide* InFrontSide, const TArray<FEdgeSegment*>& InSegments, bool bInIsFirstSide)
+	: FrontSide(*InFrontSide)
 {
 	Segments = InSegments;
 	Length = 0;

@@ -21,6 +21,11 @@ FJoiner::FJoiner(TArray<TSharedPtr<FTopologicalFace>>& InSurfaces, double InTole
 {
 }
 
+void FJoiner::JoinSurfaces()
+{
+
+}
+
 void FJoiner::JoinSurfaces(bool bProcessOnlyBorderEdges, bool bProcessOnlyNonManifoldEdges)
 {
 	if (!(bProcessOnlyBorderEdges || bProcessOnlyNonManifoldEdges))

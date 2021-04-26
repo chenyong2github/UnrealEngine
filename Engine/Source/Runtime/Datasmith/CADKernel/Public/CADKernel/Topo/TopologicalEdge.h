@@ -564,10 +564,13 @@ namespace CADKernel
 		// ======   State Functions   ======
 
 		/**
-		 * A Degenerated Edge is used to close 2D boundary in case of degenerated surface to ensureCADKernel a closed boundary
+		 * Important note: A Degenerated Edge is used to close 2D boundary in case of degenerated surface to ensureCADKernel a closed boundary
 		 * Specific process is done for the mesh of this kind of surface
 		 */
-		//virtual bool IsDegenerated() const override;
+		virtual bool IsDegenerated() const override
+		{
+			return FHaveStates::IsDegenerated();
+		}
 
 		bool IsThinPeak() const
 		{

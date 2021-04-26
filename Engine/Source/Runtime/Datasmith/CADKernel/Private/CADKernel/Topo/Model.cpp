@@ -7,6 +7,7 @@
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
 #include "CADKernel/Topo/TopologicalFace.h"
+#include "CADKernel/Topo/Joiner.h"
 
 
 using namespace CADKernel;
@@ -139,3 +140,6 @@ void FModel::Add(TSharedPtr<FBody> Body)
 {
 	Bodies.Add(Body);
 }
+
+
+

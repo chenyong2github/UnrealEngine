@@ -116,6 +116,22 @@ namespace CADKernel
 			);
 		}
 
+		FAABB& operator+= (const double* Point)
+		{
+			for (int32 Index = 0; Index < 3; Index++)
+			{
+				if (Point[Index] < MinCorner[Index])
+				{
+					MinCorner[Index] = Point[Index];
+				}
+				if (Point[Index] > MaxCorner[Index])
+				{
+					MaxCorner[Index] = Point[Index];
+				}
+			}
+			return *this;
+		}
+
 		FAABB& operator+= (const FPoint& Point)
 		{
 			for (int32 Index = 0; Index < 3; Index++)

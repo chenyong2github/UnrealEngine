@@ -98,3 +98,116 @@ void FShell::SpreadBodyOrientation()
 	}
 }
 
+void FShell::CheckTopology(TArray<FFaceSubset>& SubShells)
+{
+	// Processed1 : Surfaces added in CandidateSurfacesForMesh
+
+	int32 TopologicalFaceCount = FaceCount();
+	// Is closed ?
+	// Is one shell ?
+
+	int32 ProcessFaceCount = 0;
+
+	TArray<TSharedPtr<FTopologicalFace>> Front;
+	TFunction<void(const TSharedPtr<FTopologicalFace>&, FFaceSubset&)> GetNeighboringFaces = [&](const TSharedPtr<FTopologicalFace>& Face, FFaceSubset& Shell)
+	{
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+		{
+			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+			{
+				const TSharedPtr<FTopologicalEdge>& Edge = OrientedEdge.Entity;
+				if (Edge->HasMarker1())
+				{
+					continue;
+				}
+				Edge->SetMarker1();
+
+				if (Edge->GetTwinsEntityCount() == 1)
+				{
+					if (!Edge->IsDegenerated())
+					{
+						Shell.BorderEdgeCount++;
+					}
+					continue;
+				}
+
+				if (Edge->GetTwinsEntityCount() > 2)
+				{
+					Shell.NonManifoldEdgeCount++;
+				}
+
+				for (TWeakPtr<FTopologicalEdge> WeakEdge : Edge->GetTwinsEntities())
+				{
+					TSharedPtr<FTopologicalEdge> NextEdge = WeakEdge.Pin();
+					if (NextEdge->HasMarker1())
+					{
+						continue;
+					}
+					NextEdge->SetMarker1();
+
+					TSharedPtr<FTopologicalFace> NextFace = NextEdge->GetFace();
+					if (!NextFace.IsValid())
+					{
+						continue;
+					}
+
+					if (NextFace->HasMarker1())
+					{
+						continue;
+					}
+					NextFace->SetMarker1();
+					Front.Add(NextFace);
+				}
+			}
+		}
+	};
+	
+	TFunction<void(FFaceSubset&)> SpreadFront = [&](FFaceSubset& Shell)
+	{
+		while (Front.Num())
+		{
+			TSharedPtr<FTopologicalFace> Face = Front.Pop();
+			Shell.Faces.Add(Face);
+			GetNeighboringFaces(Face, Shell);
+		}
+	};
+
+	for (const FOrientedFace& OrientedFace : GetFaces())
+	{
+		if (OrientedFace.Entity->HasMarker1())
+		{
+			continue;
+		}
+	
+		FFaceSubset& Shell = SubShells.Emplace_GetRef();
+		Shell.Faces.Reserve(TopologicalFaceCount - ProcessFaceCount);
+		Front.Empty(TopologicalFaceCount);
+
+		const TSharedPtr<FTopologicalFace>& Face = OrientedFace.Entity;
+
+		Front.Empty(TopologicalFaceCount);
+		Face->SetMarker1();
+		Front.Add(Face);
+		SpreadFront(Shell);
+		ProcessFaceCount += Shell.Faces.Num();
+
+		if (ProcessFaceCount == TopologicalFaceCount)
+		{
+			break;
+		}
+	}
+
+	// reset Marker
+	for (const FOrientedFace& OrientedFace : GetFaces())
+	{
+		const TSharedPtr<FTopologicalFace>& Face = OrientedFace.Entity;
+		Face->ResetMarkers();
+		for (const TSharedPtr<FTopologicalLoop>& Loop : Face->GetLoops())
+		{
+			for (const FOrientedEdge& OrientedEdge : Loop->GetEdges())
+			{
+				OrientedEdge.Entity->ResetMarker1();
+			}
+		}
+	}
+}

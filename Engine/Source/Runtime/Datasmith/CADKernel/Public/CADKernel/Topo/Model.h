@@ -87,7 +87,7 @@ namespace CADKernel
 		}
 
 		const TArray<TSharedPtr<FTopologicalFace>>& GetSurfaceList() const
-		{
+		{ 
 			return Faces;
 		}
 
