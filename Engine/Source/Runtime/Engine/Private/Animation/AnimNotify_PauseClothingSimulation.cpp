@@ -13,11 +13,14 @@ UAnimNotify_PauseClothingSimulation::UAnimNotify_PauseClothingSimulation()
 
 void UAnimNotify_PauseClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation)
 {
-	MeshComp->SuspendClothingSimulation();
+
 }
 
 void UAnimNotify_PauseClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    Notify(MeshComp, Animation);
+    PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	MeshComp->SuspendClothingSimulation();
 }
 

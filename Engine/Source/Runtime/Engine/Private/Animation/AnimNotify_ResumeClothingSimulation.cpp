@@ -17,6 +17,9 @@ void UAnimNotify_ResumeClothingSimulation::Notify(class USkeletalMeshComponent* 
 
 void UAnimNotify_ResumeClothingSimulation::Notify(class USkeletalMeshComponent* MeshComp, class UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    Notify(MeshComp, Animation);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	MeshComp->ResumeClothingSimulation();
 }
 

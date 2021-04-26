@@ -81,6 +81,9 @@ void UAnimNotifyState_Trail::NotifyBegin(class USkeletalMeshComponent* MeshComp,
 
 void UAnimNotifyState_Trail::NotifyBegin(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    NotifyBegin(MeshComp, Animation, TotalDuration);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bError = ValidateInput(MeshComp);
 
 	if (MeshComp->GetWorld()->GetNetMode() == NM_DedicatedServer)
@@ -208,6 +211,9 @@ void UAnimNotifyState_Trail::NotifyTick(class USkeletalMeshComponent* MeshComp, 
 
 void UAnimNotifyState_Trail::NotifyTick(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    NotifyTick(MeshComp, Animation, FrameDeltaTime);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bError = ValidateInput(MeshComp, true);
 
 	if (MeshComp->GetWorld()->GetNetMode() == NM_DedicatedServer)
@@ -253,6 +259,10 @@ void UAnimNotifyState_Trail::NotifyEnd(class USkeletalMeshComponent* MeshComp, c
 
 void UAnimNotifyState_Trail::NotifyEnd(class USkeletalMeshComponent * MeshComp, class UAnimSequenceBase * Animation, const FAnimNotifyEventReference& EventReference)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NotifyEnd(MeshComp, Animation);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	if (MeshComp->GetWorld()->GetNetMode() == NM_DedicatedServer)
 	{
 		return;
