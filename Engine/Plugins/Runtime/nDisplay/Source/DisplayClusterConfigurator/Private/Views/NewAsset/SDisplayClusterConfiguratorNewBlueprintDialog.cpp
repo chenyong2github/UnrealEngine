@@ -16,18 +16,18 @@
 
 void SDisplayClusterConfiguratorNewBlueprintDialog::Construct(const FArguments& InArgs)
 {
-	SDisplayClusterConfiguratorNewAssetDialog::Construct(SDisplayClusterConfiguratorNewAssetDialog::FArguments(), LOCTEXT("AssetTypeName", "Display Cluster"),
+	SDisplayClusterConfiguratorNewAssetDialog::Construct(SDisplayClusterConfiguratorNewAssetDialog::FArguments(), LOCTEXT("AssetTypeName", "nDisplay Config"),
 		{
 			SDisplayClusterConfiguratorNewAssetDialog::FDisplayClusterConfiguratorNewAssetDialogOption(
 				LOCTEXT("CreateFromOtherSystemLabel", "Copy Existing Configuration"),
-				LOCTEXT("CreateFromOtherSystemDescription", "Copies an existing display cluster configuration."),
+				LOCTEXT("CreateFromOtherSystemDescription", "Copies an existing nDisplay configuration."),
 				LOCTEXT("ProjectSystemsLabel", "Select a Project System"),
 				SDisplayClusterConfiguratorNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SDisplayClusterConfiguratorNewBlueprintDialog::GetSelectedProjectSystemAssets),
 				SDisplayClusterConfiguratorNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(SystemAssetPicker, SDisplayClusterConfiguratorAssetPickerList)),
 			SDisplayClusterConfiguratorNewAssetDialog::FDisplayClusterConfiguratorNewAssetDialogOption(
-				LOCTEXT("CreateEmptyLabel", "Create New Display Cluster"),
-				LOCTEXT("CreateEmptyDescription", "Create a new display cluster configuration."),
+				LOCTEXT("CreateEmptyLabel", "Create New Config"),
+				LOCTEXT("CreateEmptyDescription", "Create a new nDisplay configuration."),
 				LOCTEXT("EmptyLabel", "New Display Cluster"),
 				SDisplayClusterConfiguratorNewAssetDialog::FOnGetSelectedAssetsFromPicker(),
 				SDisplayClusterConfiguratorNewAssetDialog::FOnSelectionConfirmed(),

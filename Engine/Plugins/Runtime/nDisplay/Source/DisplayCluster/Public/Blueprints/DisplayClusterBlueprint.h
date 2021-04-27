@@ -7,7 +7,7 @@
 
 
 
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, DisplayName = "nDisplay Blueprint")
 class DISPLAYCLUSTER_API UDisplayClusterBlueprint : public UBlueprint
 {
 	GENERATED_BODY()

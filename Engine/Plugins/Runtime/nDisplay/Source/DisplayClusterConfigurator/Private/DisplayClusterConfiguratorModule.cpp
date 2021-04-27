@@ -14,8 +14,10 @@
 #include "Components/DisplayClusterSceneComponent.h"
 
 #include "AssetToolsModule.h"
+#include "IAssetTools.h"
 #include "ISettingsModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetTypeCategories.h"
 #include "Components/DisplayClusterScreenComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
@@ -51,8 +53,12 @@ void FDisplayClusterConfiguratorModule::StartupModule()
 		FProperty* Property = FindFProperty<FProperty>(UDisplayClusterConfigurationClusterNode::StaticClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationClusterNode, Viewports));
 		Property->ClearPropertyFlags(CPF_EditConst);
 	}
+
+	// Create a custom menu category.
+	const EAssetTypeCategories::Type AssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(
+	FName(TEXT("nDisplay")), LOCTEXT("nDisplayAssetCategory", "nDisplay"));
 	
-	RegisterAssetTypeAction(AssetTools, MakeShareable(new FDisplayClusterConfiguratorAssetTypeActions(EAssetTypeCategories::Media)));
+	RegisterAssetTypeAction(AssetTools, MakeShareable(new FDisplayClusterConfiguratorAssetTypeActions(AssetCategoryBit)));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FDisplayClusterConfiguratorActorAssetTypeActions(EAssetTypeCategories::None)));
 
 	RegisterCustomLayouts();
