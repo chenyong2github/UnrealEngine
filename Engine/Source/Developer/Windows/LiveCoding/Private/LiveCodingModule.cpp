@@ -23,6 +23,7 @@
 #endif
 #if WITH_ENGINE
 	#include "Engine/Engine.h"
+	#include "UObject/UObjectIterator.h"
 #endif
 
 IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
