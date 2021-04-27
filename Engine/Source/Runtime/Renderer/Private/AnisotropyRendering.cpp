@@ -120,8 +120,6 @@ bool GetAnisotropyPassShaders(
 	TShaderRef<FAnisotropyPS>& PixelShader
 	)
 {
-	static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-
 	FMaterialShaderTypes ShaderTypes;
 	ShaderTypes.PipelineType = &AnisotropyPipeline;
 	ShaderTypes.AddShaderType<FAnisotropyVS>();
