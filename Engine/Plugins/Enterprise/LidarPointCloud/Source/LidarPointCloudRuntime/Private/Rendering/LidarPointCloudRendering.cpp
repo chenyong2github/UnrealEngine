@@ -161,6 +161,7 @@ public:
 	FLidarPointCloudSceneProxy(ULidarPointCloudComponent* Component)
 		: FPrimitiveSceneProxy(Component)
 		, ProxyWrapper(MakeShared<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe>(this))
+		, bCompatiblePlatform(GetScene().GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		, Owner(Component->GetOwner())
 		, CollisionRendering(Component->GetPointCloud()->CollisionRendering)
 	{
@@ -181,7 +182,7 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PointCloudSceneProxy_GetDynamicMeshElements);
 
-		if (!RenderData.RenderParams.Material)
+		if (!CanBeRendered() || !RenderData.RenderParams.Material)
 		{
 			return;
 		}
@@ -282,14 +283,17 @@ public:
 	{
 		FPrimitiveViewRelevance Result;
 
-		Result.bDrawRelevance = IsShown(View);
-		Result.bShadowRelevance = IsShadowCast(View);
-		Result.bDynamicRelevance = true;
-		Result.bStaticRelevance = false;
-		Result.bRenderInMainPass = ShouldRenderInMainPass();
-		Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
-		Result.bRenderCustomDepth = ShouldRenderCustomDepth();
-		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		if (CanBeRendered())
+		{
+			Result.bDrawRelevance = IsShown(View);
+			Result.bShadowRelevance = IsShadowCast(View);
+			Result.bDynamicRelevance = true;
+			Result.bStaticRelevance = false;
+			Result.bRenderInMainPass = ShouldRenderInMainPass();
+			Result.bUsesLightingChannels = GetLightingChannelMask() != GetDefaultLightingChannelMask();
+			Result.bRenderCustomDepth = ShouldRenderCustomDepth();
+			MaterialRelevance.SetPrimitiveViewRelevance(Result);
+		}
 
 		return Result;
 	}
@@ -373,10 +377,14 @@ public:
 		RHIUnlockVertexBuffer(TreeBuffer->Buffer);
 	}
 
+	bool CanBeRendered() const { return bCompatiblePlatform; }
+
 public:
 	TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> ProxyWrapper;
 
 private:
+	bool bCompatiblePlatform;
+
 	FLidarPointCloudProxyUpdateData RenderData;
 
 	FLidarPointCloudRenderBuffer* TreeBuffer;
@@ -392,7 +400,11 @@ FPrimitiveSceneProxy* ULidarPointCloudComponent::CreateSceneProxy()
 	if (PointCloud)
 	{
 		Proxy = new FLidarPointCloudSceneProxy(this);
-		FLidarPointCloudLODManager::RegisterProxy(this, Proxy->ProxyWrapper);
+		
+		if (Proxy->CanBeRendered())
+		{
+			FLidarPointCloudLODManager::RegisterProxy(this, Proxy->ProxyWrapper);
+		}
 	}
 	return Proxy;
 }
