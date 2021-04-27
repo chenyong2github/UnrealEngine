@@ -535,12 +535,43 @@ public:
 	*/
 	static CORE_API FColor MakeFromColorTemperature( float Temp );
 
+	/**
+	* Conversions to/from GPU UNorm floats, U8, U16
+	* matches convention of FColor FLinearColor::QuantizeRound
+	*/
+
+	static uint8 QuantizeUNormFloatTo8( float UnitFloat )
+	{
+		UnitFloat = FMath::Clamp(UnitFloat,0.f,1.f);
+		return (uint8)( 0.5f + UnitFloat * 255.f );
+	}
+	
+	static uint16 QuantizeUNormFloatTo16( float UnitFloat )
+	{
+		UnitFloat = FMath::Clamp(UnitFloat,0.f,1.f);
+		return (uint16)( 0.5f + UnitFloat * 65535.f );
+	}
+
+	static float DequantizeUNorm8ToFloat( int Value8 )
+	{
+		check( Value8 >= 0 && Value8 <= 255 );
+
+		return Value8 / 255.f;
+	}
+	
+	static float DequantizeUNorm16ToFloat( int Value16 )
+	{
+		check( Value16 >= 0 && Value16 <= 65535 );
+
+		return Value16 / 65535.f;
+	}
+
 	static uint8 Requantize10to8( int Value10 )
 	{
 		check( Value10 >= 0 && Value10 <= 1023 );
 
 		// Dequantize from 10 bit (Value10/1023.f)
-		// requantize to 8 bit with rounding (GPU convention)
+		// requantize to 8 bit with rounding (GPU convention UNorm)
 		//  this is the computation we want :
 		// (int)( (Value10/1023.f)*255.f + 0.5f );
 		// this gives the exactly the same results :
@@ -554,7 +585,7 @@ public:
 		check( Value16 >= 0 && Value16 <= 65535 );
 
 		// Dequantize x from 16 bit (Value16/65535.f)
-		// then requantize to 8 bit with rounding (GPU convention)
+		// then requantize to 8 bit with rounding (GPU convention UNorm)
 
 		// matches exactly with :
 		//  (int)( (Value16/65535.f) * 255.f + 0.5f );

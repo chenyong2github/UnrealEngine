@@ -20,18 +20,20 @@ TArray<TToColorBitDepthType> ConvertLinearToLinearBitDepth(TFromColorBitDepthTyp
 	// Convert all of our pixels.
 	TArray<TToColorBitDepthType> OutsRGBData;
 	OutsRGBData.SetNumUninitialized(InCount);
-	TColorChannelNumericType MaxValueInt = TNumericLimits<TColorChannelNumericType>::Max();
+	// TColorChannelNumericType = uint8 or uint16
+	// do clamp in int in case input float is out of [0,1] range
+	int MaxValueInt = TNumericLimits<TColorChannelNumericType>::Max();
 	float MaxValue = static_cast<float>(MaxValueInt);
 	for (int32 PixelIndex = 0; PixelIndex < InCount; PixelIndex++)
 	{
 		// Avoid the bounds checking of TArray[]
 		TToColorBitDepthType* OutColor = &OutsRGBData.GetData()[PixelIndex];
 
-		// We don't need sRGB color conversion. Flooring avoids an extra branch for Round.
-		OutColor->R = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].R * MaxValue) + 0.5f), 0, MaxValueInt);
-		OutColor->G = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].G * MaxValue) + 0.5f), 0, MaxValueInt);
-		OutColor->B = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].B * MaxValue) + 0.5f), 0, MaxValueInt);
-		OutColor->A = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].A * MaxValue) + 0.5f), 0, MaxValueInt);
+		// We don't need sRGB color conversion. Avoid FMath::Floor or Round
+		OutColor->R = (TColorChannelNumericType) FMath::Clamp( (int)((InColor[PixelIndex].R * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->G = (TColorChannelNumericType) FMath::Clamp( (int)((InColor[PixelIndex].G * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->B = (TColorChannelNumericType) FMath::Clamp( (int)((InColor[PixelIndex].B * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->A = (TColorChannelNumericType) FMath::Clamp( (int)((InColor[PixelIndex].A * MaxValue) + 0.5f), 0, MaxValueInt);
 	}
 
 	return OutsRGBData;
@@ -57,7 +59,8 @@ static TArray<uint8> GenerateSRGBTable(uint32 InPrecision)
 		}
 
 		// Flooring avoids an extra branch for Round. Using [] on GetData() avoids bounds checking cost.
-		OutsRGBTable.GetData()[TableIndex] = (uint8)FMath::Clamp(FMath::FloorToInt(ValueAsLinear * 256.f), 0, 255);
+		check( ValueAsLinear >= 0.f && ValueAsLinear <= 1.f );
+		OutsRGBTable.GetData()[TableIndex] = (uint8) ( ValueAsLinear * 255.f + 0.5f );
 	}
 	
 	return OutsRGBTable;
@@ -118,8 +121,9 @@ static TArray<uint8> GenerateSRGBTableFloat16to8()
 		{
 			ValueAsLinear = FMath::Pow(ValueAsLinear, 1.0f / 2.4f) * 1.055f - 0.055f;
 		}
-		// Flooring avoids an extra branch for Round. Using [] on GetData() avoids bounds checking cost.
-		OutsRGBTableData[TableIndex] = (uint8)FMath::FloorToInt((ValueAsLinear * 255.f) + 0.5f);
+		// Avoid FMath::FloorToInt or Round which call floorf. Using [] on GetData() avoids bounds checking cost.
+		check( ValueAsLinear >= 0.f && ValueAsLinear <= 1.f );
+		OutsRGBTableData[TableIndex] = (uint8) (ValueAsLinear * 255.f + 0.5f);
 	}
 
 	return OutsRGBTable;
@@ -173,8 +177,8 @@ static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InCol
 		OutColor->G = sRGBTableData[InColor[PixelIndex].G.Encoded];
 		OutColor->B = sRGBTableData[InColor[PixelIndex].B.Encoded];
 
-		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit. Flooring avoids an extra branch for Round.
-		OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + 0.5f), 0, 255);
+		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit.
+		OutColor->A = FColor::QuantizeUNormFloatTo8( InColor[PixelIndex].A );
 	}
 
 	return OutsRGBData;
@@ -203,8 +207,8 @@ static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FLinearColor* InColo
 		OutColor->G = sRGBTable.GetData()[FMath::Clamp(TableIndexG, 0, TableUpperBound)];
 		OutColor->B = sRGBTable.GetData()[FMath::Clamp(TableIndexB, 0, TableUpperBound)];
 		
-		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit. Flooring avoids an extra branch for Round.
-		OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + 0.5f), 0, 255);
+		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit.
+		OutColor->A = FColor::QuantizeUNormFloatTo8( InColor[PixelIndex].A );
 	}
 
 	return OutsRGBData;
