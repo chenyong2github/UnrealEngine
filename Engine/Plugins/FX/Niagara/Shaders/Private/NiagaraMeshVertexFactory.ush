@@ -909,7 +909,7 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 	return float4(0,0,0,0);
 }
 
-#if USING_TESSELLATION
+#if USING_TESSELLATION || RAYHITGROUPSHADER
 	struct FVertexFactoryInterpolantsVSToDS
 	{
 		FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
@@ -1025,4 +1025,37 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 
 		return TangentToWorld;
 	}
-#endif // #if USING_TESSELLATION
+#endif // #if USING_TESSELLATION || RAYHITGROUPSHADER
+
+
+	// RHI_RAYTRACING
+#if COMPUTESHADER || RAYHITGROUPSHADER
+	FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
+	{
+		FVertexFactoryInput Input;
+
+		FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(TriangleIndex);
+		uint VertexId = Tri.Indices[VertexIndex];
+		
+		Input.InstanceId = InstanceIndex() - GetBaseInstanceIndex();
+
+		// Fill FVertexFactoryInput with dummy values, the real ones will be fetched later from NiagaraMeshVF using InstanceId  
+		Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
+		Input.TangentX = 1.0;
+		Input.TangentZ = 0.0;
+		Input.VertexColor = float4(1.0, 1.0, 1.0, 0.5);
+#if NUM_MATERIAL_TEXCOORDS_VERTEX
+		Input.TexCoords[0].x = 0.5f;
+		Input.TexCoords[0].y = 0.5f;
+#elif USE_PARTICLE_SUBUVS
+		Input.TexCoords[0].x = 0.5f;
+		Input.TexCoords[0].y = 0.5f;
+#endif
+
+#if PASS_NEEDS_VERTEX_ID
+		Input.VertexId : Tri.Indices[VertexIndex];
+#endif // #if PASS_NEEDS_VERTEX_ID
+
+		return Input;
+	}
+#endif // #if COMPUTESHADER || RAYHITGROUPSHADER

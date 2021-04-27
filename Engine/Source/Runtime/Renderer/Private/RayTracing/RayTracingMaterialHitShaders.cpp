@@ -57,6 +57,8 @@ static bool IsSupportedVertexFactoryType(const FVertexFactoryType* VertexFactory
 	static FName InstancedVfFname = FName(TEXT("FInstancedStaticMeshVertexFactory"), FNAME_Find);
 	static FName NiagaraRibbonVfFname = FName(TEXT("FNiagaraRibbonVertexFactory"), FNAME_Find);
 	static FName NiagaraSpriteVfFname = FName(TEXT("FNiagaraSpriteVertexFactory"), FNAME_Find);
+	static FName NiagaraMeshVfFname = FName(TEXT("FNiagaraMeshVertexFactory"), FNAME_Find);
+	static FName NiagaraMeshExVfFname = FName(TEXT("FNiagaraMeshVertexFactoryEx"), FNAME_Find);
 	static FName GeometryCacheVfFname = FName(TEXT("FGeometryCacheVertexVertexFactory"), FNAME_Find);
 	static FName LandscapeVfFname = FName(TEXT("FLandscapeVertexFactory"), FNAME_Find);
 	static FName LandscapeFixedGridVfFname = FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find);
@@ -68,6 +70,8 @@ static bool IsSupportedVertexFactoryType(const FVertexFactoryType* VertexFactory
 		|| VertexFactoryType == FindVertexFactoryType(InstancedVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(NiagaraRibbonVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(NiagaraSpriteVfFname)
+		|| VertexFactoryType == FindVertexFactoryType(NiagaraMeshVfFname)
+		|| VertexFactoryType == FindVertexFactoryType(NiagaraMeshExVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(GeometryCacheVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(LandscapeVfFname)
 		|| VertexFactoryType == FindVertexFactoryType(LandscapeFixedGridVfFname)
