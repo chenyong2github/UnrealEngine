@@ -225,6 +225,7 @@ struct FPixelDataRectangle
 			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 16);
 			break;
 		case TSF_RGBA16F:
+			// This will probably result in bad image. (Should we convert the data or export it in a format that support float(ERGBFormat::RGBAF)?)
 			ImageWrapper->SetRaw(Data, BytesPerPixel * Width * Height, Width, Height, ERGBFormat::RGBA, 16);
 			break;
 		case TSF_RGBA8:
@@ -245,7 +246,7 @@ struct FPixelDataRectangle
 		FArchive* Ar = FileManager->CreateFileWriter(*Filename);
 		if (Ar != nullptr)
 		{
-			const TArray<uint8>& CompressedData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
+			TArray64<uint8> CompressedData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Uncompressed);
 			Ar->Serialize((void *)CompressedData.GetData(), CompressedData.Num());
 			delete Ar;
 		}

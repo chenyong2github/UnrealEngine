@@ -241,6 +241,7 @@ namespace
 		{
 			case ERGBFormat::RGBA:
 			case ERGBFormat::BGRA:
+			case ERGBFormat::RGBAF:
 				return 4;
 			case ERGBFormat::Gray:
 				return 1;
@@ -263,6 +264,7 @@ const char* FExrImageWrapper::GetRawChannelName(int ChannelIndex) const
 	switch (RawFormat)
 	{
 		case ERGBFormat::RGBA:
+		case ERGBFormat::RGBAF:
 		{
 			ChannelNames = RGBAChannelNames;
 		}
@@ -346,8 +348,7 @@ void FExrImageWrapper::CompressRaw(const sourcetype* SrcData, bool bIgnoreAlpha)
 		FileLength = MemFile.tellp();
 	}
 
-	CompressedData.AddUninitialized(FileLength);
-	FMemory::Memcpy(CompressedData.GetData(), MemFile.Data.GetData(), FileLength);
+	CompressedData = MoveTemp(MemFile.Data);
 
 	const double DeltaTime = FPlatformTime::Seconds() - StartTime;
 	UE_LOG(LogImageWrapper, Verbose, TEXT("Compressed image in %.3f seconds"), DeltaTime);
@@ -456,8 +457,7 @@ bool FExrImageWrapper::SetCompressed( const void* InCompressedData, int64 InComp
 	Width = dim.x;
 	Height = dim.y;
 
-	// ideally we can specify float here
-	Format = ERGBFormat::RGBA;
+	Format = ERGBFormat::RGBAF;
 
 	return true;
 }

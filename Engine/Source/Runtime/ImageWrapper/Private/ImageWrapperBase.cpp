@@ -45,12 +45,12 @@ void FImageWrapperBase::SetError(const TCHAR* ErrorMessage)
 /* IImageWrapper structors
  *****************************************************************************/
 
-const TArray64<uint8>& FImageWrapperBase::GetCompressed(int32 Quality)
+TArray64<uint8> FImageWrapperBase::GetCompressed(int32 Quality)
 {
 	LastError.Empty();
 	Compress(Quality);
 
-	return CompressedData;
+	return MoveTemp(CompressedData);
 }
 
 

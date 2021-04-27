@@ -984,7 +984,7 @@ TArray<FLinearColor> USceneCapturer::SaveAtlas(FString Folder, const TArray<FLin
 		FString FrameStringUnprojected = FString::Printf(TEXT("%s_%05d_Unprojected.png"), *Folder, CurrentFrameCount);
 		FString AtlasNameUnprojected = OutputDir / Timestamp / FrameStringUnprojected;
 		ImageWrapper->SetRaw(SurfaceData.GetData(), SurfaceData.GetAllocatedSize(), UnprojectedAtlasWidth, UnprojectedAtlasHeight, ERGBFormat::BGRA, 32);
-		const TArray64<uint8>& PNGDataUnprojected = ImageWrapper->GetCompressed(100);
+		const TArray64<uint8> PNGDataUnprojected = ImageWrapper->GetCompressed(100);
 		FFileHelper::SaveArrayToFile(PNGDataUnprojected, *AtlasNameUnprojected);
 		ImageWrapper.Reset();
 	}
@@ -1063,7 +1063,7 @@ void USceneCapturer::CaptureComponent(int32 CurrentHorizontalStep, int32 Current
 			}
 
 			ImageWrapper->SetRaw(SurfaceDataWhole.GetData(), SurfaceDataWhole.GetAllocatedSize(), CaptureWidth, CaptureHeight, ERGBFormat::BGRA, 32);
-			const TArray64<uint8>& PNGData = ImageWrapper->GetCompressed(100);
+			const TArray64<uint8> PNGData = ImageWrapper->GetCompressed(100);
 
 			FFileHelper::SaveArrayToFile(PNGData, *CaptureName);
 			ImageWrapper.Reset();
@@ -1080,7 +1080,7 @@ void USceneCapturer::CaptureComponent(int32 CurrentHorizontalStep, int32 Current
 
 			TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 			ImageWrapper->SetRaw(SurfaceData.GetData(), SurfaceData.GetAllocatedSize(), StripWidth, StripHeight, ERGBFormat::BGRA, 32);
-			const TArray64<uint8>& PNGData = ImageWrapper->GetCompressed(100);
+			const TArray64<uint8> PNGData = ImageWrapper->GetCompressed(100);
 
 			FFileHelper::SaveArrayToFile(PNGData, *CaptureName);
 			ImageWrapper.Reset();
@@ -1267,7 +1267,7 @@ void USceneCapturer::Tick( float DeltaTime )
 				// write
 				TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 				ImageWrapper->SetRaw(CombinedAtlas8bit.GetData(), CombinedAtlas8bit.GetAllocatedSize(), SphericalAtlasWidth, SphericalAtlasHeight * EyeCount, ERGBFormat::BGRA, 8);
-				const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed(100);
+				const TArray64<uint8> ImageData = ImageWrapper->GetCompressed(100);
 				FFileHelper::SaveArrayToFile(ImageData, *AtlasName);
 				ImageWrapper.Reset();
 				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done", "Done!"));
@@ -1282,8 +1282,8 @@ void USceneCapturer::Tick( float DeltaTime )
 
 				// write
 				TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR);
-				ImageWrapper->SetRaw(CombinedAtlas.GetData(), CombinedAtlas.GetAllocatedSize(), SphericalAtlasWidth, SphericalAtlasHeight * EyeCount, ERGBFormat::RGBA, 32);
-				const TArray64<uint8>& ImageData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
+				ImageWrapper->SetRaw(CombinedAtlas.GetData(), CombinedAtlas.GetAllocatedSize(), SphericalAtlasWidth, SphericalAtlasHeight * EyeCount, ERGBFormat::RGBAF, 32);
+				const TArray64<uint8> ImageData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
 				FFileHelper::SaveArrayToFile(ImageData, *AtlasName);
 				ImageWrapper.Reset();
 				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done", "Done!"));

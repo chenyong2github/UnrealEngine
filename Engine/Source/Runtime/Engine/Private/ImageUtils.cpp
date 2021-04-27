@@ -801,7 +801,7 @@ bool FImageUtils::ExportRenderTarget2DAsPNG(UTextureRenderTarget2D* TexRT, FArch
 
 		PNGImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), Size.X, Size.Y, ERGBFormat::BGRA, 8);
 
-		const TArray64<uint8>& PNGData = PNGImageWrapper->GetCompressed(100);
+		const TArray64<uint8> PNGData = PNGImageWrapper->GetCompressed(100);
 
 		Ar.Serialize((void*)PNGData.GetData(), PNGData.GetAllocatedSize());
 	}
@@ -830,7 +830,7 @@ ENGINE_API bool FImageUtils::ExportRenderTarget2DAsEXR(UTextureRenderTarget2D* T
 
 		EXRImageWrapper->SetRaw(RawData.GetData(), RawData.GetAllocatedSize(), Size.X, Size.Y, RGBFormat, BitsPerPixel);
 
-		const TArray64<uint8>& Data = EXRImageWrapper->GetCompressed(100);
+		const TArray64<uint8> Data = EXRImageWrapper->GetCompressed(100);
 
 		Ar.Serialize((void*)Data.GetData(), Data.GetAllocatedSize());
 

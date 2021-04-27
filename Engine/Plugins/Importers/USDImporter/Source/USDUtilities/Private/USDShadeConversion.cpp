@@ -942,7 +942,7 @@ namespace UsdShadeConversionImpl
 				}
 
 				PNGImageWrapper->SetRaw( Samples.GetData(), Samples.GetAllocatedSize(), FinalSize.X, FinalSize.Y, ERGBFormat::BGRA, 8 );
-				const TArray64<uint8>& PNGData = PNGImageWrapper->GetCompressed( 100 );
+				const TArray64<uint8> PNGData = PNGImageWrapper->GetCompressed( 100 );
 
 				bool bWroteFile = FFileHelper::SaveArrayToFile( PNGData, *TextureFilePath );
 				if ( bWroteFile )

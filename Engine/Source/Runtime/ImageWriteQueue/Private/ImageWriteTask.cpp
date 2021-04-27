@@ -181,7 +181,7 @@ bool FImageWriteTask::WriteToDisk()
 			{
 				if (InitializeWrapper(ImageWrapper, Format))
 				{
-					const TArray64<uint8>& CompressedFile = ImageWrapper->GetCompressed(CompressionQuality);
+					const TArray64<uint8> CompressedFile = ImageWrapper->GetCompressed(CompressionQuality);
 					uint64 TotalNumberOfBytes, NumberOfFreeBytes;
 					if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPaths::GetPath(Filename), TotalNumberOfBytes, NumberOfFreeBytes))
 					{

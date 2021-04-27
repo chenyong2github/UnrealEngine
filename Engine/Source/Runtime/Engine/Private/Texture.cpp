@@ -1184,7 +1184,7 @@ void FTextureSource::Compress()
 		ERGBFormat RawFormat = (Format == TSF_G8 || Format == TSF_G16) ? ERGBFormat::Gray : ERGBFormat::RGBA;
 		if ( ImageWrapper.IsValid() && ImageWrapper->SetRaw( BulkDataPtr, BulkData.GetBulkDataSize(), SizeX, SizeY, RawFormat, (Format == TSF_G16 || Format == TSF_RGBA16) ? 16 : 8 ) )
 		{
-			const TArray64<uint8>& CompressedData = ImageWrapper->GetCompressed();
+			const TArray64<uint8> CompressedData = ImageWrapper->GetCompressed();
 			if ( CompressedData.Num() > 0 )
 			{
 				BulkDataPtr = (uint8*)BulkData.Realloc(CompressedData.Num());

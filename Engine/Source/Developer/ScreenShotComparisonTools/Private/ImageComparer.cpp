@@ -98,7 +98,7 @@ public:
 		{
 			if ( ImageWriter->SetRaw(Image.GetData(), Image.Num(), Width, Height, ERGBFormat::RGBA, 8) )
 			{
-				const TArray64<uint8>& PngData = ImageWriter->GetCompressed();
+				TArray64<uint8> PngData = ImageWriter->GetCompressed();
 
 				if ( FFileHelper::SaveArrayToFile(PngData, *TempDeltaFile) )
 				{

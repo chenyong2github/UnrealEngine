@@ -74,7 +74,7 @@ public:
 
 	//~ IImageWrapper interface
 
-	virtual const TArray64<uint8>& GetCompressed(int32 Quality = 0) override;
+	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) override;
 
 	virtual int32 GetBitDepth() const override
 	{

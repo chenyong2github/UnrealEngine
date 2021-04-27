@@ -254,6 +254,7 @@ static FString GetChannelName(const FString& InLayerName, const int32 InChannelI
 	switch (InFormat)
 	{
 		case ERGBFormat::RGBA:
+		case ERGBFormat::RGBAF:
 		{
 			ChannelNames = RGBAChannelNames;
 		}

@@ -47,9 +47,18 @@ enum class EImageFormat : int8
 enum class ERGBFormat : int8
 {
 	Invalid = -1,
+
+	// Red, Green, Blue and Alpha
 	RGBA =  0,
+
+	// Blue, Green, Red and Alpha
 	BGRA =  1,
+
+	// Gray scale
 	Gray =  2,
+
+	// Red, Green, Blue and Alpha using IEEE Floating-Point Arithmetic (see IEEE754). The format is always binary.
+	RGBAF = 3,
 };
 
 
@@ -102,13 +111,15 @@ public:
 
 	/**
 	 * Gets the compressed data.
-	 *
+	 * (Note: It may consume the data set in the SetCompressed function if it was set before)
+	 * 
 	 * @return Array of the compressed data.
 	 */
-	virtual const TArray64<uint8>& GetCompressed(int32 Quality = 0) = 0;
+	virtual TArray64<uint8> GetCompressed(int32 Quality = 0) = 0;
 
 	/**  
 	 * Gets the raw data.
+	 * (Note: It may consume the data set in the SetRaw function if it was set before)
 	 *
 	 * @param InFormat How we want to manipulate the RGB data.
 	 * @param InBitDepth The output bit-depth per channel, normally 8.
@@ -120,6 +131,7 @@ public:
 	/**
 	 * Gets the raw data in a TArray. Only use this if you're certain that the image is less than 2 GB in size.
 	 * Prefer using the overload which takes a TArray64 in general.
+	 * (Note: It may consume the data set in the SetRaw function if it was set before)
 	 *
 	 * @param InFormat How we want to manipulate the RGB data.
 	 * @param InBitDepth The output bit-depth per channel, normally 8.

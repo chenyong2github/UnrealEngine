@@ -232,7 +232,7 @@ template<> struct TImagePixelDataTraits<FColor>
 
 template<> struct TImagePixelDataTraits<FFloat16Color>
 {
-	static const ERGBFormat PixelLayout = ERGBFormat::RGBA;
+	static const ERGBFormat PixelLayout = ERGBFormat::RGBAF;
 	static const EImagePixelType PixelType = EImagePixelType::Float16;
 
 	enum { BitDepth = 16, NumChannels = 4 };
@@ -240,7 +240,7 @@ template<> struct TImagePixelDataTraits<FFloat16Color>
 
 template<> struct TImagePixelDataTraits<FLinearColor>
 {
-	static const ERGBFormat PixelLayout = ERGBFormat::RGBA;
+	static const ERGBFormat PixelLayout = ERGBFormat::RGBAF;
 	static const EImagePixelType PixelType = EImagePixelType::Float32;
 
 	enum { BitDepth = 32, NumChannels = 4 };

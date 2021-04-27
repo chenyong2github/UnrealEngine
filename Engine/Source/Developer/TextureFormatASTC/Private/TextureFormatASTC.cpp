@@ -176,7 +176,7 @@ static bool CompressSliceToASTC(
 	// Compress and retrieve the PNG data to write out to disk
 	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
 	ImageWrapper->SetRaw(SourceData, SizeX * SizeY * 4, SizeX, SizeY, ERGBFormat::RGBA, 8);
-	const TArray64<uint8>& FileData = ImageWrapper->GetCompressed();
+	const TArray64<uint8> FileData = ImageWrapper->GetCompressed();
 	int64 FileDataSize = FileData.Num();
 
 	FGuid Guid;

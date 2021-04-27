@@ -143,7 +143,7 @@ void FLandscapeHeightmapFileFormat_Png::Export(const TCHAR* HeightmapFilename, F
 
 	if (ImageWrapper->SetRaw(Data.GetData(), Data.Num() * 2, DataResolution.Width, DataResolution.Height, ERGBFormat::Gray, 16))
 	{
-		const TArray64<uint8>& TempData = ImageWrapper->GetCompressed();
+		const TArray64<uint8> TempData = ImageWrapper->GetCompressed();
 		FFileHelper::SaveArrayToFile(TempData, HeightmapFilename);
 	}
 }
@@ -244,7 +244,7 @@ void FLandscapeWeightmapFileFormat_Png::Export(const TCHAR* WeightmapFilename, F
 
 	if (ImageWrapper->SetRaw(Data.GetData(), Data.Num(), DataResolution.Width, DataResolution.Height, ERGBFormat::Gray, 8))
 	{
-		const TArray64<uint8>& TempData = ImageWrapper->GetCompressed();
+		const TArray64<uint8> TempData = ImageWrapper->GetCompressed();
 		FFileHelper::SaveArrayToFile(TempData, WeightmapFilename);
 	}
 }

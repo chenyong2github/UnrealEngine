@@ -72,7 +72,7 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8);
 
 			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
-			const TArray64<uint8>& JPGData = ImageWrapper->GetCompressed(CurrentQuality);
+			const TArray64<uint8> JPGData = ImageWrapper->GetCompressed(CurrentQuality);
 
 			TBackChannelSharedPtr<FBackChannelOSCMessage> Msg = MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(TEXT("/Screen"));
 	

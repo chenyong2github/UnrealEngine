@@ -3011,227 +3011,239 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 
+	// Use the magic bytes when possible to avoid calling inefficient code to check if the image is of the right format
+	EImageFormat ImageFormat = ImageWrapperModule.DetectImageFormat(Buffer, int64(Length));
+
 	//
 	// PNG
 	//
-	TSharedPtr<IImageWrapper> PngImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
-	if (PngImageWrapper.IsValid() && PngImageWrapper->SetCompressed(Buffer, Length))
+	if (ImageFormat == EImageFormat::PNG)
 	{
-		if (!IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
+		TSharedPtr<IImageWrapper> PngImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+		if (PngImageWrapper.IsValid() && PngImageWrapper->SetCompressed(Buffer, Length))
 		{
-			return false;
-		}
-
-		// Select the texture's source format
-		ETextureSourceFormat TextureFormat = TSF_Invalid;
-		int32 BitDepth = PngImageWrapper->GetBitDepth();
-		ERGBFormat Format = PngImageWrapper->GetFormat();
-
-		if (Format == ERGBFormat::Gray)
-		{
-			if (BitDepth <= 8)
+			if (!IsImportResolutionValid(PngImageWrapper->GetWidth(), PngImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
 			{
-				TextureFormat = TSF_G8;
-				Format = ERGBFormat::Gray;
-				BitDepth = 8;
+				return false;
 			}
-			else if (BitDepth == 16)
+
+			// Select the texture's source format
+			ETextureSourceFormat TextureFormat = TSF_Invalid;
+			int32 BitDepth = PngImageWrapper->GetBitDepth();
+			ERGBFormat Format = PngImageWrapper->GetFormat();
+
+			if (Format == ERGBFormat::Gray)
 			{
-				TextureFormat = TSF_G16;
-				Format = ERGBFormat::Gray;
-				BitDepth = 16;
+				if (BitDepth <= 8)
+				{
+					TextureFormat = TSF_G8;
+					Format = ERGBFormat::Gray;
+					BitDepth = 8;
+				}
+				else if (BitDepth == 16)
+				{
+					TextureFormat = TSF_G16;
+					Format = ERGBFormat::Gray;
+					BitDepth = 16;
+				}
 			}
-		}
-		else if (Format == ERGBFormat::RGBA || Format == ERGBFormat::BGRA)
-		{
-			if (BitDepth <= 8)
+			else if (Format == ERGBFormat::RGBA || Format == ERGBFormat::BGRA)
 			{
-				TextureFormat = TSF_BGRA8;
-				Format = ERGBFormat::BGRA;
-				BitDepth = 8;
+				if (BitDepth <= 8)
+				{
+					TextureFormat = TSF_BGRA8;
+					Format = ERGBFormat::BGRA;
+					BitDepth = 8;
+				}
+				else if (BitDepth == 16)
+				{
+					TextureFormat = TSF_RGBA16;
+					Format = ERGBFormat::RGBA;
+					BitDepth = 16;
+				}
 			}
-			else if (BitDepth == 16)
+
+			if (TextureFormat == TSF_Invalid)
 			{
-				TextureFormat = TSF_RGBA16;
-				Format = ERGBFormat::RGBA;
-				BitDepth = 16;
+				Warn->Logf(ELogVerbosity::Error, TEXT("PNG file contains data in an unsupported format."));
+				return false;
 			}
-		}
 
-		if (TextureFormat == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("PNG file contains data in an unsupported format."));
-			return false;
-		}
+			OutImage.Init2DWithParams(
+				PngImageWrapper->GetWidth(),
+				PngImageWrapper->GetHeight(),
+				TextureFormat,
+				BitDepth < 16
+			);
 
-		OutImage.Init2DWithParams(
-			PngImageWrapper->GetWidth(),
-			PngImageWrapper->GetHeight(),
-			TextureFormat,
-			BitDepth < 16
-		);
-
-		if (PngImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
-		{
-			bool bFillPNGZeroAlpha = true;
-			GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
-
-			if (bFillPNGZeroAlpha)
+			if (PngImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
 			{
-				// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
-				FillZeroAlphaPNGData(OutImage.SizeX, OutImage.SizeY, OutImage.Format, OutImage.RawData.GetData());
-			}
-		}
-		else
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode PNG."));
-			return false;
-		}
+				bool bFillPNGZeroAlpha = true;
+				GConfig->GetBool(TEXT("TextureImporter"), TEXT("FillPNGZeroAlpha"), bFillPNGZeroAlpha, GEditorIni);
 
-		return true;
+				if (bFillPNGZeroAlpha)
+				{
+					// Replace the pixels with 0.0 alpha with a color value from the nearest neighboring color which has a non-zero alpha
+					FillZeroAlphaPNGData(OutImage.SizeX, OutImage.SizeY, OutImage.Format, OutImage.RawData.GetData());
+				}
+			}
+			else
+			{
+				Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode PNG."));
+				return false;
+			}
+
+			return true;
+		}
 	}
 
 	//
 	// JPEG
 	//
-	TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
-	if (JpegImageWrapper.IsValid() && JpegImageWrapper->SetCompressed(Buffer, Length))
+	if (ImageFormat == EImageFormat::JPEG)
 	{
-		if (!IsImportResolutionValid(JpegImageWrapper->GetWidth(), JpegImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
+		TSharedPtr<IImageWrapper> JpegImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
+		if (JpegImageWrapper.IsValid() && JpegImageWrapper->SetCompressed(Buffer, Length))
 		{
-			return false;
-		}
-
-		// Select the texture's source format
-		ETextureSourceFormat TextureFormat = TSF_Invalid;
-		int32 BitDepth = JpegImageWrapper->GetBitDepth();
-		ERGBFormat Format = JpegImageWrapper->GetFormat();
-
-		if (Format == ERGBFormat::Gray)
-		{
-			if (BitDepth <= 8)
+			if (!IsImportResolutionValid(JpegImageWrapper->GetWidth(), JpegImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
 			{
-				TextureFormat =  TSF_G8;
-				Format = ERGBFormat::Gray;
-				BitDepth = 8;
+				return false;
 			}
-		}
-		else if (Format == ERGBFormat::RGBA)
-		{
-			if (BitDepth <= 8)
+
+			// Select the texture's source format
+			ETextureSourceFormat TextureFormat = TSF_Invalid;
+			int32 BitDepth = JpegImageWrapper->GetBitDepth();
+			ERGBFormat Format = JpegImageWrapper->GetFormat();
+
+			if (Format == ERGBFormat::Gray)
 			{
-				TextureFormat = TSF_BGRA8;
-				Format = ERGBFormat::BGRA;
-				BitDepth = 8;
+				if (BitDepth <= 8)
+				{
+					TextureFormat = TSF_G8;
+					Format = ERGBFormat::Gray;
+					BitDepth = 8;
+				}
 			}
-		}
+			else if (Format == ERGBFormat::RGBA)
+			{
+				if (BitDepth <= 8)
+				{
+					TextureFormat = TSF_BGRA8;
+					Format = ERGBFormat::BGRA;
+					BitDepth = 8;
+				}
+			}
 
-		if (TextureFormat == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("JPEG file contains data in an unsupported format."));
-			return false;
-		}
+			if (TextureFormat == TSF_Invalid)
+			{
+				Warn->Logf(ELogVerbosity::Error, TEXT("JPEG file contains data in an unsupported format."));
+				return false;
+			}
 
-		OutImage.Init2DWithParams(
-			JpegImageWrapper->GetWidth(),
-			JpegImageWrapper->GetHeight(),
-			TextureFormat,
-			BitDepth < 16
-		);
-		
-		bool bRetainJpegFormat = false;
-		if (EnumHasAllFlags(Flags, EImageImportFlags::AllowReturnOfCompressedData))
-		{
-			// For now this option is opt in via the config files once there is no technical risk this will become the default path.
-			GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
-		}	
+			OutImage.Init2DWithParams(
+				JpegImageWrapper->GetWidth(),
+				JpegImageWrapper->GetHeight(),
+				TextureFormat,
+				BitDepth < 16
+			);
 
-		if (bRetainJpegFormat)
-		{
-			OutImage.RawData.Append(Buffer, Length);
-			OutImage.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
-		}
-		else
-		{
-			if (!JpegImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
+			bool bRetainJpegFormat = false;
+			if (EnumHasAllFlags(Flags, EImageImportFlags::AllowReturnOfCompressedData))
+			{
+				// For now this option is opt in via the config files once there is no technical risk this will become the default path.
+				GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
+			}
+
+			if (bRetainJpegFormat)
+			{
+				OutImage.RawData.Append(Buffer, Length);
+				OutImage.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
+			}
+			else if (!JpegImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
 			{
 				Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode JPEG."));
 				return false;
 			}
-		}
 
-		return true;
+			return true;
+		}
 	}
 
 	//
 	// EXR
 	//
-	TSharedPtr<IImageWrapper> ExrImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR);
-	if (ExrImageWrapper.IsValid() && ExrImageWrapper->SetCompressed(Buffer, Length))
+	if (ImageFormat == EImageFormat::EXR)
 	{
-		int32 Width = ExrImageWrapper->GetWidth();
-		int32 Height = ExrImageWrapper->GetHeight();
-
-		if (!IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo, Warn))
+		TSharedPtr<IImageWrapper> ExrImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::EXR);
+		if (ExrImageWrapper.IsValid() && ExrImageWrapper->SetCompressed(Buffer, Length))
 		{
-			return false;
+			int32 Width = ExrImageWrapper->GetWidth();
+			int32 Height = ExrImageWrapper->GetHeight();
+
+			if (!IsImportResolutionValid(Width, Height, bAllowNonPowerOfTwo, Warn))
+			{
+				return false;
+			}
+
+			// Select the texture's source format
+			ETextureSourceFormat TextureFormat = TSF_Invalid;
+			int32 BitDepth = ExrImageWrapper->GetBitDepth();
+			ERGBFormat Format = ExrImageWrapper->GetFormat();
+
+			if (Format == ERGBFormat::RGBAF && BitDepth == 16)
+			{
+				TextureFormat = TSF_RGBA16F;
+			}
+
+			if (TextureFormat == TSF_Invalid)
+			{
+				Warn->Logf(ELogVerbosity::Error, TEXT("EXR file contains data in an unsupported format."));
+				return false;
+			}
+
+			OutImage.Init2DWithParams(
+				Width,
+				Height,
+				TextureFormat,
+				false
+			);
+			OutImage.CompressionSettings = TC_HDR;
+
+			if (!ExrImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
+			{
+				Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode EXR."));
+				return false;
+			}
+
+			return true;
 		}
-
-		// Select the texture's source format
-		ETextureSourceFormat TextureFormat = TSF_Invalid;
-		int32 BitDepth = ExrImageWrapper->GetBitDepth();
-		ERGBFormat Format = ExrImageWrapper->GetFormat();
-
-		if (Format == ERGBFormat::RGBA && BitDepth == 16)
-		{
-			TextureFormat = TSF_RGBA16F;
-			Format = ERGBFormat::BGRA;
-		}
-
-		if (TextureFormat == TSF_Invalid)
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("EXR file contains data in an unsupported format."));
-			return false;
-		}
-
-		OutImage.Init2DWithParams(
-			Width,
-			Height,
-			TextureFormat,
-			false
-		);
-		OutImage.CompressionSettings = TC_HDR;
-
-		if (!ExrImageWrapper->GetRaw(Format, BitDepth, OutImage.RawData))
-		{
-			Warn->Logf(ELogVerbosity::Error, TEXT("Failed to decode EXR."));
-			return false;
-		}
-
-		return true;
 	}
 
 	//
 	// BMP
 	//
-	TSharedPtr<IImageWrapper> BmpImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::BMP);
-	if (BmpImageWrapper.IsValid() && BmpImageWrapper->SetCompressed(Buffer, Length))
+	if (ImageFormat == EImageFormat::BMP)
 	{
-		// Check the resolution of the imported texture to ensure validity
-		if (!IsImportResolutionValid(BmpImageWrapper->GetWidth(), BmpImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
+		TSharedPtr<IImageWrapper> BmpImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::BMP);
+		if (BmpImageWrapper.IsValid() && BmpImageWrapper->SetCompressed(Buffer, Length))
 		{
-			return false;
+			// Check the resolution of the imported texture to ensure validity
+			if (!IsImportResolutionValid(BmpImageWrapper->GetWidth(), BmpImageWrapper->GetHeight(), bAllowNonPowerOfTwo, Warn))
+			{
+				return false;
+			}
+
+			OutImage.Init2DWithParams(
+				BmpImageWrapper->GetWidth(),
+				BmpImageWrapper->GetHeight(),
+				TSF_BGRA8,
+				false
+			);
+
+			return BmpImageWrapper->GetRaw(BmpImageWrapper->GetFormat(), BmpImageWrapper->GetBitDepth(), OutImage.RawData);
 		}
-
-		OutImage.Init2DWithParams(
-			BmpImageWrapper->GetWidth(),
-			BmpImageWrapper->GetHeight(),
-			TSF_BGRA8,
-			false
-		);
-
-		return BmpImageWrapper->GetRaw(BmpImageWrapper->GetFormat(), BmpImageWrapper->GetBitDepth(), OutImage.RawData);
 	}
+
 
 	//
 	// PCX
@@ -3348,6 +3360,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 
 		return true;
 	}
+
 	//
 	// TGA
 	//
@@ -3528,6 +3541,9 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 		}
 	}
 
+	//
+	// TIFF
+	//
 	FTiffLoadHelper TiffLoaderHelper;
 	if (TiffLoaderHelper.IsValid())
 	{

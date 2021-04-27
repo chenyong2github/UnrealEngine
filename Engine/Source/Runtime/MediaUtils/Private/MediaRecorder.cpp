@@ -268,7 +268,7 @@ void FMediaRecorder::TickRecording()
 				if (Sample->GetFormat() == EMediaTextureSampleFormat::FloatRGBA)
 				{
 					PixelType = EImagePixelType::Float16;
-					PixelLayout = ERGBFormat::RGBA;
+					PixelLayout = ERGBFormat::RGBAF;
 					BitDepth = 16;
 				}
 

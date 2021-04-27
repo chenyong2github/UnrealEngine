@@ -60,53 +60,53 @@ public:
 
 	virtual TSharedPtr<IImageWrapper> CreateImageWrapper(const EImageFormat InFormat) override
 	{
-		FImageWrapperBase* ImageWrapper = NULL;
+		TSharedPtr<IImageWrapper> ImageWrapper;
 
 		// Allocate a helper for the format type
 		switch(InFormat)
 		{
 #if WITH_UNREALPNG
 		case EImageFormat::PNG:
-			ImageWrapper = new FPngImageWrapper();
+			ImageWrapper = MakeShared<FPngImageWrapper>();
 			break;
 #endif	// WITH_UNREALPNG
 
 #if WITH_UNREALJPEG
 		case EImageFormat::JPEG:
-			ImageWrapper = new FJpegImageWrapper();
+			ImageWrapper = MakeShared<FJpegImageWrapper>();
 			break;
 
 		case EImageFormat::GrayscaleJPEG:
-			ImageWrapper = new FJpegImageWrapper(1);
+			ImageWrapper = MakeShared<FJpegImageWrapper>(1);
 			break;
 #endif	//WITH_UNREALJPEG
 
 		case EImageFormat::BMP:
-			ImageWrapper = new FBmpImageWrapper();
+			ImageWrapper = MakeShared<FBmpImageWrapper>();
 			break;
 
 		case EImageFormat::ICO:
-			ImageWrapper = new FIcoImageWrapper();
+			ImageWrapper = MakeShared<FIcoImageWrapper>();
 			break;
 
 #if WITH_UNREALEXR
 		case EImageFormat::EXR:
-			ImageWrapper = new FExrImageWrapper();
+			ImageWrapper = MakeShared<FExrImageWrapper>();
 			break;
 #endif
 		case EImageFormat::ICNS:
-			ImageWrapper = new FIcnsImageWrapper();
+			ImageWrapper = MakeShared<FIcnsImageWrapper>();
 			break;
 
 		case EImageFormat::TGA:
-			ImageWrapper = new FTgaImageWrapper();
+			ImageWrapper = MakeShared<FTgaImageWrapper>();
 			break;
 
 		default:
 			break;
 		}
 
-		return MakeShareable(ImageWrapper);
+		return ImageWrapper;
 	}
 
 	virtual EImageFormat DetectImageFormat(const void* CompressedData, int64 CompressedSize) override
