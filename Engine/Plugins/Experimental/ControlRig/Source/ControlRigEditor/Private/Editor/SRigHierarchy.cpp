@@ -1492,6 +1492,7 @@ void SRigHierarchy::RefreshHierarchy(const FAssetData& InAssetData)
 		check(Controller);
 		
 		Controller->ImportBones(RefSkeleton, NAME_None, true, true, bSelectBones, true);
+		Controller->ImportCurves(Mesh->GetSkeleton(), NAME_None, false, true);
 	}
 
 	ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
