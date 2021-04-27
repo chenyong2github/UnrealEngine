@@ -43,7 +43,7 @@ static TAutoConsoleVariable<bool> CVarEnableAttachmentVariableRateShading(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int> CVarHMDFixedFoveationLevel(
-	TEXT("r.VRS.HMDFixedFoveationLevel"),
+	TEXT("vr.VRS.HMDFixedFoveationLevel"),
 	0,
 	TEXT("Level of fixed-foveation VRS to apply (when Variable Rate Shading is available)\n")
 	TEXT(" 0: Disabled (default);\n")
