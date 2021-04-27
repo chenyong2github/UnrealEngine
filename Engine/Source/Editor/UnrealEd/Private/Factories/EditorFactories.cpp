@@ -4175,7 +4175,13 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Static texture needs to avoid having pending InitRHI() before enqueuing ReleaseRHI() to safely track access of the PlatformData on the renderthread.
 		ExistingTexture->WaitForPendingInitOrStreaming();
 	}
-	
+
+	// Make sure the changes are part of the transaction when reimporting over an existing texture
+	if (ExistingTexture)
+	{
+		ExistingTexture->PreEditChange(nullptr);
+	}
+
 	FTextureReferenceReplacer RefReplacer(ExistingTexture);
 
 	UTexture* Texture = nullptr;
