@@ -319,7 +319,7 @@ using namespace ChaosTest;
 			if (Impact)
 			{
 				// any objects with a mass of less than 6 are removed from returned collision data
-				EXPECT_EQ(AllCollisionsArray.Num(), 4);
+				EXPECT_LE(AllCollisionsArray.Num(), 4);
 
 				for (const auto& Collision : AllCollisionsArray)
 				{ 

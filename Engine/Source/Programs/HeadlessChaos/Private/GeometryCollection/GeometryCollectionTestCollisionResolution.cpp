@@ -529,7 +529,8 @@ namespace GeometryCollectionTest
 			//const FReal ExpectedRestingDistance = UnitTest.Solver->GetEvolution()->GetGravityForces().GetAcceleration().Size() * UnitTest.Dt * UnitTest.Dt;
 
 			// The error in the resting distance depends on the number of pushout iterations, which is very low by default
-			const FReal RestingDistanceTolerance = 1.0f;
+			// It also depends on whether manifolds are used for collision (no manifolds means larger errors)
+			const FReal RestingDistanceTolerance = 2.0f;
 
 			// validate the tetahedron collides and moved away from the static floor
 			FVec3 RestTranslation = Collection->RestCollection->Transform[0].GetTranslation();
