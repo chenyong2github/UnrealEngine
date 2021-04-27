@@ -105,4 +105,38 @@ RequiredClassType* GetBottomObject(const UTypedElementList* InElementList)
 	return Cast<RequiredClassType>(GetBottomObject(InElementList, RequiredClassType::StaticClass()));
 }
 
+/**
+ * Test if there are any objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
+ */
+TYPEDELEMENTRUNTIME_API bool HasObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass);
+
+/**
+ * Test if there are any objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
+ */
+template <typename ClassType>
+bool HasObjectsOfExactClass(const UTypedElementList* InElementList)
+{
+	return HasObjectsOfExactClass(InElementList, ClassType::StaticClass());
+}
+
+/**
+ * Count the number of objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
+ */
+TYPEDELEMENTRUNTIME_API int32 CountObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass);
+
+/**
+ * Count the number of objects of the exact class in the given list of elements (a quick test using the class counter, skipping derived types).
+ */
+template <typename ClassType>
+bool CountObjectsOfExactClass(const UTypedElementList* InElementList)
+{
+	return CountObjectsOfExactClass(InElementList, ClassType::StaticClass());
+}
+
+/**
+ * Enumerate the classes of the objects in the given list of elements.
+ * @note Return true from the callback to continue enumeration.
+ */
+TYPEDELEMENTRUNTIME_API void ForEachObjectClass(const UTypedElementList* InElementList, TFunctionRef<bool(UClass*)> InCallback);
+
 } // namespace TypedElementListObjectUtil

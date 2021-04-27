@@ -98,4 +98,22 @@ UObject* GetBottomObject(const UTypedElementList* InElementList, const UClass* I
 	return nullptr;
 }
 
+bool HasObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass)
+{
+	return CountObjectsOfExactClass(InElementList, InClass) > 0;
+}
+
+int32 CountObjectsOfExactClass(const UTypedElementList* InElementList, const UClass* InClass)
+{
+	return InElementList->GetCounter().GetCounterValue(NAME_Class, InClass);
+}
+
+void ForEachObjectClass(const UTypedElementList* InElementList, TFunctionRef<bool(UClass*)> InCallback)
+{
+	InElementList->GetCounter().ForEachCounterValue<UClass*>(NAME_Class, [&InCallback](UClass* InClass, FTypedElementCounter::FCounterValue InCount)
+	{
+		return InCallback(InClass);
+	});
+}
+
 } // namespace TypedElementListObjectUtil
