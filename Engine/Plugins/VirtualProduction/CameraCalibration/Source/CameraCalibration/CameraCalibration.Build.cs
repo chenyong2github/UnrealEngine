@@ -14,9 +14,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DeveloperSettings",
 					"Engine",
-					"RHI",
-					"Engine",
 					"RenderCore",
+					"RHI",
 				}
 			);
 
@@ -26,7 +25,12 @@ namespace UnrealBuildTool.Rules
                     "Projects",
 				}
 			);
-			
+
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
+			}
+
 			PrivateIncludePaths.AddRange(
 				new string[] 
 				{

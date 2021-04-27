@@ -21,7 +21,7 @@ void ULiveLinkLensController::Tick(float DeltaTime, const FLiveLinkSubjectFrameD
 		{
 			UCameraCalibrationSubsystem* SubSystem = GEngine->GetEngineSubsystem<UCameraCalibrationSubsystem>();
 			TSubclassOf<ULensModel> LensModel = SubSystem->GetRegisteredLensModel(StaticData->LensModel);
-			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensModel);
+			LensDistortionHandler = SubSystem->FindOrCreateDistortionModelHandler(CineCameraComponent, LensModel, EHandlerOverrideMode::SoftOverride);
 
 			//To keep track of an updated MID from the handler
 			UMaterialInstanceDynamic* NewDistortionMID = nullptr;
