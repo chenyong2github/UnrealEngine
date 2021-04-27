@@ -221,7 +221,7 @@ public:
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
-				RWBuffers[Index].Initialize(TEXT("SkinCacheVertices"), PosBufferBytesPerElement, NumVertices * 3, PF_R32_FLOAT, BUF_Static);
+				PositionBuffers[Index].Initialize(TEXT("SkinCachePositions"), PosBufferBytesPerElement, NumVertices * 3, PF_R32_FLOAT, BUF_Static);
 			}
 			if (WithTangents)
 			{
@@ -243,7 +243,7 @@ public:
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
-				RWBuffers[Index].Release();
+				PositionBuffers[Index].Release();
 			}
 			if (WithTangents)
 			{
@@ -293,7 +293,7 @@ public:
 
 	private:
 		// Output of the GPU skinning (ie Pos, Normals)
-		FRWBuffer RWBuffers[NUM_BUFFERS];
+		FRWBuffer PositionBuffers[NUM_BUFFERS];
 
 		FRWBuffer Tangents;
 		FRWBuffer IntermediateTangents;
@@ -337,7 +337,7 @@ public:
 			{
 				if (Revisions[Index] == Revision && BoneBuffers[Index] == &BoneBuffer)
 				{
-					return &Allocation->RWBuffers[Index];
+					return &Allocation->PositionBuffers[Index];
 				}
 			}
 

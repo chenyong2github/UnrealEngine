@@ -2138,7 +2138,7 @@ void FGPUSkinCache::FRWBuffersAllocation::RemoveAllFromTransitionArray(TSet<FRHI
 {
 	for (uint32 i = 0; i < NUM_BUFFERS; i++)
 	{
-		FRWBuffer& RWBuffer = RWBuffers[i];
+		FRWBuffer& RWBuffer = PositionBuffers[i];
 		if (RWBuffer.UAV.IsValid())
 		{
 			InBuffersToTransition.Remove(RWBuffer.UAV);
