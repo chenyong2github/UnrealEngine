@@ -5626,6 +5626,7 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 	LODResources.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
 	LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, VertexInstanceUVs.GetNumChannels());
 
+	LODResources.bHasColorVertexData = bHasVertexColors;
 	FColorVertexBuffer& ColorVertexBuffer = LODResources.VertexBuffers.ColorVertexBuffer;
 	if (bHasVertexColors)
 	{
