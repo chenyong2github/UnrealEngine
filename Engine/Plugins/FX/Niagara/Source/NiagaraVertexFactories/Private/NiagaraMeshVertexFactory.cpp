@@ -18,8 +18,6 @@ class FNiagaraMeshVertexFactoryShaderParametersVS : public FVertexFactoryShaderP
 public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
-		SortedIndices.Bind(ParameterMap, TEXT("SortedIndices"));
-		SortedIndicesOffset.Bind(ParameterMap, TEXT("SortedIndicesOffset"));
 	}
 
 	void GetElementShaderBindings(
@@ -35,15 +33,7 @@ public:
 	{
 		FNiagaraMeshVertexFactory* NiagaraMeshVF = (FNiagaraMeshVertexFactory*)VertexFactory;
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FNiagaraMeshUniformParameters>(), NiagaraMeshVF->GetUniformBuffer());
-
-		FRHIShaderResourceView* SortedSRV = NiagaraMeshVF->GetSortedIndicesSRV();
-		ShaderBindings.Add(SortedIndices, SortedSRV != nullptr ? SortedSRV : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference());
-		ShaderBindings.Add(SortedIndicesOffset, NiagaraMeshVF->GetSortedIndicesOffset());
 	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, SortedIndices)
-	LAYOUT_FIELD(FShaderParameter, SortedIndicesOffset)
 };
 
 class FNiagaraMeshVertexFactoryShaderParametersPS : public FVertexFactoryShaderParameters

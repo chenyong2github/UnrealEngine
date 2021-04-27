@@ -99,6 +99,14 @@ protected:
 		const FSceneView& View,
 		const FParticleGPUBufferData& BufferData, 
 		const FNiagaraDynamicDataMesh* DynamicDataMesh,
+		const bool bShouldSort,
+		const bool bDoGPUCulling,
+		const bool bGPUSortEnabled,
+		FNiagaraGPUSortInfo& SortInfo,
+		const int32 SortVarIdx,
+		NiagaraEmitterInstanceBatcher* Batcher,
+		FGlobalDynamicReadBuffer& DynamicReadBuffer,
+		const int32 NumInstances,
 		FVector& OutWorldSpacePivotOffset,
 		FSphere& OutCullingSphere) const;
 
