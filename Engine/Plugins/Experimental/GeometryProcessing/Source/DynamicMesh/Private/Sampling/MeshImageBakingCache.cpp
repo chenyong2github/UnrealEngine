@@ -26,26 +26,47 @@ void FMeshImageBakingCache::SetBakeTargetMesh(const FDynamicMesh3* Mesh)
 
 void FMeshImageBakingCache::SetDimensions(FImageDimensions DimensionsIn)
 {
-	Dimensions = DimensionsIn;
-	InvalidateSamples();
-	InvalidateOccupancy();
+	if (Dimensions != DimensionsIn)
+	{
+		Dimensions = DimensionsIn;
+		InvalidateSamples();
+		InvalidateOccupancy();
+	}
 }
 
 
 void FMeshImageBakingCache::SetUVLayer(int32 UVLayerIn)
 {
-	UVLayer = UVLayerIn;
-	InvalidateSamples();
-	InvalidateOccupancy();
+	if (UVLayer != UVLayerIn)
+	{
+		UVLayer = UVLayerIn;
+		InvalidateSamples();
+		InvalidateOccupancy();
+	}
 }
 
 
 void FMeshImageBakingCache::SetThickness(double ThicknessIn)
 {
-	Thickness = ThicknessIn;
-	InvalidateSamples();
-	InvalidateOccupancy();   // do we need to do this?
+	if (Thickness != ThicknessIn)
+	{
+		Thickness = ThicknessIn;
+		InvalidateSamples();
+		InvalidateOccupancy();   // do we need to do this?
+	}
 }
+
+
+void FMeshImageBakingCache::SetCorrespondenceStrategy(ECorrespondenceStrategy Strategy)
+{
+	if (CorrespondenceStrategy != Strategy)
+	{
+		CorrespondenceStrategy = Strategy;
+		InvalidateSamples();
+		InvalidateOccupancy();   // do we need to do this?
+	}
+}
+
 
 
 const FDynamicMeshNormalOverlay* FMeshImageBakingCache::GetDetailNormals() const
@@ -97,18 +118,20 @@ void FMeshImageBakingCache::InvalidateOccupancy()
  *    3) cast a ray inwards along -Normal from BasePoint
  * We take (1) preferentially, and then (2), and then (3)
  * 
- * If all of those fail, we try to find a nearest-point within distance Thickess
+ * If all of those fail, if bFailToNearestPoint is true we fall back to nearest-point, 
  * 
  * If all the above fail, return false
  */
-static bool GetDetailTrianglePoint(
+static bool GetDetailTrianglePoint_Raycast(
 	const FDynamicMesh3& DetailMesh,
 	const FDynamicMeshAABBTree3& DetailSpatial,
 	const FVector3d& BasePoint,
 	const FVector3d& BaseNormal,
 	int32& DetailTriangleOut,
 	FVector3d& DetailTriBaryCoords,
-	double Thickness)
+	double Thickness,
+	bool bFailToNearestPoint
+)
 {
 	// TODO: should we check normals here? inverse normal should probably not be considered valid
 
@@ -173,20 +196,49 @@ static bool GetDetailTrianglePoint(
 		return true;
 	}
 
-	// if we get this far, both rays missed, so use absolute nearest point regardless of distance
-	//NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
-	//if (DetailMesh.IsTriangle(NearestTriID))
-	//{
-	//	DetailTriangleOut = NearestTriID;
-	//	FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-	//	DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-	//	return true;
-	//}
+	// if we get this far, all rays missed or were too far, so use absolute nearest point regardless of distance
+	if (bFailToNearestPoint)
+	{
+		double NearDistSqr = 0;
+		int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
+		if (DetailMesh.IsTriangle(NearestTriID))
+		{
+			DetailTriangleOut = NearestTriID;
+			FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
+			DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
+			return true;
+		}
+	}
 
 	return false;
 }
 
 
+
+
+
+/**
+ * Find point on Detail mesh that corresponds to point on Base mesh using minimum distance
+ */
+static bool GetDetailTrianglePoint_Nearest(
+	const FDynamicMesh3& DetailMesh,
+	const FDynamicMeshAABBTree3& DetailSpatial,
+	const FVector3d& BasePoint,
+	int32& DetailTriangleOut,
+	FVector3d& DetailTriBaryCoords)
+{
+	double NearDistSqr = 0;
+	int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
+	if (DetailMesh.IsTriangle(NearestTriID))
+	{
+		DetailTriangleOut = NearestTriID;
+		FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
+		DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
+		return true;
+	}
+
+	return false;
+}
 
 
 
@@ -228,27 +280,46 @@ bool FMeshImageBakingCache::ValidateCache()
 
 	if (bSamplesValid == false)
 	{
+		ECorrespondenceStrategy UseStrategy = this->CorrespondenceStrategy;
+		if (UseStrategy == ECorrespondenceStrategy::Identity && ensure(DetailMesh == Mesh) == false)
+		{
+			// Identity strategy requires mesh to be the same. Could potentially have two copies, in which
+			// case this ensure is too conservative, but for now we will assume this
+			UseStrategy = ECorrespondenceStrategy::NearestPoint;
+		}
+
 		// this sampler finds the correspondence between base surface and detail surface
 		TMeshSurfaceUVSampler<FCorrespondenceSample> DetailMeshSampler;
 		DetailMeshSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FCorrespondenceSample(),
-			[Mesh, NormalOverlay, this](const FMeshUVSampleInfo& SampleInfo, FCorrespondenceSample& ValueOut)
+			[Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FCorrespondenceSample& ValueOut)
 		{
-			//FVector3d BaseTriNormal = Mesh->GetTriNormal(SampleInfo.TriangleIndex);
 			NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords.X, &ValueOut.BaseNormal.X);
 			Normalize(ValueOut.BaseNormal);
 			FVector3d RayDir = ValueOut.BaseNormal;
 
 			ValueOut.BaseSample = SampleInfo;
+			ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
 
-			double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
-
-			// find detail mesh triangle point
-			bool bFoundTri = GetDetailTrianglePoint(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint, RayDir,
-				ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness);
-			if (!bFoundTri)
+			if (UseStrategy == ECorrespondenceStrategy::Identity)
 			{
-				ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
+				ValueOut.DetailTriID = SampleInfo.TriangleIndex;
+				ValueOut.DetailBaryCoords = SampleInfo.BaryCoords;
 			}
+			else if (UseStrategy == ECorrespondenceStrategy::NearestPoint)
+			{
+				bool bFoundTri = GetDetailTrianglePoint_Nearest(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint,
+					ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
+			}
+			else	// fall back to raycast strategy
+			{
+				double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
+
+				// find detail mesh triangle point
+				bool bFoundTri = GetDetailTrianglePoint_Raycast(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint, RayDir,
+					ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness, 
+					(UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest) );
+			}
+
 		});
 
 
@@ -314,6 +385,45 @@ void FMeshImageBakingCache::EvaluateSamples(
 			const FCorrespondenceSample& Sample = SampleMap[LinearIdx];
 
 			SampleFunction(Coords, Sample);
+		}
+
+	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+}
+
+
+
+
+void FMeshImageBakingCache::FindSamplingHoles(
+	TFunctionRef<bool(const FVector2i&)> IsInvalidSampleFunction,
+	TArray<FVector2i>& HolePixelsOut,
+	bool bParallel) const
+{
+	check(IsCacheValid());
+
+	FCriticalSection HoleLock;
+
+	ParallelFor(Dimensions.GetHeight(), [this, &IsInvalidSampleFunction, &HoleLock, &HolePixelsOut](int32 ImgY)
+	{
+		if (CancelF())
+		{
+			return;
+		}
+		for (int32 ImgX = 0; ImgX < Dimensions.GetWidth(); ImgX++)
+		{
+			int64 LinearIdx = Dimensions.GetIndex(ImgX, ImgY);
+			if (OccupancyMap->IsInterior(LinearIdx) == false)
+			{
+				continue;
+			}
+			FVector2i Coords(ImgX, ImgY);
+
+			const FCorrespondenceSample& Sample = SampleMap[LinearIdx];
+			if (IsInvalidSampleFunction(Coords))
+			{
+				HoleLock.Lock();
+				HolePixelsOut.Add(Coords);
+				HoleLock.Unlock();
+			}
 		}
 
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);

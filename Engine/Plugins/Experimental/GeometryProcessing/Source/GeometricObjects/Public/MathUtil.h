@@ -154,6 +154,7 @@ public:
 	/** compute min and max of a,b,c with max 3 comparisons (sometimes 2) */
 	static inline void MinMax(RealType A, RealType B, RealType C, RealType& MinOut, RealType& MaxOut);
 	static inline RealType Sqrt(const RealType Value);
+	static inline RealType Tan(const RealType Value);
 	static inline RealType Atan2(const RealType ValueY, const RealType ValueX);
 	static inline RealType Sin(const RealType Value);
 	static inline RealType Cos(const RealType Value);
@@ -295,6 +296,12 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Sqrt(const RealType Value)
 {
 	return sqrt(Value);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Tan(const RealType Value)
+{
+	return tan(Value);
 }
 
 template<typename RealType>

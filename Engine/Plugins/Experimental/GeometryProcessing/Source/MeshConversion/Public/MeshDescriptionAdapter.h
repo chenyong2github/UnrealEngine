@@ -25,6 +25,9 @@ protected:
 	TVertexAttributesConstRef<FVector> VertexPositions;
 	TVertexInstanceAttributesConstRef<FVector> VertexInstanceNormals;
 
+	FVector3d BuildScale = FVector3d::One();
+	bool bScaleNormals = false;
+
 public:
 	FMeshDescriptionTriangleMeshAdapter(const FMeshDescription* MeshIn) : Mesh(MeshIn)
 	{
@@ -32,6 +35,12 @@ public:
 		VertexPositions = Attributes.GetVertexPositions();
 		VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
 		// @todo: can we hold TArrayViews of the attribute arrays here? Do we guarantee not to mutate the mesh description for the duration of this object?
+	}
+
+	void SetBuildScale(const FVector3d& BuildScaleIn, bool bScaleNormalsIn)
+	{
+		BuildScale = BuildScaleIn;
+		bScaleNormals = bScaleNormalsIn;
 	}
 
 	bool IsTriangle(int32 TID) const
@@ -72,17 +81,32 @@ public:
 	}
 	FVector3d GetVertex(int32 IDValue) const
 	{
-		return FVector3d(VertexPositions[FVertexID(IDValue)]);
+		const FVector& Position = VertexPositions[FVertexID(IDValue)];
+		return FVector3d(BuildScale.X * (double)Position.X, BuildScale.Y * (double)Position.Y, BuildScale.Z * (double)Position.Z);
 	}
 
 	inline void GetTriVertices(int32 IDValue, FVector3d& V0, FVector3d& V1, FVector3d& V2) const
 	{
 		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
-		V0 = FVector3d(VertexPositions[TriVertIDs[0]]);
-		V1 = FVector3d(VertexPositions[TriVertIDs[1]]);
-		V2 = FVector3d(VertexPositions[TriVertIDs[2]]);
+		const FVector& A = VertexPositions[TriVertIDs[0]];
+		V0 = FVector3d(BuildScale.X * (double)A.X, BuildScale.Y * (double)A.Y, BuildScale.Z * (double)A.Z);
+		const FVector& B = VertexPositions[TriVertIDs[1]];
+		V1 = FVector3d(BuildScale.X * (double)B.X, BuildScale.Y * (double)B.Y, BuildScale.Z * (double)B.Z);
+		const FVector& C = VertexPositions[TriVertIDs[2]];
+		V2 = FVector3d(BuildScale.X * (double)C.X, BuildScale.Y * (double)C.Y, BuildScale.Z * (double)C.Z);
 	}
 
+	template<typename VectorType>
+	inline void GetTriVertices(int32 IDValue, VectorType& V0, VectorType& V1, VectorType& V2) const
+	{
+		TArrayView<const FVertexID> TriVertIDs = Mesh->GetTriangleVertices(FTriangleID(IDValue));
+		const FVector& A = VertexPositions[TriVertIDs[0]];
+		V0 = VectorType(BuildScale.X * (double)A.X, BuildScale.Y * (double)A.Y, BuildScale.Z * (double)A.Z);
+		const FVector& B = VertexPositions[TriVertIDs[1]];
+		V1 = VectorType(BuildScale.X * (double)B.X, BuildScale.Y * (double)B.Y, BuildScale.Z * (double)B.Z);
+		const FVector& C = VertexPositions[TriVertIDs[2]];
+		V2 = VectorType(BuildScale.X * (double)C.X, BuildScale.Y * (double)C.Y, BuildScale.Z * (double)C.Z);
+	}
 
 	inline bool HasNormals() const
 	{
@@ -102,7 +126,9 @@ public:
 	}
 	FVector3f GetNormal(int32 IDValue) const
 	{
-		return FVector3f(VertexInstanceNormals[FVertexInstanceID(IDValue)]);
+		const FVector& InstanceNormal = VertexInstanceNormals[FVertexInstanceID(IDValue)];
+		return (!bScaleNormals) ? FVector3f(InstanceNormal) :
+			UE::Geometry::Normalized(FVector3f(InstanceNormal.X/BuildScale.X, InstanceNormal.Y/BuildScale.Y, InstanceNormal.Z/BuildScale.Z));
 	}
 };
 

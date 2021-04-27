@@ -132,6 +132,11 @@ public:
 	{
 		return Width == Other.Width && Height == Other.Height;
 	}
+
+	bool operator!=(const FImageDimensions& Other) const
+	{
+		return Width != Other.Width || Height != Other.Height;
+	}
 };
 
 

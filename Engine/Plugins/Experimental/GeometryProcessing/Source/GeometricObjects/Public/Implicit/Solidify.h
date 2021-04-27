@@ -87,7 +87,7 @@ public:
 	}
 
 	/**
-	 * @param bReuseComputed If true, will attempt to reuse previously-computed AABB trees and SDFs where possible
+	 * 
 	 */
 	const FMeshShapeGenerator& Generate()
 	{
@@ -140,6 +140,151 @@ public:
 		return MarchingCubes;
 	}
 };
+
+
+
+
+
+
+
+/**
+ * Use marching cubes to remesh an arbitrary function that provides a winding-number like scalar value to a solid surface
+ */
+class FWindingNumberBasedSolidify
+{
+public:
+
+	FWindingNumberBasedSolidify(
+		TUniqueFunction<double(const FVector3d&)> WindingFunctionIn,
+		const FAxisAlignedBox3d& BoundsIn,
+		const TArray<FVector3d>& SeedPointsIn)
+	{
+		this->WindingFunction = MoveTemp(WindingFunctionIn);
+		this->FunctionBounds = BoundsIn;
+		this->SeedPoints = SeedPointsIn;
+	}
+
+	virtual ~FWindingNumberBasedSolidify()
+	{
+	}
+
+	///
+	/// Inputs
+	///
+
+	/** External Winding-Number Function */
+	TUniqueFunction<double(const FVector3d&)> WindingFunction = [](const FVector3d& Pos) { return 0.0; };
+
+	/** Bounds within which we will mesh things */
+	FAxisAlignedBox3d FunctionBounds;
+
+	/** Seed points for meshing */
+	TArray<FVector3d> SeedPoints;
+
+	/** Inside/outside winding number threshold */
+	double WindingThreshold = .5;
+
+	/** How much to extend bounds considered by marching cubes outside the original surface bounds */
+	double ExtendBounds = 1;
+
+	/** What to do if the surface extends outside the marching cubes bounds -- if true, puts a solid surface at the boundary */
+	bool bSolidAtBoundaries = true;
+
+	/** How many binary search steps to do when placing surface at boundary */
+	int SurfaceSearchSteps = 4;
+
+	/** size of the cells used when meshing the output (marching cubes' cube size) */
+	double MeshCellSize = 1.0;
+
+	/**
+	 * Set cell size to hit the target voxel count along the max dimension of the bounds
+	 */
+	void SetCellSizeAndExtendBounds(const FAxisAlignedBox3d& Bounds, double ExtendBoundsIn, int TargetOutputVoxelCount)
+	{
+		ExtendBounds = ExtendBoundsIn;
+		MeshCellSize = (Bounds.MaxDim() + ExtendBounds * 2.0) / double(TargetOutputVoxelCount);
+	}
+
+	/** if this function returns true, we should abort calculation */
+	TFunction<bool(void)> CancelF = []()
+	{
+		return false;
+	};
+	
+protected:
+
+	FMarchingCubes MarchingCubes;
+
+public:
+
+	/**
+	 * @return true if input parameters are valid
+	 */
+	bool Validate()
+	{
+		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0 && FMath::IsFinite(MeshCellSize);
+		return bValidParams;
+	}
+
+	/**
+	 * 
+	 */
+	const FMeshShapeGenerator& Generate()
+	{
+		MarchingCubes.Reset();
+		if (!ensure(Validate()))
+		{
+			// give up and return and empty result on invalid parameters
+			return MarchingCubes;
+		}
+
+		FAxisAlignedBox3d InternalBounds = FunctionBounds;
+		InternalBounds.Expand(ExtendBounds);
+		
+		MarchingCubes.CubeSize = MeshCellSize;
+
+		MarchingCubes.Bounds = InternalBounds;
+
+		// expand marching cubes bounds beyond the 'internal' bounds to ensure we sample outside the bounds, if solid-at-boundaries is requested
+		if (bSolidAtBoundaries)
+		{
+			MarchingCubes.Bounds.Expand(MeshCellSize * .1);
+		}
+
+		MarchingCubes.RootMode = ERootfindingModes::Bisection;
+		MarchingCubes.RootModeSteps = SurfaceSearchSteps;
+		MarchingCubes.IsoValue = WindingThreshold;
+		MarchingCubes.CancelF = CancelF;
+
+		if (bSolidAtBoundaries)
+		{
+			MarchingCubes.Implicit = [this, InternalBounds](const FVector3d& Pos)
+			{
+				return InternalBounds.Contains(Pos) ? WindingFunction(Pos) : -(WindingThreshold + 1);
+			};
+		}
+		else
+		{
+			MarchingCubes.Implicit = [this](const FVector3d& Pos)
+			{
+				return WindingFunction(Pos);
+			};
+		}
+
+		TArray<FVector3<double>> MCSeeds;
+		for ( const FVector3d& SeedPoint : SeedPoints )
+		{
+			MCSeeds.Add(SeedPoint);
+		}
+		MarchingCubes.GenerateContinuation(MCSeeds);
+
+		return MarchingCubes;
+	}
+};
+
+
+
+
 
 
 } // end namespace UE::Geometry

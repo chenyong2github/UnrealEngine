@@ -43,6 +43,14 @@ public:
 		Image.AssignAll(ClearValue);
 	}
 
+	/**
+	 * @return true if the given X/Y coordinates are inside the image pixel bounds, ie can be used to index a pixel
+	 */
+	bool ContainsPixel(const FVector2i& ImageCoords) const
+	{
+		return ImageCoords.X >= 0 && ImageCoords.Y >= 0 &&
+			ImageCoords.X < Dimensions.GetWidth() && ImageCoords.Y < Dimensions.GetHeight();
+	}
 
 	/**
 	 * Get the Pixel at the given X/Y coordinates
