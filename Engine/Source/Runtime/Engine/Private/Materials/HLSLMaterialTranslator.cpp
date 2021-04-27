@@ -7528,6 +7528,11 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 	}
 
 	check(CustomEntry);
+	if (!CustomEntry->OutputCodeIndex.IsValidIndex(OutputIndex))
+	{
+		return Errorf(TEXT("Invalid custom expression OutputIndex %d"), OutputIndex);
+	}
+
 	int32 Result = CustomEntry->OutputCodeIndex[OutputIndex];
 	if (Custom->IsResultMaterialAttributes(OutputIndex))
 	{
