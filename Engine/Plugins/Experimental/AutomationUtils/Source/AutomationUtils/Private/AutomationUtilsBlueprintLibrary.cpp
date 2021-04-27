@@ -345,14 +345,14 @@ UAutomationUtilsBlueprintLibrary::UAutomationUtilsBlueprintLibrary(const FObject
 
 void UAutomationUtilsBlueprintLibrary::TakeGameplayAutomationScreenshot(const FString ScreenshotName, float MaxGlobalError, float MaxLocalError, FString MapNameOverride)
 {
+	FlushAsyncLoading();
+
 	//Finish Loading Before Screenshot
 	if (!FPlatformProperties::RequiresCookedData())
 	{
-		//Finish Compiling all shaders
-		GShaderCompilingManager->FinishAllCompilation();
+		//Finish Compiling all shaders and other async assets
+		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
-
-	FlushAsyncLoading();
 
 	// Make sure we finish all level streaming
 	if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))

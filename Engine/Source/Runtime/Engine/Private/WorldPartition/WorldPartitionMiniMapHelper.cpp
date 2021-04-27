@@ -54,23 +54,7 @@ AWorldPartitionMiniMap* FWorldPartitionMiniMapHelper::GetWorldPartitionMiniMap(U
 
 void FWorldPartitionMiniMapHelper::CaptureWorldMiniMapToTexture(UWorld* InWorld, UObject* InOuterForTexture, uint32 InMiniMapSize, UTexture2D*& InOutMiniMapTexture, FBox& OutWorldBounds)
 {
-	auto WaitForShaderCompilation = [](){
-		UE_SCOPED_TIMER(TEXT("Shader Compilation"), LogWorldPartitionMiniMapHelper);
-		if (GShaderCompilingManager && GShaderCompilingManager->IsCompiling())
-		{
-			GShaderCompilingManager->FinishAllCompilation();
-		}
-	};
-	auto WaitForDistanceFieldBuilding = []() {
-		UE_SCOPED_TIMER(TEXT("Building Mesh Distance Fields"), LogWorldPartitionMiniMapHelper);
-		if (GDistanceFieldAsyncQueue && GDistanceFieldAsyncQueue->GetNumOutstandingTasks() > 0)
-		{
-			GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
-		}
-	};
-
-	WaitForDistanceFieldBuilding();
-	WaitForShaderCompilation();
+	// Before capturing the scene, make sure all assets are finished compiling
 	FAssetCompilingManager::Get().FinishAllCompilation();
 
 	//Calculate bounds of the World

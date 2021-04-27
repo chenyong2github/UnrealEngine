@@ -8438,37 +8438,12 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
 	}
 
-	// Wait for all shaders to finish compiling
-	if (GShaderCompilingManager)
+	if (FAssetCompilingManager::Get().GetNumRemainingAssets())
 	{
-		UE_LOG(LogCook, Display, TEXT("Waiting for shader compilation..."));
-		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForShaderCompilation);
-		while(GShaderCompilingManager->IsCompiling())
-		{
-			GShaderCompilingManager->ProcessAsyncResults(false, false);
-			FPlatformProcess::Sleep(0.5f);
-		}
-
-		// One last process to get the shaders that were compiled at the very end
-		GShaderCompilingManager->ProcessAsyncResults(false, false);
+		UE_LOG(LogCook, Display, TEXT("Waiting for async compilation..."));
+		// Wait for all assets to finish compiling
+		FAssetCompilingManager::Get().FinishAllCompilation();
 	}
-
-	if (GDistanceFieldAsyncQueue)
-	{
-		UE_LOG(LogCook, Display, TEXT("Waiting for distance field async operations..."));
-		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForDistanceField);
-		GDistanceFieldAsyncQueue->BlockUntilAllBuildsComplete();
-	}
-
-	if (GCardRepresentationAsyncQueue)
-	{
-		UE_LOG(LogCook, Display, TEXT("Waiting for card representation async operations..."));
-		UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave_WaitForCardRepresentation);
-		GCardRepresentationAsyncQueue->BlockUntilAllBuildsComplete();
-	}
-
-	// Wait for all assets to finish compiling
-	FAssetCompilingManager::Get().ProcessAsyncTasks(false);
 
 	// Wait for all platform data to be loaded
 	{
