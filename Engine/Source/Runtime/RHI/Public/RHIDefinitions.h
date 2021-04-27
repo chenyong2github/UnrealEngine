@@ -1885,21 +1885,6 @@ inline uint32 GetExpectedFeatureLevelMaxTextureSamplers(const FStaticFeatureLeve
 	return 16;
 }
 
-inline int32 GetFeatureLevelMaxNumberOfBones(const FStaticFeatureLevel FeatureLevel)
-{
-	switch (FeatureLevel)
-	{
-	case ERHIFeatureLevel::ES3_1:
-		return 75;	
-	case ERHIFeatureLevel::SM5:
-		return 65536; // supports uint16
-	default:
-		checkf(0, TEXT("Unknown FeatureLevel %d"), (int32)FeatureLevel);
-	}
-
-	return 0;
-}
-
 /** Returns whether the shader parameter type references an RDG texture. */
 inline bool IsRDGTextureReferenceShaderParameterType(EUniformBufferBaseType BaseType)
 {
