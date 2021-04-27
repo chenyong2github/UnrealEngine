@@ -48,6 +48,7 @@ void ULiveLinkComponentController::OnSubjectRoleChanged()
 	}
 	else
 	{
+		UActorComponent* DesiredActorComponent = nullptr;
 		TArray<TSubclassOf<ULiveLinkRole>> SelectedRoleHierarchy = GetSelectedRoleHierarchyClasses(SubjectRepresentation.Role);
 		ControllerMap.Empty(SelectedRoleHierarchy.Num());
 		for (const TSubclassOf<ULiveLinkRole>& RoleClass : SelectedRoleHierarchy)
@@ -59,8 +60,31 @@ void ULiveLinkComponentController::OnSubjectRoleChanged()
 
 				TSubclassOf<ULiveLinkControllerBase> SelectedControllerClass = GetControllerClassForRoleClass(RoleClass);
 				SetControllerClassForRole(RoleClass, SelectedControllerClass);
+
+				//Keep track of the most specific available component in the hierarchy
+				if (SelectedControllerClass)
+				{
+					if (AActor* Actor = GetOwner())
+					{
+						TSubclassOf<UActorComponent> DesiredClass = SelectedControllerClass.GetDefaultObject()->GetDesiredComponentClass();
+						if (UActorComponent* ActorComponent = Actor->GetComponentByClass(DesiredClass))
+						{
+							DesiredActorComponent = ActorComponent;
+						}
+					}
+				}
 			}
 		}
+
+		//After creating the controller hierarchy, update component to control to the highest in the hierarchy.
+#if WITH_EDITOR
+		if (ComponentToControl.ComponentProperty == NAME_None && DesiredActorComponent != nullptr)
+		{
+			AActor* Actor = GetOwner();
+			check(Actor);
+			ComponentToControl = FComponentEditorUtils::MakeComponentReference(Actor, DesiredActorComponent);
+		}
+#endif
 	}
 }
 
