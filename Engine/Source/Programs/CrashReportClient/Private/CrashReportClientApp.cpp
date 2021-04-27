@@ -432,6 +432,18 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 
 	// @note: This API is only partially implemented on Mac OS and Linux.
 	FProcHandle ProcessHandle = FPlatformProcess::OpenProcess(Pid);
+	if (!ProcessHandle.IsValid())
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/OpenProcessFail"));
+	}
+	else if (SharedCrashContext.CrashingThreadId == 0)
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/BadCrashThreadId"));
+	}
+	else if (SharedCrashContext.NumThreads == CR_MAX_THREADS)
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/BumpThreadLimits"));
+	}
 
 	// First init the static crash context state
 	FPlatformCrashContext::InitializeFromContext(
