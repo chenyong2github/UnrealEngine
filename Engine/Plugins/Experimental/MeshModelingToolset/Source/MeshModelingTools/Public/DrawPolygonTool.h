@@ -143,7 +143,8 @@ public:
 	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
 	bool bSnapToAngles = true;
 
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping", EditConditionHides))
+	/** When snapping to an angle, also prefer to snap to an existing segment length */
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Snapping, Meta = (EditCondition = "bEnableSnapping && bSnapToAngles", EditConditionHides))
 	bool bSnapToLengths = true;
 
 	UPROPERTY(VisibleAnywhere, NonTransactional, Category = Snapping, meta = (TransientToolProperty))
