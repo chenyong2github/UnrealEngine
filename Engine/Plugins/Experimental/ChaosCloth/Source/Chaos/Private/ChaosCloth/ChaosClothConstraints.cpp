@@ -76,7 +76,7 @@ void FClothConstraints::CreateRules()
 		ConstraintRuleOffset = Evolution->AddConstraintRuleRange(NumConstraintRules, false);
 	}
 
-	TFunction<void(const FPBDParticles&)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
+	TFunction<void(const FPBDParticles&, const FReal)>* const ConstraintInits = Evolution->ConstraintInits().GetData() + ConstraintInitOffset;
 	TFunction<void(FPBDParticles&, const FReal)>* const ConstraintRules = Evolution->ConstraintRules().GetData() + ConstraintRuleOffset;
 
 	int32 ConstraintInitIndex = 0;
@@ -85,7 +85,7 @@ void FClothConstraints::CreateRules()
 	if (XEdgeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
 			{
 				XEdgeConstraints->Init();
 			};
@@ -107,7 +107,7 @@ void FClothConstraints::CreateRules()
 	if (XBendingConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
 			{
 				XBendingConstraints->Init();
 			};
@@ -136,7 +136,7 @@ void FClothConstraints::CreateRules()
 	if (XAreaConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal /*Dt*/)
 			{
 				XAreaConstraints->Init();
 			};
@@ -173,9 +173,10 @@ void FClothConstraints::CreateRules()
 	if (XLongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& /*Particles*/)
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
 			{
 				XLongRangeConstraints->Init();
+				XLongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
@@ -185,6 +186,11 @@ void FClothConstraints::CreateRules()
 	}
 	if (LongRangeConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
+			{
+				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
@@ -209,10 +215,15 @@ void FClothConstraints::CreateRules()
 	}
 	if (AnimDriveConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](const FPBDParticles& /*Particles*/, const FReal Dt)
+			{
+				AnimDriveConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
+
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](FPBDParticles& Particles, const FReal Dt)
 			{
-				AnimDriveConstraints->ApplyProperties(Dt, Evolution->GetIterations());  // TODO: Move to init, there is no reason to update this at every iterations
 				AnimDriveConstraints->Apply(Particles, Dt);
 			};
 	}
@@ -227,7 +238,7 @@ void FClothConstraints::CreateRules()
 	if (SelfCollisionConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](const FPBDParticles& Particles)
+			[this](const FPBDParticles& Particles, const FReal /*Dt*/)
 			{
 				SelfCollisionConstraints->Init(Particles);
 			};
@@ -318,30 +329,37 @@ void FClothConstraints::SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceEleme
 	++NumConstraintRules;
 }
 
-void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<uint32>>& PointToNeighborsMap, FReal StrainLimitingStiffness, FReal LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
+void FClothConstraints::SetLongRangeConstraints(const TMap<int32, TSet<int32>>& PointToNeighborsMap, const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const FVec2& TetherStiffness, FReal LimitScale, ETetherMode TetherMode, bool bUseXPBDConstraints)
 {
 	check(Evolution);
-	check(StrainLimitingStiffness > 0.f && StrainLimitingStiffness <= 1.f);
+
+	static const int32 MaxNumTetherIslands = 4;  // The max number of connected neighbors per particle.
 
 	if (bUseXPBDConstraints)
 	{
 		XLongRangeConstraints = MakeShared<FXPBDLongRangeConstraints>(
 			Evolution->Particles(),
-			PointToNeighborsMap, 
-			10, // The max number of connected neighbors per particle.
-			StrainLimitingStiffness);  // TODO: Add LimitScale to the XPBD constraint
-		++NumConstraintInits;
+			ParticleOffset,
+			NumParticles,
+			PointToNeighborsMap,
+			TetherStiffnessMultipliers,
+			MaxNumTetherIslands,
+			TetherStiffness);  // TODO: Add LimitScale to the XPBD constraint
 	}
 	else
 	{
 		LongRangeConstraints = MakeShared<FPBDLongRangeConstraints>(
 			Evolution->Particles(),
+			ParticleOffset,
+			NumParticles,
 			PointToNeighborsMap,
-			10, // The max number of connected neighbors per particle.
-			StrainLimitingStiffness,
+			TetherStiffnessMultipliers,
+			MaxNumTetherIslands,
+			TetherStiffness,
 			LimitScale,
 			TetherMode);
 	}
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
@@ -377,6 +395,7 @@ void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<FReal>& An
 		*OldAnimationPositions,
 		AnimDriveStiffnessMultipliers,
 		AnimDriveDampingMultipliers);
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
@@ -459,7 +478,7 @@ void FClothConstraints::SetVolumeProperties(FReal VolumeStiffness)
 	}
 }
 
-void FClothConstraints::SetLongRangeAttachmentProperties(FReal TetherStiffness)
+void FClothConstraints::SetLongRangeAttachmentProperties(const FVec2& TetherStiffness)
 {
 	if (LongRangeConstraints)
 	{

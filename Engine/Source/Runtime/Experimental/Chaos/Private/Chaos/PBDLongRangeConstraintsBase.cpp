@@ -4,68 +4,73 @@
 #include "Chaos/Map.h"
 #include "Chaos/Vector.h"
 #include "Chaos/Framework/Parallel.h"
+#include "ChaosStats.h"
 
-#include <queue>
-#include <unordered_map>
+DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Compute Geodesic Constraints"), STAT_ChaosClothComputeGeodesicConstraints, STATGROUP_Chaos);
 
 using namespace Chaos;
 
 FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
-	const FDynamicParticles& InParticles,
-	const TMap<int32, TSet<uint32>>& PointToNeighbors,
-	const int32 NumberOfAttachments,
-	const FReal Stiffness,
+	const FPBDParticles& Particles,
+	const int32 InParticleOffset,
+	const int32 InParticleCount,
+	const TMap<int32, TSet<int32>>& PointToNeighbors,
+	const TConstArrayView<FReal>& StiffnessMultipliers,
+	const int32 MaxNumTetherIslands,
+	const FVec2& InStiffness,
 	const FReal LimitScale,
-	const EMode Mode)
-	: MStiffness(Stiffness)
-	, MMode(Mode)
+	const EMode InMode)
+	: TethersView(Tethers)
+	, Stiffness(StiffnessMultipliers, InStiffness, InParticleCount)
+	, Mode(InMode)
+	, ParticleOffset(InParticleOffset)
+	, ParticleCount(InParticleCount)
 {
-	switch (MMode)
+	switch (Mode)
 	{
-	case EMode::FastTetherFastLength:
-		ComputeEuclideanConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
+	case EMode::Euclidean:
+		ComputeEuclideanConstraints(Particles, PointToNeighbors, MaxNumTetherIslands);
 		break;
-	case EMode::AccurateTetherFastLength:
-	case EMode::AccurateTetherAccurateLength:
-		ComputeGeodesicConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
+	case EMode::Geodesic:
+		ComputeGeodesicConstraints(Particles, PointToNeighbors, MaxNumTetherIslands);
 		break;
 	default:
 		unimplemented();
 		break;
 	}
 
-	// Scale distance limits
-	for (FReal& Dist : MDists)
+	// Scale the tether's reference lengths
+	for (FTether& Tether : Tethers)
 	{
-		Dist *= LimitScale;
+		Tether.RefLength *= LimitScale;
 	}
 }
 
-TArray<TArray<uint32>> FPBDLongRangeConstraintsBase::ComputeIslands(
-    const TMap<int32, TSet<uint32>>& PointToNeighbors,
-    const TArray<uint32>& KinematicParticles)
+TArray<TArray<int32>> FPBDLongRangeConstraintsBase::ComputeIslands(
+    const TMap<int32, TSet<int32>>& PointToNeighbors,
+    const TArray<int32>& KinematicParticles)
 {
 	// Compute Islands
-	uint32 NextIsland = 0;
-	TArray<uint32> FreeIslands;
-	TArray<TArray<uint32>> IslandElements;
+	int32 NextIsland = 0;
+	TArray<int32> FreeIslands;
+	TArray<TArray<int32>> IslandElements;
 
-	TMap<uint32, uint32> ParticleToIslandMap;
+	TMap<int32, int32> ParticleToIslandMap;
 	ParticleToIslandMap.Reserve(KinematicParticles.Num());
 
-	for (const uint32 Element : KinematicParticles)
+	for (const int32 Element : KinematicParticles)
 	{
-		// Assign Element an island, possibly unioning existing islands
-		uint32 Island = TNumericLimits<uint32>::Max();
+		// Assign Element an island, possibly unionizing existing islands
+		int32 Island = TNumericLimits<int32>::Max();
 
 		// KinematicParticles is generated from the keys of PointToNeighbors, so
 		// we don't need to check if Element exists.
-		const TSet<uint32>& Neighbors = PointToNeighbors[Element];
-		for (auto Neighbor : Neighbors)
+		const TSet<int32>& Neighbors = PointToNeighbors[Element];
+		for (const int32 Neighbor : Neighbors)
 		{
 			if (ParticleToIslandMap.Contains(Neighbor))
 			{
-				if (Island == TNumericLimits<uint32>::Max())
+				if (Island == TNumericLimits<int32>::Max())
 				{
 					// We don't have an assigned island yet.  Join with the island
 					// of the neighbor.
@@ -73,12 +78,12 @@ TArray<TArray<uint32>> FPBDLongRangeConstraintsBase::ComputeIslands(
 				}
 				else
 				{
-					const uint32 OtherIsland = ParticleToIslandMap[Neighbor];
+					const int32 OtherIsland = ParticleToIslandMap[Neighbor];
 					if (OtherIsland != Island)
 					{
 						// This kinematic particle is connected to multiple islands.
 						// Union them.
-						for (auto OtherElement : IslandElements[OtherIsland])
+						for (const int32 OtherElement : IslandElements[OtherIsland])
 						{
 							check(ParticleToIslandMap[OtherElement] == OtherIsland);
 							ParticleToIslandMap[OtherElement] = Island;
@@ -93,7 +98,7 @@ TArray<TArray<uint32>> FPBDLongRangeConstraintsBase::ComputeIslands(
 
 		// If no connected Island was found, create a new one (or reuse an old 
 		// vacated one).
-		if (Island == TNumericLimits<uint32>::Max())
+		if (Island == TNumericLimits<int32>::Max())
 		{
 			if (FreeIslands.Num() == 0)
 			{
@@ -111,249 +116,343 @@ TArray<TArray<uint32>> FPBDLongRangeConstraintsBase::ComputeIslands(
 		check(IslandElements.IsValidIndex(Island));
 		IslandElements[Island].Add(Element);
 	}
+
 	// IslandElements may contain empty arrays.
+	for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); )
+	{
+		if (!IslandElements[IslandIndex].Num())
+		{
+			IslandElements.RemoveAtSwap(IslandIndex, 1, false);  // RemoveAtSwap takes the last elements to replace the current one, do not increment the index in this case
+		}
+		else
+		{
+			++IslandIndex;
+		}
+	}
+
 	return IslandElements;
 }
 
 void FPBDLongRangeConstraintsBase::ComputeEuclideanConstraints(
-    const FDynamicParticles& InParticles,
-    const TMap<int32, TSet<uint32>>& PointToNeighbors,
-    const int32 NumberOfAttachments)
+    const FPBDParticles& Particles,
+    const TMap<int32, TSet<int32>>& PointToNeighbors,
+    const int32 MaxNumTetherIslands)
 {
-	// TODO(mlentine): Support changing which particles are kinematic during simulation
-	TArray<uint32> KinematicParticles;
-	for (const auto& KV : PointToNeighbors)
+	// Fill up the list of all used indices
+	TArray<int32> Nodes;
+	PointToNeighbors.GenerateKeyArray(Nodes);
+
+	TArray<int32> KinematicParticles;
+	for (const int32 Node : Nodes)
 	{
-		const int32 i = KV.Key;
-		if (InParticles.InvM(i) == 0.0)
+		if (Particles.InvM(Node) == (FReal)0.)
 		{
-			KinematicParticles.Add(i);
+			KinematicParticles.Add(Node);
 		}
 	}
 
 	// Compute the islands of kinematic particles
-	const TArray<TArray<uint32>> IslandElements = ComputeIslands(PointToNeighbors, KinematicParticles);
+	const TArray<TArray<int32>> IslandElements = ComputeIslands(PointToNeighbors, KinematicParticles);
 	int32 NumTotalIslandElements = 0;
-	for(const auto& Elements : IslandElements)
-		NumTotalIslandElements += Elements.Num();
-	TArray<Pair<FReal, uint32>> ClosestElements;
-	ClosestElements.Reserve(NumTotalIslandElements);
-
-	//FCriticalSection CriticalSection;
-	//PhysicsParallelFor(InParticles.Size(), [&](int32 i)
-	for (const auto& KV : PointToNeighbors)
+	for (const TArray<int32>& Elements : IslandElements)
 	{
+		NumTotalIslandElements += Elements.Num();
+	}
+
+	TArray<TArray<FTether>> NewTethersSlots;
+	NewTethersSlots.SetNum(Nodes.Num());
+
+	for (TArray<FTether>& NewTethers : NewTethersSlots)
+	{
+		NewTethers.Reserve(MaxNumTetherIslands);
+	}
+
+	int32 NumTethers = 0;
+
+	PhysicsParallelFor(Nodes.Num(), [&](int32 Index)
+	{
+		const int32 Node = Nodes[Index];
+
 		// For each non-kinematic particle i...
-		const uint32 i = KV.Key;
-		if (InParticles.InvM(i) == 0.0)
-			continue;
+		if (Particles.InvM(Node) == (FReal)0.)
+		{
+			return;
+		}
 
 		// Measure the distance to all kinematic particles in all islands...
-		ClosestElements.Reset();
-		for (const TArray<uint32>& Elements : IslandElements)
+		TArray<Pair<FReal, int32>> ClosestElements;
+		ClosestElements.Reserve(NumTotalIslandElements);
+
+		for (const TArray<int32>& Elements : IslandElements)
 		{
 			// IslandElements may contain empty arrays.
 			if (Elements.Num() == 0)
-				continue;
-
-			uint32 ClosestElement = TNumericLimits<uint32>::Max();
-			FReal ClosestDistance = TNumericLimits<FReal>::Max();
-			for (const uint32 Element : Elements)
 			{
-				const FReal Distance = ComputeDistance(InParticles, Element, i);
-				if (Distance < ClosestDistance)
+				continue;
+			}
+
+			int32 ClosestElement = TNumericLimits<int32>::Max();
+			FReal ClosestSquareDistance = TNumericLimits<FReal>::Max();
+			for (const int32 Element : Elements)
+			{
+				const FReal SquareDistance = (Particles.X(Element) - Particles.X(Node)).SizeSquared();
+				if (SquareDistance < ClosestSquareDistance)
 				{
 					ClosestElement = Element;
-					ClosestDistance = Distance;
+					ClosestSquareDistance = SquareDistance;
 				}
 			}
-			ClosestElements.Add(MakePair(ClosestDistance, ClosestElement));
+			ClosestElements.Add(MakePair(FMath::Sqrt(ClosestSquareDistance), ClosestElement));
 		}
 
 		// Order all by distance, smallest first...
 		ClosestElements.Sort();
 
-		// Take the first N-umberOfAttachments.
-		if (NumberOfAttachments < ClosestElements.Num())
+		// Take the first MaxNumTetherIslands.
+		if (MaxNumTetherIslands < ClosestElements.Num())
 		{
-			ClosestElements.SetNum(NumberOfAttachments);
+			ClosestElements.SetNum(MaxNumTetherIslands);
 		}
 
 		// Add constraints between this particle, and the N closest...
-		for (auto Element : ClosestElements)
+		for (const Pair<FReal, int32> Element : ClosestElements)
 		{
-			//CriticalSection.Lock();
-			MEuclideanConstraints.Add({Element.Second, i});
-			MDists.Add(Element.First);
-			//CriticalSection.Unlock();
+			NewTethersSlots[Index].Emplace(Element.Second, Node, Element.First);
+			++NumTethers;
 		}
+	});
+
+	// Consolidate the N slots into one single list of tethers, spreading the nodes across different ranges for parallel processing
+	Tethers.Reset(NumTethers);
+
+	for (int32 Slot = 0; Slot < MaxNumTetherIslands; ++Slot)
+	{
+		int32 Size = 0;
+		for (int32 Index = 0; Index < Nodes.Num(); ++Index)
+		{
+			if (NewTethersSlots[Index].IsValidIndex(Slot))
+			{
+				Tethers.Emplace(NewTethersSlots[Index][Slot]);
+				++Size;
+			}
+		}
+		TethersView.AddRange(Size);
 	}
-	//);
 }
 
 void FPBDLongRangeConstraintsBase::ComputeGeodesicConstraints(
-    const FDynamicParticles& InParticles,
-    const TMap<int32, TSet<uint32>>& PointToNeighbors,
-    const int32 NumberOfAttachments)
+    const FPBDParticles& Particles,
+    const TMap<int32, TSet<int32>>& PointToNeighbors,
+    const int32 MaxNumTetherIslands)
 {
-	TArray<int32> UsedIndices;
-	PointToNeighbors.GenerateKeyArray(UsedIndices);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosClothComputeGeodesicConstraints);
 
-	// TODO(mlentine): Support changing which particles are kinematic during simulation
-	TArray<uint32> KinematicParticles;
-	for (const uint32 i : UsedIndices)
+	// Fill up the list of all used indices
+	TArray<int32> Nodes;
+	PointToNeighbors.GenerateKeyArray(Nodes);
+
+	// Find all kinematic points to use as anchor points for the tethers and seed the path finding
+	TArray<int32> Seeds;  // Kinematic nodes connected to at least one dynamic node
+	Seeds.Reserve(Nodes.Num() / 10);  // Start at 10% seeds to minimize this array's reallocation
+
+	int32 NumDynamicNodes = 0;
+
+	for (const int32 Node : Nodes)
 	{
-		if (InParticles.InvM(i) == 0)
+		if (Particles.InvM(Node) == (FReal)0.)
 		{
-			KinematicParticles.Add(i);
-		}
-	}
-	TArray<TArray<uint32>> IslandElements = ComputeIslands(PointToNeighbors, KinematicParticles);
-	// Store distances for all adjacent vertices
-	TMap<TVector<uint32, 2>, FReal> Distances;
-	for (const uint32 i : UsedIndices)
-	{
-		auto Neighbors = PointToNeighbors[i];
-		for (auto Neighbor : Neighbors)
-		{
-			Distances.Add(TVector<uint32, 2>(i, Neighbor), ComputeDistance(InParticles, Neighbor, i));
-		}
-	}
-	// Start and End Points to path and geodesic distance
-	TMap<TVector<uint32, 2>, Pair<FReal, TArray<uint32>>> GeodesicPaths;
-	// Dijkstra for each Kinematic Particle (assume a small number of kinematic points) - note this is N^2 log N with N kinematic points
-	for (const uint32 Element : KinematicParticles)
-	{
-		GeodesicPaths.Add(TVector<uint32, 2>(Element, Element), {0, {Element}});
-		for (const uint32 i : UsedIndices)
-		{
-			if (i != Element)
+			const TSet<int32>& Neighbors = PointToNeighbors[Node];
+			for (const int32 Neighbor : Neighbors)
 			{
-				GeodesicPaths.Add(TVector<uint32, 2>(Element, i), {FLT_MAX, {}});
-			}
-		}
-	}
-	PhysicsParallelFor(KinematicParticles.Num(), [&](int32 Index)
-	{
-		const uint32 Element = KinematicParticles[Index];
-		std::priority_queue<Pair<FReal, uint32>, std::vector<Pair<FReal, uint32>>, std::greater<Pair<FReal, uint32>>> q;  // TODO(Kriss.Gossart): Remove use of std container
-		q.push(MakePair((FReal)0., Element));
-		TSet<uint32> Visited;
-		while (!q.empty())
-		{
-			const Pair<FReal, uint32> PairElem = q.top();
-			q.pop();
-			if (Visited.Contains(PairElem.Second))
-				continue;
-			Visited.Add(PairElem.Second);
-			const TVector<uint32, 2> CurrentStartEnd(Element, PairElem.Second);
-			const TSet<uint32>& Neighbors = PointToNeighbors[PairElem.Second];
-			for (const uint32 Neighbor : Neighbors)
-			{
-				if (InParticles.InvM(Neighbor) == (FReal)0.) { continue; }
-				check(Neighbor != PairElem.Second);
-				const TVector<uint32, 2> NeighborStartEnd(Element, Neighbor);
-				const Pair<FReal, TArray<uint32>>& NeighborDistancePath = GeodesicPaths[NeighborStartEnd];
-				// Compute a possible distance for NeighborStartEnd
-				const FReal NewDist = PairElem.First + Distances[TVector<uint32, 2>(PairElem.Second, Neighbor)];
-				if (NewDist < NeighborDistancePath.First)
+				if (Particles.InvM(Neighbor) != (FReal)0.)  // There's no point to keep a node as an anchor, unless at least one of its neighbors is dynamic
 				{
-					TArray<uint32> NewPath = GeodesicPaths[CurrentStartEnd].Second;
-					check(NewPath.Num() > 0 && NewPath[NewPath.Num() - 1] != Neighbor);
-					NewPath.Add(Neighbor);
-					GeodesicPaths[NeighborStartEnd] = {NewDist, NewPath};
-					q.push(MakePair(GeodesicPaths[NeighborStartEnd].First, Neighbor));
+					Seeds.Add(Node);
+					break;
 				}
 			}
 		}
-	});
-	TArray<TArray<uint32>> NewConstraints;
-	FCriticalSection CriticalSection;
-	PhysicsParallelFor(UsedIndices.Num(), [&](uint32 UsedIndex) {
-		const uint32 i = UsedIndices[UsedIndex];
-		if (InParticles.InvM(i) == 0)
-			return;
-		TArray<Pair<FReal, int32>> ClosestElements;
-		for (const TArray<uint32>& Elements : IslandElements)
+		else
 		{
-			if (!Elements.Num()) { continue; }  // Empty island 
+			++NumDynamicNodes;
+		}
+	}
 
-			int32 ClosestElement = INDEX_NONE;
-			FReal ClosestDistance = FLT_MAX;
+	// Dijkstra for each Kinematic Particle (assume a small number of kinematic points) - note this is N^2 log N with N kinematic points
+	// Find shortest paths from each kinematic node to all dynamic nodes
+	TMap<TVec2<int32>, FReal> GeodesicDistances;
+	GeodesicDistances.Reserve(Seeds.Num() * NumDynamicNodes);
 
-			for (const uint32 Element : Elements)
+	for (const int32 Seed : Seeds)
+	{
+		for (const int32 Node : Nodes)
+		{
+			if (Particles.InvM(Node) != (FReal)0.)
 			{
-				const FReal Distance = GeodesicPaths[TVector<uint32, 2>(Element, i)].First;
+				GeodesicDistances.Emplace(TVec2<int32>(Seed, Node), Node != Seed ? TNumericLimits<FReal>::Max() : (FReal)0.);
+			}
+		}
+	}
+
+	PhysicsParallelFor(Seeds.Num(), [&](int32 Index)
+	{
+		const int32 Seed = Seeds[Index];
+
+		// Keep track of all visited nodes in a bit array, will need to be offsetted since the first node index may not be 0
+		TBitArray<> VisitedNodes(false, Nodes.Num());
+
+		// Priority queue based implementation of the Dijkstra algorithm
+#define CHAOS_PBDLONGRANGEATTACHMENT_PROFILE_HEAPSIZE 0
+#if CHAOS_PBDLONGRANGEATTACHMENT_PROFILE_HEAPSIZE
+		static int32 MaxHeapSize = 1;  // Record the max heap size
+#else
+		static const int32 MaxHeapSize = 512;  // Set the queue size to something large enough to avoid reallocations in most cases
+#endif
+		auto LessPredicate = [Seed, &GeodesicDistances](int32 Node1, int32 Node2) -> bool
+			{
+				return GeodesicDistances[TVec2<int32>(Seed, Node1)] < GeodesicDistances[TVec2<int32>(Seed, Node2)];  // Less for node priority
+			};
+
+		TArray<int32> Queue;
+		Queue.Reserve(MaxHeapSize);
+		Queue.Heapify(LessPredicate);  // Turn the array into a priority queue
+
+		// Initiate the graph progression
+		VisitedNodes[Seed - ParticleOffset] = true;
+		Queue.HeapPush(Seed, LessPredicate);
+
+		do
+		{
+			int32 ParentNode;
+			Queue.HeapPop(ParentNode, LessPredicate, false);
+
+			check(VisitedNodes[ParentNode - ParticleOffset]);
+
+			const FReal ParentDistance = (ParentNode != Seed) ? GeodesicDistances[TVec2<int32>(Seed, ParentNode)] : (FReal)0.;
+
+			const TSet<int32>& NeighborNodes = PointToNeighbors[ParentNode];
+			for (const int32 NeighborNode : NeighborNodes)
+			{
+				check(NeighborNode != ParentNode);
+
+				// Do not progress onto kinematic nodes
+				if (Particles.InvM(NeighborNode) == (FReal)0.)
+				{
+					continue;
+				}
+
+				// Update the geodesic distance if this path is a shorter one
+				const FReal NewDistance = ParentDistance + (Particles.X(NeighborNode) - Particles.X(ParentNode)).Size();
+
+				FReal& GeodesicDistance = GeodesicDistances[TVec2<int32>(Seed, NeighborNode)];
+
+				if (NewDistance < GeodesicDistance)
+				{
+					// Update this path distance
+					GeodesicDistance = NewDistance;
+
+					// Progress to this node position if it hasn't yet been visited
+					if (!VisitedNodes[NeighborNode - ParticleOffset])
+					{
+						VisitedNodes[NeighborNode - ParticleOffset] = true;
+
+						Queue.HeapPush(NeighborNode, LessPredicate);
+
+#if CHAOS_PBDLONGRANGEATTACHMENT_PROFILE_HEAPSIZE
+						MaxHeapSize = FMath::Max(Queue.Num(), MaxHeapSize);
+#endif
+					}
+				}
+			}
+		} while (Queue.Num());
+	});
+
+	// Compute islands of kinematic points
+	const TArray<TArray<int32>> Islands = ComputeIslands(PointToNeighbors, Seeds);
+
+	// Find the tether constraints starting from each dynamic node
+	TArray<TArray<FTether>> NewTethersSlots;
+	NewTethersSlots.SetNum(Nodes.Num());
+
+	for (TArray<FTether>& NewTethers : NewTethersSlots)
+	{
+		NewTethers.Reserve(MaxNumTetherIslands);
+	}
+
+	TAtomic<int32> NumTethers(0);
+
+	PhysicsParallelFor(Nodes.Num(), [&](int32 Index)
+	{
+		const int32 Node = Nodes[Index];
+		if (Particles.InvM(Node) == (FReal)0.)
+		{
+			return;  // No tethers on dynamic particles
+		}
+
+		// Find the closest seeds in each island
+		TArray<int32, TInlineAllocator<32>> ClosestSeeds;
+		ClosestSeeds.Reserve(Islands.Num());
+
+		for (const TArray<int32>& Seeds : Islands)
+		{
+			if (!Seeds.Num())
+			{
+				continue;  // Empty island 
+			}
+
+			int32 ClosestSeed = INDEX_NONE;
+			FReal ClosestDistance = TNumericLimits<FReal>::Max();
+
+			for (const int32 Seed : Seeds)
+			{
+				const FReal Distance = GeodesicDistances[TVec2<int32>(Seed, Node)];
 				if (Distance < ClosestDistance)
 				{
 					ClosestDistance = Distance;
-					ClosestElement = Element;
+					ClosestSeed = Seed;
 				}
 			}
-			if (ClosestElement == INDEX_NONE) { continue; }  // Not on this island
+			if (ClosestSeed != INDEX_NONE)
+			{
+				ClosestSeeds.Add(ClosestSeed);
+			}
+		}
 
-			const TVector<uint32, 2> Index(ClosestElement, i);
-			check(GeodesicPaths[Index].First != FLT_MAX);
-			check(GeodesicPaths[Index].Second.Num() > 1);
-			ClosestElements.Add(MakePair(ClosestDistance, ClosestElement));
-		}
-		// How to sort based on smalled first value of pair....
-		ClosestElements.Sort();
-		if (NumberOfAttachments < ClosestElements.Num())
+		// Sort all the tethers for this node based on smallest distance
+		ClosestSeeds.Sort([&GeodesicDistances, Node](int32 Seed1, int32 Seed2)
+			{
+				return GeodesicDistances[TVec2<int32>(Seed1, Node)] < GeodesicDistances[TVec2<int32>(Seed2, Node)];
+			});
+
+		// Keep only N closest tethers
+		if (MaxNumTetherIslands < ClosestSeeds.Num())
 		{
-			ClosestElements.SetNum(NumberOfAttachments);
+			ClosestSeeds.SetNum(MaxNumTetherIslands);
 		}
-		for (const Pair<FReal, int32>& Element : ClosestElements)
+
+		// Add these tethers to the N (or less) available slots
+		for (const int32 Seed : ClosestSeeds)
 		{
-			const TVector<uint32, 2> Index(Element.Second, i);
-			check(GeodesicPaths[Index].First == Element.First);
-			check(FGenericPlatformMath::Abs(Element.First - ComputeGeodesicDistance(InParticles, GeodesicPaths[Index].Second)) < 1e-4);
-			CriticalSection.Lock();
-			NewConstraints.Add(GeodesicPaths[Index].Second);
-			MDists.Add(Element.First);
-			CriticalSection.Unlock();
+			const FReal RefLength = GeodesicDistances[TVec2<int32>(Seed, Node)];
+			NewTethersSlots[Index].Emplace(Seed, Node, RefLength);
+			++NumTethers;
 		}
+		check(NewTethersSlots[Index].Num() <= MaxNumTetherIslands);
 	});
-	// TODO(mlentine): This should work by just reverse sorting and not needing the filtering but it may not be guaranteed. Work out if this is actually guaranteed or not.
-	NewConstraints.Sort([](const TArray<uint32>& Elem1, const TArray<uint32>& Elem2) { return Elem1.Num() > Elem2.Num(); });
-	TArray<FReal> NewDists;
-	TMap<TVector<uint32, 2>, TArray<uint32>> ProcessedPairs;
-	for (uint32 i = 0; i < static_cast<uint32>(NewConstraints.Num()); ++i)
+
+	// Consolidate the N slots into one single list of tethers, spreading the nodes across different ranges for parallel processing
+	Tethers.Reset(NumTethers);
+
+	for (int32 Slot = 0; Slot < MaxNumTetherIslands; ++Slot)
 	{
-		const TVector<uint32, 2> Traverse(NewConstraints[i][0], NewConstraints[i].Last());
-		if (const TArray<uint32>* TraversePath = ProcessedPairs.Find(Traverse))
+		int32 Size = 0;
+		for (int32 Index = 0; Index < Nodes.Num(); ++Index)
 		{
-			check(NewConstraints[i].Num() == TraversePath->Num());
-			for (uint32 j = 0; j < static_cast<uint32>(TraversePath->Num()); ++j)
+			if (NewTethersSlots[Index].IsValidIndex(Slot))
 			{
-				check((*TraversePath)[j] == NewConstraints[i][j]);
+				Tethers.Emplace(NewTethersSlots[Index][Slot]);
+				++Size;
 			}
-			continue;
 		}
-		TArray<uint32> Path;
-		FReal Dist = (FReal)0.;
-		Path.Add(NewConstraints[i][0]);
-		for (uint32 j = 1; j < static_cast<uint32>(NewConstraints[i].Num() - 1); ++j)
-		{
-			Dist += (InParticles.X(NewConstraints[i][j]) - InParticles.X(NewConstraints[i][j - 1])).Size();
-			Path.Add(NewConstraints[i][j]);
-			switch (MMode)
-			{
-			case EMode::AccurateTetherFastLength:
-				MEuclideanConstraints.Add({Path[0], Path[Path.Num() - 1]}) ;                // Use euclidean (beeline) distance
-				NewDists.Add(ComputeDistance(InParticles, Path[0], Path[Path.Num() - 1]));  // Fastest method in ISPC
-				break;
-			case EMode::AccurateTetherAccurateLength:
-				MGeodesicConstraints.Add(Path);
-				NewDists.Add(Dist);
-				break;
-			default:
-				unimplemented();
-				break;
-			}
-			const TVector<uint32, 2> SubTraverse(NewConstraints[i][0], NewConstraints[i][j]);
-			ProcessedPairs.Add(SubTraverse, Path);
-		}
+		TethersView.AddRange(Size);
 	}
-	MDists = NewDists;
 }

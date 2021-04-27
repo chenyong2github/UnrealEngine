@@ -347,9 +347,9 @@ void FPBDEvolution::AdvanceOneTimeStep(const FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ChaosXPBDConstraintsInit);
 		MConstraintInitsActiveView.SequentialFor(
-			[this](TArray<TFunction<void(const FPBDParticles&)>>& ConstraintInits, int32 Index)
+			[this, Dt](TArray<TFunction<void(const FPBDParticles&, const FReal)>>& ConstraintInits, int32 Index)
 			{
-				ConstraintInits[Index](MParticles);
+				ConstraintInits[Index](MParticles, Dt);
 			});
 	}
 

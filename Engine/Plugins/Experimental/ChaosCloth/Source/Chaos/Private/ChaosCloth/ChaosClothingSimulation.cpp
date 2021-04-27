@@ -384,9 +384,9 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->AreaStiffness,
 		ClothConfig->VolumeStiffness,
 		ClothConfig->bUseThinShellVolumeConstraints,
-		ClothConfig->StrainLimitingStiffness,
+		TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 		ClothConfig->LimitScale,
-		(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
+		ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 		/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
 		FVec2(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
 		FVec2(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
@@ -745,9 +745,9 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->AreaStiffness,
 			ClothConfig->VolumeStiffness,
 			ClothConfig->bUseThinShellVolumeConstraints,
-			ClothConfig->StrainLimitingStiffness,
+			TVector<float, 2>(ClothConfig->TetherStiffness.Low, ClothConfig->TetherStiffness.High),  // Animatable
 			ClothConfig->LimitScale,
-			(FClothingSimulationCloth::ETetherMode)ClothConfig->TetherMode,
+			ClothConfig->bUseGeodesicDistance ? FClothingSimulationCloth::ETetherMode::Geodesic : FClothingSimulationCloth::ETetherMode::Euclidean,
 			/*MaxDistancesMultiplier =*/ 1.f,  // Animatable
 			TVector<float, 2>(ClothConfig->AnimDriveStiffness.Low, ClothConfig->AnimDriveStiffness.High),  // Animatable
 			TVector<float, 2>(ClothConfig->AnimDriveDamping.Low, ClothConfig->AnimDriveDamping.High),  // Animatable
@@ -998,10 +998,13 @@ static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FL
 	}
 #endif
 #if WITH_EDITOR
-	const FMatrix& ViewMatrix = PDI->View->ViewMatrices.GetViewMatrix();
-	const FVector XAxis = ViewMatrix.GetColumn(0); // Just using transpose here (orthogonal transform assumed)
-	const FVector YAxis = ViewMatrix.GetColumn(1);
-	DrawDisc(PDI, Pos, XAxis, YAxis, FColor::White, 0.2f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
+	if (DebugClothMaterialVertex)
+	{
+		const FMatrix& ViewMatrix = PDI->View->ViewMatrices.GetViewMatrix();
+		const FVector XAxis = ViewMatrix.GetColumn(0); // Just using transpose here (orthogonal transform assumed)
+		const FVector YAxis = ViewMatrix.GetColumn(1);
+		DrawDisc(PDI, Pos, XAxis, YAxis, Color.ToFColor(true), 0.2f, 10, DebugClothMaterialVertex->GetRenderProxy(), SDPG_World);
+	}
 #endif
 }
 
@@ -1624,6 +1627,8 @@ void FClothingSimulation::DebugDrawMaxDistances(FPrimitiveDrawInterface* PDI) co
 			{
 #if WITH_EDITOR
 				DrawPoint(PDI, Position, FLinearColor::Red, DebugClothMaterialVertex);
+#else
+				DrawPoint(nullptr, Position, FLinearColor::Red, nullptr);
 #endif
 			}
 			else
@@ -1737,11 +1742,11 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 		const FTriangleMesh& TriangleMesh = Cloth->GetTriangleMesh(Solver.Get());
 		const TConstArrayView<FReal> InvMasses = Cloth->GetParticleInvMasses(Solver.Get());
 
-		const TMap<int32, TSet<uint32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
+		const TMap<int32, TSet<int32>>& PointToNeighborsMap = TriangleMesh.GetPointToNeighborsMap();
 
-		static TArray<uint32> KinematicIndices;  // Make static to prevent constant allocations
+		static TArray<int32> KinematicIndices;  // Make static to prevent constant allocations
 		KinematicIndices.Reset();
-		for (const TPair<int32, TSet<uint32>>& PointNeighbors : PointToNeighborsMap)
+		for (const TPair<int32, TSet<int32>>& PointNeighbors : PointToNeighborsMap)
 		{
 			const int32 Index = PointNeighbors.Key;
 			if (InvMasses[Index - Offset] == 0.f)  // TODO: Triangle indices should ideally be starting at 0 to avoid these mix-ups
@@ -1750,7 +1755,7 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 			}
 		}
 
-		const TArray<TArray<uint32>> IslandElements = FPBDLongRangeConstraints::ComputeIslands(PointToNeighborsMap, KinematicIndices);
+		const TArray<TArray<int32>> IslandElements = FPBDLongRangeConstraints::ComputeIslands(PointToNeighborsMap, KinematicIndices);
 
 		// Draw constraints
 		const FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
@@ -1759,73 +1764,35 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 
 		if (const FPBDLongRangeConstraints* const LongRangeConstraints = ClothConstraints.GetLongRangeConstraints().Get())
 		{
-			switch (LongRangeConstraints->GetMode())
+			for (const FPBDLongRangeConstraints::FTether& Tether : LongRangeConstraints->GetTethers())
 			{
-			case FPBDLongRangeConstraints::EMode::FastTetherFastLength:
-			case FPBDLongRangeConstraints::EMode::AccurateTetherFastLength:
+				const int32 KinematicIndex = Tether.Start;
+				const int32 DynamicIndex = Tether.End;
+				const FReal RefLength = Tether.RefLength;
+				// Find Island
+				int32 ColorIndex = 0;
+				for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
 				{
-					const TArray<TVec2<uint32>>& Constraints = LongRangeConstraints->GetEuclideanConstraints();
-					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+					if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
 					{
-						const TVec2<uint32>& Path = Constraints[ConstraintIndex];
-						const uint32 KinematicIndex = Path[0];
-						const uint32 DynamicIndex = Path[Path.Num() - 1];
-
-						// Find Island
-						int32 ColorIndex = 0;
-						for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
-						{
-							if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
-							{
-								ColorIndex = ColorOffset + IslandIndex;
-								break;
-							}
-						}
-
-						// Draw line
-						const FVec3 Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
-						const FVec3 Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
-						DrawLine(PDI, Pos0, Pos1, PseudoRandomColor(ColorIndex));
+						ColorIndex = ColorOffset + IslandIndex;
+						break;
 					}
 				}
-				break;
-			case FPBDLongRangeConstraints::EMode::AccurateTetherAccurateLength:
+				const FLinearColor Color = PseudoRandomColor(ColorIndex);
+				const FVec3 Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
+				const FVec3 Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
+
+				DrawLine(PDI, Pos0, Pos1, Color);
+
+				FVec3 Direction = Pos1 - Pos0;
+				const float Length = Direction.SafeNormalize();
+				if (Length > SMALL_NUMBER)
 				{
-					const TArray<TArray<uint32>>& Constraints = LongRangeConstraints->GetGeodesicConstraints();
-					for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
-					{
-						const TArray<uint32>& Path = Constraints[ConstraintIndex];
-						const uint32 KinematicIndex = Path[0];
-
-						// Find Island
-						int32 ColorIndex = 0;
-						for (int32 IslandIndex = 0; IslandIndex < IslandElements.Num(); ++IslandIndex)
-						{
-							if (IslandElements[IslandIndex].Find(KinematicIndex) != INDEX_NONE)  // TODO: This is O(n^2), it'll be nice to make this faster, even if it is only debug viz. Maybe binary search if the kinematic indices are ordered?
-							{
-								ColorIndex = ColorOffset + IslandIndex;
-								break;
-							}
-						}
-						const FLinearColor Color = PseudoRandomColor(ColorIndex);
-
-						// Draw lines
-						FVec3 Pos0 = Positions[KinematicIndex - Offset] + LocalSpaceLocation;
-						for (int32 PathIndex = 1; PathIndex < Path.Num(); ++PathIndex)
-						{
-							const uint32 DynamicIndex = Path[PathIndex];
-							const FVec3 Pos1 = Positions[DynamicIndex - Offset] + LocalSpaceLocation;
-							DrawLine(PDI, Pos0, Pos1, Color);
-							Pos0 = Pos1;
-						}
-					}
+					const FVec3 Pos2 = Pos1 + Direction * (Tether.RefLength - Length);
+					DrawLine(PDI, Pos1, Pos2, FLinearColor::Black);  // Color.Desaturate(1.f));
 				}
-				break;
-			default:
-				unimplemented();
-				break;
 			}
-
 		}
 
 		// Draw islands

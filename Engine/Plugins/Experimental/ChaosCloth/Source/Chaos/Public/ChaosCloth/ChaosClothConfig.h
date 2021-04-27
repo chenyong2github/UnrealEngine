@@ -32,7 +32,10 @@ struct FChaosClothWeightedValue
 	float High = 1.f;
 };
 
-/** Long range attachment options. */
+/**
+ * Long range attachment options.
+ * Deprecated.
+ */
 UENUM()
 enum class EChaosClothTetherMode : uint8
 {
@@ -41,7 +44,7 @@ enum class EChaosClothTetherMode : uint8
 	// Accurate Tether Fast Length: Use the accurate geodesic method to setup the tethers and a fast euclidean method to calculate their lengths. Slow initialization times and fast simulation times, but can still be prone to artifacts.
 	AccurateTetherFastLength,
 	// Accurate Tether Accurate Length: Use accurate geodesic method to both setup the tethers and calculate their lengths. Slow initialization and simulation times, but this is the most accurate setting showing the less artifacts.
-	AccurateTetherAccurateLength UMETA(Hidden),  // TODO: Fix Geodesic LRA
+	AccurateTetherAccurateLength UMETA(Hidden),
 	MaxChaosClothTetherMode UMETA(Hidden)
 };
 
@@ -79,11 +82,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mass Properties")
 	EClothMassMode MassMode = EClothMassMode::Density;
 
-	// The value used when the Mass Mode is set to Uniform Mass
+	/** The value used when the Mass Mode is set to Uniform Mass. */
 	UPROPERTY(EditAnywhere, Category = "Mass Properties", meta = (UIMin = "0.000001", UIMax = "0.001", ClampMin = "0", EditCondition = "MassMode == EClothMassMode::UniformMass"))
 	float UniformMass = 0.00015f;
 
-	// The value used when Mass Mode is set to TotalMass
+	/** The value used when Mass Mode is set to TotalMass. */
 	UPROPERTY(EditAnywhere, Category = "Mass Properties", meta = (UIMin = "0.001", UIMax = "10", ClampMin = "0", EditCondition = "MassMode == EClothMassMode::TotalMass"))
 	float TotalMass = 0.5f;
 
@@ -100,95 +103,101 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mass Properties", meta = (UIMin = "0.001", UIMax = "1", ClampMin = "0", EditCondition = "MassMode == EClothMassMode::Density"))
 	float Density = 0.35f;
 
-	// This is a lower bound to cloth particle masses.
+	/** This is a lower bound to cloth particle masses. */
 	UPROPERTY()
 	float MinPerParticleMass = 0.0001f;
 
-	// The Stiffness of the Edge constraints, only use lower than 1 values for very stretchy materials. Increase the iteration count for stiffer materials.
+	/** The Stiffness of the Edge constraints, only use lower than 1 values for very stretchy materials. Increase the iteration count for stiffer materials. */
 	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float EdgeStiffness = 1.f;
 
-	// The Stiffness of the bending constraints. Increase the iteration count for stiffer materials.
+	/** The Stiffness of the bending constraints. Increase the iteration count for stiffer materials. Increase the iteration count for stiffer materials. */
 	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float BendingStiffness = 1.f;
 
-	// Enable the more accurate bending element constraints instead of the faster cross-edge spring constraints used for controlling bending stiffness.
+	/** Enable the more accurate bending element constraints instead of the faster cross-edge spring constraints used for controlling bending stiffness. */
 	UPROPERTY(EditAnywhere, Category = "Material Properties")
 	bool bUseBendingElements = false;
 
-	// The stiffness of the area preservation constraints. Increase the iteration count for stiffer materials.
+	/** The stiffness of the area preservation constraints. Increase the iteration count for stiffer materials. */
 	UPROPERTY(EditAnywhere, Category = "Material Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float AreaStiffness = 1.f;
 
-	// The stiffness of the volume preservation constraints.
+	/** The stiffness of the volume preservation constraints. */
 	UPROPERTY()
 	float VolumeStiffness = 0.f;
 
-	// The strain limiting stiffness of the long range attachment constraints (aka tether stiffness).
-	// The long range attachment connects each of the cloth particles to its closest fixed point with a spring constraint.
-	// This can be used to compensate for a lack of stretch resistance when the iterations count is kept low for performance reasons.
-	// Can lead to an unnatural pull string puppet like behavior. Use 0 to disable. 
+	/**
+	 * The tethers' stiffness of the long range attachment constraints.
+	 * The long range attachment connects each of the cloth particles to its closest fixed point with a spring constraint.
+	 * This can be used to compensate for a lack of stretch resistance when the iterations count is kept low for performance reasons.
+	 * Can lead to an unnatural pull string puppet like behavior.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Tether Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 * Use 0, 0 to disable.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float StrainLimitingStiffness = 0.5f;
+	FChaosClothWeightedValue TetherStiffness = { 1.f, 1.f };
 
-	// The limit scale of the long range attachment constraints (aka tether limit).
+	/** The limit scale of the long range attachment constraints (aka tether limit). */
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment", meta = (UIMin = "1.", UIMax = "1.1", ClampMin = "0.01", ClampMax = "10"))
 	float LimitScale = 1.f;
 
 	/**
-	 * How the long range attachment tethers are created, and how their length is updated.
-	 * This determines how fast and accurate both the tether initialization and simulation runs.
-	 * -	Fast Tether Fast Length: Use fast euclidean methods to both setup the tethers and calculate their lengths. Fast initialization and simulation times, but is very prone to artifacts.
-	 * -	Accurate Tether Fast Length: Use the accurate geodesic method to setup the tethers and a fast euclidean method to calculate their lengths. Slow initialization times and fast simulation times, but can still be prone to artifacts.
-	 * -	Accurate Tether Accurate Length: Use accurate geodesic method to both setup the tethers and calculate their lengths. Slow initialization and simulation times, but this is the most accurate setting showing the less artifacts.
+	 * Use geodesic instead of euclidean distance calculations for the Long Range Attachment constraint,
+	 * which is slower at setup but more accurate at establishing the correct position and length of the tethers,
+	 * and therefore is less prone to artifacts during the simulation.
 	 */
 	UPROPERTY(EditAnywhere, Category = "Long Range Attachment")
-	EChaosClothTetherMode TetherMode = EChaosClothTetherMode::AccurateTetherFastLength;
+	bool bUseGeodesicDistance = true;
 
-	// Use geodesic instead of euclidean distance calculations in the long range attachment constraint,
-	// which is slower at setup but less prone to artifacts during simulation.
-	UPROPERTY()
-	bool bUseGeodesicDistance_DEPRECATED = true;
-
-	// The stiffness of the shape target constraints
+	/** The stiffness of the shape target constraints. */
 	UPROPERTY()
 	float ShapeTargetStiffness = 0.f;
 
-	// The added thickness of collision shapes.
+	/** The added thickness of collision shapes. */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
 	float CollisionThickness = 1.0f;
 
-	// Friction coefficient for cloth - collider interaction.
+	/** Friction coefficient for cloth - collider interaction. */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
 	float FrictionCoefficient = 0.8f;
 
-	// Use continuous collision detection (CCD) to prevent any missed collisions between fast moving particles and colliders.
-	// This has a negative effect on performance compared to when resolving collision without using CCD.
+	/**
+	 * Use continuous collision detection (CCD) to prevent any missed collisions between fast moving particles and colliders.
+	 * This has a negative effect on performance compared to when resolving collision without using CCD.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties")
 	bool bUseCCD = false;
 
-	// Enable self collision.
+	/** Enable self collision. */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (InlineEditConditionToggle))
 	bool bUseSelfCollisions = false;
 
-	// The radius of the spheres used in self collision 
+	/** The radius of the spheres used in self collision. */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties", meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", EditCondition = "bUseSelfCollisions"))
 	float SelfCollisionThickness = 2.0f;
 
-	// This parameter is automatically set by the migration code. It can be overridden here to use the old way of authoring the backstop distances.
-	// The legacy backstop requires the sphere radius to be included within the painted distance mask, making it difficult to author correctly. In this case the backstop distance is the distance from the animated mesh to the center of the corresponding backstop collision sphere.
-	// The non legacy backstop automatically adds the matching sphere's radius to the distance calculations at runtime to make for a simpler authoring of the backstop distances. In this case the backstop distance is the distance from the animated mesh to the surface of the backstop collision sphere.
-	// In both cases, a positive backstop distance goes against the corresponding animated mesh's normal, and a negative backstop distance goes along the corresponding animated mesh's normal.
+	/**
+	 * This parameter is automatically set by the migration code. It can be overridden here to use the old way of authoring the backstop distances.
+	 * The legacy backstop requires the sphere radius to be included within the painted distance mask, making it difficult to author correctly. In this case the backstop distance is the distance from the animated mesh to the center of the corresponding backstop collision sphere.
+	 * The non legacy backstop automatically adds the matching sphere's radius to the distance calculations at runtime to make for a simpler authoring of the backstop distances. In this case the backstop distance is the distance from the animated mesh to the surface of the backstop collision sphere.
+	 * In both cases, a positive backstop distance goes against the corresponding animated mesh's normal, and a negative backstop distance goes along the corresponding animated mesh's normal.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Collision Properties")
 	bool bUseLegacyBackstop = false;
 
-	// The amount of damping applied to the cloth velocities.
+	/** The amount of damping applied to the cloth velocities. */
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float DampingCoefficient = 0.01f;
 
-	// This parameter is automatically set by the migration code. It can be overridden here to use the old deprecated "Legacy" wind model in order to preserve behavior with previous versions of the engine.
-	// The old wind model is not an accurate aerodynamic model and as such should be avoided. Being point based, it doesn't take into account the surface area that gets hit by the wind.
-	// Using this model makes the simulation slightly slower, disables the aerodynamically accurate wind model, and prevents the cloth to interact with the surrounding environment (air, water, ...etc.) even when there is no wind.
+	/**
+	 * This parameter is automatically set by the migration code. It can be overridden here to use the old deprecated "Legacy" wind model in order to preserve behavior with previous versions of the engine.
+	 * The old wind model is not an accurate aerodynamic model and as such should be avoided. Being point based, it doesn't take into account the surface area that gets hit by the wind.
+	 * Using this model makes the simulation slightly slower, disables the aerodynamically accurate wind model, and prevents the cloth to interact with the surrounding environment (air, water, ...etc.) even when there is no wind.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties")
 	bool bUsePointBasedWindModel = false;
 
@@ -212,10 +221,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
 
-	// The strength of the constraint driving the cloth towards the animated goal mesh. Deprecated, use AnimDriveStiffness instead.
-	UPROPERTY()
-	float AnimDriveSpringStiffness_DEPRECATED = 0.f;
-
 	/**
 	 * The strength of the constraint driving the cloth towards the animated goal mesh.
 	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Anim Drive Stiffness" is added to the cloth, 
@@ -236,36 +241,53 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	FChaosClothWeightedValue AnimDriveDamping = { 0.f, 1.f };
 
-	// The amount of linear velocities sent to the local cloth space from the reference bone
-	// (the closest bone to the root on which the cloth section has been skinned, or the root itself if the cloth isn't skinned).
+	/**
+	 * The amount of linear velocities sent to the local cloth space from the reference bone
+	 * (the closest bone to the root on which the cloth section has been skinned, or the root itself if the cloth isn't skinned).
+	 */
 	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	FVector LinearVelocityScale = { 0.75f, 0.75f, 0.75f };
 
-	// The amount of angular velocities sent to the local cloth space from the reference bone
-	// (the closest bone to the root on which the cloth section has been skinned, or the root itself if the cloth isn't skinned).
+	/**
+	 * The amount of angular velocities sent to the local cloth space from the reference bone
+	 * (the closest bone to the root on which the cloth section has been skinned, or the root itself if the cloth isn't skinned).
+	 */
 	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
 	float AngularVelocityScale = 0.75f;
 
-	// The portion of the angular velocity that is used to calculate the strength of all fictitious forces (e.g. centrifugal force).
-	// This parameter is only having an effect on the portion of the reference bone's angular velocity that has been removed from the
-	// simulation via the Angular Velocity Scale parameter. This means it has no effect when AngularVelocityScale is set to 1 in which
-	// case the cloth is simulated with full world space angular velocities and subjected to the true physical world inertial forces.
-	// Values range from 0 to 2, with 0 showing no centrifugal effect, 1 full centrifugal effect, and 2 an overdriven centrifugal effect.
+	/**
+	 * The portion of the angular velocity that is used to calculate the strength of all fictitious forces (e.g. centrifugal force).
+	 * This parameter is only having an effect on the portion of the reference bone's angular velocity that has been removed from the
+	 * simulation via the Angular Velocity Scale parameter. This means it has no effect when AngularVelocityScale is set to 1 in which
+	 * case the cloth is simulated with full world space angular velocities and subjected to the true physical world inertial forces.
+	 * Values range from 0 to 2, with 0 showing no centrifugal effect, 1 full centrifugal effect, and 2 an overdriven centrifugal effect.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "2"))
 	float FictitiousAngularScale = 1.f;
 
-	// Enable tetrahedral constraints.
+	/** Enable tetrahedral constraints. */
 	UPROPERTY()
 	bool bUseTetrahedralConstraints = false;
 
-	// Enable thin shell volume constraints.
+	/** Enable thin shell volume constraints. */
 	UPROPERTY()
 	bool bUseThinShellVolumeConstraints = false;
 
-	// Enable continuous collision detection.
+	/** Enable continuous collision detection. */
 	UPROPERTY()
 	bool bUseContinuousCollisionDetection = false;
 
+	// Deprecated properties
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	EChaosClothTetherMode TetherMode_DEPRECATED = EChaosClothTetherMode::MaxChaosClothTetherMode;
+
+	UPROPERTY()
+	float AnimDriveSpringStiffness_DEPRECATED = 0.f;
+
+	UPROPERTY()
+	float StrainLimitingStiffness_DEPRECATED = 0.5f;
+#endif
 };
 
 /**
@@ -306,6 +328,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Simulation, meta = (UIMin = "1", UIMax = "10", ClampMin = "1", ClampMax = "100"))
 	int32 SubdivisionCount = 1;
 
+#if WITH_EDITORONLY_DATA
 	// The radius of the spheres used in self collision 
 	UPROPERTY()
 	float SelfCollisionThickness_DEPRECATED  = 2.0f;
@@ -333,6 +356,8 @@ public:
 	// The gravitational acceleration vector [cm/s^2]
 	UPROPERTY()
 	FVector Gravity_DEPRECATED = { 0.f, 0.f, -980.665f };
+#endif  // #if WITH_EDITORONLY_DATA
+
 
 	// Enable local space simulation to help with jitter due to floating point precision errors if the character is far away from the world origin
 	UPROPERTY()

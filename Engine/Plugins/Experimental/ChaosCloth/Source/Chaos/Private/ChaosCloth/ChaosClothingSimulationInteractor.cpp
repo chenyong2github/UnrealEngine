@@ -31,7 +31,17 @@ void UChaosClothingInteractor::SetMaterialLinear(float EdgeStiffness, float Bend
 	}));
 }
 
-void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffness)
+void UChaosClothingInteractor::SetLongRangeAttachmentLinear(float TetherStiffnessLinear)
+{
+	// Deprecated
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffnessLinear](FClothingSimulationCloth* Cloth)
+	{
+		const FVec2 TetherStiffness((FReal)FMath::Clamp(FMath::Loge(TetherStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f), (FReal)1.f);
+		Cloth->SetLongRangeAttachmentProperties(TetherStiffness);
+	}));
+}
+
+void UChaosClothingInteractor::SetLongRangeAttachment(FVector2D TetherStiffness)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([TetherStiffness](FClothingSimulationCloth* Cloth)
 	{
@@ -73,9 +83,11 @@ void UChaosClothingInteractor::SetGravity(float GravityScale, bool bIsGravityOve
 
 void UChaosClothingInteractor::SetAnimDriveLinear(float AnimDriveStiffnessLinear)
 {
+	// Deprecated
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([AnimDriveStiffnessLinear](FClothingSimulationCloth* Cloth)
 	{
-		const FVec2 AnimDriveStiffness((FReal)0.f, (FReal)(FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f)));
+		// The Anim Drive stiffness Low value needs to be 0 in order to keep backward compatibility with existing mask (this wouldn't be an issue if this property had no legacy mask)
+		const FVec2 AnimDriveStiffness((FReal)0.f, (FReal)FMath::Clamp(FMath::Loge(AnimDriveStiffnessLinear) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f));
 		const FVec2 AnimDriveDamping((FReal)0.f, (FReal)1.f);
 		Cloth->SetAnimDriveProperties(AnimDriveStiffness, AnimDriveDamping);
 	}));

@@ -3,7 +3,6 @@
 
 #include "Chaos/PBDLongRangeConstraintsBase.h"
 #include "Chaos/PBDParticles.h"
-#include "Chaos/PBDConstraintContainer.h"
 #include "ChaosStats.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos XPBD Long Range Constraint"), STAT_XPBD_LongRange, STATGROUP_Chaos);
@@ -13,75 +12,103 @@ namespace Chaos
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
 static const double XPBDLongRangeMaxCompliance = 1.e-3;
 
-class FXPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase, public FPBDConstraintContainer
+class FXPBDLongRangeConstraints final : public FPBDLongRangeConstraintsBase
 {
-	typedef FPBDLongRangeConstraintsBase Base;
-	using Base::MEuclideanConstraints;
-	using Base::MDists;
-	using Base::MStiffness;
-
 public:
-	FXPBDLongRangeConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1.)
-	    : FPBDLongRangeConstraintsBase(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
-	{ MLambdas.Init(0.f, MEuclideanConstraints.Num()); }
+	typedef FPBDLongRangeConstraintsBase Base;
+	typedef typename Base::FTether FTether;
+	typedef typename Base::EMode EMode;
+
+	FXPBDLongRangeConstraints(
+		const FPBDParticles& Particles,
+		const int32 InParticleOffset,
+		const int32 InParticleCount,
+		const TMap<int32, TSet<int32>>& PointToNeighbors,
+		const TConstArrayView<FReal>& StiffnessMultipliers,
+		const int32 MaxNumTetherIslands = 4,
+		const FVec2& InStiffness = FVec2((FReal)1., (FReal)1.),
+		const FReal LimitScale = (FReal)1.,
+		const EMode InMode = EMode::Geodesic)
+	    : FPBDLongRangeConstraintsBase(Particles, InParticleOffset, InParticleCount, PointToNeighbors, StiffnessMultipliers, MaxNumTetherIslands, InStiffness, LimitScale, InMode)
+	{
+		Lambdas.Reserve(Tethers.Num());
+	}
 
 	virtual ~FXPBDLongRangeConstraints() {}
 
-	void Init() const { for (FReal& Lambda : MLambdas) { Lambda = (FReal)0.; } }
-
-	void Apply(FPBDParticles& InParticles, const FReal Dt, int32 Index) const
+	void Init() const
 	{
-		const auto& Constraint = MEuclideanConstraints[Index];
-		int32 i2 = Constraint[Constraint.Num() - 1];
-		check(InParticles.InvM(i2) > 0);
-		InParticles.P(i2) += GetDelta(InParticles, Dt, Index);
+		Lambdas.Reset();
+		Lambdas.AddZeroed(Tethers.Num());
 	}
 
-	void Apply(FPBDParticles& InParticles, const FReal Dt) const
+	void Apply(FPBDParticles& Particles, const FReal Dt) const 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
-		for (int32 i = 0; i < MEuclideanConstraints.Num(); ++i)
+		// Run particles in parallel, and ranges in sequence to avoid a race condition when updating the same particle from different tethers
+		static const int32 MinParallelSize = 500;
+		if (Stiffness.HasWeightMap())
 		{
-			Apply(InParticles, Dt, i);
+			TethersView.ParallelFor([this, &Particles, Dt](TArray<FTether>& /*InTethers*/, int32 Index)
+				{
+					const FReal ExpStiffnessValue = Stiffness[Index - ParticleOffset];
+					Apply(Particles, Dt, Index, ExpStiffnessValue);
+				}, MinParallelSize);
+		}
+		else
+		{
+			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			TethersView.ParallelFor([this, &Particles, Dt, ExpStiffnessValue](TArray<FTether>& /*InTethers*/, int32 Index)
+				{
+					Apply(Particles, Dt, Index, ExpStiffnessValue);
+				}, MinParallelSize);
 		}
 	}
 
-	void Apply(FPBDParticles& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const
+	void Apply(FPBDParticles& Particles, const FReal Dt, const TArray<int32>& ConstraintIndices) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
-		for (int32 i : InConstraintIndices)
+		if (Stiffness.HasWeightMap())
 		{
-			Apply(InParticles, Dt, i);
+			for (const int32 Index : ConstraintIndices)
+			{
+				const FReal ExpStiffnessValue = Stiffness[Index - ParticleOffset];
+				Apply(Particles, Dt, Index, ExpStiffnessValue);
+			}
+		}
+		else
+		{
+			const FReal ExpStiffnessValue = (FReal)Stiffness;
+			for (const int32 Index : ConstraintIndices)
+			{
+				Apply(Particles, Dt, Index, ExpStiffnessValue);
+			}
 		}
 	}
 
 private:
-	inline FVec3 GetDelta(const FPBDParticles& InParticles, const FReal Dt, const int32 InConstraintIndices) const
+	void Apply(FPBDParticles& Particles, const FReal Dt, int32 Index, const FReal InStiffness) const
 	{
-		const TVector<uint32, 2>& Constraint = MEuclideanConstraints[InConstraintIndices];
-		check(Constraint.Num() > 1);
-		const uint32 i1 = Constraint[0];
-		const uint32 i2 = Constraint[1];
-		check(InParticles.InvM(i1) == 0);
-		check(InParticles.InvM(i2) > 0);
-		const FReal Distance = Base::ComputeGeodesicDistance(InParticles, Constraint); // This function is used for either Euclidean or Geodesic distances
-		if (Distance < MDists[InConstraintIndices]) { return FVec3((FReal)0.); }
-		const FReal Offset = Distance - MDists[InConstraintIndices];
+		const FTether& Tether = Tethers[Index];
 
-		FVec3 Direction = InParticles.P(i1) - InParticles.P(i2);
-		Direction.SafeNormalize();
+		FVec3 Direction;
+		FReal Offset;
+		Tether.GetDelta(Particles, Direction, Offset);
 
-		FReal& Lambda = MLambdas[InConstraintIndices];
-		const FReal Alpha = (FReal)XPBDLongRangeMaxCompliance / (MStiffness * Dt * Dt);
+		FReal& Lambda = Lambdas[Index];
+		const FReal Alpha = (FReal)XPBDLongRangeMaxCompliance / (InStiffness * Dt * Dt);
 
 		const FReal DLambda = (Offset - Alpha * Lambda) / ((FReal)1. + Alpha);
-		const FVec3 Delta = DLambda * Direction;
+		Particles.P(Tether.End) += DLambda * Direction;
 		Lambda += DLambda;
-
-		return Delta;
-	};
+	}
 
 private:
-	mutable TArray<FReal> MLambdas;
+	using Base::Tethers;
+	using Base::TethersView;
+	using Base::Stiffness;
+	using Base::ParticleOffset;
+
+	mutable TArray<FReal> Lambdas;
 };
 }

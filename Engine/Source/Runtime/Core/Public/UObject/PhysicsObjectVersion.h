@@ -39,6 +39,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Add centrifugal forces for cloth
 		ChaosClothAddfictitiousforces,
 
+		// Added the Long Range Attachment stiffness weight map
+		ChaosClothAddTetherStiffnessWeightMap,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -86,8 +86,8 @@ namespace Chaos
 
 		FORCEINLINE int32 GetNumElements() const { return MElements.Num(); }
 
-		CHAOS_API const TMap<int32, TSet<uint32>>& GetPointToNeighborsMap() const;
-		FORCEINLINE const TSet<uint32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
+		CHAOS_API const TMap<int32, TSet<int32>>& GetPointToNeighborsMap() const;
+		FORCEINLINE const TSet<int32>& GetNeighbors(const int32 Element) const { return GetPointToNeighborsMap()[Element]; }
 
 		CHAOS_API TConstArrayView<TArray<int32>> GetPointToTriangleMap() const;  // Return an array view using global indexation. Only elements starting at MStartIdx will be valid!
 		FORCEINLINE const TArray<int32>& GetCoincidentTriangles(const int32 Element) const { return GetPointToTriangleMap()[Element]; }
@@ -95,7 +95,7 @@ namespace Chaos
 		FORCEINLINE TSet<int32> GetNRing(const int32 Element, const int32 N) const
 		{
 			TSet<int32> Neighbors;
-			TSet<uint32> LevelNeighbors, PrevLevelNeighbors;
+			TSet<int32> LevelNeighbors, PrevLevelNeighbors;
 			PrevLevelNeighbors = GetNeighbors(Element);
 			for (auto SubElement : PrevLevelNeighbors)
 			{
@@ -278,7 +278,7 @@ namespace Chaos
 		TArray<TVec3<int32>> MElements;
 
 		mutable TArray<TArray<int32>> MPointToTriangleMap;  // !! Unlike the TArrayView returned by GetPointToTriangleMap, this array starts at 0 for the point of index MStartIdx. Use GlobalToLocal to access with a global index. Note that this array's content is always indexed in global index.
-		mutable TMap<int32, TSet<uint32>> MPointToNeighborsMap;
+		mutable TMap<int32, TSet<int32>> MPointToNeighborsMap;
 
 		FSegmentMesh MSegmentMesh;
 		TArray<TVec3<int32>> MFaceToEdges;
