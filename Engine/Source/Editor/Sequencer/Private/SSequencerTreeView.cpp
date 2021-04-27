@@ -681,6 +681,11 @@ FReply SSequencerTreeView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 			}
 			bWasHandled = true;
 		}
+		else if (InKeyEvent.GetKey() == EKeys::SpaceBar)
+		{
+			// SListView behavior is: Change selected status of item. Bypass that here. We don't want that, but instead want spacebar to go to SequencerCommands (toggle play)
+			return FReply::Unhandled();
+		}
 
 		if (TListTypeTraits<FDisplayNodeRef>::IsPtrValid(ItemNavigatedTo))
 		{
