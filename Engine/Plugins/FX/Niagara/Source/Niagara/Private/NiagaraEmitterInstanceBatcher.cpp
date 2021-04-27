@@ -1444,7 +1444,6 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 				}
 			}
 		}
-
 	}
 
 	// Release counts
@@ -1518,7 +1517,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool
 		if (GNiagaraAllowTickBeforeRender)
 		{
 			FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
-			PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, ERHIFeatureLevel::SM5, ESceneTextureSetupMode::None);
+			GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("Niagara::PreInitViews"),
@@ -1548,7 +1547,7 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, TAr
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
-		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, ERHIFeatureLevel::SM5, ESceneTextureSetupMode::None);
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Niagara::PostInitViews"),

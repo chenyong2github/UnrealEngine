@@ -13,9 +13,24 @@
 #include "RenderResource.h"
 #include "Shader.h"
 #include "ShaderCore.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderParameterUtils.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
+
+namespace NDICollisionQueryLocal
+{
+	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQueryTemplate.ush");
+
+	static const FName SceneDepthName(TEXT("QuerySceneDepthGPU"));
+	static const FName CustomDepthName(TEXT("QueryCustomDepthGPU"));
+	static const FName DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
+	static const FName SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
+	static const FName AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
+	static const FName IssueAsyncRayTraceName(TEXT("IssueAsyncRayTraceGpu"));
+	static const FName ReadAsyncRayTraceName(TEXT("ReadAsyncRayTraceGpu"));
+}
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
@@ -32,7 +47,6 @@ struct FNiagaraCollisionDIFunctionVersion
 		LatestVersion = VersionPlusOne - 1
 	};
 };
-
 struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy
 {
 #if RHI_RAYTRACING
@@ -122,13 +136,6 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 	}
 };
 
-const FName UNiagaraDataInterfaceCollisionQuery::SceneDepthName(TEXT("QuerySceneDepthGPU"));
-const FName UNiagaraDataInterfaceCollisionQuery::CustomDepthName(TEXT("QueryCustomDepthGPU"));
-const FName UNiagaraDataInterfaceCollisionQuery::DistanceFieldName(TEXT("QueryMeshDistanceFieldGPU"));
-const FName UNiagaraDataInterfaceCollisionQuery::IssueAsyncRayTraceName(TEXT("IssueAsyncRayTraceGpu"));
-const FName UNiagaraDataInterfaceCollisionQuery::ReadAsyncRayTraceName(TEXT("ReadAsyncRayTraceGpu"));
-const FName UNiagaraDataInterfaceCollisionQuery::SyncTraceName(TEXT("PerformCollisionQuerySyncCPU"));
-const FName UNiagaraDataInterfaceCollisionQuery::AsyncTraceName(TEXT("PerformCollisionQueryAsyncCPU"));
 
 UNiagaraDataInterfaceCollisionQuery::UNiagaraDataInterfaceCollisionQuery(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -234,7 +241,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 					{
 						for (const auto& Func : Info.RegisteredFunctions)
 						{
-							if (Func.Name == SyncTraceName || Func.Name == AsyncTraceName)
+							if (Func.Name == NDICollisionQueryLocal::SyncTraceName || Func.Name == NDICollisionQueryLocal::AsyncTraceName)
 							{
 								return true;
 							}
@@ -264,7 +271,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetAssetTagsForContext(const UObject* 
 void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
 	FNiagaraFunctionSignature SigDepth;
-	SigDepth.Name = UNiagaraDataInterfaceCollisionQuery::SceneDepthName;
+	SigDepth.Name = NDICollisionQueryLocal::SceneDepthName;
 	SigDepth.bMemberFunction = true;
 	SigDepth.bRequiresContext = false;
 	SigDepth.bSupportsCPU = false;
@@ -290,7 +297,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	OutFunctions.Add(SigDepth);
 
 	FNiagaraFunctionSignature SigCustomDepth;
-	SigCustomDepth.Name = UNiagaraDataInterfaceCollisionQuery::CustomDepthName;
+	SigCustomDepth.Name = NDICollisionQueryLocal::CustomDepthName;
 	SigCustomDepth.bMemberFunction = true;
 	SigCustomDepth.bRequiresContext = false;
 	SigCustomDepth.bSupportsCPU = false;
@@ -308,7 +315,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	OutFunctions.Add(SigCustomDepth);
 
 	FNiagaraFunctionSignature SigMeshField;
-	SigMeshField.Name = UNiagaraDataInterfaceCollisionQuery::DistanceFieldName;
+	SigMeshField.Name = NDICollisionQueryLocal::DistanceFieldName;
 	SigMeshField.bMemberFunction = true;
 	SigMeshField.bRequiresContext = false;
 	SigMeshField.bSupportsCPU = false;
@@ -336,7 +343,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		const FText IsQueryValidDescription = LOCTEXT("IsQueryValidDescription", "Returns true if the query was enqueued");
 
 		FNiagaraFunctionSignature& IssueRayTrace = OutFunctions.AddDefaulted_GetRef();
-		IssueRayTrace.Name = UNiagaraDataInterfaceCollisionQuery::IssueAsyncRayTraceName;
+		IssueRayTrace.Name = NDICollisionQueryLocal::IssueAsyncRayTraceName;
 		IssueRayTrace.bRequiresExecPin = true;
 		IssueRayTrace.bMemberFunction = true;
 		IssueRayTrace.bRequiresContext = false;
@@ -361,7 +368,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 		const FText CollisionNormalDescription = LOCTEXT("CollisionNormalDescription", "The surface normal of the world geometry at the point of intersection");
 
 		FNiagaraFunctionSignature& ReadRayTrace = OutFunctions.AddDefaulted_GetRef();
-		ReadRayTrace.Name = UNiagaraDataInterfaceCollisionQuery::ReadAsyncRayTraceName;
+		ReadRayTrace.Name = NDICollisionQueryLocal::ReadAsyncRayTraceName;
 		ReadRayTrace.bMemberFunction = true;
 		ReadRayTrace.bRequiresContext = false;
 		ReadRayTrace.bSupportsCPU = false;
@@ -378,7 +385,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	}
 
 	FNiagaraFunctionSignature SigCpuSync;
-	SigCpuSync.Name = UNiagaraDataInterfaceCollisionQuery::SyncTraceName;
+	SigCpuSync.Name = NDICollisionQueryLocal::SyncTraceName;
 	SigCpuSync.bMemberFunction = true;
 	SigCpuSync.bRequiresContext = false;
 	SigCpuSync.bSupportsGPU = false;
@@ -413,7 +420,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	OutFunctions.Add(SigCpuSync);
 
 	FNiagaraFunctionSignature SigCpuAsync;
-	SigCpuAsync.Name = UNiagaraDataInterfaceCollisionQuery::AsyncTraceName;
+	SigCpuAsync.Name = NDICollisionQueryLocal::AsyncTraceName;
 	SigCpuAsync.bMemberFunction = true;
 	SigCpuAsync.bRequiresContext = false;
 	SigCpuAsync.bSupportsGPU = false;
@@ -449,70 +456,16 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> Args;
-	Args.Add(TEXT("FunctionName"), FunctionInfo.InstanceName);
-
-	if (FunctionInfo.DefinitionName == SceneDepthName)
+	if ( (FunctionInfo.DefinitionName == NDICollisionQueryLocal::SceneDepthName) ||
+		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::CustomDepthName) ||
+		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::DistanceFieldName) ||
+		 (FunctionInfo.DefinitionName == NDICollisionQueryLocal::IssueAsyncRayTraceName) ||
+		(FunctionInfo.DefinitionName == NDICollisionQueryLocal::ReadAsyncRayTraceName) )
 	{
-		static const TCHAR* FormatSample = TEXT(R"(
-			void {FunctionName}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
-			{
-				DICollisionQuery_SceneDepth(In_SamplePos, Out_SceneDepth, Out_CameraPosWorld, Out_IsInsideView, Out_WorldPos, Out_WorldNormal);
-			}
-		)");
-
-		OutHLSL += FString::Format(FormatSample, Args);
-	}
-	else if (FunctionInfo.DefinitionName == CustomDepthName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-			void {FunctionName}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
-			{
-				DICollisionQuery_CustomDepth(In_SamplePos, Out_SceneDepth, Out_CameraPosWorld, Out_IsInsideView, Out_WorldPos, Out_WorldNormal);
-			}
-		)");
-
-		OutHLSL += FString::Format(FormatSample, Args);
-	}
-	else if (FunctionInfo.DefinitionName == DistanceFieldName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-			void {FunctionName}(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid)
-			{
-				DICollisionQuery_DistanceField(In_SamplePos, Out_DistanceToNearestSurface, Out_FieldGradient, Out_IsDistanceFieldValid);
-			}
-		)");
-
-		OutHLSL += FString::Format(FormatSample, Args);
-	}
-	else if (FunctionInfo.DefinitionName == IssueAsyncRayTraceName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-			void {FunctionName}(int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
-			{
-				DICollisionQuery_IssueAsyncRayTrace(In_QueryID, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_IsQueryValid);
-			}
-		)");
-
-		OutHLSL += FString::Format(FormatSample, Args);
-	}
-	else if (FunctionInfo.DefinitionName == ReadAsyncRayTraceName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-			void {FunctionName}(int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
-			{
-				DICollisionQuery_ReadAsyncRayTrace(In_PreviousFrameQueryID, Out_CollisionValid, Out_CollisionDistance, Out_CollisionPosWorld, Out_CollisionNormal);
-			}
-		)");
-
-		OutHLSL += FString::Format(FormatSample, Args);
-	}
-	else
-	{
-		return false;
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
@@ -520,7 +473,7 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 	bool bWasChanged = false;
 
 	// The distance field query got a new output at some point, but there exists no custom version for it
-	if (FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::DistanceFieldName && FunctionSignature.Outputs.Num() == 2)
+	if (FunctionSignature.Name == NDICollisionQueryLocal::DistanceFieldName && FunctionSignature.Outputs.Num() == 2)
 	{
 		FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("IsDistanceFieldValid")));
 		bWasChanged = true;
@@ -535,7 +488,7 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 	// Added the possibility to skip a line trace to increase performance when only a fraction of particles wants to do a line trace
 	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::AddedTraceSkip)
 	{
-		if (FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::SyncTraceName || FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::AsyncTraceName)
+		if (FunctionSignature.Name == NDICollisionQueryLocal::SyncTraceName || FunctionSignature.Name == NDICollisionQueryLocal::AsyncTraceName)
 		{
 			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
 			bWasChanged = true;
@@ -545,7 +498,7 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 	// Added the physical material ID as a result for line traces
 	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::ReturnCollisionMaterialIdx)
 	{
-		if (FunctionSignature.Name == SyncTraceName || FunctionSignature.Name == AsyncTraceName)
+		if (FunctionSignature.Name == NDICollisionQueryLocal::SyncTraceName || FunctionSignature.Name == NDICollisionQueryLocal::AsyncTraceName)
 		{
 			FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")));
 			bWasChanged = true;
@@ -568,7 +521,7 @@ bool IsDistanceFieldEnabled()
 #if WITH_EDITOR
 void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
 {
-	if (Function.Name == DistanceFieldName)
+	if (Function.Name == NDICollisionQueryLocal::DistanceFieldName)
 	{
 		if (!IsDistanceFieldEnabled())
 		{
@@ -586,7 +539,14 @@ bool UNiagaraDataInterfaceCollisionQuery::RequiresRayTracingScene() const
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	// we don't need to add these to hlsl, as they're already in common.ush
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDICollisionQueryLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
 
@@ -597,20 +557,20 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDist
 
 void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
-	if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SyncTraceName)
+	if (BindingInfo.Name == NDICollisionQueryLocal::SyncTraceName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQuerySyncCPU)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::AsyncTraceName)
+	else if (BindingInfo.Name == NDICollisionQueryLocal::AsyncTraceName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, PerformQueryAsyncCPU)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::SceneDepthName ||
-			 BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::CustomDepthName)
+	else if (BindingInfo.Name == NDICollisionQueryLocal::SceneDepthName ||
+			 BindingInfo.Name == NDICollisionQueryLocal::CustomDepthName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QuerySceneDepth)::Bind(this, OutFunc);
 	}
-	else if (BindingInfo.Name == UNiagaraDataInterfaceCollisionQuery::DistanceFieldName)
+	else if (BindingInfo.Name == NDICollisionQueryLocal::DistanceFieldName)
 	{
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceCollisionQuery, QueryMeshDistanceField)::Bind(this, OutFunc);
 	}
@@ -624,7 +584,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceCollisionQuery::GetCommonHLSL(FString& OutHlsl)
 {
-	OutHlsl += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush\"\n");
+	OutHlsl.Appendf(TEXT("#include \"%s\"\n"), NDICollisionQueryLocal::CommonShaderFile);
 }
 
 bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
@@ -633,11 +593,11 @@ bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashV
 	{
 		return false;
 	}
-	bool bDistanceFieldEnabled = IsDistanceFieldEnabled();
-	InVisitor->UpdatePOD(TEXT("NiagaraCollisionDI_DistanceField"), bDistanceFieldEnabled);
 
-	FSHAHash Hash = GetShaderFileHash(TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush"), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceCollisionQueryHlslSource"), Hash.ToString());
+	InVisitor->UpdatePOD(TEXT("NiagaraCollisionDI_DistanceField"), IsDistanceFieldEnabled());
+	InVisitor->UpdateString(TEXT("NDICollisionQueryCommonHLSLSource"), GetShaderFileHash(NDICollisionQueryLocal::CommonShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateString(TEXT("NDICollisionQueryTemplateHLSLSource"), GetShaderFileHash(NDICollisionQueryLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+
 	return true;
 }
 #endif
@@ -944,9 +904,10 @@ public:
 
 		FNiagaraDataIntefaceProxyCollisionQuery* QueryDI = (FNiagaraDataIntefaceProxyCollisionQuery*)Context.DataInterface;
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-
-		if (GlobalDistanceFieldParameters.IsBound() && Context.Batcher)
+		// Bind distance field parameters
+		if (GlobalDistanceFieldParameters.IsBound())
 		{
+			check(Context.Batcher);
 			GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, Context.Batcher->GetGlobalDistanceFieldParameters());
 		}
 

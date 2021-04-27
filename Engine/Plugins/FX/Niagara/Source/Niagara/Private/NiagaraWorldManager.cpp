@@ -198,6 +198,7 @@ void FNiagaraViewDataMgr::PostOpaqueRender(FPostOpaqueRenderParameters& Params)
 {
 	ViewUniformBuffer = Params.ViewUniformBuffer;
 	Parameters.SceneTextures = Params.SceneTexturesUniformParams;
+	Parameters.MobileSceneTextures = Params.MobileSceneTexturesUniformParams;
 	Parameters.Depth = Params.DepthTexture;
 	Parameters.Normal = Params.NormalTexture;
 	Parameters.Velocity = Params.VelocityTexture;
@@ -207,9 +208,20 @@ void FNiagaraViewDataMgr::GetSceneTextureParameters(FRDGBuilder& GraphBuilder, F
 {
 	OutParameters = Parameters;
 
-	if (!OutParameters.SceneTextures)
+	ERHIFeatureLevel::Type LocalFeatureLevel = GetFeatureLevel();
+	if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Deferred)
 	{
-		OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, ERHIFeatureLevel::SM5, ESceneTextureSetupMode::None);
+		if ( !Parameters.SceneTextures )
+		{
+			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, LocalFeatureLevel, ESceneTextureSetupMode::None);
+		}
+	}
+	else if (FSceneInterface::GetShadingPath(LocalFeatureLevel) == EShadingPath::Mobile)
+	{
+		if ( !Parameters.MobileSceneTextures )
+		{
+			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
+		}
 	}
 }
 

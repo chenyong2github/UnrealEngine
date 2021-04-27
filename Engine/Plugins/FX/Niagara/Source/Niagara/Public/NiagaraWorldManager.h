@@ -32,6 +32,7 @@ struct FNiagaraScalabilityState;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraSceneTextureParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)
 	RDG_TEXTURE_ACCESS(Depth, ERHIAccess::SRVCompute)
 	RDG_TEXTURE_ACCESS(Normal, ERHIAccess::SRVCompute)
 	RDG_TEXTURE_ACCESS(Velocity, ERHIAccess::SRVCompute)

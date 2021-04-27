@@ -4061,6 +4061,7 @@ void FRendererModule::RenderPostOpaqueExtensions(
 			RenderParameters.SmallDepthTexture = SceneTextures.SmallDepth;
 			RenderParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 			RenderParameters.SceneTexturesUniformParams = SceneTextures.UniformBuffer;
+			RenderParameters.MobileSceneTexturesUniformParams = SceneTextures.MobileUniformBuffer;
 			RenderParameters.GlobalDistanceFieldParams = &View.GlobalDistanceFieldInfo.ParameterData;
 
 			RenderParameters.ViewportRect = View.ViewRect;
