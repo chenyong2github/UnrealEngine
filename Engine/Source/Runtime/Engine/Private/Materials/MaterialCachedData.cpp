@@ -605,6 +605,19 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		{
 			bHasSceneColor = true;
 		}
+		else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
+		{
+			checkf(Association == GlobalParameter, TEXT("UMaterialExpressionMaterialAttributeLayers can't be nested"));
+			if (!UpdateForLayerFunctions(Context, LayersExpression->DefaultLayers))
+			{
+				bResult = false;
+			}
+
+			DefaultLayers = LayersExpression->DefaultLayers.Layers;
+			DefaultLayerBlends = LayersExpression->DefaultLayers.Blends;
+
+			LayersExpression->RebuildLayerGraph(false);
+		}
 		else if (Context.bUpdateFunctionExpressions)
 		{
 			if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
@@ -617,19 +630,6 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				// Update the function call node, so it can relink inputs and outputs as needed
 				// Update even if MaterialFunctionNode->MaterialFunction is NULL, because we need to remove the invalid inputs in that case
 				FunctionCall->UpdateFromFunctionResource();
-			}
-			else if (UMaterialExpressionMaterialAttributeLayers* LayersExpression = Cast<UMaterialExpressionMaterialAttributeLayers>(Expression))
-			{
-				checkf(Association == GlobalParameter, TEXT("UMaterialExpressionMaterialAttributeLayers can't be nested"));
-				if (!UpdateForLayerFunctions(Context, LayersExpression->DefaultLayers))
-				{
-					bResult = false;
-				}
-
-				DefaultLayers = LayersExpression->DefaultLayers.Layers;
-				DefaultLayerBlends = LayersExpression->DefaultLayers.Blends;
-
-				LayersExpression->RebuildLayerGraph(false);
 			}
 		}
 	}
