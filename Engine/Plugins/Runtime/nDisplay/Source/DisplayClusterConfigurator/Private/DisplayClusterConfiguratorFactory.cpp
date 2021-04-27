@@ -156,7 +156,7 @@ FString UDisplayClusterConfiguratorFactory::GetDefaultNewAssetName() const
 		return UniqueName.ToString();
 	}
 
-	return UFactory::GetDefaultNewAssetName();
+	return FString(TEXT("nDisplayConfig"));
 }
 
 void UDisplayClusterConfiguratorFactory::SetupNewBlueprint(UDisplayClusterBlueprint* NewBlueprint)
