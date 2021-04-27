@@ -1562,7 +1562,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 						const EShaderPlatform LegacyShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
 						const ERHIFeatureLevel::Type FeatureLevelType = GetMaxSupportedFeatureLevel(LegacyShaderPlatform);
 
-						int32 MaxNrBones = GetFeatureLevelMaxNumberOfBones(FeatureLevelType);
+						int32 MaxNrBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(Ar.CookingTarget());
 						if (MaxBonesPerChunk > MaxNrBones)
 						{
 							FString FeatureLevelName;
