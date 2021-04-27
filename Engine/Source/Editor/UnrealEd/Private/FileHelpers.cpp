@@ -3533,7 +3533,13 @@ bool FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty
 
 		if (bSaveExternal)
 		{
-			PackagesToSave.Append(WorldPackage->GetExternalPackages());
+			for (UPackage* ExternalPackage : WorldPackage->GetExternalPackages())
+			{
+				if (!FPackageName::IsTempPackage(ExternalPackage->GetName()))
+				{
+					PackagesToSave.Add(ExternalPackage);
+				}
+			}
 		}
 	}
 			

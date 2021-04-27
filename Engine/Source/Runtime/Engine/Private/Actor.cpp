@@ -1118,7 +1118,7 @@ float AActor::GetActorTickInterval() const
 
 bool AActor::IsMainPackageActor() const
 {
-	return IsPackageExternal() && (GetExternalPackage()->GetFName().ToString() == ULevel::GetActorPackageName(GetLevel()->GetPackage(), GetPathName()));
+	return IsPackageExternal() && ParentComponent.IsExplicitlyNull();
 }
 
 AActor* AActor::FindActorInPackage(UPackage* InPackage)

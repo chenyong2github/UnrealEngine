@@ -644,18 +644,21 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		}
 	}
 
+
 	if (!bTestRename)
 	{
 		// We also need to rename any external actor packages we have since the search for them is based on the world name
-		for (AActor* Actor : PersistentLevel->Actors)
+		// Make a Copy to iterate as this could modify PersistentLevel->Actors
+		TArray<AActor*> CopyActors;
+		CopyActors.Reserve(PersistentLevel->Actors.Num());
+		Algo::CopyIf(PersistentLevel->Actors, CopyActors, [](AActor* InActor) { return InActor && InActor->IsMainPackageActor(); });
+				
+		// Instead of just renaming the package, re-embed and re-externalize the actor
+		// this will leave dirty empty actor packages being which will be cleaned up though SaveAll, although SaveCurrentLevel won't pick them up
+		for (AActor* Actor : CopyActors)
 		{
-			if (Actor && Actor->IsPackageExternal())
-			{
-				// Instead of just renaming the package, re-embed and re-externalize the actor
-				// this will leave dirty empty actor packages being which will be cleaned up though SaveAll, although SaveCurrentLevel won't pick them up
-				Actor->SetPackageExternal(false);
-				Actor->SetPackageExternal(true);
-			}
+			Actor->SetPackageExternal(false);
+			Actor->SetPackageExternal(true);
 		}
 	}
 
