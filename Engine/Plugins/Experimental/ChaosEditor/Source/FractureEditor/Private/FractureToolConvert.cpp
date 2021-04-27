@@ -61,7 +61,7 @@ FText UFractureToolConvert::GetTooltipText() const
 
 FSlateIcon UFractureToolConvert::GetToolIcon() const
 {
-	return FSlateIcon("FractureEditorStyle", "FractureEditor.Convert");
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.ToMesh");
 }
 
 void UFractureToolConvert::RegisterUICommand(FFractureEditorCommands* BindingContext)
