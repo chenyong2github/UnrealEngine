@@ -735,6 +735,7 @@ int32 ReportCrashForMonitor(
 	uint32 ThreadIdx = 0;
 	DWORD CurrentProcessId = GetCurrentProcessId();
 	HANDLE ThreadSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	bool bCapturedCrashingThreadId = false;
 	if (ThreadSnapshot != INVALID_HANDLE_VALUE)
 	{
 		THREADENTRY32 ThreadEntry;
@@ -745,15 +746,24 @@ int32 ReportCrashForMonitor(
 			{
 				if (ThreadEntry.th32OwnerProcessID == CurrentProcessId)
 				{
-					SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
-					const FString& TmThreadName = FThreadManager::GetThreadName(ThreadEntry.th32ThreadID);
-					const TCHAR* ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
-					FCString::Strcpy(
-						&SharedContext->ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
-						CR_MAX_THREAD_NAME_CHARS - 1,
-						ThreadName
-					);
-					ThreadIdx++;
+					if (CrashingThreadId == ThreadEntry.th32ThreadID)
+					{
+						bCapturedCrashingThreadId = true;
+					}
+
+					// Always keep one spot for the crashing thread in case the number of captured threads is about to reach our limit.
+					if (bCapturedCrashingThreadId || ThreadIdx < CR_MAX_THREADS - 1)
+					{
+						SharedContext->ThreadIds[ThreadIdx] = ThreadEntry.th32ThreadID;
+						const FString& TmThreadName = FThreadManager::GetThreadName(ThreadEntry.th32ThreadID);
+						const TCHAR* ThreadName = TmThreadName.IsEmpty() ? TEXT("Unknown") : *TmThreadName;
+						FCString::Strcpy(
+							&SharedContext->ThreadNames[ThreadIdx*CR_MAX_THREAD_NAME_CHARS],
+							CR_MAX_THREAD_NAME_CHARS - 1,
+							ThreadName
+						);
+						ThreadIdx++;
+					}
 				}
 			} while (Thread32Next(ThreadSnapshot, &ThreadEntry) && (ThreadIdx < CR_MAX_THREADS));
 		}

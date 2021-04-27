@@ -443,6 +443,14 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	{
 		FDiagnosticLogger::Get().LogEvent(TEXT("Report/OpenProcessFail"));
 	}
+	else if (SharedCrashContext.CrashingThreadId == 0)
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/BadCrashThreadId"));
+	}
+	else if (SharedCrashContext.NumThreads == CR_MAX_THREADS)
+	{
+		FDiagnosticLogger::Get().LogEvent(TEXT("Report/BumpThreadLimits"));
+	}
 
 	// First init the static crash context state
 	FPlatformCrashContext::InitializeFromContext(
