@@ -154,17 +154,21 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 			USceneComponent* PrototypeParentComponent = Context->ParentComponent;
 
-			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, UE::FUsdTyped( PrototypePrim ) );
-
+			// Temp fix to prevent us from creating yet another UStaticMeshComponent as a parent prim to the HISM component
 			const bool bNeedsActor = false;
-			if ( USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor ) )
+			TOptional<TGuardValue< USceneComponent* >> ParentComponentGuard2;
+			if ( !PrototypePrim.IsA<pxr::UsdGeomMesh>() )
 			{
-				PrototypeParentComponent = PrototypeXformComponent;
+				FUsdGeomXformableTranslator PrototypeXformTranslator( Context, UE::FUsdTyped( PrototypePrim ) );
+
+				if ( USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor ) )
+				{
+					PrototypeParentComponent = PrototypeXformComponent;
+				}
+
+				ParentComponentGuard2.Emplace(Context->ParentComponent, PrototypeParentComponent );
 			}
 
-			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeParentComponent );
-
-			// Find UsdGeomMeshes in prototype childs
 			TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshPrims = UsdUtils::GetAllPrimsOfType( PrototypePrim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
 
 			for ( const TUsdStore< pxr::UsdPrim >& PrototypeGeomMeshPrim : ChildGeomMeshPrims )

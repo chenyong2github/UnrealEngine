@@ -70,6 +70,7 @@ namespace UE
 
 		TArray<FName> GetAppliedSchemas() const;
 
+		bool IsA( FName SchemaType ) const;
 		bool HasAPI( FName SchemaType, TOptional<FName> InstanceName = {} ) const;
 
 		const FSdfPath GetPrimPath() const;
