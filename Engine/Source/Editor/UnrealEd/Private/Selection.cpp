@@ -93,7 +93,6 @@ USelection* USelection::CreateComponentSelection(UObject* InOuter, FName InName,
 void USelection::Initialize(TSharedRef<ISelectionElementBridge>&& InSelectionElementBridge)
 {
 	SelectionElementBridge = MoveTemp(InSelectionElementBridge);
-	SyncSelectedClasses();
 }
 
 void USelection::SetElementSelectionSet(UTypedElementSelectionSet* InElementSelectionSet)
@@ -202,107 +201,30 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 void USelection::OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation)
 {
 	check(InElementList == ElementSelectionSet->GetElementList());
-	switch (InSyncType)
-	{
-	case FTypedElementListLegacySync::ESyncType::Added:
-		if (UObject* Object = GetObjectForElementHandle(InElementHandle))
-		{
-			OnObjectSelected(Object, !bIsWithinBatchOperation);
-		}
-		break;
 
-	case FTypedElementListLegacySync::ESyncType::Removed:
-		if (UObject* Object = GetObjectForElementHandle(InElementHandle))
-		{
-			OnObjectDeselected(Object, !bIsWithinBatchOperation);
-		}
-		break;
-
-	case FTypedElementListLegacySync::ESyncType::BatchComplete:
-		OnSelectedChanged(/*bSyncState*/false, !bIsWithinBatchOperation);
-		break;
-
-	default:
-		OnSelectedChanged(/*bSyncState*/true, !bIsWithinBatchOperation);
-		break;
-	}
-}
-
-void USelection::OnObjectSelected(UObject* InObject, const bool bNotify)
-{
-	check(InObject);
-
-	if (FSelectedClassInfo* SelectedClassInfo = SelectedClasses.Find(InObject->GetClass()))
-	{
-		++SelectedClassInfo->SelectionCount;
-	}
-	else
-	{
-		// 1 Object with a new class type has been selected
-		SelectedClasses.Add(FSelectedClassInfo(InObject->GetClass(), 1));
-	}
-
+	const bool bNotify = !bIsWithinBatchOperation;
 	if (bNotify)
 	{
-		// Call this after the item has been added from the selection set.
-		USelection::SelectObjectEvent.Broadcast(InObject);
-	}
-}
-
-void USelection::OnObjectDeselected(UObject* InObject, const bool bNotify)
-{
-	check(InObject);
-
-	FSetElementId Id = SelectedClasses.FindId(InObject->GetClass());
-	if (Id.IsValidId())
-	{
-		FSelectedClassInfo& ClassInfo = SelectedClasses[Id];
-		// One less object of this class is selected;
-		--ClassInfo.SelectionCount;
-		// If no more objects of the selected class exists, remove it
-		if (ClassInfo.SelectionCount == 0)
+		switch (InSyncType)
 		{
-			SelectedClasses.Remove(Id);
-		}
-	}
-
-	if (bNotify)
-	{
-		// Call this after the item has been removed from the selection set.
-		USelection::SelectObjectEvent.Broadcast(InObject);
-	}
-}
-
-void USelection::OnSelectedChanged(const bool bSyncState, const bool bNotify)
-{
-	if (bSyncState)
-	{
-		SyncSelectedClasses();
-	}
-	
-	if (bNotify)
-	{
-		USelection::SelectionChangedEvent.Broadcast(this);
-	}
-}
-
-void USelection::SyncSelectedClasses()
-{
-	SelectedClasses.Reset();
-
-	for (int32 Idx = 0; Idx < Num(); ++Idx)
-	{
-		if (UObject* Object = GetSelectedObject(Idx))
-		{
-			if (FSelectedClassInfo* SelectedClassInfo = SelectedClasses.Find(Object->GetClass()))
+		// Emit a general object selection changed notification for the following events
+		case FTypedElementListLegacySync::ESyncType::Added:
+		case FTypedElementListLegacySync::ESyncType::Removed:
+			if (UObject* Object = GetObjectForElementHandle(InElementHandle))
 			{
-				++SelectedClassInfo->SelectionCount;
+				USelection::SelectObjectEvent.Broadcast(Object);
 			}
-			else
-			{
-				// 1 Object with a new class type has been selected
-				SelectedClasses.Add(FSelectedClassInfo(Object->GetClass(), 1));
-			}
+			break;
+
+		// Emit a general selection changed notification for the following events
+		case FTypedElementListLegacySync::ESyncType::Modified:
+		case FTypedElementListLegacySync::ESyncType::Cleared:
+		case FTypedElementListLegacySync::ESyncType::BatchComplete:
+			USelection::SelectionChangedEvent.Broadcast(this);
+			break;
+
+		default:
+			break;
 		}
 	}
 }
@@ -409,6 +331,12 @@ bool USelection::IsSelected(const UObject* InObject) const
 	}
 
 	return false;
+}
+
+bool USelection::IsClassSelected(UClass* Class) const
+{
+	return ElementSelectionSet
+		&& TypedElementListObjectUtil::HasObjectsOfExactClass(ElementSelectionSet->GetElementList(), Class);
 }
 
 void USelection::Serialize(FArchive& Ar)

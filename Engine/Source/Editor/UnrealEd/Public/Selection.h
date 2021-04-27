@@ -22,36 +22,6 @@ class UNREALED_API USelection : public UObject
 	GENERATED_BODY()
 
 private:
-	/** Contains info about each class and how many objects of that class are selected */
-	struct FSelectedClassInfo
-	{
-		/** The selected class */
-		const UClass* Class;
-		/** How many objects of that class are selected */
-		int32 SelectionCount;
-
-		FSelectedClassInfo(const UClass* InClass)
-			: Class(InClass)
-			, SelectionCount(0)
-		{}
-
-		FSelectedClassInfo(const UClass* InClass, int32 InSelectionCount)
-			: Class(InClass)
-			, SelectionCount(InSelectionCount)
-		{}
-		bool operator==(const FSelectedClassInfo& Info) const
-		{
-			return Class == Info.Class;
-		}
-
-		friend uint32 GetTypeHash(const FSelectedClassInfo& Info)
-		{
-			return GetTypeHash(Info.Class);
-		}
-	};
-
-	typedef TSet<FSelectedClassInfo> ClassArray;
-
 	template<typename SelectionFilter>
 	friend class TSelectionIterator;
 
@@ -74,12 +44,6 @@ public:
 	static FSimpleMulticastDelegate SelectNoneEvent;
 	/** Called when the assigned typed element selection pointer set for a selection is changed */
 	static FOnSelectionElementSelectionPtrChanged SelectionElementSelectionPtrChanged;
-
-	typedef ClassArray::TIterator TClassIterator;
-	typedef ClassArray::TConstIterator TClassConstIterator;
-
-	TClassIterator			ClassItor()				{ return TClassIterator( SelectedClasses ); }
-	TClassConstIterator		ClassConstItor() const	{ return TClassConstIterator( SelectedClasses ); }
 
 	/**
 	 * Set the element selection set instance for this selection set.
@@ -297,11 +261,7 @@ public:
 		return Count;
 	}
 
-	bool IsClassSelected(UClass* Class) const
-	{
-		const FSelectedClassInfo* Info = SelectedClasses.Find(Class);
-		return Info && Info->SelectionCount > 0;
-	}
+	bool IsClassSelected(UClass* Class) const;
 
 	//~ Begin UObject Interface
 	virtual void Serialize(FArchive& Ar) override;
@@ -367,20 +327,12 @@ private:
 
 	void OnElementListSyncEvent(const UTypedElementList* InElementList, FTypedElementListLegacySync::ESyncType InSyncType, const FTypedElementHandle& InElementHandle, bool bIsWithinBatchOperation);
 
-	void OnObjectSelected(UObject* InObject, const bool bNotify);
-	void OnObjectDeselected(UObject* InObject, const bool bNotify);
-	void OnSelectedChanged(const bool bSyncState, const bool bNotify);
-	void SyncSelectedClasses();
-
 	/** Bridge from UObjects to their corresponding typed elements. */
 	TSharedPtr<ISelectionElementBridge> SelectionElementBridge;
 
 	/** Underlying element selection set (if any). */
 	UPROPERTY()
 	TObjectPtr<UTypedElementSelectionSet> ElementSelectionSet = nullptr;
-
-	/** Tracks the most recently selected actor classes.  Used for UnrealEd menus. */
-	ClassArray SelectedClasses;
 
 private:
 	// Hide IsSelected(), as calling IsSelected() on a selection set almost always indicates
