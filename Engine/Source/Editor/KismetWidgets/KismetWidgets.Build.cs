@@ -19,7 +19,6 @@ public class KismetWidgets : ModuleRules
                 "EditorStyle",
 				"UnrealEd",
 				"BlueprintGraph",
-				"ContentBrowserData",
 				"ClassViewer"
 			}
 		);
