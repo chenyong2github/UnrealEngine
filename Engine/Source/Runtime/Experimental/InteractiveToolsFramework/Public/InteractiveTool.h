@@ -355,6 +355,18 @@ public:
 	OnInteractiveToolPropertySetsModified OnPropertySetsModified;
 
 	/**
+	 * OnPropertyModifiedDirectlyByTool is broadcast whenever the ToolPropertyObjects array stays the same, but a property
+	 * inside of one of the objects is changed internally by the tool. This allows any external display of such properties
+	 * to properly update. In a DetailsViewPanel, for instance, it refreshes certain cached states such as edit condition
+	 * states for other properties.
+	 * 
+	 * This should only broadcast when the tool itself is responsible for the change, so it typically isn't broadcast
+	 * from the tool's OnPropertyModified function. 
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(OnInteractiveToolPropertyInternallyModified, UObject*);
+	OnInteractiveToolPropertyInternallyModified OnPropertyModifiedDirectlyByTool;
+
+	/**
 	 * Automatically called by UInteractiveToolPropertySet.OnModified delegate to notify Tool of child property set changes
 	 * @param PropertySet which UInteractiveToolPropertySet was modified
 	 * @param Property which FProperty in the set was modified
@@ -410,6 +422,13 @@ protected:
 	 */
 	virtual bool SetToolPropertySourceEnabled(UInteractiveToolPropertySet* PropertySet, bool bEnabled);
 
+	/**
+	 * Call after changing a propertyset internally in the tool to allow external views of the property
+	 * set to update properly. This is meant as an outward notification mechanism, not a way to to
+	 * pass along notifications, so don't call this if the property is changed externally (i.e., this
+	 * should not usually be called from OnPropertyModified unless the tool adds changes of its own).
+	 */
+	virtual void NotifyOfPropertyChangeByTool(UInteractiveToolPropertySet* PropertySet) const;
 
 	enum EAcceptWarning
 	{

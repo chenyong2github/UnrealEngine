@@ -370,6 +370,11 @@ void FModelingToolsEditorModeToolkit::UpdateActiveToolProperties()
 	}
 }
 
+void FModelingToolsEditorModeToolkit::RefreshPropertyObject(UObject* ChangedObject)
+{
+	ModeDetailsView->ForceRefresh();
+}
+
 
 void FModelingToolsEditorModeToolkit::PostNotification(const FText& Message)
 {
@@ -695,6 +700,7 @@ void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Man
 
 	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
 	CurTool->OnPropertySetsModified.AddSP(this, &FModelingToolsEditorModeToolkit::UpdateActiveToolProperties);
+	CurTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FModelingToolsEditorModeToolkit::RefreshPropertyObject);
 
 	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
 	ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;
@@ -730,6 +736,7 @@ void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manag
 	if ( CurTool )
 	{
 		CurTool->OnPropertySetsModified.RemoveAll(this);
+		CurTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
 	}
 
 	// re-enable LOD level picker

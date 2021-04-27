@@ -143,6 +143,11 @@ bool UInteractiveTool::SetToolPropertySourceEnabled(UInteractiveToolPropertySet*
 	return true;
 }
 
+void UInteractiveTool::NotifyOfPropertyChangeByTool(UInteractiveToolPropertySet* PropertySet) const
+{
+	OnPropertyModifiedDirectlyByTool.Broadcast(PropertySet);
+}
+
 TArray<UObject*> UInteractiveTool::GetToolProperties(bool bEnabledOnly) const
 {
 	if (bEnabledOnly == false)

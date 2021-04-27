@@ -133,7 +133,12 @@ void UDrawAndRevolveTool::Setup()
 		{
 			Preview->InvalidateResult();
 		}
-		Settings->bAllowedToEditDrawPlane = (ControlPointsMechanic->GetNumPoints() == 0);
+		bool bAllowedToEditDrawPlane = (ControlPointsMechanic->GetNumPoints() == 0);
+		if (Settings->bAllowedToEditDrawPlane != bAllowedToEditDrawPlane)
+		{
+			Settings->bAllowedToEditDrawPlane = bAllowedToEditDrawPlane;
+			NotifyOfPropertyChangeByTool(Settings);
+		}
 		});
 	// This gets called when we enter/leave curve initialization mode
 	ControlPointsMechanic->OnModeChanged.AddLambda([this]() {
@@ -171,6 +176,7 @@ void UDrawAndRevolveTool::Setup()
 	PlaneMechanic->OnPlaneChanged.AddLambda([this]() {
 		Settings->DrawPlaneOrigin = (FVector)PlaneMechanic->Plane.Origin;
 		Settings->DrawPlaneOrientation = ((FQuat)PlaneMechanic->Plane.Rotation).Rotator();
+		NotifyOfPropertyChangeByTool(Settings);
 		if (ControlPointsMechanic)
 		{
 			ControlPointsMechanic->SetPlane(PlaneMechanic->Plane);
