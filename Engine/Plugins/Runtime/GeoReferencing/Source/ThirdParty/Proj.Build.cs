@@ -12,9 +12,9 @@ public class PROJ : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "vcpkg_installed", "x64-windows-static-md", "include"));
+			PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "vcpkg_installed", "x64-windows-static-md-v140", "include"));
 
-			string LibPath = Path.Combine(ModuleDirectory, "vcpkg_installed", "x64-windows-static-md", "lib");
+			string LibPath = Path.Combine(ModuleDirectory, "vcpkg_installed", "x64-windows-static-md-v140", "lib");
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "sqlite3.lib"));
 		}
