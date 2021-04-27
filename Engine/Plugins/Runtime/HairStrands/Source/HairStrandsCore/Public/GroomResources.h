@@ -70,8 +70,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	uint32 GetResourcesSize() const 
 	{
 		uint32 Total = 0;
-		Total += GetBufferTotalNumBytes(RootNormalBuffer);
-		Total += GetBufferTotalNumBytes(RootNormalBuffer);
 		Total += GetBufferTotalNumBytes(VertexToCurveIndexBuffer);
 		for (const FLOD& LOD : LODs)
 		{
@@ -87,8 +85,6 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 		return Total;
 	}
 
-	FRDGExternalBuffer RootPositionBuffer;
-	FRDGExternalBuffer RootNormalBuffer;
 	FRDGExternalBuffer VertexToCurveIndexBuffer;
 
 	struct FLOD

@@ -729,9 +729,7 @@ void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 	if (RootData.VertexToCurveIndexBuffer.Num() > 0)
 	{
 		InternalCreateVertexBufferRDG<FHairStrandsIndexFormat>(GraphBuilder, RootData.VertexToCurveIndexBuffer, VertexToCurveIndexBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_VertexToCurveIndexBuffer), EHairResourceUsageType::Static);
-		InternalCreateVertexBufferRDG<FHairStrandsRootPositionFormat>(GraphBuilder, RootData.RootPositionBuffer, RootPositionBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_RootPositionBuffer), EHairResourceUsageType::Static);
-		InternalCreateVertexBufferRDG<FHairStrandsRootNormalFormat>(GraphBuilder, RootData.RootNormalBuffer, RootNormalBuffer, HAIRSTRANDS_RESOUCE_NAME(CurveType, Hair.StrandsRestRoot_RootNormalBuffer), EHairResourceUsageType::Static);
-		
+
 		check(LODs.Num() == RootData.MeshProjectionLODs.Num());
 		for (uint32 LODIt=0, LODCount = LODs.Num(); LODIt<LODCount; ++LODIt)
 		{
@@ -793,8 +791,6 @@ void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 
 void FHairStrandsRestRootResource::InternalRelease()
 {
-	RootPositionBuffer.Release();
-	RootNormalBuffer.Release();
 	VertexToCurveIndexBuffer.Release();
 	
 	for (FLOD& GPUData : LODs)
@@ -890,9 +886,7 @@ FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsD
 
 	const uint32 CurveCount = HairStrandsDatas->GetNumCurves();
 	VertexToCurveIndexBuffer.SetNum(HairStrandsDatas->GetNumPoints());
-	RootPositionBuffer.SetNum(RootCount);
-	RootNormalBuffer.SetNum(RootCount);
-
+	
 	for (uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
 	{
 		const uint32 RootIndex = HairStrandsDatas->StrandsCurves.CurvesOffset[CurveIndex];
@@ -901,33 +895,6 @@ FHairStrandsRootData::FHairStrandsRootData(const FHairStrandsDatas* HairStrandsD
 		{
 			VertexToCurveIndexBuffer[RootIndex + PointIndex] = CurveIndex; // RootIndex;
 		}
-
-		check(PointCount > 1);
-
-		const FVector P0 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex];
-		const FVector P1 = HairStrandsDatas->StrandsPoints.PointsPosition[RootIndex + 1];
-		FVector N0 = (P1 - P0).GetSafeNormal();
-
-		// Fallback in case the initial points are too close (this happens on certain assets)
-		if (FVector::DotProduct(N0, N0) == 0)
-		{
-			N0 = FVector(0, 0, 1);
-		}
-
-		FHairStrandsRootPositionFormat::Type P;
-		P.X = P0.X;
-		P.Y = P0.Y;
-		P.Z = P0.Z;
-		P.W = 1;
-
-		FHairStrandsRootNormalFormat::Type N;
-		N.X = N0.X;
-		N.Y = N0.Y;
-		N.Z = N0.Z;
-		N.W = 0;
-
-		RootPositionBuffer[CurveIndex] = P;
-		RootNormalBuffer[CurveIndex] = N;
 	}
 	check(NumSamples.Num() == LODCount);
 
@@ -991,8 +958,6 @@ void FHairStrandsRootData::Serialize(FArchive& Ar)
 	{
 		Ar << RootCount;
 		Ar << VertexToCurveIndexBuffer;
-		Ar << RootPositionBuffer;
-		Ar << RootNormalBuffer;
 		Ar << MeshProjectionLODs;
 	}
 }
@@ -1001,8 +966,6 @@ void FHairStrandsRootData::Reset()
 {
 	RootCount = 0;
 	VertexToCurveIndexBuffer.Empty();
-	RootPositionBuffer.Empty();
-	RootNormalBuffer.Empty();
 	MeshProjectionLODs.Empty();
 }
 

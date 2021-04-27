@@ -298,9 +298,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairProjectionHairDebugParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition1Buffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, DeformedPosition2Buffer)
 
-	// Change for actual frame data (stored or computed only)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootPositionBuffer)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootNormalBuffer)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer, RootBarycentricBuffer)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -376,9 +373,7 @@ static void AddDebugProjectionHairPass(
 		return;
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType &&
-		(!RestRootResources->RootPositionBuffer.Buffer ||
-			!RestRootResources->RootNormalBuffer.Buffer ||
-			!RestRootResources->LODs[MeshLODIndex].RootTriangleBarycentricBuffer.Buffer))
+		!RestRootResources->LODs[MeshLODIndex].RootTriangleBarycentricBuffer.Buffer)
 		return;
 
 	const FHairStrandsRestRootResource::FLOD& RestLODDatas = RestRootResources->LODs[MeshLODIndex];
@@ -402,8 +397,6 @@ static void AddDebugProjectionHairPass(
 
 	if (EDebugProjectionHairType::HairFrame == GeometryType)
 	{
-		Parameters->RootPositionBuffer		= RegisterAsSRV(GraphBuilder, RestRootResources->RootPositionBuffer);
-		Parameters->RootNormalBuffer		= RegisterAsSRV(GraphBuilder, RestRootResources->RootNormalBuffer);
 		Parameters->RootBarycentricBuffer	= RegisterAsSRV(GraphBuilder, RestLODDatas.RootTriangleBarycentricBuffer);
 	}
 
@@ -872,14 +865,16 @@ void RunHairStrandsDebug(
 				for (FHairStrandsInstance* AbstractInstance : Instances)
 				{
 					FHairGroupInstance* Instance = static_cast<FHairGroupInstance*>(AbstractInstance);
-
-					if (!Instance->HairGroupPublicData || Instance->Guides.RestRootResource == nullptr || Instance->Guides.DeformedRootResource == nullptr || Instance->BindingType != EHairBindingType::Skinning)
+					if (!Instance->HairGroupPublicData || Instance->BindingType != EHairBindingType::Skinning)
 						continue;
 
-					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;
 					const bool bRenderStrands = StrandType == EHairStrandsInterpolationType::RenderStrands;
 					FHairStrandsRestRootResource* RestRootResource = bRenderStrands ? Instance->Strands.RestRootResource : Instance->Guides.RestRootResource;
 					FHairStrandsDeformedRootResource* DeformedRootResource = bRenderStrands ? Instance->Strands.DeformedRootResource : Instance->Guides.DeformedRootResource;
+					if (RestRootResource == nullptr || DeformedRootResource == nullptr)
+						continue;
+
+					const int32 MeshLODIndex = Instance->Debug.MeshLODIndex;
 
 					if (bRestTriangle)
 					{

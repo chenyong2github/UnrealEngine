@@ -13,8 +13,6 @@ float4x4 RootLocalToWorld;
 uint DeformedFrameEnable;
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME
-Buffer<float4> RootPositionBuffer;
-Buffer<float4> RootNormalBuffer;
 Buffer<uint>   RootBarycentricBuffer;
 #endif
 
@@ -47,38 +45,23 @@ void MainVS(
 	float3 N;
 	float3 P;
 	{
-		const FHairMeshTriangleWithUVs RestTriangleWithUVs     = GetTriangleWithUVsTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangleWithUVs DeformedTriangleWithUVs = GetTriangleWithUVsTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
+		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
+		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
 
-		const FHairMeshTriangle RestTriangle			= GetTriangleTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
-		const FHairMeshTriangle DeformedTriangle		= GetTriangleTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
-
-
-		float3 P0 = RootPositionBuffer[LineIndex].xyz;
-		float3 LN = RootNormalBuffer[LineIndex].xyz;
-		float3 B  = DecodeBarycentrics(RootBarycentricBuffer[LineIndex]);
-		float3 P1 = P0 + LN;
-
+		FHairMeshTriangleWithUVs Tri;
 		if (DeformedFrameEnable > 0)
-		{
-			UVs = 
-				B.x * DeformedTriangleWithUVs.UV0 +
-				B.y * DeformedTriangleWithUVs.UV1 +
-				B.z * DeformedTriangleWithUVs.UV2;
-		}
+			Tri = DeformedTriangle;
 		else
-		{
-			UVs =
-				B.x * RestTriangleWithUVs.UV0 +
-				B.y * RestTriangleWithUVs.UV1 +
-				B.z * RestTriangleWithUVs.UV2;
-		}
+			Tri = RestTriangle;
 
-		if (DeformedFrameEnable > 0)
-		{
-			P0 = TransformPoint(P0, B, RestTriangle, DeformedTriangle);
-			P1 = TransformPoint(P1, B, RestTriangle, DeformedTriangle);
-		}
+		const float3 B  = DecodeBarycentrics(RootBarycentricBuffer[LineIndex]);
+		float3 P0 = B.x * Tri.P0 + B.y * Tri.P1 + B.z * Tri.P2;
+		float3 P1 = P0 + Tri.N;
+
+		UVs = 
+			B.x * Tri.UV0 +
+			B.y * Tri.UV1 +
+			B.z * Tri.UV2;
 
 		P0 = mul(float4(P0, 1), RootLocalToWorld).xyz;
 		P1 = mul(float4(P1, 1), RootLocalToWorld).xyz;

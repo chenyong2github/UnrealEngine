@@ -226,24 +226,6 @@ struct FHairStrandsCurveTriangleBarycentricFormat
 	static const EPixelFormat Format = PF_R32_UINT;
 };
 
-struct FHairStrandsRootPositionFormat
-{
-	typedef FVector4 Type;
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
-	static const EPixelFormat Format = PF_A32B32G32R32F;
-};
-
-struct FHairStrandsRootNormalFormat
-{
-	typedef FVector4_16 Type;
-	static const uint32 ComponentCount = 1;
-	static const uint32 SizeInByte = sizeof(Type);
-	static const EVertexElementType VertexElementType = VET_Float4;
-	static const EPixelFormat Format = PF_FloatRGBA;
-};
-
 struct FHairStrandsRootUtils
 {
 	static uint32	 EncodeTriangleIndex(uint32 TriangleIndex, uint32 SectionIndex);
@@ -407,7 +389,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 	TArray<FHairStrandsPositionFormat::Type>	Positions;		// Size = PointCount
 	TArray<FHairStrandsAttributeFormat::Type>	Attributes;		// Size = PointCount
 	TArray<FHairStrandsMaterialFormat::Type>	Materials;		// Size = PointCount
-	TArray<FHairStrandsRootIndexFormat::Type>	CurveOffsets;	// Size = CurveCount  - Store the root point index for the curve
+	TArray<FHairStrandsRootIndexFormat::Type>	CurveOffsets;	// Size = CurveCount+1 - Store the root point index for the curve
 };
 
 /** Hair strands debug data */
@@ -496,12 +478,6 @@ struct FHairStrandsRootData
 
 	/* Curve index for every vertices */
 	TArray<FHairStrandsIndexFormat::Type> VertexToCurveIndexBuffer;
-
-	/* Curve root's positions */
-	TArray<FHairStrandsRootPositionFormat::Type> RootPositionBuffer;
-
-	/* Curve root's normal orientation */
-	TArray<FHairStrandsRootNormalFormat::Type> RootNormalBuffer;
 
 	/* Store the hair projection information for each mesh LOD */
 	TArray<FMeshProjectionLOD> MeshProjectionLODs;
