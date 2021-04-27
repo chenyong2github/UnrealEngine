@@ -25,6 +25,7 @@ enum class EMultiTransformerMode
 
 /**
  * UMultiTransformer abstracts both a default TRS Gizmo, and the "Quick" translate/rotate Gizmos.
+ * The "Quick" part is not yet implemented, and we might end up phasing out this class.
  */
 UCLASS()
 class MODELINGCOMPONENTS_API UMultiTransformer : public UObject
@@ -80,6 +81,12 @@ public:
 
 	/** This delegate is fired when the drag is completed */
 	FMultiTransformerEvent OnTransformCompleted;
+
+	/** This delegate is fired when a repositioning drag is completed */
+	FMultiTransformerEvent OnEndPivotEdit;
+
+	// Note: we could have more pivot change delegates, but we don't yet need them,
+	// and we might phase out the UMultiTransformer.
 
 protected:
 	UPROPERTY()

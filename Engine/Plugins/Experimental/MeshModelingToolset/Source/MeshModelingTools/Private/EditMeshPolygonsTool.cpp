@@ -218,7 +218,7 @@ void UEditMeshPolygonsTool::Setup()
 	CommonProps->WatchProperty(CommonProps->bLockRotation,
 								  [this](bool)
 								  {
-									  LockedTransfomerFrame = LastTransformerFrame; UpdateMultiTransformerFrame();
+									  LockedTransfomerFrame = LastTransformerFrame;
 								  });
 	// We are going to SilentUpdate here because otherwise the Watches above will immediately fire (why??)
 	// and cause UpdateMultiTransformerFrame() to be called for each, emitting two spurious Transform changes. 
@@ -268,6 +268,13 @@ void UEditMeshPolygonsTool::Setup()
 	MultiTransformer->OnTransformStarted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformBegin);
 	MultiTransformer->OnTransformUpdated.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformUpdate);
 	MultiTransformer->OnTransformCompleted.AddUObject(this, &UEditMeshPolygonsTool::OnMultiTransformerTransformEnd);
+	MultiTransformer->OnEndPivotEdit.AddWeakLambda(this, [this]() {
+		LastTransformerFrame = MultiTransformer->GetCurrentGizmoFrame();
+		if (CommonProps->bLockRotation)
+		{
+			LockedTransfomerFrame = LastTransformerFrame;
+		}
+	});
 	MultiTransformer->SetSnapToWorldGridSourceFunc([this]() {
 		return CommonProps->bSnapToWorldGrid
 			&& GetToolManager()->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::World;
@@ -709,7 +716,18 @@ void UEditMeshPolygonsTool::OnMultiTransformerTransformEnd()
 	bSpatialDirty = true;
 	SelectionMechanic->NotifyMeshChanged(false);
 
-	MultiTransformer->ResetScale();
+	if (CommonProps->bLockRotation)
+	{
+		FFrame3d SetFrame = MultiTransformer->GetCurrentGizmoFrame();
+		SetFrame.Rotation = LockedTransfomerFrame.Rotation;
+		MultiTransformer->InitializeGizmoPositionFromWorldFrame(SetFrame, true);
+	}
+	else
+	{
+		MultiTransformer->ResetScale();
+	}
+
+	LastTransformerFrame = MultiTransformer->GetCurrentGizmoFrame();
 
 	// close change record
 	EndChange();
@@ -858,6 +876,14 @@ void UEditMeshPolygonsTool::ComputeUpdate_Gizmo()
 void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 {
 	MultiTransformer->Tick(DeltaTime);
+
+	bool bLocalCoordSystem = GetToolManager()->GetPairedGizmoManager()
+		->GetContextQueriesAPI()->GetCurrentCoordinateSystem() == EToolContextCoordinateSystem::Local;
+	if (CommonProps->bLocalCoordSystem != bLocalCoordSystem)
+	{
+		CommonProps->bLocalCoordSystem = bLocalCoordSystem;
+		NotifyOfPropertyChangeByTool(CommonProps);
+	}
 
 	if (bGizmoUpdatePending)
 	{

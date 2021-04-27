@@ -30,6 +30,9 @@ void UMultiTransformer::Setup(UInteractiveGizmoManager* GizmoManagerIn, IToolCon
 		ActiveGizmoFrame = FFrame3d(Transform);
 		ActiveGizmoScale = FVector3d(Transform.GetScale3D());
 	});
+	TransformProxy->OnEndPivotEdit.AddWeakLambda(this, [this](UTransformProxy* Proxy) {
+		OnEndPivotEdit.Broadcast();
+	});
 }
 
 

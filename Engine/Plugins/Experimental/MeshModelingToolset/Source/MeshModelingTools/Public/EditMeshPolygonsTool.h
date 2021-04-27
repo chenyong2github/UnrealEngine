@@ -63,14 +63,23 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowWireframe = false;
 
-	UPROPERTY(EditAnywhere, Category = Gizmo)
+	/** Determines whether, on selection changes, the gizmo's rotation is taken from the object transform, or from the geometry
+	 elements selected. Only relevant with a local coordinate system and when rotation is not locked. */
+	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "bLocalCoordSystem && !bLockRotation"))
 	ELocalFrameMode LocalFrameMode = ELocalFrameMode::FromGeometry;
 
-	UPROPERTY(EditAnywhere, Category = Gizmo)
+	/** When true, keeps rotation of gizmo constant through selection changes and manipulations 
+	 (but not middle-click repositions). Only active with a local coordinate system.*/
+	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "bLocalCoordSystem"))
 	bool bLockRotation = false;
 
-	UPROPERTY(EditAnywhere, Category = Gizmo)
+	/** Snaps to grid in translation. Only active with a global coordinate system. */
+	UPROPERTY(EditAnywhere, Category = Gizmo, meta = (HideEditConditionToggle, EditCondition = "!bLocalCoordSystem"))
 	bool bSnapToWorldGrid = false;
+
+	/** This gets updated internally so that properties can respond to whether the coordinate system is set to local or global */
+	UPROPERTY()
+	bool bLocalCoordSystem = true;
 };
 
 
