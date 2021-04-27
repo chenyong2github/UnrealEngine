@@ -73,7 +73,7 @@ public:
 	/** Add a child to this item */
 	void AddChild(FSceneOutlinerTreeItemRef Child)
 	{
-		check(!Children.Contains(Child));
+		checkSlow(!Children.Contains(Child));
 		Child->Parent = AsShared();
 		Children.Add(MoveTemp(Child));
 	}
