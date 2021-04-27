@@ -1353,7 +1353,9 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 	bool bIsInHiddenLevel = false;
 	if (ULevel* Level = NewActor->GetLevel())
 	{
-		bIsInHiddenLevel = !Level->bIsVisible;
+		// consider non visible level as hidden in editor only if this is post world initialization
+		UWorld* World = Level->GetWorld();
+		bIsInHiddenLevel = !Level->bIsVisible && World && World->bIsWorldInitialized;
 	}
 
 	if (bIsInHiddenLevel)
