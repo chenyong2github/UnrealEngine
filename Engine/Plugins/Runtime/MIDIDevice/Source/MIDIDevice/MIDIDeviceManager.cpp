@@ -182,11 +182,11 @@ void UMIDIDeviceManager::GetMIDIInputDeviceIDByName(const FString DeviceName, in
 	}
 	else
 	{
-		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not imnitialized"));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not initialized"));
 	}
 }
 
-void UMIDIDeviceManager::GetDefaultIMIDIInputDeviceID(int32& DeviceID)
+void UMIDIDeviceManager::GetDefaultMIDIInputDeviceID(int32& DeviceID)
 {
 	if (bIsInitialized)
 	{
@@ -194,7 +194,7 @@ void UMIDIDeviceManager::GetDefaultIMIDIInputDeviceID(int32& DeviceID)
 	}
 	else
 	{
-		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not imnitialized"));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not initialized"));
 	}
 }
 
@@ -214,11 +214,11 @@ void UMIDIDeviceManager::GetMIDIOutputDeviceIDByName(const FString DeviceName, i
 	}
 	else
 	{
-		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not imnitialized"));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not initialized"));
 	}
 }
 
-void UMIDIDeviceManager::GetDefaultIMIDIOutputDeviceID(int32& DeviceID)
+void UMIDIDeviceManager::GetDefaultMIDIOutputDeviceID(int32& DeviceID)
 {
 	if (bIsInitialized)
 	{
@@ -226,7 +226,7 @@ void UMIDIDeviceManager::GetDefaultIMIDIOutputDeviceID(int32& DeviceID)
 	}
 	else
 	{
-		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not imnitialized"));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI device manager not initialized"));
 	}
 }
 
