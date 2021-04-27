@@ -2669,7 +2669,7 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 
 	if (CopyInfo.Size != FIntVector::ZeroValue)
 	{
-		const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[DestTextureRHI->GetFormat()];
+		const FPixelFormatInfo& PixelFormatInfo = GPixelFormats[SourceTextureRHI->GetFormat()];
 
 		D3D11_BOX SrcBox;
 		SrcBox.left = CopyInfo.SourcePosition.X;
