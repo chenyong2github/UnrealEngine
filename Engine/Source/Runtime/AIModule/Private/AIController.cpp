@@ -113,7 +113,6 @@ void AAIController::DisplayDebug(UCanvas* Canvas, const FDebugDisplayInfo& Debug
 {
 	Super::DisplayDebug(Canvas, DebugDisplay, YL, YPos);
 
-	static FName NAME_AI = FName(TEXT("AI"));
 	if (DebugDisplay.IsDisplayOn(NAME_AI))
 	{
 		if (PathFollowingComponent)

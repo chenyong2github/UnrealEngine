@@ -230,8 +230,6 @@ class FLogSuppressionImplementation: public FLogSuppressionInterface, private FS
 					FName CmdToken = FName(*CommandParts[PartIndex]);
 					static FName NAME_Verbose(TEXT("Verbose"));
 					static FName NAME_VeryVerbose(TEXT("VeryVerbose"));
-					static FName NAME_All(TEXT("All"));
-					static FName NAME_Default(TEXT("Default"));
 					static FName NAME_On(TEXT("On"));
 					static FName NAME_Off(TEXT("Off"));
 					static FName NAME_Break(TEXT("Break"));

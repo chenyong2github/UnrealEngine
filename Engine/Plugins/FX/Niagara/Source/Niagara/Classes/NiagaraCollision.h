@@ -49,7 +49,7 @@ class FNiagaraDICollisionQueryBatch
 {
 public:
 	FNiagaraDICollisionQueryBatch()
-		: BatchID(NAME_None)
+		: BatchID(0)
 		, CurrBuffer(0)
 	{
 	}

@@ -431,7 +431,6 @@ void FShaderType::DumpDebugInfo()
 void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 {
 #if WITH_EDITOR
-	static FName NAME_Global(TEXT("Global"));
 	static FName NAME_Material(TEXT("Material"));
 	static FName NAME_MeshMaterial(TEXT("MeshMaterial"));
 	static FName NAME_Niagara(TEXT("Niagara"));

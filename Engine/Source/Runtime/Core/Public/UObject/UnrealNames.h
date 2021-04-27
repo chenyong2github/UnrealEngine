@@ -11,15 +11,18 @@ struct FNameEntryId;
 //
 
 // Define a message as an enumeration.
-#define REGISTER_NAME(num,name) NAME_##name = num,
-enum EName 
+#define REGISTER_NAME(num,name) name = num,
+enum class EName : uint32
 {
 	// Include all the hard-coded names
 	#include "UnrealNames.inl"
-
 	// Special constant for the last hard-coded name index
-	NAME_MaxHardcodedNameIndex,
+	MaxHardcodedNameIndex,
 };
+#undef REGISTER_NAME
+// Define aliases for the old-style EName enum syntax
+#define REGISTER_NAME(num,name) inline constexpr EName NAME_##name = EName::name;
+#include "UnrealNames.inl"
 #undef REGISTER_NAME
 
 CORE_API const TCHAR* LexToString(EName Ename);
@@ -36,5 +39,5 @@ CORE_API const TCHAR* LexToString(EName Ename);
 
 inline bool ShouldReplicateAsInteger(EName Ename)
 {
-	return Ename <= MAX_NETWORKED_HARDCODED_NAME;
+	return Ename <= EName(MAX_NETWORKED_HARDCODED_NAME);
 }

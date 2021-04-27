@@ -1652,8 +1652,6 @@ FObjectImport* FAsyncPackage::FindExistingImport(int32 LocalImportIndex)
 					{
 						static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
 						static const FName NAME_DynamicClass("DynamicClass");
-
-						static const FName NAME_Function("Function");
 						static const FName NAME_DelegateFunction("DelegateFunction");
 
 						bool bSafeException = (NameImportClass == NAME_BlueprintGeneratedClass && NameActualImportClass == NAME_DynamicClass)

@@ -606,16 +606,14 @@ bool FXmppModule::HandleXmppCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 	else if (FParse::Command(&Cmd, TEXT("LogVerbosity")))
 	{
-		FString Verbosity = FParse::Token(Cmd, false);
+		FName Verbosity = *FParse::Token(Cmd, false);
 
-		const FString NAME_NoLogging(TEXT("NoLogging"));
-		const FString NAME_Fatal(TEXT("Fatal"));
-		const FString NAME_Error(TEXT("Error"));
-		const FString NAME_Warning(TEXT("Warning"));
-		const FString NAME_Display(TEXT("Display"));
-		const FString NAME_Log(TEXT("Log"));
-		const FString NAME_Verbose(TEXT("Verbose"));
-		const FString NAME_VeryVerbose(TEXT("VeryVerbose"));
+		const FName NAME_NoLogging(TEXT("NoLogging"));
+		const FName NAME_Fatal(TEXT("Fatal"));
+		const FName NAME_Display(TEXT("Display"));
+		const FName NAME_Log(TEXT("Log"));
+		const FName NAME_Verbose(TEXT("Verbose"));
+		const FName NAME_VeryVerbose(TEXT("VeryVerbose"));
 
 		if (Verbosity == NAME_NoLogging)
 		{

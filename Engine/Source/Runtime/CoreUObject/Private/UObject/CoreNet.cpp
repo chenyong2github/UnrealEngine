@@ -299,7 +299,7 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 				Ar.SerializeIntPacked(NameIndex);
 			}
 
-			if (NameIndex < NAME_MaxHardcodedNameIndex)
+			if (NameIndex < (uint32)EName::MaxHardcodedNameIndex)
 			{
 				InName = EName(NameIndex);
 				// hardcoded names never have a Number
@@ -327,7 +327,7 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 		{
 			// send by hardcoded index
 			checkSlow(InName.GetNumber() <= 0); // hardcoded names should never have a Number
-			uint32 NameIndex = *InEName;
+			uint32 NameIndex = (uint32)*InEName;
 			Ar.SerializeIntPacked(NameIndex);
 		}
 		else

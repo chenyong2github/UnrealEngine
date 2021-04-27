@@ -49,7 +49,7 @@ const TCHAR* LexToString(EName Ename)
 {
 	switch (Ename)
 	{
-#define REGISTER_NAME(num,namestr) case num: return TEXT(#namestr);
+#define REGISTER_NAME(num,name) case EName::name: return TEXT(PREPROCESSOR_TO_STRING(name));
 #include "UObject/UnrealNames.inl"
 #undef REGISTER_NAME
 		default:
@@ -1031,7 +1031,7 @@ private:
 	FNamePoolShard<ENameCase::IgnoreCase> ComparisonShards[FNamePoolShards];
 
 	// Put constant lookup on separate cache line to avoid it being constantly invalidated by insertion
-	alignas(PLATFORM_CACHE_LINE_SIZE) FNameEntryId ENameToEntry[NAME_MaxHardcodedNameIndex] = {};
+	alignas(PLATFORM_CACHE_LINE_SIZE) FNameEntryId ENameToEntry[(uint32)EName::MaxHardcodedNameIndex] = {};
 	uint32 LargestEnameUnstableId;
 	TMap<FNameEntryId, EName, TInlineSetAllocator<MaxENames>> EntryToEName;
 };
@@ -1057,9 +1057,9 @@ FNamePool::FNamePool()
 
 	// Make reverse mapping
 	LargestEnameUnstableId = 0;
-	for (uint32 ENameIndex = 0; ENameIndex < NAME_MaxHardcodedNameIndex; ++ENameIndex)
+	for (uint32 ENameIndex = 0; ENameIndex < (uint32)EName::MaxHardcodedNameIndex; ++ENameIndex)
 	{
-		if (ENameIndex == NAME_None || ENameToEntry[ENameIndex])
+		if (ENameIndex == (uint32)NAME_None || ENameToEntry[ENameIndex])
 		{
 			EntryToEName.Add(ENameToEntry[ENameIndex], (EName)ENameIndex);
 			LargestEnameUnstableId = FMath::Max(LargestEnameUnstableId, ENameToEntry[ENameIndex].ToUnstableInt());
@@ -1096,8 +1096,8 @@ static bool IsPureAnsi(const WIDECHAR* Str, const int32 Len)
 
 FNameEntryId FNamePool::Find(EName Ename) const
 {
-	checkSlow(Ename < NAME_MaxHardcodedNameIndex);
-	return ENameToEntry[Ename];
+	checkSlow(Ename < EName::MaxHardcodedNameIndex);
+	return ENameToEntry[(uint32)Ename];
 }
 
 FNameEntryId FNamePool::Find(FNameStringView Name) const

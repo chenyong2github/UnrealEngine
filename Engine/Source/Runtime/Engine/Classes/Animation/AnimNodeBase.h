@@ -963,8 +963,8 @@ private:
 				static UE::Anim::FNodeDataId CachedId_##Identifier; \
 				if(!CachedId_##Identifier.IsValid()) \
 				{ \
-					static const FName NAME_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(NAME_##Identifier, this, StaticStruct()); \
+					static const FName AnimName_##Identifier(#Identifier); \
+					CachedId_##Identifier = UE::Anim::FNodeDataId(AnimName_##Identifier, this, StaticStruct()); \
 				} \
 				return CachedId_##Identifier; \
 			}() \
@@ -980,8 +980,8 @@ private:
 				static UE::Anim::FNodeDataId CachedId_##Identifier; \
 				if(!CachedId_##Identifier.IsValid()) \
 				{ \
-					static const FName NAME_##Identifier(#Identifier); \
-					CachedId_##Identifier = UE::Anim::FNodeDataId(NAME_##Identifier, this, StaticStruct()); \
+					static const FName AnimName_##Identifier(#Identifier); \
+					CachedId_##Identifier = UE::Anim::FNodeDataId(AnimName_##Identifier, this, StaticStruct()); \
 				} \
 				return CachedId_##Identifier; \
 			}() \

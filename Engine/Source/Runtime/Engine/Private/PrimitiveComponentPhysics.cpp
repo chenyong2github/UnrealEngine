@@ -296,13 +296,13 @@ void UPrimitiveComponent::SetAllPhysicsAngularVelocityInRadians(FVector const& N
 
 void UPrimitiveComponent::SetAllPhysicsPosition(FVector NewPos)
 {
-	SetWorldLocation(NewPos, NAME_None);
+	SetWorldLocation(NewPos);
 }
 
 
 void UPrimitiveComponent::SetAllPhysicsRotation(FRotator NewRot)
 {
-	SetWorldRotation(NewRot, NAME_None);
+	SetWorldRotation(NewRot);
 }
 
 void UPrimitiveComponent::SetAllPhysicsRotation(const FQuat& NewRot)

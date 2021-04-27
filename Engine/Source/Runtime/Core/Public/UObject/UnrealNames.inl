@@ -2,6 +2,12 @@
 
 // [[ IncludeTool: Inline ]] // Markup to tell IncludeTool that this file is state changing and cannot be optimized out.
 
+// Suppress any macros that may conflict with name constant symbols.
+UE_PUSH_MACRO("TRUE")
+#undef TRUE
+UE_PUSH_MACRO("FALSE")
+#undef FALSE
+
 // Special zero value, meaning no name.
 REGISTER_NAME(0,None)
 
@@ -211,3 +217,7 @@ REGISTER_NAME(602,GameUserSettings)
 REGISTER_NAME(700,Filename)
 REGISTER_NAME(701,Lerp)
 REGISTER_NAME(702,Root)
+
+// Restore any macros suppressed at the top of this file.
+UE_POP_MACRO("TRUE")
+UE_POP_MACRO("FALSE")

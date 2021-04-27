@@ -1452,11 +1452,11 @@ void USocialParty::ConnectToReservationBeacon()
 			IOnlineSessionPtr SessionInterface = Online::GetSessionInterface(World);
 			if (SessionInterface.IsValid())
 			{
-				const FName GameSessionName = GetGameSessionName();
-				if (FNamedOnlineSession* Session = SessionInterface->GetNamedSession(GameSessionName))
+				const FName PartyGameSessionName = GetGameSessionName();
+				if (FNamedOnlineSession* Session = SessionInterface->GetNamedSession(PartyGameSessionName))
 				{
 					FString URL;
-					if (ensure(SessionInterface->GetResolvedConnectString(GameSessionName, URL, NAME_BeaconPort)))
+					if (ensure(SessionInterface->GetResolvedConnectString(PartyGameSessionName, URL, NAME_BeaconPort)))
 					{
 						// Reconnect to the reservation beacon to maintain our place in the game (just until actual joined, holds place for all party members)
 						ReservationBeaconClient = World->SpawnActor<APartyBeaconClient>(ReservationBeaconClientClass);

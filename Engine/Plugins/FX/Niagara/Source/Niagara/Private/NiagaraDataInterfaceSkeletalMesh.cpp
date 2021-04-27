@@ -2416,8 +2416,8 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 	FNiagaraTypeDefinition Def(UObject::StaticClass());
 	MeshUserParameter.Parameter.SetType(Def);
 
-	static const FName NAME_Root("root");
-	ExcludeBoneName = NAME_Root;
+	static const FName RootBoneName("root");
+	ExcludeBoneName = RootBoneName;
 	bExcludeBone = false;
 
 	Proxy.Reset(new FNiagaraDataInterfaceProxySkeletalMesh());

@@ -38,8 +38,6 @@ DECLARE_CYCLE_STAT(TEXT("Camera ProcessViewRotation"), STAT_Camera_ProcessViewRo
 APlayerCameraManager::APlayerCameraManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	static FName NAME_Default(TEXT("Default"));
-
 	DefaultFOV = 90.0f;
 	DefaultAspectRatio = 1.33333f;
 	bDefaultConstrainAspectRatio = false;

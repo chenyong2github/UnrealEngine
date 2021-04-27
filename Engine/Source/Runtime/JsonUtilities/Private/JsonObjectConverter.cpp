@@ -606,8 +606,6 @@ namespace
 	else if (FStructProperty *StructProperty = CastField<FStructProperty>(Property))
 	{
 		static const FName NAME_DateTime(TEXT("DateTime"));
-		static const FName NAME_Color(TEXT("Color"));
-		static const FName NAME_LinearColor(TEXT("LinearColor"));
 		if (JsonValue->Type == EJson::Object)
 		{
 			TSharedPtr<FJsonObject> Obj = JsonValue->AsObject();

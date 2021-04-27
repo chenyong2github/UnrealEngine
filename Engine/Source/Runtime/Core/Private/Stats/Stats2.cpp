@@ -866,7 +866,7 @@ bool FStatNameAndInfo::GetSortByNameFrom(FName InLongName)
 		}
 		checkStats(0);
 	}
-	return NAME_None;
+	return false;
 }
 
 /*-----------------------------------------------------------------------------

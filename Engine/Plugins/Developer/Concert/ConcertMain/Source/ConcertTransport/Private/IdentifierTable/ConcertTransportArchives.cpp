@@ -38,7 +38,7 @@ FArchive& FConcertIdentifierWriter::operator<<(FName& Name)
 	if (Ename && ShouldReplicateAsInteger(*Ename))
 	{
 		SerializeConcertIdentifierSource(EConcertIdentifierSource::HardcodedIndex);
-		SerializeIndexValue(*Ename);
+		SerializeIndexValue((int32)*Ename);
 	}
 	else if (LocalIdentifierTable)
 	{

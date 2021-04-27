@@ -22,18 +22,18 @@ bool UMLAdapterSensor_Movement::ConfigureForAgent(UMLAdapterAgent& Agent)
 
 void UMLAdapterSensor_Movement::Configure(const TMap<FName, FString>& Params)
 {
-	const FName NAME_Location = TEXT("location");
-	const FName NAME_Velocity = TEXT("velocity");
+	const FName LocationKeyName = TEXT("location");
+	const FName VelocityKeyName = TEXT("velocity");
 	
 	Super::Configure(Params);
 
 	for (auto KeyValue : Params)
 	{
-		if (KeyValue.Key == NAME_Location)
+		if (KeyValue.Key == LocationKeyName)
 		{
 			bAbsoluteLocation = (KeyValue.Value.Find(TEXT("absolute")) != INDEX_NONE);
 		}
-		else if (KeyValue.Key == NAME_Velocity)
+		else if (KeyValue.Key == VelocityKeyName)
 		{
 			bAbsoluteLocation = (KeyValue.Value.Find(TEXT("absolute")) != INDEX_NONE);
 		}
