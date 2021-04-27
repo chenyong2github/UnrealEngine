@@ -34,19 +34,13 @@ public class GeoReferencing : ModuleRules
 		);
 
 		// Stage Proj data files
-		string ProjRedistFolder = Path.Combine(ModuleDirectory, @"..\ThirdParty\PROJ\redist");
-		RuntimeDependencies.Add("$(BinaryOutputDir)/proj-data/*", Path.Combine(ProjRedistFolder, "proj-data/*"), StagedFileType.SystemNonUFS);
+		string ProjRedistFolder = Path.Combine(PluginDirectory, @"Resources\PROJ\*");
+		RuntimeDependencies.Add(ProjRedistFolder, StagedFileType.NonUFS);
 
 		// Add dependencies to PROJ
 		List<string> RuntimeModuleNames = new List<string>();
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			// RuntimeModuleNames.Add("jpeg62.dll");
-			// RuntimeModuleNames.Add("lzma.dll");
-			// RuntimeModuleNames.Add("sqlite3.dll");
-			// RuntimeModuleNames.Add("tiff.dll");
-			// RuntimeModuleNames.Add("zlib1.dll");
-
 			foreach (string RuntimeModuleName in RuntimeModuleNames)
 			{
 				string ModulePath = Path.Combine(ProjRedistFolder, RuntimeModuleName);

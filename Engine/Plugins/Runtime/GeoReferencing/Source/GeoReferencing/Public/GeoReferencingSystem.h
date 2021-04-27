@@ -273,10 +273,13 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
-	private:
-		void Initialize();
-		void ApplySettings();
+private:
+	void Initialize();
 
-		class FGeoReferencingSystemInternals;
-		TPimplPtr<FGeoReferencingSystemInternals> Impl;
+public:
+	void ApplySettings();
+
+private:
+	class FGeoReferencingSystemInternals;
+	TPimplPtr<FGeoReferencingSystemInternals> Impl;
 };

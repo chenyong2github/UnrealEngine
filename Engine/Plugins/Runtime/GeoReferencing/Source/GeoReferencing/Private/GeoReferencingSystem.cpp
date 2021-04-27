@@ -701,12 +701,7 @@ void AGeoReferencingSystem::FGeoReferencingSystemInternals::InitPROJLibrary()
 
 	// Get the base directory of this plugin
 	FString BaseDir;
-#if WITH_EDITOR
 	BaseDir = IPluginManager::Get().FindPlugin("GeoReferencing")->GetBaseDir();
-#else
-	BaseDir = FPaths::ProjectDir();
-#endif
-	BaseDir = FPaths::ConvertRelativePathToFull(BaseDir);
 
 	// Add on the relative location of the third party dll and load it
 	FString ProjDataPathPath;
