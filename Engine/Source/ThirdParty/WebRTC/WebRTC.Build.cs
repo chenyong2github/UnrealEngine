@@ -94,14 +94,13 @@ public class WebRTC : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 			{
-				WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/rev.31262"; // Revision 31262 is Release 84
 				PublicDefinitions.Add("WEBRTC_WIN=1");
 
 				string VisualStudioVersionFolder = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
-				string IncludePath = Path.Combine(WebRtcSdkPath, "Include", "Windows");
+				string IncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder);
 				PublicSystemIncludePaths.Add(IncludePath);
-				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "Windows", "third_party", "abseil-cpp");
+				string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", PlatformSubdir, VisualStudioVersionFolder, "third_party", "abseil-cpp");
 				PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, VisualStudioVersionFolder, ConfigPath);
