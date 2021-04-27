@@ -407,71 +407,68 @@ void TraceReflections(
 			0);
 	}
 	
-	if (bTraceMeshSDFs)
+	if (Lumen::UseHardwareRayTracedReflections())
 	{
-		if (Lumen::UseHardwareRayTracedReflections())
+		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
+			GraphBuilder,
+			View,
+			ReflectionTracingParameters,
+			ReflectionTileParameters,
+			WORLD_MAX,
+			IndirectTracingParameters.MaxTraceDistance);
+
+		RenderLumenHardwareRayTracingReflections(
+			GraphBuilder,
+			SceneTextureParameters,
+			View,
+			ReflectionTracingParameters,
+			ReflectionTileParameters,
+			TracingInputs,
+			CompactedTraceParameters,
+			IndirectTracingParameters.MaxTraceDistance);
+	}
+	else if (bTraceMeshSDFs)
+	{
+		FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
+		if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
+		{
+			CullForCardTracing(
+				GraphBuilder,
+				Scene, View,
+				TracingInputs,
+				IndirectTracingParameters,
+				/* out */ MeshSDFGridParameters);
+		}
+
+		if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
 		{
 			FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 				GraphBuilder,
 				View,
 				ReflectionTracingParameters,
 				ReflectionTileParameters,
-				WORLD_MAX,
-				IndirectTracingParameters.MaxTraceDistance);
+				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
+				IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
-			RenderLumenHardwareRayTracingReflections(
-				GraphBuilder,
-				SceneTextureParameters,
-				View,
-				ReflectionTracingParameters,
-				ReflectionTileParameters,
-				TracingInputs,
-				CompactedTraceParameters,
-				IndirectTracingParameters.MaxTraceDistance);
-		}
-		else
-		{
-			FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
-			if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
 			{
-				CullForCardTracing(
+				FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
+				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+				PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+				FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+				auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
+
+				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					Scene, View,
-					TracingInputs,
-					IndirectTracingParameters,
-					/* out */ MeshSDFGridParameters);
-			}
-
-			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
-			{
-				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
-					GraphBuilder,
-					View,
-					ReflectionTracingParameters,
-					ReflectionTileParameters,
-					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-					IndirectTracingParameters.MaxMeshSDFTraceDistance);
-
-				{
-					FReflectionTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceMeshSDFsCS::FParameters>();
-					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-					PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
-					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-
-					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
-					auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceMeshSDFsCS>(PermutationVector);
-
-					FComputeShaderUtils::AddPass(
-						GraphBuilder,
-						RDG_EVENT_NAME("TraceMeshSDFs"),
-						ComputeShader,
-						PassParameters,
-						CompactedTraceParameters.IndirectArgs,
-						0);
-				}
+					RDG_EVENT_NAME("TraceMeshSDFs"),
+					ComputeShader,
+					PassParameters,
+					CompactedTraceParameters.IndirectArgs,
+					0);
 			}
 		}
 	}

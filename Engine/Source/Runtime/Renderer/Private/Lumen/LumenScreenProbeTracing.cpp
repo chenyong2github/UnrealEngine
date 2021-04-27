@@ -603,67 +603,63 @@ void TraceScreenProbes(
 			(uint32)EScreenProbeIndirectArgs::ThreadPerTrace * sizeof(FRHIDispatchIndirectParameters));
 	}
 
-	
-	if (bTraceMeshSDFs)
+	if (Lumen::UseHardwareRayTracedScreenProbeGather())
 	{
-		if (Lumen::UseHardwareRayTracedScreenProbeGather())
+		FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+			GraphBuilder,
+			View,
+			ScreenProbeParameters,
+			WORLD_MAX,
+			IndirectTracingParameters.MaxTraceDistance);
+
+		RenderHardwareRayTracingScreenProbe(GraphBuilder,
+			Scene,
+			SceneTextures,
+			ScreenProbeParameters,
+			View,
+			TracingInputs,
+			IndirectTracingParameters,
+			RadianceCacheParameters,
+			CompactedTraceParameters);
+	}
+	else if (bTraceMeshSDFs)
+	{
+		CullForCardTracing(
+			GraphBuilder,
+			Scene, View,
+			TracingInputs,
+			IndirectTracingParameters,
+			/* out */ MeshSDFGridParameters);
+
+		if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
 		{
 			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 				GraphBuilder,
 				View,
 				ScreenProbeParameters,
-				WORLD_MAX,
-				IndirectTracingParameters.MaxTraceDistance);
+				IndirectTracingParameters.CardTraceEndDistanceFromCamera,
+				IndirectTracingParameters.MaxMeshSDFTraceDistance);
 
-			RenderHardwareRayTracingScreenProbe(GraphBuilder,
-				Scene,
-				SceneTextures,
-				ScreenProbeParameters,
-				View,
-				TracingInputs,
-				IndirectTracingParameters,
-				RadianceCacheParameters,
-				CompactedTraceParameters);
-		}
-		else
-		{
-			CullForCardTracing(
-				GraphBuilder,
-				Scene, View,
-				TracingInputs,
-				IndirectTracingParameters,
-				/* out */ MeshSDFGridParameters);
-
-			if (MeshSDFGridParameters.TracingParameters.DistanceFieldObjectBuffers.NumSceneObjects > 0)
 			{
-				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+				FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
+				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
+				PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
+				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+
+				FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
+				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
+
+				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					View,
-					ScreenProbeParameters,
-					IndirectTracingParameters.CardTraceEndDistanceFromCamera,
-					IndirectTracingParameters.MaxMeshSDFTraceDistance);
-
-				{
-					FScreenProbeTraceMeshSDFsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceMeshSDFsCS::FParameters>();
-					GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-					PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-					PassParameters->ScreenProbeParameters = ScreenProbeParameters;
-					PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-					PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
-					PassParameters->CompactedTraceParameters = CompactedTraceParameters;
-
-					FScreenProbeTraceMeshSDFsCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FStructuredImportanceSampling >(LumenScreenProbeGather::UseImportanceSampling(View));
-					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
-
-					FComputeShaderUtils::AddPass(
-						GraphBuilder,
-						RDG_EVENT_NAME("TraceMeshSDFs"),
-						ComputeShader,
-						PassParameters,
-						CompactedTraceParameters.IndirectArgs,
-						0);
-				}
+					RDG_EVENT_NAME("TraceMeshSDFs"),
+					ComputeShader,
+					PassParameters,
+					CompactedTraceParameters.IndirectArgs,
+					0);
 			}
 		}
 	}
