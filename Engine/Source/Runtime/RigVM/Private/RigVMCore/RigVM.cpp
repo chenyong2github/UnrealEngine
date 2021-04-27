@@ -84,6 +84,11 @@ URigVM::URigVM()
 URigVM::~URigVM()
 {
 	Reset();
+
+	ExecutionReachedExit().Clear();
+#if WITH_EDITOR
+	ExecutionHalted().Clear();
+#endif
 }
 
 void URigVM::Serialize(FArchive& Ar)
