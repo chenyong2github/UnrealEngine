@@ -94,11 +94,5 @@ int32 UnrealFrontendMain( const TCHAR* CommandLine )
 	FEngineLoop::AppPreExit();
 	FModuleManager::Get().UnloadModulesAtShutdown();
 
-#if STATS
-	FThreadStats::StopThread();
-#endif
-
-	FTaskGraphInterface::Shutdown();
-
 	return Succeeded ? 0 : -1;
 }

@@ -448,11 +448,6 @@ int Main(const TArray<FString>& Arguments)
 		FEngineLoop::AppPreExit();
 		FModuleManager::Get().UnloadModulesAtShutdown();
 
-	#if STATS
-		FThreadStats::StopThread();
-	#endif
-
-		FTaskGraphInterface::Shutdown();
 		return Result;
 	}
 

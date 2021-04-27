@@ -191,10 +191,6 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 
 	// Unloading Modules isn't handled by AppExit
 	FModuleManager::Get().UnloadModulesAtShutdown();
-	// Nor is it handling stats, if any
-#if STATS
-	FThreadStats::StopThread();
-#endif
 
 	FEngineLoop::AppExit();
 
