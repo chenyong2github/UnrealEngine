@@ -13,14 +13,6 @@
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"Modules" :
-    [
-        {
-            "Name" : "Volumetrics",
-            "Type" : "Runtime",
-            "LoadingPhase" : "PostConfigInit"
-        }
-    ],
 	"Plugins": [
 		{
 			"Name": "BlueprintMaterialTextureNodes",
