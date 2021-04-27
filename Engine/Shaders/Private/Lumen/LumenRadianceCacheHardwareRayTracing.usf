@@ -31,13 +31,12 @@ uint PersistentTracingGroupCount;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 {
-	uint GroupThreadLinearId = DispatchRaysIndex().x % RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
-	uint2 GroupThreadId = uint2(GroupThreadLinearId % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, GroupThreadLinearId / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
+	uint2 GroupThreadId = uint2(DispatchRaysIndex().x % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, DispatchRaysIndex().x / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
 
 	uint TraceTileIterationSize = (ProbeTraceTileAllocator[0] + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
 	for (uint TraceTileIteration = 0; TraceTileIteration < TraceTileIterationSize; ++TraceTileIteration)
 	{
-		uint TraceTileGroupIndex = DispatchRaysIndex().x / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+		uint TraceTileGroupIndex = DispatchRaysIndex().y;
 		uint TraceTileIndex = TraceTileIteration * PersistentTracingGroupCount + TraceTileGroupIndex;
 		if (TraceTileIndex >= ProbeTraceTileAllocator[0])
 		{

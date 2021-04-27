@@ -263,22 +263,22 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 			View.ShaderMap->GetShader<FLumenRadianceCacheHardwareRayTracingRGS>(PermutationVector);
 		ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
-		FIntPoint DispatchResolution(PersistentTracingGroupCount * FLumenRadianceCacheHardwareRayTracingRGS::GetGroupSize() * FLumenRadianceCacheHardwareRayTracingRGS::GetGroupSize(), 1);
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(LightingMode)),
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[PassParameters, &View, RayGenerationShader, DispatchResolution, bUseMinimalPayload](FRHICommandList& RHICmdList)
-				{
-					FRayTracingShaderBindingsWriter GlobalResources;
-					SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+		FIntPoint DispatchResolution(FLumenRadianceCacheHardwareRayTracingRGS::GetGroupSize() * FLumenRadianceCacheHardwareRayTracingRGS::GetGroupSize(), PersistentTracingGroupCount);
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HardwareRayTracing %ux%u LightingMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(LightingMode)),
+			PassParameters,
+			ERDGPassFlags::Compute,
+			[PassParameters, &View, RayGenerationShader, DispatchResolution, bUseMinimalPayload](FRHICommandList& RHICmdList)
+			{
+				FRayTracingShaderBindingsWriter GlobalResources;
+				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
-					FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
-					FRayTracingPipelineState* RayTracingPipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
-					RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchResolution.X, DispatchResolution.Y);
-				}
-			);
-		}
+				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
+				FRayTracingPipelineState* RayTracingPipeline = bUseMinimalPayload ? View.LumenHardwareRayTracingMaterialPipeline : View.RayTracingMaterialPipeline;
+				RHICmdList.RayTraceDispatch(RayTracingPipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchResolution.X, DispatchResolution.Y);
+			}
+		);
+	}
 
 	// Reduce to Atlas
 	{
