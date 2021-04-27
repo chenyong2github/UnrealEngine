@@ -292,18 +292,17 @@ static bool IsShaderCompilerConfigEnabledForPlatform(const IConsoleVariable* Glo
 	{
 		bEnabled = true;
 	}
-	// TODO: christopher.waters - find out a better way to load these to prevent excessive ini load times on startup without cached ini files.
-#if WITH_EDITOR && 0
+#if WITH_EDITOR
 	else
 	{
 		// Then check the per platform settings.
 		ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), ShaderFormat);
 		if (TargetPlatform)
 		{
-			FConfigFile EngineSettings;
-			FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
-
-			EngineSettings.GetBool(TEXT("ShaderCompiler"), Key, bEnabled);
+			if (FConfigCacheIni* PlatformConfig = TargetPlatform->GetConfigSystem())
+			{
+				PlatformConfig->GetBool(TEXT("ShaderCompiler"), Key, bEnabled, GEngineIni);
+			}
 		}
 	}
 #endif
