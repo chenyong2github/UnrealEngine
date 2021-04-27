@@ -28,6 +28,8 @@
 #include "ClassViewerModule.h"
 #include "SClassViewer.h"
 #include "ContentBrowserModule.h"
+#include "IContentBrowserDataModule.h"
+#include "ContentBrowserDataSubsystem.h"
 #include "IContentBrowserSingleton.h"
 #include "PackageTools.h"
 #include "DetailLayoutBuilder.h"
@@ -782,9 +784,14 @@ void FCreateBlueprintFromActorDialog::OpenDialog(ECreateBlueprintFromActorMode C
 
 	if (ClassPickerDialog->bPressedOk)
 	{
-		FString NewAssetName = ClassPickerDialog->AssetPath / ClassPickerDialog->AssetName;
-
-		OnCreateBlueprint(NewAssetName, ClassPickerDialog->ChosenClass, ClassPickerDialog->CreateMode, ActorOverride.Get());
+		FString VirtualAssetPath = ClassPickerDialog->AssetPath;
+		FName InternalAssetPath;
+		EContentBrowserPathType AssetPathType = IContentBrowserDataModule::Get().GetSubsystem()->TryConvertVirtualPath(*VirtualAssetPath, InternalAssetPath);
+		if(ensureMsgf(AssetPathType == EContentBrowserPathType::Internal, TEXT("Could not convert virtual path %s to internal path."), *VirtualAssetPath))
+		{
+			FString NewAssetName = InternalAssetPath.ToString() / ClassPickerDialog->AssetName;
+			OnCreateBlueprint(NewAssetName, ClassPickerDialog->ChosenClass, ClassPickerDialog->CreateMode, ActorOverride.Get());
+		}
 	}
 }
 
