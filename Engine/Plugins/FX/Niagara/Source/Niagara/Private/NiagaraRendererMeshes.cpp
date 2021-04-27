@@ -375,6 +375,14 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 	const FSceneView& View,
 	const FParticleGPUBufferData& BufferData,
 	const FNiagaraDynamicDataMesh* DynamicDataMesh,
+	const bool bShouldSort,
+	const bool bDoGPUCulling,
+	const bool bGPUSortEnabled,
+	FNiagaraGPUSortInfo& SortInfo,
+	const int32 SortVarIdx,
+	NiagaraEmitterInstanceBatcher* Batcher,
+	FGlobalDynamicReadBuffer& DynamicReadBuffer,
+	const int32 NumInstances,
 	FVector& OutWorldSpacePivotOffset,
 	FSphere& OutCullingSphere) const
 {
@@ -586,6 +594,43 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 					break;
 				}
 			}
+		}
+	}
+
+	// Sort/Cull particles if needed (translucency etc).
+	PerViewUniformParameters.SortedIndices = GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
+	PerViewUniformParameters.SortedIndicesOffset = 0xFFFFFFFF;
+	//VertexFactory.SetSortedIndices(, 0xFFFFFFFF);
+	if ((bShouldSort || bDoGPUCulling) && SortInfo.SortAttributeOffset != INDEX_NONE)
+	{
+		// Set up mesh-specific sorting parameters
+		SortInfo.CulledGPUParticleCountOffset = bDoGPUCulling ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
+		SortInfo.LocalBSphere = OutCullingSphere;
+		SortInfo.CullingWorldSpaceOffset = OutWorldSpacePivotOffset;
+		SortInfo.MeshIndex = MeshData.SourceMeshIndex;
+
+		const int32 CPUThreshold = GNiagaraGPUSortingCPUToGPUThreshold;
+		if (SimTarget == ENiagaraSimTarget::GPUComputeSim ||
+			(bGPUSortEnabled && CPUThreshold >= 0 && NumInstances > CPUThreshold) ||
+			bDoGPUCulling)
+		{
+			// We need to run the sort shader on the GPU
+			if (Batcher->AddSortedGPUSimulation(SortInfo))
+			{
+				//VertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
+				PerViewUniformParameters.SortedIndices = SortInfo.AllocationInfo.BufferSRV;
+				PerViewUniformParameters.SortedIndicesOffset = SortInfo.AllocationInfo.BufferOffset;
+			}
+		}
+		else
+		{
+			// We want to sort on CPU
+			FGlobalDynamicReadBuffer::FAllocation SortedIndices;
+			SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
+			SortIndices(SortInfo, VFVariables[SortVarIdx], *DynamicDataMesh->GetParticleDataToRender(), SortedIndices);
+			//VertexFactory.SetSortedIndices(SortedIndices.SRV, 0);
+			PerViewUniformParameters.SortedIndices = SortedIndices.SRV;
+			PerViewUniformParameters.SortedIndicesOffset = 0;
 		}
 	}
 
@@ -947,6 +992,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				FVector WorldSpacePivotOffset;
 				FSphere CullingSphere;
 				FNiagaraMeshUniformBufferRef PerViewUniformBuffer = CreatePerViewUniformBuffer(MeshData, *SceneProxy, *RendererLayout, *View, BufferData, DynamicDataMesh,
+					bShouldSort, bDoGPUCulling, bGPUSortEnabled, SortInfo, SortVarIdx, Batcher, DynamicReadBuffer, NumInstances,
 					WorldSpacePivotOffset, CullingSphere);
 
 				// @TODO : support multiple LOD
@@ -975,38 +1021,6 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 
 				VertexFactory.SetUniformBuffer(PerViewUniformBuffer);
 				CollectorResources->UniformBuffer = PerViewUniformBuffer;
-
-				// Sort/Cull particles if needed.
-				VertexFactory.SetSortedIndices(nullptr, 0xFFFFFFFF);
-				if ((bShouldSort || bDoGPUCulling) && SortInfo.SortAttributeOffset != INDEX_NONE)
-				{
-					// Set up mesh-specific sorting parameters
-					SortInfo.CulledGPUParticleCountOffset = bDoGPUCulling ? Batcher->GetGPUInstanceCounterManager().AcquireCulledEntry() : INDEX_NONE;
-					SortInfo.LocalBSphere = CullingSphere;
-					SortInfo.CullingWorldSpaceOffset = WorldSpacePivotOffset;
-					SortInfo.MeshIndex = MeshData.SourceMeshIndex;
-
-					const int32 CPUThreshold = GNiagaraGPUSortingCPUToGPUThreshold;
-					if (SimTarget == ENiagaraSimTarget::GPUComputeSim ||
-						(bGPUSortEnabled && CPUThreshold >= 0 && NumInstances > CPUThreshold) ||
-						bDoGPUCulling)
-					{
-						// We need to run the sort shader on the GPU
-						if (Batcher->AddSortedGPUSimulation(SortInfo))
-						{
-							VertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
-						}
-					}
-					else
-					{
-						// We want to sort on CPU
-						TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
-						FGlobalDynamicReadBuffer::FAllocation SortedIndices;
-						SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
-						SortIndices(SortInfo, VFVariables[SortVarIdx], *SourceParticleData, SortedIndices);
-						VertexFactory.SetSortedIndices(SortedIndices.SRV, 0);
-					}
-				}
 
 				// Increment stats
 				INC_DWORD_STAT_BY(STAT_NiagaraNumMeshVerts, NumInstances * LODModel.GetNumVertices());

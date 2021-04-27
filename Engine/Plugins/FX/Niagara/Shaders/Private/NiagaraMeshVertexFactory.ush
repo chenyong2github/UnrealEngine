@@ -90,10 +90,6 @@ float3 WorldToSimVec(float3 InVector, float4x4 LocalToWorld)
 #define SPACE_WORLD 1
 #define SPACE_LOCAL 2
 
-/** Sorted index buffer for particles if we need to sort their draw order (translucency etc). */
-Buffer<int> SortedIndices;
-uint SortedIndicesOffset;
-
 struct FVertexFactoryInput
 {
 	float4	Position	: ATTRIBUTE0;
@@ -671,9 +667,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Input.InstanceId = GetInstanceId(Input.InstanceId); // NOTE: Handles instanced stereo
 
 	Intermediates.SortedInstanceId = Input.InstanceId;
-	if (SortedIndicesOffset != 0xFFFFFFFF)
+	if (NiagaraMeshVF.SortedIndicesOffset != 0xFFFFFFFF)
 	{
-		Intermediates.SortedInstanceId = SortedIndices[SortedIndicesOffset + Intermediates.SortedInstanceId];
+		Intermediates.SortedInstanceId = NiagaraMeshVF.SortedIndices[NiagaraMeshVF.SortedIndicesOffset + Intermediates.SortedInstanceId];
 	}
 
 	Intermediates.ParticleColor = SafeGetVec4(NiagaraMeshVF.ColorDataOffset, Intermediates.SortedInstanceId, NiagaraMeshVF.DefaultColor);
