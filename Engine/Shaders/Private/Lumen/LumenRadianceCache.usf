@@ -13,8 +13,13 @@
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
+#include "LumenRadianceCacheTracingCommon.ush"
 #include "LumenScreenProbeCommon.ush"
 #include "LumenScreenProbeImportanceSamplingShared.ush"
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void ClearProbeIndirectionCS(
@@ -287,32 +292,6 @@ void SetupProbeIndirectArgsCS()
 	RWFixupProbeBordersIndirectArgs[2] = NumProbesToTrace;
 }
 
-Buffer<float4> ProbeTraceData;
-
-void GetProbeTraceDataNoOffset(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
-{
-	ProbeWorldCenter = ProbeTraceData[ProbeTraceIndex].xyz;
-	uint PackedW = asuint(ProbeTraceData[ProbeTraceIndex].w);
-	ClipmapIndex = PackedW >> 24;
-	ProbeIndex = PackedW & 0xFFFFFF;
-}
-
-void GetProbeTraceData(uint ProbeTraceIndex, out float3 ProbeWorldCenter, out uint ClipmapIndex, out uint ProbeIndex)
-{
-	float3 ProbeWorldCenterNoOffset;
-	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenterNoOffset, ClipmapIndex, ProbeIndex);
-	ProbeWorldCenter = ProbeWorldCenterNoOffset + ProbeWorldOffset[ProbeIndex].xyz;
-}
-
-uint GetProbeIndexFromProbeTraceData(uint ProbeTraceIndex)
-{
-	float3 ProbeWorldCenter;
-	uint ClipmapIndex;
-	uint ProbeIndex;
-	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
-	return ProbeIndex;
-}
-
 groupshared float4 SharedBestOffset[THREADGROUP_SIZE];
 groupshared float4 SharedBestOffset2[THREADGROUP_SIZE];
 
@@ -468,26 +447,6 @@ bool ShouldRefineTraceTile(uint2 TraceTileCoord, uint TraceTileResolution, float
 
 	bool bRefineTraceTile = PDF > LevelPDFThreshold;
 	return bRefineTraceTile;
-}
-
-uint2 PackTraceTileInfo(uint2 TraceTileCoord, uint Level, uint ProbeTraceIndex)
-{
-	return uint2((TraceTileCoord.x & 0xFF) | ((TraceTileCoord.y & 0xFF) << 8) | ((Level & 0xFF) << 16), ProbeTraceIndex);
-}
-
-uint2 UnpackTraceTileInfo(uint2 TraceTileInfo)
-{
-	uint2 TraceTileCoord;
-	TraceTileCoord.x = TraceTileInfo.x & 0xFF;
-	TraceTileCoord.y = (TraceTileInfo.x >> 8) & 0xFF;
-	return TraceTileCoord;
-}
-
-void UnpackTraceTileInfo(uint2 TraceTileInfo, out uint2 TraceTileCoord, out uint Level, out uint ProbeTraceIndex)
-{
-	TraceTileCoord = UnpackTraceTileInfo(TraceTileInfo);
-	Level = (TraceTileInfo.x >> 16) & 0xFF;
-	ProbeTraceIndex = TraceTileInfo.y;
 }
 
 RWBuffer<uint2> RWProbeTraceTileData;
@@ -731,9 +690,6 @@ void GenerateProbeTraceTilesCS(
 
 RWBuffer<uint> RWTraceProbesIndirectArgs;
 RWBuffer<uint> RWRadianceCacheHardwareRayTracingIndirectArgs;
-Buffer<uint> ProbeTraceTileAllocator;
-
-#define TRACE_TILE_GROUP_STRIDE 128
 
 [numthreads(1, 1, 1)]
 void SetupTraceFromProbesCS()
@@ -747,22 +703,14 @@ void SetupTraceFromProbesCS()
 	RWTraceProbesIndirectArgs[1] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
 	RWTraceProbesIndirectArgs[2] = 1;
 
-	uint GroupSize = THREADGROUP_SIZE * THREADGROUP_SIZE;
-	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
-	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = TRACE_TILE_GROUP_STRIDE * GroupSize;
+	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = NumProbeTraceTiles;
 	RWRadianceCacheHardwareRayTracingIndirectArgs[2] = 1;
-
 }
-
-Buffer<uint2> ProbeTraceTileData;
-RWTexture2D<float3> RWRadianceProbeAtlasTexture;
-RWTexture2D<float> RWDepthProbeAtlasTexture;
 
 float StepFactor;
 float VoxelStepFactor;
 float MinSampleRadius;
-float MinTraceDistance;
-float MaxTraceDistance;
 float MaxMeshSDFTraceDistance;
 
 FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
@@ -798,10 +746,10 @@ FConeTraceResult TraceForProbeTexel(FConeTraceInput TraceInput)
 	return TraceResult;
 }
 
-groupshared float3 SharedTraceRadiance[THREADGROUP_SIZE][THREADGROUP_SIZE];
-groupshared float SharedTraceHitDistance[THREADGROUP_SIZE][THREADGROUP_SIZE];
+groupshared float3 SharedTraceRadiance[RADIANCE_CACHE_TRACE_TILE_SIZE_2D][RADIANCE_CACHE_TRACE_TILE_SIZE_2D];
+groupshared float SharedTraceHitDistance[RADIANCE_CACHE_TRACE_TILE_SIZE_2D][RADIANCE_CACHE_TRACE_TILE_SIZE_2D];
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+[numthreads(RADIANCE_CACHE_TRACE_TILE_SIZE_2D, RADIANCE_CACHE_TRACE_TILE_SIZE_2D, 1)]
 void TraceFromProbesCS(
 	uint3 GroupId : SV_GroupID,
 	uint2 GroupThreadId : SV_GroupThreadID)
@@ -816,7 +764,7 @@ void TraceFromProbesCS(
 		UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
 
 		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
-		uint2 ProbeTexelCoord = TraceTileCoord * THREADGROUP_SIZE + GroupThreadId.xy;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy;
 
 
 		float3 ProbeWorldCenter;
@@ -865,7 +813,7 @@ void TraceFromProbesCS(
 		if (TraceResolution < RadianceProbeResolution)
 		{
 			uint UpsampleFactor = RadianceProbeResolution / TraceResolution;
-			ProbeAtlasBaseCoord += (THREADGROUP_SIZE * TraceTileCoord + GroupThreadId.xy) * UpsampleFactor;
+			ProbeAtlasBaseCoord += (RADIANCE_CACHE_TRACE_TILE_SIZE_2D * TraceTileCoord + GroupThreadId.xy) * UpsampleFactor;
 
 			float3 Lighting = SharedTraceRadiance[GroupThreadId.y][GroupThreadId.x];
 
@@ -892,7 +840,7 @@ void TraceFromProbesCS(
 		else
 		{
 			uint DownsampleFactor = TraceResolution / RadianceProbeResolution;
-			uint WriteTileSize = THREADGROUP_SIZE / DownsampleFactor;
+			uint WriteTileSize = RADIANCE_CACHE_TRACE_TILE_SIZE_2D / DownsampleFactor;
 
 			if (all(GroupThreadId.xy < WriteTileSize))
 			{

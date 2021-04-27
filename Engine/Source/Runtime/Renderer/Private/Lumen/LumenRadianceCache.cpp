@@ -634,13 +634,13 @@ public:
 
 	static uint32 GetGroupSize()
 	{
+		// Must match RADIANCE_CACHE_TRACE_TILE_SIZE_2D
 		return 8;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
 
 		// Workaround for an internal PC FXC compiler crash when compiling with disabled optimizations
 		if (Parameters.Platform == SP_PCD3D_SM5)
@@ -1417,7 +1417,6 @@ void RenderRadianceCache(
 				DiffuseConeHalfAngle,
 				MaxNumProbes,
 				ProbeTraceTileResolution,
-
 				ProbeTraceData,
 				ProbeTraceTileData,
 				ProbeTraceTileAllocator,
