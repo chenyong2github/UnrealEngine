@@ -9,6 +9,7 @@
 #include "Containers/ArrayView.h"
 #include "Templates/UniquePtr.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/TypedElementCounter.h"
 #include "TypedElementList.generated.h"
 
 class UTypedElementList;
@@ -270,6 +271,20 @@ public:
 	int32 CountElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const;
 
 	/**
+	 * Test whether there are elements in this list of the given type.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|List")
+	bool HasElementsOfType(const FName InElementTypeName) const;
+	bool HasElementsOfType(const FTypedHandleTypeId InElementTypeId) const;
+
+	/**
+	 * Count the number of elements in this list of the given type.
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|List")
+	int32 CountElementsOfType(const FName InElementTypeName) const;
+	int32 CountElementsOfType(const FTypedHandleTypeId InElementTypeId) const;
+
+	/**
 	 * Get the handle of every element in this list, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|List")
@@ -361,6 +376,7 @@ public:
 		NoteListMayChange();
 		ElementCombinedIds.Empty(InSlack);
 		ElementHandles.Empty(InSlack);
+		ElementCounts.ClearCounters();
 		NoteListChanged(EChangeType::Cleared);
 	}
 
@@ -373,6 +389,7 @@ public:
 		NoteListMayChange();
 		ElementCombinedIds.Reset();
 		ElementHandles.Reset();
+		ElementCounts.ClearCounters();
 		NoteListChanged(EChangeType::Cleared);
 	}
 
@@ -532,6 +549,14 @@ public:
 	}
 
 	/**
+	 * Get the counter for the elements within the list.
+	 */
+	const FTypedElementCounter& GetCounter() const
+	{
+		return ElementCounts;
+	}
+
+	/**
 	 * Access the delegate that is invoked whenever this element list is potentially about to change.
 	 * @note This may be called even if no actual change happens, though once a change does happen it won't be called again until after the next call to NotifyPendingChanges.
 	 */
@@ -621,6 +646,11 @@ private:
 	 * These are stored in the same order that they are added, and the set above can be used to optimize certain queries.
 	 */
 	TArray<FTypedElementHandle> ElementHandles;
+
+	/**
+	 * Tracks various categories of counters for the elements within the list (eg, the number of elements of a given type).
+	 */
+	FTypedElementCounter ElementCounts;
 
 	/**
 	 * Delegate that is invoked whenever this element list is potentially about to change.

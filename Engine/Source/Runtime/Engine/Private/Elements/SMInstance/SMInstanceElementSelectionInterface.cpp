@@ -7,25 +7,10 @@
 
 int32 USMInstanceElementSelectionInterface::GetNumSelectedSMInstances(const UTypedElementList* InCurrentSelection)
 {
-	int32 NumSelected = 0;
-	InCurrentSelection->ForEachElementHandle([&NumSelected](const FTypedElementHandle& InSelectedElement)
-	{
-		if (SMInstanceElementDataUtil::GetSMInstanceFromHandle(InSelectedElement, /*bSilent*/true))
-		{
-			++NumSelected;
-		}
-		return true;
-	});
-	return NumSelected;
+	return InCurrentSelection->CountElementsOfType(NAME_SMInstance);
 }
 
 bool USMInstanceElementSelectionInterface::HasSelectedSMInstances(const UTypedElementList* InCurrentSelection)
 {
-	bool bHasSelectedSMInstances = false;
-	InCurrentSelection->ForEachElementHandle([&bHasSelectedSMInstances](const FTypedElementHandle& InSelectedElement)
-	{
-		bHasSelectedSMInstances = !!SMInstanceElementDataUtil::GetSMInstanceFromHandle(InSelectedElement, /*bSilent*/true);
-		return !bHasSelectedSMInstances;
-	});
-	return bHasSelectedSMInstances;
+	return InCurrentSelection->HasElementsOfType(NAME_SMInstance);
 }

@@ -75,10 +75,18 @@ public:
 	 */
 	FORCEINLINE FTypedHandleTypeId GetRegisteredElementTypeId(const FName InElementTypeName) const
 	{
-		FReadScopeLock RegisteredElementTypesLock(RegisteredElementTypesRW);
+		const FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromName(InElementTypeName);
+		return RegisteredElementType ? RegisteredElementType->TypeId : 0;
+	}
 
-		const FTypedHandleTypeId* TypeId = RegisteredElementTypesNameToId.Find(InElementTypeName);
-		return TypeId ? *TypeId : 0;
+	/**
+	 * Get the element type name for the associated element type ID, if any.
+	 * @return The element type name, or None if the given ID wasn't registered.
+	 */
+	FORCEINLINE FName GetRegisteredElementTypeName(const FTypedHandleTypeId InElementTypeId) const
+	{
+		const FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementTypeId);
+		return RegisteredElementType ? RegisteredElementType->TypeName : FName();
 	}
 
 	/**

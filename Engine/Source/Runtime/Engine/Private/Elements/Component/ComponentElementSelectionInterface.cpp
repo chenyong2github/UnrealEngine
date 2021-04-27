@@ -7,25 +7,10 @@
 
 int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
-	int32 NumSelected = 0;
-	InCurrentSelection->ForEachElementHandle([&NumSelected](const FTypedElementHandle& InSelectedElement)
-	{
-		if (ComponentElementDataUtil::GetComponentFromHandle(InSelectedElement, /*bSilent*/true))
-		{
-			++NumSelected;
-		}
-		return true;
-	});
-	return NumSelected;
+	return InCurrentSelection->CountElementsOfType(NAME_Components);
 }
 
 bool UComponentElementSelectionInterface::HasSelectedComponents(const UTypedElementList* InCurrentSelection)
 {
-	bool bHasSelectedComponents = false;
-	InCurrentSelection->ForEachElementHandle([&bHasSelectedComponents](const FTypedElementHandle& InSelectedElement)
-	{
-		bHasSelectedComponents = ComponentElementDataUtil::GetComponentFromHandle(InSelectedElement, /*bSilent*/true) != nullptr;
-		return !bHasSelectedComponents;
-	});
-	return bHasSelectedComponents;
+	return InCurrentSelection->HasElementsOfType(NAME_Components);
 }

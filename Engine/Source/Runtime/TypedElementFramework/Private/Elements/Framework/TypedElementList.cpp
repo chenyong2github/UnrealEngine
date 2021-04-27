@@ -125,6 +125,9 @@ void UTypedElementList::Initialize(UTypedElementRegistry* InRegistry)
 	checkf(!Registry.Get(), TEXT("Initialize has already been called!"));
 	Registry = InRegistry;
 	checkf(InRegistry, TEXT("Registry is null!"));
+
+	ElementCounts.Initialize(InRegistry);
+
 	InRegistry->Private_OnElementListCreated(this);
 }
 
@@ -144,14 +147,19 @@ void UTypedElementList::BeginDestroy()
 UTypedElementList* UTypedElementList::Clone() const
 {
 	UTypedElementList* ClonedElementList = Private_CreateElementList(Registry.Get());
-	ClonedElementList->ElementCombinedIds = ElementCombinedIds;
-	ClonedElementList->ElementHandles = ElementHandles;
+	for (const FTypedElementHandle& ElementHandle : ElementHandles)
+	{
+		ClonedElementList->Add(ElementHandle);
+	}
 	return ClonedElementList;
 }
 
 UTypedElementInterface* UTypedElementList::GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
 {
-	return Registry->GetElementInterface(InElementHandle, InBaseInterfaceType);
+	UTypedElementRegistry* RegistryPtr = Registry.Get();
+	return RegistryPtr
+		? Registry->GetElementInterface(InElementHandle, InBaseInterfaceType)
+		: nullptr;
 }
 
 bool UTypedElementList::HasElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
@@ -192,6 +200,34 @@ int32 UTypedElementList::CountElements(const TSubclassOf<UTypedElementInterface>
 	}
 
 	return NumFilteredElements;
+}
+
+bool UTypedElementList::HasElementsOfType(const FName InElementTypeName) const
+{
+	return CountElementsOfType(InElementTypeName) > 0;
+}
+
+bool UTypedElementList::HasElementsOfType(const FTypedHandleTypeId InElementTypeId) const
+{
+	return CountElementsOfType(InElementTypeId) > 0;
+}
+
+int32 UTypedElementList::CountElementsOfType(const FName InElementTypeName) const
+{
+	if (UTypedElementRegistry* RegistryPtr = Registry.Get())
+	{
+		const FTypedHandleTypeId ElementTypeId = RegistryPtr->GetRegisteredElementTypeId(InElementTypeName);
+		if (ElementTypeId > 0)
+		{
+			return CountElementsOfType(ElementTypeId);
+		}
+	}
+	return 0;
+}
+
+int32 UTypedElementList::CountElementsOfType(const FTypedHandleTypeId InElementTypeId) const
+{
+	return ElementCounts.GetCounterValue(FTypedElementCounter::GetElementTypeCategoryName(), InElementTypeId);
 }
 
 TArray<FTypedElementHandle> UTypedElementList::GetElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
@@ -237,6 +273,7 @@ bool UTypedElementList::AddElementImpl(FTypedElementHandle&& InElementHandle)
 	if (!bAlreadyAdded)
 	{
 		const FTypedElementHandle& AddedElementHandle = ElementHandles.Add_GetRef(MoveTemp(InElementHandle));
+		ElementCounts.AddElement(AddedElementHandle);
 		NoteListChanged(EChangeType::Added, AddedElementHandle);
 	}
 
@@ -264,6 +301,7 @@ bool UTypedElementList::RemoveElementImpl(const FTypedElementId& InElementId)
 
 		FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[ElementHandleIndexToRemove]);
 		ElementHandles.RemoveAt(ElementHandleIndexToRemove, 1, /*bAllowShrinking*/false);
+		ElementCounts.RemoveElement(RemovedElementHandle);
 
 		NoteListChanged(EChangeType::Removed, RemovedElementHandle);
 	}
@@ -288,6 +326,7 @@ int32 UTypedElementList::RemoveAllElementsImpl(TFunctionRef<bool(const FTypedEle
 				FTypedElementHandle RemovedElementHandle = MoveTemp(ElementHandles[Index]);
 				ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
 				ElementHandles.RemoveAt(Index, 1, /*bAllowShrinking*/false);
+				ElementCounts.RemoveElement(RemovedElementHandle);
 
 				NoteListChanged(EChangeType::Removed, RemovedElementHandle);
 
