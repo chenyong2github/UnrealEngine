@@ -11,7 +11,7 @@
 
 #include "CoreTechRetessellateAction.generated.h"
 
-class CORETECHEXTENSION_API FCoreTechRetessellate_Impl
+class PARAMETRICSURFACEEXTENSION_API FCoreTechRetessellate_Impl
 {
 public:
 	static const FText Label;
@@ -24,7 +24,7 @@ public:
 
 
 UCLASS()
-class CORETECHEXTENSION_API UCoreTechRetessellateAction : public UDatasmithCustomActionBase
+class PARAMETRICSURFACEEXTENSION_API UCoreTechRetessellateAction : public UDatasmithCustomActionBase
 {
 	GENERATED_BODY()
 
@@ -45,7 +45,7 @@ public:
 
 
 UCLASS(config = Editor, Transient)
-class CORETECHEXTENSION_API UCoreTechRetessellateActionOptions : public UObject
+class PARAMETRICSURFACEEXTENSION_API UCoreTechRetessellateActionOptions : public UObject
 {
 	GENERATED_BODY()
 

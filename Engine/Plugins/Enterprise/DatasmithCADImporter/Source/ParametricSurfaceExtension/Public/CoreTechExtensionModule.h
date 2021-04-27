@@ -4,7 +4,7 @@
 
 #include "Modules/ModuleInterface.h"
 
-#define CORETECHEXTENSION_MODULE_NAME TEXT("CoreTechExtension")
+#define PARAMETRICSURFACEEXTENSION_MODULE_NAME TEXT("ParametricSurfaceExtension")
 
 /**
  * This module exposes additional features for assets containing CoreTech data.

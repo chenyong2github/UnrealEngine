@@ -74,7 +74,7 @@
 			]
 		},
 		{
-			"Name": "CoreTechExtension",
+			"Name": "ParametricSurfaceExtension",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [

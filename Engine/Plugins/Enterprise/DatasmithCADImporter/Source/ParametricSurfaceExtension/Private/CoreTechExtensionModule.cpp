@@ -79,12 +79,12 @@ namespace StaticMeshEditorExtenser
 
 FCoreTechExtensionModule& FCoreTechExtensionModule::Get()
 {
-	return FModuleManager::LoadModuleChecked< FCoreTechExtensionModule >(CORETECHEXTENSION_MODULE_NAME);
+	return FModuleManager::LoadModuleChecked< FCoreTechExtensionModule >(PARAMETRICSURFACEEXTENSION_MODULE_NAME);
 }
 
 bool FCoreTechExtensionModule::IsAvailable()
 {
-	return FModuleManager::Get().IsModuleLoaded(CORETECHEXTENSION_MODULE_NAME);
+	return FModuleManager::Get().IsModuleLoaded(PARAMETRICSURFACEEXTENSION_MODULE_NAME);
 }
 
 void FCoreTechExtensionModule::StartupModule()
