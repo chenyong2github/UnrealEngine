@@ -13,8 +13,11 @@ struct FSessionInfo
 	FString Platform;
 	FString AppName;
 	FString CommandLine;
-	EBuildConfiguration ConfigurationType;
-	EBuildTargetType TargetType;
+	FString Branch;
+	FString BuildVersion;
+	uint32 Changelist = 0;
+	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
+	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 };
 
 class IDiagnosticsProvider : public IProvider

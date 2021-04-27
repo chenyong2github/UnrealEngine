@@ -43,6 +43,9 @@ struct FStoreBrowserTraceInfo
 	FString Platform;
 	FString AppName;
 	FString CommandLine;
+	FString Branch;
+	FString BuildVersion;
+	uint32 Changelist;
 	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 

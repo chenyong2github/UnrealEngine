@@ -229,13 +229,16 @@ TSharedRef<SDockTab> SSessionInfoWindow::SpawnTab_SessionInfo(const FSpawnTabArg
 	Image->SetImage(new FSlateColorBrush(FLinearColor(0.015f, 0.015f, 0.015f, 1.0f)));
 
 	AddInfoLine(VerticalBox, LOCTEXT("SessionName_HeaderText",	"Session Name:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetSessionNameText));
-	AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
+	//AddInfoLine(VerticalBox, LOCTEXT("Uri_HeaderText",			"URI:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetUriText));
+	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
 	AddInfoLine(VerticalBox, LOCTEXT("Platform_HeaderText",		"Platform:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetPlatformText));
 	AddInfoLine(VerticalBox, LOCTEXT("AppName_HeaderText",		"Application Name:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetAppNameText));
+	AddInfoLine(VerticalBox, LOCTEXT("Branch_HeaderText",		"Branch:"),				TAttribute<FText>(this, &SSessionInfoWindow::GetBranchText));
+	AddInfoLine(VerticalBox, LOCTEXT("BuildVersion_HeaderText",	"Build Version:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildVersionText));
+	AddInfoLine(VerticalBox, LOCTEXT("Changelist_HeaderText",	"Changelist:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetChangelistText));
 	AddInfoLine(VerticalBox, LOCTEXT("BuildConfig_HeaderText",	"Build Config:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildConfigText));
 	AddInfoLine(VerticalBox, LOCTEXT("BuildTarget_HeaderText",	"Build Target:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetBuildTargetText));
 	AddInfoLine(VerticalBox, LOCTEXT("CommandLine_HeaderText",	"Command Line:"),		TAttribute<FText>(this, &SSessionInfoWindow::GetCommandLineText), true);
-	//AddInfoLine(VerticalBox, LOCTEXT("FileSize_HeaderText",		"File Size:"),			TAttribute<FText>(this, &SSessionInfoWindow::GetFileSizeText));
 	AddInfoLine(VerticalBox, LOCTEXT("Status_HeaderText",		"Analysis Status:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetStatusText));
 	AddInfoLine(VerticalBox, LOCTEXT("Modules_HeaderText",		"Analysis Modules:"),	TAttribute<FText>(this, &SSessionInfoWindow::GetModulesText));
 
@@ -289,9 +292,12 @@ void SSessionInfoWindow::Tick(const FGeometry& AllottedGeometry, const double In
 			TraceServices::FSessionInfo SessionInfo = DiagnosticsProvider.GetSessionInfo();
 			PlatformText = FText::FromString(SessionInfo.Platform);
 			AppNameText = FText::FromString(SessionInfo.AppName);
-			CommandLineText = FText::FromString(SessionInfo.CommandLine);
+			BranchText = FText::FromString(SessionInfo.Branch);
+			BuildVersionText = FText::FromString(SessionInfo.BuildVersion);
+			ChangelistText = FText::AsNumber(SessionInfo.Changelist, &FNumberFormattingOptions::DefaultNoGrouping());
 			BuildConfigurationTypeText = FText::FromString(LexToString(SessionInfo.ConfigurationType));
 			BuildTargetTypeText = FText::FromString(LexToString(SessionInfo.TargetType));
+			CommandLineText = FText::FromString(SessionInfo.CommandLine);
 			bIsSessionInfoSet = true;
 		}
 	}
@@ -380,41 +386,6 @@ FText SSessionInfoWindow::GetUriText() const
 		LocalUri = FText::FromString(FString(Session->GetName()));
 	}
 	return LocalUri;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SSessionInfoWindow::GetPlatformText() const
-{
-	return PlatformText;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SSessionInfoWindow::GetAppNameText() const
-{
-	return AppNameText;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SSessionInfoWindow::GetBuildConfigText() const
-{
-	return BuildConfigurationTypeText;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SSessionInfoWindow::GetBuildTargetText() const
-{
-	return BuildTargetTypeText;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FText SSessionInfoWindow::GetCommandLineText() const
-{
-	return CommandLineText;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

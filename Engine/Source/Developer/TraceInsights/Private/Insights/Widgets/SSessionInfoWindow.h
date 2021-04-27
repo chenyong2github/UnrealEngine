@@ -118,7 +118,6 @@ private:
 	 */
 	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
 
-
 private:
 	void AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue, bool bMultiLine = false) const;
 
@@ -126,12 +125,17 @@ private:
 	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	FText GetSessionNameText() const;
+
+	FText GetPlatformText() const { return PlatformText; }
+	FText GetAppNameText() const { return AppNameText; }
+	FText GetBranchText() const { return BranchText; }
+	FText GetBuildVersionText() const { return BuildVersionText; }
+	FText GetChangelistText() const { return ChangelistText; }
+	FText GetBuildConfigText() const { return BuildConfigurationTypeText; }
+	FText GetBuildTargetText() const { return BuildTargetTypeText; }
+	FText GetCommandLineText() const { return CommandLineText; }
+
 	FText GetUriText() const;
-	FText GetPlatformText() const;
-	FText GetAppNameText() const;
-	FText GetBuildConfigText() const;
-	FText GetBuildTargetText() const;
-	FText GetCommandLineText() const;
 	FText GetFileSizeText() const;
 	FText GetStatusText() const;
 	FText GetModulesText() const;
@@ -149,9 +153,12 @@ private:
 
 	FText PlatformText;
 	FText AppNameText;
-	FText CommandLineText;
+	FText BranchText;
+	FText BuildVersionText;
+	FText ChangelistText;
 	FText BuildConfigurationTypeText;
 	FText BuildTargetTypeText;
+	FText CommandLineText;
 	bool bIsSessionInfoSet = false;
 
 	//FText Uri;

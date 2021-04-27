@@ -372,6 +372,9 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 			Trace.Platform = Analyzer.Platform;
 			Trace.AppName = Analyzer.AppName;
 			Trace.CommandLine = Analyzer.CommandLine;
+			Trace.Branch = Analyzer.Branch;
+			Trace.BuildVersion = Analyzer.BuildVersion;
+			Trace.Changelist = Analyzer.Changelist;
 			Trace.ConfigurationType = static_cast<EBuildConfiguration>(Analyzer.ConfigurationType);
 			Trace.TargetType = static_cast<EBuildTargetType>(Analyzer.TargetType);
 		}

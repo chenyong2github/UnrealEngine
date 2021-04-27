@@ -66,6 +66,9 @@ struct FTraceViewModel
 	FText Platform;
 	FText AppName;
 	FText CommandLine;
+	FText Branch;
+	FText BuildVersion;
+	uint32 Changelist;
 	EBuildConfiguration ConfigurationType = EBuildConfiguration::Unknown;
 	EBuildTargetType TargetType = EBuildTargetType::Unknown;
 

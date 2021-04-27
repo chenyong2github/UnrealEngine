@@ -54,6 +54,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/Version.h"
 #include "Insights/Widgets/SInsightsSettings.h"
+#include "Insights/Widgets/SLazyToolTip.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -63,7 +64,7 @@
 // STraceListRow
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class STraceListRow : public SMultiColumnTableRow<TSharedPtr<FTraceViewModel>>
+class STraceListRow : public SMultiColumnTableRow<TSharedPtr<FTraceViewModel>>, public ILazyToolTipCreator
 {
 	SLATE_BEGIN_ARGS(STraceListRow) {}
 	SLATE_END_ARGS()
@@ -84,7 +85,6 @@ public:
 		SMultiColumnTableRow<TSharedPtr<FTraceViewModel>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 	}
 
-public:
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override
 	{
 		if (ColumnName == FName(TEXT("Name")))
@@ -253,6 +253,58 @@ public:
 		}
 	}
 
+	FText GetTraceBranch() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return TracePin->Branch;
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceBuildVersion() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return TracePin->BuildVersion;
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	FText GetTraceChangelist() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return FText::AsNumber(TracePin->Changelist, &FNumberFormattingOptions::DefaultNoGrouping());
+		}
+		else
+		{
+			return FText::GetEmpty();
+		}
+	}
+
+	EVisibility TraceChangelistVisibility() const
+	{
+		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
+		if (TracePin.IsValid())
+		{
+			return TracePin->Changelist != 0 ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		else
+		{
+			return EVisibility::Collapsed;
+		}
+	}
+
 	FText GetTraceBuildConfiguration() const
 	{
 		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
@@ -414,6 +466,12 @@ public:
 
 	TSharedPtr<IToolTip> GetTraceTooltip() const
 	{
+		return SNew(SLazyToolTip, SharedThis(this));
+	}
+
+	// ILazyToolTipCreator
+	virtual TSharedPtr<SToolTip> CreateTooltip() const override
+	{
 		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
 		if (TracePin.IsValid())
 		{
@@ -434,7 +492,7 @@ public:
 					[
 						SNew(STextBlock)
 						.Text(this, &STraceListRow::GetTraceName)
-						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 9))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
 						.ColorAndOpacity(FLinearColor::White)
 					]
 
@@ -468,6 +526,9 @@ public:
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Platform", "Platform:"), &STraceListRow::GetTracePlatform);
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_AppName", "App Name:"), &STraceListRow::GetTraceAppName);
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_CommandLine", "Command Line:"), &STraceListRow::GetTraceCommandLine);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Branch", "Branch:"), &STraceListRow::GetTraceBranch);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_BuildVersion", "Build Version:"), &STraceListRow::GetTraceBuildVersion);
+			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Changelist", "Changelist:"), &STraceListRow::GetTraceChangelist, &STraceListRow::TraceChangelistVisibility);
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_BuildConfig", "Build Config:"), &STraceListRow::GetTraceBuildConfiguration);
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_BuildTarget", "Build Target:"), &STraceListRow::GetTraceBuildTarget);
 			AddGridPanelRow(GridPanel, Row++, LOCTEXT("TraceTooltip_Timestamp", "Timestamp:"), &STraceListRow::GetTraceTimestampForTooltip);
@@ -478,33 +539,54 @@ public:
 		}
 		else
 		{
-			return nullptr;
+			TSharedPtr<SToolTip> TraceTooltip =
+				SNew(SToolTip)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("TraceTooltip_NA", "N/A"))
+				];
+
+			return TraceTooltip;
 		}
 	}
 
-	void AddGridPanelRow(TSharedPtr<SGridPanel> Grid, int32 Row, const FText& Name,
-		typename TAttribute<FText>::FGetter::template TConstMethodPtr<STraceListRow> Value) const
+private:
+	void AddGridPanelRow(TSharedPtr<SGridPanel> Grid, int32 Row, const FText& InHeaderText,
+		typename TAttribute<FText>::FGetter::template TConstMethodPtr<STraceListRow> InValueTextFn,
+		typename TAttribute<EVisibility>::FGetter::template TConstMethodPtr<STraceListRow> InVisibilityFn = nullptr) const
 	{
-		Grid->AddSlot(0, Row)
+		SGridPanel::FSlot& Slot0 = Grid->AddSlot(0, Row)
 			.Padding(2.0f)
 			.HAlign(HAlign_Right)
 			[
 				SNew(STextBlock)
-				.Text(Name)
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 8))
+				.Text(InHeaderText)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
 				.ColorAndOpacity(FLinearColor::Gray)
 			];
 
-		Grid->AddSlot(1, Row)
+		SGridPanel::FSlot& Slot1 = Grid->AddSlot(1, Row)
 			.Padding(2.0f)
 			.HAlign(HAlign_Left)
 			[
 				SNew(STextBlock)
-				.Text(this, Value)
+				.Text(this, InValueTextFn)
 				.WrapTextAt(512.0f)
 				.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 				.ColorAndOpacity(FLinearColor::White)
 			];
+
+		if (InVisibilityFn)
+		{
+			Slot0.GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
+			Slot1.GetWidget()->SetVisibility(MakeAttributeSP(this, InVisibilityFn));
+		}
+		else
+		{
+			auto Fn = MakeAttributeSP(this, InValueTextFn);
+			Slot0.GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
+			Slot1.GetWidget()->SetVisibility(MakeAttributeLambda([this, Fn]() { return Fn.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; }));
+		}
 	}
 
 private:
@@ -1180,9 +1262,12 @@ FReply SStartPageWindow::Connect_OnClicked()
 		return FReply::Handled();
 	}
 
+	const FString& HostStr = HostText.ToString();
+	UE_LOG(TraceInsights, Log, TEXT("[StartPage] Try connecting to \"%s\"..."), *HostStr);
+
 	bool bConnectedSuccessfully = false;
 	UE::Trace::FControlClient ControlClient;
-	if (ControlClient.Connect(*HostText.ToString()))
+	if (ControlClient.Connect(*HostStr))
 	{
 		TSharedPtr<FInternetAddr> RecorderAddr;
 		if (ISocketSubsystem* Sockets = ISocketSubsystem::Get())
@@ -1191,7 +1276,9 @@ FReply SStartPageWindow::Connect_OnClicked()
 			RecorderAddr = Sockets->GetLocalHostAddr(*GLog, bCanBindAll);
 			if (RecorderAddr.IsValid())
 			{
-				ControlClient.SendSendTo(*RecorderAddr->ToString(false));
+				const FString RecorderAddrStr = RecorderAddr->ToString(false);
+				UE_LOG(TraceInsights, Log, TEXT("[StartPage] SendSendTo(\"%s\")..."), *RecorderAddrStr);
+				ControlClient.SendSendTo(*RecorderAddrStr);
 				bConnectedSuccessfully = true;
 			}
 		}
@@ -1199,6 +1286,7 @@ FReply SStartPageWindow::Connect_OnClicked()
 
 	if (bConnectedSuccessfully)
 	{
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] Successfully connected."));
 		FNotificationInfo NotificationInfo(FText::Format(LOCTEXT("ConnectSuccess", "Successfully connected to \"{0}\"!"), HostText));
 		NotificationInfo.bFireAndForget = false;
 		NotificationInfo.bUseLargeFont = false;
@@ -1211,6 +1299,7 @@ FReply SStartPageWindow::Connect_OnClicked()
 	}
 	else
 	{
+		UE_LOG(TraceInsights, Warning, TEXT("[StartPage] Failed to connect to \"%s\"!"), *HostStr);
 		FNotificationInfo NotificationInfo(FText::Format(LOCTEXT("ConnectFailed", "Failed to connect to \"{0}\"!"), HostText));
 		NotificationInfo.bFireAndForget = false;
 		NotificationInfo.bUseLargeFont = false;
@@ -1251,8 +1340,8 @@ void SStartPageWindow::RefreshTraceList()
 		{
 			TracesChangeSerial = NewChangeSerial;
 
-			UE_LOG(TraceInsights, Log, TEXT("[StartPage] Synching the trace list with StoreBrowser..."));
-	
+			//UE_LOG(TraceInsights, Log, TEXT("[StartPage] Synching the trace list with StoreBrowser..."));
+
 			const TArray<TSharedPtr<Insights::FStoreBrowserTraceInfo>>& InTraces = StoreBrowser->GetLockedTraces();
 			const TMap<uint32, TSharedPtr<Insights::FStoreBrowserTraceInfo>>& InTraceMap = StoreBrowser->GetLockedTraceMap();
 
@@ -1316,10 +1405,11 @@ void SStartPageWindow::RefreshTraceList()
 	}
 
 	StopwatchTotal.Stop();
-	if (UpdatedTraces > 0 || AddedTraces > 0 || RemovedTraces > 0)
+	const double Duration = StopwatchTotal.GetAccumulatedTime();
+	if ((Duration > 0.0001) && (UpdatedTraces > 0 || AddedTraces > 0 || RemovedTraces > 0))
 	{
-		UE_LOG(TraceInsights, Log, TEXT("[StartPage] The trace list refreshed in %llu ms (%d traces : %d updated, %d added, %d removed)."),
-			StopwatchTotal.GetAccumulatedTimeMs(), TraceViewModels.Num(), UpdatedTraces, AddedTraces, RemovedTraces);
+		UE_LOG(TraceInsights, Log, TEXT("[StartPage] The trace list refreshed in %.0f ms (%d traces : %d updated, %d added, %d removed)."),
+			Duration * 1000.0, TraceViewModels.Num(), UpdatedTraces, AddedTraces, RemovedTraces);
 	}
 }
 
@@ -1348,6 +1438,9 @@ void SStartPageWindow::UpdateTrace(FTraceViewModel& InOutTrace, const Insights::
 		InOutTrace.Platform = FText::FromString(InSourceTrace.Platform);
 		InOutTrace.AppName = FText::FromString(InSourceTrace.AppName);
 		InOutTrace.CommandLine = FText::FromString(InSourceTrace.CommandLine);
+		InOutTrace.Branch = FText::FromString(InSourceTrace.Branch);
+		InOutTrace.BuildVersion = FText::FromString(InSourceTrace.BuildVersion);
+		InOutTrace.Changelist = InSourceTrace.Changelist;
 		InOutTrace.ConfigurationType = InSourceTrace.ConfigurationType;
 		InOutTrace.TargetType = InSourceTrace.TargetType;
 	}
@@ -1652,7 +1745,7 @@ void SStartPageWindow::LoadTrace(uint32 InTraceId)
 
 	const uint32 StorePort = FInsightsManager::Get()->GetStoreClient()->GetStorePort();
 	FString CmdLine = FString::Printf(TEXT("-OpenTraceId=%d -StorePort=%d"), InTraceId, StorePort);
-		
+
 	FString ExtraCmdParams;
 	GetExtraCommandLineParams(ExtraCmdParams);
 	CmdLine += ExtraCmdParams;
