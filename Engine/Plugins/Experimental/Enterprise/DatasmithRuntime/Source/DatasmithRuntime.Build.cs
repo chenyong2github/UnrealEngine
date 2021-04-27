@@ -77,8 +77,9 @@ public class DatasmithRuntime : ModuleRules
 				new string[] {
 					"CADInterfaces",
 					"DatasmithCADTranslator",
-					"DatasmithWireTranslator",
-					"DatasmithOpenNurbsTranslator",
+					// Temporarily remove dependency to Rhino and Wire translators
+					//"DatasmithWireTranslator",
+					//"DatasmithOpenNurbsTranslator",
 					"DatasmithDispatcher",
 				}
 			);
