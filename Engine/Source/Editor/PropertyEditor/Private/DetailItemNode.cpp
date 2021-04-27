@@ -97,9 +97,15 @@ TSharedPtr<IPropertyHandle> FDetailItemNode::CreatePropertyHandle() const
 		{
 			return Handles[0];
 		}
+		else
+		{
+			return nullptr;
+		}
 	}
-
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 }
 
 void FDetailItemNode::GetFilterStrings(TArray<FString>& OutFilterStrings) const
@@ -625,25 +631,19 @@ void FDetailItemNode::Tick( float DeltaTime )
 EVisibility FDetailItemNode::ComputeItemVisibility() const
 {
 	EVisibility NewVisibility = EVisibility::Visible;
-	if (Customization.HasPropertyNode())
-	{
-		NewVisibility = Customization.PropertyRow->GetPropertyVisibility();
-
-		if (NewVisibility != EVisibility::Collapsed)
-		{
-			TSharedPtr<FDetailCategoryImpl> ParentCategoryPtr = GetParentCategory();
-			if (ParentCategoryPtr.IsValid() && ParentCategoryPtr->IsParentLayoutValid())
-			{
-				if (!ParentCategoryPtr->GetParentLayout().IsPropertyVisible(CreatePropertyHandle().ToSharedRef()))
-				{
-					NewVisibility = EVisibility::Collapsed;
-				}
-			}
-		}
-	}
-	else if (Customization.HasCustomWidget())
+	if (Customization.HasCustomWidget())
 	{	
 		NewVisibility = Customization.WidgetDecl->VisibilityAttr.Get();
+
+		IDetailsViewPrivate* DetailsView = GetDetailsView();
+		if (DetailsView && !DetailsView->IsCustomRowVisible(FName(*Customization.WidgetDecl->FilterTextString.ToString()), FName(*GetParentCategory()->GetDisplayName().ToString())))
+		{
+			NewVisibility = EVisibility::Collapsed;
+		}
+	}
+	else if (Customization.HasPropertyNode())
+	{
+		NewVisibility = Customization.PropertyRow->GetPropertyVisibility();
 	}
 	else if (Customization.HasGroup())
 	{
@@ -660,32 +660,6 @@ EVisibility FDetailItemNode::ComputeItemVisibility() const
 				NewVisibility = EVisibility::Visible;
 				break;
 			}
-		}
-	}
-
-	// check the details view's IsCustomRowVisible delegate if this isn't a property row
-	if (NewVisibility != EVisibility::Collapsed && 
-		GetDetailsView() != nullptr && 
-		!Customization.HasPropertyNode())
-	{
-		const FName CategoryName = GetParentCategory()->GetCategoryName();
-		FName RowName;
-		if (Customization.HasCustomWidget())
-		{
-			RowName = FName(*Customization.WidgetDecl->FilterTextString.ToString());
-		}
-		else if (Customization.HasCustomBuilder())
-		{
-			RowName = Customization.CustomBuilderRow->GetCustomBuilderName();
-		}
-		else if (Customization.HasGroup())
-		{
-			RowName = Customization.DetailGroup->GetGroupName();
-		}
-
-		if (!GetDetailsView()->IsCustomRowVisible(RowName, CategoryName))
-		{
-			NewVisibility = EVisibility::Collapsed;
 		}
 	}
 
