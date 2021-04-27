@@ -36,6 +36,8 @@
 #include "IMeshBuilderModule.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "DistanceField"
+
 CSV_DEFINE_CATEGORY(DistanceField, false);
 
 #if ENABLE_COOK_STATS
@@ -257,8 +259,23 @@ FAsyncDistanceFieldTask::FAsyncDistanceFieldTask()
 {
 }
 
+void FDistanceFieldAsyncQueue::OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets)
+{
+	for (const FAssetCompileData& CompileData : CompiledAssets)
+	{
+		if (CompileData.Asset.IsValid() && CompileData.Asset.Get()->IsA<UStaticMesh>())
+		{
+			ProcessPendingTasks();
+			return;
+		}
+	}
+}
+
 FDistanceFieldAsyncQueue::FDistanceFieldAsyncQueue() 
 {
+	FAssetCompilingManager::Get().RegisterManager(this);
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddRaw(this, &FDistanceFieldAsyncQueue::OnAssetPostCompile);
+
 #if WITH_EDITOR
 	MeshUtilities = NULL;
 
@@ -273,6 +290,8 @@ FDistanceFieldAsyncQueue::FDistanceFieldAsyncQueue()
 
 FDistanceFieldAsyncQueue::~FDistanceFieldAsyncQueue()
 {
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().RemoveAll(this);
+	FAssetCompilingManager::Get().UnregisterManager(this);
 }
 
 void FAsyncDistanceFieldTaskWorker::DoWork()
@@ -280,6 +299,46 @@ void FAsyncDistanceFieldTaskWorker::DoWork()
 	// Put on background thread to avoid interfering with game-thread bound tasks
 	FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
 	GDistanceFieldAsyncQueue->Build(&Task, TaskGraphWrapper);
+}
+
+FName FDistanceFieldAsyncQueue::GetStaticAssetTypeName()
+{
+	return TEXT("UE-MeshDistanceField");
+}
+
+FName FDistanceFieldAsyncQueue::GetAssetTypeName() const 
+{ 
+	return GetStaticAssetTypeName();
+}
+
+FTextFormat FDistanceFieldAsyncQueue::GetAssetNameFormat() const
+{
+	return LOCTEXT("MeshDistanceFieldNameFormat", "{0}|plural(one=Mesh Distance Field,other=Mesh Distance Fields)");
+}
+
+TArrayView<FName> FDistanceFieldAsyncQueue::GetDependentTypeNames() const 
+{
+#if WITH_EDITOR
+	static FName DependentTypeNames[] = 
+	{
+		// DistanceField are a byproduct of StaticMesh so they have a natural dependencies toward them.
+		FStaticMeshCompilingManager::GetStaticAssetTypeName() 
+	};
+
+	return TArrayView<FName>(DependentTypeNames);
+#else
+	return TArrayView<FName>();
+#endif
+}
+
+int32 FDistanceFieldAsyncQueue::GetNumRemainingAssets() const 
+{
+	return GetNumOutstandingTasks(); 
+}
+
+void FDistanceFieldAsyncQueue::FinishAllCompilation() 
+{
+	BlockUntilAllBuildsComplete(); 
 }
 
 void FDistanceFieldAsyncQueue::CancelBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks)
@@ -1303,3 +1362,5 @@ FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetCommonShaderParameters(void
 	const uint32 NumGroupsY = FMath::DivideAndRoundUp(UpdateRegionSizeY, FUploadLandscapeTextureToAtlasCS::ThreadGroupSizeY);
 	return FIntPoint(NumGroupsX, NumGroupsY);
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -19,9 +19,13 @@
 #include "Misc/ScopeRWLock.h"
 #include "ProfilingDebugging/StallDetector.h"
 
-#define LOCTEXT_NAMESPACE "AsyncCompilation"
+#endif // #if WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogAsyncCompilation);
+
+#if WITH_EDITOR
+
+#define LOCTEXT_NAMESPACE "AsyncCompilation"
 
 namespace AsyncCompilationHelpers
 {
@@ -41,16 +45,22 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 {
 	check(IsInGameThread());
 
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("AssetType"), AssetType);
-	Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
-	FText ProgressMessage = FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
+	// Use a lambda to only for progress message in code-path where it's needed
+	auto GetProgressMessage =
+		[this, NumJobs]()
+		{
+			FFormatNamedArguments Args;
+			// Always use the plural form when displaying the notification
+			Args.Add(TEXT("AssetType"), FText::Format(AssetNameFormat, FText::AsNumber(100)));
+			Args.Add(TEXT("NumJobs"), FText::AsNumber(NumJobs));
+			return FText::Format(LOCTEXT("AsyncCompilationProgress", "Preparing {AssetType} ({NumJobs})"), Args);
+		};
 
 	if (NumJobs == 0)
 	{
 		if (NotificationHandle.IsValid())
 		{
-			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs, StartNumJobs, ProgressMessage);
+			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs, StartNumJobs, GetProgressMessage());
 		}
 		StartNumJobs = 0;
 		NotificationHandle = FProgressNotificationHandle();
@@ -60,7 +70,7 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 		if (!NotificationHandle.IsValid())
 		{
 			StartNumJobs = NumJobs;
-			NotificationHandle = FSlateNotificationManager::Get().StartProgressNotification(ProgressMessage, StartNumJobs);
+			NotificationHandle = FSlateNotificationManager::Get().StartProgressNotification(GetProgressMessage(), StartNumJobs);
 		}
 		else
 		{
@@ -68,7 +78,7 @@ void FAsyncCompilationNotification::Update(int32 NumJobs)
 			{
 				StartNumJobs = NumJobs;
 			}
-			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs - NumJobs, StartNumJobs, ProgressMessage);
+			FSlateNotificationManager::Get().UpdateProgressNotification(NotificationHandle, StartNumJobs - NumJobs, StartNumJobs, GetProgressMessage());
 		}
 	}
 };

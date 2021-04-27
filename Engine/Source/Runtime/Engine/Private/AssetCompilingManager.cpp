@@ -9,8 +9,6 @@ DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationLLM, STAT
 DECLARE_LLM_MEMORY_STAT(TEXT("AssetCompilation"), STAT_AssetCompilationSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetCompilationLLM), GET_STATFNAME(STAT_AssetCompilationSummaryLLM));
 
-#if WITH_EDITOR
-
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Misc/CommandLine.h"
 #include "UObject/UObjectIterator.h"
@@ -19,11 +17,16 @@ LLM_DEFINE_TAG(AssetCompilation, NAME_None, NAME_None, GET_STATFNAME(STAT_AssetC
 #include "TextureCompiler.h"
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstance.h"
+#include "ObjectCacheContext.h"
 #include "AsyncCompilationHelpers.h"
 #include "SkeletalMeshCompiler.h"
+#include "Algo/TopologicalSort.h"
+#include "Algo/Find.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
 #define LOCTEXT_NAMESPACE "AssetCompilingManager"
+
+#if WITH_EDITOR
 
 static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncCompilationStandard(
 	TEXT("Asset"), 
@@ -51,10 +54,18 @@ static TAutoConsoleVariable<int32> CVarAsyncAssetCompilationMaxMemoryUsage(
 	TEXT("Try to stay under specified memory limit for asset compilation by reducing concurrency when under memory pressure.\n"),
 	ECVF_Default);
 
+TRACE_DECLARE_INT_COUNTER(AsyncCompilationMaxConcurrency, TEXT("AsyncCompilation/MaxConcurrency"));
+TRACE_DECLARE_INT_COUNTER(AsyncCompilationConcurrency, TEXT("AsyncCompilation/Concurrency"));
+TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalMemoryLimit, TEXT("AsyncCompilation/TotalMemoryLimit"));
+TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalEstimatedMemory, TEXT("AsyncCompilation/TotalEstimatedMemory"));
+
+#endif //#if WITH_EDITOR
+
 namespace AssetCompilingManagerImpl
 {
 	static void EnsureInitializedCVars()
 	{
+#if WITH_EDITOR
 		static bool bIsInitialized = false;
 
 		if (!bIsInitialized)
@@ -67,24 +78,11 @@ namespace AssetCompilingManagerImpl
 				CVarAsyncCompilationStandard.AsyncCompilationMaxConcurrency
 			);
 		}
+#endif
 	}
 }
 
-/**
- * Returns the number of outstanding asset compilations.
- */
-int32 FAssetCompilingManager::GetNumRemainingAssets() const
-{
-	return 
-		FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() +
-		FTextureCompilingManager::Get().GetNumRemainingTextures() + 
-		FSkeletalMeshCompilingManager::Get().GetNumRemainingJobs();
-}
-
-TRACE_DECLARE_INT_COUNTER(AsyncCompilationMaxConcurrency, TEXT("AsyncCompilation/MaxConcurrency"));
-TRACE_DECLARE_INT_COUNTER(AsyncCompilationConcurrency, TEXT("AsyncCompilation/Concurrency"));
-TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalMemoryLimit, TEXT("AsyncCompilation/TotalMemoryLimit"));
-TRACE_DECLARE_MEMORY_COUNTER(AsyncCompilationTotalEstimatedMemory, TEXT("AsyncCompilation/TotalEstimatedMemory"));
+#if WITH_EDITOR
 
 class FMemoryBoundQueuedThreadPoolWrapper : public FQueuedThreadPoolWrapper
 {
@@ -186,8 +184,25 @@ private:
 	std::atomic<int64> TotalEstimatedMemory {0};
 };
 
+#endif // #if WITH_EDITOR
+
+TArrayView<IAssetCompilingManager* const> FAssetCompilingManager::GetRegisteredManagers() const
+{
+	return TArrayView<IAssetCompilingManager* const>(AssetCompilingManagers);
+}
+
+FAssetCompilingManager::FAssetCompilingManager()
+{
+#if WITH_EDITOR
+	RegisterManager(&FStaticMeshCompilingManager::Get());
+	RegisterManager(&FSkeletalMeshCompilingManager::Get());
+	RegisterManager(&FTextureCompilingManager::Get());
+#endif
+}
+
 FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 {
+#if WITH_EDITOR
 	static FQueuedThreadPoolWrapper* GAssetThreadPool = nullptr;
 	if (GAssetThreadPool == nullptr)
 	{
@@ -209,6 +224,75 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 	}
 
 	return GAssetThreadPool;
+#else
+	return GThreadPool;
+#endif
+}
+
+/**
+ * Register an asset compiling manager.
+ */
+bool FAssetCompilingManager::RegisterManager(IAssetCompilingManager* InAssetCompilingManager)
+{
+	if (AssetCompilingManagers.Contains(InAssetCompilingManager))
+	{
+		return false;
+	}
+
+	AssetCompilingManagers.Add(InAssetCompilingManager);
+	AssetCompilingManagersWithValidDependencies.Add(InAssetCompilingManager);
+
+	auto GetVertexDependencies =
+		[this](IAssetCompilingManager* CurrentManager)
+	{
+		TArray<IAssetCompilingManager*> Connections;
+		for (FName DependentTypeName : CurrentManager->GetDependentTypeNames())
+		{
+			IAssetCompilingManager** DependentManager =
+				Algo::FindBy(AssetCompilingManagersWithValidDependencies, DependentTypeName, [](const IAssetCompilingManager* Manager) { return Manager->GetAssetTypeName();	});
+
+			if (DependentManager)
+			{
+				Connections.Add(*DependentManager);
+			}
+		}
+		
+		return Connections;
+	};
+
+	if (!Algo::TopologicalSort(AssetCompilingManagers, GetVertexDependencies))
+	{
+		AssetCompilingManagersWithValidDependencies.Remove(InAssetCompilingManager);
+		UE_LOG(LogAsyncCompilation, Error, TEXT("AssetCompilingManager %s introduced a circular dependency, it's dependencies will be ignored"), *InAssetCompilingManager->GetAssetTypeName().ToString());
+	}
+
+	return true;
+}
+
+bool FAssetCompilingManager::UnregisterManager(IAssetCompilingManager* InAssetCompilingManager)
+{
+	if (!AssetCompilingManagers.Contains(InAssetCompilingManager))
+	{
+		return false;
+	}
+
+	AssetCompilingManagers.Remove(InAssetCompilingManager);
+	AssetCompilingManagersWithValidDependencies.Remove(InAssetCompilingManager);
+	return true;
+}
+
+/**
+ * Returns the number of outstanding asset compilations.
+ */
+int32 FAssetCompilingManager::GetNumRemainingAssets() const
+{
+	int32 RemainingAssets = 0;
+	for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+	{
+		RemainingAssets += AssetCompilingManager->GetNumRemainingAssets();
+	}
+
+	return RemainingAssets;
 }
 
 /**
@@ -216,9 +300,10 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
  */
 void FAssetCompilingManager::FinishAllCompilation()
 {
-	FTextureCompilingManager::Get().FinishAllCompilation();
-	FStaticMeshCompilingManager::Get().FinishAllCompilation();
-	FSkeletalMeshCompilingManager::Get().FinishAllCompilation();
+	for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+	{
+		AssetCompilingManager->FinishAllCompilation();
+	}
 }
 
 /**
@@ -226,14 +311,17 @@ void FAssetCompilingManager::FinishAllCompilation()
  */
 void FAssetCompilingManager::Shutdown()
 {
-	FStaticMeshCompilingManager::Get().Shutdown();
-	FTextureCompilingManager::Get().Shutdown();
-	FSkeletalMeshCompilingManager::Get().Shutdown();
+	for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+	{
+		AssetCompilingManager->Shutdown();
+	}
 
+#if WITH_EDITOR
 	if (FParse::Param(FCommandLine::Get(), TEXT("DumpAsyncStallsOnExit")))
 	{
 		AsyncCompilationHelpers::DumpStallStacks();
 	}
+#endif // #if WITH_EDITOR
 }
 
 FAssetCompilingManager& FAssetCompilingManager::Get()
@@ -244,14 +332,13 @@ FAssetCompilingManager& FAssetCompilingManager::Get()
 
 void FAssetCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 {
-	// Update textures first to avoid having to update the render state
-	// of static mesh in the same frame we created them...
-	FTextureCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
+	// Reuse ObjectIterator Caching and Reverse lookups for the duration of all asset updates
+	FObjectCacheContextScope ObjectCacheScope;
 
-	FStaticMeshCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
-
-	FSkeletalMeshCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
+	for (IAssetCompilingManager* AssetCompilingManager : AssetCompilingManagers)
+	{
+		AssetCompilingManager->ProcessAsyncTasks(bLimitExecutionTime);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
-#endif // #if WITH_EDITOR

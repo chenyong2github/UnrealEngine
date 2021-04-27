@@ -119,7 +119,6 @@
 	#include "Features/IModularFeatures.h"
 	#include "GameFramework/WorldSettings.h"
 	#include "SystemSettings.h"
-	#include "ObjectCacheContext.h"
 	#include "EngineStats.h"
 	#include "EngineGlobals.h"
 	#include "AudioThread.h"
@@ -4281,9 +4280,7 @@ void FEngineLoop::Exit()
 	FVisualLogger::Get().Shutdown();
 #endif
 
-#if WITH_EDITOR
 	FAssetCompilingManager::Get().Shutdown();
-#endif
 
 #if WITH_ENGINE
 	// shut down messaging
@@ -4298,14 +4295,12 @@ void FEngineLoop::Exit()
 
 	if (GDistanceFieldAsyncQueue)
 	{
-		GDistanceFieldAsyncQueue->Shutdown();
 		delete GDistanceFieldAsyncQueue;
 		GDistanceFieldAsyncQueue = nullptr;
 	}
 
 	if (GCardRepresentationAsyncQueue)
 	{
-		GCardRepresentationAsyncQueue->Shutdown();
 		delete GCardRepresentationAsyncQueue;
 		GCardRepresentationAsyncQueue = nullptr;
 	}
@@ -5058,32 +5053,8 @@ void FEngineLoop::Tick()
 			}
 		}
 
-		{
-			// Reuse ObjectIterator Caching and Reverse lookups for the duration of all asset updates
-			FObjectCacheContextScope ObjectCacheScope;
+		FAssetCompilingManager::Get().ProcessAsyncTasks(true);
 
-			if (GShaderCompilingManager)
-			{
-				// Process any asynchronous shader compile results that are ready, limit execution time
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GShaderCompilingManager);
-				GShaderCompilingManager->ProcessAsyncResults(true, false);
-			}
-
-			if (GDistanceFieldAsyncQueue)
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GDistanceFieldAsyncQueue);
-				GDistanceFieldAsyncQueue->ProcessAsyncTasks();
-			}
-
-			if (GCardRepresentationAsyncQueue)
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_FEngineLoop_Tick_GCardRepresentationAsyncQueue);
-				GCardRepresentationAsyncQueue->ProcessAsyncTasks();
-			}
-#if WITH_EDITOR
-			FAssetCompilingManager::Get().ProcessAsyncTasks(true);
-#endif
-		}
 		// Tick the platform and input portion of Slate application, we need to do this before we run things
 		// concurrent with networking.
 		if (FSlateApplication::IsInitialized() && !bIdleMode)
@@ -5968,8 +5939,6 @@ void FEngineLoop::AppPreExit( )
 #if WITH_ENGINE
 	if ( GShaderCompilingManager )
 	{
-		GShaderCompilingManager->Shutdown();
-
 		delete GShaderCompilingManager;
 		GShaderCompilingManager = nullptr;
 	}

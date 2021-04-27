@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Containers/Set.h"
+#include "AssetCompilingManager.h"
 #include "AsyncCompilationHelpers.h"
 
 #if WITH_EDITOR
@@ -15,7 +16,7 @@ class FQueuedThreadPool;
 struct FAssetCompileContext;
 enum class EQueuedWorkPriority : uint8;
 
-class FStaticMeshCompilingManager
+class FStaticMeshCompilingManager : IAssetCompilingManager
 {
 public:
 	ENGINE_API static FStaticMeshCompilingManager& Get();
@@ -43,7 +44,7 @@ public:
 	/** 
 	 * Blocks until completion of all async static mesh compilation.
 	 */
-	ENGINE_API void FinishAllCompilation();
+	ENGINE_API void FinishAllCompilation() override;
 
 	/**
 	 * Returns if asynchronous compilation is allowed for this static mesh.
@@ -63,15 +64,23 @@ public:
 	/**
 	 * Cancel any pending work and blocks until it is safe to shut down.
 	 */
-	ENGINE_API void Shutdown();
+	ENGINE_API void Shutdown() override;
+
+	/** Get the name of the asset type this compiler handles */
+	ENGINE_API static FName GetStaticAssetTypeName();
 
 private:
 	friend class FAssetCompilingManager;
 
 	FStaticMeshCompilingManager();
 
+	FName GetAssetTypeName() const override;
+	FTextFormat GetAssetNameFormat() const override;
+	TArrayView<FName> GetDependentTypeNames() const override;
+	int32 GetNumRemainingAssets() const override;
+
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
 	bool bHasShutdown = false;
 	TSet<TWeakObjectPtr<UStaticMesh>> RegisteredStaticMesh;

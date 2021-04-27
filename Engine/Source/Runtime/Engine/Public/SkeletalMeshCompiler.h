@@ -6,6 +6,7 @@
 #include "Containers/Set.h"
 #include "Tickable.h"
 #include "Stats/Stats.h"
+#include "AssetCompilingManager.h"
 #include "AsyncCompilationHelpers.h"
 
 #if WITH_EDITOR
@@ -17,7 +18,7 @@ class FQueuedThreadPool;
 struct FAssetCompileContext;
 enum class EQueuedWorkPriority : uint8;
 
-class FSkeletalMeshCompilingManager
+class FSkeletalMeshCompilingManager : IAssetCompilingManager
 {
 public:
 	ENGINE_API static FSkeletalMeshCompilingManager& Get();
@@ -45,7 +46,7 @@ public:
 	/** 
 	 * Blocks until completion of all async skeletal mesh compilation.
 	 */
-	ENGINE_API void FinishAllCompilation();
+	ENGINE_API void FinishAllCompilation() override;
 
 	/**
 	 * Returns if asynchronous compilation is allowed for this skeletal mesh.
@@ -65,11 +66,16 @@ public:
 	/**
 	 * Cancel any pending work and blocks until it is safe to shut down.
 	 */
-	ENGINE_API void Shutdown();
+	ENGINE_API void Shutdown() override;
 
 private:
 	FSkeletalMeshCompilingManager();
-	void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+
+	FName GetAssetTypeName() const override;
+	FTextFormat GetAssetNameFormat() const override;
+	TArrayView<FName> GetDependentTypeNames() const override;
+	int32 GetNumRemainingAssets() const override;
+	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
 	friend class FAssetCompilingManager;
 	

@@ -21,6 +21,7 @@
 #include "GBufferInfo.h"
 #include "ShaderMaterial.h"
 #include "Misc/ScopeRWLock.h"
+#include "AssetCompilingManager.h"
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
 #include "Hash/Blake3.h"
@@ -921,7 +922,7 @@ private:
  * Manager of asynchronous and parallel shader compilation.
  * This class contains an interface to enqueue and retreive asynchronous shader jobs, and manages a FShaderCompileThreadRunnable.
  */
-class FShaderCompilingManager
+class FShaderCompilingManager : IAssetCompilingManager
 {
 	friend class FShaderCompileThreadRunnableBase;
 	friend class FShaderCompileThreadRunnable;
@@ -932,7 +933,16 @@ class FShaderCompilingManager
 	friend class FShaderCompileDistributedThreadRunnable_Interface;
 	friend class FShaderCompileFASTBuildThreadRunnable;
 
+public:
+	/** Get the name of the asset type this compiler handles */
+	ENGINE_API static FName GetStaticAssetTypeName();
+
 private:
+	FName GetAssetTypeName() const override;
+	FTextFormat GetAssetNameFormat() const override;
+	TArrayView<FName> GetDependentTypeNames() const override;
+	int32 GetNumRemainingAssets() const override;
+	void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
 	//////////////////////////////////////////////////////
 	// Thread shared properties: These variables can only be read from or written to when a lock on CompileQueueSection is obtained, since they are used by both threads.
@@ -1049,6 +1059,7 @@ private:
 public:
 	
 	ENGINE_API FShaderCompilingManager();
+	ENGINE_API ~FShaderCompilingManager();
 
 	ENGINE_API int32 GetNumPendingJobs() const;
 	ENGINE_API int32 GetNumOutstandingJobs() const;
@@ -1171,12 +1182,12 @@ public:
 	 * Blocks until completion of all async shader compiling, and assigns shader maps to relevant materials.
 	 * This should be called before exit if the DDC needs to be made up to date. 
 	 */
-	ENGINE_API void FinishAllCompilation();
+	ENGINE_API void FinishAllCompilation() override;
 
 	/** 
 	 * Shutdown the shader compiler manager, this will shutdown immediately and not process any more shader compile requests. 
 	 */
-	ENGINE_API void Shutdown();
+	ENGINE_API void Shutdown() override;
 
 	/**
 	 * Prints stats related to shader compilation to the log.

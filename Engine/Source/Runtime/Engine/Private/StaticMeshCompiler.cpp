@@ -19,6 +19,8 @@
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
 #include "Components/PrimitiveComponent.h"
+#include "TextureCompiler.h"
+#include "ShaderCompiler.h"
 #include "ContentStreaming.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/PlayerController.h"
@@ -85,7 +87,7 @@ namespace StaticMeshCompilingManagerImpl
 }
 
 FStaticMeshCompilingManager::FStaticMeshCompilingManager()
-	: Notification(LOCTEXT("StaticMeshes", "Static Meshes"))
+	: Notification(GetAssetNameFormat())
 {
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FStaticMeshCompilingManager::OnPostReachabilityAnalysis);
 }
@@ -119,6 +121,33 @@ void FStaticMeshCompilingManager::OnPostReachabilityAnalysis()
 
 		FinishCompilation(PendingStaticMeshes);
 	}
+}
+
+FName FStaticMeshCompilingManager::GetStaticAssetTypeName()
+{
+	return TEXT("UE-StaticMesh");
+}
+
+FName FStaticMeshCompilingManager::GetAssetTypeName() const
+{
+	return GetStaticAssetTypeName();
+}
+
+FTextFormat FStaticMeshCompilingManager::GetAssetNameFormat() const
+{
+	return LOCTEXT("StaticMeshNameFormat", "{0}|plural(one=Static Mesh,other=Static Meshes)");
+}
+
+TArrayView<FName> FStaticMeshCompilingManager::GetDependentTypeNames() const
+{
+	// Texture and shaders can affect materials which can affect Static Meshes once they are visible.
+	// Adding these dependencies can reduces the actual number of render state update we need to do in a frame
+	static FName DependentTypeNames[] = 
+	{ 
+		FTextureCompilingManager::GetStaticAssetTypeName(),
+		FShaderCompilingManager::GetStaticAssetTypeName()
+	};
+	return TArrayView<FName>(DependentTypeNames);
 }
 
 EQueuedWorkPriority FStaticMeshCompilingManager::GetBasePriority(UStaticMesh* InStaticMesh) const
@@ -297,6 +326,11 @@ FStaticMeshCompilingManager& FStaticMeshCompilingManager::Get()
 int32 FStaticMeshCompilingManager::GetNumRemainingMeshes() const
 {
 	return RegisteredStaticMesh.Num();
+}
+
+int32 FStaticMeshCompilingManager::GetNumRemainingAssets() const
+{
+	return GetNumRemainingMeshes();
 }
 
 void FStaticMeshCompilingManager::AddStaticMeshes(TArrayView<UStaticMesh* const> InStaticMeshes)

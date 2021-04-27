@@ -77,8 +77,28 @@ namespace TextureCompilingManagerImpl
 }
 
 FTextureCompilingManager::FTextureCompilingManager()
-	: Notification(LOCTEXT("Textures", "Textures"))
+	: Notification(GetAssetNameFormat())
 {
+}
+
+FName FTextureCompilingManager::GetStaticAssetTypeName()
+{
+	return TEXT("UE-Texture");
+}
+
+FName FTextureCompilingManager::GetAssetTypeName() const
+{
+	return GetStaticAssetTypeName();
+}
+
+TArrayView<FName> FTextureCompilingManager::GetDependentTypeNames() const
+{
+	return TArrayView<FName>{ };
+}
+
+FTextFormat FTextureCompilingManager::GetAssetNameFormat() const
+{
+	return LOCTEXT("TextureNameFormat", "{0}|plural(one=Texture,other=Textures)");
 }
 
 EQueuedWorkPriority FTextureCompilingManager::GetBasePriority(UTexture* InTexture) const
@@ -191,6 +211,11 @@ int32 FTextureCompilingManager::GetNumRemainingTextures() const
 	}
 
 	return Num;
+}
+
+int32 FTextureCompilingManager::GetNumRemainingAssets() const
+{
+	return GetNumRemainingTextures();
 }
 
 void FTextureCompilingManager::AddTextures(TArrayView<UTexture* const> InTextures)

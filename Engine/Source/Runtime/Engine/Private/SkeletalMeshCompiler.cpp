@@ -12,6 +12,8 @@
 #include "EngineModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
+#include "ShaderCompiler.h"
+#include "TextureCompiler.h"
 #include "Misc/IQueuedWork.h"
 #include "LevelEditor.h"
 #include "SLevelViewport.h"
@@ -58,8 +60,35 @@ namespace SkeletalMeshCompilingManagerImpl
 }
 
 FSkeletalMeshCompilingManager::FSkeletalMeshCompilingManager()
-	: Notification(LOCTEXT("SkeletalMeshes", "Skeletal Meshes"))
+	: Notification(GetAssetNameFormat())
 {
+}
+
+FName FSkeletalMeshCompilingManager::GetAssetTypeName() const
+{
+	return TEXT("UE-SkeletalMesh");
+}
+
+FTextFormat FSkeletalMeshCompilingManager::GetAssetNameFormat() const
+{
+	return LOCTEXT("SkeletalMeshNameFormat", "{0}|plural(one=Skeletal Mesh,other=Skeletal Meshes)");
+}
+
+TArrayView<FName> FSkeletalMeshCompilingManager::GetDependentTypeNames() const
+{
+	// Texture and shaders can affect materials which can affect Skeletal Meshes once they are visible.
+	// Adding these dependencies can reduces the actual number of render state update we need to do in a frame
+	static FName DependentTypeNames[] = 
+	{
+		FTextureCompilingManager::GetStaticAssetTypeName(), 
+		FShaderCompilingManager::GetStaticAssetTypeName() 
+	};
+	return TArrayView<FName>(DependentTypeNames);
+}
+
+int32 FSkeletalMeshCompilingManager::GetNumRemainingAssets() const
+{
+	return GetNumRemainingJobs();
 }
 
 EQueuedWorkPriority FSkeletalMeshCompilingManager::GetBasePriority(USkeletalMesh* InSkeletalMesh) const

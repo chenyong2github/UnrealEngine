@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/ResourceSize.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/GCObject.h"
+#include "AssetCompilingManager.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
 #include "Templates/UniquePtr.h"
@@ -199,7 +200,7 @@ public:
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
-class FCardRepresentationAsyncQueue : public FGCObject
+class FCardRepresentationAsyncQueue : public FGCObject, IAssetCompilingManager
 {
 public:
 
@@ -223,7 +224,7 @@ public:
 	ENGINE_API void BlockUntilAllBuildsComplete();
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
 	/** Exposes UObject references used by the async build. */
 	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
@@ -231,7 +232,7 @@ public:
 	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
-	ENGINE_API void Shutdown();
+	ENGINE_API void Shutdown() override;
 
 	int32 GetNumOutstandingTasks() const
 	{
@@ -239,8 +240,18 @@ public:
 		return ReferencedTasks.Num();
 	}
 
+	/** Get the name of the asset type this compiler handles */
+	ENGINE_API static FName GetStaticAssetTypeName();
+
 private:
 	friend FAsyncCardRepresentationTaskWorker;
+
+	ENGINE_API FName GetAssetTypeName() const override;
+	ENGINE_API FTextFormat GetAssetNameFormat() const override;
+	ENGINE_API TArrayView<FName> GetDependentTypeNames() const override;
+	ENGINE_API int32 GetNumRemainingAssets() const override;
+	ENGINE_API void FinishAllCompilation() override;
+	
 	void ProcessPendingTasks();
 
 	TUniquePtr<FQueuedThreadPool> ThreadPool;

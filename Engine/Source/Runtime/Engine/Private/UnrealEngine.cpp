@@ -10454,31 +10454,18 @@ float DrawMapWarnings(UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanv
 
 	SmallTextItem.SetColor(FLinearColor::White);
 
-	if (GShaderCompilingManager && GShaderCompilingManager->IsCompiling())
+	for (IAssetCompilingManager* AssetCompilingManager : FAssetCompilingManager::Get().GetRegisteredManagers())
 	{
-		SmallTextItem.SetColor(FLinearColor::White);
-		SmallTextItem.Text = FText::Format(LOCTEXT("ShadersCompilingFmt", "Shaders Compiling ({0})"), GShaderCompilingManager->GetNumRemainingJobs());
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
+		if (AssetCompilingManager->GetNumRemainingAssets() > 0)
+		{
+			// Always show asset plural form when displaying preparation status
+			FText AssetTypePlural = FText::Format(AssetCompilingManager->GetAssetNameFormat(), FText::AsNumber(100));
+			SmallTextItem.SetColor(FLinearColor::White);
+			SmallTextItem.Text = FText::Format(LOCTEXT("AssetCompilingFmt", "Preparing {0} ({1})"), AssetTypePlural, AssetCompilingManager->GetNumRemainingAssets());
+			Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+			MessageY += FontSizeY;
+		}
 	}
-
-#if WITH_EDITOR
-	if (FTextureCompilingManager::Get().GetNumRemainingTextures() > 0)
-	{
-		SmallTextItem.SetColor(FLinearColor::White);
-		SmallTextItem.Text = FText::Format(LOCTEXT("TexturesCompilingFmt", "Preparing Textures ({0})"), FTextureCompilingManager::Get().GetNumRemainingTextures());
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
-	}
-
-	if (FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() > 0)
-	{
-		SmallTextItem.SetColor(FLinearColor::White);
-		SmallTextItem.Text = FText::Format(LOCTEXT("StaticMeshCompilingFmt", "Preparing Static Meshes ({0})"), FStaticMeshCompilingManager::Get().GetNumRemainingMeshes());
-		Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
-		MessageY += FontSizeY;
-	}
-#endif
 
 	if (World->bIsLevelStreamingFrozen)
 	{

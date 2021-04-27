@@ -17,6 +17,7 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/AutomationTest.h"
 #include "Async/ParallelFor.h"
+#include "DistanceFieldAtlas.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Async/Async.h"
 #include "ObjectCacheContext.h"
@@ -27,6 +28,8 @@
 #include "MeshUtilities.h"
 #include "StaticMeshCompiler.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "MeshCardRepresentation"
 
 #if WITH_EDITORONLY_DATA
 #include "IMeshBuilderModule.h"
@@ -177,10 +180,13 @@ FCardRepresentationAsyncQueue::FCardRepresentationAsyncQueue()
 	const int32 MaxConcurrency = 1;
 	ThreadPool = MakeUnique<FQueuedThreadPoolWrapper>(GThreadPool, MaxConcurrency, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Lowest; });
 #endif
+
+	FAssetCompilingManager::Get().RegisterManager(this);
 }
 
 FCardRepresentationAsyncQueue::~FCardRepresentationAsyncQueue()
 {
+	FAssetCompilingManager::Get().UnregisterManager(this);
 }
 
 void FAsyncCardRepresentationTaskWorker::DoWork()
@@ -188,6 +194,37 @@ void FAsyncCardRepresentationTaskWorker::DoWork()
 	// Put on background thread to avoid interfering with game-thread bound tasks
 	FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
 	GCardRepresentationAsyncQueue->Build(&Task, TaskGraphWrapper);
+}
+
+FName FCardRepresentationAsyncQueue::GetStaticAssetTypeName()
+{
+	return TEXT("UE-MeshCard");
+}
+
+FName FCardRepresentationAsyncQueue::GetAssetTypeName() const 
+{
+	return GetStaticAssetTypeName();
+}
+
+FTextFormat FCardRepresentationAsyncQueue::GetAssetNameFormat() const
+{
+	return LOCTEXT("MeshCardNameFormat", "{0}|plural(one=Mesh Card,other=Mesh Cards)");
+}
+
+TArrayView<FName> FCardRepresentationAsyncQueue::GetDependentTypeNames() const 
+{
+	static FName DependentTypeNames[] = { FDistanceFieldAsyncQueue::GetStaticAssetTypeName() };
+	return TArrayView<FName>(DependentTypeNames);
+}
+
+int32 FCardRepresentationAsyncQueue::GetNumRemainingAssets() const
+{
+	return GetNumOutstandingTasks();
+}
+
+void FCardRepresentationAsyncQueue::FinishAllCompilation()
+{
+	BlockUntilAllBuildsComplete();
 }
 
 void FCardRepresentationAsyncQueue::CancelBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks)
@@ -561,3 +598,5 @@ void FCardRepresentationAsyncQueue::Shutdown()
 	UE_LOG(LogStaticMesh, Log, TEXT("Abandoning remaining async card representation tasks for shutdown"));
 	ThreadPool->Destroy();
 }
+
+#undef LOCTEXT_NAMESPACE

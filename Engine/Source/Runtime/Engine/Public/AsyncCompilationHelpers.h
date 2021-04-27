@@ -17,8 +17,8 @@ class FQueuedThreadPoolWrapper;
 class FAsyncCompilationNotification
 {
 public:
-	FAsyncCompilationNotification(FText InAssetType)
-		: AssetType(InAssetType)
+	FAsyncCompilationNotification(FTextFormat InAssetNameFormat)
+		: AssetNameFormat(InAssetNameFormat)
 	{
 	}
 
@@ -27,7 +27,7 @@ private:
 	FProgressNotificationHandle NotificationHandle;
 	/** The number of jobs when the notification began */
 	int32 StartNumJobs;
-	FText AssetType;
+	FTextFormat AssetNameFormat;
 };
 
 namespace AsyncCompilationHelpers

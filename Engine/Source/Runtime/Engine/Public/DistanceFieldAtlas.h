@@ -14,6 +14,7 @@
 #include "RenderResource.h"
 #include "RenderingThread.h"
 #include "TextureLayout3d.h"
+#include "AssetCompilingManager.h"
 #include "Templates/UniquePtr.h"
 #include "DerivedMeshDataTaskUtils.h"
 #include "Async/AsyncWork.h"
@@ -22,6 +23,7 @@
 #include "MeshUtilities.h"
 #endif
 
+struct FAssetCompileData;
 class FDistanceFieldVolumeData;
 class UStaticMesh;
 class UTexture2D;
@@ -334,7 +336,7 @@ public:
 };
 
 /** Class that manages asynchronous building of mesh distance fields. */
-class FDistanceFieldAsyncQueue : public FGCObject
+class FDistanceFieldAsyncQueue : public FGCObject, IAssetCompilingManager
 {
 public:
 
@@ -358,7 +360,7 @@ public:
 	ENGINE_API void BlockUntilAllBuildsComplete();
 
 	/** Called once per frame, fetches completed tasks and applies them to the scene. */
-	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false);
+	ENGINE_API void ProcessAsyncTasks(bool bLimitExecutionTime = false) override;
 
 	/** Exposes UObject references used by the async build. */
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -367,7 +369,7 @@ public:
 	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
-	ENGINE_API void Shutdown();
+	ENGINE_API void Shutdown() override;
 
 	int32 GetNumOutstandingTasks() const
 	{
@@ -375,7 +377,16 @@ public:
 		return ReferencedTasks.Num();
 	}
 
+	/** Get the name of the asset type this compiler handles */
+	ENGINE_API static FName GetStaticAssetTypeName();
+
 private:
+	FName GetAssetTypeName() const override;
+	FTextFormat GetAssetNameFormat() const override;
+	TArrayView<FName> GetDependentTypeNames() const override;
+	int32 GetNumRemainingAssets() const override;
+	void FinishAllCompilation() override;
+
 	friend FAsyncDistanceFieldTaskWorker;
 	void ProcessPendingTasks();
 
@@ -392,6 +403,9 @@ private:
 
 	/** Cancel or finish any background work for the given task. */
 	void CancelBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks);
+
+	/** Get notified when static mesh finish compiling */
+	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
 
 	/** Game-thread managed list of tasks in the async system. */
 	TArray<FAsyncDistanceFieldTask*> ReferencedTasks;

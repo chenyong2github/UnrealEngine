@@ -3020,6 +3020,61 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	{
 		Thread->StartThread();
 	}
+
+	FAssetCompilingManager::Get().RegisterManager(this);
+}
+
+FShaderCompilingManager::~FShaderCompilingManager()
+{
+	PrintStats();
+
+	for (const auto& Thread : Threads)
+	{
+		Thread->Stop();
+		Thread->WaitForCompletion();
+	}
+
+	FAssetCompilingManager::Get().UnregisterManager(this);
+}
+
+FName FShaderCompilingManager::GetStaticAssetTypeName()
+{
+	return TEXT("UE-Shader");
+}
+
+FName FShaderCompilingManager::GetAssetTypeName() const
+{
+	return GetStaticAssetTypeName();
+}
+
+FTextFormat FShaderCompilingManager::GetAssetNameFormat() const
+{
+	return LOCTEXT("ShaderNameFormat", "{0}|plural(one=Shader,other=Shaders)");
+}
+
+TArrayView<FName> FShaderCompilingManager::GetDependentTypeNames() const
+{
+#if WITH_EDITOR
+	static FName DependentTypeNames[] = 
+	{
+		// Texture can require materials to be updated,
+		// they should be processed first to avoid unecessary material updates.
+		FTextureCompilingManager::GetStaticAssetTypeName() 
+	};
+	return TArrayView<FName>(DependentTypeNames);
+#else
+	return TArrayView<FName>();
+#endif	
+}
+
+int32 FShaderCompilingManager::GetNumRemainingAssets() const
+{
+	return GetNumOutstandingJobs() + GetNumPendingJobs();
+}
+
+void FShaderCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
+{
+	ProcessAsyncResults(bLimitExecutionTime, false);
 }
 
 int32 FShaderCompilingManager::GetNumPendingJobs() const
@@ -3867,13 +3922,8 @@ void FShaderCompilingManager::PropagateMaterialChangesToPrimitives(const TMap<TR
  */
 void FShaderCompilingManager::Shutdown()
 {
-	PrintStats();
-
-	for (const auto& Thread : Threads)
-	{
-		Thread->Stop();
-		Thread->WaitForCompletion();
-	}
+	// Shutdown has been moved to the destructor because the shader compiler lifetime is expected to
+	// be longer than other asset compilers, otherwise niagara compilations might get stuck.
 }
 
 void FShaderCompilingManager::PrintStats(bool bForceLogIgnoringTimeInverval)
