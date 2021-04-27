@@ -934,21 +934,18 @@ bool FHairStrandsRootData::HasProjectionData() const
 FArchive& operator<<(FArchive& Ar, FHairStrandsRootData::FMeshProjectionLOD& LOD)
 {
 	Ar << LOD.LODIndex;
-	Ar << LOD.RootTriangleIndexBuffer;
-	Ar << LOD.RootTriangleBarycentricBuffer;
-	Ar << LOD.RestRootTrianglePosition0Buffer;
-	Ar << LOD.RestRootTrianglePosition1Buffer;
-	Ar << LOD.RestRootTrianglePosition2Buffer;
+	LOD.RootTriangleIndexBuffer.BulkSerialize(Ar);
+	LOD.RootTriangleBarycentricBuffer.BulkSerialize(Ar);
+	LOD.RestRootTrianglePosition0Buffer.BulkSerialize(Ar);
+	LOD.RestRootTrianglePosition1Buffer.BulkSerialize(Ar);
+	LOD.RestRootTrianglePosition2Buffer.BulkSerialize(Ar);
 
 	Ar << LOD.SampleCount;
-	Ar << LOD.MeshInterpolationWeightsBuffer;
-	Ar << LOD.MeshSampleIndicesBuffer;
-	Ar << LOD.RestSamplePositionsBuffer;
+	LOD.MeshInterpolationWeightsBuffer.BulkSerialize(Ar);
+	LOD.MeshSampleIndicesBuffer.BulkSerialize(Ar);
+	LOD.RestSamplePositionsBuffer.BulkSerialize(Ar);
+	LOD.ValidSectionIndices.BulkSerialize(Ar);
 
-	if (Ar.IsLoading())
-	{
-		FGroomBindingBuilder::BuildUniqueSections(LOD);
-	}
 	return Ar;
 }
 
@@ -957,7 +954,7 @@ void FHairStrandsRootData::Serialize(FArchive& Ar)
 	if (!Ar.IsObjectReferenceCollector())
 	{
 		Ar << RootCount;
-		Ar << VertexToCurveIndexBuffer;
+		VertexToCurveIndexBuffer.BulkSerialize(Ar);
 		Ar << MeshProjectionLODs;
 	}
 }

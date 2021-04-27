@@ -643,7 +643,7 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("C0555759E09343F2AF8E6C673BF3CE38")
+#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("C931E6356B4541B1BB3AE6FCE7C45DB7")
 
 namespace GroomBindingDerivedDataCacheUtils
 {

@@ -190,6 +190,7 @@ struct HAIRSTRANDSCORE_API FHairStrandsIndexFormat
 struct FHairStrandsWeightFormat
 {
 	using Type = float;
+	using BulkType = float;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float1;
@@ -202,6 +203,7 @@ struct FHairStrandsWeightFormat
 struct FHairStrandsMeshTrianglePositionFormat
 {
 	using Type = FVector4;
+	using BulkType = FVector4;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_Float4;
@@ -211,6 +213,7 @@ struct FHairStrandsMeshTrianglePositionFormat
 struct FHairStrandsCurveTriangleIndexFormat
 {
 	using Type = uint32;
+	using BulkType = uint32;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UInt;
@@ -220,6 +223,7 @@ struct FHairStrandsCurveTriangleIndexFormat
 struct FHairStrandsCurveTriangleBarycentricFormat
 {
 	using Type = uint32;
+	using BulkType = uint32;
 	static const uint32 ComponentCount = 1;
 	static const uint32 SizeInByte = sizeof(Type);
 	static const EVertexElementType VertexElementType = VET_UInt;
