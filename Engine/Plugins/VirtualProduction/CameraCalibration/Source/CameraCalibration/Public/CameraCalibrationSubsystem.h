@@ -6,10 +6,30 @@
 
 #include "LensDistortionModelHandlerBase.h"
 #include "LensFile.h"
+#include "UObject/ObjectKey.h"
 
 #include "CameraCalibrationSubsystem.generated.h"
 
 class UActorComponent;
+
+UENUM(BlueprintType)
+enum class EHandlerOverrideMode : uint8
+{
+	/** If a component already has a lens handler that supports a different lens model, do not override the existing handler */
+	NoOverride,
+
+	/** 
+	 * If a component already has a lens handler that supports a different lens model, but that model is not authoritative,
+	 * remove the existing handler, create a new handler for the new model, and mark that new model as the authoritative one for that component
+	 */
+	SoftOverride,
+
+	/**
+	 * If a component already has a lens handler that supports a different lens model, regardless of any previous authoritative models,
+	 * remove the existing handler, create a new handler for the new model, and mark that new model as the authoritative one for that component
+	 */
+	 ForceOverride
+};
 
 /**
  * Camera Calibration subsystem
@@ -43,7 +63,7 @@ public:
 	 * If the input component already has a model handler that does not support the input model, that handler is removed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass);
+	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass, EHandlerOverrideMode OverrideMode = EHandlerOverrideMode::NoOverride);
 
 	/** Return the ULensModel subclass that was registered with the input model name */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
@@ -68,4 +88,7 @@ private:
 	/** Map of model names to ULensModel subclasses */
 	UPROPERTY(Transient)
 	TMap<FName, TSubclassOf<ULensModel>> LensModelMap;
+
+	/** Map of actor components to the authoritative lens model that should be used with that component */
+	TMap<FObjectKey, TSubclassOf<ULensModel>> ComponentsWithAuthoritativeModels;
 };

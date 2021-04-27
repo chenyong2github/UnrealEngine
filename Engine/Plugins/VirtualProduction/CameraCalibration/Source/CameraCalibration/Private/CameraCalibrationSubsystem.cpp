@@ -2,10 +2,10 @@
 
 #include "CameraCalibrationSubsystem.h"
 
+#include "CameraCalibrationLog.h"
 #include "Components/ActorComponent.h"
 #include "Engine/TimecodeProvider.h"
 #include "Interfaces/Interface_AssetUserData.h"
-#include "CameraCalibrationLog.h"
 #include "UObject/UObjectIterator.h"
 
 
@@ -50,42 +50,85 @@ ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::GetDistortionModel
 	return nullptr;
 }
 
-ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass)
+ULensDistortionModelHandlerBase* UCameraCalibrationSubsystem::FindOrCreateDistortionModelHandler(UActorComponent* Component, TSubclassOf<ULensModel> LensModelClass, EHandlerOverrideMode OverrideMode)
 {
 	if (LensModelClass == nullptr)
 	{
 		return nullptr;
 	}
 
-	// Get the current model handler on the input camera (if it exists)
-	ULensDistortionModelHandlerBase* Handler = GetDistortionModelHandler(Component);
-
-	// Check if the existing handler supports the input model
-	if (Handler)
+	// Get the current model handler on the input component (if it exists)
+	if (ULensDistortionModelHandlerBase* Handler = GetDistortionModelHandler(Component))
 	{
+		// If the existing handler supports the input model, simply return it
 		if (Handler->IsModelSupported(LensModelClass))
 		{
 			return Handler;
 		}
-		else
+		else if (OverrideMode == EHandlerOverrideMode::NoOverride)
 		{
+			return nullptr;
+		}
+
+		UActorComponent* ComponentToCheck = Component;
+#if WITH_EDITOR
+		// Actors are duplicated in PIE, so their components will not appear in the subsystem's set of components with authoritative models
+		// Therefore, the component to check should be the editor world counterpart to the input component
+		if (Component->GetWorld() && (Component->GetWorld()->WorldType == EWorldType::PIE))
+		{
+			if (AActor* PIEOwner = EditorUtilities::GetEditorWorldCounterpartActor(Component->GetOwner()))
+			{
+				ComponentToCheck = PIEOwner->GetComponentByClass(Component->GetClass());
+			}
+		}
+#endif
+
+		if (OverrideMode == EHandlerOverrideMode::SoftOverride)
+		{
+			// If the input component already has an authoritative model, do not override the existing handler
+			if (ComponentsWithAuthoritativeModels.Contains(FObjectKey(ComponentToCheck))
+				&& (ComponentsWithAuthoritativeModels[ComponentToCheck] != LensModelClass))
+			{
+				return nullptr;
+			}
+			// Mark the input component as having an authoritative model and remove the existing handler
+			else
+			{
+				ComponentsWithAuthoritativeModels.Add(FObjectKey(ComponentToCheck), LensModelClass);
+				Component->RemoveUserDataOfClass(ULensDistortionModelHandlerBase::StaticClass());
+			}
+		}
+		// Mark the input component as having an authoritative model and remove the existing handler
+		else if (OverrideMode == EHandlerOverrideMode::ForceOverride)
+		{
+			// Override the authoritative model for this component, if it already has one
+			if (ComponentsWithAuthoritativeModels.Contains(FObjectKey(ComponentToCheck))
+				&& (ComponentsWithAuthoritativeModels[ComponentToCheck] != LensModelClass))
+			{
+				ComponentsWithAuthoritativeModels[ComponentToCheck] = LensModelClass;
+			}
+			else
+			{
+				ComponentsWithAuthoritativeModels.Add(FObjectKey(ComponentToCheck), LensModelClass);
+			}
+
 			Component->RemoveUserDataOfClass(ULensDistortionModelHandlerBase::StaticClass());
-			Handler = nullptr;
 		}
 	}
 
 	const TSubclassOf<ULensDistortionModelHandlerBase> HandlerClass = ULensModel::GetHandlerClass(LensModelClass);
+	ULensDistortionModelHandlerBase* NewHandler = nullptr;
 	if(HandlerClass)
 	{
-		Handler = NewObject<ULensDistortionModelHandlerBase>(Component, HandlerClass);
-    	Component->AddAssetUserData(Handler);
+		NewHandler = NewObject<ULensDistortionModelHandlerBase>(Component, HandlerClass);
+    	Component->AddAssetUserData(NewHandler);
 	}
 	else
 	{
 		UE_LOG(LogCameraCalibration, Verbose, TEXT("Could not create DistortionHandler for LensModel '%s'"), *LensModelClass->GetName());
 	}
 
-	return Handler;
+	return NewHandler;
 }
 
 void UCameraCalibrationSubsystem::RegisterDistortionModel(TSubclassOf<ULensModel> LensModel)
