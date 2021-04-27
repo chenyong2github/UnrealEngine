@@ -938,8 +938,10 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		bool bDBufferAllowed = IsUsingDBuffers(Platform);
-		bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
+		const bool bDBufferSupported = IsUsingDBuffers(Platform);
+		const bool bDBufferFallback = IsMobilePlatform(Platform); // Mobile doesn't support DBuffer but has runtime path to convert to something usable.
+		const bool bDBufferAllowed = bDBufferSupported || bDBufferFallback;
+		const bool bDBufferBlendMode = IsDBufferDecalBlendMode((EDecalBlendMode)Material->GetDecalBlendMode());
 
 		if (bDBufferBlendMode && !bDBufferAllowed)
 		{
