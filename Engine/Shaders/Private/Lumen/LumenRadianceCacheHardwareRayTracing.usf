@@ -27,84 +27,91 @@
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWTraceTileRadianceAndHitDistanceTexture;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingIntoTemporaryBufferRGS)
+uint PersistentTracingGroupCount;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 {
-	uint TraceTileIndex = DispatchRaysIndex().y;
-	if (TraceTileIndex >= ProbeTraceTileAllocator[0])
+	uint GroupThreadLinearId = DispatchRaysIndex().x % RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+	uint2 GroupThreadId = uint2(GroupThreadLinearId % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, GroupThreadLinearId / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
+
+	uint TraceTileIterationSize = (ProbeTraceTileAllocator[0] + PersistentTracingGroupCount - 1) / PersistentTracingGroupCount;
+	for (uint TraceTileIteration = 0; TraceTileIteration < TraceTileIterationSize; ++TraceTileIteration)
 	{
-		return;
-	}
-
-	uint2 TraceTileCoord;
-	uint TraceTileLevel;
-	uint ProbeTraceIndex;
-	UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
-
-	float3 ProbeWorldCenter;
-	uint ClipmapIndex;
-	uint ProbeIndex;
-	GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
-
-	uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
-	uint TraceTileRayIndex = DispatchRaysIndex().x;
-	uint2 LocalTexelCoord = uint2(TraceTileRayIndex % RADIANCE_CACHE_TRACE_TILE_SIZE_2D, TraceTileRayIndex / RADIANCE_CACHE_TRACE_TILE_SIZE_2D);
-	uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + LocalTexelCoord;
-
-	if (all(ProbeTexelCoord < TraceResolution))
-	{
-		float2 ProbeTexelCenter = float2(0.5, 0.5);
-		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
-		float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
-
-		float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
-		float FinalMaxTraceDistance = MaxTraceDistance;
-
-		// Evenly distributing the sphere solid angle among all cones instead of based on Octahedron distortion
-		float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(TraceResolution * TraceResolution));
-
-		RayDesc Ray;
-		Ray.Origin = ProbeWorldCenter;
-		Ray.Direction = WorldConeDirection;
-		Ray.TMin = FinalMinTraceDistance;
-		Ray.TMax = FinalMaxTraceDistance;
-
-		FRayCone RayCone = (FRayCone)0;
-		RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
-
-		FRayTracedLightingContext Context;
-		Context.TLAS = TLAS;
-		Context.RayCone = RayCone;
-		Context.TraceCoord = ProbeTexelCoord;
-		Context.LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
-
-		float3 SampleRadiance = 0.0;
-		float SampleHitDistance = MaxHalfFloat;
-
-		bool bIsHit = false;
-		bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE);
-		if (bUseMinimalPayload)
+		uint TraceTileGroupIndex = DispatchRaysIndex().x / RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
+		uint TraceTileIndex = TraceTileIteration * PersistentTracingGroupCount + TraceTileGroupIndex;
+		if (TraceTileIndex >= ProbeTraceTileAllocator[0])
 		{
-			bIsHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, SampleHitDistance, SampleRadiance);
-		}
-		else
-		{
-			bIsHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, SampleHitDistance, SampleRadiance);
+			return;
 		}
 
-		// Apply environment contribution on miss
-		if (!bIsHit)
-		{
-			FConeTraceResult TraceResult = (FConeTraceResult)0;
-			TraceResult.Transparency = 1;
-			EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
-			SampleRadiance = TraceResult.Lighting;
-			SampleHitDistance = MaxTraceDistance;
-		}
+		uint2 TraceTileCoord;
+		uint TraceTileLevel;
+		uint ProbeTraceIndex;
+		UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
 
-		// Wrap tile in 2d to avoid hitting max texture limits
-		uint2 WrappedTileCoord = uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE);
-		uint2 OutputIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + LocalTexelCoord;
-		RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, SampleHitDistance);
+		float3 ProbeWorldCenter;
+		uint ClipmapIndex;
+		uint ProbeIndex;
+		GetProbeTraceData(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
+
+		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId.xy;
+
+		if (all(ProbeTexelCoord < TraceResolution))
+		{
+			float2 ProbeTexelCenter = float2(0.5, 0.5);
+			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(TraceResolution);
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float FinalMinTraceDistance = max(MinTraceDistance, GetRadianceProbeTMin(ClipmapIndex));
+			float FinalMaxTraceDistance = MaxTraceDistance;
+
+			// Evenly distributing the sphere solid angle among all cones instead of based on Octahedron distortion
+			float ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(TraceResolution * TraceResolution));
+
+			RayDesc Ray;
+			Ray.Origin = ProbeWorldCenter;
+			Ray.Direction = WorldConeDirection;
+			Ray.TMin = FinalMinTraceDistance;
+			Ray.TMax = FinalMaxTraceDistance;
+
+			FRayCone RayCone = (FRayCone)0;
+			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
+
+			FRayTracedLightingContext Context;
+			Context.TLAS = TLAS;
+			Context.RayCone = RayCone;
+			Context.TraceCoord = ProbeTexelCoord;
+			Context.LinearCoord = ProbeTexelCoord.y * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + ProbeTexelCoord.x;
+
+			float3 SampleRadiance = 0.0;
+			float SampleHitDistance = MaxHalfFloat;
+
+			bool bIsHit = false;
+			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE);
+			if (bUseMinimalPayload)
+			{
+				bIsHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, SampleHitDistance, SampleRadiance);
+			}
+			else
+			{
+				bIsHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, SampleHitDistance, SampleRadiance);
+			}
+
+			// Apply environment contribution on miss
+			if (!bIsHit)
+			{
+				FConeTraceResult TraceResult = (FConeTraceResult)0;
+				TraceResult.Transparency = 1;
+				EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
+				SampleRadiance = TraceResult.Lighting;
+				SampleHitDistance = MaxTraceDistance;
+			}
+
+			uint2 WrappedTileCoord = uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE);
+			uint2 OutputIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId;
+			RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, SampleHitDistance);
+		}
 	}
 }
 
