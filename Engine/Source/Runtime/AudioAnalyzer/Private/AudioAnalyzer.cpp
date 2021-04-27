@@ -76,7 +76,7 @@ void UAudioAnalyzer::StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyz
 	MixerDevice->StartAudioBus(AudioBusId, NumChannels, false);
 
 	// Get an output patch for the audio bus
-	PatchOutputStrongPtr = MixerDevice->AddPatchForAudioBus(AudioBusId);
+	PatchOutputStrongPtr = MixerDevice->AddPatchForAudioBus_GameThread(AudioBusId);
 
 	// Register this audio analyzer with the audio analyzer subsystem
 	// The subsystem will query this analyzer to see if it has enough audio to perform analysis.

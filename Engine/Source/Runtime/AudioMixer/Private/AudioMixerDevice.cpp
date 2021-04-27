@@ -2420,7 +2420,25 @@ namespace Audio
 
 	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain)
 	{
+		check(SourceManager);
+
+		const int32 NumChannels = SourceManager->GetAudioBusNumChannels(InAudioBusId);
+		if (NumChannels > 0)
+		{
+			const int32 NumOutputFrames = SourceManager->GetNumOutputFrames();
+			FPatchOutputStrongPtr StrongOutputPtr = MakeShareable(new FPatchOutput(NumOutputFrames * NumChannels, InPatchGain));
+			SourceManager->AddPatchOutputForAudioBus(InAudioBusId, StrongOutputPtr);
+			return StrongOutputPtr;
+		}
+
+		UE_LOG(LogAudioMixer, Warning, TEXT("Failed to add a patch output for audio bus: audio bus with id '%d' is inactive."), InAudioBusId);
+		return nullptr;
+	}
+
+	Audio::FPatchOutputStrongPtr FMixerDevice::AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain)
+	{
 		FPatchOutputStrongPtr StrongOutputPtr;
+		
 		if (IsInGameThread())
 		{
 			FActiveBusData* BusData = ActiveAudioBuses_GameThread.Find(InAudioBusId);
@@ -2432,7 +2450,7 @@ namespace Audio
 
 				FAudioThread::RunCommandOnAudioThread([this, InAudioBusId, StrongOutputPtr]() mutable
 				{
-					SourceManager->AddPatchOutputForAudioBus(InAudioBusId, StrongOutputPtr);
+					SourceManager->AddPatchOutputForAudioBus_AudioThread(InAudioBusId, StrongOutputPtr);
 				});
 			}
 			else

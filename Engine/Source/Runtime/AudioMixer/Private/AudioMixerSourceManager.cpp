@@ -1060,33 +1060,39 @@ namespace Audio
 		});
 	}
 
-	bool FMixerSourceManager::IsAudioBusActive(uint32 InAudioBusId)
+	bool FMixerSourceManager::IsAudioBusActive(uint32 InAudioBusId) const
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
 		return AudioBusIds_AudioThread.Contains(InAudioBusId);
 	}
 
+	int32 FMixerSourceManager::GetAudioBusNumChannels(uint32 InAudioBusId) const
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+		if (AudioBusPtr.IsValid())
+		{
+			return AudioBusPtr->GetNumChannels();
+		}
+
+		return 0;
+	}
+
 	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr)
+	{
+		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
+		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+		if (AudioBusPtr.IsValid())
+		{
+			AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
+		}
+	}
+
+	void FMixerSourceManager::AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
 		AudioMixerThreadCommand([this, InAudioBusId, InPatchOutputStrongPtr]() mutable
 		{
-			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
-			if (AudioBusPtr.IsValid())
-			{
-				AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
-			}
-		});
-	}
-
-	void FMixerSourceManager::AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput)
-	{
-		AudioMixerThreadCommand([this, InAudioBusId, InPatchInput]() mutable
-		{
-			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
-			if (AudioBusPtr.IsValid())
-			{
-				AudioBusPtr->AddNewPatchInput(InPatchInput);
-			}
+			AddPatchOutputForAudioBus(InAudioBusId, InPatchOutputStrongPtr);
 		});
 	}
 

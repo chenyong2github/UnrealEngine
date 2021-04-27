@@ -174,10 +174,17 @@ namespace Audio
 		void StopAudioBus(uint32 InAudioBusId);
 
 		// Queries if an audio bus is active
-		bool IsAudioBusActive(uint32 InAudioBusId);
+		bool IsAudioBusActive(uint32 InAudioBusId) const;
 
-		// Adds a patch output for an audio bus
+		// Returns the number of channels currently set for the audio bus associated with
+		// the provided BusId.  Returns 0 if the audio bus is inactive.
+		int32 GetAudioBusNumChannels(uint32 InAudioBusId) const;
+
+		// Adds a patch output for an audio bus from the Audio Render Thread
 		void AddPatchOutputForAudioBus(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr);
+
+		// Adds a patch output for an audio bus from the Audio Thread
+		void AddPatchOutputForAudioBus_AudioThread(uint32 InAudioBusId, FPatchOutputStrongPtr& InPatchOutputStrongPtr);
 
 		// Adds a patch input for an audio bus
 		void AddPatchInputForAudioBus(uint32 InAudioBusId, FPatchInput& InPatchInput);
