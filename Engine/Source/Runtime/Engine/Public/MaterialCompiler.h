@@ -430,7 +430,7 @@ public:
 	virtual int32 StrataVerticalLayering(int32 Top, int32 Base) = 0;
 	virtual int32 StrataAdd(int32 A, int32 B) = 0;
 	virtual int32 StrataMultiply(int32 A, int32 Weight) = 0;
-	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 OutputIndex) = 0;
+	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) = 0;
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) = 0;
 	virtual bool StrataCompilationInfoContainsCodeChunk(int32 CodeChunk) = 0;
@@ -969,9 +969,9 @@ public:
 		return Compiler->StrataMultiply(A, Weight);
 	}
 
-	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 OutputIndex) override
+	virtual int32 StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex) override
 	{
-		return Compiler->StrataTransmittanceToMFP(TransmittanceColor, OutputIndex);
+		return Compiler->StrataTransmittanceToMFP(TransmittanceColor, DesiredThickness, OutputIndex);
 	}
 
 	virtual void StrataCompilationInfoRegisterCodeChunk(int32 CodeChunk, FStrataMaterialCompilationInfo& StrataMaterialCompilationInfo) override

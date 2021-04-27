@@ -38,9 +38,7 @@
 // Behind the scene, we do all the simple volumetric lighting & transmitance computations considering a slab of 100 centimeters = 1 meter.
 // If the user specifies a different thickness to simulate varying appearance, we rescale the mean free path in order to not have to store thickness as part of the BSDF description.
 #define STRATA_SIMPLEVOLUME_THICKNESS_CM	100.0f
-#define STRATA_CENTIMETER_TO_METER			0.01f
-#define STRATA_METER_TO_CENTIMETER			100.0f
-#define STRATA_SIMPLEVOLUME_THICKNESS_M		(STRATA_SIMPLEVOLUME_THICKNESS_CM * STRATA_CENTIMETER_TO_METER)
+#define STRATA_SIMPLEVOLUME_THICKNESS_M		(STRATA_SIMPLEVOLUME_THICKNESS_CM * CENTIMETER_TO_METER)
 
 ///////////////////////////////////////////////////////////////////////////////
 // BSDFs representation
@@ -125,7 +123,8 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_SIMPLEVOLUME			1
 #define STATE_BIT_COUNT_DMFPPLUGGED				1
 #define STATE_BIT_COUNT_HASFUZZ					1
-#define STATE_BIT_COUNT___UNUSED___				6
+#define STATE_BIT_COUNT_ISTHIN					1
+#define STATE_BIT_COUNT___UNUSED___				5
 #define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -142,6 +141,7 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_SIMPLEVOLUME	(STATE_BIT_OFFSET_THINFILM			+ STATE_BIT_COUNT_THINFILM)
 #define STATE_BIT_OFFSET_DMFPPLUGGED	(STATE_BIT_OFFSET_SIMPLEVOLUME		+ STATE_BIT_COUNT_SIMPLEVOLUME)
 #define STATE_BIT_OFFSET_HASFUZZ		(STATE_BIT_OFFSET_DMFPPLUGGED		+ STATE_BIT_COUNT_DMFPPLUGGED)
+#define STATE_BIT_OFFSET_ISTHIN			(STATE_BIT_OFFSET_HASFUZZ			+ STATE_BIT_COUNT_HASFUZZ)
 #define STATE_BIT_OFFSET_WEIGHT10F		22
 
 // Accessors for the BSDF type
@@ -163,8 +163,8 @@ struct FStrataBSDF
 #define BSDF_SETISTOPLAYER(X, IsTop)	WRITE_BITS(X.State, STATE_BIT_COUNT_TOPLAYER, STATE_BIT_OFFSET_TOPLAYER, IsTop)
 
 // Indicates if the BSDF has scattering component
-#define BSDF_GETHASSSS(X)			READ_BITS(X.State,  STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS)
-#define BSDF_SETHASSSS(X, Scatt)	WRITE_BITS(X.State, STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS, Scatt)
+#define BSDF_GETHASSSS(X)				READ_BITS(X.State,  STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS)
+#define BSDF_SETHASSSS(X, Scatt)		WRITE_BITS(X.State, STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS, Scatt)
 
 // Indicates if the BSDF has a SSS profile
 #define BSDF_GETHASSSSPROFILE(X)		READ_BITS(X.State,  STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)
@@ -202,6 +202,10 @@ struct FStrataBSDF
 #define BSDF_GETHASFUZZ(X)				READ_BITS(X.State,  STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ)
 #define BSDF_SETHASFUZZ(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ, Value)
 
+// Indicates if the BSDF is part of the top layer
+#define BSDF_GETISTHIN(X)				READ_BITS(X.State,  STATE_BIT_COUNT_ISTHIN, STATE_BIT_OFFSET_ISTHIN)
+#define BSDF_SETISTHIN(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_ISTHIN, STATE_BIT_OFFSET_ISTHIN, Value)
+
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
 #define BSDF_GETEMISSIVE(X)				X.Emissive
@@ -221,7 +225,8 @@ struct FStrataBSDF
 #define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(STATE_BIT_COUNT_ANISOTROPY, STATE_BIT_OFFSET_ANISOTROPY)		|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASSSS, STATE_BIT_OFFSET_HASSSS) | \
 								TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASSSSPROFILE, STATE_BIT_OFFSET_HASSSSPROFILE)|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HAZINESS, STATE_BIT_OFFSET_HAZINESS) | \
 								TO_OFFSET_BITMASK(STATE_BIT_COUNT_THINFILM, STATE_BIT_OFFSET_THINFILM)			|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_EDGECOLOR, STATE_BIT_OFFSET_EDGECOLOR) | \
-								TO_OFFSET_BITMASK(STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME)	|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ) )
+								TO_OFFSET_BITMASK(STATE_BIT_COUNT_SIMPLEVOLUME, STATE_BIT_OFFSET_SIMPLEVOLUME)	|  TO_OFFSET_BITMASK(STATE_BIT_COUNT_HASFUZZ, STATE_BIT_OFFSET_HASFUZZ) | \
+								TO_OFFSET_BITMASK(STATE_BIT_COUNT_ISTHIN, STATE_BIT_OFFSET_ISTHIN) )
 
 
 #define SLAB_BASECOLOR(X)				X.VGPRs[0].xyz
@@ -474,8 +479,17 @@ FStrataData GetStrataSlabBSDF(
 
 	// STRATA_TODO apply SSS as a function of pixel footprint w.r.t. MFP
 	const bool bDMFPPlugged = any(SSSDMFP > 0);
-	const bool bHasSSSProfile = SSSProfileID  > 0.0f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
+	const bool bIsThin = bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
+	const bool bHasSSSProfile = !bIsThin && SSSProfileID  > 0.0f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
 	const bool bHasSSS = bDMFPPlugged || bHasSSSProfile;
+
+	// About the thin, a.k.a. two sided lighting, model:
+	// 	- Thin lighting model is used when thickness becomes less than STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM
+	//  - It cannot work with a SSS Profile because the profile id is stored in the register used for the MFP (e.g. see SLAB_SSSPROFILEID).
+	// 	- Thin lighting model force disabled the SSSProfile.
+	//  - It can work with the Strata SSS because the MFP is shared in this case between both.
+	//  - We also only enabled thin lighting is the MFP input pin is plugged in.
+	//  - It will only be ran for the bottom layer only. Otherwise, the simple volume should be used. As such, Two-sided lighting can also be disabled later if part of the bottom layer.
 
 	StrataData.Layers[0].BSDFCount++;
 	BSDF_SETTYPE			(StrataData.Layers[0].BSDFs[0],		STRATA_BSDF_TYPE_SLAB);
@@ -485,6 +499,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETISTOPLAYER		(StrataData.Layers[0].BSDFs[0],		0);
 	BSDF_SETHASSSS			(StrataData.Layers[0].BSDFs[0],		bHasSSS ? 1 : 0);
 	BSDF_SETHASSSSPROFILE	(StrataData.Layers[0].BSDFs[0],		bHasSSSProfile ? 1 : 0);
+	BSDF_SETISTHIN			(StrataData.Layers[0].BSDFs[0],		bDMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM);
 	BSDF_SETHASDMFP			(StrataData.Layers[0].BSDFs[0],		bDMFPPlugged ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.Layers[0].BSDFs[0],		bHasHaziness);
 	BSDF_SETHASEDGECOLOR	(StrataData.Layers[0].BSDFs[0],		bHasEdgeColor);
@@ -957,7 +972,7 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 
 FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, float3 MeanFreePathCentimeters)
 {
-	const float3 MeanFreePathMeters = MeanFreePathCentimeters * STRATA_CENTIMETER_TO_METER;
+	const float3 MeanFreePathMeters = MeanFreePathCentimeters * CENTIMETER_TO_METER;
 	return CreateMediumFromBaseColorMFP(DiffuseColor, MeanFreePathMeters);
 }
 
@@ -996,7 +1011,7 @@ FStrataSlabSingleScattering StrataSlabSingleScattering(FParticipatingMedia PM, f
 	return Result;
 }
 
-void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
+void EnableSlabMFPComputationSpace(inout FStrataBSDF BSDF)
 {
 #if STRATA_INLINE_SHADING
 	// Now we know that this is a simple volume so we can freely set the mean free path
@@ -1006,6 +1021,11 @@ void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
 	// Rescale the BSDF mean free path so that we can drop the thickness parameter and run volumetric material math on a unit slab of medium
 	// For instance, if thickness is larger => we need to reduce the MFP for the medium to appear visually thicker.
 	SLAB_SSSDMFP(BSDF) = clamp(SLAB_SSSDMFP(BSDF) * (STRATA_SIMPLEVOLUME_THICKNESS_CM / BSDF_GETTHICKNESSCM(BSDF)), 0.0f, Max111110BitsFloat3);
+}
+
+void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
+{
+	EnableSlabMFPComputationSpace(BSDF);
 
 	// Mark the BSDF has not having any SSS through post process.
 	BSDF_SETHASSSS(BSDF, 0);
@@ -1014,6 +1034,11 @@ void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
 	// Notify that the Slab can use SSS post-process only if at the bottom (layered considered optically thick, e.g. cannot see-through)
 	// When forward rendering is used or if a layer is not a bottom layer, SSS post cannot be used and simple scattering is used.
 	BSDF_SETISSIMPLEVOLUME(BSDF, 1);
+}
+
+void EnableSlabBSDFIsThin(inout FStrataBSDF BSDF)
+{
+	EnableSlabMFPComputationSpace(BSDF);
 }
 
 
@@ -1343,6 +1368,9 @@ void PackStrataOut(
 			{
 				EmissiveColor += BSDF_GETEMISSIVE(BSDF) * Throughput;
 
+				// Two sided lighting can only be evalauted on the bottom layer, together with option SSS. Otherwise, the simple volume will be used.
+				const bool bIsThin = bBottomLayer && BSDF_GETISTHIN(Strata.Layers[l].BSDFs[i]);
+
 				// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid storing the DFMP
 				const bool bIsSimpleVolume = !bBottomLayer && BSDF_GETHASDMFP(Strata.Layers[l].BSDFs[i]);
 
@@ -1388,6 +1416,16 @@ void PackStrataOut(
 
 					// Mark the BSDF has not having any SSS through post process.
 					bStrataSubsurfaceEnable = false;
+				}
+
+				if (bIsThin)
+				{
+					EnableSlabBSDFIsThin(Strata.Layers[l].BSDFs[i]);
+				}
+				else
+				{
+					// If not selected or not possible to have two sided lighting enabled (not bottom layer or SSSProfile is enabled), let's make sure we disable the feature.
+					BSDF_SETISTHIN(Strata.Layers[l].BSDFs[i], 0);
 				}
 
 				// STRATA_TODO	Should we have the Fuzz influence the next layter visibility accoding to fuzz amount? Should it also occlude diffuse?
@@ -1491,14 +1529,17 @@ void PackStrataOut(
 				}
 
 				const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
-				if (BSDF_GETHASSSS(BSDF) || bIsSimpleVolume)
+				const bool bIsThin = BSDF_GETISTHIN(BSDF);
+				if (BSDF_GETHASSSS(BSDF) || bIsSimpleVolume || bIsThin)
 				{
 					if (BSDF_GETHASSSSPROFILE(BSDF) && !bIsSimpleVolume)
 					{
+						// Simple volume overrides SSS profile because it takes over for when not at the bottom of the BSDF layer, or during forward rendering.
 						STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUSSCALE(BSDF), 0, 0)));
 					}
 					else
 					{
+						// Path used for bottom most layer SSS, simple volume and two sided lighting.
 						STRATA_STORE_UINT1(PackR11G11B10F(SLAB_SSSDMFP(BSDF)));
 					}
 				}
@@ -1672,9 +1713,10 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 		}
 
 		const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(OutBSDF);
-		if (BSDF_GETHASSSS(OutBSDF) || bIsSimpleVolume)
+		const bool bIsThin = BSDF_GETISTHIN(OutBSDF);
+		if (BSDF_GETHASSSS(OutBSDF) || bIsSimpleVolume || bIsThin)
 		{
-			if (BSDF_GETHASSSSPROFILE(OutBSDF) && !bIsSimpleVolume)
+			if (BSDF_GETHASSSSPROFILE(OutBSDF) && !bIsSimpleVolume && !bIsThin)
 			{
 				float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
 				SLAB_SSSPROFILEID(OutBSDF) = Data.r;
@@ -1688,7 +1730,7 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 			// When loading Strata BSDF which have SSS enable, BaseColor and (optionally) Specular value can be overriden 
 			// based on the SSS method used (screen space SSS / checherboarded screen space SSS / ...)
 			#if STRATA_SSS_MATERIAL_OVERRIDE
-			if (!bIsSimpleVolume)
+			if (!bIsSimpleVolume && !bIsThin)
 			{
 				const bool bChecker = CheckerFromPixelPos(StrataAddressing.PixelCoords);
 				AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(SLAB_BASECOLOR(OutBSDF), SLAB_SPECULAR(OutBSDF), bChecker);

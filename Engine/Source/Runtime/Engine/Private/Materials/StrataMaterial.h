@@ -18,6 +18,8 @@ struct FStrataMaterialCompilationInfo
 	{
 		uint8 Type;
 		uint8 SharedNormalIndex;
+
+		// Those properties are centered around the SLAB node. Maybe this can be abstracted at some point.
 		bool  bHasSSS;
 		bool  bHasDMFPPluggedIn;
 		bool  bHasEdgeColor;

@@ -8993,27 +8993,28 @@ int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 OutputIndex)
+int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 DesiredThickness, int32 OutputIndex)
 {
 	if (OutputIndex == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
 
+	const int32 DefaultThicknessCodechunk = AddInlinedCodeChunk(MCT_Float1, TEXT("%f"), STRATA_LAYER_DEFAULT_THICKNESS_CM);
 	switch (OutputIndex)
 	{
 	case 0:
 		return AddCodeChunk(MCT_Float3, 
 			// For the math to be valid, input to TransmittanceToMeanFreePath must be in meter.
 			// Then the output needs to be is converted to centimeters.
-			TEXT("(TransmittanceToMeanFreePath(%s, %f * STRATA_CENTIMETER_TO_METER) * STRATA_METER_TO_CENTIMETER)"), 
+			TEXT("(TransmittanceToMeanFreePath(%s, %s * CENTIMETER_TO_METER) * METER_TO_CENTIMETER)"), 
 			*GetParameterCode(TransmittanceColor),
-			STRATA_LAYER_DEFAULT_THICKNESS_CM);
+			*GetParameterCode(DesiredThickness == INDEX_NONE ? DefaultThicknessCodechunk : DesiredThickness));
 		break;
 	case 1:
 		// Thickness to be plugged into other nodes thickness input.
 		// This matches the Slab node default using STRATA_LAYER_DEFAULT_THICKNESS_CM
-		return AddInlinedCodeChunk(MCT_Float1, TEXT("%f"), STRATA_LAYER_DEFAULT_THICKNESS_CM);
+		return DesiredThickness == INDEX_NONE ? DefaultThicknessCodechunk : DesiredThickness;
 		break;
 	}
 	return INDEX_NONE;

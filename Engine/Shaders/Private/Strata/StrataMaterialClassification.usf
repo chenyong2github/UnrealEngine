@@ -67,7 +67,8 @@ void ComputePostProcessBSDFData(
 		}
 
 		// Select the latest encoutered SSS BSDF
-		if (BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
+		if (!BSDF_GETISTHIN(BSDF) &&					// STRATA_TODO A material cannot have subsurface if using Thin mode. This is because DMFP does not match MFP at all (right now, SSS would just smears thin lighting model details out)
+			BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
 		{
 			Classification.bHasSubsurface = true;
 

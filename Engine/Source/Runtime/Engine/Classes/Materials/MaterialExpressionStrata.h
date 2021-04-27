@@ -516,6 +516,13 @@ class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpressionSt
 	UPROPERTY()
 	FExpressionInput TransmittanceColor;
 
+	/**
+	* The desired thickness in centimers. This can be set lower than 0.1mm (= 0.01cm) to enable the Thin lighting model on the slab node for instance.
+	* Another use case exemple: the thickenss ouput can be modulated to have simple scattering/transmittance variation of the same material before it is plugged in a slab node.
+	*/
+	UPROPERTY()
+	FExpressionInput Thickness;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

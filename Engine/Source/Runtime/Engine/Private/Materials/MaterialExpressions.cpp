@@ -20765,7 +20765,10 @@ UMaterialExpressionStrataTransmittanceToMFP::UMaterialExpressionStrataTransmitta
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataTransmittanceToMFP::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	return Compiler->StrataTransmittanceToMFP(TransmittanceColor.GetTracedInput().Expression ? TransmittanceColor.Compile(Compiler) : Compiler->Constant(0.5f), OutputIndex);
+	return Compiler->StrataTransmittanceToMFP(
+		TransmittanceColor.GetTracedInput().Expression ? TransmittanceColor.Compile(Compiler) : Compiler->Constant(0.5f), 
+		Thickness.GetTracedInput().Expression ? Thickness.Compile(Compiler) : INDEX_NONE,
+		OutputIndex);
 }
 
 void UMaterialExpressionStrataTransmittanceToMFP::GetCaption(TArray<FString>& OutCaptions) const

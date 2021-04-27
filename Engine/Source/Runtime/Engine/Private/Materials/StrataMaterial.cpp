@@ -283,14 +283,14 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				Result.RequestedByteCount += UintByteSize;
 			}
 
-			// Compute values closer to the reality for HasSSS and IsSimpleVolume, now that we know that we know the topology of the material.
-			const bool bIsSimpleVolume = !bBottomLayer && BSDF.bHasDMFPPluggedIn;
-			const bool bHasSSS = bBottomLayer && BSDF.bHasSSS && !bIsSimpleVolume;
-
 			switch (BSDF.Type)
 			{
 			case STRATA_BSDF_TYPE_SLAB:
 			{
+				// Compute values closer to the reality for HasSSS and IsSimpleVolume, now that we know that we know the topology of the material.
+				const bool bIsSimpleVolume = !bBottomLayer && BSDF.bHasDMFPPluggedIn;
+				const bool bHasSSS = bBottomLayer && BSDF.bHasSSS && !bIsSimpleVolume;
+
 				Result.RequestedByteCount += UintByteSize;
 				Result.RequestedByteCount += UintByteSize;
 				if (BSDF.bHasEdgeColor || BSDF.bHasThinFilm)

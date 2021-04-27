@@ -71,16 +71,32 @@ float4 StrataEnvironmentLighting(
 
 		// Diffuse component
 		float3 DiffuseSkyLighting = 0;
-		if (any(StrataEnvLight.DiffuseWeight > 0.0f))
+		const bool bProcessFrontFaceDiffuse = any(StrataEnvLight.DiffuseWeight > 0.0f);
+		const bool bProcessBackFaceDiffuse = any(StrataEnvLight.DiffuseBackFaceWeight > 0.0f);
+		if (bProcessFrontFaceDiffuse || bProcessBackFaceDiffuse)
 		{
 			// Compute the common sky visibility factors
 			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataPixelHeader.MaterialAO, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
 
-			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
-			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb * IndirectDiffuseOcclusion;
-			// And accumulate
-			// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
-			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
+			if (bProcessFrontFaceDiffuse)
+			{
+				// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
+				float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb * IndirectDiffuseOcclusion;
+				// And accumulate
+				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
+				DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
+			}
+			if (bProcessBackFaceDiffuse)
+			{
+				// We do not evaluate back face sky light visibility data because all the data we have is for the front face only.  This could be evaluated at some cost.
+				// However, we do apply SkyVisData.SkyDiffuseLookUpMul for scaling consistency.
+
+				// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF) along the opposite normal direction
+				float3 DiffuseLookup = GetSkySHDiffuse(-StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb * IndirectDiffuseOcclusion;
+				// And accumulate
+				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
+				DiffuseSkyLighting += BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup) * StrataEnvLight.DiffuseBackFaceWeight;
+			}
 		}
 
 		// Specular component

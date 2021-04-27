@@ -3747,7 +3747,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			}
 		};
 
-		// STRATA_TODO for mateiral conversion
+		// STRATA_TODO for material conversion
 		//  - WorldPositionOffset can remain on the end point node
 		//  - ShadingModel
 		//  - Refraction
@@ -3755,8 +3755,6 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		//	- MSM_Subsurface
 		//	- MSM_PreintegratedSkin
 		//	- MSM_SubsurfaceProfile
-		//	- MSM_TwoSidedFoliage
-		//	- MSM_Cloth
 		//	- MSM_Eye
 
 		if (MaterialDomain == MD_Surface && ShadingModel == MSM_Unlit)
@@ -3853,10 +3851,34 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
 			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
 			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
-			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
-			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
 			MoveConnectionTo(ClearCoat, SlabBSDF, 14);		// FuzzAMount
 			MoveConnectionTo(SubsurfaceColor, SlabBSDF, 15);// FuzzColor
+
+			FrontMaterial.Connect(0, SlabBSDF);
+		}
+		else if (MaterialDomain == MD_Surface && ShadingModel == MSM_TwoSidedFoliage)
+		{
+			UMaterialExpressionStrataSlabBSDF* SlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
+
+			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
+			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
+			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
+			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
+			MoveConnectionTo(Anisotropy, SlabBSDF, 5);		// Anisotropy
+			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
+			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
+			MoveConnectionTo(EmissiveColor, SlabBSDF, 10);	// Emissive
+			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
+
+			UMaterialExpressionStrataTransmittanceToMFP* TransmittanceToMFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
+			MoveConnectionTo(SubsurfaceColor, TransmittanceToMFP, 0);	// SubsurfaceColor -> TransmittanceColor
+			SlabBSDF->GetInput(8)->Connect(0, TransmittanceToMFP);		// MFP -> MFP
+			SlabBSDF->GetInput(13)->Connect(1, TransmittanceToMFP);		// Thickness -> Thickness
+
+			// Set a thickness that will enabled the thin lighting model (corresponding to the legacy two-sided lighting model)
+			UMaterialExpressionConstant* ThicknessConstant = NewObject<UMaterialExpressionConstant>(this);
+			ThicknessConstant->R = STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM - 1e-5f;
+			TransmittanceToMFP->Thickness.Connect(0, ThicknessConstant);
 
 			FrontMaterial.Connect(0, SlabBSDF);
 		}

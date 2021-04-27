@@ -205,16 +205,18 @@ float4 StrataDeferredLighting(
 		{
 			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
-			const float3 DiffusePathWeight		= BSDF.Weight * BSDFEvaluate.DiffusePathValue;
-			const float3 SpecularPathWeight		= BSDF.Weight * BSDFEvaluate.SpecularPathValue     * BSDFEvaluate.SpecularPathProbability;
-			const float3 SpecularHazePathWeight = BSDF.Weight * BSDFEvaluate.SpecularHazePathValue * BSDFEvaluate.SpecularHazePathProbability;
-			const float3 TransmissionPathWeight	= BSDF.Weight * BSDFEvaluate.TransmissionPathValue;
+			const float3 DiffusePathWeight			= BSDF.Weight * BSDFEvaluate.DiffusePathValue;
+			const float3 SpecularPathWeight			= BSDF.Weight * BSDFEvaluate.SpecularPathValue     * BSDFEvaluate.SpecularPathProbability;
+			const float3 SpecularHazePathWeight		= BSDF.Weight * BSDFEvaluate.SpecularHazePathValue * BSDFEvaluate.SpecularHazePathProbability;
+			const float3 TransmissionPathWeight		= BSDF.Weight * BSDFEvaluate.TransmissionPathValue;
+			const float3 ThinTransmissionPathWeight	= BSDF.Weight * BSDFEvaluate.ThinTransmissionPathValueWithProjectedSolidAngle;
 
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
 
-			LightAccumulator_AddSplit(Out, DiffusePathWeight,		SpecularPathWeight,		DiffusePathWeight,		IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,					bNeedsSeparateSubsurfaceLightAccumulation);
-			LightAccumulator_AddSplit(Out, 0.0,						SpecularHazePathWeight, 0.0,					IntegrationContext.IncidentIrradianceNoShadowHaze * ShadowTerms.SurfaceShadow,				bNeedsSeparateSubsurfaceLightAccumulation);
-			LightAccumulator_AddSplit(Out, TransmissionPathWeight,	0.0f,					TransmissionPathWeight, IntegrationContext.IncidentTransmittedRadianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, DiffusePathWeight,			SpecularPathWeight,					DiffusePathWeight,			IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,					bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, 0.0,							SpecularHazePathWeight,				0.0,						IntegrationContext.IncidentIrradianceNoShadowHaze * ShadowTerms.SurfaceShadow,				bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, TransmissionPathWeight,		0.0f,								TransmissionPathWeight,		IntegrationContext.IncidentTransmittedRadianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, ThinTransmissionPathWeight,	0.0f,								ThinTransmissionPathWeight,	IntegrationContext.IncidentRadianceNoShadow * ShadowTerms.SurfaceShadow,					bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 		else
 		{
@@ -223,7 +225,7 @@ float4 StrataDeferredLighting(
 			const float3 SpecularRadiance = 1;
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = false;
 
-			LightAccumulator_AddSplit(Out, DiffuseRadiance,			SpecularRadiance,	DiffuseRadiance,		IntegrationContext.OutgoingRadianceNoShadow * ShadowTerms.SurfaceShadow,		bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, DiffuseRadiance,				SpecularRadiance,					DiffuseRadiance,			IntegrationContext.OutgoingRadianceNoShadow * ShadowTerms.SurfaceShadow,					bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 	}
 

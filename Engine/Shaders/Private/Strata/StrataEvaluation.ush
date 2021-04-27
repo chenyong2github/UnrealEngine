@@ -33,6 +33,9 @@
 #define STRATA_SSS_TRANSMISSION 0
 #endif
 
+// STRATA_TODO Enable the new model and get rid of the old one.
+#define THINLIGHTING_NEWMODEL 0
+
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
@@ -167,6 +170,8 @@ struct FStrataEvaluateResult
 	float3 SpecularHazePathValue;
 	float3 TransmissionPathValue;
 
+	float3 ThinTransmissionPathValueWithProjectedSolidAngle;
+
 	// The following probabilities are part of the pdf to work correctly with a monter carlo based integrator and as expected are not applied on the xxxPathValue.
 	// So PathProbability should be applied on PathValue in the rasteriser to recover the correct balance.
 	float SpecularPathProbability;
@@ -176,6 +181,7 @@ struct FStrataEvaluateResult
 	float  SpecularPDF;
 	float  SpecularHazePDF;
 	float  TransmissionPDF;
+	float  ThinTransmissionPathPDF;
 
 	float3 Throughput;					// Throughput to the next layer
 	bool   bSubsurface;					// True if we need to separate the subsurface light contribution for the screen space diffusion process.
@@ -237,7 +243,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			float a2 = Pow4(SafeRoughness);
 
 			Sample.DiffusePathValue	= Diffuse_Chan(DiffuseColor, a2, BSDFContext.SatNoV, BSDFContext.SatNoL, BSDFContext.Context.VoH, BSDFContext.Context.NoH);
-			Sample.DiffusePDF		= BSDFContext.SatNoV / PI;
+			Sample.DiffusePDF		= BSDFContext.SatNoL / PI;
 			Sample.bSubsurface		= bHasSubsurface;
 
 			const float3 F0  = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
@@ -270,7 +276,6 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 					Vis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
 					const float H_PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
 					PDF = RayPDFToReflectionRayPDF(BSDFContext.Context.VoH, H_PDF);
-
 				}
 
 				if (bHaziness)
@@ -310,7 +315,6 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 					HazeVis = Vis_SmithJoint(a2Haze, BSDFContext.Context.NoV, BSDFContext.SatNoL);
 					const float H_PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2Haze);
 					HazePDF = RayPDFToReflectionRayPDF(BSDFContext.Context.VoH, H_PDF);
-
 				}
 				#endif
 			}
@@ -423,6 +427,48 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				Sample.Throughput				= TransmissionThroughput * PhaseFunction;
 				Sample.TransmissionPathValue	= TransmissionThroughput * PhaseFunction;
 				Sample.TransmissionPDF			= 1.0f / (4.0f * PI);		// STRATA_TODO this currently match the uniform sphere sampling from StrataImportanceSampleBSDF
+			}
+			#endif
+
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETISTHIN(BSDFContext.BSDF))
+			{
+				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
+
+				// we consider single scattering and perpendicular to the surface light transmittance, no diffusion for now.
+				const float TransmittanceNoV = 1.0;	
+				const float3 SlabTransmittance = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, TransmittanceNoV);
+
+			#if THINLIGHTING_NEWMODEL
+				//--- New version
+
+				// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
+				// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
+				// We also ignored ThinFilm interaction as another simplification for perf.
+				const float3 ApproxFresnelForTransmittance = F_Schlick(F0, F90, BSDFContext.SatNoV);
+				const float3 SpecularThroughput = 1.0f - ApproxFresnelForTransmittance; // This is already taken into account by the Chan model. But for two sided lighting we need to apply it.
+
+				// We recover the transmitted luminance from as the back face Lambert affected by the transmittance.
+				// The MFP is specified on the slab node and then transmittance recoved from it.
+				// We assume the back face diffuse albedo is white=1 and no diffusion happens at this stage.
+				const float3 BackFaceWhiteDiffuseColor = 1.0f;
+				const float3 BackFaceDiffuse = saturate(-BSDFContext.Context.NoL) * Diffuse_Lambert(BackFaceWhiteDiffuseColor);
+			#else
+				//--- Legacy version
+
+				const float3 SpecularThroughput = 1.0f;
+
+				// Scatter distribution following GGX mixed with a wrapped diffuse Lambert.
+				float BackFaceDiffuse = D_GGX(0.6 * 0.6, saturate(-BSDFContext.Context.VoL));
+				const float Wrap = 0.5;
+				BackFaceDiffuse *= saturate((-BSDFContext.Context.NoL + Wrap) / Square(1 + Wrap));
+			#endif
+
+				Sample.ThinTransmissionPathValueWithProjectedSolidAngle = SlabTransmittance *  SpecularThroughput * BackFaceDiffuse;
+				Sample.ThinTransmissionPathPDF = saturate(-BSDFContext.Context.NoL) / PI;
+
+				// At this stage, Sample.bSubsurface should have been setup correctly already if SSS is enabled with two-sided lighting.
 			}
 			#endif
 
@@ -545,6 +591,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 
 			// STRATA_TODO take into account Haziness
 			// STRATA_TODO take into account Fuzz: Per "Production Friendly Microfacet Sheen BRDF", uniform hemispherical sampling gives good result as the roughness is usually high and avoid issue at grazing angle.
+			// STRATA_TODO take into account Two sided material
 
 			const float HPDF = TangentH.w;
 			const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);
@@ -593,6 +640,7 @@ struct FStrataEnvLightResult
 {
 	float3 DiffuseNormal;
 	float3 DiffuseWeight;
+	float3 DiffuseBackFaceWeight;
 
 	float3 SpecularDirection;
 	float3 SpecularWeight;
@@ -625,12 +673,12 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 			float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
+			const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 			float3 ThinFilmFresnelWeight = 1;
 
 			BRANCH
 			if (bEnableSpecular)
 			{
-				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 
 				#if STRATA_FASTPATH==0
 				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
@@ -751,6 +799,34 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.DiffuseWeight = lerp(StrataEnvLightResult.DiffuseWeight, SlabDirectionalAlbedo * ThinFilmFresnelWeight,	DiffuseToVolumeBlend);
 				// We keep the same normal
 				StrataEnvLightResult.bSubsurface = false;
+			}
+			#endif
+			
+
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETISTHIN(BSDFContext.BSDF))
+			{
+				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
+
+				// we consider single scattering and perpendicular to the surface light transmittance, no diffusion for now.
+				const float TransmittanceNoV = 1.0;	
+				const float3 SlabTransmittance = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, TransmittanceNoV);
+
+				// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
+				// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
+				// We also ignored ThinFilm interaction as another simplification for perf.
+				const float3 ApproxFresnelForTransmittance = F_Schlick(F0, F90, BSDFContext.SatNoV);
+				const float3 SpecularThroughput = 1.0f - ApproxFresnelForTransmittance; // This is already taken into account by the Chan model. But for two sided lighting we need to apply it.
+
+				// We recover the transmitted luminance from as the back face Lambert affected by the transmittance.
+				// The MFP is specified on the slab node and then transmittance recoved from it.
+				// We assume the back face diffuse albedo is white=1 and no diffusion happens at this stage.
+				const float3 BackFaceWhiteDiffuseColor = float3(1.0f, 1.0f, 1.0f);
+
+				StrataEnvLightResult.DiffuseBackFaceWeight = SlabTransmittance * BackFaceWhiteDiffuseColor * SpecularThroughput * ThinFilmFresnelWeight;
+
+				// At this stage, StrataEnvLightResult.bSubsurface should have been setup correctly already if SSS is enabled with two-sided lighting.
 			}
 			#endif
 
