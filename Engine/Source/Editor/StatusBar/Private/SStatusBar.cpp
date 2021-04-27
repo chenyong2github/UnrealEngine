@@ -389,8 +389,6 @@ public:
 	{
 		return AsShared();
 	}
-
-	bool UseNotificationBackground() const override { return true; }
 private:
 	TAttribute<const FStatusBarProgress*> StatusBarProgress;
 	TSharedPtr<SProgressBar> ProgressBar;

@@ -251,9 +251,8 @@ public:
 
 		ChildSlot
 		[
-			SNew(SBorder)
+			SNew(SBox)
 			.Padding(FMargin(15.0f))
-			.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground"))
 			[
 				SNew(SVerticalBox)
 

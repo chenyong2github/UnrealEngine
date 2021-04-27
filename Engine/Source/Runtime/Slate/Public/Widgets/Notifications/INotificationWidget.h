@@ -11,5 +11,5 @@ class SLATE_API INotificationWidget
 public:
 	virtual void OnSetCompletionState(SNotificationItem::ECompletionState State) = 0;
 	virtual TSharedRef< SWidget > AsWidget() = 0;
-	virtual bool UseNotificationBackground() const { return false; }
+	virtual bool UseNotificationBackground() const { return true; }
 };

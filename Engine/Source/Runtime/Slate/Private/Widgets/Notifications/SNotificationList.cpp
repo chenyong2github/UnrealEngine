@@ -37,10 +37,17 @@ public:
 	
 	
 	/** Sets the text for message element */
-	virtual void SetText( const TAttribute< FText >& InText ) override
+	virtual void SetText( const TAttribute<FText>& InText ) override
 	{
 		Text = InText;
 		MyTextBlock->SetText( Text );
+	}
+
+	/** Sets the text for message element */
+	virtual void SetSubText(const TAttribute<FText>& InSubText) override
+	{
+		SubText = InSubText;
+		MySubTextBlock->SetText(SubText);
 	}
 
 	virtual ECompletionState GetCompletionState() const override
@@ -277,8 +284,11 @@ public:
 
 protected:
 
-	/** The text displayed in this text block */
+	/** The main text displayed in this text block */
 	TAttribute<FText> Text;
+
+	/** The sub text displayed in this text block. Subtext uses a smaller font and */
+	TAttribute<FText> SubText;
 
 	/** The fade in duration for this element */
 	TAttribute<float> FadeInDuration;
@@ -296,6 +306,8 @@ protected:
 
 	/** The text displayed in this element */
 	TSharedPtr<STextBlock> MyTextBlock;
+
+	TSharedPtr<STextBlock> MySubTextBlock;
 
 	/** The completion state of this message */	
 	ECompletionState CompletionState;
@@ -336,7 +348,8 @@ public:
 	{}
 
 		/** The text displayed in this text block */
-		SLATE_ARGUMENT(FText, Text)
+		SLATE_ATTRIBUTE(FText, Text)
+		SLATE_ATTRIBUTE(FText, SubText)
 
 		/** Setup information for the buttons on the notification */ 
 		SLATE_ARGUMENT(TArray<FNotificationButtonInfo>, ButtonDetails)
@@ -378,6 +391,8 @@ public:
 		CompletionState = CS_None;
 
 		Text = InArgs._Text;
+		SubText = InArgs._SubText;
+
 		FadeInDuration = InArgs._FadeInDuration;
 		FadeOutDuration = InArgs._FadeOutDuration;
 		ExpireDuration = InArgs._ExpireDuration;
@@ -414,6 +429,16 @@ public:
 			.Text(Text)
 			.Font(FAppStyle::Get().GetFontStyle(TEXT("NotificationList.FontBold")))
 			.WrapTextAt(InArgs._WidthOverride.IsSet() ? InArgs._WidthOverride.Get()-50.0f : 0.0f )
+		];
+
+		InteractiveWidgetsBox->AddSlot()
+		.Padding(FMargin(0.0f, 10.0f, 0.0f, 2.0f))
+		.AutoHeight()
+		[
+			SAssignNew(MySubTextBlock, STextBlock)
+			.Text(SubText)
+			.Visibility_Lambda([this]() { return SubText.Get().IsEmpty() ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible; })
+			.WrapTextAt(InArgs._WidthOverride.IsSet() ? InArgs._WidthOverride.Get() - 50.0f : 0.0f)
 		];
 
 		{
@@ -724,6 +749,7 @@ TSharedRef<SNotificationItem> SNotificationList::AddNotification(const FNotifica
 			// Create notification.
 			NewItem = SNew(SNotificationItemImpl)
 				.Text(Info.Text)
+				.SubText(Info.SubText)
 				.ButtonDetails(Info.ButtonDetails)
 				.Image((Info.Image != nullptr) ? Info.Image : CachedImage)
 				.FadeInDuration(Info.FadeInDuration)

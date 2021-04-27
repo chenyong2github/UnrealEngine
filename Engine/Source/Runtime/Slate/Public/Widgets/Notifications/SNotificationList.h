@@ -32,11 +32,14 @@ public:
 		CS_Fail,
 	};
 
-	/** Sets the text for message element */
-	virtual void SetText( const TAttribute< FText >& InText ) = 0;
+	/** Sets the text for the notification element */
+	virtual void SetText(const TAttribute< FText >& InText) = 0;
+	
+	/** Sets the subtext the notification item. Sub text is used for longer text and is a smaller font */
+	virtual void SetSubText(const TAttribute<FText>& InSubText) = 0;
 
 	/** Sets the text and delegate for the hyperlink */
-	virtual void SetHyperlink( const FSimpleDelegate& InHyperlink, const TAttribute< FText >& InHyperlinkText = TAttribute< FText >() ) = 0;
+	virtual void SetHyperlink(const FSimpleDelegate& InHyperlink, const TAttribute< FText >& InHyperlinkText = TAttribute< FText >()) = 0;
 
 	/** Sets the ExpireDuration */
 	virtual void SetExpireDuration(float ExpireDuration) = 0;
@@ -110,6 +113,7 @@ struct FNotificationInfo
 	FNotificationInfo(const FText& InText)
 		: ContentWidget(),
 		Text(InText),
+		SubText(),
 		ButtonDetails(),
 		Image(nullptr),
 		FadeInDuration(0.5f),
@@ -136,6 +140,7 @@ struct FNotificationInfo
 	FNotificationInfo(TSharedPtr<INotificationWidget> InContentWidget)
 		: ContentWidget(InContentWidget),
 		Text(),
+		SubText(),
 		ButtonDetails(),
 		Image(nullptr),
 		FadeInDuration(0.5f),
@@ -157,8 +162,11 @@ struct FNotificationInfo
 	/** If set, overrides the entire content of the notification with this widget */
 	TSharedPtr<INotificationWidget> ContentWidget;
 
-	/** The text displayed in this text block */
-	FText Text;
+	/** The text displayed in this notification. Suitable for short notifications and titles. */
+	TAttribute<FText> Text;
+
+	/** Optional subtext displayed in this notification. Subtext is smaller than the default text field and is better for long descriptions.*/
+	TAttribute<FText> SubText;
 
 	/** Setup information for the buttons on the notification */ 
 	TArray<FNotificationButtonInfo> ButtonDetails;

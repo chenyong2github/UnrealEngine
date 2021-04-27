@@ -42,7 +42,6 @@ public:
 	virtual void StartSlowTask(const FText& Task, bool bShowCancelButton=false) override;
 	virtual void ProgressReported(const float TotalProgressInterp, FText DisplayMessage) override;
 	virtual void FinalizeSlowTask() override;
-	virtual bool UseNotificationBackground() const override { return true; }
 
 	/** True if we will suppress slow task messages from being shown on the UI, false if otherwise */
 	bool bSuppressSlowTaskMessages;

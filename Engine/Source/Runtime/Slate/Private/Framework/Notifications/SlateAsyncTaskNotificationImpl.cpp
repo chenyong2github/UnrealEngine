@@ -150,12 +150,10 @@ void SSlateAsyncTaskNotificationWidget::Construct(const FArguments& InArgs, cons
 
 	ChildSlot
 	[
-		SNew(SBorder)
+		SNew(SBox)
 		.Padding(FMargin(15.0f))
-		.BorderImage(FCoreStyle::Get().GetBrush("NotificationList.ItemBackground"))
 		[
 			SNew(SHorizontalBox)
-
 			// Main Icon
 			+SHorizontalBox::Slot()
 			.AutoWidth()
