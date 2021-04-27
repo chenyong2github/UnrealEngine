@@ -348,6 +348,11 @@
 
 // ---------------------------------------------------- Compiler specific defaults and fallbacks
 
+#if !defined(PLATFORM_BREAK)
+	#define PLATFORM_BREAK() 
+#endif
+
+
 // Hlslcc platforms ignore the uniform keyword as it can't properly optimize flow
 #if COMPILER_HLSLCC
 #define uniform
