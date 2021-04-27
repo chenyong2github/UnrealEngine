@@ -85,15 +85,18 @@ void CreateRejectionMask(
 	out bool bShouldReject[MAXIMUM_GATHER_POINTS_PER_PIXEL]
 )
 {
-	for (int Index = 0; Index < SampleCount; ++Index)
 	{
-		FGatherSample GatherSample = ReadGatherSample(GatherBuffer, BaseIndex, SampleIndex + Index, ElementCount);
-		float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherSample.CreationPoint;
-		bShouldReject[Index] = dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2;
+		for (int Index = 0; Index < SampleCount; ++Index)
+		{
+			FGatherSample GatherSample = ReadGatherSample(GatherBuffer, BaseIndex, SampleIndex + Index, ElementCount);
+			float3 GPDistance2 = RejectionCriteria.CreationPoint - GatherSample.CreationPoint;
+			bShouldReject[Index] = dot(GPDistance2, GPDistance2) > RejectionCriteria.DistanceThreshold2;
+		}
 	}
-
-	for (int Index = SampleCount; Index < MAXIMUM_GATHER_POINTS_PER_PIXEL; ++Index)
 	{
-		bShouldReject[Index] = true;
+		for (int Index = SampleCount; Index < MAXIMUM_GATHER_POINTS_PER_PIXEL; ++Index)
+		{
+			bShouldReject[Index] = true;
+		}
 	}
 }
