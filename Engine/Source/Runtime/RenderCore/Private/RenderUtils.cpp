@@ -1224,7 +1224,7 @@ RENDERCORE_API void RenderUtilsInit()
 					GForwardShadingPlatformMask &= ~Mask;
 				}
 
-				if (TargetPlatform->UsesDBuffer())
+				if (TargetPlatform->UsesDBuffer() && !IsMobilePlatform(ShaderPlatform))
 				{
 					GDBufferPlatformMask |= Mask;
 				}
@@ -1301,6 +1301,7 @@ RENDERCORE_API void RenderUtilsInit()
 #else
 	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
+		GDBufferPlatformMask = 0;
 		GBasePassVelocityPlatformMask = 0;
 	}
 #endif // WITH_EDITOR
