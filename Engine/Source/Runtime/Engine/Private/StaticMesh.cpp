@@ -2726,18 +2726,32 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 
 			checkf(Owner->IsMeshDescriptionValid(0), TEXT("Bad MeshDescription on %s"), *GetPathNameSafe(Owner));
 
-			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
-			if (!MeshBuilderModule.BuildMesh(*this, Owner, LODGroup))
+			if (Owner->bDoFastBuild)
 			{
-				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
-				return;
+				// If the mesh is built via the FastBuild path, just build it each time here instead of using the DDC as a cache.
+				const int32 NumSourceModels = Owner->GetNumSourceModels();
+				AllocateLODResources(NumSourceModels);
+				for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
+				{
+					Owner->BuildFromMeshDescription(*Owner->GetMeshDescription(LodIndex), LODResources[LodIndex]);
+				}
 			}
+			else
+			{
+				IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
+				if (!MeshBuilderModule.BuildMesh(*this, Owner, LODGroup))
+				{
+					UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
+					return;
+				}
 
-			ComputeUVDensities();
-			if(Owner->bSupportUniformlyDistributedSampling)
-			{
-				BuildAreaWeighedSamplingData();
+				ComputeUVDensities();
+				if(Owner->bSupportUniformlyDistributedSampling)
+				{
+					BuildAreaWeighedSamplingData();
+				}
 			}
+			
 			bLODsShareStaticLighting = Owner->CanLODsShareStaticLighting();
 			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner, /*bCooked=*/ false);
@@ -2890,11 +2904,11 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	SetLightMapResolution(4);
 	SetMinLOD(0);
 
+	bDoFastBuild = false;
 	bSupportUniformlyDistributedSampling = false;
 
 	bSupportRayTracing = true;
 
-	SetIsBuiltAtRuntime(false);
 	bRenderingResourcesInitialized = false;
 #if WITH_EDITOR
 	BuildCacheAutomationTestGuid.Invalidate();
@@ -5082,8 +5096,7 @@ void UStaticMesh::PostLoad()
 	BeginPostLoadInternal(Context);
 
 #if WITH_EDITOR
-	// IsBuiltAtRuntime must stay synchronous for now
-	if (!IsBuiltAtRuntime() && FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
+	if (FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(this))
 	{
 		FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
  
@@ -5277,26 +5290,8 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	if (!Context.bIsCookedForEditor)
 	{
-		if (IsBuiltAtRuntime())
-		{
-			// If built at runtime, but an editor build, we cache the mesh descriptions so that they can be rebuilt within the editor if necessary.
-			// This is done through the fast build path for consistency
-			TArray<const FMeshDescription*> MeshDescriptions;
-			const int32 NumSourceModels = GetNumSourceModels();
-			MeshDescriptions.Reserve(NumSourceModels);
-			for (int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; SourceModelIndex++)
-			{
-				MeshDescriptions.Add(GetMeshDescription(SourceModelIndex));
-			}
-			BuildFromMeshDescriptions(MeshDescriptions);
-		}
-		else
-		{
-			// This, among many other things, will build a MeshDescription from the legacy RawMesh if one has not already been serialized,
-			// or, failing that, if there is not already one in the DDC. This will remain cached until the end of PostLoad(), upon which it
-			// is then released, and can be reloaded on demand.
-			CacheDerivedData();
-		}
+		// Generate and cache render data
+		CacheDerivedData();
 	}
 
 	GetBodySetup()->CreatePhysicsMeshes();
@@ -5770,7 +5765,7 @@ UStaticMeshDescription* UStaticMesh::GetStaticMeshDescription(int32 LODIndex)
 }
 
 
-void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision)
+void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision, bool bFastBuild)
 {
 	TArray<const FMeshDescription*> MeshDescriptions;
 	MeshDescriptions.Reserve(StaticMeshDescriptions.Num());
@@ -5782,6 +5777,7 @@ void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescri
 
 	FBuildMeshDescriptionsParams Params;
 	Params.bBuildSimpleCollision = bBuildSimpleCollision;
+	Params.bFastBuild = bFastBuild;
 	BuildFromMeshDescriptions(MeshDescriptions, Params);
 }
 
@@ -5791,8 +5787,18 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::BuildFromMeshDescriptions);
 
 	// Set up
-	SetIsBuiltAtRuntime(true);
 	NeverStream = true;
+
+#if !WITH_EDITOR
+	// In non-Editor builds, we can only perform fast mesh builds
+	check(Params.bFastBuild);
+#endif
+	if (Params.bFastBuild)
+	{
+		bDoFastBuild = true;
+	}
+
+	check(Params.bCommitMeshDescription || Params.bFastBuild);
 
 	TOptional<FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 	
@@ -5808,7 +5814,19 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	}
 
 	#if WITH_EDITOR
+	if (Params.bCommitMeshDescription)
+	{
+		FCommitMeshDescriptionParams CommitParams;
+		CommitParams.bMarkPackageDirty = Params.bMarkPackageDirty;
+		CommitParams.bUseHashAsGuid = Params.bUseHashAsGuid;
+
 		SetNumSourceModels(MeshDescriptions.Num());
+		for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
+		{
+			CreateMeshDescription(LODIndex, *MeshDescriptions[LODIndex]);
+			CommitMeshDescription(LODIndex, CommitParams);
+		}
+	}
 	#endif
 
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
@@ -5816,26 +5834,74 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 
 	// Build render data from each mesh description
 
-	int32 LODIndex = 0;
-	for (const FMeshDescription* MeshDescriptionPtr : MeshDescriptions)
-	{
 #if WITH_EDITOR
-		// Editor builds cache the mesh description so that it can be preserved during map reloads etc
-		if (Params.bCommitMeshDescription)
-		{
-			CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
-			FCommitMeshDescriptionParams CommitParams;
-			CommitParams.bMarkPackageDirty = Params.bMarkPackageDirty;
-			CommitParams.bUseHashAsGuid = Params.bUseHashAsGuid;
-			CommitMeshDescription(LODIndex, CommitParams);
-		}
+	if (Params.bFastBuild)
 #endif
-		check(MeshDescriptionPtr != nullptr);
-		FStaticMeshLODResources& LODResources = GetRenderData()->LODResources[LODIndex];
+	{
+		for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
+		{
+			check(MeshDescriptions[LODIndex] != nullptr);
+			FStaticMeshLODResources& LODResources = GetRenderData()->LODResources[LODIndex];
 
-		BuildFromMeshDescription(*MeshDescriptionPtr, LODResources);
+			BuildFromMeshDescription(*MeshDescriptions[LODIndex], LODResources);
+		}
 
+		InitResources();
+
+		// Set up RenderData bounds and LOD data
+		GetRenderData()->Bounds = MeshDescriptions[0]->GetBounds();
+		CalculateExtendedBounds();
+
+		for (int32 LOD = 0; LOD < MeshDescriptions.Num(); ++LOD)
+		{
+			// @todo: some way of customizing LOD screen size and/or calculate it based on mesh bounds
+			if (true)
+			{
+				const float LODPowerBase = 0.75f;
+				GetRenderData()->ScreenSize[LOD].Default = FMath::Pow(LODPowerBase, LOD);
+			}
+			else
+			{
+				// Possible model for flexible LODs
+				const float MaxDeviation = 100.0f; // specify
+				const float PixelError = SMALL_NUMBER;
+				const float ViewDistance = (MaxDeviation * 960.0f) / PixelError;
+
+				// Generate a projection matrix.
+				const float HalfFOV = PI * 0.25f;
+				const float ScreenWidth = 1920.0f;
+				const float ScreenHeight = 1080.0f;
+				const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
+
+				GetRenderData()->ScreenSize[LOD].Default = ComputeBoundsScreenSize(FVector::ZeroVector, GetRenderData()->Bounds.SphereRadius, FVector(0.0f, 0.0f, ViewDistance + GetRenderData()->Bounds.SphereRadius), ProjMatrix);
+			}
+		}
+
+		// Set up physics-related data
+		CreateBodySetup();
+		check(GetBodySetup());
+		GetBodySetup()->InvalidatePhysicsData();
+
+		if (Params.bBuildSimpleCollision)
+		{
+			FKBoxElem BoxElem;
+			BoxElem.Center = GetRenderData()->Bounds.Origin;
+			BoxElem.X = GetRenderData()->Bounds.BoxExtent.X * 2.0f;
+			BoxElem.Y = GetRenderData()->Bounds.BoxExtent.Y * 2.0f;
+			BoxElem.Z = GetRenderData()->Bounds.BoxExtent.Z * 2.0f;
+			GetBodySetup()->AggGeom.BoxElems.Add(BoxElem);
+			GetBodySetup()->CreatePhysicsMeshes();
+		}
+	}
 #if WITH_EDITOR
+	else
+	{
+		Build(true);
+	}
+
+	for (int32 LODIndex = 0; LODIndex < MeshDescriptions.Num(); LODIndex++)
+	{
+		FStaticMeshLODResources& LODResources = GetRenderData()->LODResources[LODIndex];
 		for (int32 SectionIndex = 0; SectionIndex < LODResources.Sections.Num(); SectionIndex++)
 		{
 			const FStaticMeshSection& StaticMeshSection = LODResources.Sections[SectionIndex];
@@ -5845,56 +5911,8 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 			SectionInfo.bCastShadow = StaticMeshSection.bCastShadow;
 			GetSectionInfoMap().Set(LODIndex, SectionIndex, SectionInfo);
 		}
+	}
 #endif
-		LODIndex++;
-	}
-
-	InitResources();
-
-	// Set up RenderData bounds and LOD data
-	GetRenderData()->Bounds = MeshDescriptions[0]->GetBounds();
-	CalculateExtendedBounds();
-
-	for (int32 LOD = 0; LOD < MeshDescriptions.Num(); ++LOD)
-	{
-		// @todo: some way of customizing LOD screen size and/or calculate it based on mesh bounds
-		if (true)
-		{
-			const float LODPowerBase = 0.75f;
-			GetRenderData()->ScreenSize[LOD].Default = FMath::Pow(LODPowerBase, LOD);
-		}
-		else
-		{
-			// Possible model for flexible LODs
-			const float MaxDeviation = 100.0f; // specify
-			const float PixelError = SMALL_NUMBER;
-			const float ViewDistance = (MaxDeviation * 960.0f) / PixelError;
-
-			// Generate a projection matrix.
-			const float HalfFOV = PI * 0.25f;
-			const float ScreenWidth = 1920.0f;
-			const float ScreenHeight = 1080.0f;
-			const FPerspectiveMatrix ProjMatrix(HalfFOV, ScreenWidth, ScreenHeight, 1.0f);
-
-			GetRenderData()->ScreenSize[LOD].Default = ComputeBoundsScreenSize(FVector::ZeroVector, GetRenderData()->Bounds.SphereRadius, FVector(0.0f, 0.0f, ViewDistance + GetRenderData()->Bounds.SphereRadius), ProjMatrix);
-		}
-	}
-
-	// Set up physics-related data
-	CreateBodySetup();
-	check(GetBodySetup());
-	GetBodySetup()->InvalidatePhysicsData();
-
-	if (Params.bBuildSimpleCollision)
-	{
-		FKBoxElem BoxElem;
-		BoxElem.Center = GetRenderData()->Bounds.Origin;
-		BoxElem.X = GetRenderData()->Bounds.BoxExtent.X * 2.0f;
-		BoxElem.Y = GetRenderData()->Bounds.BoxExtent.Y * 2.0f;
-		BoxElem.Z = GetRenderData()->Bounds.BoxExtent.Z * 2.0f;
-		GetBodySetup()->AggGeom.BoxElems.Add(BoxElem);
-		GetBodySetup()->CreatePhysicsMeshes();
-	}
 
 	if (!bNewMesh)
 	{

@@ -969,30 +969,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = RayTracing)
 	uint8 bSupportRayTracing : 1;
 
+	UPROPERTY()
+	uint8 bDoFastBuild : 1;
+
 private:
 
-	/**
-	 * If true, StaticMesh has been built at runtime
-	 */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	UPROPERTY()
-	uint8 bIsBuiltAtRuntime : 1;
+	uint8 bIsBuiltAtRuntime_DEPRECATED : 1;
+
 public:
 
+	UE_DEPRECATED(5.00, "IsBuiltAtRuntime() is no longer used.")
 	bool IsBuiltAtRuntime() const
 	{
-		WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::IsBuiltAtRuntime);
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return bIsBuiltAtRuntime;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return false;
 	}
 
+	UE_DEPRECATED(5.00, "SetIsBuiltAtRuntime() is no longer used.")
 	void SetIsBuiltAtRuntime(bool InIsBuiltAtRuntime)
 	{
-		WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::IsBuiltAtRuntime);
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		bIsBuiltAtRuntime = InIsBuiltAtRuntime;
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 protected:
 	/** Tracks whether InitResources has been called, and rendering resources are initialized. */
@@ -1333,7 +1328,7 @@ public:
 
 	/** Builds static mesh LODs from the array of StaticMeshDescriptions passed in */
 	UFUNCTION(BlueprintCallable, Category="StaticMesh")
-	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision = false);
+	ENGINE_API void BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescription*>& StaticMeshDescriptions, bool bBuildSimpleCollision = false, bool bFastBuild = true);
 
 	/** Return a new StaticMeshDescription referencing the MeshDescription of the given LOD */
 	UFUNCTION(BlueprintCallable, Category="StaticMesh")
@@ -1347,6 +1342,7 @@ public:
 			, bUseHashAsGuid(false)
 			, bBuildSimpleCollision(false)
 			, bCommitMeshDescription(true)
+			, bFastBuild(false)
 		{}
 
 		/**
@@ -1370,6 +1366,12 @@ public:
 		 * Commits the MeshDescription as part of the building process. Set to true by default.
 		 */
 		bool bCommitMeshDescription;
+
+		/**
+		 * Specifies that the mesh will be built by the fast path (mandatory in non-editor builds).
+		 * Set to false by default.
+		 */
+		bool bFastBuild;
 	};
 
 	/**

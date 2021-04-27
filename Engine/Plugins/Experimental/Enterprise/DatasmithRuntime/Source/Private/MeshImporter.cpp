@@ -559,6 +559,7 @@ namespace DatasmithRuntime
 			Params.bBuildSimpleCollision = bEnableCollision;
 			// Do not commit since we only need the render data and commit is slow
 			Params.bCommitMeshDescription = false;
+			Params.bFastBuild = true;
 			StaticMesh->BuildFromMeshDescriptions(MeshDescriptionPointers, Params);
 		}
 
