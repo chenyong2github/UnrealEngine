@@ -571,11 +571,13 @@ void ProcessAfterBasePass(
 
 	// decal are distracting when looking at LightCulling.
 	const bool bDoDecal = ViewFamily.EngineShowFlags.Decals && !ViewFamily.EngineShowFlags.VisualizeLightCulling;
+	const bool bDBuffer = IsUsingDBuffers(View.GetShaderPlatform());
 
 	FDeferredDecalPassTextures DecalPassTextures = GetDeferredDecalPassTextures(GraphBuilder, SceneTextures, nullptr);
 
-	if (bDoDecal && IsUsingGBuffers(View.GetShaderPlatform()))
+	if (bDoDecal && !bDBuffer && IsUsingGBuffers(View.GetShaderPlatform()))
 	{
+		// We can disable this pass if using DBuffer decals
 		// Decals are before AmbientOcclusion so the decal can output a normal that AO is affected by
 		AddDeferredDecalPass(GraphBuilder, View, DecalPassTextures, EDecalRenderStage::BeforeLighting);
 	}

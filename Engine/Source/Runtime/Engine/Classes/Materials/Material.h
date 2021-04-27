@@ -107,26 +107,6 @@ enum EDecalBlendMode
 	DBM_MAX,
 };
 
-inline bool IsDBufferDecalBlendMode(EDecalBlendMode In)
-{
-	switch(In)
-	{
-		case DBM_DBuffer_ColorNormalRoughness:
-		case DBM_DBuffer_Color:
-		case DBM_DBuffer_ColorNormal:
-		case DBM_DBuffer_ColorRoughness:
-		case DBM_DBuffer_Normal:
-		case DBM_DBuffer_NormalRoughness:
-		case DBM_DBuffer_Roughness:
-		case DBM_DBuffer_Emissive:
-		case DBM_DBuffer_AlphaComposite:
-		case DBM_DBuffer_EmissiveAlphaComposite:
-			return true;
-	}
-
-	return false;
-}
-
 /** Defines how the material reacts on DBuffer decals, later we can expose more variants between None and Default. */
 UENUM()
 enum EMaterialDecalResponse
@@ -134,19 +114,19 @@ enum EMaterialDecalResponse
 	/** Do not receive decals (Later we still can read the DBuffer channels to customize the effect, this frees up some interpolators). */
 	MDR_None UMETA(DisplayName="None"),
 
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies all DBuffer channels. */
 	MDR_ColorNormalRoughness UMETA(DisplayName="Color Normal Roughness"),
-	/** Receive Decals, applies color DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies color DBuffer channels. */
 	MDR_Color UMETA(DisplayName="Color"),
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies color and normal DBuffer channels. */
 	MDR_ColorNormal UMETA(DisplayName="Color Normal"),
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies color, roughness, specular and metallic DBuffer channels. */
 	MDR_ColorRoughness UMETA(DisplayName="Color Roughness"),
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies normal DBuffer channels. */
 	MDR_Normal UMETA(DisplayName="Normal"),
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies normal, roughness, specular and metallic DBuffer channels. */
 	MDR_NormalRoughness UMETA(DisplayName="Normal Roughness"),
-	/** Receive Decals, applies all DBuffer channels, assumes the decal is non metal and mask the subsurface scattering. */
+	/** Receive Decals, applies roughness, specular and metallic DBuffer channels. */
 	MDR_Roughness UMETA(DisplayName="Roughness"),
 	MDR_MAX
 };
@@ -385,8 +365,7 @@ class UMaterial : public UMaterialInterface
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Material, AssetRegistrySearchable)
 	TEnumAsByte<enum EBlendMode> BlendMode;
 
-	/** Defines how the GBuffer chanels are getting manipulated by a decal material pass. (only with MaterialDomain == MD_DeferredDecal) */
-	UPROPERTY(EditAnywhere, Category=Material)
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "No longer used."))
 	TEnumAsByte<enum EDecalBlendMode> DecalBlendMode;
 
 	/** 
@@ -1200,6 +1179,7 @@ private:
 
 	void BackwardsCompatibilityInputConversion();
 	void BackwardsCompatibilityVirtualTextureOutputConversion();
+	void BackwardsCompatibilityDecalConversion();
 	void ConvertMaterialToStrataMaterial();
 
 	/** Handles setting up an annotation for this object if a flag has changed value */
@@ -1349,7 +1329,7 @@ public:
 	ENGINE_API virtual bool GetStaticSwitchParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides = false) const override;
 #endif // WITH_EDITOR
 
-	/** Returns the material's decal blend mode, calculated from the DecalBlendMode property and what inputs are connected. */
+	UE_DEPRECATED(5.0, "No longer used.")
 	uint32 GetDecalBlendMode() const { return DecalBlendMode; }
 
 	/** Returns the material's decal response mode */

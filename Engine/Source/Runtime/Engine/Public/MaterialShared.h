@@ -1694,7 +1694,6 @@ public:
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
 	virtual bool HasMaterialAttributesConnected() const { return false; }
-	virtual uint32 GetDecalBlendMode() const { return 0; }
 	virtual uint32 GetMaterialDecalResponse() const { return 0; }
 	virtual bool HasBaseColorConnected() const { return false; }
 	virtual bool HasNormalConnected() const { return false; }
@@ -2545,7 +2544,6 @@ public:
 	ENGINE_API virtual bool UseLmDirectionality() const override;
 	ENGINE_API virtual enum EBlendMode GetBlendMode() const override;
 	ENGINE_API virtual enum ERefractionMode GetRefractionMode() const override;
-	ENGINE_API virtual uint32 GetDecalBlendMode() const override;
 	ENGINE_API virtual uint32 GetMaterialDecalResponse() const override;
 	ENGINE_API virtual bool HasBaseColorConnected() const override;
 	ENGINE_API virtual bool HasNormalConnected() const override;
@@ -3117,7 +3115,6 @@ struct FMaterialShaderParameters
 	ERHIFeatureLevel::Type FeatureLevel;
 	EMaterialQualityLevel::Type QualityLevel;
 	int32 BlendableLocation;
-	uint32 DecalBlendMode;
 	int32 NumCustomizedUVs;
 	uint32 StencilCompare;
 	union
@@ -3182,7 +3179,6 @@ struct FMaterialShaderParameters
 		FeatureLevel = InMaterial->GetFeatureLevel();
 		QualityLevel = InMaterial->GetQualityLevel();
 		BlendableLocation = InMaterial->GetBlendableLocation();
-		DecalBlendMode = InMaterial->GetDecalBlendMode();
 		NumCustomizedUVs = InMaterial->GetNumCustomizedUVs();
 		StencilCompare = InMaterial->GetStencilCompare();
 		bIsDefaultMaterial = InMaterial->IsDefaultMaterial();

@@ -5,213 +5,99 @@
 
 namespace DecalRendering
 {
-	// Legacy logic involving EDecalBlendMode.
-	// EDecalBlendMode will soon be replaced and this code will be removed. But submitting this intermediate step for later reference.
-	void InitBlendDesc(EShaderPlatform Platform, EDecalBlendMode DecalBlendMode, bool bWriteNormal, bool bWriteEmissive, FDecalBlendDesc& Desc)
+	/** Finalize the initialization of FDecalBlendDesc after BlendMode and bWrite flags have all been set. */
+	void FinalizeBlendDesc(EShaderPlatform Platform, FDecalBlendDesc& Desc)
 	{
 		const bool bIsMobilePlatform = IsMobilePlatform(Platform);
 		const bool bIsMobileDeferredPlatform = bIsMobilePlatform && IsMobileDeferredShadingEnabled(Platform);
 		const bool bIsDBufferPlatform = !bIsMobilePlatform && IsUsingDBuffers(Platform);
 		const bool bIsDBufferMaskPlatform = bIsDBufferPlatform && IsUsingPerPixelDBufferMask(Platform);
-		const bool bIsForwardPlatform = IsAnyForwardShadingEnabled(Platform);
 
-		// Convert DBuffer modes to GBuffer.
-		bool bWriteBaseColor = true;
-		bool bWriteRoughnessSpecularMetallic = true;
+		Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
 
-		if (!bIsDBufferPlatform && !bIsMobilePlatform)
+		// Enforce platform blend mode limitations.
+		if (Desc.BlendMode != BLEND_Translucent && Desc.BlendMode != BLEND_AlphaComposite && Desc.BlendMode != BLEND_Modulate)
 		{
-			switch (DecalBlendMode)
-			{
-			case DBM_DBuffer_ColorNormalRoughness:
-				DecalBlendMode = DBM_Translucent;
-				break;
-			case DBM_DBuffer_Color:
-				DecalBlendMode = DBM_Translucent;
-				bWriteNormal = false;
-				bWriteRoughnessSpecularMetallic = false;
-				break;
-			case DBM_DBuffer_ColorNormal:
-				DecalBlendMode = DBM_Translucent;
-				bWriteRoughnessSpecularMetallic = false;
-				break;
-			case DBM_DBuffer_ColorRoughness:
-				DecalBlendMode = DBM_Translucent;
-				bWriteNormal = false;
-				break;
-			case DBM_DBuffer_NormalRoughness:
-				DecalBlendMode = DBM_Translucent;
-				bWriteBaseColor = false;
-				break;
-			case DBM_DBuffer_Normal:
-				DecalBlendMode = DBM_Translucent;
-				bWriteBaseColor = false;
-				bWriteRoughnessSpecularMetallic = false;
-				break;
-			}
+			Desc.BlendMode = BLEND_Translucent;
+		}
+		if (bIsDBufferPlatform && Desc.BlendMode == BLEND_Modulate)
+		{
+			Desc.BlendMode = BLEND_Translucent;
+		}
+		if (bIsMobilePlatform && !bIsMobileDeferredPlatform && Desc.bWriteEmissive)
+		{
+			Desc.BlendMode = BLEND_Translucent;
 		}
 
-		// Convert GBuffer modes to DBuffer.
-		uint32 DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBasePass;
-		DBufferStageMask |= bWriteEmissive ? (1 << (uint32)EDecalRenderStage::Emissive) : 0;
-
-		if (bIsDBufferPlatform && bIsForwardPlatform && !bIsMobilePlatform)
-		{
-			switch (DecalBlendMode)
-			{
-			case DBM_Translucent:
-			case DBM_Stain:
-				DecalBlendMode = DBM_DBuffer_ColorNormalRoughness;
-				break;
-			case DBM_Normal:
-				DecalBlendMode = DBM_DBuffer_Normal;
-				DBufferStageMask = 1 << (uint32)EDecalRenderStage::BeforeBasePass;
-				break;
-			case DBM_Emissive:
-				DecalBlendMode = DBM_DBuffer_Emissive;
-				break;
-			case DBM_AlphaComposite:
-				DecalBlendMode = DBM_DBuffer_AlphaComposite;
-				break;
-			}
-		}
-
-		// Fill out FDecalBlendDesc.
-		switch (DecalBlendMode)
-		{
-		case DBM_AlphaComposite:
-			Desc.BlendMode = BLEND_AlphaComposite;
-			Desc.bWriteBaseColor = bWriteBaseColor;
-			Desc.bWriteRoughnessSpecularMetallic = bWriteRoughnessSpecularMetallic;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::BeforeLighting;
-			break;
-		case DBM_Stain:
-			Desc.BlendMode = BLEND_Modulate;
-			Desc.bWriteBaseColor = bWriteBaseColor;
-			Desc.bWriteNormal = bWriteNormal;
-			Desc.bWriteRoughnessSpecularMetallic = bWriteRoughnessSpecularMetallic;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::BeforeLighting;
-			break;
-		case DBM_Translucent:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteBaseColor = bWriteBaseColor;
-			Desc.bWriteNormal = bWriteNormal;
-			Desc.bWriteRoughnessSpecularMetallic = bWriteRoughnessSpecularMetallic;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::BeforeLighting;
-			break;
-		case DBM_Normal:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteNormal = true;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::BeforeLighting;
-			break;
-		case DBM_Emissive:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteEmissive = true;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::BeforeLighting;
-			break;
-		case DBM_DBuffer_ColorNormalRoughness:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteBaseColor = Desc.bWriteNormal = Desc.bWriteRoughnessSpecularMetallic = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_Color:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteBaseColor = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_ColorNormal:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteBaseColor = Desc.bWriteNormal = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_ColorRoughness:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteBaseColor = Desc.bWriteRoughnessSpecularMetallic = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_Normal:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteNormal = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_NormalRoughness:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteNormal = Desc.bWriteRoughnessSpecularMetallic = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_Roughness:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteRoughnessSpecularMetallic = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_DBuffer_Emissive:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteEmissive = true;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::Emissive;
-			break;
-		case DBM_DBuffer_AlphaComposite:
-			Desc.BlendMode = BLEND_AlphaComposite;
-			Desc.bWriteBaseColor = Desc.bWriteRoughnessSpecularMetallic = true;
-			Desc.bWriteEmissive = bWriteEmissive;
-			Desc.bWriteDBufferMask = bIsDBufferMaskPlatform;
-			Desc.RenderStageMask = DBufferStageMask;
-			break;
-		case DBM_Volumetric_DistanceFunction:
-			// Ignore
-			break;
-		case DBM_AmbientOcclusion:
-			Desc.BlendMode = BLEND_Translucent;
-			Desc.bWriteAmbientOcclusion = true;
-			Desc.RenderStageMask = 1 << (uint32)EDecalRenderStage::AmbientOcclusion;
-			break;
-		}
-
-		// Fixup for Mobile.
-		if (bIsMobileDeferredPlatform)
-		{
-			Desc.bWriteAmbientOcclusion = false;
-			Desc.bWriteDBufferMask = false;
-			Desc.RenderStageMask = Desc.bWriteEmissive || Desc.bWriteBaseColor || Desc.bWriteNormal || Desc.bWriteRoughnessSpecularMetallic ? 1 << (uint32)EDecalRenderStage::MobileBeforeLighting : 0;
-		}
-		else if (bIsMobilePlatform)
+		// Enforce platform output limitations.
+		if (bIsMobilePlatform && !bIsMobileDeferredPlatform)
 		{
 			Desc.bWriteNormal = false;
 			Desc.bWriteRoughnessSpecularMetallic = false;
+		}
+		if (bIsMobilePlatform)
+		{
 			Desc.bWriteAmbientOcclusion = false;
-			Desc.bWriteDBufferMask = false;
-			Desc.BlendMode = Desc.bWriteEmissive ? BLEND_Translucent : Desc.BlendMode;
-			Desc.RenderStageMask = Desc.bWriteEmissive || Desc.bWriteBaseColor ? 1 << (uint32)EDecalRenderStage::Mobile : 0;
+		}
+
+		// Enforce blend modes output limitations.
+		if (Desc.BlendMode == BLEND_AlphaComposite)
+		{
+			Desc.bWriteNormal = false;
+		}
+
+		// Calculate main decal render stage. We set only one (or none) of these for any decal.
+		if (bIsMobileDeferredPlatform && (Desc.bWriteEmissive || Desc.bWriteBaseColor || Desc.bWriteNormal || Desc.bWriteRoughnessSpecularMetallic))
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::MobileBeforeLighting;
+		}
+		else if (bIsMobilePlatform && (Desc.bWriteEmissive || Desc.bWriteBaseColor))
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::Mobile;
+		}
+		else if (bIsDBufferPlatform && (Desc.bWriteBaseColor || Desc.bWriteNormal || Desc.bWriteRoughnessSpecularMetallic))
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::BeforeBasePass;
+		}
+		else if (Desc.bWriteEmissive || Desc.bWriteBaseColor || Desc.bWriteNormal || Desc.bWriteRoughnessSpecularMetallic)
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::BeforeLighting;
+		}
+
+		// Calculate additional decal render stages.
+		if (Desc.bWriteEmissive && bIsDBufferPlatform)
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::Emissive;
+		}
+		if (Desc.bWriteAmbientOcclusion)
+		{
+			Desc.RenderStageMask |= 1 << (uint32)EDecalRenderStage::AmbientOcclusion;
 		}
 	}
 
 	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, FMaterial const* Material)
 	{
 		FDecalBlendDesc Desc;
-		InitBlendDesc(Platform, (EDecalBlendMode)Material->GetDecalBlendMode(), Material->HasNormalConnected(), Material->HasEmissiveColorConnected(), Desc);
+		Desc.BlendMode = Material->GetBlendMode();
+		Desc.bWriteBaseColor = Material->HasBaseColorConnected();
+		Desc.bWriteNormal = Material->HasNormalConnected();
+		Desc.bWriteRoughnessSpecularMetallic = Material->HasRoughnessConnected() || Material->HasSpecularConnected() || Material->HasMetallicConnected();
+		Desc.bWriteEmissive = Material->HasEmissiveColorConnected();
+		Desc.bWriteAmbientOcclusion = Material->HasAmbientOcclusionConnected();
+		FinalizeBlendDesc(Platform, Desc);
 		return Desc;
 	}
 
 	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, FMaterialShaderParameters const& MaterialShaderParameters)
 	{
 		FDecalBlendDesc Desc;
-		InitBlendDesc(Platform, (EDecalBlendMode)MaterialShaderParameters.DecalBlendMode, MaterialShaderParameters.bHasNormalConnected, MaterialShaderParameters.bHasEmissiveColorConnected, Desc);
+		Desc.BlendMode = MaterialShaderParameters.BlendMode;
+		Desc.bWriteBaseColor = MaterialShaderParameters.bHasBaseColorConnected;
+		Desc.bWriteNormal = MaterialShaderParameters.bHasNormalConnected;
+		Desc.bWriteRoughnessSpecularMetallic = MaterialShaderParameters.bHasRoughnessConnected || MaterialShaderParameters.bHasSpecularConnected || MaterialShaderParameters.bHasMetallicConnected;
+		Desc.bWriteEmissive = MaterialShaderParameters.bHasEmissiveColorConnected;
+		Desc.bWriteAmbientOcclusion = MaterialShaderParameters.bHasAmbientOcclusionConnected;
+		FinalizeBlendDesc(Platform, Desc);
 		return Desc;
 	}
 

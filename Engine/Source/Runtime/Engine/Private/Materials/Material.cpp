@@ -162,6 +162,7 @@ FUObjectAnnotationSparse<FMaterialsWithDirtyUsageFlags,true> GMaterialsWithDirty
 FUObjectAnnotationSparseBool GMaterialsThatNeedExpressionsFlipped;
 FUObjectAnnotationSparseBool GMaterialsThatNeedCoordinateCheck;
 FUObjectAnnotationSparseBool GMaterialsThatNeedCommentFix;
+FUObjectAnnotationSparseBool GMaterialsThatNeedDecalFix;
 
 #endif // #if WITH_EDITOR
 
@@ -3420,6 +3421,17 @@ void UMaterial::Serialize(FArchive& Ar)
 			BlendMode = BLEND_Translucent;
 		}
 	}
+	
+#if WITH_EDITOR
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RemoveDecalBlendMode)
+	{
+		if (MaterialDomain == MD_DeferredDecal)
+		{
+			GMaterialsThatNeedDecalFix.Set(this);
+		}
+	}
+#endif
+
 #if WITH_EDITOR
 	if (Ar.IsSaving() && Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && FShaderLibraryCooker::NeedsShaderStableKeys(EShaderPlatform::SP_NumPlatforms))
 	{
@@ -3578,6 +3590,100 @@ void UMaterial::BackwardsCompatibilityVirtualTextureOutputConversion()
 			->AddToken(FUObjectToken::Create(this))
 			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain", "Material {Material} has been updated to use a RuntimeVirtualTextureOutput node instead of a RuntimeVirtualTexture Domain. If the material asset is not re-saved it may not render correctly when run outside of the editor."), Arguments)))
 			->AddToken(FActionToken::Create(LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain_Fix", "Fix"), LOCTEXT("MapCheck_RuntimeVirtualTextureMaterialDomain_Action", "Click to mark the material as needing to be saved."), FOnActionTokenExecuted::CreateUObject(this, &UMaterial::FixupMaterialUsageAfterLoad), true));
+		FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
+	}
+#endif // WITH_EDITOR
+}
+
+void UMaterial::BackwardsCompatibilityDecalConversion()
+{
+#if WITH_EDITOR
+	if (GMaterialsThatNeedDecalFix.Get(this))
+	{
+		GMaterialsThatNeedDecalFix.Clear(this);
+
+		// Move stain and alpha composite setting into material blend mode.
+		if (DecalBlendMode == DBM_AlphaComposite)
+		{
+			BlendMode = BLEND_AlphaComposite;
+		}
+		else if (DecalBlendMode == DBM_Stain)
+		{
+			BlendMode = BLEND_Modulate;
+		}
+		else
+		{
+			BlendMode = BLEND_Translucent;
+		}
+
+		// Disconnect outputs according to old DBuffer blend mode.
+		if (DecalBlendMode == DBM_DBuffer_Normal || DecalBlendMode == DBM_DBuffer_Roughness || DecalBlendMode == DBM_DBuffer_NormalRoughness)
+		{
+			BaseColor.Expression = nullptr;
+		}
+		if (DecalBlendMode == DBM_DBuffer_Color || DecalBlendMode == DBM_DBuffer_Roughness || DecalBlendMode == DBM_DBuffer_ColorRoughness || DecalBlendMode == DBM_AlphaComposite)
+		{
+			Normal.Expression = nullptr;
+		}
+		if (DecalBlendMode == DBM_DBuffer_Color || DecalBlendMode == DBM_DBuffer_Normal || DecalBlendMode == DBM_DBuffer_ColorNormal)
+		{
+			Roughness.Expression = Specular.Expression = Metallic.Expression = nullptr;
+		}
+
+		// Previously translucent decals used default values in all unconnected attributes (except for normal).
+		// For backwards compatibility we connect those attributes with defaults.
+		if (DecalBlendMode == DBM_Translucent || DecalBlendMode == DBM_AlphaComposite || DecalBlendMode == DBM_Stain)
+		{
+			if (!BaseColor.IsConnected() || !Metallic.IsConnected())
+			{
+				UMaterialExpressionConstant* Expression = NewObject<UMaterialExpressionConstant>(this);
+				Expressions.Add(Expression);
+
+				Expression->MaterialExpressionEditorX = EditorX - 100;
+				Expression->MaterialExpressionEditorY = EditorY - 120;
+				Expression->R = 0.f;
+
+				if (!BaseColor.IsConnected())
+				{
+					BaseColor.Connect(0, Expression);
+				}
+				if (!Metallic.IsConnected())
+				{
+					Metallic.Connect(0, Expression);
+				}
+			}
+
+			if (!Roughness.IsConnected() || !Specular.IsConnected())
+			{
+				UMaterialExpressionConstant* Expression = NewObject<UMaterialExpressionConstant>(this);
+				Expressions.Add(Expression);
+
+				Expression->MaterialExpressionEditorX = EditorX - 100;
+				Expression->MaterialExpressionEditorY = EditorY - 60;
+				Expression->R = .5f;
+
+				if (!Roughness.IsConnected())
+				{
+					Roughness.Connect(0, Expression);
+				}
+				if (!Specular.IsConnected())
+				{
+					Specular.Connect(0, Expression);
+				}
+			}
+		}
+
+		// Force the material to recompile.
+		FlushResourceShaderMaps();
+
+		// Note we can't mark the package dirty during post load so we will recompile on load until this material is manually resaved. 
+		// So add a map load error here to encourage a save.
+		FFormatNamedArguments Arguments;
+		Arguments.Add(TEXT("Material"), FText::FromString(*GetPathName()));
+		FMessageLog("MapCheck").Warning()
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Decal", "Material {Material} has been updated to fix up decal settings. If the material asset is not re-saved it may not render correctly when run outside of the editor."), Arguments)))
+			->AddToken(FActionToken::Create(LOCTEXT("MapCheck_Decal_Fix", "Fix"), LOCTEXT("MapCheck_Decal_Action", "Click to mark the material as needing to be saved."), FOnActionTokenExecuted::CreateUObject(this, &UMaterial::FixupMaterialUsageAfterLoad), true));
 		FMessageLog("MapCheck").Open(EMessageSeverity::Warning);
 	}
 #endif // WITH_EDITOR
@@ -4105,6 +4211,7 @@ void UMaterial::PostLoad()
 
 	BackwardsCompatibilityInputConversion();
 	BackwardsCompatibilityVirtualTextureOutputConversion();
+	BackwardsCompatibilityDecalConversion();
 	ConvertMaterialToStrataMaterial();
 
 #if WITH_EDITOR
@@ -4390,11 +4497,6 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			return BlendMode == BLEND_Translucent;
 		}
 
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, DecalBlendMode))
-		{
-			return MaterialDomain == MD_DeferredDecal;
-		}
-
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, MaterialDecalResponse))
 		{
 			static auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DBuffer"));
@@ -4445,14 +4547,10 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 	
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, ShadingModel))
 		{
-			return (MaterialDomain == MD_Surface || (MaterialDomain == MD_DeferredDecal && DecalBlendMode == DBM_Volumetric_DistanceFunction));
+			return MaterialDomain == MD_Surface;
 		}
 
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, DecalBlendMode))
-		{
-			return MaterialDomain == MD_DeferredDecal;
-		}
-		else if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
+		if (FCString::Strncmp(*PropertyName, TEXT("bUsedWith"), 9) == 0)
 		{
 			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
 		}
@@ -6491,7 +6589,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	EBlendMode BlendMode,
 	FMaterialShadingModelField ShadingModels,
 	ETranslucencyLightingMode TranslucencyLightingMode,
-	EDecalBlendMode DecalBlendMode,
 	bool bBlendableOutputAlpha,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression)
@@ -6522,9 +6619,29 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 			return true;
 		}
 
-		switch (DecalBlendMode)
+		if (BlendMode == BLEND_Translucent)
 		{
-		case DBM_Translucent:
+			return InProperty == MP_EmissiveColor
+				|| InProperty == MP_Normal
+				|| InProperty == MP_Metallic
+				|| InProperty == MP_Specular
+				|| InProperty == MP_BaseColor
+				|| InProperty == MP_Roughness
+				|| InProperty == MP_Opacity
+				|| InProperty == MP_AmbientOcclusion;
+		}
+		else if (BlendMode == BLEND_AlphaComposite)
+		{
+			// AlphaComposite decals never write normal.
+			return InProperty == MP_EmissiveColor
+				|| InProperty == MP_Metallic
+				|| InProperty == MP_Specular
+				|| InProperty == MP_BaseColor
+				|| InProperty == MP_Roughness
+				|| InProperty == MP_Opacity;
+		}
+		else if (BlendMode == BLEND_Modulate)
+		{
 			return InProperty == MP_EmissiveColor
 				|| InProperty == MP_Normal
 				|| InProperty == MP_Metallic
@@ -6532,108 +6649,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 				|| InProperty == MP_BaseColor
 				|| InProperty == MP_Roughness
 				|| InProperty == MP_Opacity;
-
-		case DBM_Stain:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Normal
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Opacity;
-
-		case DBM_Normal:
-			return InProperty == MP_Normal
-				|| InProperty == MP_Opacity;
-
-		case DBM_Emissive:
-			// even emissive supports opacity
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Opacity;
-
-		case DBM_AlphaComposite:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_AlphaComposite:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_ColorNormalRoughness:
-			return InProperty == MP_Normal
-				|| InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_Opacity
-				|| InProperty == MP_EmissiveColor;
-
-		case DBM_DBuffer_Emissive:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_EmissiveAlphaComposite:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_Color:
-			return InProperty == MP_BaseColor
-				|| InProperty == MP_Opacity
-				|| InProperty == MP_EmissiveColor;
-
-		case DBM_DBuffer_ColorNormal:
-			return InProperty == MP_BaseColor
-				|| InProperty == MP_Normal
-				|| InProperty == MP_Opacity
-				|| InProperty == MP_EmissiveColor;
-
-		case DBM_DBuffer_ColorRoughness:
-			return InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_Opacity
-				|| InProperty == MP_EmissiveColor;
-
-		case DBM_DBuffer_NormalRoughness:
-			return InProperty == MP_Normal
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_Normal:
-			return InProperty == MP_Normal
-				|| InProperty == MP_Opacity;
-
-		case DBM_DBuffer_Roughness:
-			return InProperty == MP_Roughness
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_Opacity;
-
-		case DBM_Volumetric_DistanceFunction:
-			return InProperty == MP_EmissiveColor
-				|| InProperty == MP_Normal
-				|| InProperty == MP_Metallic
-				|| InProperty == MP_Specular
-				|| InProperty == MP_BaseColor
-				|| InProperty == MP_Roughness
-				|| InProperty == MP_OpacityMask;
-
-		case DBM_AmbientOcclusion:
-			return InProperty == MP_AmbientOcclusion;
-
-		default:
-			// if you create a new mode it needs to expose the right pins
+		}
+		else
+		{
 			return false;
 		}
 	}
@@ -6759,7 +6777,6 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		BlendMode,
 		ShadingModels,
 		TranslucencyLightingMode,
-		DecalBlendMode,
 		BlendableOutputAlpha,
 		Refraction.IsConnected(),
 		IsShadingModelFromMaterialExpression());
@@ -6773,7 +6790,6 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		DerivedMaterial->GetBlendMode(),
 		DerivedMaterial->GetShadingModels(),
 		TranslucencyLightingMode,
-		DecalBlendMode,
 		BlendableOutputAlpha,
 		Refraction.IsConnected(),
 		DerivedMaterial->IsShadingModelFromMaterialExpression());

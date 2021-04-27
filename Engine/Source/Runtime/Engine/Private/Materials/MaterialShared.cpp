@@ -1571,11 +1571,6 @@ bool FMaterialResource::ComputeFogPerPixel() const {return Material->bComputeFog
 FString FMaterialResource::GetFriendlyName() const { return *GetNameSafe(Material); } //avoid using the material instance name here, we want materials that share a shadermap to also share a friendly name.
 FString FMaterialResource::GetAssetName() const { return MaterialInstance ? *GetNameSafe(MaterialInstance) : *GetNameSafe(Material); }
 
-uint32 FMaterialResource::GetDecalBlendMode() const
-{
-	return Material->GetDecalBlendMode();
-}
-
 uint32 FMaterialResource::GetMaterialDecalResponse() const
 {
 	return Material->GetMaterialDecalResponse();

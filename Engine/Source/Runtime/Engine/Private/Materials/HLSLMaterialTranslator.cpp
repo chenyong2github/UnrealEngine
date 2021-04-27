@@ -1023,12 +1023,12 @@ bool FHLSLMaterialTranslator::Translate()
 			}
 		}
 
-		if (Domain == MD_DeferredDecal && BlendMode != BLEND_Translucent)
+		if (Domain == MD_DeferredDecal && !(BlendMode == BLEND_Translucent || BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Modulate))
 		{
 			// We could make the change for the user but it would be confusing when going to DeferredDecal and back
 			// or we would have to pay a performance cost to make the change more transparently.
 			// The change saves performance as with translucency we don't need to test for MeshDecals in all opaque rendering passes
-			Errorf(TEXT("Material using the DeferredDecal domain need to use the BlendModel Translucent (this saves performance)"));
+			Errorf(TEXT("Material using the DeferredDecal domain can only use the BlendModes Translucent, AlphaComposite or Modulate"));
 		}
 
 		if (MaterialCompilationOutput.bNeedsSceneTextures)
@@ -5907,25 +5907,40 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 									SceneTextureId == PPI_SceneDepth ||
 									SceneTextureId == PPI_CustomStencil;
 
-	// special case for DBuffer normals
-	bool bIsUsingReprojectedNormal = false;
-
-	if(Material->GetMaterialDomain() == MD_DeferredDecal)
+	if (!bSupportedOnMobile && ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 	{
-		EDecalBlendMode DecalBlendMode = (EDecalBlendMode)Material->GetDecalBlendMode();
-		bool bDBuffer = IsDBufferDecalBlendMode(DecalBlendMode);
+		return INDEX_NONE;
+	}
 
-		if(bDBuffer)
+	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Vertex)
+	{
+		// we can relax this later if needed
+		return NonPixelShaderExpressionError();
+	}
+
+	// Special case for DBuffer normals.
+	// Note that full reprojection only happens with r.Decal.NormalReprojectionEnabled 1.
+	// Otherwise we use a depth buffer approximation.
+	bool bIsUsingReprojectedNormal = false;
+	if (Material->GetMaterialDomain() == MD_DeferredDecal)
+	{
+		if (SceneTextureId == PPI_WorldNormal)
 		{
-			if(SceneTextureId == PPI_WorldNormal)
+			const bool bUsingDBuffer = IsUsingDBuffers(Platform);
+			const bool bIsDBufferOutput = 
+				MaterialProperty == MP_BaseColor ||
+				MaterialProperty == MP_Normal || 
+				MaterialProperty == MP_Roughness || 
+				MaterialProperty == MP_Specular || 
+				MaterialProperty == MP_Metallic;
+
+			if (bUsingDBuffer && bIsDBufferOutput)
 			{
 				bIsUsingReprojectedNormal = true;
 			}
 		}
 	}
 
-	// The normal is valid, sample from previous frame with reprojection. Otherwise, return the original geometry normal, both for SM5 when the normal is missing,
-	// but also on Mobile as a fallback.
 	if (bIsUsingReprojectedNormal)
 	{
 		int32 BufferUV;
@@ -5955,23 +5970,14 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 		}
 		else
 		{
+			// Return the original geometry normal as a fall back.
+			// Shouldn't get here since DBuffer isn't enabled on mobile rendering paths?
 			return AddCodeChunk(MCT_Float4,
 				TEXT("float4(%s,1.0f)"),
 				*CoerceParameter(PixelNormalWS(),MCT_Float3));
 		}
 	}
 
-	if (!bSupportedOnMobile && ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-
-	if (ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Vertex)
-	{
-		// we can relax this later if needed
-		return NonPixelShaderExpressionError();
-	}
-		
 	if (SceneTextureId == PPI_DecalMask)
 	{
 		return Error(TEXT("Decal Mask bit was move out of GBuffer to the stencil buffer for performance optimisation and is therefor no longer available"));
@@ -6033,26 +6039,12 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 	MaterialCompilationOutput.bNeedsSceneTextures = true;
 	MaterialCompilationOutput.SetIsSceneTextureUsed(SceneTextureId);
 
-	if(Material->GetMaterialDomain() == MD_DeferredDecal)
+	if (Material->GetMaterialDomain() == MD_DeferredDecal)
 	{
-		EDecalBlendMode DecalBlendMode = (EDecalBlendMode)Material->GetDecalBlendMode();
-		bool bDBuffer = IsDBufferDecalBlendMode(DecalBlendMode);
-
-		bool bRequiresSM5 = (SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_AmbientOcclusion);
-
-		if(bDBuffer)
-	{
-			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_WorldNormal))
+		if (!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil))
 		{
 			// Note: For DBuffer decals: CustomDepth and CustomStencil are only available if r.CustomDepth.Order = 0
-				Errorf(TEXT("DBuffer decals (MaterialDomain=DeferredDecal and DecalBlendMode is using DBuffer) can only access SceneDepth, CustomDepth, CustomStencil, and WorldNormal"));
-			}
-		}
-		else
-		{
-			if(!(SceneTextureId == PPI_SceneDepth || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil || SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_AmbientOcclusion))
-			{
-				Errorf(TEXT("Decals (MaterialDomain=DeferredDecal) can only access WorldNormal, AmbientOcclusion, SceneDepth, CustomDepth, CustomStencil"));
+			Errorf(TEXT("Decals can only access SceneDepth, CustomDepth, CustomStencil, and WorldNormal"));
 		}
 
 		if (SceneTextureId == PPI_WorldNormal && Material->HasNormalConnected())
@@ -6060,8 +6052,8 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 			// GBuffer can only relate to WorldNormal here.
 			Errorf(TEXT("Decals that read WorldNormal cannot output to normal at the same time"));
 		}
-		}
 
+		const bool bRequiresSM5 = SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil;
 		if (bRequiresSM5)
 		{
 			ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5);

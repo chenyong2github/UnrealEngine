@@ -121,6 +121,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Explicitly serialized bSavedCachedExpressionData for Material(Instance)
 		MaterialSavedCachedData,
 
+		// Remove explicit decal blend mode
+		RemoveDecalBlendMode,
+
         // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
