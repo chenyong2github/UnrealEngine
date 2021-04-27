@@ -473,16 +473,23 @@ SAnimationSequenceBrowser::~SAnimationSequenceBrowser()
 
 void SAnimationSequenceBrowser::OnRequestOpenAsset(const FAssetData& AssetData, bool bFromHistory)
 {
-		if (UObject* RawAsset = AssetData.GetAsset())
-		{
+	if (UObject* RawAsset = AssetData.GetAsset())
+	{
 		if (UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(RawAsset))
+		{
+			if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 			{
-			if (!bFromHistory)
-			{
-				AddAssetToHistory(AssetData);
+				IAnimationEditorModule& AnimationEditorModule = FModuleManager::LoadModuleChecked<IAnimationEditorModule>("AnimationEditor");
+				AnimationEditorModule.CreateAnimationEditor(EToolkitMode::Standalone, nullptr, AnimationAsset);
 			}
-
-			OnOpenNewAsset.ExecuteIfBound(AnimationAsset);
+			else
+			{
+				if (!bFromHistory)
+				{
+					AddAssetToHistory(AssetData);
+				}
+				OnOpenNewAsset.ExecuteIfBound(AnimationAsset);
+			}
 		}
 		else if (USoundWave* SoundWave = Cast<USoundWave>(RawAsset))
 		{
@@ -616,6 +623,16 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 				)
 			);
 
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("AnimSequenceBase_OpenInNewWindow", "Open In New Window"),
+			LOCTEXT("AnimSequenceBase_OpenInNewWindowTooltip", "Will always open asset in a new window, and not re-use existing window. (Shift+Double-Click)"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAnimationSequenceBrowser::OpenInNewWindow, SelectedAssets),
+				FCanExecuteAction()
+			)
+		);
+			
 		MenuBuilder.AddMenuEntry(FGlobalEditorCommonCommands::Get().FindInContentBrowser);
 	}
 	MenuBuilder.EndSection();
@@ -639,6 +656,21 @@ TSharedPtr<SWidget> SAnimationSequenceBrowser::OnGetAssetContextMenu(const TArra
 
 	return MenuBuilder.MakeWidget();
 }
+
+void SAnimationSequenceBrowser::OpenInNewWindow(TArray<FAssetData> AnimationAssets)
+{
+	for(auto Iter = AnimationAssets.CreateConstIterator(); Iter; ++Iter)
+	{
+		UObject* Asset =  Iter->GetAsset();
+		UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(Asset);
+		if (AnimationAsset)
+		{
+			IAnimationEditorModule& AnimationEditorModule = FModuleManager::LoadModuleChecked<IAnimationEditorModule>("AnimationEditor");
+			AnimationEditorModule.CreateAnimationEditor(EToolkitMode::Standalone, nullptr, AnimationAsset);
+		}
+	}
+}
+
 
 void SAnimationSequenceBrowser::FindInContentBrowser()
 {

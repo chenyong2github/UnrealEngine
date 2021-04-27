@@ -165,7 +165,7 @@ public:
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ComboButtonStyle(&FAppStyle::Get(), "SegmentedCombo.Right")
 				.OnGetMenuContent(this, &SAssetShortcut::HandleGetMenuContent)
-				.ToolTipText(LOCTEXT("AssetComboTooltip", "Find other assets of this type and perform asset operations./nShift-Click to open in new window."))
+				.ToolTipText(LOCTEXT("AssetComboTooltip", "Find other assets of this type and perform asset operations.\nShift-Click to open in new window."))
 			]
 		];
 

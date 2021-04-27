@@ -74,6 +74,9 @@ public:
 	/** Delegate that handles creation of context menu */
 	TSharedPtr<SWidget> OnGetAssetContextMenu(const TArray<FAssetData>& SelectedAssets);
 
+	/** Delegate to open animation assets each in a new window */
+	void OpenInNewWindow(TArray<FAssetData> AnimationAssets);
+
 	/** Delegate to handle "Find in Content Browser" context menu option */
 	void FindInContentBrowser();
 
