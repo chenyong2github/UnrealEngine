@@ -1029,7 +1029,7 @@ int32 SSequencerSection::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 
 	bool bSetSectionToKey = false;
 
-	if (Track->GetSectionToKey() == SectionObject)
+	if (Track && Track->GetSectionToKey() == SectionObject)
 	{
 		bSetSectionToKey = true;
 	}
