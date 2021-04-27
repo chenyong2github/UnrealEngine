@@ -827,7 +827,7 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 		return nullptr;
 	}
 
-	bool bExpandChilren = true;
+	bool bExpandChildren = true;
 
 	IUsdSchemasModule& UsdSchemasModule = FModuleManager::Get().LoadModuleChecked< IUsdSchemasModule >( TEXT("USDSchemas") );
 
@@ -843,10 +843,10 @@ UUsdPrimTwin* AUsdStageActor::ExpandPrim( const UE::FUsdPrim& Prim, FUsdSchemaTr
 			SchemaTranslator->UpdateComponents( UsdPrimTwin->SceneComponent.Get() );
 		}
 
-		bExpandChilren = !SchemaTranslator->CollapsesChildren( FUsdSchemaTranslator::ECollapsingType::Components );
+		bExpandChildren = !SchemaTranslator->CollapsesChildren( FUsdSchemaTranslator::ECollapsingType::Components );
 	}
 
-	if ( bExpandChilren )
+	if ( bExpandChildren )
 	{
 		USceneComponent* ContextParentComponent = TranslationContext.ParentComponent;
 
