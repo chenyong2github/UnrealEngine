@@ -2425,6 +2425,10 @@ void UControlRig::SetBoneInitialTransformsFromSkeletalMeshComponent(USkeletalMes
 		FMemMark Mark(FMemStack::Get());
 		FCompactPose OutPose;
 		OutPose.ResetToRefPose(InSkelMeshComp->GetAnimInstance()->GetRequiredBones());
+		if(!OutPose.GetBoneContainer().IsValid())
+		{
+			return;
+		}
 
 		DynamicHierarchy->ForEach<FRigBoneElement>([this, &OutPose, InSkelMeshComp](FRigBoneElement* BoneElement) -> bool
 			{
