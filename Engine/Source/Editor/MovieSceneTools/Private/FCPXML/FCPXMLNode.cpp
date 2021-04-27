@@ -112,7 +112,7 @@ bool FFCPXMLNode::VisitChildren(FFCPXMLNodeVisitor& NodeVisitor, bool VisitRefNo
 	if (VisitRefNodeChildren)
 	{
 		TSharedPtr<FFCPXMLNode> RefNode = GetReferenceNode();
-		if (RefNode != AsShared())
+		if (RefNode.IsValid())
 		{ 
 			for (TSharedPtr<FFCPXMLNode> RefChild : RefNode->Children)
 			{
