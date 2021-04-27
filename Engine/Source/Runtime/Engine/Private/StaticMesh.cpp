@@ -2558,6 +2558,18 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 		KeySuffix += TEXT("_MinMLOD");
 	}
 
+	// Append the section material slot mappings for LOD0, if there are two or more (and thus are permutable), as they are baked into the Nanite build.
+	const FMeshSectionInfoMap& SectionInfoMap = Mesh->GetSectionInfoMap();
+	int32 NumLOD0Sections = SectionInfoMap.GetSectionNumber(0);
+	if (NumLOD0Sections >= 2)
+	{
+		KeySuffix += TEXT("_");
+		for (int32 SectionIndex = 0; SectionIndex < NumLOD0Sections; SectionIndex++)
+		{
+			KeySuffix += LexToString(SectionInfoMap.Get(0, SectionIndex).MaterialIndex);
+		}
+	}
+
 	return KeySuffix;
 }
 

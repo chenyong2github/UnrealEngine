@@ -215,6 +215,13 @@ static bool BuildNaniteFromHiResSourceModel(
 	// compute bounds from the HiRes mesh before we do Nanite build because it will modify StaticMeshBuildVertices
 	ComputeBoundsFromVertexList(StaticMeshBuildVertices, HiResBoundsOut.Origin, HiResBoundsOut.BoxExtent, HiResBoundsOut.SphereRadius);
 
+	// Nanite build requires the section material indices to have already been resolved from the SectionInfoMap
+	// as the indices are baked into the FMaterialTriangles.
+	for (int32 SectionIndex = 0; SectionIndex < HiResStaticMeshLOD.Sections.Num(); SectionIndex++)
+	{
+		HiResStaticMeshLOD.Sections[SectionIndex].MaterialIndex = StaticMesh->GetSectionInfoMap().Get(0, SectionIndex).MaterialIndex;
+	}
+
 	// run nanite build
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::BuildNaniteFromHiResSourceModel::Nanite);
@@ -502,6 +509,13 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 			ComputeBoundsFromVertexList(StaticMeshBuildVertices, HiResBounds.Origin, HiResBounds.BoxExtent, HiResBounds.SphereRadius);
 			bHaveHiResBounds = true;
+
+			// Nanite build requires the section material indices to have already been resolved from the SectionInfoMap
+			// as the indices are baked into the FMaterialTriangles.
+			for (int32 SectionIndex = 0; SectionIndex < StaticMeshLOD.Sections.Num(); SectionIndex++)
+			{
+				StaticMeshLOD.Sections[SectionIndex].MaterialIndex = StaticMesh->GetSectionInfoMap().Get(LodIndex, SectionIndex).MaterialIndex;
+			}
 
 			WedgeMap.Empty();	// Make sure to not keep the large WedgeMap from the input mesh around.
 								// No need to calculate a new one for the coarse mesh, because Nanite meshes don't need it yet.
