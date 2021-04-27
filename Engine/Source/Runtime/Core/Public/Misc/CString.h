@@ -399,22 +399,6 @@ public:
 	 *
 	 * @param Dest - destination string buffer
 	 * @param DestSize - size of destination buffer
-	 * @param Count - number of characters to write (not including null terminating character)
-	 * @param Fmt - string to print
-	 * @param Args - argument list
-	 * @return number of characters written or -1 if truncated
-	 */
-	UE_DEPRECATED(4.22, "GetVarArgs with DestSize and Count arguments has been deprecated - only DestSize should be passed")
-	static FORCEINLINE int32 GetVarArgs(CharType* Dest, SIZE_T DestSize, int32 Count, const CharType*& Fmt, va_list ArgPtr)
-	{
-		return GetVarArgs(Dest, DestSize, Fmt, ArgPtr);
-	}
-
-	/**
-	 * Helper function to write formatted output using an argument list
-	 *
-	 * @param Dest - destination string buffer
-	 * @param DestSize - size of destination buffer
 	 * @param Fmt - string to print
 	 * @param Args - argument list
 	 * @return number of characters written or -1 if truncated
