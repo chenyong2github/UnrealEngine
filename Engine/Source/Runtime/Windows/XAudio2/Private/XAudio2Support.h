@@ -872,25 +872,25 @@ struct FXAudioDeviceProperties final : public IDeviceChangedListener
 		return bChanged;
 	}
 
-	bool Validate(const TCHAR* Function, uint32 ErrorCode) const
+	bool Validate(const TCHAR* Function, HRESULT ErrorCode) const
 	{
 		if (ErrorCode != S_OK)
 		{
 			switch (ErrorCode)
 			{
-				case XAUDIO2_E_INVALID_CALL:
+				case (HRESULT)XAUDIO2_E_INVALID_CALL:
 				UE_LOG(LogAudio, Error, TEXT("%s error: Invalid Call"), Function);
 				break;
 
-				case XAUDIO2_E_XMA_DECODER_ERROR:
+				case (HRESULT)XAUDIO2_E_XMA_DECODER_ERROR:
 				UE_LOG(LogAudio, Error, TEXT("%s error: XMA Decoder Error"), Function);
 				break;
 
-				case XAUDIO2_E_XAPO_CREATION_FAILED:
+				case (HRESULT)XAUDIO2_E_XAPO_CREATION_FAILED:
 				UE_LOG(LogAudio, Error, TEXT("%s error: XAPO Creation Failed"), Function);
 				break;
 
-				case XAUDIO2_E_DEVICE_INVALIDATED:
+				case (HRESULT)XAUDIO2_E_DEVICE_INVALIDATED:
 				UE_LOG(LogAudio, Error, TEXT("%s error: Device Invalidated"), Function);
 				break;
 
