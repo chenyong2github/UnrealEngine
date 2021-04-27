@@ -1084,6 +1084,47 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		return;
 	}
 
+	const int32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? SourceParticleData->GetNumInstances() : 1;
+
+	// Grab the material proxies we'll be using for each section and check them for translucency.
+	bool bHasTranslucentMaterials = false;
+	for (FMaterialRenderProxy* MaterialProxy : DynamicDataMesh->Materials)
+	{
+		check(MaterialProxy);
+		EBlendMode BlendMode = MaterialProxy->GetIncompleteMaterialWithFallback(FeatureLevel).GetBlendMode();
+		bHasTranslucentMaterials |= IsTranslucentBlendMode(BlendMode);
+	}
+
+	// NOTE: have to run the GPU sort when culling is enabled if supported on this platform
+	// TODO: implement culling and renderer visibility on the CPU for other platforms
+	const bool bGPUSortEnabled = FNiagaraUtilities::AllowComputeShaders(Batcher->GetShaderPlatform());
+	const bool bDoGPUCulling = SourceMode == ENiagaraRendererSourceDataMode::Particles && bEnableCulling && GNiagaraGPUCulling && FNiagaraUtilities::AllowComputeShaders(Batcher->GetShaderPlatform());
+	const bool bShouldSort = SourceMode == ENiagaraRendererSourceDataMode::Particles && SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
+	const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
+
+	FGlobalDynamicReadBuffer& DynamicReadBuffer = Context.RayTracingMeshResourceCollector.GetDynamicReadBuffer();
+	const FNiagaraRendererLayout* RendererLayout = bCustomSorting ? RendererLayoutWithCustomSorting : RendererLayoutWithoutCustomSorting;
+
+	//#dxr-todo: reuse/cache raster path?
+	FParticleGPUBufferData BufferData;
+	uint32 ActualRendererVisTagOffset;
+	uint32 ActualMeshIndexOffset;
+	PrepareParticleBuffers(DynamicReadBuffer, *SourceParticleData, *RendererLayout, bDoGPUCulling, BufferData, ActualRendererVisTagOffset, ActualMeshIndexOffset);
+
+	const int32 ViewIndex = 0;
+	const FSceneView* View = Context.ReferenceView;
+	const bool bIsInstancedStereo = View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View);
+
+	// Initialize sort parameters that are mesh/section invariant
+	FNiagaraGPUSortInfo SortInfo;
+	int32 SortVarIdx = INDEX_NONE;
+	if (bShouldSort || bDoGPUCulling)
+	{
+		SortVarIdx = bCustomSorting ? ENiagaraMeshVFLayout::CustomSorting : ENiagaraMeshVFLayout::Position;
+		InitializeSortInfo(*SourceParticleData, *SceneProxy, *RendererLayout, BufferData, *View, ViewIndex, bHasTranslucentMaterials,
+			bIsInstancedStereo, bDoGPUCulling, SortVarIdx, ActualRendererVisTagOffset, ActualMeshIndexOffset, SortInfo);
+	}
+
 	for (int32 MeshIndex = 0; MeshIndex < Meshes.Num(); ++MeshIndex)
 	{
 		const FMeshData& MeshData = Meshes[MeshIndex];
@@ -1093,6 +1134,38 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		FRayTracingGeometry& Geometry = MeshData.RenderData->LODResources[LODIndex].RayTracingGeometry;
 		FRayTracingInstance RayTracingInstance;
 		RayTracingInstance.Geometry = &Geometry;
+
+		FMeshCollectorResourcesBase* CollectorResources;
+		if (bAccurateMotionVectors)
+		{
+			CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResourcesEx>();
+		}
+		else
+		{
+			CollectorResources = &Context.RayTracingMeshResourceCollector.AllocateOneFrameResource<FMeshCollectorResources>();
+		}
+
+		// Get the next vertex factory to use
+		// TODO: Find a way to safely pool these such that they won't be concurrently accessed by multiple views
+		FNiagaraMeshVertexFactory& VertexFactory = CollectorResources->GetVertexFactory();
+		VertexFactory.SetParticleFactoryType(NVFT_Mesh);
+		VertexFactory.SetMeshIndex(MeshIndex);
+		VertexFactory.SetLODIndex(LODIndex);
+		VertexFactory.InitResource();
+		SetupVertexFactory(VertexFactory, LODModel);
+
+		FVector WorldSpacePivotOffset;
+		FSphere CullingSphere;
+		FNiagaraMeshUniformBufferRef PerViewUniformBuffer = CreatePerViewUniformBuffer(MeshData, *SceneProxy, *RendererLayout, *View, BufferData, DynamicDataMesh,
+			bShouldSort, bDoGPUCulling, bGPUSortEnabled, SortInfo, SortVarIdx, Batcher, DynamicReadBuffer, NumInstances,
+			WorldSpacePivotOffset, CullingSphere);
+
+
+		VertexFactory.SetUniformBuffer(PerViewUniformBuffer);
+		CollectorResources->UniformBuffer = PerViewUniformBuffer;
+
+		VertexFactory.SetUniformBuffer(PerViewUniformBuffer);
+		CollectorResources->UniformBuffer = PerViewUniformBuffer;
 
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 		{
@@ -1113,9 +1186,9 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			FMeshBatch MeshBatch;
 			const FStaticMeshLODResources& LOD = MeshData.RenderData->LODResources[LODIndex];
 			const FStaticMeshVertexFactories& VFs = MeshData.RenderData->LODVertexFactories[LODIndex];
-			FVertexFactory* VertexFactory = &MeshData.RenderData->LODVertexFactories[LODIndex].VertexFactory;
 
-			MeshBatch.VertexFactory = VertexFactory;
+			MeshBatch.VertexFactory = &VertexFactory;
+			//MeshBatch.VertexFactory = &MeshData.RenderData->LODVertexFactories[LODIndex].VertexFactory; 
 			MeshBatch.MaterialRenderProxy = MaterialProxy;
 			MeshBatch.SegmentIndex = SectionIndex;
 			MeshBatch.LODIndex = LODIndex;
@@ -1131,6 +1204,20 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			MeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
 			MeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
 
+			//#dxr-todo factor out and call CreateMeshBatchForSection()
+			MeshBatch.LCI = NULL;
+			MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
+
+			MeshBatchElement.PrimitiveUniformBuffer = IsMotionBlurEnabled() ? SceneProxy->GetUniformBuffer() : SceneProxy->GetUniformBufferNoVelocity();
+			MeshBatchElement.FirstIndex = 0;
+			MeshBatchElement.MinVertexIndex = 0;
+			MeshBatchElement.MaxVertexIndex = 0;
+			MeshBatchElement.NumInstances = NumInstances;
+
+			MeshBatchElement.IndexBuffer = &LODModel.IndexBuffer;
+			MeshBatchElement.FirstIndex = Section.FirstIndex;
+			MeshBatchElement.NumPrimitives = Section.NumTriangles;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			MeshBatchElement.VisualizeElementIndex = SectionIndex;
 #endif
@@ -1142,9 +1229,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			continue;
 		}
 
-		const FNiagaraRendererLayout* RendererLayout = RendererLayoutWithCustomSorting;
 		TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout->GetVFVariables_RenderThread();
-		const int32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? SourceParticleData->GetNumInstances() : 1;
 		const int32 TotalFloatSize = RendererLayout->GetTotalFloatComponents_RenderThread() * SourceParticleData->GetNumInstances();
 		const int32 ComponentStrideDest = SourceParticleData->GetNumInstances() * sizeof(float);
 
