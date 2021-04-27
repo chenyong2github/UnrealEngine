@@ -19,7 +19,7 @@ struct MIDIDEVICE_API FFoundMIDIDevice
 	UPROPERTY(BlueprintReadOnly, Category="MIDI Device Manager")
 	int32 DeviceID;
 
-	/** The name of this device.  This name comes from the MIDI hardware, any might not be unique */
+	/** The name of this device.  This name comes from the MIDI hardware, and might not be unique */
 	UPROPERTY(BlueprintReadOnly, Category="MIDI Device Manager")
 	FString DeviceName;
 
@@ -108,7 +108,7 @@ public:
 	 * @param	DeviceID		The Device ID of the MIDI input device with that name.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MIDI Device Manager")
-	static void GetDefaultIMIDIInputDeviceID(int32& DeviceID);
+	static void GetDefaultMIDIInputDeviceID(int32& DeviceID);
 
 	/**
 	 * Retrieves the MIDI output device ID by name. Call "Find All MIDI Device Info" beforehand to enumerate the available output devices.
@@ -125,7 +125,7 @@ public:
 	 * @param	DeviceID		The Device ID of the MIDI output device with that name.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MIDI Device Manager")
-	static void GetDefaultIMIDIOutputDeviceID(int32& DeviceID);
+	static void GetDefaultMIDIOutputDeviceID(int32& DeviceID);
 
 	/**
 	 * Creates an instance of a MIDI device controller that can be used to interact with a connected MIDI device
