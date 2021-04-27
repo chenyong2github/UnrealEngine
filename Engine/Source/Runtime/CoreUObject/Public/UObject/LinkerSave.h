@@ -159,7 +159,17 @@ public:
 	/** Get the filename being saved to */
 	const FString& GetFilename() const;
 
+	/* Set the output device used to log errors, if any. */
+	void SetOutputDevice(FOutputDevice* InOutputDevice)
+	{
+		LogOutput = InOutputDevice;
+	}
+
 protected:
 	/** Set the filename being saved to */
 	void SetFilename(FStringView InFilename);
+
+private:
+	/** Optional log output to bubble errors back up. */
+	FOutputDevice* LogOutput = nullptr;
 };

@@ -701,6 +701,10 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 				SaveContext.Linker = MakeUnique<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.TempFilename.GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
 			}
 		}
+		if (SaveContext.IsGenerateSaveError())
+		{
+			SaveContext.Linker->SetOutputDevice(SaveContext.GetError());
+		}
 		SaveContext.Linker->bUpdatingLoadedPath = SaveContext.IsUpdatingLoadedPath();
 		SaveContext.Linker->bProceduralSave = SaveContext.IsProceduralSave();
 
@@ -1598,7 +1602,8 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 			Export.SerialSize = Linker->Tell() - Export.SerialOffset;
 		}
 	}
-	return ReturnSuccessOrCancel();
+	// if an error occurred on the linker while serializing exports, return an error
+	return Linker->IsError() ? ESavePackageResult::Error : ReturnSuccessOrCancel();
 }
 
 ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
@@ -2201,10 +2206,8 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 		// @todo: Once GIsSavingPackage is reworked we should reinstore the saving flag here for the gc lock
 		//FScopedSavingFlag IsSavingFlag(SaveContext.IsConcurrent());
 		SaveContext.Result = InnerSave(SaveContext);
-		if (SaveContext.Result != ESavePackageResult::Success)
-		{
-			return SaveContext.Result;
-		}
+
+		// in case of failure or cancellation, do not exit here, still run cleanup (PostSaveRoot/ClearCachedPlatformCookedData)
 	}
 
 	// PostSave Asset
@@ -2217,8 +2220,9 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 	ClearCachedPlatformCookedData(SaveContext);
 
-	// PostSave Package - edit in memory package and send events
+	// PostSave Package - edit in memory package and send events if save was successful
 	SlowTask.EnterProgressFrame();
+	if (SaveContext.Result == ESavePackageResult::Success)
 	{
 		PostSavePackage(SaveContext);
 	}

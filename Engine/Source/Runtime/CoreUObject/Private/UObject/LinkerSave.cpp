@@ -305,11 +305,23 @@ FArchive& FLinkerSave::operator<<( FName& InName )
 	int32 Save = MapName(InName.GetDisplayIndex());
 
 	check(GetSerializeContext());
-	ensureMsgf(Save != INDEX_NONE, TEXT("Name \"%s\" is not mapped when saving %s (object: %s, property: %s)"), 
-		*InName.ToString(),
-		*GetArchiveName(),
-		*GetSerializeContext()->SerializedObject->GetFullName(),
-		*GetFullNameSafe(GetSerializedProperty()));
+
+	bool bNameMapped = Save != INDEX_NONE;
+	if (!bNameMapped)
+	{
+		// Set an error on the archive and record the error on the log output if one is set.
+		SetCriticalError();
+		FString ErrorMessage = FString::Printf(TEXT("Name \"%s\" is not mapped when saving %s (object: %s, property: %s)."),
+			*InName.ToString(),
+			*GetArchiveName(),
+			*GetSerializeContext()->SerializedObject->GetFullName(),
+			*GetFullNameSafe(GetSerializedProperty()));
+		ensureMsgf(false, TEXT("%s"), *ErrorMessage);
+		if (LogOutput)
+		{
+			LogOutput->Logf(ELogVerbosity::Error, TEXT("%s"), *ErrorMessage);
+		}
+	}
 
 	int32 Number = InName.GetNumber();
 	FArchive& Ar = *this;
