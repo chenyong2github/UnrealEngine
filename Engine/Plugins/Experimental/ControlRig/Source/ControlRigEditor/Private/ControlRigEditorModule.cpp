@@ -1931,6 +1931,54 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
                                     RigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionReferenceNode->GetReferencedNode(), true);
                                 })
                             ));
+
+							if(!FunctionReferenceNode->IsFullyRemapped())
+							{
+								FToolMenuSection& VariablesSection = Menu->AddSection("EdGraphSchemaVariables", LOCTEXT("Variables", "Variables"));
+								VariablesSection.AddMenuEntry(
+                                    "MakeVariablesFromFunctionReferenceNode",
+                                    LOCTEXT("MakeVariablesFromFunctionReferenceNode", "Create required variables"),
+                                    LOCTEXT("MakeVariablesFromFunctionReferenceNode_Tooltip", "Creates all required variables for this function and binds them"),
+                                    FSlateIcon(),
+                                    FUIAction(FExecuteAction::CreateLambda([Controller, FunctionReferenceNode, RigBlueprint]() {
+
+                                    	const TArray<FRigVMExternalVariable> ExternalVariables = FunctionReferenceNode->GetExternalVariables(false);
+                                    	if(!ExternalVariables.IsEmpty())
+                                    	{
+											FScopedTransaction Transaction(LOCTEXT("MakeVariablesFromFunctionReferenceNode", "Create required variables"));
+                                    		RigBlueprint->Modify();
+
+                                    		UControlRigBlueprint* ReferencedBlueprint = FunctionReferenceNode->GetReferencedNode()->GetTypedOuter<UControlRigBlueprint>();
+                                    		// ReferencedBlueprint != RigBlueprint - since only FunctionReferenceNodes from other assets have the potential to be unmapped
+                                    		
+                                    		for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+                                    		{
+                                    			FString DefaultValue;
+                                    			if(ReferencedBlueprint)
+                                    			{
+                                    				for(const FBPVariableDescription& NewVariable : ReferencedBlueprint->NewVariables)
+                                    				{
+                                    					if(NewVariable.VarName == ExternalVariable.Name)
+                                    					{
+                                    						DefaultValue = NewVariable.DefaultValue;
+                                    						break;
+                                    					}
+                                    				}
+                                    			}
+                                    			
+                                                FName NewVariableName = RigBlueprint->AddCRMemberVariableFromExternal(ExternalVariable, DefaultValue);
+                                    			if(!NewVariableName.IsNone())
+                                    			{
+                                    				Controller->SetRemappedVariable(FunctionReferenceNode, ExternalVariable.Name, NewVariableName);
+                                    			}
+                                    		}
+
+                                    		FBlueprintEditorUtils::MarkBlueprintAsModified(RigBlueprint);
+                                    	}
+                                        
+                                    })
+                                ));
+							}
 						}
 					}
 

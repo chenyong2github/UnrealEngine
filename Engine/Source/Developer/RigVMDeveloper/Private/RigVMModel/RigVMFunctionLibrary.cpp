@@ -46,22 +46,30 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindFunction(const FName& InFunctionNa
 	return Cast<URigVMLibraryNode>(FindNodeByName(*FunctionNameStr));
 }
 
+URigVMLibraryNode* URigVMFunctionLibrary::FindFunctionForNode(URigVMNode* InNode) const
+{
+	UObject* Subject = InNode;
+	do
+	{
+		if(Subject == nullptr)
+		{
+			return nullptr;
+		}
+		Subject = Subject->GetOuter();
+	}
+	while (Subject->GetOuter() != this);
+
+	return Cast<URigVMLibraryNode>(Subject);
+}
+
 TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > URigVMFunctionLibrary::GetReferencesForFunction(const FName& InFunctionName)
 {
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > Result;
 
-	if (URigVMLibraryNode* Function = FindFunction(InFunctionName))
+	ForEachReferenceSoftPtr(InFunctionName, [&Result](TSoftObjectPtr<URigVMFunctionReferenceNode> Reference)
 	{
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Function);
-		if (ReferencesEntry)
-		{
-			for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
-			{
-				const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
-				Result.Add(TSoftObjectPtr<URigVMFunctionReferenceNode>(Reference.GetUniqueID()));
-			}
-		}
-	}
+		Result.Add(TSoftObjectPtr<URigVMFunctionReferenceNode>(Reference.GetUniqueID()));
+	});
 
 	return Result;
 }
@@ -70,20 +78,53 @@ TArray< FString > URigVMFunctionLibrary::GetReferencePathsForFunction(const FNam
 {
 	TArray< FString > Result;
 
+	ForEachReferenceSoftPtr(InFunctionName, [&Result](TSoftObjectPtr<URigVMFunctionReferenceNode> Reference)
+	{
+		Result.Add(Reference.ToString());
+	});
+
+	return Result;
+}
+
+void URigVMFunctionLibrary::ForEachReference(const FName& InFunctionName,
+	TFunction<void(URigVMFunctionReferenceNode*)> PerReferenceFunction) const
+{
 	if (URigVMLibraryNode* Function = FindFunction(InFunctionName))
 	{
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Function);
+		const FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Function);
 		if (ReferencesEntry)
 		{
 			for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
 			{
 				const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
-				Result.Add(Reference.ToString());
+				if (!Reference.IsValid())
+				{
+					Reference.LoadSynchronous();
+				}
+				if (Reference.IsValid())
+				{
+					PerReferenceFunction(Reference.Get());
+				}
 			}
 		}
 	}
+}
 
-	return Result;
+void URigVMFunctionLibrary::ForEachReferenceSoftPtr(const FName& InFunctionName,
+	TFunction<void(TSoftObjectPtr<URigVMFunctionReferenceNode>)> PerReferenceFunction) const
+{
+	if (URigVMLibraryNode* Function = FindFunction(InFunctionName))
+	{
+		const FRigVMFunctionReferenceArray* ReferencesEntry = FunctionReferences.Find(Function);
+		if (ReferencesEntry)
+		{
+			for (int32 ReferenceIndex = 0; ReferenceIndex < ReferencesEntry->Num(); ReferenceIndex++)
+			{
+				const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference = ReferencesEntry->operator [](ReferenceIndex);
+				PerReferenceFunction(Reference);
+			}
+		}
+	}
 }
 
 void URigVMFunctionLibrary::UpdateReferencesForReferenceNode(URigVMFunctionReferenceNode* InReferenceNode)

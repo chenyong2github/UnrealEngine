@@ -57,6 +57,143 @@ URigVMGraph* URigVMFunctionReferenceNode::GetContainedGraph() const
 	return nullptr;
 }
 
+bool URigVMFunctionReferenceNode::RequiresVariableRemapping() const
+{
+	TArray<FRigVMExternalVariable> InnerVariables;
+	return RequiresVariableRemappingInternal(InnerVariables);
+}
+
+bool URigVMFunctionReferenceNode::RequiresVariableRemappingInternal(TArray<FRigVMExternalVariable>& InnerVariables) const
+{
+	bool bHostedInDifferencePackage = false;
+	if(URigVMLibraryNode* ReferencedNode = GetReferencedNode())
+	{
+		// we only need to remap variables if we are referencing
+		// a function which is hosted in another asset.
+		const UObject* ReferencedPackage = ReferencedNode->GetOutermost(); 
+		const UObject* Package = GetOutermost();
+		if(ReferencedPackage != Package)
+		{
+			bHostedInDifferencePackage = true;
+		}
+		else
+		{
+			// this case might happen within unit tests
+			// where the graphs are not parented to a package
+			const UObject* TransientPackage = GetTransientPackage();
+			if((ReferencedPackage == TransientPackage) && (Package == TransientPackage))
+			{
+				const UObject* ReferencedOuter = ReferencedNode;
+				while(ReferencedOuter)
+				{
+					const UObject* Outer = ReferencedOuter->GetOuter();
+					if(Outer != TransientPackage)
+					{
+						ReferencedOuter = Outer;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				const UObject* CurrentOuter = this;
+				while(CurrentOuter)
+				{
+					const UObject* Outer = CurrentOuter->GetOuter();
+					if(Outer != TransientPackage)
+					{
+						CurrentOuter = Outer;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if(CurrentOuter != ReferencedOuter)
+				{
+					bHostedInDifferencePackage = true;
+				}
+			}
+		}
+	}
+
+	if(bHostedInDifferencePackage)
+	{
+		InnerVariables = Super::GetExternalVariables();
+		if(InnerVariables.Num() == 0)
+		{
+			return false;
+		}
+	}
+
+	return bHostedInDifferencePackage;
+}
+
+bool URigVMFunctionReferenceNode::IsFullyRemapped() const
+{
+	TArray<FRigVMExternalVariable> InnerVariables;
+	if(!RequiresVariableRemappingInternal(InnerVariables))
+	{
+		return true;
+	}
+
+	for(const FRigVMExternalVariable& InnerVariable : InnerVariables)
+	{
+		const FName InnerVariableName = InnerVariable.Name;
+		const FName* OuterVariableName = VariableMap.Find(InnerVariableName);
+		if(OuterVariableName == nullptr)
+		{
+			return false;
+		}
+		check(!OuterVariableName->IsNone());
+	}
+
+	return true;
+}
+
+TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables() const
+{
+	return GetExternalVariables(true);
+}
+
+TArray<FRigVMExternalVariable> URigVMFunctionReferenceNode::GetExternalVariables(bool bRemapped) const
+{
+	TArray<FRigVMExternalVariable> Variables;
+	
+	if(!bRemapped)
+	{
+		Variables = Super::GetExternalVariables();
+	}
+	else
+	{
+		if(RequiresVariableRemappingInternal(Variables))
+		{
+			for(FRigVMExternalVariable& Variable : Variables)
+			{
+				const FName* OuterVariableName = VariableMap.Find(Variable.Name);
+				if(OuterVariableName != nullptr)
+				{
+					check(!OuterVariableName->IsNone());
+					Variable.Name = *OuterVariableName;
+				}
+			}
+		}
+	}
+	
+	return Variables; 
+}
+
+FName URigVMFunctionReferenceNode::GetOuterVariableName(const FName& InInnerVariableName) const
+{
+	if(const FName* OuterVariableName = VariableMap.Find(InInnerVariableName))
+	{
+		return *OuterVariableName;
+	}
+	return NAME_None;
+}
+
 URigVMLibraryNode* URigVMFunctionReferenceNode::GetReferencedNode() const
 {
 	if (!ReferencedNodePtr.IsValid())

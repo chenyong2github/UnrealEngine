@@ -13,6 +13,8 @@
 void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 {
 	this->ModelPin = InArgs._ModelPin;
+	this->FunctionReferenceNode = InArgs._FunctionReferenceNode;
+	this->InnerVariableName = InArgs._InnerVariableName;
 	this->Blueprint = InArgs._Blueprint;
 	this->bCanRemoveBinding = InArgs._CanRemoveBinding;
 
@@ -32,6 +34,7 @@ void SControlRigVariableBinding::Construct(const FArguments& InArgs)
 	BindingArgs.bGeneratePureBindings = true;
 	BindingArgs.bAllowNewBindings = true;
 	BindingArgs.bAllowArrayElementBindings = false;
+	BindingArgs.bAllowStructMemberBindings = false;
 	BindingArgs.bAllowUObjectFunctions = false;
 
 	this->ChildSlot
@@ -44,8 +47,16 @@ FText SControlRigVariableBinding::GetBindingText() const
 {
 	if (ModelPin)
 	{
-		FString VariablePath = ModelPin->GetBoundVariablePath();
+		const FString VariablePath = ModelPin->GetBoundVariablePath();
 		return FText::FromString(VariablePath);
+	}
+	else if(FunctionReferenceNode && !InnerVariableName.IsNone())
+	{
+		const FName BoundVariable = FunctionReferenceNode->GetOuterVariableName(InnerVariableName);
+		if(!BoundVariable.IsNone())
+		{
+			return FText::FromName(BoundVariable);
+		}
 	}
 
 	return FText();
@@ -59,13 +70,28 @@ const FSlateBrush* SControlRigVariableBinding::GetBindingImage() const
 
 FLinearColor SControlRigVariableBinding::GetBindingColor() const
 {
-	if (Blueprint && ModelPin)
+	if (Blueprint)
 	{
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 
+		FName BoundVariable(NAME_None);
+
+		if(ModelPin)
+		{
+			BoundVariable = *ModelPin->GetBoundVariableName();
+		}
+		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
+		{
+			BoundVariable = FunctionReferenceNode->GetOuterVariableName(InnerVariableName);
+			if(BoundVariable.IsNone())
+			{
+				return FLinearColor::Red;
+			}
+		}
+
 		for (const FBPVariableDescription& VariableDescription : Blueprint->NewVariables)
 		{
-			if (VariableDescription.VarName.ToString() == ModelPin->GetBoundVariableName())
+			if (VariableDescription.VarName == BoundVariable)
 			{
 				return Schema->GetPinTypeColor(VariableDescription.VarType);
 			}
@@ -81,10 +107,40 @@ bool SControlRigVariableBinding::OnCanBindProperty(FProperty* InProperty) const
 		return true;
 	}
 
-	if (InProperty && ModelPin)
+	if (InProperty)
 	{
-		FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InProperty, nullptr);
-		return ModelPin->CanBeBoundToVariable(ExternalVariable);
+		const FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InProperty, nullptr);
+		if(ModelPin)
+		{
+			return ModelPin->CanBeBoundToVariable(ExternalVariable);
+		}
+		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
+		{
+			TArray<FRigVMExternalVariable> InnerVariables = FunctionReferenceNode->GetContainedGraph()->GetExternalVariables();
+			for(const FRigVMExternalVariable& InnerVariable : InnerVariables)
+			{
+				if(InnerVariable.Name == InnerVariableName)
+				{
+					if(!InnerVariable.bIsReadOnly && ExternalVariable.bIsReadOnly)
+					{
+						return false;
+					}
+					if(InnerVariable.bIsArray != ExternalVariable.bIsArray)
+					{
+						return false;
+					}
+					if(InnerVariable.TypeObject && InnerVariable.TypeObject != ExternalVariable.TypeObject)
+					{
+						return false;
+					}
+					else if(InnerVariable.TypeName != ExternalVariable.TypeName)
+					{
+						return false;
+					}
+					return true;
+				}
+			}
+		}
 	}
 
 	return false;
@@ -101,7 +157,7 @@ bool SControlRigVariableBinding::OnCanBindToClass(UClass* InClass) const
 
 void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
 {
-	if (Blueprint && ModelPin)
+	if (Blueprint)
 	{
 		TArray<FString> Parts;
 		for (const FBindingChainElement& ChainElement : InBindingChain)
@@ -109,7 +165,16 @@ void SControlRigVariableBinding::OnAddBinding(FName InPropertyName, const TArray
 			ensure(ChainElement.Field);
 			Parts.Add(ChainElement.Field.GetName());
 		}
-		Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */);
+
+		if(ModelPin)
+		{
+			Blueprint->GetController(ModelPin->GetGraph())->BindPinToVariable(ModelPin->GetPinPath(), FString::Join(Parts, TEXT(".")), true /* undo */);
+		}
+		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
+		{
+			const FName BoundVariableName = *FString::Join(Parts, TEXT("."));
+			Blueprint->GetController(FunctionReferenceNode->GetGraph())->SetRemappedVariable(FunctionReferenceNode, InnerVariableName, BoundVariableName);
+		}
 	}
 }
 
@@ -120,9 +185,16 @@ bool SControlRigVariableBinding::OnCanRemoveBinding(FName InPropertyName)
 
 void SControlRigVariableBinding::OnRemoveBinding(FName InPropertyName)
 {
-	if (Blueprint && ModelPin)
+	if (Blueprint)
 	{
-		Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */);
+		if(ModelPin)
+		{
+			Blueprint->GetController(ModelPin->GetGraph())->UnbindPinFromVariable(ModelPin->GetPinPath(), true /* undo */);
+		}
+		else if(FunctionReferenceNode && !InnerVariableName.IsNone())
+		{
+			Blueprint->GetController(FunctionReferenceNode->GetGraph())->SetRemappedVariable(FunctionReferenceNode, InnerVariableName, NAME_None);
+		}
 	}
 }
 

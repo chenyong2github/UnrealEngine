@@ -283,7 +283,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = TBaseStructure<T>::Get()->GetFName();
+		Variable.TypeName = *TBaseStructure<T>::Get()->GetStructCPPName();
 		Variable.TypeObject = TBaseStructure<T>::Get();
 		Variable.bIsArray = false;
 		Variable.Size = TBaseStructure<T>::Get()->GetStructureSize();
@@ -299,7 +299,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = TBaseStructure<T>::Get()->GetFName();
+		Variable.TypeName = *TBaseStructure<T>::Get()->GetStructCPPName();
 		Variable.TypeObject = TBaseStructure<T>::Get();
 		Variable.bIsArray = true;
 		Variable.Size = TBaseStructure<T>::Get()->GetStructureSize();
@@ -315,7 +315,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = T::StaticStruct()->GetFName();
+		Variable.TypeName = *T::StaticStruct()->GetStructCPPName();
 		Variable.TypeObject = T::StaticStruct();
 		Variable.bIsArray = false;
 		Variable.Size = T::StaticStruct()->GetStructureSize();
@@ -331,7 +331,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = T::StaticStruct()->GetFName();
+		Variable.TypeName = *T::StaticStruct()->GetStructCPPName();
 		Variable.TypeObject = T::StaticStruct();
 		Variable.bIsArray = true;
 		Variable.Size = T::StaticStruct()->GetStructureSize();
@@ -347,7 +347,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = T::StaticClass()->GetFName();
+		Variable.TypeName = *T::StaticClass()->GetStructCPPName();
 		Variable.TypeObject = T::StaticClass();
 		Variable.bIsArray = false;
 		Variable.Size = T::StaticClass()->GetStructureSize();
@@ -363,7 +363,7 @@ struct RIGVM_API FRigVMExternalVariable
 	{
 		FRigVMExternalVariable Variable;
 		Variable.Name = InName;
-		Variable.TypeName = T::StaticClass()->GetFName();
+		Variable.TypeName = *T::StaticClass()->GetStructCPPName();
 		Variable.TypeObject = T::StaticClass();
 		Variable.bIsArray = true;
 		Variable.Size = T::StaticClass()->GetStructureSize();
@@ -429,6 +429,26 @@ struct RIGVM_API FRigVMExternalVariable
 			Size,
 			bIsArray ? FRigVMMemoryHandle::FType::Dynamic : FRigVMMemoryHandle::FType::Plain
 		);
+	}
+
+	FORCEINLINE static void MergeExternalVariable(TArray<FRigVMExternalVariable>& OutVariables, const FRigVMExternalVariable& InVariable)
+	{
+		if(!InVariable.IsValid(true))
+		{
+			return;
+		}
+
+		for(const FRigVMExternalVariable& ExistingVariable : OutVariables)
+		{
+			if(ExistingVariable.Name == InVariable.Name)
+			{
+				ensure(ExistingVariable.TypeName == InVariable.TypeName);
+				ensure(ExistingVariable.TypeObject == InVariable.TypeObject);
+				return;
+			}
+		}
+
+		OutVariables.Add(InVariable);
 	}
 
 	FName Name;

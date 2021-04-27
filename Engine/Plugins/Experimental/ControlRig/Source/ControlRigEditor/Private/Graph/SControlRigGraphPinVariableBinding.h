@@ -7,6 +7,7 @@
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
 #include "RigVMModel/RigVMPin.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "IPropertyAccessEditor.h"
 #include "ControlRigBlueprint.h"
 
@@ -15,10 +16,16 @@ class SControlRigVariableBinding : public SCompoundWidget
 public:
 
 	SLATE_BEGIN_ARGS(SControlRigVariableBinding)
-	: _CanRemoveBinding(true)
+	: _ModelPin(nullptr)
+    , _FunctionReferenceNode(nullptr)
+    , _InnerVariableName(NAME_None)
+    , _Blueprint(nullptr)
+	, _CanRemoveBinding(true)
 	{}
 
 		SLATE_ARGUMENT(URigVMPin*, ModelPin)
+		SLATE_ARGUMENT(URigVMFunctionReferenceNode*, FunctionReferenceNode)
+		SLATE_ARGUMENT(FName, InnerVariableName)
 		SLATE_ARGUMENT(UControlRigBlueprint*, Blueprint)
 		SLATE_ARGUMENT(bool, CanRemoveBinding)
 
@@ -38,6 +45,8 @@ protected:
 	void OnRemoveBinding(FName InPropertyName);
 
 	URigVMPin* ModelPin;
+	URigVMFunctionReferenceNode* FunctionReferenceNode;
+	FName InnerVariableName;
 	UControlRigBlueprint* Blueprint;
 	FPropertyBindingWidgetArgs BindingArgs;
 	bool bCanRemoveBinding;

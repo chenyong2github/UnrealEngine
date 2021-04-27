@@ -29,16 +29,30 @@ public:
 	virtual FString GetNodeKeywords() const override;
 	virtual URigVMFunctionLibrary* GetLibrary() const override;
 	virtual URigVMGraph* GetContainedGraph() const override;
+	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const override;
 	// end URigVMLibraryNode interface
 
 	URigVMLibraryNode* GetReferencedNode() const;
 
+	// Variable remapping
+	bool RequiresVariableRemapping() const;
+	bool IsFullyRemapped() const;
+	TArray<FRigVMExternalVariable> GetExternalVariables(bool bRemapped) const;
+	const TMap<FName, FName>& GetVariableMap() const { return VariableMap; }
+	FName GetOuterVariableName(const FName& InInnerVariableName) const;
+	// end Variable remapping
+
 private:
+
+	bool RequiresVariableRemappingInternal(TArray<FRigVMExternalVariable>& InnerVariables) const;
 
 	void SetReferencedNode(URigVMLibraryNode* InReferenceNode);
 
 	UPROPERTY(AssetRegistrySearchable)
 	mutable TSoftObjectPtr<URigVMLibraryNode> ReferencedNodePtr;
+
+	UPROPERTY()
+	TMap<FName, FName> VariableMap;
 
 	friend class URigVMController;
 	friend class FRigVMParserAST;

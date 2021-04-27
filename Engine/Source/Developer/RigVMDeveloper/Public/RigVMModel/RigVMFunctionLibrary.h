@@ -55,6 +55,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	URigVMLibraryNode* FindFunction(const FName& InFunctionName) const;
 
+	// Finds a function by a node within a function (or a sub graph of that)
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+    URigVMLibraryNode* FindFunctionForNode(URigVMNode* InNode) const;
+
 	// Returns all references for a given function name
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > GetReferencesForFunction(const FName& InFunctionName);
@@ -65,6 +69,20 @@ public:
 
 	// Update the references list for a given reference node
 	void UpdateReferencesForReferenceNode(URigVMFunctionReferenceNode* InReferenceNode);
+
+	/**
+	* Iterator function to invoke a lambda / TFunction for each reference of a function
+	* @param InFunctionName The function name to iterate all references for
+	* @param PerReferenceFunction The function to invoke for each reference
+	*/
+	void ForEachReference(const FName& InFunctionName, TFunction<void(URigVMFunctionReferenceNode*)> PerReferenceFunction) const;
+
+	/**
+	* Iterator function to invoke a lambda / TFunction for each reference of a function
+	* @param InFunctionName The function name to iterate all references for
+	* @param PerReferenceFunction The function to invoke for each reference
+	*/
+	void ForEachReferenceSoftPtr(const FName& InFunctionName, TFunction<void(TSoftObjectPtr<URigVMFunctionReferenceNode>)> PerReferenceFunction) const;
 
 	// Returns a function that has been previously localized based on the provided function to localize.
 	// We maintain meta data on what functions have been created locally based on which other ones,

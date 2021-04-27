@@ -59,6 +59,11 @@ URigVMGraph* URigVMGraph::GetRootGraph() const
 	return (URigVMGraph*)this;
 }
 
+bool URigVMGraph::IsRootGraph() const
+{
+	return GetRootGraph() == this;
+}
+
 URigVMFunctionEntryNode* URigVMGraph::GetEntryNode() const
 {
 	for (URigVMNode* Node : Nodes)
@@ -235,6 +240,29 @@ URigVMFunctionLibrary* URigVMGraph::GetDefaultFunctionLibrary() const
 void URigVMGraph::SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary)
 {
 	DefaultFunctionLibraryPtr = InFunctionLibrary;
+}
+
+TArray<FRigVMExternalVariable> URigVMGraph::GetExternalVariables() const
+{
+	TArray<FRigVMExternalVariable> Variables;
+	
+	for(URigVMNode* Node : GetNodes())
+	{
+		if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Node))
+		{
+			TArray<FRigVMExternalVariable> LibraryVariables = LibraryNode->GetExternalVariables();
+			for(const FRigVMExternalVariable& LibraryVariable : LibraryVariables)
+			{
+				FRigVMExternalVariable::MergeExternalVariable(Variables, LibraryVariable);
+			}
+		}
+		else if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			FRigVMExternalVariable::MergeExternalVariable(Variables, VariableNode->GetVariableDescription().ToExternalVariable());
+		}
+	}
+	
+	return Variables;
 }
 
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()

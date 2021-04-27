@@ -369,6 +369,20 @@ void UControlRigGraphNode::AllocateDefaultPins()
 	CreateInputPins();
 	CreateInputOutputPins();
 	CreateOutputPins();
+
+	// Fill the variable list
+	ExternalVariables.Reset();
+	if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(GetModelNode()))
+	{
+		if(FunctionReferenceNode->RequiresVariableRemapping())
+		{
+			TArray<FRigVMExternalVariable> CurrentExternalVariables = FunctionReferenceNode->GetContainedGraph()->GetExternalVariables();
+			for(const FRigVMExternalVariable& CurrentExternalVariable : CurrentExternalVariables)
+			{
+				ExternalVariables.Add(MakeShared<FRigVMExternalVariable>(CurrentExternalVariable));
+			}
+		}
+	}
 }
 
 void UControlRigGraphNode::CreateExecutionPins()

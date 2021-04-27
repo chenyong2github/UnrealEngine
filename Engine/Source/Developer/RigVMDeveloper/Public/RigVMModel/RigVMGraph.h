@@ -52,6 +52,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
     URigVMGraph* GetRootGraph() const;
 
+	// Returns true if this graph is a root / top level graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+    bool IsRootGraph() const;
+
 	// Returns the entry node of this graph
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	URigVMFunctionEntryNode* GetEntryNode() const;
@@ -115,6 +119,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	void SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary);
 
+	TArray<FRigVMExternalVariable> GetExternalVariables() const;
+
 	// Returns the modified event, which can be used to 
 	// subscribe to changes happening within the Graph.
 	FRigVMGraphModifiedEvent& OnModified();
@@ -127,8 +133,6 @@ public:
 	void ClearAST(bool bClearDiagnostics = true, bool bClearRuntime = true);
 
 private:
-
-	void RepopulatePinLinks();
 
 	FRigVMGraphModifiedEvent ModifiedEvent;
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);

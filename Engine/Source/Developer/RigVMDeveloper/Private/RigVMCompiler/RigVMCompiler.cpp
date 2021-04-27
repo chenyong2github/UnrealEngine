@@ -127,10 +127,12 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 #if WITH_EDITOR
 
 	// traverse all graphs and try to clear out orphan pins
+	// also check on function references with unmapped variables
 	TArray<URigVMGraph*> VisitedGraphs;
 	VisitedGraphs.Add(InGraph);
 
 	int32 NodesWithOrphanPins = 0;
+	int32 NodesWithUnmappedVariables = 0;
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
 	{
 		URigVMGraph* VisitedGraph = VisitedGraphs[GraphIndex];
@@ -144,6 +146,16 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 				NodesWithOrphanPins++;
 			}
 
+			if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
+			{
+				if(!FunctionReferenceNode->IsFullyRemapped())
+				{
+					static const FString UnmappedMessage = TEXT("Node @@ has unmapped variables. Please adjust the node and re-compile.");
+					Settings.ASTSettings.Report(EMessageSeverity::Error, ModelNode, UnmappedMessage);
+					NodesWithUnmappedVariables++;
+				}
+			}
+
 			if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ModelNode))
 			{
 				if(URigVMGraph* ContainedGraph = LibraryNode->GetContainedGraph())
@@ -154,7 +166,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 		}
 	}
 
-	if(NodesWithOrphanPins > 0)
+	if((NodesWithOrphanPins + NodesWithUnmappedVariables) > 0)
 	{
 		return false;
 	}
@@ -1215,7 +1227,28 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 	{
 		if (InPin->GetName() == TEXT("Value") && !bIsLiteral && !bIsDebugValue)
 		{
-			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariableNode->GetVariableName().ToString(), *Suffix);
+			FName VariableName = VariableNode->GetVariableName();
+			
+			// determine if this variable needs to be remapped
+			if(InVarExpr)
+			{
+				FRigVMASTProxy ParentProxy = InVarExpr->GetProxy();
+				while(ParentProxy.GetCallstack().Num() > 1)
+				{
+					ParentProxy = ParentProxy.GetParent();
+
+					if(URigVMFunctionReferenceNode* FunctionReferenceNode = ParentProxy.GetSubject<URigVMFunctionReferenceNode>())
+					{
+						const FName RemappedVariableName = FunctionReferenceNode->GetOuterVariableName(VariableName);
+						if(!RemappedVariableName.IsNone())
+						{
+							VariableName = RemappedVariableName;
+						}
+					}
+				}
+			}
+			
+			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariableName.ToString(), *Suffix);
 		}
 	}
 	else

@@ -191,6 +191,7 @@ private:
 	TArray<URigVMPin*> InputOutputPins;
 	TArray<URigVMPin*> InputPins;
 	TArray<URigVMPin*> OutputPins;
+	TArray<TSharedPtr<FRigVMExternalVariable>> ExternalVariables;
 	
 	struct PinPair
 	{

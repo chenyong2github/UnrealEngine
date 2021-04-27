@@ -149,3 +149,19 @@ bool URigVMLibraryNode::Contains(URigVMLibraryNode* InContainedNode, bool bRecur
 	return false;
 }
 
+TArray<FRigVMExternalVariable> URigVMLibraryNode::GetExternalVariables() const
+{
+	TArray<FRigVMExternalVariable> Variables;
+
+	if(URigVMGraph* ContainedGraph = GetContainedGraph())
+	{
+		TArray<FRigVMExternalVariable> ContainedVariables = ContainedGraph->GetExternalVariables();
+		for(const FRigVMExternalVariable& ContainedVariable : ContainedVariables)
+		{
+			FRigVMExternalVariable::MergeExternalVariable(Variables, ContainedVariable);
+		}
+	}
+
+	return Variables;
+}
+

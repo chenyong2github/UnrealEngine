@@ -1689,3 +1689,42 @@ bool FRigVMSetPinIndexAction::Redo(URigVMController* InController)
 	}
 	return FRigVMBaseAction::Redo(InController);
 }
+
+FRigVMSetRemappedVariableAction::FRigVMSetRemappedVariableAction(URigVMFunctionReferenceNode* InFunctionRefNode,
+	const FName& InInnerVariableName, const FName& InOldOuterVariableName, const FName& InNewOuterVariableName)
+	: NodePath()
+	, InnerVariableName(InInnerVariableName)
+	, OldOuterVariableName(InOldOuterVariableName)
+	, NewOuterVariableName(InNewOuterVariableName)
+{
+	if(InFunctionRefNode)
+	{
+		NodePath = InFunctionRefNode->GetName();
+	}
+}
+
+bool FRigVMSetRemappedVariableAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(InController->GetGraph()->FindNode(NodePath)))
+	{
+		return InController->SetRemappedVariable(Node, InnerVariableName, OldOuterVariableName, false);
+	}
+	return false;
+}
+
+bool FRigVMSetRemappedVariableAction::Redo(URigVMController* InController)
+{
+	if (URigVMFunctionReferenceNode* Node = Cast<URigVMFunctionReferenceNode>(InController->GetGraph()->FindNode(NodePath)))
+	{
+		return InController->SetRemappedVariable(Node, InnerVariableName, NewOuterVariableName, false);
+	}
+	else
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}

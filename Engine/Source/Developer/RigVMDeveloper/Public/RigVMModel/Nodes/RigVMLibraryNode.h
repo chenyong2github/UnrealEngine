@@ -39,6 +39,7 @@ public:
 	virtual URigVMFunctionEntryNode* GetEntryNode() const;
 	virtual URigVMFunctionReturnNode* GetReturnNode() const;
 	virtual bool Contains(URigVMLibraryNode* InContainedNode, bool bRecursive = true) const;
+	virtual TArray<FRigVMExternalVariable> GetExternalVariables() const;
 
 protected:
 

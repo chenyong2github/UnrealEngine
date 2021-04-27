@@ -6,6 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphNode.h"
 #include "Widgets/Views/STreeView.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "RigVMModel/RigVMPin.h"
@@ -69,7 +70,10 @@ private:
 
 	EVisibility GetOutputTreeVisibility() const;
 
-	TSharedRef<ITableRow> MakeTableRowWidget(URigVMPin* InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	EVisibility GetVariableListVisibility() const;
+
+	TSharedRef<ITableRow> MakePinTableRowWidget(URigVMPin* InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> MakeVariableTableRowWidget(TSharedPtr<FRigVMExternalVariable> InVariable, const TSharedRef<STableViewBase>& OwnerTable);
 
 	void HandleGetChildrenForTree(URigVMPin* InItem, TArray<URigVMPin*>& OutChildren);
 
@@ -79,6 +83,8 @@ private:
 	FText GetPinLabel(TWeakPtr<SGraphPin> GraphPin) const;
 
 	FSlateColor GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) const;
+	FSlateColor GetVariableLabelTextColor(TWeakObjectPtr<URigVMFunctionReferenceNode> FunctionReferenceNode, FName InVariableName) const;
+	FText GetVariableLabelTooltipText(TWeakObjectPtr<UControlRigBlueprint> InBlueprint, FName InVariableName) const;
 
 	TSharedRef<SWidget> AddContainerPinContent(URigVMPin* InItem, FText InTooltipText);
 
@@ -103,6 +109,9 @@ private:
 
 	/** Widget representing collapsible output pins */
 	TSharedPtr<STreeView<URigVMPin*>> OutputTree;
+
+	/** Widget representing the variable remapping information */
+	TSharedPtr<SListView<TSharedPtr<FRigVMExternalVariable>>> VariableRemappingList;
 
 	/** Dummy scrollbar, as we cant create a tree view without one! */
 	TSharedPtr<SScrollBar> ScrollBar;

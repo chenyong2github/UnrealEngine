@@ -65,14 +65,14 @@ void URigVMController::SetGraph(URigVMGraph* InGraph)
 {
 	ensure(Graphs.Num() < 2);
 
-	URigVMGraph* PreviousGraph = GetGraph();
-	if (PreviousGraph)
+	URigVMGraph* LastGraph = GetGraph();
+	if (LastGraph)
 	{
-		if(PreviousGraph == InGraph)
+		if(LastGraph == InGraph)
 		{
 			return;
 		}
-		PreviousGraph->OnModified().RemoveAll(this);
+		LastGraph->OnModified().RemoveAll(this);
 	}
 
 	Graphs.Reset();
@@ -81,19 +81,21 @@ void URigVMController::SetGraph(URigVMGraph* InGraph)
 		PushGraph(InGraph, false);
 	}
 
-	URigVMGraph* CurrentGraph = GetGraph();
-	if (CurrentGraph)
-	{
-		CurrentGraph->OnModified().AddUObject(this, &URigVMController::HandleModifiedEvent);
-	}
-
-	HandleModifiedEvent(ERigVMGraphNotifType::GraphChanged, CurrentGraph, nullptr);
+	HandleModifiedEvent(ERigVMGraphNotifType::GraphChanged, GetGraph(), nullptr);
 }
 
 void URigVMController::PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo)
 {
+	URigVMGraph* LastGraph = GetGraph();
+	if (LastGraph)
+	{
+		LastGraph->OnModified().RemoveAll(this);
+	}
+
 	check(InGraph);
 	Graphs.Push(InGraph);
+
+	InGraph->OnModified().AddUObject(this, &URigVMController::HandleModifiedEvent);
 
 	if (bSetupUndoRedo)
 	{
@@ -104,8 +106,20 @@ void URigVMController::PushGraph(URigVMGraph* InGraph, bool bSetupUndoRedo)
 URigVMGraph* URigVMController::PopGraph(bool bSetupUndoRedo)
 {
 	ensure(Graphs.Num() > 1);
+	
 	URigVMGraph* LastGraph = GetGraph();
+	if (LastGraph)
+	{
+		LastGraph->OnModified().RemoveAll(this);
+	}
+
 	Graphs.Pop();
+
+	URigVMGraph* CurrentGraph = GetGraph();
+	if (CurrentGraph)
+	{
+		CurrentGraph->OnModified().AddUObject(this, &URigVMController::HandleModifiedEvent);
+	}
 
 	if (bSetupUndoRedo)
 	{
@@ -192,8 +206,6 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 		case ERigVMGraphNotifType::LinkAdded:
 		case ERigVMGraphNotifType::LinkRemoved:
 		case ERigVMGraphNotifType::PinArraySizeChanged:
-		case ERigVMGraphNotifType::VariableAdded:
-		case ERigVMGraphNotifType::VariableRemoved:
 		case ERigVMGraphNotifType::ParameterAdded:
 		case ERigVMGraphNotifType::ParameterRemoved:
 		{
@@ -222,6 +234,26 @@ void URigVMController::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				}
 			}
 			break;
+		}
+		case ERigVMGraphNotifType::VariableAdded:
+		case ERigVMGraphNotifType::VariableRemoved:
+		case ERigVMGraphNotifType::VariableRemappingChanged:
+		{
+			URigVMGraph* RootGraph = InGraph->GetRootGraph();
+			if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(RootGraph->GetRootGraph()))
+			{
+				URigVMNode* Node = CastChecked<URigVMNode>(InSubject);
+				check(Node);
+
+				if(URigVMLibraryNode* Function = FunctionLibrary->FindFunctionForNode(Node))
+				{
+					FunctionLibrary->ForEachReference(Function->GetFName(), [this](URigVMFunctionReferenceNode* Reference)
+                    {
+                        FRigVMControllerGraphGuard GraphGuard(this, Reference->GetGraph(), false);
+                        Reference->GetGraph()->Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+                    });
+				}
+			}
 		}
 	}
 
@@ -574,12 +606,7 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->IsA<URigVMFunctionLibrary>())
-	{
-		return;
-	}
-
-	FString VarNameStr = InVarName.ToString();
+	const FString VarNameStr = InVarName.ToString();
 
 	if (bSetupUndoRedo)
 	{
@@ -600,13 +627,47 @@ void URigVMController::OnExternalVariableRemoved(const FName& InVarName, bool bS
 				}
 			}
 		}
+		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+
+			// call this function for the contained graph recursively 
+			OnExternalVariableRemoved(InVarName, bSetupUndoRedo);
+
+			// if we are a function we need to notify all references!
+			if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(Graph))
+			{
+				FunctionLibrary->ForEachReference(CollapseNode->GetFName(), [this, InVarName](URigVMFunctionReferenceNode* Reference)
+				{
+					if(Reference->VariableMap.Contains(InVarName))
+					{
+						Reference->Modify();
+                        Reference->VariableMap.Remove(InVarName);
+
+                        FRigVMControllerGraphGuard GraphGuard(this, Reference->GetGraph(), false);
+                        Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+					}
+				});
+			}
+		}
+		else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+		{
+			TMap<FName, FName> VariableMap = FunctionReferenceNode->GetVariableMap();
+			for(const TPair<FName, FName>& VariablePair : VariableMap)
+			{
+				if(VariablePair.Value == InVarName)
+				{
+					SetRemappedVariable(FunctionReferenceNode, VariablePair.Key, NAME_None, bSetupUndoRedo);
+				}
+			}
+		}
 
 		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
 		for (URigVMPin* Pin : AllPins)
 		{
 			if (Pin->GetBoundVariableName() == InVarName.ToString())
 			{
-				BindPinToVariable(Pin, FString(), true);
+				BindPinToVariable(Pin, FString(), bSetupUndoRedo);
 			}
 		}
 	}
@@ -632,12 +693,7 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->IsA<URigVMFunctionLibrary>())
-	{
-		return;
-	}
-
-	FString VarNameStr = InOldVarName.ToString();
+	const FString VarNameStr = InOldVarName.ToString();
 
 	if (bSetupUndoRedo)
 	{
@@ -658,6 +714,41 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 				}
 			}
 		}
+		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+			OnExternalVariableRenamed(InOldVarName, InNewVarName, bSetupUndoRedo);
+
+			// if we are a function we need to notify all references!
+			if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(Graph))
+			{
+				FunctionLibrary->ForEachReference(CollapseNode->GetFName(), [this, InOldVarName, InNewVarName](URigVMFunctionReferenceNode* Reference)
+                {
+					if(Reference->VariableMap.Contains(InOldVarName))
+					{
+						Reference->Modify();
+
+						FName MappedVariable = Reference->VariableMap.FindChecked(InOldVarName);
+						Reference->VariableMap.Remove(InOldVarName);
+						Reference->VariableMap.FindOrAdd(InNewVarName) = MappedVariable; 
+
+						FRigVMControllerGraphGuard GraphGuard(this, Reference->GetGraph(), false);
+                        Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+                    }
+                });
+			}
+		}
+		else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+		{
+			TMap<FName, FName> VariableMap = FunctionReferenceNode->GetVariableMap();
+			for(const TPair<FName, FName>& VariablePair : VariableMap)
+			{
+				if(VariablePair.Value == InOldVarName)
+				{
+					SetRemappedVariable(FunctionReferenceNode, VariablePair.Key, InNewVarName, bSetupUndoRedo);
+				}
+			}
+		}
 
 		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
 		for (URigVMPin* Pin : AllPins)
@@ -666,7 +757,7 @@ void URigVMController::OnExternalVariableRenamed(const FName& InOldVarName, cons
 			{
 				FString OldVariablePath = Pin->GetBoundVariablePath();
 				FString NewVariablePath = OldVariablePath.Replace(*InOldVarName.ToString(), *InNewVarName.ToString());
-				BindPinToVariable(Pin, NewVariablePath, true);
+				BindPinToVariable(Pin, NewVariablePath, bSetupUndoRedo);
 			}
 		}
 	}
@@ -692,12 +783,7 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	if (Graph->IsA<URigVMFunctionLibrary>())
-	{
-		return;
-	}
-
-	FString VarNameStr = InVarName.ToString();
+	const FString VarNameStr = InVarName.ToString();
 
 	if (bSetupUndoRedo)
 	{
@@ -718,6 +804,38 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 				}
 			}
 		}
+		else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+		{
+			FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), bSetupUndoRedo);
+			OnExternalVariableTypeChanged(InVarName, InCPPType, InCPPTypeObject, bSetupUndoRedo);
+
+			// if we are a function we need to notify all references!
+			if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(Graph))
+			{
+				FunctionLibrary->ForEachReference(CollapseNode->GetFName(), [this, InVarName](URigVMFunctionReferenceNode* Reference)
+                {
+                    if(Reference->VariableMap.Contains(InVarName))
+                    {
+                        Reference->Modify();
+                        Reference->VariableMap.Remove(InVarName); 
+
+                        FRigVMControllerGraphGuard GraphGuard(this, Reference->GetGraph(), false);
+                        Notify(ERigVMGraphNotifType::VariableRemappingChanged, Reference);
+                    }
+                });
+			}
+		}
+		else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(Node))
+		{
+			TMap<FName, FName> VariableMap = FunctionReferenceNode->GetVariableMap();
+			for(const TPair<FName, FName>& VariablePair : VariableMap)
+			{
+				if(VariablePair.Value == InVarName)
+				{
+					SetRemappedVariable(FunctionReferenceNode, VariablePair.Key, NAME_None, bSetupUndoRedo);
+				}
+			}
+		}
 
 		TArray<URigVMPin*> AllPins = Node->GetAllPinsRecursively();
 		for (URigVMPin* Pin : AllPins)
@@ -725,9 +843,9 @@ void URigVMController::OnExternalVariableTypeChanged(const FName& InVarName, con
 			if (Pin->GetBoundVariableName() == InVarName.ToString())
 			{
 				FString BoundVariablePath = Pin->GetBoundVariablePath();
-				BindPinToVariable(Pin, FString(), true);
+				BindPinToVariable(Pin, FString(), bSetupUndoRedo);
 				// try to bind it again - maybe it can be bound (due to cast rules etc)
-				BindPinToVariable(Pin, BoundVariablePath, true);
+				BindPinToVariable(Pin, BoundVariablePath, bSetupUndoRedo);
 			}
 		}
 	}
@@ -3528,13 +3646,10 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 					References->FunctionReferences.RemoveAll(
 						[FunctionReferenceNode](TSoftObjectPtr<URigVMFunctionReferenceNode>& FunctionReferencePtr) {
 
-							/*
 							if (!FunctionReferencePtr.IsValid())
 							{
 								FunctionReferencePtr.LoadSynchronous();
 							}
-							*/
-
 							if (!FunctionReferencePtr.IsValid())
 							{
 								return true;
@@ -3663,19 +3778,11 @@ bool URigVMController::RenameNode(URigVMNode* InNode, const FName& InNewName, bo
 	{
 		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 		{
-			FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
-			if (ReferencesEntry)
+			FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, InNewName](URigVMFunctionReferenceNode* ReferenceNode)
 			{
-				for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
-				{
-					// only update valid, living references
-					if (FunctionReferencePtr.IsValid())
-					{
-						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-						RenameNode(FunctionReferencePtr.Get(), InNewName, false);
-					}
-				}
-			}
+				FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+                RenameNode(ReferenceNode, InNewName, false);
+			});
 		}
 	}
 
@@ -3937,19 +4044,11 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 	{
 		if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 		{
-			FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
-			if (ReferencesEntry)
-			{
-				for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
-				{
-					if (FunctionReferencePtr.IsValid())
-					{
-						URigVMNode* ReferenceNode = FunctionReferencePtr.Get();
-						FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
-						Notify(ERigVMGraphNotifType::NodeColorChanged, ReferenceNode);
-					}
-				}
-			}
+			FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this](URigVMFunctionReferenceNode* ReferenceNode)
+            {
+                FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+				Notify(ERigVMGraphNotifType::NodeColorChanged, ReferenceNode);
+            });
 		}
 	}
 
@@ -5987,22 +6086,14 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 
 	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 	{
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
-		if (ReferencesEntry)
-		{
-			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+		FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, InOldPinName, PinName](URigVMFunctionReferenceNode* ReferenceNode)
+        {
+			if (URigVMPin* EntryPin = ReferenceNode->FindPin(InOldPinName.ToString()))
 			{
-				// only update valid, living references
-				if (FunctionReferencePtr.IsValid())
-				{
-					if (URigVMPin* EntryPin = FunctionReferencePtr->FindPin(InOldPinName.ToString()))
-					{
-						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-						Local::RenamePin(this, EntryPin, PinName);
-					}
-				}
-			}
-		}
+                FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+                Local::RenamePin(this, EntryPin, PinName);
+            }
+        });
 	}
 
 	if (bSetupUndoRedo)
@@ -6081,22 +6172,14 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 
 	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(LibraryNode->GetGraph()))
 	{
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(LibraryNode);
-		if (ReferencesEntry)
-		{
-			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
+		FunctionLibrary->ForEachReference(LibraryNode->GetFName(), [this, &Pin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins](URigVMFunctionReferenceNode* ReferenceNode)
+        {
+			if (URigVMPin* ReferencedNodePin = ReferenceNode->FindPin(Pin->GetName()))
 			{
-				// only update valid, living references
-				if (FunctionReferencePtr.IsValid())
-				{
-					if (URigVMPin* ReferencedNodePin = FunctionReferencePtr->FindPin(Pin->GetName()))
-					{
-						FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), false);
-						ChangePinType(ReferencedNodePin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins);
-					}
-				}
+				FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), false);
+				ChangePinType(ReferencedNodePin, InCPPType, InCPPTypeObjectPath, bSetupUndoRedo, bSetupOrphanPins);
 			}
-		}
+        });
 	}
 
 	if (bSetupUndoRedo)
@@ -6242,6 +6325,93 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 	}
 
 	return FunctionRefNode;
+}
+
+bool URigVMController::SetRemappedVariable(URigVMFunctionReferenceNode* InFunctionRefNode,
+	const FName& InInnerVariableName, const FName& InOuterVariableName, bool bSetupUndoRedo)
+{
+	if(!InFunctionRefNode)
+	{
+		return false;
+	}
+
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	if(InInnerVariableName.IsNone())
+	{
+		return false;
+	}
+
+	const FName OldOuterVariableName = InFunctionRefNode->GetOuterVariableName(InInnerVariableName);
+	if(OldOuterVariableName == InOuterVariableName)
+	{
+		return false;
+	}
+
+	if(!InFunctionRefNode->RequiresVariableRemapping())
+	{
+		return false;
+	}
+	
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	FRigVMExternalVariable InnerExternalVariable;
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, InFunctionRefNode->GetContainedGraph());
+		InnerExternalVariable = GetExternalVariableByName(InInnerVariableName);
+	}
+
+	if(!InnerExternalVariable.IsValid(true))
+	{
+		ReportErrorf(TEXT("External variable '%s' cannot be found."), *InInnerVariableName.ToString());
+		return false;
+	}
+
+	ensure(InnerExternalVariable.Name == InInnerVariableName);
+
+	if(InOuterVariableName.IsNone())
+	{
+		InFunctionRefNode->Modify();
+		InFunctionRefNode->VariableMap.Remove(InInnerVariableName);
+	}
+	else
+	{
+		const FRigVMExternalVariable OuterExternalVariable = GetExternalVariableByName(InOuterVariableName);
+		if(!OuterExternalVariable.IsValid(true))
+		{
+			ReportErrorf(TEXT("External variable '%s' cannot be found."), *InOuterVariableName.ToString());
+			return false;
+		}
+
+		ensure(OuterExternalVariable.Name == InOuterVariableName);
+
+		if((InnerExternalVariable.TypeObject != nullptr) && (InnerExternalVariable.TypeObject != OuterExternalVariable.TypeObject))
+		{
+			ReportErrorf(TEXT("Inner and Outer External variables '%s' and '%s' are not compatible."), *InInnerVariableName.ToString(), *InOuterVariableName.ToString());
+			return false;
+		}
+		if((InnerExternalVariable.TypeObject == nullptr) && (InnerExternalVariable.TypeName != OuterExternalVariable.TypeName))
+		{
+			ReportErrorf(TEXT("Inner and Outer External variables '%s' and '%s' are not compatible."), *InInnerVariableName.ToString(), *InOuterVariableName.ToString());
+			return false;
+		}
+
+		InFunctionRefNode->Modify();
+		InFunctionRefNode->VariableMap.FindOrAdd(InInnerVariableName) = InOuterVariableName;
+	}
+
+	Notify(ERigVMGraphNotifType::VariableRemappingChanged, InFunctionRefNode);
+
+	if(bSetupUndoRedo)
+	{
+		ActionStack->AddAction(FRigVMSetRemappedVariableAction(InFunctionRefNode, InInnerVariableName, OldOuterVariableName, InOuterVariableName));
+	}
+	
+	return true;
 }
 
 URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctionName, bool bMutable, const FVector2D& InNodePosition, bool bSetupUndoRedo)
@@ -8894,7 +9064,7 @@ TArray<FRigVMExternalVariable> URigVMController::GetExternalVariables()
 {
 	if (GetExternalVariablesDelegate.IsBound())
 	{
-		return GetExternalVariablesDelegate.Execute();
+		return GetExternalVariablesDelegate.Execute(GetGraph());
 	}
 	return TArray<FRigVMExternalVariable>();
 }
@@ -8914,23 +9084,15 @@ void URigVMController::RefreshFunctionReferences(URigVMLibraryNode* InFunctionDe
 
 	if (URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunctionDefinition->GetGraph()))
 	{
-		FRigVMFunctionReferenceArray* ReferencesEntry = FunctionLibrary->FunctionReferences.Find(InFunctionDefinition);
-		if (ReferencesEntry)
+		FunctionLibrary->ForEachReference(InFunctionDefinition->GetFName(), [this, bSetupUndoRedo](URigVMFunctionReferenceNode* ReferenceNode)
 		{
-			for (TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr : ReferencesEntry->FunctionReferences)
-			{
-				// only update valid, living references
-				if (FunctionReferencePtr.IsValid())
-				{
-					FRigVMControllerGraphGuard GraphGuard(this, FunctionReferencePtr->GetGraph(), bSetupUndoRedo);
+			FRigVMControllerGraphGuard GraphGuard(this, ReferenceNode->GetGraph(), bSetupUndoRedo);
 
-					TArray<URigVMLink*> Links = FunctionReferencePtr->GetLinks();
-					DetachLinksFromPinObjects(&Links, true);
-					RepopulatePinsOnNode(FunctionReferencePtr.Get(), false, true);
-					TGuardValue<bool> ReportGuard(bReportWarningsAndErrors, false);
-					ReattachLinksToPinObjects(false, &Links, true);
-				}
-			}
-		}
+			TArray<URigVMLink*> Links = ReferenceNode->GetLinks();
+			DetachLinksFromPinObjects(&Links, true);
+			RepopulatePinsOnNode(ReferenceNode, false, true);
+			TGuardValue<bool> ReportGuard(bReportWarningsAndErrors, false);
+			ReattachLinksToPinObjects(false, &Links, true);
+		});
 	}
 }

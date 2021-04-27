@@ -1154,16 +1154,19 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 	// this delegate is used by the controller to determine variable validity
 	// during a bind process. the controller itself doesn't own the variables,
 	// so we need a delegate to request them from the owning blueprint
-	Controller->GetExternalVariablesDelegate.BindLambda([WeakThis]() -> TArray<FRigVMExternalVariable> {
+	Controller->GetExternalVariablesDelegate.BindLambda([](URigVMGraph* InGraph) -> TArray<FRigVMExternalVariable> {
 
-		if (WeakThis.IsValid())
+		if (InGraph)
 		{
-			if (UControlRigBlueprintGeneratedClass* RigClass = WeakThis->GetControlRigBlueprintGeneratedClass())
+			if(UControlRigBlueprint* Blueprint = InGraph->GetTypedOuter<UControlRigBlueprint>())
 			{
-				if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+				if (UControlRigBlueprintGeneratedClass* RigClass = Blueprint->GetControlRigBlueprintGeneratedClass())
 				{
-					return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
-				}
+                    if (UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */)))
+                    {
+                        return CDO->GetExternalVariablesImpl(true /* rely on variables within blueprint */);
+                    }
+                }
 			}
 		}
 		return TArray<FRigVMExternalVariable>();
@@ -2551,6 +2554,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			case ERigVMGraphNotifType::ParameterRemoved:
 			case ERigVMGraphNotifType::ParameterRenamed:
 			case ERigVMGraphNotifType::PinBoundVariableChanged:
+			case ERigVMGraphNotifType::VariableRemappingChanged:
 			{
 				RequestAutoVMRecompilation();
 				MarkPackageDirty();

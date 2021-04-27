@@ -1437,3 +1437,33 @@ public:
 	UPROPERTY()
 	int32 NewIndex;
 };
+
+/**
+* An action to remap a variable inside of a function reference node renaming a node in the graph.
+*/
+USTRUCT()
+struct FRigVMSetRemappedVariableAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMSetRemappedVariableAction() {}
+	FRigVMSetRemappedVariableAction(URigVMFunctionReferenceNode* InFunctionRefNode, const FName& InInnerVariableName,
+		const FName& InOldOuterVariableName, const FName& InNewOuterVariableName);
+	virtual ~FRigVMSetRemappedVariableAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FString NodePath;
+
+	UPROPERTY()
+	FName InnerVariableName;
+
+	UPROPERTY()
+	FName OldOuterVariableName;
+
+	UPROPERTY()
+	FName NewOuterVariableName;
+};

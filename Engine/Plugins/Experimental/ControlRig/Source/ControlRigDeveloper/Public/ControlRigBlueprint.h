@@ -581,4 +581,5 @@ private:
 	friend class UAnimGraphNode_ControlRig;
 	friend class UControlRigThumbnailRenderer;
 	friend class FControlRigGraphDetails;
+	friend class FControlRigEditorModule;
 };

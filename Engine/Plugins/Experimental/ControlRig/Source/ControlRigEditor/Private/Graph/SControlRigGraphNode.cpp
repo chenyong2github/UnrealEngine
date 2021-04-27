@@ -28,9 +28,11 @@
 #include "IDocumentation.h"
 #include "DetailLayoutBuilder.h"
 #include "EditorStyleSet.h"
+#include "SControlRigGraphPinVariableBinding.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "EdGraphSchema_K2.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "SControlRigGraphNode"
@@ -82,7 +84,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.Visibility(this, &SControlRigGraphNode::GetExecutionTreeVisibility)
 			.TreeItemsSource(&ControlRigGraphNode->ExecutePins)
 			.SelectionMode(ESelectionMode::None)
-			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
+			.OnGenerateRow(this, &SControlRigGraphNode::MakePinTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
 			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &ExecutionTree)
@@ -97,7 +99,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.Visibility(this, &SControlRigGraphNode::GetInputTreeVisibility)
 			.TreeItemsSource(&ControlRigGraphNode->InputPins)
 			.SelectionMode(ESelectionMode::None)
-			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
+			.OnGenerateRow(this, &SControlRigGraphNode::MakePinTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
 			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &InputTree)
@@ -112,7 +114,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.Visibility(this, &SControlRigGraphNode::GetInputOutputTreeVisibility)
 			.TreeItemsSource(&ControlRigGraphNode->InputOutputPins)
 			.SelectionMode(ESelectionMode::None)
-			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
+			.OnGenerateRow(this, &SControlRigGraphNode::MakePinTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
 			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &InputOutputTree)
@@ -127,13 +129,25 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 			.Visibility(this, &SControlRigGraphNode::GetOutputTreeVisibility)
 			.TreeItemsSource(&ControlRigGraphNode->OutputPins)
 			.SelectionMode(ESelectionMode::None)
-			.OnGenerateRow(this, &SControlRigGraphNode::MakeTableRowWidget)
+			.OnGenerateRow(this, &SControlRigGraphNode::MakePinTableRowWidget)
 			.OnGetChildren(this, &SControlRigGraphNode::HandleGetChildrenForTree)
 			.OnExpansionChanged(this, &SControlRigGraphNode::HandleExpansionChanged)
 			.OnSetExpansionRecursive(this, &SControlRigGraphNode::HandleExpandRecursively, &OutputTree)
 			.ExternalScrollbar(ScrollBar)
 			.ItemHeight(20.0f)
 		];
+
+	LeftNodeBox->AddSlot()
+        .AutoHeight()
+        [
+            SAssignNew(VariableRemappingList, SListView<TSharedPtr<FRigVMExternalVariable>>)
+            .Visibility(this, &SControlRigGraphNode::GetVariableListVisibility)
+            .ListItemsSource(&ControlRigGraphNode->ExternalVariables)
+            .SelectionMode(ESelectionMode::None)
+            .OnGenerateRow(this, &SControlRigGraphNode::MakeVariableTableRowWidget)
+            .ExternalScrollbar(ScrollBar)
+            .ItemHeight(20.0f)
+        ];
 
 	struct Local
 	{
@@ -168,6 +182,7 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	InputTree->Tick(DummyGeometry, 0.f, 0.f);
 	InputOutputTree->Tick(DummyGeometry, 0.f, 0.f);
 	OutputTree->Tick(DummyGeometry, 0.f, 0.f);
+	VariableRemappingList->Tick(DummyGeometry, 0.f, 0.f);
 
 	const FSlateBrush* ImageBrush = FControlRigEditorStyle::Get().GetBrush(TEXT("ControlRig.Bug.Dot"));
 
@@ -384,6 +399,12 @@ EVisibility SControlRigGraphNode::GetOutputTreeVisibility() const
 {
 	UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
 	return ControlRigGraphNode->OutputPins.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility SControlRigGraphNode::GetVariableListVisibility() const
+{
+	UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
+	return ControlRigGraphNode->ExternalVariables.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SControlRigGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
@@ -611,6 +632,76 @@ public:
 	bool bLeftAligned;
 };
 
+class SControlRigVariableListRow : public STableRow<TSharedPtr<FRigVMExternalVariable>>
+{
+public:
+	SLATE_BEGIN_ARGS(SControlRigVariableListRow) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView)
+	{
+		STableRow<TSharedPtr<FRigVMExternalVariable>>::Construct(STableRow<TSharedPtr<FRigVMExternalVariable>>::FArguments(), InOwnerTableView);
+	}
+
+	const FSlateBrush* GetBorder() const
+	{
+		bool bShowBG = (CVarEnableShowBackground.GetValueOnGameThread() > 0);
+
+		if (bShowBG)
+			return STableRow<TSharedPtr<FRigVMExternalVariable>>::GetBorder();
+		else
+		// We want a transparent background.
+		return FCoreStyle::Get().GetBrush("NoBrush");
+	}
+
+	virtual void ConstructChildren( ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent ) override
+	{
+		const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
+		FMargin InputPadding = Settings->GetInputPinPadding();
+		InputPadding.Top = InputPadding.Bottom = 3.0f;
+		InputPadding.Right = 8.0f;
+
+		this->Content = InContent;
+
+		SHorizontalBox::FSlot* InnerContentSlotNativePtr = nullptr;
+
+		TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
+
+		ContentBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.Padding(InputPadding)
+		[
+			SAssignNew(LeftContentBox, SBox)
+		];
+
+		ContentBox->AddSlot()
+		.AutoWidth()
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		.MaxWidth(200.f)
+		.Expose(InnerContentSlotNativePtr)
+		[
+			SAssignNew(RightContentBox, SBox)
+			[
+				InContent
+			]
+		];
+
+		this->ChildSlot
+		[
+			ContentBox
+		];
+
+		InnerContentSlot = InnerContentSlotNativePtr;
+	}
+
+	/** Exposed boxes to slot pin widgets into */
+	TSharedPtr<SBox> LeftContentBox;
+	TSharedPtr<SBox> RightContentBox;
+};
+
 TSharedRef<SWidget> SControlRigGraphNode::AddContainerPinContent(URigVMPin* InItem, FText InTooltipText)
 {
 	return SNew(SButton)
@@ -633,7 +724,7 @@ TSharedRef<SWidget> SControlRigGraphNode::AddContainerPinContent(URigVMPin* InIt
 	];
 }
 
-TSharedRef<ITableRow> SControlRigGraphNode::MakeTableRowWidget(URigVMPin* InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SControlRigGraphNode::MakePinTableRowWidget(URigVMPin* InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	const bool bLeaf = InItem->GetSubPins().Num() == 0;
 	const bool bIsContainer = InItem->IsArray();
@@ -797,7 +888,37 @@ TSharedRef<ITableRow> SControlRigGraphNode::MakeTableRowWidget(URigVMPin* InItem
 
 	return ControlRigPinTreeRow;
 }
-	
+
+TSharedRef<ITableRow> SControlRigGraphNode::MakeVariableTableRowWidget(TSharedPtr<FRigVMExternalVariable> InVariable,
+	const TSharedRef<STableViewBase>& OwnerTable)
+{
+	TSharedRef<SControlRigVariableListRow> ControlRigVariableListRow = SNew(SControlRigVariableListRow, OwnerTable);
+
+	UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GraphNode);
+	URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode());
+	check(FunctionReferenceNode);
+	TWeakObjectPtr<URigVMFunctionReferenceNode> WeakFunctionReferenceNode = FunctionReferenceNode;
+
+	UControlRigBlueprint* ControlRigBlueprint = FunctionReferenceNode->GetReferencedNode()->GetTypedOuter<UControlRigBlueprint>(); 
+	check(ControlRigBlueprint);
+	TWeakObjectPtr<UControlRigBlueprint> WeakControlRigBlueprint = ControlRigBlueprint;
+
+	ControlRigVariableListRow->LeftContentBox->SetContent(SNew(STextBlock)
+		.Text(FText::FromName(InVariable->Name))
+        .TextStyle(FEditorStyle::Get(), NAME_DefaultPinLabelStyle)
+		.ColorAndOpacity(this, &SControlRigGraphNode::GetVariableLabelTextColor, WeakFunctionReferenceNode, InVariable->Name)
+		.ToolTipText(this, &SControlRigGraphNode::GetVariableLabelTooltipText, WeakControlRigBlueprint, InVariable->Name)
+    );
+
+	ControlRigVariableListRow->RightContentBox->SetContent(SNew(SControlRigVariableBinding)
+		.Blueprint(Blueprint.Get())
+		.FunctionReferenceNode(FunctionReferenceNode)
+		.InnerVariableName(InVariable->Name)
+	);
+
+	return ControlRigVariableListRow;
+}
+
 void SControlRigGraphNode::HandleGetChildrenForTree(URigVMPin* InItem, TArray<URigVMPin*>& OutChildren)
 {
 	OutChildren.Append(InItem->GetSubPins());
@@ -879,6 +1000,41 @@ FSlateColor SControlRigGraphNode::GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) 
 	}
 
 	return FLinearColor::White;
+}
+
+FSlateColor SControlRigGraphNode::GetVariableLabelTextColor(
+	TWeakObjectPtr<URigVMFunctionReferenceNode> FunctionReferenceNode, FName InVariableName) const
+{
+	if(FunctionReferenceNode.IsValid())
+	{
+		if(FunctionReferenceNode->GetOuterVariableName(InVariableName).IsNone())
+		{
+			return FLinearColor::Red;
+		}
+	}
+	return FLinearColor::White;
+}
+
+FText SControlRigGraphNode::GetVariableLabelTooltipText(TWeakObjectPtr<UControlRigBlueprint> InBlueprint,
+	FName InVariableName) const
+{
+	if(InBlueprint.IsValid())
+	{
+		for(const FBPVariableDescription& Variable : InBlueprint->NewVariables)
+		{
+			if(Variable.VarName == InVariableName)
+			{
+				FString Message = FString::Printf(TEXT("Variable from %s"), *InBlueprint->GetPathName()); 
+				if(Variable.HasMetaData(FBlueprintMetadata::MD_Tooltip))
+				{
+					const FString Tooltip = Variable.GetMetaData(FBlueprintMetadata::MD_Tooltip);
+					Message = FString::Printf(TEXT("%s\n%s"), *Message, *Tooltip);
+				}
+				return FText::FromString(Message);
+			}
+		}
+	}
+	return FText();
 }
 
 FReply SControlRigGraphNode::HandleAddArrayElement(URigVMPin* InItem)

@@ -258,6 +258,36 @@ UControlRigGraphNode* UControlRigFunctionRefNodeSpawner::SpawnNode(UEdGraph* Par
 				UControlRigUnitNodeSpawner::HookupMutableNode(ModelNode, RigBlueprint);
 			}
 
+			if (!bIsTemplateNode)
+			{
+				for(URigVMNode* OtherModelNode : ModelNode->GetGraph()->GetNodes())
+				{
+					if(OtherModelNode == ModelNode)
+					{
+						continue;
+					}
+					
+					URigVMFunctionReferenceNode* ExistingFunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(OtherModelNode);
+					if(ExistingFunctionReferenceNode == nullptr)
+					{
+						continue;
+					}
+
+					if(ExistingFunctionReferenceNode->GetReferencedNode() != InFunction)
+					{
+						continue;
+					}
+
+					for(TPair<FName, FName> MappedVariablePair : ExistingFunctionReferenceNode->GetVariableMap())
+					{
+						if(!MappedVariablePair.Value.IsNone())
+						{
+							Controller->SetRemappedVariable(ModelNode, MappedVariablePair.Key, MappedVariablePair.Value, bUndo);
+						}
+					}
+				}
+			}
+
 			if (bUndo)
 			{
 				Controller->CloseUndoBracket();
