@@ -540,31 +540,35 @@ namespace EditorAnimUtils
 		const FSmartNameMapping* OldNameMapping = OldSkeleton->GetSmartNameContainer(ContainerName);
 		SequenceBase->RawCurveData.RefreshName(OldNameMapping, CurveType);
 
-		switch (CurveType)
+		// In some circumstances the asset may have already been updated during the retarget process (eg. retargeting of child assets for blendspaces, etc)
+		if (NewSkeleton != SequenceBase->GetSkeleton())
 		{
-		case ERawCurveTrackTypes::RCT_Float:
+			switch (CurveType)
 			{
-				for(FFloatCurve& Curve : SequenceBase->RawCurveData.FloatCurves)
+			case ERawCurveTrackTypes::RCT_Float:
+			{
+				for (FFloatCurve& Curve : SequenceBase->RawCurveData.FloatCurves)
 				{
 					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
 				}
 				break;
 			}
-		case ERawCurveTrackTypes::RCT_Vector:
+			case ERawCurveTrackTypes::RCT_Vector:
 			{
-				for(FVectorCurve& Curve : SequenceBase->RawCurveData.VectorCurves)
+				for (FVectorCurve& Curve : SequenceBase->RawCurveData.VectorCurves)
 				{
 					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
 				}
 				break;
 			}
-		case ERawCurveTrackTypes::RCT_Transform:
+			case ERawCurveTrackTypes::RCT_Transform:
 			{
-				for(FTransformCurve& Curve : SequenceBase->RawCurveData.TransformCurves)
+				for (FTransformCurve& Curve : SequenceBase->RawCurveData.TransformCurves)
 				{
 					NewSkeleton->AddSmartNameAndModify(ContainerName, Curve.Name.DisplayName, Curve.Name);
 				}
 				break;
+			}
 			}
 		}
 	}
