@@ -76,6 +76,8 @@ public:
 		, _Icon( FStyleDefaults::GetNoBrush() )
 		, _OnTabClosed()
 		, _OnTabActivated()
+		, _OnTabRelocated()
+		, _OnTabDraggedOverDockArea()
 		, _ShouldAutosize(false)
 		, _OnCanCloseTab()
 		, _OnPersistVisualState()
@@ -93,6 +95,8 @@ public:
 		SLATE_ATTRIBUTE( const FSlateBrush*, Icon )
 		SLATE_EVENT( FOnTabClosedCallback, OnTabClosed )
 		SLATE_EVENT( FOnTabActivatedCallback, OnTabActivated )
+		SLATE_EVENT( FSimpleDelegate, OnTabRelocated )
+		SLATE_EVENT( FSimpleDelegate, OnTabDraggedOverDockArea )
 		SLATE_ARGUMENT( bool, ShouldAutosize )
 		SLATE_EVENT( FCanCloseTab, OnCanCloseTab )
 		SLATE_EVENT( FOnPersistVisualState, OnPersistVisualState )
@@ -248,6 +252,12 @@ public:
 	/** Set the handler that will be invoked when the tab is activated */
 	void SetOnTabActivated( const FOnTabActivatedCallback& InDelegate );
 
+	/** Set the handler that will be invoked when the tab is relocated to a new tab well */
+	void SetOnTabRelocated(const FSimpleDelegate InDelegate);
+
+	/** Set the handler that will be invoked when the tab is dragged over dock area */
+	void SetOnTabDraggedOverDockArea(const FSimpleDelegate InDelegate);
+
 	/** Set the handler that will be invoked when the tab is renamed */
 	void SetOnTabRenamed(const FOnTabRenamed& InDelegate);
 
@@ -351,6 +361,8 @@ private:
 	void OnTabDrawerOpened();
 	void OnTabDrawerClosed();
 
+	void NotifyTabRelocated();
+
 	/** The handle to the active tab activation tick */
 	TWeakPtr<FActiveTimerHandle> DragDropTimerHandle;
 	TWeakPtr<FActiveTimerHandle> UpdateStyleTimerHandle;
@@ -395,6 +407,10 @@ protected:
 	FSimpleDelegate OnTabDrawerClosedEvent;
 
 	FSimpleDelegate OnTabDrawerOpenedEvent;
+
+	FSimpleDelegate OnTabRelocated;
+
+	FSimpleDelegate OnTabDraggedOverDockArea;
 
 	/**
 	 * Invoked during the Save Visual State pass; gives this tab a chance to save misc info about visual state.
