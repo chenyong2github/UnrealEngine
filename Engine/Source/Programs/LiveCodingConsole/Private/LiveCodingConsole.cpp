@@ -242,7 +242,7 @@ private:
 		}
 		else
 		{
-			Executable = FPaths::EngineDir() / TEXT("Binaries/DotNET/UnrealBuildTool.exe");
+			Executable = FPaths::EngineDir() / TEXT("Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.exe");
 		}
 		FPaths::MakePlatformFilename(Executable);
 
