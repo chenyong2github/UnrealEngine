@@ -79,14 +79,6 @@ FBufferRHIRef FD3D11DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags U
 		}
 	}
 
-	if (FPlatformMemory::SupportsFastVRAMMemory())
-	{
-		if (Usage & BUF_FastVRAM)
-		{
-			FFastVRAMAllocator::GetFastVRAMAllocator()->AllocUAVBuffer(Desc);
-		}
-	}
-
 	// If a resource array was provided for the resource, create the resource pre-populated
 	D3D11_SUBRESOURCE_DATA InitData;
 	D3D11_SUBRESOURCE_DATA* pInitData = NULL;

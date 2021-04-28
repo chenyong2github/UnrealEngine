@@ -766,16 +766,6 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 		bPooledTexture = false;
 	}
 
-	FVRamAllocation VRamAllocation;
-
-	if (FPlatformMemory::SupportsFastVRAMMemory())
-	{
-		if (Flags & TexCreate_FastVRAM)
-		{
-			VRamAllocation = FFastVRAMAllocator::GetFastVRAMAllocator()->AllocTexture2D(TextureDesc);
-		}
-	}
-
 	TRefCountPtr<ID3D11Texture2D> TextureResource;
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
@@ -1061,8 +1051,6 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 #endif
 		);
 
-	Texture2D->ResourceInfo.VRamAllocation = VRamAllocation;
-
 	D3D11TextureAllocated(*Texture2D);
 	
 #if !PLATFORM_HOLOLENS
@@ -1150,16 +1138,6 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 		}
 	}
 
-	FVRamAllocation VRamAllocation;
-
-	if (FPlatformMemory::SupportsFastVRAMMemory())
-	{
-		if (Flags & TexCreate_FastVRAM)
-		{
-			VRamAllocation = FFastVRAMAllocator::GetFastVRAMAllocator()->AllocTexture3D(TextureDesc);
-		}
-	}
-
 	TRefCountPtr<ID3D11Texture3D> TextureResource;
 	const D3D11_SUBRESOURCE_DATA* SubResData = CreateInfo.BulkData != nullptr ? (const D3D11_SUBRESOURCE_DATA*)SubResourceData.GetData() : nullptr;
 	VERIFYD3D11CREATETEXTURERESULT(
@@ -1211,8 +1189,6 @@ FD3D11Texture3D* FD3D11DynamicRHI::CreateD3D11Texture3D(uint32 SizeX,uint32 Size
 	TArray<TRefCountPtr<ID3D11RenderTargetView> > RenderTargetViews;
 	RenderTargetViews.Add(RenderTargetView);
 	FD3D11Texture3D* Texture3D = new FD3D11Texture3D(this,TextureResource,ShaderResourceView,RenderTargetViews,SizeX,SizeY,SizeZ,NumMips,(EPixelFormat)Format,Flags, CreateInfo.ClearValueBinding);
-
-	Texture3D->ResourceInfo.VRamAllocation = VRamAllocation;
 
 	D3D11TextureAllocated(*Texture3D);
 #if !PLATFORM_HOLOLENS

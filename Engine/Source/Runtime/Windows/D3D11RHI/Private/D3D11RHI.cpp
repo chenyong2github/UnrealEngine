@@ -758,16 +758,3 @@ void UpdateBufferStats(TRefCountPtr<ID3D11Buffer> Buffer, bool bAllocating)
 #endif
 	}
 }
-
-#ifndef PLATFORM_IMPLEMENTS_FASTVRAMALLOCATOR
-	#define PLATFORM_IMPLEMENTS_FASTVRAMALLOCATOR		0
-#endif
-
-#if !PLATFORM_IMPLEMENTS_FASTVRAMALLOCATOR
-FFastVRAMAllocator* FFastVRAMAllocator::GetFastVRAMAllocator()
-{
-	static FFastVRAMAllocator FastVRAMAllocatorSingleton;
-	return &FastVRAMAllocatorSingleton;
-}
-#endif
-

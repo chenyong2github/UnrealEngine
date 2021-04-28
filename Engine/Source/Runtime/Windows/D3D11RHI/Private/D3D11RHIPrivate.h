@@ -1169,53 +1169,6 @@ inline bool HasStencilBits(DXGI_FORMAT InFormat)
 	return false;
 }
 
-/**
- *	Default 'Fast VRAM' allocator...
- */
-class FFastVRAMAllocator
-{
-public:
-	FFastVRAMAllocator() {}
-
-	virtual ~FFastVRAMAllocator() {}
-
-	/**
-	 *	IMPORTANT: This function CAN modify the TextureDesc!
-	 */
-	virtual FVRamAllocation AllocTexture2D(D3D11_TEXTURE2D_DESC& TextureDesc)
-	{
-		return FVRamAllocation();
-	}
-
-	/**
-	 *	IMPORTANT: This function CAN modify the TextureDesc!
-	 */
-	virtual FVRamAllocation AllocTexture3D(D3D11_TEXTURE3D_DESC& TextureDesc)
-	{
-		return FVRamAllocation();
-	}
-
-	/**
-	 *	IMPORTANT: This function CAN modify the BufferDesc!
-	 */
-	virtual FVRamAllocation AllocUAVBuffer(D3D11_BUFFER_DESC& BufferDesc)
-	{
-		return FVRamAllocation();
-	}
-
-	template< typename t_A, typename t_B >
-	static t_A RoundUpToNextMultiple( const t_A& a, const t_B& b )
-	{
-		return ( ( a - 1 ) / b + 1 ) * b;
-	}
-
-	static FFastVRAMAllocator* GetFastVRAMAllocator();
-};
-
-
-
-
-
 // 1d, 31 bit (uses the sign bit for internal use), O(n) where n is the amount of elements stored
 // does not enforce any alignment
 // unoccupied regions get compacted but occupied don't get compacted
@@ -1345,11 +1298,6 @@ public:
 			}
 		}
 	}
-
-
-	// All resources in ESRAM must be 64KiB aligned
-//	uint32 AlignedByteOffset = FFastVRAMAllocator::RoundUpToNextMultiple(ESRAMByteOffset, ESRAMMinumumAlignment );
-
 
 	// @param InSize >0
 	FRange AllocRange(uint32 InSize)//, uint32 Alignment)
