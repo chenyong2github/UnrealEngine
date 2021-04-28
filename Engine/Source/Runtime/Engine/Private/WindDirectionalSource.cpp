@@ -220,32 +220,25 @@ void UWindDirectionalSourceComponent::SetWindType(EWindSourceType InNewType)
 void UWindDirectionalSourceComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	Super::CreateRenderState_Concurrent(Context);
-	GetWorld()->Scene->AddWindSource(this);
+	GetWorld()->Scene->AddWindSource(this);  // AddWindSource accesses the WindComponents_GameThread array, so it might be concurrent friendly, but is not thread safe!
 }
 
 void UWindDirectionalSourceComponent::SendRenderTransform_Concurrent()
 {
 	Super::SendRenderTransform_Concurrent();
-	UpdateSceneData_Concurrent();
+	GetWorld()->Scene->UpdateWindSource(this);  // UpdateWindSource does not access the WindComponents_GameThread array, and is therefore thread safe when iterating in parallel over components.
 }
 
 void UWindDirectionalSourceComponent::SendRenderDynamicData_Concurrent()
 {
 	Super::SendRenderDynamicData_Concurrent();
-	UpdateSceneData_Concurrent();
-}
-
-void UWindDirectionalSourceComponent::UpdateSceneData_Concurrent()
-{
-	FSceneInterface* Scene = GetWorld()->Scene;
-	Scene->RemoveWindSource(this);
-	Scene->AddWindSource(this);
+	GetWorld()->Scene->UpdateWindSource(this);  // UpdateWindSource does not access the WindComponents_GameThread array, and is therefore thread safe when iterating in parallel over components.
 }
 
 void UWindDirectionalSourceComponent::DestroyRenderState_Concurrent()
 {
 	Super::DestroyRenderState_Concurrent();
-	GetWorld()->Scene->RemoveWindSource(this);
+	GetWorld()->Scene->RemoveWindSource(this);  // RemoveWindSource accesses the WindComponents_GameThread array, so it might be concurrent friendly, but is not thread safe!
 }
 
 FWindSourceSceneProxy* UWindDirectionalSourceComponent::CreateSceneProxy() const
