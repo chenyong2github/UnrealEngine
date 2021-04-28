@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCacheSceneProxy.h"
+#include "Async/ParallelFor.h"
 #include "MaterialShared.h"
 #include "SceneManagement.h"
 #include "EngineGlobals.h"
