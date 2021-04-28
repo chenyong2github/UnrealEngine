@@ -657,39 +657,17 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 				return InstructionIndex;
 			}
 
-			TArray<URigVMNode*> NodesToCheck;
-			if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InModelNode))
+			FRigVMInstructionArray Instructions = InByteCode->GetInstructions();
+			for (int32 i = 0; i < Instructions.Num(); ++i)
 			{
-				NodesToCheck.Append(LibraryNode->GetContainedNodes());
-			}
-
-			if (InModelNode->IsA<URigVMFunctionReturnNode>() ||
-				InModelNode->IsA<URigVMRerouteNode>())
-			{
-				NodesToCheck.Append(InModelNode->GetLinkedSourceNodes());
-			}
-
-			if (InModelNode->IsA<URigVMFunctionEntryNode>() ||
-				InModelNode->IsA<URigVMRerouteNode>())
-			{
-				NodesToCheck.Append(InModelNode->GetLinkedTargetNodes());
-			}
-
-			int32 MinimumInstructionIndex = INDEX_NONE;
-			for (URigVMNode* NodeToCheck : NodesToCheck)
-			{
-				int32 ContainedInstructionIndex = GetInstructionIndex(NodeToCheck, InByteCode, Indices);
-				if (ContainedInstructionIndex != INDEX_NONE)
+				const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(InByteCode->GetCallPathForInstruction(i), InModelNode->GetRootGraph());
+				if (Proxy.GetCallstack().Contains(InModelNode))
 				{
-					if (ContainedInstructionIndex < MinimumInstructionIndex || MinimumInstructionIndex == INDEX_NONE)
-					{
-						MinimumInstructionIndex = ContainedInstructionIndex;
-					}
+					Indices.FindOrAdd(InModelNode) = i;
+					return i;
 				}
 			}
-
-			Indices.FindOrAdd(InModelNode) = MinimumInstructionIndex;
-			return MinimumInstructionIndex;
+			return INDEX_NONE;
 		}
 	};
 

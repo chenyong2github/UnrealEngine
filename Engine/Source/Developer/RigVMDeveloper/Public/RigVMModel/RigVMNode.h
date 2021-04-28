@@ -203,6 +203,11 @@ public:
 	// Returns the number of visited / run instructions for this node
 	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy(), bool bConsolidatePerNode = false) const; 
 
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	bool HasBreakpoint() const { return bHasBreakpoint; }
+
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	void SetHasBreakpoint(const bool bValue) { bHasBreakpoint = bValue; }
 private:
 
 	static const FString NodeColorName;
@@ -229,6 +234,9 @@ protected:
 
 	UPROPERTY(transient)
 	FName PreviousName;
+
+	UPROPERTY(transient)
+	bool bHasBreakpoint;
 
 private:
 

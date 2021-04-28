@@ -836,7 +836,7 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 
 void UControlRigBlueprint::ClearBreakpoints()
 {
-	Breakpoints.Empty();
+	RigVMBreakpointNodes.Empty();
 	RefreshControlRigBreakpoints();
 }
 
@@ -913,7 +913,7 @@ bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLib
 	}
 	else
 	{
-		if (!Breakpoints.Contains(InBreakpointNode))
+		if (!RigVMBreakpointNodes.Contains(InBreakpointNode))
 		{
 			// Add the breakpoint to the VM
 			bSuccess = AddBreakpointToControlRig(InBreakpointNode);
@@ -954,7 +954,7 @@ bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNod
 				if (!AddedCallpaths.Contains(BreakpointCallPath))
 				{
 					AddedCallpaths.Add(BreakpointCallPath);
-					CDO->AddBreakpoint(i);
+					CDO->AddBreakpoint(i, InBreakpointNode);
 				}
 			}
 		}
@@ -962,7 +962,7 @@ bool UControlRigBlueprint::AddBreakpointToControlRig(URigVMNode* InBreakpointNod
 
 	if (AddedCallpaths.Num() > 0)
 	{
-		Breakpoints.AddUnique(InBreakpointNode);
+		RigVMBreakpointNodes.AddUnique(InBreakpointNode);
 		return true;
 	}
 	
@@ -1000,9 +1000,9 @@ bool UControlRigBlueprint::RemoveBreakpoint(const FString& InBreakpointNodePath)
 
 bool UControlRigBlueprint::RemoveBreakpoint(URigVMNode* InBreakpointNode)
 {
-	if (Breakpoints.Contains(InBreakpointNode))
+	if (RigVMBreakpointNodes.Contains(InBreakpointNode))
 	{
-		Breakpoints.Remove(InBreakpointNode);
+		RigVMBreakpointNodes.Remove(InBreakpointNode);
 
 		// Multiple breakpoint nodes might set a breakpoint to the same instruction. When we remove
 		// one of the breakpoint nodes, we do not want to remove the instruction breakpoint if there
@@ -1022,7 +1022,7 @@ void UControlRigBlueprint::RefreshControlRigBreakpoints()
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(false));
 	CDO->GetDebugInfo().Clear();
-	for (URigVMNode* Node : Breakpoints)
+	for (URigVMNode* Node : RigVMBreakpointNodes)
 	{
 		AddBreakpointToControlRig(Node);
 	}

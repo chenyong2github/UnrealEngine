@@ -1050,6 +1050,27 @@ FReply SControlRigGraphNode::HandleAddArrayElement(URigVMPin* InItem)
 	return FReply::Handled();
 }
 
+/** Populate the brushes array with any overlay brushes to render */
+void SControlRigGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D WidgetSize, TArray<FOverlayBrushInfo>& Brushes) const
+{
+	UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode);
+
+	const URigVMNode* VMNode = RigGraphNode->GetModelNode();
+	const bool bHasBreakpoint = VMNode->HasBreakpoint();
+	if (bHasBreakpoint)
+	{
+		FOverlayBrushInfo BreakpointOverlayInfo;
+
+		BreakpointOverlayInfo.Brush = FEditorStyle::GetBrush(TEXT("Kismet.DebuggerOverlay.Breakpoint.EnabledAndValid"));
+		if (BreakpointOverlayInfo.Brush != NULL)
+		{
+			BreakpointOverlayInfo.OverlayOffset -= BreakpointOverlayInfo.Brush->ImageSize / 2.f;
+		}
+
+		Brushes.Add(BreakpointOverlayInfo);
+	}
+}
+
 void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const
 {
 	FKismetNodeInfoContext* K2Context = (FKismetNodeInfoContext*)Context;

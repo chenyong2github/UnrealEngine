@@ -503,7 +503,6 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			Execute(EControlRigState::Init, InEventName);
 			bJustRanInit = true;
 		}
-		
 	}
 
 	FRigUnitContext Context;
@@ -2398,17 +2397,14 @@ URigVM* UControlRig::GetSnapshotVM(bool bCreateIfNeeded)
 #endif
 }
 
-void UControlRig::AddBreakpoint(int32 InstructionIndex)
+void UControlRig::AddBreakpoint(int32 InstructionIndex, URigVMNode* InNode)
 {
-	// this makes sure that the snapshot exists
-	if(URigVM* SnapShotVM = GetSnapshotVM())
-	{
-		DebugInfo.AddBreakpoint(InstructionIndex);
-	}
+	DebugInfo.AddBreakpoint(InstructionIndex, InNode);
 }
 
 void UControlRig::ResumeExecution()
 {
+	// this makes sure that the snapshot exists
 	if(URigVM* SnapShotVM = GetSnapshotVM())
 	{
 		VM->CopyFrom(SnapShotVM, false, false, false, true, true);

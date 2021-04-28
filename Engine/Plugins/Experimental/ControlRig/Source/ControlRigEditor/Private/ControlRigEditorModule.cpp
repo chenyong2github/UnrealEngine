@@ -1893,6 +1893,42 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
+					
+					FToolMenuSection& DebugSection = Menu->AddSection("EdGraphSchemaDebug", LOCTEXT("DebugHeader", "Debug"));
+					URigVMNode* Node = RigNode->GetModelNode();
+					if (Node->HasBreakpoint())
+					{
+						
+						DebugSection.AddMenuEntry(
+                        "Remove Breakpoint",
+                        LOCTEXT("RemoveBreakpoint", "Remove Breakpoint"),
+                        LOCTEXT("RemoveBreakpoint_Tooltip", "Removes a breakpoint to the graph at this node"),
+                        FSlateIcon(),
+                        FUIAction(FExecuteAction::CreateLambda([Controller, Node, RigBlueprint]()
+                        {
+                            if (RigBlueprint->RemoveBreakpoint(Node))
+                            {
+                                Node->SetHasBreakpoint(false);
+                            }
+                        })));
+					}
+					else
+					{
+						DebugSection.AddMenuEntry(
+                        "Add Breakpoint",
+                        LOCTEXT("AddBreakpoint", "Add Breakpoint"),
+                        LOCTEXT("AddBreakpoint_Tooltip", "Adds a breakpoint to the graph at this node"),
+                        FSlateIcon(),
+                        FUIAction(FExecuteAction::CreateLambda([Controller, Node, RigBlueprint]()
+                        {
+                            if (RigBlueprint->AddBreakpoint(Node))
+                            {
+                                Node->SetHasBreakpoint(true);
+                            }
+                        })));
+					}
+					
+
 					FToolMenuSection& OrganizationSection = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
 					OrganizationSection.AddMenuEntry(
 						"Collapse Nodes",

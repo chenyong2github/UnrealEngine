@@ -548,6 +548,8 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 						}
 					}
 				}
+
+				InVM->ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
 			}
 		}
 	}
@@ -613,6 +615,15 @@ void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM*
 		{
 			OnControlRigInitializedHandle = ControlRig->OnInitialized_AnyThread().AddSP(this, &SControlRigStackView::HandleControlRigInitializedEvent);
 		}
+	}
+}
+
+void SControlRigStackView::HandleExecutionHalted(const int32 HaltedAtInstruction, URigVMNode* InNode)
+{	
+	if (HaltedAtInstruction != INDEX_NONE && Operators.Num() > HaltedAtInstruction)
+	{
+		TreeView->SetSelection(Operators[HaltedAtInstruction]);
+		TreeView->SetScrollOffset(FMath::Max(HaltedAtInstruction-5, 0));
 	}
 }
 

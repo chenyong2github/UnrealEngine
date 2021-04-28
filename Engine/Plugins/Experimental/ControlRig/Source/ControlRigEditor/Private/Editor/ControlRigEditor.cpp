@@ -429,6 +429,25 @@ void FControlRigEditor::BindCommands()
 		FControlRigBlueprintCommands::Get().InverseAndUpdateEvent,
 		FExecuteAction::CreateSP(this, &FControlRigEditor::SetEventQueue, EControlRigEditorEventQueue::InverseAndUpdate),
 		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().ResumeExecution,
+		FExecuteAction::CreateLambda([this]()
+        {
+            if (ControlRig)
+            {
+	            ControlRig->ResumeExecution();
+            }
+        }),			
+		FIsActionChecked::CreateLambda([this]()
+		{
+			if (ControlRig && ControlRig->GetVM())
+			{
+				return ControlRig->GetVM()->GetHaltedAtInstruction() != INDEX_NONE;
+			}
+			return false;
+	}));
+
 }
 
 void FControlRigEditor::ToggleExecuteGraph()
@@ -558,6 +577,11 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.AutoCompileGraph"));
 
 		ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, SharedThis(this)));
+
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ResumeExecution,
+			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ResumeExecution"));
+
 	}
 	ToolbarBuilder.EndSection();
 }
@@ -1320,6 +1344,10 @@ void FControlRigEditor::Compile()
 		{
 			ControlRig->OnInitialized_AnyThread().Clear();
 			ControlRig->OnExecuted_AnyThread().Clear();
+			if (ControlRig->GetVM())
+			{
+				ControlRig->GetVM()->ExecutionHalted().RemoveAll(this);
+			}
 		}
 
 		if (bSetupModeEnabled)
@@ -2115,6 +2143,28 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 	UpdateGraphCompilerErrors();
 }
 
+void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, URigVMNode* InNode)
+{
+	if (InNode == nullptr)
+	{
+		return;
+	}
+	
+	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+	{
+		if (Blueprint->GetAllModels().Contains(InNode->GetGraph()))
+		{
+			if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(Blueprint->GetEdGraph(InNode->GetGraph())))
+			{
+				if(UEdGraphNode* EdNode = EdGraph->FindNodeForModelNodeName(InNode->GetFName()))
+				{
+					JumpToHyperlink(EdNode, false);
+				}
+			}
+		}
+	}
+}
+
 void FControlRigEditor::CreateEditorModeManager()
 {
 	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
@@ -2835,6 +2885,11 @@ void FControlRigEditor::UpdateControlRig()
 			ControlRig->OnExecuted_AnyThread().AddSP(this, &FControlRigEditor::HandleControlRigExecutedEvent);
 			ControlRig->RequestInit();
 			ControlRig->ControlModified().AddSP(this, &FControlRigEditor::HandleOnControlModified);
+
+			if (ControlRig->GetVM())
+			{
+				ControlRig->GetVM()->ExecutionHalted().AddSP(this, &FControlRigEditor::HandleControlRigExecutionHalted);
+			}
 		}
 	}
 }

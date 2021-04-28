@@ -14,6 +14,7 @@ void FControlRigBlueprintCommands::RegisterCommands()
 	UI_COMMAND(UpdateEvent, "Forwards Solve", "Run the normal update graph", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(InverseEvent, "Backwards Solve", "Run the inverse graph", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(InverseAndUpdateEvent, "Backwards and Forwards", "Run the inverse graph followed by the update graph", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ResumeExecution, "Resume", "Resumes execution after being halted at a breakpoint.", EUserInterfaceActionType::Button, FInputChord(EKeys::F5));
 }
 
 #undef LOCTEXT_NAMESPACE

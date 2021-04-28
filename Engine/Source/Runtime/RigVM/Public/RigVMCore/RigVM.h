@@ -124,7 +124,7 @@ public:
 	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
 	DECLARE_EVENT(URigVM, FExecutionReachedExitEvent);
 #if WITH_EDITOR
-	DECLARE_EVENT_OneParam(URigVM, FExecutionHaltedEvent, int32);
+	DECLARE_EVENT_TwoParams(URigVM, FExecutionHaltedEvent, int32, URigVMNode*);
 #endif
 
 	URigVM();

@@ -5,20 +5,29 @@
 #include "CoreMinimal.h"
 #include "RigVMDebugInfo.generated.h"
 
+class URigVMNode;
 
 USTRUCT()
 struct RIGVM_API FRigVMBreakpoint
 {
 	GENERATED_BODY()
+
+	FRigVMBreakpoint()
+	: bIsActive(true)
+	, Subject(nullptr)
+	{
+
+	}
 	
-	FORCEINLINE FRigVMBreakpoint()
-	: bIsActive(true), bIsTemporary(false) 
+	FRigVMBreakpoint(URigVMNode* InNode)
+	: bIsActive(true)
+	, Subject(InNode)
 	{
 
 	}
 
 	bool bIsActive;
-	bool bIsTemporary;
+	URigVMNode* Subject;
 };
 
 USTRUCT()
@@ -52,11 +61,11 @@ struct RIGVM_API FRigVMDebugInfo
 		return Breakpoints.Find(InstructionIndex);
 	}
 	
-	FRigVMBreakpoint* AddBreakpoint(const uint16 InstructionIndex)
+	FRigVMBreakpoint* AddBreakpoint(const uint16 InstructionIndex, URigVMNode* InNode)
 	{
 		if (!Breakpoints.Contains(InstructionIndex))
 		{
-			if (FRigVMBreakpoint* NewBP = &Breakpoints.Add(InstructionIndex))
+			if (FRigVMBreakpoint* NewBP = &Breakpoints.Add(InstructionIndex, InNode))
 			{
 				// Do not override the state if it already exists
 				BreakpointActivationOnHit.FindOrAdd(InstructionIndex, 0);

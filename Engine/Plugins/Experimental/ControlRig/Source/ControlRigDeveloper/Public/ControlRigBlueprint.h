@@ -535,7 +535,7 @@ private:
 
 #if WITH_EDITOR
 private:
-	TArray<URigVMNode*> Breakpoints;
+	TArray<URigVMNode*> RigVMBreakpointNodes;
 
 public:
 

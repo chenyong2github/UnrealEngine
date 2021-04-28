@@ -97,6 +97,9 @@ private:
 
 	void OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM* InCompiledVM);
 
+	//* Focus on the instruction when the execution is halted */
+	void HandleExecutionHalted(const int32 HaltedAtInstruction, URigVMNode* InNode);
+
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
 	FText FilterText;

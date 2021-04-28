@@ -42,6 +42,9 @@ public:
 	/** Run the inverse graph followed by the update graph */
 	TSharedPtr< FUICommandInfo > InverseAndUpdateEvent;
 
+	/** Resume the execution of the graph when halted at a breakpoint */
+	TSharedPtr< FUICommandInfo > ResumeExecution;
+
 	/**
 	 * Initialize commands
 	 */

@@ -775,8 +775,11 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 			{
 				if (DebugInfo->IsActive(Context.InstructionIndex))
 				{
-					HaltedAtInstruction = Context.InstructionIndex;
-					ExecutionHalted().Broadcast(Context.InstructionIndex);
+					if (HaltedAtInstruction != Context.InstructionIndex)
+					{
+						HaltedAtInstruction = Context.InstructionIndex;
+						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
+					}
 					return true;
 				}
 				else
@@ -1008,6 +1011,14 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 		Context.InstructionIndex++;
 	}
 
+#if WITH_EDITOR
+	if (HaltedAtInstruction != INDEX_NONE)
+	{
+		HaltedAtInstruction = INDEX_NONE;
+		ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
+	}
+#endif
+	
 	return true;
 }
 
@@ -1070,7 +1081,6 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 	if (DebugInfo)
 	{
 		DebugInfo->StartExecution();
-		HaltedAtInstruction = INDEX_NONE;
 	}
 #endif
 
@@ -1083,8 +1093,11 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			{
 				if (DebugInfo->IsActive(Context.InstructionIndex))
 				{
-					HaltedAtInstruction = Context.InstructionIndex;
-					ExecutionHalted().Broadcast(Context.InstructionIndex);
+					if (HaltedAtInstruction != Context.InstructionIndex)
+					{
+						HaltedAtInstruction = Context.InstructionIndex;
+						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
+					}
 					return true;
 				}
 				else
@@ -1434,6 +1447,13 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			case ERigVMOpCode::Exit:
 			{
 				ExecutionReachedExit().Broadcast();
+#if WITH_EDITOR					
+				if (HaltedAtInstruction != INDEX_NONE)
+				{
+					HaltedAtInstruction = INDEX_NONE;
+					ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
+				}
+#endif
 				return true;
 			}
 			case ERigVMOpCode::BeginBlock:
@@ -1457,6 +1477,14 @@ bool URigVM::Execute(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<void
 			}
 		}
 	}
+
+#if WITH_EDITOR
+	if (HaltedAtInstruction != INDEX_NONE)
+	{
+		HaltedAtInstruction = INDEX_NONE;
+		ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
+	}
+#endif
 
 	return true;
 }
