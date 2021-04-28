@@ -269,7 +269,7 @@ public:
 
 protected:
 	friend class FSkeletalMeshAttributes;
-	friend class FSkeletalMeshConstAttributes;
+	friend class FSkeletalMeshAttributesShared;
 
 	FSkinWeightsVertexAttributesConstRef(TVertexAttributesRef<TArrayAttribute<int32>> InAttributesConstRef)
         : AttributesConstRef(InAttributesConstRef)

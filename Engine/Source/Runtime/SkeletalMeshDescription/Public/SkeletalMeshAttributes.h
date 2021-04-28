@@ -17,24 +17,15 @@ namespace MeshAttribute
 }
 
 
-
-class SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributes : public FStaticMeshAttributes
+class SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributesShared
 {
 public:
-
-	explicit FSkeletalMeshAttributes(FMeshDescription& InMeshDescription)
-		: FStaticMeshAttributes(InMeshDescription)
-	{}
-
 	// The name of the default skin weight profile.
 	static FName DefaultSkinWeightProfileName;
 	
-	virtual void Register() override;
-
-	/// Register a new skin weight profile with the given name. The attribute name will encode the profile name and
-	/// it will be listed in GetSkinWeightProfileNames(). Returns \c true if the profile was successfully registered.
-	/// Returns \c false if the attribute was already registered or if IsValidSkinWeightProfileName() returned false.
-	bool RegisterSkinWeightAttribute(const FName InProfileName);
+	FSkeletalMeshAttributesShared(const FMeshDescription& InMeshDescription) :
+		MeshDescriptionShared(InMeshDescription)
+	{}
 
 	/// Returns the list of all registered skin weight profile names on this mesh.
 	TArray<FName> GetSkinWeightProfileNames() const;
@@ -43,36 +34,85 @@ public:
 	/// then the profile name is considered invalid. 
 	static bool IsValidSkinWeightProfileName(const FName InProfileName);
 
+	/// Helper function that indicates whether an attribute name represents a skin weight attribute.
+	static bool IsSkinWeightAttribute(const FName InAttributeName);
+
+	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName InProfileName = NAME_None) const
+	{
+		return MeshDescriptionShared.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(CreateSkinWeightAttributeName(InProfileName));
+	}
+	
+	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeightsFromAttributeName(const FName InAttributeName = NAME_None) const
+	{
+		if (IsSkinWeightAttribute(InAttributeName))
+	{
+			return MeshDescriptionShared.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(InAttributeName);
+	}
+		else
+	{
+			return {};
+		}
+	}
+
+protected:
+	/// Construct a name for a skin weight attribute with the given skin weight profile name.
+	/// Each mesh description can hold different skin weight profiles, although the default
+	/// is always present.
+	static FName CreateSkinWeightAttributeName(const FName InProfileName);
+
+private:
+	const FMeshDescription& MeshDescriptionShared;
+};
+
+
+class SKELETALMESHDESCRIPTION_API FSkeletalMeshAttributes :
+	public FStaticMeshAttributes,
+	public FSkeletalMeshAttributesShared
+{
+public:
+
+	explicit FSkeletalMeshAttributes(FMeshDescription& InMeshDescription) :
+		FStaticMeshAttributes(InMeshDescription),
+		FSkeletalMeshAttributesShared(InMeshDescription)
+	{}
+
+	virtual void Register() override;
+
+	/// Register a new skin weight profile with the given name. The attribute name will encode the profile name and
+	/// it will be listed in GetSkinWeightProfileNames(). Returns \c true if the profile was successfully registered.
+	/// Returns \c false if the attribute was already registered or if IsValidSkinWeightProfileName() returned false.
+	bool RegisterSkinWeightAttribute(const FName InProfileName);
+
 	/// Returns the skin weight profile given by its name. NAME_None corresponds to the default profile.
 	FSkinWeightsVertexAttributesRef GetVertexSkinWeights(const FName InProfileName = NAME_None)
 	{
 		return MeshDescription.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(CreateSkinWeightAttributeName(InProfileName));
 	}
-	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName InProfileName = NAME_None) const
+
+	FSkinWeightsVertexAttributesRef GetVertexSkinWeightsFromAttributeName(const FName InAttributeName = NAME_None)
 	{
-		return MeshDescription.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(CreateSkinWeightAttributeName(InProfileName));
+		if (IsSkinWeightAttribute(InAttributeName))
+		{
+			return MeshDescription.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(InAttributeName);
+		}
+		else
+	{
+			return {};
+		}
 	}
 
-protected:
-	friend class FSkeletalMeshConstAttributes;
-
-	/// Construct a name for a skin weight attribute with the given skin weight profile name.
-	/// Each mesh description can hold different skin weight profiles, although the default
-	/// is always present.
-	static FName CreateSkinWeightAttributeName(const FName InProfileName);
 };
 
 
-class FSkeletalMeshConstAttributes : public FStaticMeshConstAttributes
+class FSkeletalMeshConstAttributes :
+	public FStaticMeshConstAttributes,
+	public FSkeletalMeshAttributesShared
 {
 public:
 
-	explicit FSkeletalMeshConstAttributes(const FMeshDescription& InMeshDescription)
-		: FStaticMeshConstAttributes(InMeshDescription)
+	explicit FSkeletalMeshConstAttributes(const FMeshDescription& InMeshDescription) :
+		FStaticMeshConstAttributes(InMeshDescription),
+		FSkeletalMeshAttributesShared(InMeshDescription)
 	{}
 
-	FSkinWeightsVertexAttributesConstRef GetVertexSkinWeights(const FName InProfileName = NAME_None) const
-	{
-		return MeshDescription.VertexAttributes().GetAttributesRef<TArrayAttribute<int32>>(FSkeletalMeshAttributes::CreateSkinWeightAttributeName(InProfileName));
-	}
 };

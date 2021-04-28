@@ -8,14 +8,13 @@ namespace MeshAttribute
 }
 
 
-FName FSkeletalMeshAttributes::DefaultSkinWeightProfileName("Default");
+FName FSkeletalMeshAttributesShared::DefaultSkinWeightProfileName("Default");
 
 
 static FString SkinWeightAttributeNamePrefix()
 {
 	return MeshAttribute::Vertex::SkinWeights.ToString() + TEXT("-");
 }
-
 
 void FSkeletalMeshAttributes::Register()
 {
@@ -50,10 +49,10 @@ bool FSkeletalMeshAttributes::RegisterSkinWeightAttribute(const FName InProfileN
 	}	
 }
 
-TArray<FName> FSkeletalMeshAttributes::GetSkinWeightProfileNames() const
+TArray<FName> FSkeletalMeshAttributesShared::GetSkinWeightProfileNames() const
 {
 	TArray<FName> AllAttributeNames;
-	MeshDescription.VertexAttributes().GetAttributeNames(AllAttributeNames);
+	MeshDescriptionShared.VertexAttributes().GetAttributeNames(AllAttributeNames);
 
 	TArray<FName> SkinWeightProfileNames;
 	const FString Prefix = SkinWeightAttributeNamePrefix();
@@ -82,15 +81,21 @@ TArray<FName> FSkeletalMeshAttributes::GetSkinWeightProfileNames() const
 	return SkinWeightProfileNames;
 }
 
-bool FSkeletalMeshAttributes::IsValidSkinWeightProfileName(const FName InProfileName)
+bool FSkeletalMeshAttributesShared::IsValidSkinWeightProfileName(const FName InProfileName)
 {
 	return !InProfileName.IsNone() && !InProfileName.IsEqual(DefaultSkinWeightProfileName, ENameCase::IgnoreCase);
 }
 
-FName FSkeletalMeshAttributes::CreateSkinWeightAttributeName(const FName InProfileName)
+bool FSkeletalMeshAttributesShared::IsSkinWeightAttribute(const FName InAttributeName)
+{
+	return InAttributeName == MeshAttribute::Vertex::SkinWeights ||
+		   InAttributeName.ToString().StartsWith(SkinWeightAttributeNamePrefix());
+}
+
+FName FSkeletalMeshAttributesShared::CreateSkinWeightAttributeName(const FName InProfileName)
 {
 	// If it's the default profile, then return the base skin weights attribute name.
-	if (InProfileName.IsNone() || InProfileName.IsEqual(DefaultSkinWeightProfileName, ENameCase::IgnoreCase))
+	if (InProfileName.IsNone() || InProfileName.IsEqual(FSkeletalMeshAttributesShared::DefaultSkinWeightProfileName, ENameCase::IgnoreCase))
 	{
 		return MeshAttribute::Vertex::SkinWeights;
 	}	
