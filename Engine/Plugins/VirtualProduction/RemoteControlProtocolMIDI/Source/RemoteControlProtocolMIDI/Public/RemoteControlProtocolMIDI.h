@@ -1,0 +1,165 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "RemoteControlProtocol.h"
+#include "RemoteControlProtocolBinding.h"
+
+#include "UObject/StrongObjectPtr.h"
+
+#include "RemoteControlProtocolMIDI.generated.h"
+
+struct FFoundMIDIDevice;
+class UMIDIDeviceInputController;
+
+/**
+ * MIDI protocol device selector type
+ */
+UENUM()
+enum class ERemoteControlMIDIDeviceSelector
+{
+	ProjectSettings = 0		UMETA(DisplayName = "Use Project Settings", ToolTip = "Uses the Default MIDI Device specified in Project Settings."),
+	DeviceName = 1			UMETA(DisplayName = "Device Name", ToolTip = "User-specified device name."),
+	DeviceId = 2			UMETA(DisplayName = "Device Id", ToolTip = "User-specified device id.")
+};
+
+/**
+ * MIDI protocol device identifier
+ */
+USTRUCT()
+struct REMOTECONTROLPROTOCOLMIDI_API FRemoteControlMIDIDevice
+{
+	GENERATED_BODY()
+
+public:
+	/** Default constructor */
+	FRemoteControlMIDIDevice() = default;
+
+	/** Construct for the given DeviceId and DeviceName */
+	FRemoteControlMIDIDevice(const int32 DeviceId, const FName& DeviceName)
+        : DeviceSelector(ERemoteControlMIDIDeviceSelector::ProjectSettings)
+		, ResolvedDeviceId(DeviceId)
+        , DeviceName(DeviceName)
+	{
+	}
+
+	/** Midi Device Selector */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	ERemoteControlMIDIDeviceSelector DeviceSelector;
+	
+	/** Midi Resolved Device Id. Distinct from the user specified Device Id. */
+	UPROPERTY(VisibleAnywhere, Category = Mapping, meta = (ClampMin = 0, UIMin = 0))
+	int32 ResolvedDeviceId = -1;
+
+	/** Midi Device Name. If specified, takes priority over DeviceId. */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	FName DeviceName = NAME_None;
+
+	/** User-specified Midi Device Id */
+	UPROPERTY(EditAnywhere, Category = Mapping, meta = (ClampMin = 0, UIMin = 0))
+	int32 DeviceId = 1;
+
+	/** If device available for use. */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	bool bDeviceIsAvailable = false;
+
+	/** Resolves the actual Midi Device Id given the FRemoteControlMIDIDevice configuration. Returns INDEX_NONE if device not found or invalid. */
+	int32 ResolveDeviceId(const TArray<FFoundMIDIDevice>& InFoundDevices);
+
+	/** Sets DeviceId and DeviceName, disables bUseProjectSettings and bUseUserDeviceId. */
+	void SetDevice(const int32 InDeviceId, const FName& InDeviceName);
+
+	/** Sets bUseProjectSettings = true, clears bUseUserDeviceId. */
+	void SetUseProjectSettings();
+
+	/** Sets bUseUserDeviceId = true, clears bUseProjectSettings. */
+	void SetUserDeviceId();
+
+	/** Creates a formatted string to display in the combobox */
+	FText ToDisplayName() const;
+};
+
+/** FRemoteControlMIDIDevice equality, depending on what properties are specified Comparison  */
+inline uint64 GetTypeHash(const FRemoteControlMIDIDevice& InValue)
+{
+	uint64 BaseHash;
+	switch (InValue.DeviceSelector)
+	{
+		default:
+		case ERemoteControlMIDIDeviceSelector::ProjectSettings:
+			BaseHash = GetTypeHash(InValue.ResolvedDeviceId);
+			break;
+		
+		case ERemoteControlMIDIDeviceSelector::DeviceName:
+			BaseHash = GetTypeHash(InValue.DeviceName);
+			break;
+
+		case ERemoteControlMIDIDeviceSelector::DeviceId:
+			BaseHash = GetTypeHash(InValue.DeviceId);
+			break;
+	}
+	return HashCombine(BaseHash, GetTypeHash(InValue.DeviceSelector));
+}
+
+inline bool operator==(const FRemoteControlMIDIDevice& Lhs, const FRemoteControlMIDIDevice& Rhs) { return GetTypeHash(Lhs) == GetTypeHash(Rhs); }
+inline bool operator!=(const FRemoteControlMIDIDevice& Lhs, const FRemoteControlMIDIDevice& Rhs) { return GetTypeHash(Lhs) != GetTypeHash(Rhs); }
+
+/**
+ * MIDI protocol entity for remote control binding
+ */
+USTRUCT()
+struct FRemoteControlMIDIProtocolEntity : public FRemoteControlProtocolEntity
+{
+	GENERATED_BODY()
+
+public:
+	//~ Begin FRemoteControlProtocolEntity interface
+	virtual FName GetRangePropertyName() const override { return NAME_ByteProperty; }
+	//~ End FRemoteControlProtocolEntity interface
+
+public:
+	/** Midi Device */
+	UPROPERTY(EditAnywhere, Category = Mapping, AdvancedDisplay)
+	FRemoteControlMIDIDevice Device;
+
+	/** Midi Event type */
+	// @todo: EMIDIEventType
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	int32 EventType = 11;
+
+	/** Midi button event message data id for binding */
+	UPROPERTY(EditAnywhere, Category = Mapping, meta = (DisplayName = "Mapped channel Id"))
+	int32 MessageData1 = 0;
+
+	/** Midi device channel */
+	UPROPERTY(EditAnywhere, Category = Mapping)
+	int32 Channel = 1;
+
+	/** Midi range input property template, used for binding. */
+	UPROPERTY(Transient, meta = (ClampMin = 0, ClampMax = 127))
+	uint8 RangeInputTemplate = 0;
+};
+
+/**
+ * MIDI protocol implementation for Remote Control
+ */
+class FRemoteControlProtocolMIDI : public FRemoteControlProtocol
+{
+public:
+	//~ Begin IRemoteControlProtocol interface
+	virtual void Bind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
+	virtual void Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr) override;
+	virtual void UnbindAll() override;
+	virtual UScriptStruct* GetProtocolScriptStruct() const override { return FRemoteControlMIDIProtocolEntity::StaticStruct(); }
+	//~ End IRemoteControlProtocol interface
+
+private:
+	/** On receive MIDI buffer callback */
+	void OnReceiveEvent(UMIDIDeviceInputController* MIDIDeviceController, int32 Timestamp, int32 Type, int32 Channel, int32 MessageData1, int32 MessageData2);
+
+	/** Binding for the MIDI protocol */
+	TMap< UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr> > > MIDIDeviceBindings;
+
+	/** MIDI devices */
+	TMap<int32, TStrongObjectPtr<UMIDIDeviceInputController>> MIDIDevices;
+};
