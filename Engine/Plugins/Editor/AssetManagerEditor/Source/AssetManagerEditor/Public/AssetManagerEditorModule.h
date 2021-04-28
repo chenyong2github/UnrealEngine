@@ -62,9 +62,13 @@ struct ASSETMANAGEREDITOR_API FAssetManagerEditorRegistrySource
 	/** Target platform for this state, may be null */
 	ITargetPlatform* TargetPlatform;
 
-	/** Raw asset registry state, if bIsEditor is true this points to the real editor asset registry */
-	const FAssetRegistryState* RegistryState;
+private:
+	/** Raw asset registry state, only valid if bIsEditor is false */
+	const FAssetRegistryState* RegistryStatePrivate;
+	/** Pointer to the real AssetRegistry, only valid if bIsEditor is true */
+	const IAssetRegistry* AssetRegistryPrivate;
 
+public:
 	/** If true, this is the editor  */
 	uint8 bIsEditor : 1;
 
@@ -82,7 +86,8 @@ struct ASSETMANAGEREDITOR_API FAssetManagerEditorRegistrySource
 
 	FAssetManagerEditorRegistrySource()
 		: TargetPlatform(nullptr)
-		, RegistryState(nullptr)
+		, RegistryStatePrivate(nullptr)
+		, AssetRegistryPrivate(nullptr)
 		, bIsEditor(false)
 		, bManagementDataInitialized(false)
 	{
@@ -90,11 +95,173 @@ struct ASSETMANAGEREDITOR_API FAssetManagerEditorRegistrySource
 
 	~FAssetManagerEditorRegistrySource()
 	{
-		if (RegistryState && !bIsEditor)
+		ClearRegistry();
+	}
+
+	// We delete the copy constructor because it's not clear whether we should copy RegistryStatePrivate
+	FAssetManagerEditorRegistrySource(const FAssetManagerEditorRegistrySource& Other) = delete;
+	FAssetManagerEditorRegistrySource& operator=(const FAssetManagerEditorRegistrySource& Other) = delete;
+
+	FAssetManagerEditorRegistrySource& operator=(FAssetManagerEditorRegistrySource&& Other)
+	{
+		SourceName = MoveTemp(Other.SourceName);
+		SourceFilename = MoveTemp(Other.SourceFilename);
+		TargetPlatform = MoveTemp(Other.TargetPlatform);
+		bManagementDataInitialized = Other.bManagementDataInitialized;
+		Other.bManagementDataInitialized = false;
+		ChunkAssignments = MoveTemp(Other.ChunkAssignments);
+
+		if (Other.bIsEditor)
 		{
-			delete RegistryState;
+			SetUseEditorAssetRegistry(Other.AssetRegistryPrivate);
+		}
+		else
+		{
+			SetRegistryState(Other.RegistryStatePrivate);
+		}
+		// Remove the Other's RegistryState without deleting it
+		Other.RegistryStatePrivate = nullptr;
+		Other.AssetRegistryPrivate = nullptr;
+		Other.bIsEditor = false;
+
+		return *this;
+	}
+
+	FAssetManagerEditorRegistrySource(FAssetManagerEditorRegistrySource&& Other)
+		:FAssetManagerEditorRegistrySource()
+	{
+		*this = MoveTemp(Other);
+	}
+
+	/** Returns the RegistryState owned by this. Will be null if this does not have a Registry or is using the global editor Registry */
+	const FAssetRegistryState* GetOwnedRegistryState() const
+	{
+		if (!bIsEditor)
+		{
+			return RegistryStatePrivate; // May be null
+		}
+		return nullptr;
+	}
+
+	/**
+	 * Set the RegistryState viewed by this FAssetManagerEditorRegistrySource to a dynamically allocated FAssetRegistryState
+	 * FAssetManagerEditorRegistrySource takes ownership of the given AssetRegistry and deletes it is when cleared.
+	 * Do not call with  AssetRegistry->GetAssetRegistryState; use SetUseEditorAssetRegistry(AssetRegistry) instead.
+	 */
+	void SetRegistryState(const FAssetRegistryState* InRegistryState)
+	{
+		ClearRegistry();
+
+		if (InRegistryState)
+		{
+			bIsEditor = false;
+			RegistryStatePrivate = InRegistryState;
 		}
 	}
+
+	/**
+	 * Set the RegistryState viewed by this FAssetManagerEditorRegistrySource to the FAssetRegistryState owned by the given
+	 * global AssetRegistry.
+	 */
+	void SetUseEditorAssetRegistry(const IAssetRegistry* AssetRegistry)
+	{
+		ClearRegistry();
+
+		if (AssetRegistry)
+		{
+			bIsEditor = true;
+			AssetRegistryPrivate = AssetRegistry;
+		}
+	}
+
+	bool HasRegistry() const
+	{
+		return bIsEditor || RegistryStatePrivate != nullptr;
+	}
+
+	void ClearRegistry()
+	{
+		if (!bIsEditor)
+		{
+			delete RegistryStatePrivate; // May be null
+		}
+		bIsEditor = false;
+		RegistryStatePrivate = nullptr;
+		AssetRegistryPrivate = nullptr;
+	}
+
+	// Functions to forward on to the RegistryState, either the owned one or the editor's global State.
+
+	FAssetData GetAssetByObjectPath(FName ObjectPath) const
+	{
+		if (bIsEditor)
+		{
+			return AssetRegistryPrivate->GetAssetByObjectPath(ObjectPath, true /* bIncludeOnlyOnDiskAssets */);
+		}
+		else if (RegistryStatePrivate)
+		{
+			const FAssetData* AssetData = RegistryStatePrivate->GetAssetByObjectPath(ObjectPath);
+			return AssetData ? *AssetData : FAssetData();
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies,
+		UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All,
+		const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const
+	{
+		if (bIsEditor)
+		{
+			return AssetRegistryPrivate->GetDependencies(AssetIdentifier, OutDependencies, Category, Flags);
+		}
+		else if (RegistryStatePrivate)
+		{
+			return RegistryStatePrivate->GetDependencies(AssetIdentifier, OutDependencies, Category, Flags);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool GetReferencers(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutReferencers,
+		UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::All,
+		const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const
+	{
+		if (bIsEditor)
+		{
+			return AssetRegistryPrivate->GetReferencers(AssetIdentifier, OutReferencers, Category, Flags);
+		}
+		else if (RegistryStatePrivate)
+		{
+			return RegistryStatePrivate->GetReferencers(AssetIdentifier, OutReferencers, Category, Flags);
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	TOptional<FAssetPackageData> GetAssetPackageDataCopy(FName PackageName) const
+	{
+		if (bIsEditor)
+		{
+			return AssetRegistryPrivate->GetAssetPackageDataCopy(PackageName);
+		}
+		else if (RegistryStatePrivate)
+		{
+			const FAssetPackageData* DataPtr = RegistryStatePrivate->GetAssetPackageData(PackageName);
+			return DataPtr ? TOptional<FAssetPackageData>(*DataPtr) : TOptional<FAssetPackageData>();
+		}
+		else
+		{
+			return TOptional<FAssetPackageData>();
+		}
+	}
+
 };
 
 /**

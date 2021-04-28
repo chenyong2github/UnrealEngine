@@ -1213,11 +1213,11 @@ bool UAssetManager::GetPrimaryAssetData(const FPrimaryAssetId& PrimaryAssetId, F
 
 	if (NameData)
 	{
-		const FAssetData* CachedAssetData = GetAssetRegistry().GetCachedAssetDataForObjectPath(NameData->AssetDataPath);
+		FAssetData CachedAssetData = GetAssetRegistry().GetAssetByObjectPath(NameData->AssetDataPath, true /* bIncludeOnlyOnDiskAssets */);
 
-		if (CachedAssetData && CachedAssetData->IsValid())
+		if (CachedAssetData.IsValid())
 		{
-			AssetData = *CachedAssetData;
+			AssetData = MoveTemp(CachedAssetData);
 			return true;
 		}
 	}
@@ -1236,12 +1236,12 @@ bool UAssetManager::GetPrimaryAssetDataList(FPrimaryAssetType PrimaryAssetType, 
 
 		for (const TPair<FName, FPrimaryAssetData>& Pair : TypeData.AssetMap)
 		{
-			const FAssetData* CachedAssetData = Registry.GetCachedAssetDataForObjectPath(Pair.Value.AssetDataPath);
+			FAssetData CachedAssetData = Registry.GetAssetByObjectPath(Pair.Value.AssetDataPath, true /* bIncludeOnlyOnDiskAssets */);
 
-			if (CachedAssetData && CachedAssetData->IsValid())
+			if (CachedAssetData.IsValid())
 			{
 				bAdded = true;
-				AssetDataList.Add(*CachedAssetData);
+				AssetDataList.Add(MoveTemp(CachedAssetData));
 			}
 		}
 	}

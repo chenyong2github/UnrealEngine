@@ -5795,7 +5795,7 @@ void DumpAssetRegistryForCooker(IAssetRegistry* AssetRegistry)
 	PlatformFile.CreateDirectoryTree(*DumpDir);
 	TArray<FString> Pages;
 	TArray<FString> Arguments({ TEXT("ObjectPath"),TEXT("PackageName"),TEXT("Path"),TEXT("Class"),TEXT("Tag"), TEXT("DependencyDetails"), TEXT("PackageData"), TEXT("LegacyDependencies") });
-	AssetRegistry->GetAssetRegistryState()->Dump(Arguments, Pages, 10000 /* LinesPerPage */);
+	AssetRegistry->DumpState(Arguments, Pages, 10000 /* LinesPerPage */);
 	int PageIndex = 0;
 	TStringBuilder<256> FileName;
 	for (FString& PageText : Pages)

@@ -5,6 +5,7 @@
 #include "IAssetRegistry.h"
 #include "AssetRegistryState.h"
 #include "AssetRegistryModule.h"
+#include "Containers/StringView.h"
 
 #if WITH_EDITOR
 #include "ICollectionManager.h"
@@ -322,11 +323,8 @@ bool UAssetTagsSubsystem::CollectionExists(const FName Name)
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
-		if (const FAssetRegistryState* StatePtr = AssetRegistry.GetAssetRegistryState())
-		{
-			const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *Name.ToString());
-			bExists = StatePtr->GetTagToAssetDatasMap().Contains(*TagNameStr);
-		}
+		const FString TagNameStr = FString::Printf(TEXT("%s%s"), FAssetData::GetCollectionTagPrefix(), *Name.ToString());
+		bExists = AssetRegistry.ContainsTag(*TagNameStr);
 	}
 #endif	// WITH_EDITOR
 
@@ -354,21 +352,19 @@ TArray<FName> UAssetTagsSubsystem::GetCollections()
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
-		if (const FAssetRegistryState* StatePtr = AssetRegistry.GetAssetRegistryState())
-		{
-			const TCHAR* CollectionTagPrefix = FAssetData::GetCollectionTagPrefix();
-			const int32 CollectionTagPrefixLen = FCString::Strlen(CollectionTagPrefix);
+		FStringView CollectionTagPrefix(FAssetData::GetCollectionTagPrefix());
 
-			for (const auto& TagAndArrayPair : StatePtr->GetTagToAssetDatasMap())
+		FString TagNameStr;
+		AssetRegistry.ReadLockEnumerateTagToAssetDatas(
+			[&TagNameStr, &CollectionTagPrefix, &CollectionNames](FName TagName, const TArray<const FAssetData*>& Assets)
 			{
-				const FString TagNameStr = TagAndArrayPair.Key.ToString();
-				if (TagNameStr.StartsWith(CollectionTagPrefix))
+				TagName.ToString(TagNameStr);
+				if (FStringView(TagNameStr).StartsWith(CollectionTagPrefix, ESearchCase::IgnoreCase))
 				{
-					const FString TrimmedTagNameStr = TagNameStr.Mid(CollectionTagPrefixLen);
+					const FString TrimmedTagNameStr = TagNameStr.Mid(CollectionTagPrefix.Len());
 					CollectionNames.Add(*TrimmedTagNameStr);
 				}
-			}
-		}
+			});
 	}
 #endif	// WITH_EDITOR
 

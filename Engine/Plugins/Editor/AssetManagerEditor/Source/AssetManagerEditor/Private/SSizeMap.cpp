@@ -397,8 +397,7 @@ namespace SizeMapInternals
 
 void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& InAssetThumbnailPool, TMap<FAssetIdentifier, TSharedPtr<FTreeMapNodeData>>& VisitedAssetIdentifiers, const TArray<FAssetIdentifier>& AssetIdentifiers, const FPrimaryAssetId& FilterPrimaryAsset, const TSharedPtr<FTreeMapNodeData>& Node, TSharedPtr<FTreeMapNodeData>& SharedRootNode, int32& NumAssetsWhichFailedToLoad)
 {
-	const FAssetRegistryState* CurrentPlatformState = CurrentRegistrySource && CurrentRegistrySource->RegistryState ? CurrentRegistrySource->RegistryState : nullptr;
-	if (!CurrentPlatformState)
+	if (!CurrentRegistrySource->HasRegistry())
 	{
 		return;
 	}
@@ -512,11 +511,11 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 				NodeSizeMapData.AssetData.AssetClass = FName(*LOCTEXT("MissingAsset", "MISSING!").ToString());
 
 				const FString AssetPathString = AssetPackageNameString + TEXT(".") + FPackageName::GetLongPackageAssetName(AssetPackageNameString);
-				const FAssetData* FoundPointer = CurrentPlatformState->GetAssetByObjectPath(FName(*AssetPathString));
+				FAssetData FoundData = CurrentRegistrySource->GetAssetByObjectPath(FName(*AssetPathString));
 
-				if (FoundPointer)
+				if (FoundData.IsValid())
 				{
-					NodeSizeMapData.AssetData = *FoundPointer;
+					NodeSizeMapData.AssetData = MoveTemp(FoundData);
 				}
 			}
 			else
@@ -554,7 +553,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 				}
 				else
 				{
-					CurrentPlatformState->GetDependencies(AssetIdentifier, References, DependencyQuery.Categories, DependencyQuery.Flags);
+					CurrentRegistrySource->GetDependencies(AssetIdentifier, References, DependencyQuery.Categories, DependencyQuery.Flags);
 				}
 				
 				// Filter for registry source
@@ -582,7 +581,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 							{
 								// Check to see if this is managed by the filter asset
 								TArray<FAssetIdentifier> Managers;
-								CurrentPlatformState->GetReferencers(FoundAssetIdentifier, Managers, UE::AssetRegistry::EDependencyCategory::Manage);
+								CurrentRegistrySource->GetReferencers(FoundAssetIdentifier, Managers, UE::AssetRegistry::EDependencyCategory::Manage);
 
 								if (!Managers.Contains(FilterPrimaryAsset))
 								{

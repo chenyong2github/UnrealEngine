@@ -1100,7 +1100,7 @@ bool GetDiskSizeItemAttribute(const FAssetData& InAssetData, IAssetRegistry* InA
 	check(InAssetData.IsValid());
 	check(InAssetRegistry);
 
-	if (const FAssetPackageData* PackageData = InAssetRegistry->GetAssetPackageData(InAssetData.PackageName))
+	if (TOptional<FAssetPackageData> PackageData = InAssetRegistry->GetAssetPackageDataCopy(InAssetData.PackageName))
 	{
 		OutAttributeValue.SetValue(PackageData->DiskSize);
 

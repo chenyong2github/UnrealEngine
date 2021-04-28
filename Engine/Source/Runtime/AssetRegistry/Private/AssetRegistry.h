@@ -2,23 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistry/AssetRegistryState.h"
-#include "Containers/RingBuffer.h"
-#include "ModuleDescriptor.h"
-#include "PackageDependencyData.h"
-#include "PathTree.h"
-#include "Templates/UniquePtr.h"
+#include "AssetRegistryImpl.h"
+#include "UObject/Object.h"
 
 #include "AssetRegistry.generated.h"
 
-class FDependsNode;
-struct FARFilter;
-class FAssetDataGatherer;
-class FPackageReader;
+class FRWScopeLock;
 
 /**
  * The AssetRegistry singleton gathers information about .uasset files in the background so things
@@ -68,6 +57,7 @@ public:
 	virtual bool GetReferencers(FName PackageName, TArray<FName>& OutReferencers, EAssetRegistryDependencyType::Type InReferenceType) const override;
 	virtual bool GetReferencers(FName PackageName, TArray<FName>& OutReferencers, UE::AssetRegistry::EDependencyCategory Category = UE::AssetRegistry::EDependencyCategory::Package, const UE::AssetRegistry::FDependencyQuery& Flags = UE::AssetRegistry::FDependencyQuery()) const override;
 	virtual const FAssetPackageData* GetAssetPackageData(FName PackageName) const override;
+	virtual TOptional<FAssetPackageData> GetAssetPackageDataCopy(FName PackageName) const override;
 	virtual FName GetRedirectedObjectPath(const FName ObjectPath) const override;
 	virtual bool GetAncestorClassNames(FName ClassName, TArray<FName>& OutAncestorClassNames) const override;
 	virtual void GetDerivedClassNames(const TArray<FName>& ClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& OutDerivedClassNames) const override;
@@ -107,15 +97,21 @@ public:
 	virtual void LoadPackageRegistryData(FArchive& Ar, FLoadPackageRegistryData& InOutData) const override;
 	virtual void LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const override;
 	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting = false, const TMap<FName, FAssetData*>& OverrideData = TMap<FName, FAssetData*>()) const override;
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+	virtual void DumpState(const TArray<FString>& Arguments, TArray<FString>& OutPages, int32 LinesPerPage = 1) const override;
+#endif
+
 	virtual const FAssetRegistryState* GetAssetRegistryState() const override;
+	virtual TSet<FName> GetCachedEmptyPackagesCopy() const override;
 	virtual const TSet<FName>& GetCachedEmptyPackages() const override;
+	virtual bool ContainsTag(FName TagName) const override;
 	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FPathAddedEvent, FPathAddedEvent);
-	virtual FPathAddedEvent& OnPathAdded() override { return PathAddedEvent; }
+	virtual FPathAddedEvent& OnPathAdded() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FPathRemovedEvent, FPathRemovedEvent);
-	virtual FPathRemovedEvent& OnPathRemoved() override { return PathRemovedEvent; }
+	virtual FPathRemovedEvent& OnPathRemoved() override;
 
 	virtual void AssetCreated(UObject* NewAsset) override;
 	virtual void AssetDeleted(UObject* DeletedAsset) override;
@@ -124,28 +120,28 @@ public:
 	virtual void PackageDeleted(UPackage* DeletedPackage) override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetAddedEvent, FAssetAddedEvent);
-	virtual FAssetAddedEvent& OnAssetAdded() override { return AssetAddedEvent; }
+	virtual FAssetAddedEvent& OnAssetAdded() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetRemovedEvent, FAssetRemovedEvent);
-	virtual FAssetRemovedEvent& OnAssetRemoved() override { return AssetRemovedEvent; }
+	virtual FAssetRemovedEvent& OnAssetRemoved() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetRenamedEvent, FAssetRenamedEvent);
-	virtual FAssetRenamedEvent& OnAssetRenamed() override { return AssetRenamedEvent; }
+	virtual FAssetRenamedEvent& OnAssetRenamed() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FAssetUpdatedEvent, FAssetUpdatedEvent );
-	virtual FAssetUpdatedEvent& OnAssetUpdated() override { return AssetUpdatedEvent; }
+	virtual FAssetUpdatedEvent& OnAssetUpdated() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FInMemoryAssetCreatedEvent, FInMemoryAssetCreatedEvent );
-	virtual FInMemoryAssetCreatedEvent& OnInMemoryAssetCreated() override { return InMemoryAssetCreatedEvent; }
+	virtual FInMemoryAssetCreatedEvent& OnInMemoryAssetCreated() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FInMemoryAssetDeletedEvent, FInMemoryAssetDeletedEvent );
-	virtual FInMemoryAssetDeletedEvent& OnInMemoryAssetDeleted() override { return InMemoryAssetDeletedEvent; }
+	virtual FInMemoryAssetDeletedEvent& OnInMemoryAssetDeleted() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FFilesLoadedEvent, FFilesLoadedEvent );
-	virtual FFilesLoadedEvent& OnFilesLoaded() override { return FileLoadedEvent; }
+	virtual FFilesLoadedEvent& OnFilesLoaded() override;
 
 	DECLARE_DERIVED_EVENT( UAssetRegistryImpl, IAssetRegistry::FFileLoadProgressUpdatedEvent, FFileLoadProgressUpdatedEvent );
-	virtual FFileLoadProgressUpdatedEvent& OnFileLoadProgressUpdated() override { return FileLoadProgressUpdatedEvent; }
+	virtual FFileLoadProgressUpdatedEvent& OnFileLoadProgressUpdated() override;
 
 	virtual bool IsLoadingAssets() const override;
 
@@ -154,233 +150,80 @@ public:
 	UE_DEPRECATED(4.17, "IsUsingWorldAssets is now always true, remove any code that assumes it could be false")
 	static bool IsUsingWorldAssets() { return true; }
 
+	virtual void ReadLockEnumerateTagToAssetDatas(TFunctionRef<void(FName TagName, const TArray<const FAssetData*>& Assets)> Callback) const override;
+
 protected:
 	virtual void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType, TSet<FDependsNode*>& ExistingManagedNodes, ShouldSetManagerPredicate ShouldSetManager = nullptr) override;
 	virtual bool SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId) override;
-	virtual const FAssetData* GetCachedAssetDataForObjectPath(const FName ObjectPath) const override;
 
 private:
+	void InitializeEvents(UE::AssetRegistry::Impl::FInitializeContext& Context);
+	void Broadcast(UE::AssetRegistry::Impl::FEventContext& EventContext);
 
-	void InitRedirectors();
-	/** Read script packages if all initial plugins have been loaded, otherwise register with the callback to read them once read. */
-	void RegisterReadOfScriptPackages();
-	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
-	/** If collecting dependencies, create an FAssetPackageData for every script package, to make sure dependencies can find a data for them. */
-	void ReadScriptPackages();
-
-	/**
-	 * Internal implementation for RunAssetsThroughFilter and UseFilterToExcludeAssets
-	 * @param AssetDataList The asset list to filter
-	 * @param Filter The filter to use
-	 * @param bInclusive Run the filter as inclusive (assets left in the list passes the filter) or exclusive (assets left in the list fail the filter)
-	 */
-	void InternalRunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, bool bInclusive) const;
-
-	/* Construct the gatherer if it does not already exist */
-	void ConstructGatherer();
-	/**  Called to set up timing variables and launch the on-constructor SearchAllAssets async call */
-	void SearchAllAssetsInitialAsync();
-
-	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
-	/** Read any results from the gatherer, if it is running asynchronously */
-	void TickGatherer(float DeltaTime, TOptional<FAssetsFoundCallback> AssetsFoundCallback = TOptional<FAssetsFoundCallback>());
-	/** Look for and load a single AssetData result from the gatherer. */
-	void TickGatherPackage(const FString& PackageName);
-	/** Internal handler for ScanPathsSynchronous */
-	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles, bool bForceRescan, bool bIgnoreBlackListScanFilters, TArray<FName>* OutFoundAssets);
-
-	/** Called every tick to when data is retrieved by the background asset search. If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches */
-	void AssetSearchDataGathered(const double TickStartTime, TRingBuffer<FAssetData*>& AssetResults);
-
-	/** Called every tick when data is retrieved by the background path search. If TickStartTime is < 0, the entire list of gathered assets will be cached. Also used in sychronous searches */
-	void PathDataGathered(const double TickStartTime, TRingBuffer<FString>& PathResults);
-
-	/** Called every tick when data is retrieved by the background dependency search */
-	void DependencyDataGathered(const double TickStartTime, TRingBuffer<FPackageDependencyData>& DependsResults);
-
-	/** Called every tick when data is retrieved by the background search for cooked packages that do not contain asset data */
-	void CookedPackageNamesWithoutAssetDataGathered(const double TickStartTime, TRingBuffer<FString>& CookedPackageNamesWithoutAssetDataResults);
-
-	/** Adds an asset to the empty package list which contains packages that have no assets left in them */
-	void AddEmptyPackage(FName PackageName);
-
-	/** Removes an asset from the empty package list because it is no longer empty */
-	bool RemoveEmptyPackage(FName PackageName);
-
-	/** Adds a path to the cached paths tree. Returns true if the path was added to the tree, as opposed to already existing in the tree */
-	bool AddAssetPath(FName PathToAdd);
-
-	/** Removes a path to the cached paths tree. Returns true if successful. */
-	bool RemoveAssetPath(FName PathToRemove, bool bEvenIfAssetsStillExist = false);
-
-	/** Helper function to return the name of an object, given the objects export text path */
-	FString ExportTextPathToObjectName(const FString& InExportTextPath) const;
-
-	/** Adds the asset data to the lookup maps */
-	void AddAssetData(FAssetData* AssetData);
-
-	/** Updates an existing asset data with the new value and updates lookup maps */
-	void UpdateAssetData(FAssetData* AssetData, const FAssetData& NewAssetData);
-
-	/** Removes the asset data from the lookup maps */
-	bool RemoveAssetData(FAssetData* AssetData);
-
-	/** Removes the asset data associated with this package from the look-up maps */
-	void RemovePackageData(const FName PackageName);
-
-	/** Adds a list of files which will be searched for asset data */
-	void AddFilesToSearch (const TArray<FString>& Files);
+	bool OnResolveRedirect(const FString& InPackageName, FString& OutPackageName);
 
 #if WITH_EDITOR
 	/** Called when a file in a content directory changes on disk */
 	void OnDirectoryChanged(const TArray<struct FFileChangeData>& Files);
 
 	/** Called when an asset is loaded, it will possibly update the cache */
-	void OnAssetLoaded(UObject *AssetLoaded);
-
-	/** Process Loaded Assets to update cache */
-	void ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bBecameIdle);
-
-	/** Update Redirect collector with redirects loaded from asset registry */
-	void UpdateRedirectCollector();
-#endif // WITH_EDITOR
+	void OnAssetLoaded(UObject* AssetLoaded);
+#endif
 
 	/**
-	 * Called by the engine core when a new content path is added dynamically at runtime.  This is wired to 
+	 * Called by the engine core when a new content path is added dynamically at runtime.  This is wired to
 	 * FPackageName's static delegate.
 	 *
 	 * @param	AssetPath		The new content root asset path that was added (e.g. "/MyPlugin/")
 	 * @param	FileSystemPath	The filesystem path that the AssetPath is mapped to
 	 */
-	void OnContentPathMounted( const FString& AssetPath, const FString& FileSystemPath );
+	void OnContentPathMounted(const FString& AssetPath, const FString& FileSystemPath);
 
 	/**
-	 * Called by the engine core when a content path is removed dynamically at runtime.  This is wired to 
+	 * Called by the engine core when a content path is removed dynamically at runtime.  This is wired to
 	 * FPackageName's static delegate.
 	 *
 	 * @param	AssetPath		The new content root asset path that was added (e.g. "/MyPlugin/")
 	 * @param	FileSystemPath	The filesystem path that the AssetPath is mapped to
 	 */
-	void OnContentPathDismounted( const FString& AssetPath, const FString& FileSystemPath );
+	void OnContentPathDismounted(const FString& AssetPath, const FString& FileSystemPath);
 
-	/** Called to refresh the native classes list, called at end of engine initialization */
-	void RefreshNativeClasses();
+	/** Called to refresh the native classes list, called at end of engine initialization. */
+	void OnRefreshNativeClasses();
 
-	/** Returns the names of all subclasses of the class whose name is ClassName */
-	void GetSubClasses(const TArray<FName>& InClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& SubClassNames) const;
-	void GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TArray<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const;
+	/** Called from the PluginManager's loading phase, used to scan classes that were loaded by plugins. */
+	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
 
-	/** Finds all class names of classes capable of generating new UClasses */
-	void CollectCodeGeneratorClasses() const;
+	/** Shared helper for Scan*Synchronous function */
+	void ScanPathsSynchronousInternal(const TArray<FString>& InDirs, const TArray<FString>& InFiles,
+		bool bInForceRescan, bool bInIgnoreBlackListScanFilters);
 
-	/** Updates TempCachedInheritanceMap from native classes */
-	void UpdateTemporaryCaches() const;
-
-	/** Deletes any temporary cached data as needed */
-	void ClearTemporaryCaches() const;
-
-	/** Initialize the scan filters from the ini */
-	void InitializeBlacklistScanFiltersFromIni();
-
-	bool ResolveRedirect(const FString& InPackageName, FString& OutPackageName);
-
-	/** Internal helper which processes a given state and adds its contents to the current registry */
-	void CachePathsFromState(const FAssetRegistryState& InState);
-
-	enum class EARFilterMode : uint8
-	{
-		/** Include things that pass the filter; include everything if the filter is empty */
-		Inclusive,
-		/** Exclude things that pass the filter; exclude nothing if the filter is empty */
-		Exclusive,
-	};
-
+#if WITH_EDITOR
+	/** Create FAssetData from any loaded UObject assets and store the updated AssetData in the state */
+	void ProcessLoadedAssetsToUpdateCache(UE::AssetRegistry::Impl::FEventContext& EventContext,
+		const double TickStartTime, bool bIsIdle);
+#endif
 	/**
-	 * Given an asset data, say whether it would pass the filter based on the inclusion/exclusion mode used.
-	 *  - If an asset data passes a filter, then in inclusive mode it will return true, and in exclusive mode it will return false.
-	 *  - If an asset data fails a filter, then in inclusive mode it will return false, and in exclusive mode it will return true.
-	 *  - If the filter is empty, then in inclusive mode it will return true, and in exclusive mode it will return false.
+	 * Remain under the given lock and return an InheritanceContext based on the appropriate choice of the persistent
+	 * caching buffer or the function-scope-only passed in StackBuffer. Mark whether the buffer needs to be updated
+	 * before being used. If the buffer needs to be updated and its the persistent buffer (which is protected data),
+	 * convert the given lock to a write lock if not one already.
 	 */
-	bool RunAssetThroughFilterImpl(const FAssetData& AssetData, const FARCompiledFilter& Filter, const EARFilterMode FilterMode) const;
-	bool RunAssetThroughFilterImpl_Unchecked(const FAssetData& AssetData, const FARCompiledFilter& Filter, const bool bPassFilterValue) const;
+	void GetInheritanceContextWithRequiredLock(FRWScopeLock& InOutScopeLock,
+		UE::AssetRegistry::Impl::FClassInheritanceContext& InheritanceContext,
+		UE::AssetRegistry::Impl::FClassInheritanceBuffer& StackBuffer);
 
-	/**
-	 * Given an array of asset data, trim the items that fail the filter based on the inclusion/exclusion mode used.
-	 *  - In inclusive mode it will remove all assets that fail the filter, and in exclusive mode it will remove all assets that pass the filter.
-	 *  - If the filter is empty, then the array will be untouched.
-	 */
-	void RunAssetsThroughFilterImpl(TArray<FAssetData>& AssetDataList, const FARFilter& Filter, const EARFilterMode FilterMode) const;
-
-	/**
-	 * Returns true if path belongs to one of the mount points provided
-	 *
-	 * @param	Path				Path to check if mounted, example "/MyPlugin/SomeAsset"
-	 * @param	MountPointsNoTrailingSlashes		Mount points without the trailing slash. Example: "/MyPlugin"
-	 * @param	StringBuffer		String buffer to avoid re-allocation performance hit when searching TSet
-	 */
-	bool IsPathMounted(const FString& Path, const TSet<FString>& MountPointsNoTrailingSlashes, FString& StringBuffer) const;
-
-	/**
-	 * Reads Asset file from a previously initialized package reader
-	 * 
-	 * @param PackageReader	Previsouly initialized package reader that maps to the data to be read
-	 * @param AssetDataList	List of the read asset data
-	 */
-	bool ReadAssetFile(FPackageReader& PackageReader, FLoadPackageRegistryData& InOutData) const;
 private:
-	
-	/** Internal state of the cached asset registry */
-	FAssetRegistryState State;
 
-	/** Default options used for serialization */
-	FAssetRegistrySerializationOptions SerializationOptions;
+	UE::AssetRegistry::FAssetRegistryImpl GuardedData;
 
-	/** The set of empty package names (packages which contain no assets but have not yet been saved) */
-	TSet<FName> CachedEmptyPackages;
+	/** Lock guarding the GuardedData */
+	mutable FRWLock InterfaceLock;
 
-	/** The map of classes to their parents, only full for offline blueprints */
-	TMap<FName, FName> CachedBPInheritanceMap;
-
-	/** If true, search caching is enabled */
-	bool bIsTempCachingEnabled;
-
-	/** If true, search caching is enabled permanently */
-	bool bIsTempCachingAlwaysEnabled;
-
-	/** A temporary fully cached list including native classes */
-	mutable TMap<FName, FName> TempCachedInheritanceMap;
-
-	/** A reverse map of TempCachedInheritanceMap, only kept during temp caching */
-	mutable TMap<FName, TArray<FName>> TempReverseInheritanceMap;
-
-	/** If true, temp caching has been computed and is valid.
-	    Set this to false when changing something that might invalidate the cache so it gets recomputed on-demand.
-	*/
-	mutable bool bIsTempCachingUpToDate;
-
-	/** Contains a snapshot of GetRegisteredClassesVersionNumber() at the time of caching so the cache can
-	    be invalidated whenever registered classes have changed.
-	*/
-	mutable uint64 TempCachingRegisteredClassesVersionNumber;
-	mutable uint64 ClassGeneratorNamesRegisteredClassesVersionNumber;
-
-	/** If true, will cache AssetData loaded from in memory assets back into the disk cache */
-	bool bUpdateDiskCacheAfterLoad;
-
-	/** The tree of known cached paths that assets may reside within */
-	FPathTree CachedPathTree;
-
-	/** Async task that gathers asset information from disk */
-	TUniquePtr<FAssetDataGatherer> GlobalGatherer;
-
-	/** A list of results that were gathered from the background thread that are waiting to get processed by the main thread */
-	TRingBuffer<FAssetData*> BackgroundAssetResults;
-	TRingBuffer<FString> BackgroundPathResults;
-	TRingBuffer<FPackageDependencyData> BackgroundDependencyResults;
-	TRingBuffer<FString> BackgroundCookedPackageNamesWithoutAssetDataResults;
-
-	/** The max number of results to process per tick */
-	float MaxSecondsPerFrame;
+#if WITH_EDITOR
+	/** Handles to all registered OnDirectoryChanged delegates */
+	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
+#endif
 
 	/** The delegate to execute when an asset path is added to the registry */
 	FPathAddedEvent PathAddedEvent;
@@ -412,46 +255,6 @@ private:
 	/** The delegate to execute while loading files to update progress */
 	FFileLoadProgressUpdatedEvent FileLoadProgressUpdatedEvent;
 
-	/** The start time of the full asset search */
-	double FullSearchStartTime;
-	double AmortizeStartTime;
-	double TotalAmortizeTime;
-
-	/** Flag to indicate if we used an initial async search */
-	bool bInitialSearchStarted;
-	/** Flag to indicate if the initial background search has completed */
-	bool bInitialSearchCompleted;
-	/** Flag that indicates the background search is idle, so we can take actions when idle changes */
-	bool bGatherIdle;
-
-	/** Enables extra check to make sure path still mounted before adding. Removing mount point can happen between scan (background thread + multiple ticks and the add). */
-	bool bVerifyMountPointAfterGather;
-
-	/** Record whether SearchAllAssets has been called; if so we will also search new mountpoints when added */
-	bool bSearchAllAssets;
-
-	/** List of all class names derived from Blueprint (including Blueprint itself) */
-	mutable TSet<FName> ClassGeneratorNames;
-
-	/** Handles to all registered OnDirectoryChanged delegates */
-	TMap<FString, FDelegateHandle> OnDirectoryChangedDelegateHandles;
-
-	struct FAssetRegistryPackageRedirect
-	{
-	public:
-		FAssetRegistryPackageRedirect(const FString& InSourcePackageName, const FString& InDestPackageName) : SourcePackageName(InSourcePackageName), DestPackageName(InDestPackageName) { }
-		FString SourcePackageName;
-		FString DestPackageName;
-	};
-	TArray<FAssetRegistryPackageRedirect> PackageRedirects;
-
-#if WITH_EDITOR
-	/** List of loaded objects that need to be processed */
-	TRingBuffer<TWeakObjectPtr<UObject>> LoadedAssetsToProcess;
-
-	/** The set of object paths that have had their disk cache updated from the in memory version */
-	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;
-#endif
-
+	UE::AssetRegistry::Impl::FEventContext DeferredEvents;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

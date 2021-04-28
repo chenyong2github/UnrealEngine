@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry/AssetRegistryState.h"
+
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -11,6 +12,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/MetaData.h"
 #include "AssetRegistryArchive.h"
+#include "AssetRegistryImpl.h"
 #include "AssetRegistryPrivate.h"
 #include "AssetRegistry/ARFilter.h"
 #include "DependsNode.h"
@@ -1899,9 +1901,17 @@ bool FAssetRegistryState::RemovePackageData(FName PackageName)
 
 bool FAssetRegistryState::IsFilterValid(const FARCompiledFilter& Filter)
 {
+	return UE::AssetRegistry::Utils::IsFilterValid(Filter);
+}
+
+namespace UE::AssetRegistry::Utils
+{
+
+bool IsFilterValid(const FARCompiledFilter& Filter)
+{
 	if (Filter.PackageNames.Contains(NAME_None) ||
 		Filter.PackagePaths.Contains(NAME_None) ||
-		Filter.ObjectPaths.Contains(NAME_None) || 
+		Filter.ObjectPaths.Contains(NAME_None) ||
 		Filter.ClassNames.Contains(NAME_None) ||
 		Filter.TagsAndValues.Contains(NAME_None)
 		)
@@ -1910,6 +1920,8 @@ bool FAssetRegistryState::IsFilterValid(const FARCompiledFilter& Filter)
 	}
 
 	return true;
+}
+
 }
 
 #if ASSET_REGISTRY_STATE_DUMPING_ENABLED

@@ -1027,7 +1027,7 @@ namespace Cook
 				return false;
 			}
 			UE::Cook::FPackageData& PackageData = PackageDatas.FindOrAddPackageData(PackageFName, FileName);
-			if (IAssetRegistry::Get()->GetAssetPackageData(PackageFName) && !PackageData.IsGenerated())
+			if (IAssetRegistry::Get()->GetAssetPackageDataCopy(PackageFName).IsSet() && !PackageData.IsGenerated())
 			{
 				UE_LOG(LogCook, Warning, TEXT("PackageSplitter specified a generated package that already exists in the workspace domain. Splitter=%s, Generated=%s."),
 					*this->GetSplitDataObjectName().ToString(), *PackageName);

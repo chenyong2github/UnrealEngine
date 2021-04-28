@@ -3373,18 +3373,17 @@ void SContentBrowser::OnAssetSearchSuggestionFilter(const FText& SearchText, TAr
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 
-		if (const FAssetRegistryState* StatePtr = AssetRegistry.GetAssetRegistryState())
-		{
-			const FText MetaDataCategoryName = NSLOCTEXT("ContentBrowser", "MetaDataCategoryName", "Meta-Data");
-			for (const auto& TagAndArrayPair : StatePtr->GetTagToAssetDatasMap())
+		const FText MetaDataCategoryName = NSLOCTEXT("ContentBrowser", "MetaDataCategoryName", "Meta-Data");
+		FString TagNameStr;
+		AssetRegistry.ReadLockEnumerateTagToAssetDatas(
+			[&PassesValueFilter, &PossibleSuggestions, &MetaDataCategoryName, &TagNameStr](FName TagName, const TArray<const FAssetData*>& Assets)
 			{
-				const FString TagNameStr = TagAndArrayPair.Key.ToString();
+				TagName.ToString(TagNameStr);
 				if (PassesValueFilter(TagNameStr))
 				{
 					PossibleSuggestions.Add(FAssetSearchBoxSuggestion{ TagNameStr, FText::FromString(TagNameStr), MetaDataCategoryName });
 				}
-			}
-		}
+			});
 	}
 
 	SuggestionHighlightText = FText::FromString(FilterValue);

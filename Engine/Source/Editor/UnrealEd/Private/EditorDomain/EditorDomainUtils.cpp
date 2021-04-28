@@ -61,7 +61,7 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 		return EPackageDigestResult::WrongThread;
 	}
 	AssetRegistry.WaitForPackage(PackageName.ToString());
-	const FAssetPackageData* PackageData = AssetRegistry.GetAssetPackageData(PackageName);
+	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
 	if (!PackageData)
 	{
 		return EPackageDigestResult::FileDoesNotExist;

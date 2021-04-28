@@ -10,9 +10,10 @@
 class FDependsNode;
 struct FARCompiledFilter;
 
-#ifndef ASSET_REGISTRY_STATE_DUMPING_ENABLED
-	#define ASSET_REGISTRY_STATE_DUMPING_ENABLED !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#endif
+namespace UE::AssetRegistry
+{
+	class FAssetRegistryImpl;
+}
 
 /** Load/Save options used to modify how the cache is serialized. These are read out of the AssetRegistry section of Engine.ini and can be changed per platform. */
 struct FAssetRegistrySerializationOptions
@@ -435,4 +436,5 @@ private:
 	int32 NumPackageData = 0;
 
 	friend class UAssetRegistryImpl;
+	friend class UE::AssetRegistry::FAssetRegistryImpl;
 };

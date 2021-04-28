@@ -28,6 +28,11 @@ public:
 	/** Recursively enumerates all child paths from the specified base path relative to this node */
 	bool EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Callback, bool bRecurse = true) const;
 
+	int32 NumPaths() const
+	{
+		return ParentPathToChildPaths.Num();
+	}
+
 	uint32 GetAllocatedSize(void) const
 	{
 		uint32 AllocatedSize = ParentPathToChildPaths.GetAllocatedSize() + ChildPathToParentPath.GetAllocatedSize();

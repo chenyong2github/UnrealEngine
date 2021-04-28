@@ -3,13 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
-#include "AssetRegistry/AssetData.h"
+#include "Misc/Optional.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "UObject/Interface.h"
-#include "AssetRegistry/ARFilter.h"
+
 #include "IAssetRegistry.generated.h"
+
+#ifndef ASSET_REGISTRY_STATE_DUMPING_ENABLED
+#define ASSET_REGISTRY_STATE_DUMPING_ENABLED !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif
 
 class FArchive;
 struct FARFilter;
@@ -299,6 +306,8 @@ public:
 	virtual bool K2_GetReferencers(FName PackageName, const FAssetRegistryDependencyOptions& ReferenceOptions, TArray<FName>& OutReferencers) const;
 
 	/** Finds Package data for a package name. This data is only updated on save and can only be accessed for valid packages */
+	virtual TOptional<FAssetPackageData> GetAssetPackageDataCopy(FName PackageName) const = 0;
+	UE_DEPRECATED(5.0, "Receiving a pointer is not threadsafe. Use GetAssetPackageDataCopy instead.")
 	virtual const FAssetPackageData* GetAssetPackageData(FName PackageName) const = 0;
 
 	/** Uses the asset registry to look for ObjectRedirectors. This will follow the chain of redirectors. It will return the original path if no redirectors are found */
@@ -528,11 +537,27 @@ public:
 	 */
 	virtual void InitializeTemporaryAssetRegistryState(FAssetRegistryState& OutState, const FAssetRegistrySerializationOptions& Options, bool bRefreshExisting = false, const TMap<FName, FAssetData*>& OverrideData = TMap<FName, FAssetData*>()) const = 0;
 
-	/** Returns read only reference to the current asset registry state. The contents of this may change at any time so do not save internal pointers */
+	UE_DEPRECATED(5.0, "Receiving a pointer is not threadsafe. Use other functions on IAssetRegistry to access the same data, or contact Epic Core team to add the threadsafe functions you require..")
 	virtual const FAssetRegistryState* GetAssetRegistryState() const = 0;
 
+#if ASSET_REGISTRY_STATE_DUMPING_ENABLED
+	/**
+	 * Writes out the state in textual form. Use arguments to control which segments to emit.
+	 * @param Arguments List of segments to emit. Possible values: 'ObjectPath', 'PackageName', 'Path', 'Class', 'Tag', 'Dependencies' and 'PackageData'
+	 * @param OutPages Textual representation will be written to this array; each entry will have LinesPerPage lines of the full dump.
+	 * @param LinesPerPage - how many lines should be combined into each string element of OutPages, for e.g. breaking up the dump into separate files.
+	 *        To facilitate diffing between similar-but-different registries, the actual number of lines per page will be slightly less than LinesPerPage; we introduce partially deterministic pagebreaks near the end of each page.
+	 */
+	virtual void DumpState(const TArray<FString>& Arguments, TArray<FString>& OutPages, int32 LinesPerPage = 1) const = 0;
+#endif
+
 	/** Returns the set of empty package names fast iteration */
+	virtual TSet<FName> GetCachedEmptyPackagesCopy() const = 0;
+	UE_DEPRECATED(5.0, "Receiving a reference is not threadsafe. Use GetCachedEmptyPackagesCopy instead.")
 	virtual const TSet<FName>& GetCachedEmptyPackages() const = 0;
+
+	/** Return whether the given TagName occurs in the tags of any asset in the AssetRegistry */
+	virtual bool ContainsTag(FName TagName) const = 0;
 
 	/** Fills in FAssetRegistrySerializationOptions from ini, optionally using a target platform ini name */
 	virtual void InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName = FString()) const = 0;
@@ -555,10 +580,13 @@ public:
 	/** Load FAssetData from the specified package filename */
 	virtual void LoadPackageRegistryData(const FString& PackageFilename, FLoadPackageRegistryData& InOutData) const = 0;
 
-protected:
-	// Functions specifically for calling from the asset manager
-	friend class UAssetManager;
-	
+	/**
+	 * Enumerate all pairs in State->TagToAssetDataMapAssetRegistry and call a callback on each pair.
+	 * To avoid copies, the callback is called from within the ReadLock.
+	 * DO NOT CALL AssetRegistry functions from the callback; doing so will create a deadlock.
+	 */
+	virtual void ReadLockEnumerateTagToAssetDatas(TFunctionRef<void(FName TagName, const TArray<const FAssetData*>& Assets)> Callback) const = 0;
+
 	/**
 	 * Predicate called to decide whether to recurse into a reference when setting manager references
 	 *
@@ -570,6 +598,10 @@ protected:
 	 */
 	typedef TFunction<EAssetSetManagerResult::Type(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
 		UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags)> ShouldSetManagerPredicate;
+
+protected:
+	// Functions specifically for calling from the asset manager
+	friend class UAssetManager;
 
 	/**
 	 * Specifies a list of manager mappings, optionally recursing to dependencies. These mappings can then be queried later to see which assets "manage" other assets
@@ -584,9 +616,6 @@ protected:
 
 	/** Sets the PrimaryAssetId for a specific asset. This should only be called by the AssetManager, and is needed when the AssetManager is more up to date than the on disk Registry */
 	virtual bool SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId) = 0;
-
-	/** Returns pointer to cached AssetData for an object path. This is always the on disk version. This will return null if not found, and is exposed for  */
-	virtual const FAssetData* GetCachedAssetDataForObjectPath(const FName ObjectPath) const = 0;
 };
 
 namespace UE
