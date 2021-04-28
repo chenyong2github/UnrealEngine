@@ -1233,7 +1233,6 @@ struct FActorReplacementHelper
 		: NewActor(InNewActor)
 		, TargetWorldTransform(FTransform::Identity)
 		, AttachmentData( MoveTemp(InAttachmentData) )
-		, bSelectNewActor(OldActor->IsSelected())
 	{
 		CachedActorData = StaticCastSharedPtr<AActor::FActorTransactionAnnotation>(OldActor->FindOrCreateTransactionAnnotation());
 		TArray<AActor*> AttachedActors;
@@ -1298,7 +1297,6 @@ private:
 	AActor*          NewActor;
 	FTransform       TargetWorldTransform;
 	FActorAttachmentData AttachmentData;
-	bool             bSelectNewActor;
 
 	/** Holds actor component data, etc. that we use to apply */
 	TSharedPtr<AActor::FActorTransactionAnnotation> CachedActorData;
@@ -1362,11 +1360,6 @@ void FActorReplacementHelper::Finalize(const TMap<UObject*, UObject*>& OldToNewI
 	{
 		NewActor->bHiddenEdLevel = true;
 		NewActor->MarkComponentsRenderStateDirty();
-	}
-
-	if (bSelectNewActor && GEditor)
-	{
-		GEditor->SelectActor(NewActor, /*bInSelected =*/true, /*bNotify =*/true);
 	}
 
 	TMap<UObject*, UObject*> ConstructedComponentReplacementMap;
