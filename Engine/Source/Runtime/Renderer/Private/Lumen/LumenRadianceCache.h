@@ -90,8 +90,7 @@ extern void RenderLumenHardwareRayTracingRadianceCache(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	float DiffuseConeHalfAngle,
 	int32 MaxNumProbes,
-	FIntPoint ProbeTraceTileResolution,
-
+	int32 MaxProbeTraceTileResolution,
 	FRDGBufferRef ProbeTraceData,
 	FRDGBufferRef ProbeTraceTileData,
 	FRDGBufferRef ProbeTraceTileAllocator,

@@ -1406,7 +1406,6 @@ void RenderRadianceCache(
 
 		if (Lumen::UseHardwareRayTracedRadianceCache())
 		{
-			FIntPoint ProbeTraceTileResolution(MaxProbeTraceTileResolution, MaxProbeTraceTileResolution);
 			float DiffuseConeHalfAngle = -1.0f;
 			RenderLumenHardwareRayTracingRadianceCache(
 				GraphBuilder,
@@ -1416,7 +1415,7 @@ void RenderRadianceCache(
 				RadianceCacheParameters,
 				DiffuseConeHalfAngle,
 				MaxNumProbes,
-				ProbeTraceTileResolution,
+				MaxProbeTraceTileResolution,
 				ProbeTraceData,
 				ProbeTraceTileData,
 				ProbeTraceTileAllocator,

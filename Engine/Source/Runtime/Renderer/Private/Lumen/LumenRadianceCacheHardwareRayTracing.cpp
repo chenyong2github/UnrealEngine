@@ -201,7 +201,7 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	float DiffuseConeHalfAngle,
 	int32 MaxNumProbes,
-	FIntPoint ProbeTraceTileResolution,
+	int32 MaxProbeTraceTileResolution,
 	FRDGBufferRef ProbeTraceData,
 	FRDGBufferRef ProbeTraceTileData,
 	FRDGBufferRef ProbeTraceTileAllocator,
@@ -217,7 +217,11 @@ void RenderLumenHardwareRayTracingRadianceCacheTwoPass(
 
 	// Must match usf
 	const int32 TempAtlasTraceTileStride = 1024;
-	const FIntPoint WrappedTraceTileLayout(TempAtlasTraceTileStride, FMath::DivideAndRoundUp(MaxNumProbes * ProbeTraceTileResolution.X * ProbeTraceTileResolution.Y, TempAtlasTraceTileStride));
+	// Overflow is possible however unlikely - only nearby probes trace at max resolution
+	const int32 TempAtlasNumTraceTiles = MaxProbeTraceTileResolution * MaxProbeTraceTileResolution / 4;
+	const FIntPoint WrappedTraceTileLayout(
+		TempAtlasTraceTileStride, 
+		FMath::DivideAndRoundUp(MaxNumProbes * TempAtlasNumTraceTiles, TempAtlasTraceTileStride));
 	const FIntPoint TraceTileRadianceAndHitDistanceTextureSize = FIntPoint(FLumenRadianceCacheHardwareRayTracingRGS::GetGroupSize()) * WrappedTraceTileLayout;
 
 	FRDGTextureDesc TraceTileRadianceAndHitDistanceTextureDesc = FRDGTextureDesc::Create2D(
@@ -319,8 +323,7 @@ void RenderLumenHardwareRayTracingRadianceCache(
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	float DiffuseConeHalfAngle,
 	int32 MaxNumProbes,
-	FIntPoint ProbeTraceTileResolution,
-
+	int32 MaxProbeTraceTileResolution,
 	FRDGBufferRef ProbeTraceData,
 	FRDGBufferRef ProbeTraceTileData,
 	FRDGBufferRef ProbeTraceTileAllocator,
@@ -339,8 +342,7 @@ void RenderLumenHardwareRayTracingRadianceCache(
 		RadianceCacheParameters,
 		DiffuseConeHalfAngle,
 		MaxNumProbes,
-		ProbeTraceTileResolution,
-
+		MaxProbeTraceTileResolution,
 		ProbeTraceData,
 		ProbeTraceTileData,
 		ProbeTraceTileAllocator,
