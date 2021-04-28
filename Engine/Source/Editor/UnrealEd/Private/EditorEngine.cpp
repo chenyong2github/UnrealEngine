@@ -873,7 +873,7 @@ void UEditorEngine::HandleSettingChanged( FName Name )
 
 void UEditorEngine::InitializeObjectReferences()
 {
-	EditorSubsystemCollection.Initialize(this);
+	EditorSubsystemCollection->Initialize(this);
 
 	Super::InitializeObjectReferences();
 
@@ -1229,7 +1229,7 @@ void UEditorEngine::FinishDestroy()
 			ToolMenus->UnregisterStringCommandHandler("Command");
 		}
 
-		EditorSubsystemCollection.Deinitialize();
+		EditorSubsystemCollection->Deinitialize();
 
 		// Unregister events
 		FEditorDelegates::MapChange.RemoveAll(this);
