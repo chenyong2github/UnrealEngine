@@ -1056,7 +1056,7 @@ static void InternalUpdateHairSimulation(UGroomComponent* GroomComponent, const 
 			if (!NiagaraComponent)
 			{
 				NiagaraComponent = NewObject<UNiagaraComponent>(GroomComponent, NAME_None, RF_Transient);
-				if (GroomComponent->GetOwner() && GroomComponent->GetOwner()->GetWorld())
+				if (GroomComponent->GetOwner() && GroomComponent->GetOwner()->GetWorld() && GroomComponent->GetOwner()->GetWorld()->bIsWorldInitialized)
 				{
 					NiagaraComponent->AttachToComponent(GroomComponent, FAttachmentTransformRules::KeepRelativeTransform);
 					NiagaraComponent->RegisterComponent();
