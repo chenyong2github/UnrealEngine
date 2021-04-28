@@ -76,6 +76,7 @@ static FWriteBuffer* Writer_NextBufferInternal()
 	{
 		NextBuffer->ThreadId = uint16(Writer_GetThreadId());
 		NextBuffer->PrevTimestamp = TimeGetTimestamp();
+		NextBuffer->Partial = 0;
 
 		GTlsWriteBuffer = NextBuffer;
 
@@ -97,6 +98,7 @@ static FWriteBuffer* Writer_NextBufferInternal()
 		CurrentBuffer->NextBuffer = NextBuffer;
 		NextBuffer->ThreadId = CurrentBuffer->ThreadId;
 		NextBuffer->PrevTimestamp = CurrentBuffer->PrevTimestamp;
+		NextBuffer->Partial = 0;
 
 		GTlsWriteBuffer = NextBuffer;
 

@@ -38,6 +38,8 @@ static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback
 			}
 
 			Buffer = Writer_NextBuffer(0);
+			Buffer->Partial = 1;
+
 			bCommit = true;
 		}
 

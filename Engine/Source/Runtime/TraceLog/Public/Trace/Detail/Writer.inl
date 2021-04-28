@@ -21,6 +21,7 @@ struct FWriteBuffer
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
 	int32 volatile				EtxOffset;
+	int32						Partial;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
