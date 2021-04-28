@@ -46,6 +46,12 @@ public:
 	virtual int32 GetCameraSpeedSetting() const override;
 	virtual void SetCameraSpeedSetting(int32 SpeedSetting) override;
 
+
+	/**
+	 * Gets the hit proxy at the specified viewport coordinates when viewport gizmos such as the axis widget are filtered out.
+	 */
+	HHitProxy* GetHitProxyWithoutGizmos(int32 X, int32 Y);
+
 	/**
 	 * Recreates the preview scene and invalidates the owning viewport.
 	 *

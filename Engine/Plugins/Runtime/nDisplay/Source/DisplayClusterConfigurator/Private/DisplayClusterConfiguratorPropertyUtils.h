@@ -76,6 +76,14 @@ namespace DisplayClusterConfiguratorPropertyUtils
 	bool RemoveKeyFromMap(uint8* MapOwner, TSharedPtr<IPropertyHandle> PropertyHandle, const FString& Key);
 
 	/**
+	 * Empties a map.
+	 * @param MapOwner Address owning the map.
+	 * @param PropertyHandle The map property handle.
+	 * @return true if successfully emptied; false otherwise.
+	 */
+	bool EmptyMap(uint8* MapOwner, TSharedPtr<IPropertyHandle> PropertyHandle);
+
+	/**
 	 * Find the index to use with the handle or INDEX_NONE. O(n)
 	 * This is necessary because the ArrayIndex of the handle's internal PropertyNode may not match the index or local index of the map.
 	 *
