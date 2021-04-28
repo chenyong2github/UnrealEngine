@@ -2,6 +2,7 @@
 
 #include "Shared/DataprepCorePrivateUtils.h"
 
+#include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 
