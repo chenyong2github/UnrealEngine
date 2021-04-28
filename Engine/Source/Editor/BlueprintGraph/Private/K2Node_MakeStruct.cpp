@@ -16,6 +16,7 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_MakeStruct"
 
@@ -336,6 +337,16 @@ FText UK2Node_MakeStruct::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Struct);
 }
 
+void UK2Node_MakeStruct::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this);
+	if (Blueprint && !Blueprint->bBeingCompiled)
+	{
+		bMadeAfterOverridePinRemoval = true;
+	}
+}
+
 void UK2Node_MakeStruct::PostPlacedNewNode()
 {
 	Super::PostPlacedNewNode();
@@ -348,11 +359,10 @@ void UK2Node_MakeStruct::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this);
-
-	if (Blueprint && !Ar.IsTransacting() && !HasAllFlags(RF_Transient))
+	if (Ar.IsLoading() && !Ar.IsTransacting() && !HasAllFlags(RF_Transient))
 	{
-		if (Ar.IsLoading() && !bMadeAfterOverridePinRemoval)
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this);
+		if (Blueprint && !bMadeAfterOverridePinRemoval)
 		{
 			// Check if this node actually requires warning the user that functionality has changed.
 			bMadeAfterOverridePinRemoval = true;
@@ -414,13 +424,6 @@ void UK2Node_MakeStruct::Serialize(FArchive& Ar)
 						PropertyEntry.bIsSetValuePinVisible = Pin != nullptr;
 					}
 				}
-			}
-		}
-		else if (Ar.IsSaving())
-		{
-			if (!Blueprint->bBeingCompiled)
-			{
-				bMadeAfterOverridePinRemoval = true;
 			}
 		}
 	}

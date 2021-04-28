@@ -15,6 +15,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "BlueprintEditorSettings.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "UObject/ObjectSaveContext.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_BreakStruct"
 
@@ -377,6 +378,24 @@ FText UK2Node_BreakStruct::GetMenuCategory() const
 	return FEditorCategoryUtils::GetCommonCategory(FCommonEditorCategory::Struct);
 }
 
+void UK2Node_BreakStruct::PreSave(FObjectPreSaveContext SaveContext)
+{
+	Super::PreSave(SaveContext);
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this);
+	if (Blueprint && !Blueprint->bBeingCompiled)
+	{
+		bMadeAfterOverridePinRemoval = true;
+	}
+}
+
+void UK2Node_BreakStruct::PostPlacedNewNode()
+{
+	Super::PostPlacedNewNode();
+
+	// New nodes automatically have this set.
+	bMadeAfterOverridePinRemoval = true;
+}
+
 void UK2Node_BreakStruct::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
@@ -402,15 +421,6 @@ void UK2Node_BreakStruct::Serialize(FArchive& Ar)
 					break;
 				}
 			}
-		}
-	}
-	else if (Ar.IsSaving() && !Ar.IsTransacting())
-	{
-		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNode(this);
-
-		if (Blueprint && !Blueprint->bBeingCompiled)
-		{
-			bMadeAfterOverridePinRemoval = true;
 		}
 	}
 }

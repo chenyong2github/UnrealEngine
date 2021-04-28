@@ -37,6 +37,7 @@ class UK2Node_MakeStruct : public UK2Node_StructMemberSet
 	BLUEPRINTGRAPH_API static bool CanBeSplit(const UScriptStruct* Struct, UBlueprint* InBP);
 
 	// UObject interface
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface
 

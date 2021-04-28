@@ -36,6 +36,7 @@ class UK2Node_BreakStruct : public UK2Node_StructMemberGet
 	static bool CanBeSplit(const UScriptStruct* Struct) { return CanBeBroken(Struct); }
 
 	// UObject interface
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface
 
@@ -47,6 +48,7 @@ class UK2Node_BreakStruct : public UK2Node_StructMemberGet
 	virtual FText GetTooltipText() const override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
+	virtual void PostPlacedNewNode() override;
 	//~ End  UEdGraphNode Interface
 
 	//~ Begin K2Node Interface
