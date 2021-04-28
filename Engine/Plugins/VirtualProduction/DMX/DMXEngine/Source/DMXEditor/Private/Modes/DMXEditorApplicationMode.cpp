@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modes/DMXEditorApplicationMode.h"
-#include "DMXEditor.h"
-#include "Toolbars/DMXEditorToolbar.h"
-#include "DMXEditorTabs.h"
-#include "Tabs/DMXEditorTabFactories.h"
 
+#include "DMXEditor.h"
+#include "DMXEditorTabNames.h"
+#include "Tabs/DMXEditorTabFactories.h"
+#include "Toolbars/DMXEditorToolbar.h"
 
 #define LOCTEXT_NAMESPACE "DMXEditorApplicationMode"
 
@@ -48,10 +48,10 @@ FDMXEditorDefaultApplicationMode::FDMXEditorDefaultApplicationMode(TSharedPtr<FD
 			->Split
 			(
 				FTabManager::NewStack()
-				->AddTab(FDMXEditorTabs::DMXLibraryEditorTabId, ETabState::OpenedTab)
-				->AddTab(FDMXEditorTabs::DMXFixtureTypesEditorTabId, ETabState::OpenedTab)
-				->AddTab(FDMXEditorTabs::DMXFixturePatchEditorTabId, ETabState::OpenedTab)
-				->SetForegroundTab(FDMXEditorTabs::DMXLibraryEditorTabId)
+				->AddTab(FDMXEditorTabNames::DMXLibraryEditor, ETabState::OpenedTab)
+				->AddTab(FDMXEditorTabNames::DMXFixtureTypesEditor, ETabState::OpenedTab)
+				->AddTab(FDMXEditorTabNames::DMXFixturePatchEditor, ETabState::OpenedTab)
+				->SetForegroundTab(FDMXEditorTabNames::DMXLibraryEditor)
 			)
 		);
 

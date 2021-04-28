@@ -705,6 +705,8 @@ void UDMXSubsystem::OnAssetRegistryFinishedLoadingFiles()
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.AddUnique(Library);
 	}
+
+	OnAllDMXLibraryAssetsLoaded.Broadcast();
 }
 
 void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
@@ -714,6 +716,8 @@ void UDMXSubsystem::OnAssetRegistryAddedAsset(const FAssetData& Asset)
 		UObject* AssetObject = Asset.GetAsset();
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.AddUnique(Library);
+
+		OnDMXLibraryAssetAdded.Broadcast(Library);
 	}
 }
 
@@ -724,5 +728,7 @@ void UDMXSubsystem::OnAssetRegistryRemovedAsset(const FAssetData& Asset)
 		UObject* AssetObject = Asset.GetAsset();
 		UDMXLibrary* Library = Cast<UDMXLibrary>(AssetObject);
 		LoadedDMXLibraries.Remove(Library);
+
+		OnDMXLibraryAssetRemoved.Broadcast(Library);
 	}
 }

@@ -30,6 +30,7 @@ public:
 	TSharedPtr<FUICommandInfo> OpenChannelsMonitor;
 	TSharedPtr<FUICommandInfo> OpenActivityMonitor;
 	TSharedPtr<FUICommandInfo> OpenOutputConsole;
+	TSharedPtr<FUICommandInfo> OpenPatchTool;
 	TSharedPtr<FUICommandInfo> ToggleReceiveDMX;
 	TSharedPtr<FUICommandInfo> ToggleSendDMX;
 };
