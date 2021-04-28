@@ -24,8 +24,8 @@
 // Console variables
 static TAutoConsoleVariable<int32> CVarLumenRadianceCacheHardwareRayTracing(
 	TEXT("r.Lumen.RadianceCache.HardwareRayTracing"),
-	0,
-	TEXT("Enables hardware ray tracing for Lumen radiance cache (Default = 0)"),
+	1,
+	TEXT("Enables hardware ray tracing for Lumen radiance cache (Default = 1)"),
 	ECVF_RenderThreadSafe
 );
 
@@ -53,7 +53,9 @@ namespace Lumen
 	bool UseHardwareRayTracedRadianceCache()
 	{
 #if RHI_RAYTRACING
-		return (CVarLumenRadianceCacheHardwareRayTracing.GetValueOnRenderThread() != 0) && IsRayTracingEnabled();
+		return IsRayTracingEnabled()
+			&& Lumen::UseHardwareRayTracing()
+			&& (CVarLumenRadianceCacheHardwareRayTracing.GetValueOnRenderThread() != 0);
 #else
 		return false;
 #endif
