@@ -193,6 +193,59 @@ namespace AVEncoder
 		}
 	}
 
+	void FVideoEncoderNVENC_H264::UpdateMinQP(int32 minqp)
+	{
+		if (MinQP != minqp)
+		{
+			MinQP = minqp;
+			for (int32 LayerIndex = 0; LayerIndex < LayerInfos.Num(); ++LayerIndex)
+			{
+				FLayer* Layer = static_cast<FLayer*>(LayerInfos[LayerIndex]);
+				Layer->QPMin = MinQP;
+				Layer->bUpdateConfig.AtomicSet(true);
+			}
+		}
+	}
+
+	NV_ENC_PARAMS_RC_MODE ConvertRateControlMode(AVEncoder::FVideoEncoder::RateControlMode mode)
+	{
+		switch (mode)
+		{
+		case AVEncoder::FVideoEncoder::RateControlMode::CONSTQP: return NV_ENC_PARAMS_RC_CONSTQP;
+		case AVEncoder::FVideoEncoder::RateControlMode::VBR: return NV_ENC_PARAMS_RC_VBR;
+		default:
+		case AVEncoder::FVideoEncoder::RateControlMode::CBR: return NV_ENC_PARAMS_RC_CBR;
+		}
+	}
+
+	void FVideoEncoderNVENC_H264::UpdateRateControl(RateControlMode mode)
+	{
+		if (RateMode != mode)
+		{
+			RateMode = mode;
+			for (int32 LayerIndex = 0; LayerIndex < LayerInfos.Num(); ++LayerIndex)
+			{
+				FLayer* Layer = static_cast<FLayer*>(LayerInfos[LayerIndex]);
+				Layer->RateControlMode = RateMode;
+				Layer->bUpdateConfig.AtomicSet(true);
+			}
+		}
+	}
+
+	void FVideoEncoderNVENC_H264::UpdateFillData(bool enable)
+	{
+		if (FillData != enable)
+		{
+			FillData = enable;
+			for (int32 LayerIndex = 0; LayerIndex < LayerInfos.Num(); ++LayerIndex)
+			{
+				FLayer* Layer = static_cast<FLayer*>(LayerInfos[LayerIndex]);
+				Layer->FillData = FillData;
+				Layer->bUpdateConfig.AtomicSet(true);
+			}
+		}
+	}
+
 	void FVideoEncoderNVENC_H264::OnEvent(void* InEvent, TUniqueFunction<void()>&& InCallback)
 	{
 #if PLATFORM_WINDOWS
@@ -247,6 +300,7 @@ namespace AVEncoder
 		// Retrieve the system error message for the last-error code
 
 		LPVOID lpMsgBuf;
+		LPVOID lpDisplayBuf;
 		DWORD dw = GetLastError();
 
 		FormatMessage(
@@ -259,9 +313,11 @@ namespace AVEncoder
 			(LPTSTR)&lpMsgBuf,
 			0, NULL);
 
+		lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT, (lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
 		UE_LOG(LogVideoEncoder, Error, TEXT("%s failed with error %d: %s"), lpszFunction, dw, lpMsgBuf);
 
 		LocalFree(lpMsgBuf);
+		LocalFree(lpDisplayBuf);
 	}
 #endif
 
@@ -408,6 +464,7 @@ namespace AVEncoder
 		EncoderInitParams.version = NV_ENC_INITIALIZE_PARAMS_VER;
 		EncoderInitParams.encodeWidth = EncoderInitParams.darWidth = Width;
 		EncoderInitParams.encodeHeight = EncoderInitParams.darHeight = Height;
+		EncoderInitParams.encodeGUID = NV_ENC_CODEC_H264_GUID;
 
 		EncoderInitParams.encodeGUID = NV_ENC_CODEC_H264_GUID;
 		EncoderInitParams.presetGUID = NV_ENC_PRESET_P4_GUID;
@@ -437,12 +494,18 @@ namespace AVEncoder
 
 		EncoderConfig.profileGUID = NV_ENC_H264_PROFILE_BASELINE_GUID;
 
+		EncoderConfig.encodeCodecConfig.hevcConfig.enableFillerDataInsertion = FillData ? 1 : 0;
+		EncoderConfig.encodeCodecConfig.h264Config.enableFillerDataInsertion = FillData ? 1 : 0;
+
 		// set up rate control configuration
 		NV_ENC_RC_PARAMS& RcParams = EncoderConfig.rcParams;
 		RcParams.version = NV_ENC_RC_PARAMS_VER;
 
-		// Try NV_ENC_PARAMS_RC_CBR_LOWDELAY_HQ ?
-		RcParams.rateControlMode = NV_ENC_PARAMS_RC_CBR;
+		RcParams.rateControlMode = ConvertRateControlMode(RateControlMode);
+
+		RcParams.enableMinQP = QPMin > -1;
+		auto const minqp = static_cast<uint32_t>(QPMin);
+		RcParams.minQP = { minqp, minqp, minqp };
 
 		RcParams.enableMinQP = false;
 		RcParams.enableMaxQP = false;
@@ -515,6 +578,18 @@ namespace AVEncoder
 					EncoderInitParams.encodeConfig->rcParams.enableMinQP = 1;
 					EncoderInitParams.encodeConfig->rcParams.minQP = { 20, 20, 20 };
 				}
+
+				EncoderInitParams.encodeConfig->rcParams.enableMinQP = QPMin > -1;
+				if (QPMin > -1)
+				{
+					auto minqp = static_cast<uint32_t>(QPMin);
+					EncoderInitParams.encodeConfig->rcParams.minQP = { minqp, minqp, minqp };
+				}
+
+				EncoderConfig.rcParams.rateControlMode = ConvertRateControlMode(RateControlMode);
+
+				EncoderInitParams.encodeConfig->encodeCodecConfig.hevcConfig.enableFillerDataInsertion = FillData ? 1 : 0;
+				EncoderInitParams.encodeConfig->encodeCodecConfig.h264Config.enableFillerDataInsertion = FillData ? 1 : 0;
 
 				NVENCSTATUS	Result = NVENC.nvEncReconfigureEncoder(NVEncoder, &ReconfigureParams);
 				UE_LOG(LogVideoEncoder, VeryVerbose, TEXT("NVENC.nvEncReconfigureEncoder(NVEncoder, &ReconfigureParams); -> %d  (%d, %d, %d, %d, %ul)"), Result,

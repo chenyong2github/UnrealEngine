@@ -234,7 +234,6 @@ int32 FPixelStreamingVideoEncoder::Encode(const VideoFrame& frame, const std::ve
 		Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, WebRTCVideoFrame->GetVideoEncoderInput(), VideoInit);
 		Context->Encoder->SetOnEncodedPacket([FactoryPtr = Context->Factory](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket)
 		{
-
 			webrtc::EncodedImage Image;
 			auto encoded_data = webrtc::EncodedImageBuffer::Create(const_cast<uint8_t*>(InPacket.Data), InPacket.DataSize);
 			Image.SetEncodedData(encoded_data);

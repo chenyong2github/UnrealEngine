@@ -29,7 +29,7 @@ FStreamerConnection::FStreamerConnection(
 	: SignallingServerAddress(InSignallingServerAddress)
 	, OnDisconnection(MoveTemp(InOnDisconnection))
 {
-	RedirectWebRtcLogsToUE4(rtc::LoggingSeverity::LS_VERBOSE);
+	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
 
 	// required for communication with Signalling Server and must be called in the game thread, while it's used in signalling thread
 	FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");

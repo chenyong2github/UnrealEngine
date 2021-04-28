@@ -250,7 +250,7 @@ int32 FAudioCapturer::InitRecording()
 	{
 		FScopeLock Lock(&DeviceBufferCS);
 		// #Audio : Allow dynamic values for samplerate and/or channels ,
-		// or receive those from UE4 ?
+		// or receive those from UnrealEngine ?
 		DeviceBuffer->SetRecordingSampleRate(SampleRate);
 		DeviceBuffer->SetRecordingChannels(NumChannels);
 	}

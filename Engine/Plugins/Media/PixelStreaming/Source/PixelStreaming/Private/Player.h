@@ -28,7 +28,7 @@ class FThread;
 class FStreamerConnection;
 
 // A media player for PixelStreaming.
-// This class is a bridge between UE4 Media Framework and underlying implementation of WebRTC player
+// This class is a bridge between UrealEngine Media Framework and underlying implementation of WebRTC player
 class FPlayer
 	: public IMediaPlayer
 	, private IMediaCache
