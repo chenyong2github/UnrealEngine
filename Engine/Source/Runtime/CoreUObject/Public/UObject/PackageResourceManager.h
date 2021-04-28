@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
@@ -23,6 +24,7 @@ class IAsyncReadRequest;
 class IAsyncReadFileHandle;
 class IMappedFileHandle;
 class IPackageResourceManager;
+class UPackage;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPackageResourceManager, Log, All);
 DECLARE_DELEGATE_RetVal(IPackageResourceManager*, FSetPackageResourceManager);
@@ -266,6 +268,9 @@ public:
 	 *        searching LocalOnlyDirectories
 	 */
 	COREUOBJECT_API void IteratePackagesStatInLocalOnlyDirectory(FStringView RootDir, FPackagePathStatVisitor Callback);
+
+	/** Hook for notification of packages loaded during an outermost BeginLoad/EndLoad */
+	COREUOBJECT_API virtual void OnEndLoad(TConstArrayView<UPackage*> LoadedPackages) {}
 
 	/**
 	 * Call during engine startup to choose the appropriate PackageResourceManager for the current configuration and

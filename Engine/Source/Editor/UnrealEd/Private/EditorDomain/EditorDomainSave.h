@@ -180,7 +180,9 @@ private:
 	/** If connected, send a batch of names to the server. Return true on success or empty. */
 	bool TrySendBatchRequest();
 	/** Construct on-demand resources and flags. Returns true iff saving is enabled. */
-	bool InitializeCommunication();
+	bool TryInitializeCommunication();
+	/** Return whether initialization has already been successfully run. */
+	bool IsInitialized() const;
 	/** Called on an async thread. Try to connect until successful, send messages until empty, return. */
 	void RunCommunication();
 	/** Called from the public interface thread. Pump one connection step, send one message, return. */

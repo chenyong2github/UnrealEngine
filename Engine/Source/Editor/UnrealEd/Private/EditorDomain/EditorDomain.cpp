@@ -15,6 +15,7 @@
 #include "HAL/CriticalSection.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/ScopeLock.h"
@@ -23,6 +24,7 @@
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManagerFile.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogEditorDomain);
 
@@ -43,6 +45,10 @@ public:
 			GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni);
 			if (bEditorDomainEnabled)
 			{
+				// Set values for config settings EditorDomain depends on
+				GAllowUnversionedContentInEditor = 1;
+
+				// Create the editor domain and return it as the package resource manager
 				check(FEditorDomain::RegisteredEditorDomain == nullptr);
 				FEditorDomain::RegisteredEditorDomain = new FEditorDomain();
 				return FEditorDomain::RegisteredEditorDomain;
@@ -58,18 +64,25 @@ FEditorDomain::FEditorDomain()
 {
 	Locks = TRefCountPtr<FLocks>(new FLocks(*this));
 	Workspace.Reset(MakePackageResourceManagerFile());
-	SaveClient.Reset(new FEditorDomainSaveClient());
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainExternalSave"), bExternalSave, GEditorIni);
+	if (bExternalSave)
+	{
+		SaveClient.Reset(new FEditorDomainSaveClient());
+	}
 	AssetRegistry = IAssetRegistry::Get();
 	// We require calling SearchAllAssets, because we rely on being able to call WaitOnAsset
 	// without needing to call ScanPathsSynchronous
 	AssetRegistry->SearchAllAssets(false /* bSynchronousSearch */);
 
 	bEditorDomainReadEnabled = !FParse::Param(FCommandLine::Get(), TEXT("noeditordomainread"));
+
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FEditorDomain::OnPostEngineInit);
 }
 
 FEditorDomain::~FEditorDomain()
 {
 	FScopeLock ScopeLock(&Locks->Lock);
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 	Locks->Owner = nullptr;
 	AssetRegistry = nullptr;
 	Workspace.Reset();
@@ -107,7 +120,7 @@ FEditorDomain::FLocks::FLocks(FEditorDomain& InOwner)
 {
 }
 
-bool FEditorDomain::TryGetPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource)
+bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource)
 {
 	// Called within Locks.Lock
 	using namespace UE::EditorDomain;
@@ -158,6 +171,35 @@ bool FEditorDomain::TryGetPackageSource(const FPackagePath& PackagePath, TRefCou
 	}
 }
 
+TRefCountPtr<FEditorDomain::FPackageSource> FEditorDomain::FindPackageSource(const FPackagePath& PackagePath)
+{
+	// Called within Locks.Lock
+	using namespace UE::EditorDomain;
+
+	FName PackageName = PackagePath.GetPackageFName();
+	if (!PackageName.IsNone())
+	{
+		TRefCountPtr<FPackageSource>* PackageSource = PackageSources.Find(PackageName);
+		if (PackageSource)
+		{
+			return *PackageSource;
+		}
+	}
+
+	return TRefCountPtr<FPackageSource>();
+}
+
+void FEditorDomain::MarkNeedsLoadFromWorkspace(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource)
+{
+	PackageSource->Source = FEditorDomain::EPackageSource::Workspace;
+	if (bExternalSave)
+	{
+		SaveClient->RequestSave(PackagePath);
+	}
+	// Otherwise, we will note the need for save in OnEndLoad
+
+}
+
 int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment PackageSegment,
 	FPackagePath* OutUpdatedPath)
 {
@@ -173,7 +215,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
 		TRefCountPtr<FPackageSource> PackageSource;
-		if (!TryGetPackageSource(PackagePath, PackageSource) || PackageSource->Source == EPackageSource::Workspace)
+		if (!TryFindOrAddPackageSource(PackagePath, PackageSource) || PackageSource->Source == EPackageSource::Workspace)
 		{
 			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 		}
@@ -199,8 +241,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 				if (Locks->Owner)
 				{
 					FEditorDomain& EditorDomain = *Locks->Owner;
-					PackageSource->Source = EPackageSource::Workspace;
-					EditorDomain.SaveClient->RequestSave(PackagePath);
+					EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
 					FileSize = EditorDomain.Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 				}
 				else
@@ -229,7 +270,7 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 	TRefCountPtr<FPackageSource> PackageSource;
-	if (!TryGetPackageSource(PackagePath, PackageSource) ||	(PackageSource->Source == EPackageSource::Workspace))
+	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) ||	(PackageSource->Source == EPackageSource::Workspace))
 	{
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
@@ -273,7 +314,7 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 	}
 
 	TRefCountPtr<FPackageSource> PackageSource;
-	if (!TryGetPackageSource(PackagePath, PackageSource) ||
+	if (!TryFindOrAddPackageSource(PackagePath, PackageSource) ||
 		(PackageSource->Source == EPackageSource::Workspace))
 	{
 		return Workspace->OpenAsyncReadPackage(PackagePath, PackageSegment);
@@ -350,5 +391,99 @@ void FEditorDomain::IteratePackagesStatInLocalOnlyDirectory(FStringView RootDir,
 
 void FEditorDomain::Tick(float DeltaTime)
 {
-	SaveClient->Tick(DeltaTime);
+	if (bExternalSave)
+	{
+		SaveClient->Tick(DeltaTime);
+	}
 }
+
+void FEditorDomain::OnEndLoad(TConstArrayView<UPackage*> LoadedPackages)
+{
+	if (bExternalSave)
+	{
+		return;
+	}
+	TArray<UPackage*> PackagesToSave;
+	{
+		FScopeLock ScopeLock(&Locks->Lock);
+		if (!bHasPassedPostEngineInit)
+		{
+			return;
+		}
+		PackagesToSave.Reserve(LoadedPackages.Num());
+		for (UPackage* Package : LoadedPackages)
+		{
+			PackagesToSave.Add(Package);
+		}
+		FilterKeepPackagesToSave(PackagesToSave);
+	}
+
+	for (UPackage* Package : PackagesToSave)
+	{
+		if (!UE::EditorDomain::TrySavePackage(Package))
+		{
+			UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package %s into EditorDomain."), *Package->GetName());
+		}
+	}
+}
+
+void FEditorDomain::OnPostEngineInit()
+{
+	TArray<UPackage*> PackagesToSave;
+	{
+		FScopeLock ScopeLock(&Locks->Lock);
+		bHasPassedPostEngineInit = true;
+		if (bExternalSave)
+		{
+			return;
+		}
+
+		FString PackageName;
+		for (TObjectIterator<UPackage> It; It; ++It)
+		{
+			UPackage* Package = *It;
+			Package->GetName(PackageName);
+			if (Package->IsFullyLoaded() && !FPackageName::IsScriptPackage(PackageName))
+			{
+				PackagesToSave.Add(Package);
+			}
+		}
+		FilterKeepPackagesToSave(PackagesToSave);
+	}
+
+	for (UPackage* Package : PackagesToSave)
+	{
+		if (!UE::EditorDomain::TrySavePackage(Package))
+		{
+			UE_LOG(LogEditorDomain, Warning, TEXT("Could not save package %s into EditorDomain."), *Package->GetName());
+		}
+	}
+}
+
+void FEditorDomain::FilterKeepPackagesToSave(TArray<UPackage*>& InOutPackagesToSave)
+{
+	FPackagePath PackagePath;
+	for (int32 Index = 0; Index < InOutPackagesToSave.Num(); )
+	{
+		UPackage* Package = InOutPackagesToSave[Index];
+		bool bKeep = false;
+		if (FPackagePath::TryFromPackageName(Package->GetFName(), PackagePath))
+		{
+			TRefCountPtr<FPackageSource> PackageSource = FindPackageSource(PackagePath);
+			if (PackageSource && PackageSource->NeedsEditorDomainSave())
+			{
+				PackageSource->bHasSaved = true;
+				bKeep = true;
+			}
+		}
+		if (bKeep)
+		{
+			++Index;
+		}
+		else
+		{
+			InOutPackagesToSave.RemoveAtSwap(Index);
+		}
+	}
+}
+

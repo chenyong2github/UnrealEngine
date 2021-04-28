@@ -213,11 +213,10 @@ void FEditorDomainReadArchive::OnCacheRequestComplete(UE::DerivedData::FCacheGet
 		{
 			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
 			IPackageResourceManager& Workspace = *EditorDomain.Workspace;
-			EditorDomain.SaveClient->RequestSave(PackagePath);
 			FOpenPackageResult Result = Workspace.OpenReadPackage(PackagePath, EPackageSegment::Header);
 			if (Result.Archive)
 			{
-				PackageSource->Source = FEditorDomain::EPackageSource::Workspace;
+				EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
 				InnerArchive = MoveTemp(Result.Archive);
 				AsyncSource = ESource::Archive;
 				Size = InnerArchive->TotalSize();
@@ -439,12 +438,11 @@ void FEditorDomainAsyncReadFileHandle::OnCacheRequestComplete(UE::DerivedData::F
 		{
 			FEditorDomain& EditorDomain(*EditorDomainLocks->Owner);
 			IPackageResourceManager& Workspace = *EditorDomain.Workspace;
-			EditorDomain.SaveClient->RequestSave(PackagePath);
 			IAsyncReadFileHandle* Result = Workspace.OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
 			check(Result);
 			AsyncSource = ESource::Archive;
 			InnerArchive.Reset(Result);
-			PackageSource->Source = FEditorDomain::EPackageSource::Workspace;
+			EditorDomain.MarkNeedsLoadFromWorkspace(PackagePath, PackageSource);
 		}
 		else
 		{

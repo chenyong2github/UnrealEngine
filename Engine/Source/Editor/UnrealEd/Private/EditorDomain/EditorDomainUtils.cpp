@@ -6,12 +6,19 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Array.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataCacheRecord.h"
+#include "Editor.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
 #include "Misc/PackagePath.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "UObject/ObjectVersion.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 
 namespace UE
 {
@@ -56,10 +63,6 @@ FPackageDigest GetPackageDigest(const FAssetPackageData& PackageData, FName Pack
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
 	FPackageDigest& OutPackageDigest)
 {
-	if (!IsInGameThread())
-	{
-		return EPackageDigestResult::WrongThread;
-	}
 	AssetRegistry.WaitForPackage(PackageName.ToString());
 	TOptional<FAssetPackageData> PackageData = AssetRegistry.GetAssetPackageDataCopy(PackageName);
 	if (!PackageData)
@@ -85,6 +88,86 @@ UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& Package
 	return Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
 		PackagePath.GetDebugName(),
 		UE::DerivedData::ECachePolicy::QueryLocal, CachePriority, MoveTemp(Callback));
+}
+
+bool TrySavePackage(UPackage* Package)
+{
+	FPackageDigest PackageDigest;
+	EPackageDigestResult FindHashResult = GetPackageDigest(*IAssetRegistry::Get(), Package->GetFName(), PackageDigest);
+	switch (FindHashResult)
+	{
+	case EPackageDigestResult::Success:
+		break;
+	case EPackageDigestResult::FileDoesNotExist:
+		return false;
+	case EPackageDigestResult::WrongThread:
+		return false;
+	default:
+		check(false);
+		return false;
+	}
+
+	// EDITOR_DOMAIN_TODO: Need to extend SavePackage to allow saving to an archive
+	FString TempFilename = FPaths::Combine(FPaths::ProjectIntermediateDir(), FGuid::NewGuid().ToString());
+	ON_SCOPE_EXIT{ IFileManager::Get().Delete(*TempFilename); };
+
+	uint32 SaveFlags = SAVE_NoError | // Do not crash the SaveServer on an error
+		SAVE_BulkDataByReference; // EditorDomain saves reference bulkdata from the WorkspaceDomain rather than duplicating it
+
+	bool bEditorDomainSaveUnversioned = false;
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainSaveUnversioned"), bEditorDomainSaveUnversioned, GEditorIni);
+	if (bEditorDomainSaveUnversioned)
+	{
+		// With some exceptions, EditorDomain packages are saved unversioned; 
+		// editors request the appropriate version of the EditorDomain package matching their serialization version
+		bool bSaveUnversioned = true;
+		TArray<UObject*> PackageObjects;
+		GetObjectsWithPackage(Package, PackageObjects);
+		for (UObject* Object : PackageObjects)
+		{
+			UClass* Class = Object ? Object->GetClass() : nullptr;
+			if (Class && Class->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+			{
+				// TODO: Revisit this once we track package schemas
+				// Packages with Blueprint class instances can not be saved unversioned,
+				// as the Blueprint class's layout can change during the editor's lifetime,
+				// and we don't currently have a way to keep track of the changing package schema
+				bSaveUnversioned = false;
+			}
+		}
+		SaveFlags |= bSaveUnversioned ? SAVE_Unversioned : 0;
+	}
+
+	FSavePackageResultStruct Result = GEditor->Save(Package, nullptr, RF_Standalone, *TempFilename, GError,
+		nullptr /* Conform */, false /* bForceByteSwapping */, true /* bWarnOfLongFilename */, SaveFlags);
+	if (Result.Result != ESavePackageResult::Success)
+	{
+		return false;
+	}
+
+	FSharedBuffer PackageBuffer;
+	{
+		TArray64<uint8> TempBytes;
+		bool bBytesRead = FFileHelper::LoadFileToArray(TempBytes, *TempFilename);
+		IFileManager::Get().Delete(*TempFilename);
+		if (!bBytesRead)
+		{
+			return false;
+		}
+		PackageBuffer = MakeSharedBufferFromArray(MoveTemp(TempBytes));
+	}
+
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
+	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
+	TCbWriter<256> MetaData;
+	MetaData.BeginObject();
+	MetaData << "FileSize" << PackageBuffer.GetSize();
+	MetaData.EndObject();
+	RecordBuilder.SetMeta(MetaData.Save().AsObject());
+	RecordBuilder.SetValue(PackageBuffer);
+	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
+	Cache.Put(MakeArrayView(&Record, 1), Package->GetName());
+	return true;
 }
 
 }

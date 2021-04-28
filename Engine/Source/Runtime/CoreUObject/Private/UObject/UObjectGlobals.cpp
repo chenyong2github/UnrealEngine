@@ -78,6 +78,8 @@ static FAutoConsoleVariableRef CVarAllowUnversionedContentInEditor(
 	ECVF_Default
 );
 
+void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoadedPackages);
+
 COREUOBJECT_API bool GetAllowNativeComponentClassOverrides()
 {
 	static const bool bAllowNativeComponentClassOverrides = []()
@@ -1186,6 +1188,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 	// Declare here so that the linker does not get destroyed before ResetLoaders is called
 	FLinkerLoad* Linker = nullptr;
+	TArray<UPackage*> LoadedPackages;
 	{
 		// Keep track of start time.
 		const double StartTime = FPlatformTime::Seconds();
@@ -1228,7 +1231,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 		auto EndLoadAndCopyLocalizationGatherFlag = [&]
 		{
-			EndLoad(Linker->GetSerializeContext());
+			EndLoad(Linker->GetSerializeContext(), &LoadedPackages);
 			// Set package-requires-localization flags from archive after loading. This reinforces flagging of packages that haven't yet been resaved.
 			Result->ThisRequiresLocalizationGather(Linker->RequiresLocalizationGather());
 		};
@@ -1408,6 +1411,14 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		Result->SetFlags(RF_WasLoaded);
 	}
 
+	if (GIsEditor)
+	{
+		if (IsInGameThread() && !IsInAsyncLoadingThread() && GGameThreadLoadCounter == 0)
+		{
+			IPackageResourceManager::Get().OnEndLoad(LoadedPackages);
+		}
+	}
+
 	return Result;
 }
 
@@ -1568,8 +1579,12 @@ struct FCompareUObjectByLinkerAndOffset
 //
 // End loading packages.
 //
-void EndLoad(FUObjectSerializeContext* LoadContext)
+void EndLoad(FUObjectSerializeContext* LoadContext, TArray<UPackage*>* OutLoadedPackages)
 {
+	if (OutLoadedPackages)
+	{
+		OutLoadedPackages->Reset();
+	}
 	check(LoadContext);
 
 	if (IsInAsyncLoadingThread())
@@ -1590,6 +1605,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 	int32 NumObjectsLoaded = 0, NumObjectsFound = 0;
 	TSet<UObject*> AssetsLoaded;
 #endif
+	TSet<UPackage*> LoadedPackages;
 
 	while (LoadContext->DecrementBeginLoadCount() == 0 && (LoadContext->HasLoadedObjects() || LoadContext->HasPendingImportsOrForcedExports()))
 	{
@@ -1649,6 +1665,10 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 				for (int32 i = 0; i < ObjLoaded.Num(); i++)
 				{
 					UObject* Obj = ObjLoaded[i];
+					if (OutLoadedPackages)
+					{
+						LoadedPackages.Add(Obj->GetPackage());
+					}
 					if (Obj->GetLinker())
 					{
 						LoadedLinkers.Add(Obj->GetLinker());
@@ -1823,7 +1843,22 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			LoadContext->DetachFromLinkers();
 		}
 	}
+
+	if (OutLoadedPackages)
+	{
+		OutLoadedPackages->Reserve(LoadedPackages.Num());
+		for (UPackage* Package : LoadedPackages)
+		{
+			OutLoadedPackages->Add(Package);
+		}
+	}
 }
+
+void EndLoad(FUObjectSerializeContext* LoadContext)
+{
+	EndLoad(LoadContext, nullptr);
+}
+
 
 /*-----------------------------------------------------------------------------
 	Object name functions.

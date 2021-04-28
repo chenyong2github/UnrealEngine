@@ -5,12 +5,14 @@
 #include "Containers/UnrealString.h"
 #include "DerivedDataCache.h"
 #include "EditorDomain/EditorDomain.h"
+#include "Misc/ConfigCacheIni.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 
 class FAssetPackageData;
 class FPackagePath;
 class IAssetRegistry;
+class UPackage;
 
 namespace UE
 {
@@ -38,6 +40,9 @@ UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& Packa
 UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	const FPackageDigest& PackageDigest, UE::DerivedData::EPriority CachePriority,
 	UE::DerivedData::FOnCacheGetComplete&& Callback);
+
+/** Save the given package into the EditorDomain. */
+bool TrySavePackage(UPackage* Package);
 
 }
 }

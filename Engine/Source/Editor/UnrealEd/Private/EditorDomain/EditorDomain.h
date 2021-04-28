@@ -74,6 +74,7 @@ public:
 		FPackageSegmentStatVisitor Callback) override;
 	virtual void IteratePackagesStatInLocalOnlyDirectory(FStringView RootDir, 
 		FPackageSegmentStatVisitor Callback) override;
+	virtual void OnEndLoad(TConstArrayView<UPackage*> LoadedPackages) override;
 
 	// FTickableEditorObject interface
 	virtual void Tick(float DeltaTime) override;
@@ -107,14 +108,27 @@ private:
 	{
 		UE::EditorDomain::FPackageDigest Digest;
 		EPackageSource Source = EPackageSource::Undecided;
+		bool bHasSaved = false;
+		bool NeedsEditorDomainSave() const
+		{
+			return !bHasSaved && Source == EPackageSource::Workspace;
+		}
 	};
 
 	/** Disallow copy constructors */
 	FEditorDomain(const FEditorDomain& Other) = delete;
 	FEditorDomain(FEditorDomain&& Other) = delete;
 
-	/** Read the PackageSource data (domain&digest) from the cache, or from the asset registry if not in cache. */
-	bool TryGetPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource);
+	/** Read the PackageSource data (domain&digest) from PackageSources, or from the asset registry if not in PackageSources. */
+	bool TryFindOrAddPackageSource(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& OutSource);
+	/** Return the PackageSource data in PackageSources, if it exists */
+	TRefCountPtr<FPackageSource> FindPackageSource(const FPackagePath& PackagePath);
+	/** Mark that we had to load the Package from the workspace domain, and schedule its save into the EditorDomain. */
+	void MarkNeedsLoadFromWorkspace(const FPackagePath& PackagePath, TRefCountPtr<FPackageSource>& PackageSource);
+	/** Callback for PostEngineInit, to handle saving of packages which we could not save before then. */
+	void OnPostEngineInit();
+	/** For each of the now-loaded packages, if we had to load from workspace domain, save into the editor domain. */
+	void FilterKeepPackagesToSave(TArray<UPackage*>& InOutLoadedPackages);
 
 	/** Subsystem used to request the save of missing packages into the EditorDomain from a separate process. */
 	TUniquePtr<FEditorDomainSaveClient> SaveClient;
@@ -128,6 +142,10 @@ private:
 	TMap<FName, TRefCountPtr<FPackageSource>> PackageSources;
 	/** True by default, set to false when reading is disabled for testing. */
 	bool bEditorDomainReadEnabled = true;
+	/** If true, use an out-of-process EditorDomainSaveServer for saves, else save in process in EndLoad */
+	bool bExternalSave = false;
+	/** Marker for whether our PostEngineInit callback has been called */
+	bool bHasPassedPostEngineInit = false;
 
 	static FEditorDomain* RegisteredEditorDomain;
 

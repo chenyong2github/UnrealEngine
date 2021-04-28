@@ -5,9 +5,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
 #include "Commandlets/EditorDomainSaveCommandlet.h"
-#include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
-#include "DerivedDataCacheRecord.h"
 #include "Dom/JsonObject.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/FileManager.h"
@@ -15,11 +13,9 @@
 #include "HAL/RunnableThread.h"
 #include "IPAddress.h"
 #include "Misc/DateTime.h"
-#include "Misc/FileHelper.h"
 #include "Misc/PackagePath.h"
 #include "Misc/Paths.h"
 #include "Serialization/Archive.h"
-#include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
@@ -237,7 +233,7 @@ bool FEditorDomainSaveServer::TryInitialize()
 	{
 		CreatorProcessId = 0;
 	}
-	bIsResidentServer = FParse::Param(CommandLine, TEXT("editordomainserverresident"));
+	bIsResidentServer = FParse::Param(CommandLine, TEXT("EditorDomainSaveResident"));
 
 	ProcessLock = CreateProcessLock();
 	if (!ProcessLock)
@@ -707,27 +703,6 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 		return false;
 	}
 
-	FPackageDigest PackageDigest;
-	EPackageDigestResult FindHashResult = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest);
-	switch (FindHashResult)
-	{
-	case EPackageDigestResult::Success:
-		break;
-	case EPackageDigestResult::FileDoesNotExist:
-		OutErrorMessage = FString::Printf(TEXT("Package %s no longer exists in the Workspace Domain. Skipping its save."),
-			*PackagePath.GetDebugName());
-		return false;
-	case EPackageDigestResult::WrongThread:
-		OutErrorMessage = FString::Printf(TEXT("Package %s failed because GetPackageDigest returned WrongThread; ")
-			TEXT("this should not be possible in the EditorDomainSaveServer since it only works from main thread. ")
-			TEXT("Skipping its save."), *PackagePath.GetDebugName());
-		return false;
-	default:
-		check(false);
-		OutErrorMessage = TEXT("");
-		return false;
-	}
-
 	// EDITOR_DOMAIN_TODO: Check whether the package already exists in the cache before spending time on it
 	UPackage* Package = LoadPackage(nullptr, PackagePath, 0);
 	if (!Package)
@@ -737,45 +712,11 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 		return false;
 	}
 
-	// EDITOR_DOMAIN_TODO: Need to extend SavePackage to allow saving to an archive
-	FString TempFilename = FPaths::Combine(FPaths::ProjectIntermediateDir(), FGuid::NewGuid().ToString());
-	ON_SCOPE_EXIT{ IFileManager::Get().Delete(*TempFilename); };
-
-	uint32 SaveFlags = SAVE_NoError | // Do not crash the SaveServer on an error
-		SAVE_BulkDataByReference; // EditorDomain saves reference bulkdata from the WorkspaceDomain rather than duplicating it
-	FSavePackageResultStruct Result = GEditor->Save(Package, nullptr, RF_Standalone, *TempFilename, GError,
-		nullptr /* Conform */, false /* bForceByteSwapping */, true /* bWarnOfLongFilename */, SaveFlags);
-	if (Result.Result != ESavePackageResult::Success)
+	if (!UE::EditorDomain::TrySavePackage(Package))
 	{
-		OutErrorMessage = FString::Printf(TEXT("Package %s could not be saved to temporary file %s: ResultCode = %d"),
-			*PackagePath.GetDebugName(), *TempFilename, Result.Result);
+		OutErrorMessage = FString::Printf(TEXT("Could not save package %s."), *PackagePath.GetDebugName());
 		return false;
 	}
-
-	FSharedBuffer PackageBuffer;
-	{
-		TArray64<uint8> TempBytes;
-		bool bBytesRead = FFileHelper::LoadFileToArray(TempBytes, *TempFilename);
-		IFileManager::Get().Delete(*TempFilename);
-		if (!bBytesRead)
-		{
-			OutErrorMessage = FString::Printf(TEXT("Package %s could not be read from temporary file %s."),
-				*PackagePath.GetDebugName(), *TempFilename, Result.Result);
-			return false;
-		}
-		PackageBuffer = MakeSharedBufferFromArray(MoveTemp(TempBytes));
-	}
-
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
-	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
-	TCbWriter<256> MetaData;
-	MetaData.BeginObject();
-	MetaData << "FileSize" << PackageBuffer.GetSize();
-	MetaData.EndObject();
-	RecordBuilder.SetMeta(MetaData.Save().AsObject());
-	RecordBuilder.SetValue(PackageBuffer);
-	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
-	Cache.Put(MakeArrayView(&Record, 1), PackagePath.GetDebugName());
 	return true;
 }
 
@@ -916,7 +857,7 @@ void FEditorDomainSaveClient::KickCommunication()
 	if (!TrySendBatchRequest())
 	{
 		bAsyncActive = true;
-		if (!InitializeCommunication())
+		if (!TryInitializeCommunication())
 		{
 			Requests.Empty();
 		}
@@ -971,11 +912,15 @@ bool FEditorDomainSaveClient::TrySendBatchRequest()
 	}
 }
 
-bool FEditorDomainSaveClient::InitializeCommunication()
+bool FEditorDomainSaveClient::TryInitializeCommunication()
 {
 	// Called within ThreadingLock
 	using namespace UE::EditorDomainSave;
-
+	if (IsInitialized())
+	{
+		return true;
+	}
+	
 	if (!ISocketSubsystem::Get())
 	{
 		UE_LOG(LogEditorDomainSave, Error,
@@ -997,6 +942,11 @@ bool FEditorDomainSaveClient::InitializeCommunication()
 	bAsyncSupported = FPlatformProcess::SupportsMultithreading();
 
 	return true;
+}
+
+bool FEditorDomainSaveClient::IsInitialized() const
+{
+	return ProcessLock != nullptr;
 }
 
 void FEditorDomainSaveClient::RunCommunication()

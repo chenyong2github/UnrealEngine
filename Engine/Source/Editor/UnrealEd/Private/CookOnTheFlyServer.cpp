@@ -4450,7 +4450,6 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 
 	if (IsCookByTheBookMode() && !IsCookingInEditor() &&
 		FPlatformMisc::SupportsMultithreadedFileHandles() && // Preloading moves file handles between threads
-		!FEditorDomain::Get() && // EDITOR_DOMAIN_TODO EditorDomain does not yet support opening packages from async threads, because AssetRegistry is not asynchronous
 		!GAllowCookedDataInEditorBuilds // // Use of preloaded files is not yet implemented when GAllowCookedDataInEditorBuilds is on, see FLinkerLoad::CreateLoader
 		)
 	{
