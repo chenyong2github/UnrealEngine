@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 
 #include "Containers/List.h"
+#include "Misc/Optional.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -24,6 +25,11 @@ public:
 	{
 		FString RelativePath;		// Generated package relative to the Parent/_Generated_ root
 		TArray<FName> Dependencies; // LongPackageNames that the generated package references
+		/* GetGenerateList must specify true if the package will be a map (.umap, contains a UWorld or ULevel), else false */
+		void SetCreateAsMap(bool bInCreateAsMap) { bCreateAsMap = bInCreateAsMap; }
+		const TOptional<bool>& GetCreateAsMap() const { return bCreateAsMap; }
+	private:
+		TOptional<bool> bCreateAsMap;
 	};
 	
 	/** 
@@ -32,11 +38,16 @@ public:
 	 */
 	static bool ShouldSplit(UObject* SplitData) { return false; }
 	
-	/** Sets the SplitDataClass instance on which the CookPackageSplitter instance should work. */
-	virtual void SetDataObject(UObject* SplitData) = 0;
+	/**
+	 * If true, this Splitter can handle populating generated packages long after the generator package is finalized and cooked.
+	 * The cooker will add requests for the packages returned from GetGenerateList and will populate and save them later.
+	 * If false the cooker will populate each package before calling PreSaveGeneratorPackage, and will save them
+	 * without further reference to the splitter after population.
+	 */
+	virtual bool UseDeferredPopulate() { return false; }
 
 	/** Return the list of packages to generate. */
-	virtual TArray<FGeneratedPackage> GetGenerateList() = 0;
+	virtual TArray<FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) = 0;
 
 	/**
 	 * Try to populate a generated package.
@@ -46,19 +57,28 @@ public:
 	 * Note that TryPopulatePackage will not be called for every package on
 	 * an iterative cook; it will only be called for the packages with changed dependencies. 
 	 *
+	 * @param OwnerPackage				The parent package being split
+	 * @param OwnerObject				The SplitDataClass instance that this CookPackageSplitter instance was created for
 	 * @param GeneratedPackage			The package the cooker generated for the given FGeneratedPackage
 	 * @param RelativePath				The relative path from the given FGeneratedPackage
 	 * @param GeneratedPackageCookName	The name that will be given for the cooked package (differs from the uncooked package)
 	 * @return							True if successfully populates,  false on error (this will cause a cook error).
 	 */
-	virtual bool TryPopulatePackage(UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) = 0;
+	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) = 0;
 
 	/**
-	 * Called after calling all TryPopulatePackage.
-	 * Make any remaining adjustments to the parent package before returning and allowing
-	 * it to be saved into the target domain.
+	 * Called before saving the parent generator package. Depending on the value of UseDeferredPopulate, this may be
+	 * before or after the TryPopulatePackage calls.
+	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
-	virtual void FinalizeGeneratorPackage() {}
+	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) {}
+
+	/**
+	 * Called after saving the parent generator package. Undo any required adjustments to the parent package that
+	 * were made in PreSaveGeneratorPackage, so that the package is once again ready for use in the editor or in
+	 * future GetGenerateList or TryPopulatePackage calls
+	 */
+	virtual void PostSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) {}
 };
 
 namespace UE

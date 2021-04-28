@@ -20,16 +20,26 @@ bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 	return World && !!World->GetWorldPartition();
 }
 
-void FWorldPartitionCookPackageSplitter::SetDataObject(UObject* SplitData)
+UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(UObject* SplitData)
 {
-	PartitionedWorld = CastChecked<UWorld>(SplitData);
+	UWorld* PartitionedWorld = CastChecked<UWorld>(SplitData);
 	check(PartitionedWorld);
 	check(PartitionedWorld->PersistentLevel);
 	check(PartitionedWorld->PersistentLevel->GetWorldPartition());
+	return PartitionedWorld;
 }
 
-TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitter::GetGenerateList()
+const UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(const UObject* SplitData)
 {
+	return ValidateDataObject(const_cast<UObject*>(SplitData));
+}
+
+TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitter::GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject)
+{
+	// TODO: Make WorldPartition functions const so we can honor the constness of the OwnerObject in this API function
+	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
+	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
+
 	// World is not initialized
 	ensure(!PartitionedWorld->bIsWorldInitialized);
 
@@ -44,20 +54,28 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	PackagesToGenerate.Reserve(WorldPartitionGeneratedPackages.Num());
 	for (const FString& PackageName : WorldPartitionGeneratedPackages)
 	{
-		PackagesToGenerate.Emplace_GetRef().RelativePath = PackageName;
+		ICookPackageSplitter::FGeneratedPackage& GeneratedPackage = PackagesToGenerate.Emplace_GetRef();
+		GeneratedPackage.RelativePath = PackageName;
+		// all packages we generate get a ULevel from CreateEmptyLevelForRuntimeCell and are hence maps
+		GeneratedPackage.SetCreateAsMap(true);
 		// @todo_ow: Set dependencies once we get iterative cooking working
 	}
 	return PackagesToGenerate;
 }
 
-bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName)
+bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName)
 {
+	// TODO: Make PopulateGeneratedPackageForCook const so we can honor the constness of the OwnerObject in this API function
+	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);
+	UWorld* PartitionedWorld = const_cast<UWorld*>(ConstPartitionedWorld);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	return WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage, FString(RelativePath), FString(GeneratedPackageCookName));
+	bool bResult = WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage, FString(RelativePath), FString(GeneratedPackageCookName));
+	return bResult;
 }
 
-void FWorldPartitionCookPackageSplitter::FinalizeGeneratorPackage()
+void FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject)
 {
+	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
 	WorldPartition->FinalizeGeneratedPackageForCook();
 }

@@ -27,8 +27,11 @@ namespace Cook
 
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
-		: PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas), PreloadableFileFormat(EPackageFormat::Binary)
-		, bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0), bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0), bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+		: GeneratedOwner(nullptr), PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
+		, PreloadableFileFormat(EPackageFormat::Binary), bIsUrgent(0), bIsVisited(0), bIsPreloadAttempted(0)
+		, bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0)
+		, bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
+		, bInitializedGeneratorSave(0), bCompletedGeneration(0), bGenerated(0)
 	{
 		SetState(EPackageState::Idle);
 		SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -36,8 +39,14 @@ namespace Cook
 
 	FPackageData::~FPackageData()
 	{
+		ClearReferences(); // Should have been called earlier, but call it here in case it was missed
 		ClearCookedPlatforms(); // We need to send OnCookedPlatformRemoved message to the monitor, so it is not valid to destruct without calling ClearCookedPlatforms
 		SendToState(EPackageState::Idle, ESendFlags::QueueNone); // Update the monitor's counters and call exit functions
+	}
+
+	void FPackageData::ClearReferences()
+	{
+		DestroyGeneratorPackage();
 	}
 
 	const FName& FPackageData::GetPackageName() const
@@ -595,8 +604,9 @@ namespace Cook
 	{
 		check(GetPackage() != nullptr && GetPackage()->IsFullyLoaded());
 
-		check(!GetHasBeginPrepareSaveFailed())
-		check(!GetGeneratorPackage())
+		check(!GetHasBeginPrepareSaveFailed());
+		check(!HasInitializedGeneratorSave());
+		check(!HasCompletedGeneration());
 		CheckObjectCacheEmpty();
 		CheckCookedPlatformDataEmpty();
 	}
@@ -606,7 +616,6 @@ namespace Cook
 		PackageDatas.GetCookOnTheFlyServer().ReleaseCookedPlatformData(*this);
 		ClearObjectCache();
 		SetHasBeginPrepareSaveFailed(false);
-		DestroyGeneratorPackage();
 	}
 
 	void FPackageData::OnEnterInProgress()
@@ -674,6 +683,14 @@ namespace Cook
 		if (FindObjectFast<UPackage>(nullptr, GetPackageName()))
 		{
 			// If the package has already loaded, then there is no point in further preloading
+			ClearPreload();
+			SetIsPreloadAttempted(true);
+			return true;
+		}
+		if (IsGenerated() && (!GeneratorPackage || GeneratorPackage->IsDeferredPopulate()))
+		{
+			// Orphaned generator packages will fail to load, so no need to preload them
+			// Deferred populate generated packages are loaded from their generator, not from disk
 			ClearPreload();
 			SetIsPreloadAttempted(true);
 			return true;
@@ -858,19 +875,23 @@ namespace Cook
 
 	void FPackageData::CheckCookedPlatformDataEmpty() const
 	{
-		check(GetCookedPlatformDataNextIndex() == -1);
+		check(GetCookedPlatformDataNextIndex() == 0);
 		check(!GetCookedPlatformDataStarted());
 		check(!GetCookedPlatformDataCalled());
 		check(!GetCookedPlatformDataComplete());
+		check(!HasInitializedGeneratorSave());
+		check(!HasCompletedGeneration());
 	}
 
 	void FPackageData::ClearCookedPlatformData()
 	{
-		CookedPlatformDataNextIndex = -1;
+		CookedPlatformDataNextIndex = 0;
 		// Note that GetNumPendingCookedPlatformData is not cleared; it persists across Saves and CookSessions
 		SetCookedPlatformDataStarted(false);
 		SetCookedPlatformDataCalled(false);
 		SetCookedPlatformDataComplete(false);
+		SetInitializedGeneratorSave(false);
+		SetCompletedGeneration(false);
 	}
 
 	void FPackageData::OnRemoveSessionPlatform(const ITargetPlatform* Platform)
@@ -905,12 +926,39 @@ namespace Cook
 				});
 	}
 
+	void FPackageData::SetGeneratedOwner(FGeneratorPackage* InGeneratedOwner)
+	{
+		check(IsGenerated());
+		check(!(GeneratedOwner && InGeneratedOwner));
+		GeneratedOwner = InGeneratedOwner;
+	}
+
+	bool FPackageData::IsLoadFromDisk() const
+	{
+		// Non-generated packages always load from disk
+		if (!IsGenerated())
+		{
+			return true;
+		}
+
+		// Packages generated from a splitter that does not support deferred populate load from their generated
+		// package in the intermediate content directory
+		if (GeneratedOwner && !GeneratedOwner->IsDeferredPopulate())
+		{
+			return true;
+		}
+
+		// Orphaned generated packages should be treated as failed to load
+		// Deferred populate generated packages are loaded from their Generator package
+		return false;
+	}
+
 	bool FPackageData::GeneratorPackageRequiresGC() const
 	{
 		// We consider that if a FPackageData has valid GeneratorPackage helper object,
 		// this means that COTFS's process of generating packages was not completed 
 		// either due to an error or because it has exceeded a maximum memory threshold. 
-		return GetGeneratorPackage() && !GetHasBeginPrepareSaveFailed();
+		return IsGenerating() && !GetHasBeginPrepareSaveFailed();
 	}
 
 	UE::Cook::FGeneratorPackage* FPackageData::CreateGeneratorPackage(const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath)
@@ -924,18 +972,78 @@ namespace Cook
 	// FGeneratorPackage
 
 	FGeneratorPackage::FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObject* InSplitDataObject, ICookPackageSplitter* InCookPackageSplitterInstance, const FString& InGeneratedUncookedRootPath)
-	: bIsFinalized(false)
-	, Owner(InOwner)
-	, SplitDataObject(InSplitDataObject)
+	: Owner(InOwner)
+	, SplitDataObjectName(*InSplitDataObject->GetFullName())
 	, GeneratedUncookedRootPath(InGeneratedUncookedRootPath)
 	{
 		check(PackageToGenerateNextIndex == 0);
 		check(InCookPackageSplitterInstance);
 		CookPackageSplitterInstance.Reset(InCookPackageSplitterInstance);
-		PackagesToGenerate = CookPackageSplitterInstance->GetGenerateList();
 	}
 
-	const ICookPackageSplitter::FGeneratedPackage* FGeneratorPackage::GetNextPackageToGenerate()
+	FGeneratorPackage::~FGeneratorPackage()
+	{
+		ClearGeneratedPackages();
+	}
+
+	void FGeneratorPackage::ClearGeneratedPackages()
+	{
+		for (FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
+		{
+			if (GeneratedStruct.PackageData)
+			{
+				check(GeneratedStruct.PackageData->GetGeneratedOwner() == this);
+				GeneratedStruct.PackageData->SetGeneratedOwner(nullptr);
+				GeneratedStruct.PackageData = nullptr;
+			}
+		}
+	}
+
+	bool FGeneratorPackage::TryGenerateList(UPackage* OwnerPackage, UObject* OwnerObject, const FPackageNameCache& PackageNameCache, FPackageDatas& PackageDatas)
+	{
+		TArray<ICookPackageSplitter::FGeneratedPackage> GeneratorDatas = CookPackageSplitterInstance->GetGenerateList(OwnerPackage, OwnerObject);
+		PackagesToGenerate.Reset(GeneratorDatas.Num());
+		for (ICookPackageSplitter::FGeneratedPackage& ReturnedGeneratorData : GeneratorDatas)
+		{
+			FGeneratedStruct& GeneratedStruct = PackagesToGenerate.Emplace_GetRef();
+			GeneratedStruct.GeneratorData = MoveTemp(ReturnedGeneratorData);
+			ICookPackageSplitter::FGeneratedPackage& GeneratorData = GeneratedStruct.GeneratorData;
+			FString PackageName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s"),
+				*GetGeneratedUncookedRootPath(), *GeneratorData.RelativePath));
+			FName PackageFName(*PackageName);
+
+			if (!GeneratorData.GetCreateAsMap().IsSet())
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter did not specify whether CreateAsMap is true for generated package. Splitter=%s, Generated=%s."),
+					*this->GetSplitDataObjectName().ToString(), *PackageName);
+				return false;
+			}
+			const FName FileName = PackageNameCache.GetCachedStandardFileName(PackageFName, false /* bRequireExists */,
+				*GeneratorData.GetCreateAsMap());
+			if (FileName.IsNone())
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter could not find mounted filename for generated packagepath. Splitter=%s, Generated=%s."),
+					*this->GetSplitDataObjectName().ToString(), *PackageName);
+				return false;
+			}
+			UE::Cook::FPackageData& PackageData = PackageDatas.FindOrAddPackageData(PackageFName, FileName);
+			if (IAssetRegistry::Get()->GetAssetPackageData(PackageFName) && !PackageData.IsGenerated())
+			{
+				UE_LOG(LogCook, Warning, TEXT("PackageSplitter specified a generated package that already exists in the workspace domain. Splitter=%s, Generated=%s."),
+					*this->GetSplitDataObjectName().ToString(), *PackageName);
+				return false;
+			}
+			GeneratedStruct.PackageData = &PackageData;
+			PackageData.SetGenerated(true);
+			// No package should be generated by two different splitters. If an earlier run of this splitter generated the package, the package's owner
+			// should have been reset to null when we called ClearGeneratedPackages between then and now
+			check(PackageData.GetGeneratedOwner() == nullptr); 
+			PackageData.SetGeneratedOwner(this);
+		}
+		return true;
+	}
+
+	const FGeneratorPackage::FGeneratedStruct* FGeneratorPackage::GetNextPackageToGenerate()
 	{
 		if (PackagesToGenerate.IsValidIndex(PackageToGenerateNextIndex))
 		{
@@ -944,14 +1052,29 @@ namespace Cook
 		return nullptr;
 	}
 
-	void FGeneratorPackage::Finalize()
+	FGeneratorPackage::FGeneratedStruct* FGeneratorPackage::FindGeneratedStruct(FPackageData* PackageData)
 	{
-		if (ensure(!bIsFinalized))
+		for (FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
 		{
-			check(PackageToGenerateNextIndex == PackagesToGenerate.Num());
-			GetCookPackageSplitterInstance()->FinalizeGeneratorPackage();
-			bIsFinalized = true;
+			if (GeneratedStruct.PackageData == PackageData)
+			{
+				return &GeneratedStruct;
+			}
 		}
+		return nullptr;
+	}
+
+	UObject* FGeneratorPackage::FindSplitDataObject() const
+	{
+		FString ObjectPath = GetSplitDataObjectName().ToString();
+
+		// SplitDataObjectName is a FullObjectPath; strip off the leading <ClassName> in "<ClassName> <Package>.<Object>:<SubObject>"
+		int32 ClassDelimiterIndex = -1;
+		if (ObjectPath.FindChar(' ', ClassDelimiterIndex))
+		{
+			ObjectPath.RightChopInline(ClassDelimiterIndex + 1);
+		}
+		return FindObject<UObject>(nullptr, *ObjectPath);
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -1403,6 +1526,10 @@ namespace Cook
 		SaveQueue.Empty();
 		PackageNameToPackageData.Empty();
 		FileNameToPackageData.Empty();
+		for (FPackageData* PackageData : PackageDatas)
+		{
+			PackageData->ClearReferences();
+		}
 		for (FPackageData* PackageData : PackageDatas)
 		{
 			delete PackageData;

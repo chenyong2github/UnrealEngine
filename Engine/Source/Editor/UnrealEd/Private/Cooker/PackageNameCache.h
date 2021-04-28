@@ -16,7 +16,7 @@ struct FPackageNameCache
 
 	FString			GetCachedStandardFileNameString(const UPackage* Package) const;
 
-	FName			GetCachedStandardFileName(const FName& PackageName) const;
+	FName			GetCachedStandardFileName(const FName& PackageName, bool bRequireExists=true, bool bCreateAsMap=false) const;
 	FName			GetCachedStandardFileName(const UPackage* Package) const;
 
 	const FName*	GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired=true, FName* FoundFileName = nullptr) const;
@@ -27,7 +27,8 @@ struct FPackageNameCache
 
 	void			AppendCacheResults(TArray<TTuple<FName, FString>>&& PackageToStandardFileNames) const;
 
-	bool			CalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName) const;
+	bool			TryCalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName,
+										bool bRequireExists = true, bool bCreateAsMap = false) const;
 
 	bool			ContainsPackageName(FName PackageName) const;
 	
@@ -61,7 +62,7 @@ private:
 	};
 
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
-	const FCachedPackageFilename& Cache(const FName& PackageName) const;
+	const FCachedPackageFilename& Cache(const FName& PackageName, bool bRequireExists, bool bCreateAsMap) const;
 
 	mutable IAssetRegistry* AssetRegistry = nullptr;
 
@@ -69,9 +70,9 @@ private:
 	mutable TMap<FName, FName>					PackageFilenameToPackageFNameCache;
 };
 
-inline FName FPackageNameCache::GetCachedStandardFileName(const FName& PackageName) const
+inline FName FPackageNameCache::GetCachedStandardFileName(const FName& PackageName, bool bRequireExists, bool bCreateAsMap) const
 {
-	return Cache(PackageName).StandardFileName;
+	return Cache(PackageName, bRequireExists, bCreateAsMap).StandardFileName;
 }
 
 inline bool FPackageNameCache::HasCacheForPackageName(const FName& PackageName) const
@@ -82,13 +83,13 @@ inline bool FPackageNameCache::HasCacheForPackageName(const FName& PackageName) 
 inline FString FPackageNameCache::GetCachedStandardFileNameString(const UPackage* Package) const
 {
 	// check( Package->GetName() == Package->GetFName().ToString() );
-	return Cache(Package->GetFName()).StandardFileNameString;
+	return Cache(Package->GetFName(), true /* bRequireExists */, false /* bCreateAsMap */).StandardFileNameString;
 }
 
 inline FName FPackageNameCache::GetCachedStandardFileName(const UPackage* Package) const
 {
 	// check( Package->GetName() == Package->GetFName().ToString() );
-	return Cache(Package->GetFName()).StandardFileName;
+	return Cache(Package->GetFName(), true /* bRequireExists */, false /* bCreateAsMap */).StandardFileName;
 }
 
 inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const UPackage* Package) const
@@ -179,18 +180,34 @@ inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FStrin
 	return true;
 }
 
-inline bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName) const
+inline bool FPackageNameCache::TryCalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName,
+	bool bRequireExists, bool bCreateAsMap) const
 {
 	FString FilenameOnDisk;
+	bool bFound = false;
 	if (DoesPackageExist(PackageName, &FilenameOnDisk))
 	{
+		bFound = true;
+	}
+	else if (!bRequireExists)
+	{
+		FString Extension = bCreateAsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+		if (FPackageName::TryConvertLongPackageNameToFilename(PackageName.ToString(), FilenameOnDisk, Extension))
+		{
+			bFound = true;
+		}
+	}
+	if (bFound)
+	{
 		OutStandardFilename = FPaths::ConvertRelativePathToFull(FilenameOnDisk);
-
 		FPaths::MakeStandardFilename(OutStandardFilename);
 		OutStandardFileFName = FName(*OutStandardFilename);
 		return true;
 	}
-	return false;
+	else
+	{
+		return false;
+	}
 }
 
 inline bool FPackageNameCache::ContainsPackageName(FName PackageName) const
@@ -202,7 +219,8 @@ inline IAssetRegistry* FPackageNameCache::GetAssetRegistry() const
 	return AssetRegistry;
 }
 
-inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
+inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName,
+	bool bRequireExists, bool bCreateAsMap) const
 {
 	check(IsInGameThread());
 
@@ -210,7 +228,10 @@ inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache
 
 	if (Cached != nullptr)
 	{
-		return *Cached;
+		if (!Cached->StandardFileName.IsNone() || bRequireExists)
+		{
+			return *Cached;
+		}
 	}
 
 	// cache all the things, like it's your birthday!
@@ -218,9 +239,10 @@ inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache
 	FString FileNameString;
 	FName FileName = NAME_None;
 
-	CalculateCacheData(PackageName, FileNameString, FileName);
-
-	PackageFilenameToPackageFNameCache.Add(FileName, PackageName);
+	if (TryCalculateCacheData(PackageName, FileNameString, FileName, bRequireExists, bCreateAsMap))
+	{
+		PackageFilenameToPackageFNameCache.Add(FileName, PackageName);
+	}
 
 	return PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(FileNameString), FileName));
 }
@@ -249,7 +271,7 @@ inline const FName* FPackageNameCache::GetCachedPackageNameFromStandardFileName(
 		PackageName = FName(*PotentialLongPackageName);
 	}
 
-	const FCachedPackageFilename& CachedFilename = Cache(PackageName);
+	const FCachedPackageFilename& CachedFilename = Cache(PackageName, true /* bRequireExists */, false /* bCreateAsMap */);
 
 	if (bExactMatchRequired)
 	{

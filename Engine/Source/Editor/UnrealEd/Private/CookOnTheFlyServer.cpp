@@ -1710,7 +1710,7 @@ void UCookOnTheFlyServer::AddDependenciesToLoadQueue(UE::Cook::FPackageData& Pac
 			PackageData.SetIsVisited(true);
 
 			AssetDependenciesScratch.Reset();
-			// TODO EditorOnly References: We only load Game dependencies, because if we explictly load an EditorOnly dependency, that causes StaticLoadObjectInternal to SetLoadedByEditorPropertiesOnly(false), and we do not want to impact that value with our preloading of required packages 
+			// TODO EditorOnly References: We only load Game dependencies, because if we explicitly load an EditorOnly dependency, that causes StaticLoadObjectInternal to SetLoadedByEditorPropertiesOnly(false), and we do not want to impact that value with our preloading of required packages 
 			if (AssetRegistry->GetDependencies(PackageData.GetPackageName(), AssetDependenciesScratch, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard | UE::AssetRegistry::EDependencyQuery::Game))
 			{
 				Dependencies.Reserve(AssetDependenciesScratch.Num());
@@ -1894,64 +1894,130 @@ void UCookOnTheFlyServer::PumpPreloadStarts()
 	}
 }
 
+namespace UE::Cook
+{
+struct FPopulatePackageContext
+{
+	explicit FPopulatePackageContext(FGeneratorPackage* InGeneratorStruct, UPackage* InOwnerPackage)
+		: GeneratorStruct(InGeneratorStruct)
+		, OwnerPackage(InOwnerPackage)
+	{
+	}
+
+	// Input variables
+	FGeneratorPackage* GeneratorStruct = nullptr;
+	const UPackage* OwnerPackage = nullptr;
+	const FGeneratorPackage::FGeneratedStruct* GeneratedStruct = nullptr;
+
+	// Cache of initialized-on-demand variables
+	UObject* OwnerObject = nullptr;
+	FString GeneratorPackagePath;
+	FString GeneratorPackageShortName;
+	FString GeneratedCookedRootPath;
+};
+
+}
 void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags, int32& OutNumPushed)
 {
+	using namespace UE::Cook;
+
 	UPackage* LoadedPackage = nullptr;
 	OutNumPushed = 0;
 
 	FName PackageFileName(PackageData.GetFileName());
-	bool bLoadFullySuccessful = LoadPackageForCooking(PackageData, LoadedPackage);
-	if (!bLoadFullySuccessful)
+	if (PackageData.IsLoadFromDisk())
 	{
-		ResultFlags |= COSR_ErrorLoadingPackage;
-		UE_LOG(LogCook, Verbose, TEXT("Not cooking package %s"), *PackageFileName.ToString());
-		RejectPackageToLoad(PackageData, TEXT("failed to load"));
-		return;
+		bool bLoadFullySuccessful = LoadPackageForCooking(PackageData, LoadedPackage);
+		if (!bLoadFullySuccessful)
+		{
+			ResultFlags |= COSR_ErrorLoadingPackage;
+			UE_LOG(LogCook, Verbose, TEXT("Not cooking package %s"), *PackageFileName.ToString());
+			RejectPackageToLoad(PackageData, TEXT("failed to load"));
+			return;
+		}
+		check(LoadedPackage != nullptr && LoadedPackage->IsFullyLoaded());
+
+		FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
+		if (LoadedPackage->GetFName() != PackageData.GetPackageName())
+		{
+			// The PackageName is not the name that we loaded. This can happen due to CoreRedirects.
+			// We refuse to cook requests for packages that no longer exist in PumpExternalRequests, but it is possible
+			// that a CoreRedirect exists from a (externally requested or requested as a reference) package that still exists.
+			// Mark the original PackageName as cooked for all platforms and send a request to cook the new FileName
+			check(NewPackageFileName != PackageFileName);
+
+			UE_LOG(LogCook, Verbose, TEXT("Request for %s received going to save %s"), *PackageFileName.ToString(), *NewPackageFileName.ToString());
+			FPackageData& OtherPackageData = PackageDatas->AddPackageDataByPackageNameChecked(LoadedPackage->GetFName());
+			OtherPackageData.UpdateRequestData(PackageData.GetRequestedPlatforms(), PackageData.GetIsUrgent(), FCompletionCallback());
+
+			PackageData.AddCookedPlatforms(PlatformManager->GetSessionPlatforms(), true);
+			RejectPackageToLoad(PackageData, TEXT("is redirected to another filename"));
+			return;
+		}
+
+		if (NewPackageFileName != PackageFileName)
+		{
+			// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
+			UE_LOG(LogCook, Warning, TEXT("Unexpected change in FileName when loading a requested package. \"%s\" changed to \"%s\"."),
+				*PackageFileName.ToString(), *NewPackageFileName.ToString());
+
+			UE_LOG(LogCook, Verbose, TEXT("Request for %s received going to save %s"), *PackageFileName.ToString(), *NewPackageFileName.ToString());
+			// The package FileName is not the FileName that we loaded
+			//  sounds unpossible.... but it is due to searching for files and such
+			PackageDatas->UpdateFileName(LoadedPackage->GetFName());
+			// Register the FileName that we loaded as pointing to this PackageData
+			PackageDatas->RegisterFileNameAlias(PackageData, PackageFileName);
+		}
 	}
-	check(LoadedPackage != nullptr && LoadedPackage->IsFullyLoaded());
-
-	FName NewPackageFileName(GetPackageNameCache().GetCachedStandardFileName(LoadedPackage));
-	if (LoadedPackage->GetFName() != PackageData.GetPackageName())
+	else
 	{
-		// The PackageName is not the name that we loaded. This can happen due to CoreRedirects.
-		// We refuse to cook requests for packages that no longer exist in PumpExternalRequests, but it is possible
-		// that a CoreRedirect exists from a (externally requested or requested as a reference) package that still exists.
-		// Mark the original PackageName as cooked for all platforms and send a request to cook the new FileName
-		check(NewPackageFileName != PackageFileName);
+		check(PackageData.IsGenerated());
+		FGeneratorPackage* GeneratorStruct = PackageData.GetGeneratedOwner();
+		if (!GeneratorStruct)
+		{
+			UE_LOG(LogCook, Error, TEXT("Package %s is an out-of-date generated package with a no-longer-available generator. It can not be loaded."), *PackageFileName.ToString());
+			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
+			return;
+		}
+		check(GeneratorStruct->IsDeferredPopulate());
+		FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->FindGeneratedStruct(&PackageData);
+		if (!GeneratedStruct)
+		{
+			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package but its generator no longer has a record of it. It can not be loaded."), *PackageFileName.ToString());
+			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
+			return;
+		}
+		const FPackageData& OwnerPackageData = GeneratorStruct->GetOwner();
 
-		UE_LOG(LogCook, Verbose, TEXT("Request for %s received going to save %s"), *PackageFileName.ToString(), *NewPackageFileName.ToString());
-		UE::Cook::FPackageData& OtherPackageData = PackageDatas->AddPackageDataByPackageNameChecked(LoadedPackage->GetFName());
-		OtherPackageData.UpdateRequestData(PackageData.GetRequestedPlatforms(), PackageData.GetIsUrgent(), UE::Cook::FCompletionCallback());
-
-		PackageData.AddCookedPlatforms(PlatformManager->GetSessionPlatforms(), true);
-		RejectPackageToLoad(PackageData, TEXT("is redirected to another filename"));
-		return;
-	}
-
-	if (NewPackageFileName != PackageFileName)
-	{
-		// This case should never happen since we are checking for the existence of the file in PumpExternalRequests
-		UE_LOG(LogCook, Warning, TEXT("Unexpected change in FileName when loading a requested package. \"%s\" changed to \"%s\"."),
-			*PackageFileName.ToString(), *NewPackageFileName.ToString());
-
-		UE_LOG(LogCook, Verbose, TEXT("Request for %s received going to save %s"), *PackageFileName.ToString(), *NewPackageFileName.ToString());
-		// The package FileName is not the FileName that we loaded
-		//  sounds unpossible.... but it is due to searching for files and such
-		PackageDatas->UpdateFileName(LoadedPackage->GetFName());
-		// Register the FileName that we loaded as pointing to this PackageData
-		PackageDatas->RegisterFileNameAlias(PackageData, PackageFileName);
+		UPackage* OwnerPackage = LoadPackage(nullptr, *OwnerPackageData.GetFileName().ToString(), LOAD_None);
+		if (!OwnerPackage)
+		{
+			ResultFlags |= COSR_ErrorLoadingPackage;
+			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load it's generator package %s. It can not be loaded."),
+				*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
+			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
+			return;
+		}
+		FPopulatePackageContext Context(GeneratorStruct, OwnerPackage);
+		Context.GeneratedStruct = GeneratedStruct;
+		LoadedPackage = TryPopulateGeneratedPackage(Context);
+		if (!LoadedPackage)
+		{
+			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"));
+			return;
+		}
 	}
 
 	if (PackageData.HasAllCookedPlatforms(PackageData.GetRequestedPlatforms(), true))
 	{
 		// Already cooked. This can happen if we needed to load a package that was previously cooked and garbage collected because it is a loaddependency of a new request.
 		// Send the package back to idle, nothing further to do with it.
-		PackageData.SendToState(UE::Cook::EPackageState::Idle, UE::Cook::ESendFlags::QueueAdd);
+		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 	}
 	else
 	{
 		PackageData.SetPackage(LoadedPackage);
-		PackageData.SendToState(UE::Cook::EPackageState::Save, UE::Cook::ESendFlags::QueueAdd);
+		PackageData.SendToState(EPackageState::Save, ESendFlags::QueueAdd);
 		++OutNumPushed;
 	}
 }
@@ -1976,7 +2042,7 @@ void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageDat
 
 //////////////////////////////////////////////////////////////////////////
 
-UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Package, bool bIsGeneratedPackage)
+UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Package)
 {
 	check(Package != nullptr);
 
@@ -1986,24 +2052,35 @@ UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Pa
 		return nullptr;	// if we have name none that means we are in core packages or something...
 	}
 	UE::Cook::FPackageData& PackageData = PackageDatas->FindOrAddPackageData(Package->GetFName(), FileName);
+	QueueDiscoveredPackageData(PackageData, true /* bIsLoadReady */);
+	return &PackageData;
+}
 
+void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, bool bLoadReady)
+{
 	const TArray<const ITargetPlatform*>& TargetPlatforms = PlatformManager->GetSessionPlatforms();
 	if (PackageData.HasAllCookedPlatforms(TargetPlatforms, true /* bIncludeFailed */))
 	{
 		// All SessionPlatforms have already been cooked for the package, so we don't need to save it again
-		return nullptr;
+		return;
 	}
 
-	if (!PackageData.IsInProgress() && 
-		(bIsGeneratedPackage || !IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
+	if (!PackageData.IsInProgress() &&
+		(PackageData.IsGenerated() || !IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
 	{
-		// Send this package into the LoadReadyQueue to fully load it and send it on to the SaveQueue
 		PackageData.SetRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback());
-		PackageData.SendToState(UE::Cook::EPackageState::LoadReady, UE::Cook::ESendFlags::QueueNone);
-		// Send it to the front of the LoadReadyQueue since it is mostly loaded already
-		PackageDatas->GetLoadReadyQueue().AddFront(&PackageData);
+		if (bLoadReady)
+		{
+			// Send this package into the LoadReadyQueue to fully load it and send it on to the SaveQueue
+			PackageData.SendToState(UE::Cook::EPackageState::LoadReady, UE::Cook::ESendFlags::QueueRemove);
+			// Send it to the front of the LoadReadyQueue since it is mostly loaded already
+			PackageDatas->GetLoadReadyQueue().AddFront(&PackageData);
+		}
+		else
+		{
+			PackageData.SendToState(UE::Cook::EPackageState::Request, UE::Cook::ESendFlags::QueueAddAndRemove);
+		}
 	}
-	return &PackageData;
 }
 
 void UCookOnTheFlyServer::UpdatePackageFilter()
@@ -2156,94 +2233,163 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 		return nullptr;
 	}
 
-	// Initialize the instance with the data object
-	SplitterInstance->SetDataObject(SplitDataObject);
-
 	// Create a FGeneratorPackage helper object using this CookPackageSplitter instance and return it
 	PackageData.CreateGeneratorPackage(SplitDataObject, SplitterInstance, GeneratedUncookedRootPath);
 
 	return PackageData.GetGeneratorPackage();
 }
 
-void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* Generator, bool& bOutCompleted, bool& bOutError)
+void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStruct, bool& bOutCompleted, bool& bOutError)
 {
+	using namespace UE::Cook;
+
 	bOutCompleted = false;
 	bOutError = false;
-	check(Generator);
+	check(GeneratorStruct);
 
-	const UPackage* GeneratorPackage = Generator->GetOwner().GetPackage();
-	const FString GeneratorPackagePath = FPackageName::GetLongPackagePath(GeneratorPackage->GetPathName());
-	const FString GeneratorPackageShortName = FPackageName::GetShortName(GeneratorPackage->GetName());
-	const FString GeneratedCookedRootPath = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s/%s/"), *GeneratorPackagePath, *GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
-
-	// Start Splitting
-	while (const ICookPackageSplitter::FGeneratedPackage* PackageToGenerate = Generator->GetNextPackageToGenerate())
+	ICookPackageSplitter* Splitter = GeneratorStruct->GetCookPackageSplitterInstance();
+	if (Splitter->UseDeferredPopulate())
 	{
-		// Make package name to fit Mounted GeneratedUncookedRootPath
-		const FString GeneratedPackageName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s"), *Generator->GetGeneratedUncookedRootPath(), *PackageToGenerate->RelativePath));
-
-		// Create package
-		check(!FindObject<UPackage>(nullptr, *GeneratedPackageName));
-		UPackage* GeneratedPackage = CreatePackage(*GeneratedPackageName);
-
-		// Populate package using CookPackageSplitterInstance and pass GeneratedPackage's cooked name for it to properly setup any internal reference to this package (SoftObjectPaths or others)
-		const FString GeneratedPackageCookedName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s"), *GeneratedCookedRootPath, *PackageToGenerate->RelativePath));
-		if (!Generator->GetCookPackageSplitterInstance()->TryPopulatePackage(GeneratedPackage, PackageToGenerate->RelativePath, GeneratedPackageCookedName))
+		while (const FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->GetNextPackageToGenerate())
 		{
-			UE_LOG(LogCook, Error, TEXT("Error populating generated package %s for object %s."), *PackageToGenerate->RelativePath, *Generator->GetSplitDataObject()->GetFullName());
-			bOutError = true;
-			return;
+			FPackageData* GeneratedPackageData = GeneratedStruct->PackageData;
+			if (!GeneratedPackageData)
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter was not given valid PackageData to queue for generated package: no package data. Splitter=%s, Generated=%s."),
+					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedStruct->GeneratorData.RelativePath);
+				bOutError = true;
+				return;
+			}
+			GeneratedPackageData->ClearCookedPlatformData();
+			QueueDiscoveredPackageData(*GeneratedPackageData);
 		}
+	}
+	else
+	{
+		UPackage* Owner = GeneratorStruct->GetOwner().GetPackage();
+		FPopulatePackageContext Context(GeneratorStruct, Owner);
 
-		// Save package into the uncooked intermediate directory
-		const FString GeneratedPackageExtension = GeneratedPackage->ContainsMap() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
-		const FString GeneratedPackageUncookedFileName = FPaths::RemoveDuplicateSlashes(FPackageName::LongPackageNameToFilename(GeneratedPackage->GetName(), GeneratedPackageExtension));
-		FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone, *GeneratedPackageUncookedFileName, GError, nullptr, /*bForceByteSwapping*/ false, /*bWarnOfLongFilename*/ true, SAVE_None);
-		if (SaveResult.Result != ESavePackageResult::Success)
+		// Start Splitting
+		while (const FGeneratorPackage::FGeneratedStruct* GeneratedStruct = GeneratorStruct->GetNextPackageToGenerate())
 		{
-			UE_LOG(LogCook, Error, TEXT("Error saving generated package %s for object %s."), *GeneratedPackageUncookedFileName, *Generator->GetSplitDataObject()->GetFullName());
-			bOutError = true;
-			return;
-		}
+			FPackageData* GeneratedPackageData = GeneratedStruct->PackageData;
+			if (!GeneratedPackageData)
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter was not given valid PackageData to queue for generated package: no package data. Splitter=%s, Generated=%s."),
+					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedStruct->GeneratorData.RelativePath);
+				bOutError = true;
+				return;
+			}
+			GeneratedPackageData->ClearCookedPlatformData();
 
-		// Update Asset Registry with the generated package
-		AssetRegistry->ScanFilesSynchronous({ GeneratedPackageUncookedFileName }, true);
+			Context.GeneratedStruct = GeneratedStruct;
+			UPackage* GeneratedPackage = TryPopulateGeneratedPackage(Context);
+			if (!GeneratedPackage)
+			{
+				bOutError = true;
+				return;
+			}
 
-		// Make sure PackageNameCache successfully caches the generated package
-		if (GetPackageNameCache().GetCachedStandardFileName(GeneratedPackage).IsNone())
-		{
-			UE_LOG(LogCook, Error, TEXT("Error caching generated package name %s for object %s."), *GeneratedPackageUncookedFileName, *Generator->GetSplitDataObject()->GetFullName());
-			bOutError = true;
-			return;
-		}
+			// Save package into the uncooked intermediate directory
+			FSavePackageResultStruct SaveResult = GEditor->Save(GeneratedPackage, nullptr, RF_Standalone,
+				*GeneratedPackageData->GetFileName().ToString(), GError, nullptr, /*bForceByteSwapping*/ false,
+				/*bWarnOfLongFilename*/ true, SAVE_None);
+			if (SaveResult.Result != ESavePackageResult::Success)
+			{
+				UE_LOG(LogCook, Error, TEXT("PackageSplitter could not save uncooked generated package. Splitter=%s, Generated=%s."),
+					*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageData->GetFileName().ToString());
+				bOutError = true;
+				return;
+			}
 
-		// Add PackageData for GeneratedPackage
-		UE::Cook::FPackageData* GeneratedPackageData = PackageDatas->TryAddPackageDataByFileName(FName(GeneratedPackageUncookedFileName));
-		if (!GeneratedPackageData)
-		{
-			UE_LOG(LogCook, Error, TEXT("Error adding generated package data %s for object %s."), *GeneratedPackageUncookedFileName, *Generator->GetSplitDataObject()->GetFullName());
-			bOutError = true;
-			return;
-		}
+			// Update Asset Registry with the generated package
+			AssetRegistry->ScanFilesSynchronous({ GeneratedPackageData->GetFileName().ToString() }, true);
 
-		// Set override cooked FileName to be used when saving the cooked generated package
-		const FString GeneratePackageCookedFileName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/%s/%s/%s%s"), 
-													  *FPaths::GetPath(Generator->GetOwner().GetFileName().ToString()), *GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath, *PackageToGenerate->RelativePath, *GeneratedPackageExtension));
-		GeneratedPackageData->SetCookedFileName(FPackageNameCache::GetStandardFileName(GeneratePackageCookedFileName));
+			// Queue the generated package
+			QueueDiscoveredPackageData(*GeneratedPackageData, true /* bLoadReady */);
 
-		// Queue the generated package
-		QueueDiscoveredPackage(GeneratedPackage, /*bIsGeneratedPackage*/true);
-		check(GeneratedPackageData->IsInProgress());
-
-		if (HasExceededMaxMemory())
-		{
-			return;
+			if (HasExceededMaxMemory())
+			{
+				return;
+			}
 		}
 	}
 
-	Generator->Finalize();
 	bOutCompleted = true;
 }
+
+UPackage* UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context)
+{
+	using namespace UE::Cook;
+
+	FGeneratorPackage* GeneratorStruct = Context.GeneratorStruct;
+	const UPackage* OwnerPackage = Context.OwnerPackage;
+	const ICookPackageSplitter::FGeneratedPackage& GeneratorData = Context.GeneratedStruct->GeneratorData;
+	UE::Cook::FPackageData* GeneratedPackageData = Context.GeneratedStruct->PackageData;
+	const FString GeneratedPackageName = GeneratedPackageData->GetPackageName().ToString();
+
+	if (Context.OwnerObject == nullptr)
+	{
+		Context.OwnerObject = GeneratorStruct->FindSplitDataObject();
+		if (!Context.OwnerObject)
+		{
+			UE_LOG(LogCook, Error, TEXT("PopulateGeneratedPacakge could not find the original splitting object. Generated package can not be created. Splitter=%s, Generated=%s."),
+				*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+			return nullptr;
+		}
+	}
+
+	if (Context.GeneratorPackagePath.IsEmpty())
+	{
+		Context.GeneratorPackagePath = FPackageName::GetLongPackagePath(Context.OwnerPackage->GetPathName());
+		Context.GeneratorPackageShortName = FPackageName::GetShortName(Context.OwnerPackage->GetName());
+		Context.GeneratedCookedRootPath = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s/%s/"),
+			*Context.GeneratorPackagePath, *Context.GeneratorPackageShortName, UE::Cook::GeneratedPackageSubPath));
+	}
+
+	check(GeneratorData.GetCreateAsMap().IsSet()); // Should have been confirmed in TryGenerateList and not allowed to get here if not set
+	check(GeneratedPackageData); // Caller already checked this
+
+	// Make package name to fit Mounted GeneratedUncookedRootPath
+	const FString GeneratedPackageCookedName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("/%s/%s"), *Context.GeneratedCookedRootPath, *GeneratorData.RelativePath));
+	const FString GeneratedPackageExtension = FString(FPathViews::GetExtension(GeneratedPackageData->GetFileName().ToString(), true /* bIncludeDot */));
+
+	// Create package
+	if (FindObject<UPackage>(nullptr, *GeneratedPackageName))
+	{
+		UE_LOG(LogCook, Error, TEXT("PackageSplitter found an existing copy of a package it was trying to generate; this is not yet supported. Splitter=%s, Generated=%s."),
+			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return nullptr;
+	}
+	UPackage* GeneratedPackage = CreatePackage(*GeneratedPackageName);
+
+	// Populate package using CookPackageSplitterInstance and pass GeneratedPackage's cooked name for it to
+	// properly setup any internal reference to this package (SoftObjectPaths or others)
+	if (!GeneratorStruct->GetCookPackageSplitterInstance()->TryPopulatePackage(OwnerPackage, Context.OwnerObject, GeneratedPackage,
+		GeneratorData.RelativePath, GeneratedPackageCookedName))
+	{
+		UE_LOG(LogCook, Error, TEXT("PackageSplitter returned false from TryPopulatePackage. Splitter=%s, Generated=%s."),
+			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return nullptr;
+	}
+	bool bPackageIsMap = GeneratedPackage->ContainsMap();
+	if (bPackageIsMap != *GeneratorData.GetCreateAsMap())
+	{
+		UE_LOG(LogCook, Error, TEXT("PackageSplitter specified generated package is %s in GetGenerateList results, but then in TryPopulatePackage created it as %s. Splitter=%s, Generated=%s."),
+			(*GeneratorData.GetCreateAsMap() ? TEXT("map") : TEXT("uasset")), (bPackageIsMap ? TEXT("map") : TEXT("uasset")),
+			*GeneratorStruct->GetSplitDataObjectName().ToString(), *GeneratedPackageName);
+		return nullptr;
+	}
+
+	// Set override cooked FileName to be used when saving the cooked generated package
+	const FString GeneratePackageCookedFileName = FPaths::RemoveDuplicateSlashes(FString::Printf(TEXT("%s/%s/%s/%s%s"),
+		*FPaths::GetPath(GeneratorStruct->GetOwner().GetFileName().ToString()), *Context.GeneratorPackageShortName,
+		UE::Cook::GeneratedPackageSubPath, *GeneratorData.RelativePath, *GeneratedPackageExtension));
+	GeneratedPackageData->SetCookedFileName(FPackageNameCache::GetStandardFileName(GeneratePackageCookedFileName));
+
+	return GeneratedPackage;
+}
+
 
 bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, UE::Cook::FCookerTimer& Timer, bool bIsPreCaching)
 {
@@ -2278,28 +2424,45 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 	check(PackageData.GetState() == UE::Cook::EPackageState::Save);
 	PackageData.CreateObjectCache();
 
-	int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
-	if (CookedPlatformDataNextIndex == -1)
+	if (!PackageData.HasCompletedGeneration())
 	{
 		// Check for Splitting the package; this needs to happen before we make any of the BeginCacheForCookedPlatformData calls in the package
 		bool bError = false;
 
-		UE::Cook::FGeneratorPackage* Generator = PackageData.GetGeneratorPackage();
-		if (!Generator)
+		UE::Cook::FGeneratorPackage* Generator = nullptr;
+		if (!PackageData.HasInitializedGeneratorSave())
 		{
+			PackageData.SetInitializedGeneratorSave(true);
+			PackageData.DestroyGeneratorPackage();
 			UObject* SplitDataObject = nullptr;
-			if (UE::Cook::Private::FRegisteredCookPackageSplitter* Splitter = TryGetRegisteredCookPackageSplitter(PackageData, SplitDataObject, bError))
-			{
-				// Found a splitter, create generator package
-				Generator = CreateGeneratorPackage(PackageData, SplitDataObject, Splitter);
-				bError = !Generator;
-			}
+			UE::Cook::Private::FRegisteredCookPackageSplitter* Splitter = TryGetRegisteredCookPackageSplitter(PackageData, SplitDataObject, bError);
 			if (bError)
 			{
-				// Any error marks the package data for PumpSaves to handle this as an error and to put it in idle state
 				PackageData.SetHasBeginPrepareSaveFailed(true);
 				return false;
 			}
+
+			if (Splitter)
+			{
+				// Found a splitter, create generator package
+				Generator = CreateGeneratorPackage(PackageData, SplitDataObject, Splitter);
+				if (!Generator)
+				{
+					PackageData.SetHasBeginPrepareSaveFailed(true);
+					return false;
+				}
+
+				// Call the splitter to generate the list
+				if (!Generator->TryGenerateList(Package, SplitDataObject, GetPackageNameCache(), *PackageDatas))
+				{
+					PackageData.SetHasBeginPrepareSaveFailed(true);
+					return false;
+				}
+			}
+		}
+		else
+		{
+			Generator = PackageData.GetGeneratorPackage();
 		}
 		if (Generator)
 		{
@@ -2320,9 +2483,16 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 			{
 				return false;
 			}
-			PackageData.DestroyGeneratorPackage();
+			UObject* SplitObject = Generator->FindSplitDataObject();
+			if (!SplitObject)
+			{
+				UE_LOG(LogCook, Error, TEXT("Could not find SplitDataObject for %s"), *Package->GetName());
+				PackageData.SetHasBeginPrepareSaveFailed(true);
+				return false;
+			}
+			Generator->GetCookPackageSplitterInstance()->PreSaveGeneratorPackage(Package, SplitObject);
 		}
-		CookedPlatformDataNextIndex = 0;
+		PackageData.SetCompletedGeneration(true);
 	}
 
 	// Note that we cache cooked data for all requested platforms, rather than only for the requested platforms that have not cooked yet.  This allows
@@ -2331,6 +2501,7 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 	// Currently this does not cause significant cost since saving new platforms with some platforms already saved is a rare operation.
 
 	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
+	int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
 	FWeakObjectPtr* CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
 	const TArray<const ITargetPlatform*>& TargetPlatforms = PackageData.GetRequestedPlatforms();
 	int NumPlatforms = TargetPlatforms.Num();
@@ -2429,32 +2600,6 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 {
 	using namespace UE::Cook;
 
-	ON_SCOPE_EXIT
-	{
-		if (CurrentCookMode == ECookMode::CookByTheBook)
-		{
-			// For each object for which data is cached we can call FinishedCookedPlatformDataCache
-			// we can only safely call this when we are finished caching the object completely.
-			// this doesn't ever happen for cook in editor or cook on the fly mode
-			for (FWeakObjectPtr& WeakPtr : PackageData.GetCachedObjectsInOuter())
-			{
-				UObject* Obj = WeakPtr.Get();
-				if (Obj)
-				{
-					Obj->WillNeverCacheCookedPlatformDataAgain();
-				}
-			}
-
-			UPackage* Package = PackageData.GetPackage();
-			if (Package && Package->LinkerLoad)
-			{
-				// Loaders and their handles can have large buffers held in process memory and in the system file cache from the
-				// data that was loaded.  Keeping this for the lifetime of the cook is costly, so we try and unload it here.
-				Package->LinkerLoad->FlushCache();
-			}
-		}
-	};
-
 	if (!PackageData.GetCookedPlatformDataStarted())
 	{
 		PackageData.CheckCookedPlatformDataEmpty();
@@ -2465,7 +2610,7 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 	if (PackageData.GetCookedPlatformDataComplete())
 	{
 		// Since we have completed CookedPlatformData, we know we called BeginCacheForCookedPlatformData on all objects in the package, and none are pending
-		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor
+		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData and WillNeverCacheCookedPlatformDataAgain calls are only used when not in editor
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(ClearAllCachedCookedPlatformData);
 			for (FWeakObjectPtr& WeakPtr: PackageData.GetCachedObjectsInOuter())
@@ -2474,75 +2619,106 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 				if (Object)
 				{
 					Object->ClearAllCachedCookedPlatformData();
-				}
-			}
-		}
-		PackageData.ClearCookedPlatformData();
-		return;
-	}
-
-	// This is an exceptional flow handling case; we are releasing the CookedPlatformData before we called SavePackage
-	// Note that even after we return from this function, some objects with pending IsCachedCookedPlatformDataLoaded calls may still exist for this Package in PackageDatas->GetPendingCookedPlatformDatas(),
-	// and this PackageData may therefore still have GetNumPendingCookedPlatformData > 0
-	if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor.
-	{
-		int32 NumPlatforms = PackageData.GetRequestedPlatforms().Num();
-		if (NumPlatforms > 0) // Shouldn't happen because PumpSaves checks for this, but avoid a divide by 0 if it does.
-		{
-			// We have only called BeginCacheForCookedPlatformData on Object,Platform pairs up to GetCookedPlatformDataNextIndex.
-			// Further, some of those calls might still be pending.
-
-			// Find all pending BeginCacheForCookedPlatformData for this FPackageData
-			TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
-			for (FPendingCookedPlatformData& PendingCookedPlatformData : PackageDatas->GetPendingCookedPlatformDatas())
-			{
-				if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
-				{
-					UObject* Object = PendingCookedPlatformData.Object.Get();
-					check(Object); // Otherwise PollIsComplete would have returned true
-					check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
-					PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
-				}
-			}
-
-			// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
-			TArray<FWeakObjectPtr>& CachedObjects = PackageData.GetCachedObjectsInOuter();
-			int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
-			check(NumIndexes <= NumPlatforms * CachedObjects.Num());
-			// GetCookedPlatformDataNextIndex is a value in an inline iteration over the two-dimensional array of Objects x Platforms, in Object-major order.
-			// We take the ceiling of NextIndex/NumPlatforms to get the number of objects.
-			int32 NumObjects = (NumIndexes + NumPlatforms - 1) / NumPlatforms;
-			for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
-			{
-				UObject* Object = CachedObjects[ObjectIndex].Get();
-				if (!Object)
-				{
-					continue;
-				}
-				TArray<FPendingCookedPlatformData*>* PendingDatas = PendingObjects.Find(Object);
-				if (!PendingDatas || PendingDatas->Num() == 0)
-				{
-					// No pending BeginCacheForCookedPlatformData calls for this object; clear it now.
-					Object->ClearAllCachedCookedPlatformData();
-				}
-				else
-				{
-					// For any pending Objects, we add a CancelManager to the FPendingCookedPlatformData to call ClearAllCachedCookedPlatformData when the pending Object,Platform pairs for that object complete.
-					FPendingCookedPlatformDataCancelManager* CancelManager = new FPendingCookedPlatformDataCancelManager();
-					CancelManager->NumPendingPlatforms = PendingDatas->Num();
-					for (FPendingCookedPlatformData* PendingCookedPlatformData : *PendingDatas)
+					if (CurrentCookMode == ECookMode::CookByTheBook)
 					{
-						// We never start a new package until after the previous cancel finished, so all of the FPendingCookedPlatformData for the PlatformData we are cancelling can not have been cancelled before.  We would leak the CancelManager if we overwrote it here.
-						check(PendingCookedPlatformData->CancelManager == nullptr);
-						// If bHasReleaased on the PendingCookedPlatformData were already true, we would leak the CancelManager because the PendingCookedPlatformData would never call Release on it.
-						check(!PendingCookedPlatformData->bHasReleased);
-						PendingCookedPlatformData->CancelManager = CancelManager;
+						Object->WillNeverCacheCookedPlatformDataAgain();
 					}
 				}
 			}
 		}
 	}
+	else 
+	{
+		// This is an exceptional flow handling case; we are releasing the CookedPlatformData before we called SavePackage
+		// Note that even after we return from this function, some objects with pending IsCachedCookedPlatformDataLoaded calls may still exist for this Package in PackageDatas->GetPendingCookedPlatformDatas(),
+		// and this PackageData may therefore still have GetNumPendingCookedPlatformData > 0
+		if (!IsCookingInEditor()) // ClearAllCachedCookedPlatformData calls are only used when not in editor.
+		{
+			int32 NumPlatforms = PackageData.GetRequestedPlatforms().Num();
+			if (NumPlatforms > 0) // Shouldn't happen because PumpSaves checks for this, but avoid a divide by 0 if it does.
+			{
+				// We have only called BeginCacheForCookedPlatformData on Object,Platform pairs up to GetCookedPlatformDataNextIndex.
+				// Further, some of those calls might still be pending.
+
+				// Find all pending BeginCacheForCookedPlatformData for this FPackageData
+				TMap<UObject*, TArray<FPendingCookedPlatformData*>> PendingObjects;
+				for (FPendingCookedPlatformData& PendingCookedPlatformData : PackageDatas->GetPendingCookedPlatformDatas())
+				{
+					if (&PendingCookedPlatformData.PackageData == &PackageData && !PendingCookedPlatformData.PollIsComplete())
+					{
+						UObject* Object = PendingCookedPlatformData.Object.Get();
+						check(Object); // Otherwise PollIsComplete would have returned true
+						check(!PendingCookedPlatformData.bHasReleased); // bHasReleased should be false since PollIsComplete returned false
+						PendingObjects.FindOrAdd(Object).Add(&PendingCookedPlatformData);
+					}
+				}
+
+				// Iterate over all objects in the FPackageData up to GetCookedPlatformDataNextIndex
+				TArray<FWeakObjectPtr>& CachedObjects = PackageData.GetCachedObjectsInOuter();
+				int32 NumIndexes = PackageData.GetCookedPlatformDataNextIndex();
+				check(NumIndexes <= NumPlatforms * CachedObjects.Num());
+				// GetCookedPlatformDataNextIndex is a value in an inline iteration over the two-dimensional array of Objects x Platforms, in Object-major order.
+				// We take the ceiling of NextIndex/NumPlatforms to get the number of objects.
+				int32 NumObjects = (NumIndexes + NumPlatforms - 1) / NumPlatforms;
+				for (int32 ObjectIndex = 0; ObjectIndex < NumObjects; ++ObjectIndex)
+				{
+					UObject* Object = CachedObjects[ObjectIndex].Get();
+					if (!Object)
+					{
+						continue;
+					}
+					TArray<FPendingCookedPlatformData*>* PendingDatas = PendingObjects.Find(Object);
+					if (!PendingDatas || PendingDatas->Num() == 0)
+					{
+						// No pending BeginCacheForCookedPlatformData calls for this object; clear it now.
+						Object->ClearAllCachedCookedPlatformData();
+					}
+					else
+					{
+						// For any pending Objects, we add a CancelManager to the FPendingCookedPlatformData to call ClearAllCachedCookedPlatformData when the pending Object,Platform pairs for that object complete.
+						FPendingCookedPlatformDataCancelManager* CancelManager = new FPendingCookedPlatformDataCancelManager();
+						CancelManager->NumPendingPlatforms = PendingDatas->Num();
+						for (FPendingCookedPlatformData* PendingCookedPlatformData : *PendingDatas)
+						{
+							// We never start a new package until after the previous cancel finished, so all of the FPendingCookedPlatformData for the PlatformData we are cancelling can not have been cancelled before.  We would leak the CancelManager if we overwrote it here.
+							check(PendingCookedPlatformData->CancelManager == nullptr);
+							// If bHasReleaased on the PendingCookedPlatformData were already true, we would leak the CancelManager because the PendingCookedPlatformData would never call Release on it.
+							check(!PendingCookedPlatformData->bHasReleased);
+							PendingCookedPlatformData->CancelManager = CancelManager;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	FGeneratorPackage* GeneratorPackage = PackageData.GetGeneratorPackage();
+	if (GeneratorPackage && PackageData.HasCompletedGeneration())
+	{
+		UObject* SplitObject = GeneratorPackage->FindSplitDataObject();
+		if (!SplitObject || !PackageData.GetPackage())
+		{
+			UE_LOG(LogCook, Error, TEXT("PackageSplitter: Could not find %s. This prevents us from restoring the package to its precooked state. Splitter=%s."),
+				(!PackageData.GetPackage() ? TEXT("UPackage") : TEXT("SplitDataObject")), *GeneratorPackage->GetSplitDataObjectName().ToString());
+		}
+		else
+		{
+			GeneratorPackage->GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(PackageData.GetPackage(), SplitObject);
+		}
+	}
+
 	PackageData.ClearCookedPlatformData();
+
+	if (CurrentCookMode == ECookMode::CookByTheBook)
+	{
+		UPackage* Package = PackageData.GetPackage();
+		if (Package && Package->LinkerLoad)
+		{
+			// Loaders and their handles can have large buffers held in process memory and in the system file cache from the
+			// data that was loaded.  Keeping this for the lifetime of the cook is costly, so we try and unload it here.
+			Package->LinkerLoad->FlushCache();
+		}
+	}
 }
 
 void UCookOnTheFlyServer::TickCancels()
@@ -3542,7 +3718,7 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	{
 		// When a package is in the process of generating other packages,
 		// we need to keep it loaded (and all objects outered to it)
-		if (PackageData->GetGeneratorPackage())
+		if (PackageData->IsGenerating())
 		{
 			GCKeepPackages.Add(PackageData->GetPackage());
 		}
@@ -3643,11 +3819,11 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 	{
 		if (PackageData->IsSaveInvalidated())
 		{
-			if (PackageData->GetGeneratorPackage())
+			if (PackageData->IsGenerating())
 			{
 				// Generator packages cannot be demoted as that would break their generation data which must be preserved
 				// We're relying on BeginCacheForCookedPlatformData not having started; this is currently guaranteed when PackageData has a valid GeneratorPackage.
-				check(PackageData->GetCookedPlatformDataNextIndex() == -1);
+				check(PackageData->GetCookedPlatformDataNextIndex() == 0);
 				// Recalculate object cache
 				PackageData->ClearObjectCache();
 				PackageData->CreateObjectCache();
@@ -8108,7 +8284,9 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 				const FName PackageName = Packages[AssetIndex]->PackageName;
 
 				FString StandardFilename;
-				if (!GetPackageNameCache().CalculateCacheData(PackageName, StandardFilename, OutPackageFilenames[AssetIndex]))
+				// TODO ICookPackageSplitter: Need to handle GeneratedPackages that exist in the cooked AssetRegistry we are reading, but do not exist
+				// in the workspace domain and so are not found when we try to calculate their cache data here.
+				if (!GetPackageNameCache().TryCalculateCacheData(PackageName, StandardFilename, OutPackageFilenames[AssetIndex]))
 				{
 					if (bVerifyPackagesExist)
 					{

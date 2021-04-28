@@ -12,15 +12,16 @@ class FWorldPartitionCookPackageSplitter : public ICookPackageSplitter
 public:
 	//~ Begin of ICookPackageSplitter
 	static bool ShouldSplit(UObject* SplitData);
+	virtual bool UseDeferredPopulate() { return false; }
 	virtual ~FWorldPartitionCookPackageSplitter() {}
-	virtual void SetDataObject(UObject* SplitData) override;
-	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList() override;
-	virtual bool TryPopulatePackage(UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) override;
-	virtual void FinalizeGeneratorPackage() override;
+	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) override;
+	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject, UPackage* GeneratedPackage, const FStringView& RelativePath, const FStringView& GeneratedPackageCookName) override;
+	virtual void PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject) override;
 	//~ End of ICookPackageSplitter
 
 private:
-	UWorld* PartitionedWorld;
+	const UWorld* ValidateDataObject(const UObject* SplitData);
+	UWorld* ValidateDataObject(UObject* SplitData);
 };
 
 #endif

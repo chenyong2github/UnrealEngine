@@ -122,6 +122,7 @@ namespace Cook
 	struct FPendingCookedPlatformData;
 	struct FPlatformManager;
 	struct FTickStackData;
+	struct FPopulatePackageContext;
 }
 }
 
@@ -314,13 +315,19 @@ private:
 	/** Try to save all packages in the SaveQueue until it's time to break. Report the number of requests that were completed (either skipped or successfully saved or failed to save) */
 	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
 	/**
-	 * Inspect the given package and add it to the SaveQueue if the cooker should save it.
+	 * Inspect the given package and queue it for saving if necessary.
 	 *
-	 * @param Package				The package to be added to the SaveQueue.
-	 * @param bIsGeneratedPackage	If true, ignore the CookByTheBookOptions::bSkipHardReferences flag when in CookByTheBook mode.
+	 * @param Package				The package to be considered for saving.
 	 * @return						Returns the PackageData for this queued package.
 	 */
-	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, bool bIsGeneratedPackage = false);
+	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package);
+	/**
+	 * Inspect the given package and queue it for saving if necessary.
+	 *
+	 * @param PackageData			The PackageData to be considered for saving.
+	 * @param bLoadReady			If true send on to LoadReady, otherwise add it at the Request stage.
+	 */
+	void QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, bool bLoadReady = false);
 
 	/** Check whether the package filter has change, and if so call QueueDiscoveredPackage again on each existing package. */
 	void UpdatePackageFilter();
@@ -1096,6 +1103,9 @@ private:
 	* @param bOutError				Return true if function fails
 	*/
 	void SplitPackage(UE::Cook::FGeneratorPackage* Generator, bool& bCompleted, bool& bOutError);
+
+	/** Try calling the splitter's populate to create the package */
+	UPackage* TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context);
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 
