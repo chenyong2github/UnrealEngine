@@ -600,7 +600,6 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 	// Sort/Cull particles if needed (translucency etc).
 	PerViewUniformParameters.SortedIndices = GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
 	PerViewUniformParameters.SortedIndicesOffset = 0xFFFFFFFF;
-	//VertexFactory.SetSortedIndices(, 0xFFFFFFFF);
 	if ((bShouldSort || bDoGPUCulling) && SortInfo.SortAttributeOffset != INDEX_NONE)
 	{
 		// Set up mesh-specific sorting parameters
@@ -617,18 +616,16 @@ FNiagaraMeshUniformBufferRef FNiagaraRendererMeshes::CreatePerViewUniformBuffer(
 			// We need to run the sort shader on the GPU
 			if (Batcher->AddSortedGPUSimulation(SortInfo))
 			{
-				//VertexFactory.SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 				PerViewUniformParameters.SortedIndices = SortInfo.AllocationInfo.BufferSRV;
 				PerViewUniformParameters.SortedIndicesOffset = SortInfo.AllocationInfo.BufferOffset;
 			}
 		}
-		else
+		else if (DynamicDataMesh)
 		{
 			// We want to sort on CPU
 			FGlobalDynamicReadBuffer::FAllocation SortedIndices;
 			SortedIndices = DynamicReadBuffer.AllocateInt32(NumInstances);
 			SortIndices(SortInfo, VFVariables[SortVarIdx], *DynamicDataMesh->GetParticleDataToRender(), SortedIndices);
-			//VertexFactory.SetSortedIndices(SortedIndices.SRV, 0);
 			PerViewUniformParameters.SortedIndices = SortedIndices.SRV;
 			PerViewUniformParameters.SortedIndicesOffset = 0;
 		}
@@ -1160,10 +1157,6 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			bShouldSort, bDoGPUCulling, bGPUSortEnabled, SortInfo, SortVarIdx, Batcher, DynamicReadBuffer, NumInstances,
 			WorldSpacePivotOffset, CullingSphere);
 
-
-		VertexFactory.SetUniformBuffer(PerViewUniformBuffer);
-		CollectorResources->UniformBuffer = PerViewUniformBuffer;
-
 		VertexFactory.SetUniformBuffer(PerViewUniformBuffer);
 		CollectorResources->UniformBuffer = PerViewUniformBuffer;
 
@@ -1188,7 +1181,6 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			const FStaticMeshVertexFactories& VFs = MeshData.RenderData->LODVertexFactories[LODIndex];
 
 			MeshBatch.VertexFactory = &VertexFactory;
-			//MeshBatch.VertexFactory = &MeshData.RenderData->LODVertexFactories[LODIndex].VertexFactory; 
 			MeshBatch.MaterialRenderProxy = MaterialProxy;
 			MeshBatch.SegmentIndex = SectionIndex;
 			MeshBatch.LODIndex = LODIndex;
