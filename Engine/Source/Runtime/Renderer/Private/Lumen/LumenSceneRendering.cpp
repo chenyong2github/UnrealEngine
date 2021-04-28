@@ -181,7 +181,7 @@ namespace Lumen
 #if RHI_RAYTRACING
 		if (GAllowLumenDiffuseIndirect != 0
 			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
-			&& (UseHardwareRayTracedScreenProbeGather() || UseHardwareRayTracedShadows(View)))
+			&& (UseHardwareRayTracedScreenProbeGather() || UseHardwareRayTracedRadianceCache() || UseHardwareRayTracedShadows(View)))
 		{
 			return true;
 		}
