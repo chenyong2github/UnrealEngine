@@ -104,7 +104,7 @@ IAudioOcclusionFactory* AudioPluginUtilities::GetDesiredOcclusionPlugin()
 IAudioModulationFactory* AudioPluginUtilities::GetDesiredModulationPlugin()
 {
 	const FName& PlatformPluginName = FName(*GetDesiredPluginName(EAudioPlugin::MODULATION));
-	const FName& PluginName = PlatformPluginName == NAME_None ? GetDefaultModulationPluginName() : PlatformPluginName;
+	const FName& PluginName = (PlatformPluginName == NAME_None) ? GetDefaultModulationPluginName() : PlatformPluginName;
 	const FName& FeatureName = IAudioModulationFactory::GetModularFeatureName();
 
 	TArray<IAudioModulationFactory*> Factories = IModularFeatures::Get().GetModularFeatureImplementations<IAudioModulationFactory>(FeatureName);

@@ -493,7 +493,7 @@ static void ConformTransformRelativeToParent(USceneComponent* SceneComponentTemp
 {
 	// If we find a match, calculate its new position relative to the scene root component instance in its current scene
 	FTransform ComponentToWorld(SceneComponentTemplate->GetRelativeRotation(), SceneComponentTemplate->GetRelativeLocation(), SceneComponentTemplate->GetRelativeScale3D());
-	FTransform ParentToWorld = SceneComponentTemplate->GetAttachSocketName() != NAME_None ? ParentSceneComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : ParentSceneComponent->GetComponentToWorld();
+	FTransform ParentToWorld = (SceneComponentTemplate->GetAttachSocketName() != NAME_None) ? ParentSceneComponent->GetSocketTransform(SceneComponentTemplate->GetAttachSocketName(), RTS_World) : ParentSceneComponent->GetComponentToWorld();
 	FTransform RelativeTM = ComponentToWorld.GetRelativeTransform(ParentToWorld);
 
 	// Store new relative location value (if not set to absolute)

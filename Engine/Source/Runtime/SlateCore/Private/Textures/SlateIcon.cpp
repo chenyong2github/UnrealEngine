@@ -20,7 +20,7 @@ FSlateIcon::FSlateIcon( )
 FSlateIcon::FSlateIcon(const FName InStyleSetName, const FName InStyleName, const FName InSmallStyleName, const FName InStatusOverlayStyleName)
 	: StyleSetName(InStyleSetName)
 	, StyleName(InStyleName)
-	, SmallStyleName(InSmallStyleName == NAME_None ? ISlateStyle::Join(InStyleName, ".Small") :  InSmallStyleName)
+	, SmallStyleName((InSmallStyleName == NAME_None) ? ISlateStyle::Join(InStyleName, ".Small") :  InSmallStyleName)
 	, StatusOverlayStyleName(InStatusOverlayStyleName)
 { }
 

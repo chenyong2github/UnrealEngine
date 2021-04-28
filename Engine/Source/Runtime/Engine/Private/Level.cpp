@@ -2497,7 +2497,7 @@ TArray<FString> ULevel::GetOnDiskExternalActorPackages(const FString& ExternalAc
 TArray<FString> ULevel::GetOnDiskExternalActorPackages() const
 {
 	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->OriginalWorldName == NAME_None ? World->GetName() : World->OriginalWorldName.ToString());
+	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString());
 	return GetOnDiskExternalActorPackages(ExternalActorsPath);
 }
 
@@ -2510,7 +2510,7 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 
 	// We also need to provide empty packages (for actors that were converted to non-external)
 	UWorld* World = GetTypedOuter<UWorld>();
-	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), World->OriginalWorldName == NAME_None ? World->GetName() : World->OriginalWorldName.ToString());
+	FString ExternalActorsPath = ULevel::GetExternalActorsPath(World->GetPackage(), (World->OriginalWorldName == NAME_None) ? World->GetName() : World->OriginalWorldName.ToString());
 	if (!ExternalActorsPath.IsEmpty())
 	{
 		// Make sure we filter out similar external folders

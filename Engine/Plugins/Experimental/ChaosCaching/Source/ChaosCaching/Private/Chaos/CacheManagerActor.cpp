@@ -335,7 +335,7 @@ void AChaosCacheManager::BeginPlay()
 				{
 					// Make sure there's a cache available if we're going to record.
 					UPrimitiveComponent* Component = Observed.GetComponent();
-					FName CacheName = Observed.CacheName == NAME_None ? MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache") : Observed.CacheName;
+					FName CacheName = (Observed.CacheName == NAME_None) ? MakeUniqueObjectName(CacheCollection, UChaosCache::StaticClass(), "Cache") : Observed.CacheName;
 
 					UChaosCache*    RecordCache = CacheCollection->FindOrAddCache(CacheName);
 					FCacheUserToken Token       = RecordCache->BeginRecord(Observed.GetComponent(), CurrAdapter->GetGuid(), GetTransform());

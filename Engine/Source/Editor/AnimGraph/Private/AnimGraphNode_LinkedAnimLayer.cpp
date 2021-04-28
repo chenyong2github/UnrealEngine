@@ -95,7 +95,7 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	FFormatNamedArguments Args;
 		Args.Add(TEXT("NodeTitle"), LOCTEXT("NodeTitle", "Linked Anim Layer"));
 		Args.Add(TEXT("TargetClass"), TargetAnimBlueprintInterface ? FText::FromString(TargetAnimBlueprintInterface->GetName()) : LOCTEXT("InterfaceNone", "None"));
-		Args.Add(TEXT("Layer"), Node.Layer == NAME_None ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
+		Args.Add(TEXT("Layer"), (Node.Layer == NAME_None) ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
 
 		if (FAnimNode_LinkedAnimLayer* PreviewNode = GetPreviewNode())
 		{

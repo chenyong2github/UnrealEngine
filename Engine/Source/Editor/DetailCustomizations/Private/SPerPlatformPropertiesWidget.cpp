@@ -48,7 +48,7 @@ TSharedRef<SWidget> SPerPlatformPropertiesRow::MakePerPlatformWidget(FName InNam
 		.MinDesiredWidth(50.0f)
 		[
 			SAssignNew(HorizontalBox, SHorizontalBox)
-			.ToolTipText(InName != NAME_None 
+			.ToolTipText((InName != NAME_None)
 				? FText::Format(NSLOCTEXT("SPerPlatformPropertiesWidget", "PerPlatformDesc", "Override for {0}"), FText::AsCultureInvariant(InName.ToString()))
 				: NSLOCTEXT("SPerPlatformPropertiesWidget", "DefaultDesc", "Default value for properties without an override"))
 			+SHorizontalBox::Slot()

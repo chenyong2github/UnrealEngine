@@ -153,7 +153,7 @@ void FTable::GetVisibleColumnsData(const TArray<Insights::FBaseTreeNodePtr>& InN
 	{
 		NumItems = Max_Rows;
 
-		FMessageLog ReportMessageLog(LogListingName != NAME_None ? LogListingName : TEXT("Other"));
+		FMessageLog ReportMessageLog((LogListingName != NAME_None) ? LogListingName : TEXT("Other"));
 		ReportMessageLog.Warning(FText::Format(LOCTEXT("TooManyRows", "Too many rows selected. Only the first {0} will be copied."), NumItems));
 		ReportMessageLog.Notify();
 	}

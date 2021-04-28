@@ -6687,7 +6687,7 @@ struct FConformCallsToParentFunctionUtils
 				}
 
 				// Rename the graph if it does not match the actual function name.
-				const FName FunctionName = FunctionEntryNode->CustomGeneratedFunctionName != NAME_None ? FunctionEntryNode->CustomGeneratedFunctionName : FunctionEntryNode->FunctionReference.GetMemberName();
+				const FName FunctionName = (FunctionEntryNode->CustomGeneratedFunctionName != NAME_None) ? FunctionEntryNode->CustomGeneratedFunctionName : FunctionEntryNode->FunctionReference.GetMemberName();
 				if (FunctionEntryNode == FunctionEntryNodes[0]
 					&& !FBlueprintEditorUtils::IsEventGraph(CurrentGraph)
 					&& CurrentGraph->GetFName() != FunctionName)

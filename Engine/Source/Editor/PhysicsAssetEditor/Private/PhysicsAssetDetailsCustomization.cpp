@@ -223,7 +223,7 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillPhysicalAnimationPr
 							SNew(SBox)
 							.WidthOverride(MenuIconSize)
 							.HeightOverride(MenuIconSize)
-							.Visibility_Lambda([ProfileName](){ return ProfileName == NAME_None ? EVisibility::Collapsed : EVisibility::Visible; })
+							.Visibility_Lambda([ProfileName](){ return (ProfileName == NAME_None) ? EVisibility::Collapsed : EVisibility::Visible; })
 							[
 								SNew(SImage)
 								.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.SearchGlass").GetIcon())
@@ -338,7 +338,7 @@ TSharedRef< SWidget > FPhysicsAssetDetailsCustomization::FillConstraintProfilesO
 						SNew(SBox)
 						.WidthOverride(MenuIconSize)
 						.HeightOverride(MenuIconSize)
-						.Visibility_Lambda([ProfileName]() { return ProfileName == NAME_None ? EVisibility::Collapsed : EVisibility::Visible; })
+						.Visibility_Lambda([ProfileName]() { return (ProfileName == NAME_None) ? EVisibility::Collapsed : EVisibility::Visible; })
 						[
 							SNew(SImage)
 							.Image(FSlateIcon(FEditorStyle::GetStyleSetName(), "Symbols.SearchGlass").GetIcon())

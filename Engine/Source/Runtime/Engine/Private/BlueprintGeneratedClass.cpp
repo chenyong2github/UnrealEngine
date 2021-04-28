@@ -829,7 +829,7 @@ UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, c
 		// node in a function graph, which can occur when the AddComponent node is wired to a flow-control node such as a ForEach loop, for example. Thus,
 		// we still look for the archetype by name, but we must first ensure that the instance name is converted to its "base" name by removing the index.
 #if WITH_EDITORONLY_DATA
-		const FName ArchetypeBaseName = NewArchetypeName != NAME_None ? NewArchetypeName : FName(ArchetypeName, 0);
+		const FName ArchetypeBaseName = (NewArchetypeName != NAME_None) ? NewArchetypeName : FName(ArchetypeName, 0);
 #else
 		const FName ArchetypeBaseName = FName(ArchetypeName, 0);
 #endif

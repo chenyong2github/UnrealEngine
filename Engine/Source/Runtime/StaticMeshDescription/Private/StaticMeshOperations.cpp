@@ -890,7 +890,7 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 		if (PolygonGroupID == INDEX_NONE)
 		{
 			PolygonGroupID = DestinationMeshDescription.CreatePolygonGroup();
-			PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = PolygonGroupImportedMaterialSlotName == NAME_None ? FName(*FString::Printf(TEXT("MaterialSlot_%d"), MaterialIndex)) : PolygonGroupImportedMaterialSlotName;
+			PolygonGroupImportedMaterialSlotNames[PolygonGroupID] = (PolygonGroupImportedMaterialSlotName == NAME_None) ? FName(*FString::Printf(TEXT("MaterialSlot_%d"), MaterialIndex)) : PolygonGroupImportedMaterialSlotName;
 			PolygonGroups.Add(PolygonGroupID);
 			MaterialIndexToPolygonGroup.Add(MaterialIndex, PolygonGroupID);
 		}

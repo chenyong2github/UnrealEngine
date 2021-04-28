@@ -87,7 +87,7 @@ void ULevelSequencePlayer::Initialize(ULevelSequence* InLevelSequence, ULevel* I
 	if (LevelStreaming)
 	{
 		// StreamedLevelPackage is a package name of the form /Game/Folder/MapName, not a full asset path
-		FString StreamedLevelPackage = (LevelStreaming->PackageNameToLoad == NAME_None ? LevelStreaming->GetWorldAssetPackageFName() : LevelStreaming->PackageNameToLoad).ToString();
+		FString StreamedLevelPackage = ((LevelStreaming->PackageNameToLoad == NAME_None) ? LevelStreaming->GetWorldAssetPackageFName() : LevelStreaming->PackageNameToLoad).ToString();
 
 		int32 SlashPos = 0;
 		if (StreamedLevelPackage.FindLastChar('/', SlashPos) && SlashPos < StreamedLevelPackage.Len()-1)

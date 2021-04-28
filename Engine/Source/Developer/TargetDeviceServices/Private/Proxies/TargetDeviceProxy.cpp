@@ -150,7 +150,7 @@ const FString FTargetDeviceProxy::GetTargetDeviceId(FName InVariant) const
 {
 	FString Variant;
 	// for an aggregate (All_<platform>_devices_on_<host>) proxy we have a list of associated devices
-	for (TSet<FString>::TConstIterator ItVariant(TargetDeviceVariants[InVariant == NAME_None? DefaultVariant: InVariant].DeviceIDs); ItVariant; ++ItVariant)
+	for (TSet<FString>::TConstIterator ItVariant(TargetDeviceVariants[(InVariant == NAME_None) ? DefaultVariant : InVariant].DeviceIDs); ItVariant; ++ItVariant)
 	{
 		// should return the first device
 		// this method is designed for physical devices, not aggregate proxies

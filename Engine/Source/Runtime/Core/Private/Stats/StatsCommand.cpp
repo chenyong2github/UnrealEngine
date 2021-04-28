@@ -1146,7 +1146,7 @@ struct FHUDGroupManager
 		FHudFrame& NewFrame = History.FindOrAdd( TargetFrame );
 
 		FName RootName = Params.Root.Get();
-		FString RootString = RootName == NAME_None ? FString() : RootName.ToString();
+		FString RootString = (RootName == NAME_None) ? FString() : RootName.ToString();
 
 		const bool bUseSlowMode = Params.bSlowMode;
 		const bool bUseBudgetMode = Params.BudgetSection != NAME_None;

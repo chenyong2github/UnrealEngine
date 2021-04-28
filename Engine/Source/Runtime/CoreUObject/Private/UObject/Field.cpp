@@ -967,7 +967,7 @@ void FField::PostDuplicate(const FField& InField)
 FField* FField::Duplicate(const FField* InField, FFieldVariant DestOwner, const FName DestName, EObjectFlags FlagMask, EInternalObjectFlags InternalFlagsMask)
 {
 	check(InField);
-	FField* NewField = InField->GetClass()->Construct(DestOwner, DestName == NAME_None ? InField->GetFName() : DestName, InField->GetFlags() & FlagMask);
+	FField* NewField = InField->GetClass()->Construct(DestOwner, (DestName == NAME_None) ? InField->GetFName() : DestName, InField->GetFlags() & FlagMask);
 	NewField->PostDuplicate(*InField);
 	return NewField;
 }

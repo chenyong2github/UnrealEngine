@@ -1511,7 +1511,7 @@ void FAnimBlueprintCompilerContext::CreateAnimGraphStubFunctions()
 				UK2Node_FunctionEntry* EntryNode = SpawnIntermediateNode<UK2Node_FunctionEntry>(RootNode, StubGraph);
 				EntryNode->NodePosX = -200;
 				EntryNode->CustomGeneratedFunctionName = GraphToUseforSignature->GetFName();	// Note that the function generated from this temporary graph is undecorated
-				EntryNode->MetaData.Category = RootNode->Node.GetGroup() == NAME_None ? FText::GetEmpty() : FText::FromName(RootNode->Node.GetGroup());
+				EntryNode->MetaData.Category = (RootNode->Node.GetGroup() == NAME_None) ? FText::GetEmpty() : FText::FromName(RootNode->Node.GetGroup());
 
 				// Add linked input poses as parameters
 				for(UAnimGraphNode_LinkedInputPose* LinkedInputPoseNode : LinkedInputPoseNodes)

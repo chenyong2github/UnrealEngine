@@ -165,7 +165,7 @@ TSharedRef<IMultiBlockBaseWidget> FMultiBlock::MakeWidget(TSharedRef<SMultiBoxWi
 
 	// Work out what style the widget should be using
 	const ISlateStyle* const StyleSet = InOwnerMultiBoxWidget->GetStyleSet();
-	FName StyleName = StyleNameOverride != NAME_None ? StyleNameOverride : InOwnerMultiBoxWidget->GetStyleName();
+	FName StyleName = (StyleNameOverride != NAME_None) ? StyleNameOverride : InOwnerMultiBoxWidget->GetStyleName();
 
 	// Build up the widget
 	NewMultiBlockWidget->BuildMultiBlockWidget(StyleSet, StyleName);

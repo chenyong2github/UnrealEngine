@@ -1239,7 +1239,7 @@ void SFbxSceneOptionWindow::Construct(const FArguments& InArgs)
 
 	check(OwnerWindow.IsValid());
 
-	MaterialBasePath = GlobalImportSettings->MaterialBasePath == NAME_None ? TEXT("") : GlobalImportSettings->MaterialBasePath.ToString();
+	MaterialBasePath = (GlobalImportSettings->MaterialBasePath == NAME_None) ? TEXT("") : GlobalImportSettings->MaterialBasePath.ToString();
 
 	InitAllTabs();
 

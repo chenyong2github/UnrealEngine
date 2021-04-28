@@ -110,7 +110,7 @@ static FString GetHLODPackageName(const ULevel* InLevel, const uint32 InHLODLeve
 	FString LevelPackageName;
 	if (ULevelStreaming* StreamingLevel = FLevelUtils::FindStreamingLevel(InLevel))
 	{
-		LevelPackageName = StreamingLevel->PackageNameToLoad != NAME_None ? StreamingLevel->PackageNameToLoad.ToString() : StreamingLevel->GetWorldAssetPackageName();
+		LevelPackageName = (StreamingLevel->PackageNameToLoad != NAME_None) ? StreamingLevel->PackageNameToLoad.ToString() : StreamingLevel->GetWorldAssetPackageName();
 	}
 	else
 	{

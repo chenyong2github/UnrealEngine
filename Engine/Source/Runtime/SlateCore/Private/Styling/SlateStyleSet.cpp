@@ -362,7 +362,7 @@ const TSharedPtr< FSlateDynamicImageBrush > FSlateStyleSet::GetDynamicImageBrush
 {
 	//create a resource name
 	FName ResourceName;
-	ResourceName = TextureName == NAME_None ? BrushTemplate : FName(*( BrushTemplate.ToString() + TextureName.ToString() ));
+	ResourceName = (TextureName == NAME_None) ? BrushTemplate : FName(*( BrushTemplate.ToString() + TextureName.ToString() ));
 
 	//see if we already have that brush
 	TWeakPtr< FSlateDynamicImageBrush > WeakImageBrush = DynamicBrushes.FindRef(ResourceName);

@@ -290,7 +290,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 
 	// Create our pinned commands before we bind commands
 	IPinnedCommandListModule& PinnedCommandListModule = FModuleManager::LoadModuleChecked<IPinnedCommandListModule>(TEXT("PinnedCommandList"));
-	PinnedCommands = PinnedCommandListModule.CreatePinnedCommandList(InArgs._ContextName != NAME_None ? InArgs._ContextName : TEXT("PersonaViewport"));
+	PinnedCommands = PinnedCommandListModule.CreatePinnedCommandList((InArgs._ContextName != NAME_None) ? InArgs._ContextName : TEXT("PersonaViewport"));
 	PinnedCommands->SetStyle(&FEditorStyle::Get(), TEXT("ViewportPinnedCommandList"));
 
 	ChildSlot

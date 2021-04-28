@@ -1237,7 +1237,7 @@ void UMaterialExpressionLandscapeGrassOutput::ValidateInputName(FGrassInput& InI
 		bool bFoundValidName = false;
 
 		// Parameters cannot be named Name_None, use the default name instead
-		FName PotentialName = InInput.Name == NAME_None ? UMaterialExpressionLandscapeGrassOutput::PinDefaultName : InInput.Name;
+		FName PotentialName = (InInput.Name == NAME_None) ? UMaterialExpressionLandscapeGrassOutput::PinDefaultName : InInput.Name;
 
 		// Find an available unique name
 		while (!bFoundValidName)

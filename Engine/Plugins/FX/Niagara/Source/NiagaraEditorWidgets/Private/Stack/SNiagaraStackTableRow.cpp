@@ -278,7 +278,7 @@ void SNiagaraStackTableRow::SetNameAndValueContent(TSharedRef<SWidget> InNameWid
 
 	FName AccentColorName = FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(StackEntry->GetExecutionCategoryName());
 	const bool bDisplayingIndicator = IndicatorColor != FStyleColors::Transparent;
-	FSlateColor AccentColor = bDisplayingIndicator ? IndicatorColor : (AccentColorName != NAME_None ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FStyleColors::Transparent);
+	FSlateColor AccentColor = bDisplayingIndicator ? IndicatorColor : ((AccentColorName != NAME_None) ? FNiagaraEditorWidgetsStyle::Get().GetColor(AccentColorName) : FStyleColors::Transparent);
 
 	ChildSlot
 	[
@@ -502,7 +502,7 @@ EVisibility SNiagaraStackTableRow::GetRowVisibility() const
 
 EVisibility SNiagaraStackTableRow::GetExecutionCategoryIconVisibility() const
 {
-	return bShowExecutionCategoryIcon && StackEntry->GetExecutionSubcategoryName() != NAME_None
+	return bShowExecutionCategoryIcon && (StackEntry->GetExecutionSubcategoryName() != NAME_None)
 		? EVisibility::Visible
 		: EVisibility::Collapsed;
 }

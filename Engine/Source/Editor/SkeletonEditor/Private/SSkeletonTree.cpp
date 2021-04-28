@@ -601,7 +601,7 @@ void SSkeletonTree::CreateTreeColumns()
 			.Text_Lambda([this] () -> FText
 			{
 				FName CurrentProfile = BlendProfilePicker->GetSelectedBlendProfileName();
-				return CurrentProfile != NAME_None ? FText::FromName(CurrentProfile) : LOCTEXT("NoBlendProfile", "No Blend");
+				return (CurrentProfile != NAME_None) ? FText::FromName(CurrentProfile) : LOCTEXT("NoBlendProfile", "No Blend");
 			})
 			.OnTextCommitted_Lambda([this](const FText& InText, ETextCommit::Type InCommitType)
 			{

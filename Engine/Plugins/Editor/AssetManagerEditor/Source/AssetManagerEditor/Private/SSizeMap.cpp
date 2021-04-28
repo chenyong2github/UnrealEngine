@@ -405,7 +405,7 @@ void SSizeMap::GatherDependenciesRecursively(TSharedPtr<FAssetThumbnailPool>& In
 	for (const FAssetIdentifier& AssetIdentifier : AssetIdentifiers)
 	{
 		FName AssetPackageName = AssetIdentifier.IsPackage() ? AssetIdentifier.PackageName : NAME_None;
-		FString AssetPackageNameString = AssetPackageName != NAME_None ? AssetPackageName.ToString() : FString();
+		FString AssetPackageNameString = (AssetPackageName != NAME_None) ? AssetPackageName.ToString() : FString();
 		FPrimaryAssetId AssetPrimaryId = AssetIdentifier.GetPrimaryAssetId();
 		int32 ChunkId = UAssetManager::ExtractChunkIdFromPrimaryAssetId(AssetPrimaryId);
 		int32 FilterChunkId = UAssetManager::ExtractChunkIdFromPrimaryAssetId(FilterPrimaryAsset);

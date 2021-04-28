@@ -79,7 +79,7 @@ public:
 		return AlignmentSections.IsValidIndex(Index) ? AlignmentSections[Index].SectionName : NAME_None;
 	}
 
-	FORCEINLINE const FName& GetLeaderRole() const { return LeaderRole != NAME_None ? LeaderRole : PrimaryRole; }
+	FORCEINLINE const FName& GetLeaderRole() const { return (LeaderRole != NAME_None) ? LeaderRole : PrimaryRole; }
 
 	FORCEINLINE float GetRadius() const { return Radius; }
 

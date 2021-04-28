@@ -704,7 +704,7 @@ void SPropertyBinding::HandleCreateAndAddBinding()
 		WidgetName = Args.OnGenerateBindingName.Execute();
 	}
 
-	FString Post = PropertyName != NAME_None ? PropertyName.ToString() : TEXT("");
+	FString Post = (PropertyName != NAME_None) ? PropertyName.ToString() : FString();
 	Post.RemoveFromStart(TEXT("On"));
 	Post.RemoveFromEnd(TEXT("Event"));
 

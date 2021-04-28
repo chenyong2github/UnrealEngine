@@ -6502,7 +6502,7 @@ FName ALandscape::GenerateUniqueLayerName(FName InName) const
 		return InName;
 	}
 
-	FString BaseName = InName == NAME_None ? "Layer" : InName.ToString();
+	FString BaseName = (InName == NAME_None) ? "Layer" : InName.ToString();
 	FName NewName;
 	int32 LayerIndex = 0;
 	do

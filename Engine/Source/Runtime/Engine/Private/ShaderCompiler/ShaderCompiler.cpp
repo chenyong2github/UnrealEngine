@@ -2238,7 +2238,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 	auto* SingleJob = Job.GetSingleShaderJob();
 	if (SingleJob)
 	{
-		const FName Format = SingleJob->Input.ShaderFormat != NAME_None ? SingleJob->Input.ShaderFormat : LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
+		const FName Format = (SingleJob->Input.ShaderFormat != NAME_None) ? SingleJob->Input.ShaderFormat : LegacyShaderPlatformToShaderFormat(EShaderPlatform(SingleJob->Input.Target.Platform));
 		const IShaderFormat* Compiler = TPM.FindShaderFormat(Format);
 
 		if (!Compiler)
