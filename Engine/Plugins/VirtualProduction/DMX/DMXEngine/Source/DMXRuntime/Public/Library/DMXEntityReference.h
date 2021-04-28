@@ -125,6 +125,9 @@ public:
 
 	/** Specialized GetEntity() to return it already cast */
 	UDMXEntityFixtureType* GetFixtureType() const;
+
+private:
+	mutable TWeakObjectPtr<UDMXEntityFixtureType> CachedEntityFixtureType;
 };
 
 /**
@@ -143,6 +146,9 @@ public:
 
 	/** Specialized GetEntity() to return it already cast */
 	UDMXEntityFixturePatch* GetFixturePatch() const;
+
+private:
+	mutable TWeakObjectPtr<UDMXEntityFixturePatch> CachedEntityFixturePatch;
 };
 
 /** Extend type conversions to handle Entity Reference structs */
