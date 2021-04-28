@@ -129,7 +129,7 @@ void FRuntimeVirtualTextureSceneProxy::FlushDirtyPages()
 	if (ProducerHandle.PackedValue != 0)
 	{
 		// Don't do any work if we won't mark anything dirty.
-		if (MaxDirtyLevel >= 0 && CombinedDirtyRect.Area() > 0)
+		if (MaxDirtyLevel >= 0 && CombinedDirtyRect.Width() != 0 && CombinedDirtyRect.Height() != 0)
 		{
 			//todo[vt]: 
 			// Profile to work out best heuristic for when we should use the CombinedDirtyRect
