@@ -5,6 +5,7 @@
 #include "ScreenPass.h"
 
 struct FTemporalAAHistory;
+class FSeparateTranslucencyTextures;
 
 
 /** Configuration of the main temporal AA pass. */
@@ -170,9 +171,10 @@ public:
 	{
 		bool bAllowDownsampleSceneColor;
 		EPixelFormat DownsampleOverrideFormat;
-		FRDGTextureRef SceneColorTexture;
-		FRDGTextureRef SceneDepthTexture;
-		FRDGTextureRef SceneVelocityTexture;
+		FRDGTextureRef SceneColorTexture = nullptr;
+		FRDGTextureRef SceneDepthTexture = nullptr;
+		FRDGTextureRef SceneVelocityTexture = nullptr;
+		const FSeparateTranslucencyTextures* SeparateTranslucencyTextures = nullptr;
 	};
 
 	virtual ~ITemporalUpscaler() {};

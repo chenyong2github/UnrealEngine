@@ -1,0 +1,218 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TAACommon.ush"
+
+
+//------------------------------------------------------- CONFIG
+
+#define TILE_SIZE 8
+
+#define CONFIG_KERNEL 0
+
+#define CONFIG_OUTPUT_HALF_RES (DIM_OUTPUT_HALF_RES)
+
+#define CONFIG_OUTPUT_INTERFERENCE_SEEDS 0
+
+#define CONFIG_SAMPLES 5
+
+
+//------------------------------------------------------- PARAMETERS
+
+float2 TranslucencyInfo_Extent;
+float2 TranslucencyInfo_ExtentInverse;
+float2 TranslucencyInfo_ScreenPosToViewportScale;
+float2 TranslucencyInfo_ScreenPosToViewportBias;
+uint2  TranslucencyInfo_ViewportMin;
+uint2  TranslucencyInfo_ViewportMax;
+float2 TranslucencyInfo_ViewportSize;
+float2 TranslucencyInfo_ViewportSizeInverse;
+float2 TranslucencyInfo_UVViewportMin;
+float2 TranslucencyInfo_UVViewportMax;
+float2 TranslucencyInfo_UVViewportSize;
+float2 TranslucencyInfo_UVViewportSizeInverse;
+float2 TranslucencyInfo_UVViewportBilinearMin;
+float2 TranslucencyInfo_UVViewportBilinearMax;
+
+float2 PrevTranslucencyInfo_Extent;
+float2 PrevTranslucencyInfo_ExtentInverse;
+float2 PrevTranslucencyInfo_ScreenPosToViewportScale;
+float2 PrevTranslucencyInfo_ScreenPosToViewportBias;
+uint2  PrevTranslucencyInfo_ViewportMin;
+uint2  PrevTranslucencyInfo_ViewportMax;
+float2 PrevTranslucencyInfo_ViewportSize;
+float2 PrevTranslucencyInfo_ViewportSizeInverse;
+float2 PrevTranslucencyInfo_UVViewportMin;
+float2 PrevTranslucencyInfo_UVViewportMax;
+float2 PrevTranslucencyInfo_UVViewportSize;
+float2 PrevTranslucencyInfo_UVViewportSizeInverse;
+float2 PrevTranslucencyInfo_UVViewportBilinearMin;
+float2 PrevTranslucencyInfo_UVViewportBilinearMax;
+float PrevTranslucencyPreExposureCorrection;
+
+FScreenTransform InputPixelPosToScreenPos;
+FScreenTransform ScreenPosToPrevTranslucencyTextureUV;
+
+Texture2D<taa_half4> TranslucencyTexture;
+Texture2D<float2> DilatedVelocityTexture;
+Texture2D<taa_half4> PrevTranslucencyTexture;
+
+RWTexture2D<taa_half> TranslucencyRejectionOutput;
+
+
+//------------------------------------------------------- ENTRY POINT
+
+taa_half4 TransformToComparisonColorSpace(taa_half4 Color)
+{
+	return taa_half4(RGBToYCoCg(Color.rgb), Color.a);
+}
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	float4 Debug = 0;
+	
+	uint2 InputPixelPos = (
+		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		GroupId * uint2(TILE_SIZE, TILE_SIZE));
+
+	float2 ScreenPos = ApplyScreenTransform(float2(InputPixelPos), InputPixelPosToScreenPos);
+	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
+	
+	// Sample current frame translucency's
+	taa_half4 Translucency;
+	taa_half4 TranslucencyMin;
+	taa_half4 TranslucencyMax;
+	{
+		UNROLL_N(CONFIG_SAMPLES)
+		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
+		{
+			taa_short2 SampleInputPixelPos;
+			
+			// TODO: handle SeparateTranslucencyScreenPercentage
+			#if CONFIG_SAMPLES == 9
+			{
+				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+				
+				SampleInputPixelPos = AddAndClampPixelOffset(
+					InputPixelPos,
+					iPixelOffset, iPixelOffset,
+					InputPixelPosMin, InputPixelPosMax);
+			}
+			#elif CONFIG_SAMPLES == 5
+			{
+				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+					
+				SampleInputPixelPos = AddAndClampPixelOffset(
+					InputPixelPos,
+					iPixelOffset, iPixelOffset,
+					InputPixelPosMin, InputPixelPosMax);
+			}
+			#else
+				#error Unknown sample count
+			#endif
+
+			taa_half4 TranslucencyColor = TransformToComparisonColorSpace(TranslucencyTexture[SampleInputPixelPos]);
+
+			if (SampleId == 0)
+			{
+				Translucency = TranslucencyColor;
+				TranslucencyMin = TranslucencyColor;
+				TranslucencyMax = TranslucencyColor;
+			}
+			else
+			{
+				TranslucencyMin = min(TranslucencyMin, TranslucencyColor);
+				TranslucencyMax = max(TranslucencyMax, TranslucencyColor);
+			}
+		}
+	}
+
+	// Sample previous frame's translucency
+	taa_half4 PrevTranslucency;
+	taa_half4 PrevTranslucencyMin;
+	taa_half4 PrevTranslucencyMax;
+	{
+		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+		float2 PrevTranslucencyTextureUV = ApplyScreenTransform(PrevScreenPos, ScreenPosToPrevTranslucencyTextureUV);
+	
+		UNROLL_N(CONFIG_SAMPLES)
+		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
+		{
+			taa_half2 PixelOffset;
+			
+			// TODO: handle r.SeparateTranslucencyScreenPercentage
+			#if CONFIG_SAMPLES == 9
+			{
+				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+				PixelOffset = taa_half2(iPixelOffset);
+			}
+			#elif CONFIG_SAMPLES == 5
+			{
+				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+				PixelOffset = taa_half2(iPixelOffset);
+			}
+			#else
+				#error Unknown sample count
+			#endif
+
+			float2 SampleTextureUV = clamp(
+				PrevTranslucencyTextureUV + PixelOffset * PrevTranslucencyInfo_ExtentInverse,
+				PrevTranslucencyInfo_UVViewportBilinearMin,
+				PrevTranslucencyInfo_UVViewportBilinearMax);
+		
+			taa_half4 PrevTranslucencyColor = TransformToComparisonColorSpace(
+				PrevTranslucencyTexture.SampleLevel(GlobalPointClampedSampler, SampleTextureUV, 0));
+
+			if (SampleId == 0)
+			{
+				PrevTranslucency = PrevTranslucencyColor;
+				PrevTranslucencyMin = PrevTranslucencyColor;
+				PrevTranslucencyMax = PrevTranslucencyColor;
+			}
+			else
+			{
+				PrevTranslucencyMin = min(PrevTranslucencyMin, PrevTranslucencyColor);
+				PrevTranslucencyMax = max(PrevTranslucencyMax, PrevTranslucencyColor);
+			}
+		}
+
+		PrevTranslucency *= PrevTranslucencyPreExposureCorrection;
+		PrevTranslucencyMin *= PrevTranslucencyPreExposureCorrection;
+		PrevTranslucencyMax *= PrevTranslucencyPreExposureCorrection;
+	}
+
+	taa_half Rejection = 1.0;
+	#if 1
+	{
+		taa_half4 ClampedPrevTranslucency = clamp(PrevTranslucency, TranslucencyMin, TranslucencyMax);
+		taa_half4 ClampedTranslucency = clamp(Translucency, PrevTranslucencyMin, PrevTranslucencyMax);
+
+		// TODO: reject with alpha too? Might not need since translucency is premultiplied RGBA 
+		taa_half ForwardRejection = MeasureRejectionFactor(
+			PrevTranslucency.xyz, ClampedPrevTranslucency.xyz,
+			Translucency.xyz, TranslucencyMin.xyz, TranslucencyMax.xyz);
+		
+		taa_half BackwardRejection = MeasureRejectionFactor(
+			Translucency.xyz, ClampedTranslucency.xyz,
+			PrevTranslucency.xyz, PrevTranslucencyMin.xyz, PrevTranslucencyMax.xyz);
+		
+		Rejection = min(ForwardRejection, BackwardRejection);
+	}
+	#endif
+
+	if (all(InputPixelPos < InputInfo_ViewportMax))
+	{
+		TranslucencyRejectionOutput[InputPixelPos] = Rejection;
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[InputPixelPos] = Debug;
+		}
+		#endif
+	}
+}

@@ -1006,6 +1006,9 @@ struct FPreviousViewInfo
 	// Bleed free scene color to use for screen space ray tracing.
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceRayTracingInput;
 
+	// Separate translucency of previous frame to detect translucency change in TAA
+	TRefCountPtr<IPooledRenderTarget> SeparateTranslucency;
+
 	// Temporal AA result of last frame
 	FTemporalAAHistory TemporalAAHistory;
 

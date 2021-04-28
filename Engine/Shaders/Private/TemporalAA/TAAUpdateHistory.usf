@@ -20,6 +20,8 @@
 
 #define CONFIG_LOW_FREQUENCY_DRIFT_REJECTION 1
 
+#define CONFIG_TRANSLUCENCY_REJECTION 1
+
 
 //------------------------------------------------------- CONSTANTS
 
@@ -31,6 +33,7 @@
 Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<taa_half> HistoryRejectionTexture;
+Texture2D<taa_half> TranslucencyRejectionTexture;
 
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
@@ -39,6 +42,7 @@ Texture2D<taa_half> ParallaxRejectionMaskTexture;
 float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
 float3 HistoryQuantizationError;
+float MinTranslucencyRejection;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
@@ -72,6 +76,54 @@ taa_half3 TransformColorForClampingBox(taa_half3 Color)
 	return RGBToYCoCg(Color);
 }
 
+void ComputeInputKernelSamplePosition(
+	taa_short2 InputPixelPos,
+	taa_half2 dKO,
+	uint SampleId,
+	out taa_short2 SampleInputPixelPos,
+	out taa_half2 PixelOffset)
+{
+	
+	#if CONFIG_SAMPLES == 9
+	{
+		taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+		PixelOffset = taa_half2(iPixelOffset);
+				
+		SampleInputPixelPos = AddAndClampPixelOffset(
+			InputPixelPos,
+			iPixelOffset, iPixelOffset,
+			InputPixelPosMin, InputPixelPosMax);
+	}
+	#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
+	{
+		if (SampleId == 5)
+		{
+			taa_short2 iPixelOffset;
+			#if CONFIG_COMPILE_FP16
+				iPixelOffset = int16_t2(1, 1) - int16_t2((asuint16(dKO) & uint16_t(0x8000)) >> uint16_t(14));
+				PixelOffset = asfloat16(asuint16(half(1.0)).xx | (asuint16(dKO) & uint16_t(0x8000)));
+			#else
+				iPixelOffset = SignFastInt(dKO);
+				PixelOffset = asfloat(asuint(1.0).xx | (asuint(dKO) & uint(0x80000000)));
+			#endif
+						
+			SampleInputPixelPos = ClampPixelOffset(InputPixelPos, InputPixelPosMin, InputPixelPosMax);
+		}
+		else
+		{
+			taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+			PixelOffset = taa_half2(iPixelOffset);
+					
+			SampleInputPixelPos = AddAndClampPixelOffset(
+				InputPixelPos,
+				iPixelOffset, iPixelOffset,
+				InputPixelPosMin, InputPixelPosMax);
+		}
+	}
+	#else
+		#error Unknown sample count
+	#endif
+}
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -104,9 +156,14 @@ void MainCS(
 	float2 PrevScreenPos = ScreenPos;
 	taa_half ParallaxRejectionMask = taa_half(1.0);
 	taa_half LowFrequencyRejection = taa_half(1.0);
+	taa_half TranslucencyRejection = taa_half(1.0);
 	taa_half OutputPixelVelocity = taa_half(0.0);
 	#if 1
+	ISOLATE
 	{
+		// Vector in pixel between pixel K -> O.
+		taa_half2 dKO = taa_half2(PPCo - PPCk);
+
 		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
 
@@ -117,14 +174,36 @@ void MainCS(
 
 		taa_ushort2 RejectionPixelPos = (taa_ushort2(InputPixelPos) - taa_short2(InputPixelPosMin)) / 2;
 		LowFrequencyRejection = HistoryRejectionTexture[RejectionPixelPos];
+		TranslucencyRejection = TranslucencyRejectionTexture[InputPixelPos];
 		
+		UNROLL_N(CONFIG_SAMPLES - 1)
+		for (uint SampleId = 1; SampleId < CONFIG_SAMPLES; SampleId++)
+		{
+			taa_short2 SampleInputPixelPos;
+			taa_half2 PixelOffset;
+			ComputeInputKernelSamplePosition(
+				InputPixelPos, dKO, SampleId,
+				/* out */ SampleInputPixelPos,
+				/* out */ PixelOffset);
+			
+			TranslucencyRejection = min(TranslucencyRejection, TranslucencyRejectionTexture[SampleInputPixelPos]);
+		}
+
+		TranslucencyRejection = max(TranslucencyRejection, taa_half(MinTranslucencyRejection));
+
 		#if !CONFIG_CLAMP
 		{
 			ParallaxRejectionMask = taa_half(1.0);
 			LowFrequencyRejection = taa_half(1.0);
+			TranslucencyRejection = taa_half(1.0);
 		}
 		#endif
 	}
+	#endif
+
+	// Reject the translucency to respond quicker on firefliers.
+	#if CONFIG_TRANSLUCENCY_REJECTION
+		LowFrequencyRejection = min(LowFrequencyRejection, TranslucencyRejection);
 	#endif
 
 	// Fetch wehther the pixel is responsive AA or not.
@@ -178,46 +257,10 @@ void MainCS(
 		{
 			taa_short2 SampleInputPixelPos;
 			taa_half2 PixelOffset;
-			
-			#if CONFIG_SAMPLES == 9
-			{
-				taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
-				PixelOffset = taa_half2(iPixelOffset);
-				
-				SampleInputPixelPos = AddAndClampPixelOffset(
-					InputPixelPos,
-					iPixelOffset, iPixelOffset,
-					InputPixelPosMin, InputPixelPosMax);
-			}
-			#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
-			{
-				if (SampleId == 5)
-				{
-					taa_short2 iPixelOffset;
-					#if CONFIG_COMPILE_FP16
-						iPixelOffset = int16_t2(1, 1) - int16_t2((asuint16(dKO) & uint16_t(0x8000)) >> uint16_t(14));
-						PixelOffset = asfloat16(asuint16(half(1.0)).xx | (asuint16(dKO) & uint16_t(0x8000)));
-					#else
-						iPixelOffset = SignFastInt(dKO);
-						PixelOffset = asfloat(asuint(1.0).xx | (asuint(dKO) & uint(0x80000000)));
-					#endif
-						
-					SampleInputPixelPos = ClampPixelOffset(InputPixelPos, InputPixelPosMin, InputPixelPosMax);
-				}
-				else
-				{
-					taa_short2 iPixelOffset = taa_short2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
-					PixelOffset = taa_half2(iPixelOffset);
-					
-					SampleInputPixelPos = AddAndClampPixelOffset(
-						InputPixelPos,
-						iPixelOffset, iPixelOffset,
-						InputPixelPosMin, InputPixelPosMax);
-				}
-			}
-			#else
-				#error Unknown sample count
-			#endif
+			ComputeInputKernelSamplePosition(
+				InputPixelPos, dKO, SampleId,
+				/* out */ SampleInputPixelPos,
+				/* out */ PixelOffset);
 
 			taa_half3 InputColor = InputSceneColorTexture[SampleInputPixelPos];
 
