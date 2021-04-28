@@ -6326,6 +6326,7 @@ UEdGraphNode* UEdGraphSchema_K2::CreateSubstituteNode(UEdGraphNode* Node, const 
 					Blueprint->PreCompileLog = TSharedPtr<FCompilerResultsLog>(new FCompilerResultsLog(false));
 					Blueprint->PreCompileLog->bSilentMode = false;
 					Blueprint->PreCompileLog->bAnnotateMentionedNodes = false;
+					Blueprint->PreCompileLog->SetSourcePath(Blueprint->GetPathName());
 				}
 
 				// Append a warning to the node and to the logs
