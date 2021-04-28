@@ -214,6 +214,8 @@ FCacheRecord FCacheRecordBuilderInternal::Build()
 
 FRequest FCacheRecordBuilderInternal::BuildAsync(FOnCacheRecordComplete&& OnComplete, EPriority Priority)
 {
+	checkf(OnComplete, TEXT("Failed to build cache record for %s because the completion callback is null."),
+		*WriteToString<96>(Key));
 	OnComplete(Build());
 	return FRequest();
 }
