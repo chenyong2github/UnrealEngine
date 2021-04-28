@@ -10,7 +10,7 @@
 
 #include "DataprepBoolFetcherLibrary.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Is Class Of", ToolTip = "Return true when a object is of the selected class."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Is Class Of", ToolTip = "Filter objects based of their selected class."))
 class UDataprepIsClassOfFetcher final : public UDataprepBoolFetcher
 {
 	GENERATED_BODY()

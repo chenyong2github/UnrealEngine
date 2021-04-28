@@ -8,7 +8,7 @@
 
 #include "DataprepFloatFetcherLibrary.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Bounding Volume", ToolTip = "Return the bouding box volume of object.\nFor an actor bouding box only the components with a collision enabled will be use."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Bounding Volume", ToolTip = "Filter objects based on their bounding box volume.\n For actor's bounding box only the components with a collision enabled will be used."))
 class UDataprepFloatBoundingVolumeFetcher final : public UDataprepFloatFetcher
 {
 	GENERATED_BODY()

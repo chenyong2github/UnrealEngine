@@ -8,7 +8,7 @@
 
 #include "DataprepIntegerFetcherLibrary.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Triangle Count", ToolTip = "Return the triangle count for the object"))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Triangle Count", ToolTip = "Filter objects based on their triangle count."))
 class UDataprepTriangleCountFetcher final : public UDataprepIntegerFetcher
 {
 	GENERATED_BODY()
@@ -23,7 +23,7 @@ public:
 	//~ End of UDataprepFetcher interface
 };
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Vertex Count", ToolTip = "Return the vertex count for the object"))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName = "Vertex Count", ToolTip = "Filter objects based on their vertex count."))
 class UDataprepVertexCountFetcher final : public UDataprepIntegerFetcher
 {
 	GENERATED_BODY()
