@@ -383,6 +383,7 @@ void FEdModeLandscape::Enter()
 
 	OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddSP(this, &FEdModeLandscape::OnLevelActorRemoved);
 	OnLevelActorAddedDelegateHandle = GEngine->OnLevelActorAdded().AddSP(this, &FEdModeLandscape::OnLevelActorAdded);
+	PreSaveWorldHandle = FEditorDelegates::PreSaveWorldWithContext.AddSP(this, &FEdModeLandscape::OnPreSaveWorld);
 		
 	UpdateToolModes();
 
@@ -589,6 +590,7 @@ void FEdModeLandscape::Exit()
 		}
 	}
 
+	FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldHandle);
 	GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 	GEngine->OnLevelActorAdded().Remove(OnLevelActorAddedDelegateHandle);
 	
@@ -670,8 +672,14 @@ void FEdModeLandscape::Exit()
 	FEdMode::Exit();
 }
 
-void FEdModeLandscape::OnPreSaveWorld(const class UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
+void FEdModeLandscape::OnPreSaveWorld(UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext)
 {
+	// If the mode is pending deletion, don't run the presave routine.
+	if (IsPendingDeletion())
+	{
+		return;
+	}
+
 	// Avoid doing this during procedural saves to keep determinism and we don't want to do this on GameWorlds.
 	if (!InWorld->IsGameWorld() && !ObjectSaveContext.IsProceduralSave())
 	{

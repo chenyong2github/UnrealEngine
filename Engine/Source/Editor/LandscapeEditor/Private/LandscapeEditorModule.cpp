@@ -67,8 +67,6 @@ public:
 	{
 		FLandscapeEditorCommands::Register();
 
-		PreSaveWorldHandle = FEditorDelegates::PreSaveWorldWithContext.AddRaw(this, &FLandscapeEditorModule::OnPreSaveWorld);
-
 		// register the editor mode
 		FEditorModeRegistry::Get().RegisterMode<FEdModeLandscape>(
 			FBuiltinEditorModes::EM_Landscape,
@@ -142,8 +140,6 @@ public:
 	virtual void ShutdownModule() override
 	{
 		FLandscapeEditorCommands::Unregister();
-
-		FEditorDelegates::PreSaveWorldWithContext.Remove(PreSaveWorldHandle);
 
 		// unregister the editor mode
 		FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Landscape);
@@ -294,15 +290,6 @@ public:
 		}
 	}
 
-	void OnPreSaveWorld( class UWorld* World, FObjectPreSaveContext ObjectSaveContext)
-	{
-		FEdModeLandscape* EdMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
-		if (EdMode)
-		{
-			EdMode->OnPreSaveWorld(World, ObjectSaveContext);
-		}
-	}
-
 	virtual const TCHAR* GetHeightmapImportDialogTypeString() const override;
 	virtual const TCHAR* GetWeightmapImportDialogTypeString() const override;
 
@@ -315,7 +302,6 @@ public:
 	virtual TSharedPtr<FUICommandList> GetLandscapeLevelViewportCommandList() const override;
 		
 protected:
-	FDelegateHandle PreSaveWorldHandle;
 	TSharedPtr<FExtender> ViewportMenuExtender;
 	TSharedPtr<FUICommandList> GlobalUICommandList;
 	TArray<FRegisteredLandscapeHeightmapFileFormat> HeightmapFormats;
