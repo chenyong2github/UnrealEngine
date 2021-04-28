@@ -23,6 +23,11 @@
 				"Win32",
 				"Mac"
 			]
+		},
+		{
+			"Name": "RemoteControlProtocolMIDIEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
