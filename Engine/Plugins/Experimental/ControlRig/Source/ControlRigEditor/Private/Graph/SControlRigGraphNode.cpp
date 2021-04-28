@@ -1069,6 +1069,25 @@ void SControlRigGraphNode::GetOverlayBrushes(bool bSelected, const FVector2D Wid
 
 		Brushes.Add(BreakpointOverlayInfo);
 	}
+
+	// Paint red arrow pointing at breakpoint node that caused a halt in execution
+	{
+		FOverlayBrushInfo IPOverlayInfo;
+		if (VMNode->ExecutionIsHaltedAtThisNode())
+		{
+			IPOverlayInfo.Brush = FEditorStyle::GetBrush( TEXT("Kismet.DebuggerOverlay.InstructionPointerBreakpoint") );
+			if (IPOverlayInfo.Brush != NULL)
+			{
+				float Overlap = 10.f;
+				IPOverlayInfo.OverlayOffset.X = (WidgetSize.X/2.f) - (IPOverlayInfo.Brush->ImageSize.X/2.f);
+				IPOverlayInfo.OverlayOffset.Y = (Overlap - IPOverlayInfo.Brush->ImageSize.Y);
+			}
+
+			IPOverlayInfo.AnimationEnvelope = FVector2D(0.f, 10.f);
+
+			Brushes.Add(IPOverlayInfo);
+		}
+	}
 }
 
 void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<FGraphInformationPopupInfo>& Popups) const

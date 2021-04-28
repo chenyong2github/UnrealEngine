@@ -108,6 +108,7 @@ FControlRigEditor::FControlRigEditor()
 	, LastEventQueue(EControlRigEditorEventQueue::Setup)
 	, LastDebuggedRig()
 	, RigHierarchyTabCount(0)
+	, HaltedAtNode(nullptr)
 {
 }
 
@@ -2145,10 +2146,17 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 
 void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, URigVMNode* InNode)
 {
+	if (HaltedAtNode != nullptr)
+	{
+		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
+	}
+	HaltedAtNode = InNode;
+
 	if (InNode == nullptr)
 	{
 		return;
-	}
+	}	
+	InNode->SetExecutionIsHaltedAtThisNode(true);
 	
 	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
 	{

@@ -208,6 +208,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	void SetHasBreakpoint(const bool bValue) { bHasBreakpoint = bValue; }
+
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	bool ExecutionIsHaltedAtThisNode() const { return bHaltedAtThisNode; }
+
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	void SetExecutionIsHaltedAtThisNode(const bool bValue) { bHaltedAtThisNode = bValue; }
 private:
 
 	static const FString NodeColorName;
@@ -237,6 +243,9 @@ protected:
 
 	UPROPERTY(transient)
 	bool bHasBreakpoint;
+
+	UPROPERTY(transient)
+	bool bHaltedAtThisNode;
 
 private:
 
