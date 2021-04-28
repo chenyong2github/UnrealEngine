@@ -23,7 +23,7 @@ void SNiagaraSourceFilterButton::Construct(const FArguments& Args, EScriptSource
 	
 	UEnum* ScriptSourceEnum = StaticEnum<EScriptSource>();
 	FText DisplayName = ScriptSourceEnum->GetDisplayNameTextByValue((int64) Source);
-	FText ToolTipText = LOCTEXT("SourceFilterToolTip", "Display actions from source: {0}.\n Use Shift+Click to exclusively select this filter.");
+	FText ToolTipText = LOCTEXT("SourceFilterToolTip", "Display actions from source: {0}.\nUse Shift+Click to exclusively select this filter.");
 	ToolTipText = FText::Format(ToolTipText, DisplayName);
 	
 	SCheckBox::FArguments ParentArgs;
