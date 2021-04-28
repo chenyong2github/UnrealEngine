@@ -18,6 +18,7 @@
 #include "AudioCompressionSettingsUtils.h"
 #include "Sound/SoundSourceBus.h"
 #include "Sound/SoundWave.h"
+#include "Sound/SoundWaveProcedural.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAudioDerivedData, Log, All);
 
@@ -292,6 +293,11 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 	/** Build the streamed audio. This function is safe to call from any thread. */
 	void BuildStreamedAudio()
 	{
+		if (SoundWave.IsA<USoundWaveProcedural>())
+		{
+			return;
+		}
+
 		GetStreamedAudioDerivedDataKeySuffix(SoundWave, AudioFormatName, CompressionOverrides, KeySuffix);
 
 		DerivedData->Chunks.Empty();
@@ -1046,6 +1052,11 @@ static void CookSimpleWave(USoundWave* SoundWave, FName FormatName, const IAudio
 		return;
 	}
 
+	if (SoundWave->IsA<USoundWaveProcedural>())
+	{
+		return;
+	}
+
 #if WITH_EDITORONLY_DATA
 	FScopeLock ScopeLock(&SoundWave->RawDataCriticalSection);
 #endif
@@ -1172,6 +1183,12 @@ static void CookSurroundWave( USoundWave* SoundWave, FName FormatName, const IAu
 	FWaveModInfo			WaveInfo;
 	TArray<TArray<uint8> >	SourceBuffers;
 	TArray<int32>			RequiredChannels;
+
+
+	if (SoundWave->IsA<USoundWaveProcedural>())
+	{
+		return;
+	}
 
 #if WITH_EDITORONLY_DATA
 	FScopeLock ScopeLock(&SoundWave->RawDataCriticalSection);
