@@ -63,13 +63,6 @@ static FAutoConsoleVariableRef CVarD3D12RayTracingMaxBatchedCompaction(
 	ECVF_ReadOnly
 );
 
-static int32 GD3D12RayTracingExecuteIndirectWorkaround = 1;
-static FAutoConsoleVariableRef CVarD3D12RayTracingExecuteIndirectWorkaround(
-	TEXT("r.D3D12.RayTracing.ExecuteIndirectWorkaround"),
-	GD3D12RayTracingExecuteIndirectWorkaround,
-	TEXT("Adds a command list flush before ExecuteIndirect to avoid NVIDIA driver bug that causes some indirect RT commands to get lost. (default = 1)\n")
-);
-
 // Ray tracing stat counters
 
 DECLARE_STATS_GROUP(TEXT("D3D12RHI: Ray Tracing"), STATGROUP_D3D12RayTracing, STATCAT_Advanced);
@@ -4519,11 +4512,6 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 		}
 
 		CommandListHandle.AddTransitionBarrier(DispatchRaysDescBufferResource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, 0);
-
-		if (GD3D12RayTracingExecuteIndirectWorkaround)
-		{
-			CommandContext.RHISubmitCommandsHint();
-		}
 	}
 
 	// Setup state for RT dispatch

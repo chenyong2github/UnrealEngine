@@ -859,12 +859,11 @@ void FD3D12DynamicRHI::Init()
 #if NV_API_ENABLE
 	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
 	{
-		NvAPI_Status NvStatus;
-		NvStatus = NvAPI_Initialize();
+		const NvAPI_Status NvStatus = NvAPI_Initialize();
 		if (NvStatus == NVAPI_OK)
 		{
-			NvStatus = NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(GetAdapter().GetD3DDevice(), NV_EXTN_OP_UINT64_ATOMIC, &GRHISupportsAtomicUInt64);
-			if (NvStatus != NVAPI_OK)
+			NvAPI_Status NvStatusAtomicU64 = NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(GetAdapter().GetD3DDevice(), NV_EXTN_OP_UINT64_ATOMIC, &GRHISupportsAtomicUInt64);
+			if (NvStatusAtomicU64 != NVAPI_OK)
 			{
 				UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to query support for 64 bit atomics"));
 			}
@@ -874,22 +873,34 @@ void FD3D12DynamicRHI::Init()
 			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
 		}
 
-		// Disable ray tracing for old Nvidia drivers
-		if (GRHISupportsRayTracing
-			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
-			&& NvStatus == NVAPI_OK)
-		{
-			NvU32 DriverVersion = UINT32_MAX;
-			NvAPI_ShortString BranchString("");
-			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) == NVAPI_OK)
-			{
-				if (DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
-				{
-					GRHISupportsRayTracing = false;
+		NvU32 DriverVersion = UINT32_MAX;
 
-					UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
-				}
+		if (NvStatus == NVAPI_OK)
+		{
+			NvAPI_ShortString BranchString("");
+			if (NvAPI_SYS_GetDriverAndBranchVersion(&DriverVersion, BranchString) != NVAPI_OK)
+			{
+				UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to query NVIDIA driver version"));
 			}
+		}
+
+		// Disable ray tracing for old Nvidia drivers
+		if (GRHISupportsRayTracing 
+			&& GMinimumDriverVersionForRayTracingNVIDIA > 0
+			&& DriverVersion < (uint32)GMinimumDriverVersionForRayTracingNVIDIA)
+		{
+			GRHISupportsRayTracing = false;
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Ray tracing is disabled because the driver is too old"));
+		}
+
+		// Disable indirect ray tracing dispatch on drivers that have a known bug.
+		if (GRHISupportsRayTracingDispatchIndirect 
+			&& DriverVersion < (uint32)46611)
+		{
+			GRHISupportsRayTracingDispatchIndirect = false;
+			UE_LOG(LogD3D12RHI, Warning,
+				TEXT("Indirect ray tracing dispatch is disabled because of known bugs in the current driver. ")
+				TEXT("Please update to NVIDIA driver version 466.11 or newer."));
 		}
 
 		// Disable ray tracing emulation for Pascal architecture
