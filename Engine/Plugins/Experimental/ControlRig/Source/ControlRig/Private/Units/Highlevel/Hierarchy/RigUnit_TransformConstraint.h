@@ -7,6 +7,8 @@
 #include "Rigs/RigHierarchyContainer.h"
 #include "Constraint.h"
 #include "ControlRigDefines.h"
+#include "Math/ControlRigMathLibrary.h"
+
 #include "RigUnit_TransformConstraint.generated.h"
 
 /** 
@@ -173,4 +175,211 @@ private:
 
 	UPROPERTY(transient)
 	FRigUnit_TransformConstraint_WorkData WorkData;
+};
+
+USTRUCT()
+struct FConstraintParent
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "FConstraintParent", meta = (Input))
+	FRigElementKey Item;
+
+	UPROPERTY(EditAnywhere, Category = "FConstraintParent", meta = (Input))
+	float Weight;
+
+	FConstraintParent()
+        : Item(FRigElementKey(NAME_None, ERigElementType::Bone))
+        , Weight (1.f)
+	{}
+	
+	FConstraintParent(const FRigElementKey InItem, const float InWeight)
+		: Item(InItem)
+		, Weight(InWeight)
+	{}
+};
+
+/**
+*	Options for interpolating rotations
+*/ 
+UENUM(BlueprintType)
+enum class EConstraintInterpType : uint8
+{ 
+	/** Weighted Average of Quaternions by their X,Y,Z,W values, The Shortest Route is Respected. The Order of Parents Doesn't Matter */
+	Average UMETA(DisplayName="Average(Order Independent)"),
+   /** Perform Quaternion Slerp in Sequence, Different Orders of Parents can Produce Different Results */ 
+    Shortest UMETA(DisplayName="Shortest(Order Dependent)"),
+    Max UMETA(Hidden),
+};
+
+USTRUCT()
+struct FRigUnit_ParentConstraint_AdvancedSettings
+{
+	GENERATED_BODY()
+
+	FRigUnit_ParentConstraint_AdvancedSettings()
+		: InterpolationType(EConstraintInterpType::Average)
+		, RotationOrderForFilter(EControlRigRotationOrder::XZY)
+	{}
+	
+	/**
+	*	Options for interpolating rotations
+	*/
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	EConstraintInterpType InterpolationType;
+	
+	/**
+	*	Rotation is converted to euler angles using the specified order such that individual axes can be filtered.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	EControlRigRotationOrder RotationOrderForFilter;
+};
+
+/**
+* Constrains an item's transform to multiple items' transforms
+*/
+USTRUCT(meta=(DisplayName="Parent Constraint", Category="Transforms", Keywords = "Parent,Orient,Scale"))
+struct FRigUnit_ParentConstraint : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_ParentConstraint()
+        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        , bMaintainOffset(true)
+	{
+	}
+	
+	RIGVM_METHOD()
+    virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FTransformFilter Filter;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FRigUnit_ParentConstraint_AdvancedSettings AdvancedSettings;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+};
+
+/**
+* Constrains an item's position to multiple items' positions 
+*/
+USTRUCT(meta=(DisplayName="Position Constraint", Category="Transforms", Keywords = "Parent,Translation"))
+struct FRigUnit_PositionConstraint : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_PositionConstraint()
+        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        , bMaintainOffset(true)
+	{
+	}
+	
+	RIGVM_METHOD()
+    virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+};
+
+USTRUCT()
+struct FRigUnit_RotationConstraint_AdvancedSettings
+{
+	GENERATED_BODY()
+
+	FRigUnit_RotationConstraint_AdvancedSettings()
+        : InterpolationType(EConstraintInterpType::Average)
+        , RotationOrderForFilter(EControlRigRotationOrder::XZY)
+	{}
+	
+	/**
+	*	Options for interpolating rotations
+	*/
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	EConstraintInterpType InterpolationType;
+	
+	/**
+	*	Rotation is converted to euler angles using the specified order such that individual axes can be filtered.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	EControlRigRotationOrder RotationOrderForFilter;
+};
+
+/**
+* Constrains an item's rotation to multiple items' rotations 
+*/
+USTRUCT(meta=(DisplayName="Rotation Constraint", Category="Transforms", Keywords = "Parent,Orientation,Orient,Rotate"))
+struct FRigUnit_RotationConstraint : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_RotationConstraint()
+        :Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        , bMaintainOffset(true)
+	{
+	}
+	
+	RIGVM_METHOD()
+    virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FRigUnit_RotationConstraint_AdvancedSettings AdvancedSettings;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
+};
+
+/**
+* Constrains an item's scale to multiple items' scales
+*/
+USTRUCT(meta=(DisplayName="Scale Constraint", Category="Transforms", Keywords = "Parent, Size"))
+struct FRigUnit_ScaleConstraint : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_ScaleConstraint()
+        : Child(FRigElementKey(NAME_None, ERigElementType::Bone))
+        , bMaintainOffset(true)
+	{
+	}
+	
+	RIGVM_METHOD()
+    virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault))
+	FRigElementKey Child;
+	
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input))
+	bool bMaintainOffset;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input)) 
+	FFilterOptionPerAxis Filter;
+
+	UPROPERTY(EditAnywhere, Category = "Constraint", meta = (Input, ExpandByDefault, DefaultArraySize = 1))
+	TArray<FConstraintParent> Parents;
 };
