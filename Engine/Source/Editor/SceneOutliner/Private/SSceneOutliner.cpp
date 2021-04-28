@@ -1013,7 +1013,17 @@ TSharedRef<TSet<FName>> SSceneOutliner::GatherInvalidMoveToDestinations() const
 			};
 
 			// Exclude this items direct parent if it is a folder and has no other subfolders we can move to
-			if (!ParentFolderItem->GetChildren().ContainsByPredicate(FolderHasOtherSubFolders))
+			bool bFolderHasSubFolders = false;
+			for (const TWeakPtr<ISceneOutlinerTreeItem>& ItemPtr : ParentFolderItem->GetChildren())
+			{
+				if (FolderHasOtherSubFolders(ItemPtr))
+				{
+					bFolderHasSubFolders = true;
+					break;
+				}
+			}
+			
+			if (!bFolderHasSubFolders)
 			{
 				ExcludedParents->Add(ParentFolderItem->Path);
 			}

@@ -55,7 +55,7 @@ protected:
 	mutable TWeakPtr<ISceneOutlinerTreeItem> Parent;
 
 	/** Array of children contained underneath this item */
-	mutable TArray<TWeakPtr<ISceneOutlinerTreeItem>> Children;
+	mutable TSet<TWeakPtr<ISceneOutlinerTreeItem>> Children;
 
 	/** Static type identifier for the base class tree item */
 	static const FSceneOutlinerTreeItemType Type;
@@ -73,7 +73,7 @@ public:
 	/** Add a child to this item */
 	void AddChild(FSceneOutlinerTreeItemRef Child)
 	{
-		checkSlow(!Children.Contains(Child));
+		check(!Children.Contains(Child));
 		Child->Parent = AsShared();
 		Children.Add(MoveTemp(Child));
 	}
@@ -88,7 +88,7 @@ public:
 	}
 
 	/** Get this item's children, if any. Although we store as weak pointers, they are guaranteed to be valid. */
-	FORCEINLINE const TArray<TWeakPtr<ISceneOutlinerTreeItem>>& GetChildren() const
+	FORCEINLINE const TSet<TWeakPtr<ISceneOutlinerTreeItem>>& GetChildren() const
 	{
 		return Children;
 	}

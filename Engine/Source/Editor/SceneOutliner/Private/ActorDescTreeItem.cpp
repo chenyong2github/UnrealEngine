@@ -215,6 +215,15 @@ FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescConta
 	, ActorDescHandle(InActorGuid, Container)
 {
 	ID = FSceneOutlinerTreeItemID(InActorGuid);
+
+	if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescHandle.GetActorDesc())
+	{
+		DisplayString = ActorDesc->GetActorLabel().ToString();
+	}
+	else
+	{
+		DisplayString = LOCTEXT("ActorLabelForMissingActor", "(Deleted Actor)").ToString();
+	}
 }
 
 FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const
@@ -224,8 +233,7 @@ FSceneOutlinerTreeItemID FActorDescTreeItem::GetID() const
 
 FString FActorDescTreeItem::GetDisplayString() const
 {
-	const FWorldPartitionActorDesc* ActorDesc = ActorDescHandle.GetActorDesc();
-	return ActorDesc ? ActorDesc->GetActorLabel().ToString() : LOCTEXT("ActorLabelForMissingActor", "(Deleted Actor)").ToString();
+	return DisplayString;
 }
 
 bool FActorDescTreeItem::CanInteract() const

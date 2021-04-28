@@ -88,4 +88,6 @@ public:
 private:
 	void FocusActorBounds() const;
 	void LoadUnloadedActor() const;
+
+	FString DisplayString;
 };
