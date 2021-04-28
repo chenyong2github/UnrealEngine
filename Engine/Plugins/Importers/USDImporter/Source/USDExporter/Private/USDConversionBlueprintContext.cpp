@@ -323,9 +323,12 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMesh( const ALand
 		}
 	}
 
-
 	// Inverse through FMatrix as non-uniform scalings are common for landscapes
-	FMatrix ActorToWorldInv{ Actor->LandscapeActorToWorld().ToInverseMatrixWithScale() };
+	// If we're a streaming proxy, we have an additional transform wrt. the parent ALandscapeProxy actor.
+	// If we were to use LandscapeActorToWorld here, it would use ActorToWorld() internally, but automatically compensate the offset from
+	// the parent actor, generating the same transform as the one you'd get from calling LandscapeActorToWorld() directly on it.
+	// We don't want this here: We want to specifically compensate the proxy actor's transform ourselves, so we need just ActorToWorld.
+	FMatrix ActorToWorldInv = Actor->ActorToWorld().ToInverseMatrixWithScale();
 	if ( !UnrealToUsd::ConvertMeshDescriptions( LODMeshDescriptions, Prim, ActorToWorldInv, TimeCode == FLT_MAX ? UsdUtils::GetDefaultTimeCode() : TimeCode ) )
 	{
 		return false;
