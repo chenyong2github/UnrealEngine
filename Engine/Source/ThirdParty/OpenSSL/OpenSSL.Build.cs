@@ -18,9 +18,9 @@ public class OpenSSL : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicIncludePaths.Add(Path.Combine(OpenSSL111Path, "Include", PlatformSubdir));
+			PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "Include", PlatformSubdir));
 
-			string LibPath = Path.Combine(OpenSSL111Path, "Lib", PlatformSubdir);
+			string LibPath = Path.Combine(OpenSSL111kPath, "Lib", PlatformSubdir);
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libssl.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libcrypto.a"));
