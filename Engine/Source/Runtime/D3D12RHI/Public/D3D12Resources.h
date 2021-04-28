@@ -829,6 +829,7 @@ public:
 
 		::Swap(Parent, Other.Parent);
 		ResourceLocation.Swap(Other.ResourceLocation);
+		ResourceLocation.SetOwner(this);
 		::Swap(BufferAlignment, Other.BufferAlignment);
 		::Swap(RenameListeners, Other.RenameListeners);
 	}

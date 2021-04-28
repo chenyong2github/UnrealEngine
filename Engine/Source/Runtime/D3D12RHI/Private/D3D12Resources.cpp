@@ -679,11 +679,27 @@ void FD3D12ResourceLocation::Swap(FD3D12ResourceLocation& Other)
 	}
 #endif
 
-	// Should not be linked list allocated - otherwise internal linked list data needs to be updated as well in a threadsafe way
-	check(Other.GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
-	check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
+	if (Other.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+	{
+		check(GetAllocatorType() != FD3D12ResourceLocation::AT_Pool);
+		
+		// Cache the allocator data and reset before swap
+		FD3D12PoolAllocatorPrivateData& PoolData = Other.GetPoolAllocatorPrivateData();
+		FD3D12PoolAllocatorPrivateData TmpPoolData = PoolData;
+		PoolData.Init();
 
-	::Swap(*this, Other);
+		// Perform swap
+		::Swap(*this, Other);
+
+		// Restore allocator data and perform pool aware swap
+		PoolData = TmpPoolData;	
+		Other.SetPoolAllocator(GetPoolAllocator());
+		GetPoolAllocator()->TransferOwnership(Other, *this);
+	}
+	else
+	{
+		::Swap(*this, Other);
+	}
 }
 
 void FD3D12ResourceLocation::Alias(FD3D12ResourceLocation & Destination, FD3D12ResourceLocation & Source)
