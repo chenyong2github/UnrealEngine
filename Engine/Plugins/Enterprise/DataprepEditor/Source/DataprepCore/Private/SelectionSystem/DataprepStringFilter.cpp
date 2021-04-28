@@ -133,7 +133,7 @@ UDataprepStringFilterMatchingArray* UDataprepStringFilter::GetStringArray()
 {
 	if ( !UserStringArray )
 	{
-		UserStringArray = NewObject< UDataprepStringFilterMatchingArray >( this, NAME_None, RF_Transient );
+		UserStringArray = NewObject< UDataprepStringFilterMatchingArray >( this, NAME_None, RF_Public );
 	}
 	return UserStringArray;
 }

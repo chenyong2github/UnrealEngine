@@ -41,7 +41,6 @@ private:
 	FText GetSelectedCriteriaText() const;
 	FText GetSelectedCriteriaTooltipText() const;
 	void OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType);
-	void OnCheckStateMatchInArrayChanged(ECheckBoxState CheckState);
 	void OnCriteriaComboBoxOpenning();
 	TSharedPtr<SWidget> OnGetContextMenuForMatchingCriteria();
 	TSharedPtr<SWidget> OnGetContextMenuForMatchInArray();
@@ -51,6 +50,7 @@ private:
 	void OnUserStringChanged(const FText& NewText);
 	void OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType);
 	void OnUserStringArrayPropertyChanged(UDataprepParameterizableObject& Object, FPropertyChangedChainEvent& PropertyChangedChainEvent);
+	FReply OnMatchInArrayClicked();
 
 	void ExtendContextMenuForUserStringBox(FMenuBuilder& MenuBuilder);
 	TSharedPtr<SWidget> OnGetContextMenuForUserString();
