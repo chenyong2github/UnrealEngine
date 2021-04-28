@@ -50,7 +50,7 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	UWorld* World = GetTypedOuter<UWorld>();
 
 	check(World != nullptr);
-	check(LatentActionManager.IsEmpty());
+	ensure(LatentActionManager.IsEmpty());
 	
 	const bool bIsPaused = World->IsPaused();
 
