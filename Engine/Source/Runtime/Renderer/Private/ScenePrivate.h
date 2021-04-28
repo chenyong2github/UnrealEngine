@@ -2005,7 +2005,7 @@ public:
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
 	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
 	/** Pending operations on the object buffers to be processed next frame. */
-	TArray<FPrimitiveSceneInfo*> PendingAddOperations;
+	TSet<FPrimitiveSceneInfo*> PendingAddOperations;
 	TArray<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;

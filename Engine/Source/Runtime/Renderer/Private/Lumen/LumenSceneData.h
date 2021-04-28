@@ -441,7 +441,7 @@ public:
 	int32 NumHiResPagesToAdd = 0;
 
 	bool bTrackAllPrimitives;
-	TArray<FPrimitiveSceneInfo*> PendingAddOperations;
+	TSet<FPrimitiveSceneInfo*> PendingAddOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FLumenPrimitiveRemoveInfo> PendingRemoveOperations;
 

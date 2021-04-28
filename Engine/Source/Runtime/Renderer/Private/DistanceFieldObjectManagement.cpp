@@ -556,10 +556,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 			TArray<FMatrix> ObjectLocalToWorldTransforms;
 
 			int32 OriginalNumObjects = NumObjectsInBuffer;
-			for (int32 UploadPrimitiveIndex = 0; UploadPrimitiveIndex < PendingAddOperations.Num(); UploadPrimitiveIndex++)
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PendingAddOperations)
 			{
-				FPrimitiveSceneInfo* PrimitiveSceneInfo = PendingAddOperations[UploadPrimitiveIndex];
-
 				if (!ProcessPrimitiveUpdate(
 					true,
 					Scene,
@@ -573,10 +571,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 				}
 			}
 
-			for (TSet<FPrimitiveSceneInfo*>::TIterator It(PendingUpdateOperations); It; ++It)
+			for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PendingUpdateOperations)
 			{
-				FPrimitiveSceneInfo* PrimitiveSceneInfo = *It;
-
 				ProcessPrimitiveUpdate(
 					false,
 					Scene,
