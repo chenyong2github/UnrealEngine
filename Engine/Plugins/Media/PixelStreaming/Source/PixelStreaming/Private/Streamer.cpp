@@ -44,7 +44,7 @@ bool FStreamer::CheckPlatformCompatibility()
 FStreamer::FStreamer(const FString& InSignallingServerUrl)
 	: SignallingServerUrl(InSignallingServerUrl)
 {
-	RedirectWebRtcLogsToUE4(rtc::LoggingSeverity::LS_VERBOSE);
+	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
 
 	FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("AVEncoder"));
 
@@ -63,17 +63,12 @@ FStreamer::~FStreamer()
 	// stop WebRtc WndProc thread
 #if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	PostThreadMessage(WebRtcSignallingThreadId, WM_QUIT, 0, 0);
-
 	UE_LOG(PixelStreamer, Log, TEXT("Exiting WebRTC WndProc thread"));
-
 	WebRtcSignallingThread->Join();
 #else
 	DeleteAllPlayerSessions();
-
 	WebRtcSignallingThread->Stop();
-
 	PeerConnectionFactory = nullptr;
-
 	rtc::CleanupSSL();
 #endif
 }
@@ -96,10 +91,10 @@ void FStreamer::WebRtcSignallingThreadFunc()
 		UE_LOG(PixelStreamer, Error, TEXT("Failed to initialise Winsock"));
 		return;
 	}
+
 	rtc::Win32SocketServer SocketServer;
 	rtc::Win32Thread W32Thread(&SocketServer);
 	rtc::ThreadManager::Instance()->SetCurrentThread(&W32Thread);
-
 	rtc::InitializeSSL();
 
 	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
@@ -140,7 +135,6 @@ void FStreamer::WebRtcSignallingThreadFunc()
 	rtc::CleanupSSL();
 
 #elif PLATFORM_LINUX
-
 	// WebRTC assumes threads within which PeerConnectionFactory is created is the signalling thread
 	WebRtcSignallingThread = TUniquePtr<rtc::Thread>(rtc::Thread::CreateWithSocketServer().release());//MakeUnique<rtc::Thread>(std::make_unique<rtc::PhysicalSocketServer>());
 	WebRtcSignallingThread->SetName("WebRtcSignallingThread", nullptr);
@@ -172,7 +166,6 @@ void FStreamer::WebRtcSignallingThreadFunc()
 	// now that everything is ready
 	ConnectToSignallingServer();
 	// });
-
 #endif 
 }
 
@@ -183,11 +176,8 @@ void FStreamer::ConnectToSignallingServer()
 
 void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 {
-	if (bStreamingStarted && VideoCapturer)
-	{
-		VideoCapturer->OnFrameReady(FrameBuffer);
-	}
-
+	if (bStreamingStarted && VideoSource)
+		VideoSource->OnFrameReady(FrameBuffer);
 	SendVideoEncoderQP();
 }
 
@@ -217,7 +207,6 @@ void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceC
 {
 	FPlayerSession* Player = GetPlayerSession(PlayerId);
 	checkf(Player, TEXT("player %u not found"), PlayerId);
-
 	Player->OnRemoteIceCandidate(MoveTemp(Candidate));
 }
 
@@ -295,6 +284,7 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		FScopeLock PlayersLock(&PlayersCS);
 		Players.Remove(PlayerId);
 	}
+
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)
 	{
@@ -304,9 +294,7 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		// interacting with the app. This is an opportunity to reset the app.
 		UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
 		if (Delegates)
-		{
 			Delegates->OnAllConnectionsClosed.Broadcast();
-		}
 	}
 	else if (bWasQualityController)
 	{
@@ -320,54 +308,60 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 
 void FStreamer::AddStreams(FPlayerId PlayerId)
 {
-	const FString StreamId = TEXT("stream_id");
-	const char AudioLabel[] = "audio_label";
-
-	const FString VideoLabel= FString::Printf(TEXT("video_label_%d"), PlayerId);
+	FString const StreamId = TEXT("stream_id");
+	FString const AudioLabel = FString::Printf(TEXT("audio_label_%d"), PlayerId);
+	FString const VideoLabel= FString::Printf(TEXT("video_label_%d"), PlayerId);
 
 	FPlayerSession* Session = GetPlayerSession(PlayerId);
 	check(Session);
-
 	if (!Session->GetPeerConnection().GetSenders().empty())
-	{
 		return;  // Already added tracks
-	}
 
 	// Create one and only one audio source for Pixel Streaming.
 	if (!AudioSource)
-	{
 		AudioSource = PeerConnectionFactory->CreateAudioSource(cricket::AudioOptions{});
-	}
 
 	// Create one and only one VideoCapturer for Pixel Streaming.
 	// Video capturuer is actually a "VideoSource" in WebRTC terminology.
-	if (!VideoCapturer)
-	{
-		VideoCapturer = new FVideoCapturer();
-	}
+	if (!VideoSource)
+		VideoSource = new FVideoCapturer();
 
 	// Create video and audio tracks for each Peer/PeerConnection. 
 	// These tracks are only thin wrappers around the underlying sources (the sources are shared among all peer's tracks).
 	// As per the WebRTC source: "The same source can be used by multiple VideoTracks."
-	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_ANSI(*VideoLabel), VideoCapturer);
-	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack = PeerConnectionFactory->CreateAudioTrack(AudioLabel, AudioSource);
+	rtc::scoped_refptr<webrtc::VideoTrackInterface> VideoTrack = PeerConnectionFactory->CreateVideoTrack(TCHAR_TO_UTF8(*VideoLabel), VideoSource);
+	rtc::scoped_refptr<webrtc::AudioTrackInterface> AudioTrack = PeerConnectionFactory->CreateAudioTrack(TCHAR_TO_UTF8(*AudioLabel), AudioSource);
 
+	auto const addAudioTrackResult = Session->GetPeerConnection().AddTrack(AudioTrack, { TCHAR_TO_UTF8(*StreamId) });
+	if (!addAudioTrackResult.ok())
 	{
-		auto Res = Session->GetPeerConnection().AddTrack(AudioTrack, { TCHAR_TO_ANSI(*StreamId) });
-		if (!Res.ok())
-		{
-			UE_LOG(PixelStreamer, Error, TEXT("Failed to add AudioTrack to PeerConnection of player %u. Msg=%s"), Session->GetPlayerId(), ANSI_TO_TCHAR(Res.error().message()));
-		}
+		UE_LOG(PixelStreamer,
+			   Error,
+			   TEXT("Failed to add AudioTrack to PeerConnection of player %u. Msg=%s"),
+			   Session->GetPlayerId(),
+			   TCHAR_TO_UTF8(addAudioTrackResult.error().message()));
 	}
 
+	auto const addVideoTrackResult = Session->GetPeerConnection().AddTrack(VideoTrack, { TCHAR_TO_ANSI(*StreamId) });
+	if (!addVideoTrackResult.ok())
 	{
-
-		webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpSenderInterface>> Res = Session->GetPeerConnection().AddTrack(VideoTrack, { TCHAR_TO_ANSI(*StreamId) });
+		UE_LOG(PixelStreamer,
+			   Error,
+			   TEXT("Failed to add VideoTrack to PeerConnection of player %u. Msg=%s"),
+			   Session->GetPlayerId(),
+				TCHAR_TO_UTF8(addVideoTrackResult.error().message()));
+	}
+	else
+	{
 		//If desired, limiting entire bitrate for a peer is desired there is PeerConnection SetBitrate(const BitrateSettings& bitrate)
-
-		if (!Res.ok())
+		switch (GetDegradationPreferenceCVar())
 		{
-			UE_LOG(PixelStreamer, Error, TEXT("Failed to add VideoTrack to PeerConnection of player %u. Msg=%s"), Session->GetPlayerId(), ANSI_TO_TCHAR(Res.error().message()));
+		case webrtc::DegradationPreference::MAINTAIN_FRAMERATE:
+			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kFluid);
+			break;
+		case webrtc::DegradationPreference::MAINTAIN_RESOLUTION:
+			VideoTrack->set_content_hint(webrtc::VideoTrackInterface::ContentHint::kDetailed);
+			break;
 		}
 		else
 		{

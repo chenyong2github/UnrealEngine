@@ -115,7 +115,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 			// HACK (M84FIX) work with other RHI
 			if (GDynamicRHI->GetName() == FString("D3D11"))
 			{
-				TSharedRef<FVideoEncoderInputImpl> Input = StaticCastSharedRef<FVideoEncoderInputImpl>(FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef());
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D11(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef();
 
 				if (Result && !Result->Setup(Input, InInit))
 				{
@@ -125,7 +125,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, const FVideo
 			}
 			else if (GDynamicRHI->GetName() == FString("D3D12"))
 			{
-				TSharedRef<FVideoEncoderInputImpl> Input = StaticCastSharedRef<FVideoEncoderInputImpl>(FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef());
+				TSharedRef<FVideoEncoderInput> Input = FVideoEncoderInput::CreateForD3D12(GDynamicRHI->RHIGetNativeDevice(), InInit.Width, InInit.Height).ToSharedRef();
 
 				if (Result && !Result->Setup(Input, InInit))
 				{
@@ -143,7 +143,7 @@ TUniquePtr<FVideoEncoder> FVideoEncoderFactory::Create(uint32 InID, TSharedPtr<F
 	TUniquePtr<FVideoEncoder>		Result;
 	if (InInput)
 	{
-		TSharedRef<FVideoEncoderInputImpl>	Input(StaticCastSharedRef<FVideoEncoderInputImpl>(InInput.ToSharedRef()));
+		TSharedRef<FVideoEncoderInput>	Input(InInput.ToSharedRef());
 		for (int32 Index = 0; Index < AvailableEncoders.Num(); ++Index)
 		{
 			if (AvailableEncoders[Index].ID == InID)

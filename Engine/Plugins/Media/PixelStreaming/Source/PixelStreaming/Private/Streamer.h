@@ -54,12 +54,12 @@ private:
 private:
 	FString SignallingServerUrl;
 
-	#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
 	DWORD WebRtcSignallingThreadId = 0;
 	TUniquePtr<FThread> WebRtcSignallingThread;
-	#elif PLATFORM_LINUX
+#elif PLATFORM_LINUX
 	TUniquePtr<rtc::Thread> WebRtcSignallingThread;
-	#endif
+#endif
 
 	TUniquePtr<FSignallingServerConnection> SignallingServerConnection;
 	double LastSignallingServerConnectionAttemptTimestamp = 0;
@@ -68,7 +68,7 @@ private:
 	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
 
 	FPixelStreamingVideoEncoderFactory* VideoEncoderFactory;
-	rtc::scoped_refptr<FVideoCapturer> VideoCapturer;
+	rtc::scoped_refptr<FVideoCapturer> VideoSource;
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 
 	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;

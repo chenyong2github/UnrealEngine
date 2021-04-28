@@ -4,4 +4,4 @@
 
 #include "rtc_base/logging.h"
 
-void RedirectWebRtcLogsToUE4(rtc::LoggingSeverity Verbosity);
+void RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity Verbosity);
