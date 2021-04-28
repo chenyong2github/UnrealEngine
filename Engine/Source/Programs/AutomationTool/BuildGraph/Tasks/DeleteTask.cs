@@ -21,8 +21,14 @@ namespace BuildGraph.Tasks
 		/// <summary>
 		/// List of file specifications separated by semicolons (for example, *.cpp;Engine/.../*.bat), or the name of a tag set
 		/// </summary>
-		[TaskParameter(ValidationType = TaskParameterValidationType.FileSpec)]
+		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.FileSpec)]
 		public string Files;
+
+		/// <summary>
+		/// List of directory names
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public string Directories;
 
 		/// <summary>
 		/// Whether to delete empty directories after deleting the files. Defaults to true.
@@ -59,35 +65,49 @@ namespace BuildGraph.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override void Execute(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			// Find all the referenced files and delete them
-			HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
-			foreach(FileReference File in Files)
+			if (Parameters.Files != null)
 			{
-				if (!InternalUtils.SafeDeleteFile(File.FullName))
+				// Find all the referenced files and delete them
+				HashSet<FileReference> Files = ResolveFilespec(CommandUtils.RootDirectory, Parameters.Files, TagNameToFileSet);
+				foreach (FileReference File in Files)
 				{
-					CommandUtils.LogWarning("Couldn't delete file {0}", File.FullName);
+					if (!InternalUtils.SafeDeleteFile(File.FullName))
+					{
+						CommandUtils.LogWarning("Couldn't delete file {0}", File.FullName);
+					}
+				}
+
+				// Try to delete all the parent directories. Keep track of the directories we've already deleted to avoid hitting the disk.
+				if (Parameters.DeleteEmptyDirectories)
+				{
+					// Find all the directories that we're touching
+					HashSet<DirectoryReference> ParentDirectories = new HashSet<DirectoryReference>();
+					foreach (FileReference File in Files)
+					{
+						ParentDirectories.Add(File.Directory);
+					}
+
+					// Recurse back up from each of those directories to the root folder
+					foreach (DirectoryReference ParentDirectory in ParentDirectories)
+					{
+						for (DirectoryReference CurrentDirectory = ParentDirectory; CurrentDirectory != CommandUtils.RootDirectory; CurrentDirectory = CurrentDirectory.ParentDirectory)
+						{
+							if (!TryDeleteEmptyDirectory(CurrentDirectory))
+							{
+								break;
+							}
+						}
+					}
 				}
 			}
-
-			// Try to delete all the parent directories. Keep track of the directories we've already deleted to avoid hitting the disk.
-			if(Parameters.DeleteEmptyDirectories)
+			if (Parameters.Directories != null)
 			{
-				// Find all the directories that we're touching
-				HashSet<DirectoryReference> ParentDirectories = new HashSet<DirectoryReference>();
-				foreach(FileReference File in Files)
+				foreach (string Directory in Parameters.Directories.Split(';'))
 				{
-					ParentDirectories.Add(File.Directory);
-				}
-
-				// Recurse back up from each of those directories to the root folder
-				foreach(DirectoryReference ParentDirectory in ParentDirectories)
-				{
-					for(DirectoryReference CurrentDirectory = ParentDirectory; CurrentDirectory != CommandUtils.RootDirectory; CurrentDirectory = CurrentDirectory.ParentDirectory)
+					if (!String.IsNullOrEmpty(Directory))
 					{
-						if(!TryDeleteEmptyDirectory(CurrentDirectory))
-						{
-							break;
-						}
+						DirectoryReference FullDir = new DirectoryReference(Directory);
+						FileUtils.ForceDeleteDirectory(FullDir);
 					}
 				}
 			}

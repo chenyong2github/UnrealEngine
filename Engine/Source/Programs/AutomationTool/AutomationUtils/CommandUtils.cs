@@ -2466,6 +2466,38 @@ namespace AutomationTool
 				Callback();
 			}
 		}
+
+		public static FileReference FindToolInPath(string ToolName)
+		{
+			string PathVariable = Environment.GetEnvironmentVariable("PATH");
+			foreach (string PathEntry in PathVariable.Split(Path.PathSeparator))
+			{
+				try
+				{
+					DirectoryReference PathDir = new DirectoryReference(PathEntry);
+					if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
+					{
+						FileReference ToolFile = FileReference.Combine(PathDir, $"{ToolName}.exe");
+						if (FileReference.Exists(ToolFile))
+						{
+							return ToolFile;
+						}
+					}
+					else
+					{
+						FileReference ToolFile = FileReference.Combine(PathDir, ToolName);
+						if (FileReference.Exists(ToolFile))
+						{
+							return ToolFile;
+						}
+					}
+				}
+				catch
+				{
+				}
+			}
+			return null;
+		}
 	}
 
 	/// <summary>
@@ -3127,7 +3159,7 @@ namespace AutomationTool
 				{
 					FinalFiles.Add(new FileReference(TargetFileInfo));
 				}
-			}			
+			}
 			CodeSignWindows.Sign(FinalFiles, CodeSignWindows.SignatureType.SHA1);
 			CodeSignWindows.Sign(FinalFiles.Where(x => !x.HasExtension(".msi")).ToList(), CodeSignWindows.SignatureType.SHA256); // MSI files can only have one signature; prefer SHA1 for compatibility
 		}
