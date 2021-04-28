@@ -252,7 +252,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
 	int RenderOrder = -1;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster ICVFX")
+	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
