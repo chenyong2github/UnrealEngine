@@ -122,10 +122,7 @@ FAutoConsoleVariableRef CVarGPUSkinCacheBlendUsingVertexColorForRecomputeTangent
 	TEXT("r.SkinCache.BlendUsingVertexColorForRecomputeTangents"),
 	GBlendUsingVertexColorForRecomputeTangents,
 	TEXT("0: off (default)\n")
-	TEXT("1: No blending, choose between source and recompute tangents.\n")
-	TEXT("2: Linear interpolation between source and recompute tangents.\n")
-	TEXT("3: Vector slerp between source and recompute tangents.\n")
-	TEXT("4: Convert tangents into quaternion, apply slerp, then convert from quaternion back to tangents (most expensive).\n"),
+	TEXT("1: Linear interpolation between source and recompute tangents.\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -1147,9 +1144,6 @@ class FRecomputeTangentsPerVertexPassCS : public FBaseRecomputeTangentsPerVertex
 
 IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<0>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
 IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<1>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<2>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<3>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>, FRecomputeTangentsPerVertexPassCS<4>, TEXT("/Engine/Private/RecomputeTangentsPerVertexPass.usf"), TEXT("MainCS"), SF_Compute);
 
 void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex, FRWBuffer*& StagingBuffer, bool bTrianglePass)
 {
@@ -1252,18 +1246,9 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 		auto* GlobalShaderMap = GetGlobalShaderMap(GetFeatureLevel());
 		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<0>> ComputeShader0(GlobalShaderMap);
 		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<1>> ComputeShader1(GlobalShaderMap);
-		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<2>> ComputeShader2(GlobalShaderMap);
-		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<3>> ComputeShader3(GlobalShaderMap);
-		TShaderMapRef<FRecomputeTangentsPerVertexPassCS<4>> ComputeShader4(GlobalShaderMap);
 		TShaderRef<FBaseRecomputeTangentsPerVertexShader> ComputeShader;
-		if (GBlendUsingVertexColorForRecomputeTangents == 1)
+		if (GBlendUsingVertexColorForRecomputeTangents > 0)
 			ComputeShader = ComputeShader1;
-		else if (GBlendUsingVertexColorForRecomputeTangents == 2)
-			ComputeShader = ComputeShader2;
-		else if (GBlendUsingVertexColorForRecomputeTangents == 3)
-			ComputeShader = ComputeShader3;
-		else if (GBlendUsingVertexColorForRecomputeTangents == 4)
-			ComputeShader = ComputeShader4;
 		else
 			ComputeShader = ComputeShader0;
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
