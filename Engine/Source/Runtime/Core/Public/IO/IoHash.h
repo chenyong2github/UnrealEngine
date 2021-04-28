@@ -33,6 +33,9 @@ public:
 	/** Construct a hash from an array of 20 bytes. */
 	inline explicit FIoHash(const ByteArray& Hash);
 
+	/** Construct a hash from a view of 20 bytes. */
+	inline explicit FIoHash(FMemoryView Hash);
+
 	/** Construct a hash from a BLAKE3-256 hash. */
 	inline FIoHash(const FBlake3Hash& Hash);
 
@@ -62,6 +65,13 @@ private:
 inline FIoHash::FIoHash(const ByteArray& InHash)
 {
 	FMemory::Memcpy(Hash, InHash, sizeof(ByteArray));
+}
+
+inline FIoHash::FIoHash(const FMemoryView InHash)
+{
+	checkf(InHash.GetSize() == sizeof(ByteArray),
+		TEXT("FIoHash cannot be constructed from a view of %" UINT64_FMT " bytes."), InHash.GetSize());
+	FMemory::Memcpy(Hash, InHash.GetData(), sizeof(ByteArray));
 }
 
 inline FIoHash::FIoHash(const FBlake3Hash& InHash)
