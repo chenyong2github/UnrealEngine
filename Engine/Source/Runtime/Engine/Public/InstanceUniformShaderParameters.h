@@ -36,7 +36,7 @@ public:
 struct FPrimitiveInstance
 {
 	FMatrix  InstanceToLocal;
-	FMatrix  PrevInstanceToLocal;
+	FMatrix	 PrevInstanceToLocal;
 	FMatrix  LocalToWorld;
 	FMatrix  PrevLocalToWorld;
 	FVector4 NonUniformScale;

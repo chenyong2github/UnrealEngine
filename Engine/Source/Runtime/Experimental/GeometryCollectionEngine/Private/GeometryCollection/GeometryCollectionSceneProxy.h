@@ -332,6 +332,8 @@ public:
 
 	virtual uint32 GetMemoryFootprint() const override;
 
+	virtual void OnTransformChanged() override;
+
 	/** Called on render thread to setup static geometry for rendering */
 	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);
 

@@ -239,8 +239,8 @@ inline void InitPrimitiveInstanceDummy(FPrimitiveInstance& DummyInstance, const 
 	DummyInstance.InvNonUniformScaleAndDeterminantSign = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 	DummyInstance.RenderBounds = LocalBounds;
 	DummyInstance.LocalBounds = LocalBounds;
-
-	const bool bHasPreviousInstanceTransforms = false;
+const bool bHasPreviousInstanceTransforms = false;
+	
 	InitPrimitiveInstance(DummyInstance, PrimitiveTransforms, PrimitiveID, SceneFrameNumber, bHasPreviousInstanceTransforms);
 }
 

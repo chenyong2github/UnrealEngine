@@ -1053,6 +1053,9 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;
 
+	// We always have correct instance transforms, skip GPUScene updates
+	bShouldUpdateGPUSceneTransforms = false;
+
 	bSupportsDistanceFieldRepresentation = false;
 	bSupportsMeshCardRepresentation = false;
 
@@ -1126,8 +1129,12 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialID;
 	}
 
-	bool bHasGeometryBoundingBoxes = Collection->HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup) && Collection->NumElements(FGeometryCollection::GeometryGroup);
-	bool bHasTransformBoundingBoxes = Collection->NumElements(FGeometryCollection::TransformGroup) && 
+	const bool bHasGeometryBoundingBoxes = 
+		Collection->HasAttribute("BoundingBox", FGeometryCollection::GeometryGroup) &&
+		Collection->NumElements(FGeometryCollection::GeometryGroup);
+	
+	const bool bHasTransformBoundingBoxes = 
+		Collection->NumElements(FGeometryCollection::TransformGroup) && 
 		Collection->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) &&
 		Collection->HasAttribute("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
 
@@ -1146,7 +1153,7 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 			Instance.RenderBounds = BoundingBoxes[GeometryIndex];
 		}
 	}
-	else if(bHasTransformBoundingBoxes)
+	else if (bHasTransformBoundingBoxes)
 	{
 		Nanite::FResources& Resource = GeometryCollection->NaniteData->NaniteResource;
 		NumGeometry = Resource.HierarchyRootOffsets.Num();
@@ -1161,13 +1168,12 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 			if (GeometryIndex > INDEX_NONE)
 			{
 				FGeometryNaniteData& Instance = GeometryNaniteData[GeometryIndex];
-				Instance.PrimitiveId = ~uint32(0);
-				Instance.NaniteInfo = GeometryCollection->GetNaniteInfo(GeometryIndex);
-				Instance.RenderBounds = BoundingBoxes[TransformIndex];
+				Instance.PrimitiveId	= ~uint32(0);
+				Instance.NaniteInfo		= GeometryCollection->GetNaniteInfo(GeometryIndex);
+				Instance.RenderBounds	= BoundingBoxes[TransformIndex];
 			}
 		}
 	}
-
 
 	// Need to specify initial instance list, even with just identity transforms, so that the
 	// GPUScene instance data allocator reserves space for the instances early on. The instance
@@ -1178,7 +1184,9 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		FPrimitiveInstance& Instance = Instances[GeometryIndex];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal.SetIdentity();
+		Instance.PrevInstanceToLocal.SetIdentity();
 		Instance.LocalToWorld.SetIdentity();
+		Instance.PrevLocalToWorld.SetIdentity();
 		Instance.RenderBounds = GeometryNaniteData[GeometryIndex].RenderBounds;
 		Instance.LocalBounds = Instance.RenderBounds;
 	}
@@ -1249,6 +1257,34 @@ uint32 FNaniteGeometryCollectionSceneProxy::GetMemoryFootprint() const
 	return sizeof(*this) + GetAllocatedSize();
 }
 
+void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
+{
+	FMatrix ParentPrevLocalToWorld;
+
+	// Pull out the previous primitive local to world transform
+	{
+		bool bHasPrecomputedVolumetricLightmap;
+		int32 SingleCaptureIndex;
+		bool bOutputVelocity;
+
+		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(
+			GetPrimitiveSceneInfo(),
+			bHasPrecomputedVolumetricLightmap,
+			ParentPrevLocalToWorld,
+			SingleCaptureIndex,
+			bOutputVelocity
+		);
+	}
+
+	// Primitive has moved, so update all instance transforms
+	const FMatrix ParentLocalToWorld = GetLocalToWorld();
+	for (FPrimitiveInstance& Instance : Instances)
+	{
+		Instance.LocalToWorld = Instance.InstanceToLocal * ParentLocalToWorld;
+		Instance.PrevLocalToWorld = Instance.PrevInstanceToLocal * ParentPrevLocalToWorld;
+	}
+}
+
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
 {
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
@@ -1269,12 +1305,12 @@ void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometry
 
 		FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
 
-		Instance.InstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
-		Instance.LocalToWorld		= Instance.InstanceToLocal;
-		Instance.PrimitiveId		= NaniteData.PrimitiveId;
-		Instance.RenderBounds       = NaniteData.RenderBounds;
-		Instance.LocalBounds        = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
-		Instance.NaniteInfo			= NaniteData.NaniteInfo;
+		Instance.InstanceToLocal		= NewConstantData->RestTransforms[TransformIndex];
+		Instance.PrevInstanceToLocal	= NewConstantData->RestTransforms[TransformIndex];
+		Instance.PrimitiveId			= NaniteData.PrimitiveId;
+		Instance.RenderBounds			= NaniteData.RenderBounds;
+		Instance.LocalBounds			= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+		Instance.NaniteInfo				= NaniteData.NaniteInfo;
 	}
 
 	delete NewConstantData;
@@ -1286,18 +1322,41 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 	if (NewDynamicData->IsDynamic)
 	{
 		const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
-		const TManagedArray<int32>& TransformToGeometryIndices = Collection->TransformToGeometryIndex;
-		const TManagedArray<TSet<int32>>& TransformChildren = Collection->Children;
-		const TManagedArray<int32>& SimulationType = Collection->SimulationType;
+		const TManagedArray<int32>& TransformToGeometryIndices	 = Collection->TransformToGeometryIndex;
+		const TManagedArray<TSet<int32>>& TransformChildren		 = Collection->Children;
+		const TManagedArray<int32>& SimulationType				 = Collection->SimulationType;
 
-		check(NewDynamicData->Transforms.Num() == TransformToGeometryIndices.Num());
-		check(NewDynamicData->Transforms.Num() == TransformChildren.Num());
-		Instances.Reset(NewDynamicData->Transforms.Num());
+		const int32 NumTransforms = NewDynamicData->Transforms.Num();
+		check(NumTransforms == TransformToGeometryIndices.Num());
+		check(NumTransforms == TransformChildren.Num());
+		check(NumTransforms == NewDynamicData->PrevTransforms.Num());
+		Instances.Reset(NumTransforms);
 
-		for (int32 TransformIndex = 0; TransformIndex < NewDynamicData->Transforms.Num(); ++TransformIndex)
+		const FMatrix ParentLocalToWorld = GetLocalToWorld();
+		FMatrix ParentPrevLocalToWorld;
+
+		// Pull out the previous primitive local to world transform
+		{
+			bool bHasPrecomputedVolumetricLightmap;
+			int32 SingleCaptureIndex;
+			bool bOutputVelocity;
+
+			if (GetPrimitiveSceneInfo())
+			{
+				GetScene().GetPrimitiveUniformShaderParameters_RenderThread(
+					GetPrimitiveSceneInfo(),
+					bHasPrecomputedVolumetricLightmap,
+					ParentPrevLocalToWorld,
+					SingleCaptureIndex,
+					bOutputVelocity
+				);
+			}
+		}
+
+		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
 			const int32 TransformToGeometryIndex = TransformToGeometryIndices[TransformIndex];
-			if( SimulationType[TransformIndex] != FGeometryCollection::ESimulationTypes::FST_Rigid)
+			if (SimulationType[TransformIndex] != FGeometryCollection::ESimulationTypes::FST_Rigid)
 			{
 				continue;
 			}
@@ -1306,12 +1365,14 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 
 			FPrimitiveInstance& Instance = Instances.Emplace_GetRef();
 
-			Instance.InstanceToLocal	= NewDynamicData->Transforms[TransformIndex];
-			Instance.LocalToWorld		= Instance.InstanceToLocal;
-			Instance.PrimitiveId		= NaniteData.PrimitiveId;
-			Instance.RenderBounds       = NaniteData.RenderBounds;
-			Instance.LocalBounds        = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
-			Instance.NaniteInfo			= NaniteData.NaniteInfo;
+			Instance.InstanceToLocal			= NewDynamicData->Transforms[TransformIndex];
+			Instance.PrevInstanceToLocal		= NewDynamicData->PrevTransforms[TransformIndex];
+			Instance.LocalToWorld				= Instance.InstanceToLocal * ParentLocalToWorld;
+			Instance.PrevLocalToWorld			= Instance.PrevInstanceToLocal * ParentPrevLocalToWorld;
+			Instance.LocalBounds				= Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			Instance.PrimitiveId				= NaniteData.PrimitiveId;
+			Instance.RenderBounds				= NaniteData.RenderBounds;
+			Instance.NaniteInfo					= NaniteData.NaniteInfo;
 		}
 	}
 	else

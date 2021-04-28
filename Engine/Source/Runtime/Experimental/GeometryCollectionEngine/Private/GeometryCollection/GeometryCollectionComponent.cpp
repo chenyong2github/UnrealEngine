@@ -412,7 +412,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 			GeometryCollectionAlgo::GlobalMatrices(Transforms, ParentIndices, TmpGlobalMatrices);
 
 			TManagedArray<FBox>& TransformBounds = HackGeometryCollectionPtr->GetAttribute<FBox>("BoundingBox", "Transform");
-			for (int TransformIndex = 0; TransformIndex < HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup); TransformIndex++)
+			for (int32 TransformIndex = 0; TransformIndex < HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup); TransformIndex++)
 			{
 				BoundingBox += TransformBounds[TransformIndex].TransformBy(TmpGlobalMatrices[TransformIndex] * LocalToWorldWithScale);
 			}
@@ -509,24 +509,26 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 
 				// ...
 
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 				if (bIsTransformSelectionModeEnabled)
 				{
 					// ...
 				}
-#endif
+			#endif
 
 				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
 					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
 						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
+						
 						if (DynamicData)
 						{
 							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
 						}
-						if (GeometryCollectionSceneProxy->GetPrimitiveSceneInfo())
+
+						if (FPrimitiveSceneInfo* PrimitiveSceneInfo = GeometryCollectionSceneProxy->GetPrimitiveSceneInfo())
 						{
-							GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
+							PrimitiveSceneInfo->RequestGPUSceneUpdate();
 						}
 					}
 				);
@@ -535,13 +537,13 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 			{
 				FGeometryCollectionSceneProxy* const GeometryCollectionSceneProxy = static_cast<FGeometryCollectionSceneProxy*>(LocalSceneProxy);
 
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 				// Re-init subsections
 				if (bIsTransformSelectionModeEnabled)
 				{
 					GeometryCollectionSceneProxy->UseSubSections(true, false);  // Do not force reinit now, it'll be done in SetConstantData_RenderThread
 				}
-#endif
+			#endif
 
 				ENQUEUE_RENDER_COMMAND(CreateRenderState)(
 					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
@@ -556,8 +558,8 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 			}
 		}
 	}
-	return LocalSceneProxy;
 
+	return LocalSceneProxy;
 }
 
 bool UGeometryCollectionComponent::ShouldCreatePhysicsState() const

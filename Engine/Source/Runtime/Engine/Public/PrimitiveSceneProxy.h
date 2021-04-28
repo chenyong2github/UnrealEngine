@@ -610,9 +610,11 @@ public:
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
+	inline bool ShouldUpdateGPUSceneTransforms() const { return bShouldUpdateGPUSceneTransforms; }
 
 	/** Returns whether draws velocity in base pass. */
-	inline bool DrawsVelocity() const {
+	inline bool DrawsVelocity() const
+	{
 		return IsMovable() || IsBeingMovedByEditor();
 	}
 
@@ -1008,6 +1010,9 @@ protected:
 
 	/** Whether the primitive supports the GPUScene instance data buffer. */
 	uint8 bSupportsInstanceDataBuffer : 1;
+
+	/** Whether the instances on the primitive need to update transforms during GPU Scene update. */
+	uint8 bShouldUpdateGPUSceneTransforms : 1;
 
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;
