@@ -34,6 +34,9 @@ public:
 	enum class ETextureType
 	{
 		Color,
+		Roughness,
+		Metallic,
+		Specular,
 		NormalMap,
 		AmbientOcclusion
 	};
@@ -85,6 +88,11 @@ public:
 			return false;
 		}
 
+		if (BuildType == ETextureType::Roughness || BuildType == ETextureType::Metallic || BuildType == ETextureType::Specular)
+		{
+			RawTexture2D->SRGB = false;
+			RawTexture2D->UpdateResource();
+		}
 		if (BuildType == ETextureType::NormalMap)
 		{
 			RawTexture2D->CompressionSettings = TC_Normalmap;
@@ -333,7 +341,7 @@ public:
 	/**
 	 * populate texel values from floating-point SourceImage
 	 */
-	bool Copy(const TImageBuilder<FVector3f>& SourceImage, const bool bSRGB = false)
+	bool Copy(const TImageBuilder<FVector3f>& SourceImage, const bool bConvertToSRGB = false)
 	{
 		if (ensure(SourceImage.GetDimensions() == Dimensions) == false)
 		{
@@ -346,16 +354,17 @@ public:
 			Pixel.X = FMathf::Clamp(Pixel.X, 0.0, 1.0);
 			Pixel.Y = FMathf::Clamp(Pixel.Y, 0.0, 1.0);
 			Pixel.Z = FMathf::Clamp(Pixel.Z, 0.0, 1.0);
-			FColor Texel = ToLinearColor(Pixel).ToFColor(bSRGB);
+			FColor Texel = ToLinearColor(Pixel).ToFColor(bConvertToSRGB);
 			SetTexel(i, Texel);
 		}
 		return true;
 	}
 
 	/**
-	 * populate texel values from floating-point SourceImage
+	 * Populate texel values from floating-point SourceImage.
+	 * @param bConvertToSRGB if true, SourceImage is assumed to be Linear, and converted to SRGB for the Texture
 	 */
-	bool Copy(const TImageBuilder<FVector4f>& SourceImage, const bool bSRGB = false)
+	bool Copy(const TImageBuilder<FVector4f>& SourceImage, const bool bConvertToSRGB = false)
 	{
 		if (ensure(SourceImage.GetDimensions() == Dimensions) == false)
 		{
@@ -369,7 +378,7 @@ public:
 			Pixel.Y = FMathf::Clamp(Pixel.Y, 0.0, 1.0);
 			Pixel.Z = FMathf::Clamp(Pixel.Z, 0.0, 1.0);
 			Pixel.W = FMathf::Clamp(Pixel.W, 0.0, 1.0);
-			FColor Texel = ((FLinearColor)Pixel).ToFColor(bSRGB);
+			FColor Texel = ((FLinearColor)Pixel).ToFColor(bConvertToSRGB);
 			SetTexel(i, Texel);
 		}
 		return true;
@@ -377,7 +386,7 @@ public:
 
 
 	/**
-	 * copy existing texel values to floating-point DestImage
+	 * copy existing texel values to floating-point DestImage. Assumed to be same color space (eg both Linear)
 	 */
 	bool CopyTo(TImageBuilder<FVector4f>& DestImage) const
 	{
@@ -423,6 +432,9 @@ public:
 	const FColor& GetClearColor() const
 	{
 		static const FColor DefaultColor = FColor::Black;
+		static const FColor DefaultRoughness(128, 128, 128);
+		static const FColor DefaultSpecular(100, 100, 100);
+		static const FColor DefaultMetallic(16, 16, 16);
 		static const FColor DefaultNormalColor(128, 128, 255);
 		static const FColor DefaultAOColor = FColor::White;
 
@@ -431,6 +443,12 @@ public:
 		default:
 		case ETextureType::Color:
 			return DefaultColor;
+		case ETextureType::Roughness:
+			return DefaultRoughness;
+		case ETextureType::Metallic:
+			return DefaultMetallic;
+		case ETextureType::Specular:
+			return DefaultSpecular;
 		case ETextureType::NormalMap:
 			return DefaultNormalColor;
 		case ETextureType::AmbientOcclusion:
@@ -451,6 +469,17 @@ public:
 			Builder.UpdateSourceData();
 		}
 		return bOK;
+	}
+
+
+	template<typename PixelType>
+	static UTexture2D* BuildTextureFromImage(const TImageBuilder<PixelType>& SourceImage, FTexture2DBuilder::ETextureType TextureType, const bool bConvertToSRGB, bool bPopulateSourceData = true)
+	{
+		FTexture2DBuilder TexBuilder;
+		TexBuilder.Initialize(TextureType, SourceImage.GetDimensions());
+		TexBuilder.Copy(SourceImage, bConvertToSRGB);
+		TexBuilder.Commit(bPopulateSourceData);
+		return TexBuilder.GetTexture2D();
 	}
 
 };
