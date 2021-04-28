@@ -10,47 +10,48 @@ struct FNiagaraDataSetDebugAccessor
 {
 	bool Init(const FNiagaraDataSetCompiledData& CompiledData, FName InVariableName);
 
-	FVector4 ReadFloats(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const;
-	FIntVector4 ReadInts(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const;
+	float ReadFloat(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const;
+	int32 ReadInt(const FNiagaraDataBuffer* DataBuffer, uint32 Instance, uint32 Component) const;
 
 	template<typename TString>
 	void StringAppend(TString& StringType, FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
 	{
 		if (IsFloat() || IsHalf())
 		{
-			FVector4 Value = ReadFloats(DataBuffer, Instance);
-			switch (NumComponents)
+			for (uint32 iComponent = 0; iComponent < NumComponents; ++iComponent)
 			{
-				case 1: StringType.Appendf(TEXT("%.2f"), Value[0]); break;
-				case 2: StringType.Appendf(TEXT("%.2f, %.2f"), Value[0], Value[1]); break;
-				case 3: StringType.Appendf(TEXT("%.2f, %.2f, %.2f"), Value[0], Value[1], Value[2]); break;
-				case 4: StringType.Appendf(TEXT("%.2f, %.2f, %.2f, %.2f"), Value[0], Value[1], Value[2], Value[3]); break;
+				if (iComponent != 0)
+				{
+					StringType.Append(TEXT(", "));
+				}
+				StringType.Appendf(TEXT("%.2f"), ReadFloat(DataBuffer, Instance, iComponent));
 			}
 		}
 		else if (IsInt())
 		{
-			FIntVector4 Value = ReadInts(DataBuffer, Instance);
 			if (NiagaraType == FNiagaraTypeDefinition::GetBoolDef())
 			{
 				const TCHAR* TrueText = TEXT("true");
 				const TCHAR* FalseText = TEXT("false");
-				for ( uint32 iComponent=0; iComponent < NumComponents; ++iComponent)
+
+				for (uint32 iComponent = 0; iComponent < NumComponents; ++iComponent)
 				{
-					if (iComponent != 0 )
+					if (iComponent != 0)
 					{
 						StringType.Append(TEXT(", "));
 					}
-					StringType.Append(Value[iComponent] == FNiagaraBool::True ? TrueText : FalseText);
+					StringType.Append(ReadInt(DataBuffer, Instance, iComponent) == FNiagaraBool::True ? TrueText : FalseText);
 				}
 			}
 			else
 			{
-				switch (NumComponents)
+				for (uint32 iComponent = 0; iComponent < NumComponents; ++iComponent)
 				{
-					case 1: StringType.Appendf(TEXT("%d"), Value[0]); break;
-					case 2: StringType.Appendf(TEXT("%d, %d"), Value[0], Value[1]); break;
-					case 3: StringType.Appendf(TEXT("%d, %d, %d"), Value[0], Value[1], Value[2]); break;
-					case 4: StringType.Appendf(TEXT("%d, %d, %d, %d, %d"), Value[0], Value[1], Value[2], Value[3]); break;
+					if (iComponent != 0)
+					{
+						StringType.Append(TEXT(", "));
+					}
+					StringType.Appendf(TEXT("%d"), ReadInt(DataBuffer, Instance, iComponent));
 				}
 			}
 		}
