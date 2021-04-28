@@ -535,6 +535,8 @@ void FUnrealEdMisc::OnInit()
 	const double TotalEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Total Editor Startup Time, took %.3f"), TotalEditorStartupTime);
 
+	TRACE_BOOKMARK(TEXT("Editor Startup"));
+
 	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime);
 
 	GShaderCompilingManager->PrintStats(true);
