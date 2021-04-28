@@ -689,7 +689,9 @@ void GenerateProbeTraceTilesCS(
 }
 
 RWBuffer<uint> RWTraceProbesIndirectArgs;
+RWBuffer<uint> RWSortProbeTraceTilesIndirectArgs;
 RWBuffer<uint> RWRadianceCacheHardwareRayTracingIndirectArgs;
+uint SortTraceTilesGroupSize;
 
 [numthreads(1, 1, 1)]
 void SetupTraceFromProbesCS()
@@ -703,9 +705,90 @@ void SetupTraceFromProbesCS()
 	RWTraceProbesIndirectArgs[1] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
 	RWTraceProbesIndirectArgs[2] = 1;
 
+	RWSortProbeTraceTilesIndirectArgs[0] = (NumProbeTraceTiles + SortTraceTilesGroupSize - 1) / SortTraceTilesGroupSize;
+	RWSortProbeTraceTilesIndirectArgs[1] = 1;
+	RWSortProbeTraceTilesIndirectArgs[2] = 1;
+
 	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = NumProbeTraceTiles;
 	RWRadianceCacheHardwareRayTracingIndirectArgs[2] = 1;
+}
+
+#ifndef SORT_TILES_THREADGROUP_SIZE
+#define SORT_TILES_THREADGROUP_SIZE 1
+#endif
+
+#define NUM_DIRECTION_BINS_2D 8
+#define NUM_DIRECTION_BINS_1D (NUM_DIRECTION_BINS_2D * NUM_DIRECTION_BINS_2D)
+groupshared uint SharedNumTraceTileBins[NUM_DIRECTION_BINS_1D];
+groupshared uint SharedTraceTileBinOffset[NUM_DIRECTION_BINS_1D];
+
+[numthreads(SORT_TILES_THREADGROUP_SIZE, 1, 1)]
+void SortProbeTraceTilesCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	// Clear bins to 0
+	for (uint BinIndex = GroupThreadId; BinIndex < NUM_DIRECTION_BINS_1D; BinIndex += SORT_TILES_THREADGROUP_SIZE)
+	{
+		SharedNumTraceTileBins[BinIndex] = 0; 
+		SharedTraceTileBinOffset[BinIndex] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint TraceTileIndex = GroupId * SORT_TILES_THREADGROUP_SIZE + GroupThreadId;
+
+	// Count how many trace tiles in each direction bin
+	if (TraceTileIndex < ProbeTraceTileAllocator[0])
+	{
+		uint2 TraceTileCoord;
+		uint TraceTileLevel;
+		uint ProbeTraceIndex;
+		UnpackTraceTileInfo(ProbeTraceTileData[TraceTileIndex], TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
+
+		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D;
+		uint2 DirectionalBin = ProbeTexelCoord * NUM_DIRECTION_BINS_2D / TraceResolution;
+
+		//@todo - also bin by Morton encoded position
+		uint FinalBinIndex = DirectionalBin.y * NUM_DIRECTION_BINS_2D + DirectionalBin.x;
+
+		InterlockedAdd(SharedNumTraceTileBins[FinalBinIndex], 1);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (TraceTileIndex < ProbeTraceTileAllocator[0])
+	{
+		uint2 TraceTileData = ProbeTraceTileData[TraceTileIndex];
+
+		uint2 TraceTileCoord;
+		uint TraceTileLevel;
+		uint ProbeTraceIndex;
+		UnpackTraceTileInfo(TraceTileData, TraceTileCoord, TraceTileLevel, ProbeTraceIndex);
+
+		uint TraceResolution = (RadianceProbeResolution / 2) << TraceTileLevel;
+		uint2 ProbeTexelCoord = TraceTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D;
+		uint2 DirectionalBin = ProbeTexelCoord * NUM_DIRECTION_BINS_2D / TraceResolution;
+
+		uint FinalBinIndex = DirectionalBin.y * NUM_DIRECTION_BINS_2D + DirectionalBin.x;
+
+		uint SortedTraceTileOffset;
+
+		// Calculate our sorted offset by adding up all the bins before us
+		{
+			InterlockedAdd(SharedTraceTileBinOffset[FinalBinIndex], 1, SortedTraceTileOffset);
+
+			for (uint BinIndex = 0; BinIndex < FinalBinIndex; BinIndex++)
+			{
+				SortedTraceTileOffset += SharedNumTraceTileBins[BinIndex];
+			}
+		}
+
+		// Write out to the sorted position
+		RWProbeTraceTileData[GroupId * SORT_TILES_THREADGROUP_SIZE + SortedTraceTileOffset] = TraceTileData;
+	}
 }
 
 float StepFactor;

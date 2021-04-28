@@ -70,6 +70,14 @@ FAutoConsoleVariableRef CVarRadianceCacheFilterProbes(
 	ECVF_RenderThreadSafe
 );
 
+int32 GRadianceCacheSortTraceTiles = 0;
+FAutoConsoleVariableRef CVarRadianceCacheSortTraceTiles(
+	TEXT("r.Lumen.RadianceCache.SortTraceTiles"),
+	GRadianceCacheSortTraceTiles,
+	TEXT("Whether to sort Trace Tiles by direction before tracing to extract coherency"),
+	ECVF_RenderThreadSafe
+);
+
 float GLumenRadianceCacheFilterMaxRadianceHitAngle = .2f;
 FAutoConsoleVariableRef GVarLumenRadianceCacheFilterMaxRadianceHitAngle(
 	TEXT("r.Lumen.RadianceCache.SpatialFilterMaxRadianceHitAngle"),
@@ -577,8 +585,10 @@ class FSetupTraceFromProbesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWTraceProbesIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWSortProbeTraceTilesIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRadianceCacheHardwareRayTracingIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
+		SHADER_PARAMETER(uint32, SortTraceTilesGroupSize)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -601,6 +611,44 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSetupTraceFromProbesCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "SetupTraceFromProbesCS", SF_Compute);
+
+
+class FSortProbeTraceTilesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSortProbeTraceTilesCS)
+	SHADER_USE_PARAMETER_STRUCT(FSortProbeTraceTilesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWProbeTraceTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, ProbeTraceTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInputs, RadianceCacheInputs)
+		RDG_BUFFER_ACCESS(SortProbeTraceTilesIndirectArgs, ERHIAccess::IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		// Group size affects sorting window, the larger the group the more coherency can be extracted
+		return 1024;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SORT_TILES_THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FSortProbeTraceTilesCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "SortProbeTraceTilesCS", SF_Compute);
+
 
 
 class FRadianceCacheTraceFromProbesCS : public FGlobalShader
@@ -1383,13 +1431,16 @@ void RenderRadianceCache(
 		}
 
 		FRDGBufferRef TraceProbesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("Lumen.RadianceCache.TraceProbesIndirectArgs"));
-		FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(4), TEXT("Lumen.RadianceCache.RadianceCacheHardwareRayTracingIndirectArgs"));
+		FRDGBufferRef SortProbeTraceTilesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(5), TEXT("Lumen.RadianceCache.SortProbeTraceTilesIndirectArgs"));
+		FRDGBufferRef RadianceCacheHardwareRayTracingIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(6), TEXT("Lumen.RadianceCache.RadianceCacheHardwareRayTracingIndirectArgs"));
 
 		{
 			FSetupTraceFromProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupTraceFromProbesCS::FParameters>();
 			PassParameters->RWTraceProbesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(TraceProbesIndirectArgs, PF_R32_UINT));
+			PassParameters->RWSortProbeTraceTilesIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(SortProbeTraceTilesIndirectArgs, PF_R32_UINT));
 			PassParameters->RWRadianceCacheHardwareRayTracingIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(RadianceCacheHardwareRayTracingIndirectArgs, PF_R32_UINT));
 			PassParameters->ProbeTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
+			PassParameters->SortTraceTilesGroupSize = FSortProbeTraceTilesCS::GetGroupSize();
 			auto ComputeShader = View.ShaderMap->GetShader<FSetupTraceFromProbesCS>(0);
 
 			const FIntVector GroupSize = FIntVector(1);
@@ -1400,6 +1451,31 @@ void RenderRadianceCache(
 				ComputeShader,
 				PassParameters,
 				GroupSize);
+		}
+
+		if (GRadianceCacheSortTraceTiles)
+		{
+			FRDGBufferRef SortedProbeTraceTileData = GraphBuilder.CreateBuffer(ProbeTraceTileData->Desc, TEXT("Lumen.RadianceCache.SortedProbeTraceTileData"));
+
+			FSortProbeTraceTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSortProbeTraceTilesCS::FParameters>();
+			PassParameters->RWProbeTraceTileData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(SortedProbeTraceTileData, PF_R32G32_UINT));
+			PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));
+			PassParameters->ProbeTraceTileData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileData, PF_R32G32_UINT));
+			PassParameters->ProbeTraceTileAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceTileAllocator, PF_R32_UINT));
+			PassParameters->SortProbeTraceTilesIndirectArgs = SortProbeTraceTilesIndirectArgs;
+			PassParameters->RadianceCacheInputs = RadianceCacheInputs;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FSortProbeTraceTilesCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SortTraceTiles"),
+				ComputeShader,
+				PassParameters,
+				PassParameters->SortProbeTraceTilesIndirectArgs,
+				0);
+
+			ProbeTraceTileData = SortedProbeTraceTileData;
 		}
 
 		FRDGTextureUAVRef RadianceProbeAtlasTextureUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RadianceProbeAtlasTextureSource));
