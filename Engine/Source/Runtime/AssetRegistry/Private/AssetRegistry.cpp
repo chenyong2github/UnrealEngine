@@ -3445,6 +3445,8 @@ void UAssetRegistryImpl::ClearTemporaryCaches() const
 	}
 }
 
+COREUOBJECT_API TMap<UClass*, TSet<UClass*>> GetAllDerivedClasses();
+
 void UAssetRegistryImpl::UpdateTemporaryCaches() const
 {
 	if (bIsTempCachingEnabled && bIsTempCachingUpToDate && TempCachingRegisteredClassesVersionNumber == GetRegisteredClassesVersionNumber())
@@ -3457,38 +3459,46 @@ void UAssetRegistryImpl::UpdateTemporaryCaches() const
 	// Refreshes ClassGeneratorNames if out of date due to module load
 	CollectCodeGeneratorClasses();
 
-	TempCachedInheritanceMap = CachedBPInheritanceMap;
-	TempReverseInheritanceMap.Reset();
 	TempCachingRegisteredClassesVersionNumber = GetRegisteredClassesVersionNumber();
-	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	TMap<UClass*, TSet<UClass*>> NativeSubclasses = GetAllDerivedClasses();
+
+	uint32 NumNativeClasses = 1; // UObject has no superclass
+	for (const TPair<UClass*, TSet<UClass*>>& Pair : NativeSubclasses)
 	{
-		UClass* Class = *ClassIt;
+		NumNativeClasses += Pair.Value.Num();
+	}
+	TempCachedInheritanceMap.Reserve(NumNativeClasses + CachedBPInheritanceMap.Num());
+	TempCachedInheritanceMap = CachedBPInheritanceMap;
+	TempCachedInheritanceMap.Add(FName("Object"), FName());
 
-		if (!Class->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
+	for (TPair<FName, TArray<FName>>& Pair : TempReverseInheritanceMap)
+	{
+		Pair.Value.Reset();
+	}
+	TempReverseInheritanceMap.Reserve(NativeSubclasses.Num());
+
+	for (const TPair<UClass*, TSet<UClass*>>& Pair : NativeSubclasses)
+	{
+		FName SuperclassName = Pair.Key->GetFName();
+
+		TArray<FName>& TempCachedSubclasses = TempReverseInheritanceMap.FindOrAdd(SuperclassName);
+		TempCachedSubclasses.Reserve(Pair.Value.Num());
+		for (UClass* Subclass : Pair.Value)
 		{
-			FName ClassName = Class->GetFName();
-			if (Class->GetSuperClass())
+			if (!Subclass->HasAnyClassFlags(CLASS_Deprecated | CLASS_NewerVersionExists))
 			{
-				FName SuperClassName = Class->GetSuperClass()->GetFName();
-				TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(SuperClassName);
-				ChildClasses.Add(ClassName);
+				FName SubclassName = Subclass->GetFName();
+				TempCachedSubclasses.Add(SubclassName);
+				TempCachedInheritanceMap.Add(SubclassName, SuperclassName);
 
-				TempCachedInheritanceMap.Add(ClassName, SuperClassName);
-			}
-			else
-			{
-				// This should only be true for a small number of CoreUObject classes
-				TempCachedInheritanceMap.Add(ClassName, NAME_None);
-			}
-
-			// Add any implemented interfaces to the reverse inheritance map, but not to the forward map
-			for (int32 i = 0; i < Class->Interfaces.Num(); ++i)
-			{
-				UClass* InterfaceClass = Class->Interfaces[i].Class;
-				if (InterfaceClass) // could be nulled out by ForceDelete of a blueprint interface
+				// Add any implemented interfaces to the reverse inheritance map, but not to the forward map
+				for (const FImplementedInterface& Interface : Subclass->Interfaces)
 				{
-					TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(InterfaceClass->GetFName());
-					ChildClasses.Add(ClassName);
+					if (UClass* InterfaceClass = Interface.Class) // could be nulled out by ForceDelete of a blueprint interface
+					{
+						TArray<FName>& Implementations = TempReverseInheritanceMap.FindOrAdd(InterfaceClass->GetFName());
+						Implementations.Add(SubclassName);
+					}
 				}
 			}
 		}
@@ -3497,10 +3507,10 @@ void UAssetRegistryImpl::UpdateTemporaryCaches() const
 	// Add non-native classes to reverse map
 	for (const TPair<FName, FName>& Kvp : CachedBPInheritanceMap)
 	{
-		const FName& ParentClassName = Kvp.Value;
-		if (ParentClassName != NAME_None)
+		FName ParentClassName = Kvp.Value;
+		if (!ParentClassName.IsNone())
 		{
-			TSet<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(ParentClassName);
+			TArray<FName>& ChildClasses = TempReverseInheritanceMap.FindOrAdd(ParentClassName);
 			ChildClasses.Add(Kvp.Key);
 		}
 	}
@@ -3522,7 +3532,7 @@ void UAssetRegistryImpl::GetSubClasses(const TArray<FName>& InClassNames, const 
 	ClearTemporaryCaches();
 }
 
-void UAssetRegistryImpl::GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TSet<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const
+void UAssetRegistryImpl::GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TArray<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const
 {
 	if (ExcludedClassNames.Contains(InClassName))
 	{
@@ -3537,7 +3547,7 @@ void UAssetRegistryImpl::GetSubClasses_Recursive(FName InClassName, TSet<FName>&
 		SubClassNames.Add(InClassName);
 		ProcessedClassNames.Add(InClassName);
 
-		const TSet<FName>* FoundSubClassNames = ReverseInheritanceMap.Find(InClassName);
+		const TArray<FName>* FoundSubClassNames = ReverseInheritanceMap.Find(InClassName);
 		if (FoundSubClassNames)
 		{
 			for (FName ClassName : (*FoundSubClassNames))

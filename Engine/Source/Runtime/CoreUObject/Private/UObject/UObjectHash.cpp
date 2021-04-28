@@ -1232,6 +1232,13 @@ void GetDerivedClasses(const UClass* ClassToLookFor, TArray<UClass*>& Results, b
 	}
 }
 
+TMap<UClass*, TSet<UClass*>> GetAllDerivedClasses()
+{
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	FHashTableLock HashLock(ThreadHash);
+	return ThreadHash.ClassToChildListMap;
+}
+
 bool ClassHasInstancesAsyncLoading(const UClass* ClassToLookFor)
 {
 	TArray<const UClass*> ClassesToSearch;

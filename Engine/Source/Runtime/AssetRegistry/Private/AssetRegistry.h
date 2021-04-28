@@ -268,7 +268,7 @@ private:
 
 	/** Returns the names of all subclasses of the class whose name is ClassName */
 	void GetSubClasses(const TArray<FName>& InClassNames, const TSet<FName>& ExcludedClassNames, TSet<FName>& SubClassNames) const;
-	void GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TSet<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const;
+	void GetSubClasses_Recursive(FName InClassName, TSet<FName>& SubClassNames, TSet<FName>& ProcessedClassNames, const TMap<FName, TArray<FName>>& ReverseInheritanceMap, const TSet<FName>& ExcludedClassNames) const;
 
 	/** Finds all class names of classes capable of generating new UClasses */
 	void CollectCodeGeneratorClasses() const;
@@ -351,7 +351,7 @@ private:
 	mutable TMap<FName, FName> TempCachedInheritanceMap;
 
 	/** A reverse map of TempCachedInheritanceMap, only kept during temp caching */
-	mutable TMap<FName, TSet<FName>> TempReverseInheritanceMap;
+	mutable TMap<FName, TArray<FName>> TempReverseInheritanceMap;
 
 	/** If true, temp caching has been computed and is valid.
 	    Set this to false when changing something that might invalidate the cache so it gets recomputed on-demand.

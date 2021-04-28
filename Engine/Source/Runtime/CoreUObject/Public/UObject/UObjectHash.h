@@ -150,6 +150,9 @@ COREUOBJECT_API void ForEachObjectOfClasses(TArrayView<const UClass*> ClassesToL
  */
 COREUOBJECT_API void GetDerivedClasses(const UClass* ClassToLookFor, TArray<UClass *>& Results, bool bRecursive = true);
 
+/** Get all base classes and their direct subclasses */
+COREUOBJECT_API TMap<UClass*, TSet<UClass*>> GetAllDerivedClasses();
+
 /**
  * Returns true if any instances of the class in question are currently being async loaded.
  *
