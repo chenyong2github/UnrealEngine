@@ -836,6 +836,43 @@ void FDisplayClusterConfiguratorSCSEditorViewportClient::SetCameraSpeedSetting(i
 	GetMutableDefault<UEditorPerProjectUserSettings>()->SCSViewportCameraSpeed = SpeedSetting;
 }
 
+HHitProxy* FDisplayClusterConfiguratorSCSEditorViewportClient::GetHitProxyWithoutGizmos(int32 X, int32 Y)
+{
+	HHitProxy* HitProxy = Viewport->GetHitProxy(X, Y);
+
+	if (!HitProxy)
+	{
+		return nullptr;
+	}
+
+	if (HitProxy->IsA(HWidgetAxis::StaticGetType()))
+	{
+		const bool bOldModeWidgets = EngineShowFlags.ModeWidgets;
+
+		EngineShowFlags.SetModeWidgets(false);
+		bool bWasWidgetDragging = Widget->IsDragging();
+		Widget->SetDragging(false);
+
+		// Invalidate the hit proxy map so it will be rendered out again when GetHitProxy
+		// is called
+		Viewport->InvalidateHitProxy();
+
+		// This will actually re-render the viewport's hit proxies!
+		HitProxy = Viewport->GetHitProxy(X, Y);
+
+		// Undo the evil
+		EngineShowFlags.SetModeWidgets(bOldModeWidgets);
+
+		Widget->SetDragging(bWasWidgetDragging);
+
+		// Invalidate the hit proxy map again so that it'll be refreshed with the original
+		// scene contents if we need it again later.
+		Viewport->InvalidateHitProxy();
+	}
+
+	return HitProxy;
+}
+
 void FDisplayClusterConfiguratorSCSEditorViewportClient::InvalidatePreview(bool bResetCamera)
 {
 	// Ensure that the editor is valid before continuing
