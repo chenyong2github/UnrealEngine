@@ -646,6 +646,15 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	TSet<UStaticMesh*> StaticMeshes;
 	TSet<UMaterialInterface*> MaterialInterfaces;
 
+	// Unregister all actors components to avoid excessive refresh in the 3D engine while updating materials.
+	for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
+	{
+		if (ActorIterator->GetWorld())
+		{
+			ActorIterator->UnregisterAllComponents( /* bForReregister = */true);
+		}
+	}
+
 	for( const TWeakObjectPtr<UObject>& AssetPtr : Assets )
 	{
 		UObject* AssetObject = AssetPtr.Get();
@@ -664,6 +673,15 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 			{
 				StaticMeshes.Add( StaticMesh );
 			}
+		}
+	}
+
+	// Materials have been updated, we can register everything back.
+	for (TObjectIterator<AActor> ActorIterator; ActorIterator; ++ActorIterator)
+	{
+		if (ActorIterator->GetWorld())
+		{
+			ActorIterator->RegisterAllComponents();
 		}
 	}
 
