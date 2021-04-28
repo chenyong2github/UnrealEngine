@@ -176,7 +176,7 @@ namespace EpicGame
 				// Do we need to add the -multihome argument to bind to specific IP?
 				if (ConfigRole.RoleType.IsServer() && (MultipleInterfaces || !string.IsNullOrEmpty(RequestedServerIP)))
 				{
-					AppConfig.CommandLine += string.Format(" -multihome={0} -multihomehttp={1}", ServerIP, ServerIP);
+					AppConfig.CommandLine += string.Format(" -multihome={0} -multihomehttp={0}", ServerIP);
 				}
 
 				// client too, but only desktop platforms
@@ -184,7 +184,7 @@ namespace EpicGame
 				{
 					if (ConfigRole.Platform == UnrealTargetPlatform.Win64 || ConfigRole.Platform == UnrealTargetPlatform.Mac)
 					{
-						AppConfig.CommandLine += string.Format(" -multihome={0} -multihomehttp={1}", ClientIP, ClientIP);
+						AppConfig.CommandLine += string.Format(" -multihome={0} -multihomehttp={0}", ClientIP);
 					}
 				}
 
