@@ -7,10 +7,14 @@
 #include "Online/CoreOnlineFwd.h"
 #include "UObject/ObjectMacros.h"
 
-#define GameSessionName NAME_GameSession
-#define PartySessionName NAME_PartySession
-#define GamePort NAME_GamePort
-#define BeaconPort NAME_BeaconPort
+UE_DEPRECATED(5.0, "Use NAME_GameSession.")
+inline constexpr EName GameSessionName = NAME_GameSession;
+UE_DEPRECATED(5.0, "Use NAME_PartySession.")
+inline constexpr EName PartySessionName = NAME_PartySession;
+UE_DEPRECATED(5.0, "Use NAME_GamePort.")
+inline constexpr EName GamePort = NAME_GamePort;
+UE_DEPRECATED(5.0, "Use NAME_BeaconPort.")
+inline constexpr EName BeaconPort = NAME_BeaconPort;
 
 USTRUCT(noexport)
 struct FJoinabilitySettings

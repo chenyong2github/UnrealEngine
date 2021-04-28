@@ -31,7 +31,7 @@ void UOculusUpdateSessionCallbackProxy::Activate()
 
 		FOnlineSessionSettings Settings;
 		Settings.bShouldAdvertise = bShouldEnqueueInMatchmakingPool;
-		OculusSessionInterface->UpdateSession(GameSessionName, Settings);
+		OculusSessionInterface->UpdateSession(NAME_GameSession, Settings);
 	}
 	else
 	{
