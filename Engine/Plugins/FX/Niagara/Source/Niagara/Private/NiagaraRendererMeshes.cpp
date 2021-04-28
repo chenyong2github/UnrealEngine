@@ -1338,43 +1338,33 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 
 				if (SimTarget == ENiagaraSimTarget::CPUSim)
 				{
-					FVector4 InstancePos = bHasPosition ? GetInstancePosition(InstanceIndex) : FVector4(0, 0, 0, 0);
+					InstanceTransform = FMatrix::Identity;
 
-					FVector4 Transform1 = FVector4(1.0f, 0.0f, 0.0f, InstancePos.X);
-					FVector4 Transform2 = FVector4(0.0f, 1.0f, 0.0f, InstancePos.Y);
-					FVector4 Transform3 = FVector4(0.0f, 0.0f, 1.0f, InstancePos.Z);
+					if (bHasPosition)
+					{
+						FVector InstancePos(GetInstancePosition(InstanceIndex));
+						InstanceTransform.SetOrigin(InstanceTransform.GetOrigin() + InstancePos);
+					}
 
 					if (bHasRotation)
 					{
 						FQuat InstanceQuat = GetInstanceQuat(InstanceIndex);
-						FTransform RotationTransform(InstanceQuat.GetNormalized());
+						FTransform RotationTransform(InstanceQuat/*.GetNormalized()*/);
 						FMatrix RotationMatrix = RotationTransform.ToMatrixWithScale();
-
-						Transform1.X = RotationMatrix.M[0][0];
-						Transform1.Y = RotationMatrix.M[0][1];
-						Transform1.Z = RotationMatrix.M[0][2];
-
-						Transform2.X = RotationMatrix.M[1][0];
-						Transform2.Y = RotationMatrix.M[1][1];
-						Transform2.Z = RotationMatrix.M[1][2];
-
-						Transform3.X = RotationMatrix.M[2][0];
-						Transform3.Y = RotationMatrix.M[2][1];
-						Transform3.Z = RotationMatrix.M[2][2];
+						InstanceTransform = RotationMatrix * InstanceTransform;
 					}
 
-					FMatrix ScaleMatrix(FMatrix::Identity);
 					if (bHasScale)
 					{
-						FVector InstanceScale(GetInstanceScale(InstanceIndex));
-						ScaleMatrix.M[0][0] *= InstanceScale.X;
-						ScaleMatrix.M[1][1] *= InstanceScale.Y;
-						ScaleMatrix.M[2][2] *= InstanceScale.Z;
-					}
+						FMatrix ScaleTransform = FMatrix::Identity;
 
-					InstanceTransform = FMatrix(FPlane(Transform1), FPlane(Transform2), FPlane(Transform3), FPlane(0.0, 0.0, 0.0, 1.0));
-					InstanceTransform = InstanceTransform * ScaleMatrix;
-					InstanceTransform = InstanceTransform.GetTransposed();
+						FVector InstanceSca(GetInstanceScale(InstanceIndex));
+						ScaleTransform.M[0][0] *= InstanceSca.X;
+						ScaleTransform.M[1][1] *= InstanceSca.Y;
+						ScaleTransform.M[2][2] *= InstanceSca.Z;
+
+						InstanceTransform = ScaleTransform * InstanceTransform;
+					}
 
 					if (bLocalSpace)
 					{
