@@ -12,6 +12,9 @@
 
 class Error;
 
+namespace UE::DerivedData::Backends
+{
+
 /**
  * FDerivedDataBackendVerifyWrapper, a wrapper for derived data that verifies the cache is bit-wise identical by failing all gets and verifying the puts
 **/
@@ -159,6 +162,41 @@ public:
 		return InnerBackend->ApplyDebugOptions(InOptions);
 	}
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override
+	{
+		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override
+	{
+		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override
+	{
+		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual void CancelAll() override
+	{
+		InnerBackend->CancelAll();
+	}
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -171,3 +209,5 @@ private:
 	/** Backend to service the actual requests */
 	FDerivedDataBackendInterface*					InnerBackend;
 };
+
+} // UE::DerivedData::Backends

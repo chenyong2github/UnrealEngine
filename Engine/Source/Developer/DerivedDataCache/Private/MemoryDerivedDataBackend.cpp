@@ -1,10 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MemoryDerivedDataBackend.h"
+
+#include "Algo/Accumulate.h"
+#include "Misc/ScopeExit.h"
+#include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
-	: Name(InName)
+namespace UE::DerivedData::Backends
+{
+
+FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
+	: Factory(InFactory)
+	, Name(InName)
 	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
 	, CurrentCacheSize( SerializationSpecificDataSize )
@@ -374,3 +382,155 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 
 	return false;
 }
+
+int64 FMemoryDerivedDataBackend::CalcRawCacheRecordSize(const FCacheRecord& Record) const
+{
+	const auto CalcCachePayloadSize = [](const FPayload& Payload) { return Payload.GetData().GetRawSize(); };
+	const uint64 ValueSize = CalcCachePayloadSize(Record.GetValuePayload());
+	return int64(Algo::TransformAccumulate(Record.GetAttachmentPayloads(), CalcCachePayloadSize, ValueSize));
+}
+
+int64 FMemoryDerivedDataBackend::CalcSerializedCacheRecordSize(const FCacheRecord& Record) const
+{
+	// Estimate the serialized size of the cache record.
+	uint64 TotalSize = 20;
+	TotalSize += Record.GetKey().Bucket.ToString<TCHAR>().Len();
+	TotalSize += Record.GetMeta().GetSize();
+	const auto CalcCachePayloadSize = [](const FPayload& Payload)
+	{
+		return Payload ? Payload.GetData().GetCompressedSize() + 32 : 0;
+	};
+	TotalSize += CalcCachePayloadSize(Record.GetValuePayload());
+	TotalSize += Algo::TransformAccumulate(Record.GetAttachmentPayloads(), CalcCachePayloadSize, uint64(0));
+	return int64(TotalSize);
+}
+
+FRequest FMemoryDerivedDataBackend::Put(
+	TArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCachePutComplete&& OnComplete)
+{
+	for (FCacheRecord& Record : Records)
+	{
+		const FCacheKey& Key = Record.GetKey();
+		EStatus Status = EStatus::Error;
+		ON_SCOPE_EXIT
+		{
+			if (OnComplete)
+			{
+				OnComplete({Key, Status});
+			}
+		};
+
+		if (!Record.GetValuePayload() && Record.GetAttachmentPayloads().IsEmpty())
+		{
+			FScopeLock ScopeLock(&SynchronizationObject);
+			if (bDisabled)
+			{
+				continue;
+			}
+			if (const FCacheRecord* Existing = CacheRecords.Find(Key))
+			{
+				CurrentCacheSize -= CalcSerializedCacheRecordSize(*Existing);
+				bMaxSizeExceeded = false;
+			}
+			Status = EStatus::Ok;
+		}
+		else
+		{
+			COOK_STAT(auto Timer = UsageStats.TimePut());
+			const int64 RecordSize = CalcSerializedCacheRecordSize(Record);
+
+			FScopeLock ScopeLock(&SynchronizationObject);
+			Status = CacheRecords.Contains(Key) ? EStatus::Ok : EStatus::Error;
+			if (bDisabled || Status == EStatus::Ok)
+			{
+				continue;
+			}
+			if (MaxCacheSize > 0 && (CurrentCacheSize + RecordSize) > MaxCacheSize)
+			{
+				UE_LOG(LogDerivedDataCache, Display, TEXT("Failed to cache data. Maximum cache size reached. CurrentSize %" INT64_FMT " KiB / MaxSize: %" INT64_FMT " KiB"), CurrentCacheSize / 1024, MaxCacheSize / 1024);
+				bMaxSizeExceeded = true;
+				continue;
+			}
+
+			CurrentCacheSize += RecordSize;
+			CacheRecords.Add(MoveTemp(Record));
+			COOK_STAT(Timer.AddHit(RecordSize));
+			Status = EStatus::Ok;
+		}
+	}
+	return FRequest();
+}
+
+FRequest FMemoryDerivedDataBackend::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetComplete&& OnComplete)
+{
+	for (const FCacheKey& Key : Keys)
+	{
+		COOK_STAT(auto Timer = UsageStats.TimeGet());
+		FCacheRecord Record;
+		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
+		{
+			Record = CacheRecord->Clone();
+		}
+		if (Record)
+		{
+			COOK_STAT(Timer.AddHit(CalcRawCacheRecordSize(Record)));
+			if (OnComplete)
+			{
+				OnComplete({MoveTemp(Record), EStatus::Ok});
+			}
+		}
+		else
+		{
+			if (OnComplete)
+			{
+				OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+			}
+		}
+	}
+	return FRequest();
+}
+
+FRequest FMemoryDerivedDataBackend::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetPayloadComplete&& OnComplete)
+{
+	for (const FCachePayloadKey& PayloadKey : Keys)
+	{
+		COOK_STAT(auto Timer = UsageStats.TimeGet());
+		FPayload Payload;
+		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(PayloadKey.CacheKey))
+		{
+			Payload = Record->GetAttachmentPayload(PayloadKey.Id);
+		}
+		if (Payload)
+		{
+			COOK_STAT(Timer.AddHit(Payload.GetData().GetRawSize()));
+			if (OnComplete)
+			{
+				OnComplete({PayloadKey.CacheKey, MoveTemp(Payload), EStatus::Ok});
+			}
+		}
+		else
+		{
+			if (OnComplete)
+			{
+				OnComplete({PayloadKey.CacheKey, FPayload(PayloadKey.Id), EStatus::Error});
+			}
+		}
+	}
+	return FRequest();
+}
+
+} // UE::DerivedData::Backends

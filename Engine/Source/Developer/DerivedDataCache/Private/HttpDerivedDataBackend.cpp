@@ -15,6 +15,7 @@
 #include "Algo/Find.h"
 #include "Containers/StaticArray.h"
 #include "Containers/Ticker.h"
+#include "DerivedDataCacheRecord.h"
 #include "Dom/JsonObject.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
@@ -30,6 +31,11 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
+
+#if WITH_SSL
+#include "Ssl.h"
+#include <openssl/ssl.h>
+#endif
 
 // Enables data request helpers that internally
 // batch requests to reduce the number of concurrent
@@ -57,6 +63,9 @@
 #define UE_HTTPDDC_BATCH_GET_WEIGHT 4
 #define UE_HTTPDDC_BATCH_HEAD_WEIGHT 1
 #define UE_HTTPDDC_BATCH_WEIGHT_HINT 12
+
+namespace UE::DerivedData::Backends
+{
 
 TRACE_DECLARE_INT_COUNTER(HttpDDC_Exist, TEXT("HttpDDC Exist"));
 TRACE_DECLARE_INT_COUNTER(HttpDDC_ExistHit, TEXT("HttpDDC Exist Hit"));
@@ -92,7 +101,7 @@ private:
  * CURL has a global library initialization (curl_global_init). We rely on this happening in 
  * the Online/HTTP library which is a dependency on this module.
  */
-class FRequest
+class FHttpRequest
 {
 public:
 	/**
@@ -118,7 +127,7 @@ public:
 		FailedTimeout
 	};
 
-	FRequest(const TCHAR* InDomain, FHttpAccessToken* InAuthorizationToken, bool bInLogErrors)
+	FHttpRequest(const TCHAR* InDomain, FHttpAccessToken* InAuthorizationToken, bool bInLogErrors)
 		: bLogErrors(bInLogErrors)
 		, Domain(InDomain)
 		, AuthorizationToken(InAuthorizationToken)
@@ -127,7 +136,7 @@ public:
 		Reset();
 	}
 
-	~FRequest()
+	~FHttpRequest()
 	{
 		curl_easy_cleanup(Curl);
 	}
@@ -163,7 +172,7 @@ public:
 		curl_easy_setopt(Curl, CURLOPT_SSLCERTTYPE, "PEM");
 		// Response functions
 		curl_easy_setopt(Curl, CURLOPT_HEADERDATA, this);
-		curl_easy_setopt(Curl, CURLOPT_HEADERFUNCTION, &FRequest::StaticWriteHeaderFn);
+		curl_easy_setopt(Curl, CURLOPT_HEADERFUNCTION, &FHttpRequest::StaticWriteHeaderFn);
 		curl_easy_setopt(Curl, CURLOPT_WRITEDATA, this);
 		curl_easy_setopt(Curl, CURLOPT_WRITEFUNCTION, StaticWriteBodyFn);
 		// SSL certification verification
@@ -572,7 +581,7 @@ private:
 
 	static size_t StaticDebugCallback(CURL * Handle, curl_infotype DebugInfoType, char * DebugInfo, size_t DebugInfoSize, void* UserData)
 	{
-		FRequest* Request = static_cast<FRequest*>(UserData);
+		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 
 		switch (DebugInfoType)
 		{
@@ -620,7 +629,7 @@ private:
 
 	static size_t StaticReadFn(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* UserData)
 	{
-		FRequest* Request = static_cast<FRequest*>(UserData);
+		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 		TArrayView<const uint8>& ReadDataView = Request->ReadDataView;
 
 		const size_t Offset = Request->BytesSent;
@@ -636,7 +645,7 @@ private:
 
 	static size_t StaticWriteHeaderFn(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* UserData)
 	{
-		FRequest* Request = static_cast<FRequest*>(UserData);
+		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 		const size_t WriteSize = SizeInBlocks * BlockSizeInBytes;
 		TArray<uint8>* WriteHeaderBufferPtr = Request->WriteHeaderBufferPtr;
 		if (WriteHeaderBufferPtr && WriteSize > 0)
@@ -658,7 +667,7 @@ private:
 
 	static size_t StaticWriteBodyFn(void* Ptr, size_t SizeInBlocks, size_t BlockSizeInBytes, void* UserData)
 	{
-		FRequest* Request = static_cast<FRequest*>(UserData);
+		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 		const size_t WriteSize = SizeInBlocks * BlockSizeInBytes;
 		TArray<uint8>* WriteDataBufferPtr = Request->WriteDataBufferPtr;
 
@@ -692,7 +701,7 @@ private:
 
 	static size_t StaticSeekFn(void* UserData, curl_off_t Offset, int Origin)
 	{
-		FRequest* Request = static_cast<FRequest*>(UserData);
+		FHttpRequest* Request = static_cast<FHttpRequest*>(UserData);
 		size_t NewPosition = 0;
 
 		switch (Origin)
@@ -721,8 +730,8 @@ private:
 //----------------------------------------------------------------------------------------------------------
 bool VerifyPayload(const FSHAHash& Hash, const TArray<uint8>& Payload);
 bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload);
-bool VerifyRequest(const class FRequest* Request, const TArray<uint8>& Payload);
-bool HashPayload(class FRequest* Request, const TArrayView<const uint8> Payload);
+bool VerifyRequest(const class FHttpRequest* Request, const TArray<uint8>& Payload);
+bool HashPayload(class FHttpRequest* Request, const TArrayView<const uint8> Payload);
 bool ShouldAbortForShutdown();
 
 //----------------------------------------------------------------------------------------------------------
@@ -742,7 +751,7 @@ struct FRequestPool
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
 			Pool[i].Usage = 0u;
-			Pool[i].Request = new FRequest(InServiceUrl, InAuthorizationToken, true);
+			Pool[i].Request = new FHttpRequest(InServiceUrl, InAuthorizationToken, true);
 		}
 		
 	}
@@ -762,7 +771,7 @@ struct FRequestPool
 	 * "owned by the caller and need to release it to the pool when work has been completed.
 	 * @return Usable request instance if one is available, otherwise null.
 	 */
-	FRequest* GetFreeRequest()
+	FHttpRequest* GetFreeRequest()
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
@@ -784,10 +793,10 @@ struct FRequestPool
 	 * "owned by the caller and need to release it to the pool when work has been completed.
 	 * @return Usable request instance.
 	 */
-	FRequest* WaitForFreeRequest()
+	FHttpRequest* WaitForFreeRequest()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_WaitForConnPool);
-		FRequest* Request = nullptr;
+		FHttpRequest* Request = nullptr;
 		while (true)
 		{
 			Request = GetFreeRequest();
@@ -802,7 +811,7 @@ struct FRequestPool
 	 * Release request to the pool.
 	 * @param Request Request that should be freed. Note that any buffer owened by the request can now be reset.
 	 */
-	void ReleaseRequestToPool(FRequest* Request)
+	void ReleaseRequestToPool(FHttpRequest* Request)
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
@@ -819,7 +828,7 @@ struct FRequestPool
 	/**
 	 * While holding a request, make it shared across many users.
 	 */
-	void MakeRequestShared(FRequest* Request, uint8 Users)
+	void MakeRequestShared(FHttpRequest* Request, uint8 Users)
 	{
 		check(Users != 0);
 		for (uint8 i = 0; i < Pool.Num(); ++i)
@@ -839,7 +848,7 @@ private:
 	struct FEntry
 	{
 		std::atomic<uint8> Usage;
-		FRequest* Request;
+		FHttpRequest* Request;
 	};
 
 	TArray<FEntry> Pool;
@@ -872,20 +881,20 @@ public:
 		return Request != nullptr;
 	}
 
-	FRequest* Get() const
+	FHttpRequest* Get() const
 	{
 		check(IsValid());
 		return Request;
 	}
 
-	FRequest* operator->()
+	FHttpRequest* operator->()
 	{
 		check(IsValid());
 		return Request;
 	}
 
 private:
-	FRequest* Request;
+	FHttpRequest* Request;
 	FRequestPool* Pool;
 };
 
@@ -910,8 +919,8 @@ struct FDataRequestHelper
 		{
 			// We are below the threshold, make the connection immediately. OutData is set so this is a get.
 			FString Uri = FString::Printf(TEXT("api/v1/c/ddc/%s/%s/%s.raw"), InNamespace, InBucket, InCacheKey);
-			const FRequest::Result Result = Request->PerformBlockingDownload(*Uri, OutData);
-			if (FRequest::IsSuccessResponse(Request->GetResponseCode()))
+			const FHttpRequest::Result Result = Request->PerformBlockingDownload(*Uri, OutData);
+			if (FHttpRequest::IsSuccessResponse(Request->GetResponseCode()))
 			{
 				if (VerifyRequest(Request, *OutData))
 				{
@@ -925,8 +934,8 @@ struct FDataRequestHelper
 		{
 			// We are below the threshold, make the connection immediately. OutData is missing so this is a head.
 			FString Uri = FString::Printf(TEXT("api/v1/c/ddc/%s/%s/%s"), InNamespace, InBucket, InCacheKey);
-			const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
-			if (FRequest::IsSuccessResponse(Request->GetResponseCode()))
+			const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*Uri);
+			if (FHttpRequest::IsSuccessResponse(Request->GetResponseCode()))
 			{
 				TRACE_COUNTER_ADD(HttpDDC_ExistHit, int64(1));
 				bVerified[0] = true;
@@ -971,7 +980,7 @@ struct FDataRequestHelper
 				InBucket,
 				CacheKeys,
 				TConstArrayView<TArray<uint8>*>(),
-				FRequest::RequestVerb::Head,
+				FHttpRequest::RequestVerb::Head,
 				&bVerified
 			};
 
@@ -1034,7 +1043,7 @@ private:
 		const TCHAR* Bucket;
 		TConstArrayView<const TCHAR*> CacheKeys;
 		TConstArrayView<TArray<uint8>*> OutDatas;
-		FRequest::RequestVerb Verb;
+		FHttpRequest::RequestVerb Verb;
 		TBitArray<>* bSuccess;
 	};
 
@@ -1044,11 +1053,11 @@ private:
 		std::atomic<uint32> Reserved;
 		std::atomic<uint32> Ready;
 		std::atomic<uint32> WeightHint;
-		FRequest* Request;
+		FHttpRequest* Request;
 		FEvent* Complete;
 	};
 
-	FRequest* Request;
+	FHttpRequest* Request;
 	FRequestPool* Pool;
 	TBitArray<> bVerified;
 	static std::atomic<uint32> FirstAvailableBatch;
@@ -1057,7 +1066,7 @@ private:
 	/**
 	 * Queues up a request to be batched. Blocks until the query is made.
 	 */
-	static FRequest* QueueBatchRequest(FRequestPool* InPool, 
+	static FHttpRequest* QueueBatchRequest(FRequestPool* InPool, 
 		const TCHAR* InNamespace, 
 		const TCHAR* InBucket, 
 		TConstArrayView<const TCHAR*> InCacheKeys,
@@ -1105,14 +1114,14 @@ private:
 				InBucket,
 				InCacheKeys,
 				OutDatas,
-				OutDatas.Num() ? FRequest::RequestVerb::Get : FRequest::RequestVerb::Head,
+				OutDatas.Num() ? FHttpRequest::RequestVerb::Get : FHttpRequest::RequestVerb::Head,
 				&bOutVerified
 			};
 
 			// Signal we are ready for batch to be submitted
 			Batch.Ready.fetch_add(1u, std::memory_order_release);
 
-			FRequest* Request = nullptr;
+			FHttpRequest* Request = nullptr;
 
 			// The first to reserve a slot is the "driver" of the batch
 			if (Reserve == 0)
@@ -1164,7 +1173,7 @@ private:
 	/**
 	 * Creates request uri and headers and submits the request
 	 */
-	static void PerformBatchQuery(FRequest* Request, TArrayView<FQueuedBatchEntry> Entries)
+	static void PerformBatchQuery(FHttpRequest* Request, TArrayView<FQueuedBatchEntry> Entries)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(HttpDDC_BatchGet);
 		const TCHAR* Uri(TEXT("api/v1/c/ddc-rpc/batchget"));
@@ -1179,7 +1188,7 @@ private:
 				TSharedPtr<FJsonObject> Object = MakeShared<FJsonObject>();
 				Object->SetField(TEXT("bucket"), MakeShared<FJsonValueString>(Entry.Bucket));
 				Object->SetField(TEXT("key"), MakeShared<FJsonValueString>(Entry.CacheKeys[KeyIdx]));
-				if (Entry.Verb == FRequest::RequestVerb::Head)
+				if (Entry.Verb == FHttpRequest::RequestVerb::Head)
 				{
 					Object->SetField(TEXT("verb"), MakeShared<FJsonValueString>(TEXT("HEAD")));
 				}
@@ -1194,7 +1203,7 @@ private:
 		FBufferArchive RequestData;
 		if (FJsonSerializer::Serialize(RequestObject.ToSharedRef(), TJsonWriterFactory<ANSICHAR, TCondensedJsonPrintPolicy<ANSICHAR>>::Create(&RequestData)))
 		{
-			Request->PerformBlockingUpload<FRequest::PostJson>(Uri, MakeArrayView(RequestData));
+			Request->PerformBlockingUpload<FHttpRequest::PostJson>(Uri, MakeArrayView(RequestData));
 			ResponseCode = Request->GetResponseCode();
 
 			if (ResponseCode == 200)
@@ -1447,11 +1456,11 @@ struct FDataUploadHelper
 		, bSuccess(false)
 		, bQueued(false)
 	{
-		FRequest* Request = InPool->GetFreeRequest();
+		FHttpRequest* Request = InPool->GetFreeRequest();
 		if (Request)
 		{
 			ResponseCode = PerformPut(Request, InNamespace, InBucket, InCacheKey, InData, InUsageStats);
-			bSuccess = FRequest::IsSuccessResponse(Request->GetResponseCode());
+			bSuccess = FHttpRequest::IsSuccessResponse(Request->GetResponseCode());
 
 			ProcessQueuedPutsAndReleaseRequest(InPool, Request, InUsageStats);
 		}
@@ -1509,7 +1518,7 @@ private:
 	bool bSuccess;
 	bool bQueued;
 
-	static void ProcessQueuedPutsAndReleaseRequest(FRequestPool* Pool, FRequest* Request, FDerivedDataCacheUsageStats& UsageStats)
+	static void ProcessQueuedPutsAndReleaseRequest(FRequestPool* Pool, FHttpRequest* Request, FDerivedDataCacheUsageStats& UsageStats)
 	{
 		while (Request)
 		{
@@ -1550,7 +1559,7 @@ private:
 		}
 	}
 
-	static int64 PerformPut(FRequest* Request, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArrayView<const uint8> Data, FDerivedDataCacheUsageStats& UsageStats)
+	static int64 PerformPut(FHttpRequest* Request, const TCHAR* Namespace, const TCHAR* Bucket, const TCHAR* CacheKey, const TArrayView<const uint8> Data, FDerivedDataCacheUsageStats& UsageStats)
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 
@@ -1559,10 +1568,10 @@ private:
 		TStringBuilder<256> Uri;
 		Uri.Appendf(TEXT("api/v1/c/ddc/%s/%s/%s"), Namespace, Bucket, CacheKey);
 
-		Request->PerformBlockingUpload<FRequest::Put>(*Uri, Data);
+		Request->PerformBlockingUpload<FHttpRequest::Put>(*Uri, Data);
 
 		const int64 ResponseCode = Request->GetResponseCode();
-		if (FRequest::IsSuccessResponse(ResponseCode))
+		if (FHttpRequest::IsSuccessResponse(ResponseCode))
 		{
 			TRACE_COUNTER_ADD(HttpDDC_BytesSent, int64(Request->GetBytesSent()));
 			COOK_STAT(Timer.AddHit(Request->GetBytesSent()));
@@ -1581,9 +1590,6 @@ TLockFreePointerListUnordered<FDataUploadHelper::FQueuedEntry, PLATFORM_CACHE_LI
 //----------------------------------------------------------------------------------------------------------
 
 #if WITH_SSL
-#include "Ssl.h"
-
-#include <openssl/ssl.h>
 
 static int SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context)
 {
@@ -1595,7 +1601,7 @@ static int SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context)
 		SSL_CTX* SslContext = SSL_get_SSL_CTX(Handle);
 		check(SslContext);
 
-		FRequest* Request = static_cast<FRequest*>(SSL_CTX_get_app_data(SslContext));
+		FHttpRequest* Request = static_cast<FHttpRequest*>(SSL_CTX_get_app_data(SslContext));
 		check(Request);
 
 		const FString& Domain = Request->GetDomain();
@@ -1684,7 +1690,7 @@ bool VerifyPayload(const FIoHash& Hash, const TArray<uint8>& Payload)
  * @param Payload Payload received.
  * @return True if the data is correct, false if checksums doesn't match.
  */
-bool VerifyRequest(const FRequest* Request, const TArray<uint8>& Payload)
+bool VerifyRequest(const FHttpRequest* Request, const TArray<uint8>& Payload)
 {
 	FString ReceivedHashStr;
 	if (Request->GetHeader("X-Jupiter-Sha1", ReceivedHashStr))
@@ -1709,7 +1715,7 @@ bool VerifyRequest(const FRequest* Request, const TArray<uint8>& Payload)
  * @param Payload Payload that will be sent.
  * @return True on success, false on failure.
  */
-bool HashPayload(FRequest* Request, const TArrayView<const uint8> Payload)
+bool HashPayload(FHttpRequest* Request, const TArrayView<const uint8> Payload)
 {
 	FIoHash PayloadHash = FIoHash::HashBuffer(Payload.GetData(), Payload.Num());
 	Request->SetHeader(TEXT("X-Jupiter-IoHash"), *WriteToString<48>(PayloadHash));
@@ -1751,13 +1757,15 @@ uint32 FHttpAccessToken::GetSerial() const
 //----------------------------------------------------------------------------------------------------------
 
 FHttpDerivedDataBackend::FHttpDerivedDataBackend(
+	ICacheFactory& InFactory,
 	const TCHAR* InServiceUrl, 
 	const TCHAR* InNamespace, 
 	const TCHAR* InOAuthProvider,
 	const TCHAR* InOAuthClientId,
 	const TCHAR* InOAuthSecret,
 	const bool bInReadOnly)
-	: Domain(InServiceUrl)
+	: Factory(InFactory)
+	, Domain(InServiceUrl)
 	, Namespace(InNamespace)
 	, DefaultBucket(TEXT("default"))
 	, OAuthProvider(InOAuthProvider)
@@ -1814,10 +1822,10 @@ bool FHttpDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 
 bool FHttpDerivedDataBackend::IsServiceReady()
 {
-	FRequest Request(*Domain, nullptr, false);
-	FRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
+	FHttpRequest Request(*Domain, nullptr, false);
+	FHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
 	
-	if (Result == FRequest::Success && Request.GetResponseCode() == 200)
+	if (Result == FHttpRequest::Success && Request.GetResponseCode() == 200)
 	{
 		UE_LOG(LogDerivedDataCache, Display, TEXT("HTTP DDC service status: %s."), *Request.GetResponseAsString());
 		return true;
@@ -1862,7 +1870,7 @@ bool FHttpDerivedDataBackend::AcquireAccessToken()
 		FString AuthDomain(DomainEnd, *OAuthProvider);
 		FString Uri(*OAuthProvider + DomainEnd + 1);
 
-		FRequest Request(*AuthDomain, nullptr, false);
+		FHttpRequest Request(*AuthDomain, nullptr, false);
 
 		// If contents of the secret string is a file path, resolve and read form data.
 		if (OAuthSecret.StartsWith(TEXT("\\\\")))
@@ -1890,9 +1898,9 @@ bool FHttpDerivedDataBackend::AcquireAccessToken()
 		auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
 		FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
 
-		FRequest::Result Result = Request.PerformBlockingUpload<FRequest::Post>(*Uri, MakeArrayView(FormData));
+		FHttpRequest::Result Result = Request.PerformBlockingUpload<FHttpRequest::Post>(*Uri, MakeArrayView(FormData));
 
-		if (Result == FRequest::Success && Request.GetResponseCode() == 200)
+		if (Result == FHttpRequest::Success && Request.GetResponseCode() == 200)
 		{
 			TSharedPtr<FJsonObject> ResponseObject = Request.GetResponseAsJsonObject();
 			if (ResponseObject)
@@ -1967,7 +1975,7 @@ bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 		FDataRequestHelper RequestHelper(GetRequestPools[IsInGameThread()].Get(), *Namespace, *DefaultBucket, CacheKey, nullptr);
 		const int64 ResponseCode = RequestHelper.GetResponseCode();
 
-		if (FRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
+		if (FHttpRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
 		{
 			COOK_STAT(Timer.AddHit(0));
 			return true;
@@ -1985,12 +1993,12 @@ bool FHttpDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	for (int32 Attempts = 0; Attempts < UE_HTTPDDC_MAX_ATTEMPTS; ++Attempts)
 	{
 		FScopedRequestPtr Request(GetRequestPools[IsInGameThread()].Get());
-		const FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Head>(*Uri);
+		const FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Head>(*Uri);
 		const int64 ResponseCode = Request->GetResponseCode();
 
-		if (FRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 400)
+		if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 400)
 		{
-			const bool bIsHit = (Result == FRequest::Success && FRequest::IsSuccessResponse(ResponseCode));
+			const bool bIsHit = (Result == FHttpRequest::Success && FHttpRequest::IsSuccessResponse(ResponseCode));
 			if (bIsHit)
 			{
 				TRACE_COUNTER_ADD(HttpDDC_ExistHit, int64(1));
@@ -2020,7 +2028,7 @@ TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayVi
 		FDataRequestHelper RequestHelper(GetRequestPools[IsInGameThread()].Get(), *Namespace, *DefaultBucket, CacheKeys);
 		const int64 ResponseCode = RequestHelper.GetResponseCode();
 
-		if (FRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
+		if (FHttpRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
 		{
 			COOK_STAT(Timer.AddHit(0));
 			return RequestHelper.IsBatchSuccess();
@@ -2052,10 +2060,10 @@ TBitArray<> FHttpDerivedDataBackend::CachedDataProbablyExistsBatch(TConstArrayVi
 	for (int32 Attempts = 0; Attempts < UE_HTTPDDC_MAX_ATTEMPTS; ++Attempts)
 	{
 		FScopedRequestPtr Request(GetRequestPools[IsInGameThread()].Get());
-		const FRequest::Result Result = Request->PerformBlockingUpload<FRequest::PostJson>(Uri, BodyView);
+		const FHttpRequest::Result Result = Request->PerformBlockingUpload<FHttpRequest::PostJson>(Uri, BodyView);
 		const int64 ResponseCode = Request->GetResponseCode();
 
-		if (Result == FRequest::Success && ResponseCode == 200)
+		if (Result == FHttpRequest::Success && ResponseCode == 200)
 		{
 			TArray<TSharedPtr<FJsonValue>> ResponseArray = Request->GetResponseAsJsonArray();
 
@@ -2103,7 +2111,7 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 		FDataRequestHelper RequestHelper(GetRequestPools[IsInGameThread()].Get(), *Namespace, *DefaultBucket, CacheKey, &OutData);
 		const int64 ResponseCode = RequestHelper.GetResponseCode();
 
-		if (FRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
+		if (FHttpRequest::IsSuccessResponse(ResponseCode) && RequestHelper.IsSuccess())
 		{
 			COOK_STAT(Timer.AddHit(OutData.Num()));
 			check(OutData.Num() > 0);
@@ -2124,11 +2132,11 @@ bool FHttpDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>
 		FScopedRequestPtr Request(GetRequestPools[IsInGameThread()].Get());
 		if (Request.IsValid())
 		{
-			FRequest::Result Result = Request->PerformBlockingDownload(*Uri, &OutData);
+			FHttpRequest::Result Result = Request->PerformBlockingDownload(*Uri, &OutData);
 			const uint64 ResponseCode = Request->GetResponseCode();
 
 			// Request was successful, make sure we got all the expected data.
-			if (FRequest::IsSuccessResponse(ResponseCode) && VerifyRequest(Request.Get(), OutData))
+			if (FHttpRequest::IsSuccessResponse(ResponseCode) && VerifyRequest(Request.Get(), OutData))
 			{
 				TRACE_COUNTER_ADD(HttpDDC_GetHit, int64(1));
 				TRACE_COUNTER_ADD(HttpDDC_BytesReceived, int64(Request->GetBytesReceived()));
@@ -2169,7 +2177,7 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 
 		const int64 ResponseCode = Request.GetResponseCode();
 
-		if (Request.IsSuccess() && (Request.IsQueued() || FRequest::IsSuccessResponse(ResponseCode)))
+		if (Request.IsSuccess() && (Request.IsQueued() || FHttpRequest::IsSuccessResponse(ResponseCode)))
 		{
 			return Request.IsQueued() ? EPutStatus::Executing : EPutStatus::Cached;
 		}
@@ -2199,7 +2207,7 @@ FDerivedDataBackendInterface::EPutStatus FHttpDerivedDataBackend::PutCachedData(
 			// Append the content hash to the header
 			HashPayload(Request.Get(), InData);
 
-			FRequest::Result Result = Request->PerformBlockingUpload<FRequest::Put>(*Uri, InData);
+			FHttpRequest::Result Result = Request->PerformBlockingUpload<FHttpRequest::Put>(*Uri, InData);
 			ResponseCode = Request->GetResponseCode();
 
 			if (ResponseCode == 200)
@@ -2238,7 +2246,7 @@ void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTran
 		FScopedRequestPtr Request(PutRequestPools[IsInGameThread()].Get());
 		if (Request.IsValid())
 		{
-			FRequest::Result Result = Request->PerformBlockingQuery<FRequest::Delete>(*Uri);
+			FHttpRequest::Result Result = Request->PerformBlockingQuery<FHttpRequest::Delete>(*Uri);
 			ResponseCode = Request->GetResponseCode();
 
 			if (ResponseCode == 200)
@@ -2263,5 +2271,58 @@ TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats
 
 	return Usage;
 }
+
+FRequest FHttpDerivedDataBackend::Put(
+	TArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCachePutComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheRecord& Record : Records)
+		{
+			OnComplete({Record.GetKey(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FHttpDerivedDataBackend::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheKey& Key : Keys)
+		{
+			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FHttpDerivedDataBackend::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetPayloadComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCachePayloadKey& Key : Keys)
+		{
+			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+} // UE::DerivedData::Backends
 
 #endif //WITH_HTTP_DDC_BACKEND

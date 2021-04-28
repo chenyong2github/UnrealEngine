@@ -8,6 +8,9 @@
 #include "DerivedDataCacheUsageStats.h"
 #include "Misc/SecureHash.h"
 
+namespace UE::DerivedData::Backends
+{
+
 /** 
  * A backend wrapper that limits the key size and uses hashing...in this case it wraps the payload and the payload contains the full key to verify the integrity of the hash
 **/
@@ -239,6 +242,41 @@ public:
 		return Usage;
 	}
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override
+	{
+		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override
+	{
+		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override
+	{
+		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual void CancelAll() override
+	{
+		InnerBackend->CancelAll();
+	}
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -286,3 +324,5 @@ private:
 	/** Maximum size of the backend key length **/
 	int32 MaxKeyLength;
 };
+
+} // UE::DerivedData::Backends

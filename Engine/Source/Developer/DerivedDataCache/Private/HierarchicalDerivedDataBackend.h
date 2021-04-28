@@ -5,10 +5,16 @@
 #include "CoreMinimal.h"
 #include "DerivedDataBackendInterface.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
 #include "Containers/ArrayView.h"
+
+extern bool GVerifyDDC;
+
+namespace UE::DerivedData::Backends
+{
 
 /** 
  * A backend wrapper that implements a cache hierarchy of backends. 
@@ -21,9 +27,16 @@ public:
 	 * Constructor
 	 * @param	InInnerBackends Backends to call into for actual storage of the cache, first item is the "fastest cache"
 	 */
-	FHierarchicalDerivedDataBackend(const TArray<FDerivedDataBackendInterface*>& InInnerBackends)
-		: InnerBackends(InInnerBackends)
+	FHierarchicalDerivedDataBackend(ICacheFactory& InFactory, const TArray<FDerivedDataBackendInterface*>& InInnerBackends)
+		: Factory(InFactory)
+		, InnerBackends(InInnerBackends)
 		, bIsWritable(false)
+		, bHasLocalBackends(false)
+		, bHasRemoteBackends(false)
+		, bHasMultipleLocalBackends(false)
+		, bHasMultipleRemoteBackends(false)
+		, bHasWritableLocalBackends(false)
+		, bHasWritableRemoteBackends(false)
 	{
 		check(InnerBackends.Num() > 1); // if it is just one, then you don't need this wrapper
 		UpdateAsyncInnerBackends();
@@ -44,11 +57,27 @@ public:
 	void UpdateAsyncInnerBackends()
 	{
 		bIsWritable = false;
+		bHasLocalBackends = false;
+		bHasRemoteBackends = false;
+		bHasMultipleLocalBackends = false;
+		bHasMultipleRemoteBackends = false;
+		bHasWritableLocalBackends = false;
+		bHasWritableRemoteBackends = false;
 		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
 		{
-			if (InnerBackends[CacheIndex]->IsWritable())
+			const bool bIsWritableBackend = InnerBackends[CacheIndex]->IsWritable();
+			bIsWritable |= bIsWritableBackend;
+			if (InnerBackends[CacheIndex]->GetSpeedClass() == ESpeedClass::Local)
 			{
-				bIsWritable = true;
+				bHasWritableLocalBackends |= bIsWritableBackend;
+				bHasMultipleLocalBackends = bHasLocalBackends;
+				bHasLocalBackends = true;
+			}
+			else
+			{
+				bHasWritableRemoteBackends |= bIsWritableBackend;
+				bHasMultipleRemoteBackends = bHasRemoteBackends;
+				bHasRemoteBackends = true;
 			}
 		}
 		if (bIsWritable)
@@ -56,7 +85,7 @@ public:
 			for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
 			{
 				// async puts to allow us to fill all levels without holding up the engine
-				AsyncPutInnerBackends.Emplace(new FDerivedDataBackendAsyncPutWrapper(InnerBackends[CacheIndex], false));
+				AsyncPutInnerBackends.Emplace(new FDerivedDataBackendAsyncPutWrapper(Factory, InnerBackends[CacheIndex], false));
 			}
 		}
 	}
@@ -112,8 +141,6 @@ public:
 			}
 			else
 			{
-				extern bool GVerifyDDC;
-
 				if (GVerifyDDC)
 				{
 					ensureMsgf(!AsyncPutInnerBackends[CacheIndex]->CachedDataProbablyExists(CacheKey), TEXT("%s did not exist in sync interface for CachedDataProbablyExists but was found in async wrapper"), CacheKey);
@@ -378,8 +405,6 @@ public:
 			}
 			else
 			{
-				extern bool GVerifyDDC;
-
 				if (GVerifyDDC)
 				{
 					TArray<uint8> TempData;
@@ -463,16 +488,186 @@ public:
 		return Usage;
 	}
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override
+	{
+		TSet<FCacheKey> RecordsOk;
+		for (int32 PutCacheIndex = 0; PutCacheIndex < InnerBackends.Num(); PutCacheIndex++)
+		{
+			if (InnerBackends[PutCacheIndex]->IsWritable())
+			{
+				// Every record must put synchronously before switching to async calls.
+				if (RecordsOk.Num() < Records.Num())
+				{
+					InnerBackends[PutCacheIndex]->Put(Records, Context, Policy, Priority,
+						[&OnComplete, &RecordsOk](FCachePutCompleteParams&& Params)
+						{
+							if (Params.Status == EStatus::Ok)
+							{
+								bool bIsAlreadyInSet = false;
+								RecordsOk.FindOrAdd(Params.Key, &bIsAlreadyInSet);
+								if (OnComplete && !bIsAlreadyInSet)
+								{
+									OnComplete(MoveTemp(Params));
+								}
+							}
+						}).Wait();
+				}
+				else
+				{
+					AsyncPutInnerBackends[PutCacheIndex]->Put(Records, Context, Policy, Priority);
+				}
+			}
+		}
 
+		if (OnComplete && RecordsOk.Num() < Records.Num())
+		{
+			for (const FCacheRecord& Record : Records)
+			{
+				if (!RecordsOk.Contains(Record.GetKey()))
+				{
+					OnComplete({Record.GetKey(), EStatus::Error});
+				}
+			}
+		}
+
+		return FRequest();
+	}
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override
+	{
+		const bool bQueryLocal = bHasLocalBackends && EnumHasAnyFlags(Policy, ECachePolicy::QueryLocal);
+		const bool bStoreLocal = bHasWritableLocalBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal);
+		const bool bQueryRemote = bHasRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::QueryRemote);
+		const bool bStoreRemote = bHasWritableRemoteBackends && EnumHasAnyFlags(Policy, ECachePolicy::StoreRemote);
+		const bool bStoreLocalCopy = bStoreLocal && bHasMultipleLocalBackends && !EnumHasAnyFlags(Policy, ECachePolicy::SkipLocalCopy);
+
+		TArray<FCacheKey, TInlineAllocator<16>> RemainingKeys(Keys);
+
+		TSet<FCacheKey> KeysOk;
+		for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
+		{
+			// Remove SkipData flags when possibly filling other backends because only complete records can be written.
+			const bool bIsLocalGet = InnerBackends[GetCacheIndex]->GetSpeedClass() == ESpeedClass::Local;
+			const bool bFill =
+				(bIsLocalGet && bStoreLocalCopy) ||
+				(bIsLocalGet && bStoreRemote) ||
+				(!bIsLocalGet && bStoreLocal) ||
+				(!bIsLocalGet && bStoreRemote && bHasMultipleRemoteBackends);
+			const ECachePolicy FillPolicy = bFill ? (Policy & ~ECachePolicy::SkipData) : Policy;
+
+			// Block on this because backends in this hierarchy are not expected to be asynchronous.
+			InnerBackends[GetCacheIndex]->Get(RemainingKeys, Context, Policy, Priority,
+				[this, Context, GetCacheIndex, bStoreLocal, bStoreRemote, bStoreLocalCopy, bIsLocalGet, bFill, &OnComplete, &KeysOk](FCacheGetCompleteParams&& Params)
+				{
+					if (Params.Status == EStatus::Ok)
+					{
+						if (bFill)
+						{
+							for (int32 FillCacheIndex = 0; FillCacheIndex < InnerBackends.Num(); ++FillCacheIndex)
+							{
+								if (GetCacheIndex != FillCacheIndex)
+								{
+									const bool bIsLocalFill = InnerBackends[FillCacheIndex]->GetSpeedClass() == ESpeedClass::Local;
+									if ((bIsLocalFill && bStoreLocal && bIsLocalGet <= bStoreLocalCopy) || (!bIsLocalFill && bStoreRemote))
+									{
+										FCacheRecord Record = Params.Record.Clone();
+										AsyncPutInnerBackends[FillCacheIndex]->Put(MakeArrayView(&Record, 1), Context);
+									}
+								}
+							}
+						}
+
+						KeysOk.Add(Params.Record.GetKey());
+						if (OnComplete)
+						{
+							OnComplete(MoveTemp(Params));
+						}
+					}
+				}).Wait();
+
+			RemainingKeys.RemoveAll([&KeysOk](const FCacheKey& Key) { return KeysOk.Contains(Key); });
+		}
+
+		if (OnComplete)
+		{
+			for (const FCacheKey& Key : RemainingKeys)
+			{
+				OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+			}
+		}
+
+		return FRequest();
+	}
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override
+	{
+		TArray<FCachePayloadKey, TInlineAllocator<16>> RemainingKeys(Keys);
+
+		TSet<FCachePayloadKey> KeysOk;
+		for (int32 GetCacheIndex = 0; GetCacheIndex < InnerBackends.Num() && !RemainingKeys.IsEmpty(); ++GetCacheIndex)
+		{
+			InnerBackends[GetCacheIndex]->GetPayload(RemainingKeys, Context, Policy, Priority,
+				[&OnComplete, &KeysOk](FCacheGetPayloadCompleteParams&& Params)
+				{
+					if (Params.Status == EStatus::Ok)
+					{
+						KeysOk.Add({Params.Key, Params.Payload.GetId()});
+						if (OnComplete)
+						{
+							OnComplete(MoveTemp(Params));
+						}
+					}
+				}).Wait();
+
+			RemainingKeys.RemoveAll([&KeysOk](const FCachePayloadKey& Key) { return KeysOk.Contains(Key); });
+		}
+
+		if (OnComplete)
+		{
+			for (const FCachePayloadKey& Key : RemainingKeys)
+			{
+				OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+			}
+		}
+
+		return FRequest();
+	}
+
+	virtual void CancelAll() override
+	{
+	}
 
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
+	ICacheFactory& Factory;
 	/** Array of backends forming the hierarchical cache...the first element is the fastest cache. **/
 	TArray<FDerivedDataBackendInterface*> InnerBackends;
 	/** Each of the backends wrapped with an async put **/
 	TArray<TUniquePtr<FDerivedDataBackendInterface> > AsyncPutInnerBackends;
 	/** As an optimization, we check our writable status at contruction **/
 	bool bIsWritable;
+	bool bHasLocalBackends;
+	bool bHasRemoteBackends;
+	bool bHasMultipleLocalBackends;
+	bool bHasMultipleRemoteBackends;
+	bool bHasWritableLocalBackends;
+	bool bHasWritableRemoteBackends;
 };
 
+} // UE::DerivedData::Backends

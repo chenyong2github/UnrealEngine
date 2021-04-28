@@ -2,6 +2,11 @@
 
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "MemoryDerivedDataBackend.h"
+#include "Tasks/Task.h"
+#include <atomic>
+
+namespace UE::DerivedData::Backends
+{
 
 /** 
  * Async task to handle the fire and forget async put
@@ -144,9 +149,10 @@ public:
 	}
 };
 
-FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
-	: InnerBackend(InInnerBackend)
-	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(TEXT("InflightMemoryCache"))) : NULL)
+FDerivedDataBackendAsyncPutWrapper::FDerivedDataBackendAsyncPutWrapper(ICacheFactory& InFactory, FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts)
+	: Factory(InFactory)
+	, InnerBackend(InInnerBackend)
+	, InflightCache(bCacheInFlightPuts ? (new FMemoryDerivedDataBackend(Factory, TEXT("InflightMemoryCache"))) : NULL)
 {
 	check(InnerBackend);
 }
@@ -317,3 +323,248 @@ TSharedRef<FDerivedDataCacheStatsNode> FDerivedDataBackendAsyncPutWrapper::Gathe
 
 	return Usage;
 }
+
+class FDerivedDataAsyncWrapperRequest final : public IRequest, private IQueuedWork
+{
+public:
+	inline explicit FDerivedDataAsyncWrapperRequest(TUniqueFunction<void (bool bCancel)>&& InFunction)
+		: Function(MoveTemp(InFunction))
+		, DoneEvent(FPlatformProcess::GetSynchEventFromPool(true))
+	{
+	}
+
+	inline ~FDerivedDataAsyncWrapperRequest() final
+	{
+		FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
+	}
+
+	inline void Start(EPriority Priority)
+	{
+		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(1);
+		AddRef(); // Keep the request alive until the queued work executes.
+
+		DoneEvent->Reset();
+		WorkNotFinishedCounter.fetch_add(1, std::memory_order_relaxed);
+		GDDCIOThreadPool->AddQueuedWork(this, GetPriority(Priority));
+	}
+
+	inline void Execute(bool bCancel)
+	{
+		FScopeCycleCounter Scope(GetStatId(), /*bAlways*/ true);
+		Function(/*bCancel*/ false);
+		WorkNotFinishedCounter.fetch_sub(1, std::memory_order_release);
+		DoneEvent->Trigger();
+
+		Release(); // DO NOT ACCESS ANY MEMBERS PAST THIS POINT!
+		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(-1);
+	}
+
+	// IRequest Interface
+
+	inline void SetPriority(EPriority Priority) final
+	{
+		if (GDDCIOThreadPool->RetractQueuedWork(this))
+		{
+			GDDCIOThreadPool->AddQueuedWork(this, GetPriority(Priority));
+		}
+	}
+
+	inline void Cancel() final
+	{
+		if (!Poll())
+		{
+			if (GDDCIOThreadPool->RetractQueuedWork(this))
+			{
+				Abandon();
+			}
+			else
+			{
+				Wait();
+			}
+		}
+	}
+
+	inline void Wait() final
+	{
+		if (!Poll())
+		{
+			if (GDDCIOThreadPool->RetractQueuedWork(this))
+			{
+				DoThreadedWork();
+			}
+			else
+			{
+				FScopeCycleCounter Scope(GetStatId());
+				DoneEvent->Wait();
+			}
+		}
+	}
+
+	inline bool Poll() final
+	{
+		return WorkNotFinishedCounter.load(std::memory_order_acquire) == 0;
+	}
+
+	inline void AddRef() const final
+	{
+		ReferenceCount.fetch_add(1, std::memory_order_relaxed);
+	}
+
+	inline void Release() const final
+	{
+		if (ReferenceCount.fetch_sub(1, std::memory_order_acq_rel) == 1)
+		{
+			delete this;
+		}
+	}
+
+private:
+	static EQueuedWorkPriority GetPriority(EPriority Priority)
+	{
+		switch (Priority)
+		{
+		case EPriority::Blocking: return EQueuedWorkPriority::Highest;
+		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
+		case EPriority::High:     return EQueuedWorkPriority::High;
+		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
+		case EPriority::Low:      return EQueuedWorkPriority::Low;
+		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
+		default: checkNoEntry();  return EQueuedWorkPriority::Normal;
+		}
+	}
+
+	// IQueuedWork Interface
+
+	inline void DoThreadedWork() final
+	{
+		Execute(/*bCancel*/ false);
+	}
+
+	inline void Abandon() final
+	{
+		Execute(/*bCancel*/ true);
+	}
+
+	inline TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FDerivedDataAsyncWrapperRequest, STATGROUP_ThreadPoolAsyncTasks);
+	}
+
+private:
+	mutable std::atomic<uint32> ReferenceCount{0};
+	std::atomic<uint32> WorkNotFinishedCounter{0};
+	TUniqueFunction<void (bool bCancel)> Function;
+	FEvent* DoneEvent;
+};
+
+FRequest FDerivedDataBackendAsyncPutWrapper::Put(
+	TArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCachePutComplete&& OnComplete)
+{
+	if (Priority == EPriority::Blocking)
+	{
+		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+	else
+	{
+		TArray<FCacheRecord> RecordsArray;
+		RecordsArray.Reserve(Records.Num());
+		for (FCacheRecord& Record : Records)
+		{
+			RecordsArray.Add(MoveTemp(Record));
+		}
+		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
+			[Backend = InnerBackend, Records = MoveTemp(RecordsArray), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			{
+				if (!bCancel)
+				{
+					Backend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+				}
+				else if (OnComplete)
+				{
+					for (const FCacheRecord& Record : Records)
+					{
+						OnComplete({Record.GetKey(), EStatus::Canceled});
+					}
+				}
+			}));
+		Request->Start(Priority == EPriority::Normal ? EPriority::Low : Priority);
+		return Request;
+	}
+}
+
+FRequest FDerivedDataBackendAsyncPutWrapper::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetComplete&& OnComplete)
+{
+	if (Priority == EPriority::Blocking)
+	{
+		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+	else
+	{
+		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
+			[&Factory = Factory, Backend = InnerBackend, Keys = TArray<FCacheKey>(Keys), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			{
+				if (!bCancel)
+				{
+					Backend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+				}
+				else if (OnComplete)
+				{
+					for (const FCacheKey& Key : Keys)
+					{
+						OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Canceled});
+					}
+				}
+			}));
+		Request->Start(Priority);
+		return Request;
+	}
+}
+
+FRequest FDerivedDataBackendAsyncPutWrapper::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetPayloadComplete&& OnComplete)
+{
+	if (Priority == EPriority::Blocking)
+	{
+		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+	else
+	{
+		TRequest<FDerivedDataAsyncWrapperRequest> Request(new FDerivedDataAsyncWrapperRequest(
+			[Backend = InnerBackend, Keys = TArray<FCachePayloadKey>(Keys), Context = FString(Context), Policy, Priority, OnComplete = MoveTemp(OnComplete)](bool bCancel) mutable
+			{
+				if (!bCancel)
+				{
+					Backend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete)).Wait();
+				}
+				else if (OnComplete)
+				{
+					for (const FCachePayloadKey& Key : Keys)
+					{
+						OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Canceled});
+					}
+				}
+			}));
+		Request->Start(Priority);
+		return Request;
+	}
+}
+
+void FDerivedDataBackendAsyncPutWrapper::CancelAll()
+{
+	InnerBackend->CancelAll();
+}
+
+} // UE::DerivedData::Backends

@@ -15,6 +15,9 @@
 
 #if WITH_S3_DDC_BACKEND
 
+namespace UE::DerivedData::Backends
+{
+
 /**
  * Backend for a read-only AWS S3 based caching service.
  **/
@@ -30,7 +33,7 @@ public:
 	 * @param  InCanaryObjectKey    Key for a canary object used to test whether this backend is usable
 	 * @param  InCachePath          Path to cache the DDC files
 	 */
-	FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
+	FS3DerivedDataBackend(ICacheFactory& Factory, const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath);
 	~FS3DerivedDataBackend();
 
 	/**
@@ -58,6 +61,31 @@ public:
 
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override;
+
+	virtual void CancelAll() override
+	{
+	}
+
 private:
 	struct FBundle;
 	struct FBundleEntry;
@@ -65,9 +93,10 @@ private:
 
 	struct FRootManifest;
 
-	class FRequest;
+	class FHttpRequest;
 	class FRequestPool;
 
+	ICacheFactory& Factory;
 	FString RootManifestPath;
 	FString BaseUrl;
 	FString Region;
@@ -94,5 +123,7 @@ private:
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
 };
+
+} // UE::DerivedData::Backends
 
 #endif

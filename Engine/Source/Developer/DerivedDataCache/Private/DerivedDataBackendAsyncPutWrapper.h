@@ -11,6 +11,9 @@
 #include "MemoryDerivedDataBackend.h"
 #include "Async/AsyncWork.h"
 
+namespace UE::DerivedData::Backends
+{
+
 /** 
  * Thread safe set helper
 **/
@@ -61,7 +64,7 @@ public:
 	 * @param	InInnerBackend		Backend to use for storage, my responsibilities are about async puts
 	 * @param	bCacheInFlightPuts	if true, cache in-flight puts in a memory cache so that they hit immediately
 	 */
-	FDerivedDataBackendAsyncPutWrapper(FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts);
+	FDerivedDataBackendAsyncPutWrapper(ICacheFactory& InFactory, FDerivedDataBackendInterface* InInnerBackend, bool bCacheInFlightPuts);
 
 	/** Return a name for this interface */
 	virtual FString GetName() const override
@@ -129,10 +132,34 @@ public:
 
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override;
+
+	virtual void CancelAll() override;
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 	FDerivedDataCacheUsageStats PutSyncUsageStats;
 
+	ICacheFactory& Factory;
 	/** Backend to use for storage, my responsibilities are about async puts **/
 	FDerivedDataBackendInterface*					InnerBackend;
 	/** Memory based cache to deal with gets that happen while an async put is still in flight **/
@@ -141,5 +168,4 @@ private:
 	FThreadSet										FilesInFlight;
 };
 
-
-
+} // UE::DerivedData::Backends

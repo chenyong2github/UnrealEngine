@@ -2,10 +2,15 @@
 
 #include "PakFileDerivedDataBackend.h"
 #include "Misc/Compression.h"
+#include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 
-FPakFileDerivedDataBackend::FPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting)
-	: bWriting(bInWriting)
+namespace UE::DerivedData::Backends
+{
+
+FPakFileDerivedDataBackend::FPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting)
+	: Factory(InFactory)
+	, bWriting(bInWriting)
 	, bClosed(false)
 	, Filename(InFilename)
 {
@@ -391,13 +396,13 @@ void FPakFileDerivedDataBackend::MergeCache(FPakFileDerivedDataBackend* OtherPak
 	}
 }
 
-bool FPakFileDerivedDataBackend::SortAndCopy(const FString &InputFilename, const FString &OutputFilename)
+bool FPakFileDerivedDataBackend::SortAndCopy(ICacheFactory& InFactory, const FString &InputFilename, const FString &OutputFilename)
 {
 	// Open the input and output files
-	FPakFileDerivedDataBackend InputPak(*InputFilename, false);
+	FPakFileDerivedDataBackend InputPak(InFactory, *InputFilename, false);
 	if (InputPak.bClosed) return false;
 
-	FPakFileDerivedDataBackend OutputPak(*OutputFilename, true);
+	FPakFileDerivedDataBackend OutputPak(InFactory, *OutputFilename, true);
 	if (OutputPak.bClosed) return false;
 
 	// Sort the key names
@@ -435,8 +440,59 @@ TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageSt
 	return Usage;
 }
 
-FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting)
-	: FPakFileDerivedDataBackend(InFilename, bInWriting)
+FRequest FPakFileDerivedDataBackend::Put(
+	TArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCachePutComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheRecord& Record : Records)
+		{
+			OnComplete({Record.GetKey(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FPakFileDerivedDataBackend::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheKey& Key : Keys)
+		{
+			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FPakFileDerivedDataBackend::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetPayloadComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCachePayloadKey& Key : Keys)
+		{
+			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting)
+	: FPakFileDerivedDataBackend(InFactory, InFilename, bInWriting)
 {
 }
 
@@ -470,3 +526,5 @@ bool FCompressedPakFileDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, 
 
 	return true;
 }
+
+} // UE::DerivedData::Backends

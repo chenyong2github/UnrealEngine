@@ -7,6 +7,9 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheUsageStats.h"
 
+namespace UE::DerivedData::Backends
+{
+
 /** 
  * Helper class for placing a footer at the end of of a cache file.
  * No effort is made to byte-swap this as we assume local format.
@@ -248,6 +251,41 @@ public:
 		return InnerBackend->ApplyDebugOptions(InOptions);
 	}
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override
+	{
+		return InnerBackend->Put(Records, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override
+	{
+		return InnerBackend->Get(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override
+	{
+		return InnerBackend->GetPayload(Keys, Context, Policy, Priority, MoveTemp(OnComplete));
+	}
+
+	virtual void CancelAll() override
+	{
+		InnerBackend->CancelAll();
+	}
+
 private:
 	FDerivedDataCacheUsageStats UsageStats;
 
@@ -255,3 +293,4 @@ private:
 	FDerivedDataBackendInterface* InnerBackend;
 };
 
+} // UE::DerivedData::Backends

@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/BitArray.h"
+#include "DerivedDataCache.h"
 #include "Stats/Stats.h"
 
 class FDerivedDataCacheUsageStats;
@@ -28,7 +29,7 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STA
  * Interface for cache server backends. 
  * The entire API should be callable from any thread (except the singleton can be assumed to be called at least once before concurrent access).
 **/
-class FDerivedDataBackendInterface
+class FDerivedDataBackendInterface : public UE::DerivedData::ICacheStore
 {
 public:
 

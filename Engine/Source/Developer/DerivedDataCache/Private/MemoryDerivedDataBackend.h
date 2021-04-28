@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DerivedDataCacheRecord.h"
 #include "HAL/FileManager.h"
 #include "FileBackedDerivedDataBackend.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -11,13 +12,16 @@
 
 class Error;
 
+namespace UE::DerivedData::Backends
+{
+
 /** 
  * A simple thread safe, memory based backend. This is used for Async puts and the boot cache.
 **/
 class FMemoryDerivedDataBackend : public FFileBackedDerivedDataBackend
 {
 public:
-	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
+	explicit FMemoryDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
 	~FMemoryDerivedDataBackend();
 
 	/** Return a name for this interface */
@@ -89,7 +93,31 @@ public:
 	 * Apply debug options
 	 */
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
-	
+
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override;
+
+	virtual void CancelAll() override
+	{
+	}
 
 private:
 	/** Name of the cache file loaded (if any). */
@@ -112,11 +140,19 @@ private:
 		return (Key.Len() + 1) * sizeof(TCHAR) + sizeof(Val.Age) + Val.Data.Num();
 	}
 
+	int64 CalcRawCacheRecordSize(const FCacheRecord& Record) const;
+	int64 CalcSerializedCacheRecordSize(const FCacheRecord& Record) const;
+
+	/** Factory used to construct cache records. */
+	ICacheFactory& Factory;
+
 	/** Name of this cache (used for debugging) */
 	FString Name;
 
 	/** Set of files that are being written to disk asynchronously. */
 	TMap<FString, FCacheValue*> CacheItems;
+	/** Set of records in this cache. */
+	TSet<FCacheRecord, FCacheRecordKeyFuncs> CacheRecords;
 	/** Maximum size the cached items can grow up to ( in bytes ) */
 	int64 MaxCacheSize;
 	/** When set to true, this cache is disabled...ignore all requests. */
@@ -176,3 +212,4 @@ protected:
 	TSet<FName> DebugMissedKeys;
 };
 
+} // UE::DerivedData::Backends

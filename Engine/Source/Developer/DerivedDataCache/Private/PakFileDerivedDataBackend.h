@@ -16,13 +16,16 @@
 
 class Error;
 
+namespace UE::DerivedData::Backends
+{
+
 /** 
  * A simple thread safe, pak file based backend. 
 **/
 class FPakFileDerivedDataBackend : public FDerivedDataBackendInterface
 {
 public:
-	FPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting);
+	FPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting);
 	~FPakFileDerivedDataBackend();
 
 	void Close();
@@ -88,7 +91,7 @@ public:
 		return Filename;
 	}
 
-	static bool SortAndCopy(const FString &InputFilename, const FString &OutputFilename);
+	static bool SortAndCopy(ICacheFactory& InFactory, const FString &InputFilename, const FString &OutputFilename);
 
 	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
@@ -97,6 +100,31 @@ public:
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override { return true; }
 
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override { return false; }
+
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override;
+
+	virtual void CancelAll() override
+	{
+	}
 
 private:
 	FDerivedDataCacheUsageStats UsageStats;
@@ -114,6 +142,7 @@ private:
 		}
 	};
 
+	ICacheFactory& Factory;
 	/** When set to true, we are a pak writer (we don't do reads). */
 	bool bWriting;
 	/** When set to true, we are a pak writer and we saved, so we shouldn't be used anymore. Also, a read cache that failed to open. */
@@ -136,7 +165,7 @@ private:
 class FCompressedPakFileDerivedDataBackend : public FPakFileDerivedDataBackend
 {
 public:
-	FCompressedPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting);
+	FCompressedPakFileDerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InFilename, bool bInWriting);
 
 	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
@@ -151,3 +180,5 @@ private:
 	static const EName CompressionFormat = NAME_Zlib;
 	static const ECompressionFlags CompressionFlags = COMPRESS_BiasMemory;
 };
+
+} // UE::DerivedData::Backends

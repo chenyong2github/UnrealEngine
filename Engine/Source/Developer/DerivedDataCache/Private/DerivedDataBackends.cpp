@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "MemoryDerivedDataBackend.h"
 #include "HttpDerivedDataBackend.h"
@@ -37,13 +38,16 @@ DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 #define MAX_BACKEND_KEY_LENGTH (120)
 #define LOCTEXT_NAMESPACE "DerivedDataBackendGraph"
 
-FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName = nullptr);
+namespace UE::DerivedData::Backends
+{
+
+FDerivedDataBackendInterface* CreateFileSystemDerivedDataBackend(ICacheFactory& Factory, const TCHAR* CacheDirectory, const TCHAR* InParams, const TCHAR* InAccessLogFileName = nullptr);
 
 /**
   * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
   * ideally this would be data driven and the backends would be plugins...
 **/
-class FDerivedDataBackendGraph : public FDerivedDataBackend
+class FDerivedDataBackendGraph : public FDerivedDataBackend, public ICacheFactory
 {
 public:
 	/**
@@ -109,7 +113,7 @@ public:
 		// Make sure AsyncPutWrapper and KeyLengthWrapper are created
 		if( !AsyncPutWrapper )
 		{
-			AsyncPutWrapper = new FDerivedDataBackendAsyncPutWrapper( RootCache, true );
+			AsyncPutWrapper = new FDerivedDataBackendAsyncPutWrapper( *this, RootCache, true );
 			check(AsyncPutWrapper);
 			CreatedBackends.Add( AsyncPutWrapper );
 			RootCache = AsyncPutWrapper;
@@ -277,7 +281,7 @@ public:
 				FGuid Temp = FGuid::NewGuid();
 				ReadPakFilename = PakFilename;
 				WritePakFilename = PakFilename + TEXT(".") + Temp.ToString();
-				WritePakCache = bCompressed? new FCompressedPakFileDerivedDataBackend( *WritePakFilename, true ) : new FPakFileDerivedDataBackend( *WritePakFilename, true );
+				WritePakCache = bCompressed? new FCompressedPakFileDerivedDataBackend( *this, *WritePakFilename, true ) : new FPakFileDerivedDataBackend( *this, *WritePakFilename, true );
 				PakNode = WritePakCache;
 			}
 			else
@@ -285,7 +289,7 @@ public:
 				bool bReadPak = FPlatformFileManager::Get().GetPlatformFile().FileExists( *PakFilename );
 				if( bReadPak )
 				{
-					FPakFileDerivedDataBackend* ReadPak = bCompressed? new FCompressedPakFileDerivedDataBackend( *PakFilename, false ) : new FPakFileDerivedDataBackend( *PakFilename, false );
+					FPakFileDerivedDataBackend* ReadPak = bCompressed? new FCompressedPakFileDerivedDataBackend( *this, *PakFilename, false ) : new FPakFileDerivedDataBackend( *this, *PakFilename, false );
 					ReadPakFilename = PakFilename;
 					PakNode = ReadPak;
 					ReadPakCache.Add(ReadPak);
@@ -374,7 +378,7 @@ public:
 		FDerivedDataBackendInterface* AsyncNode = NULL;
 		if( InnerNode )
 		{
-			AsyncNode = new FDerivedDataBackendAsyncPutWrapper( InnerNode, true );
+			AsyncNode = new FDerivedDataBackendAsyncPutWrapper( *this, InnerNode, true );
 		}
 		else
 		{
@@ -475,7 +479,7 @@ public:
 		FDerivedDataBackendInterface* Hierarchy = NULL;
 		if( InnerNodes.Num() > 1 )
 		{
-			FHierarchicalDerivedDataBackend* HierarchyBackend = new FHierarchicalDerivedDataBackend( InnerNodes );
+			FHierarchicalDerivedDataBackend* HierarchyBackend = new FHierarchicalDerivedDataBackend( *this, InnerNodes );
 			Hierarchy = HierarchyBackend;
 			if (HierarchicalWrapper == NULL)
 			{
@@ -613,7 +617,7 @@ public:
 
 				if (!bShared || IFileManager::Get().DirectoryExists(*Path))
 				{
-					InnerFileSystem = CreateFileSystemDerivedDataBackend( *Path, Entry, *WriteAccessLog);
+					InnerFileSystem = CreateFileSystemDerivedDataBackend(*this, *Path, Entry, *WriteAccessLog);
 				}
 
 				if (InnerFileSystem)
@@ -707,7 +711,7 @@ public:
 		}
 
 		// Insert the backend corruption wrapper. Since the filesystem already uses this, and we're recycling the data with the trailer intact, we need to use it for the S3 cache too.
-		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath);
+		FS3DerivedDataBackend* Backend = new FS3DerivedDataBackend(*this, *ManifestPath, *BaseUrl, *Region, *CanaryObjectKey, *CachePath);
 		return new FDerivedDataBackendCorruptionWrapper(Backend);
 #else
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
@@ -807,7 +811,7 @@ public:
 
 		const bool bReadOnly = GetParsedBool(Entry, TEXT("ReadOnly="));
 
-		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
+		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*this, *ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, bReadOnly);
 
 		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
 		{
@@ -857,7 +861,7 @@ public:
 			MaxCacheSize = FMath::Min(MaxCacheSize, MaxSupportedCacheSize);
 
 			UE_LOG( LogDerivedDataCache, Display, TEXT("Max Cache Size: %d MB"), MaxCacheSize);
-			Cache = new FMemoryDerivedDataBackend(TEXT("Boot"), MaxCacheSize * 1024 * 1024, true /* bCanBeDisabled */);
+			Cache = new FMemoryDerivedDataBackend(*this, TEXT("Boot"), MaxCacheSize * 1024 * 1024, true /* bCanBeDisabled */);
 
 			if( Cache && Filename.Len() )
 			{
@@ -899,7 +903,7 @@ public:
 		FString Filename;
 
 		FParse::Value( Entry, TEXT("Filename="), Filename );
-		Cache = new FMemoryDerivedDataBackend(NodeName);
+		Cache = new FMemoryDerivedDataBackend(*this, NodeName);
 		if( Cache && Filename.Len() )
 		{
 			if( Cache->LoadCache( *Filename ) )
@@ -970,7 +974,7 @@ public:
 
 				for(const FString& MergePakName : MergePakList)
 				{
-					FPakFileDerivedDataBackend ReadPak(*FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), false);
+					FPakFileDerivedDataBackend ReadPak(*this, *FPaths::Combine(*FPaths::GetPath(WritePakFilename), *MergePakName), false);
 					WritePakCache->MergeCache(&ReadPak);
 				}
 			}
@@ -995,7 +999,7 @@ public:
 							UE_LOG(LogDerivedDataCache, Error, TEXT("Could not delete the pak file %s to overwrite it with a new one."), *ReadPakFilename);
 						}
 					}
-					if (!FPakFileDerivedDataBackend::SortAndCopy(WritePakFilename, ReadPakFilename))
+					if (!FPakFileDerivedDataBackend::SortAndCopy(*this, WritePakFilename, ReadPakFilename))
 					{
 						UE_LOG(LogDerivedDataCache, Error, TEXT("Couldn't sort pak file (%s)"), *WritePakFilename);
 					}
@@ -1062,7 +1066,7 @@ public:
 		FPakFileDerivedDataBackend* ReadPak = NULL;
 		if (HierarchicalWrapper && FPlatformFileManager::Get().GetPlatformFile().FileExists(PakFilename))
 		{
-			ReadPak = new FPakFileDerivedDataBackend(PakFilename, false);
+			ReadPak = new FPakFileDerivedDataBackend(*this, PakFilename, false);
 
 			HierarchicalWrapper->AddInnerBackend(ReadPak);
 			CreatedBackends.Add(ReadPak);
@@ -1107,6 +1111,16 @@ public:
 		}
 
 		return MakeShared<FDerivedDataCacheStatsNode>(nullptr, TEXT(""));
+	}
+
+	virtual FCacheBucket CreateBucket(FStringView Name) override
+	{
+		return Private::CreateCacheBucket(Name);
+	}
+
+	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) override
+	{
+		return Private::CreateCacheRecordBuilder(Key);
 	}
 
 private:
@@ -1179,11 +1193,12 @@ private:
 	FAutoConsoleCommand UnountPakCommand;
 };
 
+} // UE::DerivedData::Backends
+
 FDerivedDataBackend& FDerivedDataBackend::Get()
 {
-	return FDerivedDataBackendGraph::Get();
+	return UE::DerivedData::Backends::FDerivedDataBackendGraph::Get();
 }
-
 
 /**
  * Parse debug options for the provided node name. Returns true if any options were specified

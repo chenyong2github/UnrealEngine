@@ -15,6 +15,9 @@
 
 #if WITH_HTTP_DDC_BACKEND
 
+namespace UE::DerivedData::Backends
+{
+
 typedef TSharedPtr<class IHttpRequest> FHttpRequestPtr;
 typedef TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> FHttpResponsePtr;
 
@@ -35,7 +38,7 @@ public:
 	 * @param OAuthClientId	OAuth client identifier.
 	 * @param OAuthData		OAuth form data to send to login service. Can either be the raw form data or a Windows network file address (starting with "\\").
 	 */
-	FHttpDerivedDataBackend(const TCHAR* ServiceUrl, 
+	FHttpDerivedDataBackend(ICacheFactory& Factory, const TCHAR* ServiceUrl, 
 		const TCHAR* Namespace, 
 		const TCHAR* OAuthProvider, 
 		const TCHAR* OAuthClientId, 
@@ -71,8 +74,33 @@ public:
 
 	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
 
+	virtual FRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCachePutComplete&& OnComplete) override;
+
+	virtual FRequest Get(
+		TConstArrayView<FCacheKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetComplete&& OnComplete) override;
+
+	virtual FRequest GetPayload(
+		TConstArrayView<FCachePayloadKey> Keys,
+		FStringView Context,
+		ECachePolicy Policy,
+		EPriority Priority,
+		FOnCacheGetPayloadComplete&& OnComplete) override;
+
+	virtual void CancelAll() override
+	{
+	}
+
 private:
-	
+	ICacheFactory& Factory;
 	FString Domain;
 	FString Namespace;
 	FString DefaultBucket;
@@ -93,5 +121,7 @@ private:
 	bool AcquireAccessToken();
 	bool ShouldRetryOnError(int64 ResponseCode);
 };
+
+} // UE::DerivedData::Backends
 
 #endif //WITH_HTTP_DDC_BACKEND

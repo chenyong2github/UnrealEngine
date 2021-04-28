@@ -24,6 +24,7 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "Async/ParallelFor.h"
 #include "Serialization/MemoryReader.h"
+#include "DerivedDataCacheRecord.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -35,6 +36,11 @@
 #include "DesktopPlatformModule.h"
 #include "Misc/ConfigCacheIni.h"
 
+#if WITH_SSL
+#include "Ssl.h"
+#include <openssl/ssl.h>
+#endif
+
 #define S3DDC_BACKEND_WAIT_INTERVAL 0.01f
 #define S3DDC_HTTP_REQUEST_TIMEOUT_SECONDS 30L
 #define S3DDC_HTTP_REQUEST_TIMOUT_ENABLED 1
@@ -42,6 +48,9 @@
 #define S3DDC_MAX_FAILED_LOGIN_ATTEMPTS 16
 #define S3DDC_MAX_ATTEMPTS 4
 #define S3DDC_MAX_BUFFER_RESERVE 104857600u
+
+namespace UE::DerivedData::Backends
+{
 
 TRACE_DECLARE_INT_COUNTER(S3DDC_Exist, TEXT("S3DDC Exist"));
 TRACE_DECLARE_INT_COUNTER(S3DDC_ExistHit, TEXT("S3DDC Exist Hit"));
@@ -173,10 +182,10 @@ struct IRequestCallback
  * CURL has a global library initialization (curl_global_init). We rely on this happening in 
  * the Online/HTTP library which is a dependency on this module.
  */
-class FS3DerivedDataBackend::FRequest
+class FS3DerivedDataBackend::FHttpRequest
 {
 public:
-	FRequest(const ANSICHAR* InRegion, const ANSICHAR* InAccessKey, const ANSICHAR* InSecretKey)
+	FHttpRequest(const ANSICHAR* InRegion, const ANSICHAR* InAccessKey, const ANSICHAR* InSecretKey)
 		: Region(InRegion)
 		, AccessKey(InAccessKey)
 		, SecretKey(InSecretKey)
@@ -184,7 +193,7 @@ public:
 		Curl = curl_easy_init();
 	}
 
-	~FRequest()
+	~FHttpRequest()
 	{
 		curl_easy_cleanup(Curl);
 	}
@@ -249,11 +258,11 @@ public:
 		// Progress
 		curl_easy_setopt(Curl, CURLOPT_NOPROGRESS, 0);
 		curl_easy_setopt(Curl, CURLOPT_XFERINFODATA, Callback);
-		curl_easy_setopt(Curl, CURLOPT_XFERINFOFUNCTION, &FRequest::StaticStatusFn);
+		curl_easy_setopt(Curl, CURLOPT_XFERINFOFUNCTION, &FHttpRequest::StaticStatusFn);
 
 		// Response
 		curl_easy_setopt(Curl, CURLOPT_HEADERDATA, &CallbackData);
-		curl_easy_setopt(Curl, CURLOPT_HEADERFUNCTION, &FRequest::StaticWriteHeaderFn);
+		curl_easy_setopt(Curl, CURLOPT_HEADERFUNCTION, &FHttpRequest::StaticWriteHeaderFn);
 		curl_easy_setopt(Curl, CURLOPT_WRITEDATA, &CallbackData);
 		curl_easy_setopt(Curl, CURLOPT_WRITEFUNCTION, StaticWriteBodyFn);
 
@@ -526,7 +535,7 @@ public:
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
 			Pool[i].Usage = 0u;
-			Pool[i].Request = new FRequest(Region, AccessKey, SecretKey);
+			Pool[i].Request = new FHttpRequest(Region, AccessKey, SecretKey);
 		}
 	}
 
@@ -542,7 +551,7 @@ public:
 
 	long Download(const TCHAR* Url, IRequestCallback* Callback, TArray<uint8>& OutData, FOutputDevice* Log)
 	{
-		FRequest* Request = WaitForFreeRequest();
+		FHttpRequest* Request = WaitForFreeRequest();
 		long ResponseCode = Request->PerformBlocking(TCHAR_TO_ANSI(Url), Callback, OutData, Log);
 		ReleaseRequestToPool(Request);
 		return ResponseCode;
@@ -552,12 +561,12 @@ private:
 	struct FEntry
 	{
 		TAtomic<uint8> Usage;
-		FRequest* Request;
+		FHttpRequest* Request;
 	};
 
 	TArray<FEntry> Pool;
 
-	FRequest* WaitForFreeRequest()
+	FHttpRequest* WaitForFreeRequest()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(S3DDC_WaitForConnPool);
 		while (true)
@@ -577,7 +586,7 @@ private:
 		}
 	}
 
-	void ReleaseRequestToPool(FRequest* Request)
+	void ReleaseRequestToPool(FHttpRequest* Request)
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
@@ -753,8 +762,9 @@ struct FS3DerivedDataBackend::FRootManifest
 // FS3DerivedDataBackend
 //----------------------------------------------------------------------------------------------------------
 
-FS3DerivedDataBackend::FS3DerivedDataBackend(const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
-	: RootManifestPath(InRootManifestPath)
+FS3DerivedDataBackend::FS3DerivedDataBackend(ICacheFactory& InFactory, const TCHAR* InRootManifestPath, const TCHAR* InBaseUrl, const TCHAR* InRegion, const TCHAR* InCanaryObjectKey, const TCHAR* InCachePath)
+	: Factory(InFactory)
+	, RootManifestPath(InRootManifestPath)
 	, BaseUrl(InBaseUrl)
 	, Region(InRegion)
 	, CanaryObjectKey(InCanaryObjectKey)
@@ -1166,5 +1176,58 @@ bool FS3DerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 
 	return false;
 }
+
+FRequest FS3DerivedDataBackend::Put(
+	TArrayView<FCacheRecord> Records,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCachePutComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheRecord& Record : Records)
+		{
+			OnComplete({Record.GetKey(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FS3DerivedDataBackend::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCacheKey& Key : Keys)
+		{
+			OnComplete({Factory.CreateRecord(Key).Build(), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+FRequest FS3DerivedDataBackend::GetPayload(
+	TConstArrayView<FCachePayloadKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	EPriority Priority,
+	FOnCacheGetPayloadComplete&& OnComplete)
+{
+	if (OnComplete)
+	{
+		for (const FCachePayloadKey& Key : Keys)
+		{
+			OnComplete({Key.CacheKey, FPayload(Key.Id), EStatus::Error});
+		}
+	}
+	return FRequest();
+}
+
+} // UE::DerivedData::Backends
 
 #endif
