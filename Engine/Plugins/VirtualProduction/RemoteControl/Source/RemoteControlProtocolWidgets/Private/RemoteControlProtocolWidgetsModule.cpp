@@ -6,7 +6,6 @@
 #include "IRemoteControlProtocol.h"
 #include "IRemoteControlProtocolModule.h"
 #include "RemoteControlPreset.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "ViewModels/ProtocolEntityViewModel.h"

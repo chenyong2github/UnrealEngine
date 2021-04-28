@@ -34,6 +34,9 @@ public:
 
 	/** Get the Protocol Binding ViewModels */
 	const TArray<TSharedPtr<FProtocolBindingViewModel>>& GetBindings() const { return Bindings; }
+
+	/** Get the Protocol Binding ViewModels, filtered by the provided list of hidden protocol type names */
+	TArray<TSharedPtr<FProtocolBindingViewModel>> GetFilteredBindings(const TSet<FName>& InHiddenProtocolTypeNames);
 	
 	bool IsValid() const { return Preset.IsValid() && PropertyId.IsValid(); }
 
