@@ -109,7 +109,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenRadianceCacheHardwareRayTracingRGS)
 
 			uint2 WrappedTileCoord = uint2(TraceTileIndex % TEMP_ATLAS_TRACE_TILE_STRIDE, TraceTileIndex / TEMP_ATLAS_TRACE_TILE_STRIDE);
 			uint2 OutputIndex = WrappedTileCoord * RADIANCE_CACHE_TRACE_TILE_SIZE_2D + GroupThreadId;
-			RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, SampleHitDistance);
+			RWTraceTileRadianceAndHitDistanceTexture[OutputIndex] = float4(SampleRadiance, min(SampleHitDistance, MaxHalfFloat));
 		}
 	}
 }
@@ -162,7 +162,7 @@ void SplatRadianceCacheIntoAtlasCS(
 		}
 
 #if RADIANCE_CACHE_STORE_DEPTHS
-		float HitDistance = min(Data.a, MaxHalfFloat);
+		float HitDistance = Data.a;
 
 		for (uint Y = 0; Y < UpsampleFactor; Y++)
 		for (uint X = 0; X < UpsampleFactor; X++)
