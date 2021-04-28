@@ -44,13 +44,13 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationViewport_Cust
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Start;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Override;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings Final;
 };
 
@@ -117,7 +117,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
 	FDisplayClusterConfigurationViewport_Overscan Overscan;
 
-	UPROPERTY(EditAnywhere, Category = "Display Cluster Viewport")
+	UPROPERTY()
 	FDisplayClusterConfigurationViewport_CustomPostprocess CustomPostprocess;
 
 	// Override viewport render from source texture
