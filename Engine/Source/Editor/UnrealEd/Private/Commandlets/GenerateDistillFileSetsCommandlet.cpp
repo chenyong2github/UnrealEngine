@@ -14,6 +14,7 @@
 #include "Misc/RedirectCollector.h"
 #include "Editor.h"
 #include "Engine/AssetManager.h"
+#include "Engine/World.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenerateDistillFileSetsCommandlet, Log, All);
 
@@ -270,6 +271,18 @@ int32 UGenerateDistillFileSetsCommandlet::Main( const FString& InParams )
 					{
 						AllPackageNames.Add(OtherName);
 						UE_LOG(LogGenerateDistillFileSetsCommandlet, Log, TEXT("Package: %s"), *OtherName);
+					}
+				}
+				if (UWorld* World = UWorld::FindWorldInPackage(Package))
+				{
+					TArray<FString> ExternalActorPackages = World->PersistentLevel->GetOnDiskExternalActorPackages();
+					for (const FString& ExternalActorPackage : ExternalActorPackages)
+					{
+						if (!AllPackageNames.Contains(ExternalActorPackage))
+						{
+							AllPackageNames.Add(ExternalActorPackage);
+							UE_LOG(LogGenerateDistillFileSetsCommandlet, Log, TEXT("Package: %s"), *ExternalActorPackage);
+						}
 					}
 				}
 				UE_LOG(LogGenerateDistillFileSetsCommandlet, Display, TEXT( "Collecting garbage..." ) );
