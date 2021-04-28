@@ -55,6 +55,7 @@ void SAnimationScrubPanel::Construct( const SAnimationScrubPanel::FArguments& In
 			.OnGetRecording(this, &SAnimationScrubPanel::IsRecording)
 			.ViewInputMin(InArgs._ViewInputMin)
 			.ViewInputMax(InArgs._ViewInputMax)
+			.bDisplayAnimScrubBarEditing(InArgs._bDisplayAnimScrubBarEditing)
 			.OnSetInputViewRange(InArgs._OnSetInputViewRange)
 			.OnCropAnimSequence( this, &SAnimationScrubPanel::OnCropAnimSequence )
 			.OnAddAnimSequence( this, &SAnimationScrubPanel::OnInsertAnimSequence )
@@ -84,15 +85,13 @@ FReply SAnimationScrubPanel::OnClick_Forward_Step()
 	}
 	else if (SMC)
 	{
-		//@TODO: Should we hardcode 30 Hz here?
-		{
-			const float TargetFramerate = 30.0f;
+		// BlendSpace combines animations so there's no such thing as a frame. However, 1/30 is a sensible/common rate.
+		const float FixedFrameRate = 30.0f;
 
-			// Advance a single frame, leaving it paused afterwards
-			SMC->GlobalAnimRateScale = 1.0f;
-			SMC->TickAnimation(1.0f / TargetFramerate, false);
-			SMC->GlobalAnimRateScale = 0.0f;
-		}
+		// Advance a single frame, leaving it paused afterwards
+		SMC->GlobalAnimRateScale = 1.0f;
+		SMC->TickAnimation(1.0f / FixedFrameRate, false);
+		SMC->GlobalAnimRateScale = 0.0f;
 	}
 
 	return FReply::Handled();

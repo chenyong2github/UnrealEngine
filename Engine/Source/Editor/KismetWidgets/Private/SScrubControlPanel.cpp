@@ -57,6 +57,7 @@ void SScrubControlPanel::Construct( const SScrubControlPanel::FArguments& InArgs
 				.Value(InArgs._Value)
 				.NumOfKeys(InArgs._NumOfKeys)
 				.DisplayDrag(InArgs._DisplayDrag)
+				.bDisplayAnimScrubBarEditing(InArgs._bDisplayAnimScrubBarEditing)
 				.SequenceLength(InArgs._SequenceLength)
 				.OnValueChanged(InArgs._OnValueChanged)
 				.OnBeginSliderMovement(InArgs._OnBeginSliderMovement)

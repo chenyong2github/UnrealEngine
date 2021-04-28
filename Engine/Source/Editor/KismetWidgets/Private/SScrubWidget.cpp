@@ -60,6 +60,7 @@ void SScrubWidget::Construct( const SScrubWidget::FArguments& InArgs )
 	DraggableBars = InArgs._DraggableBars;
 	OnBarDrag = InArgs._OnBarDrag;
 	bDisplayDrag = InArgs._DisplayDrag;
+	bDisplayAnimScrubBarEditing = InArgs._bDisplayAnimScrubBarEditing;
 	bMouseMovedDuringPanning = false;
 	bDragging = false;
 	bPanning = false;
@@ -425,7 +426,9 @@ FCursorReply SScrubWidget::OnCursorQuery( const FGeometry& MyGeometry, const FPo
 
 void SScrubWidget::CreateContextMenu(float CurrentFrameTime, const FPointerEvent& MouseEvent)
 {
-	if ((OnCropAnimSequence.IsBound() || OnReZeroAnimSequence.IsBound() || OnAddAnimSequence.IsBound()) && (SequenceLength.Get() >= MINIMUM_ANIMATION_LENGTH))
+	if (bDisplayAnimScrubBarEditing && 
+		(OnCropAnimSequence.IsBound() || OnReZeroAnimSequence.IsBound() || OnAddAnimSequence.IsBound()) && 
+		(SequenceLength.Get() >= MINIMUM_ANIMATION_LENGTH))
 	{
 		const bool CloseAfterSelection = true;
 		FMenuBuilder MenuBuilder( CloseAfterSelection, NULL );

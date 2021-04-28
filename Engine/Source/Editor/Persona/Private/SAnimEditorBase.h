@@ -45,6 +45,8 @@ public:
 
 	SLATE_ARGUMENT( bool, DisplayAnimScrubBar )
 
+	SLATE_ARGUMENT( bool, DisplayAnimScrubBarEditing )
+
 	SLATE_ARGUMENT( TSharedPtr<FAnimModel>, AnimModel )
 
 	SLATE_END_ARGS()
@@ -90,7 +92,7 @@ protected:
 	TSharedRef<IPersonaPreviewScene> GetPreviewScene() const { return PreviewScenePtr.Pin().ToSharedRef(); }
 
 	/** Allows derived classes to create different animation scrub panel */
-	virtual TSharedRef<SWidget> ConstructAnimScrubPanel();
+	virtual TSharedRef<SWidget> ConstructAnimScrubPanel(bool bDisplayAnimScrubBarEditing);
 
 	/** Allows derived classes to init newly created editor objects */
 	virtual void InitDetailsViewEditorObject(class UEditorAnimBaseObj* EdObj) {};

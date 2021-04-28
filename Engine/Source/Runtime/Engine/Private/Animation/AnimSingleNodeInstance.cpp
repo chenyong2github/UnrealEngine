@@ -392,14 +392,14 @@ float UAnimSingleNodeInstance::GetLength()
 	{
 		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(CurrentAsset))
 		{
-			return BlendSpace->AnimLength;
+			// Blend space length is normalized to 1 when getting and setting
+			return 1.0f;
 		}
 		else if (UAnimSequenceBase* SequenceBase = Cast<UAnimSequenceBase>(CurrentAsset))
 		{
 			return SequenceBase->GetPlayLength();
 		}
 	}
-
 	return 0.f;
 }
 
@@ -423,7 +423,22 @@ void UAnimSingleNodeInstance::StepForward()
 		StepToFrame.Value = FMath::Clamp<int32>(StepToFrame.Value, 0, LastSequenceFrameNumber.Value);
 
 		SetPosition(FrameRate.AsSeconds(StepToFrame));
-	}	
+	}
+	else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(CurrentAsset))
+	{
+		// BlendSpace combines animations so there's no such thing as a frame. However, 1/30 is a sensible/common rate.
+		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
+		float Length = Proxy.GetBlendSpaceLength();
+		if (Length > 0.0f)
+		{
+			const float FixedFrameRate = 30.0f;
+			float NormalizedDt = 1.0f / (FixedFrameRate * Length);
+			float NormalizedTime = Proxy.GetCurrentTime() + NormalizedDt;
+			NormalizedTime = IsLooping() ? 
+				FMath::Wrap(NormalizedTime, 0.0f, 1.0f) : FMath::Clamp(NormalizedTime, 0.0f, 1.0f);
+			SetPosition(NormalizedTime);
+		}
+	}
 }
 
 void UAnimSingleNodeInstance::StepBackward()
@@ -446,6 +461,21 @@ void UAnimSingleNodeInstance::StepBackward()
 		StepToFrame.Value = FMath::Clamp<int32>(StepToFrame.Value, 0, LastSequenceFrameNumber.Value);
 
 		SetPosition(FrameRate.AsSeconds(StepToFrame));
+	}
+	else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(CurrentAsset))
+	{
+		// BlendSpace combines animations so there's no such thing as a frame. However, 1/30 is a sensible/common rate.
+		FAnimSingleNodeInstanceProxy& Proxy = GetProxyOnGameThread<FAnimSingleNodeInstanceProxy>();
+		float Length = Proxy.GetBlendSpaceLength();
+		if (Length > 0.0f)
+		{
+			const float FixedFrameRate = 30.0f;
+			float NormalizedDt = 1.0f / (FixedFrameRate * Length);
+			float NormalizedTime = Proxy.GetCurrentTime() - NormalizedDt;
+			NormalizedTime = IsLooping() ? 
+				FMath::Wrap(NormalizedTime, 0.0f, 1.0f) : FMath::Clamp(NormalizedTime, 0.0f, 1.0f);
+			SetPosition(NormalizedTime);
+		}
 	}
 }
 

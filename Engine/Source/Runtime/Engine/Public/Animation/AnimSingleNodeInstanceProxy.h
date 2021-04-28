@@ -146,9 +146,19 @@ public:
 
 	void SetReverse(bool bInReverse);
 
+	/** Sets the target blend space position */
 	void SetBlendSpacePosition(const FVector& InPosition);
 
+	/**
+	 * Returns the current target/requested blend space position, and the filtered (smoothed) position.
+	 */
 	void GetBlendSpaceState(FVector& OutPosition, FVector& OutFilteredPosition) const;
+
+	/** 
+	* Returns the length (seconds), not including any rate multipliers, calculated by 
+	* weighting the currently active samples 
+	*/
+	float GetBlendSpaceLength() const;
 
 #if WITH_EDITOR
 	bool CanProcessAdditiveAnimations() const

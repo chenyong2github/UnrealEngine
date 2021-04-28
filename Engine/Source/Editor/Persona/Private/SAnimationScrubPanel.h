@@ -28,6 +28,7 @@ public:
 		/** View Input range **/
 		SLATE_ATTRIBUTE( float, ViewInputMin )
 		SLATE_ATTRIBUTE( float, ViewInputMax )
+		SLATE_ARGUMENT( bool, bDisplayAnimScrubBarEditing)
 		SLATE_EVENT( FOnSetInputViewRange, OnSetInputViewRange )
 		/** Called when an anim sequence is cropped before/after a selected frame */
 		SLATE_EVENT( FOnCropAnimSequence, OnCropAnimSequence )

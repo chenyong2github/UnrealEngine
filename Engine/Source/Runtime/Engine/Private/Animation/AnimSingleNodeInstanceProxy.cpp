@@ -264,6 +264,25 @@ void FAnimSingleNodeInstanceProxy::GetBlendSpaceState(FVector& OutPosition, FVec
 	OutPosition = BlendSpacePosition;
 }
 
+float FAnimSingleNodeInstanceProxy::GetBlendSpaceLength() const
+{
+	float TotalLength = 0.0f;
+	float TotalWeight = 0.0f;
+	for (int32 Index = 0 ; Index != BlendSampleData.Num() ; ++Index)
+	{
+		const FBlendSampleData& Data = BlendSampleData[Index];
+		float AnimLength = Data.Animation->GetPlayLength();
+		float Weight = Data.GetWeight();
+		TotalLength += AnimLength * Weight;
+		TotalWeight += Weight;
+	}
+	if (TotalWeight > 0.0f)
+	{
+		return TotalLength / TotalWeight;
+	}
+	return 0.0f;
+}
+
 void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 {
 	const bool bCanProcessAdditiveAnimationsLocal

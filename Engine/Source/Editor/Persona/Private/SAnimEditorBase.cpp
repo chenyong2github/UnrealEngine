@@ -74,13 +74,13 @@ void SAnimEditorBase::Construct(const FArguments& InArgs, const TSharedPtr<class
 			+SHorizontalBox::Slot()
 			.FillWidth(1)
 			[
-				ConstructAnimScrubPanel()
+				ConstructAnimScrubPanel(InArgs._DisplayAnimScrubBarEditing)
 			]
 		];
 	}
 }
 
-TSharedRef<SWidget> SAnimEditorBase::ConstructAnimScrubPanel()
+TSharedRef<SWidget> SAnimEditorBase::ConstructAnimScrubPanel(bool bDisplayAnimScrubBarEditing)
 {
 	if(PreviewScenePtr.IsValid())
 	{
@@ -88,6 +88,7 @@ TSharedRef<SWidget> SAnimEditorBase::ConstructAnimScrubPanel()
 			.LockedSequence(Cast<UAnimSequenceBase>(GetEditorObject()))
 			.ViewInputMin(this, &SAnimEditorBase::GetViewMinInput)
 			.ViewInputMax(this, &SAnimEditorBase::GetViewMaxInput)
+			.bDisplayAnimScrubBarEditing(bDisplayAnimScrubBarEditing)
 			.OnSetInputViewRange(this, &SAnimEditorBase::SetInputViewRange)
 			.bAllowZoom(true);
 	}

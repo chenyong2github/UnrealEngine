@@ -34,6 +34,7 @@ public:
 		, _NumOfKeys(10)
 		, _SequenceLength()
 		, _bAllowZoom(false)
+		, _bDisplayAnimScrubBarEditing(true)
 		, _DisplayDrag(true)
 		, _OnValueChanged()
 		, _OnBeginSliderMovement()
@@ -49,6 +50,7 @@ public:
 		SLATE_ATTRIBUTE( uint32, NumOfKeys )
 		SLATE_ATTRIBUTE( float, SequenceLength )
 		SLATE_ARGUMENT( bool, bAllowZoom )
+		SLATE_ARGUMENT( bool, bDisplayAnimScrubBarEditing )
 		SLATE_ATTRIBUTE( bool, DisplayDrag )
 		/** Called when the value is changed by slider or typing */
 		SLATE_EVENT( FOnFloatValueChanged, OnValueChanged )
@@ -146,7 +148,8 @@ private:
 	TAttribute<float> SequenceLength;
 	/** The number of decimal places to display */
 	bool bDragging;
-	bool bAllowZoom;	
+	bool bAllowZoom;
+	bool bDisplayAnimScrubBarEditing;
 	TAttribute<bool> bDisplayDrag;
 	/** If we are currently panning the panel*/
 	bool bPanning;
