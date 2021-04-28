@@ -736,6 +736,7 @@ FReply SDisplayClusterConfiguratorSCSEditorViewport::OnDrop(const FGeometry& MyG
 							{
 								DCBlueprintEditor->ClusterChanged();
 								DCBlueprintEditor->RefreshDisplayClusterPreviewActor();
+								DCBlueprintEditor->RefreshInspector();
 							}
 
 							return FReply::Handled();
