@@ -5,9 +5,15 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
+class FMediaMovieStreamer;
+
 class FMediaMovieStreamerModule : public IModuleInterface
 {
 public:
+	/**
+	 * Call this to get the MovieStreamer.
+	 */
+	MEDIAMOVIESTREAMER_API static const TSharedPtr<FMediaMovieStreamer> GetMovieStreamer();
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
