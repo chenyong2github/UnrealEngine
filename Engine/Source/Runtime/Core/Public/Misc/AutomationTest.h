@@ -3379,8 +3379,8 @@ public: \
 // Basic Latent Commands
 
 /**
- * Run some code latently with a predicate lambda.  If the predicate returns true, the latent action will be called 
- * again next frame.  If it returns false, the command will stop running.
+ * Run some code latently with a predicate lambda.  If the predicate returns false, the latent action will be called 
+ * again next frame.  If it returns true, the command will stop running.
  */
 class FFunctionLatentCommand : public IAutomationLatentCommand
 {

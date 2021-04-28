@@ -10,6 +10,7 @@
 #include "Tests/AutomationEditorCommon.h"
 #include "Tests/AutomationCommon.h"
 #include "AutomationControllerSettings.h"
+#include "AssetCompilingManager.h"
 
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
@@ -53,25 +54,13 @@ void FIterationOpenAssets::GetTests(TArray<FString>& OutBeautifiedNames, TArray<
 
 bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 {
-	//start with all editors closed
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors();
-
-	// below is all latent action, so before sending there, verify the asset exists
-	UObject* Object = FSoftObjectPath(LongAssetPath).TryLoad();
-	if ( Object == nullptr )
-	{
-		UE_LOG(LogEditorAutomationTests, Error, TEXT("Failed to Open Asset '%s'."), *LongAssetPath);
-		return false;
-	}
-
+	AddCommand(new FCloseAllAssetEditorsCommand());
 	AddCommand(new FOpenEditorForAssetCommand(LongAssetPath));
 	AddCommand(new FWaitLatentCommand(0.5f));
-	AddCommand(new FDelayedFunctionLatentCommand([=] {
-		if ( Object->GetOutermost()->IsDirty() )
-		{
-			UE_LOG(LogEditorAutomationTests, Error, TEXT("Asset '%s' was dirty after opening it."), *LongAssetPath);
-		}
+	AddCommand(new FFunctionLatentCommand([] {
+		return FAssetCompilingManager::Get().GetNumRemainingAssets() == 0;
 	}));
+	AddCommand(new FWaitLatentCommand(0.5f));
 	AddCommand(new FCloseAllAssetEditorsCommand());
 	AddCommand(new FDelayedFunctionLatentCommand([] {
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);

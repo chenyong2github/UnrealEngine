@@ -117,19 +117,5 @@ namespace UnrealEditor
 			Config.RequireRole(UnrealTargetRole.Editor);	
 			return Config;
 		}
-
-		public override ITestReport CreateReport(TestResult Result)
-		{
-			ITestReport Report = base.CreateReport(Result);
-
-			if (Report != null && CachedConfig.TraceFile != string.Empty)
-			{
-				string TraceFilePath = System.IO.Path.GetFullPath( CachedConfig.TraceFile );
-				Log.Info("Attaching trace {0} to report", TraceFilePath);
-				Report.AttachArtifact(TraceFilePath);
-			}
-
-			return Report;
-		}
 	}
 }

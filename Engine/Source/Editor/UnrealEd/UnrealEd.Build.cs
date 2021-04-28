@@ -194,6 +194,7 @@ public class UnrealEd : ModuleRules
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
 				"TraceLog",
+				"TraceAnalysis",
 				"DeveloperSettings",
 				"AnimationModifiers",
 				"MaterialBaking",
