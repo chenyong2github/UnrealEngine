@@ -271,6 +271,12 @@ void AChaosSolverActor::BeginPlay()
 		return;
 	}
 
+	// Make sure that the solver is registered in the right world
+	if(FChaosSolversModule* Module = FChaosSolversModule::GetModule())
+	{
+		Module->MigrateSolver(GetSolver(), GetWorld());
+	}
+
 	Solver->EnqueueCommandImmediate(
 		[InSolver = Solver, InProps = Properties]()
 		{
