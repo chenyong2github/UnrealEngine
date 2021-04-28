@@ -8,6 +8,7 @@
 #include "SceneUtils.h"
 #include "SceneRendering.h"
 #include "Logging/LogMacros.h"
+#include "RendererModule.h"
 #include "SceneCore.h"
 #include "ScenePrivate.h"
 #include "SceneInterface.h"
@@ -16,11 +17,14 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "Hash/CityHash.h"
 
-FCriticalSection FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
+FRWLock FGraphicsMinimalPipelineStateId::PersistentIdTableLock;
 FGraphicsMinimalPipelineStateId::PersistentTableType FGraphicsMinimalPipelineStateId::PersistentIdTable;
 
-int32 FGraphicsMinimalPipelineStateId::LocalPipelineIdTableSize = 0;
-int32 FGraphicsMinimalPipelineStateId::CurrentLocalPipelineIdTableSize = 0;
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+std::atomic<int32> FGraphicsMinimalPipelineStateId::LocalPipelineIdTableSize(0);
+std::atomic<int32> FGraphicsMinimalPipelineStateId::CurrentLocalPipelineIdTableSize(0);
+#endif //MESH_DRAW_COMMAND_DEBUG_DATA
+
 bool FGraphicsMinimalPipelineStateId::NeedsShaderInitialisation = true;
 
 const FMeshDrawCommandSortKey FMeshDrawCommandSortKey::Default = { {0} };
@@ -342,7 +346,7 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 	Experimental::FHashElementId TableId;
 	auto hash = PersistentIdTable.ComputeHash(InPipelineState);
 	{
-		FScopeLock Lock(&PersistentIdTableLock);
+		FRWScopeLock Lock(PersistentIdTableLock, SLT_ReadOnly);
 
 #if UE_BUILD_DEBUG
 		FGraphicsMinimalPipelineStateInitializer PipelineStateDebug = FGraphicsMinimalPipelineStateInitializer(InPipelineState);
@@ -350,8 +354,18 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 		check(PipelineStateDebug == InPipelineState);
 #endif
 
-		TableId = PersistentIdTable.FindOrAddIdByHash(hash, InPipelineState, FRefCountedGraphicsMinimalPipelineState());
+		TableId = PersistentIdTable.FindIdByHash(hash, InPipelineState);
+
+
+		if (!TableId.IsValid())
+		{
+			Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+
+			TableId = PersistentIdTable.FindOrAddIdByHash(hash, InPipelineState, FRefCountedGraphicsMinimalPipelineState());
+		}
+		
 		FRefCountedGraphicsMinimalPipelineState& Value = PersistentIdTable.GetByElementId(TableId).Value;
+
 		if (Value.RefNum == 0 && !NeedsShaderInitialisation)
 		{
 			NeedsShaderInitialisation = true;
@@ -372,7 +386,8 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId
 void FGraphicsMinimalPipelineStateId::InitializePersistentIds()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(InitializePersistentMdcIds);
-	FScopeLock Lock(&PersistentIdTableLock);
+
+	FRWScopeLock WriteLock(PersistentIdTableLock, SLT_Write);
 	if (NeedsShaderInitialisation)
 	{
 		for (TPair<const FGraphicsMinimalPipelineStateInitializer, FRefCountedGraphicsMinimalPipelineState>& Element : PersistentIdTable)
@@ -388,7 +403,7 @@ void FGraphicsMinimalPipelineStateId::RemovePersistentId(FGraphicsMinimalPipelin
 	check(!Id.bComesFromLocalPipelineStateSet && Id.bValid);
 
 	{
-		FScopeLock Lock(&PersistentIdTableLock);
+		FRWScopeLock WriteLock(PersistentIdTableLock, SLT_Write);
 		FRefCountedGraphicsMinimalPipelineState& RefCountedStateInitializer = PersistentIdTable.GetByElementId(Id.SetElementIndex).Value;
 
 		check(RefCountedStateInitializer.RefNum > 0);
@@ -424,15 +439,22 @@ FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPipelineStat
 
 void FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize()
 {
-	FScopeLock Lock(&PersistentIdTableLock);
-	LocalPipelineIdTableSize = CurrentLocalPipelineIdTableSize;
-	CurrentLocalPipelineIdTableSize = 0;
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	int32 CapturedPipelineIdTableSize;
+	do
+	{
+		CapturedPipelineIdTableSize = CurrentLocalPipelineIdTableSize;
+	}while (!CurrentLocalPipelineIdTableSize.compare_exchange_strong(CapturedPipelineIdTableSize, 0));
+
+	LocalPipelineIdTableSize = CapturedPipelineIdTableSize;
+#endif //MESH_DRAW_COMMAND_DEBUG_DATA
 }
 
 void FGraphicsMinimalPipelineStateId::AddSizeToLocalPipelineIdTableSize(SIZE_T Size)
 {
-	FScopeLock Lock(&PersistentIdTableLock);
+#if MESH_DRAW_COMMAND_DEBUG_DATA
 	CurrentLocalPipelineIdTableSize += int32(Size);
+#endif
 }
 
 FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
@@ -1364,7 +1386,7 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 	ScenePrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : -1;
 }
 
-FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FCriticalSection& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene) :
+FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FRWLock& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene) :
 	CommandInfo(InCommandInfo),
 	CachedMeshDrawCommandLock(InCachedMeshDrawCommandLock),
 	CachedDrawLists(InCachedDrawLists),
@@ -1411,18 +1433,26 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 		Experimental::FHashElementId SetId;
 		auto hash = CachedMeshDrawCommandStateBuckets.ComputeHash(MeshDrawCommand);
 		{
-			FScopeLock Lock(&CachedMeshDrawCommandLock);
+			FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_ReadOnly);
 
 #if UE_BUILD_DEBUG
 			FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
 			check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
 			check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
 #endif
-			SetId = CachedMeshDrawCommandStateBuckets.FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
-			CachedMeshDrawCommandStateBuckets.GetByElementId(SetId).Value.Num++;
+			SetId = CachedMeshDrawCommandStateBuckets.FindIdByHash(hash, MeshDrawCommand);
+
+			if (!SetId.IsValid())
+			{
+				Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+				SetId = CachedMeshDrawCommandStateBuckets.FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
+			}
+
+			FMeshDrawCommandCount& DrawCount = CachedMeshDrawCommandStateBuckets.GetByElementId(SetId).Value;
+			DrawCount.Num++;
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-			if (CachedMeshDrawCommandStateBuckets.GetByElementId(SetId).Value.Num == 1)
+			if (DrawCount.Num == 1)
 			{
 				MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
 			}
@@ -1436,7 +1466,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	else
 	{
 		check(CommandInfo.CommandIndex == -1);
-		FScopeLock Lock(&CachedMeshDrawCommandLock);
+		FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_Write);
 		// Only one FMeshDrawCommand supported per FStaticMesh in a pass
 		// Allocate at lowest free index so that 'r.DoLazyStaticMeshUpdate' can shrink the TSparseArray more effectively
 		CommandInfo.CommandIndex = CachedDrawLists.MeshDrawCommands.EmplaceAtLowestFreeIndex(CachedDrawLists.LowestFreeIndexSearchStart, MeshDrawCommand);

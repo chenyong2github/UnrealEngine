@@ -1688,11 +1688,11 @@ IMPLEMENT_GLOBAL_SHADER(FPrintStatsCS, "/Engine/Private/Nanite/PrintStats.usf", 
 
 FNaniteDrawListContext::FNaniteDrawListContext
 (
-	FCriticalSection& InNaniteDrawCommandLock,
+	FRWLock& InNaniteDrawCommandLock,
 	FStateBucketMap& InNaniteDrawCommands
 ) 
-: NaniteDrawCommandLock(InNaniteDrawCommandLock)
-, NaniteDrawCommands(InNaniteDrawCommands)
+: NaniteDrawCommandLock(&InNaniteDrawCommandLock)
+, NaniteDrawCommands(&InNaniteDrawCommands)
 {
 }
 
@@ -1730,24 +1730,34 @@ void FNaniteDrawListContext::FinalizeCommand(
 	check(UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel));
 
 	Experimental::FHashElementId SetId;
-	auto hash = NaniteDrawCommands.ComputeHash(MeshDrawCommand);
+	auto hash = NaniteDrawCommands->ComputeHash(MeshDrawCommand);
 	{
-		FScopeLock Lock(&NaniteDrawCommandLock);
+		FRWScopeLock Lock(*NaniteDrawCommandLock, SLT_ReadOnly);
 
 #if UE_BUILD_DEBUG
 		FMeshDrawCommand MeshDrawCommandDebug = FMeshDrawCommand(MeshDrawCommand);
 		check(MeshDrawCommandDebug.ShaderBindings.GetDynamicInstancingHash() == MeshDrawCommand.ShaderBindings.GetDynamicInstancingHash());
 		check(MeshDrawCommandDebug.GetDynamicInstancingHash() == MeshDrawCommand.GetDynamicInstancingHash());
 #endif
-		SetId = NaniteDrawCommands.FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
-		NaniteDrawCommands.GetByElementId(SetId).Value.Num++;
+		
+		SetId = NaniteDrawCommands->FindIdByHash(hash, MeshDrawCommand);
+		
+		if (!SetId.IsValid())
+		{
+			Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+			SetId = NaniteDrawCommands->FindOrAddIdByHash(hash, MeshDrawCommand, FMeshDrawCommandCount());
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
-		if (NaniteDrawCommands.GetByElementId(SetId).Value.Num == 1)
-		{
-			MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
-		}
+			FMeshDrawCommandCount& DrawCount = NaniteDrawCommands->GetByElementId(SetId).Value;
+			if (DrawCount.Num == 0)
+			{
+				MeshDrawCommand.ClearDebugPrimitiveSceneProxy(); //When using State Buckets multiple PrimitiveSceneProxies use the same MeshDrawCommand, so The PrimitiveSceneProxy pointer can't be stored.
+			}
 #endif
+		}
+		
+		FMeshDrawCommandCount& DrawCount = NaniteDrawCommands->GetByElementId(SetId).Value;
+		DrawCount.Num++;
 	}
 
 	CommandInfo.SetStateBucketId(SetId.GetIndex());

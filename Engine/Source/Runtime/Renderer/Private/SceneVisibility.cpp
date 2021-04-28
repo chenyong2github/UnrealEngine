@@ -3831,30 +3831,32 @@ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
 	TArray<FPrimitiveInfo> Primitives;
 	Primitives.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
 
-	FScopeLock Lock(&Scene->CachedMeshDrawCommandLock[EMeshPass::BasePass]);
-
-	for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
 	{
-		int32 PrimitiveId = Mesh.DrawPrimitiveId;
-		if (PrimitiveId < Scene->Primitives.Num())
+		FRWScopeLock Lock(Scene->CachedMeshDrawCommandLock[EMeshPass::BasePass], SLT_ReadOnly);
+
+		for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
 		{
-			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
+			int32 PrimitiveId = Mesh.DrawPrimitiveId;
+			if (PrimitiveId < Scene->Primitives.Num())
+			{
+				const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
+				FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
+
+				uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
+
+				Primitives.Add({ MoveTemp(FullName), DrawCount });
+			}
+		}
+
+		for (const FStaticMeshBatch* StaticMeshBatch : ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass])
+		{
+			const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
 			FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
 
 			uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
 
 			Primitives.Add({ MoveTemp(FullName), DrawCount });
 		}
-	}
-
-	for (const FStaticMeshBatch* StaticMeshBatch : ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass])
-	{
-		const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
-		FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
-
-		uint32 DrawCount = GetDrawCountFromPrimitiveSceneInfo(Scene, PrimitiveSceneInfo);
-
-		Primitives.Add({ MoveTemp(FullName), DrawCount });
 	}
 
 	Primitives.Sort();

@@ -138,7 +138,7 @@ class FNaniteDrawListContext : public FMeshPassDrawListContext
 {
 public:
 	FNaniteDrawListContext(
-		FCriticalSection& InNaniteDrawCommandLock,
+		FRWLock& InNaniteDrawCommandLock,
 		FStateBucketMap& InNaniteDrawCommands
 		);
 
@@ -168,8 +168,8 @@ public:
 	}
 
 private:
-	FCriticalSection& NaniteDrawCommandLock;
-	FStateBucketMap& NaniteDrawCommands;
+	FRWLock* NaniteDrawCommandLock;
+	FStateBucketMap* NaniteDrawCommands;
 	FNaniteCommandInfo CommandInfo;
 	FMeshDrawCommand MeshDrawCommandForStateBucketing;
 };

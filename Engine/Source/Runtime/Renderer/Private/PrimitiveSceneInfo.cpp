@@ -288,7 +288,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 				FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 				FCachedMeshDrawCommandInfo CommandInfo(PassType);
 
-				FCriticalSection& CachedMeshDrawCommandLock = Scene->CachedMeshDrawCommandLock[PassType];
+				FRWLock& CachedMeshDrawCommandLock = Scene->CachedMeshDrawCommandLock[PassType];
 				FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[PassType];
 				FStateBucketMap& CachedMeshDrawCommandStateBuckets = Scene->CachedMeshDrawCommandStateBuckets[PassType];
 				FCachedPassMeshDrawListContext CachedPassMeshDrawListContext(CommandInfo, CachedMeshDrawCommandLock, SceneDrawList, CachedMeshDrawCommandStateBuckets, *Scene);
@@ -324,7 +324,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 #if DO_GUARD_SLOW
 							if (ShadingPath == EShadingPath::Deferred)
 							{
-								FScopeLock Lock(&CachedMeshDrawCommandLock);
+								FRWScopeLock Lock(CachedMeshDrawCommandLock, SLT_ReadOnly);
 								const FMeshDrawCommand* MeshDrawCommand = CommandInfo.StateBucketId >= 0
 									? &Scene->CachedMeshDrawCommandStateBuckets[PassType].GetByElementId(CommandInfo.StateBucketId).Key
 									: &SceneDrawList.MeshDrawCommands[CommandInfo.CommandIndex];
@@ -480,16 +480,26 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 		if (CachedCommand.StateBucketId != INDEX_NONE)
 		{
 			EMeshPass::Type PassIndex = CachedCommand.MeshPass;
-			FScopeLock Lock(&Scene->CachedMeshDrawCommandLock[PassIndex]);
+			FGraphicsMinimalPipelineStateId CachedPipelineId;
 
-			FGraphicsMinimalPipelineStateId CachedPipelineId = Scene->CachedMeshDrawCommandStateBuckets[PassIndex].GetByElementId(CachedCommand.StateBucketId).Key.CachedPipelineId;
-
-			FMeshDrawCommandCount& StateBucketCount = Scene->CachedMeshDrawCommandStateBuckets[PassIndex].GetByElementId(CachedCommand.StateBucketId).Value;
-			check(StateBucketCount.Num > 0);
-			StateBucketCount.Num--;
-			if (StateBucketCount.Num == 0)
 			{
-				Scene->CachedMeshDrawCommandStateBuckets[PassIndex].RemoveByElementId(CachedCommand.StateBucketId);
+				FRWScopeLock Lock(Scene->CachedMeshDrawCommandLock[PassIndex], SLT_ReadOnly);
+
+				auto& ElementKVP = Scene->CachedMeshDrawCommandStateBuckets[PassIndex].GetByElementId(CachedCommand.StateBucketId);
+				CachedPipelineId = ElementKVP.Key.CachedPipelineId;
+
+				FMeshDrawCommandCount& StateBucketCount = ElementKVP.Value;
+				check(StateBucketCount.Num > 0);
+				StateBucketCount.Num--;
+				if (StateBucketCount.Num == 0)
+				{
+					Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+
+					if (StateBucketCount.Num == 0)
+					{
+						Scene->CachedMeshDrawCommandStateBuckets[PassIndex].RemoveByElementId(CachedCommand.StateBucketId);
+					}
+				}
 			}
 
 			FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);
@@ -663,21 +673,29 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 
 			if (CommandInfo.GetStateBucketId() != INDEX_NONE)
 			{
-				FScopeLock Lock(&Scene->NaniteDrawCommandLock[NaniteMeshPassIndex]);
-
-				auto& Element = Scene->NaniteDrawCommands[NaniteMeshPassIndex].GetByElementId(CommandInfo.GetStateBucketId());
-
-				FMeshDrawCommandCount& StateBucketCount = Element.Value;
-				check(StateBucketCount.Num > 0);
-
-				StateBucketCount.Num--;
-
-				if (StateBucketCount.Num == 0)
+				FGraphicsMinimalPipelineStateId CachedPipelineId;
 				{
-					Scene->NaniteDrawCommands[NaniteMeshPassIndex].RemoveByElementId(CommandInfo.GetStateBucketId());
+					FRWScopeLock Lock(Scene->NaniteDrawCommandLock[NaniteMeshPassIndex], SLT_ReadOnly);
+
+					auto& Element = Scene->NaniteDrawCommands[NaniteMeshPassIndex].GetByElementId(CommandInfo.GetStateBucketId());
+					CachedPipelineId = Element.Key.CachedPipelineId;
+
+					FMeshDrawCommandCount& StateBucketCount = Element.Value;
+					check(StateBucketCount.Num > 0);
+
+					StateBucketCount.Num--;
+
+					if (StateBucketCount.Num == 0)
+					{
+						Lock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+						if (StateBucketCount.Num == 0)
+						{
+							Scene->NaniteDrawCommands[NaniteMeshPassIndex].RemoveByElementId(CommandInfo.GetStateBucketId());
+						}
+					}
 				}
 
-				FGraphicsMinimalPipelineStateId::RemovePersistentId(Element.Key.CachedPipelineId);
+				FGraphicsMinimalPipelineStateId::RemovePersistentId(CachedPipelineId);
 			}
 		}
 

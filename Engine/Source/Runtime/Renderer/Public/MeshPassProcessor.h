@@ -12,6 +12,7 @@
 #include "Hash/CityHash.h"
 #include "Experimental/Containers/RobinHoodHashTable.h"
 #include "InstanceCulling/InstanceCullingContext.h"
+#include <atomic>
 
 #define MESH_DRAW_COMMAND_DEBUG_DATA ((!UE_BUILD_SHIPPING && !UE_BUILD_TEST) || VALIDATE_MESH_COMMAND_BINDINGS || WANTS_DRAW_MESH_EVENTS)
 
@@ -457,7 +458,7 @@ public:
 		}
 
 		{
-			FScopeLock Lock(&PersistentIdTableLock);
+			FRWScopeLock ReadLock(PersistentIdTableLock, SLT_ReadOnly);
 			return PersistentIdTable.GetByElementId(SetElementIndex).Key;
 		}
 	}
@@ -479,22 +480,25 @@ public:
 	RENDERER_API static FGraphicsMinimalPipelineStateId GetPipelineStateId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState, FGraphicsMinimalPipelineStateSet& InOutPassSet, bool& NeedsShaderInitialisation);
 
 	static int32 GetLocalPipelineIdTableSize() 
-	{ 
-		FScopeLock Lock(&PersistentIdTableLock);
-		return LocalPipelineIdTableSize; 
+	{
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+		return LocalPipelineIdTableSize;
+#else
+		return 0;
+#endif //MESH_DRAW_COMMAND_DEBUG_DATA
 	}
 	static void ResetLocalPipelineIdTableSize();
 	static void AddSizeToLocalPipelineIdTableSize(SIZE_T Size);
 
 	static SIZE_T GetPersistentIdTableSize() 
 	{ 
-		FScopeLock Lock(&PersistentIdTableLock);
-		return PersistentIdTable.GetAllocatedSize(); 
+		FRWScopeLock ReadLock(PersistentIdTableLock, SLT_ReadOnly);
+		return PersistentIdTable.GetAllocatedSize();
 	}
 	static int32 GetPersistentIdNum() 
 	{ 
-		FScopeLock Lock(&PersistentIdTableLock);
-		return PersistentIdTable.Num(); 
+		FRWScopeLock ReadLock(PersistentIdTableLock, SLT_ReadOnly);
+		return PersistentIdTable.Num();
 	}
 
 private:
@@ -515,16 +519,25 @@ private:
 		FRefCountedGraphicsMinimalPipelineState() : RefNum(0)
 		{
 		}
-		uint32 RefNum;
+
+		FRefCountedGraphicsMinimalPipelineState(const FRefCountedGraphicsMinimalPipelineState&& Other) :
+			RefNum(Other.RefNum.load())
+		{
+
+		}
+
+		std::atomic<uint32> RefNum;
 	};
 
-	static FCriticalSection PersistentIdTableLock;
+	static FRWLock PersistentIdTableLock;
 	using PersistentTableType = Experimental::TRobinHoodHashMap<FGraphicsMinimalPipelineStateInitializer, FRefCountedGraphicsMinimalPipelineState>;
 	static PersistentTableType PersistentIdTable;
-
-	static int32 LocalPipelineIdTableSize;
-	static int32 CurrentLocalPipelineIdTableSize;
 	static bool NeedsShaderInitialisation;
+
+#if MESH_DRAW_COMMAND_DEBUG_DATA
+	static std::atomic<int32> LocalPipelineIdTableSize;
+	static std::atomic<int32> CurrentLocalPipelineIdTableSize;
+#endif //MESH_DRAW_COMMAND_DEBUG_DATA
 };
 
 class FShaderBindingState
@@ -1447,7 +1460,19 @@ public:
 
 struct FMeshDrawCommandCount 
 {
-	uint32 Num = 0;
+	FMeshDrawCommandCount() :
+		Num(0)
+	{
+
+	}
+
+	FMeshDrawCommandCount(FMeshDrawCommandCount&& Other) :
+		Num(Other.Num.load())
+	{
+
+	}
+
+	std::atomic<uint32> Num;
 };
 
 struct MeshDrawCommandKeyFuncs : TDefaultMapHashableKeyFuncs<FMeshDrawCommand, FMeshDrawCommandCount, false>
@@ -1473,7 +1498,7 @@ using FStateBucketMap = Experimental::TRobinHoodHashMap<FMeshDrawCommand, FMeshD
 class FCachedPassMeshDrawListContext : public FMeshPassDrawListContext
 {
 public:
-	FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FCriticalSection& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene);
+	FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FRWLock& InCachedMeshDrawCommandLock, FCachedPassMeshDrawList& InCachedDrawLists, FStateBucketMap& InCachedMeshDrawCommandStateBuckets, const FScene& InScene);
 
 	virtual FMeshDrawCommand& AddCommand(FMeshDrawCommand& Initializer, uint32 NumElements) override final;
 
@@ -1493,7 +1518,7 @@ public:
 private:
 	FMeshDrawCommand MeshDrawCommandForStateBucketing;
 	FCachedMeshDrawCommandInfo& CommandInfo;
-	FCriticalSection& CachedMeshDrawCommandLock;
+	FRWLock& CachedMeshDrawCommandLock;
 	FCachedPassMeshDrawList& CachedDrawLists;
 	FStateBucketMap& CachedMeshDrawCommandStateBuckets;
 	const FScene& Scene;
