@@ -28,14 +28,14 @@ void UMIDIDeviceInputController::StartupDevice(const int32 InitDeviceID, const i
 			// Is the device already in use?  If so, spit out a warning
 			if(PMDeviceInfo->opened != 0)
 			{
-				UE_LOG(LogMIDIDevice, Error, TEXT("Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%s) is already in use."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
+				UE_LOG(LogMIDIDevice, Warning, TEXT("Failed to bind to MIDI device '%s' (ID: %i): Device is already in use"), ANSI_TO_TCHAR(PMDeviceInfo->name), PMDeviceID);
 				return;
 			}
 
 			// Make sure the device is setup for input/output
 			if(PMDeviceInfo->input == 0)
 			{
-				UE_LOG(LogMIDIDevice, Error, TEXT("Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%S) does is not setup to receive MIDI data."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
+				UE_LOG(LogMIDIDevice, Warning, TEXT("Failed to bind to MIDI device '%s' (ID: %i): Device not setup to receive MIDI"), ANSI_TO_TCHAR(PMDeviceInfo->name), PMDeviceID);
 				return;
 			}
 			

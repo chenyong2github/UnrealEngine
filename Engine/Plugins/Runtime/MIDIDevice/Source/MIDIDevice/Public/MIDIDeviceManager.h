@@ -3,12 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MIDIDeviceInputController.h"
 #include "MIDIDeviceOutputController.h"
-#include "MIDIDeviceManager.generated.h"
 
+#include "MIDIDeviceManager.generated.h"
 
 USTRUCT(BlueprintType)
 struct MIDIDEVICE_API FFoundMIDIDevice
@@ -153,7 +152,6 @@ public:
 	 * Creates an instance of a MIDI output device controller that can be used to interact with a connected MIDI device
 	 *
 	 * @param	DeviceID		The ID of the MIDI device you want to talk to.  Call "Find MIDI Devices" to enumerate the available devices.
-	 * @param	MIDIBufferSize	How large the buffer size (in number of MIDI events) should be for incoming MIDI data.  Larger values can incur higher latency costs for incoming events, but don't set it too low or you'll miss events and your stuff will sound bad.
 	 *
 	 * @return	If everything goes okay, a valid MIDI device controller object will be returned.  If anything goes wrong, a null reference will be returned.
 	 */
