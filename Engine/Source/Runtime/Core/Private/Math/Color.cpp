@@ -61,11 +61,7 @@ FLinearColor::FLinearColor(const FVector4& Vector) :
 
 FLinearColor::FLinearColor(const FFloat16Color& C)
 {
-	// @todo Oodle use 4X half to float SIMD (VectorLoadHalf/VectorStoreHalf)
-	R = C.R.GetFloat();
-	G = C.G.GetFloat();
-	B =	C.B.GetFloat();
-	A =	C.A.GetFloat();
+	*this = C.GetFloats();
 }
 
 FLinearColor FLinearColor::FromPow22Color(const FColor& Color)

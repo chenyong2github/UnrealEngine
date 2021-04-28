@@ -106,6 +106,88 @@ namespace SSE
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
 	}
+
+	// https://gist.github.com/rygorous/2156668
+	// float_to_half_rtne_SSE2
+	static __m128i FloatToHalf(__m128 f)
+	{
+		__m128i mask_sign       = _mm_set1_epi32(0x80000000u);
+		__m128i c_f16max        = _mm_set1_epi32((127 + 16) << 23); // all FP32 values >=this round to +inf
+		__m128i c_nanbit        = _mm_set1_epi32(0x200);
+		__m128i c_infty_as_fp16 = _mm_set1_epi32(0x7c00);
+		__m128i c_min_normal    = _mm_set1_epi32((127 - 14) << 23); // smallest FP32 that yields a normalized FP16
+		__m128i c_subnorm_magic = _mm_set1_epi32(((127 - 15) + (23 - 10) + 1) << 23);
+		__m128i c_normal_bias   = _mm_set1_epi32(0xfff - ((127 - 15) << 23)); // adjust exponent and add mantissa rounding
+
+		__m128  msign       = _mm_castsi128_ps(mask_sign);
+		__m128  justsign    = _mm_and_ps(msign, f);
+		__m128  absf        = _mm_xor_ps(f, justsign);
+		__m128i absf_int    = _mm_castps_si128(absf); // the cast is "free" (extra bypass latency, but no thruput hit)
+		__m128i f16max      = c_f16max;
+		__m128  b_isnan     = _mm_cmpunord_ps(absf, absf); // is this a NaN?
+		__m128i b_isregular = _mm_cmpgt_epi32(f16max, absf_int); // (sub)normalized or special?
+		__m128i nanbit      = _mm_and_si128(_mm_castps_si128(b_isnan), c_nanbit);
+		__m128i inf_or_nan  = _mm_or_si128(nanbit, c_infty_as_fp16); // output for specials
+
+		__m128i min_normal  = c_min_normal;
+		__m128i b_issub     = _mm_cmpgt_epi32(min_normal, absf_int);
+
+		// "result is subnormal" path
+		__m128  subnorm1    = _mm_add_ps(absf, _mm_castsi128_ps(c_subnorm_magic)); // magic value to round output mantissa
+		__m128i subnorm2    = _mm_sub_epi32(_mm_castps_si128(subnorm1), c_subnorm_magic); // subtract out bias
+
+		// "result is normal" path
+		__m128i mantoddbit  = _mm_slli_epi32(absf_int, 31 - 13); // shift bit 13 (mantissa LSB) to sign
+		__m128i mantodd     = _mm_srai_epi32(mantoddbit, 31); // -1 if FP16 mantissa odd, else 0
+
+		__m128i round1      = _mm_add_epi32(absf_int, c_normal_bias);
+		__m128i round2      = _mm_sub_epi32(round1, mantodd); // if mantissa LSB odd, bias towards rounding up (RTNE)
+		__m128i normal      = _mm_srli_epi32(round2, 13); // rounded result
+
+		// combine the two non-specials
+		__m128i nonspecial  = _mm_or_si128(_mm_and_si128(subnorm2, b_issub), _mm_andnot_si128(b_issub, normal));
+
+		// merge in specials as well
+		__m128i joined      = _mm_or_si128(_mm_and_si128(nonspecial, b_isregular), _mm_andnot_si128(b_isregular, inf_or_nan));
+
+		__m128i sign_shift  = _mm_srli_epi32(_mm_castps_si128(justsign), 16);
+		__m128i rgba_half32 = _mm_or_si128(joined, sign_shift);
+		
+		// there's now a half in each 32-bit lane
+		// pack down to 64 bits :
+        __m128i four_halfs_u64 = _mm_packus_epi32(rgba_half32, _mm_setzero_si128());
+
+		return four_halfs_u64;
+	}
+	
+	// four halfs should be in the u64 part of input
+	static __m128 HalfToFloat(__m128i four_halfs_u64)
+	{
+		__m128i rgba_half32 = _mm_unpacklo_epi16(four_halfs_u64, _mm_setzero_si128());
+
+		const __m128i mask_nosign = _mm_set1_epi32(0x7fff);
+		const __m128 magic_mult	= _mm_castsi128_ps(_mm_set1_epi32((254 - 15) << 23));
+		const __m128i was_infnan = _mm_set1_epi32(0x7bff);
+		const __m128 exp_infnan	= _mm_castsi128_ps(_mm_set1_epi32(255 << 23));
+		const __m128i was_nan = _mm_set1_epi32(0x7c00);
+		const __m128i nan_quiet	= _mm_set1_epi32(1 << 22);
+
+		__m128i expmant		= _mm_and_si128(mask_nosign, rgba_half32);
+		__m128i justsign	= _mm_xor_si128(rgba_half32, expmant);
+		__m128i shifted		= _mm_slli_epi32(expmant, 13);
+		__m128 scaled		= _mm_mul_ps(_mm_castsi128_ps(shifted), magic_mult);
+		__m128i b_wasinfnan = _mm_cmpgt_epi32(expmant, was_infnan);
+		__m128i sign	    = _mm_slli_epi32(justsign, 16);
+		__m128 infnanexp    = _mm_and_ps(_mm_castsi128_ps(b_wasinfnan), exp_infnan);
+		__m128i b_wasnan    = _mm_cmpgt_epi32(expmant, was_nan);
+		__m128i nanquiet    = _mm_and_si128(b_wasnan, nan_quiet);
+		__m128 infnandone   = _mm_or_ps(infnanexp, _mm_castsi128_ps(nanquiet));
+
+		__m128 sign_inf	= _mm_or_ps(_mm_castsi128_ps(sign), infnandone);
+		__m128 result	= _mm_or_ps(scaled, sign_inf);
+
+		return result;
+	}
 }
 }
 
@@ -140,6 +222,16 @@ struct TUnrealPlatformMathSSEBase : public Base
 	static FORCEINLINE float InvSqrtEst(float F)
 	{
 		return UE4::SSE::InvSqrtEst(F);
+	}
+	
+	static FORCEINLINE void VectorStoreHalf(uint16* RESTRICT Dst, const float* RESTRICT Src)
+	{
+		_mm_storeu_si64((__m128i*)Dst, UE4::SSE::FloatToHalf(_mm_loadu_ps(Src)));
+	}
+	
+	static FORCEINLINE void VectorLoadHalf(float* RESTRICT Dst, const uint16* RESTRICT Src)
+	{
+		_mm_storeu_ps(Dst, UE4::SSE::HalfToFloat(_mm_loadu_si64((__m128i*)Src)));
 	}
 
 };

@@ -653,10 +653,10 @@ public:
 		{
 			// Flush negative values to 0, as those aren't supported by BC6H_UF16.
 			FFloat16& F16Value = Data[TexelIndex];
-			const bool bNegative = F16Value.Components.Sign == 1;
-			if (bNegative)
+
+			if ( F16Value.IsNegative() )
 			{
-				F16Value = 0;
+				F16Value.Encoded = 0;
 			}
 		}
 	}

@@ -59,6 +59,7 @@ struct FLinearColor
 
 	CORE_API explicit FLinearColor(const FVector4& Vector);
 	
+	// use Float16Color::GetFloats() directly
 	CORE_API explicit FLinearColor(const FFloat16Color& C);
 
 	// Serializer.

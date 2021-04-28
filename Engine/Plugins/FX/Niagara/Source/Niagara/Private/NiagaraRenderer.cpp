@@ -371,7 +371,7 @@ struct FParticleOrderAsUint
 	{
 		const uint32 SortKeySignBit = 0x8000;
 		uint32 InOrderAsUint = InOrder.Encoded;
-		InOrderAsUint = (bStrictlyPositive || InOrder.Components.Sign != 0) ? (InOrderAsUint | SortKeySignBit) : ~InOrderAsUint;
+		InOrderAsUint = (bStrictlyPositive || InOrder.IsNegative()) ? (InOrderAsUint | SortKeySignBit) : ~InOrderAsUint;
 		OrderAsUint = bAscending ? InOrderAsUint : ~InOrderAsUint;
 		OrderAsUint &= 0xFFFF;
 		Index = InIndex;

@@ -103,9 +103,7 @@ static bool ReadTexture_SourceData(
 		for (int32 i = 0; i < Num; ++i)
 		{
 			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
-			FFloat16Color PixelColor = *((FFloat16Color*)PixelPtr);
-			FLinearColor FloatColor(float(PixelColor.R), float(PixelColor.G), float(PixelColor.B), float(PixelColor.A));
-			DestImage.SetPixel(i, FVector4f(FloatColor));
+			DestImage.SetPixel(i, FVector4f( ((const FFloat16Color*)PixelPtr)->GetFloats() ));
 		}
 	}
 	else if (SourceFormat == TSF_G8)

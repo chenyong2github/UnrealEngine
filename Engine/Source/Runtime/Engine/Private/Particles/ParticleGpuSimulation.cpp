@@ -2065,8 +2065,11 @@ static void BuildParticleVertexBuffer(FRHIBuffer* VertexBufferRHI, const TArray<
 			{
 				const float IndexX = TileOffset.X + ((float)ParticleX / (float)GParticleSimulationTextureSizeX) + (0.5f / (float)GParticleSimulationTextureSizeX);
 				const float IndexY = TileOffset.Y + ((float)ParticleY / (float)GParticleSimulationTextureSizeY) + (0.5f / (float)GParticleSimulationTextureSizeY);
-				ParticleIndices->X.SetWithoutBoundsChecks(IndexX);
-				ParticleIndices->Y.SetWithoutBoundsChecks(IndexY);					
+
+				// @todo faster float32 -> float16 conversion
+				//	use AVX2/F16C for _mm_cvtps_ph
+				ParticleIndices->X.Set(IndexX);
+				ParticleIndices->Y.Set(IndexY);					
 
 				// move to next particle
 				ParticleIndices += Stride;

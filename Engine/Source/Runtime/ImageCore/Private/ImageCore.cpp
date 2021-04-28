@@ -277,7 +277,7 @@ static void CopyImage(const FImage& SrcImage, FImage& DestImage)
 				TArrayView64<const FFloat16Color> SrcColors = SrcImage.AsRGBA16F();
 				for (int64 TexelIndex = 0; TexelIndex < NumTexels; ++TexelIndex)
 				{
-					DestColors[TexelIndex] = FLinearColor(SrcColors[TexelIndex]);
+					DestColors[TexelIndex] = SrcColors[TexelIndex].GetFloats();
 				}
 			}
 			break;
