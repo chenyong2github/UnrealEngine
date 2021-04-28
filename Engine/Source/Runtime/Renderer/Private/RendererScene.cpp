@@ -3993,17 +3993,18 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 			int RemoveCount = RemovedLocalPrimitiveSceneInfos.Num() - StartIndex;
 			int SourceIndex = Primitives.Num() - RemoveCount;
 
-			Primitives.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveTransforms.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveSceneProxies.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveBounds.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveFlagsCompact.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveVisibilityIds.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveOcclusionFlags.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveComponentIds.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveVirtualTextureFlags.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveVirtualTextureLod.RemoveAt(SourceIndex, RemoveCount);
-			PrimitiveOcclusionBounds.RemoveAt(SourceIndex, RemoveCount);
+			Primitives.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveTransforms.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveSceneProxies.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveBounds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveFlagsCompact.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveVisibilityIds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveOcclusionFlags.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveComponentIds.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveVirtualTextureFlags.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveVirtualTextureLod.RemoveAt(SourceIndex, RemoveCount, false);
+			PrimitiveOcclusionBounds.RemoveAt(SourceIndex, RemoveCount, false);
+
 			PrimitivesAlwaysVisible.RemoveAt(SourceIndex, RemoveCount);
 
 			#if WITH_EDITOR
@@ -4049,7 +4050,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 
 				DeletedSceneInfos.Add(PrimitiveSceneInfo);
 			}
-			RemovedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, RemovedLocalPrimitiveSceneInfos.Num() - StartIndex);
+			RemovedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, RemovedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
 	}
 	{
@@ -4279,7 +4280,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				// Update scene LOD tree
 				SceneLODHierarchy.UpdateNodeSceneInfo(PrimitiveSceneInfo->PrimitiveComponentId, PrimitiveSceneInfo);
 			}
-			AddedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, AddedLocalPrimitiveSceneInfos.Num() - StartIndex);
+			AddedLocalPrimitiveSceneInfos.RemoveAt(StartIndex, AddedLocalPrimitiveSceneInfos.Num() - StartIndex, false);
 		}
 	}
 	{

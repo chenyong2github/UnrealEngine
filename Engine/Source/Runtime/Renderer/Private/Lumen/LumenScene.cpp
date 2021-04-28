@@ -565,7 +565,7 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 
 				// Swap, remove and fixup indices to the swapped element
 				{
-					LumenSceneData.LumenPrimitives.RemoveAtSwap(RemoveInfo.LumenPrimitiveIndex);
+					LumenSceneData.LumenPrimitives.RemoveAtSwap(RemoveInfo.LumenPrimitiveIndex, 1, false);
 
 					if (RemoveInfo.LumenPrimitiveIndex < LumenSceneData.LumenPrimitives.Num())
 					{
@@ -792,9 +792,9 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 	}
 
 	// Reset arrays, but keep allocated memory for 1024 elements
-	LumenSceneData.PendingAddOperations.Empty(1024);
-	LumenSceneData.PendingRemoveOperations.Empty(1024);
-	LumenSceneData.PendingUpdateOperations.Empty(1024);
+	LumenSceneData.PendingAddOperations.Reset(1024);
+	LumenSceneData.PendingRemoveOperations.Reset(1024);
+	LumenSceneData.PendingUpdateOperations.Reset(1024);
 }
 
 void FLumenSceneData::RemoveAllMeshCards()
