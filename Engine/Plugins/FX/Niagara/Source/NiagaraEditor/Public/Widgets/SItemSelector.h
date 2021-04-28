@@ -514,7 +514,7 @@ private:
 		void SortChildren()
 		{
 			TSharedRef<IItemSelectorItemViewModelUtilities> Utilities = this->GetItemUtilities();
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
+			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareCategoriesForSorting().IsBound())
 			{
 				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
 				{
@@ -677,7 +677,7 @@ private:
 				});
 			}
 
-			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareSectionsForSorting().IsBound())
+			if (ChildCategoryViewModels.Num() > 0 && Utilities->GetOnCompareCategoriesForSorting().IsBound())
 			{
 				ChildCategoryViewModels.Sort([Utilities](const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelA, const TSharedRef<FItemSelectorItemCategoryViewModel>& CategoryViewModelB)
 				{
