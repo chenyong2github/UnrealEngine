@@ -125,7 +125,7 @@ public:
 	 */
 	inline int32 AddUninitialized(int32 InCount)
 	{
-		EnsureCapacity(InCount);
+		EnsureAdditionalCapacity(InCount);
 		const int32 OldCount = Len();
 		CurPos += InCount;
 		return OldCount;
@@ -142,7 +142,7 @@ public:
 
 	inline BuilderType& Append(CharType Char)
 	{
-		EnsureCapacity(1);
+		EnsureAdditionalCapacity(1);
 
 		*CurPos++ = Char;
 
@@ -166,7 +166,7 @@ public:
 
 	inline BuilderType& AppendAnsi(const ANSICHAR* String, const int32 Length)
 	{
-		EnsureCapacity(Length);
+		EnsureAdditionalCapacity(Length);
 
 		CharType* RESTRICT Dest = CurPos;
 		CurPos += Length;
@@ -196,7 +196,7 @@ public:
 
 	inline BuilderType& Append(const CharType* String, int32 Length)
 	{
-		EnsureCapacity(Length);
+		EnsureAdditionalCapacity(Length);
 		CharType* RESTRICT Dest = CurPos;
 		CurPos += Length;
 
@@ -224,7 +224,7 @@ public:
 		}
 		else if (DeltaLen > 0)
 		{
-			EnsureCapacity(Len() + DeltaLen);
+			EnsureAdditionalCapacity(DeltaLen);
 			CurPos += DeltaLen;
 
 			for (CharType* It = CurPos - 1, *StopIt = Base + Pos + Str.Len() - 1; It != StopIt; --It)
@@ -350,7 +350,7 @@ protected:
 		}
 	}
 
-	inline void EnsureCapacity(int32 RequiredAdditionalCapacity)
+	inline void EnsureAdditionalCapacity(int32 RequiredAdditionalCapacity)
 	{
 		// precondition: we know the current buffer has enough capacity
 		// for the existing string including NUL terminator
