@@ -416,6 +416,24 @@ void AGeoReferencingSystem::GetENUVectorsAtECEFLocation(const FCartesianCoordina
 	}
 }
 
+void AGeoReferencingSystem::GetECEFENUVectorsAtECEFLocation(const FCartesianCoordinates& ECEFCoordinates, FVector& ECEFEast, FVector& ECEFNorth, FVector& ECEFUp)
+{
+	// Compute Tangent matrix at ECEF location
+	FEllipsoid& Ellipsoid = Impl->GeographicEllipsoid;
+	
+	if (bOriginLocationInProjectedCRS)
+	{
+		Ellipsoid = Impl->ProjectedEllipsoid;
+	}
+	
+	FMatrix4d WorldFrameToECEFFrameAtLocation;
+	WorldFrameToECEFFrameAtLocation = Impl->GetWorldFrameToECEFFrame(Ellipsoid, ECEFCoordinates);
+
+	ECEFEast = FVector(WorldFrameToECEFFrameAtLocation.Row0.X, WorldFrameToECEFFrameAtLocation.Row1.X, WorldFrameToECEFFrameAtLocation.Row2.X);
+	ECEFNorth = FVector(WorldFrameToECEFFrameAtLocation.Row0.Y, WorldFrameToECEFFrameAtLocation.Row1.Y, WorldFrameToECEFFrameAtLocation.Row2.Y);
+	ECEFUp = FVector(WorldFrameToECEFFrameAtLocation.Row0.Z, WorldFrameToECEFFrameAtLocation.Row1.Z, WorldFrameToECEFFrameAtLocation.Row2.Z);
+}
+
 FTransform AGeoReferencingSystem::GetTangentTransformAtEngineLocation(const FVector& EngineCoordinates)
 {
 	FCartesianCoordinates ECEFLocation;
