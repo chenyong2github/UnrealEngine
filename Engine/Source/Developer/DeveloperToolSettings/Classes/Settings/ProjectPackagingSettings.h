@@ -543,23 +543,31 @@ public:
 	 */
 	EProjectPackagingBuildConfigurations GetBuildConfigurationForPlatform(FName PlatformName) const;
 	void SetBuildConfigurationForPlatform(FName PlatformName, EProjectPackagingBuildConfigurations Configuration);
+	void SetBuildConfigurationForAllPlatforms(EProjectPackagingBuildConfigurations Configuration);
 
-	FName GetTargetPlatformForPlatform(FName PlatformName) const;
-	void SetTargetPlatformForPlatform(FName PlatformName, FName TargetPlatformName);
+	FName GetTargetFlavorForPlatform(FName PlatformName) const;
+	void SetTargetFlavorForPlatform(FName PlatformName, FName TargetFlavorName);
+
+	FString GetBuildTargetForPlatform(FName PlatformName) const;
+	void SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName);
 
 private:
 	/** Per platform build configuration */
 	UPROPERTY(config)
 	TMap<FName, EProjectPackagingBuildConfigurations> PerPlatformBuildConfig;
 
-	/** Per platform targetplatform cooking target */
+	/** Per platform flavor cooking target */
 	UPROPERTY(config)
-	TMap<FName, FName> PerPlatformTargetPlatformName;
+	TMap<FName, FName> PerPlatformTargetFlavorName;
+
+	/** Per platform build target */
+	UPROPERTY(config)
+	TMap<FName, FString> PerPlatformBuildTarget;
 
 	/** Helper array used to mirror Blueprint asset selections across edits */
 	TArray<FFilePath> CachedNativizeBlueprintAssets;
 	
-	/** THe platform to LoadConfig for to get platform-specific packaging settings */
+	/** The platform to LoadConfig for to get platform-specific packaging settings */
 	FString ConfigPlatform;
 
 public:
