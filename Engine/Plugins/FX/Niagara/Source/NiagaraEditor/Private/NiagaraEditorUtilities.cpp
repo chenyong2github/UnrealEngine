@@ -1776,9 +1776,19 @@ bool FNiagaraEditorUtilities::DoesItemMatchFilterText(const FText& FilterText, c
 		return true;
 	}
 	
-	if(Item->Keywords.ToString().Contains(FilterText.ToString()))
+	TArray<FString> KeywordArray;
+	Item->Keywords.ToString().ParseIntoArray(KeywordArray, TEXT(" "));
+	for(int32 FilterIndex = 0; FilterIndex < FilterTerms.Num(); FilterIndex++)
 	{
-		return true;
+		FString FilterTerm = FilterTerms[FilterIndex];
+
+		for(const FString& Keyword : KeywordArray)
+		{
+			if(Keyword.Contains(FilterTerm))
+			{
+				return true;
+			}
+		}		
 	}
 	
 	for(const FString& Category : Item->Categories)
