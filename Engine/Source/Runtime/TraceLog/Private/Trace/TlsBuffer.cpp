@@ -14,7 +14,7 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32			Writer_SendData(uint32, uint8* __restrict, uint32);
+void			Writer_SendData(uint32, uint8* __restrict, uint32);
 FWriteBuffer*	Writer_AllocateBlockFromPool();
 uint32			Writer_GetThreadId();
 void			Writer_FreeBlockListToPool(FWriteBuffer*, FWriteBuffer*);

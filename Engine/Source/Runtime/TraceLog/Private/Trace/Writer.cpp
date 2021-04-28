@@ -32,7 +32,7 @@ namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
 int32			Encode(const void*, int32, void*, int32);
-uint32			Writer_SendData(uint32, uint8* __restrict, uint32);
+void			Writer_SendData(uint32, uint8* __restrict, uint32);
 void			Writer_InitializeSharedBuffers();
 void			Writer_ShutdownSharedBuffers();
 void			Writer_UpdateSharedBuffers();
@@ -258,7 +258,7 @@ void Writer_SendDataRaw(const void* Data, uint32 Size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
+void Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 {
 	static_assert(ETransport::Active == ETransport::TidPacket, "Active should be set to what the compiled code uses. It is used to track places that assume transport packet format");
 
@@ -268,7 +268,7 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 
 	if (!GDataHandle)
 	{
-		return 0;
+		return;
 	}
 
 	// Smaller buffers usually aren't redundant enough to benefit from being
@@ -282,8 +282,7 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 		Packet->PacketSize = uint16(Size);
 
 		Writer_SendDataImpl(Data, Size);
-
-		return Size;
+		return;
 	}
 
 	// Buffer size is expressed as "A + B" where A is a maximum expected
@@ -297,8 +296,6 @@ uint32 Writer_SendData(uint32 ThreadId, uint8* __restrict Data, uint32 Size)
 	Packet.PacketSize += sizeof(FTidPacketEncoded);
 
 	Writer_SendDataImpl(&Packet, Packet.PacketSize);
-
-	return Packet.PacketSize;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

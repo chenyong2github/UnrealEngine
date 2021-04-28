@@ -20,7 +20,7 @@ int32	Encode(const void*, int32, void*, int32);
 void*	Writer_MemoryAllocate(SIZE_T, uint32);
 void	Writer_MemoryFree(void*, uint32);
 void	Writer_SendDataRaw(const void*, uint32);
-uint32	Writer_SendData(uint32, uint8* __restrict, uint32);
+void	Writer_SendData(uint32, uint8* __restrict, uint32);
 
 ////////////////////////////////////////////////////////////////////////////////
 struct alignas(16) FCacheBuffer
