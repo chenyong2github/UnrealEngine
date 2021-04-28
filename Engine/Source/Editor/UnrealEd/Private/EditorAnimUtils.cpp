@@ -20,6 +20,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorReimportHandler.h"
+#include "EditorFramework/AssetImportData.h"
 
 #define LOCTEXT_NAMESPACE "EditorAnimUtils"
 
