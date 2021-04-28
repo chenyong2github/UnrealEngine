@@ -2926,7 +2926,7 @@ void FScene::AddWindSource(UWindDirectionalSourceComponent* WindComponent)
 	{
 		return;
 	}
-
+	ensure(IsInGameThread());
 	WindComponents_GameThread.Add(WindComponent);
 
 	FWindSourceSceneProxy* SceneProxy = WindComponent->CreateSceneProxy();
@@ -2942,6 +2942,7 @@ void FScene::AddWindSource(UWindDirectionalSourceComponent* WindComponent)
 
 void FScene::RemoveWindSource(UWindDirectionalSourceComponent* WindComponent)
 {
+	ensure(IsInGameThread());
 	WindComponents_GameThread.Remove(WindComponent);
 
 	FWindSourceSceneProxy* SceneProxy = WindComponent->SceneProxy;
@@ -2958,6 +2959,39 @@ void FScene::RemoveWindSource(UWindDirectionalSourceComponent* WindComponent)
 				delete SceneProxy;
 			});
 	}
+}
+
+void FScene::UpdateWindSource(UWindDirectionalSourceComponent* WindComponent)
+{
+	// Recreate the scene proxy without touching WindComponents_GameThread
+	// so that this function is kept thread safe when iterating in parallel
+	// over components (unlike AddWindSource and RemoveWindSource)
+	FWindSourceSceneProxy* const OldSceneProxy = WindComponent->SceneProxy;
+	if (OldSceneProxy)
+	{
+		WindComponent->SceneProxy = nullptr;
+
+		ENQUEUE_RENDER_COMMAND(FRemoveWindSourceCommand)(
+			[Scene = this, OldSceneProxy](FRHICommandListImmediate& RHICmdList)
+			{
+				Scene->WindSources.Remove(OldSceneProxy);
+
+				delete OldSceneProxy;
+			});
+	}
+
+	if (WindComponent->IsActive())
+	{
+		FWindSourceSceneProxy* const NewSceneProxy = WindComponent->CreateSceneProxy();
+		WindComponent->SceneProxy = NewSceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(FAddWindSourceCommand)(
+			[Scene = this, NewSceneProxy](FRHICommandListImmediate& RHICmdList)
+			{
+				Scene->WindSources.Add(NewSceneProxy);
+			});
+	}
+
 }
 
 const TArray<FWindSourceSceneProxy*>& FScene::GetWindSources_RenderThread() const
@@ -4423,6 +4457,7 @@ public:
 
 	virtual void AddWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual void RemoveWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
+	virtual void UpdateWindSource(class UWindDirectionalSourceComponent* WindComponent) override {}
 	virtual const TArray<class FWindSourceSceneProxy*>& GetWindSources_RenderThread() const override
 	{
 		static TArray<class FWindSourceSceneProxy*> NullWindSources;
