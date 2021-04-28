@@ -41,6 +41,10 @@ namespace UE
 				bool FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages);
 			
 			private:
+
+				void CleanupFbxData(TArray<FString>& JSonErrorMessages);
+
+
 				FbxManager* SDKManager = nullptr;
 				FbxScene* SDKScene = nullptr;
 				FbxImporter* SDKImporter = nullptr;

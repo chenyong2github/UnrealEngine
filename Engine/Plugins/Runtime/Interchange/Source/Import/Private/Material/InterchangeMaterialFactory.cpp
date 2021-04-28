@@ -3,7 +3,9 @@
 
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
+#include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMaterialNode.h"
+#include "InterchangeTextureFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -37,13 +39,20 @@ UObject* UInterchangeMaterialFactory::CreateEmptyAsset(const FCreateAssetParams&
 		return nullptr;
 	}
 
-	const UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(Arguments.AssetNode);
-	if (MaterialNode == nullptr)
+	const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.AssetNode);
+	if (MaterialFactoryNode == nullptr)
+	{
+		return nullptr;
+	}
+	FString MaterialTranslatedNodeUid;
+	MaterialFactoryNode->GetCustomTranslatedMaterialNodeUid(MaterialTranslatedNodeUid);
+	const UInterchangeMaterialNode* MaterialTranslatedNode = Cast<UInterchangeMaterialNode>(Arguments.NodeContainer->GetNode(MaterialTranslatedNodeUid));
+	if (MaterialTranslatedNode == nullptr)
 	{
 		return nullptr;
 	}
 
-	const UClass* MaterialClass = MaterialNode->GetAssetClass();
+	const UClass* MaterialClass = MaterialFactoryNode->GetAssetClass();
 	if (!ensure(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass())))
 	{
 		return nullptr;
@@ -86,14 +95,21 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 	{
 		return nullptr;
 	}
-
-	const UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(Arguments.AssetNode);
-	if (MaterialNode == nullptr)
+	
+	const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.AssetNode);
+	if (MaterialFactoryNode == nullptr)
+	{
+		return nullptr;
+	}
+	FString MaterialTranslatedNodeUid;
+	MaterialFactoryNode->GetCustomTranslatedMaterialNodeUid(MaterialTranslatedNodeUid);
+	const UInterchangeMaterialNode* MaterialTranslatedNode = Cast<UInterchangeMaterialNode>(Arguments.NodeContainer->GetNode(MaterialTranslatedNodeUid));
+	if (MaterialTranslatedNode == nullptr)
 	{
 		return nullptr;
 	}
 
-	const UClass* MaterialClass = MaterialNode->GetAssetClass();
+	const UClass* MaterialClass = MaterialFactoryNode->GetAssetClass();
 	check(MaterialClass && MaterialClass->IsChildOf(GetFactoryClass()));
 
 	// create an asset if it doesn't exist
@@ -130,27 +146,31 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 			
 			if (Material)
 			{
-				auto ApplyInputParameter = [&MaterialNode, &Material, &Arguments](EInterchangeMaterialNodeParameterName ParameterName, FExpressionInput& MaterialInput, const FVector2D& Location)
+				auto ApplyInputParameter = [&MaterialFactoryNode, &MaterialTranslatedNode, &Material, &Arguments](EInterchangeMaterialNodeParameterName ParameterName, FExpressionInput& MaterialInput, const FVector2D& Location)
 				{
-					FString OutTextureUID;
+					FString OutTextureUid;
 					int32 OutUVSetIndex = 0;
 					float ScaleU = 0.0f;
 					float ScaleV = 0.0f;
 					FVector OutVectorParameter = FVector(0.0f);
 					float OutFloatParameter = 0.0f;
-					if (MaterialNode->GetTextureParameterData(ParameterName, OutTextureUID, OutUVSetIndex, ScaleU, ScaleV))
+					if (MaterialTranslatedNode->GetTextureParameterData(ParameterName, OutTextureUid, OutUVSetIndex, ScaleU, ScaleV))
 					{
+						OutTextureUid = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(OutTextureUid);
 						UTexture* TextureReference = nullptr;
 						if (Arguments.NodeContainer)
 						{
-							FString NodeUniqueID = MaterialNode->GetUniqueID();
-							TArray<FString> MaterialDependencies;
-							MaterialNode->GetDependecies(MaterialDependencies);
-							int32 DependenciesCount = MaterialDependencies.Num();
+							TArray<FString> MaterialTextureDependencies;
+							MaterialFactoryNode->GetTextureDependencies(MaterialTextureDependencies);
+							int32 DependenciesCount = MaterialTextureDependencies.Num();
 							for (int32 DependIndex = 0; DependIndex < DependenciesCount; ++DependIndex)
 							{
-								const UInterchangeBaseNode* DepNode = Arguments.NodeContainer->GetNode(MaterialDependencies[DependIndex]);
-								if (DepNode && DepNode->GetUniqueID() == OutTextureUID && DepNode->ReferenceObject.IsAsset())
+								if (OutTextureUid != MaterialTextureDependencies[DependIndex])
+								{
+									continue;
+								}
+								const UInterchangeTextureFactoryNode* DepNode = Cast<UInterchangeTextureFactoryNode>(Arguments.NodeContainer->GetNode(MaterialTextureDependencies[DependIndex]));
+								if (DepNode && DepNode->ReferenceObject.IsAsset())
 								{
 									//Use Resolve object so we just look for in memory UObject
 									UObject* TextureObject = DepNode->ReferenceObject.ResolveObject();
@@ -206,7 +226,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 							}
 						}
 					}
-					else if (MaterialNode->GetVectorParameterData(ParameterName, OutVectorParameter))
+					else if (MaterialTranslatedNode->GetVectorParameterData(ParameterName, OutVectorParameter))
 					{
 						UMaterialExpressionVectorParameter* MyColorExpression = NewObject<UMaterialExpressionVectorParameter>(Material);
 						Material->Expressions.Add( MyColorExpression );
@@ -219,7 +239,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 						MyColorExpression->MaterialExpressionEditorX = FMath::TruncToInt(Location.X);
 						MyColorExpression->MaterialExpressionEditorY = FMath::TruncToInt(Location.Y);
 					}
-					else if (MaterialNode->GetScalarParameterData(ParameterName, OutFloatParameter))
+					else if (MaterialTranslatedNode->GetScalarParameterData(ParameterName, OutFloatParameter))
 					{
 						UMaterialExpressionScalarParameter* MyScalarExpression = NewObject<UMaterialExpressionScalarParameter>(Material);
 						Material->Expressions.Add(MyScalarExpression);
@@ -261,7 +281,7 @@ UObject* UInterchangeMaterialFactory::CreateAsset(const UInterchangeMaterialFact
 			}
 
 			/** Apply all MaterialNode custom attributes to the material asset */
-			MaterialNode->ApplyAllCustomAttributeToAsset(Material);
+			MaterialFactoryNode->ApplyAllCustomAttributeToAsset(Material);
 
 			//TODO support material instance
 		}

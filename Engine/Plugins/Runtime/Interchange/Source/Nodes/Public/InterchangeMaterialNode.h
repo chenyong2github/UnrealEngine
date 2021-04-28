@@ -20,28 +20,6 @@ namespace UE
 {
 	namespace Interchange
 	{
-		namespace Material
-		{
-			/**
-			 * Remove _SkinXX from a string
-			 */
-			static FString RemoveSkinFromName(const FString& Name)
-			{
-				int32 SkinOffset = Name.Find(TEXT("_skin"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-				if (SkinOffset != INDEX_NONE)
-				{
-					FString MaterialNameNoSkin = Name;
-					FString SkinXXNumber = Name.Right(Name.Len() - (SkinOffset + 1)).RightChop(4);
-					if (SkinXXNumber.IsNumeric())
-					{
-						MaterialNameNoSkin = Name.LeftChop(Name.Len() - SkinOffset);
-					}
-					return MaterialNameNoSkin;
-				}
-				return Name;
-			}
-		} //ns Material
-
 		struct FMaterialNodeStaticData : public FBaseNodeStaticData
 		{
 			static const FAttributeKey& PayloadSourceFileKey()
@@ -78,25 +56,7 @@ public:
 	UInterchangeMaterialNode()
 	:UInterchangeBaseNode()
 	{
-#if WITH_ENGINE
-		AssetClass = nullptr;
-#endif
-	}
-
-	/**
-	 * Initialize node data
-	 * @param: UniqueID - The uniqueId for this node
-	 * @param DisplayLabel - The name of the node
-	 * @param InAssetClass - The class the material factory will create for this node.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	void InitializeMaterialNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
-	{
-		bIsMaterialNodeClassInitialized = false;
-		InitializeNode(UniqueID, DisplayLabel);
-		FString OperationName = GetTypeName() + TEXT(".SetAssetClassName");
-		InterchangePrivateNodeBase::SetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, InAssetClass);
-		FillAssetClassFromAttribute();
+		TextureDependencies.Initialize(Attributes, TextureDependenciesKey.Key);
 	}
 
 	/**
@@ -115,24 +75,84 @@ public:
 		{
 			return KeyDisplayName = TEXT("Payload Source Key");
 		}
+		else if (NodeAttributeKey == TextureDependenciesKey)
+		{
+			return KeyDisplayName = TEXT("Texture Dependencies count");
+		}
+		else if (NodeAttributeKey.Key.StartsWith(TextureDependenciesKey.Key))
+		{
+			KeyDisplayName = TEXT("Texture Dependencies Index ");
+			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
+			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
+			if (IndexPosition < NodeAttributeKey.Key.Len())
+			{
+				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			}
+			return KeyDisplayName;
+		}
 		return Super::GetKeyDisplayName(NodeAttributeKey);
 	}
 
-	/** Get the class this node want to create */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	virtual class UClass* GetAssetClass() const override
+	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override
 	{
-		ensure(bIsMaterialNodeClassInitialized);
-#if WITH_ENGINE
-		return AssetClass.Get() != nullptr ? AssetClass.Get() : UMaterial::StaticClass();
-#else
-		return nullptr;
-#endif
+		if (NodeAttributeKey.Key.StartsWith(TextureDependenciesKey.Key))
+		{
+			return FString(TEXT("TextureDependencies"));
+		}
+		return Super::GetAttributeCategory(NodeAttributeKey);
 	}
 
 	virtual FGuid GetHash() const override
 	{
 		return Attributes->GetStorageHash();
+	}
+
+	/**
+	 * This function allow to retrieve the number of Texture dependencies for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	int32 GetTextureDependeciesCount() const
+	{
+		return TextureDependencies.GetCount();
+	}
+
+	/**
+	 * This function allow to retrieve the Texture dependency for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	void GetTextureDependencies(TArray<FString>& OutDependencies) const
+	{
+		TextureDependencies.GetNames(OutDependencies);
+	}
+
+	/**
+	 * This function allow to retrieve one Texture dependency for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	void GetTextureDependency(const int32 Index, FString& OutDependency) const
+	{
+		TextureDependencies.GetName(Index, OutDependency);
+	}
+
+	/**
+	 * Add one Texture dependency to this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetTextureDependencyUid(const FString& DependencyUid)
+	{
+		return TextureDependencies.AddName(DependencyUid);
+	}
+
+	/**
+	 * Remove one Texture dependency from this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool RemoveTextureDependencyUid(const FString& DependencyUid)
+	{
+		return TextureDependencies.RemoveName(DependencyUid);
 	}
 
 	virtual const TOptional<FString> GetPayLoadKey() const
@@ -166,32 +186,6 @@ public:
 		}
 	}
 
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomMaterialUsage(uint8& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(MaterialUsage, uint8);
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomMaterialUsage(const uint8& AttributeValue, bool bAddApplyDelegate = true)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialNode, MaterialUsage, uint8, UMaterialInterface);
-	}
-
-	/** Return false if the Attribute was not set previously.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetCustomBlendMode(uint8& AttributeValue) const
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(BlendMode, uint8);
-	}
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool SetCustomBlendMode(const uint8& AttributeValue, bool bAddApplyDelegate = true)
-	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeMaterialNode, BlendMode, uint8, UMaterialInterface);
-	}
-
 	//////////////////////////////////////////////////////////////////////////
 	/**
 	 * Parameter interface for c++ python and blueprint
@@ -203,26 +197,26 @@ public:
 	/**
 	 * Add a texture parameter for the specified ParameterName.
 	 * @param ParameterName - The parameter we want to set the texture for.
-	 * @param TextureUID - The texture node uniqueID that has the texture we want to set to the specified parameter
+	 * @param TextureUid - The texture node uniqueID that has the texture we want to set to the specified parameter
 	 * @param UVSetNameUseByTextureInput - [Optional] The fbx name of the UV set we want the material input expression use to sample the specified texture.
 	 *                                     It can be empty, the material factory should in that case map it on the UV channel 0
 	 * @note - A parameter name can have only one of the 3 type of input set, the last input type set is the one that will be created.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	void AddTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, const FString& TextureUID, const int32 UVSetIndex, const float ScaleU, const float ScaleV)
+	void AddTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, const FString& TextureUid, const int32 UVSetIndex, const float ScaleU, const float ScaleV)
 	{
 		FParameterData& ParameterData = ParameterDatas.FindOrAdd(ParameterName);
 		ParameterData.bIsTextureParameter = true;
 		ParameterData.bIsVectorParameter = false;
 		ParameterData.bIsScalarParameter = false;
-		ParameterData.TextureUID = TextureUID;
+		ParameterData.TextureUid = TextureUid;
 		ParameterData.UVSetIndex = UVSetIndex;
 		ParameterData.ScaleU = ScaleU;
 		ParameterData.ScaleV = ScaleV;
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
-	bool GetTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, FString& OutTextureUID, int32& OutUVSetIndex, float& OutScaleU, float& OutScaleV) const
+	bool GetTextureParameterData(const EInterchangeMaterialNodeParameterName ParameterName, FString& OutTextureUid, int32& OutUVSetIndex, float& OutScaleU, float& OutScaleV) const
 	{
 		if (const FParameterData* ParameterData = ParameterDatas.Find(ParameterName))
 		{
@@ -230,7 +224,7 @@ public:
 			{
 				return false;
 			}
-			OutTextureUID = ParameterData->TextureUID;
+			OutTextureUid = ParameterData->TextureUid;
 			OutUVSetIndex = ParameterData->UVSetIndex;
 			OutScaleU = ParameterData->ScaleU;
 			OutScaleV = ParameterData->ScaleV;
@@ -319,51 +313,15 @@ public:
 				Ar << ParamValue;
 			}
 		}
-
-#if WITH_ENGINE
-		if (Ar.IsLoading())
-		{
-			//Make sure the class is properly set when we compile with engine, this will set the
-			//bIsMaterialNodeClassInitialized to true.
-			SetMaterialNodeClassFromClassAttribute();
-		}
-#endif //#if WITH_ENGINE
 	}
 
 private:
-
-	void FillAssetClassFromAttribute()
-	{
-#if WITH_ENGINE
-		FString OperationName = GetTypeName() + TEXT(".GetAssetClassName");
-		FString ClassName;
-		InterchangePrivateNodeBase::GetCustomAttribute<FString>(*Attributes, ClassNameAttributeKey, OperationName, ClassName);
-		if (ClassName.Equals(UMaterial::StaticClass()->GetName()))
-		{
-			AssetClass = UMaterial::StaticClass();
-			bIsMaterialNodeClassInitialized = true;
-		}
-		else if (ClassName.Equals(UMaterialInstance::StaticClass()->GetName()))
-		{
-			AssetClass = UMaterialInstance::StaticClass();
-			bIsMaterialNodeClassInitialized = true;
-		}
-#endif
-	}
-
-	bool SetMaterialNodeClassFromClassAttribute()
-	{
-		if (!bIsMaterialNodeClassInitialized)
-		{
-			FillAssetClassFromAttribute();
-		}
-		return bIsMaterialNodeClassInitialized;
-	}
+	const UE::Interchange::FAttributeKey TextureDependenciesKey = UE::Interchange::FAttributeKey(TEXT("__TextureDependenciesKey__"));
 
 	struct FParameterData
 	{
 		bool bIsTextureParameter = false;
-		FString TextureUID;
+		FString TextureUid;
 		int32 UVSetIndex = 0; //The "UV set" index we use to set the material sampler input default is channel 0
 		float ScaleU = 1.0f;
 		float ScaleV = 1.0f;
@@ -377,7 +335,7 @@ private:
 		friend FArchive& operator<<(FArchive& Ar, FParameterData& ParameterData)
 		{
 			Ar << ParameterData.bIsTextureParameter;
-			Ar << ParameterData.TextureUID;
+			Ar << ParameterData.TextureUid;
 			Ar << ParameterData.UVSetIndex;
 			Ar << ParameterData.ScaleU;
 			Ar << ParameterData.ScaleV;
@@ -394,73 +352,5 @@ private:
 	//This member is serialize manually in the serialize override
 	TMap<EInterchangeMaterialNodeParameterName, FParameterData> ParameterDatas;
 
-	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
-
-	//Material Attribute
-	const UE::Interchange::FAttributeKey Macro_CustomMaterialUsageKey = UE::Interchange::FAttributeKey(TEXT("MaterialUsage"));
-	const UE::Interchange::FAttributeKey Macro_CustomBlendModeKey = UE::Interchange::FAttributeKey(TEXT("BlendMode"));
-
-#if WITH_ENGINE
-
-	//Material Ussage is not handle properly, you can have several usage check
-	//Currently I can set only one and retrieve the first, TODO make this work (maybe one key per usage...)
-	bool ApplyCustomMaterialUsageToAsset(UObject * Asset) const
-	{
-		if (!Asset)
-		{
-			return false;
-		}
-		UMaterialInterface* TypedObject = Cast<UMaterialInterface>(Asset);
-		if (!TypedObject)
-		{
-			return false;
-		}
-		uint8 ValueData;
-		if (GetCustomMaterialUsage(ValueData))
-		{
-			TypedObject->CheckMaterialUsage_Concurrent(EMaterialUsage(ValueData));
-			return true;
-		}
-		return false;
-	}
-
-	bool FillCustomMaterialUsageFromAsset(UObject* Asset)
-	{
-		if (!Asset)
-		{
-			return false;
-		}
-		UMaterialInterface* TypedObject = Cast<UMaterialInterface>(Asset);
-		if (!TypedObject)
-		{
-			return false;
-		}
-		const UMaterial* Material = TypedObject->GetMaterial_Concurrent();
-		if (!Material)
-		{
-			return false;
-		}
-		for (int32 Usage = 0; Usage < MATUSAGE_MAX; Usage++)
-		{
-			const EMaterialUsage UsageEnum = (EMaterialUsage)Usage;
-			if (Material->GetUsageByFlag(UsageEnum))
-			{
-				if (SetCustomMaterialUsage((int8)UsageEnum, false))
-				{
-					return true;
-				}
-			}
-		}
-		return false;
-	}
-#endif
-
-	IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT(BlendMode, uint8, UMaterial, TEnumAsByte<enum EBlendMode>);
-
-protected:
-#if WITH_ENGINE
-	TSubclassOf<UTexture> AssetClass = nullptr;
-#endif
-	bool bIsMaterialNodeClassInitialized = false;
-
+	UE::Interchange::FNameAttributeArrayHelper TextureDependencies;
 };

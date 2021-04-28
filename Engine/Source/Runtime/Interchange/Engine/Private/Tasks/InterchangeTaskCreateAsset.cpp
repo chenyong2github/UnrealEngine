@@ -28,7 +28,7 @@ namespace UE
 			{
 				const UInterchangeSourceData* SourceData = AsyncHelper.SourceDatas[SourceIndex];
 				check(SourceData);
-				FString NodeDisplayName = Node->GetDisplayLabel();
+				FString NodeDisplayName = Node->GetAssetName();
 
 				// Set the asset name and the package name
 				OutAssetName = NodeDisplayName;

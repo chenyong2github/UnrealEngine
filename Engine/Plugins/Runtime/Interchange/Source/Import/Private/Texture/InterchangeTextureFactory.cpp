@@ -6,6 +6,7 @@
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
+#include "InterchangeTextureFactoryNode.h"
 #include "InterchangeTextureNode.h"
 #include "InterchangeTranslatorBase.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -30,29 +31,49 @@ UObject* UInterchangeTextureFactory::CreateEmptyAsset(const FCreateAssetParams& 
 	UObject* Texture = nullptr;
 
 #if WITH_EDITORONLY_DATA
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(UTexture::StaticClass()))
+	if (!Arguments.AssetNode)
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is null."));
 		return nullptr;
 	}
 
-	const UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
-	if (TextureNode == nullptr)
+	if (!Arguments.AssetNode->GetAssetClass()->IsChildOf(UTexture::StaticClass()))
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
 		return nullptr;
 	}
 
-	//
-	// Generic 2D Image
-	//
-	const TOptional<FString>& PayLoadKey = TextureNode->GetPayLoadKey();
+	UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(Arguments.AssetNode);
+	if (TextureFactoryNode == nullptr)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a UInterchangeTextureFactoryNode."));
+		return nullptr;
+	}
+
+	FString TextureNodeUniqueID;
+	const UInterchangeTextureNode* TextureTranslatedNode = nullptr;
+	if (TextureFactoryNode->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID))
+	{
+		TextureTranslatedNode = Cast<UInterchangeTextureNode>(Arguments.NodeContainer->GetNode(TextureNodeUniqueID));
+	}
+
+	if (!TextureTranslatedNode)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset factory node (UInterchangeTextureFactoryNode) do not reference a valid UInterchangeTextureNode translated node."));
+		return nullptr;
+	}
+
+	const TOptional<FString>& PayLoadKey = TextureTranslatedNode->GetPayLoadKey();
 	if (!PayLoadKey.IsSet())
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture translated node (UInterchangeTextureNode) doesnt have a payload key."));
 		return nullptr;
 	}
 
-	const UClass* TextureClass = TextureNode->GetAssetClass();
-	if (!ensure(TextureClass && TextureClass->IsChildOf(GetFactoryClass())))
+	const UClass* TextureClass = TextureFactoryNode->GetAssetClass();
+	if (!TextureClass || !TextureClass->IsChildOf(GetFactoryClass()))
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture factory node asset class doesnt match Texture factory supported class."));
 		return nullptr;
 	}
 
@@ -91,20 +112,42 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 
 #else
 
-	if (!Arguments.AssetNode || !Arguments.AssetNode->GetAssetClass()->IsChildOf(UTexture::StaticClass()))
+	if (!Arguments.AssetNode)
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is null."));
 		return nullptr;
 	}
 
-	UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(Arguments.AssetNode);
-	if (TextureNode == nullptr)
+	if (!Arguments.AssetNode->GetAssetClass()->IsChildOf(UTexture::StaticClass()))
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter class doesnt derive from UTexture."));
 		return nullptr;
 	}
 
-	const TOptional<FString>& PayLoadKey = TextureNode->GetPayLoadKey();
+	UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(Arguments.AssetNode);
+	if (TextureFactoryNode == nullptr)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset node parameter is not a UInterchangeTextureFactoryNode."));
+		return nullptr;
+	}
+
+	FString TextureNodeUniqueID;
+	const UInterchangeTextureNode* TextureTranslatedNode = nullptr;
+	if (TextureFactoryNode->GetCustomTranslatedTextureNodeUid(TextureNodeUniqueID))
+	{
+		TextureTranslatedNode = Cast<UInterchangeTextureNode>(Arguments.NodeContainer->GetNode(TextureNodeUniqueID));
+	}
+
+	if (!TextureTranslatedNode)
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Asset factory node (UInterchangeTextureFactoryNode) do not reference a valid UInterchangeTextureNode translated node."));
+		return nullptr;
+	}
+
+	const TOptional<FString>& PayLoadKey = TextureTranslatedNode->GetPayLoadKey();
 	if (!PayLoadKey.IsSet())
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture translated node (UInterchangeTextureNode) doesnt have a payload key."));
 		return nullptr;
 	}
 
@@ -120,16 +163,21 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		 * Possible improvement store when a file was last modified and use that as heuristic to skip the file assuming that the file is same as the one in the previous import
 		 * (how to deal with engine changes or translator changes/hotfix?)
 		 */ 
-		BlockedPayloadData = BlockedTextureTranslator->GetBlockedTexturePayloadData(TextureNode->GetSourceBlocks(), Arguments.SourceData);
+		BlockedPayloadData = BlockedTextureTranslator->GetBlockedTexturePayloadData(TextureTranslatedNode->GetSourceBlocks(), Arguments.SourceData);
 	}
 
 	if(!PayloadData.IsSet() && !BlockedPayloadData.IsSet())
 	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Invalid payload."));
 		return nullptr;
 	}
 
-	const UClass* TextureClass = TextureNode->GetAssetClass();
-	check(TextureClass && TextureClass->IsChildOf(GetFactoryClass()));
+	const UClass* TextureClass = TextureFactoryNode->GetAssetClass();
+	if (!TextureClass || !TextureClass->IsChildOf(GetFactoryClass()))
+	{
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Texture factory node asset class doesnt match Texture factory supported class."));
+		return nullptr;
+	}
 
 	// create an asset if it doesn't exist
 	UObject* ExistingAsset = StaticFindObject(nullptr, Arguments.Parent, *Arguments.AssetName);
@@ -151,7 +199,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 
 	if (!Texture)
 	{
-		UE_LOG(LogInterchangeImport, Warning, TEXT("Could not create texture asset %s"), *Arguments.AssetName);
+		UE_LOG(LogInterchangeImport, Error, TEXT("UInterchangeTextureFactory: Could not create texture asset %s"), *Arguments.AssetName);
 		return nullptr;
 	}
 
@@ -227,7 +275,7 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 		if(!Arguments.ReimportObject)
 		{
 			/** Apply all TextureNode custom attributes to the texture asset */
-			TextureNode->ApplyAllCustomAttributeToAsset(Texture2D);
+			TextureFactoryNode->ApplyAllCustomAttributeToAsset(Texture2D);
 		}
 		else
 		{
@@ -237,11 +285,11 @@ UObject* UInterchangeTextureFactory::CreateAsset(const UInterchangeTextureFactor
 			{
 				PreviousNode = InterchangeAssetImportData->NodeContainer->GetNode(InterchangeAssetImportData->NodeUniqueID);
 			}
-			UInterchangeTextureNode* CurrentNode = NewObject<UInterchangeTextureNode>();
-			UInterchangeBaseNode::CopyStorage(TextureNode, CurrentNode);
+			UInterchangeTextureFactoryNode* CurrentNode = NewObject<UInterchangeTextureFactoryNode>();
+			UInterchangeBaseNode::CopyStorage(TextureFactoryNode, CurrentNode);
 			CurrentNode->FillAllCustomAttributeFromAsset(Texture2D);
 			//Apply reimport strategy
-			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture2D, PreviousNode, CurrentNode, TextureNode);
+			UE::Interchange::FFactoryCommon::ApplyReimportStrategyToAsset(Arguments.ReimportStrategyFlags, Texture2D, PreviousNode, CurrentNode, TextureFactoryNode);
 		}
 		
 		//Getting the file Hash will cache it into the source data

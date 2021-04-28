@@ -6,11 +6,10 @@
 #include "GPUSkinPublicDefs.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
-#include "InterchangeJointNode.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
-#include "InterchangeSkeletalMeshNode.h"
-#include "InterchangeSkeletonNode.h"
+#include "InterchangeSkeletalMeshFactoryNode.h"
+#include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
@@ -28,7 +27,7 @@
 
 #endif //WITH_EDITORONLY_DATA
 
-#if WITH_EDITOR
+#if 0//WITH_EDITOR
 namespace UE
 {
 	namespace Interchange
@@ -998,7 +997,7 @@ UClass* UInterchangeSkeletalMeshFactory::GetFactoryClass() const
 
 UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetParams& Arguments) const
 {
-#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
+#if 1//!WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;
@@ -1046,7 +1045,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateEmptyAsset(const FCreateAssetPar
 
 UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const UInterchangeSkeletalMeshFactory::FCreateAssetParams& Arguments) const
 {
-#if !WITH_EDITOR || !WITH_EDITORONLY_DATA
+#if 1//!WITH_EDITOR || !WITH_EDITORONLY_DATA
 
 	UE_LOG(LogInterchangeImport, Error, TEXT("Cannot import skeletalMesh asset in runtime, this is an editor only feature."));
 	return nullptr;

@@ -74,7 +74,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					NodeTaskData.UniqueID = Node->GetUniqueID();
 					NodeTaskData.SourceIndex = SourceIndex;
 					NodeTaskData.Node = Node;
-					Node->GetDependecies(NodeTaskData.Dependencies);
+					Node->GetFactoryDependencies(NodeTaskData.Dependencies);
 					NodeTaskData.Factory = NodeFactory;
 				}
 			});

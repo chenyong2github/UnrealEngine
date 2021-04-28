@@ -12,6 +12,7 @@
 bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(const UInterchangeSourceData* SourceData, UInterchangeBaseNodeContainer& BaseNodeContainer)
 {
 	FString Filename = SourceData->GetFilename();
+	FPaths::NormalizeFilename(Filename);
 	if (!FPaths::FileExists(Filename))
 	{
 		return false;
@@ -25,7 +26,7 @@ bool UE::Interchange::FTextureTranslatorUtilities::Generic2DTextureTranslate(con
 		return false;
 	}
 	//Creating a UTexture2D
-	TextureNode->InitializeTextureNode(NodeUID, DisplayLabel, UTexture2D::StaticClass()->GetName());
+	TextureNode->InitializeNode(NodeUID, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
 	TextureNode->SetPayLoadKey(Filename);
 
 	BaseNodeContainer.AddNode(TextureNode);

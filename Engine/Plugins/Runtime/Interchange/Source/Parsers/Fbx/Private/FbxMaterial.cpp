@@ -7,6 +7,7 @@
 #include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "InterchangeMaterialNode.h"
+#include "InterchangeSceneNode.h"
 #include "InterchangeTextureNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
@@ -16,12 +17,8 @@ namespace UE
 	{
 		namespace Private
 		{
-			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, TArray<FString>& JSonErrorMessages)
+			UInterchangeMaterialNode* FFbxMaterial::CreateMaterialNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& NodeName, TArray<FString>& JSonErrorMessages)
 			{
-				FString NodeUID(NodeName);
-				FString MaterialNameNoSkin = UE::Interchange::Material::RemoveSkinFromName(NodeName);
-
-				FString DisplayLabel = MaterialNameNoSkin;
 				UInterchangeMaterialNode* MaterialNode = NewObject<UInterchangeMaterialNode>(&NodeContainer, NAME_None);
 				if (!ensure(MaterialNode))
 				{
@@ -29,16 +26,15 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UMaterialInterface
-				MaterialNode->InitializeMaterialNode(NodeUID, DisplayLabel, TEXT("Material"));
-				MaterialNode->SetPayLoadKey(NodeName);
+				MaterialNode->InitializeNode(NodeUid, NodeName, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				MaterialNode->SetPayLoadKey(NodeUid);
 				NodeContainer.AddNode(MaterialNode);
 				return MaterialNode;
 			}
 
-			UInterchangeTextureNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
+			UInterchangeTextureNode* FFbxMaterial::CreateTexture2DNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeUid, const FString& TextureFilePath, TArray<FString>& JSonErrorMessages)
 			{
 				FString DisplayLabel = FPaths::GetBaseFilename(TextureFilePath);
-				FString NodeUID(TextureFilePath);
 				UInterchangeTextureNode* TextureNode = NewObject<UInterchangeTextureNode>(&NodeContainer, NAME_None);
 				if (!ensure(TextureNode))
 				{
@@ -46,8 +42,11 @@ namespace UE
 					return nullptr;
 				}
 				// Creating a UTexture2D
-				TextureNode->InitializeTextureNode(NodeUID, DisplayLabel, TEXT("Texture2D"));
-				TextureNode->SetPayLoadKey(TextureFilePath);
+				TextureNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				//All texture translator expect a file has the payload key
+				FString NormalizeFilePath = TextureFilePath;
+				FPaths::NormalizeFilename(NormalizeFilePath);
+				TextureNode->SetPayLoadKey(NormalizeFilePath);
 				NodeContainer.AddNode(TextureNode);
 				return TextureNode;
 			}
@@ -56,11 +55,11 @@ namespace UE
 			{
 				//Create a material node
 				FString MaterialName = FFbxHelper::GetFbxObjectName(SurfaceMaterial);
-				FString NodeUID(MaterialName);
-				UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(NodeContainer.GetNode(NodeUID));
+				FString NodeUid = TEXT("\\Material\\") + MaterialName;
+				UInterchangeMaterialNode* MaterialNode = Cast<UInterchangeMaterialNode>(NodeContainer.GetNode(NodeUid));
 				if (!MaterialNode)
 				{
-					MaterialNode = CreateMaterialNode(NodeContainer, MaterialName, JSonErrorMessages);
+					MaterialNode = CreateMaterialNode(NodeContainer, NodeUid, MaterialName, JSonErrorMessages);
 					if (MaterialNode == nullptr)
 					{
 						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot create fbx material (" + MaterialName + TEXT(")\"}}")));
@@ -75,7 +74,7 @@ namespace UE
 						{
 							int32 UnsupportedTextureCount = FbxProperty.GetSrcObjectCount<FbxLayeredTexture>();
 							UnsupportedTextureCount += FbxProperty.GetSrcObjectCount<FbxProceduralTexture>();
-							int32 TextureCount = FbxProperty.GetSrcObjectCount<FbxTexture>();
+							int32 TextureCount = FbxProperty.GetSrcObjectCount<FbxFileTexture>();
 							bool bFoundValidTexture = false;
 							if (UnsupportedTextureCount > 0)
 							{
@@ -94,11 +93,11 @@ namespace UE
 									}
 									//Create a texture node and make it child of the material node
 									TArray<FString> JsonErrorMessage;
-									FString NodeUID(TextureFilename);
-									UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUID));
+									FString NodeUid = TEXT("\\Texture\\") + TextureFilename;
+									UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUid));
 									if (!TextureNode)
 									{
-										TextureNode = CreateTexture2DNode(NodeContainer, TextureFilename, JsonErrorMessage);
+										TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);
 									}
 									// add/find UVSet and set it to the texture, we pass index 0 here, I think pipeline should be able to get the UVIndex channel from the name
 									// and modify the parameter to set the correct value.
@@ -108,7 +107,7 @@ namespace UE
 									float ScaleU = (float)FbxTextureFilePath->GetScaleU();
 									float ScaleV = (float)FbxTextureFilePath->GetScaleV();
 									MaterialNode->AddTextureParameterData(MaterialParameterName, TextureNode->GetUniqueID(), UVChannelIndex, ScaleU, ScaleV);
-									MaterialNode->SetDependencyUID(TextureNode->GetUniqueID());
+									MaterialNode->SetTextureDependencyUid(TextureNode->GetUniqueID());
 									bSetMaterial = true;
 									bFoundValidTexture = true;
 								}
@@ -172,7 +171,30 @@ namespace UE
 				return MaterialNode;
 			}
 
-			void FFbxMaterial::AddAllNodeMaterials(UInterchangeBaseNode* UnrealNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxMaterial::AddAllTextures(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			{
+				int32 TextureCount = SDKScene->GetSrcObjectCount<FbxFileTexture>();
+				for (int32 TextureIndex = 0; TextureIndex < TextureCount; ++TextureIndex)
+				{
+					FbxFileTexture* Texture = SDKScene->GetSrcObject<FbxFileTexture>(TextureIndex);
+					FString TextureFilename = UTF8_TO_TCHAR(Texture->GetFileName());
+					//Only import texture that exist on disk
+					if (!FPaths::FileExists(TextureFilename))
+					{
+						continue;
+					}
+					//Create a texture node and make it child of the material node
+					TArray<FString> JsonErrorMessage;
+					FString NodeUid = TEXT("\\Texture\\") + TextureFilename;
+					UInterchangeTextureNode* TextureNode = Cast<UInterchangeTextureNode>(NodeContainer.GetNode(NodeUid));
+					if (!TextureNode)
+					{
+						TextureNode = CreateTexture2DNode(NodeContainer, NodeUid, TextureFilename, JsonErrorMessage);
+					}
+				}
+			}
+			
+			void FFbxMaterial::AddAllNodeMaterials(UInterchangeSceneNode* SceneNode, FbxNode* ParentFbxNode, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
 				int32 MaterialCount = ParentFbxNode->GetMaterialCount();
 				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
@@ -180,16 +202,16 @@ namespace UE
 					FbxSurfaceMaterial* SurfaceMaterial = ParentFbxNode->GetMaterial(MaterialIndex);
 					UInterchangeMaterialNode* MaterialNode = AddNodeMaterial(SurfaceMaterial, NodeContainer, JSonErrorMessages);
 					//The dependencies order is important because mesh will use index in that order to determine material use by a face
-					UnrealNode->SetDependencyUID(MaterialNode->GetUniqueID());
+					SceneNode->AddAssetDependency(MaterialNode->GetUniqueID());
 				}
 			}
 
-			void FFbxMaterial::AddAllSceneMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
+			void FFbxMaterial::AddAllMaterials(FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
-				int32 NodeMaterialCount = SDKScene->GetMaterialCount();
-				for (int32 NodeMaterialIndex = 0; NodeMaterialIndex < NodeMaterialCount; ++NodeMaterialIndex)
+				int32 MaterialCount = SDKScene->GetMaterialCount();
+				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 				{
-					FbxSurfaceMaterial* SurfaceMaterial = SDKScene->GetMaterial(NodeMaterialIndex);
+					FbxSurfaceMaterial* SurfaceMaterial = SDKScene->GetMaterial(MaterialIndex);
 					AddNodeMaterial(SurfaceMaterial, NodeContainer, JSonErrorMessages);
 				}
 			}

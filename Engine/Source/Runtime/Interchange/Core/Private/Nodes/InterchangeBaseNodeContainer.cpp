@@ -12,16 +12,21 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 
+UInterchangeBaseNodeContainer::UInterchangeBaseNodeContainer()
+{
+
+}
+
 FString UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 {
 	if (!Node)
 	{
-		return UInterchangeBaseNode::InvalidNodeUID();
+		return UInterchangeBaseNode::InvalidNodeUid();
 	}
 	FString NodeUniqueID = Node->GetUniqueID();
-	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
+	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUid())
 	{
-		return UInterchangeBaseNode::InvalidNodeUID();
+		return UInterchangeBaseNode::InvalidNodeUid();
 	}
 		
 	//Cannot add an node with the same IDs
@@ -43,9 +48,9 @@ FString UInterchangeBaseNodeContainer::AddNode(UInterchangeBaseNode* Node)
 	return NodeUniqueID;
 }
 
-bool UInterchangeBaseNodeContainer::IsNodeUIDValid(const FString& NodeUniqueID) const
+bool UInterchangeBaseNodeContainer::IsNodeUidValid(const FString& NodeUniqueID) const
 {
-	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
+	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUid())
 	{
 		return false;
 	}
@@ -64,27 +69,28 @@ void UInterchangeBaseNodeContainer::GetRoots(TArray<FString>& RootNodes)
 {
 	for (auto& NodeKeyValue : Nodes)
 	{
-		if (NodeKeyValue.Value->GetParentUID() == UInterchangeBaseNode::InvalidNodeUID())
+		if (NodeKeyValue.Value->GetParentUid() == UInterchangeBaseNode::InvalidNodeUid())
 		{
 			RootNodes.Add(NodeKeyValue.Key);
 		}
 	}
 }
 
-void UInterchangeBaseNodeContainer::GetNodes(UClass* ClassNode, TArray<FString>& ClassNodes)
+void UInterchangeBaseNodeContainer::GetNodes(UClass* ClassNode, TArray<FString>& OutNodes)
 {
-	IterateNodes([&ClassNode, &ClassNodes](const FString& NodeUID, UInterchangeBaseNode* Node)
+	OutNodes.Empty();
+	IterateNodes([&ClassNode, &OutNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
 		if(Node->GetClass()->IsChildOf(ClassNode))
 		{
-			ClassNodes.Add(Node->GetUniqueID());
+			OutNodes.Add(Node->GetUniqueID());
 		}
 	});
 }
 
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString& NodeUniqueID)
 {
-	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUID())
+	if (NodeUniqueID == UInterchangeBaseNode::InvalidNodeUid())
 	{
 		return nullptr;
 	}
@@ -101,38 +107,38 @@ const UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNode(const FString
 	return const_cast<UInterchangeBaseNodeContainer*>(this)->GetNode(NodeUniqueID);
 }
 
-bool UInterchangeBaseNodeContainer::SetNodeParentUID(const FString& NodeUniqueID, const FString& NewParentNodeUID)
+bool UInterchangeBaseNodeContainer::SetNodeParentUid(const FString& NodeUniqueID, const FString& NewParentNodeUid)
 {
 	if (!Nodes.Contains(NodeUniqueID))
 	{
 		return false;
 	}
-	if (!Nodes.Contains(NewParentNodeUID))
+	if (!Nodes.Contains(NewParentNodeUid))
 	{
 		return false;
 	}
 	UInterchangeBaseNode* Node = Nodes.FindChecked(NodeUniqueID);
-	Node->SetParentUID(NewParentNodeUID);
+	Node->SetParentUid(NewParentNodeUid);
 	return true;
 }
 
 int32 UInterchangeBaseNodeContainer::GetNodeChildrenCount(const FString& NodeUniqueID) const
 {
-	TArray<FString> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
-	return ChildrenUIDs.Num();
+	TArray<FString> ChildrenUids = GetNodeChildrenUids(NodeUniqueID);
+	return ChildrenUids.Num();
 }
 
-TArray<FString> UInterchangeBaseNodeContainer::GetNodeChildrenUIDs(const FString& NodeUniqueID) const
+TArray<FString> UInterchangeBaseNodeContainer::GetNodeChildrenUids(const FString& NodeUniqueID) const
 {
-	TArray<FString> OutChildrenUIDs;
+	TArray<FString> OutChildrenUids;
 	for (const auto& NodeKeyValue : Nodes)
 	{
-		if (NodeKeyValue.Value->GetParentUID() == NodeUniqueID)
+		if (NodeKeyValue.Value->GetParentUid() == NodeUniqueID)
 		{
-			OutChildrenUIDs.Add(NodeKeyValue.Key);
+			OutChildrenUids.Add(NodeKeyValue.Key);
 		}
 	}
-	return OutChildrenUIDs;
+	return OutChildrenUids;
 }
 
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex)
@@ -231,15 +237,15 @@ void UInterchangeBaseNodeContainer::LoadFromFile(const FString& Filename)
 
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex)
 {
-	TArray<FString> ChildrenUIDs = GetNodeChildrenUIDs(NodeUniqueID);
-	if (!ChildrenUIDs.IsValidIndex(ChildIndex))
+	TArray<FString> ChildrenUids = GetNodeChildrenUids(NodeUniqueID);
+	if (!ChildrenUids.IsValidIndex(ChildIndex))
 	{
 		return nullptr;
 	}
 
-	if (Nodes.Contains(ChildrenUIDs[ChildIndex]))
+	if (Nodes.Contains(ChildrenUids[ChildIndex]))
 	{
-		UInterchangeBaseNode* Node = Nodes.FindChecked(ChildrenUIDs[ChildIndex]);
+		UInterchangeBaseNode* Node = Nodes.FindChecked(ChildrenUids[ChildIndex]);
 		return Node;
 	}
 

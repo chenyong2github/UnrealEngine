@@ -58,6 +58,10 @@ private:
 	//Any numeric field are read/write
 	void BuildTransformValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
 
+	//FBox: Add a group to the category that contain the Minimum corner position(FVector), and the maximum corner position(FVector)
+	//Any numeric field are read/write
+	void BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey);
+
 	/**
 	 * AttributeType Build functions End
 	 ******************************************************************/

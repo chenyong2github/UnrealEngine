@@ -24,12 +24,13 @@ class INTERCHANGECORE_API UInterchangeBaseNodeContainer : public UObject
 {
 	GENERATED_BODY()
 public:
+	UInterchangeBaseNodeContainer();
 
 	/**
 	 * Add a node in the container, the node will be add into a TMap.
 	 *
 	 * @param Node - a pointer on the node you want to add
-	 * @return: return the node unique ID of the added item. If the node already exist it will return the existing ID. Return InvalidNodeUID if the node cannot be added.
+	 * @return: return the node unique ID of the added item. If the node already exist it will return the existing ID. Return InvalidNodeUid if the node cannot be added.
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
@@ -37,7 +38,7 @@ public:
 
 	/** Return true if the node unique ID exist in the container */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool IsNodeUIDValid(const FString& NodeUniqueID) const;
+	bool IsNodeUidValid(const FString& NodeUniqueID) const;
 
 	/** Unordered iteration of the all nodes */
 	void IterateNodes(TFunctionRef<void(const FString&, UInterchangeBaseNode*)> IterationLambda);
@@ -48,7 +49,7 @@ public:
 
 	/** Return all nodes that are of the ClassNode type*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	void GetNodes(UClass* ClassNode, TArray<FString>& ClassNodes);
+	void GetNodes(UClass* ClassNode, TArray<FString>& OutNodes);
 
 	/** Get an node pointer */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
@@ -57,17 +58,17 @@ public:
 	/** Get an node pointer */
 	const UInterchangeBaseNode* GetNode(const FString& NodeUniqueID) const;
 
-	/** Set node ParentUID */
+	/** Set node ParentUid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	bool SetNodeParentUID(const FString& NodeUniqueID, const FString& NewParentNodeUID);
+	bool SetNodeParentUid(const FString& NodeUniqueID, const FString& NewParentNodeUid);
 
 	/** Get the node children count */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	int32 GetNodeChildrenCount(const FString& NodeUniqueID) const;
 
-	/** Get all children UID */
+	/** Get all children Uid */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
-	TArray<FString> GetNodeChildrenUIDs(const FString& NodeUniqueID) const;
+	TArray<FString> GetNodeChildrenUids(const FString& NodeUniqueID) const;
 
 	/** Get the node nth const children */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")

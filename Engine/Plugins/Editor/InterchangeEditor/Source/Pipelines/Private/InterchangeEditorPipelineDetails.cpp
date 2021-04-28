@@ -57,12 +57,31 @@ void FInterchangeBaseNodeDetailsCustomization::CustomizeDetails( IDetailLayoutBu
 		return;
 	}
 
-	TArray<UE::Interchange::FAttributeKey> AttributeKeys;
+	TArray< UE::Interchange::FAttributeKey> AttributeKeys;
 	InterchangeBaseNode->GetAttributeKeys(AttributeKeys);
-	IDetailCategoryBuilder& AttributeCategory = DetailBuilder.EditCategory("Attributes", FText::GetEmpty(), ECategoryPriority::Important);
+
+	TMap<FString, TArray< UE::Interchange::FAttributeKey>> AttributesPerCategory;
 	for (UE::Interchange::FAttributeKey& AttributeKey : AttributeKeys)
 	{
-		AddAttributeRow(AttributeKey, AttributeCategory);
+		if (InterchangeBaseNode->ShouldHideAttribute(AttributeKey))
+		{
+			//Skip attribute we should hide
+			continue;
+		}
+		const FString CategoryName = InterchangeBaseNode->GetAttributeCategory(AttributeKey);
+		TArray< UE::Interchange::FAttributeKey>& CategoryAttributeKeys = AttributesPerCategory.FindOrAdd(CategoryName);
+		CategoryAttributeKeys.Add(AttributeKey);
+	}
+
+	//Add all categories
+	for (TPair<FString, TArray< UE::Interchange::FAttributeKey>>& CategoryAttributesPair : AttributesPerCategory)
+	{
+		FName CategoryName = FName(*CategoryAttributesPair.Key);
+		IDetailCategoryBuilder& AttributeCategoryBuilder = DetailBuilder.EditCategory(CategoryName, FText::GetEmpty());
+		for (UE::Interchange::FAttributeKey& AttributeKey : CategoryAttributesPair.Value)
+		{
+			AddAttributeRow(AttributeKey, AttributeCategoryBuilder);
+		}
 	}
 }
 
@@ -156,6 +175,12 @@ void FInterchangeBaseNodeDetailsCustomization::AddAttributeRow(UE::Interchange::
 		case UE::Interchange::EAttributeTypes::Transform:
 		{
 			BuildTransformValueContent(AttributeCategory, AttributeKey);
+		}
+		break;
+
+		case UE::Interchange::EAttributeTypes::Box:
+		{
+			BuildBoxValueContent(AttributeCategory, AttributeKey);
 		}
 		break;
 
@@ -462,6 +487,98 @@ void FInterchangeBaseNodeDetailsCustomization::BuildTransformValueContent(IDetai
     [
         CreateVectorWidget(GetScale3DValue, SetScale3DValue, AttributeKey)
     ];
+}
+
+void FInterchangeBaseNodeDetailsCustomization::BuildBoxValueContent(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey)
+{
+	UE::Interchange::EAttributeTypes AttributeType = InterchangeBaseNode->GetAttributeType(AttributeKey);
+	check(AttributeType == UE::Interchange::EAttributeTypes::Box);
+
+	{
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = InterchangeBaseNode->GetAttributeHandle<FBox>(AttributeKey);
+		if (!AttributeHandle.IsValid())
+		{
+			CreateInvalidHandleRow(AttributeCategory, AttributeKey);
+			return;
+		}
+	}
+
+	const bool bAdvancedProperty = false;
+	const FString GroupName = InterchangeBaseNode->GetKeyDisplayName(AttributeKey);
+	IDetailGroup& Group = AttributeCategory.AddGroup(FName(*GroupName), FText::FromString(GroupName), bAdvancedProperty);
+	FDetailWidgetRow& GroupHeaderRow = Group.HeaderRow();
+	GroupHeaderRow.NameContent().Widget = SNew(SBox)
+	[
+		CreateNameWidget(AttributeKey)
+	];
+
+	auto GetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	{
+		FBox BoxValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(BoxValue);
+		}
+		return BoxValue.Min;
+	};
+
+	auto SetMinimumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	{
+		FBox BoxValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(BoxValue);
+			BoxValue.Min = Value;
+			AttributeHandle.Set(BoxValue);
+		}
+	};
+
+	auto GetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key)->FVector
+	{
+		FBox BoxValue;
+		const UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(BoxValue);
+		}
+		return BoxValue.Max;
+	};
+
+	auto SetMaximumValue = [](UInterchangeBaseNode* BaseNode, UE::Interchange::FAttributeKey& Key, const FVector& Value)
+	{
+		FBox BoxValue;
+		UE::Interchange::FAttributeStorage::TAttributeHandle<FBox> AttributeHandle = BaseNode->GetAttributeHandle<FBox>(Key);
+		if (AttributeHandle.IsValid())
+		{
+			AttributeHandle.Get(BoxValue);
+			BoxValue.Max = Value;
+			AttributeHandle.Set(BoxValue);
+		}
+	};
+
+	const FString MinimumVectorName = TEXT("Minimum");
+	Group.AddWidgetRow()
+	.NameContent()
+	[
+		CreateSimpleNameWidget(MinimumVectorName)
+	]
+	.ValueContent()
+	[
+		CreateVectorWidget(GetMinimumValue, SetMinimumValue, AttributeKey)
+	];
+
+	const FString MaximumVectorName = TEXT("Maximum");
+	Group.AddWidgetRow()
+	.NameContent()
+	[
+		CreateSimpleNameWidget(MaximumVectorName)
+	]
+	.ValueContent()
+	[
+		CreateVectorWidget(GetMaximumValue, SetMaximumValue, AttributeKey)
+	];
 }
 
 void FInterchangeBaseNodeDetailsCustomization::CreateInvalidHandleRow(IDetailCategoryBuilder& AttributeCategory, UE::Interchange::FAttributeKey& AttributeKey) const

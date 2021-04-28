@@ -6,8 +6,11 @@
 #include "FbxConvert.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
-#include "FbxSkeletalMesh.h"
+#include "InterchangeMeshNode.h"
 #include "MeshDescription.h"
+#include "Misc/FileHelper.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Serialization/LargeMemoryWriter.h"
 #include "SkeletalMeshAttributes.h"
 #include "StaticMeshAttributes.h"
 
@@ -144,21 +147,6 @@ namespace UE
 					UniqueUVCount = FMath::Min<int32>(UniqueUVCount, MAX_MESH_TEXTURE_COORDS_MD);
 				}
 
-				int32 FindLightUVIndex() const
-				{
-					// See if any of our UV set entry names match LightMapUV.
-					for (int32 UVSetIdx = 0; UVSetIdx < UVSets.Num(); UVSetIdx++)
-					{
-						if (UVSets[UVSetIdx] == TEXT("LightMapUV"))
-						{
-							return UVSetIdx;
-						}
-					}
-
-					// not found
-					return INDEX_NONE;
-				}
-
 				// @param FaceCornerIndex usually TriangleIndex * 3 + CornerIndex but more complicated for mixed n-gons
 				int32 ComputeUVIndex(int32 UVLayerIndex, int32 lControlPointIndex, int32 FaceCornerIndex) const
 				{
@@ -197,31 +185,32 @@ namespace UE
 				int32 UniqueUVCount;
 			};
 
-			FMeshDescriptionImporter::FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxNode* InMeshNode, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter)
+			FMeshDescriptionImporter::FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter)
 				: MeshDescription(InMeshDescription)
-				, MeshNode(InMeshNode)
 				, SDKScene(InSDKScene)
 				, SDKGeometryConverter(InSDKGeometryConverter)
 			{
-				bInitialized = ensure(MeshDescription) && ensure(MeshNode) && ensure(SDKScene) && ensure(SDKGeometryConverter);
+				bInitialized = ensure(MeshDescription) && ensure(SDKScene) && ensure(SDKGeometryConverter);
 			}
 			
-			bool FMeshDescriptionImporter::FillStaticMeshDescriptionFromFbxMesh()
+			bool FMeshDescriptionImporter::FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh)
 			{
-				return FillMeshDescriptionFromFbxMesh(EMeshType::Static, nullptr);
-			}
-
-			bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(TArray<FbxNode*>* SortedJoints)
-			{
-				FbxMesh* Mesh = MeshNode->GetMesh();
-				if (!ensure(Mesh))
+				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh) || !ensure(Mesh->GetDeformerCount() == 0))
 				{
-					//TODO log an error
 					return false;
 				}
-				FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(0, FbxDeformer::eSkin);
-				EMeshType MeshType = Skin != nullptr ? EMeshType::Skinned : EMeshType::Rigid;
-				return FillMeshDescriptionFromFbxMesh(MeshType, SortedJoints);
+				TArray<FString> UnusedArray;
+				return FillMeshDescriptionFromFbxMesh(Mesh, UnusedArray, EMeshType::Static);
+			}
+
+			bool FMeshDescriptionImporter::FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs)
+			{
+				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh) || !ensure(Mesh->GetDeformerCount() > 0))
+				{
+					return false;
+				}
+
+				return FillMeshDescriptionFromFbxMesh(Mesh, OutJointNodeUniqueIDs, EMeshType::Skinned);
 			}
 
 			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxShape(FbxShape* Shape)
@@ -232,10 +221,9 @@ namespace UE
 					return false;
 				}
 				FStaticMeshAttributes Attributes(*MeshDescription);
-				FbxMesh* Mesh = MeshNode->GetMesh();
 
 				//The shape should be for a specified mesh
-				if (!ensure(Mesh))
+				if (!ensure(Shape))
 				{
 					return false;
 				}
@@ -248,21 +236,13 @@ namespace UE
 					// Construct the matrices for the conversion from right handed to left handed system
 					FbxAMatrix TotalMatrix;
 					FbxAMatrix TotalMatrixForNormal;
-					TotalMatrix = ComputeNodeMatrix(MeshNode);
+					TotalMatrix.SetIdentity(); //We use the identity since we want to bake in the interchange factory if the pipeline request it
 					TotalMatrixForNormal = TotalMatrix.Inverse();
 					TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
 
-					FbxGeometryBase* GeoBase = (Shape != nullptr ? (FbxGeometryBase*)Shape : (FbxGeometryBase*)Mesh);
+					FbxGeometryBase* GeoBase = (FbxGeometryBase*)Shape;
 
 					int32 VertexCount = GeoBase->GetControlPointsCount();
-					if (Shape)
-					{
-						if (!ensure(Mesh->GetControlPointsCount() == VertexCount))
-						{
-							//TODO warn the user
-							return false;
-						}
-					}
 
 					TVertexAttributesRef<FVector> VertexPositions = Attributes.GetVertexPositions();
 					int32 VertexOffset = MeshDescription->Vertices().Num();
@@ -299,14 +279,13 @@ namespace UE
 				return true;
 			}
 
-			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(EMeshType MeshType, TArray<FbxNode*>* SortedJoints)
+			bool FMeshDescriptionImporter::FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs, EMeshType MeshType)
 			{
-				if (!ensure(bInitialized) || !ensure(MeshDescription))
+				if (!ensure(bInitialized) || !ensure(MeshDescription) || !ensure(Mesh))
 				{
 					return false;
 				}
 
-				FbxMesh* Mesh = MeshNode->GetMesh();
 				FStaticMeshAttributes Attributes(*MeshDescription);
 
 				//Get the base layer of the mesh
@@ -314,32 +293,27 @@ namespace UE
 				if (BaseLayer == NULL)
 				{
 					//TODO add error message
-					//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("Error_NoGeometryInMesh", "There is no geometry information in mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_NoGeometry);
 					return false;
 				}
 
 				FFBXUVs FBXUVs(Mesh);
 
-				if (MeshType == EMeshType::Static)
-				{
-// 					int32 FBXNamedLightMapCoordinateIndex = FBXUVs.FindLightUVIndex();
-// 					if (FBXNamedLightMapCoordinateIndex != INDEX_NONE)
-// 					{
-// 						StaticMesh->SetLightMapCoordinateIndex(FBXNamedLightMapCoordinateIndex);
-// 					}
-				}
-
+				FbxNode* MeshNode = Mesh->GetNodeCount() > 0 ? Mesh->GetNode() : nullptr; //Get the first node using the mesh to setup default asset materials
 				//
 				// create materials
 				//
 				//Create a material name array in the node order, also fill the Meshdescription PolygonGroup
 				TArray<FName> MaterialNames;
-				const int32 MaterialCount = MeshNode->GetMaterialCount();
-				MaterialNames.Reserve(MaterialCount);
-				for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+				int32 MaterialCount = (MeshNode != nullptr) ? MeshNode->GetMaterialCount() : Mesh->GetElementMaterialCount();
+				if (MeshNode)
 				{
-					FbxSurfaceMaterial* FbxMaterial = MeshNode->GetMaterial(MaterialIndex);
-					MaterialNames.Add(*FFbxHelper::GetFbxObjectName(FbxMaterial));
+					MaterialCount = MeshNode->GetMaterialCount();
+					MaterialNames.Reserve(MaterialCount);
+					for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+					{
+						FbxSurfaceMaterial* FbxMaterial = MeshNode->GetMaterial(MaterialIndex);
+						MaterialNames.Add(*FFbxHelper::GetFbxObjectName(FbxMaterial));
+					}
 				}
 
 				// Must do this before triangulating the mesh due to an FBX bug in TriangulateMeshAdvance
@@ -365,8 +339,8 @@ namespace UE
 					else
 					{
 						//TODO add an error message
-						//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_FailedToTriangulate", "Unable to triangulate mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_TriangulationFailed);
-						return false; // not clean, missing some dealloc
+						MeshDescription->Empty();
+						return false;
 					}
 				}
 
@@ -402,7 +376,7 @@ namespace UE
 					//If all smooth group are 0's, we can say that there is no valid smoothing data, but only for skeletal mesh
 					//Static mesh will be faceted in this case since we will not compute smooth group from normals like we do here
 					//This is legacy code to get the same result has before
-					if (MeshType == EMeshType::Skinned || MeshType == EMeshType::Rigid)
+					if (MeshType == EMeshType::Skinned)
 					{
 						// Check and see if the smooothing data is valid.  If not generate it from the normals
 						BaseLayer = Mesh->GetLayer(0);
@@ -503,7 +477,7 @@ namespace UE
 					// Construct the matrices for the conversion from right handed to left handed system
 					FbxAMatrix TotalMatrix;
 					FbxAMatrix TotalMatrixForNormal;
-					TotalMatrix = ComputeNodeMatrix(MeshNode);
+					TotalMatrix.SetIdentity();
 					TotalMatrixForNormal = TotalMatrix.Inverse();
 					TotalMatrixForNormal = TotalMatrixForNormal.Transpose();
 					int32 PolygonCount = Mesh->GetPolygonCount();
@@ -825,17 +799,20 @@ namespace UE
 								}
 							}
 
-							if (MaterialIndex >= MaterialCount || MaterialIndex < 0)
+							if (MaterialIndex < 0)
 							{
 								//TODO log an error message
-								//AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("Error_MaterialIndexInconsistency", "Face material index inconsistency - forcing to 0")), FFbxErrors::Generic_Mesh_MaterialIndexInconsistency);
 								MaterialIndex = 0;
 							}
-							if (!MaterialNames.IsValidIndex(MaterialIndex))
+							//Add missing material name with generated name
+							while (MaterialIndex >= MaterialNames.Num())
 							{
-								MaterialIndex = 0;
+								FString MaterialName = TEXT("Material_") + FString::FromInt(MaterialNames.Num());
+								MaterialNames.Add((*MaterialName));
 							}
-							else
+
+							//Material name should always exist since we create up to index materials
+							check(MaterialNames.IsValidIndex(MaterialIndex));
 							{
 								//Create a polygon with the 3 vertex instances Add it to the material group
 								FName MaterialName = MaterialNames[MaterialIndex];
@@ -1000,14 +977,8 @@ namespace UE
 						}
 					}
 
-					if (MeshType == EMeshType::Skinned || MeshType == EMeshType::Rigid)
+					if (MeshType == EMeshType::Skinned)
 					{
-						if (!ensure(SortedJoints))
-						{
-							//TODO log an error
-							return false;
-						}
-
 						FSkeletalMeshAttributes SkeletalMeshAttributes(*MeshDescription);
 						SkeletalMeshAttributes.Register();
 
@@ -1017,110 +988,89 @@ namespace UE
 						//Add the influence data in the skeletalmesh description
 						FSkinWeightsVertexAttributesRef VertexSkinWeights = SkeletalMeshAttributes.GetVertexSkinWeights();
 
-						if (MeshType == EMeshType::Skinned)
+						FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(0, FbxDeformer::eSkin);
+						if (!ensure(Skin))
 						{
-							FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(0, FbxDeformer::eSkin);
-							if (!ensure(Skin))
-							{
-								//TODO log an error
-								return false;
-							}
-							// create influences for each cluster
-							for (int32 ClusterIndex = 0; ClusterIndex < Skin->GetClusterCount(); ClusterIndex++)
-							{
-								FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
-								// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
-								// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
-								// Unreal importer should skip these clusters.
-								if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
-								{
-									continue;
-								}
-
-								FbxNode* Link = Cluster->GetLink();
-								// find the bone index
-								int32 BoneIndex = -1;
-								SortedJoints->Find(Link, BoneIndex);
-
-								//	get the vertex indices
-								int32 ControlPointIndicesCount = Cluster->GetControlPointIndicesCount();
-								int32* ControlPointIndices = Cluster->GetControlPointIndices();
-								double* Weights = Cluster->GetControlPointWeights();
-
-								//	for each vertex index in the cluster
-								for (int32 ControlPointIndex = 0; ControlPointIndex < ControlPointIndicesCount; ++ControlPointIndex)
-								{
-									FVertexID VertexID(ControlPointIndices[ControlPointIndex] + VertexOffset);
-									if (!ensure(MeshDescription->IsVertexValid(VertexID)))
-									{
-										//Invalid Influence
-										continue;
-									}
-									float Weight = static_cast<float>(Weights[ControlPointIndex]);
-
-									TArray<FBoneWeight> *BoneWeights = RawBoneWeights.Find(VertexID);
-									if (BoneWeights)
-									{
-										// Do we already have a weight for this bone? Keep the greater weight.
-										bool bShouldAdd = true;
-										for (int32 WeightIndex = 0; WeightIndex < BoneWeights->Num(); WeightIndex++)
-										{
-											FBoneWeight &BoneWeight = (*BoneWeights)[WeightIndex];
-											if (BoneWeight.GetBoneIndex() == BoneIndex)
-											{
-												if (BoneWeight.GetWeight() < Weight)
-												{
-													BoneWeight.SetWeight(Weight);
-												}
-												bShouldAdd = false;
-												break;
-											}
-										}
-										if (bShouldAdd)
-										{
-											BoneWeights->Add(FBoneWeight(BoneIndex, Weight));
-										}
-									}
-									else
-									{
-										RawBoneWeights.Add(VertexID).Add(FBoneWeight(BoneIndex, Weight));
-									}
-								}
-							}
-
-							// Add all the raw bone weights. This will cause the weights to be sorted and re-normalized after culling to max influences.
-							for (const TTuple<FVertexID, TArray<FBoneWeight>> &Item: RawBoneWeights)
-							{
-								VertexSkinWeights.Set(Item.Key, Item.Value);
-							}	
+							//TODO log an error
+							return false;
 						}
-						else // for rigid mesh
+						const int32 ClusterCount = Skin->GetClusterCount();
+						TArray<FbxNode*> SortedJoints;
+						SortedJoints.Reserve(ClusterCount);
+						OutJointNodeUniqueIDs.Reserve(ClusterCount);
+						// create influences for each cluster
+						for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
 						{
-							// find the bone index, the bone is the node itself
-							int32 BoneIndex = -1;
-							SortedJoints->Find(MeshNode, BoneIndex);
-
-							const float Weight = 1.0f;
-							const FBoneWeights DefaultBinding = FBoneWeights::Create({FBoneWeight(BoneIndex, Weight)});
-							if (BoneIndex == -1 && SortedJoints->Num() > 0)
+							FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
+							// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
+							// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
+							// Unreal importer should skip these clusters.
+							if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
 							{
-								//When we import geometry only, we want to hook all the influence to a particular bone
-								BoneIndex = 0;
+								continue;
 							}
-							//	for each vertex in the mesh
-							for (int32 ControlPointIndex = 0; ControlPointIndex < VertexCount; ++ControlPointIndex)
+
+							FbxNode* Link = Cluster->GetLink();
+							// find the bone index
+							int32 BoneIndex = -1;
+							if (!SortedJoints.Find(Link, BoneIndex))
 							{
-								FVertexID VertexID(ControlPointIndex + VertexOffset);
+								BoneIndex = SortedJoints.Add(Link);
+								FString JointNodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Link);
+								OutJointNodeUniqueIDs.Add(JointNodeUniqueID);
+							}
+
+							//	get the vertex indices
+							int32 ControlPointIndicesCount = Cluster->GetControlPointIndicesCount();
+							int32* ControlPointIndices = Cluster->GetControlPointIndices();
+							double* Weights = Cluster->GetControlPointWeights();
+
+							//	for each vertex index in the cluster
+							for (int32 ControlPointIndex = 0; ControlPointIndex < ControlPointIndicesCount; ++ControlPointIndex)
+							{
+								FVertexID VertexID(ControlPointIndices[ControlPointIndex] + VertexOffset);
 								if (!ensure(MeshDescription->IsVertexValid(VertexID)))
 								{
 									//Invalid Influence
 									continue;
 								}
+								float Weight = static_cast<float>(Weights[ControlPointIndex]);
 
-								VertexSkinWeights.Set(VertexID, DefaultBinding);
+								TArray<FBoneWeight> *BoneWeights = RawBoneWeights.Find(VertexID);
+								if (BoneWeights)
+								{
+									// Do we already have a weight for this bone? Keep the greater weight.
+									bool bShouldAdd = true;
+									for (int32 WeightIndex = 0; WeightIndex < BoneWeights->Num(); WeightIndex++)
+									{
+										FBoneWeight &BoneWeight = (*BoneWeights)[WeightIndex];
+										if (BoneWeight.GetBoneIndex() == BoneIndex)
+										{
+											if (BoneWeight.GetWeight() < Weight)
+											{
+												BoneWeight.SetWeight(Weight);
+											}
+											bShouldAdd = false;
+											break;
+										}
+									}
+									if (bShouldAdd)
+									{
+										BoneWeights->Add(FBoneWeight(BoneIndex, Weight));
+									}
+								}
+								else
+								{
+									RawBoneWeights.Add(VertexID).Add(FBoneWeight(BoneIndex, Weight));
+								}
 							}
 						}
 
+						// Add all the raw bone weights. This will cause the weights to be sorted and re-normalized after culling to max influences.
+						for (const TTuple<FVertexID, TArray<FBoneWeight>> &Item: RawBoneWeights)
+						{
+							VertexSkinWeights.Set(Item.Key, Item.Value);
+						}
 					}
 				}
 				// needed?
@@ -1135,23 +1085,6 @@ namespace UE
 				return bHasNonDegeneratePolygons;
 			}
 
-			FbxAMatrix FMeshDescriptionImporter::ComputeNodeMatrix(FbxNode* Node)
-			{
-				FbxAMatrix Geometry;
-				FbxVector4 Translation, Rotation, Scaling;
-				Translation = Node->GetGeometricTranslation(FbxNode::eSourcePivot);
-				Rotation = Node->GetGeometricRotation(FbxNode::eSourcePivot);
-				Scaling = Node->GetGeometricScaling(FbxNode::eSourcePivot);
-				Geometry.SetT(Translation);
-				Geometry.SetR(Rotation);
-				Geometry.SetS(Scaling);
-				//For Single Matrix situation, obtain transfrom matrix from eDESTINATION_SET, which include pivot offsets and pre/post rotations.
-				FbxAMatrix& GlobalTransform = SDKScene->GetAnimationEvaluator()->GetNodeGlobalTransform(Node);
-				//We must always add the geometric transform. Only Max use the geometric transform which is an offset to the local transform of the node
-				FbxAMatrix NodeMatrix = GlobalTransform * Geometry;
-				return NodeMatrix;
-			}
-
 			bool FMeshDescriptionImporter::IsOddNegativeScale(FbxAMatrix& TotalMatrix)
 			{
 				FbxVector4 Scale = TotalMatrix.GetS();
@@ -1162,6 +1095,375 @@ namespace UE
 				if (Scale[2] < 0) NegativeNum++;
 
 				return NegativeNum == 1 || NegativeNum == 3;
+			}
+
+
+			//////////////////////////////////////////////////////////////////////////
+			/// FMeshPayloadContext implementation
+
+			bool FMeshPayloadContext::FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			{
+				if (!ensure(SDKScene != nullptr))
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx scene is null\"}}"));
+					return false;
+				}
+
+				if (!ensure(Mesh != nullptr))
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx mesh is null\"}}"));
+					return false;
+				}
+
+				if (!ensure(SDKGeometryConverter != nullptr))
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch fbx mesh payload because the fbx scene geometry converter is null\"}}"));
+					return false;
+				}
+
+				bool bFetchSkinnedData = (Mesh->GetDeformerCount(FbxDeformer::eSkin) > 0);
+				
+				TArray<FString> JointUniqueID;
+
+				FMeshDescription MeshDescription;
+				if (bFetchSkinnedData)
+				{
+					FSkeletalMeshAttributes SkeletalMeshAttribute(MeshDescription);
+					SkeletalMeshAttribute.Register();
+					FMeshDescriptionImporter MeshDescriptionImporter(&MeshDescription, SDKScene, SDKGeometryConverter);
+					if (!MeshDescriptionImporter.FillSkinnedMeshDescriptionFromFbxMesh(Mesh, JointUniqueID))
+					{
+						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch skinned mesh payload because there was an error when creating the FMeshDescription\"}}"));
+						return false;
+					}
+				}
+				else
+				{
+					FStaticMeshAttributes StaticMeshAttribute(MeshDescription);
+					StaticMeshAttribute.Register();
+					FMeshDescriptionImporter MeshDescriptionImporter(&MeshDescription, SDKScene, SDKGeometryConverter);
+					if (!MeshDescriptionImporter.FillStaticMeshDescriptionFromFbxMesh(Mesh))
+					{
+						JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot fetch static mesh payload because there was an error when creating the FMeshDescription\"}}"));
+						return false;
+					}
+				}
+				//Dump the MeshDescription to a file
+				{
+					FLargeMemoryWriter Ar;
+					MeshDescription.Serialize(Ar);
+
+					Ar << bFetchSkinnedData;
+					if (bFetchSkinnedData)
+					{
+						//When passing a skinned MeshDescription, We want to pass the joint Node ID so we can know what the influence bone index refer to
+						Ar << JointUniqueID;
+					}
+					uint8* ArchiveData = Ar.GetData();
+					int64 ArchiveSize = Ar.TotalSize();
+					TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
+					FFileHelper::SaveArrayToFile(Buffer, *PayloadFilepath);
+				}
+
+				return true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////
+			/// FShapePayloadContext implementation
+
+			bool FShapePayloadContext::FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
+			{
+				if (!ensure(Shape))
+				{
+					//Todo log an error
+					return false;
+				}
+				//Import the BlendShape
+				FMeshDescription ShapeMeshDescription;
+				FStaticMeshAttributes StaticMeshAttribute(ShapeMeshDescription);
+				StaticMeshAttribute.Register();
+				FMeshDescriptionImporter MeshDescriptionImporter(&ShapeMeshDescription, SDKScene, SDKGeometryConverter);
+				if (!MeshDescriptionImporter.FillMeshDescriptionFromFbxShape(Shape))
+				{
+					//Todo log an error
+					return false;
+				}
+
+				//Dump the MeshDescription to a file
+				{
+					FLargeMemoryWriter Ar;
+					ShapeMeshDescription.Serialize(Ar);
+					uint8* ArchiveData = Ar.GetData();
+					int64 ArchiveSize = Ar.TotalSize();
+					TArray64<uint8> Buffer(ArchiveData, ArchiveSize);
+					FFileHelper::SaveArrayToFile(Buffer, *PayloadFilepath);
+				}
+				return true;
+			}
+
+			//////////////////////////////////////////////////////////////////////////
+			/// FFbxMesh implementation
+			
+			FString FFbxMesh::GetUniqueIDString(const uint64 UniqueID)
+			{
+				FStringFormatNamedArguments FormatArguments;
+				FormatArguments.Add(TEXT("UniqueID"), UniqueID);
+				return FString::Format(TEXT("{UniqueID}"), FormatArguments);
+			}
+
+			FString FFbxMesh::GetMeshName(FbxGeometryBase* Mesh)
+			{
+				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
+				if (MeshName.IsEmpty())
+				{
+					if (Mesh->GetNodeCount() > 0)
+					{
+						if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
+						{
+							MeshName = TEXT("Mesh_");
+						}
+						else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
+						{
+							MeshName = TEXT("Shape_");
+						}
+						MeshName += FFbxHelper::GetFbxObjectName(Mesh->GetNode(0));
+					}
+					else
+					{
+						uint64 UniqueFbxObjectID = Mesh->GetUniqueID();
+						MeshName += GetUniqueIDString(UniqueFbxObjectID);
+					}
+				}
+				return MeshName;
+			}
+			
+			FString FFbxMesh::GetMeshUniqueID(FbxGeometryBase* Mesh)
+			{
+				FString MeshUniqueID;
+				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
+				{
+					MeshUniqueID = TEXT("\\Mesh\\");
+				}
+				else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
+				{
+					MeshUniqueID = TEXT("\\Shape\\");
+				}
+				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
+				if (MeshName.IsEmpty())
+				{
+					if (Mesh->GetNodeCount() > 0)
+					{
+						MeshUniqueID += FFbxHelper::GetFbxNodeHierarchyName(Mesh->GetNode(0));
+					}
+					else
+					{
+						MeshUniqueID += GetMeshName(Mesh);
+					}
+				}
+				else
+				{
+					MeshUniqueID += MeshName;
+				}
+				return MeshUniqueID;
+			}
+
+			void FFbxMesh::ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode, TArray<FString>& JSonErrorMessages)
+			{
+				TArray<FString> JointNodeUniqueIDs;
+				const int32 SkinDeformerCount = Mesh->GetDeformerCount(FbxDeformer::eSkin);
+				for (int32 DeformerIndex = 0; DeformerIndex < SkinDeformerCount; DeformerIndex++)
+				{
+					FbxSkin* Skin = (FbxSkin*)Mesh->GetDeformer(DeformerIndex, FbxDeformer::eSkin);
+					if (!ensure(Skin))
+					{
+						continue;
+					}
+					const int32 ClusterCount = Skin->GetClusterCount();
+					JointNodeUniqueIDs.Reserve(ClusterCount);
+					for (int32 ClusterIndex = 0; ClusterIndex < ClusterCount; ClusterIndex++)
+					{
+						FbxCluster* Cluster = Skin->GetCluster(ClusterIndex);
+						// When Maya plug-in exports rigid binding, it will generate "CompensationCluster" for each ancestor links.
+						// FBX writes these "CompensationCluster" out. The CompensationCluster also has weight 1 for vertices.
+						// Unreal importer should skip these clusters.
+						if (!Cluster || (FCStringAnsi::Strcmp(Cluster->GetUserDataID(), "Maya_ClusterHint") == 0 && FCStringAnsi::Strcmp(Cluster->GetUserData(), "CompensationCluster") == 0))
+						{
+							continue;
+						}
+						FbxNode* Link = Cluster->GetLink();
+						FString JointNodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Link);
+						// find the bone index
+						if (!JointNodeUniqueIDs.Contains(JointNodeUniqueID))
+						{
+							JointNodeUniqueIDs.Add(JointNodeUniqueID);
+							MeshNode->SetSkeletonDependencyUid(JointNodeUniqueID);
+						}
+					}
+				}
+			}
+
+			void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts)
+			{
+				int32 GeometryCount = SDKScene->GetGeometryCount();
+				for (int32 GeometryIndex = 0; GeometryIndex < GeometryCount; ++GeometryIndex)
+				{
+					FbxGeometry* Geometry = SDKScene->GetGeometry(GeometryIndex);
+					if (Geometry->GetAttributeType() != FbxNodeAttribute::eMesh)
+					{
+						continue;
+					}
+					FbxMesh* Mesh = static_cast<FbxMesh*>(Geometry);
+					if (!Mesh)
+					{
+						continue;
+					}
+					FString MeshName = GetMeshName(Mesh);
+					FString MeshUniqueID = GetMeshUniqueID(Mesh);
+					UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(MeshUniqueID));
+					if (!MeshNode)
+					{
+						MeshNode = CreateMeshNode(NodeContainer, MeshName, MeshUniqueID, JSonErrorMessages);
+						if (Geometry->GetDeformerCount(FbxDeformer::eSkin) > 0)
+						{
+							//Set the skinned mesh attribute
+							MeshNode->SetSkinnedMesh(true);
+							ExtractSkinnedMeshNodeJoints(SDKScene, Mesh, MeshNode, JSonErrorMessages);
+						}
+						Mesh->ComputeBBox();
+						const int32 MeshVertexCount = Mesh->GetControlPointsCount();
+						MeshNode->SetCustomVertexCount(MeshVertexCount);
+						const int32 MeshPolygonCount = Mesh->GetPolygonCount();
+						MeshNode->SetCustomPolygonCount(MeshPolygonCount);
+						const FBox MeshBoundingBox = FBox(FFbxConvert::ConvertPos(Mesh->BBoxMin.Get()), FFbxConvert::ConvertPos(Mesh->BBoxMax.Get()));
+						MeshNode->SetCustomBoundingBox(MeshBoundingBox);
+						const bool bMeshHasVertexNormal = Mesh->GetElementNormalCount() > 0;
+						MeshNode->SetCustomHasVertexNormal(bMeshHasVertexNormal);
+						const bool bMeshHasVertexBinormal = Mesh->GetElementBinormalCount() > 0;
+						MeshNode->SetCustomHasVertexBinormal(bMeshHasVertexBinormal);
+						const bool bMeshHasVertexTangent = Mesh->GetElementTangentCount() > 0;
+						MeshNode->SetCustomHasVertexTangent(bMeshHasVertexTangent);
+						const bool bMeshHasSmoothGroup = Mesh->GetElementSmoothingCount() > 0;
+						MeshNode->SetCustomHasSmoothGroup(bMeshHasSmoothGroup);
+						const bool bMeshHasVertexColor = Mesh->GetElementVertexColorCount() > 0;
+						MeshNode->SetCustomHasVertexColor(bMeshHasVertexColor);
+						const int32 MeshUVCount = Mesh->GetElementUVCount();
+						MeshNode->SetCustomUVCount(MeshUVCount);
+						
+						//Add Material dependencies, we use always the first fbx node that instance the fbx geometry to grab the materials.
+						if (FbxNode* FbxMeshNode = Mesh->GetNode())
+						{
+							const int32 MaterialCount = FbxMeshNode->GetMaterialCount();
+							for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
+							{
+								FbxSurfaceMaterial* FbxMaterial = FbxMeshNode->GetMaterial(MaterialIndex);
+								FString MaterialName = FFbxHelper::GetFbxObjectName(FbxMaterial);
+								FString MaterialUid = TEXT("\\Material\\") + MaterialName;
+								MeshNode->SetMaterialDependencyUid(MaterialUid);
+							}
+						}
+					}
+					FString PayLoadKey = MeshUniqueID;
+					if (ensure(!PayloadContexts.Contains(PayLoadKey)))
+					{
+						TSharedPtr<FMeshPayloadContext> GeoPayload = MakeShared<FMeshPayloadContext>();
+						GeoPayload->Mesh = Mesh;
+						GeoPayload->SDKScene = SDKScene;
+						GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
+						PayloadContexts.Add(PayLoadKey, GeoPayload);
+					}
+					MeshNode->SetPayLoadKey(PayLoadKey);
+					
+					//Add all BlendShapes for this geometry node
+					TMap<FString, FbxShape*> ShapeNameToFbxShape;
+					const int32 BlendShapeCount = Geometry->GetDeformerCount(FbxDeformer::eBlendShape);
+					if (BlendShapeCount > 0)
+					{
+						for (int32 BlendShapeIndex = 0; BlendShapeIndex < BlendShapeCount; ++BlendShapeIndex)
+						{
+							FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
+							const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
+							FString BlendShapeName = FFbxHelper::GetFbxObjectName(BlendShape);
+							// see below where this is used for explanation...
+							const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
+							for (int32 ChannelIndex = 0; ChannelIndex < BlendShapeChannelCount; ++ChannelIndex)
+							{
+								FbxBlendShapeChannel* Channel = BlendShape->GetBlendShapeChannel(ChannelIndex);
+								if (Channel)
+								{
+									//Find which shape should we use according to the weight.
+									const int32 CurrentChannelShapeCount = Channel->GetTargetShapeCount();
+									FString ChannelName = FFbxHelper::GetFbxObjectName(Channel);
+									// Maya adds the name of the blendshape and an underscore to the front of the channel name, so remove it
+									if (ChannelName.StartsWith(BlendShapeName))
+									{
+										ChannelName.RightInline(ChannelName.Len() - (BlendShapeName.Len() + 1), false);
+									}
+									for (int32 ShapeIndex = 0; ShapeIndex < CurrentChannelShapeCount; ++ShapeIndex)
+									{
+										FbxShape* Shape = Channel->GetTargetShape(ShapeIndex);
+										FString ShapeName;
+										if (CurrentChannelShapeCount > 1)
+										{
+											ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+										}
+										else
+										{
+											if (bMightBeBadMAXFile)
+											{
+												ShapeName = FFbxHelper::GetFbxObjectName(Shape);
+											}
+											else
+											{
+												// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
+												ShapeName = ChannelName;
+											}
+										}
+										ensure(!ShapeNameToFbxShape.Contains(ShapeName));
+										ShapeNameToFbxShape.Add(ShapeName, Shape);
+										FString ShapeAttributeName = GetMeshName(Shape);
+										FString ShapeUniqueID = GetMeshUniqueID(Shape);
+										UInterchangeMeshNode* ShapeNode = Cast<UInterchangeMeshNode>(NodeContainer.GetNode(ShapeUniqueID));
+										if (!ShapeNode)
+										{
+											ShapeNode = CreateMeshNode(NodeContainer, ShapeAttributeName, ShapeUniqueID, JSonErrorMessages);
+											const bool bIsBlendShape = true;
+											ShapeNode->SetBlendShape(bIsBlendShape);
+											ShapeNode->SetBlendShapeName(ShapeName);
+											//Create a Mesh node dependency, so the mesh node can retrieve is associate blendshape
+											MeshNode->SetShapeDependencyUid(ShapeUniqueID);
+										}
+										FString ShapePayLoadKey = ShapeUniqueID;
+										if (ensure(!PayloadContexts.Contains(ShapePayLoadKey)))
+										{
+											TSharedPtr<FShapePayloadContext> GeoPayload = MakeShared<FShapePayloadContext>();
+											GeoPayload->Shape = Shape;
+											GeoPayload->SDKScene = SDKScene;
+											GeoPayload->SDKGeometryConverter = SDKGeometryConverter;
+											PayloadContexts.Add(ShapePayLoadKey, GeoPayload);
+										}
+										ShapeNode->SetPayLoadKey(ShapePayLoadKey);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			UInterchangeMeshNode* FFbxMesh::CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages)
+			{
+				FString DisplayLabel(NodeName);
+				FString NodeUid(NodeUniqueID);
+				UInterchangeMeshNode* MeshNode = NewObject<UInterchangeMeshNode>(&NodeContainer, NAME_None);
+				if (!ensure(MeshNode))
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Error\",\n\"Msg\" : \"Cannot allocate a mesh node when importing fbx\"}}"));
+					return nullptr;
+				}
+				// Creating a UMaterialInterface
+				MeshNode->InitializeNode(NodeUid, DisplayLabel, EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset);
+				NodeContainer.AddNode(MeshNode);
+				return MeshNode;
 			}
 		} //ns Private
 	} //ns Interchange

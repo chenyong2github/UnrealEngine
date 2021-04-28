@@ -8,7 +8,8 @@
 
 /** Forward declarations */
 struct FMeshDescription;
-
+class UInterchangeBaseNodeContainer;
+class UInterchangeMeshNode;
 
 namespace UE
 {
@@ -19,10 +20,23 @@ namespace UE
 			class FMeshDescriptionImporter
 			{
 			public:
-				FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxNode* InMeshNode, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter);
-				bool FillStaticMeshDescriptionFromFbxMesh();
-				bool FillSkinnedMeshDescriptionFromFbxMesh(TArray<FbxNode*>* SortedJoints);
+				FMeshDescriptionImporter(FMeshDescription* InMeshDescription, FbxScene* InSDKScene, FbxGeometryConverter* InSDKGeometryConverter);
+				
+				/*
+				 * Fill the mesh description using the Mesh parameter.
+				 */
+				bool FillStaticMeshDescriptionFromFbxMesh(FbxMesh* Mesh);
+				
+				/*
+				 * Fill the mesh description using the Mesh parameter and also fill the OutJointNodeUniqueIDs so the MeshDescription bone Index can be map to the correct interchange joint scene node.
+				 */
+				bool FillSkinnedMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs);
+
+				/*
+				 * Fill the mesh description using the Shape parameter.
+				 */
 				bool FillMeshDescriptionFromFbxShape(FbxShape* Shape);
+
 			private:
 				
 				enum class EMeshType : uint8
@@ -30,11 +44,9 @@ namespace UE
 					None = 0, //No mesh type to import
 					Static = 1, //static mesh
 					Skinned = 2, //skinned mesh with joints
-					Rigid = 3  //rigid mesh (joints will be created from the geometry transform)
 				};
 
-				bool FillMeshDescriptionFromFbxMesh(EMeshType MeshType, TArray<FbxNode*>* SortedJoints);
-				FbxAMatrix ComputeNodeMatrix(FbxNode* Node);
+				bool FillMeshDescriptionFromFbxMesh(FbxMesh* Mesh, TArray<FString>& OutJointNodeUniqueIDs, EMeshType MeshType);
 				bool IsOddNegativeScale(FbxAMatrix& TotalMatrix);
 				
 				//TODO move the real function from RenderCore to FVector, so we do not have to add render core to compute such a simple thing
@@ -48,14 +60,46 @@ namespace UE
 					);
 					return (Basis.Determinant() < 0) ? -1.0f : +1.0f;
 				}
-
-
 				FMeshDescription* MeshDescription;
-				FbxNode* MeshNode;
 				FbxScene* SDKScene;
 				FbxGeometryConverter* SDKGeometryConverter;
-				bool bIsStaticMesh;
 				bool bInitialized = false;
+			};
+
+			class FMeshPayloadContext : public FPayloadContextBase
+			{
+			public:
+				virtual ~FMeshPayloadContext() {}
+				virtual FString GetPayloadType() const override { return TEXT("Mesh-PayloadContext"); }
+				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) override;
+				FbxMesh* Mesh = nullptr;
+				FbxScene* SDKScene = nullptr;
+				FbxGeometryConverter* SDKGeometryConverter = nullptr;
+			};
+
+			class FShapePayloadContext : public FPayloadContextBase
+			{
+			public:
+				virtual ~FShapePayloadContext() {}
+				virtual FString GetPayloadType() const override { return TEXT("Shape-PayloadContext"); }
+				virtual bool FetchPayloadToFile(const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages) override;
+				FbxShape* Shape = nullptr;
+				FbxScene* SDKScene = nullptr;
+				FbxGeometryConverter* SDKGeometryConverter = nullptr;
+			};
+
+			class FFbxMesh
+			{
+			public:
+				static FString GetMeshName(FbxGeometryBase* Mesh);
+				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
+				static void ExtractSkinnedMeshNodeJoints(FbxScene* SDKScene, FbxMesh* Mesh, UInterchangeMeshNode* MeshNode, TArray<FString>& JSonErrorMessages);
+
+				static void AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometryConverter, UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages, TMap<FString, TSharedPtr<FPayloadContextBase>>& PayloadContexts);
+			
+			protected:
+				static UInterchangeMeshNode* CreateMeshNode(UInterchangeBaseNodeContainer& NodeContainer, const FString& NodeName, const FString& NodeUniqueID, TArray<FString>& JSonErrorMessages);
+				static FString GetUniqueIDString(const uint64 UniqueID);
 			};
 		}//ns Private
 	}//ns Interchange

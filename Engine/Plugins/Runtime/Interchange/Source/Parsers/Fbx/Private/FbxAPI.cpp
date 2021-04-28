@@ -7,9 +7,8 @@
 #include "FbxHelper.h"
 #include "FbxInclude.h"
 #include "FbxMaterial.h"
+#include "FbxMesh.h"
 #include "FbxScene.h"
-#include "FbxSkeletalMesh.h"
-#include "FbxSkeleton.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeTextureNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -92,10 +91,11 @@ namespace UE
 
 			void FFbxParser::FillContainerWithFbxScene(UInterchangeBaseNodeContainer& NodeContainer, TArray<FString>& JSonErrorMessages)
 			{
-				FFbxMaterial::AddAllSceneMaterials(SDKScene, NodeContainer, JSonErrorMessages);
-				FFbxSkeleton::AddAllSceneSkeletons(SDKScene, NodeContainer, JSonErrorMessages, SourceFilename);
-				FFbxSkeletalMesh::AddAllSceneSkeletalMeshes(SDKScene, SDKGeometryConverter, NodeContainer, JSonErrorMessages, PayloadContexts, SourceFilename);
-				//FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
+				CleanupFbxData(JSonErrorMessages);
+				FFbxMaterial::AddAllTextures(SDKScene, NodeContainer, JSonErrorMessages);
+				FFbxMaterial::AddAllMaterials(SDKScene, NodeContainer, JSonErrorMessages);
+				FFbxMesh::AddAllMeshes(SDKScene, SDKGeometryConverter, NodeContainer, JSonErrorMessages, PayloadContexts);
+				FFbxScene::AddHierarchy(SDKScene, NodeContainer, JSonErrorMessages);
 			}
 
 			bool FFbxParser::FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath, TArray<FString>& JSonErrorMessages)
@@ -110,6 +110,25 @@ namespace UE
 				return PayloadContext->FetchPayloadToFile(PayloadFilepath, JSonErrorMessages);
 			}
 
+			void FFbxParser::CleanupFbxData(TArray<FString>& JSonErrorMessages)
+			{
+				//////////////////////////////////////////////////////////////////////////
+				// Make sure there is a valid bind pose
+
+				//Find root bones
+				const int32 Default_NbPoses = SDKScene->GetFbxManager()->GetBindPoseCount(SDKScene);
+				// If there are no BindPoses, the following will generate them.
+				SDKScene->GetFbxManager()->CreateMissingBindPoses(SDKScene);
+				//if we created missing bind poses, update the number of bind poses
+				const int32 NbPoses = SDKScene->GetFbxManager()->GetBindPoseCount(SDKScene);
+				if (NbPoses != Default_NbPoses)
+				{
+					JSonErrorMessages.Add(TEXT("{\"Msg\" : {\"Type\" : \"Warning\",\n\"Msg\" : \"FbxParser: Missing bind pose, the fbx sdk create one.\"}}"));
+				}
+
+				//////////////////////////////////////////////////////////////////////////
+				// Scene conversion
+			}
 		} //ns Private
 	} //ns Interchange
 } //ns UE

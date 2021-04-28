@@ -4,7 +4,7 @@
 #include "Animation/Skeleton.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
-#include "InterchangeSkeletonNode.h"
+#include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
@@ -26,7 +26,7 @@ UObject* UInterchangeSkeletonFactory::CreateEmptyAsset(const FCreateAssetParams&
 		return nullptr;
 	}
 
-	const UInterchangeSkeletonNode* SkeletonNode = Cast<UInterchangeSkeletonNode>(Arguments.AssetNode);
+	const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
 	if (SkeletonNode == nullptr)
 	{
 		return nullptr;
@@ -70,7 +70,7 @@ UObject* UInterchangeSkeletonFactory::CreateAsset(const UInterchangeSkeletonFact
 		return nullptr;
 	}
 
-	const UInterchangeSkeletonNode* SkeletonNode = Cast<UInterchangeSkeletonNode>(Arguments.AssetNode);
+	const UInterchangeSkeletonFactoryNode* SkeletonNode = Cast<UInterchangeSkeletonFactoryNode>(Arguments.AssetNode);
 	if (SkeletonNode == nullptr)
 	{
 		return nullptr;

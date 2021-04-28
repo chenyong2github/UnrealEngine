@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
-#include "InterchangeGenericMeshPipeline.h"
+//#include "InterchangeGenericAssetsPipeline.h"
 #include "InterchangeManager.h"
+#include "InterchangePipelineLog.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
+DEFINE_LOG_CATEGORY(LogInterchangePipeline);
 
 class FInterchangePipelinesModule : public IInterchangePipelinesModule
 {

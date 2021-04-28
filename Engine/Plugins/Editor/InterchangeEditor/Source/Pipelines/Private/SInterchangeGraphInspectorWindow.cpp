@@ -158,7 +158,7 @@ private:
 
 	void RecursiveSetImport(UInterchangeBaseNode* Node, bool bState)
 	{
-		TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUIDs(Node->GetUniqueID());
+		TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 		for (const FString& ChildID : Childrens)
 		{
 			UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
@@ -197,7 +197,7 @@ TSharedRef< ITableRow > SInterchangeGraphInspectorTreeView::OnGenerateRowGraphIn
 }
 void SInterchangeGraphInspectorTreeView::OnGetChildrenGraphInspectorTreeView(UInterchangeBaseNode* InParent, TArray< UInterchangeBaseNode* >& OutChildren)
 {
-	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUIDs(InParent->GetUniqueID());
+	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(InParent->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
 		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
@@ -209,7 +209,7 @@ void SInterchangeGraphInspectorTreeView::OnGetChildrenGraphInspectorTreeView(UIn
 
 void SInterchangeGraphInspectorTreeView::RecursiveSetImport(UInterchangeBaseNode* Node, bool bState)
 {
-	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUIDs(Node->GetUniqueID());
+	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
 		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);
@@ -235,7 +235,7 @@ void SInterchangeGraphInspectorTreeView::OnToggleSelectAll(ECheckBoxState CheckT
 void SInterchangeGraphInspectorTreeView::RecursiveSetExpand(UInterchangeBaseNode* Node, bool ExpandState)
 {
 	SetItemExpansion(Node, ExpandState);
-	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUIDs(Node->GetUniqueID());
+	TArray<FString> Childrens = InterchangeBaseNodeContainer->GetNodeChildrenUids(Node->GetUniqueID());
 	for (const FString& ChildID : Childrens)
 	{
 		UInterchangeBaseNode* ChildNode = InterchangeBaseNodeContainer->GetNode(ChildID);

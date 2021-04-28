@@ -751,10 +751,10 @@ namespace UE
 				return AttributeKey;
 			}
 
-			static const FString& GetDependenciesBaseKey()
+			static const FString& GetFactoryDependenciesBaseKey()
 			{
-				static FString BaseNodeDependencies_BaseKey = TEXT("__BaseNodeDependencies__");
-				return BaseNodeDependencies_BaseKey;
+				static FString BaseNodeFactoryDependencies_BaseKey = TEXT("__BaseNodeFactoryDependencies__");
+				return BaseNodeFactoryDependencies_BaseKey;
 			}
 
 			static const FAttributeKey& ClassTypeAttributeKey()
@@ -762,10 +762,31 @@ namespace UE
 				static FAttributeKey AttributeKey(TEXT("__ClassTypeAttribute__"));
 				return AttributeKey;
 			}
+
+			static const FAttributeKey& AssetNameKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__Asset_Name_Key__"));
+				return AttributeKey;
+			}
+
+			static const FAttributeKey& NodeContainerTypeKey()
+			{
+				static FAttributeKey AttributeKey(TEXT("__Node_Container_Type_Key__"));
+				return AttributeKey;
+			}
 		};
 
 	} //ns Interchange
 } //ns UE
+
+UENUM(BlueprintType)
+enum class EInterchangeNodeContainerType : uint8
+{
+	NodeContainerType_None,
+	NodeContainerType_TranslatedScene,
+	NodeContainerType_TranslatedAsset,
+	NodeContainerType_FactoryData
+};
 
 /**
  * This struct is used to store and retrieve key value attributes. The attributes are store in a generic FAttributeStorage which serialize the value in a TArray64<uint8>
@@ -781,8 +802,9 @@ public:
 	UInterchangeBaseNode()
 	{
 		Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
-		Dependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey());
+		FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
 		RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
+		RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::NodeContainerType_None));
 	}
 
 	virtual ~UInterchangeBaseNode() = default;
@@ -794,7 +816,7 @@ public:
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void InitializeNode(const FString& UniqueID, const FString& DisplayLabel);
+	void InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType);
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
@@ -832,13 +854,17 @@ public:
 		{
 			KeyDisplayName = TEXT("Node Class Type");
 		}
-		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey()))
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::AssetNameKey())
 		{
-			KeyDisplayName = TEXT("Dependencies Count");
+			KeyDisplayName = TEXT("Imported Asset Name");
 		}
-		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetDependenciesBaseKey()))
+		else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
 		{
-			KeyDisplayName = TEXT("Dependencies Index ");
+			KeyDisplayName = TEXT("Factory Dependencies Count");
+		}
+		else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
+		{
+			KeyDisplayName = TEXT("Factory Dependencies Index ");
 			const FString IndexKey = UE::Interchange::FNameAttributeArrayHelper::IndexKey();
 			int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
 			if (IndexPosition < NodeAttributeKey.Key.Len())
@@ -846,7 +872,26 @@ public:
 				KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
 			}
 		}
+		else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey())
+		{
+			KeyDisplayName = TEXT("Node Container Type");
+		}
 		return KeyDisplayName;
+	}
+
+	virtual bool ShouldHideAttribute(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+	{
+		return false;
+	}
+
+	virtual FString GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
+	{
+		FString CategoryName = TEXT("Attributes");
+		if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey()))
+		{
+			CategoryName = TEXT("FactoryDependencies");
+		}
+		return CategoryName;
 	}
 
 	/**
@@ -924,42 +969,49 @@ public:
 	bool SetDisplayLabel(const FString& DisplayName);
 
 	/**
-	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUID()
+	 * Return the parent unique id. In case the attribute does not exist it will return InvalidNodeUid()
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	FString GetParentUID() const;
+	FString GetParentUid() const;
 
 	/**
 	 * Set the parent unique id.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetParentUID(const FString& ParentUID);
+	bool SetParentUid(const FString& ParentUid);
 
 	/**
-	 * This function allow to retrieve the number of dependencies for this object.
+	 * This function allow to retrieve the number of factory dependencies for this object.
 	 *
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	int32 GetDependeciesCount() const;
+	int32 GetFactoryDependenciesCount() const;
 
 	/**
 	 * This function allow to retrieve the dependency for this object.
 	 * 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetDependecies(TArray<FString>& OutDependencies ) const;
+	void GetFactoryDependencies(TArray<FString>& OutDependencies ) const;
+
+	/**
+	 * This function allow to retrieve one dependency for this object.
+	 *
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	void GetFactoryDependency(const int32 Index, FString& OutDependency) const;
 
 	/**
 	 * Add one dependency to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool SetDependencyUID(const FString& DependencyUID);
+	bool SetFactoryDependencyUid(const FString& DependencyUid);
 
 	/**
 	 * Remove one dependency from this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveDependencyUID(const FString& DependencyUID);
+	bool RemoveFactoryDependencyUid(const FString& DependencyUid);
 
 	/**
 	 * IsEnable true mean that the node will be import/export, if false it will be discarded.
@@ -977,6 +1029,12 @@ public:
 	bool SetEnabled(const bool bIsEnabled);
 
 	/**
+	 * Return the node container type which define the purpose of the node (Factory node, translated scene node or translated asset node).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	EInterchangeNodeContainerType GetnodeContainerType() const;
+
+	/**
 	 * Return a FGuid build from the FSHA1 of all the attribute data contain in the node.
 	 *
 	 * @note the attribute are sorted by key when building the FSHA1 data. The hash will be deterministic for the same data whatever
@@ -990,8 +1048,21 @@ public:
 	 */
 	virtual class UClass* GetAssetClass() const;
 
+	/**
+	 * Optional, Any node that can import/export an asset should set the proper name we will give to the asset.
+	 * If the attribute was never set, it will return GetDisplayLabel.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	virtual FString GetAssetName() const;
+
+	/**
+	 * Set the name we want for the imported asset this node represent. The asset factory will call GetAssetName()
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	virtual bool SetAssetName(const FString& AssetName);
+
 	/** Return the invalid unique ID */
-	static FString InvalidNodeUID();
+	static FString InvalidNodeUid();
 
 	/**
 	 * Each Attribute that was set and have a delegate set for the specified UObject->UClass will
@@ -1033,5 +1104,10 @@ protected:
 
 	bool bIsInitialized = false;
 
-	UE::Interchange::FNameAttributeArrayHelper Dependencies;
+	/**
+	 * Those dependencies are use by the interchange parsing task to make sure the asset are created in the correct order.
+	 * Example: Mesh factory node will have dependencies on material factory node
+	 *          Material factory node will have dependencies on texture factory node
+	 */
+	UE::Interchange::FNameAttributeArrayHelper FactoryDependencies;
 };

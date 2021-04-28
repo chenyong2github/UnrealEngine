@@ -3,8 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "InterchangeSkeletalMeshLodDataNode.h"
-#include "InterchangeSkeletalMeshNode.h"
-#include "InterchangeSkeletonNode.h"
+#include "InterchangeSkeletalMeshFactoryNode.h"
+#include "InterchangeSkeletonFactoryNode.h"
 #include "InterchangeSourceData.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Misc/Paths.h"
