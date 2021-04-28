@@ -1546,7 +1546,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Subsystems.
 	FURL::StaticInit();
 	FLinkerLoad::StaticInit(UTexture2D::StaticClass());
-	EngineSubsystemCollection.Initialize(this);
+	EngineSubsystemCollection->Initialize(this);
 
 #if !UE_BUILD_SHIPPING
 	// Check for overrides to the default map on the command line
@@ -1926,7 +1926,7 @@ void UEngine::PreExit()
 	NextDynamicResolutionState.Reset();
 #endif
 
-	EngineSubsystemCollection.Deinitialize();
+	EngineSubsystemCollection->Deinitialize();
 }
 
 void UEngine::ShutdownHMD()
