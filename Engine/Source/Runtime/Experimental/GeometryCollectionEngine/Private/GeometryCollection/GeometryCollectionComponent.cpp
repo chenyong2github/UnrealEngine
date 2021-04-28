@@ -520,7 +520,7 @@ FPrimitiveSceneProxy* UGeometryCollectionComponent::CreateSceneProxy()
 					[GeometryCollectionSceneProxy, ConstantData, DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
 						GeometryCollectionSceneProxy->SetConstantData_RenderThread(ConstantData);
-						
+
 						if (DynamicData)
 						{
 							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
@@ -2021,10 +2021,10 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 	{
 		FGeometryCollectionDynamicData* DynamicData = InitDynamicData(false /* initialization */);
 
-		if (DynamicData)
+		if (DynamicData || SceneProxy->IsNaniteMesh())
 		{
-			INC_DWORD_STAT_BY(STAT_GCTotalTransforms, DynamicData->Transforms.Num());
-			INC_DWORD_STAT_BY(STAT_GCChangedTransforms, DynamicData->ChangedCount);
+			INC_DWORD_STAT_BY(STAT_GCTotalTransforms, DynamicData ? DynamicData->Transforms.Num() : 0);
+			INC_DWORD_STAT_BY(STAT_GCChangedTransforms, DynamicData ? DynamicData->ChangedCount : 0);
 
 			// #todo (bmiller) Once ISMC changes have been complete, this is the best place to call this method
 			// but we can't currently because it's an inappropriate place to call MarkRenderStateDirty on the ISMC.
@@ -2037,8 +2037,15 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 				ENQUEUE_RENDER_COMMAND(SendRenderDynamicData)(
 					[GeometryCollectionSceneProxy, DynamicData](FRHICommandListImmediate& RHICmdList)
 					{
-						GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
-						GeometryCollectionSceneProxy->GetPrimitiveSceneInfo()->RequestGPUSceneUpdate();
+						if (DynamicData)
+						{
+							GeometryCollectionSceneProxy->SetDynamicData_RenderThread(DynamicData);
+						}
+						else
+						{
+							// No longer dynamic, make sure previous transforms are reset
+							GeometryCollectionSceneProxy->ResetPreviousTransforms_RenderThread();
+						}
 					}
 				);
 			}

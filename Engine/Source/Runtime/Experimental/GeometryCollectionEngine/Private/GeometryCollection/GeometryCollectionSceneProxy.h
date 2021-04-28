@@ -340,6 +340,8 @@ public:
 	/** Called on render thread to setup dynamic geometry for rendering */
 	void SetDynamicData_RenderThread(FGeometryCollectionDynamicData* NewDynamicData);
 
+	void ResetPreviousTransforms_RenderThread();
+
 	const FORCEINLINE TArray<Nanite::FResources*>& GetResources() const
 	{
 		return Resources;
@@ -360,10 +362,9 @@ protected:
 	uint32 bCastShadow : 1;
 	uint32 bReverseCulling : 1;
 	uint32 bHasMaterialErrors : 1;
+	uint32 bLastUpdateWasDynamic : 1;
 
 	const UGeometryCollection* GeometryCollection = nullptr;
-
-	//TArray<FPrimitiveInstance> RestInstances;
 
 	struct FGeometryNaniteData
 	{

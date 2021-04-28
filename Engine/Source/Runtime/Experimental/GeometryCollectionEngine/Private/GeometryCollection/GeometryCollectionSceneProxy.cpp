@@ -14,6 +14,7 @@
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 #include "GeometryCollection/GeometryCollectionHitProxy.h"
 #endif
+
 #if INTEL_ISPC
 #if USING_CODE_ANALYSIS
     MSVC_PRAGMA( warning( push ) )
@@ -36,6 +37,14 @@
 #endif    // USING_CODE_ANALYSIS
 #endif
 
+#include "ComponentReregisterContext.h"
+#include "ComponentRecreateRenderStateContext.h"
+
+static void RecreateGlobalRenderState(IConsoleVariable* Var)
+{
+	FGlobalComponentRecreateRenderStateContext Context;
+}
+
 static int32 GParallelGeometryCollectionBatchSize = 1024;
 static TAutoConsoleVariable<int32> CVarParallelGeometryCollectionBatchSize(
 	TEXT("r.ParallelGeometryCollectionBatchSize"),
@@ -44,12 +53,21 @@ static TAutoConsoleVariable<int32> CVarParallelGeometryCollectionBatchSize(
 	ECVF_Default
 );
 
-int32 GGeometryCollectionTripleBufferUploads = 1;
+static int32 GGeometryCollectionTripleBufferUploads = 1;
 FAutoConsoleVariableRef CVarGeometryCollectionTripleBufferUploads(
 	TEXT("r.GeometryCollectionTripleBufferUploads"),
 	GGeometryCollectionTripleBufferUploads,
 	TEXT("Whether to triple buffer geometry collection uploads, which allows Lock_NoOverwrite uploads which are much faster on the GPU with large amounts of data."),
 	ECVF_Default
+);
+
+static int32 GGeometryCollectionOptimizedTransforms = 1;
+FAutoConsoleVariableRef CVarGeometryCollectionOptimizedTransforms(
+	TEXT("r.GeometryCollectionOptimizedTransforms"),
+	GGeometryCollectionOptimizedTransforms,
+	TEXT("Whether to optimize transform update by skipping automatic updates in GPUScene."),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
 DEFINE_LOG_CATEGORY_STATIC(FGeometryCollectionSceneProxyLogging, Log, All);
@@ -1053,8 +1071,8 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	// Nanite supports the GPUScene instance data buffer.
 	bSupportsInstanceDataBuffer = true;
 
-	// We always have correct instance transforms, skip GPUScene updates
-	bShouldUpdateGPUSceneTransforms = false;
+	// We always have correct instance transforms, skip GPUScene updates if allowed.
+	bShouldUpdateGPUSceneTransforms = (GGeometryCollectionOptimizedTransforms == 0);
 
 	bSupportsDistanceFieldRepresentation = false;
 	bSupportsMeshCardRepresentation = false;
@@ -1283,6 +1301,9 @@ void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
 		Instance.LocalToWorld = Instance.InstanceToLocal * ParentLocalToWorld;
 		Instance.PrevLocalToWorld = Instance.PrevInstanceToLocal * ParentPrevLocalToWorld;
 	}
+
+	// Make this count as a dynamic update wrt. previous transform reset on stasis.
+	bLastUpdateWasDynamic = true;
 }
 
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)
@@ -1321,6 +1342,8 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 	// Are we currently simulating?
 	if (NewDynamicData->IsDynamic)
 	{
+		bLastUpdateWasDynamic = true;
+
 		const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
 		const TManagedArray<int32>& TransformToGeometryIndices	 = Collection->TransformToGeometryIndex;
 		const TManagedArray<TSet<int32>>& TransformChildren		 = Collection->Children;
@@ -1382,6 +1405,20 @@ void FNaniteGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryC
 	}
 
 	GDynamicDataPool.Release(NewDynamicData);
+}
+
+void FNaniteGeometryCollectionSceneProxy::ResetPreviousTransforms_RenderThread()
+{
+	if (bLastUpdateWasDynamic)
+	{
+		// Reset previous transforms to avoid locked motion vectors
+		for (FPrimitiveInstance& Instance : Instances)
+		{
+			Instance.PrevLocalToWorld = Instance.LocalToWorld;
+		}
+
+		bLastUpdateWasDynamic = false;
+	}
 }
 
 FGeometryCollectionDynamicDataPool::FGeometryCollectionDynamicDataPool()
