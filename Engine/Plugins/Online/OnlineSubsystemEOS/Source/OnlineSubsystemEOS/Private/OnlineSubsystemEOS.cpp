@@ -90,7 +90,16 @@ void FOnlineSubsystemEOS::ModuleInit()
 
 void FOnlineSubsystemEOS::ModuleShutdown()
 {
+#define DESTRUCT_INTERFACE(Interface) \
+	if (Interface.IsValid()) \
+	{ \
+		ensure(Interface.IsUnique()); \
+		Interface = nullptr; \
+	}
+
 	DESTRUCT_INTERFACE(EOSHelpersPtr);
+
+#undef DESTRUCT_INTERFACE
 }
 
 /** Common method for creating the EOS platform */
