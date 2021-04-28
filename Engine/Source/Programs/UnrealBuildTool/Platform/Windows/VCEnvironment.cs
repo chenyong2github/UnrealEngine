@@ -246,13 +246,13 @@ namespace UnrealBuildTool
 			// If we were asked to use Clang, then we'll redirect the path to the compiler to the LLVM installation directory
 			if (Compiler == WindowsCompiler.Clang && WindowsPlatform.bAllowClangLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles), "LLVM", "bin", "lld-link.exe");
+				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "LLVM", "bin", "lld-link.exe");
 				if (FileReference.Exists(LinkerPath))
 				{
 					return LinkerPath;
 				}
 
-				FileReference LinkerPathX86 = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "LLVM", "bin", "lld-link.exe");
+				FileReference LinkerPathX86 = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "LLVM", "bin", "lld-link.exe");
 				if (FileReference.Exists(LinkerPathX86))
 				{
 					return LinkerPathX86;
@@ -262,7 +262,7 @@ namespace UnrealBuildTool
 			}
 			else if(Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilink.exe");
+				FileReference LinkerPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilink.exe");
 				if (FileReference.Exists(LinkerPath))
 				{
 					return LinkerPath;
@@ -284,7 +284,7 @@ namespace UnrealBuildTool
 			// Regardless of the target, if we're linking on a 64 bit machine, we want to use the 64 bit linker (it's faster than the 32 bit linker)
 			if (Compiler == WindowsCompiler.Intel && WindowsPlatform.bAllowICLLinker)
 			{
-				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilib.exe");
+				FileReference LibPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows", "bin", "intel64", "xilib.exe");
 				if (FileReference.Exists(LibPath))
 				{
 					return LibPath;

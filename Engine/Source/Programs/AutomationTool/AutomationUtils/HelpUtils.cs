@@ -146,7 +146,7 @@ namespace AutomationTool
 			}
 
 			Log.TraceInformation("");
-			HelpUtils.PrintHelp(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList());
+			HelpUtils.PrintHelp(String.Format("{0} Help:", Command.Name), Description, ParamDict.ToList(), HelpUtils.WindowWidth, Log.Logger);
 		}
 
 		/// <summary>

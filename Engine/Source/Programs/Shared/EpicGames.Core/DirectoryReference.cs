@@ -2,12 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-#nullable disable
 
 namespace EpicGames.Core
 {
@@ -92,7 +91,7 @@ namespace EpicGames.Core
 		/// Gets the directory containing this object
 		/// </summary>
 		/// <returns>A new directory object representing the directory containing this object</returns>
-		public DirectoryReference ParentDirectory
+		public DirectoryReference? ParentDirectory
 		{
 			get
 			{
@@ -139,7 +138,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Folder">The folder to receive the path for</param>
 		/// <returns>Directory reference for the given folder, or null if it is not available</returns>
-		public static DirectoryReference GetSpecialFolder(Environment.SpecialFolder Folder)
+		public static DirectoryReference? GetSpecialFolder(Environment.SpecialFolder Folder)
 		{
 			string FolderPath = Environment.GetFolderPath(Folder);
 			return String.IsNullOrEmpty(FolderPath)? null : new DirectoryReference(FolderPath);
@@ -172,15 +171,15 @@ namespace EpicGames.Core
 		/// <param name="A">First object to compare.</param>
 		/// <param name="B">Second object to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public static bool operator ==(DirectoryReference A, DirectoryReference B)
+		public static bool operator ==(DirectoryReference? A, DirectoryReference? B)
 		{
-			if ((object)A == null)
+			if ((object?)A == null)
 			{
-				return (object)B == null;
+				return (object?)B == null;
 			}
 			else
 			{
-				return (object)B != null && A.FullName.Equals(B.FullName, Comparison);
+				return (object?)B != null && A.FullName.Equals(B.FullName, Comparison);
 			}
 		}
 
@@ -190,7 +189,7 @@ namespace EpicGames.Core
 		/// <param name="A">First object to compare.</param>
 		/// <param name="B">Second object to compare.</param>
 		/// <returns>False if the names represent the same object, true otherwise</returns>
-		public static bool operator !=(DirectoryReference A, DirectoryReference B)
+		public static bool operator !=(DirectoryReference? A, DirectoryReference? B)
 		{
 			return !(A == B);
 		}
@@ -200,7 +199,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Obj">other instance to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public override bool Equals(object Obj)
+		public override bool Equals(object? Obj)
 		{
 			return (Obj is DirectoryReference) && ((DirectoryReference)Obj) == this;
 		}
@@ -210,7 +209,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Obj">other instance to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public bool Equals(DirectoryReference Obj)
+		public bool Equals(DirectoryReference? Obj)
 		{
 			return Obj == this;
 		}
@@ -239,7 +238,8 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="File">The file to create a directory reference for</param>
 		/// <returns>The directory containing the file  </returns>
-		public static DirectoryReference FromFile(FileReference File)
+		[return: NotNullIfNotNull("File")]
+		public static DirectoryReference? FromFile(FileReference? File)
 		{
 			if(File == null)
 			{
@@ -256,7 +256,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="DirectoryName">Path for the new object</param>
 		/// <returns>Returns a FileReference representing the given string, or null.</returns>
-		public static DirectoryReference FromString(string DirectoryName)
+		public static DirectoryReference? FromString(string? DirectoryName)
 		{
 			if(String.IsNullOrEmpty(DirectoryName))
 			{
@@ -454,6 +454,16 @@ namespace EpicGames.Core
 		/// <returns>New DirectoryReference object</returns>
 		public static DirectoryReference ReadDirectoryReference(this BinaryReader Reader)
 		{
+			return BinaryArchiveReader.NotNull(ReadDirectoryReferenceOrNull(Reader));
+		}
+
+		/// <summary>
+		/// Manually deserialize a directory reference from a binary stream.
+		/// </summary>
+		/// <param name="Reader">Binary reader to read from</param>
+		/// <returns>New DirectoryReference object</returns>
+		public static DirectoryReference? ReadDirectoryReferenceOrNull(this BinaryReader Reader)
+		{
 			string FullName = Reader.ReadString();
 			return (FullName.Length == 0) ? null : new DirectoryReference(FullName, DirectoryReference.Sanitize.None);
 		}
@@ -465,7 +475,17 @@ namespace EpicGames.Core
 		/// <param name="Directory">The item to write</param>
 		public static void WriteDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference Directory)
 		{
-			if(Directory == null)
+			Writer.WriteNullableDirectoryReference(Directory);
+		}
+
+		/// <summary>
+		/// Writes a directory reference  to a binary archive
+		/// </summary>
+		/// <param name="Writer">The writer to output data to</param>
+		/// <param name="Directory">The item to write</param>
+		public static void WriteNullableDirectoryReference(this BinaryArchiveWriter Writer, DirectoryReference? Directory)
+		{
+			if (Directory == null)
 			{
 				Writer.WriteString(null);
 			}
@@ -482,8 +502,18 @@ namespace EpicGames.Core
 		/// <returns>New directory reference instance</returns>
 		public static DirectoryReference ReadDirectoryReference(this BinaryArchiveReader Reader)
 		{
+			return BinaryArchiveReader.NotNull(ReadDirectoryReferenceOrNull(Reader));
+		}
+
+		/// <summary>
+		/// Reads a directory reference from a binary archive
+		/// </summary>
+		/// <param name="Reader">Reader to serialize data from</param>
+		/// <returns>New directory reference instance</returns>
+		public static DirectoryReference? ReadDirectoryReferenceOrNull(this BinaryArchiveReader Reader)
+		{
 			string FullName = Reader.ReadString();
-			if(FullName == null)
+			if (FullName == null)
 			{
 				return null;
 			}

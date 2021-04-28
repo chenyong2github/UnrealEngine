@@ -60,11 +60,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		public PerforceInfo? Info
 		{
-			get
-			{
-				EnsureSuccess();
-				return InternalData as PerforceInfo;
-			}
+			get { return InternalData as PerforceInfo; }
 		}
 
 		/// <summary>

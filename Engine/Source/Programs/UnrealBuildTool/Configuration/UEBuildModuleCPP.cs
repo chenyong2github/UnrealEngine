@@ -222,7 +222,7 @@ namespace UnrealBuildTool
 			// Add the module's parent directory to the public include paths, so other modules may include headers from it explicitly.
 			foreach (DirectoryReference ModuleDir in ModuleDirectories)
 			{
-				PublicIncludePaths.Add(ModuleDir.ParentDirectory);
+				PublicIncludePaths.Add(ModuleDir.ParentDirectory!);
 
 				// Add the base directory to the legacy include paths.
 				LegacyPublicIncludePaths.Add(ModuleDir);
@@ -625,7 +625,7 @@ namespace UnrealBuildTool
 		public PrecompiledHeaderTemplate CreateSharedPCHTemplate(UEBuildTarget Target, CppCompileEnvironment BaseCompileEnvironment)
 		{
 			CppCompileEnvironment CompileEnvironment = CreateSharedPCHCompileEnvironment(Target, BaseCompileEnvironment);
-			FileItem HeaderFile = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile));
+			FileItem HeaderFile = FileItem.GetItemByFileReference(FileReference.Combine(ModuleDirectory, Rules.SharedPCHHeaderFile!));
 
 			DirectoryReference PrecompiledHeaderDir;
 			if(Rules.bUsePrecompiled)

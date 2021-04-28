@@ -85,7 +85,6 @@ namespace UnrealBuildTool.Storage.Impl
 				try
 				{
 					FileReference.Move(TempLocation, FinalLocation);
-					TempLocation = null;
 				}
 				catch
 				{
@@ -93,6 +92,8 @@ namespace UnrealBuildTool.Storage.Impl
 					TempLocation = null;
 					throw;
 				}
+
+				TempLocation = null;
 			}
 
 			public void Dispose()

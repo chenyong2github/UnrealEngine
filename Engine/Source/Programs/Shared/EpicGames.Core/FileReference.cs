@@ -2,12 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-
-#nullable disable
 
 namespace EpicGames.Core
 {
@@ -62,7 +62,8 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="FileName">FileName for the string</param>
 		/// <returns>Returns a FileReference representing the given string, or null.</returns>
-		public static FileReference FromString(string FileName)
+		[return: NotNullIfNotNull("FileName")]
+		public static FileReference? FromString(string? FileName)
 		{
 			if(String.IsNullOrEmpty(FileName))
 			{
@@ -125,7 +126,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Extension">The new extension</param>
 		/// <returns>A FileReference with the same path and name, but with the new extension</returns>
-		public FileReference ChangeExtension(string Extension)
+		public FileReference ChangeExtension(string? Extension)
 		{
 			string NewFullName = Path.ChangeExtension(FullName, Extension);
 			return new FileReference(NewFullName, Sanitize.None);
@@ -186,15 +187,15 @@ namespace EpicGames.Core
 		/// <param name="A">First object to compare.</param>
 		/// <param name="B">Second object to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public static bool operator ==(FileReference A, FileReference B)
+		public static bool operator ==(FileReference? A, FileReference? B)
 		{
-			if ((object)A == null)
+			if ((object?)A == null)
 			{
-				return (object)B == null;
+				return (object?)B == null;
 			}
 			else
 			{
-				return (object)B != null && A.FullName.Equals(B.FullName, Comparison);
+				return (object?)B != null && A.FullName.Equals(B.FullName, Comparison);
 			}
 		}
 
@@ -204,7 +205,7 @@ namespace EpicGames.Core
 		/// <param name="A">First object to compare.</param>
 		/// <param name="B">Second object to compare.</param>
 		/// <returns>False if the names represent the same object, true otherwise</returns>
-		public static bool operator !=(FileReference A, FileReference B)
+		public static bool operator !=(FileReference? A, FileReference? B)
 		{
 			return !(A == B);
 		}
@@ -214,7 +215,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Obj">other instance to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public override bool Equals(object Obj)
+		public override bool Equals(object? Obj)
 		{
 			return (Obj is FileReference) && ((FileReference)Obj) == this;
 		}
@@ -224,7 +225,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Obj">other instance to compare.</param>
 		/// <returns>True if the names represent the same object, false otherwise</returns>
-		public bool Equals(FileReference Obj)
+		public bool Equals(FileReference? Obj)
 		{
 			return Obj == this;
 		}
@@ -365,6 +366,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Moves a file from one location to another
+		/// </summary>
+		/// <param name="SourceLocation">Location of the source file</param>
+		/// <param name="TargetLocation">Location of the target file</param>
+		/// <param name="Overwrite">Whether to overwrite the file in the target location</param>
+		public static void Move(FileReference SourceLocation, FileReference TargetLocation, bool Overwrite)
+		{
+			File.Move(SourceLocation.FullName, TargetLocation.FullName, Overwrite);
+		}
+
+		/// <summary>
 		/// Opens a FileStream on the specified path with read/write access
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
@@ -414,6 +426,16 @@ namespace EpicGames.Core
 		/// Reads the contents of a file
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
+		/// <returns>Byte array containing the contents of the file</returns>
+		public static Task<byte[]> ReadAllBytesAsync(FileReference Location, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.ReadAllBytesAsync(Location.FullName, CancellationToken);
+		}
+
+		/// <summary>
+		/// Reads the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
 		/// <returns>Contents of the file as a single string</returns>
 		public static string ReadAllText(FileReference Location)
 		{
@@ -435,6 +457,27 @@ namespace EpicGames.Core
 		/// Reads the contents of a file
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
+		/// <returns>Contents of the file as a single string</returns>
+		public static Task<string> ReadAllTextAsync(FileReference Location, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.ReadAllTextAsync(Location.FullName, CancellationToken);
+		}
+
+		/// <summary>
+		/// Reads the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Encoding">Encoding of the file</param>
+		/// <returns>Contents of the file as a single string</returns>
+		public static Task<string> ReadAllTextAsync(FileReference Location, Encoding Encoding, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.ReadAllTextAsync(Location.FullName, Encoding, CancellationToken);
+		}
+
+		/// <summary>
+		/// Reads the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
 		/// <returns>String array containing the contents of the file</returns>
 		public static string[] ReadAllLines(FileReference Location)
 		{
@@ -450,6 +493,27 @@ namespace EpicGames.Core
 		public static string[] ReadAllLines(FileReference Location, Encoding Encoding)
 		{
 			return File.ReadAllLines(Location.FullName, Encoding);
+		}
+
+		/// <summary>
+		/// Reads the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <returns>String array containing the contents of the file</returns>
+		public static Task<string[]> ReadAllLinesAsync(FileReference Location, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.ReadAllLinesAsync(Location.FullName, CancellationToken);
+		}
+
+		/// <summary>
+		/// Reads the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		/// <returns>String array containing the contents of the file</returns>
+		public static Task<string[]> ReadAllLinesAsync(FileReference Location, Encoding Encoding, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.ReadAllLinesAsync(Location.FullName, Encoding, CancellationToken);
 		}
 
 		/// <summary>
@@ -513,6 +577,16 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		public static Task WriteAllBytesAsync(FileReference Location, byte[] Contents, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.WriteAllBytesAsync(Location.FullName, Contents, CancellationToken);
+		}
+
+		/// <summary>
 		/// Writes the data to the given file, if it's different from what's there already
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
@@ -570,6 +644,48 @@ namespace EpicGames.Core
 		public static void WriteAllLines(FileReference Location, string[] Contents, Encoding Encoding)
 		{
 			File.WriteAllLines(Location.FullName, Contents, Encoding);
+		}
+
+		/// <summary>
+		/// Writes the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		public static Task WriteAllLinesAsync(FileReference Location, IEnumerable<string> Contents, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.WriteAllLinesAsync(Location.FullName, Contents, CancellationToken);
+		}
+
+		/// <summary>
+		/// Writes the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		public static Task WriteAllLinesAsync(FileReference Location, IEnumerable<string> Contents, Encoding Encoding, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.WriteAllLinesAsync(Location.FullName, Contents, Encoding, CancellationToken);
+		}
+
+		/// <summary>
+		/// Writes the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		public static Task WriteAllLinesAsync(FileReference Location, string[] Contents, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.WriteAllLinesAsync(Location.FullName, Contents, CancellationToken);
+		}
+
+		/// <summary>
+		/// Writes the contents of a file
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">Contents of the file</param>
+		/// <param name="Encoding">The encoding to use when parsing the file</param>
+		public static Task WriteAllLinesAsync(FileReference Location, string[] Contents, Encoding Encoding, CancellationToken CancellationToken = default(CancellationToken))
+		{
+			return File.WriteAllLinesAsync(Location.FullName, Contents, Encoding, CancellationToken);
 		}
 
 		/// <summary>
@@ -706,6 +822,16 @@ namespace EpicGames.Core
 		/// <returns>New FileReference object</returns>
 		public static FileReference ReadFileReference(this BinaryReader Reader)
 		{
+			return BinaryArchiveReader.NotNull(ReadFileReferenceOrNull(Reader));
+		}
+
+		/// <summary>
+		/// Manually deserialize a file reference from a binary stream.
+		/// </summary>
+		/// <param name="Reader">Binary reader to read from</param>
+		/// <returns>New FileReference object</returns>
+		public static FileReference? ReadFileReferenceOrNull(this BinaryReader Reader)
+		{
 			string FullName = Reader.ReadString();
 			return (FullName.Length == 0) ? null : new FileReference(FullName, FileReference.Sanitize.None);
 		}
@@ -717,6 +843,17 @@ namespace EpicGames.Core
 		/// <param name="UniqueFiles">List of previously read file references. The index into this array is used in place of subsequent ocurrences of the file.</param>
 		/// <returns>The file reference that was read</returns>
 		public static FileReference ReadFileReference(this BinaryReader Reader, List<FileReference> UniqueFiles)
+		{
+			return BinaryArchiveReader.NotNull(ReadFileReferenceOrNull(Reader, UniqueFiles));
+		}
+
+		/// <summary>
+		/// Deserializes a file reference, using a lookup table to avoid writing the same name more than once.
+		/// </summary>
+		/// <param name="Reader">The source to read from</param>
+		/// <param name="UniqueFiles">List of previously read file references. The index into this array is used in place of subsequent ocurrences of the file.</param>
+		/// <returns>The file reference that was read</returns>
+		public static FileReference? ReadFileReferenceOrNull(this BinaryReader Reader, List<FileReference> UniqueFiles)
 		{
 			int UniqueId = Reader.ReadInt32();
 			if (UniqueId == -1)
@@ -740,7 +877,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Writer">The writer to output data to</param>
 		/// <param name="File">The file reference to write</param>
-		public static void WriteFileReference(this BinaryArchiveWriter Writer, FileReference File)
+		public static void WriteFileReference(this BinaryArchiveWriter Writer, FileReference? File)
 		{
 			if(File == null)
 			{
@@ -758,6 +895,16 @@ namespace EpicGames.Core
 		/// <param name="Reader">Reader to serialize data from</param>
 		/// <returns>New file reference instance</returns>
 		public static FileReference ReadFileReference(this BinaryArchiveReader Reader)
+		{
+			return BinaryArchiveReader.NotNull(ReadFileReferenceOrNull(Reader));
+		}
+
+		/// <summary>
+		/// Reads a FileReference from a binary archive
+		/// </summary>
+		/// <param name="Reader">Reader to serialize data from</param>
+		/// <returns>New file reference instance</returns>
+		public static FileReference? ReadFileReferenceOrNull(this BinaryArchiveReader Reader)
 		{
 			string FullName = Reader.ReadString();
 			if(FullName == null)

@@ -803,7 +803,7 @@ namespace AutomationTool
 					CommandUtils.LogInformation("");
 					CommandUtils.LogInformation("Options:");
 					CommandUtils.LogInformation("");
-					HelpUtils.PrintTable(Parameters, 4, 24);
+					HelpUtils.PrintTable(Parameters, 4, 24, Log.Logger);
 				}
 			}
 

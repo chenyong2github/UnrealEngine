@@ -286,4 +286,44 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public abstract int GetHashCode(ReadOnlyUtf8String String);
 	}
+
+	/// <summary>
+	/// Extension methods for ReadOnlyUtf8String objects
+	/// </summary>
+	public static class MemoryWriterExtensions
+	{
+		/// <summary>
+		/// Reads a null-terminated utf8 string from the buffer
+		/// </summary>
+		/// <returns>The string data</returns>
+		public static ReadOnlyUtf8String ReadString(this MemoryReader Reader)
+		{
+			ReadOnlySpan<byte> Span = Reader.Span;
+			int Length = Span.IndexOf((byte)0);
+			ReadOnlyUtf8String Value = new ReadOnlyUtf8String(Reader.ReadFixedLengthBytes(Length));
+			Reader.ReadInt8();
+			return Value;
+		}
+
+		/// <summary>
+		/// Writes a UTF8 string into memory with a null terminator
+		/// </summary>
+		/// <param name="Writer">The memory writer to serialize to</param>
+		/// <param name="String">String to write</param>
+		public static void WriteString(this MemoryWriter Writer, ReadOnlyUtf8String String)
+		{
+			Writer.WriteFixedLengthBytes(String.Span);
+			Writer.WriteInt8(0);
+		}
+
+		/// <summary>
+		/// Determines the size of a serialized utf-8 string
+		/// </summary>
+		/// <param name="String">The string to measure</param>
+		/// <returns>Size of the serialized string</returns>
+		public static int GetSerializedSize(this ReadOnlyUtf8String String)
+		{
+			return String.Length + 1;
+		}
+	}
 }

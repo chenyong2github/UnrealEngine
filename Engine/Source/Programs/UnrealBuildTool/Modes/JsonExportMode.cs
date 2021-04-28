@@ -37,7 +37,7 @@ namespace UnrealBuildTool
 				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, false, false);
 
 				// Get the output file
-				FileReference OutputFile = TargetDescriptor.AdditionalArguments.GetFileReferenceOrDefault("-OutputFile=", null);
+				FileReference? OutputFile = TargetDescriptor.AdditionalArguments.GetFileReferenceOrDefault("-OutputFile=", null);
 				if(OutputFile == null)
 				{
 					OutputFile = Target.ReceiptFileName.ChangeExtension(".json");

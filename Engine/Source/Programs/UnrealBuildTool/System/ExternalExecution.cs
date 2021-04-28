@@ -349,7 +349,7 @@ namespace UnrealBuildTool
 				ModuleType = Info.ModuleType;
 				OverrideModuleType = Info.OverrideModuleType;
 				BaseDirectory = Info.ModuleDirectories[0].FullName;
-				IncludeBase = Info.ModuleDirectories[0].ParentDirectory.FullName;
+				IncludeBase = Info.ModuleDirectories[0].ParentDirectory!.FullName;
 				OutputDirectory = Path.GetDirectoryName(Info.GeneratedCPPFilenameBase)!;
 				ClassesHeaders = Info.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList();
 				PublicHeaders = Info.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList();

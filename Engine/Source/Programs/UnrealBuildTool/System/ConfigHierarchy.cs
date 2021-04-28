@@ -1144,12 +1144,13 @@ namespace UnrealBuildTool
 		{
 			if(UnrealBuildTool.IsEngineInstalled())
 			{
-				return DirectoryReference.Combine(Utils.GetUserSettingDirectory(), "UnrealEngine", String.Format("{0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion), "Saved");
+				DirectoryReference? UserSettingDir = Utils.GetUserSettingDirectory();
+				if (UserSettingDir != null)
+				{
+					return DirectoryReference.Combine(UserSettingDir, "UnrealEngine", String.Format("{0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion), "Saved");
+				}
 			}
-			else
-			{
-				return DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Saved");
-			}
+			return DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Saved");
 		}
 
 		/// <summary>

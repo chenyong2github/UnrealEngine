@@ -253,7 +253,7 @@ namespace UnrealBuildTool
 
 		public override FileReference Shell
 		{
-			get { return new FileReference(Environment.GetEnvironmentVariable("COMSPEC")); }
+			get { return new FileReference(Environment.GetEnvironmentVariable("COMSPEC")!); }
 		}
 
 		public override ShellType ShellType

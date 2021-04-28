@@ -1153,7 +1153,7 @@ namespace UnrealBuildTool
 					if(Compiler == WindowsCompiler.Clang)
 					{
 						// Check for a manual installation to the default directory
-						DirectoryReference ManualInstallDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles), "LLVM");
+						DirectoryReference ManualInstallDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "LLVM");
 						AddClangToolChain(ManualInstallDir, ToolChains);
 
 						// Check for a manual installation to a custom directory
@@ -1186,7 +1186,7 @@ namespace UnrealBuildTool
 					else if(Compiler == WindowsCompiler.Intel)
 					{
 						// Just check for a manual installation
-						DirectoryReference InstallDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "IntelSWTools", "compilers_and_libraries", "windows");
+						DirectoryReference InstallDir = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "IntelSWTools", "compilers_and_libraries", "windows");
 						if(DirectoryReference.Exists(InstallDir))
 						{
 							FileReference IclPath = FileReference.Combine(InstallDir, "bin", "intel64", "icl.exe");
@@ -1580,7 +1580,7 @@ namespace UnrealBuildTool
 			}
 
 			// Try to get the MSBuild 14.0 path directly (see https://msdn.microsoft.com/en-us/library/hh162058(v=vs.120).aspx)
-			FileReference? ToolPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86), "MSBuild", "14.0", "bin", "MSBuild.exe");
+			FileReference? ToolPath = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFilesX86)!, "MSBuild", "14.0", "bin", "MSBuild.exe");
 			if(FileReference.Exists(ToolPath))
 			{
 				OutLocation = ToolPath;
@@ -2061,7 +2061,7 @@ namespace UnrealBuildTool
 				//CompileEnvironment.bAllowLTCG = true;
 				//LinkEnvironment.bAllowLTCG = true;
 
-				CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Windows", "Build", "PGO");
+				CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile!).FullName, "Platforms", "Windows", "Build", "PGO");
 				CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-{1}-{2}", Target.Name, Target.Platform, Target.Configuration);
 
 				LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;

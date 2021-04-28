@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -45,9 +46,9 @@ namespace EpicGames.Core
 		/// Prints help for the given object type
 		/// </summary>
 		/// <param name="Type">Type to print help for</param>
-		public static void PrintHelp(string Title, Type Type)
+		public static void PrintHelp(string Title, Type Type, ILogger Logger)
 		{
-			PrintHelp(Title, GetDescription(Type), CommandLineArguments.GetParameters(Type));
+			PrintHelp(Title, GetDescription(Type), CommandLineArguments.GetParameters(Type), WindowWidth, Logger);
 		}
 
 		/// <summary>
@@ -56,14 +57,14 @@ namespace EpicGames.Core
 		/// <param name="Title">Title for the help text</param>
 		/// <param name="Description">Description for the command</param>
 		/// <param name="Parameters">List of parameters</param>
-		public static void PrintHelp(string Title, string Description, List<KeyValuePair<string, string>> Parameters)
+		/// <param name="MaxWidth">Maximum width for each line</param>
+		/// <param name="Logger">The output logger</param>
+		public static void PrintHelp(string Title, string Description, List<KeyValuePair<string, string>> Parameters, int MaxWidth, ILogger Logger)
 		{
-			int MaxWidth = WindowWidth;
-
 			bool bFirstLine = true;
 			if (!String.IsNullOrEmpty(Title))
 			{
-				PrintParagraph(Title, MaxWidth);
+				PrintParagraph(Title, MaxWidth, Logger);
 				bFirstLine = false;
 			}
 
@@ -71,9 +72,9 @@ namespace EpicGames.Core
 			{
 				if (!bFirstLine)
 				{
-					Log.TraceInformation("");
+					Logger.LogInformation("");
 				}
-				PrintParagraph(Description, MaxWidth);
+				PrintParagraph(Description, MaxWidth, Logger);
 				bFirstLine = false;
 			}
 
@@ -81,11 +82,11 @@ namespace EpicGames.Core
 			{
 				if (!bFirstLine)
 				{
-					Log.TraceInformation("");
+					Logger.LogInformation("");
 				}
 
-				Log.TraceInformation("Parameters:");
-				PrintTable(Parameters, 4, 24, MaxWidth);
+				Logger.LogInformation("Parameters:");
+				PrintTable(Parameters, 4, 24, MaxWidth, Logger);
 			}
 		}
 
@@ -112,10 +113,10 @@ namespace EpicGames.Core
 		/// Prints a paragraph of text using word wrapping
 		/// </summary>
 		/// <param name="Text">Text to print</param>
-		/// <param name="MaxWidth">Maximum width for each line</param>
-		public static void PrintParagraph(string Text)
+		/// <param name="Logger">Logger implementation to write to</param>
+		public static void PrintParagraph(string Text, ILogger Logger)
 		{
-			PrintParagraph(Text, WindowWidth - 1);
+			PrintParagraph(Text, WindowWidth - 1, Logger);
 		}
 
 		/// <summary>
@@ -123,12 +124,13 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Text">Text to print</param>
 		/// <param name="MaxWidth">Maximum width for each line</param>
-		public static void PrintParagraph(string Text, int MaxWidth)
+		/// <param name="Logger">Logger implementation to write to</param>
+		public static void PrintParagraph(string Text, int MaxWidth, ILogger Logger)
 		{
 			List<string> Lines = StringUtils.WordWrap(Text, MaxWidth);
 			foreach (string Line in Lines)
 			{
-				Log.TraceInformation("{0}", Line);
+				Logger.LogInformation(Line);
 			}
 		}
 
@@ -143,11 +145,12 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Items">List of parameters arranged as "-ParamName Param Description"</param>
 		/// <param name="Indent">Indent from the left hand side</param>
-		/// <param name="DefaultRightPadding">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="MinFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="Logger">Logger implementation to write to</param>
 		/// <returns></returns>
-		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth)
+		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, ILogger Logger)
 		{
-			PrintTable(Items, Indent, MinFirstColumnWidth, WindowWidth - 1);
+			PrintTable(Items, Indent, MinFirstColumnWidth, WindowWidth - 1, Logger);
 		}
 
 		/// <summary>
@@ -161,9 +164,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Items">List of parameters arranged as "-ParamName Param Description"</param>
 		/// <param name="Indent">Indent from the left hand side</param>
-		/// <param name="DefaultRightPadding">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="MinFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="Logger">Logger implementation to write to</param>
 		/// <returns></returns>
-		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth)
+		public static void PrintTable(List<KeyValuePair<string, string>> Items, int Indent, int MinFirstColumnWidth, int MaxWidth, ILogger Logger)
 		{
 			if(Items.Count > 0)
 			{
@@ -186,7 +190,7 @@ namespace EpicGames.Core
 					{
 						// Formatting as following:
 						// <Indent>-param<Right Padding>Description<New line>
-						Log.TraceInformation("{0}{1}", ParamString, DescriptionLine);
+						Logger.LogInformation(ParamString + DescriptionLine);
 
 						// we replace the param string on subsequent lines with white space of the same length
 						ParamString = string.Empty.PadRight(IndentString.Length + RightPadding);

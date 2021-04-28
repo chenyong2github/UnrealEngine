@@ -583,7 +583,7 @@ namespace UnrealBuildTool
 			DirectoryReference Directory = BinaryPath.Directory;
 			if (Directory.FullName.EndsWith(".app/Contents/MacOS"))
 			{
-				Directory = Directory.ParentDirectory.ParentDirectory.ParentDirectory;
+				Directory = Directory.ParentDirectory!.ParentDirectory!.ParentDirectory!;
 			}
 
 			return FileReference.Combine(Directory, BinaryPath.GetFileNameWithoutExtension() + "-Cmd" + BinaryPath.GetExtension());

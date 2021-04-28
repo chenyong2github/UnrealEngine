@@ -59,7 +59,7 @@ namespace EpicGames.Perforce
 		/// Size of the file, or -1 if not specified
 		/// </summary>
 		[PerforceTag("fileSize", Optional = true)]
-		public readonly int FileSize;
+		public readonly long FileSize;
 
 		/// <summary>
 		/// Digest of the file, or null if not specified

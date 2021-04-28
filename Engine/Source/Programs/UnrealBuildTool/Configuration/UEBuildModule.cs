@@ -511,7 +511,7 @@ namespace UnrealBuildTool
 			)
 		{
 			// Add the module's parent directory to the include path, so we can root #includes from generated source files to it
-			IncludePaths.Add(ModuleDirectory.ParentDirectory);
+			IncludePaths.Add(ModuleDirectory.ParentDirectory!);
 
 			// Add this module's public include paths and definitions.
 			AddIncludePaths(IncludePaths, PublicIncludePaths);

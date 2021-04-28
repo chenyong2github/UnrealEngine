@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -526,6 +527,37 @@ namespace EpicGames.Core
 				}
 				return (T)Objects[Index];
 			}
+		}
+
+		/// <summary>
+		/// Helper method for validating that deserialized objects are not null
+		/// </summary>
+		/// <typeparam name="T">Type of the deserialized object</typeparam>
+		/// <param name="Param">The object instance</param>
+		/// <returns>The object instance</returns>
+		[return: NotNull]
+		public static T NotNull<T>(T Param) where T : class
+		{
+			if (Param == null)
+			{
+				throw new InvalidDataException("Object stored in archive is not allowed to be null.");
+			}
+			return Param;
+		}
+
+		/// <summary>
+		/// Helper method for validating that deserialized objects are not null
+		/// </summary>
+		/// <typeparam name="T">Type of the deserialized object</typeparam>
+		/// <param name="Param">The object instance</param>
+		/// <returns>The object instance</returns>
+		public static T NotNullStruct<T>(T? Param) where T : struct
+		{
+			if (Param == null)
+			{
+				throw new InvalidDataException("Object stored in archive is not allowed to be null.");
+			}
+			return Param.Value;
 		}
 	}
 }

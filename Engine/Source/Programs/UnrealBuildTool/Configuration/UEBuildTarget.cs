@@ -1201,11 +1201,11 @@ namespace UnrealBuildTool
 				{
 					if (Directory.Exists(Resource.ResourcePath))
 					{
-						Files.UnionWith(DirectoryReference.EnumerateFiles(new DirectoryReference(Resource.ResourcePath), "*", SearchOption.AllDirectories));
+						Files.UnionWith(DirectoryReference.EnumerateFiles(new DirectoryReference(Resource.ResourcePath!), "*", SearchOption.AllDirectories));
 					}
 					else
 					{
-						Files.Add(new FileReference(Resource.ResourcePath));
+						Files.Add(new FileReference(Resource.ResourcePath!));
 					}
 				}
 
@@ -2024,7 +2024,7 @@ namespace UnrealBuildTool
 			DirectoryReference ExeDir = Binaries[0].OutputDir;
 			if (Platform == UnrealTargetPlatform.Mac && ExeDir.FullName.EndsWith(".app/Contents/MacOS"))
 			{
-				ExeDir = ExeDir.ParentDirectory.ParentDirectory.ParentDirectory;
+				ExeDir = ExeDir.ParentDirectory!.ParentDirectory!.ParentDirectory!;
 			}
 			return ExeDir;
 		}

@@ -74,11 +74,14 @@ namespace EpicGames.Core
 			StringBuilder ErrorMessage = new StringBuilder();
 			if (Ex is AggregateException)
 			{
-				Exception InnerException = ((AggregateException)Ex).InnerException!;
-				ErrorMessage.Append(InnerException.ToString());
-				foreach (string Line in GetContext(InnerException))
+				Exception? InnerException = ((AggregateException)Ex).InnerException;
+				if (InnerException != null)
 				{
-					ErrorMessage.AppendFormat("\n  {0}", Line);
+					ErrorMessage.Append(InnerException.ToString());
+					foreach (string Line in GetContext(InnerException))
+					{
+						ErrorMessage.AppendFormat("\n  {0}", Line);
+					}
 				}
 			}
 			else
@@ -115,7 +118,16 @@ namespace EpicGames.Core
 				{
 					foreach (object? Key in CurrentEx.Data.Keys)
 					{
-						object Value = CurrentEx.Data[Key!]!;
+						if (Key == null)
+						{
+							continue;
+						}
+
+						object? Value = CurrentEx.Data[Key];
+						if (Value == null)
+						{
+							continue;
+						}
 
 						string ValueString;
 						if(Value is List<string>)
@@ -124,7 +136,7 @@ namespace EpicGames.Core
 						}
 						else
 						{
-							ValueString = Value.ToString()!;
+							ValueString = Value.ToString() ?? String.Empty;
 						}
 
 						Message.AppendFormat("   data: {0} = {1}", Key, ValueString);

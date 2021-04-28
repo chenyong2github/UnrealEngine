@@ -104,7 +104,7 @@ namespace UnrealBuildTool
 						}
 
 						// Try to parse the value and add it to the output array
-						object Value = Reader.ReadObject(Field.FieldType);
+						object Value = Reader.ReadObject(Field.FieldType)!;
 						Values[ValueIdx] = new KeyValuePair<FieldInfo, object>(Field, Value);
 					}
 

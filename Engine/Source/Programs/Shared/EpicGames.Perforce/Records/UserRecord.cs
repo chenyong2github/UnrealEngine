@@ -28,13 +28,13 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Last time the user's information was updated
 		/// </summary>
-		[PerforceTag("Update")]
+		[PerforceTag("Update", Optional = true)]
 		public DateTime Update;
 
 		/// <summary>
 		/// Last time the user's information was accessed
 		/// </summary>
-		[PerforceTag("Access")]
+		[PerforceTag("Access", Optional = true)]
 		public DateTime Access;
 
 		/// <summary>
@@ -52,8 +52,8 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// The type of user
 		/// </summary>
-		[PerforceTag("Type")]
-		public string Type;
+		[PerforceTag("Type", Optional = true)]
+		public string? Type;
 
 		/// <summary>
 		/// Method used to authenticate

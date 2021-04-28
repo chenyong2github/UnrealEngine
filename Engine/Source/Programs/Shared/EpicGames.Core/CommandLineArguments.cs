@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-
-#nullable disable
 
 namespace EpicGames.Core
 {
@@ -291,7 +291,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="Argument">Receives the argument that was read, on success</param>
 		/// <returns>True if an argument was read</returns>
-		public bool TryGetPositionalArgument(out string Argument)
+		public bool TryGetPositionalArgument([NotNullWhen(true)] out string? Argument)
 		{
 			for (int Idx = 0; Idx < PositionalArgumentIndices.Count; Idx++)
 			{
@@ -331,7 +331,7 @@ namespace EpicGames.Core
 		/// <returns>Value of the argument</returns>
 		public string GetString(string Prefix)
 		{
-			string Value;
+			string? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				throw new CommandLineArgumentException(String.Format("Missing '{0}...' argument", Prefix));
@@ -361,7 +361,7 @@ namespace EpicGames.Core
 		/// <returns>Value of the argument</returns>
 		public FileReference GetFileReference(string Prefix)
 		{
-			FileReference Value;
+			FileReference? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				throw new CommandLineArgumentException(String.Format("Missing '{0}...' argument", Prefix));
@@ -376,7 +376,7 @@ namespace EpicGames.Core
 		/// <returns>Value of the argument</returns>
 		public DirectoryReference GetDirectoryReference(string Prefix)
 		{
-			DirectoryReference Value;
+			DirectoryReference? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				throw new CommandLineArgumentException(String.Format("Missing '{0}...' argument", Prefix));
@@ -405,9 +405,10 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="DefaultValue">Default value for the argument</param>
 		/// <returns>Value of the argument</returns>
-		public string GetStringOrDefault(string Prefix, string DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public string? GetStringOrDefault(string Prefix, string? DefaultValue)
 		{
-			string Value;
+			string? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				Value = DefaultValue;
@@ -437,9 +438,10 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="DefaultValue">Default value for the argument</param>
 		/// <returns>Value of the argument</returns>
-		public FileReference GetFileReferenceOrDefault(string Prefix, FileReference DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public FileReference? GetFileReferenceOrDefault(string Prefix, FileReference? DefaultValue)
 		{
-			FileReference Value;
+			FileReference? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				Value = DefaultValue;
@@ -453,9 +455,10 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="DefaultValue">Default value for the argument</param>
 		/// <returns>Value of the argument</returns>
-		public DirectoryReference GetDirectoryReferenceOrDefault(string Prefix, DirectoryReference DefaultValue)
+		[return: NotNullIfNotNull("DefaultValue")]
+		public DirectoryReference? GetDirectoryReferenceOrDefault(string Prefix, DirectoryReference? DefaultValue)
 		{
-			DirectoryReference Value;
+			DirectoryReference? Value;
 			if(!TryGetValue(Prefix, out Value))
 			{
 				Value = DefaultValue;
@@ -485,7 +488,7 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="Value">Value of the argument, if found</param>
 		/// <returns>True if the argument was found (and Value was set), false otherwise.</returns>
-		public bool TryGetValue(string Prefix, out string Value)
+		public bool TryGetValue(string Prefix, [NotNullWhen(true)] out string? Value)
 		{
 			CheckValidPrefix(Prefix);
 
@@ -515,7 +518,7 @@ namespace EpicGames.Core
 		public bool TryGetValue(string Prefix, out int Value)
 		{
 			// Try to get the string value of this argument
-			string StringValue;
+			string? StringValue;
 			if(!TryGetValue(Prefix, out StringValue))
 			{
 				Value = 0;
@@ -540,10 +543,10 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="Value">Value of the argument, if found</param>
 		/// <returns>True if the argument was found (and Value was set), false otherwise.</returns>
-		public bool TryGetValue(string Prefix, out FileReference Value)
+		public bool TryGetValue(string Prefix, [NotNullWhen(true)] out FileReference? Value)
 		{
 			// Try to get the string value of this argument
-			string StringValue;
+			string? StringValue;
 			if(!TryGetValue(Prefix, out StringValue))
 			{
 				Value = null;
@@ -568,10 +571,10 @@ namespace EpicGames.Core
 		/// <param name="Prefix">The argument prefix (eg. "-Foo="). Must end with an '=' character.</param>
 		/// <param name="Value">Value of the argument, if found</param>
 		/// <returns>True if the argument was found (and Value was set), false otherwise.</returns>
-		public bool TryGetValue(string Prefix, out DirectoryReference Value)
+		public bool TryGetValue(string Prefix, [NotNullWhen(true)] out DirectoryReference? Value)
 		{
 			// Try to get the string value of this argument
-			string StringValue;
+			string? StringValue;
 			if(!TryGetValue(Prefix, out StringValue))
 			{
 				Value = null;
@@ -599,7 +602,7 @@ namespace EpicGames.Core
 		public bool TryGetValue<T>(string Prefix, out T Value) where T : struct
 		{
 			// Try to get the string value of this argument
-			string StringValue;
+			string? StringValue;
 			if(!TryGetValue(Prefix, out StringValue))
 			{
 				Value = new T();
@@ -670,7 +673,7 @@ namespace EpicGames.Core
 				ValueType = ValueType.GetGenericArguments()[0];
 			}
 
-			string Prefix = Attribute.Prefix;
+			string? Prefix = Attribute.Prefix;
 			if (Prefix == null)
 			{
 				if (ValueType == typeof(bool))
@@ -696,19 +699,30 @@ namespace EpicGames.Core
 		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
 		/// </summary>
 		/// <param name="TargetObject">The object to configure</param>
+		/// <param name="Logger">Sink for error/warning messages</param>
 		public void ApplyTo(object TargetObject)
+		{
+			ApplyTo(TargetObject, Log.Logger);
+		}
+
+		/// <summary>
+		/// Applies these arguments to fields with the [CommandLine] attribute in the given object.
+		/// </summary>
+		/// <param name="TargetObject">The object to configure</param>
+		/// <param name="Logger">Sink for error/warning messages</param>
+		public void ApplyTo(object TargetObject, ILogger Logger)
 		{
 			// Build a mapping from name to field and attribute for this object
 			List<string> MissingArguments = new List<string>();
-			for(Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType)
+			for(Type TargetType = TargetObject.GetType(); TargetType != typeof(object); TargetType = TargetType.BaseType!)
 			{
 				foreach(FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
 				{
 					// If any attribute is required, keep track of it so we can include an error for it
-					string RequiredPrefix = null;
+					string? RequiredPrefix = null;
 
 					// Keep track of whether a value has already been assigned to this field
-					string AssignedArgument = null;
+					string? AssignedArgument = null;
 
 					// Loop through all the attributes for different command line options that can modify it
 					IEnumerable<CommandLineAttribute> Attributes = FieldInfo.GetCustomAttributes<CommandLineAttribute>();
@@ -744,7 +758,7 @@ namespace EpicGames.Core
 								// Apply the value to the field
 								if(Attribute.ListSeparator == 0)
 								{
-									if(ApplyArgument(TargetObject, FieldInfo, Argument, ValueText, AssignedArgument))
+									if(ApplyArgument(TargetObject, FieldInfo, Argument, ValueText, AssignedArgument, Logger))
 									{
 										AssignedArgument = Argument;
 									}
@@ -753,7 +767,7 @@ namespace EpicGames.Core
 								{
 									foreach(string ItemValueText in ValueText.Split(Attribute.ListSeparator))
 									{
-										if(ApplyArgument(TargetObject, FieldInfo, Argument, ItemValueText, AssignedArgument))
+										if(ApplyArgument(TargetObject, FieldInfo, Argument, ItemValueText, AssignedArgument, Logger))
 										{
 											AssignedArgument = Argument;
 										}
@@ -802,7 +816,7 @@ namespace EpicGames.Core
 		public static List<KeyValuePair<string, string>> GetParameters(Type Type)
 		{
 			List<KeyValuePair<string, string>> Parameters = new List<KeyValuePair<string, string>>();
-			for (Type TargetType = Type; TargetType != typeof(object); TargetType = TargetType.BaseType)
+			for (Type? TargetType = Type; TargetType != typeof(object) && TargetType != null; TargetType = TargetType.BaseType)
 			{
 				foreach (FieldInfo FieldInfo in TargetType.GetFields(BindingFlags.Instance | BindingFlags.GetField | BindingFlags.GetProperty | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
 				{
@@ -999,6 +1013,14 @@ namespace EpicGames.Core
 		/// </summary>
 		public void CheckAllArgumentsUsed()
 		{
+			CheckAllArgumentsUsed(Log.Logger);
+		}
+
+		/// <summary>
+		/// Checks that there are no unused arguments (and warns if there are)
+		/// </summary>
+		public void CheckAllArgumentsUsed(ILogger Logger)
+		{
 			// Find all the unused arguments
 			List<string> RemainingArguments = new List<string>();
 			for(int Idx = 0; Idx < Arguments.Length; Idx++)
@@ -1014,11 +1036,11 @@ namespace EpicGames.Core
 			{
 				if(RemainingArguments.Count == 1)
 				{
-					Log.TraceWarning("Invalid argument: {0}", RemainingArguments[0]);
+					Logger.LogWarning(String.Format("Invalid argument: {0}", RemainingArguments[0]));
 				}
 				else
 				{
-					Log.TraceWarning("Invalid arguments:\n{0}", String.Join("\n", RemainingArguments));
+					Logger.LogWarning(String.Format("Invalid arguments:\n{0}", String.Join("\n", RemainingArguments)));
 				}
 			}
 		}
@@ -1051,14 +1073,15 @@ namespace EpicGames.Core
 		/// <param name="ArgumentText">The full argument text</param>
 		/// <param name="ValueText">Argument text</param>
 		/// <param name="PreviousArgumentText">The previous text used to configure this field</param>
+		/// <param name="Logger">Logger for error/warning messages</param>
 		/// <returns>True if the value was assigned to the field, false otherwise</returns>
-		private static bool ApplyArgument(object TargetObject, FieldInfo Field, string ArgumentText, string ValueText, string PreviousArgumentText)
+		private static bool ApplyArgument(object TargetObject, FieldInfo Field, string ArgumentText, string ValueText, string? PreviousArgumentText, ILogger Logger)
 		{
 			// The value type for items of this field
 			Type ValueType = Field.FieldType;
 
 			// Check if the field type implements ICollection<>. If so, we can take multiple values.
-			Type CollectionType = null;
+			Type? CollectionType = null;
 			foreach (Type InterfaceType in Field.FieldType.GetInterfaces())
 			{
 				if (InterfaceType.IsGenericType && InterfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
@@ -1070,10 +1093,10 @@ namespace EpicGames.Core
 			}
 
 			// Try to parse the value
-			object Value;
+			object? Value;
 			if(!TryParseValue(ValueType, ValueText, out Value))
 			{
-				Log.TraceWarning("Unable to parse value for argument '{0}'.", ArgumentText);
+				Logger.LogWarning("Unable to parse value for argument '{0}'.", ArgumentText);
 				return false;
 			}
 
@@ -1083,10 +1106,10 @@ namespace EpicGames.Core
 				// Check if this field has already been assigned to. Output a warning if the previous value is in conflict with the new one.
 				if(PreviousArgumentText != null)
 				{
-					object PreviousValue = Field.GetValue(TargetObject);
-					if(!PreviousValue.Equals(Value))
+					object? PreviousValue = Field.GetValue(TargetObject);
+					if(!Object.Equals(PreviousValue, Value))
 					{
-						Log.TraceWarning("Argument '{0}' conflicts with '{1}'; ignoring.", ArgumentText, PreviousArgumentText);
+						Logger.LogWarning("Argument '{0}' conflicts with '{1}'; ignoring.", ArgumentText, PreviousArgumentText);
 					}
 					return false;
 				}
@@ -1110,7 +1133,7 @@ namespace EpicGames.Core
 		/// <param name="Text">The value text</param>
 		/// <param name="Value">On success, contains the parsed object</param>
 		/// <returns>True if the text could be parsed, false otherwise</returns>
-		private static bool TryParseValue(Type FieldType, string Text, out object Value)
+		private static bool TryParseValue(Type FieldType, string Text, [NotNullWhen(true)] out object? Value)
 		{
 			if (FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
 			{

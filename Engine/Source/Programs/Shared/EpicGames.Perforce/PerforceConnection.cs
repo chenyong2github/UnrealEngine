@@ -2025,7 +2025,9 @@ namespace EpicGames.Perforce
 		/// <returns>Response from the server</returns>
 		public async Task<List<ReconcileRecord>> ReconcileAsync(int ChangeNumber, ReconcileOptions Options, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return (await TryReconcileAsync(ChangeNumber, Options, FileSpecs, CancellationToken)).Data;
+			PerforceResponseList<ReconcileRecord> Records = await TryReconcileAsync(ChangeNumber, Options, FileSpecs, CancellationToken);
+			Records.RemoveAll(x => x.Info != null);
+			return Records.Data;
 		}
 
 		/// <summary>
@@ -2648,7 +2650,9 @@ namespace EpicGames.Perforce
 		/// <returns>Response from the server</returns>
 		public async Task<List<SyncSummaryRecord>> SyncQuietAsync(SyncOptions Options, int MaxFiles, string[] FileSpecs, CancellationToken CancellationToken)
 		{
-			return (await TrySyncQuietAsync(Options, MaxFiles, FileSpecs, CancellationToken)).Data;
+			PerforceResponseList<SyncSummaryRecord> Records = await TrySyncQuietAsync(Options, MaxFiles, FileSpecs, CancellationToken);
+			Records.RemoveAll(x => (x.Error != null && x.Error.Generic == PerforceGenericCode.Empty) || x.Info != null);
+			return Records.Data;
 		}
 
 		/// <summary>
@@ -2883,7 +2887,7 @@ namespace EpicGames.Perforce
 		/// <returns>Response from the server</returns>
 		public async Task<UserRecord> GetUserAsync(string UserName, CancellationToken CancellationToken)
 		{
-			return (await TryGetUserAsync(UserName, CancellationToken)).Data;
+			return (await TryGetUserAsync(UserName, CancellationToken))[0].Data;
 		}
 
 		/// <summary>
@@ -2892,11 +2896,11 @@ namespace EpicGames.Perforce
 		/// <param name="UserName">Name of the user to fetch information for</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>Response from the server</returns>
-		public Task<PerforceResponse<UserRecord>> TryGetUserAsync(string UserName, CancellationToken CancellationToken)
+		public Task<PerforceResponseList<UserRecord>> TryGetUserAsync(string UserName, CancellationToken CancellationToken)
 		{
 			StringBuilder Arguments = new StringBuilder("user");
 			Arguments.AppendFormat(" -o \"{0}\"", UserName);
-			return SingleResponseCommandAsync<UserRecord>(Arguments.ToString(), null, CancellationToken);
+			return CommandAsync<UserRecord>(Arguments.ToString(), null, CancellationToken);
 		}
 
 		#endregion

@@ -371,9 +371,9 @@ namespace UnrealBuildTool
 					{
 						WorkingSet = new GitSourceFileWorkingSet(GitPath, ProjectDir, WorkingSet);
 					}
-					else if (DirectoryReference.Exists(DirectoryReference.Combine(ProjectDir.ParentDirectory, ".git")))
+					else if (DirectoryReference.Exists(DirectoryReference.Combine(ProjectDir.ParentDirectory!, ".git")))
 					{
-						WorkingSet = new GitSourceFileWorkingSet(GitPath, ProjectDir.ParentDirectory, WorkingSet);
+						WorkingSet = new GitSourceFileWorkingSet(GitPath, ProjectDir.ParentDirectory!, WorkingSet);
 					}
 				}
 			}

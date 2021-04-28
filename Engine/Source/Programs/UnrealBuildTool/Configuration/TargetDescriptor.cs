@@ -396,7 +396,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the project file was parsed, false otherwise</returns>
 		public static bool TryParseProjectFileArgument(CommandLineArguments Arguments, out FileReference? ProjectFile)
 		{
-			FileReference ExplicitProjectFile;
+			FileReference? ExplicitProjectFile;
 			if(Arguments.TryGetValue("-Project=", out ExplicitProjectFile))
 			{
 				ProjectFile = ExplicitProjectFile;
