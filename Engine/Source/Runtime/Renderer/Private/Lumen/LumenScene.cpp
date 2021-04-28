@@ -794,7 +794,8 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 	// Reset arrays, but keep allocated memory for 1024 elements
 	LumenSceneData.PendingAddOperations.Reset(1024);
 	LumenSceneData.PendingRemoveOperations.Reset(1024);
-	LumenSceneData.PendingUpdateOperations.Reset(1024);
+	LumenSceneData.PendingUpdateOperations.Reset();
+	LumenSceneData.PendingUpdateOperations.Reserve(1024);
 }
 
 void FLumenSceneData::RemoveAllMeshCards()
