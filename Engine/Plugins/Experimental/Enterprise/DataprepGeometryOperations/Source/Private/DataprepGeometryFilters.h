@@ -10,7 +10,7 @@
 
 #include "DataprepGeometryFilters.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, HideCategories = (Filter), Meta = (DisplayName="Mesh Jacketing", ToolTip = "Apply mesh jacketing to selected objects"))
+UCLASS(BlueprintType, NotBlueprintable, HideCategories = (Filter), Meta = (DisplayName="Jacketing/Select Hidden", ToolTip = "Apply mesh jacketing to selected objects"))
 class UDataprepJacketingFilter : public UDataprepFilterNoFetcher
 {
 	GENERATED_BODY()

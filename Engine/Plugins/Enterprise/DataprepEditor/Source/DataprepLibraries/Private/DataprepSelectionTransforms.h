@@ -22,7 +22,7 @@ enum class EDataprepHierarchySelectionPolicy : uint8
 	AllDescendants,
 };
 
-UCLASS(Category = SelectionTransform, Meta = (DisplayName="Select Referenced", ToolTip = "Return all the assets used/referenced by the selected objects") )
+UCLASS(Category = SelectionTransform, Meta = (DisplayName="Select Referenced", ToolTip = "Return assets directly used/referenced by the selected objects.") )
 class UDataprepReferenceSelectionTransform : public UDataprepSelectionTransform
 {
 	GENERATED_BODY()
@@ -38,7 +38,7 @@ protected:
 	bool bAllowIndirectReferences;
 };
 
-UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select Referencers", ToolTip = "Return all the assets using/referencing the objects from previous filtering"))
+UCLASS(Category = SelectionTransform, Meta = (DisplayName = "Select Referencers", ToolTip = "Return assets directly using/referencing the objects from previous filtering"))
 class UDataprepReferencedSelectionTransform : public UDataprepSelectionTransform
 {
 	GENERATED_BODY()
