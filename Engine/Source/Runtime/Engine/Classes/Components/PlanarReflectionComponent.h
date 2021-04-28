@@ -38,6 +38,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=PlanarReflection, meta=(UIMin = "25", UIMax = "100"), AdvancedDisplay)
 	int32 ScreenPercentage;
 
+	/** Whether to render the planar reflection with blur */
+	UPROPERTY(EditAnywhere, Category = PlanarReflection, AdvancedDisplay)
+	bool bApplyBlur;
+
 	/** 
 	 * Additional FOV used when rendering to the reflection texture.  
 	 * This is useful when normal distortion is causing reads outside the reflection texture. 

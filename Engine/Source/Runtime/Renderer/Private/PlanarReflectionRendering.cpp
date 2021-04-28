@@ -32,6 +32,13 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "SceneTextureParameters.h"
+#include "RendererUtils.h"
+
+TAutoConsoleVariable<int32> CVarPlanarReflectionPreferCompute(
+	TEXT("r.PlanarReflection.PreferCompute"),
+	0,
+	TEXT("Will use compute shaders for planar reflection blur."),
+	ECVF_RenderThreadSafe);
 
 void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, FPlanarReflectionUniformParameters& OutParameters)
 {
@@ -206,8 +213,10 @@ private:
 IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<false>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<true>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
 
+using namespace RendererUtils;
+
 template<bool bEnablePlanarReflectionPrefilter>
-void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FUniformBufferRHIRef& PassUniformBuffer, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
+void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FUniformBufferRHIRef& PassUniformBuffer, FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
 {
 	FRHITexture* SceneColorInput = FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture();
 
@@ -227,6 +236,33 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 
 		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
+		if (ReflectionSceneProxy->bApplyBlur)
+		{
+			bool bUseComputeShader = CVarPlanarReflectionPreferCompute.GetValueOnAnyThread() != 0;
+
+			const FIntPoint BufferSize = Target->GetSizeXY();
+			const EPixelFormat PixelFormat = Target->GetRenderTargetTexture()->GetFormat();
+			FPooledRenderTargetDesc Desc = FPooledRenderTargetDesc::Create2DDesc(BufferSize, PixelFormat,
+				FClearValueBinding::White, TexCreate_ShaderResource, TexCreate_RenderTargetable, false);
+			Desc.TargetableFlags |= bUseComputeShader ? TexCreate_UAV : TexCreate_None;
+
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->HorizontalBlurRenderTarget, TEXT("HorizontalBlurRenderTarget"));
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ReflectionSceneProxy->VerticalBlurRenderTarget, TEXT("VerticalBlurRenderTarget"));
+			ensure(ReflectionSceneProxy->HorizontalBlurRenderTarget && ReflectionSceneProxy->VerticalBlurRenderTarget);
+
+			RendererUtils::AddGaussianBlurFilter(RHICmdList, View, SceneColorInput,
+				ReflectionSceneProxy->HorizontalBlurRenderTarget,
+				ReflectionSceneProxy->VerticalBlurRenderTarget,
+				bUseComputeShader);
+
+			SceneColorInput = ReflectionSceneProxy->VerticalBlurRenderTarget->GetRenderTargetItem().TargetableTexture;
+		}
+		else
+		{
+			ReflectionSceneProxy->HorizontalBlurRenderTarget.SafeRelease();
+			ReflectionSceneProxy->VerticalBlurRenderTarget.SafeRelease();
+		}
 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
 		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;

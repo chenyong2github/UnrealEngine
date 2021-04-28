@@ -155,4 +155,8 @@ public:
 
 	/** This is specific to a certain view and should actually be stored in FSceneViewState. */
 	FPlanarReflectionRenderTarget* RenderTarget;
+
+	bool bApplyBlur;
+	TRefCountPtr<IPooledRenderTarget> HorizontalBlurRenderTarget;
+	TRefCountPtr<IPooledRenderTarget> VerticalBlurRenderTarget;
 };

@@ -25,3 +25,89 @@ void RasterizeToRectsVS(
 
 	Position = float4(float2(VertexCoord) * InvViewSize * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.0f, 1.0f);
 }
+
+void ScreenRectangleVS(
+	in float2 InPosition : ATTRIBUTE0,
+	in float2 InUV : ATTRIBUTE1,
+	out float2 OutTexCoord : TEXCOORD0,
+	out float4 OutPosition : SV_POSITION)
+{
+	DrawRectangle(float4(InPosition.xy, 0, 1), InUV, OutPosition, OutTexCoord);
+}
+
+// Gaussian Blur
+Texture2D SourceTexture;
+SamplerState SourceTextureSampler;
+float4 BufferSizeAndInvSize;
+
+static const float Weights[7] = { 0.0205, 0.0855, 0.232, 0.324, 0.232, 0.0855, 0.0205 }; // gauss'ish blur weights
+float4 CalculateKernelColor(float2 UV, float2 Offset)
+{
+	float4 Color = 0;
+	float2 Coords = UV - Offset * 3;
+	
+	UNROLL 
+	for (int i = 0; i < 7; i++)
+	{
+		Color += Texture2DSampleLevel(SourceTexture, SourceTextureSampler, Coords, 0) * Weights[i];
+		Coords += Offset;
+	}
+
+	return Color;
+}
+
+void HorizontalBlurPS(
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float2 UV = float2(SVPos.xy * BufferSizeAndInvSize.zw);
+	float2 Offset = float2(1, 0) * BufferSizeAndInvSize.zw;
+	
+	OutColor = CalculateKernelColor(UV, Offset);
+}
+
+void VerticalBlurPS(
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float2 UV = float2(SVPos.xy * BufferSizeAndInvSize.zw);
+	float2 Offset = float2(0, 1) * BufferSizeAndInvSize.zw;
+	
+	OutColor = CalculateKernelColor(UV, Offset);
+}
+
+#if COMPUTESHADER
+
+RWTexture2D<float4> RWOutputTexture;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void HorizontalBlurCS(
+	int GroupIndex : SV_GroupIndex,
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 iPixelPos = DispatchThreadId;
+	float2 PixelPos = float2(iPixelPos);
+	float2 UV = (PixelPos + 0.5) * BufferSizeAndInvSize.zw;
+	float2 Offset = float2(1, 0) * BufferSizeAndInvSize.zw; 
+
+	RWOutputTexture[PixelPos] = CalculateKernelColor(UV, Offset);
+}
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void VerticalBlurCS(
+	int GroupIndex : SV_GroupIndex,
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 iPixelPos = DispatchThreadId;
+	float2 PixelPos = float2(iPixelPos);
+	float2 UV = (PixelPos + 0.5) * BufferSizeAndInvSize.zw;
+	float2 Offset = float2(0, 1) * BufferSizeAndInvSize.zw;
+
+	RWOutputTexture[PixelPos] = CalculateKernelColor(UV, Offset);
+}
+
+#endif
