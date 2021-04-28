@@ -62,7 +62,7 @@ void FDisplayClusterConfiguratorDetailCustomization::CustomizeDetails(IDetailLay
 		}
 	}
 
-	if (!RootActorPtr.IsValid() || ObjectBeingEdited->IsTemplate(RF_ClassDefaultObject))
+	if (!RootActorPtr.IsValid() || (ObjectBeingEdited && ObjectBeingEdited->IsTemplate(RF_ClassDefaultObject)))
 	{
 		if (FDisplayClusterConfiguratorBlueprintEditor* BPEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(ObjectBeingEdited))
 		{
