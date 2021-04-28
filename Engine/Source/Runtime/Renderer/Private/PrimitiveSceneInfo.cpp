@@ -247,6 +247,8 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheMeshDrawCommand, FColor::Green);
 
+		FMemMark Mark(FMemStack::Get());
+
 		struct FMeshInfoAndIndex
 		{
 			int32 InfoIndex;
