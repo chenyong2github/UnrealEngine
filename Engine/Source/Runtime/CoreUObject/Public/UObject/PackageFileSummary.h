@@ -218,6 +218,14 @@ public:
 	/** Constructor */
 	COREUOBJECT_API FPackageFileSummary();
 
+	// Workaround for clang deprecation warnings for deprecated Guid member in implicit constructors
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FPackageFileSummary(FPackageFileSummary&&) = default;
+	FPackageFileSummary(const FPackageFileSummary&) = default;
+	FPackageFileSummary& operator=(FPackageFileSummary&&) = default;
+	FPackageFileSummary& operator=(const FPackageFileSummary&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	int32 GetFileVersionUE4() const
 	{
 		return FileVersionUE4;
