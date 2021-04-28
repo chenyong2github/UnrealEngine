@@ -24,19 +24,19 @@ void UMIDIDeviceOutputController::StartupDevice(const int32 InitDeviceID, bool& 
 		// Is the device already in use?  If so, spit out a warning
 		if(PMDeviceInfo->opened != 0)
 		{
-			UE_LOG(LogMIDIDevice, Error, TEXT("Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%s) is already in use." ), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
+			UE_LOG(LogMIDIDevice, Warning, TEXT("Failed to bind to MIDI device '%s' (ID: %i): Device is already in use"), ANSI_TO_TCHAR(PMDeviceInfo->name), PMDeviceID);
 			return;
 		}
 
 		if(PMDeviceInfo->output == 0)
 		{
-			UE_LOG(LogMIDIDevice, Error, TEXT("Warning while creating a MIDI device controller:  PortMidi reports that device ID %i (%S) does is not setup to transmit MIDI data."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name));
+			UE_LOG(LogMIDIDevice, Warning, TEXT("Failed to bind to MIDI device '%s' (ID: %i): Device not setup to receive MIDI"), ANSI_TO_TCHAR(PMDeviceInfo->name), PMDeviceID);
 			return;
 		}
 
 		// @todo midi: Add options for timing/latency (see timeproc, and pm_Synchronize)
 
-		PmError PMError = Pm_OpenOutput(&this->PMMIDIStream, PMDeviceID, NULL, 1, NULL, NULL, 0);
+		const PmError PMError = Pm_OpenOutput(&this->PMMIDIStream, PMDeviceID, nullptr, 1, nullptr, nullptr, 0);
 		if (PMError == pmNoError)
 		{
 			check(this->PMMIDIStream != nullptr);
@@ -62,8 +62,7 @@ void UMIDIDeviceOutputController::ShutdownDevice()
 {
 	if (this->PMMIDIStream != nullptr)
 	{
-		PmError PMError = Pm_Close(this->PMMIDIStream);
-
+		const PmError PMError = Pm_Close(this->PMMIDIStream);
 		if (PMError != pmNoError)
 		{
 			UE_LOG(LogMIDIDevice, Error, TEXT("Encounter an error when closing the output connection to MIDI device ID %i (%s) (PortMidi error: %s)."), this->DeviceID, *this->DeviceName, ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
@@ -77,10 +76,10 @@ void UMIDIDeviceOutputController::SendMIDIEvent(EMIDIEventType EventType, int32 
 {
 	if (this->PMMIDIStream != nullptr)
 	{
-		int32 status = ((int32)EventType << 4) | Channel;
+		const int32 Status = ((int32)EventType << 4) | Channel;
 
 		// timestamp is ignored because latency is set to 0
-		Pm_WriteShort(this->PMMIDIStream, 0, Pm_Message(status, data1, data2));
+		Pm_WriteShort(this->PMMIDIStream, 0, Pm_Message(Status, data1, data2));
 	}
 }
 

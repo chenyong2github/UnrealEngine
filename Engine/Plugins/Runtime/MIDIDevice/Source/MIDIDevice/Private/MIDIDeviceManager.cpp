@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MIDIDeviceManager.h"
-#include "UObject/UObjectIterator.h"
-#include "UObject/UObjectHash.h"
 #include "MIDIDeviceController.h"
 #include "MIDIDeviceLog.h"
+#include "UObject/UObjectIterator.h"
 #include "portmidi.h"
 
 #define LOCTEXT_NAMESPACE "MIDIDeviceManager"
@@ -25,7 +24,7 @@ void UMIDIDeviceManager::StartupMIDIDeviceManager()
 		}
 		else
 		{
-			UE_LOG( LogMIDIDevice, Error, TEXT( "Unable to open initialize the MIDI device manager (PortMidi error: %s).  You won't be use MIDI features in this session." ), ANSI_TO_TCHAR( Pm_GetErrorText( PMError ) ) );
+			UE_LOG(LogMIDIDevice, Error, TEXT( "Unable to open initialize the MIDI device manager (PortMidi error: %s).  You won't be use MIDI features in this session." ), ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
 		}
 	}
 }
@@ -233,8 +232,8 @@ void UMIDIDeviceManager::GetDefaultMIDIOutputDeviceID(int32& DeviceID)
 UMIDIDeviceController* UMIDIDeviceManager::CreateMIDIDeviceController(const int32 DeviceID, const int32 MIDIBufferSize)
 {
 	UMIDIDeviceController* NewMIDIDeviceController = nullptr;
-	
-	if(bIsInitialized)
+
+	if (bIsInitialized)
 	{
 		// Create the MIDI Device Controller object.  It will be transient.
 		NewMIDIDeviceController = NewObject<UMIDIDeviceController>();
@@ -242,18 +241,18 @@ UMIDIDeviceController* UMIDIDeviceManager::CreateMIDIDeviceController(const int3
 		bool bStartedSuccessfully = false;
 		NewMIDIDeviceController->StartupDevice(DeviceID, MIDIBufferSize, /* Out */ bStartedSuccessfully);
 
-		if(!bStartedSuccessfully)
+		if (!bStartedSuccessfully)
 		{
 			// Kill it
 			NewMIDIDeviceController->MarkPendingKill();
 			NewMIDIDeviceController = nullptr;
 
-			UE_LOG(LogMIDIDevice, Error, TEXT( "Create MIDI Device Controller wasn't able to create the controller successfully.  Returning a null reference."));
+			UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));
 		}
 	}
 	else
 	{
-		UE_LOG(LogMIDIDevice, Error, TEXT( "Create MIDI Device Controller isn't able to create a controller because the MIDI Device Manager failed to initialize.  Look earlier in the log to see why it failed to startup.  Returning a null reference."));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller isn't able to create a controller because the MIDI Device Manager failed to initialize. Look earlier in the log to see why it failed to startup.  Returning a null reference."));
 	}
 
 	return NewMIDIDeviceController;
@@ -275,12 +274,11 @@ UMIDIDeviceInputController* UMIDIDeviceManager::CreateMIDIDeviceInputController(
 		NewMIDIDeviceController->MarkPendingKill();
 		NewMIDIDeviceController = nullptr;
 
-		UE_LOG(LogMIDIDevice, Error, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully.  Returning a null reference."));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));
 	}
 
 	return NewMIDIDeviceController;
 }
-
 
 UMIDIDeviceOutputController* UMIDIDeviceManager::CreateMIDIDeviceOutputController(const int32 DeviceID)
 {
@@ -298,7 +296,7 @@ UMIDIDeviceOutputController* UMIDIDeviceManager::CreateMIDIDeviceOutputControlle
 		NewMIDIDeviceController->MarkPendingKill();
 		NewMIDIDeviceController = nullptr;
 
-		UE_LOG(LogMIDIDevice, Error, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully.  Returning a null reference."));
+		UE_LOG(LogMIDIDevice, Warning, TEXT("Create MIDI Device Controller wasn't able to create the controller successfully. Returning a null reference."));
 	}
 
 	return NewMIDIDeviceController;
