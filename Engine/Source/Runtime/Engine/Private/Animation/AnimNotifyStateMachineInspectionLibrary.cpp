@@ -55,11 +55,11 @@ bool UAnimNotifyStateMachineInspectionLibrary::IsTriggeredByStateInStateMachine(
 	{
 		int32 MachineIndex;
 		const FBakedAnimationStateMachine* BakedAnimationStateMachine = nullptr;
-		AnimInstance->GetStateMachineIndexAndDescription(StateMachineName,MachineIndex, &BakedAnimationStateMachine);
+		AnimInstance->GetStateMachineIndexAndDescription(StateMachineName, MachineIndex, &BakedAnimationStateMachine);
 		if(MachineIndex != INDEX_NONE && BakedAnimationStateMachine)
 		{
 			int32 StateIndex = BakedAnimationStateMachine->FindStateIndex(StateName);
-			return IsStateInStateMachineInEventContext(EventReference, StateIndex, MachineIndex);
+			return IsStateInStateMachineInEventContext(EventReference, MachineIndex, StateIndex);
 		}
 	}
 	return false; 
