@@ -132,6 +132,16 @@ public:
 	bool GetShowOrigin() const;
 
 	/**
+	 * Returns true if AA enabled.
+	 */
+	bool GetEnableAA() const;
+
+	/**
+	 * Enables or disables AA.
+	 */
+	void ToggleEnableAA();
+	
+	/**
 	 * Shows the preview components.
 	 */
 	void ToggleShowPreview();

@@ -39,6 +39,7 @@ void FDisplayClusterConfiguratorCommands::RegisterCommands()
 	UI_COMMAND(ShowFloor, "Show Floor", "Toggles a ground mesh for collision", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ShowGrid, "Show Grid", "Toggles the grid", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ShowOrigin, "Show World Origin", "Display the exact world origin for nDisplay", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(EnableAA, "Enable AA", "Enable anti aliasing in the preview window", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ShowPreview, "Show Projection Preview", "Show a projection preview when applicable", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(Show3DViewportNames, "Show Viewport Names", "Shows the viewport names in 3d space", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleShowXformGizmos, "Show Xform Gizmos", "Shows the Xform component gizmos", EUserInterfaceActionType::ToggleButton, FInputChord());
