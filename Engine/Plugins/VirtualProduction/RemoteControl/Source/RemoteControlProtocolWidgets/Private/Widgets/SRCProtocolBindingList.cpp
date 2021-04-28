@@ -5,6 +5,7 @@
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "IRemoteControlProtocolModule.h"
+#include "RemoteControlProtocolWidgetsSettings.h"
 #include "SRCProtocolBinding.h"
 #include "SRCProtocolList.h"
 #include "Delegates/DelegateSignatureImpl.inl"
@@ -25,6 +26,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 {
 	constexpr float Padding = 2.0f;
 	ViewModel = InViewModel;
+	FilteredBindings = ViewModel->GetFilteredBindings(GetSettings()->HiddenProtocolTypeNames);
 
 	PrimaryColumnWidth = 0.7f;
 	PrimaryColumnSizeData = MakeShared<RemoteControlProtocolWidgetUtils::FPropertyViewColumnSizeData>();
@@ -67,7 +69,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 	FMenuBuilder ProtocolVisibilityMenu(true, nullptr);
 
 	// @todo: refactor to allow for protocol late loading, add & remove during editor session
-	TArray<FName> ProtocolNames = IRemoteControlProtocolModule::Get().GetProtocolNames();
+	ProtocolNames = IRemoteControlProtocolModule::Get().GetProtocolNames();
 	for(const FName& ProtocolName : ProtocolNames)
 	{
 		ProtocolVisibilityMenu.AddMenuEntry(
@@ -178,7 +180,7 @@ void SRCProtocolBindingList::Construct(const FArguments& InArgs, TSharedRef<FPro
 	        [
         		SAssignNew(BindingList, SListView<TSharedPtr<FProtocolBindingViewModel>>)
 		        .OnGenerateRow(this, &SRCProtocolBindingList::OnGenerateRow)
-		        .ListItemsSource(&ViewModel->GetBindings())
+		        .ListItemsSource(&FilteredBindings)
 	        ]
 		]
 	];
@@ -215,11 +217,35 @@ bool SRCProtocolBindingList::CanAddProtocol()
 
 void SRCProtocolBindingList::ToggleShowProtocol(const FName& InProtocolName)
 {
+	if(IsProtocolShown(InProtocolName))
+	{
+		GetSettings()->HiddenProtocolTypeNames.Add(InProtocolName);
+	}
+	else
+	{
+		GetSettings()->HiddenProtocolTypeNames.Remove(InProtocolName);
+	}
+
+	FilteredBindings = ViewModel->GetFilteredBindings(GetSettings()->HiddenProtocolTypeNames);
+	BindingList->RequestListRefresh();
 }
 
 bool SRCProtocolBindingList::IsProtocolShown(const FName& InProtocolName)
 {
-	return true;
+	return !GetSettings()->HiddenProtocolTypeNames.Contains(InProtocolName);
+}
+
+URemoteControlProtocolWidgetsSettings* SRCProtocolBindingList::GetSettings()
+{
+	if(Settings.IsValid())
+	{
+		return Settings.Get();
+	}
+
+	Settings = GetMutableDefault<URemoteControlProtocolWidgetsSettings>();
+	ensure(Settings.IsValid());
+	
+	return Settings.Get();
 }
 
 #undef LOCTEXT_NAMESPACE
