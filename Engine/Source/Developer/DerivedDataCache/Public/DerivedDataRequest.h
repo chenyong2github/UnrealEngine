@@ -4,10 +4,9 @@
 
 #include "CoreTypes.h"
 #include "Templates/RefCounting.h"
+#include "Templates/UnrealTemplate.h"
 
-namespace UE
-{
-namespace DerivedData
+namespace UE::DerivedData
 {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,8 +62,8 @@ enum class EStatus : uint8
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Interface to a request. Use via FRequest. */
-class IRequest : public IRefCountedObject
+/** Interface to a request. Use via FRequest to automate reference counting. */
+class IRequest
 {
 public:
 	virtual ~IRequest() = default;
@@ -80,22 +79,38 @@ public:
 
 	/** Poll the request and return true if complete and false otherwise. */
 	virtual bool Poll() = 0;
+
+	/** Add a reference to the request. */
+	virtual void AddRef() const = 0;
+
+	/** Release a reference. The request is deleted when the last reference is released. */
+	virtual void Release() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Handle to a request that manages its lifetime with reference counting. */
-class FRequest
+template <typename RequestType>
+class TRequest
 {
 public:
 	/** Construct a null request. */
-	FRequest() = default;
+	TRequest() = default;
 
 	/** Construct a request from a raw pointer. */
-	inline explicit FRequest(IRequest* InRequest)
-		: Request(InRequest)
-	{
-	}
+	inline explicit TRequest(RequestType* InRequest) : Request(InRequest) {}
+
+	/** Construct a request from a request of a compatible type. */
+	template <typename OtherRequestType, decltype(ImplicitConv<RequestType*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline TRequest(const TRequest<OtherRequestType>& InRequest) : Request(InRequest.Request) {}
+	template <typename OtherRequestType, decltype(ImplicitConv<RequestType*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline TRequest(TRequest<OtherRequestType>&& InRequest) : Request(MoveTemp(InRequest.Request)) {}
+
+	/** Assign from a request of a compatible type. */
+	template <typename OtherRequestType, decltype(ImplicitConv<RequestType*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline TRequest& operator=(const TRequest<OtherRequestType>& InRequest) { Request = InRequest.Request; return *this; }
+	template <typename OtherRequestType, decltype(ImplicitConv<RequestType*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline TRequest& operator=(TRequest<OtherRequestType>&& InRequest) { Request = MoveTemp(InRequest.Request); return *this; }
 
 	/** Reset this to null. */
 	inline void Reset() { Request.SafeRelease(); }
@@ -106,6 +121,11 @@ public:
 	inline bool IsValid() const { return !IsNull(); }
 	/** Whether the request is not null. */
 	inline explicit operator bool() const { return IsValid(); }
+
+	/** Access the referenced request. */
+	inline RequestType* Get() const { return Request; }
+	inline RequestType* operator->() const { return Request; }
+	inline RequestType& operator*() const { return *Request; }
 
 	/**
 	 * Set the priority of the request.
@@ -158,11 +178,25 @@ public:
 		return !Request || Request->Poll();
 	}
 
+	template <typename OtherRequestType, decltype(ImplicitConv<IRequest*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline bool operator==(const TRequest<OtherRequestType>& Other) const { return Request == Other.Request; }
+	template <typename OtherRequestType, decltype(ImplicitConv<IRequest*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline bool operator!=(const TRequest<OtherRequestType>& Other) const { return Request != Other.Request; }
+	template <typename OtherRequestType, decltype(ImplicitConv<IRequest*>(DeclVal<OtherRequestType*>()))* = nullptr>
+	inline bool operator<(const TRequest<OtherRequestType>& Other) const { return Request < Other.Request; }
+
+	friend inline uint32 GetTypeHash(const TRequest& Other) { return ::GetTypeHash(Other.Request); }
+
+	template <typename OtherRequestType>
+	friend class TRequest;
+
 private:
-	TRefCountPtr<IRequest> Request;
+	TRefCountPtr<RequestType> Request;
 };
+
+/** Handle to a request that manages its lifetime with reference counting. */
+using FRequest = TRequest<IRequest>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} // DerivedData
-} // UE
+} // UE::DerivedData

@@ -7,9 +7,7 @@
 #include "DerivedDataRequest.h"
 #include "Misc/EnumClassFlags.h"
 
-namespace UE
-{
-namespace DerivedData
+namespace UE::DerivedData
 {
 
 class FCacheBucket;
@@ -93,16 +91,12 @@ ENUM_CLASS_FLAGS(ECachePolicy);
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Interface to the cache.
- *
- * Functions on this interface may be called from any thread. When a callback is provided, it may
- * be invoked from a different thread than the request was made on, and may be invoked before the
- * request function returns, both of which must be supported by the callback.
+ * Interface to construct types related to the cache.
  */
-class ICache
+class ICacheFactory
 {
 public:
-	virtual ~ICache() = default;
+	virtual ~ICacheFactory() = default;
 
 	/**
 	 * Create a cache bucket from a name.
@@ -115,6 +109,21 @@ public:
 	 * Create a cache record builder from a cache key.
 	 */
 	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) = 0;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Interface to a store of cache records.
+ *
+ * Functions on this interface may be called from any thread. When a callback is provided, it may
+ * be invoked from a different thread than the request was made on, and may be invoked before the
+ * request function returns, both of which must be supported by the caller and the callback.
+ */
+class ICacheStore
+{
+public:
+	virtual ~ICacheStore() = default;
 
 	/**
 	 * Asynchronous request to put cache records according to the policy.
@@ -126,14 +135,14 @@ public:
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
 	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
 	 */
 	virtual FRequest Put(
 		TArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy = ECachePolicy::Default,
 		EPriority Priority = EPriority::Normal,
-		FOnCachePutComplete&& Callback = FOnCachePutComplete()) = 0;
+		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) = 0;
 
 	/**
 	 * Asynchronous request to get cache records according to the policy.
@@ -145,14 +154,14 @@ public:
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
 	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
 	 */
 	virtual FRequest Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
-		FOnCacheGetComplete&& Callback) = 0;
+		FOnCacheGetComplete&& OnComplete) = 0;
 
 	/**
 	 * Asynchronous request to get cache record payloads according to the policy.
@@ -164,14 +173,14 @@ public:
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
 	 * @param Priority A priority to consider when scheduling the request. See EPriority.
-	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
+	 * @param OnComplete A callback invoked for every key in the batch as it completes or is canceled.
 	 */
 	virtual FRequest GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
 		EPriority Priority,
-		FOnCacheGetPayloadComplete&& Callback) = 0;
+		FOnCacheGetPayloadComplete&& OnComplete) = 0;
 
 	/**
 	 * Cancel all queued and active cache requests and invoke their callbacks.
@@ -182,6 +191,20 @@ public:
 	 * owner of the cache if future requests are meant to be avoided.
 	 */
 	virtual void CancelAll() = 0;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Interface to the cache.
+ *
+ * @see ICacheStore for cache record storage.
+ * @see ICacheFactory for cache type constructors.
+ */
+class ICache : public ICacheStore, public ICacheFactory
+{
+public:
+	virtual ~ICache() = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,5 +255,4 @@ struct FCacheGetPayloadCompleteParams
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-} // DerivedData
-} // UE
+} // UE::DerivedData
