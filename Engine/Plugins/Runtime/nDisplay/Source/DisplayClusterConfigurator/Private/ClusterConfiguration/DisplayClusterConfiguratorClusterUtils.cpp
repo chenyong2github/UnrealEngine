@@ -590,7 +590,31 @@ FString FDisplayClusterConfiguratorClusterUtils::GetUniqueNameForViewport(FStrin
 		UniqueName = FString::Printf(TEXT("%s_%d"), *InitialName, NameIndex);
 	}
 
-	while (ParentClusterNode->Viewports.Contains(UniqueName))
+	// Viewport names must be unique across the entire cluster, not just within its parent cluster nodes. Gather all of the viewport names
+	// in the cluster to check for uniqueness. Add the parent cluster node's viewports first, in case we can't get to the root cluster through
+	// the cluster node's Outer (i.e. the cluster node has not been added to the cluster yet)
+	TSet<FString> UsedViewportNames;
+	for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportKeyPair : ParentClusterNode->Viewports)
+	{
+		UsedViewportNames.Add(ViewportKeyPair.Key);
+	}
+
+	if (UDisplayClusterConfigurationCluster* Cluster = Cast<UDisplayClusterConfigurationCluster>(ParentClusterNode->GetOuter()))
+	{
+		for (const TPair<FString, UDisplayClusterConfigurationClusterNode*>& ClusterNodeKeyPair : Cluster->Nodes)
+		{
+			UDisplayClusterConfigurationClusterNode* ClusterNode = ClusterNodeKeyPair.Value;
+			if (ClusterNode != ParentClusterNode)
+			{
+				for (const TPair<FString, UDisplayClusterConfigurationViewport*>& ViewportKeyPair : ClusterNode->Viewports)
+				{
+					UsedViewportNames.Add(ViewportKeyPair.Key);
+				}
+			}
+		}
+	}
+
+	while (UsedViewportNames.Contains(UniqueName))
 	{
 		UniqueName = FString::Printf(TEXT("%s_%d"), *InitialName, ++NameIndex);
 	}
