@@ -27,7 +27,12 @@
 		{
 			"Name": "RemoteControlProtocolMIDIEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Mac"
+			]
 		}
 	],
 	"Plugins": [
