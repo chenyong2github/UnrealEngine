@@ -122,6 +122,8 @@ public:
 				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowFloor);
 				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowGrid);
 				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ShowOrigin);
+				PreviewOptionsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().EnableAA);
+				
 				{
 					PreviewOptionsMenuBuilder.AddSubMenu(
 						LOCTEXT("nDisplayConfigLayout", "Layouts"),
@@ -582,6 +584,12 @@ void SDisplayClusterConfiguratorSCSEditorViewport::BindCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetShowOrigin));
 
+	CommandList->MapAction(
+		Commands.EnableAA,
+		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleEnableAA),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetEnableAA));
+	
 	CommandList->MapAction(
 		Commands.ShowPreview,
 		FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowPreview),

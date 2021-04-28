@@ -65,4 +65,8 @@ public:
 	/** Whether to show the Xform static mesh */
 	UPROPERTY(config)
 	bool bShowVisXforms;
+
+	/** Anti aliasing in 3d viewport. */
+	UPROPERTY(config)
+	bool bEditorEnableAA;
 };

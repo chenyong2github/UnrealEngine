@@ -18,4 +18,6 @@ UDisplayClusterConfiguratorEditorSettings::UDisplayClusterConfiguratorEditorSett
 
 	VisXformScale = 1.0f;
 	bShowVisXforms = true;
+
+	bEditorEnableAA = true;
 }

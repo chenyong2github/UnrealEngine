@@ -51,12 +51,16 @@ FDisplayClusterConfiguratorSCSEditorViewportClient::FDisplayClusterConfiguratorS
 
 	DefaultSettings = UAssetViewerSettings::Get();
 	check(DefaultSettings);
+
+	const UDisplayClusterConfiguratorEditorSettings* DisplayClusterSettings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 	
 	ShowWidget(true);
 
 	SetViewMode(VMI_Lit);
 
 	SyncEditorSettings();
+
+	EngineShowFlags.AntiAliasing = DisplayClusterSettings->bEditorEnableAA;
 	
 	//OverrideNearClipPlane(1.0f);
 	bUsingOrbitCamera = true;
@@ -105,8 +109,6 @@ FDisplayClusterConfiguratorSCSEditorViewportClient::FDisplayClusterConfiguratorS
 	PostProcessComponent->Settings = Profile.PostProcessingSettings;
 	PostProcessComponent->bUnbound = true;
 	PreviewScene->AddComponent(PostProcessComponent, Transform);
-
-	const UDisplayClusterConfiguratorEditorSettings* DisplayClusterSettings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 	
 	EditorFloorComp = NewObject<UStaticMeshComponent>(GetTransientPackage(),
 		MakeUniqueObjectName(GetTransientPackage(), UStaticMeshComponent::StaticClass(), TEXT("EditorFloorComp")));
@@ -1025,6 +1027,22 @@ bool FDisplayClusterConfiguratorSCSEditorViewportClient::GetShowOrigin() const
 {
 	const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
 	return Settings->bEditorShowWorldOrigin;
+}
+
+bool FDisplayClusterConfiguratorSCSEditorViewportClient::GetEnableAA() const
+{
+	const UDisplayClusterConfiguratorEditorSettings* Settings = GetDefault<UDisplayClusterConfiguratorEditorSettings>();
+	return Settings->bEditorEnableAA;
+}
+
+void FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleEnableAA()
+{
+	UDisplayClusterConfiguratorEditorSettings* Settings = GetMutableDefault<UDisplayClusterConfiguratorEditorSettings>();
+	Settings->bEditorEnableAA = !Settings->bEditorEnableAA;
+	EngineShowFlags.AntiAliasing = Settings->bEditorEnableAA;
+	
+	Settings->PostEditChange();
+	Settings->SaveConfig();
 }
 
 void FDisplayClusterConfiguratorSCSEditorViewportClient::ToggleShowPreview()
