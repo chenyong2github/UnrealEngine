@@ -7,6 +7,7 @@
 #include "Algo/Find.h"
 #include "StringUtils.h"
 #include "Exceptions.h"
+#include "ClassMaps.h"
 
 void FUnrealSourceFile::AddDefinedClass(TSharedRef<FUnrealTypeDefinitionInfo> ClassDecl)
 {

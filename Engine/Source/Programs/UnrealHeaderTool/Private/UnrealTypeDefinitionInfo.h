@@ -7,6 +7,8 @@
 #include "ClassDeclarationMetaData.h"
 #include <atomic>
 
+#include "ParserHelper.h" // TEMPORARY
+
 // Forward declarations.
 class FClass;
 class FScope;
@@ -31,6 +33,7 @@ class FUnrealTypeDefinitionInfo;							// Base for all types, provides virtual m
 			class FUnrealStructDefinitionInfo;				// Represents UStruct
 				class FUnrealScriptStructDefinitionInfo;	// Represents UScriptStruct
 				class FUnrealClassDefinitionInfo;			// Represents UClass
+				class FUnrealFunctionDefinitionInfo;		// Represents UFunction
 
 enum class EUnderlyingEnumType
 {
@@ -43,12 +46,6 @@ enum class EUnderlyingEnumType
 	int16,
 	int32,
 	int64
-};
-
-enum class EAllocatorType
-{
-	Default,
-	MemoryImage
 };
 
 enum class ESerializerArchiveType
@@ -183,6 +180,23 @@ public:
 	FUnrealScriptStructDefinitionInfo& AsScriptStructChecked()
 	{
 		FUnrealScriptStructDefinitionInfo* Info = AsScriptStruct();
+		check(Info);
+		return *Info;
+	}
+
+	/**
+	 * If this is a function, return the function version of the object
+	 * @return Pointer to the definition info or nullptr if not of that type.
+	 */
+	virtual FUnrealFunctionDefinitionInfo* AsFunction();
+
+	/**
+	 * If this is a function, return the function version of the object
+	 * @return Reference to the definition.  Will assert if not of that type.
+	 */
+	FUnrealFunctionDefinitionInfo& AsFunctionChecked()
+	{
+		FUnrealFunctionDefinitionInfo* Info = AsFunction();
 		check(Info);
 		return *Info;
 	}
@@ -653,6 +667,118 @@ private:
 };
 
 /**
+ * Class that stores information about type definitions derrived from UFunction
+ */
+class FUnrealFunctionDefinitionInfo : public FUnrealStructDefinitionInfo
+{
+public:
+	FUnrealFunctionDefinitionInfo(FUnrealSourceFile& InSourceFile, int32 InLineNumber, FString&& InNameCPP, FFuncInfo&& InFuncInfo)
+		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
+		, FunctionData(MoveTemp(InFuncInfo))
+	{ }
+
+	virtual FUnrealFunctionDefinitionInfo* AsFunction() override
+	{
+		return this;
+	}
+
+	/**
+	 * Return the Engine instance associated with the compiler instance
+	 */
+	UFunction* GetFunction() const
+	{
+		return static_cast<UFunction*>(GetField());
+	}
+
+	/** @name getters */
+	//@{
+	const	FFuncInfo& GetFunctionData()	const { return FunctionData; }
+	const	FToken& GetReturnData()		const { return ReturnTypeData.Token; }
+	const	FPropertyData& GetParameterData()	const { return ParameterData; }
+	FPropertyData& GetParameterData() { return ParameterData; }
+	FTokenData* GetReturnTokenData() { return &ReturnTypeData; }
+	//@}
+
+	void UpdateFunctionData(FFuncInfo& UpdatedFuncData)
+	{
+		//@TODO: UCREMOVAL: Some more thorough evaluation should be done here
+		FunctionData.FunctionFlags |= UpdatedFuncData.FunctionFlags;
+		FunctionData.FunctionExportFlags |= UpdatedFuncData.FunctionExportFlags;
+	}
+
+	/**
+	 * Adds a new function property to be tracked.  Determines whether the property is a
+	 * function parameter, local property, or return value, and adds it to the appropriate
+	 * list
+	 *
+	 * @param	PropertyToken	the property to add
+	 */
+	void AddProperty(FToken&& PropertyToken)
+	{
+		const FProperty* Prop = PropertyToken.TokenProperty;
+		check(Prop);
+		check((Prop->PropertyFlags & CPF_Parm) != 0);
+
+		if ((Prop->PropertyFlags & CPF_ReturnParm) != 0)
+		{
+			SetReturnData(MoveTemp(PropertyToken));
+		}
+		else
+		{
+			AddParameter(MoveTemp(PropertyToken));
+		}
+	}
+
+	/**
+	 * Sets the specified function export flags
+	 */
+	void SetFunctionExportFlag(uint32 NewFlags)
+	{
+		FunctionData.FunctionExportFlags |= NewFlags;
+	}
+
+	/**
+	 * Clears the specified function export flags
+	 */
+	void ClearFunctionExportFlags(uint32 ClearFlags)
+	{
+		FunctionData.FunctionExportFlags &= ~ClearFlags;
+	}
+
+private:
+	/**
+	 * Adds a new parameter token
+	 *
+	 * @param	PropertyToken	token that should be added to the list
+	 */
+	void AddParameter(FToken&& PropertyToken)
+	{
+		check(PropertyToken.TokenProperty);
+		ParameterData.Set(PropertyToken.TokenProperty, MoveTemp(PropertyToken));
+	}
+
+	/**
+	 * Sets the value of the return token for this function
+	 *
+	 * @param	PropertyToken	token that should be added
+	 */
+	void SetReturnData(FToken&& PropertyToken)
+	{
+		check(PropertyToken.TokenProperty);
+		ReturnTypeData.Token = MoveTemp(PropertyToken);
+	}
+
+	/** info about the function associated with this FFunctionData */
+	FFuncInfo		FunctionData;
+
+	/** return value for this function */
+	FTokenData		ReturnTypeData;
+
+	/** function parameter data */
+	FPropertyData	ParameterData;
+};
+
+/**
  * Class that stores information about type definitions derived from UClass
  */
 class FUnrealClassDefinitionInfo
@@ -664,6 +790,10 @@ public:
 		: FUnrealStructDefinitionInfo(InSourceFile, InLineNumber, MoveTemp(InNameCPP))
 		, BaseClassNameCPP(MoveTemp(InBaseClassNameCPP))
 		, bIsInterface(bInIsInterface)
+	{ }
+
+	FUnrealClassDefinitionInfo(FString&& InNameCPP)
+		: FUnrealStructDefinitionInfo(MoveTemp(InNameCPP))
 	{ }
 
 	virtual FUnrealClassDefinitionInfo* AsClass() override

@@ -42,6 +42,11 @@ FUnrealScriptStructDefinitionInfo* FUnrealTypeDefinitionInfo::AsScriptStruct()
 	return nullptr;
 }
 
+FUnrealFunctionDefinitionInfo* FUnrealTypeDefinitionInfo::AsFunction()
+{
+	return nullptr;
+}
+
 FUnrealClassDefinitionInfo* FUnrealTypeDefinitionInfo::AsClass()
 {
 	return nullptr;
@@ -111,7 +116,14 @@ uint32 FUnrealScriptStructDefinitionInfo::GetHash(bool bIncludeNoExport) const
 
 TSharedRef<FScope> FUnrealStructDefinitionInfo::GetScope()
 {
-	return StructScope.ToSharedRef();
+	if (StructScope.IsValid())
+	{
+		return StructScope.ToSharedRef();
+	}
+	else
+	{
+		return FUnrealFieldDefinitionInfo::GetScope();
+	}
 }
 
 void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
@@ -120,7 +132,12 @@ void FUnrealStructDefinitionInfo::SetObject(UObject* InObject)
 
 	FUnrealFieldDefinitionInfo::SetObject(InObject);
 
-	StructScope = MakeShared<FStructScope>(static_cast<UStruct*>(InObject), &GetUnrealSourceFile().GetScope().Get());
+
+	// Don't create a scope for things without a source.  Those are builtin types
+	if (HasSource())
+	{
+		StructScope = MakeShared<FStructScope>(static_cast<UStruct*>(InObject), &GetUnrealSourceFile().GetScope().Get());
+	}
 }
 
 uint32 FUnrealClassDefinitionInfo::GetHash(bool bIncludeNoExport) const

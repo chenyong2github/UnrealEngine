@@ -34,7 +34,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 			FName IdName(*Id, FNAME_Find);
 			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
 			{
-				Cache = &(*Source)->GetUnrealSourceFile();
+				Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				// There is an edge case with interfaces.  If you define the UMyInterface and IMyInterface in the same
 				// source file as a class that implements the interface, a HeaderProvider for IMyInterface is added 
 				// at the pre-parse time that later (incorrectly) resolves to UMyInterface.  This results in
@@ -54,7 +54,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 				FName IdName(*GetClassNameWithPrefixRemoved(Id), FNAME_Find);
 				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
 				{
-					Cache = &(*Source)->GetUnrealSourceFile();
+					Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				}
 			}
 			if (Cache == nullptr)
@@ -62,7 +62,7 @@ FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFile& ParentSourc
 				FName IdName(*Id, FNAME_Find);
 				if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
 				{
-					Cache = &(*Source)->GetUnrealSourceFile();
+					Cache = (*Source)->HasSource() ? &(*Source)->GetUnrealSourceFile() : nullptr;
 				}
 			}
 			break;

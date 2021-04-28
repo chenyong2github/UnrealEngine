@@ -4,6 +4,8 @@
 #include "UnrealHeaderTool.h"
 #include "UObject/ErrorException.h"
 #include "ParserHelper.h"
+#include "UnrealTypeDefinitionInfo.h"
+#include "ClassMaps.h"
 
 extern FCompilerMetadataManager GScriptHelper;
 

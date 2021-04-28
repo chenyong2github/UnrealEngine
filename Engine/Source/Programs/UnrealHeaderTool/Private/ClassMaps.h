@@ -71,10 +71,18 @@ struct FTypeDefinitionInfoMap : public FFreezableContainer
 		return **TypeDef;
 	}
 
+	//NOTE: Currently UFunctions are created during the parsing phase and can not be frozen
+	void Add(UFunction* Object, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
+	{
+		DefinitionsByUObject.Add(Object, Definition);
+		// At this point, do not add the name
+		//DefinitionsByName.Add(Object->GetFName(), Definition);
+	}
+
 	//NOTE: FFields (properties) are not frozen since they are added during the parsing phase
 	void Add(FField* Field, TSharedRef<FUnrealTypeDefinitionInfo>&& Definition)
 	{
-		DefinitionsByFField.Add(Field, Definition);
+		DefinitionsByFField.Add(Field, MoveTemp(Definition));
 	}
 	bool Contains(const FField* Field) { return DefinitionsByFField.Contains(Field); }
 	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const FField* Field)
@@ -128,32 +136,3 @@ private:
 
 extern FUnrealSourceFiles GUnrealSourceFilesMap;
 extern FTypeDefinitionInfoMap GTypeDefinitionInfoMap;
-extern TMap<UFunction*, uint32> GGeneratedCodeHashes;
-extern FRWLock GGeneratedCodeHashesLock;
-
-/** Types access specifiers. */
-enum EAccessSpecifier
-{
-	ACCESS_NotAnAccessSpecifier = 0,
-	ACCESS_Public,
-	ACCESS_Private,
-	ACCESS_Protected,
-	ACCESS_Num,
-};
-
-inline FArchive& operator<<(FArchive& Ar, EAccessSpecifier& ObjectType)
-{
-	if (Ar.IsLoading())
-	{
-		int32 Value;
-		Ar << Value;
-		ObjectType = EAccessSpecifier(Value);
-	}
-	else if (Ar.IsSaving())
-	{
-		int32 Value = (int32)ObjectType;
-		Ar << Value;
-	}
-
-	return Ar;
-}

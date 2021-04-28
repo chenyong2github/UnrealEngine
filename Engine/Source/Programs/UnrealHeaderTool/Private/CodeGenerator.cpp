@@ -44,6 +44,7 @@
 #include "UnrealSourceFile.h"
 #include "ParserHelper.h"
 #include "Classes.h"
+#include "ClassMaps.h"
 #include "NativeClassExporter.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "HeaderParser.h"
@@ -60,7 +61,6 @@
 #include "UnrealTypeDefinitionInfo.h"
 #include "Misc/WildcardString.h"
 
-#include "Exceptions.h"
 #include "UObject/FieldIterator.h"
 #include "UObject/FieldPath.h"
 
@@ -489,36 +489,6 @@ FString Macroize(const TCHAR* MacroName, FString&& StringToMacroize)
 		Result.ReplaceInline(TEXT("\n"), TEXT("\r\n"), ESearchCase::CaseSensitive);
 	}
 	return FString::Printf(TEXT("#define %s%s\r\n%s"), MacroName, Result.Len() ? TEXT(" \\") : TEXT(""), *Result);
-}
-
-/** Add a hash for the given function */
-static void AddGeneratedCodeHash(UFunction* Field, uint32 Hash)
-{
-	FRWScopeLock Lock(GGeneratedCodeHashesLock, SLT_Write);
-	GGeneratedCodeHashes.Add(Field, Hash);
-}
-
-/** Generates a Hash tag string for the specified function */
-static FString GetGeneratedCodeHashTag(UFunction* Field)
-{
-	FString Tag;
-	bool bFoundHash = false;
-	uint32 Hash = 0;
-
-	{
-		FRWScopeLock Lock(GGeneratedCodeHashesLock, SLT_ReadOnly);
-		if (const uint32* FieldHash = GGeneratedCodeHashes.Find(Field))
-		{
-			bFoundHash = true;
-			Hash = *FieldHash;
-		}
-	}
-
-	if (bFoundHash)
-	{
-		Tag = FString::Printf(TEXT(" // %u"), Hash);
-	}
-	return Tag;
 }
 
 struct FParmsAndReturnProperties
@@ -2441,6 +2411,8 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 
 			for (UFunction* Function : FunctionsToExport)
 			{
+				FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+
 				const bool bIsEditorOnlyFunction = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
 
 				if (!Function->IsA<UDelegateFunction>())
@@ -2448,12 +2420,15 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 					ExportFunction(Out, OutReferenceGatherers, SourceFile, Function, bIsNoExport);
 				}
 
+				FUHTStringBuilder FuncHashTag;
+				FuncDef.GetHashTag(FuncHashTag);
+
 				StaticDefinitions.Logf(
 					TEXT("%s\t\t{ &%s, %s },%s\r\n%s"),
 					BEGIN_WRAP_EDITOR_ONLY(bIsEditorOnlyFunction),
 					*GetSingletonNameFuncAddr(Function, OutReferenceGatherers.UniqueCrossModuleReferences),
 					*FNativeClassHeaderGenerator::GetUTF8OverriddenNameForLiteral(Function),
-					*GetGeneratedCodeHashTag(Function),
+					*FuncHashTag,
 					END_WRAP_EDITOR_ONLY(bIsEditorOnlyFunction)
 				);
 			}
@@ -2815,8 +2790,8 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 
 	TTuple<FString, FString> PropertyRange = OutputProperties(CurrentFunctionText, StaticDefinitions, OutReferenceGatherers, *FString::Printf(TEXT("%s::"), *StaticsStructName), Props, TEXT("\t\t"), TEXT("\t"));
 
-	const FFunctionData* CompilerInfo = FFunctionData::FindForFunction(Function);
-	const FFuncInfo&     FunctionData = CompilerInfo->GetFunctionData();
+	FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+	const FFuncInfo&     FunctionData = FuncDef.GetFunctionData();
 	const bool           bIsNet       = !!(FunctionData.FunctionFlags & (FUNC_NetRequest | FUNC_NetResponse));
 
 	FString MetaDataParams = OutputMetaDataCodeForObject(CurrentFunctionText, StaticDefinitions, Function, *FString::Printf(TEXT("%s::Function_MetaDataParams"), *StaticsStructName), TEXT("\t\t"), TEXT("\t"));
@@ -2872,7 +2847,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	}
 
 	uint32 FunctionHash = GenerateTextHash(*CurrentFunctionText);
-	AddGeneratedCodeHash(Function, FunctionHash);
+	FuncDef.SetHash(FunctionHash);
 	Out.Log(CurrentFunctionText);
 }
 
@@ -2953,9 +2928,8 @@ void FNativeClassHeaderGenerator::ExportInterfaceCallFunctions(FOutputDevice& Ou
 	{
 		FString FunctionName = Function->GetName();
 
-		FFunctionData* CompilerInfo = FFunctionData::FindForFunction(Function);
-
-		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
+		FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+		const FFuncInfo& FunctionData = FuncDef.GetFunctionData();
 		const TCHAR* ConstQualifier = FunctionData.FunctionReference->HasAllFunctionFlags(FUNC_Const) ? TEXT("const ") : TEXT("");
 		FString ExtraParam = FString::Printf(TEXT("%sUObject* O"), ConstQualifier);
 
@@ -4582,9 +4556,8 @@ void FNativeClassHeaderGenerator::ExportDelegateDeclaration(FOutputDevice& Out, 
 	// Unmangle the function name
 	const FString DelegateName = Function->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
 
-	const FFunctionData* CompilerInfo = FFunctionData::FindForFunction(Function);
-
-	FFuncInfo FunctionData = CompilerInfo->GetFunctionData();
+	FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+	FFuncInfo FunctionData = FuncDef.GetFunctionData();
 
 	// Add class name to beginning of function, to avoid collisions with other classes with the same delegate name in this scope
 	check(FunctionData.MarshallAndCallName.StartsWith(DelegateStr));
@@ -4625,9 +4598,8 @@ void FNativeClassHeaderGenerator::ExportDelegateDefinition(FOutputDevice& Out, F
 	// Unmangle the function name
 	const FString DelegateName = Function->GetName().LeftChop(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH);
 
-	const FFunctionData* CompilerInfo = FFunctionData::FindForFunction(Function);
-
-	FFuncInfo FunctionData = CompilerInfo->GetFunctionData();
+	FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+	FFuncInfo FunctionData = FuncDef.GetFunctionData();
 
 	// Always export delegate wrapper functions as inline
 	FunctionData.FunctionExportFlags |= FUNCEXPORT_Inline;
@@ -5534,9 +5506,8 @@ void FNativeClassHeaderGenerator::ExportNativeFunctions(FOutputDevice& OutGenera
 		const bool bEditorOnlyFunc = Function->HasAnyFunctionFlags(FUNC_EditorOnly);
 		FNativeFunctionStringBuilder& FuncStringBuilders = bEditorOnlyFunc ? EditorStringBuilders : RuntimeStringBuilders;
 
-		FFunctionData* CompilerInfo = FFunctionData::FindForFunction(Function);
-
-		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
+		FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+		const FFuncInfo& FunctionData = FuncDef.GetFunctionData();
 
 		// Custom thunks don't get any C++ stub function generated
 		if (FunctionData.FunctionExportFlags & FUNCEXPORT_CustomThunk)
@@ -5731,8 +5702,8 @@ void FNativeClassHeaderGenerator::ExportCallbackFunctions(
 		// Never expecting to export delegate functions this way
 		check(!Function->HasAnyFunctionFlags(FUNC_Delegate));
 
-		FFunctionData*   CompilerInfo = FFunctionData::FindForFunction(Function);
-		const FFuncInfo& FunctionData = CompilerInfo->GetFunctionData();
+		FUnrealFunctionDefinitionInfo& FuncDef = GTypeDefinitionInfoMap.FindChecked(Function).AsFunctionChecked();
+		const FFuncInfo& FunctionData = FuncDef.GetFunctionData();
 		FString          FunctionName = Function->GetName();
 		UClass*          Class = CastChecked<UClass>(Function->GetOuter());
 		const FString    ClassName = FNameLookupCPP::GetNameCPP(Class);
@@ -5911,8 +5882,11 @@ bool FNativeClassHeaderGenerator::WriteSource(const FManifestModule& Module, FGe
 			{
 				if (TSharedRef<FUnrealTypeDefinitionInfo>* WithinTypeInfo = GTypeDefinitionInfoMap.Find(Class->ClassWithin))
 				{
-					FString Header = GetBuildPath((*WithinTypeInfo)->GetUnrealSourceFile());
-					RelativeIncludes.AddUnique(MoveTemp(Header));
+					if ((*WithinTypeInfo)->HasSource())
+					{
+						FString Header = GetBuildPath((*WithinTypeInfo)->GetUnrealSourceFile());
+						RelativeIncludes.AddUnique(MoveTemp(Header));
+					}
 				}
 			}
 
@@ -7313,6 +7287,20 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 
 	// The meta data keywords must be initialized prior to going wide
 	FBaseParser::InitMetadataKeywords();
+
+	// TEMPORARY!!!
+	// At this time, there is a collection of classes that aren't listed in the NoExport
+	// file.  This means that we don't have an associated type definition for them.
+	// Force the creation of type data for them.  Once these are added to NoExport, then
+	// the HasSource can be looked at to be removed.  However, it might change output slightly.  
+	// Use -WRITEREF and -VERIFYREF to detect these changes.
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		FUnrealClassDefinitionInfo* ClassDef = new FUnrealClassDefinitionInfo(FNameLookupCPP::GetNameCPP(*ClassIt));
+		ClassDef->SetObject(*ClassIt);
+		GTypeDefinitionInfoMap.Add(*ClassIt, MakeShareable<FUnrealTypeDefinitionInfo>(ClassDef));
+	}
+
 
 	// Load the manifest file, giving a list of all modules to be processed, pre-sorted by dependency ordering
 #if !PLATFORM_EXCEPTIONS_DISABLED

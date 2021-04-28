@@ -9,11 +9,10 @@
 #include "UObject/TextProperty.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/FieldPathProperty.h"
+#include "UObject/Stack.h"
 #include "UnrealHeaderToolGlobals.h"
-#include "ClassMaps.h"
 #include "Templates/UniqueObj.h"
 #include "Templates/UniquePtr.h"
-#include "UnrealTypeDefinitionInfo.h"
 
 class UEnum;
 class UScriptStruct;
@@ -85,6 +84,22 @@ enum class EIntType
 	None,
 	Sized,  // e.g. int32, int16
 	Unsized // e.g. int, unsigned int
+};
+
+enum class EAllocatorType
+{
+	Default,
+	MemoryImage
+};
+
+/** Types access specifiers. */
+enum EAccessSpecifier
+{
+	ACCESS_NotAnAccessSpecifier = 0,
+	ACCESS_Public,
+	ACCESS_Private,
+	ACCESS_Protected,
+	ACCESS_Num,
 };
 
 #ifndef CASE_TEXT
@@ -1183,9 +1198,9 @@ struct FTokenData
  * Class for storing data about a list of properties.  Though FToken contains a reference to its
  * associated FProperty, it's faster lookup to use the FProperty as the key in a TMap.
  */
-class FPropertyData : public TMap< FProperty*, TSharedPtr<FTokenData> >
+class FPropertyData
 {
-	typedef TMap<FProperty*, TSharedPtr<FTokenData> >	Super;
+	TMap<FProperty*, TSharedPtr<FTokenData>> PropertyMap;
 
 public:
 	/**
@@ -1198,7 +1213,7 @@ public:
 	{
 		FTokenData* Result = NULL;
 
-		TSharedPtr<FTokenData>* pResult = Super::Find(Key);
+		TSharedPtr<FTokenData>* pResult = PropertyMap.Find(Key);
 		if ( pResult != NULL )
 		{
 			Result = pResult->Get();
@@ -1209,12 +1224,17 @@ public:
 	{
 		const FTokenData* Result = NULL;
 
-		const TSharedPtr<FTokenData>* pResult = Super::Find(Key);
+		const TSharedPtr<FTokenData>* pResult = PropertyMap.Find(Key);
 		if ( pResult != NULL )
 		{
 			Result = pResult->Get();
 		}
 		return Result;
+	}
+
+	void Shrink()
+	{
+		PropertyMap.Shrink();
 	}
 
 	/**
@@ -1226,220 +1246,7 @@ public:
 	 *
 	 * @return	a pointer to token data created associated with the property
 	 */
-	FTokenData* Set(FProperty* InKey, FTokenData&& InValue, FUnrealSourceFile* UnrealSourceFile);
-
-	/**
-	 * (debug) Dumps the values of this FPropertyData to the log file
-	 * 
-	 * @param	Indent	number of spaces to insert at the beginning of each line
-	 */	
-	void Dump( int32 Indent )
-	{
-		for (auto& Kvp : *this)
-		{
-			TSharedPtr<FTokenData>& PointerVal = Kvp.Value;
-			FToken& Token = PointerVal->Token;
-			if ( Token.Type != CPT_None )
-			{
-				UE_LOG(LogCompile, Log, TEXT("%s%s"), FCString::Spc(Indent), *Token.Describe());
-			}
-		}
-	}
-};
-
-/**
- * Class for storing additional data about compiled structs and struct properties
- */
-class FStructData
-{
-public:
-	/** info about the struct itself */
-	FToken			StructData;
-
-private:
-	/** info for the properties contained in this struct */
-	FPropertyData	StructPropertyData;
-
-public:
-	/**
-	 * Adds a new struct property token
-	 * 
-	 * @param	PropertyToken	token that should be added to the list
-	 */
-	void AddStructProperty(FTokenData&& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
-	{
-		check(PropertyToken.Token.TokenProperty);
-		StructPropertyData.Set(PropertyToken.Token.TokenProperty, MoveTemp(PropertyToken), UnrealSourceFile);
-	}
-
-	FPropertyData& GetStructPropertyData()
-	{
-		return StructPropertyData;
-	}
-	const FPropertyData& GetStructPropertyData() const
-	{
-		return StructPropertyData;
-	}
-
-	/**
-	* (debug) Dumps the values of this FStructData to the log file
-	* 
-	* @param	Indent	number of spaces to insert at the beginning of each line
-	*/	
-	void Dump( int32 Indent )
-	{
-		UE_LOG(LogCompile, Log, TEXT("%s%s"), FCString::Spc(Indent), *StructData.Describe());
-
-		UE_LOG(LogCompile, Log, TEXT("%sproperties:"), FCString::Spc(Indent));
-		StructPropertyData.Dump(Indent + 4);
-	}
-
-	/** Constructor */
-	FStructData(FToken&& StructToken) : StructData(MoveTemp(StructToken)) {}
-
-	friend struct FStructDataArchiveProxy;
-};
-
-/**
- * Class for storing additional data about compiled function properties.
- */
-class FFunctionData
-{
-	/** info about the function associated with this FFunctionData */
-	FFuncInfo		FunctionData;
-
-	/** return value for this function */
-	FTokenData		ReturnTypeData;
-
-	/** function parameter data */
-	FPropertyData	ParameterData;
-
-	/**
-	 * Adds a new parameter token
-	 * 
-	 * @param	PropertyToken	token that should be added to the list
-	 */
-	void AddParameter(FToken&& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
-	{
-		check(PropertyToken.TokenProperty);
-		ParameterData.Set(PropertyToken.TokenProperty, MoveTemp(PropertyToken), UnrealSourceFile);
-	}
-
-	/**
-	 * Sets the value of the return token for this function
-	 * 
-	 * @param	PropertyToken	token that should be added
-	 */
-	void SetReturnData(FToken&& PropertyToken )
-	{
-		check(PropertyToken.TokenProperty);
-		ReturnTypeData.Token = MoveTemp(PropertyToken);
-	}
-
-public:
-	/** Constructors */
-	FFunctionData() = default;
-	FFunctionData(FFunctionData&& Other) = default;
-	FFunctionData(FFuncInfo&& inFunctionData )
-		: FunctionData(MoveTemp(inFunctionData))
-	{}
-
-	FFunctionData& operator=(FFunctionData&& Other) = default;
-	
-	/** @name getters */
-	//@{
-	const	FFuncInfo&		GetFunctionData()	const	{	return FunctionData;	}
-	const	FToken&			GetReturnData()		const	{	return ReturnTypeData.Token;	}
-	const	FPropertyData&	GetParameterData()	const	{	return ParameterData;	}
-	FPropertyData&			GetParameterData()			{	return ParameterData;	}
-	FTokenData* GetReturnTokenData() { return &ReturnTypeData; }
-	//@}
-
-	void UpdateFunctionData(FFuncInfo& UpdatedFuncData)
-	{
-		//@TODO: UCREMOVAL: Some more thorough evaluation should be done here
-		FunctionData.FunctionFlags |= UpdatedFuncData.FunctionFlags;
-		FunctionData.FunctionExportFlags |= UpdatedFuncData.FunctionExportFlags;
-	}
-
-	/**
-	 * Adds a new function property to be tracked.  Determines whether the property is a
-	 * function parameter, local property, or return value, and adds it to the appropriate
-	 * list
-	 * 
-	 * @param	PropertyToken	the property to add
-	 */
-	void AddProperty(FToken&& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
-	{
-		const FProperty* Prop = PropertyToken.TokenProperty;
-		check(Prop);
-		check( (Prop->PropertyFlags&CPF_Parm) != 0 );
-
-		if ( (Prop->PropertyFlags&CPF_ReturnParm) != 0 )
-		{
-			SetReturnData(MoveTemp(PropertyToken));
-		}
-		else
-		{
-			AddParameter(MoveTemp(PropertyToken), UnrealSourceFile);
-		}
-	}
-
-	/**
-	 * (debug) Dumps the values of this FFunctionData to the log file
-	 * 
-	 * @param	Indent	number of spaces to insert at the beginning of each line
-	 */	
-	void Dump( int32 Indent )
-	{
-		UE_LOG(LogCompile, Log, TEXT("%sparameters:"), FCString::Spc(Indent));
-		ParameterData.Dump(Indent + 4);
-
-		UE_LOG(LogCompile, Log, TEXT("%sreturn prop:"), FCString::Spc(Indent));
-		if ( ReturnTypeData.Token.Type != CPT_None )
-		{
-			UE_LOG(LogCompile, Log, TEXT("%s%s"), FCString::Spc(Indent + 4), *ReturnTypeData.Token.Describe());
-		}
-	}
-
-	/**
-	 * Sets the specified function export flags
-	 */
-	void SetFunctionExportFlag( uint32 NewFlags )
-	{
-		FunctionData.FunctionExportFlags |= NewFlags;
-	}
-
-	/**
-	 * Clears the specified function export flags
-	 */
-	void ClearFunctionExportFlags( uint32 ClearFlags )
-	{
-		FunctionData.FunctionExportFlags &= ~ClearFlags;
-	}
-
-	/**
-	 * Finds function data for given function object.
-	 */
-	static FFunctionData* FindForFunction(UFunction* Function);
-
-	/**
-	 * Adds function data object for given function object.
-	 */
-	static FFunctionData* Add(UFunction* Function);
-
-	/**
-	 * Adds function data object for given function object.
-	 */
-	static FFunctionData* Add(FFuncInfo&& FunctionInfo);
-
-	/**
-	 * Tries to find function data for given function object.
-	 */
-	static bool TryFindForFunction(UFunction* Function, FFunctionData*& OutData);
-
-private:
-	static TMap<UFunction*, TUniqueObj<FFunctionData> > FunctionDataMap;
+	FTokenData* Set(FProperty* InKey, FTokenData&& InValue);
 };
 
 /**
@@ -1586,50 +1393,7 @@ public:
 	 * 
 	 * @param	PropertyToken	the property to add
 	 */
-	void AddProperty(FToken&& PropertyToken, FUnrealSourceFile* UnrealSourceFile)
-	{
-		FProperty* Prop = PropertyToken.TokenProperty;
-		check(Prop);
-
-		UObject* Outer = Prop->GetOwner<UObject>();
-		check(Outer);
-		UStruct* OuterClass = Cast<UStruct>(Outer);
-		if ( OuterClass != NULL )
-		{
-			// global property
-			GlobalPropertyData.Set(Prop, MoveTemp(PropertyToken), UnrealSourceFile);
-		}
-		else
-		{
-			checkNoEntry();
-			UFunction* OuterFunction = Cast<UFunction>(Outer);
-			if ( OuterFunction != NULL )
-			{
-				// function parameter, return, or local property
-				FFunctionData::FindForFunction(OuterFunction)->AddProperty(MoveTemp(PropertyToken), UnrealSourceFile);
-			}
-		}
-
-		// update the optimization flags
-		if ( !bContainsDelegates )
-		{
-			if( Prop->IsA( FDelegateProperty::StaticClass() ) || Prop->IsA( FMulticastDelegateProperty::StaticClass() ) )
-			{
-				bContainsDelegates = true;
-			}
-			else
-			{
-				FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
-				if ( ArrayProp != NULL )
-				{
-					if( ArrayProp->Inner->IsA( FDelegateProperty::StaticClass() ) || ArrayProp->Inner->IsA( FMulticastDelegateProperty::StaticClass() ) )
-					{
-						bContainsDelegates = true;
-					}
-				}
-			}
-		}
-	}
+	void AddProperty(FToken&& PropertyToken);
 
 	/**
 	 * Adds new editor-only metadata (key/value pairs) to the class or struct that
@@ -1683,18 +1447,6 @@ public:
 	}
 
 	/**
-	 * Finds the metadata for the function specified
-	 * 
-	 * @param	Func	the function to search for
-	 *
-	 * @return	pointer to the metadata for the function specified, or NULL
-	 *			if the function doesn't exist in the list (for example, if it
-	 *			is declared in a package that is already compiled and has had its
-	 *			source stripped)
-	 */
-	FFunctionData* FindFunctionData( UFunction* Func );
-
-	/**
 	 * Finds the metadata for the property specified
 	 * 
 	 * @param	Prop	the property to search for
@@ -1705,13 +1457,6 @@ public:
 	 *			source stripped)
 	 */
 	FTokenData* FindTokenData( FProperty* Prop );
-
-	/**
-	 * (debug) Dumps the values of this FFunctionData to the log file
-	 * 
-	 * @param	Indent	number of spaces to insert at the beginning of each line
-	 */	
-	void Dump( int32 Indent );
 
 	/**
 	 * Add a string to the list of inheritance parents for this class.

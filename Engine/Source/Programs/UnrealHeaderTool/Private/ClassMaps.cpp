@@ -6,5 +6,3 @@
 
 FUnrealSourceFiles GUnrealSourceFilesMap;
 FTypeDefinitionInfoMap GTypeDefinitionInfoMap;
-TMap<UFunction*, uint32> GGeneratedCodeHashes;
-FRWLock GGeneratedCodeHashesLock;

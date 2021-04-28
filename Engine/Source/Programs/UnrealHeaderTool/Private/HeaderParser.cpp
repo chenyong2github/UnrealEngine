@@ -14,6 +14,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "NativeClassExporter.h"
 #include "Classes.h"
+#include "ClassMaps.h"
 #include "StringUtils.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Manifest.h"
@@ -1703,7 +1704,11 @@ void AddModuleRelativePathToMetadata(UField* Type, TMap<FName, FString> &MetaDat
 	TSharedRef<FUnrealTypeDefinitionInfo>* TypeDefinitionPtr = GTypeDefinitionInfoMap.Find(Type);
 	if (TypeDefinitionPtr != nullptr)
 	{
-		MetaData.Add(NAME_ModuleRelativePath, (*TypeDefinitionPtr)->GetUnrealSourceFile().GetModuleRelativePath());
+		// Don't add module relative paths to functions.
+		if ((*TypeDefinitionPtr)->AsFunction() == nullptr)
+		{
+			MetaData.Add(NAME_ModuleRelativePath, (*TypeDefinitionPtr)->GetUnrealSourceFile().GetModuleRelativePath());
+		}
 	}
 }
 
@@ -5650,7 +5655,7 @@ FProperty* FHeaderParser::GetVarNameAndDim
 	VarProperty.StartPos = InputPos;
 	FClassMetaData* ScopeData = GScriptHelper.FindClassData(Scope);
 	check(ScopeData);
-	ScopeData->AddProperty(FToken(VarProperty), &SourceFile);
+	ScopeData->AddProperty(FToken(VarProperty));
 
 	// if we had any metadata, add it to the class
 	AddMetaDataToClassData(VarProperty.TokenProperty, TMap<FName,FString>(VarProperty.MetaData));
@@ -7349,7 +7354,9 @@ UDelegateFunction* FHeaderParser::CompileDelegateDeclaration(const TCHAR* Delega
 	FCString::Strncpy(FuncInfoFunctionIdentifier, FuncInfo.Function.Identifier, NAME_SIZE);
 
 	FuncInfo.MacroLine = InputLine;
-	FFunctionData::Add(MoveTemp(FuncInfo));
+	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfoFunctionIdentifier), MoveTemp(FuncInfo)));
+	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
+	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, MoveTemp(FuncDef));
 
 	// Create the return value property
 	if (bHasReturnValue)
@@ -7786,7 +7793,9 @@ void FHeaderParser::CompileFunctionDeclaration()
 
 	GetCurrentScope()->AddType(TopFunction);
 
-	FFunctionData* StoredFuncData = FFunctionData::Add(FFuncInfo(FuncInfo));
+	TSharedRef<FUnrealFunctionDefinitionInfo> FuncDef = MakeShareable(new FUnrealFunctionDefinitionInfo(SourceFile, InputLine, FString(FuncInfo.Function.Identifier), FFuncInfo(FuncInfo)));
+	FuncDef->SetObject(FuncDef->GetFunctionData().FunctionReference);
+	GTypeDefinitionInfoMap.Add(FuncDef->GetFunctionData().FunctionReference, MoveTemp(FuncDef));
 	if (FuncInfo.FunctionReference->HasAnyFunctionFlags(FUNC_Delegate))
 	{
 		GetCurrentClassData()->MarkContainsDelegate();
@@ -7915,7 +7924,7 @@ void FHeaderParser::CompileFunctionDeclaration()
 	// Make sure any new flags made it to the function
 	//@TODO: UCREMOVAL: Ideally the flags didn't get copied midway thru parsing the function declaration, and we could avoid this
 	TopFunction->FunctionFlags |= FuncInfo.FunctionFlags;
-	StoredFuncData->UpdateFunctionData(FuncInfo);
+	FuncDef->UpdateFunctionData(FuncInfo);
 
 	// Bind the function.
 	TopFunction->Bind();
@@ -8896,7 +8905,7 @@ ECompilationResult::Type FHeaderParser::Parse(
 	catch (TCHAR* ErrorMsg)
 	{
 		Warn->Log(ELogVerbosity::Error, ErrorMsg);
-		Result = FResults::GetResults();
+		Result = ECompilationResult::OtherCompilationError;
 	}
 #endif
 

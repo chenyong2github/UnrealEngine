@@ -5,6 +5,8 @@
 #include "UnrealHeaderTool.h"
 #include "Algo/Find.h"
 #include "Misc/DefaultValueHelper.h"
+#include "UnrealTypeDefinitionInfo.h"
+#include "ClassMaps.h"
 
 /////////////////////////////////////////////////////
 // FClassMetaData
@@ -47,14 +49,14 @@ FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 		if ( OuterFunction != NULL )
 		{
 			// function parameter, return, or local property
-			FFunctionData* FuncData = nullptr;
-			if (FFunctionData::TryFindForFunction(OuterFunction, FuncData))
+			if (TSharedRef<FUnrealTypeDefinitionInfo>* TypeDef = GTypeDefinitionInfoMap.Find(OuterFunction))
 			{
-				FPropertyData& FunctionParameters = FuncData->GetParameterData();
+				FUnrealFunctionDefinitionInfo& FuncDef = (*TypeDef)->AsFunctionChecked();
+				FPropertyData& FunctionParameters = FuncDef.GetParameterData();
 				Result = FunctionParameters.Find(Prop);
 				if ( Result == NULL )
 				{
-					Result = FuncData->GetReturnTokenData();
+					Result = FuncDef.GetReturnTokenData();
 				}
 			}
 			else
@@ -81,6 +83,51 @@ FTokenData* FClassMetaData::FindTokenData( FProperty* Prop )
 	}
 
 	return Result;
+}
+
+void FClassMetaData::AddProperty(FToken&& PropertyToken)
+{
+	FProperty* Prop = PropertyToken.TokenProperty;
+	check(Prop);
+
+	UObject* Outer = Prop->GetOwner<UObject>();
+	check(Outer);
+	UStruct* OuterClass = Cast<UStruct>(Outer);
+	if (OuterClass != NULL)
+	{
+		// global property
+		GlobalPropertyData.Set(Prop, MoveTemp(PropertyToken));
+	}
+	else
+	{
+		checkNoEntry();
+		UFunction* OuterFunction = Cast<UFunction>(Outer);
+		if (OuterFunction != NULL)
+		{
+			// function parameter, return, or local property
+			GTypeDefinitionInfoMap.FindChecked(OuterFunction).AsFunctionChecked().AddProperty(MoveTemp(PropertyToken));
+		}
+	}
+
+	// update the optimization flags
+	if (!bContainsDelegates)
+	{
+		if (Prop->IsA(FDelegateProperty::StaticClass()) || Prop->IsA(FMulticastDelegateProperty::StaticClass()))
+		{
+			bContainsDelegates = true;
+		}
+		else
+		{
+			FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop);
+			if (ArrayProp != NULL)
+			{
+				if (ArrayProp->Inner->IsA(FDelegateProperty::StaticClass()) || ArrayProp->Inner->IsA(FMulticastDelegateProperty::StaticClass()))
+				{
+					bContainsDelegates = true;
+				}
+			}
+		}
+	}
 }
 
 void FClassMetaData::AddInheritanceParent(FString&& InParent, FUnrealSourceFile* UnrealSourceFile)
@@ -236,44 +283,6 @@ bool FAdvancedDisplayParameterHandler::CanMarkMore() const
 	return bUseNumber ? (NumberLeaveUnmarked > 0) : (0 != ParametersNames.Num());
 }
 
-TMap<UFunction*, TUniqueObj<FFunctionData> > FFunctionData::FunctionDataMap;
-
-FFunctionData* FFunctionData::FindForFunction(UFunction* Function)
-{
-	TUniqueObj<FFunctionData>* Output = FunctionDataMap.Find(Function);
-
-	check(Output);
-
-	return &(*Output).Get();
-}
-
-FFunctionData* FFunctionData::Add(UFunction* Function)
-{
-	TUniqueObj<FFunctionData>& Output = FunctionDataMap.Add(Function);
-
-	return &Output.Get();
-}
-
-FFunctionData* FFunctionData::Add(FFuncInfo&& FunctionInfo)
-{
-	TUniqueObj<FFunctionData>& Output = FunctionDataMap.Emplace(FunctionInfo.FunctionReference, MoveTemp(FunctionInfo));
-
-	return &Output.Get();
-}
-
-bool FFunctionData::TryFindForFunction(UFunction* Function, FFunctionData*& OutData)
-{
-	TUniqueObj<FFunctionData>* Output = FunctionDataMap.Find(Function);
-
-	if (!Output)
-	{
-		return false;
-	}
-
-	OutData = &(*Output).Get();
-	return true;
-}
-
 FClassMetaData* FCompilerMetadataManager::AddClassData(UStruct* Struct, FUnrealSourceFile* UnrealSourceFile)
 {
 	TUniquePtr<FClassMetaData>* pClassData = Find(Struct);
@@ -293,11 +302,11 @@ FClassMetaData* FCompilerMetadataManager::AddInterfaceClassData(UStruct* Struct,
 	return ClassData;
 }
 
-FTokenData* FPropertyData::Set(FProperty* InKey, FTokenData&& InValue, FUnrealSourceFile* UnrealSourceFile)
+FTokenData* FPropertyData::Set(FProperty* InKey, FTokenData&& InValue)
 {
 	FTokenData* Result = NULL;
 
-	TSharedPtr<FTokenData>* pResult = Super::Find(InKey);
+	TSharedPtr<FTokenData>* pResult = PropertyMap.Find(InKey);
 	if (pResult != NULL)
 	{
 		Result = pResult->Get();
@@ -305,7 +314,7 @@ FTokenData* FPropertyData::Set(FProperty* InKey, FTokenData&& InValue, FUnrealSo
 	}
 	else
 	{
-		pResult = &Super::Emplace(InKey, new FTokenData(MoveTemp(InValue)));
+		pResult = &PropertyMap.Emplace(InKey, new FTokenData(MoveTemp(InValue)));
 		Result = pResult->Get();
 	}
 
