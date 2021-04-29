@@ -12,8 +12,8 @@
 REMOTECONTROLPROTOCOLMIDI_API DECLARE_LOG_CATEGORY_EXTERN(LogRemoteControlProtocolMIDI, Log, All);
 
 /**
- * MIDI remote control module
- */
+* MIDI remote control module
+*/
 class FRemoteControlProtocolMIDIModule : public IRemoteControlProtocolMIDIModule
 {
 public:
@@ -37,6 +37,10 @@ public:
 	virtual FOnMIDIDevicesUpdated& GetOnMIDIDevicesUpdated() override { return OnMIDIDevicesUpdated; }
 
 private:
+	/** Called when MIDI devices are updated, to attempt rebind. */
+	void HandleMIDIDevicesUpdated(FMIDIDeviceCollection& InDevices);
+
+private:
 	/** Maintain a list of MIDI devices until they're updated. */
 	TSharedPtr<TArray<FFoundMIDIDevice>, ESPMode::ThreadSafe> MIDIDeviceCache;
 
@@ -46,3 +50,4 @@ private:
 	/** Callback to indicate when MIDI devices are updated. */
 	FOnMIDIDevicesUpdated OnMIDIDevicesUpdated;
 };
+
