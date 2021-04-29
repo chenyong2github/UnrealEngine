@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
@@ -389,6 +390,32 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 				//@todo - cull probes too small for voxel tracing and too large for max trace distance
 				MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
 			}
+		}
+	}
+}
+
+int2 HairStrandsResolution;
+float2 HairStrandsInvResolution;
+uint HairStrandsMip;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint2 PixelCoords = DispatchThreadId.xy;
+	if (any(PixelCoords >= uint2(HairStrandsResolution)))
+		return;
+
+	// HZB starts at MIP1
+	const float2 ScreenUV = (PixelCoords + float2(0.5f, 0.5f)) * HairStrandsInvResolution;
+	const float DeviceZ = HairStrands.HairOnlyDepthClosestHZBTexture.Load(uint3(PixelCoords, HairStrandsMip-1)).r;
+	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
+	const float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	if (SceneDepth > 0)
+	{
+		uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
+		if (ClipmapIndex < NumRadianceProbeClipmaps)
+		{
+			MarkPositionUsedInIndirectionTexture(WorldPosition, ClipmapIndex);
 		}
 	}
 }

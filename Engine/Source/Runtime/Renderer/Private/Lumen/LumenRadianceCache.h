@@ -17,7 +17,7 @@ namespace LumenRadianceCache
 	class FRadianceCacheInterpolationParameters;
 }
 
-DECLARE_DELEGATE_FiveParams(FMarkUsedRadianceCacheProbes, FRDGBuilder&, const FViewInfo&, const LumenRadianceCache::FRadianceCacheInterpolationParameters&, FRDGTextureUAVRef, const void*);
+DECLARE_MULTICAST_DELEGATE_FourParams(FMarkUsedRadianceCacheProbes, FRDGBuilder&, const FViewInfo&, const LumenRadianceCache::FRadianceCacheInterpolationParameters&, FRDGTextureUAVRef);
 
 namespace LumenRadianceCache
 {
@@ -78,7 +78,6 @@ extern void RenderRadianceCache(
 	const FScreenProbeParameters* ScreenProbeParameters,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbes,
-	const void* MarkUsedProbesData,
 	FRadianceCacheState& RadianceCacheState,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
 

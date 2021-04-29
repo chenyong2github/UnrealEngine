@@ -945,7 +945,6 @@ void RenderRadianceCache(
 	const FScreenProbeParameters* ScreenProbeParameters,
 	FRDGBufferSRVRef BRDFProbabilityDensityFunctionSH,
 	FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbes,
-	const void* MarkUsedProbesData,
 	FRadianceCacheState& RadianceCacheState,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
 {
@@ -1103,7 +1102,7 @@ void RenderRadianceCache(
 		}
 
 		// Mark indirection entries around positions that will be sampled by dependent features as used
-		MarkUsedRadianceCacheProbes.ExecuteIfBound(GraphBuilder, View, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV, MarkUsedProbesData);
+		MarkUsedRadianceCacheProbes.Broadcast(GraphBuilder, View, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
 
 		const bool bPersistentCache = !GRadianceCacheForceFullUpdate 
 			&& View.ViewState 

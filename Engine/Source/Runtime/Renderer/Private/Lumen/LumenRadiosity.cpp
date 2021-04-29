@@ -475,21 +475,29 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenCardRadiosityTraceBlocksCS, "/Engine/Private/Lumen/LumenRadiosity.usf", "LumenCardRadiosityTraceBlocksCS", SF_Compute);
 
-class FRadiosityMarkUsedProbesData
-{
-public:
-	FMarkRadianceProbesUsedByRadiosityCS::FParameters Parameters;
-};
-
-void RadianceCacheMarkUsedProbes(
+static void RadianceCacheMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FIntPoint& RadiosityAtlasSize,
+	const FLumenSceneData& LumenSceneData,
+	const FRDGBufferRef CardTraceBlockAllocator,
+	const FRDGBufferRef CardTraceBlockData,
+	const FRDGBufferRef TraceBlocksIndirectArgsBuffer,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV,
-	const void* MarkUsedProbesData)
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
 {
 	FMarkRadianceProbesUsedByRadiosityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByRadiosityCS::FParameters>();
-	*PassParameters = ((const FRadiosityMarkUsedProbesData*)MarkUsedProbesData)->Parameters;
+
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
+	PassParameters->CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
+	PassParameters->CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
+	PassParameters->CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
+	PassParameters->CardBuffer = LumenSceneData.CardBuffer.SRV;
+	PassParameters->CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
+	PassParameters->RadiosityAtlasSize = RadiosityAtlasSize;
+	PassParameters->IndirectArgs = TraceBlocksIndirectArgsBuffer;
+
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 	auto ComputeShader = View.ShaderMap->GetShader< FMarkRadianceProbesUsedByRadiosityCS >(0);
@@ -600,16 +608,24 @@ void RenderRadiosityComputeScatter(
 	{
 		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenRadiosity::SetupRadianceCacheInputs();
 
-		FRadiosityMarkUsedProbesData MarkUsedProbesData;
-		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
-		MarkUsedProbesData.Parameters.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
-		MarkUsedProbesData.Parameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-		MarkUsedProbesData.Parameters.CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
-		MarkUsedProbesData.Parameters.CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
-		MarkUsedProbesData.Parameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
-		MarkUsedProbesData.Parameters.CardPageBuffer = LumenSceneData.CardPageBuffer.SRV;
-		MarkUsedProbesData.Parameters.RadiosityAtlasSize = RadiosityAtlasSize;
-		MarkUsedProbesData.Parameters.IndirectArgs = TraceBlocksIndirectArgsBuffer;
+		FMarkUsedRadianceCacheProbes Callback;
+		Callback.AddLambda([RadiosityAtlasSize, &LumenSceneData, &CardTraceBlockAllocator, &CardTraceBlockData, &TraceBlocksIndirectArgsBuffer](
+			FRDGBuilder& GraphBuilder, 
+			const FViewInfo& View, 
+			const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters, 
+			FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+			{
+				RadianceCacheMarkUsedProbes(
+					GraphBuilder,
+					View,
+					RadiosityAtlasSize,
+					LumenSceneData,
+					CardTraceBlockAllocator,
+					CardTraceBlockData,
+					TraceBlocksIndirectArgsBuffer,
+					RadianceCacheParameters,
+					RadianceProbeIndirectionTextureUAV);
+			});
 
 		RenderRadianceCache(
 			GraphBuilder, 
@@ -619,8 +635,7 @@ void RenderRadiosityComputeScatter(
 			View, 
 			nullptr, 
 			nullptr, 
-			FMarkUsedRadianceCacheProbes::CreateStatic(&RadianceCacheMarkUsedProbes), 
-			&MarkUsedProbesData, 
+			Callback,
 			View.ViewState->RadiosityRadianceCacheState, 
 			RadianceCacheParameters);
 	}

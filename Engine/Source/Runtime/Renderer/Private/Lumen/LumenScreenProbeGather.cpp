@@ -594,6 +594,43 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "MarkRadianceProbesUsedByScreenProbesCS", SF_Compute);
 
+class FMarkRadianceProbesUsedByHairStrandsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByHairStrandsCS)
+	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByHairStrandsCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, HairStrandsResolution)
+		SHADER_PARAMETER(FVector2D, HairStrandsInvResolution)
+		SHADER_PARAMETER(uint32, HairStrandsMip)
+		SHADER_PARAMETER(uint32, VisualizeLumenScene)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByHairStrandsCS, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "MarkRadianceProbesUsedByHairStrandsCS", SF_Compute);
+
 
 class FScreenProbeIndirectCS : public FGlobalShader
 {
@@ -892,21 +929,19 @@ void UpdateHistoryScreenProbeGather(
 	}
 }
 
-class FScreenGatherMarkUsedProbesData
-{
-public:
-	FMarkRadianceProbesUsedByScreenProbesCS::FParameters Parameters;
-};
-
-void ScreenGatherMarkUsedProbes(
+static void ScreenGatherMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
+	FScreenProbeParameters& ScreenProbeParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV,
-	const void* MarkUsedProbesData)
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
 {
 	FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
-	*PassParameters = ((const FScreenGatherMarkUsedProbesData*)MarkUsedProbesData)->Parameters;
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+	PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+	PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 
@@ -914,11 +949,49 @@ void ScreenGatherMarkUsedProbes(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("MarkRadianceProbesUsedByScreenProbes %ux%u", PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.X, PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.Y),
+		RDG_EVENT_NAME("MarkRadianceProbes(ScreenProbes) %ux%u", PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.X, PassParameters->ScreenProbeParameters.ScreenProbeAtlasViewSize.Y),
 		ComputeShader,
 		PassParameters,
 		PassParameters->ScreenProbeParameters.ProbeIndirectArgs,
 		(uint32)EScreenProbeIndirectArgs::ThreadPerProbe * sizeof(FRHIDispatchIndirectParameters));
+}
+
+static void HairStrandsMarkUsedProbes(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+{
+	const uint32 TileMip = 4u; // 16x16 tiles
+	const int32 TileSize = 1u<<TileMip;
+	const FIntPoint Resolution(View.ViewRect.Width(), View.ViewRect.Height()); //HairStrandsViewData.VisibilityData.H HairOnlyDepthClosestHZBTexture->Desc.Extent;
+	const FIntPoint TileResolution = FIntPoint(
+		FMath::DivideAndRoundUp(Resolution.X, TileSize), 
+		FMath::DivideAndRoundUp(Resolution.Y, TileSize));
+
+	FMarkRadianceProbesUsedByHairStrandsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByHairStrandsCS::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->HairStrandsResolution = TileResolution;
+	PassParameters->HairStrandsInvResolution = FVector2D(1.f / float(TileResolution.X), 1.f / float(TileResolution.Y));
+	PassParameters->HairStrandsMip = TileMip;
+	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
+	PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
+	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
+
+	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByHairStrandsCS>(0);
+
+	const int32 GroupSize = 8;
+	const FIntVector GroupCount = FIntVector(
+		FMath::DivideAndRoundUp(TileResolution.X, FMarkRadianceProbesUsedByHairStrandsCS::GetGroupSize()),
+		FMath::DivideAndRoundUp(TileResolution.Y, FMarkRadianceProbesUsedByHairStrandsCS::GetGroupSize()),
+		1);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MarkRadianceProbes(HairStrands) %ux%u", TileResolution.X, TileResolution.Y),
+		ComputeShader,
+		PassParameters,
+		GroupCount);
 }
 
 DECLARE_GPU_STAT(LumenScreenProbeGather);
@@ -1105,12 +1178,40 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 
 	if (LumenScreenProbeGather::UseRadianceCache(View))
 	{
-		FScreenGatherMarkUsedProbesData MarkUsedProbesData;
-		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
-		MarkUsedProbesData.Parameters.SceneTexturesStruct = SceneTextures.UniformBuffer;
-		MarkUsedProbesData.Parameters.ScreenProbeParameters = ScreenProbeParameters;
-		MarkUsedProbesData.Parameters.VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
-		MarkUsedProbesData.Parameters.RadianceCacheParameters = RadianceCacheParameters;
+		FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbesCallbacks;
+
+		// Mark radiance caches for screen probes
+		MarkUsedRadianceCacheProbesCallbacks.AddLambda([&SceneTextures, &ScreenProbeParameters](
+			FRDGBuilder& GraphBuilder, 
+			const FViewInfo& View, 
+			const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+			FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+			{
+				ScreenGatherMarkUsedProbes(
+					GraphBuilder,
+					View,
+					SceneTextures,
+					ScreenProbeParameters,
+					RadianceCacheParameters,
+					RadianceProbeIndirectionTextureUAV);
+			});
+
+		// Mark radiance caches for hair strands
+		if (HairStrands::HasViewHairStrandsData(View))
+		{
+			MarkUsedRadianceCacheProbesCallbacks.AddLambda([](
+				FRDGBuilder& GraphBuilder,
+				const FViewInfo& View,
+				const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+				FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+				{
+					HairStrandsMarkUsedProbes(
+						GraphBuilder,
+						View,
+						RadianceCacheParameters,
+						RadianceProbeIndirectionTextureUAV);
+				});
+		}
 
 		RenderRadianceCache(
 			GraphBuilder, 
@@ -1120,8 +1221,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			View, 
 			&ScreenProbeParameters, 
 			BRDFProbabilityDensityFunctionSH, 
-			FMarkUsedRadianceCacheProbes::CreateStatic(&ScreenGatherMarkUsedProbes), 
-			&MarkUsedProbesData, 
+			MarkUsedRadianceCacheProbesCallbacks,
 			View.ViewState->RadianceCacheState, 
 			RadianceCacheParameters);
 	}

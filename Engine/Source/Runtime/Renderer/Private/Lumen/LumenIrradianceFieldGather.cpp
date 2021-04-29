@@ -214,21 +214,16 @@ class FIrradianceFieldGatherCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FIrradianceFieldGatherCS, "/Engine/Private/Lumen/LumenIrradianceFieldGather.usf", "IrradianceFieldGatherCS", SF_Compute);
 
-class FIrradianceFieldMarkUsedProbesData
-{
-public:
-	FMarkRadianceProbesUsedByGBufferCS::FParameters Parameters;
-};
-
-void IrradianceFieldMarkUsedProbes(
+static void IrradianceFieldMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	const FSceneTextures& SceneTextures,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV,
-	const void* MarkUsedProbesData)
+	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
 {
 	FMarkRadianceProbesUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByGBufferCS::FParameters>();
-	*PassParameters = ((const FIrradianceFieldMarkUsedProbesData*)MarkUsedProbesData)->Parameters;
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 	PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 
@@ -258,9 +253,20 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenIrradianceFieldGather::SetupRadianceCacheInputs();
 
-	FIrradianceFieldMarkUsedProbesData MarkUsedProbesData;
-	MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
-	MarkUsedProbesData.Parameters.SceneTexturesStruct = SceneTextures.UniformBuffer;
+	FMarkUsedRadianceCacheProbes Callbacks;
+	Callbacks.AddLambda([&SceneTextures](
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
+		{
+			IrradianceFieldMarkUsedProbes(
+				GraphBuilder,
+				View,
+				SceneTextures,
+				RadianceCacheParameters,
+				RadianceProbeIndirectionTextureUAV);
+		});
 
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 	RenderRadianceCache(
@@ -271,8 +277,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 		View, 
 		nullptr, 
 		nullptr, 
-		FMarkUsedRadianceCacheProbes::CreateStatic(&IrradianceFieldMarkUsedProbes), 
-		&MarkUsedProbesData, 
+		Callbacks,
 		View.ViewState->RadianceCacheState, 
 		RadianceCacheParameters);
 
