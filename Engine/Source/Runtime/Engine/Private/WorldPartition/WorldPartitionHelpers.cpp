@@ -41,12 +41,14 @@ void FWorldPartitionHelpers::ForEachActorWithLoading(UWorldPartition* WorldParti
 
 		if (const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
 		{
+			FWorldPartitionReference& Reference = InOutActorReferences.Emplace(ActorGuid);
+			
 			for (FGuid ReferenceGuid : ActorDesc->GetReferences())
 			{
 				LoadReferences(ReferenceGuid, InOutActorReferences);
 			}
 
-			InOutActorReferences.Add(ActorGuid, FWorldPartitionReference(WorldPartition, ActorGuid));
+			Reference = FWorldPartitionReference(WorldPartition, ActorGuid);
 		}
 	};
 
