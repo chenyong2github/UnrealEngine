@@ -329,7 +329,7 @@ struct FHairStrandsDebugData
 	}
 
 	static Data CreateData(FRDGBuilder& GraphBuilder);
-	static void SetParameters(FRDGBuilder& GraphBuilder, Data& In, FWriteParameters& Out);
+	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FWriteParameters& Out);
 	static void SetParameters(FRDGBuilder& GraphBuilder, const Data& In, FReadParameters& Out);
 
 	// PPLL debug data
