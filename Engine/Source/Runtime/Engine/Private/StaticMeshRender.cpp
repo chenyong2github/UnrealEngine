@@ -98,7 +98,7 @@ static FAutoConsoleCommand GToggleReversedIndexBuffersCmd(
 	FConsoleCommandDelegate::CreateStatic(ToggleReversedIndexBuffers)
 	);
 
-static void RecreateGlobalRenderState(IConsoleVariable* Var)
+static void RecreateSMGlobalRenderState(IConsoleVariable* Var)
 {
 	FGlobalComponentRecreateRenderStateContext Context;
 }
@@ -109,7 +109,7 @@ FAutoConsoleVariableRef CVarRenderNaniteMeshes(
 	TEXT("r.Nanite"),
 	GRenderNaniteMeshes,
 	TEXT("Render static meshes using Nanite."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	FConsoleVariableDelegate::CreateStatic(&RecreateSMGlobalRenderState),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 

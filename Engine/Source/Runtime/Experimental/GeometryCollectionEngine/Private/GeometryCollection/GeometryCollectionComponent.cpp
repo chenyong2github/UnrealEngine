@@ -165,7 +165,7 @@ bool FGeometryCollectionRepData::NetSerialize(FArchive& Ar, class UPackageMap* M
 	return true;
 }
 
-static void RecreateGlobalRenderState(IConsoleVariable* Var)
+static void RecreateGCGlobalRenderState(IConsoleVariable* Var)
 {
 	FGlobalComponentRecreateRenderStateContext Context;
 }
@@ -175,7 +175,7 @@ FAutoConsoleVariableRef CVarGeometryCollectionNanite(
 	TEXT("r.GeometryCollection.Nanite"),
 	GGeometryCollectionNanite,
 	TEXT("Render geometry collections using Nanite."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGCGlobalRenderState),
 	ECVF_RenderThreadSafe
 );
 

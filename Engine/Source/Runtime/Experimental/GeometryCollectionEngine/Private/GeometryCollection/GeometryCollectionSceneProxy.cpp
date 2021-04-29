@@ -40,7 +40,7 @@
 #include "ComponentReregisterContext.h"
 #include "ComponentRecreateRenderStateContext.h"
 
-static void RecreateGlobalRenderState(IConsoleVariable* Var)
+static void RecreateGCPGlobalRenderState(IConsoleVariable* Var)
 {
 	FGlobalComponentRecreateRenderStateContext Context;
 }
@@ -66,7 +66,7 @@ FAutoConsoleVariableRef CVarGeometryCollectionOptimizedTransforms(
 	TEXT("r.GeometryCollectionOptimizedTransforms"),
 	GGeometryCollectionOptimizedTransforms,
 	TEXT("Whether to optimize transform update by skipping automatic updates in GPUScene."),
-	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGCPGlobalRenderState),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
