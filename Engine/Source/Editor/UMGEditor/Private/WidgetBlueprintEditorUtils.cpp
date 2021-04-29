@@ -1334,7 +1334,10 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 
 	// If we're pasting into a content widget of the same type, treat it as a sibling duplication
 	UWidget* FirstPastedWidget = *PastedWidgets.CreateIterator();
-	if (FirstPastedWidget->IsA(UContentWidget::StaticClass()) && FirstPastedWidget->GetClass() == ParentWidgetRef.GetTemplate()->GetClass())
+
+	if (FirstPastedWidget->IsA(UContentWidget::StaticClass()) &&
+		ParentWidgetRef.IsValid() &&
+		FirstPastedWidget->GetClass() == ParentWidgetRef.GetTemplate()->GetClass())
 	{
 		UPanelWidget* TargetParentWidget = ParentWidgetRef.GetTemplate()->GetParent();
 		if (TargetParentWidget && TargetParentWidget->CanAddMoreChildren())
@@ -1546,11 +1549,14 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 
 		BP->WidgetTree->Modify();
 
-		NamedSlotHostWidget->SetFlags(RF_Transactional);
-		NamedSlotHostWidget->Modify();
+		if (NamedSlotHostWidget)
+		{
+			NamedSlotHostWidget->SetFlags(RF_Transactional);
+			NamedSlotHostWidget->Modify();
 
-		INamedSlotInterface* NamedSlotInterface = Cast<INamedSlotInterface>(NamedSlotHostWidget);
-		NamedSlotInterface->SetContentForSlot(SlotName, RootPasteWidgets[0]);
+			INamedSlotInterface* NamedSlotInterface = Cast<INamedSlotInterface>(NamedSlotHostWidget);
+			NamedSlotInterface->SetContentForSlot(SlotName, RootPasteWidgets[0]);
+		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);
 	}
