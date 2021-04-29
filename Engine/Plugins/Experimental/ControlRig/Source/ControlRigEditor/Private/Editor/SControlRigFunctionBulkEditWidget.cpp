@@ -200,7 +200,11 @@ void SControlRigFunctionBulkEditDialog::Construct(const FArguments& InArgs)
 FReply SControlRigFunctionBulkEditDialog::OnButtonClick(EAppReturnType::Type ButtonID)
 {
 	UserResponse = ButtonID;
-	BulkEditWidget->LoadAffectedAssets();
+
+	if(UserResponse == EAppReturnType::Ok)
+	{
+		BulkEditWidget->LoadAffectedAssets();
+	}
 	
 	RequestDestroyWindow();
 
