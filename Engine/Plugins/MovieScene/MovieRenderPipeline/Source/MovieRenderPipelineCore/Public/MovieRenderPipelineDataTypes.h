@@ -506,6 +506,9 @@ public:
 
 	/** The current tick of this shot that we're on in master space */
 	FFrameNumber CurrentTickInMaster;
+
+	/** Converts from the outermost space into the innermost space. Only works with linear transforms. */
+	FMovieSceneTimeTransform OuterToInnerTransform;
 	
 	/** The total range of output frames in master space */
 	TRange<FFrameNumber> TotalOutputRangeMaster;
