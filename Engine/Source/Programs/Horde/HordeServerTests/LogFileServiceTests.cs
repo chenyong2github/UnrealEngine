@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;

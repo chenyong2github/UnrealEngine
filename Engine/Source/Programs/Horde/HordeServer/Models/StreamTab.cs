@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using HordeServer.Api;
 using MongoDB.Bson.Serialization.Attributes;
 using System;

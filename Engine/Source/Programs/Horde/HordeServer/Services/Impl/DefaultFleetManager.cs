@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using HordeServer.Models;
 using Microsoft.Extensions.Logging;
 using System;

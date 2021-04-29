@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Amazon.S3.Model;
 using HordeServer.Api;
 using MongoDB.Bson;

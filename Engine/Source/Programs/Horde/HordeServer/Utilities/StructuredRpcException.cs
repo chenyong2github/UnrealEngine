@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Grpc.Core;
 using System;
 using System.Collections.Generic;

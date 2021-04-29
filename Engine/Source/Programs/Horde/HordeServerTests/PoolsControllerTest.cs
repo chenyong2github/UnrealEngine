@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace HordeServerTests

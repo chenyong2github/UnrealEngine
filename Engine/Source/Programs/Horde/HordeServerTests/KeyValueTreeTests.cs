@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using HordeServer.Storage;
 using HordeServer.Storage.Impl;
 using HordeServer.Storage.Primitives;

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Datadog.Trace;
 using EpicGames.Core;
 using HordeServer.Utilities;

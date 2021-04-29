@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Amazon.Runtime.Internal.Util;
 using HordeServer.Models;
 using HordeServer.Utilities;

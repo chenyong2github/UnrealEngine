@@ -1,4 +1,6 @@
-﻿#region Copyright notice and license
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#region Copyright notice and license
 
 // Copyright 2019 The gRPC Authors
 //

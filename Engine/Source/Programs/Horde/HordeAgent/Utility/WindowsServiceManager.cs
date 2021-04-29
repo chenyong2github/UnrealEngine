@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Microsoft.Win32.SafeHandles;
 using Serilog;
 using System;

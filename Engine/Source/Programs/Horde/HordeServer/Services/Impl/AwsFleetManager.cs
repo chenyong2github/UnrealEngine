@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Amazon;
 using Amazon.EC2;
 using Amazon.EC2.Model;

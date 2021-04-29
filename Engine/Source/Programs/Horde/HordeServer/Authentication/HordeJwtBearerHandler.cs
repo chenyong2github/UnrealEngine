@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using HordeServer.Services;
 using HordeServer.Utilities;
 using Microsoft.AspNetCore.Authentication;

@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Build.Bazel.Remote.Execution.V2;
 using Google.Protobuf;
 using HordeAgent.Utility;

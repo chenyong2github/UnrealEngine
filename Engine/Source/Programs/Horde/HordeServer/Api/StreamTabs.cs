@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Amazon.S3.Model.Internal.MarshallTransformations;
 using EpicGames.Core;
 using HordeServer.Models;

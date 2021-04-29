@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Grpc.Net.Client;
 using HordeAgent.Utility;
 using Microsoft.Extensions.Http;

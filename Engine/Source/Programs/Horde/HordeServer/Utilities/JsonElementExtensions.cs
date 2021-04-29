@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using MongoDB.Bson.IO;
 using System;
 using System.Collections.Generic;

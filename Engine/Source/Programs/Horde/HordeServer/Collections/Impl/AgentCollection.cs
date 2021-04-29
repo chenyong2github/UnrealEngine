@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Google.Protobuf.WellKnownTypes;
 using HordeServer.Api;
 using HordeCommon;

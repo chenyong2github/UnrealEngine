@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
