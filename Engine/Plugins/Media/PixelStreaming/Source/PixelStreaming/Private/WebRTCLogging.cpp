@@ -41,7 +41,7 @@ private:
 		const char* tag) override
 	{
 #if !NO_LOGGING
-		static const ELogVerbosity::Type RtcToUE4LogCategoryMap[] =
+		static const ELogVerbosity::Type RtcToUnrealLogCategoryMap[] =
 		{
 			ELogVerbosity::VeryVerbose,
 			ELogVerbosity::Verbose,
@@ -50,7 +50,7 @@ private:
 			ELogVerbosity::Error
 		};
 
-		if (PixelStreamingWebRTC.IsSuppressed(RtcToUE4LogCategoryMap[severity]))
+		if (PixelStreamingWebRTC.IsSuppressed(RtcToUnrealLogCategoryMap[severity]))
 		{
 			return;
 		}
@@ -95,7 +95,7 @@ private:
 	}
 };
 
-void RedirectWebRtcLogsToUE4(rtc::LoggingSeverity Verbosity)
+void RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity Verbosity)
 {
 #if !UE_BUILD_SHIPPING
 	static FWebRtcLogsRedirector Redirector{ Verbosity };

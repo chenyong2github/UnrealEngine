@@ -22,7 +22,7 @@ DEFINE_LOG_CATEGORY(LogVideoDecoder);
 
 const D3DFORMAT DX9_NV12_FORMAT = (D3DFORMAT)MAKEFOURCC('N', 'V', '1', '2');
 
-inline ID3D11Device* GetUE4DxDevice()
+inline ID3D11Device* GetUEDxDevice()
 {
 	return static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 }
@@ -265,15 +265,15 @@ bool FVideoDecoder::FallbackToSwDecoding(FString Reason)
 	if (IsWindows8Plus())
 	{
 		// NOTE: the following doesn't apply to Windows 7 as it doesn't use DX11 device in decoding thread
-		// as we don't use a dedicated DirextX device for s/w decoding, UE4's rendering device will be used from inside the decoder
+		// as we don't use a dedicated DirextX device for s/w decoding, UnrealEngine's rendering device will be used from inside the decoder
 		// to produce output samples, which means access from render and decoding threads. We need to enable multithread protection
 		// for the device. Multithread protection can have performance impact, though its affect is expected to be negligible in most cases.
 		// WARNING:
-		// Once multithread protection is enabled we don't disable it, so UE4's rendering device stays protected for the rest of its lifetime.
+		// Once multithread protection is enabled we don't disable it, so UnrealEngine's rendering device stays protected for the rest of its lifetime.
 		// Some other system could enable multithread protection after we did it, we have no means to know about this, and so disabling it
 		// at the end of playback can cause GPU driver crash
 		TComPtr<ID3D10Multithread> DxMultithread;
-		CHECK_HR(DxMultithread.FromQueryInterface(__uuidof(ID3D10Multithread), GetUE4DxDevice()));
+		CHECK_HR(DxMultithread.FromQueryInterface(__uuidof(ID3D10Multithread), GetUEDxDevice()));
 		DxMultithread->SetMultithreadProtected(1);
 	}
 
@@ -502,7 +502,7 @@ void FVideoDecoder::StopDecoding()
 		// blocked. 
 		if (!ExitingDecodingThreadEvent->Wait(FTimespan::FromSeconds(1)))
 		{
-			// the following (commented out) trick doesn't work because it's not possible to terminate an UE4 thread
+			// the following (commented out) trick doesn't work because it's not possible to terminate an UnrealEngine thread
 
 			//// Timeout. Kill the thread. This means possibly leaving internal decoding threads running, crashing in WMF decoder destructor,
 			//// potential inability to start the next streaming session and other horrible things. Still better than doing nothing as getting stuck on 
@@ -634,7 +634,7 @@ bool FVideoDecoder::CopyTexture(IMFSample* Sample, const TSharedPtr<FWmfMediaHar
 	LONGLONG SampleDuration = 0;
 	CHECK_HR(Sample->GetSampleDuration(&SampleDuration));
 
-	ID3D11Device* UE4DxDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+	ID3D11Device* UEDxDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 
 	TComPtr<IMFMediaBuffer> Buffer;
 	CHECK_HR(Sample->GetBufferByIndex(0, &Buffer));
@@ -759,10 +759,10 @@ bool FVideoDecoder::CreateDXGIManagerAndDevice()
 	}
 
 	// Create device from same adapter as already existing device
-	ID3D11Device* UE4DxDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+	ID3D11Device* UEDxDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
 
 	TComPtr<IDXGIDevice> DXGIDevice;
-	UE4DxDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&DXGIDevice);
+	UEDxDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)&DXGIDevice);
 
 	TComPtr<IDXGIAdapter> DXGIAdapter;
 	DXGIDevice->GetAdapter((IDXGIAdapter**)&DXGIAdapter);
@@ -771,8 +771,8 @@ bool FVideoDecoder::CreateDXGIManagerAndDevice()
 
 	uint32 DeviceCreationFlags = 0;
 
-	uint32 UE4DxDeviceCreationFlags = UE4DxDevice->GetCreationFlags();
-	if ((UE4DxDeviceCreationFlags & D3D11_CREATE_DEVICE_DEBUG) != 0)
+	uint32 UEDxDeviceCreationFlags = UEDxDevice->GetCreationFlags();
+	if ((UEDxDeviceCreationFlags & D3D11_CREATE_DEVICE_DEBUG) != 0)
 	{
 		DeviceCreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 	}

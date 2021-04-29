@@ -30,7 +30,7 @@ THIRD_PARTY_INCLUDES_END
 
 #include "D3D11RHIPrivate.h"
 
-// following commented include causes name clash between UE4 and Windows `IMediaEventSink`,
+// following commented include causes name clash between UnrealEngine and Windows `IMediaEventSink`,
 // we just need a couple of GUIDs from there so the solution is to duplicate them below
 //#include "wmcodecdsp.h"
 

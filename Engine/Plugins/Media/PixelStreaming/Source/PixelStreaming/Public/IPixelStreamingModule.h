@@ -63,7 +63,7 @@ public:
 
 	/**
 	 * Send a data command back to the browser where we are sending video. This
-	 * is different to a response as a command is low-level and coming from UE4
+	 * is different to a response as a command is low-level and coming from UnrealEngine
 	 * rather than the pixel streamed application.
 	 * @param Descriptor - A generic descriptor string.
 	 */

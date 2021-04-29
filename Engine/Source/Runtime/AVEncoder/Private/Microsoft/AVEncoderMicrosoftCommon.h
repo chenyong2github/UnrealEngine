@@ -135,7 +135,7 @@ inline const FString GetComErrorDescription(HRESULT Res)
 	#include "XboxCommonHidePlatformTypes.h"
 #endif
 
-// following commented include causes name clash between UE4 and Windows `IMediaEventSink`,
+// following commented include causes name clash between UnrealEngine and Windows `IMediaEventSink`,
 // we just need a couple of GUIDs from there so the solution is to duplicate them below
 //#include "wmcodecdsp.h"
 
@@ -145,8 +145,8 @@ const GUID CLSID_CMSH264EncoderMFT = { 0x6ca50344, 0x051a, 0x4ded, { 0x97, 0x79,
 const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7, 0xc, 0x44, 0x5c, 0x78, 0xc9, 0x82 } };
 
 // `MF_LOW_LATENCY` is defined in "mfapi.h" for >= WIN8
-// UE4 supports lower Windows versions at the moment and so `WINVER` is < `_WIN32_WINNT_WIN8`
-// to be able to use `MF_LOW_LATENCY` with default UE4 build we define it ourselves and check actual
+// UnrealEngine supports lower Windows versions at the moment and so `WINVER` is < `_WIN32_WINNT_WIN8`
+// to be able to use `MF_LOW_LATENCY` with default UnrealEngine build we define it ourselves and check actual
 // Windows version in runtime
 #if (WINVER < _WIN32_WINNT_WIN8)
 	const GUID MF_LOW_LATENCY = { 0x9c27891a, 0xed7a, 0x40e1,{ 0x88, 0xe8, 0xb2, 0x27, 0x27, 0xa0, 0x24, 0xee } };
@@ -155,11 +155,11 @@ const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7,
 
 #if PLATFORM_WINDOWS
 
-ID3D11Device* GetUE4DxDevice();
+ID3D11Device* GetUEDxDevice();
 
 #elif PLATFORM_XBOXONE
 
-ID3D12Device* GetUE4DxDevice();
+ID3D12Device* GetUEDxDevice();
 
 #endif
 
@@ -173,7 +173,7 @@ public:
 	FScopeDisabledDxDebugErrors(TArray<D3D11_MESSAGE_ID>&& ErrorsToDisable)
 	{
 		TRefCountPtr<ID3D11Debug> Debug;
-		HRESULT HRes = GetUE4DxDevice()->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(Debug.GetInitReference()));
+		HRESULT HRes = GetUEDxDevice()->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(Debug.GetInitReference()));
 
 		if (HRes == E_NOINTERFACE)
 		{

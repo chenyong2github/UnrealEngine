@@ -25,7 +25,7 @@ bool FStreamer::CheckPlatformCompatibility()
 FStreamer::FStreamer(const FString& InSignallingServerUrl):
 	SignallingServerUrl(InSignallingServerUrl)
 {
-	RedirectWebRtcLogsToUE4(rtc::LoggingSeverity::LS_VERBOSE);
+	RedirectWebRtcLogsToUnreal(rtc::LoggingSeverity::LS_VERBOSE);
 
 	FModuleManager::LoadModuleChecked<IModuleInterface>(TEXT("AVEncoder"));
 

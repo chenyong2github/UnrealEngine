@@ -138,7 +138,7 @@ protected:
 	FWmfMediaHardwareVideoDecodingTextureSamplePool HwTextureSamplePool;
 	FSwTextureSamplePool SwTextureSamplePool;
 
-	// D3D11 device dedicated for h/w decoding to avoid mutithreading collisions with UE4 rendering device
+	// D3D11 device dedicated for h/w decoding to avoid mutithreading collisions with UnrealEngine rendering device
 	static TUniquePtr<FDeviceInfo> s_DeviceInfo;
 };
 

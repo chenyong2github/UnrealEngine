@@ -323,17 +323,17 @@ FNvVideoEncoder::FEncoderDevice::FEncoderDevice()
 
 		if (RHIName == TEXT("D3D11"))
 		{
-			auto UE4D3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
-			CHECK_HR_VOID(UE4D3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)DXGIDevice.GetInitReference()));
+			auto UED3DDevice = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UED3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			CHECK_HR_VOID(UED3DDevice->QueryInterface(__uuidof(IDXGIDevice), (void**)DXGIDevice.GetInitReference()));
 			CHECK_HR_VOID(DXGIDevice->GetAdapter(Adapter.GetInitReference()));
 			FeatureLevel = D3D_FEATURE_LEVEL_11_0;
 		}
 		else if (RHIName == TEXT("D3D12"))
 		{
-			auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-			checkf(UE4D3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
-			LUID AdapterLuid = UE4D3DDevice->GetAdapterLuid();
+			auto UED3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+			checkf(UED3DDevice != nullptr, TEXT("Cannot initialize NvEnc with invalid device"));
+			LUID AdapterLuid = UED3DDevice->GetAdapterLuid();
 			TRefCountPtr<IDXGIFactory4> DXGIFactory;
 			CHECK_HR_VOID(CreateDXGIFactory(IID_PPV_ARGS(DXGIFactory.GetInitReference())));
 			// To use a shared texture from D3D12, we need to use a D3D 11.1 device, because we need the
@@ -1075,7 +1075,7 @@ bool FNvVideoEncoder::InitFrameInputBuffer(FFrame& Frame, uint32 Width, uint32 H
 	}
 	else if (RHIName == TEXT("D3D12"))
 	{
-		auto UE4D3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
+		auto UED3DDevice = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
 		static uint32 NamingIdx = 0;
 		ID3D12Resource* ResolvedTexture = (ID3D12Resource*)InputFrame.Texture->GetTexture2D()->GetNativeResource();
 
@@ -1083,7 +1083,7 @@ bool FNvVideoEncoder::InitFrameInputBuffer(FFrame& Frame, uint32 Width, uint32 H
 		// NOTE: ID3D12Device::CreateSharedHandle gives as an NT Handle, and so we need to call CloseHandle on it
 		//
 		HANDLE SharedHandle;
-		HRESULT Res1 = UE4D3DDevice->CreateSharedHandle(ResolvedTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("PixelStreaming_NvEnc_%u"), NamingIdx++), &SharedHandle);
+		HRESULT Res1 = UED3DDevice->CreateSharedHandle(ResolvedTexture, NULL, GENERIC_ALL, *FString::Printf(TEXT("PixelStreaming_NvEnc_%u"), NamingIdx++), &SharedHandle);
 		CHECK_HR_DEFAULT(Res1);
 
 		TRefCountPtr <ID3D11Device1> Device1;

@@ -131,7 +131,7 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("HeadMountedDisplay");
             }
 
-            // required for casting UE4 BackBuffer to D3D11 Texture2D for NvEnc
+            // required for casting UnrealEngine BackBuffer to D3D11 Texture2D for NvEnc
             PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
             PrivateIncludePaths.AddRange(new string[]
             {

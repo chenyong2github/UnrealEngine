@@ -54,7 +54,7 @@
  * 		// Register ourselves to receive the encoded frames
  * 		VideoEncoder->RegisterListener(this);
  * 
- * 		// Register back buffer capture with UE4
+ * 		// Register back buffer capture with UnrealEngine
  * 		FSlateApplication::Get().GetRenderer()->OnBackBufferReadyToPresent().AddRaw(this, &FGameplayMediaEncoder::OnBackBufferReady);
  * 
  * 		StartTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
@@ -63,7 +63,7 @@
  * 	}
  * 
  * 
- * 	// Back buffer capture callback from UE4
+ * 	// Back buffer capture callback from UnrealEngine
  * 	void OnBackBufferReady(SWindow& SlateWindow, const FTexture2DRHIRef& BackBuffer)
  * 	{
  * 		FTimespan Now = FTimespan::FromSeconds(FPlatformTime::Seconds()) - StartTime;

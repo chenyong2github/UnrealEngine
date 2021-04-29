@@ -17,10 +17,10 @@ namespace AVEncoder
 // Windows only code
 //
 #if PLATFORM_WINDOWS
-ID3D11Device* GetUE4DxDevice()
+ID3D11Device* GetUEDxDevice()
 {
 	auto Device = static_cast<ID3D11Device*>(GDynamicRHI->RHIGetNativeDevice());
-	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D11Device"));
+	checkf(Device != nullptr, TEXT("Failed to get UnrealEngine's ID3D11Device"));
 	return Device;
 }
 #endif
@@ -29,10 +29,10 @@ ID3D11Device* GetUE4DxDevice()
 // XboxOne only code
 // 
 #if PLATFORM_XBOXONE 
-ID3D12Device* GetUE4DxDevice()
+ID3D12Device* GetUEDxDevice()
 {
 	auto Device = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice());
-	checkf(Device != nullptr, TEXT("Failed to get UE4's ID3D12Device"));
+	checkf(Device != nullptr, TEXT("Failed to get UnrealEngine's ID3D12Device"));
 	return Device;
 }
 
