@@ -21,6 +21,12 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "ModelingComponentsEditorOnly",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
+		},		
+		{
 			"Name": "ModelingOperators",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
