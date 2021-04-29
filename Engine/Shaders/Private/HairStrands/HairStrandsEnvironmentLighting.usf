@@ -18,6 +18,10 @@
 #include "../LightGridCommon.ush"
 #include "../SceneTextureParameters.ush"
 
+#if PERMUTATION_LUMEN
+#include "../Lumen/LumenRadianceCacheCommon.ush"
+#endif
+
 // Disable static lighting, as hair don't have any diffused lighting baked, 
 // and rely solely on specular information (i.e. reflection capture)
 #undef ALLOW_STATIC_LIGHTING
@@ -63,6 +67,12 @@ float GetPreExposure()
 
 float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition, float PixelSceneDepth, float3 AbsoluteWorldPosition)
 {
+#if PERMUTATION_LUMEN
+	// Lumen probe
+	float3 Random = 0;
+	float ConeHalfAngle = 0;
+	return SampleRadianceCacheInterpolated(AbsoluteWorldPosition, RayDirection, ConeHalfAngle, Random);
+#else
 	const float IndirectIrradiance = 1;
 	const int SingleCaptureIndex = 0;
 
@@ -87,6 +97,7 @@ float3 GatherRadiance(float3 RayDirection, float Roughness, uint2 PixelPosition,
 		SingleCaptureIndex,
 		bCompositeSkylight,
 		EyeIndex);
+#endif // PERMUTATION_LUMEN
 }
 
 Texture3D<float4>			HairEnergyLUTTexture;

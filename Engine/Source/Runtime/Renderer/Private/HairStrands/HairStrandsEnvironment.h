@@ -18,6 +18,11 @@ void RenderHairStrandsAmbientOcclusion(
 	const FViewInfo& View,
 	const FRDGTextureRef& InAOTexture);
 
+void RenderHairStrandsLumenLighting(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	FViewInfo& View);
+
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,

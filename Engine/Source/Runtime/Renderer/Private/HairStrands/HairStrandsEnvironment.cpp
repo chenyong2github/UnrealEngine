@@ -19,6 +19,8 @@
 #include "RenderGraphEvent.h"
 #include "PostProcess/PostProcessing.h"
 #include "GpuDebugRendering.h"
+#include "Lumen/LumenRadianceCache.h"
+#include "Lumen/LumenScreenProbeGather.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -58,6 +60,14 @@ static int32 GHairStrandsSkyLighting_DebugSample = 0;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLighting_DebugSample(TEXT("r.HairStrands.SkyLighting.DebugSample"), GHairStrandsSkyLighting_DebugSample, TEXT("Enable debug view for visualizing sample used for the sky integration"), ECVF_Scalability | ECVF_RenderThreadSafe);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+enum class EHairLightingSourceType : uint8
+{
+	SceneColor = 0,
+	ReflectionProbe = 1,
+	Lumen = 2,
+	Count
+};
 
 enum class EHairLightingIntegrationType : uint8
 {
@@ -194,7 +204,8 @@ class FHairEnvironmentLighting
 public:
 	class FIntegrationType	: SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", uint32(EHairLightingIntegrationType::Count));
 	class FDebug			: SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG"); 
-	using FPermutationDomain = TShaderPermutationDomain<FIntegrationType, FDebug>;
+	class FLumen			: SHADER_PERMUTATION_BOOL("PERMUTATION_LUMEN"); 
+	using FPermutationDomain = TShaderPermutationDomain<FIntegrationType, FLumen, FDebug>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -286,6 +297,7 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairEnvironmentLighting::FParameters, Common)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCache)
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsDebugData::FWriteParameters, DebugData)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -313,6 +325,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FHairStrandsVoxelResources& VirtualVoxelResources,
 	const FRDGTextureRef SceneColorTexture,
+	const EHairLightingSourceType LightingType,
 	FHairStrandsDebugData::Data* DebugData)
 {
 	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
@@ -328,9 +341,9 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PassParameters->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
 
 	EHairLightingIntegrationType IntegrationType = EHairLightingIntegrationType::AdHoc;
-	const bool bUseSceneColor = SceneColorTexture != nullptr;
-	if (bUseSceneColor)
+	if (LightingType == EHairLightingSourceType::SceneColor)
 	{
+		check(SceneColorTexture != nullptr);
 		IntegrationType = EHairLightingIntegrationType::SceneColor;
 		PassParameters->SceneColorTexture = SceneColorTexture;
 	}
@@ -377,6 +390,13 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 		SetupReflectionUniformParameters(View, ReflectionUniformParameters);
 		PassParameters->ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 	}
+
+	if (LightingType == EHairLightingSourceType::Lumen)
+	{
+		const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
+		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
+		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, ParametersPS->RadianceCache);
+	}
 	PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
 	PassParameters->OutLightingBuffer = nullptr;
 
@@ -392,6 +412,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	FHairEnvironmentLightingPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairEnvironmentLighting::FIntegrationType>(uint32(IntegrationType));
+	PermutationVector.Set<FHairEnvironmentLighting::FLumen>(LightingType == EHairLightingSourceType::Lumen);
 	PermutationVector.Set<FHairEnvironmentLighting::FDebug>(DebugData != nullptr);
 	PermutationVector = FHairEnvironmentLighting::RemapPermutation(PermutationVector);
 
@@ -404,7 +425,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	ParametersPS->RenderTargets[0] = FRenderTargetBinding(VisibilityData.SampleLightingBuffer, ERenderTargetLoadAction::ELoad);
 
 	GraphBuilder.AddPass(
-		bUseSceneColor ? RDG_EVENT_NAME("HairEnvSceneScatterPS") : RDG_EVENT_NAME("HairEnvLightingPS"),
+		RDG_EVENT_NAME("HairEnvLightingPS(%s)", LightingType == EHairLightingSourceType::SceneColor ? TEXT("SceneScatter") : (LightingType == EHairLightingSourceType::Lumen ? TEXT("Lumen") : TEXT("ReflectionProbe")) ),
 		ParametersPS,
 		ERDGPassFlags::Raster,
 		[ParametersPS, VertexShader, PixelShader, ViewportResolution, CapturedView](FRHICommandList& RHICmdList)
@@ -466,29 +487,19 @@ void RenderHairStrandsSceneColorScattering(
 
 		if (bNeedScatterSceneLighting)
 		{
-			AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, SceneColorTexture, nullptr);
+			AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, SceneColorTexture, EHairLightingSourceType::SceneColor, nullptr);
 		}
 	}
 }
 
-void RenderHairStrandsEnvironmentLighting(
+static void InternalRenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	FViewInfo& View)
+	FViewInfo& View,
+	EHairLightingSourceType LightingType)
 {
 	if (!GetHairStrandsSkyLightingEnable() || !HairStrands::HasViewHairStrandsData(View))
 		return;
-
-	struct FHairEnvDebugData
-	{
-		FRDGBufferRef ShadingPointBuffer = nullptr;
-		FRDGBufferRef SampleBuffer = nullptr;
-		FRDGBufferRef ShadingPointCounter = nullptr;
-
-		FRDGBufferUAVRef ShadingPointBufferUAV = nullptr;
-		FRDGBufferUAVRef SampleBufferUAV = nullptr;
-		FRDGBufferUAVRef ShadingPointCounterUAV = nullptr;
-	};
 
 	const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 	const FHairStrandsVoxelResources& VoxelResources = View.HairStrandsViewData.VirtualVoxelResources;
@@ -504,7 +515,23 @@ void RenderHairStrandsEnvironmentLighting(
 		View.HairStrandsViewData.DebugData.Resources = FHairStrandsDebugData::CreateData(GraphBuilder);
 	}
 
-	AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, nullptr, bDebugSamplingEnable ? &View.HairStrandsViewData.DebugData.Resources : nullptr);
+	AddHairStrandsEnvironmentLightingPassPS(GraphBuilder, Scene, View, VisibilityData, VoxelResources, nullptr, LightingType, bDebugSamplingEnable ? &View.HairStrandsViewData.DebugData.Resources : nullptr);
+}
+
+void RenderHairStrandsLumenLighting(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	FViewInfo& View)
+{
+	InternalRenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View, EHairLightingSourceType::Lumen);
+}
+
+void RenderHairStrandsEnvironmentLighting(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	FViewInfo& View)
+{
+	InternalRenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View, EHairLightingSourceType::ReflectionProbe);
 }
 
 void RenderHairStrandsAmbientOcclusion(
