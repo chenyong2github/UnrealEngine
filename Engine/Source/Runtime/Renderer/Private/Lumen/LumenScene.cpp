@@ -816,7 +816,10 @@ void FLumenSceneData::RemoveAllMeshCards()
 
 bool FLumenSceneData::UpdateAtlasSize()
 {
-	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize())
+	extern int32 GLumenSurfaceCacheCompress;
+
+	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize()
+		|| bCompressPhysicalAtlas != (GLumenSurfaceCacheCompress != 0))
 	{
 		RemoveAllMeshCards();
 
@@ -824,6 +827,7 @@ bool FLumenSceneData::UpdateAtlasSize()
 		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages());
 		UnlockedAllocationHeap.Clear();
 
+		bCompressPhysicalAtlas = (GLumenSurfaceCacheCompress != 0);
 		return true;
 	}
 

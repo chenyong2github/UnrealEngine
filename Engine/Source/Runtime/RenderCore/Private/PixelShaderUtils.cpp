@@ -15,8 +15,8 @@ bool FPixelShaderUtils::FRasterizeToRectsVS::ShouldCompilePermutation(const FGlo
 	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FRasterizeToRectsUpload, )
-	RDG_BUFFER_ACCESS(RectMinMaxBuffer, ERHIAccess::CopyDest)
+BEGIN_SHADER_PARAMETER_STRUCT(FUploadRectBuffer, )
+	RDG_BUFFER_ACCESS(RectBuffer, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 // static
@@ -69,24 +69,24 @@ void FPixelShaderUtils::InitFullscreenPipelineState(
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 }
 
-void FPixelShaderUtils::UploadRectMinMaxBuffer(FRDGBuilder& GraphBuilder,
-	const TArray<FUintVector4, SceneRenderingAllocator>& RectMinMaxArray,
-	FRDGBufferRef RectMinMaxBuffer)
+void FPixelShaderUtils::UploadRectBuffer(FRDGBuilder& GraphBuilder,
+	const TArray<FUintVector4, SceneRenderingAllocator>& RectArray,
+	FRDGBufferRef RectBuffer)
 {
-	FRasterizeToRectsUpload* PassParameters = GraphBuilder.AllocParameters<FRasterizeToRectsUpload>();
-	PassParameters->RectMinMaxBuffer = RectMinMaxBuffer;
+	FUploadRectBuffer* PassParameters = GraphBuilder.AllocParameters<FUploadRectBuffer>();
+	PassParameters->RectBuffer = RectBuffer;
 
-	const uint32 RectMinMaxToRenderSizeInBytes = RectMinMaxArray.GetTypeSize() * RectMinMaxArray.Num();
-	const void* RectMinMaxToRenderDataPtr = RectMinMaxArray.GetData();
+	const uint32 RectArraySizeInBytes = RectArray.GetTypeSize() * RectArray.Num();
+	const void* RectArrayDataPtr = RectArray.GetData();
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("UploadRectMinMaxBuffer"),
+		RDG_EVENT_NAME("UploadRectBuffer"),
 		PassParameters,
 		ERDGPassFlags::Copy,
-		[PassParameters, RectMinMaxToRenderSizeInBytes, RectMinMaxToRenderDataPtr](FRHICommandListImmediate& RHICmdList)
+		[PassParameters, RectArraySizeInBytes, RectArrayDataPtr](FRHICommandListImmediate& RHICmdList)
 	{
-		void* DestBVHQueryInfoPtr = RHILockBuffer(PassParameters->RectMinMaxBuffer->GetRHI(), 0, RectMinMaxToRenderSizeInBytes, RLM_WriteOnly);
-		FPlatformMemory::Memcpy(DestBVHQueryInfoPtr, RectMinMaxToRenderDataPtr, RectMinMaxToRenderSizeInBytes);
-		RHIUnlockBuffer(PassParameters->RectMinMaxBuffer->GetRHI());
+		void* WritePointer = RHILockBuffer(PassParameters->RectBuffer->GetRHI(), 0, RectArraySizeInBytes, RLM_WriteOnly);
+		FPlatformMemory::Memcpy(WritePointer, RectArrayDataPtr, RectArraySizeInBytes);
+		RHIUnlockBuffer(PassParameters->RectBuffer->GetRHI());
 	});
 }

@@ -210,7 +210,7 @@ void LumenCardDirectLightingPS(
 
 		if (CombinedAttenuation > 0)
 		{
-			float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz * 2 - 1;
+			float3 WorldNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xy);
 
 			if (dot(WorldNormal, L) > 0)
 			{

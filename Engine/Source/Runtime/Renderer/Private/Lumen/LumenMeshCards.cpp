@@ -662,7 +662,7 @@ bool MeshCardCullTest(const FLumenCardBuildData& CardBuildData, const int32 LODL
 	const bool bCardPassedLODTest = CardBuildData.LODLevel == LODLevel;
 
 #if 0
-	static int32 GDebugMinCardOrientation = 0;
+	static int32 GDebugMinCardOrientation = 5;
 	static int32 GDebugMaxCardOrientation = 5;
 	if (CardBuildData.Orientation < GDebugMinCardOrientation || CardBuildData.Orientation > GDebugMaxCardOrientation)
 	{

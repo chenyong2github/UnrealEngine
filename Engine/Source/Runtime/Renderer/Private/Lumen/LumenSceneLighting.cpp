@@ -121,11 +121,8 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	}
 	else
 	{
-		FRDGBufferDesc DummyBufferDesc(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1));
-		FRDGBufferRef DummyFeedbackBuffer = GraphBuilder.CreateBuffer(DummyBufferDesc, TEXT("Lumen.DummySurfaceCacheFeedback"));
-
-		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
-		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(DummyFeedbackBuffer, PF_R32_UINT);
+		SurfaceCacheFeedbackBufferAllocatorUAV = LumenSceneData.SurfaceCacheFeedback.GetDummyFeedbackAllocatorUAV(GraphBuilder);
+		SurfaceCacheFeedbackBufferUAV = LumenSceneData.SurfaceCacheFeedback.GetDummyFeedbackUAV(GraphBuilder);
 		SurfaceCacheFeedbackBufferSize = 0;
 		SurfaceCacheFeedbackBufferTileJitter = FIntPoint(0, 0);
 		SurfaceCacheFeedbackBufferTileWrapMask = 0;
@@ -197,7 +194,7 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 // Nvidia has lower vertex throughput when only processing a few verts per instance
 const int32 NumLumenQuadsInBuffer = 16;
 
-IMPLEMENT_GLOBAL_SHADER(FInitializeCardScatterIndirectArgsCS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "InitializeCardScatterIndirectArgsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FInitializeCardScatterIndirectArgsCS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "InitializeCardScatterIndirectArgsCS", SF_Compute);
 
 uint32 CullCardsToLightGroupSize = 64;
 
@@ -208,14 +205,14 @@ void FCullCardPagesToShapeCS::ModifyCompilationEnvironment(const FGlobalShaderPe
 	OutEnvironment.SetDefine(TEXT("NUM_CARD_TILES_TO_RENDER_HASH_MAP_BUCKET_UINT32"), FLumenCardRenderer::NumCardPagesToRenderHashMapBucketUInt32);
 }
 
-IMPLEMENT_GLOBAL_SHADER(FCullCardPagesToShapeCS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "CullCardPagesToShapeCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCullCardPagesToShapeCS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "CullCardPagesToShapeCS", SF_Compute);
 
 bool FRasterizeToCardsVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 {
 	return DoesPlatformSupportLumenGI(Parameters.Platform);
 }
 
-IMPLEMENT_GLOBAL_SHADER(FRasterizeToCardsVS,"/Engine/Private/Lumen/LumenSceneLighting.usf","RasterizeToCardsVS",SF_Vertex);
+IMPLEMENT_GLOBAL_SHADER(FRasterizeToCardsVS,"/Engine/Private/Lumen/LumenSurfaceCache.usf","RasterizeToCardsVS",SF_Vertex);
 
 void FLumenCardScatterContext::Init(
 	FRDGBuilder& GraphBuilder,
@@ -349,7 +346,7 @@ class FLumenCardLightingInitializePS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardLightingInitializePS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardLightingInitializePS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardLightingInitializePS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "LumenCardLightingInitializePS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardLightingEmissive, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
@@ -376,7 +373,7 @@ class FLumenCardCopyAtlasPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyAtlasPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardCopyAtlasPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardCopyAtlasPS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "LumenCardCopyAtlasPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardCopyAtlas, )
 SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)
@@ -405,7 +402,7 @@ class FLumenCardBlendAlbedoPS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenCardBlendAlbedoPS, "/Engine/Private/Lumen/LumenSceneLighting.usf", "LumenCardBlendAlbedoPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLumenCardBlendAlbedoPS, "/Engine/Private/Lumen/LumenSurfaceCache.usf", "LumenCardBlendAlbedoPS", SF_Pixel);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardBlendAlbedo, )
 SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizeToCardsVS::FParameters, VS)

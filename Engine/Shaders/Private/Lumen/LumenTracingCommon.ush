@@ -960,11 +960,12 @@ void AccumulateLumenCardLighting(FLumenCardSample CardSample, uint AtlasId, inou
 		{
 			if (VisualizeMode == VISUALIZE_MODE_ALBEDO)
 			{
-				CardLighting = pow(Texture2DSampleLevel(AlbedoAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb, 2.2f) * View.OneOverPreExposure;
+				CardLighting = pow(Texture2DSampleLevel(AlbedoAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xyz, 2.2f) * View.OneOverPreExposure;
 			}
 			else if (VisualizeMode == VISUALIZE_MODE_NORMALS)
 			{
-				CardLighting = Texture2DSampleLevel(NormalAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).rgb * View.OneOverPreExposure;
+				float3 WorldSpaceNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(NormalAtlas, TRACING_ATLAS_SAMPLER, CardSample.PhysicalAtlasUV, 0.0f).xy);
+				CardLighting = (WorldSpaceNormal.xyz * 0.5f + 0.5f) * View.OneOverPreExposure;
 			}
 			else if (VisualizeMode == VISUALIZE_MODE_EMISSIVE)
 			{

@@ -356,7 +356,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenCardDirectLightingRGS)
 		float3 L = DeferredLightUniforms.Direction;//LightData.Direction
 		float3 ToLight = L;
 
-		float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xyz * 2 - 1;
+		float3 WorldNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasUV, 0).xy);
 
 #if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
 		if (dot(WorldNormal, L) > 0)

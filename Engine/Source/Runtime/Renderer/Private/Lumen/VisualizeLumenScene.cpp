@@ -77,7 +77,7 @@ FAutoConsoleVariableRef CVarLumenVisualizeMode(
 	TEXT("2 - Geometry normals\n")
 	TEXT("3 - Normals\n")
 	TEXT("4 - Emissive\n")
-	TEXT("5 - Opacity")
+	TEXT("5 - Opacity\n")
 	TEXT("6 - Card weights"),
 	ECVF_RenderThreadSafe
 );

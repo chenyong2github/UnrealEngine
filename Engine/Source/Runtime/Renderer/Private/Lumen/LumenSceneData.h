@@ -491,6 +491,9 @@ public:
 	int32 GetNumCardPages() const { return PageTable.Num(); }
 	FIntPoint GetPhysicalAtlasSize() const { return PhysicalAtlasSize; }
 	FIntPoint GetRadiosityAtlasSize() const;
+	FIntPoint GetCardCaptureAtlasSizeInPages() const;
+	FIntPoint GetCardCaptureAtlasSize() const;
+	bool GetPhysicalAtlasCompression() const { return bCompressPhysicalAtlas; }
 
 	void UpdateSurfaceCacheFeedback(FVector LumenSceneCameraOrigin, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& MeshCardsUpdate);
 
@@ -504,7 +507,9 @@ private:
 
 	// Virtual surface cache page table
 	FIntPoint PhysicalAtlasSize = FIntPoint(0, 0);
+	bool bCompressPhysicalAtlas = true;
 	FLumenSurfaceCacheAllocator SurfaceCacheAllocator;
+
 	TSparseSpanArray<FLumenPageTableEntry> PageTable;
 	TArray<int32> PageTableIndicesToUpdateInBuffer;
 	FRWByteAddressBuffer PageTableBuffer;

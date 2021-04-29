@@ -31,7 +31,8 @@ public:
 	const int32 PageTableIndex = -1;
 	bool bDistantScene = false;
 	FVector4 CardUVRect;
-	FIntRect PhysicalAtlasViewRect;
+	FIntRect CardCaptureAtlasRect;
+	FIntRect SurfaceCacheAtlasRect;
 	FVector Origin;
 	FVector LocalExtent;
 	FVector LocalToWorldRotationX;
@@ -48,13 +49,14 @@ public:
 	TArray<FNaniteCommandInfo, SceneRenderingAllocator> NaniteCommandInfos;
 	float NaniteLODScaleFactor = 1.0f;
 
-	// Non-Nanite mesh instance ranges to draw
+	// Non-Nanite mesh inclusive instance ranges to draw
 	TArray<uint32, SceneRenderingAllocator> InstanceRuns;
 
 	FCardPageRenderData(const FViewInfo& InMainView,
 		FLumenCard& InCardData,
 		FVector4 InCardUVRect,
-		FIntRect InPhysicalAtlasViewRect,
+		FIntRect InCardCaptureAtlasRect,
+		FIntRect InSurfaceCacheAtlasRect,
 		FPrimitiveSceneInfo* InPrimitiveSceneInfo,
 		int32 InPrimitiveInstanceIndex,
 		int32 InCardIndex,

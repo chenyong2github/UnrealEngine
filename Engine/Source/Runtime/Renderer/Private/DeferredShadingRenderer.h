@@ -396,11 +396,16 @@ private:
 		FGlobalShaderMap* GlobalShaderMap,
 		FRDGTextureRef RadiosityAtlas);
 
-	void CopyLumenSceneDepth(
+	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
-		FRDGTextureRef DepthBufferAtlas,
 		const FViewInfo& View);
+
+	void UpdateLumenSurfaceCacheAtlas(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
+		FRDGBufferSRVRef CardCaptureRectBufferSRV,
+		const struct FCardCaptureAtlas& CardCaptureAtlas);
 
 	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
 

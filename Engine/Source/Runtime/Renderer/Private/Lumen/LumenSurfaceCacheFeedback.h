@@ -34,7 +34,9 @@ public:
 		uint32 BufferSize = 0;
 	};
 
-	void AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces);
+	void AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces) const;
+	FRDGBufferUAVRef GetDummyFeedbackAllocatorUAV(FRDGBuilder& GraphBuilder) const;
+	FRDGBufferUAVRef GetDummyFeedbackUAV(FRDGBuilder& GraphBuilder) const;
 	void SubmitFeedbackBuffer(const FViewInfo& View, FRDGBuilder& GraphBuilder, FLumenSurfaceCacheFeedback::FFeedbackResources& FeedbackResources);
 
 	FRHIGPUBufferReadback* GetLatestReadbackBuffer();

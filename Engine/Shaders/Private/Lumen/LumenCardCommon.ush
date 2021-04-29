@@ -265,7 +265,7 @@ float3 GetCardWorldPosition(FLumenCardData Card, float2 CardUV, float Depth)
 uint2 GetCardPageSizeInTexels(FLumenCardPageData CardPage, uint2 AtlasSize)
 {
 	float2 AtlasSizeInUV = CardPage.PhysicalAtlasUVRect.zw - CardPage.PhysicalAtlasUVRect.xy;
-	return AtlasSizeInUV * AtlasSize;
+	return uint2(AtlasSizeInUV * AtlasSize);
 }
 
 float2 CardPageUVToCardUV(FLumenCardPageData CardPage, float2 CardPageUV)
@@ -284,4 +284,13 @@ float2 SamplePositonToCardUV(FLumenCardData Card, float2 LocalSamplePosition)
 {
 	float2 CardUV = saturate(float2(+0.5f, -0.5f) * (LocalSamplePosition / Card.LocalExtent.xy) + 0.5f);
 	return CardUV;
+}
+
+// Return decoded world space normal
+float3 DecodeSurfaceCacheNormal(float2 EncodedNormal)
+{
+	float3 WorldSpaceNormal;
+	WorldSpaceNormal.xy = EncodedNormal.xy * 2.0f - 1.0f;
+	WorldSpaceNormal.z = sqrt(max(1.0f - dot(WorldSpaceNormal.xy, WorldSpaceNormal.xy), 0.00001f));
+	return normalize(WorldSpaceNormal);
 }

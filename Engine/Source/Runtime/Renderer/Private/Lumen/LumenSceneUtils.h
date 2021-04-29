@@ -30,6 +30,15 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCullCardsShapeParameters, )
 	SHADER_PARAMETER(float, SinConeAngle)
 END_SHADER_PARAMETER_STRUCT()
 
+struct FCardCaptureAtlas
+{
+	FIntPoint Size;
+	FRDGTextureRef Albedo;
+	FRDGTextureRef Normal;
+	FRDGTextureRef Emissive;
+	FRDGTextureRef DepthStencil;
+};
+
 enum class ECullCardsMode
 {
 	OperateOnCardPagesToRender,
@@ -161,11 +170,15 @@ class FRasterizeToCardsVS : public FGlobalShader
 		SHADER_PARAMETER(FVector4, InfluenceSphere)
 		SHADER_PARAMETER(FVector2D, DownsampledInputAtlasSize)
 		SHADER_PARAMETER(uint32, ScatterInstanceIndex)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, RectMinMaxBuffer)
+		SHADER_PARAMETER(FVector2D, InvRectMinMaxResolution)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FClampToInfluenceSphere : SHADER_PERMUTATION_BOOL("CLAMP_TO_INFLUENCE_SPHERE");
+	class FRectBufferSrc : SHADER_PERMUTATION_BOOL("DIM_RECT_BUFFER_SRC");
+	class FRectBufferDst : SHADER_PERMUTATION_BOOL("DIM_RECT_BUFFER_DST");
 
-	using FPermutationDomain = TShaderPermutationDomain<FClampToInfluenceSphere>;
+	using FPermutationDomain = TShaderPermutationDomain<FClampToInfluenceSphere, FRectBufferSrc, FRectBufferDst>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
 };
@@ -189,10 +202,14 @@ void DrawQuadsToAtlas(
 	const PassParametersType* PassParameters,
 	FGlobalShaderMap* GlobalShaderMap,
 	FRHIBlendState* BlendState,
-	FRHICommandListImmediate& RHICmdList)
+	FRHICommandListImmediate& RHICmdList,
+	bool bRectBufferSrc = false,
+	bool bRectBufferDst = false)
 {
 	FRasterizeToCardsVS::FPermutationDomain PermutationVector;
-	PermutationVector.Set< FRasterizeToCardsVS::FClampToInfluenceSphere >(false);
+	PermutationVector.Set<FRasterizeToCardsVS::FClampToInfluenceSphere>(false);
+	PermutationVector.Set<FRasterizeToCardsVS::FRectBufferSrc>(bRectBufferSrc);
+	PermutationVector.Set<FRasterizeToCardsVS::FRectBufferDst>(bRectBufferDst);
 	auto VertexShader = GlobalShaderMap->GetShader<FRasterizeToCardsVS>(PermutationVector);
 
 	DrawQuadsToAtlas(ViewportSize, 

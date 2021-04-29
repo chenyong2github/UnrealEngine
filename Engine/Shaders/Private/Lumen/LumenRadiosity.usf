@@ -215,7 +215,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, float2 CardUV, FLumenCardData Car
 		float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 		float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-		float3 WorldNormal = normalize(Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz * 2 - 1);
+		float3 WorldNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
 
 		//@todo - derive bias from texel world size
 		WorldPosition += WorldNormal * SurfaceBias;
@@ -312,7 +312,7 @@ void LumenCardRadiosityTraceBlocksCS(
 				float Depth = 1.0f - Texture2DSampleLevel(DepthAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).x;
 
 				float3 WorldPosition = GetCardWorldPosition(Card, CardUV, Depth);
-				float3 WorldNormal = normalize(Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xyz * 2 - 1);
+				float3 WorldNormal = DecodeSurfaceCacheNormal(Texture2DSampleLevel(CurrentNormalAtlas, GlobalBilinearClampedSampler, AtlasUV, 0).xy);
 				uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 
 				if (ClipmapIndex < NumRadianceProbeClipmaps)

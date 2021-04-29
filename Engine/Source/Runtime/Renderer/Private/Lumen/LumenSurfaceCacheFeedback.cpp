@@ -12,7 +12,7 @@
 
 int32 GLumenSurfaceCacheFeedback = 1;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(
-	TEXT("r.LumenSurfaceCache.Feedback"),
+	TEXT("r.LumenScene.SurfaceCache.Feedback"),
 	GLumenSurfaceCacheFeedback,
 	TEXT("Whether to use surface cache feedback to selectively map higher quality surface cache pages."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedback(
 
 int32 GLumenSurfaceCacheFeedbackTileSize = 16;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
-	TEXT("r.LumenSurfaceCache.FeedbackTileSize"),
+	TEXT("r.LumenScene.SurfaceCache.FeedbackTileSize"),
 	GLumenSurfaceCacheFeedbackTileSize,
 	TEXT("One surface cache feedback element will be writen out per tile. Aligned to a power of two."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -28,7 +28,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackTileSize(
 
 float GLumenSurfaceCacheFeedbackResLevelBias = -1.0f;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
-	TEXT("r.LumenSurfaceCache.FeedbackResLevelBias"),
+	TEXT("r.LumenScene.SurfaceCache.FeedbackResLevelBias"),
 	GLumenSurfaceCacheFeedbackResLevelBias,
 	TEXT("Bias resolution of on demand surface cache pages."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -36,7 +36,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackResLevelBias(
 
 float GLumenSurfaceCacheFeedbackFeedbackMinPageHits = 16;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackMinPageHits(
-	TEXT("r.LumenSurfaceCache.FeedbackMinPageHits"),
+	TEXT("r.LumenScene.SurfaceCache.FeedbackMinPageHits"),
 	GLumenSurfaceCacheFeedbackFeedbackMinPageHits,
 	TEXT("Min number of page hits to demand a new page."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -44,7 +44,7 @@ FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackMinPageHits(
 
 int32 GLumenSurfaceCacheFeedbackMaxUniqueElements = 1024;
 FAutoConsoleVariableRef CVarLumenSurfaceCacheFeedbackUniqueElements(
-	TEXT("r.LumenSurfaceCache.FeedbackMaxUnqiueElements"),
+	TEXT("r.LumenScene.SurfaceCache.FeedbackMaxUnqiueElements"),
 	GLumenSurfaceCacheFeedbackMaxUniqueElements,
 	TEXT("Limit of unique surface cache feedback elements. Used to resize buffers."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -99,7 +99,7 @@ FLumenSurfaceCacheFeedback::~FLumenSurfaceCacheFeedback()
 	}
 }
 
-void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces)
+void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces) const
 {
 	Resouces.BufferSize = Lumen::GetFeedbackBufferSize();
 
@@ -115,10 +115,25 @@ void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBui
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.Buffer, PF_R32G32_UINT), 0);
 }
 
+FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackAllocatorUAV(FRDGBuilder& GraphBuilder) const
+{
+	FRDGBufferRef DummyBufferAllocator = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1),
+		TEXT("Lumen.DummyFeedbackAllocator"));
 
-/**
- * Setups FBuildFeedbackHashTableCS arguments to run one lane per feedback element
- */
+	return GraphBuilder.CreateUAV(DummyBufferAllocator, PF_R32_UINT);
+}
+
+FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackUAV(FRDGBuilder& GraphBuilder) const
+{
+	FRDGBufferRef DummyBuffer = GraphBuilder.CreateBuffer(
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, 1),
+		TEXT("Lumen.DummyFeedback"));
+
+	return GraphBuilder.CreateUAV(DummyBuffer, PF_R32G32_UINT);
+}
+
+// Setups FBuildFeedbackHashTableCS arguments to run one lane per feedback element
 class FBuildFeedbackHashTableIndirectArgsCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FBuildFeedbackHashTableIndirectArgsCS);
@@ -146,9 +161,7 @@ class FBuildFeedbackHashTableIndirectArgsCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableIndirectArgsCS, "/Engine/Private/Lumen/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableIndirectArgsCS", SF_Compute);
 
 
-/**
- * Takes a list of feedback elements and builds a hash table with element counts
- */
+// Takes a list of feedback elements and builds a hash table with element counts
 class FBuildFeedbackHashTableCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FBuildFeedbackHashTableCS)
@@ -186,10 +199,7 @@ class FBuildFeedbackHashTableCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FBuildFeedbackHashTableCS, "/Engine/Private/Lumen/LumenSurfaceCacheFeedback.usf", "BuildFeedbackHashTableCS", SF_Compute);
 
-
-/**
- * Compacts feedback element hash table into a unique and tightly packed array of feedback elements with counts
- */
+// Compacts feedback element hash table into a unique and tightly packed array of feedback elements with counts
 class FCompactFeedbackHashTableCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FCompactFeedbackHashTableCS)

@@ -438,7 +438,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FClearUAVRectsParameters, )
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectMinMaxBufferSRV, uint32 NumRects)
+void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4], FRDGBufferSRVRef RectCoordBufferSRV, uint32 NumRects)
 {
 	if (NumRects == 0)
 	{
@@ -446,7 +446,7 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 		return;
 	}
 
-	check(TextureUAV && RectMinMaxBufferSRV);
+	check(TextureUAV && RectCoordBufferSRV);
 
 	FClearUAVRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearUAVRectsParameters>();
 
@@ -472,11 +472,8 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, co
 		PixelShader,
 		PassParameters,
 		TextureSize,
-		RectMinMaxBufferSRV,
-		NumRects,
-		TStaticBlendState<>::GetRHI(),
-		TStaticRasterizerState<>::GetRHI(),
-		TStaticDepthStencilState<false, CF_Always>::GetRHI());
+		RectCoordBufferSRV,
+		NumRects);
 }
 
 void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture)
