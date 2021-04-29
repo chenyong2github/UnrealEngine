@@ -54,6 +54,15 @@ bool UsdUtils::InsertSubLayer( const pxr::SdfLayerRefPtr& ParentLayer, const TCH
 	FString RelativeSubLayerPath = SubLayerFile;
 	MakePathRelativeToLayer( UE::FSdfLayer{ ParentLayer }, RelativeSubLayerPath );
 
+	// If the relative path is just the same as the clean name (e.g. Layer.usda wants to add Layer.usda as a sublayer) then
+	// just stop here as that is always an error
+	FString ParentLayerPath = UsdToUnreal::ConvertString( ParentLayer->GetRealPath() );
+	if ( FPaths::GetCleanFilename( ParentLayerPath ) == RelativeSubLayerPath )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "Tried to add layer '%s' as a sublayer of itself!" ), *ParentLayerPath );
+		return false;
+	}
+
 	FScopedUsdAllocs UsdAllocs;
 
 	ParentLayer->InsertSubLayerPath( UnrealToUsd::ConvertString( *RelativeSubLayerPath ).Get(), Index );
@@ -110,19 +119,26 @@ TOptional< FString > UsdUtils::BrowseUsdFile( EBrowseFileMode Mode, TSharedRef< 
 
 	if ( OutFiles.Num() > 0 )
 	{
-		FString Path = FPaths::ConvertRelativePathToFull( OutFiles[ 0 ] );
-
-		// Mirror behavior of RelativeToGameDir meta tag on the stage actor's RootLayer
-		if ( FPaths::IsUnderDirectory( Path, FPaths::ProjectDir() ) )
-		{
-			FPaths::MakePathRelativeTo( Path, *FPaths::ProjectDir() );
-		}
-		return Path;
+		return MakePathRelativeToProjectDir( OutFiles[0] );
 	}
 
 	return {};
 }
+
 #endif // WITH_EDITOR
+
+FString UsdUtils::MakePathRelativeToProjectDir( const FString& Path )
+{
+	FString PathConverted = FPaths::ConvertRelativePathToFull( Path );
+
+	// Mirror behavior of RelativeToGameDir meta tag on the stage actor's RootLayer
+	if ( FPaths::IsUnderDirectory( PathConverted, FPaths::ProjectDir() ) )
+	{
+		FPaths::MakePathRelativeTo( PathConverted, *FPaths::ProjectDir() );
+	}
+
+	return PathConverted;
+}
 
 TUsdStore< pxr::SdfLayerRefPtr > UsdUtils::CreateNewLayer( TUsdStore< pxr::UsdStageRefPtr > UsdStage, const TUsdStore<pxr::SdfLayerRefPtr>& ParentLayer, const TCHAR* LayerFilePath )
 {
