@@ -87,6 +87,7 @@ namespace
 
 AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
+	, TestLabel(GetName())
 	, bIsEnabled(true)
 	, LogErrorHandling(EFunctionalTestLogHandling::ProjectDefault)
 	, LogWarningHandling(EFunctionalTestLogHandling::ProjectDefault)
@@ -173,6 +174,8 @@ void AFunctionalTest::OnConstruction(const FTransform& Transform)
 	Super::OnConstruction(Transform);
 
 #if WITH_EDITOR
+	TestLabel = GetActorLabel();
+
 	if ( TestName )
 	{
 		if ( bIsEnabled )
@@ -217,7 +220,7 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 	if (FunctionalTest)
 	{
 		FunctionalTest->SetLogErrorAndWarningHandling(bSuppressErrors, bSuppressWarnings, bWarningsAreErrors);
-		FunctionalTest->SetFunctionalTestRunning(GetName());
+		FunctionalTest->SetFunctionalTestRunning(TestLabel);
 	}
 
 	FailureMessage = TEXT("");
@@ -373,7 +376,7 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
 	if (FunctionalTest)
 	{
-		FunctionalTest->SetFunctionalTestComplete(GetName());
+		FunctionalTest->SetFunctionalTestComplete(TestLabel);
 	}
 
 	bIsRunning = false;

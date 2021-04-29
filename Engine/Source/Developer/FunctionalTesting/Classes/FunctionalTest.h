@@ -224,6 +224,9 @@ class FUNCTIONALTESTING_API AFunctionalTest : public AActor
 public:
 	AFunctionalTest(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UPROPERTY(BlueprintReadOnly, Category = "Functional Testing")
+	FString TestLabel;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UBillboardComponent> SpriteComponent;
