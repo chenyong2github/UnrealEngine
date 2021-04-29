@@ -119,6 +119,18 @@ public:
 	/** Set the item selection of the outliner based on a selector function. Any items which return true will be added */
 	virtual void SetSelection(const TFunctionRef<bool(ISceneOutlinerTreeItem&)> Selector) = 0;
 
+	/** Pins an item in the outliner. */
+	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) = 0;
+
+	/**  Unpins an item in the outliner. */
+	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) = 0;
+	
+	/** Pin selected items */
+	virtual void PinSelectedItems() = 0;
+
+	/** Unpins selected items */
+	virtual void UnpinSelectedItems() = 0;
+
 	/** Get the active SceneOutlinerMode */
 	const ISceneOutlinerMode* GetMode() const { return Mode; }
 protected:

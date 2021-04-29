@@ -277,40 +277,4 @@ TSharedRef<SWidget> FActorFolderTreeItem::GenerateLabelWidget(ISceneOutliner& Ou
 	return SNew(SActorFolderTreeLabel, *this, Outliner, InRow);
 }
 
-void FActorFolderTreeItem::LoadUnloadedActorChildren() const
-{
-	// #todo (outliner): This functionality should be moved to the mode.
-	
-	for (const auto& Child : Children)
-	{
-		if (FSceneOutlinerTreeItemPtr ChildPtr = Child.Pin())
-		{
-			if (const FActorFolderTreeItem* ActorFolderChild = ChildPtr->CastTo<FActorFolderTreeItem>())
-			{
-				ActorFolderChild->LoadUnloadedActorChildren();
-			}
-
-			if (const FActorDescTreeItem* ActorDescChild = ChildPtr->CastTo<FActorDescTreeItem>())
-			{
-				if (const FWorldPartitionActorDesc* ActorDesc = ActorDescChild->ActorDescHandle.GetActorDesc())
-				{
-					if (UActorDescContainer* ActorDescContainer = ActorDescChild->ActorDescHandle.GetActorDescContainer().Get())
-					{
-						new FWorldPartitionReference(ActorDescContainer, ActorDesc->GetGuid());
-					}
-				}
-			}
-		}
-	}
-}
-
-
-void FActorFolderTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
-{
-	FFolderTreeItem::GenerateContextMenu(Menu, Outliner);
-
-	FToolMenuSection& Section = Menu->AddSection("Section");
-	Section.AddMenuEntry("LoadUnloadedActors", LOCTEXT("LoadUnloadedActors", "Load Unloaded Actors"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FActorFolderTreeItem::LoadUnloadedActorChildren)));
-}
-
 #undef LOCTEXT_NAMESPACE

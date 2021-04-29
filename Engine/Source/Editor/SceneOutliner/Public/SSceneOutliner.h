@@ -173,6 +173,18 @@ struct FSceneOutlinerItemSelection
 		}
 	}
 
+	/** Apply a function to every item in the selection regardless of type. */
+	void ForEachItem(TFunctionRef<void(FSceneOutlinerTreeItemPtr&)> Func) const
+	{
+		for (const TWeakPtr<ISceneOutlinerTreeItem>& Item : SelectedItems)
+		{
+			if (auto ItemPtr = Item.Pin())
+			{
+				Func(ItemPtr);
+			}
+		}
+	}
+
 	/** Use a selector to retrieve a specific data type from items in the selection. Will only add an item's data if the selector returns true for that item. */
 	template <typename DataType>
 	TArray<DataType> GetData(TFunctionRef<bool(const TWeakPtr<ISceneOutlinerTreeItem>&, DataType&)> Selector) const
@@ -369,6 +381,26 @@ public:
 		*/
 	virtual FSceneOutlinerItemSelection GetSelection() const { return FSceneOutlinerItemSelection(*OutlinerTreeView); }
 
+	/**
+	 * Pins an item in the outliner.
+	 */
+	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+
+	/**
+	 * Unpins an item in the outliner.
+	 */
+	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+
+	/**
+	 * Pin selected items
+	 */
+	virtual void PinSelectedItems() override;
+
+	/**
+	 * Unpins selected items
+	 */
+	virtual void UnpinSelectedItems() override;
+	
 	/**
 	 * Returns the parent tree item for a given item if it exists, nullptr otherwise.
 	 */

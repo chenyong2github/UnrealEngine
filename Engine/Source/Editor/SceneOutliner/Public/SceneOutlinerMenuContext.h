@@ -22,6 +22,7 @@ public:
 		NumSelectedItems = 0;
 		NumSelectedFolders = 0;
 		NumWorldsSelected = 0;
+		NumPinnedItems = 0;
 	}
 
 	TWeakPtr<SSceneOutliner> SceneOutliner;
@@ -30,4 +31,5 @@ public:
 	int32 NumSelectedItems;
 	int32 NumSelectedFolders;
 	int32 NumWorldsSelected;
+	int32 NumPinnedItems;
 };

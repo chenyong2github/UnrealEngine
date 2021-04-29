@@ -17,17 +17,15 @@ public:
 	TWeakObjectPtr<UWorld> World;
 
 	/* Begin ISceneOutlinerTreeItem Implementation */
-	virtual bool IsValid() const { return World.IsValid(); }
+	virtual bool IsValid() const override { return World.IsValid(); }
 	virtual void OnExpansionChanged() override;
 	virtual void Delete(FName InNewParentPath) override;
 	virtual TSharedRef<SWidget> GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow) override;
-	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	/* End FFolderTreeItem Implementation */
 		
 	/* Begin FFolderTreeItem Implementation */
 	virtual FName MoveTo(const FName& NewParent) override;
 private:
 	virtual void CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner) override;
-	void LoadUnloadedActorChildren() const;
 	/* End FFolderTreeItem Implementation */
 };

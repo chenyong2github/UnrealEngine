@@ -1996,6 +1996,26 @@ FReply SSceneOutliner::OnDragOverItem(const FDragDropEvent& Event, const ISceneO
 	return Mode->OnDragOverItem(Event, Item); 
 }
 
+void SSceneOutliner::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
+{
+	Mode->PinItem(InItem);
+}
+
+void SSceneOutliner::UnpinItem(const FSceneOutlinerTreeItemPtr& InItem)
+{
+	Mode->UnpinItem(InItem);
+}
+
+void SSceneOutliner::PinSelectedItems()
+{
+	Mode->PinSelectedItems();
+}
+
+void SSceneOutliner::UnpinSelectedItems()
+{
+	Mode->UnpinSelectedItems();
+}
+
 FSceneOutlinerTreeItemPtr SSceneOutliner::FindParent(const ISceneOutlinerTreeItem& InItem) const
 {
 	FSceneOutlinerTreeItemPtr Parent = Mode->GetHierarchy()->FindParent(InItem, TreeItemMap);

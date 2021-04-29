@@ -85,9 +85,11 @@ public:
 	virtual bool HasVisibilityInfo() const override { return true; }
 	virtual bool GetVisibility() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
+	
+	const FGuid& GetGuid() const { return ActorGuid; }
 private:
 	void FocusActorBounds() const;
-	void LoadUnloadedActor() const;
 
 	FString DisplayString;
+	FGuid ActorGuid;
 };

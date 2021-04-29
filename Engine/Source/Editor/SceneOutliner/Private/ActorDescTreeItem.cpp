@@ -213,6 +213,7 @@ private:
 FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container)
 	: ISceneOutlinerTreeItem(Type)
 	, ActorDescHandle(InActorGuid, Container)
+	, ActorGuid(InActorGuid)
 {
 	ID = FSceneOutlinerTreeItemID(InActorGuid);
 
@@ -257,22 +258,10 @@ void FActorDescTreeItem::FocusActorBounds() const
 	}
 }
 
-void FActorDescTreeItem::LoadUnloadedActor() const
-{
-	if (const FWorldPartitionActorDesc* ActorDesc = ActorDescHandle.GetActorDesc())
-	{
-		if (UActorDescContainer* ActorDescContainer = ActorDescHandle.GetActorDescContainer().Get())
-		{
-			new FWorldPartitionReference(ActorDescContainer, ActorDesc->GetGuid());
-		}
-	}
-}
-
 void FActorDescTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner&)
 {
 	FToolMenuSection& Section = Menu->AddSection("Section");
 	Section.AddMenuEntry("FocusActorBounds", LOCTEXT("FocusActorBounds", "Focus Actor Bounds"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FActorDescTreeItem::FocusActorBounds)));
-	Section.AddMenuEntry("LoadUnloadedActor", LOCTEXT("LoadUnloadedActor", "Load Unloaded Actor"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &FActorDescTreeItem::LoadUnloadedActor)));
 }
 
 void FActorDescTreeItem::OnVisibilityChanged(const bool bNewVisibility)

@@ -49,6 +49,10 @@ public:
 	virtual FName CreateFolder(const FName& ParentPath, const FName& LeafName) override;
 	virtual bool ReparentItemToFolder(const FName& FolderPath, const FSceneOutlinerTreeItemPtr& Item) override;
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) override;
+	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+	virtual void PinSelectedItems() override;
+	virtual void UnpinSelectedItems() override;
 	/* End ISceneOutlinerMode Interface */
 public:
 	/* External events this mode must respond to */

@@ -136,6 +136,15 @@ public:
 	/** Select all descendants of a folder. Optionally select only immediate descendants. */
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) {}
 public:
+	/** Pins an item in the outliner */
+	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) {}
+	/** Unpins an item in the outliner */
+	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) {}
+	/** Pins all selected items */
+	virtual void PinSelectedItems() {}
+	/** Unpins all selected items */
+	virtual void UnpinSelectedItems() {}
+public:
 	/* Getters */
 
 	ISceneOutlinerHierarchy* GetHierarchy() { return Hierarchy.Get(); }

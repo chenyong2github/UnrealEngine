@@ -372,6 +372,33 @@ void FActorBrowsingMode::RegisterContextMenu()
 						{
 							SceneOutliner->GetTree().GetSelectedItems()[0]->GenerateContextMenu(InMenu, *SceneOutliner);
 						}
+						
+						if (Context->NumSelectedItems > 0)
+						{
+							// If selection contains some unpinned items, show the pin option
+							// If the selection contains folders, always show the pin option
+							if (Context->NumPinnedItems != Context->NumSelectedItems || Context->NumSelectedFolders > 0)
+							{
+								InMenu->FindOrAddSection("Section").AddMenuEntry(
+									"PinItems",
+									LOCTEXT("Pin", "Pin"),
+									FText(),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::PinSelectedItems)));
+							}
+							
+							// If the selection contains some pinned items, show the unpin option
+							// If the selection contains folders, always show the unpin option
+							if (Context->NumPinnedItems != 0 || Context->NumSelectedFolders > 0)
+							{
+								InMenu->FindOrAddSection("Section").AddMenuEntry(
+									"UnpinItems",
+									LOCTEXT("Unpin", "Unpin"),
+									FText(),
+									FSlateIcon(),
+									FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::UnpinSelectedItems)));
+							}
+						}
 
 						// If we've only got folders selected, show the selection and edit sub menus
 						if (Context->NumSelectedItems > 0 && Context->NumSelectedFolders == Context->NumSelectedItems)
@@ -417,7 +444,7 @@ TSharedPtr<SWidget> FActorBrowsingMode::BuildContextMenu()
 {
 	RegisterContextMenu();
 
-	FSceneOutlinerItemSelection ItemSelection(SceneOutliner->GetSelection());
+	const FSceneOutlinerItemSelection ItemSelection(SceneOutliner->GetSelection());
 
 	USceneOutlinerMenuContext* ContextObject = NewObject<USceneOutlinerMenuContext>();
 	ContextObject->SceneOutliner = StaticCastSharedRef<SSceneOutliner>(SceneOutliner->AsShared());
@@ -425,6 +452,21 @@ TSharedPtr<SWidget> FActorBrowsingMode::BuildContextMenu()
 	ContextObject->NumSelectedItems = ItemSelection.Num();
 	ContextObject->NumSelectedFolders = ItemSelection.Num<FFolderTreeItem>();
 	ContextObject->NumWorldsSelected = ItemSelection.Num<FWorldTreeItem>();
+
+	int32 NumPinnedItems = 0;
+	if (const UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+	{
+		ItemSelection.ForEachItem<FActorTreeItem>([WorldPartition, &NumPinnedItems](const FActorTreeItem& ActorItem)
+		{
+			if (ActorItem.Actor.IsValid() && WorldPartition->IsActorPinned(ActorItem.Actor->GetActorGuid()))
+			{
+				++NumPinnedItems;
+			}
+			return true;
+		});
+	}
+	ContextObject->NumPinnedItems = NumPinnedItems;
+
 	FToolMenuContext Context(ContextObject);
 
 	FName MenuName = DefaultContextMenuName;
@@ -1376,6 +1418,82 @@ void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>
 
 	GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify*/false);
 	GEditor->NoteSelectionChange();
+}
+
+void FActorBrowsingMode::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
+{
+	if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+	{
+		if (const FActorDescTreeItem* const ActorDescTreeItem = InItem->CastTo<FActorDescTreeItem>())
+		{
+			WorldPartition->PinActor(ActorDescTreeItem->GetGuid());
+		}
+		else if (const FActorTreeItem* const ActorTreeItem = InItem->CastTo<FActorTreeItem>())
+		{
+			if (ActorTreeItem->Actor.IsValid())
+			{
+				WorldPartition->PinActor(ActorTreeItem->Actor->GetActorGuid());
+			}
+		}
+	}
+
+	// Recursively pin all children.
+	for (const auto& Child : InItem->GetChildren())
+	{
+		if (Child.IsValid())
+		{
+			PinItem(Child.Pin());
+	    }
+	}
+}
+
+void FActorBrowsingMode::UnpinItem(const FSceneOutlinerTreeItemPtr& InItem)
+{
+	// Recursively unpin all children
+	for (const auto& Child : InItem->GetChildren())
+	{
+		if (Child.IsValid())
+		{
+			UnpinItem(Child.Pin());
+		}
+	}
+	
+	if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+	{
+		if (const FActorDescTreeItem* const ActorDescTreeItem = InItem->CastTo<FActorDescTreeItem>())
+		{
+			WorldPartition->UnpinActor(ActorDescTreeItem->GetGuid());
+		}
+		else if (const FActorTreeItem* const ActorTreeItem = InItem->CastTo<FActorTreeItem>())
+		{
+			if (ActorTreeItem->Actor.IsValid())
+			{
+				WorldPartition->UnpinActor(ActorTreeItem->Actor->GetActorGuid());
+			}
+		}
+	}
+}
+
+void FActorBrowsingMode::PinSelectedItems()
+{
+	const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
+
+	Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+	{
+		PinItem(TreeItem);
+		return true;
+	});
+}
+
+void FActorBrowsingMode::UnpinSelectedItems()
+{
+	const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
+
+	Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+	{
+		UnpinItem(TreeItem);
+		return true;
+	});
 }
 
 FCreateSceneOutlinerMode FActorBrowsingMode::CreateFolderPickerMode() const
