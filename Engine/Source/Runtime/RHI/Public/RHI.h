@@ -587,6 +587,12 @@ extern RHI_API bool GRHIIsHDREnabled;
 /** Whether the present adapter/display offers HDR output capabilities. */
 extern RHI_API bool GRHISupportsHDROutput;
 
+/** Whether VRS (in all flavors) is currently enabled (separate from whether it's supported/available). */
+extern RHI_API bool GRHIVariableRateShadingEnabled;
+
+/** Whether attachment (image-based) VRS is currently enabled (separate from whether it's supported/available). */
+extern RHI_API bool GRHIAttachmentVariableRateShadingEnabled;
+
 /** Whether or not the RHI can support per-draw Variable Rate Shading. */
 extern RHI_API bool GRHISupportsPipelineVariableRateShading;
 

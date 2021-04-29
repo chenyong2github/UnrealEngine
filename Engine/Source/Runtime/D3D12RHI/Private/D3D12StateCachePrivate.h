@@ -986,16 +986,11 @@ public:
 
 	void SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
 	{
-		if (PipelineState.Graphics.DrawShadingRate != ShadingRate )
+		if (PipelineState.Graphics.DrawShadingRate != ShadingRate || PipelineState.Graphics.Combiner != Combiner)
 		{
 			PipelineState.Graphics.DrawShadingRate = ShadingRate;
-			bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading;
-		}
-
-		if (PipelineState.Graphics.Combiner != Combiner)
-		{
 			PipelineState.Graphics.Combiner = Combiner;
-			bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading;
+			bNeedSetShadingRate = GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled;
 		}
 	}
 
