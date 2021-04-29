@@ -55,6 +55,18 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 				
 				ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 
+				if (LastFilmback != CineCameraComponent->Filmback)
+				{
+					if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+					{
+						UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+							, *SelectedLensFile->GetName()
+							, *CineCameraComponent->GetOwner()->GetName()
+							, *this->GetName());
+					}
+				}
+				LastFilmback = CineCameraComponent->Filmback;
+
 				ApplyFIZ(SelectedLensFile, CineCameraComponent, StaticData, FrameData);
 				ApplyDistortion(SelectedLensFile, CineCameraComponent);
 			}
@@ -97,6 +109,9 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 		// Initialize the most recent focal length to the current focal length of the camera to properly detect changes to this property
 		LastFocalLength = CineCameraComponent->CurrentFocalLength;
 
+		// Initialize the most recent filmback to the current filmback of the camera to properly detect changes to this property
+		LastFilmback = CineCameraComponent->Filmback;
+
 		//When our component has changed, make sure we update our 
 		//cached/original filmback to restore it correctly
 		//PIE case is odd because the camera is duplicated from editor and its filmback will already be distorted
@@ -107,6 +122,15 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 		}
 
 		UpdateDistortionHandler(CineCameraComponent);
+
+		ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
+		if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+		{
+			UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+				, *SelectedLensFile->GetName()
+				, *CineCameraComponent->GetOwner()->GetName()
+				, *this->GetName());
+		}
 	}
 }
 
@@ -174,6 +198,20 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 			{
 				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
 				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
+			}
+		}
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile))
+	{
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(AttachedComponent))
+		{
+			ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
+			if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
+			{
+				UE_LOG(LogLiveLinkCameraController, Warning, TEXT("LensFile '%s' has a smaller sensor size than the CameraComponent of '%s' (driven by LiveLinkCameraController '%s')")
+					, *SelectedLensFile->GetName()
+					, *CineCameraComponent->GetName()
+					, *this->GetName());
 			}
 		}
 	}
@@ -346,7 +384,8 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 			//Go through the lens file to get distortion data based on FIZ
 			//Our handler's displacement map will get updated
 			FDistortionData DistortionData;
-			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, LensDistortionHandler, DistortionData);
+			const FVector2D CurrentSensorDimensions = FVector2D(CineCameraComponent->Filmback.SensorWidth, CineCameraComponent->Filmback.SensorHeight);
+			LensFile->EvaluateDistortionData(CineCameraComponent->CurrentFocusDistance, UndistortedFocalLength, CurrentSensorDimensions, LensDistortionHandler, DistortionData);
 		}
 
 		NewDistortionMID = LensDistortionHandler->GetDistortionMID();

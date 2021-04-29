@@ -80,6 +80,7 @@ private:
 
 	//Last values used to detect changes made by the user and update our original caches
 	float LastFocalLength = -1.0f;
+	FCameraFilmbackSettings LastFilmback;
 	FRotator LastRotation;
 	FVector LastLocation;
 

@@ -7,6 +7,7 @@
 #include "CalibratedMapProcessor.h"
 #include "CameraCalibrationLog.h"
 #include "CameraCalibrationSubsystem.h"
+#include "CineCameraComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "LensDistortionModelHandlerBase.h"
@@ -175,50 +176,50 @@ bool ULensFile::EvaluateIntrinsicParameters(float InFocus, float InZoom, FIntrin
 	return bSuccess;
 }
 
-bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData) 
+bool ULensFile::EvaluateDistortionData(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
 {	
-	if (LensHandler == nullptr)
+	if (InLensHandler == nullptr)
 	{
 		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid Lens Handler"), *GetName());
 		return false;
 	}
 	
-	if (LensHandler->GetUndistortionDisplacementMap() == nullptr)
+	if (InLensHandler->GetUndistortionDisplacementMap() == nullptr)
 	{
-		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid undistortion displacement map in LensHandler '%s'"), *GetName(), *LensHandler->GetName());
+		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid undistortion displacement map in LensHandler '%s'"), *GetName(), *InLensHandler->GetName());
 		return false;
 	}
 
-	if (LensHandler->GetDistortionDisplacementMap() == nullptr)
+	if (InLensHandler->GetDistortionDisplacementMap() == nullptr)
 	{
-		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid distortion displacement map in LensHandler '%s'"), *GetName(), *LensHandler->GetName());
+		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid distortion displacement map in LensHandler '%s'"), *GetName(), *InLensHandler->GetName());
 		return false;
 	}
 
 	if (LensInfo.LensModel == nullptr)
 	{
 		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - Invalid Lens Model"), *GetName());
-		SetupNoDistortionOutput(LensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return false;
 	}
 
-	if (LensHandler->IsModelSupported(LensInfo.LensModel) == false)
+	if (InLensHandler->IsModelSupported(LensInfo.LensModel) == false)
 	{
-		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - LensHandler '%s' doesn't support lens model '%s'"), *GetName(), *LensHandler->GetName(), *LensInfo.LensModel.GetDefaultObject()->GetModelName().ToString());
-		SetupNoDistortionOutput(LensHandler, OutDistortionData);
+		UE_LOG(LogCameraCalibration, Warning, TEXT("Can't evaluate LensFile '%s' - LensHandler '%s' doesn't support lens model '%s'"), *GetName(), *InLensHandler->GetName(), *LensInfo.LensModel.GetDefaultObject()->GetModelName().ToString());
+		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return false;
 	}
 	
 	if(DataMode == ELensDataMode::Parameters)
 	{
-		return EvaluateDistortionForParameters(InFocus, InZoom, LensHandler, OutDistortionData);
+		return EvaluateDistortionForParameters(InFocus, InZoom, InFilmback, InLensHandler, OutDistortionData);
 	}
 	else
 	{
 		//Only other mode for now
 		check(DataMode == ELensDataMode::STMap);
 
-		return EvaluteDistortionForSTMaps(InFocus, InZoom, LensHandler, OutDistortionData);
+		return EvaluteDistortionForSTMaps(InFocus, InZoom, InFilmback, InLensHandler, OutDistortionData);
 	}
 }
 
@@ -256,7 +257,7 @@ void ULensFile::SetupNoDistortionOutput(ULensDistortionModelHandlerBase* LensHan
 	LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 }
 
-bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData)
+bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
 {
 	//Parameter blending mode or no parameters to blend
 	if (LensFileUtils::GDistortionParametersBlendMode == 0
@@ -270,21 +271,20 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 
 		//Setup handler state based on evaluated parameters. If none were found, no distortion will be returned
 		FLensDistortionState State;
-		State.DistortionInfo = MoveTemp(DistortionPoint);
+		State.DistortionInfo.Parameters = MoveTemp(DistortionPoint.Parameters);
+
+		const FVector2D FxFyScale = FVector2D(LensInfo.SensorDimensions.X / InFilmback.X, LensInfo.SensorDimensions.Y / InFilmback.Y);
+
+		State.DistortionInfo.FxFy = DistortionPoint.FxFy * FxFyScale;
 		State.PrincipalPoint = Intrinsic.PrincipalPoint;
-
-		//@note Revisit once we moved FxFy mapping
-		const float NormalizedFx = InZoom / LensInfo.SensorDimensions.X;
-		const float AspectRatio = LensInfo.SensorDimensions.X / LensInfo.SensorDimensions.Y;
-		State.FxFy = FVector2D(NormalizedFx, NormalizedFx * AspectRatio);
 		
-		LensHandler->SetDistortionState(State);
+		InLensHandler->SetDistortionState(State);
 
-		OutDistortionData.OverscanFactor = LensHandler->ComputeOverscanFactor();
-		LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+		OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();
+		InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 
 		//Draw displacement map associated with the new state
-		LensHandler->ProcessCurrentDistortion();
+		InLensHandler->ProcessCurrentDistortion();
 	}
 	else //DisplacementMap blending
 	{
@@ -300,7 +300,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 			&& DistortionMapping.IsValidIndex(MaxMinIndex)
 			&& DistortionMapping.IsValidIndex(MaxMaxIndex)))
 			{
-				SetupNoDistortionOutput(LensHandler, OutDistortionData);
+				SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 				return false;	
 			}
 
@@ -324,20 +324,19 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 			State.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
 
 			//Helper function to compute the current distortion state
-			const auto GetDistortionData = [this, &State, LensHandler](const FDistortionMapPoint& MapPoint, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
+			const auto GetDistortionData = [this, &State, InFilmback, InLensHandler](const FDistortionMapPoint& MapPoint, UTextureRenderTarget2D* UndistortionRenderTarget, UTextureRenderTarget2D* DistortionRenderTarget, FDistortionData& OutDistortionData)
 			{
-				State.DistortionInfo = MapPoint.DistortionInfo;
+				State.DistortionInfo.Parameters = MapPoint.DistortionInfo.Parameters;
 
-				//@note Revisit once we moved FxFy mapping
-				const float NormalizedFx = MapPoint.Zoom / LensInfo.SensorDimensions.X;
-				const float AspectRatio = LensInfo.SensorDimensions.X / LensInfo.SensorDimensions.Y;
-				State.FxFy = FVector2D(NormalizedFx, NormalizedFx * AspectRatio);
-				LensHandler->SetDistortionState(State);
-				LensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
-				LensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
+				const FVector2D FxFyScale = FVector2D(LensInfo.SensorDimensions.X / InFilmback.X, LensInfo.SensorDimensions.Y / InFilmback.Y);
+				State.DistortionInfo.FxFy = MapPoint.DistortionInfo.FxFy * FxFyScale;
 
-				OutDistortionData.DistortedUVs = LensHandler->GetDistortedUVs(UndistortedUVs);
-				OutDistortionData.OverscanFactor = LensHandler->ComputeOverscanFactor();	
+				InLensHandler->SetDistortionState(State);
+				InLensHandler->DrawUndistortionDisplacementMap(UndistortionRenderTarget);
+				InLensHandler->DrawDistortionDisplacementMap(DistortionRenderTarget);
+
+				OutDistortionData.DistortedUVs = InLensHandler->GetDistortedUVs(UndistortedUVs);
+				OutDistortionData.OverscanFactor = InLensHandler->ComputeOverscanFactor();	
 			};
 
 			//Single point case
@@ -414,7 +413,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 			}
 
 			//Draw resulting undistortion displacement map for evaluation point
-			LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUndistortionDisplacementMap()
+			LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
 				, Params
 				, UndistortionDisplacementMapHolders[0]
 				, UndistortionDisplacementMapHolders[1]
@@ -422,7 +421,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				, UndistortionDisplacementMapHolders[3]);
 
 			//Draw resulting distortion displacement map for evaluation point
-			LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetDistortionDisplacementMap()
+			LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
 				, Params
 				, DistortionDisplacementMapHolders[0]
 				, DistortionDisplacementMapHolders[1]
@@ -430,12 +429,12 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 				, DistortionDisplacementMapHolders[3]);
 
 			OutDistortionData = MoveTemp(BlendedData);
-			LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+			InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 		}
 		else
 		{
 			UE_LOG(LogCameraCalibration, Verbose, TEXT("Could not find distortion data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-			SetupNoDistortionOutput(LensHandler, OutDistortionData);
+			SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 			return false;
 		}
 	}
@@ -443,19 +442,19 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, ULe
 	return true;
 }
 
-bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDistortionModelHandlerBase* LensHandler, FDistortionData& OutDistortionData)
+bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, FVector2D InFilmback, ULensDistortionModelHandlerBase* InLensHandler, FDistortionData& OutDistortionData)
 {
 	if(DerivedDataInFlightCount > 0)
 	{
 		UE_LOG(LogCameraCalibration, Verbose, TEXT("Can't evaluate LensFile '%s' - %d data points still being computed. Clearing render target for no distortion"), *GetName(), DerivedDataInFlightCount);
-		SetupNoDistortionOutput(LensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return true;
 	}
 
 	if(CalibratedMapPoints.Num() <= 0)
 	{
 		UE_LOG(LogCameraCalibration, Verbose, TEXT("Can't evaluate LensFile '%s' - No calibrated maps"), *GetName());
-		SetupNoDistortionOutput(LensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return true;
 	}
 
@@ -471,7 +470,7 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 		&& CalibratedMapPoints.IsValidIndex(MaxMinIndex)
 		&& CalibratedMapPoints.IsValidIndex(MaxMaxIndex)))
 		{
-			SetupNoDistortionOutput(LensHandler, OutDistortionData);
+			SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 			return false;	
 		}
 
@@ -570,10 +569,12 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 		FIntrinsicMapPoint InterpPoint;
 		LensInterpolationUtils::FIZMappingBilinearInterpolation<FIntrinsicMapPoint>(InFocus, InZoom, IntrinsicMapping, InterpPoint);
 
+		// Compute a scale factor to scale the UVs in the blended displacement map
+		Params.FxFyScale = FVector2D(InFilmback.X / LensInfo.SensorDimensions.X, InFilmback.Y / LensInfo.SensorDimensions.Y);
 		Params.PrincipalPoint = InterpPoint.Parameters.PrincipalPoint;
 
 		//Draw resulting undistortion displacement map for evaluation point
-		LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetUndistortionDisplacementMap()
+		LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetUndistortionDisplacementMap()
 			, Params
 			, UndistortionTextureOne
 			, UndistortionTextureTwo
@@ -581,7 +582,7 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 			, UndistortionTextureFour);
 
 		//Draw resulting displacement map for evaluation point
-		if(LensFileRendering::DrawBlendedDisplacementMap(LensHandler->GetDistortionDisplacementMap()
+		if(LensFileRendering::DrawBlendedDisplacementMap(InLensHandler->GetDistortionDisplacementMap()
 			, Params
 			, DistortionTextureOne
 			, DistortionTextureTwo
@@ -589,13 +590,13 @@ bool ULensFile::EvaluteDistortionForSTMaps(float InFocus, float InZoom, ULensDis
 			, DistortionTextureFour))
 		{
 			OutDistortionData.OverscanFactor = ComputeOverscan(BlendedData, Params.PrincipalPoint);
-			LensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
+			InLensHandler->SetOverscanFactor(OutDistortionData.OverscanFactor);
 		}
 	}
 	else
 	{
 		UE_LOG(LogCameraCalibration, Verbose, TEXT("Could not find distortion data for Focus = '%0.2f' and Zoom = '%0.2f' on LensFile '%s'"), InFocus, InZoom, *GetName());
-		SetupNoDistortionOutput(LensHandler, OutDistortionData);
+		SetupNoDistortionOutput(InLensHandler, OutDistortionData);
 		return false;
 	}
 
@@ -692,6 +693,26 @@ void ULensFile::OnDistortionDerivedDataJobCompleted(const FDerivedDistortionData
 		}
 	}
 }
+
+bool ULensFile::IsCineCameraCompatible(const UCineCameraComponent* CineCameraComponent)
+{
+	if (!CineCameraComponent)
+	{ 
+		return false;
+	}
+
+	if (DataMode == ELensDataMode::STMap)
+	{
+		if ((LensInfo.SensorDimensions.X < CineCameraComponent->Filmback.SensorWidth)
+			|| (LensInfo.SensorDimensions.Y < CineCameraComponent->Filmback.SensorHeight))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 
 void ULensFile::PostInitProperties()
 {
