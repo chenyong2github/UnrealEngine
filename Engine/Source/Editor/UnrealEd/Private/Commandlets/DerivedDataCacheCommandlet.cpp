@@ -25,6 +25,10 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "Settings/ProjectPackagingSettings.h"
 #include "Editor.h"
 #include "AssetCompilingManager.h"
+#include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 
@@ -100,6 +104,185 @@ static void PumpAsync(bool* bInOutHadActivity = nullptr)
 	}
 }
 
+void UDerivedDataCacheCommandlet::CacheLoadedPackages(UPackage* CurrentPackage, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms)
+{
+	// Timing variables
+	double DDCCommandletMaxWaitSeconds = 60. * 10.;
+	GConfig->GetDouble(TEXT("CookSettings"), TEXT("DDCCommandletMaxWaitSeconds"), DDCCommandletMaxWaitSeconds, GEditorIni);
+
+	TArray<UObject*> CachingObjects;
+	TArray<UObject*> ObjectBuffer;
+	TArray<UPackage*> NewPackages;
+
+	bool bIsCaching = false;
+
+	{
+		const double BeginCacheTimeStart = FPlatformTime::Seconds();
+		CachingObjects.Reset();
+		NewPackages.Reset();
+
+		for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
+		{
+			UPackage* ExistingPackage = *PackageIter;
+			if ((PackageFilter & NORMALIZE_ExcludeEnginePackages) == 0 || !ExistingPackage->GetName().StartsWith(TEXT("/Engine")))
+			{
+				FName ExistingPackageName = ExistingPackage->GetFName();
+				if (ExistingPackage == CurrentPackage || !PackagesToProcess.Contains(ExistingPackageName))
+				{
+					if (!ProcessedPackages.Contains(ExistingPackageName))
+					{
+						UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Processing %s"), *ExistingPackageName.ToString());
+
+						ProcessedPackages.Add(ExistingPackageName);
+						NewPackages.Add(ExistingPackage);
+						check((ExistingPackage->GetPackageFlags() & PKG_ReloadingForCooker) == 0);
+
+						ObjectBuffer.Reset();
+						GetObjectsWithOuter(ExistingPackage, ObjectBuffer, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
+						for (UObject* Object : ObjectBuffer)
+						{
+							for (auto Platform : Platforms)
+							{
+								Object->BeginCacheForCookedPlatformData(Platform);
+								bIsCaching |= !Object->IsCachedCookedPlatformDataLoaded(Platform);
+							}
+							CachingObjects.Add(Object);
+						}
+					}
+				}
+			}
+		}
+
+		BeginCacheTime += FPlatformTime::Seconds() - BeginCacheTimeStart;
+	}
+
+	{
+		const double FinishCacheTimeStart = FPlatformTime::Seconds();
+
+		if (bIsCaching)
+		{
+			PumpAsync();
+
+			ObjectBuffer.Reset();
+			ObjectBuffer.Append(CachingObjects);
+
+			double LastActivityTime = FinishCacheTimeStart;
+			const double WaitingForCacheSleepTime = 0.050;
+			while (ObjectBuffer.Num() > 0)
+			{
+				bool bHadActivity = false;
+				for (int32 ObjectIndex = 0; ObjectIndex < ObjectBuffer.Num();)
+				{
+					UObject* Object = ObjectBuffer[ObjectIndex];
+					bool bIsFinished = true;
+					for (auto Platform : Platforms)
+					{
+						bIsFinished = Object->IsCachedCookedPlatformDataLoaded(Platform) && bIsFinished;
+					}
+					if (bIsFinished)
+					{
+						ObjectBuffer.RemoveAtSwap(ObjectIndex);
+						bHadActivity = true;
+					}
+					else
+					{
+						++ObjectIndex;
+					}
+				}
+
+				double CurrentTime = FPlatformTime::Seconds();
+				if (!bHadActivity)
+				{
+					PumpAsync(&bHadActivity);
+				}
+				if (!bHadActivity)
+				{
+					if (CurrentTime - LastActivityTime >= DDCCommandletMaxWaitSeconds)
+					{
+						UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Timed out for %.2lfs waiting for %d objects to finish caching. First object: %s."),
+							DDCCommandletMaxWaitSeconds, ObjectBuffer.Num(), *ObjectBuffer[0]->GetFullName());
+						ObjectBuffer.Reset();
+					}
+					else
+					{
+						FPlatformProcess::Sleep(WaitingForCacheSleepTime);
+					}
+				}
+				else
+				{
+					LastActivityTime = CurrentTime;
+				}
+			}
+
+			PumpAsync();
+		}
+
+		// Tear down all of the Cached data; we do this only after all objects have finished because we need to not
+		// tear down any object until all objects in its package have finished
+		for (UObject* Object : CachingObjects)
+		{
+			Object->WillNeverCacheCookedPlatformDataAgain();
+			Object->ClearAllCachedCookedPlatformData();
+		}
+
+		// Mark the packages as processed
+		for (UPackage* NewPackage : NewPackages)
+		{
+			NewPackage->SetPackageFlags(PKG_ReloadingForCooker);
+		}
+
+		FinishCacheTime += FPlatformTime::Seconds() - FinishCacheTimeStart;
+	}
+}
+
+void UDerivedDataCacheCommandlet::CacheWorldPackages(UWorld* World, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms)
+{
+	check(World);
+
+	World->AddToRoot();
+	
+	// Setup the world
+	World->WorldType = EWorldType::Editor;
+	UWorld::InitializationValues IVS;
+	IVS.RequiresHitProxies(false);
+	IVS.ShouldSimulatePhysics(false);
+	IVS.EnableTraceCollision(false);
+	IVS.CreateNavigation(false);
+	IVS.CreateAISystem(false);
+	IVS.AllowAudioPlayback(false);
+	IVS.CreatePhysicsScene(true);
+
+	World->InitWorld(UWorld::InitializationValues(IVS));
+	World->PersistentLevel->UpdateModelComponents();
+	World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
+
+	// If the world is partitioned
+	bool bResult = true;
+	if (World->HasSubsystem<UWorldPartitionSubsystem>())
+	{
+		// Commandlets aren't loading level instances by default, change that behavior
+		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
+		{
+			LevelInstanceSubsystem->SetLoadInstancesOnRegistration(true);
+		}
+
+		// Ensure the world has a valid world partition.
+		UWorldPartition* WorldPartition = World->GetWorldPartition();
+		check(WorldPartition);
+
+		FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, [this, PackageFilter, &Platforms](AActor* Actor)
+		{
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loaded actor %s"), *Actor->GetName());
+			CacheLoadedPackages(Actor->GetPackage(), PackageFilter, Platforms);
+			return true;
+		});
+	}
+
+	World->ClearWorldComponents();
+	World->CleanupWorld();
+	World->RemoveFromRoot();
+}
+
 int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 {
 	TArray<FString> Tokens, Switches;
@@ -115,14 +298,10 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 	FParse::Value(*Params, TEXT("SubsetTarget="), SubsetTarget);
 	bool bDoSubset = SubsetMod > 0 && SubsetTarget < SubsetMod;
 
-	// Timing variables
-	double DDCCommandletMaxWaitSeconds = 60. * 10.;
-	GConfig->GetDouble(TEXT("CookSettings"), TEXT("DDCCommandletMaxWaitSeconds"), DDCCommandletMaxWaitSeconds, GEditorIni);
-
 	double FindProcessedPackagesTime = 0.0;
 	double GCTime = 0.0;
-	double FinishCacheTime = 0.;
-	double BeginCacheTime = 0.;
+	FinishCacheTime = 0.;
+	BeginCacheTime = 0.;
 
 	if (!bStartupOnly && bFillCache)
 	{
@@ -202,7 +381,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 		}
 
 		// assume the first token is the map wildcard/pathname
-		TArray<FString> FilesInPath;
+		TSet<FString> FilesInPath;
 		TArray<FString> Unused;
 		TArray<FString> TokenFiles;
 		for ( int32 TokenIndex = 0; TokenIndex < Tokens.Num(); TokenIndex++ )
@@ -214,7 +393,7 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 				continue;
 			}
 
-			FilesInPath += TokenFiles;
+			FilesInPath.Append(TokenFiles);
 		}
 
 		TArray<TPair<FString, FName>> PackagePaths;
@@ -294,149 +473,61 @@ int32 UDerivedDataCacheCommandlet::Main( const FString& Params )
 			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("%d packages to load..."), PackagePaths.Num());
 		}
 
-		TArray<UObject*> CachingObjects;
-		TArray<UObject*> ObjectBuffer;
-		TArray<UPackage*> NewPackages;
+		// Gather the list of packages to process
+		PackagesToProcess.Empty(PackagePaths.Num());
+		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex--)
+		{
+			PackagesToProcess.Add(PackagePaths[PackageIndex].Get<1>());
+		}
+
+		// Process each package
 		for (int32 PackageIndex = PackagePaths.Num() - 1; PackageIndex >= 0; PackageIndex-- )
 		{
+			TPair<FString, FName>& PackagePath = PackagePaths[PackageIndex];
+			const FString& Filename = PackagePath.Get<0>();
+			FName PackageFName = PackagePath.Get<1>();
+			check(!ProcessedPackages.Contains(PackageFName));
+
+			// If work is distributed, skip packages that are meant to be process by other machines
+			if (bDoSubset)
 			{
-				TPair<FString, FName>& PackagePath = PackagePaths[PackageIndex];
-				const FString& Filename = PackagePath.Get<0>();
-				FName PackageFName = PackagePath.Get<1>();
-				if (ProcessedPackages.Contains(PackageFName))
+				FString PackageName = PackageFName.ToString();
+				if (FCrc::StrCrc_DEPRECATED(*PackageName.ToUpper()) % SubsetMod != SubsetTarget)
 				{
 					continue;
 				}
-				if (bDoSubset)
-				{
-					FString PackageName = PackageFName.ToString();
-					if (FCrc::StrCrc_DEPRECATED(*PackageName.ToUpper()) % SubsetMod != SubsetTarget)
-					{
-						continue;
-					}
-				}
+			}
 
-				UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - PackageIndex, *Filename);
+			UE_LOG(LogDerivedDataCacheCommandlet, Display, TEXT("Loading (%d) %s"), FilesInPath.Num() - PackageIndex, *Filename);
 
-				UPackage* Package = LoadPackage(NULL, *Filename, LOAD_None);
-				if (Package == NULL)
-				{
-					UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Error loading %s!"), *Filename);
-				}
-				else
-				{
-					bLastPackageWasMap = Package->ContainsMap();
-					NumProcessedSinceLastGC++;
-				}
+			UPackage* Package = LoadPackage(NULL, *Filename, LOAD_None);
+			if (Package == NULL)
+			{
+				UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Error loading %s!"), *Filename);
+				bLastPackageWasMap = false;
+			}
+			else
+			{
+				bLastPackageWasMap = Package->ContainsMap();
+				NumProcessedSinceLastGC++;
 			}
 
 			// even if the load failed this could be the first time through the loop so it might have all the startup packages to resolve
 			GRedirectCollector.ResolveAllSoftObjectPaths();
 
 			// Find any new packages and cache all the objects in each package
-			{
-				const double BeginCacheTimeStart = FPlatformTime::Seconds();
-				CachingObjects.Reset();
-				NewPackages.Reset();
-				for (TObjectIterator<UPackage> PackageIter; PackageIter; ++PackageIter)
-				{
-					UPackage* ExistingPackage = *PackageIter;
-					if ((PackageFilter & NORMALIZE_ExcludeEnginePackages) == 0 || !ExistingPackage->GetName().StartsWith(TEXT("/Engine")))
-					{
-						FName ExistingPackageName = ExistingPackage->GetFName();
-						if (!ProcessedPackages.Contains(ExistingPackageName))
-						{
-							ProcessedPackages.Add(ExistingPackageName);
-							NewPackages.Add(ExistingPackage);
-							check((ExistingPackage->GetPackageFlags() & PKG_ReloadingForCooker) == 0);
+			CacheLoadedPackages(Package, PackageFilter, Platforms);
 
-							ObjectBuffer.Reset();
-							GetObjectsWithOuter(ExistingPackage, ObjectBuffer, true /* bIncludeNestedObjects */, RF_ClassDefaultObject /* ExclusionFlags */);
-							for (UObject* Object : ObjectBuffer)
-							{
-								for (auto Platform : Platforms)
-								{
-									Object->BeginCacheForCookedPlatformData(Platform);
-								}
-								CachingObjects.Add(Object);
-							}
-						}
-					}
+			// Ensure we load maps to process all their referenced packages in case they are using world partition.
+			if (bLastPackageWasMap)
+			{
+				if (UWorld* World = UWorld::FindWorldInPackage(Package))
+				{
+					CacheWorldPackages(World, PackageFilter, Platforms);
 				}
-				PumpAsync();
-				BeginCacheTime += FPlatformTime::Seconds() - BeginCacheTimeStart;
 			}
 
-			{
-				const double FinishCacheTimeStart = FPlatformTime::Seconds();
-				ObjectBuffer.Reset();
-				ObjectBuffer.Append(CachingObjects);
-
-				double LastActivityTime = FinishCacheTimeStart;
-				const double WaitingForCacheSleepTime = 0.050;
-				while (ObjectBuffer.Num() > 0)
-				{
-					bool bHadActivity = false;
-					for (int32 ObjectIndex = 0; ObjectIndex < ObjectBuffer.Num();)
-					{
-						UObject* Object = ObjectBuffer[ObjectIndex];
-						bool bIsFinished = true;
-						for (auto Platform : Platforms)
-						{
-							bIsFinished = Object->IsCachedCookedPlatformDataLoaded(Platform) && bIsFinished;
-						}
-						if (bIsFinished)
-						{
-							ObjectBuffer.RemoveAtSwap(ObjectIndex);
-							bHadActivity = true;
-						}
-						else
-						{
-							++ObjectIndex;
-						}
-					}
-
-					double CurrentTime = FPlatformTime::Seconds();
-					if (!bHadActivity)
-					{
-						PumpAsync(&bHadActivity);
-					}
-					if (!bHadActivity)
-					{
-						if (CurrentTime - LastActivityTime >= DDCCommandletMaxWaitSeconds)
-						{
-							UE_LOG(LogDerivedDataCacheCommandlet, Error, TEXT("Timed out for %.2lfs waiting for %d objects to finish caching. First object: %s."),
-								DDCCommandletMaxWaitSeconds, ObjectBuffer.Num(), *ObjectBuffer[0]->GetFullName());
-							ObjectBuffer.Reset();
-						}
-						else
-						{
-							FPlatformProcess::Sleep(WaitingForCacheSleepTime);
-						}
-					}
-					else
-					{
-						LastActivityTime = CurrentTime;
-					}
-				}
-
-				// Tear down all of the Cached data; we do this only after all objects have finished because we need to not
-				// tear down any object until all objects in its package have finished
-				for (UObject* Object : CachingObjects)
-				{
-					Object->WillNeverCacheCookedPlatformDataAgain();
-					Object->ClearAllCachedCookedPlatformData();
-				}
-				// Mark the packages as processed
-				for (UPackage* NewPackage : NewPackages)
-				{
-					NewPackage->SetPackageFlags(PKG_ReloadingForCooker);
-				}
-
-				PumpAsync();
-				FinishCacheTime += FPlatformTime::Seconds() - FinishCacheTimeStart;
-			}
-
+			// Perform a GC if conditions are met
 			if (NumProcessedSinceLastGC >= GCInterval || PackageIndex < 0 || bLastPackageWasMap)
 			{
 				const double StartGCTime = FPlatformTime::Seconds();

@@ -18,7 +18,7 @@
 #include "DerivedDataCacheInterface.h"
 
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 
@@ -420,7 +420,7 @@ bool UWorldPartitionHLODsBuilder::BuildHLODActors()
 			}
 		}
 
-		if (HasExceededMaxMemory())
+		if (FWorldPartitionHelpers::HasExceededMaxMemory())
 		{
 			DoCollectGarbage();
 		}

@@ -18,6 +18,9 @@ public:
 		IterativeCells
 	};
 
+	static bool RunBuilder(UWorldPartitionBuilder* BuilderClass, UWorld* World);
+	static bool RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World);
+
 	virtual bool RequiresCommandletRendering() const PURE_VIRTUAL(UWorldPartitionBuilder::RequiresCommandletRendering, return false;);
 	virtual ELoadingMode GetLoadingMode() const PURE_VIRTUAL(UWorldPartitionBuilder::GetLoadingMode, return ELoadingMode::Custom;);
 	
@@ -28,7 +31,6 @@ public:
 protected:
 	virtual bool RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper) PURE_VIRTUAL(UWorldPartition::RunInternal, return false;);
 
-	bool HasExceededMaxMemory() const;
 	void DoCollectGarbage() const;
 
 	int32 IterativeCellSize = 102400;

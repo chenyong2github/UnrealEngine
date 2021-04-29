@@ -44,8 +44,8 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "CommandletSourceControlUtils.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "LevelInstance/LevelInstanceActor.h"
 
 #include "PackageHelperFunctions.h"
@@ -1687,8 +1687,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 	// Load and Save world partition actor packages
 	if (bResaveWorldPartitionExternalActors)
 	{
-		UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-		WorldPartitionSubsystem->ForEachActorDesc(AActor::StaticClass(), [this, WorldPartition](const FWorldPartitionActorDesc* ActorDesc)
+		FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, WorldPartition](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			++TotalPackagesForResave;
 			// Load & Register World Partition Actor

@@ -120,10 +120,7 @@ private:
 
 	// UWorldPartitionSubsystem interface+
 	friend class UWorldPartitionSubsystem;
-#if WITH_EDITOR
-	void ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
-	void ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
-#endif
+
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
 	// UActorPartitionSubsystem interface-
 

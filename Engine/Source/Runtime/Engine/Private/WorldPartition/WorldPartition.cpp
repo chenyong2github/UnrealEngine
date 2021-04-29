@@ -640,27 +640,6 @@ UWorldPartition* UWorldPartition::CreateWorldPartition(AWorldSettings* WorldSett
 	return WorldPartition;
 }
 
-void UWorldPartition::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
-{
-	EditorHash->ForEachIntersectingActor(Box, [&ActorClass, Predicate](const FWorldPartitionActorDesc* ActorDesc)
-	{
-		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
-		{
-			Predicate(ActorDesc);
-		}
-	});
-}
-
-void UWorldPartition::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
-{
-	for (UActorDescContainer::TConstIterator<> ActorDescIterator(this, ActorClass); ActorDescIterator; ++ActorDescIterator)
-	{
-		if (!Predicate(*ActorDescIterator))
-		{
-			return;
-		}
-	}
-}
 #endif
 
 const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSources() const

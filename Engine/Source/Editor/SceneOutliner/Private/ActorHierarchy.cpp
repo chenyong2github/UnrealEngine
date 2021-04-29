@@ -17,7 +17,7 @@
 #include "EditorFolderUtils.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
@@ -286,11 +286,9 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 
 	if (bShowingUnloadedActors)
 	{
-		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 		{
-			UWorldPartition* WorldPartition = World->GetWorldPartition();
-			check(WorldPartition);
-			WorldPartitionSubsystem->ForEachActorDesc(AActor::StaticClass(), [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
+			FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
                 {
                     if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
                     {

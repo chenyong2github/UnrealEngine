@@ -5,15 +5,12 @@
 
 #include "CoreMinimal.h"
 #include "EngineUtils.h"
-#include "Editor.h"
 #include "Logging/LogMacros.h"
 #include "Misc/CommandLine.h"
-#include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "WorldPartition/WorldPartition.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
+
 #include "Trace/Trace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
@@ -21,52 +18,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
 UWorldPartitionBuilderCommandlet::UWorldPartitionBuilderCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
-
-UWorldPartitionBuilder* UWorldPartitionBuilderCommandlet::CreateBuilder(const FString& WorldConfigFilename)
-{
-	// Parse builder class name
-	FString BuilderClassName;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("Builder="), BuilderClassName, false))
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
-		return nullptr;
-	}
-
-	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
-
-	if (!BuilderClass)
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
-		return nullptr;
-	}
-
-	// Create builder instance
-	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
-	check(Builder);
-
-	Builder->AddToRoot();
-
-	// Validate builder settings
-	if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *BuilderClassName);
-		return nullptr;
-	}
-
-	// Load configuration file
-	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
-	{
-		LoadConfig(GetClass(), *WorldConfigFilename);
-	}
-
-	// Load builder configuration
-	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
-	{
-		Builder->LoadConfig(BuilderClass, *WorldConfigFilename);
-	}
-
-	return Builder;
-}
 
 int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
@@ -96,18 +47,21 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	FString WorldConfigFilename = FPaths::ChangeExtension(WorldFilename, TEXT("ini"));
-
-	// Create builder instance
-	UWorldPartitionBuilder* Builder = CreateBuilder(WorldConfigFilename);
-	if (!Builder)
+	// Parse builder class name
+	FString BuilderClassName;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("Builder="), BuilderClassName, false))
 	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Failed to create builder, exiting."));
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
 		return 1;
 	}
 
-	// Perform builder pre world initialisation
-	Builder->PreWorldInitialization(*this);
+	// Find builder class
+	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
+	if (!BuilderClass)
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
+		return 1;
+	}
 
 	// Load the map package
 	UPackage* MapPackage = LoadPackage(NULL, *Tokens[0], LOAD_None);
@@ -125,70 +79,22 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Setup the world.
-	World->WorldType = EWorldType::Editor;
-	World->AddToRoot();
-	if (!World->bIsWorldInitialized)
+	// Load configuration file
+	FString WorldConfigFilename = FPackageName::LongPackageNameToFilename(World->GetPackage()->GetName(), TEXT(".ini"));
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
 	{
-		UWorld::InitializationValues IVS;
-		IVS.RequiresHitProxies(false);
-		IVS.ShouldSimulatePhysics(false);
-		IVS.EnableTraceCollision(false);
-		IVS.CreateNavigation(false);
-		IVS.CreateAISystem(false);
-		IVS.AllowAudioPlayback(false);
-		IVS.CreatePhysicsScene(true);
-
-		World->InitWorld(UWorld::InitializationValues(IVS));
-		World->PersistentLevel->UpdateModelComponents();
-		World->UpdateWorldComponents(true /*bRerunConstructionScripts*/, false /*bCurrentLevelOnly*/);
+		LoadConfig(GetClass(), *WorldConfigFilename);
 	}
-
-	// Make sure the world is partitioned.
-	if (!World->HasSubsystem<UWorldPartitionSubsystem>())
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
-		return 1;
-	}
-
-	// Commandlets aren't loading level instances by default, change that behavior
-	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>())
-	{
-		LevelInstanceSubsystem->SetLoadInstancesOnRegistration(true);
-	}
-
-	// Retrieve the world partition.
-	UWorldPartition* WorldPartition = World->GetWorldPartition();
-	check(WorldPartition);
-
-	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true /*bEnsureIsGWorld*/);
-	WorldContext.SetCurrentWorld(World);
-	UWorld* PrevGWorld = GWorld;
-	GWorld = World;
 
 	// Run builder
-	bool bResult = Builder->Run(World, *this);
-	
-	// Save default configuration
-	if (bResult)
+	bool bResult = UWorldPartitionBuilder::RunBuilder(BuilderClass, World);
+
+	// Save configuration file
+	if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
+		!FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
 	{
-	    if (!FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename) ||
-		    !FPlatformFileManager::Get().GetPlatformFile().IsReadOnly(*WorldConfigFilename))
-	    {
-		    SaveConfig(CPF_Config, *WorldConfigFilename);
-    
-		    Builder->SaveConfig(CPF_Config, *WorldConfigFilename);
-	    }
+		SaveConfig(CPF_Config, *WorldConfigFilename);
 	}
-
-	// Cleanup
-	World->RemoveFromRoot();
-	World->ClearWorldComponents();
-	World->CleanupWorld();
-
-	// Restore previous world
-	WorldContext.SetCurrentWorld(PrevGWorld);
-	GWorld = PrevGWorld;
 
 	return bResult ? 0 : 1;
 }

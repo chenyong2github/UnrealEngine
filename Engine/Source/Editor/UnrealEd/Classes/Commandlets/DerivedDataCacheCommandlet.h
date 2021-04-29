@@ -21,8 +21,14 @@ class UDerivedDataCacheCommandlet : public UCommandlet
 
 	// We hook this up to a delegate to avoid reloading textures and whatnot
 	TSet<FName> ProcessedPackages;
+	TSet<FName> PackagesToProcess;
+	double FinishCacheTime = 0.0;
+	double BeginCacheTime = 0.0;
 
 	void MaybeMarkPackageAsAlreadyLoaded(UPackage *Package);
+
+	void CacheLoadedPackages(UPackage* CurrentPackage, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms);
+	void CacheWorldPackages(UWorld* World, uint8 PackageFilter, const TArray<ITargetPlatform*>& Platforms);
 };
 
 

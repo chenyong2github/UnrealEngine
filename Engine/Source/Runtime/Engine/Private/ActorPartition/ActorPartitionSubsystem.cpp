@@ -3,6 +3,7 @@
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "ActorPartition/PartitionActor.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "Engine/World.h"
@@ -175,7 +176,7 @@ public:
 	FActorPartitionWorldPartition(UWorld* InWorld)
 		: FBaseActorPartition(InWorld)
 	{
-		WorldPartition = InWorld->GetSubsystem<UWorldPartitionSubsystem>();
+		WorldPartition = InWorld->GetWorldPartition();
 		check(WorldPartition);
 	}
 
@@ -224,11 +225,11 @@ public:
 		FBox CellBounds = UActorPartitionSubsystem::FCellCoord::GetCellBounds(InCellCoord, InGridSize);
 		if (bInBoundsSearch)
 		{
-			WorldPartition->ForEachIntersectingActorDesc(CellBounds, InActorPartitionId.GetClass(), FindActor);
+			FWorldPartitionHelpers::ForEachIntersectingActorDesc(WorldPartition, CellBounds, InActorPartitionId.GetClass(), FindActor);
 		}
 		else
 		{
-			WorldPartition->ForEachActorDesc(InActorPartitionId.GetClass(), FindActor);
+			FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, InActorPartitionId.GetClass(), FindActor);
 		}
 				
 		if (bUnloadedActorExists)
@@ -307,7 +308,7 @@ public:
 	}
 
 private:
-	UWorldPartitionSubsystem* WorldPartition;
+	UWorldPartition* WorldPartition;
 };
 
 #endif // WITH_EDITOR

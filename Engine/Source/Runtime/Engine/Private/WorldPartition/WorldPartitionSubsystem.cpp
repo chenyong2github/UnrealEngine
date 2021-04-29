@@ -267,28 +267,6 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 }
 
 //
-// Methods only used by Editor for non-game world
-//
-
-#if WITH_EDITOR
-void UWorldPartitionSubsystem::ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
-{
-	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->ForEachIntersectingActorDesc(Box, ActorClass, Predicate);
-	}
-}
-
-void UWorldPartitionSubsystem::ForEachActorDesc(TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const
-{
-	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->ForEachActorDesc(ActorClass, Predicate);
-	}
-}
-#endif // WITH_EDITOR
-
-//
 // UWorldPartitionSubsystem::FWorldPartitionCVars
 //
 

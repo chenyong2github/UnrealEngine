@@ -9,6 +9,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PackageName.h"
@@ -25,9 +26,6 @@
 
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
-
-#include "IDirectoryWatcher.h"
-#include "DirectoryWatcherModule.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHashHLOD, Log, All);
@@ -96,14 +94,6 @@ static void DeletePackage(UWorldPartition* WorldPartition, FWorldPartitionActorD
 
 static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FActorContainerInstance& MainContainerInstance, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODCreationContext& Context, ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly, const TArray<const FActorClusterInstance*>& ClusterInstances)
 {
-	auto HasExceededMaxMemory = []()
-	{
-		const uint64 MemoryMinFreePhysical = 1024ll * 1024 * 1024;
-		const uint64 MemoryMaxUsedPhysical = 16384ll * 1024 * 1024l;
-		const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
-		return (MemStats.AvailablePhysical < MemoryMinFreePhysical) || (MemStats.UsedPhysical >= MemoryMaxUsedPhysical);
-	};
-
 	auto DoCollectGarbage = []()
 	{
 		if (GDistanceFieldAsyncQueue)
@@ -120,7 +110,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 		CollectGarbage(RF_NoFlags, true);
 		const FPlatformMemoryStats MemStatsAfter = FPlatformMemory::GetStats();
 
-		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Warning, TEXT("AvailablePhysical:%.2fGB AvailableVirtual %.2fGB"),
+		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Display, TEXT("GC Performed - Freed Physical: %.2fGB, Freed Virtual: %.2fGB"),
 			((int64)MemStatsAfter.AvailablePhysical - (int64)MemStatsBefore.AvailablePhysical) / (1024.0 * 1024.0 * 1024.0),
 			((int64)MemStatsAfter.AvailableVirtual - (int64)MemStatsBefore.AvailableVirtual) / (1024.0 * 1024.0 * 1024.0)
 		);
@@ -159,9 +149,6 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 	FScopedSlowTask SlowTask(NbCellsToProcess, FText::FromString(FString::Printf(TEXT("Building HLODs for grid %s..."), *RuntimeGrid.GridName.ToString())));
 	SlowTask.MakeDialog();
-
-	FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(TEXT("DirectoryWatcher"));
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
 	TArray<FGuid> GridHLODActors;
 	PartitionedActors.ForEachCells([&](const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell)
@@ -222,7 +209,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 						{
 							FStaticMeshCompilingManager::Get().FinishAllCompilation();
 
-							if (HasExceededMaxMemory())
+							if (FWorldPartitionHelpers::HasExceededMaxMemory())
 							{
 								DoCollectGarbage();
 							}

@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionResaveActorsBuilder.h"
 
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #include "PackageSourceControlHelper.h"
 #include "SourceControlHelpers.h"
 #include "Engine/World.h"
@@ -18,33 +19,13 @@ UWorldPartitionResaveActorsBuilder::UWorldPartitionResaveActorsBuilder(const FOb
 
 bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& Bounds, FPackageSourceControlHelper& PackageHelper)
 {
-	UWorldPartition* WorldPartition = World->GetWorldPartition();
-	check(WorldPartition);
+	FPackageSourceControlHelper SCCHelper;
 
-	TMap<FGuid, FWorldPartitionReference> ActorReferences;
-	TArray<FGuid> ActorsToSave;
-
-	// Recursive loading of references 
-	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> LoadReferences = [WorldPartition, &LoadReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
-	{
-		if (InOutActorReferences.Contains(ActorGuid))
-		{
-			return;
-		}
-
-		if (FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid))
-		{
-			for (FGuid ReferenceGuid : ActorDesc->GetReferences())
-			{
-				LoadReferences(ReferenceGuid, InOutActorReferences);
-			}
-
-			InOutActorReferences.Add(ActorGuid, FWorldPartitionReference(WorldPartition, ActorGuid));
-		}
-	};
+	int32 SaveCount = 0;
+	int32 FailCount = 0;
 
 	// Actor Class Filter
-	UClass* ActorClass = nullptr;
+	UClass* ActorClass = AActor::StaticClass();
 	// @todo_ow: support BP Classes when the ActorDesc have that information
 	if (!ActorClassName.IsEmpty())
 	{
@@ -55,39 +36,27 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& 
 			return false;
 		}
 	}
-		
-	UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Gathering actors to save"));
-	// Get list of actors to save
-	for (UActorDescContainer::TIterator<AActor> ActorIterator(WorldPartition); ActorIterator; ++ActorIterator)
+
+	UWorldPartition* WorldPartition = World->GetWorldPartition();
+	if (!WorldPartition)
 	{
-		FWorldPartitionActorDesc* ActorDesc = *ActorIterator;	
-		if (!ActorClass || ActorDesc->GetActorClass()->IsChildOf(ActorClass))
-		{
-			ActorsToSave.Add(ActorDesc->GetGuid());
-		}
+		UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Failed to retrieve WorldPartition."));
+		return false;
 	}
-	UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Found %d actors to save"), ActorsToSave.Num());
-	FPackageSourceControlHelper SCCHelper;
 
-	int32 SaveCount = 0;
-	int32 FailCount = 0;
-
-	for (const FGuid& ActorGuid : ActorsToSave)
+	FWorldPartitionHelpers::ForEachActorWithLoading(WorldPartition, ActorClass, [&SaveCount, &FailCount, &SCCHelper](AActor* Actor)
 	{
-		LoadReferences(ActorGuid, ActorReferences);
-		FWorldPartitionReference ActorReference(WorldPartition, ActorGuid);
-		AActor* Actor = ActorReference.Get()->GetActor();
 		if (UPackage* Package = Actor->GetExternalPackage())
 		{
 			if (SCCHelper.Checkout(Package))
-			{				
+			{
 				// Save package
 				FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
 				if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
 				{
 					UE_LOG(LogWorldPartitionResaveActorsBuilder, Error, TEXT("Error saving package %s."), *Package->GetName());
 					++FailCount;
-					continue;
+					return true;
 				}
 
 				// It is possible the resave can't checkout everything. Continue processing.
@@ -99,19 +68,14 @@ bool UWorldPartitionResaveActorsBuilder::RunInternal(UWorld* World, const FBox& 
 				// It is possible the resave can't checkout everything. Continue processing.
 				UE_LOG(LogWorldPartitionResaveActorsBuilder, Warning, TEXT("Error checking out package %s."), *Package->GetName());
 				++FailCount;
-				continue;
+				return true;
 			}
 
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d / %d packages (%d Saved / %d Failed)"), SaveCount + FailCount, ActorsToSave.Num(), SaveCount, FailCount);
+			UE_LOG(LogWorldPartitionResaveActorsBuilder, Display, TEXT("Processed %d packages (%d Saved / %d Failed)"), SaveCount + FailCount, SaveCount, FailCount);
 		}
 
-		if (HasExceededMaxMemory())
-		{
-			UE_LOG(LogWorldPartitionResaveActorsBuilder, Log, TEXT("Freeing some memory"));
-			ActorReferences.Empty();
-			DoCollectGarbage();
-		}
-	}
+		return true;
+	});
 
 	UPackage::WaitForAsyncFileWrites();
 
