@@ -164,6 +164,9 @@ public:
 	/** see UDirectionalLightComponent::ShadowDistanceFadeoutFraction */
 	float ShadowDistanceFadeoutFraction;
 
+	/** Used to overlay with static shadow */
+	float OverlapWithStaticShadowAmount;
+
 	/** If greater than WholeSceneDynamicShadowRadius, a cascade will be created to support ray traced distance field shadows covering up to this distance. */
 	float DistanceFieldShadowDistance;
 
@@ -209,6 +212,7 @@ public:
 		CascadeBoundScale(Component->CascadeBoundScale),
 		CascadeTransitionFraction(Component->CascadeTransitionFraction),
 		ShadowDistanceFadeoutFraction(Component->ShadowDistanceFadeoutFraction),
+		OverlapWithStaticShadowAmount(Component->OverlapWithStaticShadowAmount),
 		DistanceFieldShadowDistance(Component->bUseRayTracedDistanceFieldShadows ? Component->DistanceFieldShadowDistance : 0),
 		LightSourceAngle(Component->LightSourceAngle),
 		LightSourceSoftAngle(Component->LightSourceSoftAngle),
@@ -450,6 +454,11 @@ public:
 		// The near distance is placed at a depth of 90% of the light's range.
 		const float NearDistance = FarDistance - FarDistance * ( ShadowDistanceFadeoutFraction * CVarCSMShadowDistanceFadeoutMultiplier.GetValueOnAnyThread() );
 		return FVector2D(NearDistance, 1.0f / FMath::Max<float>(FarDistance - NearDistance, KINDA_SMALL_NUMBER));
+	}
+
+	virtual float GetOverlapWithStaticShadowAmount() const
+	{
+		return OverlapWithStaticShadowAmount;
 	}
 
 	virtual bool GetPerObjectProjectedShadowInitializer(const FBoxSphereBounds& SubjectBounds,FPerObjectProjectedShadowInitializer& OutInitializer) const override
@@ -993,6 +1002,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	CascadeBoundScale = 1.0f;
 	CascadeTransitionFraction = 0.1f;
 	ShadowDistanceFadeoutFraction = 0.1f;
+	OverlapWithStaticShadowAmount = 0;
 	IndirectLightingIntensity = 1.0f;
 	CastTranslucentShadows = true;
 	bUseInsetShadowsForMovableObjects = true;
@@ -1041,6 +1051,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	CascadeBoundScale = FMath::Clamp(CascadeBoundScale, .1f, 10.0f);
 	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, KINDA_SMALL_NUMBER, 0.3f);
 	ShadowDistanceFadeoutFraction = FMath::Clamp(ShadowDistanceFadeoutFraction, 0.0f, 1.0f);
+	OverlapWithStaticShadowAmount = FMath::Clamp(OverlapWithStaticShadowAmount, 0.0f, 1.0f);
 	// max range is larger than UI
 	ShadowBias = FMath::Clamp(ShadowBias, 0.0f, 10.0f);
 	ShadowSlopeBias = FMath::Clamp(ShadowSlopeBias, 0.0f, 10.0f);
@@ -1076,7 +1087,8 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeTransitionFraction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, ShadowDistanceFadeoutFraction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bUseInsetShadowsForMovableObjects)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, FarShadowCascadeCount))
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, FarShadowCascadeCount)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, OverlapWithStaticShadowAmount))
 		{
 			return bShadowCascades;
 		}
@@ -1233,6 +1245,15 @@ void UDirectionalLightComponent::SetShadowDistanceFadeoutFraction(float NewValue
 	if (ShadowDistanceFadeoutFraction != NewValue)
 	{
 		ShadowDistanceFadeoutFraction = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UDirectionalLightComponent::SetOverlapWithStaticShadowAmount(float NewValue)
+{
+	if (OverlapWithStaticShadowAmount != NewValue)
+	{
+		OverlapWithStaticShadowAmount = NewValue;
 		MarkRenderStateDirty();
 	}
 }

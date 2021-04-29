@@ -1329,6 +1329,11 @@ public:
 		return FVector2D(0, 0);
 	}
 
+	virtual float GetOverlapWithStaticShadowAmount() const
+	{
+		return 0;
+	}
+
 	virtual bool GetLightShaftOcclusionParameters(float& OutOcclusionMaskDarkness, float& OutOcclusionDepthRange) const
 	{
 		OutOcclusionMaskDarkness = 0;

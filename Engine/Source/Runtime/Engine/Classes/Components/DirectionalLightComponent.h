@@ -104,6 +104,12 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "0", UIMax = "1.0", DisplayName = "Distance Fadeout Fraction"))
 	float ShadowDistanceFadeoutFraction;
 
+	/**
+     * Control the amount of shadow overlapping with static shadow.
+     */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = CascadedShadowMaps, meta = (UIMin = "0", UIMax = "1"), DisplayName = "Overlap With Static Shadow Amount")
+	float OverlapWithStaticShadowAmount;
+
 	/** 
 	 * Stationary lights only: Whether to use per-object inset shadows for movable components, even though cascaded shadow maps are enabled.
 	 * This allows dynamic objects to have a shadow even when they are outside of the cascaded shadow map, which is important when DynamicShadowDistanceStationaryLight is small.
@@ -277,6 +283,9 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetShadowDistanceFadeoutFraction(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetOverlapWithStaticShadowAmount(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetEnableLightShaftOcclusion(bool bNewValue);

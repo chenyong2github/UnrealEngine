@@ -9,6 +9,7 @@
 // Reroute MobileSceneTextures uniform buffer references to the base pass uniform buffer
 #define MobileSceneTextures MobileBasePass.SceneTextures
 #define EyeAdaptationStruct MobileBasePass
+#define OverlapWithStaticShadowAmount MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.w
 
 #ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
 #define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
@@ -760,7 +761,8 @@ void Main(
 	#if MOVABLE_DIRECTIONAL_LIGHT
 		Shadow = ShadowMap;
 	#else
-		Shadow = min(ShadowMap, Shadow);
+		const bool bInBothShadows = (ShadowMap < 0.01f && Shadow < 0.01f);
+		Shadow = bInBothShadows ? -OverlapWithStaticShadowAmount : min(Shadow, ShadowMap);
 	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */

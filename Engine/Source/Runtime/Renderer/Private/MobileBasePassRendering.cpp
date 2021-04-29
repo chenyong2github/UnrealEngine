@@ -241,6 +241,7 @@ void SetupMobileDirectionalLightUniformParameters(
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.X = FadeParams.Y;
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.Y = -FadeParams.X * FadeParams.Y;
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.Z = Light->Proxy->GetSpecularScale();
+		Params.DirectionalLightDistanceFadeMADAndSpecularScale.W = Light->Proxy->GetOverlapWithStaticShadowAmount();
 
 		if (bDynamicShadows && VisibleLightInfos.IsValidIndex(Light->Id) && VisibleLightInfos[Light->Id].AllProjectedShadows.Num() > 0)
 		{
