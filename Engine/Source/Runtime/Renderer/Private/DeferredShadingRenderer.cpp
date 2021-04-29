@@ -498,14 +498,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 	}
 
 	bool bAnyRayTracingPassEnabled = false;
-	bool bPathTracingOrDebugViewEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
 	}
 
-	if (!bAnyRayTracingPassEnabled && !bPathTracingOrDebugViewEnabled)
+	if (!bAnyRayTracingPassEnabled)
 	{
 		return false;
 	}
@@ -528,7 +526,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		&DynamicReadBufferForInitViews
 		);
 
-	View.DynamicRayTracingMeshCommandStorage.RayTracingMeshCommands.Reserve(Scene->Primitives.Num());
+	View.DynamicRayTracingMeshCommandStorage.Reserve(Scene->Primitives.Num());
 	View.VisibleRayTracingMeshCommands.Reserve(Scene->Primitives.Num());
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -788,7 +786,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 							{
 								if (CommandIndex >= 0)
 								{
-									const FRayTracingMeshCommand& RayTracingMeshCommand = Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandIndex];
+									const FRayTracingMeshCommand& RayTracingMeshCommand = Scene->CachedRayTracingMeshCommands[CommandIndex];
 
 									RelevantPrimitive.InstanceMask |= RayTracingMeshCommand.InstanceMask;
 									RelevantPrimitive.bAllSegmentsOpaque &= RayTracingMeshCommand.bOpaque;
@@ -1167,7 +1165,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				{
 					FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
 
-					NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandIndex];
+					NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands[CommandIndex];
 					NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
 					View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
 				}
@@ -1222,7 +1220,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 						{
 							FVisibleRayTracingMeshCommand NewVisibleMeshCommand;
 
-							NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandIndex];
+							NewVisibleMeshCommand.RayTracingMeshCommand = &Scene->CachedRayTracingMeshCommands[CommandIndex];
 							NewVisibleMeshCommand.InstanceIndex = NewInstanceIndex;
 							View.VisibleRayTracingMeshCommands.Add(NewVisibleMeshCommand);
 						}
@@ -1283,19 +1281,12 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 	}
 
 	bool bAnyRayTracingPassEnabled = false;
-	bool bPathTracingOrDebugViewEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
 	}
 
 	if (!bAnyRayTracingPassEnabled)
-	{
-		return false;
-	}
-
-	if (!bAnyRayTracingPassEnabled && !bPathTracingOrDebugViewEnabled)
 	{
 		return false;
 	}
@@ -1320,38 +1311,36 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 	}
 
 	// #dxr_todo: UE-72565: refactor ray tracing effects to not be member functions of DeferredShadingRenderer. register each effect at startup and just loop over them automatically to gather all required shaders
-	TArray<FRHIRayTracingShader*> RayGenShaders;
+	TArray<FRHIRayTracingShader*> RayGenShaders; // TODO: inline allocator here?
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	if (ReferenceView.RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
 	{
-		FViewInfo& View = Views[ViewIndex];
-
-		PrepareRayTracingReflections(View, *Scene, RayGenShaders);
-		PrepareSingleLayerWaterRayTracingReflections(View, *Scene, RayGenShaders);
-		PrepareRayTracingShadows(View, RayGenShaders);
-		PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
-		PrepareRayTracingSkyLight(View, RayGenShaders);
-		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
-		PrepareRayTracingTranslucency(View, RayGenShaders);
-		PrepareRayTracingDebug(View, RayGenShaders);
-		PreparePathTracing(View, RayGenShaders);
-		PrepareRayTracingLumenDirectLighting(View, *Scene, RayGenShaders);
-		PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
-		PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
-		PrepareLumenHardwareRayTracingReflections(View, RayGenShaders);
-		PrepareLumenHardwareRayTracingVisualize(View, RayGenShaders);
+		// this view only needs the path tracing raygen shaders as all other
+		// passes should be disabled
+		PreparePathTracing(ReferenceView, RayGenShaders);
 	}
+	else
+	{
+		// path tracing is disabled, get all other possible raygen shaders
+		PrepareRayTracingReflections(ReferenceView, *Scene, RayGenShaders);
+		PrepareSingleLayerWaterRayTracingReflections(ReferenceView, *Scene, RayGenShaders);
+		PrepareRayTracingShadows(ReferenceView, RayGenShaders);
+		PrepareRayTracingAmbientOcclusion(ReferenceView, RayGenShaders);
+		PrepareRayTracingSkyLight(ReferenceView, RayGenShaders);
+		PrepareRayTracingGlobalIllumination(ReferenceView, RayGenShaders);
+		PrepareRayTracingTranslucency(ReferenceView, RayGenShaders);
+		PrepareRayTracingDebug(ReferenceView, RayGenShaders);
 
-	DeduplicateRayGenerationShaders(RayGenShaders);
+		PrepareRayTracingLumenDirectLighting(ReferenceView, *Scene, RayGenShaders);
+		PrepareLumenHardwareRayTracingScreenProbeGather(ReferenceView, RayGenShaders);
+		PrepareLumenHardwareRayTracingRadianceCache(ReferenceView, RayGenShaders);
+		PrepareLumenHardwareRayTracingReflections(ReferenceView, RayGenShaders);
+		PrepareLumenHardwareRayTracingVisualize(ReferenceView, RayGenShaders);
+	}
 
 	if (RayGenShaders.Num())
 	{
-		auto DefaultHitShader = ReferenceView.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
-
-		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView,
-			RayGenShaders,
-			DefaultHitShader
-		);
+		ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, RayGenShaders);
 	}
 
 	// Initialize common resources used for lighting in ray tracing effects
@@ -1391,19 +1380,12 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	}
 
 	bool bAnyRayTracingPassEnabled = false;
-	bool bPathTracingOrDebugViewEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
 	}
 
 	if (!bAnyRayTracingPassEnabled)
-	{
-		return false;
-	}
-
-	if (!bAnyRayTracingPassEnabled && !bPathTracingOrDebugViewEnabled)
 	{
 		return false;
 	}
@@ -1547,14 +1529,12 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder)
 {
 	bool bAnyRayTracingPassEnabled = false;
-	bool bPathTracingOrDebugViewEnabled = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
-		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
 	}
 
-	if (!bAnyRayTracingPassEnabled && !bPathTracingOrDebugViewEnabled)
+	if (!bAnyRayTracingPassEnabled)
 	{
 		return;
 	}
@@ -1574,6 +1554,8 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	{
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
+
+		const bool bIsPathTracing = ReferenceView.RayTracingRenderMode == ERayTracingRenderMode::PathTracing;
 
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
 
@@ -1625,41 +1607,43 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				NumTotalBindings, MergedBindings,
 				bCopyDataToInlineStorage);
 
-
-			TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+			if (!bIsPathTracing)
 			{
-				FViewInfo& View = Views[ViewIndex];
-				PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
-				PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
-				PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
-				PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
-				PrepareLumenHardwareRayTracingRadianceCacheDeferredMaterial(View, DeferredMaterialRayGenShaders);
-				PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(View, DeferredMaterialRayGenShaders);
-				PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
-			}
-			DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
+				TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+				{
+					FViewInfo& View = Views[ViewIndex];
+					PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
+					PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
+					PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
+					PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
+					PrepareLumenHardwareRayTracingRadianceCacheDeferredMaterial(View, DeferredMaterialRayGenShaders);
+					PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(View, DeferredMaterialRayGenShaders);
+					PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
+				}
+				DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
 
-			if (DeferredMaterialRayGenShaders.Num())
-			{
-				ReferenceView.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, ReferenceView, DeferredMaterialRayGenShaders);
-			}
+				if (DeferredMaterialRayGenShaders.Num())
+				{
+					ReferenceView.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, ReferenceView, DeferredMaterialRayGenShaders);
+				}
 
-			// Add Lumen hardware ray tracing materials
-			TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-				PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-				PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-				PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-			}
-			DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
+				// Add Lumen hardware ray tracing materials
+				TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
+				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+				{
+					FViewInfo& View = Views[ViewIndex];
+					PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+					PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+					PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+					PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+				}
+				DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
 
-			if (LumenHardwareRayTracingRayGenShaders.Num())
-			{
-				ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders);
+				if (LumenHardwareRayTracingRayGenShaders.Num())
+				{
+					ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders);
+				}
 			}
 
 			// Move the ray tracing binding container ownership to the command list, so that memory will be
@@ -1680,7 +1664,10 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 				View.LumenHardwareRayTracingMaterialPipeline = ReferenceView.LumenHardwareRayTracingMaterialPipeline;
 			}
 
-			SetupRayTracingLightingMissShader(RHICmdList, ReferenceView);
+			if (!bIsPathTracing)
+			{
+				SetupRayTracingLightingMissShader(RHICmdList, ReferenceView);
+			}
 		}
 
 		if (RayTracingDynamicGeometryUpdateEndTransition)

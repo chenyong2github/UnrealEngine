@@ -422,53 +422,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	{
 		FGraphicsMinimalPipelineStateId::InitializePersistentIds();
 	}
-
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
-	{
-		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
-
-		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
-		FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
-		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState);
-
-		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
-		{
-			if (SceneInfo->RayTracingGeometries.Num() > 0 && SceneInfo->StaticMeshes.Num() > 0)
-			{
-				int32 MaxLOD = -1;
-				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
-				{
-					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
-					MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
-				}
-
-				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(MaxLOD + 1);
-				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(MaxLOD + 1);
-
-				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(MaxLOD + 1);
-				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(MaxLOD + 1);
-
-				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
-				{
-					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
-
-					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
-
-					if (CommandContext.CommandIndex >= 0)
-					{
-						uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
-						Hash <<= 1;
-						Hash ^= Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
-
-						SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
-						CommandContext.CommandIndex = -1;
-					}
-				}
-			}
-		}
-	}
-#endif
 }
 
 void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
@@ -528,26 +481,6 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 	}
 
 	StaticMeshCommandInfos.Empty();
-
-#if RHI_RAYTRACING
-	if (IsRayTracingEnabled())
-	{
-		for (auto& CachedRayTracingMeshCommandIndices : CachedRayTracingMeshCommandIndicesPerLOD)
-		{
-			for (auto CommandIndex : CachedRayTracingMeshCommandIndices)
-			{
-				if (CommandIndex >= 0)
-				{
-					Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands.RemoveAt(CommandIndex);
-				}
-			}
-		}
-
-		CachedRayTracingMeshCommandIndicesPerLOD.Empty();
-
-		CachedRayTracingMeshCommandsHashPerLOD.Empty();
-	}
-#endif
 }
 
 static void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene, FPrimitiveSceneInfo* PrimitiveSceneInfo);
@@ -733,8 +666,6 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 #if RHI_RAYTRACING
 void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
-	// This path is mutually exclusive with the old path (used by normal static meshes) and is only used by Nanite proxies now.
-	// TODO: move normal static meshes to this path, but needs testing to not break FN
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{
 		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
@@ -745,6 +676,42 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
+			if (SceneInfo->RayTracingGeometries.Num() > 0 && SceneInfo->StaticMeshes.Num() > 0)
+			{
+				int32 MaxLOD = -1;
+				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
+				{
+					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
+					MaxLOD = MaxLOD < Mesh.LODIndex ? Mesh.LODIndex : MaxLOD;
+				}
+
+				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.Empty(MaxLOD + 1);
+				SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD.AddDefaulted(MaxLOD + 1);
+
+				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.Empty(MaxLOD + 1);
+				SceneInfo->CachedRayTracingMeshCommandsHashPerLOD.AddZeroed(MaxLOD + 1);
+
+				for (int32 MeshIndex = 0; MeshIndex < SceneInfo->StaticMeshes.Num(); MeshIndex++)
+				{
+					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
+
+					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
+
+					if (CommandContext.CommandIndex >= 0)
+					{
+						uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
+						Hash <<= 1;
+						Hash ^= Scene->CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+
+						SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
+						CommandContext.CommandIndex = -1;
+					}
+				}
+			}
+
+			// This path is mutually exclusive with the old path (used by normal static meshes) and is only used by Nanite proxies now.
+			// TODO: move normal static meshes to this path, but needs testing to not break FN
+
 			FRayTracingInstance CachedRayTracingInstance;
 			ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
 
@@ -785,7 +752,7 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 
 					uint64& Hash = SceneInfo->CachedRayTracingMeshCommandsHashPerLOD[Mesh.LODIndex];
 					Hash <<= 1;
-					Hash ^= Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
+					Hash ^= Scene->CachedRayTracingMeshCommands[CommandContext.CommandIndex].ShaderBindings.GetDynamicInstancingHash();
 
 					SceneInfo->CachedRayTracingMeshCommandIndicesPerLOD[Mesh.LODIndex].Add(CommandContext.CommandIndex);
 					CommandContext.CommandIndex = -1;
@@ -839,7 +806,7 @@ void FPrimitiveSceneInfo::RemoveCachedRayTracingPrimitives()
 			{
 				if (CommandIndex >= 0)
 				{
-					Scene->CachedRayTracingMeshCommands.RayTracingMeshCommands.RemoveAt(CommandIndex);
+					Scene->CachedRayTracingMeshCommands.RemoveAt(CommandIndex);
 				}
 			}
 		}

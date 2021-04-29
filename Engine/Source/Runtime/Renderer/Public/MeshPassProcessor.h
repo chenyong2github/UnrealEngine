@@ -1916,15 +1916,10 @@ public:
 	virtual void FinalizeCommand(FRayTracingMeshCommand& RayTracingMeshCommand) = 0;
 };
 
-struct FCachedRayTracingMeshCommandStorage
-{
-	TSparseArray<FRayTracingMeshCommand> RayTracingMeshCommands;
-};
+using FCachedRayTracingMeshCommandStorage = TSparseArray<FRayTracingMeshCommand>;
 
-struct FDynamicRayTracingMeshCommandStorage
-{
-	TChunkedArray<FRayTracingMeshCommand> RayTracingMeshCommands;
-};
+using FDynamicRayTracingMeshCommandStorage = TChunkedArray<FRayTracingMeshCommand>;
+
 
 class FCachedRayTracingMeshCommandContext : public FRayTracingMeshCommandContext
 {
@@ -1933,8 +1928,8 @@ public:
 
 	virtual FRayTracingMeshCommand& AddCommand(const FRayTracingMeshCommand& Initializer) override final
 	{
-		CommandIndex = DrawListStorage.RayTracingMeshCommands.Add(Initializer);
-		return DrawListStorage.RayTracingMeshCommands[CommandIndex];
+		CommandIndex = DrawListStorage.Add(Initializer);
+		return DrawListStorage[CommandIndex];
 	}
 
 	virtual void FinalizeCommand(FRayTracingMeshCommand& RayTracingMeshCommand) override final {}
@@ -1963,8 +1958,8 @@ public:
 
 	virtual FRayTracingMeshCommand& AddCommand(const FRayTracingMeshCommand& Initializer) override final
 	{
-		const int32 Index = DynamicCommandStorage.RayTracingMeshCommands.AddElement(Initializer);
-		FRayTracingMeshCommand& NewCommand = DynamicCommandStorage.RayTracingMeshCommands[Index];
+		const int32 Index = DynamicCommandStorage.AddElement(Initializer);
+		FRayTracingMeshCommand& NewCommand = DynamicCommandStorage[Index];
 		NewCommand.GeometrySegmentIndex = GeometrySegmentIndex;
 		return NewCommand;
 	}

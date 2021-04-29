@@ -534,12 +534,13 @@ static bool PipelineContainsHitShaders(FRayTracingPipelineState* Pipeline, const
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
 	FRHICommandList& RHICmdList,
 	FViewInfo& View,
-	const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable,
-	FRHIRayTracingShader* DefaultClosestHitShader
+	const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
+
+	const bool bIsPathTracing = View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing;
 
 	FRayTracingPipelineStateInitializer Initializer;
 
@@ -550,8 +551,16 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 
 	FRHIRayTracingShader* RayTracingMissShaderLibrary[RAY_TRACING_NUM_MISS_SHADER_SLOTS] = {};
 	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_DEFAULT] = DefaultMissShader;
-	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_LIGHTING] = GetRayTracingLightingMissShader(View);
-	Initializer.SetMissShaderTable(RayTracingMissShaderLibrary);
+	if (bIsPathTracing)
+	{
+		// TODO: path tracer will want a different light miss shader
+		Initializer.SetMissShaderTable(TArrayView<FRHIRayTracingShader*>(RayTracingMissShaderLibrary, 1));
+	}
+	else
+	{
+		RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_LIGHTING] = GetRayTracingLightingMissShader(View);
+		Initializer.SetMissShaderTable(RayTracingMissShaderLibrary);
+	}
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
@@ -560,15 +569,16 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	static auto CVarEnableShadowMaterials = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows.EnableMaterials"));
 	const bool bEnableShadowMaterials = bMaterialsCompiled && (CVarEnableShadowMaterials ? CVarEnableShadowMaterials->GetInt() != 0 : true);
 
+	// TODO: Path tracer -- will need versions of these for path tracing
+	FRHIRayTracingShader* DefaultClosestHitShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+	FRHIRayTracingShader* OpaqueShadowShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+	FRHIRayTracingShader* HiddenMaterialShader = View.ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
+	
 	TArray<FRHIRayTracingShader*> RayTracingMaterialLibrary;
-
 	if (bEnableMaterials)
 	{
 		FShaderMapResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
 	}
-
-	FRHIRayTracingShader* OpaqueShadowShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
-	FRHIRayTracingShader* HiddenMaterialShader = View.ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
 
 	FRHIRayTracingShader* RequiredHitShaders[] =
 	{
