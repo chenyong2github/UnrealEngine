@@ -9,8 +9,7 @@
 
 class UDMXLibrary;
 class UDMXEntityFixturePatch;
-template<typename OptionType = UDMXLibrary*> class SComboBox;
-template<typename OptionType = UDMXEntityFixturePatch*> class SComboBox;
+template<typename OptionType> class SComboBox;
 class STextBlock;
 
 
