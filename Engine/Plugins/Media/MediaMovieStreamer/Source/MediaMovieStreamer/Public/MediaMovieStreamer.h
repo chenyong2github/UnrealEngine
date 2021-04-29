@@ -52,8 +52,8 @@ private:
 	/** Viewport data for displaying to Slate. */
 	TSharedPtr<FMovieViewport> MovieViewport;
 
-	/** Holds the players we are using. */
-	TArray<UMediaPlayer*> MediaPlayers;
-	/** Holds the media sources we are using. */
-	TArray<UMediaSource*> MediaSources;
+	/** Holds the player we are using. */
+	TWeakObjectPtr<UMediaPlayer> MediaPlayer;
+	/** Holds the media source we are using. */
+	TWeakObjectPtr<UMediaSource> MediaSource;
 };

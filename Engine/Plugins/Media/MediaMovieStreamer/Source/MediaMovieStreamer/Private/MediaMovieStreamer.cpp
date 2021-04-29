@@ -16,6 +16,7 @@ FMediaMovieStreamer::FMediaMovieStreamer()
 
 FMediaMovieStreamer::~FMediaMovieStreamer()
 {
+	Cleanup();
 }
 
 void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
@@ -27,7 +28,7 @@ void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
 		MovieAssets->SetMediaPlayer(InMediaPlayer);
 	}
 
-	MediaPlayers.Add(InMediaPlayer);
+	MediaPlayer = InMediaPlayer;
 }
 
 void FMediaMovieStreamer::SetMediaSource(UMediaSource* InMediaSource)
@@ -39,7 +40,7 @@ void FMediaMovieStreamer::SetMediaSource(UMediaSource* InMediaSource)
 		MovieAssets->SetMediaSource(InMediaSource);
 	}
 
-	MediaSources.Add(InMediaSource);
+	MediaSource = InMediaSource;
 }
 
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)
@@ -47,31 +48,21 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 	MovieViewport->SetTexture(nullptr);
 
 	// Get player.
-	UMediaPlayer* MediaPlayer = nullptr;
-	if (MediaPlayers.Num() > 0)
-	{
-		MediaPlayer = MediaPlayers[0];
-	}
-	if (MediaPlayer == nullptr)
+	if (MediaPlayer.IsValid() == false)
 	{
 		UE_LOG(LogMediaMovieStreamer, Error, TEXT("OpenNextMovie called but no player set."));
 		return false;
 	}
 
 	// Get source.
-	UMediaSource* MediaSource = nullptr;
-	if (MediaSources.Num() > 0)
-	{
-		MediaSource = MediaSources[0];
-	}
-	if (MediaSource == nullptr)
+	if (MediaSource.IsValid() == false)
 	{
 		UE_LOG(LogMediaMovieStreamer, Error, TEXT("OpenNextMovie called but no source set."));
 		return false;
 	}
 
 	// Play source.
-	MediaPlayer->OpenSource(MediaSource);
+	MediaPlayer->OpenSource(MediaSource.Get());
 
 	return true;
 }
@@ -114,6 +105,9 @@ void FMediaMovieStreamer::Cleanup()
 		MovieAssets->SetMediaPlayer(nullptr);
 		MovieAssets->SetMediaSource(nullptr);
 	}
+
+	MediaPlayer.Reset();
+	MediaSource.Reset();
 }
 
 FTexture2DRHIRef FMediaMovieStreamer::GetTexture()
