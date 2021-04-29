@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaMovieStreamer.h"
+
+#include "MediaMovieAssets.h"
+#include "MediaMovieStreamerModule.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
 
@@ -17,11 +20,25 @@ FMediaMovieStreamer::~FMediaMovieStreamer()
 
 void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
 {
+	// Tell MovieAssets about this so it does not get garbage collected.
+	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+	if (MovieAssets != nullptr)
+	{
+		MovieAssets->SetMediaPlayer(InMediaPlayer);
+	}
+
 	MediaPlayers.Add(InMediaPlayer);
 }
 
 void FMediaMovieStreamer::SetMediaSource(UMediaSource* InMediaSource)
 {
+	// Tell MovieAssets about this so it does not get garbage collected.
+	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+	if (MovieAssets != nullptr)
+	{
+		MovieAssets->SetMediaSource(InMediaSource);
+	}
+
 	MediaSources.Add(InMediaSource);
 }
 
@@ -90,6 +107,13 @@ bool FMediaMovieStreamer::IsLastMovieInPlaylist()
 
 void FMediaMovieStreamer::Cleanup()
 {
+	// Remove our hold on the assets.
+	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+	if (MovieAssets != nullptr)
+	{
+		MovieAssets->SetMediaPlayer(nullptr);
+		MovieAssets->SetMediaSource(nullptr);
+	}
 }
 
 FTexture2DRHIRef FMediaMovieStreamer::GetTexture()
