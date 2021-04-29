@@ -1903,7 +1903,7 @@ struct TUseBitwiseSwap<FVisibleRayTracingMeshCommand>
 	enum { Value = false };
 };
 
-typedef TArray<FVisibleRayTracingMeshCommand, SceneRenderingAllocator> FRayTracingMeshCommandOneFrameArray;
+typedef TArray<FVisibleRayTracingMeshCommand> FRayTracingMeshCommandOneFrameArray;
 
 class FRayTracingMeshCommandContext
 {
