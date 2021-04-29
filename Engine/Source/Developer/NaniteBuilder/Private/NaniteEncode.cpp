@@ -1168,17 +1168,22 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 
 		const FVector2D NormalizedNonGapLength = NonGapLength * UVRcpDelta;
 
-#if 0
-		float TexCoordUnitPrecisionU = (1 << 14);	// 1.0f / 16384.0f			//TODO: figure out how to handle LOD
-		float TexCoordUnitPrecisionV = (1 << 14);
-		if (!bIsLeaf)
+#if 1
+		const float TexCoordUnitPrecision = (1 << 14);	// TODO: Implement UI + 'Auto' mode that decides when this is necessary.
+
+		int32 TexCoordBitsU = 0;
+		if (UVDelta.X > 0)
 		{
-			TexCoordUnitPrecisionU = 1 << 12;
-			TexCoordUnitPrecisionV = 1 << 12;
+			int32 NumValues = FMath::Max(FMath::CeilToInt(NonGapLength.X * TexCoordUnitPrecision), 2);	// Even when NonGapLength=0, UVDelta is non-zero, so we need at least 2 values (1bit) to distinguish between high and low.
+			TexCoordBitsU = FMath::Min((int32)FMath::CeilLogTwo(NumValues), 12);						// Limit to 12 bits which we know is good enough from temp hack below.
 		}
-		
-		const int32 TexCoordBitsU = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.X * TexCoordUnitPrecisionU)), 10);
-		const int32 TexCoordBitsV = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.Y * TexCoordUnitPrecisionV)), 10);
+
+		int32 TexCoordBitsV = 0;
+		if (UVDelta.Y > 0)
+		{
+			int32 NumValues = FMath::Max(FMath::CeilToInt(NonGapLength.Y * TexCoordUnitPrecision), 2);
+			TexCoordBitsV = FMath::Min((int32)FMath::CeilLogTwo(NumValues), 12);
+		}
 #else
 		// TODO: Temp hack to fix encoding issues
 		const int32 TexCoordBitsU = 12;
