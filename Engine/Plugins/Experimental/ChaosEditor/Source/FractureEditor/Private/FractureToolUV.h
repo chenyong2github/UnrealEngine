@@ -60,13 +60,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = AttributesToBake)
 	bool bAmbientOcclusion = true;
 
-	/** Bake the Z-component of the normal to a texture channel (blue) */
+	/**
+	 * Bake a smoothed curvature metric to a texture channel (blue)
+	 * Specifically, this is the mean curvature of a smoothed copy of each fractured piece, baked back to the respective fracture piece.
+	 */
+	UPROPERTY(EditAnywhere, Category = AttributesToBake)
+	bool bSmoothedCurvature = true;
+
+	/** Bake the Z-component of the normal to a texture channel (alpha) */
 	UPROPERTY(EditAnywhere, Category = AttributesToBake)
 	bool bZNormal = true;
-
-	/** Bake the Z-component of the position (relative to the overall bounding box) to a texture channel (alpha) */
-	UPROPERTY(EditAnywhere, Category = AttributesToBake)
-	bool bZPosition = false;
 
 	/** Max distance to search for the outer mesh surface */
 	UPROPERTY(EditAnywhere, Category = DistToOuterSettings, meta = (EditCondition = "bDistToOuter", EditConditionHides, UIMin = "1", UIMax = "100", ClampMin = ".01", ClampMax = "1000"))
@@ -76,13 +79,29 @@ public:
 	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides, UIMin = "1", UIMax = "1024", ClampMin = "0", ClampMax = "50000"))
 	int OcclusionRays = 16;
 
-	/** Whether or not to apply Gaussian Blur to computed AO Map (recommended) */
-	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides))
-	bool bGaussianBlur = true;
+	/** Pixel Radius of Gaussian Blur Kernel applied to AO map (0 will apply no blur) */
+	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	double OcclusionBlurRadius = 2.25;
 
-	/** Pixel Radius of Gaussian Blur Kernel */
-	UPROPERTY(EditAnywhere, Category = AmbientOcclusionSettings, meta = (EditCondition = "bAmbientOcclusion && bGaussianBlur", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
-	double BlurRadius = 2.25;
+	/** Pixel Radius of Gaussian Blur Kernel applied to Curvature map (0 will apply no blur) */
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "0", UIMax = "10.0", ClampMin = "0", ClampMax = "100.0"))
+	double CurvatureBlurRadius = 2.25;
+
+	/** Voxel resolution of smoothed shape representation */
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "8", UIMax = "512", ClampMin = "4", ClampMax = "1024"))
+	int VoxelResolution = 128;
+
+	/** Amount of smoothing iterations to apply before computing curvature */
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "100", ClampMin = "2", ClampMax = "1000"))
+	int SmoothingIterations = 10;
+
+	/** Distance to search for correspondence between fractured shape and smoothed shape, as factor of voxel size */
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = "2", UIMax = "10.0", ClampMin = "1", ClampMax = "100.0"))
+	double ThicknessFactor = 4;
+
+	/** Curvatures in the range [-MaxCurvature, MaxCurvature] will be mapped from [0,1]. Values outside that range will be clamped. */
+	UPROPERTY(EditAnywhere, Category = SmoothedCurvatureSettings, meta = (EditCondition = "bSmoothedCurvature", EditConditionHides, UIMin = ".01", UIMax = "1", ClampMin = ".0001", ClampMax = "10"))
+	double MaxCurvature = .1;
 
 	/** Whether to use the absolute value of the Z-Component of the normal */
 	UPROPERTY(EditAnywhere, Category = ZNormalSettings, meta = (EditCondition = "bZNormal", EditConditionHides))

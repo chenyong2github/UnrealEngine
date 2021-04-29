@@ -225,14 +225,18 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		FIndex4i Attributes(
 			AutoUVSettings->bDistToOuter ? (int32)EBakeAttributes::DistanceToExternal : 0, 
 			AutoUVSettings->bAmbientOcclusion ? (int32)EBakeAttributes::AmbientOcclusion : 0, 
-			AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0,
-			AutoUVSettings->bZPosition ? (int32)EBakeAttributes::PositionZ : 0
+			AutoUVSettings->bSmoothedCurvature ? (int32)EBakeAttributes::Curvature : 0,
+			AutoUVSettings->bZNormal ? (int32)EBakeAttributes::NormalZ : 0
 		);
 		UE::PlanarCut::FTextureAttributeSettings AttribSettings;
 		AttribSettings.ToExternal_MaxDistance = AutoUVSettings->MaxDistance;
 		AttribSettings.AO_Rays = AutoUVSettings->OcclusionRays;
-		AttribSettings.bAO_Blur = AutoUVSettings->bGaussianBlur;
-		AttribSettings.AO_BlurRadius = AutoUVSettings->BlurRadius;
+		AttribSettings.AO_BlurRadius = AutoUVSettings->OcclusionBlurRadius;
+		AttribSettings.Curvature_BlurRadius = AutoUVSettings->CurvatureBlurRadius;
+		AttribSettings.Curvature_SmoothingSteps = AutoUVSettings->SmoothingIterations;
+		AttribSettings.Curvature_VoxelRes = AutoUVSettings->VoxelResolution;
+		AttribSettings.Curvature_ThicknessFactor = AutoUVSettings->ThicknessFactor;
+		AttribSettings.Curvature_MaxValue = AutoUVSettings->MaxCurvature;
 		AttribSettings.bNormalZ_TakeAbs = AutoUVSettings->bUseAbsoluteValue;
 		UE::PlanarCut::TextureInternalSurfaces(Collection, FMath::CeilToInt(AutoUVSettings->GutterSize), Attributes, AttribSettings, ImageBuilder);
 

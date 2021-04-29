@@ -34,7 +34,7 @@ enum class EBakeAttributes : int32
 	None,
 	DistanceToExternal,
 	AmbientOcclusion,
-	//Curvature, // TODO: add a smoothed curvature attribute
+	Curvature,
 	NormalZ,
 	PositionZ
 };
@@ -47,6 +47,15 @@ struct FTextureAttributeSettings
 	bool bAO_Blur = true;
 	double AO_BlurRadius = 2.5;
 	double AO_MaxDistance = 0.0; // 0.0 is interpreted as TNumericLimits<double>::Max()
+	int Curvature_VoxelRes = 128;
+	double Curvature_Winding = .5;
+	int Curvature_SmoothingSteps = 10;
+	double Curvature_SmoothingPerStep = .8;
+	bool bCurvature_Blur = true;
+	double Curvature_BlurRadius = 2.5;
+	double Curvature_ThicknessFactor = 3.0; // distance to search for mesh correspondence, as a factor of voxel size
+	double Curvature_MaxValue = .1; // curvatures above this value will be clamped
+	
 	bool bNormalZ_TakeAbs = true;
 };
 

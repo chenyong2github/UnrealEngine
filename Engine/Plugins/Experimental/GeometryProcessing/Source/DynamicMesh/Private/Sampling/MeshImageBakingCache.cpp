@@ -35,6 +35,16 @@ void FMeshImageBakingCache::SetDimensions(FImageDimensions DimensionsIn)
 }
 
 
+void FMeshImageBakingCache::SetGutterSize(int32 GutterSizeIn)
+{
+	if (GutterSize != GutterSizeIn)
+	{
+		GutterSize = GutterSizeIn;
+		InvalidateOccupancy();
+	}
+}
+
+
 void FMeshImageBakingCache::SetUVLayer(int32 UVLayerIn)
 {
 	if (UVLayer != UVLayerIn)
@@ -271,6 +281,7 @@ bool FMeshImageBakingCache::ValidateCache()
 
 		// calculate occupancy map
 		OccupancyMap = MakeUnique<FImageOccupancyMap>();
+		OccupancyMap->GutterSize = GutterSize;
 		OccupancyMap->Initialize(Dimensions);
 		OccupancyMap->ComputeFromUVSpaceMesh(FlatMesh, [&](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
 

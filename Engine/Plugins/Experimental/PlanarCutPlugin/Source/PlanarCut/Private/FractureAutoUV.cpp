@@ -10,10 +10,14 @@
 
 #include "DynamicMesh3.h"
 #include "MeshNormals.h"
+#include "MeshWeights.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Sampling/MeshImageBakingCache.h"
 
+#include "Implicit/Solidify.h"
+
 #include "Parameterization/UVPacking.h"
+#include "Sampling/MeshCurvatureMapBaker.h"
 #include "Sampling/MeshOcclusionMapBaker.h"
 #include "DisjointSet.h"
 
@@ -497,15 +501,17 @@ void TextureInternalSurfaces(
 
 	int DistanceToExternalIdx = BakeAttributes.IndexOf((int)EBakeAttributes::DistanceToExternal);
 	int AmbientIdx = BakeAttributes.IndexOf((int)EBakeAttributes::AmbientOcclusion);
+	int CurvatureIdx = BakeAttributes.IndexOf((int)EBakeAttributes::Curvature);
 	int NormalZIdx = BakeAttributes.IndexOf((int)EBakeAttributes::NormalZ);
 	int PosZIdx = BakeAttributes.IndexOf((int)EBakeAttributes::PositionZ);
+	
 	if (OutsideSpatial.GetBoundingBox().Depth() == 0)
 	{
 		PosZIdx = -1; // if everything has same Z, can just leave PosZ values as default value
 	}
 
 
-	bool bNeedsDynamicMeshes = AmbientIdx > -1;
+	bool bNeedsDynamicMeshes = AmbientIdx > -1 || CurvatureIdx > -1;
 
 	TArray<int32> TransformIndices;
 	if (bNeedsDynamicMeshes)
@@ -544,6 +550,104 @@ void TextureInternalSurfaces(
 			}
 		}
 	}
+
+	TArray64<float> CurvatureValues; // buffer to fill with curvature values
+	if (CurvatureIdx > -1)
+	{
+		int UseVoxRes = FMath::Max(8, AttributeSettings.Curvature_VoxelRes);
+		FImageDimensions Dimensions = TextureOut.GetDimensions();
+		int64 TexelsNum = Dimensions.Num();
+		CurvatureValues.SetNumZeroed(TexelsNum);
+		for (int MeshIdx = 0; MeshIdx < CollectionMeshes.Meshes.Num(); MeshIdx++)
+		{
+
+			int32 TransformIdx = CollectionMeshes.Meshes[MeshIdx].TransformIndex;
+			FDynamicMesh3& Mesh = CollectionMeshes.Meshes[MeshIdx].AugMesh;
+			FDynamicMeshUVOverlay* UV = Mesh.Attributes()->PrimaryUV();
+
+			FDynamicMeshAABBTree3 Spatial(&Mesh);
+			TFastWindingTree<FDynamicMesh3> FastWinding(&Spatial);
+			double ExtendBounds = Spatial.GetBoundingBox().MaxDim() * .01;
+
+			TImplicitSolidify<FDynamicMesh3> Solidify(&Mesh, &Spatial, &FastWinding);
+			Solidify.SetCellSizeAndExtendBounds(Spatial.GetBoundingBox(), ExtendBounds, UseVoxRes);
+			Solidify.WindingThreshold = AttributeSettings.Curvature_Winding;
+			Solidify.SurfaceSearchSteps = 3;
+			Solidify.bSolidAtBoundaries = true;
+			Solidify.ExtendBounds = ExtendBounds;
+
+			FDynamicMesh3 SolidMesh(&Solidify.Generate());
+
+			// Smooth mesh (there is a more general version in MeshModelingToolset's IterativeSmoothingOp.cpp, but don't want to depend on MeshModelingToolset just for that)
+			// (note it is extra simple b/c we shouldn't have boundary vertices)
+			auto IterativeSmoothMesh = [](FDynamicMesh3& Mesh, int Iters, double SmoothAlpha)
+			{
+				TArray<FVector3d> SmoothedBuffer, PositionBuffer;
+				int NV = Mesh.MaxVertexID();
+				SmoothedBuffer.SetNumZeroed(NV);
+				PositionBuffer.SetNumZeroed(NV);
+				for (int VID : Mesh.VertexIndicesItr())
+				{
+					PositionBuffer[VID] = Mesh.GetVertex(VID);
+				}
+				for (int32 k = 0; k < Iters; ++k)
+				{
+					// calculate smoothed positions of interior vertices
+					ParallelFor(NV, [&Mesh, &SmoothedBuffer, &PositionBuffer, SmoothAlpha](int32 vid)
+						{
+							if (Mesh.IsReferencedVertex(vid) == false)
+							{
+								return;
+							}
+
+							FVector3d Centroid = FMeshWeights::UniformCentroid(Mesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
+							SmoothedBuffer[vid] = Lerp(PositionBuffer[vid], Centroid, SmoothAlpha);
+						});
+
+					for (int32 vid = 0; vid < NV; ++vid)
+					{
+						PositionBuffer[vid] = SmoothedBuffer[vid];
+					}
+				}
+				for (int VID : Mesh.VertexIndicesItr())
+				{
+					Mesh.SetVertex(VID, PositionBuffer[VID]);
+				}
+			};
+			IterativeSmoothMesh(SolidMesh, AttributeSettings.Curvature_SmoothingSteps, AttributeSettings.Curvature_SmoothingPerStep);
+
+			FDynamicMeshAABBTree3 SolidSpatial(&SolidMesh);
+
+			FMeshImageBakingCache BakeCache;
+			BakeCache.SetGutterSize(GutterSize);
+			BakeCache.SetDetailMesh(&SolidMesh, &SolidSpatial);
+			BakeCache.SetBakeTargetMesh(&Mesh);
+			BakeCache.SetDimensions(Dimensions);
+			BakeCache.SetUVLayer(0);
+			// set distance to search for correspondences based on the voxel size
+			double Thickness = AttributeSettings.Curvature_ThicknessFactor * Spatial.GetBoundingBox().MaxDim() / (float)UseVoxRes;
+			BakeCache.SetThickness(Thickness);
+			BakeCache.ValidateCache();
+
+			FMeshCurvatureMapBaker CurvatureBaker;
+			CurvatureBaker.bOverrideCurvatureRange = true;
+			CurvatureBaker.OverrideRangeMax = AttributeSettings.Curvature_MaxValue;
+			CurvatureBaker.UseColorMode = FMeshCurvatureMapBaker::EColorMode::BlackGrayWhite;
+			CurvatureBaker.SetCache(&BakeCache);
+
+			CurvatureBaker.BlurRadius = AttributeSettings.bCurvature_Blur ? AttributeSettings.Curvature_BlurRadius : 0.0;
+
+			CurvatureBaker.Bake();
+
+			const TUniquePtr<TImageBuilder<FVector3f>>& Result = CurvatureBaker.GetResult();
+			// copy scalar curvature values out to the accumulated curvature buffer
+			for (int64 LinearIdx = 0; LinearIdx < TexelsNum; LinearIdx++)
+			{
+				float& CurvatureOut = CurvatureValues[LinearIdx];
+				CurvatureOut = FMathf::Max(CurvatureOut, Result->GetPixel(LinearIdx).X);
+			}
+		}
+	}
 	
 	TArray64<float> AmbientValues; // buffer to fill with ambient occlusion values
 	if (AmbientIdx > -1)
@@ -560,6 +664,7 @@ void TextureInternalSurfaces(
 			FDynamicMeshAABBTree3 Spatial(&Mesh);
 
 			FMeshImageBakingCache BakeCache;
+			BakeCache.SetGutterSize(GutterSize);
 			BakeCache.SetDetailMesh(&Mesh, &Spatial);
 			BakeCache.SetBakeTargetMesh(&Mesh);
 			BakeCache.SetDimensions(Dimensions);
@@ -655,17 +760,22 @@ void TextureInternalSurfaces(
 		}
 	});
 
-	// Copy the ambient occlusion values to the appropriate channel
-	if (AmbientIdx > -1)
+	auto CopyValuesToChannel = [&TextureOut, &OccupancyMap](int ChannelIdx, TArray64<float>& Values)
 	{
-		int64 TexelsNum = OccupancyMap.Dimensions.Num();
-		for (int64 LinearIdx = 0; LinearIdx < TexelsNum; LinearIdx++)
+		if (ChannelIdx > -1)
 		{
-			FVector4f Pixel = TextureOut.GetPixel(LinearIdx);
-			Pixel[AmbientIdx] = AmbientValues[LinearIdx];
-			TextureOut.SetPixel(LinearIdx, Pixel);
+			int64 TexelsNum = OccupancyMap.Dimensions.Num();
+			for (int64 LinearIdx = 0; LinearIdx < TexelsNum; LinearIdx++)
+			{
+				FVector4f Pixel = TextureOut.GetPixel(LinearIdx);
+				Pixel[ChannelIdx] = Values[LinearIdx];
+				TextureOut.SetPixel(LinearIdx, Pixel);
+			}
 		}
-	}
+	};
+
+	CopyValuesToChannel(AmbientIdx, AmbientValues);
+	CopyValuesToChannel(CurvatureIdx, CurvatureValues);
 
 	for (TTuple<int64, int64>& GutterToInside : OccupancyMap.GutterTexels)
 	{

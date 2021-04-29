@@ -43,6 +43,7 @@ public:
 	void SetUVLayer(int32 UVLayer);
 	void SetThickness(double Thickness);
 	void SetCorrespondenceStrategy(ECorrespondenceStrategy Strategy);
+	void SetGutterSize(int32 GutterSize);
 
 	FImageDimensions GetDimensions() const { return Dimensions; }
 	int32 GetUVLayer() const { return UVLayer; }
@@ -104,6 +105,7 @@ protected:
 	int32 UVLayer = 0;
 	double Thickness = 3.0;
 	ECorrespondenceStrategy CorrespondenceStrategy = ECorrespondenceStrategy::RaycastStandard;
+	int32 GutterSize = 4;
 
 	TDenseGrid2<FCorrespondenceSample> SampleMap;
 	bool bSamplesValid = false;

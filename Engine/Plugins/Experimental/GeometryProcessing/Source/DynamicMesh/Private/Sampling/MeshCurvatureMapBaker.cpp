@@ -34,6 +34,7 @@ void FMeshCurvatureMapBaker::Bake()
 
 	ResultBuilder = MakeUnique<TImageBuilder<FVector3f>>();
 	ResultBuilder->SetDimensions(BakeCache->GetDimensions());
+	ResultBuilder->Clear(FVector3f::Zero());
 
 
 	Bake_Single();
@@ -119,6 +120,10 @@ void FMeshCurvatureMapBaker::Bake_Single()
 	}
 
 	double ClampMax = RangeScale * (CurvatureStats.Mean + CurvatureStats.StandardDeviation);
+	if (bOverrideCurvatureRange)
+	{
+		ClampMax = RangeScale * OverrideRangeMax;
+	}
 	double MinClamp = MinRangeScale * ClampMax;
 	FInterval1d ClampRange(MinClamp, ClampMax);
 

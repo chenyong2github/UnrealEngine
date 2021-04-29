@@ -50,8 +50,12 @@ public:
 	double RangeScale = 1.0;
 	double MinRangeScale = 0.0;
 
-	double BlurRadius = 0.0;
+	// allows override of the max curvature; if false, range is set based on [-(avg+stddev), avg+stddev]
+	bool bOverrideCurvatureRange = false;
+	double OverrideRangeMax = .1;
 
+
+	double BlurRadius = 0.0;
 
 	//
 	// Required input data, can be provided, will be computed otherwise
