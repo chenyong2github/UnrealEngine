@@ -42,7 +42,7 @@ FLightHit SpotLight_TraceLight(RayDesc Ray, int LightId) {
 
 FLightSample SpotLight_SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
