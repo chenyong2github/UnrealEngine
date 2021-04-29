@@ -41,6 +41,7 @@ DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnPostEditChangeChainProperty, FPr
 DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnLocalizeFunctionDialogRequested, URigVMLibraryNode*, UControlRigBlueprint*, bool);
 DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnReportCompilerMessage, EMessageSeverity::Type, UObject*, const FString&);
 DECLARE_DELEGATE_RetVal_FourParams(bool, FControlRigOnBulkEditDialogRequestedDelegate, UControlRigBlueprint*, URigVMController*, URigVMLibraryNode*, ERigVMControllerBulkEditType);
+DECLARE_EVENT(UControlRigBlueprint, FOnBreakpointAdded);
 
 USTRUCT()
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
@@ -432,12 +433,14 @@ private:
 
 	FOnRefreshEditorEvent RefreshEditorEvent;
 	FOnVariableDroppedEvent VariableDroppedEvent;
+	FOnBreakpointAdded BreakpointAddedEvent;
 
 public:
 
 	void BroadcastRefreshEditor() { return RefreshEditorEvent.Broadcast(this); }
 	FOnRefreshEditorEvent& OnRefreshEditor() { return RefreshEditorEvent; }
 	FOnVariableDroppedEvent& OnVariableDropped() { return VariableDroppedEvent; }
+	FOnBreakpointAdded& OnBreakpointAdded() { return BreakpointAddedEvent; }
 
 private:
 
@@ -539,9 +542,14 @@ private:
 
 #if WITH_EDITOR
 private:
+	bool bCompileInDebugMode;
+	
 	TArray<URigVMNode*> RigVMBreakpointNodes;
 
 public:
+
+	/** Sets the execution mode. In Release mode the rig will ignore all breakpoints. */
+	FORCEINLINE void SetDebugMode(const bool bValue) { bCompileInDebugMode = bValue; }
 
 	/** Removes all the breakpoints from the blueprint and the VM */
 	void ClearBreakpoints();

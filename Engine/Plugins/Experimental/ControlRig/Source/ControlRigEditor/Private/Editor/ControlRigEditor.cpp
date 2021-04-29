@@ -107,6 +107,7 @@ FControlRigEditor::FControlRigEditor()
 	, bFirstTimeSelecting(true)
 	, bAnyErrorsLeft(false)
 	, LastEventQueue(EControlRigEditorEventQueue::Setup)
+	, bIsInDebugMode(false)
 	, LastDebuggedRig()
 	, RigHierarchyTabCount(0)
 	, HaltedAtNode(nullptr)
@@ -127,6 +128,7 @@ FControlRigEditor::~FControlRigEditor()
 		}
 		RigBlueprint->OnRefreshEditor().RemoveAll(this);
 		RigBlueprint->OnVariableDropped().RemoveAll(this);
+		RigBlueprint->OnBreakpointAdded().RemoveAll(this);
 		RigBlueprint->OnNodeDoubleClicked().RemoveAll(this);
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnPostEditChangeChainProperty().RemoveAll(this);
@@ -350,6 +352,10 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->Hierarchy->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModified);
 		InControlRigBlueprint->OnRefreshEditor().AddSP(this, &FControlRigEditor::HandleRefreshEditorFromBlueprint);
 		InControlRigBlueprint->OnVariableDropped().AddSP(this, &FControlRigEditor::HandleVariableDroppedFromBlueprint);
+		InControlRigBlueprint->OnBreakpointAdded().AddLambda([this]()
+		{
+			SetExecutionMode(true);
+		});
 
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
@@ -435,6 +441,21 @@ void FControlRigEditor::BindCommands()
 		FCanExecuteAction());
 
 	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().ToggleExecutionMode,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::ToggleExecutionMode),
+		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().ReleaseMode,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetExecutionMode, false),
+		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
+		FControlRigBlueprintCommands::Get().DebugMode,
+		FExecuteAction::CreateSP(this, &FControlRigEditor::SetExecutionMode, true),
+		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
 		FControlRigBlueprintCommands::Get().ResumeExecution,
 		FExecuteAction::CreateLambda([this]()
         {
@@ -498,6 +519,11 @@ void FControlRigEditor::ToggleEventQueue()
 	SetEventQueue(LastEventQueue);
 }
 
+void FControlRigEditor::ToggleExecutionMode()
+{
+	SetExecutionMode(!bIsInDebugMode);
+}
+
 TSharedRef<SWidget> FControlRigEditor::GenerateEventQueueMenuContent()
 {
 	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
@@ -510,6 +536,18 @@ TSharedRef<SWidget> FControlRigEditor::GenerateEventQueueMenuContent()
 
 	MenuBuilder.BeginSection(TEXT("Validation"));
 	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().InverseAndUpdateEvent, TEXT("InverseAndUpdate"), TAttribute<FText>(), TAttribute<FText>(), GetEventQueueIcon(EControlRigEditorEventQueue::InverseAndUpdate));
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FControlRigEditor::GenerateExecutionModeMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
+
+	MenuBuilder.BeginSection(TEXT("Events"));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().ReleaseMode, TEXT("Release"), TAttribute<FText>(), TAttribute<FText>(), GetExecutionModeIcon(false));
+	MenuBuilder.AddMenuEntry(FControlRigBlueprintCommands::Get().DebugMode, TEXT("Debug"), TAttribute<FText>(), TAttribute<FText>(), GetExecutionModeIcon(true));
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
@@ -583,6 +621,22 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		ToolbarBuilder.AddWidget(SNew(SBlueprintEditorSelectedDebugObjectWidget, SharedThis(this)));
 
 		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(
+			FControlRigBlueprintCommands::Get().ToggleExecutionMode,
+			NAME_None, 
+			TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &FControlRigEditor::GetExecutionModeLabel)),
+			TAttribute<FText>(), 
+			TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateSP(this, &FControlRigEditor::GetExecutionModeIcon))
+		);
+		
+		FUIAction DefaultExecutionMode;
+		ToolbarBuilder.AddComboButton(
+			DefaultExecutionMode,
+			FOnGetContent::CreateSP(this, &FControlRigEditor::GenerateExecutionModeMenuContent),
+			LOCTEXT("ExecutionMode_Label", "Execution Modes"),
+			LOCTEXT("ExecutionMode_ToolTip", "Pick between different execution modes for testing the Control Rig"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Recompile"),
+			true);
 		ToolbarBuilder.AddToolBarButton(FControlRigBlueprintCommands::Get().ResumeExecution,
 			NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ResumeExecution"));
 
@@ -754,9 +808,55 @@ FSlateIcon FControlRigEditor::GetEventQueueIcon() const
 	return GetEventQueueIcon(GetEventQueue());
 }
 
-void FControlRigEditor::OnEventQueueComboChanged(int32 InValue, ESelectInfo::Type InSelectInfo)
+void FControlRigEditor::SetExecutionMode(const bool bSetDebugMode)
 {
-	SetEventQueue((EControlRigEditorEventQueue)InValue);
+	if (bIsInDebugMode == bSetDebugMode)
+	{
+		return;
+	}
+
+	bIsInDebugMode = bSetDebugMode;
+	GetControlRigBlueprint()->SetDebugMode(bSetDebugMode);
+	Compile();
+	
+	if (ControlRig)
+	{
+		ControlRig->bIsInDebugMode = bSetDebugMode;
+	}
+
+	if (HaltedAtNode)
+	{
+		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
+		HaltedAtNode = nullptr;
+	}
+}
+
+int32 FControlRigEditor::GetExecutionModeComboValue() const
+{
+	return (int32) bIsInDebugMode;
+}
+
+FText FControlRigEditor::GetExecutionModeLabel() const
+{
+	if (bIsInDebugMode)
+	{
+		return FText::FromString(TEXT("DebugMode"));
+	}
+	return FText::FromString(TEXT("ReleaseMode"));
+}
+
+FSlateIcon FControlRigEditor::GetExecutionModeIcon(bool bDebugMode)
+{
+	if (bDebugMode)
+	{
+		return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.DebugMode");
+	}
+	return FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(), "ControlRig.ReleaseMode");
+}
+
+FSlateIcon FControlRigEditor::GetExecutionModeIcon() const
+{
+	return GetExecutionModeIcon(bIsInDebugMode);
 }
 
 void FControlRigEditor::ToggleSetupMode()
@@ -785,7 +885,6 @@ void FControlRigEditor::ToggleSetupMode()
 		{
 			RigBlueprint->ClearTransientControls();
 		}
-
 	}
 
 	if (ControlRig)

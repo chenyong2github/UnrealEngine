@@ -350,10 +350,13 @@ TArray<FName> URigVM::GetEntryNames() const
 bool URigVM::ResumeExecution()
 {
 	HaltedAtInstruction = INDEX_NONE;
-	if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
+	if (DebugInfo)
 	{
-		DebugInfo->IncrementBreakpointActivationOnHit(Context.InstructionIndex);
-		return true;
+		if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
+		{
+			DebugInfo->IncrementBreakpointActivationOnHit(Context.InstructionIndex);
+			return true;
+		}
 	}
 
 	return false;
@@ -771,38 +774,8 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 	Context.OpaqueArguments = AdditionalArguments;
 	Context.ExternalVariables = ExternalVariables;
 	
-#if WITH_EDITOR
-	if (DebugInfo)
-	{
-		DebugInfo->StartExecution();
-		HaltedAtInstruction = INDEX_NONE;
-	}
-#endif
-
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
-#if WITH_EDITOR
-		if (DebugInfo)
-		{
-			if (FRigVMBreakpoint* Breakpoint = DebugInfo->FindBreakpoint(Context.InstructionIndex))
-			{
-				if (DebugInfo->IsActive(Context.InstructionIndex))
-				{
-					if (HaltedAtInstruction != Context.InstructionIndex)
-					{
-						HaltedAtInstruction = Context.InstructionIndex;
-						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
-					}
-					return true;
-				}
-				else
-				{
-					DebugInfo->HitBreakpoint(Context.InstructionIndex);
-				}
-			}
-		}
-#endif
-		
 		const FRigVMInstruction& Instruction = Instructions[Context.InstructionIndex];
 
 		switch (Instruction.OpCode)
@@ -1023,14 +996,6 @@ bool URigVM::Initialize(FRigVMMemoryContainerPtrArray Memory, FRigVMFixedArray<v
 		}
 		Context.InstructionIndex++;
 	}
-
-#if WITH_EDITOR
-	if (HaltedAtInstruction != INDEX_NONE)
-	{
-		HaltedAtInstruction = INDEX_NONE;
-		ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
-	}
-#endif
 	
 	return true;
 }

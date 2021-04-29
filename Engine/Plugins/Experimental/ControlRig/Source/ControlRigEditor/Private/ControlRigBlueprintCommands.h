@@ -42,6 +42,15 @@ public:
 	/** Run the inverse graph followed by the update graph */
 	TSharedPtr< FUICommandInfo > InverseAndUpdateEvent;
 
+	/** Toggle between Release and Debug execution mode */
+	TSharedPtr< FUICommandInfo > ToggleExecutionMode;
+
+	/** Compile and run the optimized rig, ignoring any debug data */
+	TSharedPtr< FUICommandInfo > ReleaseMode;
+
+	/** Compile and run the unoptimized rig, ignoring any debug data */
+	TSharedPtr< FUICommandInfo > DebugMode;
+	
 	/** Resume the execution of the graph when halted at a breakpoint */
 	TSharedPtr< FUICommandInfo > ResumeExecution;
 

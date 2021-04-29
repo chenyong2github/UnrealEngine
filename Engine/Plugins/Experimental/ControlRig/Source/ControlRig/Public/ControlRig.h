@@ -459,6 +459,10 @@ private:
 	UPROPERTY(transient)
 	TArray<FName> EventQueue;
 
+	/** The current execution mode */
+	UPROPERTY(transient)
+	bool bIsInDebugMode;
+
 	/** Copy the VM from the default object */
 	void InstantiateVMFromCDO();
 	

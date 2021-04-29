@@ -688,7 +688,7 @@ void UControlRigBlueprint::RecompileVM()
 		CompileLog.NumErrors = CompileLog.NumWarnings = 0;
 
 		URigVMCompiler* Compiler = URigVMCompiler::StaticClass()->GetDefaultObject<URigVMCompiler>();
-		Compiler->Settings = VMCompileSettings;
+		Compiler->Settings = (bCompileInDebugMode) ? FRigVMCompileSettings::Fast() : VMCompileSettings;
 		Compiler->Compile(Model, GetOrCreateController(), CDO->VM, CDO->GetExternalVariablesImpl(false), UserData, &PinToOperandMap);
 
 		if (bErrorsDuringCompilation)
@@ -918,6 +918,7 @@ bool UControlRigBlueprint::AddBreakpoint(URigVMNode* InBreakpointNode, URigVMLib
 		{
 			// Add the breakpoint to the VM
 			bSuccess = AddBreakpointToControlRig(InBreakpointNode);
+			BreakpointAddedEvent.Broadcast();
 		}
 	}
 

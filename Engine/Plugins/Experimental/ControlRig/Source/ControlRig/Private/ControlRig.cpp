@@ -479,18 +479,25 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	}
 
 #if WITH_EDITOR
-	if (UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
+	if (bIsInDebugMode)
 	{
-		// Copy the breakpoints. This will not override the state of the breakpoints
-		DebugInfo.SetBreakpoints(CDO->DebugInfo.GetBreakpoints());
-
-		// If there are any breakpoints, create the Snapshot VM if it hasn't been created yet
-		if (DebugInfo.GetBreakpoints().Num() > 0)
+		if (UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>())
 		{
-			GetSnapshotVM();
+			// Copy the breakpoints. This will not override the state of the breakpoints
+			DebugInfo.SetBreakpoints(CDO->DebugInfo.GetBreakpoints());
+
+			// If there are any breakpoints, create the Snapshot VM if it hasn't been created yet
+			if (DebugInfo.GetBreakpoints().Num() > 0)
+			{
+				GetSnapshotVM();
+			}
 		}
+		VM->SetDebugInfo(&DebugInfo);
 	}
-	VM->SetDebugInfo(&DebugInfo);
+	else
+	{
+		VM->SetDebugInfo(nullptr);
+	}
 #endif
 
 	bool bJustRanInit = false;

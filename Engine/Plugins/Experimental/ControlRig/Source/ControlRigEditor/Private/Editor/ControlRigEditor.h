@@ -246,7 +246,13 @@ private:
 	FText GetEventQueueLabel() const;
 	static FSlateIcon GetEventQueueIcon(EControlRigEditorEventQueue InEventQueue);
 	FSlateIcon GetEventQueueIcon() const;
-	void OnEventQueueComboChanged(int32 InValue, ESelectInfo::Type InSelectInfo);
+
+	void SetExecutionMode(const bool bSetDebugMode);
+	int32 GetExecutionModeComboValue() const;
+	FText GetExecutionModeLabel() const;
+	static FSlateIcon GetExecutionModeIcon(const bool bInIsDebugMode);
+	FSlateIcon GetExecutionModeIcon() const;
+	
 	virtual void GetCustomDebugObjects(TArray<FCustomDebugObject>& DebugList) const override;
 	virtual bool OnlyShowCustomDebugObjects() const override { return true; }
 	virtual void HandleSetObjectBeingDebugged(UObject* InObject) override;
@@ -292,7 +298,9 @@ private:
 	bool IsAutoCompileGraphOn() const;
 	bool CanAutoCompileGraph() const { return true; }
 	void ToggleEventQueue();
+	void ToggleExecutionMode();
 	TSharedRef<SWidget> GenerateEventQueueMenuContent();
+	TSharedRef<SWidget> GenerateExecutionModeMenuContent();
 
 	enum ERigElementGetterSetterType
 	{
@@ -412,6 +420,7 @@ protected:
 	bool bAnyErrorsLeft;
 
 	EControlRigEditorEventQueue LastEventQueue;
+	bool bIsInDebugMode;
 	FString LastDebuggedRig;
 	int32 RigHierarchyTabCount;
 	TMap<FString, FString> KnownInstructionLimitWarnings;

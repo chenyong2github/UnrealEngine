@@ -549,7 +549,10 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 					}
 				}
 
-				InVM->ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
+				if (ControlRig->GetVM())
+				{
+					ControlRig->GetVM()->ExecutionHalted().AddSP(this, &SControlRigStackView::HandleExecutionHalted);
+				}
 			}
 		}
 	}
