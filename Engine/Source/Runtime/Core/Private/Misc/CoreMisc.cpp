@@ -18,7 +18,7 @@
 #include "Misc/ConfigCacheIni.h"
 
 #include "Modules/ModuleManager.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheModule.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
 DEFINE_LOG_CATEGORY(LogSHA);
@@ -101,7 +101,7 @@ FDerivedDataCacheInterface* GetDerivedDataCache()
 			bInitialized = true;
 			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
 			{
-				DDC = Module->CreateOrGetDDC();
+				DDC = Module->CreateOrGetCache();
 			}
 		}
 	}

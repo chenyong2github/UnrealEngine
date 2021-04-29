@@ -6,27 +6,23 @@
 #include "CoreMinimal.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringView.h"
-#include "Modules/ModuleInterface.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheModule.h"
 
 class FDerivedDataCacheUsageStats;
 class FDerivedDataCacheStatsNode;
 class IDDCCleanup;
 
-namespace UE { namespace DerivedData { class ICache; } }
-
 /** 
  * Interface for the derived data cache
  * This API is fully threadsafe (with the possible exception of the system interface: NotfiyBootComplete, etc).
-**/
-class FDerivedDataCacheInterface
+ */
+class FDerivedDataCacheInterface : public UE::DerivedData::ICache
 {
 public:
-	virtual ~FDerivedDataCacheInterface()
-	{
-	}
+	virtual ~FDerivedDataCacheInterface() = default;
 
-	/** Returns the interface to the cache. */
-	virtual UE::DerivedData::ICache& GetCache() = 0;
+	using UE::DerivedData::ICache::Put;
 
 	//--------------------
 	// High Level Interface
@@ -237,7 +233,7 @@ public:
 	virtual void NotifyBootComplete() = 0;
 
 	/**
-	 * Adds or subtracts a number from the thread safe counter which tracks outstand async requests. This is used to ensure everything is complete prior to shutdown.
+	 * Adds or subtracts a number from the thread safe counter which tracks outstanding async requests. This is used to ensure everything is complete prior to shutdown.
 	 */
 	virtual void AddToAsyncCompletionCounter(int32 Addend) = 0;
 
@@ -308,24 +304,4 @@ public:
 	*/
 	virtual FOnDDCNotification& GetDDCNotificationEvent() = 0;
 
-};
-
-/**
- * Module for the DDC
- */
-class IDerivedDataCacheModule : public IModuleInterface
-{
-public:
-	/** Return the DDC interface **/
-	UE_DEPRECATED(4.27, "GetDDC has been replaced by CreateOrGetDDC.")
-	virtual FDerivedDataCacheInterface& GetDDC() = 0;
-
-	/**
-	 * Returns the DDC interface, and creates it on the first call.
-	 *
-	 * This will never return a null interface, but an extra level of indirection is used to support
-	 * callers that store the return value. The returned interface pointer will become null when the
-	 * module shuts down, which destroys DDC.
-	 */
-	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() = 0;
 };

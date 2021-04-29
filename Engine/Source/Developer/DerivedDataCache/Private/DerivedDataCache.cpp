@@ -160,21 +160,17 @@ namespace DerivedDataCacheCookStats
 }
 #endif
 
-namespace UE::DerivedData
-{
-
-ICache* CreateCache();
-
-} // UE::DerivedData
-
 /** Whether we want to verify the DDC (pass in -VerifyDDC on the command line)*/
 bool GVerifyDDC = false;
+
+namespace UE::DerivedData
+{
 
 /**
  * Implementation of the derived data cache
  * This API is fully threadsafe
 **/
-class FDerivedDataCache : public FDerivedDataCacheInterface
+class FDerivedDataCache final : public FDerivedDataCacheInterface
 {
 
 	/** 
@@ -354,7 +350,6 @@ public:
 	/** Constructor, called once to cereate a singleton **/
 	FDerivedDataCache()
 		: CurrentHandle(19248) // we will skip some potential handles to catch errors
-		, Cache(UE::DerivedData::CreateCache())
 	{
 		FDerivedDataBackend::Get(); // we need to make sure this starts before we all us to start
 
@@ -374,11 +369,6 @@ public:
 			delete It.Value();
 		}
 		PendingTasks.Empty();
-	}
-
-	virtual UE::DerivedData::ICache& GetCache()
-	{
-		return *Cache;
 	}
 
 	virtual bool GetSynchronous(FDerivedDataPluginInterface* DataDeriver, TArray<uint8>& OutData, bool* bDataWasBuilt = nullptr) override
@@ -678,63 +668,7 @@ private:
 	/** Cache notification delegate */
 	FOnDDCNotification DDCNotificationEvent;
 
-	TUniquePtr<UE::DerivedData::ICache> Cache;
-};
-
-static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
-/**
- * Module for the DDC
- */
-class FDerivedDataCacheModule final : public IDerivedDataCacheModule
-{
 public:
-	FDerivedDataCacheInterface& GetDDC() final
-	{
-		return **CreateOrGetDDC();
-	}
-
-	FDerivedDataCacheInterface* const* CreateOrGetDDC() final
-	{
-		FScopeLock Lock(&CreateLock);
-		if (!GDerivedDataCacheInstance)
-		{
-			GDerivedDataCacheInstance = new FDerivedDataCache();
-			check(GDerivedDataCacheInstance);
-		}
-		return &GDerivedDataCacheInstance;
-	}
-
-	void ShutdownModule() final
-	{
-		FDDCCleanup::Shutdown();
-
-		delete GDerivedDataCacheInstance;
-		GDerivedDataCacheInstance = nullptr;
-	}
-
-private:
-	FCriticalSection CreateLock;
-};
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace UE::DerivedData
-{
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCache final : public ICache
-{
-public:
-	~FCache() final = default;
-
 	FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
 
 	FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
@@ -775,13 +709,46 @@ public:
 	}
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ICache* CreateCache()
-{
-	return new FCache();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 } // UE::DerivedData
+
+static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+/**
+ * Module for the DDC
+ */
+class FDerivedDataCacheModule final : public IDerivedDataCacheModule
+{
+public:
+	FDerivedDataCacheInterface& GetDDC() final
+	{
+		return **CreateOrGetCache();
+	}
+
+	FDerivedDataCacheInterface* const* CreateOrGetCache() final
+	{
+		FScopeLock Lock(&CreateLock);
+		if (!GDerivedDataCacheInstance)
+		{
+			GDerivedDataCacheInstance = new UE::DerivedData::FDerivedDataCache();
+			check(GDerivedDataCacheInstance);
+		}
+		return &GDerivedDataCacheInstance;
+	}
+
+	void ShutdownModule() final
+	{
+		FDDCCleanup::Shutdown();
+
+		delete GDerivedDataCacheInstance;
+		GDerivedDataCacheInstance = nullptr;
+	}
+
+private:
+	FCriticalSection CreateLock;
+};
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);

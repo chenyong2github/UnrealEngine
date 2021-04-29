@@ -220,7 +220,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 			return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 		}
 
-		UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
+		UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
 		auto MetaDataGetComplete =
 			[&FileSize, &PackageSource, &PackagePath, PackageSegment, Locks=this->Locks, OutUpdatedPath]
 			(UE::DerivedData::FCacheGetCompleteParams&& Params)

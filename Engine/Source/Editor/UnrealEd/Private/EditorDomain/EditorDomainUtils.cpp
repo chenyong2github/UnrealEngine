@@ -76,7 +76,7 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
 {
 	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket =
-		GetDerivedDataCacheRef().GetCache().CreateBucket(EditorDomainPackageBucketName);
+		GetDerivedDataCacheRef().CreateBucket(EditorDomainPackageBucketName);
 	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, PackageDigest};
 }
 
@@ -84,7 +84,7 @@ UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& Package
 	const FPackageDigest& PackageDigest, UE::DerivedData::EPriority CachePriority,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
 	return Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
 		PackagePath.GetDebugName(),
 		UE::DerivedData::ECachePolicy::QueryLocal, CachePriority, MoveTemp(Callback));
@@ -157,7 +157,7 @@ bool TrySavePackage(UPackage* Package)
 		PackageBuffer = MakeSharedBufferFromArray(MoveTemp(TempBytes));
 	}
 
-	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();
+	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef();
 	UE::DerivedData::FCacheRecordBuilder RecordBuilder = Cache.CreateRecord(GetEditorDomainPackageKey(PackageDigest));
 	TCbWriter<256> MetaData;
 	MetaData.BeginObject();
