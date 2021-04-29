@@ -97,6 +97,11 @@ public:
 	TSharedPtr<FUICommandInfo> JumpToStart;
 	TSharedPtr<FUICommandInfo> JumpToEnd;
 
+	// Selection Range
+	TSharedPtr< FUICommandInfo > SetSelectionRangeStart;
+	TSharedPtr< FUICommandInfo > SetSelectionRangeEnd;
+	TSharedPtr< FUICommandInfo > ClearSelectionRange;
+
 public:
 	virtual void RegisterCommands() override;
 };

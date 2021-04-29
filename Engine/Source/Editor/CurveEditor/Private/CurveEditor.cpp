@@ -350,6 +350,10 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FCurveEditorCommands::Get().JumpToStart, FExecuteAction::CreateSP(this, &FCurveEditor::JumpToStart));
 	CommandList->MapAction(FCurveEditorCommands::Get().JumpToEnd, FExecuteAction::CreateSP(this, &FCurveEditor::JumpToEnd));
 
+	CommandList->MapAction(FCurveEditorCommands::Get().SetSelectionRangeStart, FExecuteAction::CreateSP(this, &FCurveEditor::SetSelectionRangeStart));
+	CommandList->MapAction(FCurveEditorCommands::Get().SetSelectionRangeEnd, FExecuteAction::CreateSP(this, &FCurveEditor::SetSelectionRangeEnd));
+	CommandList->MapAction(FCurveEditorCommands::Get().ClearSelectionRange, FExecuteAction::CreateSP(this, &FCurveEditor::ClearSelectionRange));
+
 	{
 		FExecuteAction   ToggleInputSnapping     = FExecuteAction::CreateSP(this,   &FCurveEditor::ToggleInputSnapping);
 		FIsActionChecked IsInputSnappingEnabled  = FIsActionChecked::CreateSP(this, &FCurveEditor::IsInputSnappingEnabled);
@@ -782,6 +786,55 @@ void FCurveEditor::JumpToEnd()
 
 	WeakTimeSliderController.Pin()->SetScrubPosition(WeakTimeSliderController.Pin()->GetPlayRange().GetUpperBoundValue());
 }
+
+void FCurveEditor::SetSelectionRangeStart()
+{
+	if (!WeakTimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	FFrameNumber LocalTime = WeakTimeSliderController.Pin()->GetScrubPosition().FrameNumber;
+	FFrameNumber UpperBound = WeakTimeSliderController.Pin()->GetSelectionRange().GetUpperBoundValue();
+	if (UpperBound <= LocalTime)
+	{
+		WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>(LocalTime, LocalTime + 1));
+	}
+	else
+	{
+		WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>(LocalTime, UpperBound));
+	}
+}
+
+void FCurveEditor::SetSelectionRangeEnd()
+{
+	if (!WeakTimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	FFrameNumber LocalTime = WeakTimeSliderController.Pin()->GetScrubPosition().FrameNumber;
+	FFrameNumber LowerBound = WeakTimeSliderController.Pin()->GetSelectionRange().GetLowerBoundValue();
+	if (LowerBound >= LocalTime)
+	{
+		WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>(LocalTime - 1, LocalTime));
+	}
+	else
+	{
+		WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>(LowerBound, LocalTime));
+	}
+}
+
+void FCurveEditor::ClearSelectionRange()
+{
+	if (!WeakTimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	WeakTimeSliderController.Pin()->SetSelectionRange(TRange<FFrameNumber>::Empty());
+}
+
 
 bool FCurveEditor::IsInputSnappingEnabled() const
 {

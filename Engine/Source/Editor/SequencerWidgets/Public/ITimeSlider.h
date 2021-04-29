@@ -256,6 +256,9 @@ public:
 	/** Get the current play range for this controller */
 	virtual TRange<FFrameNumber> GetPlayRange() const { return TRange<FFrameNumber>(); }
 
+	/** Get the current selection range for this controller */
+	virtual TRange<FFrameNumber> GetSelectionRange() const { return TRange<FFrameNumber>(); }
+
 	/** Get the current time for the Scrub handle which indicates what range is being evaluated. */
 	virtual FFrameTime GetScrubPosition() const { return FFrameTime(); }
 
@@ -286,6 +289,13 @@ public:
 	 * @param RangeDuration		The total number of frames that we play for
 	 */
 	virtual void SetPlayRange( FFrameNumber RangeStart, int32 RangeDuration ) {}
+
+	/**
+	 * Set a new selection range
+	 * 
+	 * @param NewRange		The new selection range
+	 */
+	virtual void SetSelectionRange(const TRange<FFrameNumber>& NewRange) {}
 };
 
 /**

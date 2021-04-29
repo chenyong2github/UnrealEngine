@@ -1590,6 +1590,11 @@ void FSequencerTimeSliderController::SetPlayRange( FFrameNumber RangeStart, int3
 	}
 }
 
+void FSequencerTimeSliderController::SetSelectionRange(const TRange<FFrameNumber>& NewRange)
+{
+	TimeSliderArgs.OnSelectionRangeChanged.ExecuteIfBound(NewRange);
+}
+
 bool FSequencerTimeSliderController::ZoomByDelta( float InDelta, float MousePositionFraction )
 {
 	TRange<double> LocalViewRange = GetViewRange().GetAnimationTarget();
