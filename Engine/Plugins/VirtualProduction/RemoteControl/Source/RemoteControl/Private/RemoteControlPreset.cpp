@@ -636,7 +636,6 @@ void URemoteControlPreset::PostInitProperties()
 	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		RegisterDelegates();
-		IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 	}
 }
 
@@ -654,7 +653,6 @@ void URemoteControlPreset::PostEditChangeProperty(struct FPropertyChangedEvent& 
 void URemoteControlPreset::PostLoad()
 {
 	Super::PostLoad();
-	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 
 	RegisterDelegates();
 
@@ -672,15 +670,7 @@ void URemoteControlPreset::PostLoad()
 void URemoteControlPreset::BeginDestroy()
 {
 	UnregisterDelegates();
-	IRemoteControlModule::Get().UnregisterPreset(GetFName());
 	Super::BeginDestroy();
-}
-
-void URemoteControlPreset::PostRename(UObject* OldOuter, const FName OldName)
-{
-	Super::PostRename(OldOuter, OldName);
-	IRemoteControlModule::Get().UnregisterPreset(OldName);
-	IRemoteControlModule::Get().RegisterPreset(GetFName(), this);
 }
 
 FName URemoteControlPreset::GetOwnerAlias(FGuid FieldId) const
@@ -1297,6 +1287,7 @@ FName URemoteControlPreset::RenameExposedEntity(const FGuid& ExposedEntityId, FN
 
 bool URemoteControlPreset::IsExposed(const FGuid& ExposedEntityId) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("URemoteControlPreset::IsExposed"));
 	if (FieldCache.Contains(ExposedEntityId))
 	{
 		return true;
