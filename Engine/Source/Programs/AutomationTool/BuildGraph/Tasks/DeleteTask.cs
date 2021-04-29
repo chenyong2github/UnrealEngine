@@ -107,7 +107,10 @@ namespace BuildGraph.Tasks
 					if (!String.IsNullOrEmpty(Directory))
 					{
 						DirectoryReference FullDir = new DirectoryReference(Directory);
-						FileUtils.ForceDeleteDirectory(FullDir);
+						if (DirectoryReference.Exists(FullDir))
+						{
+							FileUtils.ForceDeleteDirectory(FullDir);
+						}
 					}
 				}
 			}
