@@ -2069,26 +2069,6 @@ public:
 };
 
 
-
-/** 
- * Convenience typedefs for a software occlusion mesh elements
- */
-typedef TArray<FVector> FOccluderVertexArray;
-typedef TArray<uint16> FOccluderIndexArray;
-typedef TSharedPtr<FOccluderVertexArray, ESPMode::ThreadSafe> FOccluderVertexArraySP;
-typedef TSharedPtr<FOccluderIndexArray, ESPMode::ThreadSafe> FOccluderIndexArraySP;
-
-/**
- * An interface used to collect primitive occluder geometry.
- */
-class FOccluderElementsCollector
-{
-public:
-	virtual ~FOccluderElementsCollector() {};
-	virtual void AddElements(const FOccluderVertexArraySP& Vertices, const FOccluderIndexArraySP& Indices, const FMatrix& LocalToWorld)
-	{}
-};
-
 /** Primitive draw interface implementation used to store primitives requested to be drawn when gathering dynamic mesh elements. */
 class ENGINE_API FSimpleElementCollector : public FPrimitiveDrawInterface
 {

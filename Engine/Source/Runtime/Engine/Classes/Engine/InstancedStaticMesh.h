@@ -561,8 +561,6 @@ public:
 	virtual void GetDistancefieldAtlasData(const FDistanceFieldVolumeData*& OutDistanceFieldData, float& SelfShadowBias) const override;
 	virtual void GetDistancefieldInstanceData(TArray<FMatrix>& ObjectLocalToWorldTransforms) const override;
 
-	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
-
 	/**
 	 * Creates the hit proxies are used when DrawDynamicElements is called.
 	 * Called in the game thread.

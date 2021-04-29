@@ -439,12 +439,6 @@ static bool SupportsMetalMRT()
 	return bSupportsMetalMRT;
 }
 
-static bool SupportsSoftwareOcclusion()
-{
-	static auto* CVarMobileAllowSoftwareOcclusion = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowSoftwareOcclusion"));
-	return CVarMobileAllowSoftwareOcclusion->GetValueOnAnyThread() != 0;
-}
-
 static bool SupportsLandscapeMeshLODStreaming()
 {
 	bool bStreamLandscapeMeshLODs = false;
@@ -475,9 +469,6 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 		case ETargetPlatformFeatures::DeferredRendering:
 		case ETargetPlatformFeatures::HighQualityLightmaps:
 			return SupportsMetalMRT();
-
-		case ETargetPlatformFeatures::SoftwareOcclusion:
-			return SupportsSoftwareOcclusion();
 
 		case ETargetPlatformFeatures::VirtualTextureStreaming:
 			return UsesVirtualTextures();

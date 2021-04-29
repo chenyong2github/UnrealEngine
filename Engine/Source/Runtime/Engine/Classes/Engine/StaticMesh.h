@@ -46,7 +46,7 @@ enum class EStaticMeshAsyncProperties : uint32
 {
 	None                    = 0,
 	RenderData              = 1 << 0,
-	OccluderData            = 1 << 1,
+	//OccluderData            = 1 << 1,
 	SourceModels            = 1 << 2,
 	SectionInfoMap          = 1 << 3,
 	OriginalSectionInfoMap  = 1 << 4,
@@ -76,8 +76,6 @@ inline const TCHAR* ToString(EStaticMeshAsyncProperties Value)
 			return TEXT("None");
 		case EStaticMeshAsyncProperties::RenderData: 
 			return TEXT("RenderData");
-		case EStaticMeshAsyncProperties::OccluderData: 
-			return TEXT("OccluderData");
 		case EStaticMeshAsyncProperties::SourceModels: 
 			return TEXT("SourceModels");
 		case EStaticMeshAsyncProperties::SectionInfoMap: 
@@ -608,10 +606,6 @@ private:
 	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
 	TUniquePtr<class FStaticMeshRenderData> RenderData;
 
-	/** Pointer to the occluder data used to rasterize this static mesh for software occlusion. */
-	UE_DEPRECATED(5.00, "This must be protected for async build, always use the accessors even internally.")
-	TUniquePtr<class FStaticMeshOccluderData> OccluderData;
-
 public:
 #if WITH_EDITOR
 	ENGINE_API bool IsCompiling() const override { return AsyncTask != nullptr || LockedProperties.load(std::memory_order_relaxed) != 0; }
@@ -622,10 +616,6 @@ public:
 	ENGINE_API FStaticMeshRenderData* GetRenderData();
 	ENGINE_API const FStaticMeshRenderData* GetRenderData() const;
 	ENGINE_API void SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRenderData);
-
-	ENGINE_API FStaticMeshOccluderData* GetOccluderData();
-	ENGINE_API const FStaticMeshOccluderData* GetOccluderData() const;
-	ENGINE_API void SetOccluderData(TUniquePtr<class FStaticMeshOccluderData>&& InOccluderData);
 
 #if WITH_EDITORONLY_DATA
 	static const float MinimumAutoLODPixelError;
@@ -1035,14 +1025,6 @@ public:
 	/** If the user has modified collision in any way or has custom collision imported. Used for determining if to auto generate collision on import */
 	UPROPERTY(EditAnywhere, Category = Collision)
 	bool bCustomizedCollision;
-
-	/** 
-	 *	Specifies which mesh LOD to use as occluder geometry for software occlusion
-	 *  Set to -1 to not use this mesh as occluder 
-	 */
-	UPROPERTY(EditAnywhere, Category=StaticMesh, AdvancedDisplay, meta=(DisplayName="LOD For Occluder Mesh"))
-	int32 LODForOccluderMesh;
-
 #endif // WITH_EDITORONLY_DATA
 
 private:

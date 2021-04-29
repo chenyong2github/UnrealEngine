@@ -3402,7 +3402,6 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->ComponentScreenSizeToUseSubSections = OldLandscape->ComponentScreenSizeToUseSubSections;
 			NewLandscape->LODDistributionSetting = OldLandscape->LODDistributionSetting;
 			NewLandscape->LOD0DistributionSetting = OldLandscape->LOD0DistributionSetting;
-			NewLandscape->OccluderGeometryLOD = OldLandscape->OccluderGeometryLOD;
 			NewLandscape->ExportLOD = OldLandscape->ExportLOD;
 			NewLandscape->StaticLightingLOD = OldLandscape->StaticLightingLOD;
 			NewLandscape->NegativeZBoundsExtension = OldLandscape->NegativeZBoundsExtension;

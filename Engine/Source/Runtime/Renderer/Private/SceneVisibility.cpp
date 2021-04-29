@@ -33,7 +33,6 @@
 #include "FXSystem.h"
 #include "PostProcess/PostProcessing.h"
 #include "SceneView.h"
-#include "SceneSoftwareOcclusion.h"
 #include "Engine/LODActor.h"
 #include "GPUScene.h"
 #include "TranslucentRendering.h"
@@ -1692,64 +1691,47 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 	float CurrentRealTime = View.Family->CurrentRealTime;
 	if (ViewState)
 	{
-		if (ViewState->SceneSoftwareOcclusion)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_SoftwareOcclusionCull)
-			// TODO: Respect PrimitivesAlwaysVisible
-			NumOccludedPrimitives += ViewState->SceneSoftwareOcclusion->Process(RHICmdList, Scene, View);
-		}
-		else if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::ES3_1)
-		{
-			bool bSubmitQueries = !View.bDisableQuerySubmissions;
+		bool bSubmitQueries = !View.bDisableQuerySubmissions;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			bSubmitQueries = bSubmitQueries && !ViewState->HasViewParent() && !ViewState->bIsFrozen;
+		bSubmitQueries = bSubmitQueries && !ViewState->HasViewParent() && !ViewState->bIsFrozen;
 #endif
 
-			if( bHZBOcclusion )
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_MapHZBResults);
-				check(!ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
-				ViewState->HZBOcclusionTests.MapResults(RHICmdList);
-			}
- 
-			// Perform round-robin occlusion queries
-			if (View.ViewState->IsRoundRobinEnabled() &&
-				!View.bIsSceneCapture && // We only round-robin on the main renderer (not scene captures)
-				!View.bIgnoreExistingQueries && // We do not alternate occlusion queries when we want to refresh the occlusion history
-				(IStereoRendering::IsStereoEyeView(View))) // Only relevant to stereo views
-			{
-				// For even frames, prevent left eye from occlusion querying
-				// For odd frames, prevent right eye from occlusion querying
-				const bool FrameParity = ((View.ViewState->PrevFrameNumber & 0x01) == 1);
-				bSubmitQueries &= (FrameParity  && IStereoRendering::IsAPrimaryView(View)) ||
-								  (!FrameParity && IStereoRendering::IsASecondaryView(View));
-			}
-
-			View.ViewState->PrimitiveOcclusionQueryPool.AdvanceFrame(
-				ViewState->OcclusionFrameCounter,
-				FOcclusionQueryHelpers::GetNumBufferedFrames(Scene->GetFeatureLevel()),
-				View.ViewState->IsRoundRobinEnabled() && !View.bIsSceneCapture && IStereoRendering::IsStereoEyeView(View));
-
-			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
-
-			if( bHZBOcclusion )
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_HZBUnmapResults);
-
-				ViewState->HZBOcclusionTests.UnmapResults(RHICmdList);
-
-				if( bSubmitQueries )
-				{
-					ViewState->HZBOcclusionTests.SetValidFrameNumber(ViewState->OcclusionFrameCounter);
-				}
-			}
-		}
-		else
+		if( bHZBOcclusion )
 		{
-			// No occlusion queries, so mark primitives as not occluded
-			for (FSceneSetBitIterator BitIt(View.PrimitiveVisibilityMap); BitIt; ++BitIt)
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_MapHZBResults);
+			check(!ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
+			ViewState->HZBOcclusionTests.MapResults(RHICmdList);
+		}
+ 
+		// Perform round-robin occlusion queries
+		if (View.ViewState->IsRoundRobinEnabled() &&
+			!View.bIsSceneCapture && // We only round-robin on the main renderer (not scene captures)
+			!View.bIgnoreExistingQueries && // We do not alternate occlusion queries when we want to refresh the occlusion history
+			(IStereoRendering::IsStereoEyeView(View))) // Only relevant to stereo views
+		{
+			// For even frames, prevent left eye from occlusion querying
+			// For odd frames, prevent right eye from occlusion querying
+			const bool FrameParity = ((View.ViewState->PrevFrameNumber & 0x01) == 1);
+			bSubmitQueries &= (FrameParity  && IStereoRendering::IsAPrimaryView(View)) ||
+								(!FrameParity && IStereoRendering::IsASecondaryView(View));
+		}
+
+		View.ViewState->PrimitiveOcclusionQueryPool.AdvanceFrame(
+			ViewState->OcclusionFrameCounter,
+			FOcclusionQueryHelpers::GetNumBufferedFrames(Scene->GetFeatureLevel()),
+			View.ViewState->IsRoundRobinEnabled() && !View.bIsSceneCapture && IStereoRendering::IsStereoEyeView(View));
+
+		NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
+
+		if( bHZBOcclusion )
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_HZBUnmapResults);
+
+			ViewState->HZBOcclusionTests.UnmapResults(RHICmdList);
+
+			if( bSubmitQueries )
 			{
-				View.PrimitiveDefinitelyUnoccludedMap.AccessCorrespondingBit(BitIt) = true;
+				ViewState->HZBOcclusionTests.SetValidFrameNumber(ViewState->OcclusionFrameCounter);
 			}
 		}
 	}

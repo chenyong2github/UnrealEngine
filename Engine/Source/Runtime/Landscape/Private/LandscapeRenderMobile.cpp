@@ -304,19 +304,6 @@ FLandscapeMobileRenderData::FLandscapeMobileRenderData(const TArray<uint8>& InPl
 		MemAr.Serialize(VertexData.GetData(), VertexData.Num());
 		VertexBuffer = new FLandscapeVertexBufferMobile(MoveTemp(VertexData));
 	}
-
-	{
-		int32 NumOccluderVertices = 0;
-		MemAr << NumOccluderVertices;
-		if (NumOccluderVertices > 0)
-		{
-			OccluderVerticesSP = MakeShared<FOccluderVertexArray, ESPMode::ThreadSafe>();
-			OccluderVerticesSP->SetNumUninitialized(NumOccluderVertices);
-			MemAr.Serialize(OccluderVerticesSP->GetData(), NumOccluderVertices * sizeof(FVector));
-
-			INC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
-		}
-	}
 }
 
 FLandscapeMobileRenderData::~FLandscapeMobileRenderData()
@@ -340,11 +327,6 @@ FLandscapeMobileRenderData::~FLandscapeMobileRenderData()
 				delete InHoleData;
 			});
 		}
-	}
-
-	if (OccluderVerticesSP.IsValid())
-	{
-		DEC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderVerticesSP->GetAllocatedSize());
 	}
 }
 
@@ -371,17 +353,6 @@ FLandscapeComponentSceneProxyMobile::FLandscapeComponentSceneProxyMobile(ULandsc
 		}
 	}
 #endif
-}
-
-int32 FLandscapeComponentSceneProxyMobile::CollectOccluderElements(FOccluderElementsCollector& Collector) const
-{
-	if (MobileRenderData->OccluderVerticesSP.IsValid() && SharedBuffers->OccluderIndicesSP.IsValid())
-	{
-		Collector.AddElements(MobileRenderData->OccluderVerticesSP, SharedBuffers->OccluderIndicesSP, GetLocalToWorld());
-		return 1;
-	}
-
-	return 0;
 }
 
 FLandscapeComponentSceneProxyMobile::~FLandscapeComponentSceneProxyMobile()
@@ -414,11 +385,9 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 	SharedBuffers = FLandscapeComponentSceneProxy::SharedBuffersMap.FindRef(SharedBuffersKey);
 	if (SharedBuffers == nullptr)
 	{
-		int32 NumOcclusionVertices = MobileRenderData->OccluderVerticesSP.IsValid() ? MobileRenderData->OccluderVerticesSP->Num() : 0;
-				
 		SharedBuffers = new FLandscapeSharedBuffers(
 			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			GetScene().GetFeatureLevel(), NumOcclusionVertices);
+			GetScene().GetFeatureLevel());
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 	}

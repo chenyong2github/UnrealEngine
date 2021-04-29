@@ -229,7 +229,6 @@ protected:
 	// query for rene3ring mode support
 	bool SupportsES31() const;
 	bool SupportsVulkan() const;
-	bool SupportsSoftwareOcclusion() const;
 	bool SupportsLandscapeMeshLODStreaming() const;
 	bool SupportsVulkanSM5() const;
 

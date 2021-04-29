@@ -116,7 +116,6 @@ struct FLandscapeMobileRenderData
 {
 	FLandscapeVertexBufferMobile* VertexBuffer = nullptr;
 	struct FLandscapeMobileHoleData* HoleData = nullptr;
-	FOccluderVertexArraySP OccluderVerticesSP;
 	uint8 CurrentFirstLODIdx;
 	bool bReadyForStreaming = false;
 
@@ -139,7 +138,6 @@ public:
 	FLandscapeComponentSceneProxyMobile(ULandscapeComponent* InComponent);
 
 	virtual void CreateRenderThreadResources() override;
-	virtual int32 CollectOccluderElements(FOccluderElementsCollector& Collector) const override;
 
 	friend class FLandscapeVertexBufferMobile;
 

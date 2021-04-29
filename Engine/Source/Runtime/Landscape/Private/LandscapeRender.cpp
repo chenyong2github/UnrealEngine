@@ -1366,7 +1366,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 	{
 		SharedBuffers = new FLandscapeSharedBuffers(
 			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			FeatureLevel, /*NumOcclusionVertices*/ 0);
+			FeatureLevel);
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 
@@ -2630,12 +2630,6 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 }
 #endif
 
-int32 FLandscapeComponentSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
-{
-	// TODO: implement
-	return 0;
-}
-
 //
 // FLandscapeVertexBuffer
 //
@@ -2874,45 +2868,6 @@ void FLandscapeSharedBuffers::CreateIndexBuffers(ERHIFeatureLevel::Type InFeatur
 	}
 }
 
-void FLandscapeSharedBuffers::CreateOccluderIndexBuffer(int32 NumOccluderVertices)
-{
-	if (NumOccluderVertices <= 0 || NumOccluderVertices > MAX_uint16)
-	{
-		return;
-	}
-
-	uint16 NumLineQuads = ((uint16)FMath::Sqrt(static_cast<float>(NumOccluderVertices)) - 1);
-	uint16 NumLineVtx = NumLineQuads + 1;
-	check(NumLineVtx*NumLineVtx == NumOccluderVertices);
-
-	int32 NumTris = NumLineQuads*NumLineQuads * 2;
-	int32 NumIndices = NumTris * 3;
-	OccluderIndicesSP = MakeShared<FOccluderIndexArray, ESPMode::ThreadSafe>();
-	OccluderIndicesSP->SetNumUninitialized(NumIndices, false);
-
-	uint16* OcclusionIndices = OccluderIndicesSP->GetData();
-	const uint16 NumLineVtxPlusOne = NumLineVtx + 1;
-	const uint16 QuadIndices[2][3] = { {0, NumLineVtx, NumLineVtxPlusOne}, {0, NumLineVtxPlusOne, 1} };
-	uint16 QuadOffset = 0;
-	int32 Index = 0;
-	for (int32 y = 0; y < NumLineQuads; y++)
-	{
-		for (int32 x = 0; x < NumLineQuads; x++)
-		{
-			for (int32 i = 0; i < 2; i++)
-			{
-				OcclusionIndices[Index++] = QuadIndices[i][0] + QuadOffset;
-				OcclusionIndices[Index++] = QuadIndices[i][1] + QuadOffset;
-				OcclusionIndices[Index++] = QuadIndices[i][2] + QuadOffset;
-			}
-			QuadOffset++;
-		}
-		QuadOffset++;
-	}
-
-	INC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderIndicesSP->GetAllocatedSize());
-}
-
 #if WITH_EDITOR
 template <typename INDEX_TYPE>
 void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
@@ -2960,7 +2915,7 @@ void FLandscapeSharedBuffers::CreateGrassIndexBuffer()
 }
 #endif
 
-FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel, int32 NumOccluderVertices)
+FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey, const int32 InSubsectionSizeQuads, const int32 InNumSubsections, const ERHIFeatureLevel::Type InFeatureLevel)
 	: SharedBuffersKey(InSharedBuffersKey)
 	, NumIndexBuffers(FMath::CeilLogTwo(InSubsectionSizeQuads + 1))
 	, SubsectionSizeVerts(InSubsectionSizeQuads + 1)
@@ -3012,8 +2967,6 @@ FLandscapeSharedBuffers::FLandscapeSharedBuffers(const int32 InSharedBuffersKey,
 		}
 #endif
 	}
-
-	CreateOccluderIndexBuffer(NumOccluderVertices);
 }
 
 FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
@@ -3049,11 +3002,6 @@ FLandscapeSharedBuffers::~FLandscapeSharedBuffers()
 #endif
 
 	delete VertexFactory;
-
-	if (OccluderIndicesSP.IsValid())
-	{
-		DEC_DWORD_STAT_BY(STAT_LandscapeOccluderMem, OccluderIndicesSP->GetAllocatedSize());
-	}
 }
 
 //

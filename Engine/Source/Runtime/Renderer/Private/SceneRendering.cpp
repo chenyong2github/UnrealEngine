@@ -44,7 +44,6 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "PostProcess/PostProcessing.h"
-#include "SceneSoftwareOcclusion.h"
 #include "VirtualTexturing.h"
 #include "VisualizeTexturePresent.h"
 #include "GPUScene.h"
@@ -3230,12 +3229,6 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						FXInterface->DrawDebug_RenderThread(GraphBuilder, View, Output);
 					}
 				}
-				
-				// Software occlusion debug draw
-				if (ViewState && ViewState->SceneSoftwareOcclusion)
-				{
-					ViewState->SceneSoftwareOcclusion->DebugDraw(GraphBuilder, View, Output, 20, 20);
-				}
 			}
 		}
 	}
@@ -3425,14 +3418,6 @@ FSceneRenderer* FSceneRenderer::CreateSceneRenderer(const FSceneViewFamily* InVi
 void FSceneRenderer::OnStartRender(FRHICommandListImmediate& RHICmdList)
 {
 	FVisualizeTexturePresent::OnStartRender(Views[0]);
-
-	for (FViewInfo& View : Views)
-	{
-		if (View.ViewState)
-		{
-			View.ViewState->OnStartRender(View, ViewFamily);
-		}
-	}
 }
 
 bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)

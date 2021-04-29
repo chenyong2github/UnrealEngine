@@ -92,7 +92,6 @@ DECLARE_MEMORY_STAT( TEXT( "StaticMesh Total Memory" ), STAT_StaticMeshTotalMemo
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Vertex Memory" ), STAT_StaticMeshVertexMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh VxColor Resource Mem" ), STAT_ResourceVertexColorMemory, STATGROUP_MemoryStaticMesh );
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Index Memory" ), STAT_StaticMeshIndexMemory, STATGROUP_MemoryStaticMesh );
-DECLARE_MEMORY_STAT( TEXT( "StaticMesh Occluder Memory" ), STAT_StaticMeshOccluderMemory, STATGROUP_MemoryStaticMesh );
 
 DECLARE_MEMORY_STAT( TEXT( "StaticMesh Total Memory" ), STAT_StaticMeshTotalMemory, STATGROUP_Memory );
 
@@ -1805,82 +1804,6 @@ int32 FStaticMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
 	return LODIndex;
 }
 
-FStaticMeshOccluderData::FStaticMeshOccluderData()
-{
-	VerticesSP = MakeShared<FOccluderVertexArray, ESPMode::ThreadSafe>();
-	IndicesSP = MakeShared<FOccluderIndexArray, ESPMode::ThreadSafe>();
-}
-
-SIZE_T FStaticMeshOccluderData::GetResourceSizeBytes() const
-{
-	return VerticesSP->GetAllocatedSize() + IndicesSP->GetAllocatedSize();
-}
-
-TUniquePtr<FStaticMeshOccluderData> FStaticMeshOccluderData::Build(UStaticMesh* Owner)
-{
-	TUniquePtr<FStaticMeshOccluderData> Result;
-#if WITH_EDITOR		
-	if (Owner->LODForOccluderMesh >= 0)
-	{
-		// TODO: Custom geometry for occluder mesh?
-		int32 LODIndex = FMath::Min(Owner->LODForOccluderMesh, Owner->GetRenderData()->LODResources.Num()-1);
-		const FStaticMeshLODResources& LODModel = Owner->GetRenderData()->LODResources[LODIndex];
-			
-		const FRawStaticIndexBuffer& IndexBuffer = LODModel.DepthOnlyIndexBuffer.GetNumIndices() > 0 ? LODModel.DepthOnlyIndexBuffer : LODModel.IndexBuffer;
-		int32 NumVtx = LODModel.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-		int32 NumIndices = IndexBuffer.GetNumIndices();
-		
-		if (NumVtx > 0 && NumIndices > 0 && !IndexBuffer.Is32Bit())
-		{
-			Result = MakeUnique<FStaticMeshOccluderData>();
-		
-			Result->VerticesSP->SetNumUninitialized(NumVtx);
-			Result->IndicesSP->SetNumUninitialized(NumIndices);
-
-			const FVector* V0 = &LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(0);
-			const uint16* Indices = IndexBuffer.AccessStream16();
-
-			FMemory::Memcpy(Result->VerticesSP->GetData(), V0, NumVtx*sizeof(FVector));
-			FMemory::Memcpy(Result->IndicesSP->GetData(), Indices, NumIndices*sizeof(uint16));
-		}
-	}
-#endif // WITH_EDITOR
-	return Result;
-}
-
-void FStaticMeshOccluderData::SerializeCooked(FArchive& Ar, UStaticMesh* Owner)
-{
-#if WITH_EDITOR	
-	if (Ar.IsSaving())
-	{
-		bool bHasOccluderData = false;
-		if (Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::SoftwareOcclusion) && Owner->GetOccluderData())
-		{
-			bHasOccluderData = true;
-		}
-		
-		Ar << bHasOccluderData;
-		
-		if (bHasOccluderData)
-		{
-			Owner->GetOccluderData()->VerticesSP->BulkSerialize(Ar);
-			Owner->GetOccluderData()->IndicesSP->BulkSerialize(Ar);
-		}
-	}
-	else
-#endif // WITH_EDITOR
-	{
-		bool bHasOccluderData;
-		Ar << bHasOccluderData;
-		if (bHasOccluderData)
-		{
-			Owner->SetOccluderData(MakeUnique<FStaticMeshOccluderData>());
-			Owner->GetOccluderData()->VerticesSP->BulkSerialize(Ar);
-			Owner->GetOccluderData()->IndicesSP->BulkSerialize(Ar);
-		}
-	}
-}
-
 
 #if WITH_EDITOR
 /**
@@ -2896,7 +2819,6 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	bAutoComputeLODScreenSize=true;
 	ImportVersion = EImportStaticMeshVersion::BeforeImportStaticMeshVersionWasAdded;
-	LODForOccluderMesh = -1;
 	NumStreamedLODs.Default = -1;
 	GetHiResSourceModel().StaticMeshDescriptionBulkData = CreateDefaultSubobject<UStaticMeshDescriptionBulkData>(TEXT("HiResMeshDescription"));
 	GetHiResSourceModel().StaticMeshDescriptionBulkData->SetFlags(RF_Transactional);
@@ -2994,33 +2916,6 @@ void UStaticMesh::SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRend
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-FStaticMeshOccluderData* UStaticMesh::GetOccluderData()
-{
-	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return OccluderData.Get();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-const FStaticMeshOccluderData* UStaticMesh::GetOccluderData() const
-{
-	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return OccluderData.Get();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void UStaticMesh::SetOccluderData(TUniquePtr<class FStaticMeshOccluderData>&& InOccluderData)
-{
-	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::OccluderData);
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	OccluderData = MoveTemp(InOccluderData);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void UStaticMesh::PostInitProperties()
 {
 #if WITH_EDITORONLY_DATA
@@ -3073,11 +2968,6 @@ void UStaticMesh::InitResources()
 		CachedSRRState.bHasPendingInitHint = true;
 	}
 
-	if (GetOccluderData())
-	{
-		INC_DWORD_STAT_BY( STAT_StaticMeshOccluderMemory, GetOccluderData()->GetResourceSizeBytes() );
-	}
-
 #if (WITH_EDITOR && DO_CHECK)
 	if (GetRenderData() && CachedSRRState.bSupportsStreaming && !GetOutermost()->bIsCookedForEditor)
 	{
@@ -3113,11 +3003,6 @@ void UStaticMesh::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 	if (GetRenderData())
 	{
 		GetRenderData()->GetResourceSizeEx(CumulativeResourceSize);
-	}
-
-	if (GetOccluderData())
-	{
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetOccluderData()->GetResourceSizeBytes());
 	}
 }
 
@@ -3413,11 +3298,6 @@ void UStaticMesh::ReleaseResources()
 
 		// insert a fence to signal when these commands completed
 		ReleaseResourcesFence.BeginFence();
-	}
-
-	if (GetOccluderData())
-	{
-		DEC_DWORD_STAT_BY( STAT_StaticMeshOccluderMemory, GetOccluderData()->GetResourceSizeBytes() );
 	}
 
 	bRenderingResourcesInitialized = false;
@@ -4665,10 +4545,6 @@ void UStaticMesh::CacheDerivedData()
 	SetRenderData(MakeUnique<FStaticMeshRenderData>());
 	GetRenderData()->Cache(RunningPlatform, this, LODSettings);
 
-	// Conditionally create occluder data
-	SetOccluderData(FStaticMeshOccluderData::Build(this));
-	ReleaseAsyncProperty(EStaticMeshAsyncProperties::OccluderData);
-
 	// Additionally cache derived data for any other platforms we care about.
 	const TArray<ITargetPlatform*>& TargetPlatforms = TargetPlatformManager.GetActiveTargetPlatforms();
 	for (int32 PlatformIndex = 0; PlatformIndex < TargetPlatforms.Num(); ++PlatformIndex)
@@ -4896,8 +4772,6 @@ void UStaticMesh::Serialize(FArchive& Ar)
 			SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_RenderData);
 			SetRenderData(MakeUnique<FStaticMeshRenderData>());
 			GetRenderData()->Serialize(Ar, this, bCooked);
-
-			FStaticMeshOccluderData::SerializeCooked(Ar, this);
 		}
 #if WITH_EDITOR
 		else if (Ar.IsSaving())
@@ -4909,10 +4783,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 			}
 
 			FStaticMeshRenderData& PlatformRenderData = GetPlatformStaticMeshRenderData(this, Ar.CookingTarget());
-
 			PlatformRenderData.Serialize(Ar, this, bCooked);
-
-			FStaticMeshOccluderData::SerializeCooked(Ar, this);
 		}
 #endif
 	}

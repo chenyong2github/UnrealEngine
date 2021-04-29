@@ -125,9 +125,6 @@ bool FLuminTargetPlatform::SupportsFeature(ETargetPlatformFeatures Feature) cons
 	case ETargetPlatformFeatures::DeferredRendering:
 		return SupportsDesktopRendering();
 
-	case ETargetPlatformFeatures::SoftwareOcclusion:
-		return SupportsSoftwareOcclusion();
-
 	default:
 		break;
 	}

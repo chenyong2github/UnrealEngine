@@ -264,9 +264,6 @@ public:
 	ENGINE_API virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& OutRayTracingInstance);
 #endif // RHI_RAYTRACING
 
-	/** Collects occluder geometry for software occlusion culling */
-	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const { return 0; }
-
 	/** 
 	 * Gathers the primitive's dynamic mesh elements.  This will only be called if GetViewRelevance declares dynamic relevance.
 	 * This is called from the rendering thread for each set of views that might be rendered.  

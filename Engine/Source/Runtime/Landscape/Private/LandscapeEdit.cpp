@@ -4690,7 +4690,6 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, OccluderGeometryLOD) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TargetDisplayOrder) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TargetDisplayOrderList))
 		{
@@ -4840,7 +4839,7 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		}
 	}
 	else if (GIsEditor && 
-		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, OccluderGeometryLOD) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
+		(PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bMeshHoles) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MeshHolesMaxLod)))
 	{
 		CheckGenerateLandscapePlatformData(false, nullptr);
 		MarkComponentsRenderStateDirty();
@@ -5160,10 +5159,6 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		bPropagateToProxies = true;
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bBakeMaterialPositionOffsetIntoCollision))
-	{
-		bPropagateToProxies = true;
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, OccluderGeometryLOD))
 	{
 		bPropagateToProxies = true;
 	}
@@ -7098,48 +7093,6 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformAr << NumInlineMobileVertices;
 	PlatformAr.Serialize(InlineMobileVertices.GetData(), NumInlineMobileVertices*sizeof(FLandscapeMobileVertex));
 
-	// Generate occlusion mesh
-	TArray<FVector> OccluderVertices;
-	const int32 OcclusionMeshMip = FMath::Clamp<int32>(GetLandscapeProxy()->OccluderGeometryLOD, -1, HeightmapMipData.Num() - 1);
-
-	if (OcclusionMeshMip >= 0 && (!TargetPlatform || TargetPlatform->SupportsFeature(ETargetPlatformFeatures::SoftwareOcclusion)))
-	{
-		int32 LodSubsectionSizeQuads = (SubsectionSizeVerts >> OcclusionMeshMip) - 1;
-		float MipRatio = (float)SubsectionSizeQuads / (float)LodSubsectionSizeQuads;
-		
-		for (int32 SubY = 0; SubY < NumSubsections; SubY++)
-		{
-			for (int32 SubX = 0; SubX < NumSubsections; SubX++)
-			{
-				float HeightmapScaleBiasZ = HeightmapScaleBias.Z + HeightmapSubsectionOffsetU * (float)SubX;
-				float HeightmapScaleBiasW = HeightmapScaleBias.W + HeightmapSubsectionOffsetV * (float)SubY;
-				int32 BaseMipOfsX = FMath::RoundToInt(HeightmapScaleBiasZ * (float)GetHeightmap()->Source.GetSizeX());
-				int32 BaseMipOfsY = FMath::RoundToInt(HeightmapScaleBiasW * (float)GetHeightmap()->Source.GetSizeY());
-
-				for (int32 y = 0; y <= LodSubsectionSizeQuads; y++)
-				{
-					for (int32 x = 0; x <= LodSubsectionSizeQuads; x++)
-					{
-						int32 MipSizeX = GetHeightmap()->Source.GetSizeX() >> OcclusionMeshMip;
-
-						int32 CurrentMipOfsX = BaseMipOfsX >> OcclusionMeshMip;
-						int32 CurrentMipOfsY = BaseMipOfsY >> OcclusionMeshMip;
-												
-						FColor* CurrentMipSrcRow = HeightmapMipData[OcclusionMeshMip] + (CurrentMipOfsY + y) * MipSizeX + CurrentMipOfsX;
-						uint16 Height = CurrentMipSrcRow[x].R << 8 | CurrentMipSrcRow[x].G;
-
-						FVector VtxPos = FVector(x*MipRatio + SubX * SubsectionSizeQuads, y*MipRatio + SubY * SubsectionSizeQuads, ((float)Height - 32768.f) * LANDSCAPE_ZSCALE);
-						OccluderVertices.Add(VtxPos);
-					}
-				}
-			}
-		}
-	}
-
-	int32 NumOccluderVerices = OccluderVertices.Num();
-	PlatformAr << NumOccluderVerices;
-	PlatformAr.Serialize(OccluderVertices.GetData(), NumOccluderVerices*sizeof(FVector));
-	
 	// Copy to PlatformData as Compressed
 	PlatformData.InitializeFromUncompressedData(NewPlatformData, StreamingLODData);
 }

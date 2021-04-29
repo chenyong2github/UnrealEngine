@@ -111,7 +111,6 @@ DEFINE_STAT(STAT_LandscapeLayersResolveWeightmaps);
 DEFINE_STAT(STAT_LandscapeLayersRegenerateWeightmaps);
 
 DEFINE_STAT(STAT_LandscapeVertexMem);
-DEFINE_STAT(STAT_LandscapeOccluderMem);
 DEFINE_STAT(STAT_LandscapeHoleMem);
 DEFINE_STAT(STAT_LandscapeComponentMem);
 
@@ -133,7 +132,7 @@ namespace LandscapeCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("C2781BC371584D8BB9A2AB8BFDFDF7A7")
+#define LANDSCAPE_MOBILE_COOK_VERSION TEXT("43D02EF867C74B71A0D4E0FA41392707")
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1032,7 +1031,6 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	StreamingDistanceMultiplier = 1.0f;
 	MaxLODLevel = -1;
 	bUseDynamicMaterialInstance = false;
-	OccluderGeometryLOD = 1; // 1 - usually is a good default
 #if WITH_EDITORONLY_DATA
 	bLockLocation = true;
 	bIsMovingToLevel = false;
@@ -2542,7 +2540,6 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		LODDistributionSetting = Landscape->LODDistributionSetting;
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
 		LOD0ScreenSize = Landscape->LOD0ScreenSize;
-		OccluderGeometryLOD = Landscape->OccluderGeometryLOD;
 		NegativeZBoundsExtension = Landscape->NegativeZBoundsExtension;
 		PositiveZBoundsExtension = Landscape->PositiveZBoundsExtension;
 		CollisionMipLevel = Landscape->CollisionMipLevel;
@@ -2609,12 +2606,6 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	if (LOD0ScreenSize != Landscape->LOD0ScreenSize)
 	{
 		LOD0ScreenSize = Landscape->LOD0ScreenSize;
-		bUpdated = true;
-	}
-
-	if (OccluderGeometryLOD != Landscape->OccluderGeometryLOD)
-	{
-		OccluderGeometryLOD = Landscape->OccluderGeometryLOD;
 		bUpdated = true;
 	}
 
@@ -3684,9 +3675,6 @@ void ULandscapeComponent::SerializeStateHashes(FArchive& Ar)
 		FGuid WeightmapGuid = WeightmapTexture->Source.GetId();
 		Ar << WeightmapGuid;
 	}
-
-	int32 OccluderGeometryLOD = GetLandscapeProxy()->OccluderGeometryLOD;
-	Ar << OccluderGeometryLOD;
 
 	bool bMeshHoles = GetLandscapeProxy()->bMeshHoles;
 	uint8 MeshHolesMaxLod = GetLandscapeProxy()->MeshHolesMaxLod;

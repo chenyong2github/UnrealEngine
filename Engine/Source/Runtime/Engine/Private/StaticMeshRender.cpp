@@ -158,7 +158,6 @@ static TAutoConsoleVariable<float> CVarRayTracingStaticMeshesWPOCullingRadius(
 FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, bool bForceLODsShareStaticLighting)
 	: FPrimitiveSceneProxy(InComponent, InComponent->GetStaticMesh()->GetFName())
 	, RenderData(InComponent->GetStaticMesh()->GetRenderData())
-	, OccluderData(InComponent->GetStaticMesh()->GetOccluderData())
 	, ForcedLodModel(InComponent->ForcedLodModel)
 	, bCastShadow(InComponent->CastShadow)
 	, bReverseCulling(InComponent->bReverseCulling)
@@ -664,17 +663,6 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	{
 		return false;
 	}
-}
-
-int32 FStaticMeshSceneProxy::CollectOccluderElements(FOccluderElementsCollector& Collector) const
-{
-	if (OccluderData)
-	{	
-		Collector.AddElements(OccluderData->VerticesSP, OccluderData->IndicesSP, GetLocalToWorld());
-		return 1;
-	}
-	
-	return 0;
 }
 
 void FStaticMeshSceneProxy::CreateRenderThreadResources()

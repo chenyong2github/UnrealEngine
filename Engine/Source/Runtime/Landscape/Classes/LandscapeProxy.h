@@ -408,10 +408,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "Other LODs", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
 	float LODDistributionSetting;
 
-	/** Landscape LOD to use as an occluder geometry for software occlusion */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=LOD)
-	int32 OccluderGeometryLOD;
-
 #if WITH_EDITORONLY_DATA
 	/** LOD level to use when exporting the landscape to obj or FBX */
 	UPROPERTY(EditAnywhere, Category=LOD, AdvancedDisplay)

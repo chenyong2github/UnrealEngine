@@ -743,25 +743,6 @@ private:
 };
 
 /**
- * This geometry is used to rasterize mesh for software occlusion
- * Generated only for platforms that support ETargetPlatformFeatures::SoftwareOcclusion
- */
-class FStaticMeshOccluderData
-{
-public:
-	FStaticMeshOccluderData();
-
-	FOccluderVertexArraySP VerticesSP;
-	FOccluderIndexArraySP IndicesSP;
-
-	SIZE_T GetResourceSizeBytes() const;
-
-	static TUniquePtr<FStaticMeshOccluderData> Build(UStaticMesh* Owner);
-	/** Serialization. */
-	static void SerializeCooked(FArchive& Ar, UStaticMesh* Owner);
-};
-
-/**
  * FStaticMeshComponentRecreateRenderStateContext - Destroys render state for all StaticMeshComponents using a given StaticMesh and 
  * recreates them when it goes out of scope. Used to ensure stale rendering data isn't kept around in the components when importing
  * over or rebuilding an existing static mesh.
@@ -909,8 +890,6 @@ public:
 		bool bUseSelectionOutline,
 		bool bAllowPreCulledIndices,
 		FMeshBatch& OutMeshBatch) const;
-
-	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
 	virtual void CreateRenderThreadResources() override;
 
@@ -1075,8 +1054,6 @@ protected:
 	};
 
 	FStaticMeshRenderData* RenderData;
-
-	FStaticMeshOccluderData* OccluderData;
 
 	TArray<FLODInfo> LODs;
 
