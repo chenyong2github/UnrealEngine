@@ -86,6 +86,26 @@ public:
 
 	UVPFullScreenUserWidget* GetUMGWidget() { return UMGWidget; };
 
+	/** Temporarily disable the output.  Caller must eventually call RestoreOutput. */
+	void SuspendOutput()
+	{
+		if (IsActive())
+		{
+			bWasActive = true;
+			SetActive(false);
+		}
+	}
+
+	/** Restore the output state from previous call to disable output. */
+	void RestoreOutput()
+	{
+		if (bWasActive && !IsActive())
+		{
+			SetActive(true);
+		}
+		bWasActive = false;
+	}
+
 protected:
 	// If set, this output provider will execute every frame
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output", meta = (DisplayPriority = "1"))
@@ -120,4 +140,5 @@ private:
 	bool IsOuterComponentEnabled() const;
 
 	TSoftObjectPtr<UCineCameraComponent> TargetCamera;
+	bool bWasActive = false;
 };

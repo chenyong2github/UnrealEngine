@@ -17,6 +17,14 @@
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
+
+#include "IConcertModule.h"
+#include "IConcertClient.h"
+#include "IConcertSession.h"
+#include "IConcertSyncClient.h"
+#include "IMultiUserClientModule.h"
+
+#include "VPSettings.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogVCamComponent);
@@ -58,6 +66,7 @@ UVCamComponent::UVCamComponent()
 		{
 			GEditor->OnObjectsReplaced().AddUObject(this, &UVCamComponent::HandleObjectReplaced);
 		}
+		MultiUserStartup();
 #endif
 	}
 }
@@ -89,6 +98,7 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 	{
 		GEditor->OnObjectsReplaced().RemoveAll(this);
 	}
+	MultiUserShutdown();
 #endif
 }
 
@@ -338,21 +348,35 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 void UVCamComponent::Update()
 {
-	if (CanUpdate())
+	if (!CanUpdate())
 	{
-		// If requested then disable the component if we're spawned by sequencer
-		if (bDisableComponentWhenSpawnedBySequencer)
-		{
-			static const FName SequencerActorTag(TEXT("SequencerActor"));
-			AActor* OwningActor = GetOwner();
-			if (OwningActor && OwningActor->ActorHasTag(SequencerActorTag))
-			{
-				UE_LOG(LogVCamComponent, Warning, TEXT("%s was spawned by Sequencer. Disabling the component because \"Disable Component When Spawned By Sequencer\" was true."), *GetFullName(OwningActor->GetOuter()));
-				SetEnabled(false);
-				return;
-			}
-		}
+		return;
+	}
 
+	// If requested then disable the component if we're spawned by sequencer
+	if (bDisableComponentWhenSpawnedBySequencer)
+	{
+		static const FName SequencerActorTag(TEXT("SequencerActor"));
+		AActor* OwningActor = GetOwner();
+		if (OwningActor && OwningActor->ActorHasTag(SequencerActorTag))
+		{
+			UE_LOG(LogVCamComponent, Warning, TEXT("%s was spawned by Sequencer. Disabling the component because \"Disable Component When Spawned By Sequencer\" was true."), *GetFullName(OwningActor->GetOuter()));
+			SetEnabled(false);
+			return;
+		}
+	}
+	UCineCameraComponent* CameraComponent = GetTargetCamera();
+
+	if (!CameraComponent)
+	{
+		UE_LOG(LogVCamComponent, Error, TEXT("Parent component wasn't valid for Update"));
+		return;
+	}
+
+	const float DeltaTime = GetDeltaTime();
+
+	if (CanEvaluateModifierStack())
+	{
 		// Ensure the actor lock reflects the state of the lock property
 		// This is needed as UActorComponent::ConsolidatedPostEditChange will cause the component to be reconstructed on PostEditChange
 		// if the component is inherited
@@ -361,17 +385,8 @@ void UVCamComponent::Update()
 			UpdateActorLock();
 		}
 
-		const float DeltaTime = GetDeltaTime();
-
 		FLiveLinkCameraBlueprintData InitialLiveLinkData;
 		GetLiveLinkDataForCurrentFrame(InitialLiveLinkData);
-		UCineCameraComponent* CameraComponent = GetTargetCamera();
-
-		if (!CameraComponent)
-		{
-			UE_LOG(LogVCamComponent, Error, TEXT("Parent component wasn't valid for Update"));
-			return;
-		}
 
 		CopyLiveLinkDataToCamera(InitialLiveLinkData, CameraComponent);
 
@@ -394,18 +409,20 @@ void UVCamComponent::Update()
 			}
 		}
 
-		for (UVCamOutputProviderBase* Provider : OutputProviders)
-		{
-			if (Provider)
-			{
-				// Initialize the Provider if required
-				if (!Provider->IsInitialized())
-				{
-					Provider->Initialize();
-				}
+		SendCameraDataViaMultiUser();
+	}
 
-				Provider->Tick(DeltaTime);
+	for (UVCamOutputProviderBase* Provider : OutputProviders)
+	{
+		if (Provider)
+		{
+			// Initialize the Provider if required
+			if (!Provider->IsInitialized())
+			{
+				Provider->Initialize();
 			}
+
+			Provider->Tick(DeltaTime);
 		}
 	}
 }
@@ -1223,4 +1240,145 @@ void UVCamComponent::OnEndPIE(const bool bInIsSimulating)
 	}
 }
 
+void UVCamComponent::SessionStartup(TSharedRef<IConcertClientSession> InSession)
+{
+	WeakSession = InSession;
+
+	InSession->RegisterCustomEventHandler<FMultiUserVCamCameraComponentEvent>(this, &UVCamComponent::HandleCameraComponentEventData);
+	PreviousUpdateTime = FPlatformTime::Seconds();
+}
+
+void UVCamComponent::SessionShutdown(TSharedRef<IConcertClientSession> /*InSession*/ )
+{
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+	if (Session.IsValid())
+	{
+		Session->UnregisterCustomEventHandler<FMultiUserVCamCameraComponentEvent>(this);
+		for (UVCamOutputProviderBase* Provider : OutputProviders)
+		{
+			Provider->RestoreOutput();
+		}
+	}
+
+	WeakSession.Reset();
+}
+
+FString UVCamComponent::GetNameForMultiUser() const
+{
+	return GetOwner()->GetPathName();
+}
+
+void UVCamComponent::HandleCameraComponentEventData(const FConcertSessionContext& InEventContext, const FMultiUserVCamCameraComponentEvent& InEvent)
+{
+	if (InEvent.TrackingName == GetNameForMultiUser())
+	{
+		// If the role matches the currently defined VP Role then we should not update the camera
+		// data for this actor and the modifier stack is the "owner"
+		//
+		if (!IsCameraInVPRole())
+		{
+			InEvent.CameraData.ApplyTo(GetOwner(), GetTargetCamera());
+			if (bDisableOutputOnMultiUserReceiver)
+			{
+				for (UVCamOutputProviderBase* Provider : OutputProviders)
+				{
+					Provider->SuspendOutput();
+				}
+			}
+		}
+	}
+}
+
+void UVCamComponent::MultiUserStartup()
+{
+	if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+	{
+		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+
+		OnSessionStartupHandle = ConcertClient->OnSessionStartup().AddUObject(this, &UVCamComponent::SessionStartup);
+		OnSessionShutdownHandle = ConcertClient->OnSessionShutdown().AddUObject(this, &UVCamComponent::SessionShutdown);
+
+		TSharedPtr<IConcertClientSession> ConcertClientSession = ConcertClient->GetCurrentSession();
+		if (ConcertClientSession.IsValid())
+		{
+			SessionStartup(ConcertClientSession.ToSharedRef());
+		}
+	}
+}
+void UVCamComponent::MultiUserShutdown()
+{
+	if (IMultiUserClientModule::IsAvailable())
+	{
+		if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IMultiUserClientModule::Get().GetClient())
+		{
+			IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
+
+			TSharedPtr<IConcertClientSession> ConcertClientSession = ConcertClient->GetCurrentSession();
+			if (ConcertClientSession.IsValid())
+			{
+				SessionShutdown(ConcertClientSession.ToSharedRef());
+			}
+
+			ConcertClient->OnSessionStartup().Remove(OnSessionStartupHandle);
+			OnSessionStartupHandle.Reset();
+
+			ConcertClient->OnSessionShutdown().Remove(OnSessionShutdownHandle);
+			OnSessionShutdownHandle.Reset();
+		}
+	}
+}
 #endif
+
+// Multi-user support
+void UVCamComponent::SendCameraDataViaMultiUser()
+{
+	if (!IsCameraInVPRole())
+	{
+		return;
+	}
+#if WITH_EDITOR
+	// Update frequency 15 Hz
+	const double LocationUpdateFrequencySeconds = UpdateFrequencyMs / 1000.0;
+	const double CurrentTime = FPlatformTime::Seconds();
+
+	double DeltaTime = CurrentTime - PreviousUpdateTime;
+	SecondsSinceLastLocationUpdate += DeltaTime;
+
+	if (SecondsSinceLastLocationUpdate >= LocationUpdateFrequencySeconds)
+	{
+		TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+		if (Session.IsValid())
+		{
+			TArray<FGuid> ClientIds = Session->GetSessionClientEndpointIds();
+			FMultiUserVCamCameraComponentEvent CameraEvent{GetNameForMultiUser(),{GetOwner(),GetTargetCamera()}};
+			Session->SendCustomEvent(CameraEvent, ClientIds, EConcertMessageFlags::None);
+		}
+		SecondsSinceLastLocationUpdate = 0;
+	}
+	PreviousUpdateTime = CurrentTime;
+#endif
+}
+
+bool UVCamComponent::IsCameraInVPRole() const
+{
+	UVPSettings* Settings = UVPSettings::GetVPSettings();
+	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
+	// assigned role.
+	//
+	return !Role.IsValid() || Settings->GetRoles().HasTag(Role);
+}
+
+bool UVCamComponent::CanEvaluateModifierStack() const
+{
+	return !IsMultiUserSession() || (IsMultiUserSession() && IsCameraInVPRole());
+}
+
+bool UVCamComponent::IsMultiUserSession() const
+{
+#if WITH_EDITOR
+	return WeakSession.IsValid();
+#else
+	return false;
+#endif
+}
+
