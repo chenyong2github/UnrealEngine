@@ -94,17 +94,6 @@ FAutoConsoleVariableRef CVarNanitePrimShaderRasterization(
 	TEXT("")
 );
 
-// 0 = no views
-// 1 = primary view
-// 2 = shadow views
-// 3 = all views
-int32 GNanitePrimShaderCulling = 0;
-FAutoConsoleVariableRef CVarNanitePrimShaderCulling(
-	TEXT("r.Nanite.PrimShaderCulling"),
-	GNanitePrimShaderCulling,
-	TEXT("")
-);
-
 int32 GNaniteAutoShaderCulling = 0;
 FAutoConsoleVariableRef CVarNaniteAutoShaderCulling(
 	TEXT("r.Nanite.AutoShaderCulling"),
@@ -903,14 +892,13 @@ class FHWRasterizeVS : public FNaniteShader
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
-	class FPrimShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER_CULL");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FHasPrevDrawData : SHADER_PERMUTATION_BOOL("HAS_PREV_DRAW_DATA");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FAutoShaderCullDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -950,12 +938,6 @@ class FHWRasterizeVS : public FNaniteShader
 			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
 		{
 			// Only some platforms support primitive shaders.
-			return false;
-		}
-
-		if (PermutationVector.Get<FPrimShaderCullDim>() && !PermutationVector.Get<FPrimShaderDim>())
-		{
-			// Culling in the primitive shader unsurprisingly needs a primitive shader.
 			return false;
 		}
 
@@ -1026,13 +1008,12 @@ class FHWRasterizePS : public FNaniteShader
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
-	class FPrimShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER_CULL");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FPrimShaderCullDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
@@ -1071,16 +1052,10 @@ class FHWRasterizePS : public FNaniteShader
 			return false;
 		}
 
-		if ((PermutationVector.Get<FPrimShaderDim>() || PermutationVector.Get<FPrimShaderCullDim>()) &&
+		if (PermutationVector.Get<FPrimShaderDim>() &&
 			!FDataDrivenShaderPlatformInfo::GetSupportsPrimitiveShaders(Parameters.Platform))
 		{
 			// Only some platforms support primitive shaders.
-			return false;
-		}
-
-		if (PermutationVector.Get<FPrimShaderCullDim>() && !PermutationVector.Get<FPrimShaderDim>())
-		{
-			// Culling in the primitive shader unsurprisingly needs a primitive shader.
 			return false;
 		}
 
@@ -2811,20 +2786,6 @@ void AddPass_Rasterize(
 
 	{
 		const bool bUsePrimitiveShader = UsePrimitiveShader();
-		bool bUsePrimitiveShaderCulling = UsePrimitiveShader() && GNanitePrimShaderCulling != 0;
-		if (bUsePrimitiveShaderCulling)
-		{
-			if (Technique == ERasterTechnique::DepthOnly || VirtualShadowMapArray != nullptr)
-			{
-				// Shadow views
-				bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 2 || GNanitePrimShaderCulling == 3;
-			}
-			else
-			{
-				// Primary view
-				bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 1 || GNanitePrimShaderCulling == 3;
-			}
-		}
 
 		const bool bUseAutoCullingShader =
 			GRHISupportsPrimitiveShaders &&
@@ -2836,19 +2797,17 @@ void AddPass_Rasterize(
 		PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
 		PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 		PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
-		PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
 		PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 		PermutationVectorVS.Set<FHWRasterizeVS::FHasPrevDrawData>(bHavePrevDrawData);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
 		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
+		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>(GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
 
 		FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 		PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
 		PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
-		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
 		PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
 		PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
 		PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
