@@ -136,12 +136,16 @@ PACKAGE_SCOPE:
 	uint8 RawBytes[EOS_ID_BYTE_SIZE];
 private:
 	FUniqueNetIdEOS()
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	}
 	
 	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString()
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		check(Size == EOS_ID_BYTE_SIZE);
 		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
@@ -150,19 +154,25 @@ private:
 	}
 
 	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString(InUniqueNetId)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
 	}
 
 	explicit FUniqueNetIdEOS(FString&& InUniqueNetId)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString(MoveTemp(InUniqueNetId))
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
 	}
 
 	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		: FUniqueNetIdString(Src)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		ParseAccountIds();
 	}
