@@ -206,6 +206,8 @@ private:
 	/** Handler for context menus */
 	TSharedPtr<SWidget> OnGetContextMenuContent() const;
 
+	void OnEditorClose();
+
 	/**
 	* Clears and rebuilds the table, according to an optional search string
 	*
