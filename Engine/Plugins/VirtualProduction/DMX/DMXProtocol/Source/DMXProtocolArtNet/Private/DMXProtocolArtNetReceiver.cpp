@@ -35,16 +35,16 @@ FDMXProtocolArtNetReceiver::FDMXProtocolArtNetReceiver(const TSharedPtr<FDMXProt
 
 FDMXProtocolArtNetReceiver::~FDMXProtocolArtNetReceiver()
 {
-	if (Socket)
-	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		SocketSubsystem->DestroySocket(Socket);
-	}
-
 	if (Thread != nullptr)
 	{
 		Thread->Kill(true);
 		delete Thread;
+	}
+
+	if (Socket)
+	{
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+		SocketSubsystem->DestroySocket(Socket);
 	}
 
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed Art-Net Receiver at %s"), *EndpointInternetAddr->ToString(false));
