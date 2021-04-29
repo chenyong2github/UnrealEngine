@@ -50,7 +50,7 @@ FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId) {
 
 FLightSample SkyLight_SampleLight(
 	int LightId,
-	float4 RandSample,
+	float2 RandSample,
 	float3 WorldPos,
 	float3 WorldNormal
 )
@@ -61,14 +61,14 @@ FLightSample SkyLight_SampleLight(
 	Ray.Origin = WorldPos;
 
 #if USE_HIERARCHICAL_IMPORTANCE_SAMPLING == 0
-	float4 Direction_Tangent = UniformSampleHemisphere(RandSample.yz);
+	float4 Direction_Tangent = UniformSampleHemisphere(RandSample);
 	float3 OutDirection = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 	float OutPdf = Direction_Tangent.w;
 	float2 UV = InverseEquiAreaSphericalMapping(OutDirection.yzx);
 	float3 Radiance = SkylightTexture.SampleLevel(SkylightTextureSampler, UV, 0).xyz;
 	return CreateLightSample(Radiance / OutPdf, OutPdf, OutDirection, POSITIVE_INFINITY);
 #else
-	float2 UV = RandSample.yz;
+	float2 UV = RandSample;
 
 	int3 Pixel = int3(0, 0, SkylightMipCount - 2);
 	for (; Pixel.z >= 0; Pixel.z--)

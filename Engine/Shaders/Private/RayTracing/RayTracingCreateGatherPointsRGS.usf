@@ -384,10 +384,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 				float3 LightRadianceOverPdf = 0;
 				float NeePdf = 0.0;
 
-				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
+				float3 RandSample3 = RandomSequence_GenerateSample3D(RandSequence);
 
 				RayDesc LightRay;
-				if (SampleLight(RandSample4,
+				if (SampleLight(RandSample3,
 								Position,
 								Normal,
 								Payload.PrimitiveLightingChannelMask,

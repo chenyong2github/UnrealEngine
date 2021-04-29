@@ -536,7 +536,7 @@ void PathTracingKernel(
 				LightPickPdf /= LightPickingCdfSum;
 
 				LightId = GetLightId(LightId, LightLoopCount);
-				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
+				FLightSample LightSample = SampleLight(LightId, RandSample.yz, WorldPos, WorldNormal);
 
 				LightSample.RadianceOverPdf /= LightPickPdf;
 				LightSample.Pdf *= LightPickPdf;
