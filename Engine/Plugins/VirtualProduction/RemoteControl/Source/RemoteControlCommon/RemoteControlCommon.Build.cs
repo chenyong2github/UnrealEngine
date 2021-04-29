@@ -16,6 +16,7 @@ public class RemoteControlCommon : ModuleRules
 				"ApplicationCore",
 				"AssetRegistry",
 				"AssetTools",
+				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
 				"DeveloperSettings",
