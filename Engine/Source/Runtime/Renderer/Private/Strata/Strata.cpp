@@ -10,6 +10,7 @@
 #include "UniformBuffer.h"
 #include "SceneTextureParameters.h"
 #include "StrataDefinitions.h"
+#include "ScreenPass.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
