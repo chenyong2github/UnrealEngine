@@ -246,7 +246,10 @@ public:
 	bool bSupportRayTracing;
 #endif
 
-#if !UE_BUILD_SHIPPING
+#if UE_BUILD_SHIPPING
+	FName GetDebugName() const { return FName(); }
+#else
+	FName GetDebugName() const { return DebugName; }
 	FName DebugName;
 #endif // !UE_BUILD_SHIPPING
 

@@ -6257,7 +6257,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 			if (bAnySegmentUsesWorldPositionOffset 
 				&& ensureMsgf(VertexFactoryType->SupportsRayTracingDynamicGeometry(),
 					TEXT("Mesh uses world position offset, but the vertex factory does not support ray tracing dynamic geometry. ")
-					TEXT("MeshObject: %s, VertexFactory: %s."), *MeshObject->DebugName.ToString(), VertexFactoryType->GetName()))
+					TEXT("MeshObject: %s, VertexFactory: %s."), *MeshObject->GetDebugName().ToString(), VertexFactoryType->GetName()))
 			{
 				TArray<FRayTracingGeometrySegment> GeometrySections;
 				GeometrySections.Reserve(LODData.RenderSections.Num());
