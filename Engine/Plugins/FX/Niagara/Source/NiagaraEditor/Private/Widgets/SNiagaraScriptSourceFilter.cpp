@@ -47,7 +47,6 @@ void SNiagaraSourceFilterButton::Construct(const FArguments& Args, EScriptSource
 	        SNew(STextBlock)
 	        .Text(DisplayName)
 	        .ColorAndOpacity_Raw(this, &SNiagaraSourceFilterButton::GetColor)
-	        .ShadowOffset(1.f)
 	        .TextStyle(FNiagaraEditorStyle::Get(), "GraphActionMenu.ActionFilterTextBlock")
 	    ]
     );
@@ -127,12 +126,26 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
             })
             .OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState NewState)
             {
-                for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
-                {
-                    SourceState.Add((EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex), NewState == ECheckBoxState::Checked ? true : false);
-                }
-                
-                BroadcastFiltersChanged();
+            	bool bAnyChange = false;
+            	// we always want to "Show all" so we always set the source filters to true
+            	for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
+            	{
+            		// we are assuming the map has a key value pair for every enum entry (aside from Unknown) 
+					if(SourceState[(EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex)] == false)
+					{
+						bAnyChange = true;
+					}
+				}
+
+            	if(bAnyChange)
+            	{
+	                for(int32 SourceIndex = 0; SourceIndex < (int32) EScriptSource::Unknown; SourceIndex++)
+	                {
+	                    SourceState.Add((EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex), true);
+	                }
+	                
+	                BroadcastFiltersChanged();
+            	}
             }))
             [
                 SNew(SHorizontalBox)
@@ -142,6 +155,7 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
                 [
                     SNew(STextBlock)
                     .Text(LOCTEXT("ShowAll", "Show all"))
+                    .ShadowOffset(0.0f)
                     .ColorAndOpacity_Lambda([=]() -> FSlateColor
                     {
                         bool bChecked = true;
@@ -165,7 +179,6 @@ void SNiagaraSourceFilterBox::Construct(const FArguments& Args)
     	[
     		SNew(SBorder)
     		.BorderImage(FEditorStyle::GetBrush(TEXT("NoBorder")))
-			//.ToolTipText(LOCTEXT("ShowAllToolTip", "Show all"))
 			.Padding(3.f)
     		[
     			SNew(SNiagaraSourceFilterButton, (EScriptSource) ScriptSourceEnum->GetValueByIndex(SourceIndex))
