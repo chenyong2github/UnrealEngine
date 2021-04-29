@@ -253,13 +253,15 @@ void FSequencerNodeTree::RefreshNodes(UMovieScene* MovieScene)
 		}
 	}
 
+	// Always add the bottom spacer node before counting filtered nodes
+	BottomSpacerNode->SetParent(RootNode);
+
 	// Re-filter the tree after updating 
 	// @todo sequencer: Newly added sections may need to be visible even when there is a filter
 	bFilterUpdateRequested = true;
 	UpdateFilters();
 
-	// Always add the bottom spacer node
-	BottomSpacerNode->SetParent(RootNode);
+	// Always show the bottom spacer node
 	FilteredNodes.Add(BottomSpacerNode);
 }
 
@@ -1440,6 +1442,18 @@ bool FSequencerNodeTree::UpdateFilters()
 
 	// Return whether the new list of FilteredNodes is different than the previous list
 	return (PreviousFilteredNodes.Num() != FilteredNodes.Num() || !PreviousFilteredNodes.Includes(FilteredNodes));
+}
+
+int32 FSequencerNodeTree::GetTotalDisplayNodeCount() const 
+{ 
+	// Subtract 1 for the spacer node which is always added
+	return DisplayNodeCount - 1; 
+}
+
+int32 FSequencerNodeTree::GetFilteredDisplayNodeCount() const 
+{ 
+	// Subtract 1 for the spacer node which is always added
+	return FilteredNodes.Num() - 1; 
 }
 
 void FSequencerNodeTree::FilterNodes(const FString& InFilter)
