@@ -1859,7 +1859,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			bHasNeedSkeletalMesh	  = bHasNeedSkeletalMesh || BindingType == EGroomBindingType::Rigid;
 			bHasNeedSkinningBinding   = bHasNeedSkinningBinding || BindingType == EGroomBindingType::Skinning;
 			bHasNeedSimulation		  = bHasNeedSimulation || IsSimulationEnable(GroupIt, LODIt);
-			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || (BindingType == EGroomBindingType::Skinning && (GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || GeometryType == EGroomGeometryType::Meshes));
+			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || (BindingType == EGroomBindingType::Skinning && GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt));
 		}
 	}
 	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasNeedGlobalDeformation;
@@ -1950,7 +1950,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				// * Global deformation are allowed only with 'Skinning' binding type
 				const EHairGeometryType GeometryType = ToHairGeometryType(GetEffectiveGeometryType(GroomAsset->GetGeometryType(GroupIt, LODIt), bUseCards));
 				const bool LODSimulation = IsSimulationEnable(GroupIt, LODIt);
-				const bool LODGlobalInterpolation = LocalBindingAsset && (BindingType == EHairBindingType::Skinning && (GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt) || GeometryType == EHairGeometryType::Meshes));
+				const bool LODGlobalInterpolation = LocalBindingAsset && BindingType == EHairBindingType::Skinning && GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt);
 				bNeedStrandsData = bNeedStrandsData || GeometryType == EHairGeometryType::Strands;
 
 				CPULODScreenSize.Add(LODSettings.ScreenSize);
