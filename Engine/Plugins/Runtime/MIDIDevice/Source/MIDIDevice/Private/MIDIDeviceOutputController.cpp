@@ -7,10 +7,10 @@
 UMIDIDeviceOutputController::~UMIDIDeviceOutputController()
 {
 	// Clean everything up before we're garbage collected
-	ShutdownDevice();
+	UMIDIDeviceOutputController::ShutdownDevice();
 }
 
-void UMIDIDeviceOutputController::StartupDevice(const int32 InitDeviceID, bool& bOutWasSuccessful)
+void UMIDIDeviceOutputController::StartupDevice(const int32 InitDeviceID, const int32 InitMIDIBufferSize, bool& bOutWasSuccessful)
 {
 	bOutWasSuccessful = false;
 
@@ -49,7 +49,8 @@ void UMIDIDeviceOutputController::StartupDevice(const int32 InitDeviceID, bool& 
 		else
 		{
 			this->PMMIDIStream = nullptr;
-			UE_LOG(LogMIDIDevice, Error, TEXT("Unable to open output connection to MIDI device ID %i (%s) (PortMidi error: %s)."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name), ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
+			const FString ErrorText = MIDIDeviceInternal::ParsePmError(PMError);
+			UE_LOG(LogMIDIDevice, Error, TEXT("Unable to open output connection to MIDI device ID %i (%s) (PortMidi error: %s)."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name), *ErrorText);
 		}
 	}
 	else
@@ -65,7 +66,8 @@ void UMIDIDeviceOutputController::ShutdownDevice()
 		const PmError PMError = Pm_Close(this->PMMIDIStream);
 		if (PMError != pmNoError)
 		{
-			UE_LOG(LogMIDIDevice, Error, TEXT("Encounter an error when closing the output connection to MIDI device ID %i (%s) (PortMidi error: %s)."), this->DeviceID, *this->DeviceName, ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
+			const FString ErrorText = MIDIDeviceInternal::ParsePmError(PMError);
+			UE_LOG(LogMIDIDevice, Error, TEXT("Encounter an error when closing the output connection to MIDI device ID %i (%s) (PortMidi error: %s)."), this->DeviceID, *this->DeviceName, *ErrorText);
 		}
 
 		this->PMMIDIStream = nullptr;
@@ -119,4 +121,3 @@ void UMIDIDeviceOutputController::SendMIDIChannelAftertouch(int32 Channel, float
 {
 	SendMIDIEvent(EMIDIEventType::ChannelAfterTouch, Channel, Amount, 0);
 }
-

@@ -11,7 +11,7 @@
 UMIDIDeviceController::~UMIDIDeviceController()
 {
 	// Clean everything up before we're garbage collected
-	ShutdownDevice();
+	UMIDIDeviceController::ShutdownDevice();
 }
 
 
@@ -46,7 +46,7 @@ void UMIDIDeviceController::StartupDevice( const int32 InitDeviceID, const int32
 
 			// @todo midi: Add options for timing/latency (see timeproc, and pm_Synchronize)
 
-			PmError PMError = Pm_OpenInput( &this->PMMIDIInputStream, PMDeviceID, NULL, MIDIBufferSize, NULL, NULL );
+			const PmError PMError = Pm_OpenInput( &this->PMMIDIInputStream, PMDeviceID, NULL, MIDIBufferSize, NULL, NULL );
 			if(PMError == pmNoError)
 			{
 				check(this->PMMIDIInputStream != nullptr);
@@ -60,7 +60,8 @@ void UMIDIDeviceController::StartupDevice( const int32 InitDeviceID, const int32
 			else
 			{
 				this->PMMIDIInputStream = nullptr;
-				UE_LOG(LogMIDIDevice, Error, TEXT("Unable to open input connection to MIDI device ID %i (%s) (PortMidi error: %s)."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name), ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
+				const FString ErrorText = MIDIDeviceInternal::ParsePmError(PMError);
+				UE_LOG(LogMIDIDevice, Error, TEXT("Unable to open input connection to MIDI device ID %i (%s) (PortMidi error: %s)."), PMDeviceID, ANSI_TO_TCHAR(PMDeviceInfo->name), *ErrorText);
 			}
 		}
 		else
@@ -97,27 +98,36 @@ void UMIDIDeviceController::ProcessIncomingMIDIEvents()
 		PMMIDIEvents.SetNum(MIDIBufferSize, false);
 
 		const int32 PMEventCount = Pm_Read(this->PMMIDIInputStream, PMMIDIEvents.GetData(), PMMIDIEvents.Num());
-		for(int32 PMEventIndex = 0; PMEventIndex < PMEventCount; ++PMEventIndex)
+ 
+		// if Pm_Read returns a negative result, it's an error
+		if(PMEventCount < 0)
 		{
-			const PmEvent& PMEvent = PMMIDIEvents[PMEventIndex];
-			const int32 PMTimestamp = PMEvent.timestamp;
-
-			const PmMessage& PMMessage = PMEvent.message;
-
-			const int PMMessageStatus = Pm_MessageStatus(PMMessage);
-			const int PMMessageData1 = Pm_MessageData1( PMMessage );
-			const int PMMessageData2 = Pm_MessageData2( PMMessage );
-			const int32 PMType = (PMMessageStatus & 0xF0) >> 4;
-			const int32 PMChannel = (PMMessageStatus % 16) + 1;
-
-			// Send our event
+			const FString ErrorText = MIDIDeviceInternal::ParsePmError(static_cast<const PmError>(PMEventCount));
+			UE_LOG(LogMIDIDevice, Error, TEXT("Encountered an error when processing incoming MIDI events for device ID %i (%s) (PortMidi error: %s)."), this->DeviceID, *this->DeviceName, *ErrorText);
+		}
+		else
+		{
+			for(int32 PMEventIndex = 0; PMEventIndex < PMEventCount; ++PMEventIndex)
 			{
-				const int32 Timestamp = PMTimestamp;
-				EMIDIEventType EventType = EMIDIEventType::Unknown;
+				const PmEvent& PMEvent = PMMIDIEvents[PMEventIndex];
+				const int32 PMTimestamp = PMEvent.timestamp;
 
-				EMIDIEventType PossibleEventType = (EMIDIEventType)PMType;
-				switch(PossibleEventType)
+				const PmMessage& PMMessage = PMEvent.message;
+
+				const int PMMessageStatus = Pm_MessageStatus(PMMessage);
+				const int PMMessageData1 = Pm_MessageData1( PMMessage );
+				const int PMMessageData2 = Pm_MessageData2( PMMessage );
+				const int32 PMType = (PMMessageStatus & 0xF0) >> 4;
+				const int32 PMChannel = (PMMessageStatus % 16) + 1;
+
+				// Send our event
 				{
+					const int32 Timestamp = PMTimestamp;
+					EMIDIEventType EventType = EMIDIEventType::Unknown;
+
+					EMIDIEventType PossibleEventType = (EMIDIEventType)PMType;
+					switch(PossibleEventType)
+					{
 					case EMIDIEventType::NoteOff:
 					case EMIDIEventType::NoteOn:
 					case EMIDIEventType::NoteAfterTouch:
@@ -127,19 +137,18 @@ void UMIDIDeviceController::ProcessIncomingMIDIEvents()
 					case EMIDIEventType::PitchBend:
 						EventType = PossibleEventType;	// NOTE: Our values match up, so we can just cast/assign
 						break;
-				}
-				
-				const int32 Channel = PMChannel;
-				const int32 ControlID = PMMessageData1;
-				const int32 Velocity = PMMessageData2;
-				const int32 RawEventType = PMType;
+					}
+					
+					const int32 Channel = PMChannel;
+					const int32 ControlID = PMMessageData1;
+					const int32 Velocity = PMMessageData2;
+					const int32 RawEventType = PMType;
 
-				this->OnMIDIEvent.Broadcast(this, Timestamp, EventType, Channel, ControlID, Velocity, RawEventType);
+					this->OnMIDIEvent.Broadcast(this, Timestamp, EventType, Channel, ControlID, Velocity, RawEventType);
+				}
 			}
 		}
 	}
 }
-
-
 
 #undef LOCTEXT_NAMESPACE

@@ -170,7 +170,16 @@ public:
 
 
 private:
+	/** Called internally to update device info.  */
+	static void ReinitializeDeviceManager();
 
+	/** Implementation of FindMIDIDevices that does't reinitialize the Device Manager. */
+	static void FindMIDIDevicesInternal(TArray<FFoundMIDIDevice>& OutMIDIDevices);
+
+	/** Implementation of FindMIDIDeviceInfo that does't reinitialize the Device Manager. */
+	static void FindAllMIDIDeviceInfoInternal(TArray<FMIDIDeviceInfo>& OutMIDIInputDevices, TArray<FMIDIDeviceInfo>& OutMIDIOutputDevices);
+
+private:
 	/** True if everything is initialized OK */
 	static bool bIsInitialized;
 
