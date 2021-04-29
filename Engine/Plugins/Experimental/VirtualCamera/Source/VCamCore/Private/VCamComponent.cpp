@@ -1361,11 +1361,15 @@ void UVCamComponent::SendCameraDataViaMultiUser()
 
 bool UVCamComponent::IsCameraInVPRole() const
 {
+#if WITH_EDITOR
 	UVPSettings* Settings = UVPSettings::GetVPSettings();
 	// We are in a valid camera role if the user has not assigned a role or the current VPSettings role matches the
 	// assigned role.
 	//
 	return !Role.IsValid() || Settings->GetRoles().HasTag(Role);
+#else
+	return true;
+#endif
 }
 
 bool UVCamComponent::CanEvaluateModifierStack() const
