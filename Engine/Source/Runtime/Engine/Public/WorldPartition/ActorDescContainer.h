@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "GameFramework/Actor.h"
 #include "WorldPartition/ActorDescList.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "ActorDescContainer.generated.h"
 
 UCLASS()
@@ -33,6 +34,9 @@ public:
 	/** Removes an actor desc without the need to load a package */
 	virtual void RemoveActor(const FGuid& ActorGuid);
 
+	void PinActor(const FGuid& ActorGuid);
+	void UnpinActor(const FGuid& ActorGuid);
+	bool IsActorPinned(const FGuid& ActorGuid) const { return PinnedActors.Contains(ActorGuid); }
 public:
 	DECLARE_EVENT_OneParam(UWorldPartition, FActorDescAddedEvent, FWorldPartitionActorDesc*);
 	FActorDescAddedEvent OnActorDescAddedEvent;
@@ -60,6 +64,9 @@ protected:
 
 	bool ShouldHandleActorEvent(const AActor* Actor);
 
+	TMap<FGuid, FWorldPartitionReference> PinnedActors;
+	TMap<FGuid, TArray<FWorldPartitionReference>> PinnedActorRefs;
+	
 	bool bContainerInitialized;
 
 	FName ContainerPackageName;

@@ -105,6 +105,9 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 void UActorDescContainer::Uninitialize()
 {
 #if WITH_EDITOR
+	PinnedActors.Empty();
+	PinnedActorRefs.Empty();
+
 	if (bContainerInitialized)
 	{
 		UnregisterEditorDelegates();
@@ -232,6 +235,36 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 		RemoveActorDescriptor(ExistingActorDesc->Get());
 		ExistingActorDesc->Reset();
 	}
+}
+
+void UActorDescContainer::PinActor(const FGuid& ActorGuid)
+{
+	if (PinnedActors.Contains(ActorGuid))
+	{
+		return;
+	}
+	
+	if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid))
+	{
+		if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get())
+		{
+			PinnedActors.Emplace(ActorGuid, ActorDescPtr);
+
+			// If the pinned actor has references, we must also create references to those to ensure they are loaded
+			TArray<FWorldPartitionReference>& References = PinnedActorRefs.Emplace(ActorGuid);
+
+			for (const FGuid& ReferencedGuid : ActorDesc->GetReferences())
+			{
+				References.Emplace(GetActorDescriptor(ReferencedGuid));
+			}
+		}
+	}
+}
+
+void UActorDescContainer::UnpinActor(const FGuid& ActorGuid)
+{
+	PinnedActors.Remove(ActorGuid);
+	PinnedActorRefs.Remove(ActorGuid);
 }
 
 void UActorDescContainer::RegisterEditorDelegates()
