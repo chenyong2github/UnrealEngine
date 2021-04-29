@@ -151,11 +151,7 @@ void SNiagaraStackItemGroupAddMenu::TriggerRefresh(const TMap<EScriptSource, boo
 		}
 	}
 
-	// whenever we have less than the last (so with 4 valid filters, at most 3) entry of filters, we expand the tree.
-	if(NumActive < (int32) EScriptSource::Unknown)
-	{
-		ActionSelector->ExpandTree();
-	}
+	ActionSelector->ExpandTree();
 }
 
 bool SNiagaraStackItemGroupAddMenu::GetLibraryOnly() const
