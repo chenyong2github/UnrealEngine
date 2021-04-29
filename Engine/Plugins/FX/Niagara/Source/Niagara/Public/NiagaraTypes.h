@@ -406,6 +406,15 @@ enum class ENiagaraPythonUpdateScriptReference : uint8
     DirectTextEntry
 };
 
+UENUM()
+enum class ENiagaraOrientationAxis : uint32
+{
+	XAxis UMETA(DisplayName="X Axis"),
+	YAxis UMETA(DisplayName = "Y Axis"),
+	ZAxis UMETA(DisplayName = "Z Axis")
+};
+
+
 USTRUCT()
 struct NIAGARA_API FNiagaraCompileHashVisitorDebugInfo
 {
@@ -1102,6 +1111,7 @@ public:
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
 	static UEnum* GetCoordinateSpaceEnum() { return CoordinateSpaceEnum; }
+	static UEnum* GetOrientationAxisEnum() { return OrientationAxisEnum; }
 	static UEnum* GetExecutionStateSouceEnum() { return ExecutionStateSourceEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
 	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
@@ -1183,6 +1193,7 @@ private:
 	static UEnum* ScriptContextEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* CoordinateSpaceEnum;
+	static UEnum* OrientationAxisEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
 	static UEnum* ParameterScopeEnum;
