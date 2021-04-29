@@ -1763,7 +1763,7 @@ void SAutomationWindow::OnTestAvailableCallback( EAutomationControllerModuleStat
 	AutomationControllerState = InAutomationControllerState;
 
 	// Only list tests on opening the Window if the asset registry isn't in the middle of loading tests.
-	if ( InAutomationControllerState == EAutomationControllerModuleState::Ready && AutomationController->GetReports().Num() == 0 )
+	if ( InAutomationControllerState == EAutomationControllerModuleState::Ready && AutomationController->GetReports().Num() == 0 && !bIsRequestingTests)
 	{
 #if WITH_EDITOR
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
