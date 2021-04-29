@@ -80,10 +80,10 @@ FText FUVEditorToolkit::GetToolkitName() const
 	const TArray<UObject*>* Objects = GetObjectsCurrentlyBeingEdited();
 	if (Objects->Num() == 1)
 	{
-		return FText::Format(LOCTEXT("UVEditorTabNameWithObject", "{0} UVs"), 
+		return FText::Format(LOCTEXT("UVEditorTabNameWithObject", "UVs: {0}"), 
 			GetLabelForObject((*Objects)[0]));
 	}
-	return LOCTEXT("UVEditorSimpleTabName", "UV Editor");
+	return LOCTEXT("UVEditorMultipleTabName", "UVs: Multiple");
 }
 
 // This gets used multiple places, most notably in GetToolMenuAppName, which gets
@@ -97,6 +97,24 @@ FName FUVEditorToolkit::GetToolkitFName() const
 FText FUVEditorToolkit::GetBaseToolkitName() const
 {
 	return LOCTEXT("UVBaseToolkitName", "UV");
+}
+
+FText FUVEditorToolkit::GetToolkitToolTipText() const
+{
+	FString ToolTipString;
+	ToolTipString += LOCTEXT("ToolTipAssetLabel", "Asset").ToString();
+	ToolTipString += TEXT(": ");
+
+	const TArray<UObject*>* Objects = GetObjectsCurrentlyBeingEdited();
+	check(Objects && Objects->Num() > 0);
+	ToolTipString += GetLabelForObject((*Objects)[0]).ToString();
+	for (int32 i = 1; i < Objects->Num(); ++i)
+	{
+		ToolTipString += TEXT(", ");
+		ToolTipString += GetLabelForObject((*Objects)[i]).ToString();
+	}
+
+	return FText::FromString(ToolTipString);
 }
 
 void FUVEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
