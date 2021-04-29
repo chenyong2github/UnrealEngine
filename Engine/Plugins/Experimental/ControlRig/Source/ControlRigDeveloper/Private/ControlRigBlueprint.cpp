@@ -566,11 +566,6 @@ void UControlRigBlueprint::PostLoad()
 	{
 		URigVMController* Controller = GetOrCreateController(GraphToDetach);
 		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
-		
-		for(URigVMNode* Node : GraphToDetach->GetNodes())
-		{
-			Controller->RemoveUnusedOrphanedPins(Node, false);
-		}
 	}
 
 	// perform backwards compat value upgrades
@@ -581,6 +576,12 @@ void UControlRigBlueprint::PostLoad()
 		if(GraphToValidate == nullptr)
 		{
 			continue;
+		}
+
+		for(URigVMNode* Node : GraphToValidate->GetNodes())
+		{
+			URigVMController* Controller = GetOrCreateController(GraphToValidate);
+			Controller->RemoveUnusedOrphanedPins(Node, false);
 		}
 			
 		for(URigVMNode* Node : GraphToValidate->GetNodes())

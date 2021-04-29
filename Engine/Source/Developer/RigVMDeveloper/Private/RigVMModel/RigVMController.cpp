@@ -9182,19 +9182,22 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 		Links.Append(InPin->GetTargetLinks(true));
 		DetachLinksFromPinObjects(&Links, true);
 
-		const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *InPin->GetName());
-		if(InPin->GetNode()->FindPin(OrphanedName) == nullptr)
+		if(Links.Num() > 0)
 		{
-			URigVMPin* OrphanedPin = NewObject<URigVMPin>(InPin->GetNode(), *OrphanedName);
-			ConfigurePinFromPin(OrphanedPin, InPin);
-			OrphanedPin->DisplayName = InPin->GetFName();
-
-			if(OrphanedPin->IsStruct())
+			const FString OrphanedName = FString::Printf(TEXT("%s%s"), *URigVMPin::OrphanPinPrefix, *InPin->GetName());
+			if(InPin->GetNode()->FindPin(OrphanedName) == nullptr)
 			{
-				AddPinsForStruct(OrphanedPin->GetScriptStruct(), OrphanedPin->GetNode(), OrphanedPin, OrphanedPin->Direction, OrphanedPin->GetDefaultValue(), false, true);
+				URigVMPin* OrphanedPin = NewObject<URigVMPin>(InPin->GetNode(), *OrphanedName);
+				ConfigurePinFromPin(OrphanedPin, InPin);
+				OrphanedPin->DisplayName = InPin->GetFName();
+
+				if(OrphanedPin->IsStruct())
+				{
+					AddPinsForStruct(OrphanedPin->GetScriptStruct(), OrphanedPin->GetNode(), OrphanedPin, OrphanedPin->Direction, OrphanedPin->GetDefaultValue(), false, true);
+				}
+					
+				InPin->GetNode()->OrphanedPins.Add(OrphanedPin);
 			}
-				
-			InPin->GetNode()->OrphanedPins.Add(OrphanedPin);
 		}
 	}
 
