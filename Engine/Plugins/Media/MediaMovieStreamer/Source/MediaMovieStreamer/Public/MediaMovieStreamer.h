@@ -7,6 +7,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaMovieStreamer, Log, All);
 
+class IMediaModule;
 class UMediaPlayer;
 class UMediaSource;
 
@@ -44,6 +45,10 @@ public:
 	virtual void Cleanup() override;
 	virtual FTexture2DRHIRef GetTexture() override;
 	virtual FOnCurrentMovieClipFinished& OnCurrentMovieClipFinished() override;
+
+	virtual void TickPreEngine() override;
+	virtual void TickPostEngine() override;
+	virtual void TickPostRender() override;
 	
 private:
 	/** Delegate for when the movie is finished. */
@@ -56,4 +61,7 @@ private:
 	TWeakObjectPtr<UMediaPlayer> MediaPlayer;
 	/** Holds the media source we are using. */
 	TWeakObjectPtr<UMediaSource> MediaSource;
+
+	/** Gets the media module to interface with MediaFramework. */
+	IMediaModule* GetMediaModule();
 };

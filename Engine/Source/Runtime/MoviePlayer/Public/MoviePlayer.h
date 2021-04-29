@@ -103,6 +103,13 @@ public:
 	virtual void Suspend() {};
 	virtual void Resume() {};
 
+	// MediaFramework support.
+	/** Called before the engine tick. */
+	virtual void TickPreEngine() {};
+	/** Called after the engine ticks. */
+	virtual void TickPostEngine() {};
+	/** Called after rendering is finished. */
+	virtual void TickPostRender() {};
 };
 
 

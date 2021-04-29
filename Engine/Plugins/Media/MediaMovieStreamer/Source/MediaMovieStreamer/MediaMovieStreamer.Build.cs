@@ -20,6 +20,7 @@ public class MediaMovieStreamer : ModuleRules
 			{
 				"CoreUObject",
 				"Engine",
+				"Media",
 				"MediaAssets",
 				"MoviePlayer",
 				"RHI",
