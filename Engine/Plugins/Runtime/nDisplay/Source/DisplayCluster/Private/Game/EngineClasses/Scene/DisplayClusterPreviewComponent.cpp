@@ -253,6 +253,11 @@ bool UDisplayClusterPreviewComponent::GetPreviewTextureSettings(FIntPoint& OutSi
 			OutSize.Y = MaxDimension;
 		}
 
+		// The int casts above can sometimes cause the OutSize to have a zero in one or both its components, which will cause crashes when
+		// creating the render target on the preview component. Clamp OutSize so that it always has a size of at least 1 in each coordinate
+		OutSize.X = FMath::Max(OutSize.X, 1);
+		OutSize.Y = FMath::Max(OutSize.Y, 1);
+
 		//! Get gamma from current FViewport
 		OutGamma = 2.2f;
 
