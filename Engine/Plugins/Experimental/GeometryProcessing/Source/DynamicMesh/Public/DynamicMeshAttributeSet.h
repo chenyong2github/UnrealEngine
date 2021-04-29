@@ -343,6 +343,27 @@ public:
 		return GenericAttributes;
 	}
 
+	/**
+	 * Returns true if this AttributeSet is the same as Other.
+	 */
+	bool IsSameAs(const FDynamicMeshAttributeSet& Other) const;
+
+	/**
+	 * Serialization operator for FDynamicMeshAttributeSet.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Set Attribute set to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend DYNAMICMESH_API FArchive& operator<<(FArchive& Ar, FDynamicMeshAttributeSet& Set)
+	{
+		Set.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize the set to an archive. */
+	void Serialize(FArchive& Ar);
+
 protected:
 	/** Parent mesh of this attribute set */
 	FDynamicMesh3* ParentMesh;

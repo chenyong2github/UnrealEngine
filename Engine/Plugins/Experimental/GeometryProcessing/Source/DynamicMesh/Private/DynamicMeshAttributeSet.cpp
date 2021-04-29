@@ -783,3 +783,115 @@ void FDynamicMeshAttributeSet::OnSplitVertex(const DynamicMeshInfo::FVertexSplit
 	}
 }
 
+bool FDynamicMeshAttributeSet::IsSameAs(const FDynamicMeshAttributeSet& Other) const
+{
+	if (UVLayers.Num() != Other.UVLayers.Num() ||
+		NormalLayers.Num() != Other.NormalLayers.Num() ||
+		PolygroupLayers.Num() != Other.PolygroupLayers.Num())
+	{
+		return false;
+	}
+
+	for (int Idx = 0; Idx < UVLayers.Num(); Idx++)
+	{
+		if (!UVLayers[Idx].IsSameAs(Other.UVLayers[Idx]))
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < NormalLayers.Num(); Idx++)
+	{
+		if (!NormalLayers[Idx].IsSameAs(Other.NormalLayers[Idx]))
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < PolygroupLayers.Num(); Idx++)
+	{
+		if (!PolygroupLayers[Idx].IsSameAs(Other.PolygroupLayers[Idx]))
+		{
+			return false;
+		}
+	}
+
+	if (HasPrimaryColors() != Other.HasPrimaryColors())
+	{
+		return false;
+	}
+	if (HasPrimaryColors())
+	{
+		if (!ColorLayer->IsSameAs(*Other.ColorLayer))
+		{
+			return false;
+		}
+	}
+
+	if (HasMaterialID() != Other.HasMaterialID())
+	{
+		return false;
+	}
+	if (HasMaterialID())
+	{
+		if (!MaterialIDAttrib->IsSameAs(*Other.MaterialIDAttrib))
+		{
+			return false;
+		}
+	}
+
+	// TODO: Test GenericAttributes
+
+	return true;
+}
+
+void FDynamicMeshAttributeSet::Serialize(FArchive& Ar)
+{
+	Ar << UVLayers;
+	Ar << NormalLayers;
+	Ar << PolygroupLayers;
+
+	if (Ar.IsLoading())
+	{
+		// Manually populate ParentMesh since deserialization of the individual
+		// layers cannot populate the pointer.
+		for (FDynamicMeshUVOverlay& Overlay : UVLayers)
+		{
+			Overlay.ParentMesh = ParentMesh;
+		}
+		for (FDynamicMeshNormalOverlay& Overlay : NormalLayers)
+		{
+			Overlay.ParentMesh = ParentMesh;
+		}
+		for (FDynamicMeshPolygroupAttribute& Attr : PolygroupLayers)
+		{
+			Attr.ParentMesh = ParentMesh;
+		}
+	}
+
+	// Use int32 here to futureproof for multiple color layers.
+	int32 bHasColorLayer = HasPrimaryColors() ? 1 : 0;
+	Ar << bHasColorLayer;
+	if (bHasColorLayer)
+	{
+		if (Ar.IsLoading())
+		{
+			EnablePrimaryColors();
+		}
+		Ar << *ColorLayer;
+	}
+
+	bool bHasMaterialID = HasMaterialID();
+	Ar << bHasMaterialID;
+	if (bHasMaterialID)
+	{
+		if (Ar.IsLoading())
+		{
+			EnableMaterialID();
+		}
+		Ar << *MaterialIDAttrib;
+	}
+
+	//Ar << GenericAttributes; // TODO
+}
+

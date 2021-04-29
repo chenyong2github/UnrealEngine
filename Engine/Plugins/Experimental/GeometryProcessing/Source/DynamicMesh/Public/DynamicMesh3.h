@@ -106,6 +106,26 @@ public:
 		{
 			return (e0.Vert != e1.Vert) || (e0.Tri != e1.Tri);
 		}
+
+		/**
+		 * Serialization operator for FEdge.
+		 *
+		 * @param Ar Archive to serialize with.
+		 * @param E Edge to serialize.
+		 * @returns Passing down serializing archive.
+		 */
+		friend FArchive& operator<<(FArchive& Ar, FEdge& E)
+		{
+			E.Serialize(Ar);
+			return Ar;
+		}
+
+		/** Serialize FEdge to an archive. */
+		void Serialize(FArchive& Ar)
+		{
+			Ar << Vert;
+			Ar << Tri;
+		}
 	};
 	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
 	constexpr static int InvalidID = IndexConstants::InvalidID;
@@ -213,6 +233,21 @@ public:
 	/** Discard all data */
 	void Clear();
 
+	/**
+	 * Serialization operator for FDynamicMesh3.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Mesh Mesh to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend DYNAMICMESH_API FArchive& operator<<(FArchive& Ar, FDynamicMesh3& Mesh)
+	{
+		Mesh.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize the mesh to an archive. */
+	void Serialize(FArchive& Ar);
 
 public:
 	/** @return number of vertices in the mesh */
@@ -1228,12 +1263,25 @@ public:
 	virtual FString MeshInfoString();
 
 	/**
+	 * Options for the IsSameAs check
+	 */
+	struct FSameAsOptions
+	{
+		bool bCheckConnectivity = true;
+		bool bCheckEdgeIDs = false;
+		bool bCheckNormals = false;
+		bool bCheckColors = false;
+		bool bCheckUVs = false;
+		bool bCheckGroups = false;
+		bool bCheckAttributes = false;
+		float Epsilon = TMathUtil<float>::Epsilon;
+	};
+
+	/**
 	 * Check if another mesh is the same as this mesh. By default only checks
 	 * vertices and triangles, turn on other parameters w/ flags
 	 */
-	virtual bool IsSameMesh(const FDynamicMesh3& OtherMesh, bool bCheckConnectivity, bool bCheckEdgeIDs = false,
-	                        bool bCheckNormals = false, bool bCheckColors = false, bool bCheckUVs = false,
-	                        bool bCheckGroups = false, float Epsilon = TMathUtil<float>::Epsilon);
+	virtual bool IsSameAs(const FDynamicMesh3& OtherMesh, const FSameAsOptions& Options);
 
 	/**
 	 * Options for what the validity check will permit

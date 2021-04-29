@@ -4,6 +4,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "Generators/MeshShapeGenerator.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -369,6 +370,36 @@ void FDynamicMesh3::Clear()
 	CachedIsClosedTimestamp = -1;
 }
 
+void FDynamicMesh3::Serialize(FArchive& Ar)
+{
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+
+	Ar << Vertices;
+	Ar << VertexRefCounts;
+	Ar << VertexNormals;
+	Ar << VertexColors;
+	Ar << VertexUVs;
+	Ar << VertexEdgeLists;
+	Ar << Triangles;
+	Ar << TriangleRefCounts;
+	Ar << TriangleEdges;
+	Ar << TriangleGroups;
+	Ar << GroupIDCounter;
+	Ar << Edges;
+	Ar << EdgeRefCounts;
+
+	bool bHasAttributes = HasAttributes();
+	Ar << bHasAttributes;
+	if (bHasAttributes)
+	{
+		if (Ar.IsLoading())
+		{
+			EnableAttributes();
+		}
+		Ar << *AttributeSet;
+	}
+}
+
 int FDynamicMesh3::GetComponentsFlags() const
 {
 	int c = 0;
@@ -660,9 +691,7 @@ FString FDynamicMesh3::MeshInfoString()
 	return VtxString + "\n" + TriString + "\n" + EdgeString + "\n" + AttribString + "\n" + InfoString;
 }
 
-bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity, bool bCheckEdgeIDs,
-	bool bCheckNormals, bool bCheckColors, bool bCheckUVs, bool bCheckGroups,
-	float Epsilon)
+bool FDynamicMesh3::IsSameAs(const FDynamicMesh3& m2, const FSameAsOptions& Options)
 {
 	if (VertexCount() != m2.VertexCount())
 	{
@@ -674,7 +703,7 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 	}
 	for (int vid : VertexIndicesItr())
 	{
-		if (m2.IsVertex(vid) == false || VectorUtil::EpsilonEqual(GetVertex(vid), m2.GetVertex(vid), (double)Epsilon) == false)
+		if (m2.IsVertex(vid) == false || VectorUtil::EpsilonEqual(GetVertex(vid), m2.GetVertex(vid), (double)Options.Epsilon) == false)
 		{
 			return false;
 		}
@@ -686,7 +715,7 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 			return false;
 		}
 	}
-	if (bCheckConnectivity)
+	if (Options.bCheckConnectivity)
 	{
 		for (int eid : EdgeIndicesItr())
 		{
@@ -704,7 +733,7 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 			}
 		}
 	}
-	if (bCheckEdgeIDs)
+	if (Options.bCheckEdgeIDs)
 	{
 		if (EdgeCount() != m2.EdgeCount())
 		{
@@ -718,7 +747,7 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 			}
 		}
 	}
-	if (bCheckNormals)
+	if (Options.bCheckNormals)
 	{
 		if (HasVertexNormals() != m2.HasVertexNormals())
 		{
@@ -728,14 +757,14 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexNormal(vid), m2.GetVertexNormal(vid), Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexNormal(vid), m2.GetVertexNormal(vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
 			}
 		}
 	}
-	if (bCheckColors)
+	if (Options.bCheckColors)
 	{
 		if (HasVertexColors() != m2.HasVertexColors())
 		{
@@ -745,14 +774,14 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexColor(vid), m2.GetVertexColor(vid), Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexColor(vid), m2.GetVertexColor(vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
 			}
 		}
 	}
-	if (bCheckUVs)
+	if (Options.bCheckUVs)
 	{
 		if (HasVertexUVs() != m2.HasVertexUVs())
 		{
@@ -762,14 +791,14 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 		{
 			for (int vid : VertexIndicesItr())
 			{
-				if (VectorUtil::EpsilonEqual(GetVertexUV(vid), m2.GetVertexUV(vid), Epsilon) == false)
+				if (VectorUtil::EpsilonEqual(GetVertexUV(vid), m2.GetVertexUV(vid), Options.Epsilon) == false)
 				{
 					return false;
 				}
 			}
 		}
 	}
-	if (bCheckGroups)
+	if (Options.bCheckGroups)
 	{
 		if (HasTriangleGroups() != m2.HasTriangleGroups())
 		{
@@ -783,6 +812,20 @@ bool FDynamicMesh3::IsSameMesh(const FDynamicMesh3& m2, bool bCheckConnectivity,
 				{
 					return false;
 				}
+			}
+		}
+	}
+	if (Options.bCheckAttributes)
+	{
+		if (HasAttributes() != m2.HasAttributes())
+		{
+			return false;
+		}
+		if (HasAttributes())
+		{
+			if (!AttributeSet->IsSameAs(*m2.AttributeSet))
+			{
+				return false;
 			}
 		}
 	}

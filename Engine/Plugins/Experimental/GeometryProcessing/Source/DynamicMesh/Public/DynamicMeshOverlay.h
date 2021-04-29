@@ -153,7 +153,7 @@ public:
 			}
 		}
 
-		TDynamicVector<short>& ERef = ElementsRefCounts.GetRawRefCountsUnsafe();
+		TDynamicVector<unsigned short>& ERef = ElementsRefCounts.GetRawRefCountsUnsafe();
 		RealType Data[ElementSize];
 		while (iCurE < iLastE)
 		{
@@ -451,6 +451,26 @@ public:
 	 */
 	bool CheckValidity(bool bAllowNonManifoldVertices = true, EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
 
+	/**
+	 * Returns true if this overlay is the same as Other.
+	 */
+	bool IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other) const;
+
+	/**
+	 * Serialization operator for FDynamicMeshOverlay.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Overlay Mesh overlay to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TDynamicMeshOverlay<RealType,ElementSize>& Overlay)
+	{
+		Overlay.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize the overlay to an archive. */
+	void Serialize(FArchive& Ar);
 
 public:
 	/** Set a triangle's element indices to InvalidID */

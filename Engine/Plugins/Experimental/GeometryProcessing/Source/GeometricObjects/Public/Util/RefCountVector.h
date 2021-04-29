@@ -24,7 +24,7 @@ namespace Geometry
 class FRefCountVector
 {
 public:
-	static constexpr short INVALID_REF_COUNT = -1;
+	static constexpr unsigned short INVALID_REF_COUNT = MAX_uint16;
 
 	FRefCountVector() = default;
 	FRefCountVector(const FRefCountVector&) = default;
@@ -103,20 +103,15 @@ public:
 		}
 	}
 
-	int Increment(int Index, short IncrementCount = 1)
+	int Increment(int Index, unsigned short IncrementCount = 1)
 	{
-		check(IsValid(Index));
-		// debug check for overflow...
-		check((short)(RefCounts[Index] + IncrementCount) > 0);
 		RefCounts[Index] += IncrementCount;
 		return RefCounts[Index];
 	}
 
-	void Decrement(int Index, short DecrementCount = 1)
+	void Decrement(int Index, unsigned short DecrementCount = 1)
 	{
-		check(IsValid(Index));
 		RefCounts[Index] -= DecrementCount;
-		check(RefCounts[Index] >= 0);
 		if (RefCounts[Index] == 0)
 		{
 			FreeIndices.Add(Index);
@@ -201,7 +196,7 @@ public:
 		}
 	}
 
-	const TDynamicVector<short>& GetRawRefCounts() const
+	const TDynamicVector<unsigned short>& GetRawRefCounts() const
 	{
 		return RefCounts;
 	}
@@ -209,7 +204,7 @@ public:
 	/**
 	 * @warning you should not use this!
 	 */
-	TDynamicVector<short>& GetRawRefCountsUnsafe()
+	TDynamicVector<unsigned short>& GetRawRefCountsUnsafe()
 	{
 		return RefCounts;
 	}
@@ -217,7 +212,7 @@ public:
 	/**
 	 * @warning you should not use this!
 	 */
-	void SetRefCountUnsafe(int Index, short ToCount)
+	void SetRefCountUnsafe(int Index, unsigned short ToCount)
 	{
 		RefCounts[Index] = ToCount;
 	}
@@ -453,8 +448,29 @@ public:
 			RefCounts.GetLength(), FreeIndices.GetLength(), (FreeIndices.GetByteCount() / 1024));
 	}
 
+	/**
+	 * Serialization operator for FRefCountVector.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Vec Vector to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FRefCountVector& Vec)
+	{
+		Vec.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FRefCountVector to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << RefCounts;
+		Ar << FreeIndices;
+		Ar << UsedCount;
+	}
+
 private:
-	TDynamicVector<short> RefCounts{};
+	TDynamicVector<unsigned short> RefCounts{};
 	TDynamicVector<int> FreeIndices{};
 	int UsedCount{0};
 

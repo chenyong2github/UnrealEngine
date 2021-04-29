@@ -4,6 +4,7 @@
 
 #include "GeometryBase.h"
 #include "Math/IntVector.h"
+#include "Serialization/Archive.h"
 #include <limits>
 
 
@@ -79,6 +80,26 @@ struct FIndex2i
 		int tmp = A;
 		A = B;
 		B = tmp;
+	}
+
+	/**
+	 * Serialization operator for FIndex2i.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param I Index to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FIndex2i& I)
+	{
+		I.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FIndex2i to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << A;
+		Ar << B;
 	}
 };
 
@@ -161,6 +182,27 @@ struct FIndex3i
 		B = Vec.Y;
 		C = Vec.Z;
 	}
+
+	/**
+	 * Serialization operator for FIndex3i.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param I Index to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FIndex3i& I)
+	{
+		I.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FIndex3i to an archive */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << A;
+		Ar << B;
+		Ar << C;
+	}
 };
 
 FORCEINLINE uint32 GetTypeHash(const FIndex3i& Index)
@@ -234,6 +276,28 @@ struct FIndex4i
 	{
 		return A == Idx || B == Idx || C == Idx || D == Idx;
 	}
+
+	/**
+	 * Serialization operator for FIndex4i.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param I Index to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FIndex4i& I)
+	{
+		I.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FIndex3i to an archive */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << A;
+		Ar << B;
+		Ar << C;
+		Ar << D;
+	}
 };
 
 FORCEINLINE uint32 GetTypeHash(const FIndex4i& Index)
@@ -246,3 +310,8 @@ FORCEINLINE uint32 GetTypeHash(const FIndex4i& Index)
 
 } // end namespace UE::Geometry
 } // end namespace UE
+
+template<> struct TCanBulkSerialize<UE::Geometry::FIndex2i> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<UE::Geometry::FIndex3i> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<UE::Geometry::FIndex4i> { enum { Value = true }; };
+

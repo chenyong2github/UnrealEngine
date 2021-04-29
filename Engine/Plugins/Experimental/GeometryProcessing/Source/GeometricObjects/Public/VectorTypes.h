@@ -5,6 +5,7 @@
 #include "Math/Vector.h"
 #include "Math/VectorLWC.h"
 #include "MathUtil.h"
+#include "Serialization/Archive.h"
 #include <sstream>
 
 
@@ -219,6 +220,25 @@ struct FVector2
 		return X != Other.X || Y != Other.Y;
 	}
 
+	/**
+	 * Serialization operator for FVector2.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Vec Vector to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FVector2& Vec)
+	{
+		Vec.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FVector2 to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << X;
+		Ar << Y;
+	}
 };
 
 /** @return dot product of V1 with PerpCW(V2), ie V2 rotated 90 degrees clockwise */
@@ -1084,6 +1104,28 @@ struct TVector4
 	{
 		return X != Other.X || Y != Other.Y || Z != Other.Z || W != Other.W;
 	}
+
+	/**
+	 * Serialization operator for TVector4.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Vec Vector to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TVector4& Vec)
+	{
+		Vec.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize TVector4 to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << X;
+		Ar << Y;
+		Ar << Z;
+		Ar << W;
+	}
 };
 
 template <typename T>
@@ -1191,3 +1233,9 @@ typedef UE::Geometry::FVector2<double> FVector2d;
 
 typedef UE::Geometry::TVector4<float> FVector4f;
 typedef UE::Geometry::TVector4<double> FVector4d;
+
+template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
+
+template<> struct TCanBulkSerialize<FVector4f> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FVector4d> { enum { Value = true }; };

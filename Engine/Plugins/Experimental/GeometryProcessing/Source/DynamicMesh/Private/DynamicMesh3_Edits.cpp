@@ -338,7 +338,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurV++;
 	}
 
-	TDynamicVector<short> &vref = VertexRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<unsigned short> &vref = VertexRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurV < iLastV)
 	{
@@ -431,7 +431,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurT++;
 	}
 
-	TDynamicVector<short> &tref = TriangleRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<unsigned short> &tref = TriangleRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurT < iLastT)
 	{
@@ -494,7 +494,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		iCurE++;
 	}
 
-	TDynamicVector<short> &eref = EdgeRefCounts.GetRawRefCountsUnsafe();
+	TDynamicVector<unsigned short> &eref = EdgeRefCounts.GetRawRefCountsUnsafe();
 
 	while (iCurE < iLastE)
 	{
@@ -877,7 +877,10 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 	}
 	FIndex3i T0tv = GetTriangle(t0);
 	int c = IndexUtil::OrientTriEdgeAndFindOtherVtx(a, b, T0tv);
-	if (VertexRefCounts.GetRawRefCount(c) > 32764)
+
+	// RefCount overflow check. Conservatively leave room for
+	// extra increments from other operations.
+	if (VertexRefCounts.GetRawRefCount(c) > FRefCountVector::INVALID_REF_COUNT - 3)
 	{
 		return EMeshResult::Failed_HitValenceLimit;
 	}
@@ -967,7 +970,10 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		SplitInfo.OriginalTriangles.B = t1;
 		FIndex3i T1tv = GetTriangle(t1);
 		int d = IndexUtil::FindTriOtherVtx(a, b, T1tv);
-		if (VertexRefCounts.GetRawRefCount(d) > 32764)
+
+		// RefCount overflow check. Conservatively leave room for
+		// extra increments from other operations.
+		if (VertexRefCounts.GetRawRefCount(d) > FRefCountVector::INVALID_REF_COUNT - 3)
 		{
 			return EMeshResult::Failed_HitValenceLimit;
 		}

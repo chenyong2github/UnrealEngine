@@ -1393,6 +1393,63 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 }
 
 
+template<typename RealType, int ElementSize>
+bool TDynamicMeshOverlay<RealType, ElementSize>::IsSameAs(const TDynamicMeshOverlay<RealType, ElementSize>& Other) const
+{
+	if (ElementsRefCounts.GetCount() != Other.ElementsRefCounts.GetCount() ||
+		ElementsRefCounts.GetMaxIndex() != Other.ElementsRefCounts.GetMaxIndex() ||
+		Elements.Num() != Other.Elements.Num() ||
+		ParentVertices.Num() != Other.ParentVertices.Num() ||
+		ElementTriangles.Num() != Other.ElementTriangles.Num())
+	{
+		return false;
+	}
+
+	for (int Idx = 0; Idx < ElementsRefCounts.GetMaxIndex(); Idx++)
+	{
+		if (ElementsRefCounts.GetRefCount(Idx) != Other.ElementsRefCounts.GetRefCount(Idx))
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < Elements.Num(); Idx++)
+	{
+		if (Elements[Idx] != Other.Elements[Idx])
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < ParentVertices.Num(); Idx++)
+	{
+		if (ParentVertices[Idx] != Other.ParentVertices[Idx])
+		{
+			return false;
+		}
+	}
+
+	for (int Idx = 0; Idx < ElementTriangles.Num(); Idx++)
+	{
+		if (ElementTriangles[Idx] != Other.ElementTriangles[Idx])
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+
+template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::Serialize(FArchive& Ar)
+{
+	Ar << ElementsRefCounts;
+	Ar << Elements;
+	Ar << ParentVertices;
+	Ar << ElementTriangles;
+}
+
 
 namespace UE
 {

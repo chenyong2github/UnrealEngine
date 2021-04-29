@@ -6,6 +6,7 @@
 
 #include <CoreMinimal.h>
 #include "Containers/StaticArray.h"
+#include "Serialization/Archive.h"
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
@@ -101,6 +102,27 @@ public:
 	// apply f() to each member sequentially
 	template <typename Func>
 	void Apply(const Func& f);
+
+	/**
+	 * Serialization operator for TDynamicVector.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Vec Vector to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TDynamicVector& Vec)
+	{
+		Vec.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize vector to an archive */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << CurBlock;
+		Ar << CurBlockUsed;
+		Ar << Blocks;
+	}
 
 public:
 	/*
@@ -300,6 +322,73 @@ private:
 				delete Elements[k];
 			}
 			Elements.Empty(NewReservedSize);
+		}
+
+		/**
+		 * Count bytes needed to serialize this array.
+		 *
+		 * @param Ar Archive to count for.
+		 */
+		void CountBytes(FArchive& Ar) const
+		{
+			Elements.CountBytes(Ar);
+		}
+
+		/**
+		 * Serialization operator for TBlockVector.
+		 *
+		 * @param Ar Archive to serialize with.
+		 * @param Vec Vector to serialize.
+		 * @returns Passing down serializing archive.
+		 */
+		friend FArchive& operator<<(FArchive& Ar, TBlockVector& Vec)
+		{
+			Vec.Serialize(Ar);
+			return Ar;
+		}
+
+		/** Serialize TBlockVector to archive. */
+		void Serialize(FArchive& Ar)
+		{
+			CountBytes(Ar);
+			if (Ar.IsLoading())
+			{
+				// Load array.
+				int32 NewNum;
+				Ar << NewNum;
+				Empty(NewNum);
+				for (int32 Index = 0; Index < NewNum; Index++)
+				{
+					ArrayType* NewElement = new ArrayType;
+					// TODO: Consider moving bulk serialization code into TStaticArray.
+					if (TCanBulkSerialize<Type>::Value)
+					{
+						Ar.Serialize(NewElement->GetData(), NewElement->Num() * sizeof(Type));
+					}
+					else
+					{
+						Ar << *NewElement;
+					}
+					Add(NewElement);
+				}
+			}
+			else
+			{
+				// Save array.
+				int32 CurNum = Num();
+				Ar << CurNum;
+				for (int32 Index = 0; Index < CurNum; Index++)
+				{
+					if (TCanBulkSerialize<Type>::Value)
+					{
+						Ar.Serialize((*this)[Index].GetData(), (*this)[Index].Num() * sizeof(Type));
+					}
+					else
+					{
+						Ar << (*this)[Index];
+					}
+				}
+			}
 		}
 	};
 

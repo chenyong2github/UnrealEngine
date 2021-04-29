@@ -370,7 +370,46 @@ public:
 		ResizeAttribStoreIfNeeded(TriangleID);
 	}
 
+public:
+	/**
+	 * Returns true if this AttributeSet is the same as Other.
+	 */
+	bool IsSameAs(const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Other) const
+	{
+		if (AttribValues.Num() != Other.AttribValues.Num())
+		{
+			return false;
+		}
 
+		for (int Idx = 0, NumValues = AttribValues.Num(); Idx < NumValues; Idx++)
+		{
+			if (AttribValues[Idx] != Other.AttribValues[Idx])
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Serialization operator for TDynamicMeshTriangleAttribute.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Attr Mesh triangle attribute to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& Attr)
+	{
+		Attr.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize the attribute to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << AttribValues;
+	}
 };
 
 

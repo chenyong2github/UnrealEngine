@@ -181,6 +181,30 @@ public:
 	 */
 	void Enumerate(int32 ListIndex, TFunctionRef<void(int32)> ApplyFunc) const;
 
+	/**
+	 * Serialization operator for FSmallListSet.
+	 *
+	 * @param Ar Archive to serialize with.
+	 * @param Set Set to serialize.
+	 * @returns Passing down serializing archive.
+	 */
+	friend FArchive& operator<<(FArchive& Ar, FSmallListSet& Set)
+	{
+		Set.Serialize(Ar);
+		return Ar;
+	}
+
+	/** Serialize FSmallListSet to an archive. */
+	void Serialize(FArchive& Ar)
+	{
+		Ar << ListHeads;
+		Ar << ListBlocks;
+		Ar << FreeBlocks;
+		Ar << AllocatedCount;
+		Ar << LinkedListElements;
+		Ar << FreeHeadIndex;
+	}
+
 
 	//
 	// iterator support
