@@ -6,10 +6,16 @@
 #include "Modules/ModuleManager.h"
 
 class FMediaMovieStreamer;
+class UMediaMovieAssets;
 
 class FMediaMovieStreamerModule : public IModuleInterface
 {
 public:
+	/**
+	 * Call this to get the MovieAssets.
+	 */
+	static UMediaMovieAssets* GetMovieAssets();
+
 	/**
 	 * Call this to get the MovieStreamer.
 	 */

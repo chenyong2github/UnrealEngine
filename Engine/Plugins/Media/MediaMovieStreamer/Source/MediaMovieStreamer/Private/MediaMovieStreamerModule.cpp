@@ -1,11 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaMovieStreamerModule.h"
+
+#include "MediaMovieAssets.h"
 #include "MediaMovieStreamer.h"
 
 #define LOCTEXT_NAMESPACE "FMediaMovieStreamerModule"
 
 TSharedPtr<FMediaMovieStreamer> MovieStreamer;
+TWeakObjectPtr<UMediaMovieAssets> MovieAssets;
+
+UMediaMovieAssets* FMediaMovieStreamerModule::GetMovieAssets()
+{
+	return MovieAssets.Get();
+}
 
 const TSharedPtr<FMediaMovieStreamer> FMediaMovieStreamerModule::GetMovieStreamer()
 {
@@ -14,16 +22,29 @@ const TSharedPtr<FMediaMovieStreamer> FMediaMovieStreamerModule::GetMovieStreame
 
 void FMediaMovieStreamerModule::StartupModule()
 {
+	// Create MovieAssets.
+	MovieAssets = NewObject<UMediaMovieAssets>();
+	MovieAssets->AddToRoot();
+
+	// Create MovieStreamer.
 	MovieStreamer = MakeShareable(new FMediaMovieStreamer);
 	FCoreDelegates::RegisterMovieStreamerDelegate.Broadcast(MovieStreamer);
 }
 
 void FMediaMovieStreamerModule::ShutdownModule()
 {
+	// Shutdown MovieStreamer.
 	if (MovieStreamer.IsValid())
 	{
 		FCoreDelegates::UnRegisterMovieStreamerDelegate.Broadcast(MovieStreamer);
 		MovieStreamer.Reset();
+	}
+
+	// Shutdown MovieAssets.
+	if (MovieAssets.IsValid())
+	{
+		MovieAssets->RemoveFromRoot();
+		MovieAssets.Reset();
 	}
 }
 
