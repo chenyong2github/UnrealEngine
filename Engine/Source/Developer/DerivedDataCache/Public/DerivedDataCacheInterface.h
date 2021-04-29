@@ -275,21 +275,21 @@ public:
 };
 
 /**
- * Module for the DDC
+ * Module for the Derived Data Cache and Derived Data Build.
  */
 class IDerivedDataCacheModule : public IModuleInterface
 {
 public:
 	/** Return the DDC interface **/
-	UE_DEPRECATED(4.27, "GetDDC has been replaced by CreateOrGetDDC.")
+	UE_DEPRECATED(4.27, "GetDDC has been replaced by CreateOrGetCache.")
 	virtual FDerivedDataCacheInterface& GetDDC() = 0;
 
 	/**
-	 * Returns the DDC interface, and creates it on the first call.
+	 * Returns the cache, which is created by the first call to this function.
 	 *
-	 * This will never return a null interface, but an extra level of indirection is used to support
-	 * callers that store the return value. The returned interface pointer will become null when the
-	 * module shuts down, which destroys DDC.
+	 * This always returns a pointer to a valid cache, but that pointer becomes null when the module
+	 * shuts down and destroys the cache. This extra level of indirection allows a caller to observe
+	 * the destruction of the cache without polling this function or monitoring the module lifetime.
 	 */
-	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() = 0;
+	virtual FDerivedDataCacheInterface* const* CreateOrGetCache() = 0;
 };

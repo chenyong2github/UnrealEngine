@@ -101,7 +101,7 @@ FDerivedDataCacheInterface* GetDerivedDataCache()
 			bInitialized = true;
 			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
 			{
-				DDC = Module->CreateOrGetDDC();
+				DDC = Module->CreateOrGetCache();
 			}
 		}
 	}

@@ -601,12 +601,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FDerivedDataCacheModule final : public IDerivedDataCacheModule
 {
 public:
-	virtual FDerivedDataCacheInterface& GetDDC() final
+	FDerivedDataCacheInterface& GetDDC() final
 	{
-		return **CreateOrGetDDC();
+		return **CreateOrGetCache();
 	}
 
-	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() final
+	FDerivedDataCacheInterface* const* CreateOrGetCache() final
 	{
 		FScopeLock Lock(&CreateLock);
 		if (!GDerivedDataCacheInstance)
@@ -617,7 +617,7 @@ public:
 		return &GDerivedDataCacheInstance;
 	}
 
-	virtual void ShutdownModule() final
+	void ShutdownModule() final
 	{
 		FDDCCleanup::Shutdown();
 
