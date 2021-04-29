@@ -8,9 +8,8 @@
 bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
 {
 	return ((DistortionInfo.Parameters == Other.DistortionInfo.Parameters)
-		&& (PrincipalPoint == Other.PrincipalPoint)
- 		&& (FxFy == Other.FxFy));
-	return false;
+		&& (DistortionInfo.FxFy == Other.DistortionInfo.FxFy)
+		&& (PrincipalPoint == Other.PrincipalPoint));
 }
 
 bool ULensDistortionModelHandlerBase::IsModelSupported(const TSubclassOf<ULensModel>& ModelToSupport) const

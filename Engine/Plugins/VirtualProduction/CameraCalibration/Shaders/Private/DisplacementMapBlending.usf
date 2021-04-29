@@ -12,6 +12,7 @@ float DeltaMinX;
 float DeltaMaxX;
 float DeltaMinY;
 float DeltaMaxY;
+float2 FxFyScale;
 float2 PrincipalPoint;
 uint2 OutputTextureExtent;
 Texture2D SourceTextureOne;
@@ -24,6 +25,7 @@ SamplerState SourceTextureSampler;
 void BlendPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
 	float2 UV = SvPosition.xy / OutputTextureExtent.xy;
+	UV = ((UV - 0.5f) * FxFyScale) + 0.5f;
 
 	float4 TexOneColor = Texture2DSampleLevel(SourceTextureOne, SourceTextureSampler, UV, 0);
 	float4 BlendedColor;
