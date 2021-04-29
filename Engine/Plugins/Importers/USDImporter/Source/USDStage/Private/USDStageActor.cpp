@@ -340,6 +340,51 @@ struct FUsdStageActorImpl
 			WhitelistComponentHierarchy( Child, VisitedObjects );
 		}
 	}
+
+	// Checks if a project-relative file path refers to a layer. It requires caution because anonymous layers need to be handled differently.
+	// WARNING: This will break if FilePath is a relative path relative to anything else other than the Project directory (i.e. engine binary)
+	static bool DoesPathPointToLayer( FString FilePath, const UE::FSdfLayer& Layer )
+	{
+#if USE_USD_SDK
+		if ( !Layer )
+		{
+			return false;
+		}
+
+		if ( !FilePath.IsEmpty() && !FPaths::IsRelative( FilePath ) && !FilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
+		{
+			FilePath = UsdUtils::MakePathRelativeToProjectDir( FilePath );
+		}
+
+		// Special handling for anonymous layers as the RealPath is empty
+		if ( Layer.IsAnonymous() )
+		{
+			// Something like "anon:0000022F9E194D50:tmp.usda"
+			const FString LayerIdentifier = Layer.GetIdentifier();
+
+			// Something like "@identifier:anon:0000022F9E194D50:tmp.usda" if we're also pointing at an anonymous layer
+			if ( FilePath.RemoveFromStart( USD_IDENTIFIER_TOKEN ) )
+			{
+				// Same anonymous layers
+				if ( FilePath == LayerIdentifier )
+				{
+					return true;
+				}
+			}
+			// RootLayer.FilePath is not an anonymous layer but the stage is
+			else
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return FPaths::IsSamePath( UsdUtils::MakePathRelativeToProjectDir( Layer.GetRealPath() ), FilePath );
+		}
+#endif // USE_USD_SDK
+
+		return false;
+	}
 };
 
 /**
@@ -558,11 +603,24 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 
 	// If the stage was closed in a big transaction (e.g. undo open) a random UObject may be transacting before us and triggering USD changes,
 	// and the UE::FUsdStage will still be opened and valid (even though we intend on closing/changing it when we transact). It could be problematic/wasteful if we
-	// responded to those notices, so just early out here
-	const UE::FUsdStage& Stage = GetOrLoadUsdStage();
-	if ( !Stage || !FPaths::IsSamePath( Stage.GetRootLayer().GetRealPath(), RootLayer.FilePath ) )
+	// responded to those notices, so just early out here. We can do this check because our RootLayer property will already have the new value
 	{
-		return;
+		const UE::FUsdStage& Stage = GetOrLoadUsdStage();
+		if ( !Stage )
+		{
+			return;
+		}
+
+		const UE::FSdfLayer& StageRoot = Stage.GetRootLayer();
+		if ( !StageRoot )
+		{
+			return;
+		}
+
+		if ( !FUsdStageActorImpl::DoesPathPointToLayer( RootLayer.FilePath, StageRoot ) )
+		{
+			return;
+		}
 	}
 
 	// The most important thing here is to iterate in parent to child order, so build SortedPrimsChangedList
@@ -961,21 +1019,29 @@ UE::FUsdStage& AUsdStageActor::GetOrLoadUsdStage()
 
 void AUsdStageActor::SetRootLayer( const FString& RootFilePath )
 {
-	FString RootFilePathCopy = RootFilePath;
-	FString CurrentStagePath = UsdStage && UsdStage.GetRootLayer()
-		? UsdStage.GetRootLayer().GetRealPath()
-		: RootFilePathCopy + TEXT("a"); // Force the comparison to be different
-
-	FPaths::NormalizeFilename( RootFilePathCopy );
-	FPaths::NormalizeFilename( CurrentStagePath );
-
-	if ( FPaths::IsSamePath( RootFilePathCopy, CurrentStagePath ) )
+	FString RelativeFilePath = RootFilePath;
+#if USE_USD_SDK
+	if ( !RelativeFilePath.IsEmpty() && !FPaths::IsRelative( RelativeFilePath ) && !RelativeFilePath.StartsWith( USD_IDENTIFIER_TOKEN ) )
 	{
-		return;
+		RelativeFilePath = UsdUtils::MakePathRelativeToProjectDir( RootFilePath );
+	}
+#endif // USE_USD_SDK
+
+	// See if we're talking about the stage that is already loaded
+	if ( UsdStage )
+	{
+		const UE::FSdfLayer& StageRootLayer = UsdStage.GetRootLayer();
+		if ( StageRootLayer )
+		{
+			if ( FUsdStageActorImpl::DoesPathPointToLayer( RelativeFilePath, StageRootLayer ) )
+			{
+				return;
+			}
+		}
 	}
 
 	UnloadUsdStage();
-	RootLayer.FilePath = RootFilePathCopy;
+	RootLayer.FilePath = RelativeFilePath;
 	LoadUsdStage();
 }
 

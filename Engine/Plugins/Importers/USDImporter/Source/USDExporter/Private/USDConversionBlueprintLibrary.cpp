@@ -12,6 +12,46 @@
 #include "UsdWrappers/UsdPrim.h"
 #include "UsdWrappers/UsdStage.h"
 
+#include "Engine/LevelStreaming.h"
+#include "Engine/World.h"
+
+TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World )
+{
+	TSet<AActor*> Result;
+	if ( !World )
+	{
+		return Result;
+	}
+
+	const bool bForce = true;
+	World->LoadSecondaryLevels(bForce);
+
+	auto CollectActors = [ &Result ]( ULevel* Level )
+	{
+		if ( !Level )
+		{
+			return;
+		}
+
+		Result.Append( Level->Actors );
+	};
+
+	CollectActors( World->PersistentLevel );
+
+	for ( ULevelStreaming* StreamingLevel : World->GetStreamingLevels() )
+	{
+		if ( StreamingLevel )
+		{
+			if ( ULevel* Level = StreamingLevel->GetLoadedLevel() )
+			{
+				CollectActors( Level );
+			}
+		}
+	}
+
+	return Result;
+}
+
 FString UUsdConversionBlueprintLibrary::MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative )
 {
 #if USE_USD_SDK
@@ -34,6 +74,11 @@ FString UUsdConversionBlueprintLibrary::MakePathRelativeToLayer( const FString& 
 void UUsdConversionBlueprintLibrary::InsertSubLayer( const FString& ParentLayerPath, const FString& SubLayerPath, int32 Index /*= -1 */ )
 {
 #if USE_USD_SDK
+	if ( ParentLayerPath.IsEmpty() || SubLayerPath.IsEmpty() )
+	{
+		return;
+	}
+
 	if ( UE::FSdfLayer Layer = UE::FSdfLayer::FindOrOpen( *ParentLayerPath ) )
 	{
 		UsdUtils::InsertSubLayer( Layer, *SubLayerPath, Index );
