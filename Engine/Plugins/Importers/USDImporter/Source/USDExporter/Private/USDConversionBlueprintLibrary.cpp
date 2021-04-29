@@ -49,6 +49,7 @@ TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World 
 		}
 	}
 
+	Result.Remove( nullptr );
 	return Result;
 }
 
