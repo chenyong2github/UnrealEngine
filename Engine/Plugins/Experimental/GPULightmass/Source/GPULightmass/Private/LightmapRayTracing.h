@@ -51,7 +51,6 @@ class FLightmapPathTracingRGS : public FGlobalShader
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.SetDefine(TEXT("LIGHTMAP_PATH_TRACING_MAIN_RG"), 1);
-		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
@@ -108,7 +107,6 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
-		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
