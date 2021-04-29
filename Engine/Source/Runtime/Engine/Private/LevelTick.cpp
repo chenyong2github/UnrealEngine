@@ -68,6 +68,7 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "ObjectCacheEventSink.h"
 #endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
@@ -1039,6 +1040,7 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 	*/
 void UWorld::SendAllEndOfFrameUpdates()
 {
+	SCOPED_NAMED_EVENT(UWorld_SendAllEndOfFrameUpdates, FColor::Yellow);
 	SCOPE_CYCLE_COUNTER(STAT_PostTickComponentUpdate);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(EndOfFrameUpdates);
 	CSV_SCOPED_SET_WAIT_STAT(EndOfFrameUpdates);
@@ -1106,8 +1108,16 @@ void UWorld::SendAllEndOfFrameUpdates()
 		LocalComponentsThatNeedEndOfFrameUpdate.Append(ComponentsThatNeedEndOfFrameUpdate);
 	}
 
+#if WITH_EDITOR
+	std::atomic<uint32> ParallelTasksRemaining(0);
+#endif
+
 	auto ParallelWork = 
-		[](int32 Index) 
+		[
+#if WITH_EDITOR
+		&ParallelTasksRemaining
+#endif
+		](int32 Index)
 		{
 			FOptionalTaskTagScope Scope(ETaskTag::EParallelGameThread);
 			UActorComponent* NextComponent = LocalComponentsThatNeedEndOfFrameUpdate[Index];
@@ -1120,10 +1130,17 @@ void UWorld::SendAllEndOfFrameUpdates()
 				check(NextComponent->IsPendingKill() || NextComponent->GetMarkedForEndOfFrameUpdateState() == EComponentMarkedForEndOfFrameUpdateState::Marked);
 				FMarkComponentEndOfFrameUpdateState::Set(NextComponent, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 			}
+#if WITH_EDITOR
+			ParallelTasksRemaining--;
+#endif
 		};
 
 	auto GTWork = 
-		[this]()
+		[this
+#if WITH_EDITOR
+		, &ParallelTasksRemaining
+#endif
+		]()
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_PostTickComponentUpdate_ForcedGameThread);
 
@@ -1153,11 +1170,29 @@ void UWorld::SendAllEndOfFrameUpdates()
 			{
 				Component->DoDeferredRenderUpdates_Concurrent();
 			}
+
+#if WITH_EDITOR
+			while (ParallelTasksRemaining > 0)
+			{
+				FObjectCacheEventSink::ProcessQueuedNotifyEvents();
+			}
+#endif
 	};
 
-	if (CVarAllowAsyncRenderThreadUpdatesDuringGamethreadUpdates.GetValueOnGameThread() > 0)
+	if (CVarAllowAsyncRenderThreadUpdatesDuringGamethreadUpdates.GetValueOnGameThread() > 0 && 
+		LocalComponentsThatNeedEndOfFrameUpdate.Num() > FTaskGraphInterface::Get().GetNumWorkerThreads() &&
+		FTaskGraphInterface::Get().GetNumWorkerThreads() > 2)
 	{
+#if WITH_EDITOR
+		ParallelTasksRemaining = LocalComponentsThatNeedEndOfFrameUpdate.Num();
+		FObjectCacheEventSink::BeginQueueNotifyEvents();
+#endif
 		ParallelForWithPreWork(LocalComponentsThatNeedEndOfFrameUpdate.Num(), ParallelWork, GTWork);
+
+#if WITH_EDITOR
+		// Any remaining events will be flushed with this call
+		FObjectCacheEventSink::EndQueueNotifyEvents();
+#endif
 	}
 	else
 	{
