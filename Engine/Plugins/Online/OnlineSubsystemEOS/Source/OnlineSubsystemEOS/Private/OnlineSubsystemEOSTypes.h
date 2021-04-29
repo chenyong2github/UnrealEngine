@@ -46,11 +46,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdEOSRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdEOS>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdEOS(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdEOS>;
 
 	static const FUniqueNetIdEOS& Cast(const FUniqueNetId& NetId)
 	{

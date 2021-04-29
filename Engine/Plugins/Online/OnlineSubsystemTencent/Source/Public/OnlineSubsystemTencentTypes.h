@@ -47,11 +47,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdRailRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdRail>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdRail(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdRail>;
 
 	virtual FName GetType() const override
 	{

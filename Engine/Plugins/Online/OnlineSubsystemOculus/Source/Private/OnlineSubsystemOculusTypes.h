@@ -34,11 +34,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdOculusRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdOculus>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdOculus(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdOculus>;
 
 	static const FUniqueNetIdOculus& Cast(const FUniqueNetId& NetId)
 	{

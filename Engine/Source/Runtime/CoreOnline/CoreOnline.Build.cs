@@ -5,9 +5,6 @@ using EpicGames.Core;
 
 public class CoreOnline : ModuleRules
 {
-	[ConfigFile(ConfigHierarchyType.Engine, "CoreOnline")]
-	bool bEnableThreadSafeUniqueNetIds = false;
-
 	public CoreOnline(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PublicDependencyModuleNames.AddRange(
@@ -16,8 +13,5 @@ public class CoreOnline : ModuleRules
 				"CoreUObject"
 			}
 		);
-
-		ConfigCache.ReadSettings(DirectoryReference.FromFile(Target.ProjectFile), Target.Platform, this);
 	}
-
 }

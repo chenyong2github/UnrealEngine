@@ -27,11 +27,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdFacebookRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdFacebook>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdFacebook(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdFacebook>;
 
 	//~ Begin FUniqueNetId Interface
 	virtual FName GetType() const override

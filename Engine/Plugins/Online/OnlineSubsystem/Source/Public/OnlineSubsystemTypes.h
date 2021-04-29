@@ -832,11 +832,10 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdStringRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdString>(Forward<TArgs>(Args)...);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdString>;
 
 	static FUniqueNetIdStringRef& EmptyId()
 	{
@@ -892,6 +891,7 @@ public:
 	}
 
 public:
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
 	FUniqueNetIdString() = default;
 
 	/**
@@ -899,7 +899,8 @@ public:
 	 *
 	 * @param InUniqueNetId the id to set ours to
 	 */
-	explicit FUniqueNetIdString(const FString & InUniqueNetId)
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	explicit FUniqueNetIdString(const FString& InUniqueNetId)
 		: UniqueNetIdStr(InUniqueNetId)
 		, Type(NAME_Unset)
 	{
@@ -910,7 +911,8 @@ public:
 	 *
 	 * @param InUniqueNetId the id to set ours to
 	 */
-	explicit FUniqueNetIdString(FString && InUniqueNetId)
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	explicit FUniqueNetIdString(FString&& InUniqueNetId)
 		: UniqueNetIdStr(MoveTemp(InUniqueNetId))
 		, Type(NAME_Unset)
 	{
@@ -921,7 +923,8 @@ public:
 	 *
 	 * @param Src the id to copy
 	 */
-	explicit FUniqueNetIdString(const FUniqueNetId & Src)
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	explicit FUniqueNetIdString(const FUniqueNetId& Src)
 		: UniqueNetIdStr(Src.ToString())
 		, Type(Src.GetType())
 	{
@@ -930,7 +933,8 @@ public:
 	/**
 	* don.eubanks - Including a constructor that allows for type passing to make transitioning easier, if we determine we want to abstract-ify this class, this constructor will be removed
 	*/
-	FUniqueNetIdString(const FString & InUniqueNetId, const FName InType)
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef")
+	FUniqueNetIdString(const FString& InUniqueNetId, const FName InType)
 		: UniqueNetIdStr(InUniqueNetId)
 		, Type(InType)
 	{
@@ -947,9 +951,10 @@ public: \
 	template<typename... TArgs> \
 	static SUBCLASSNAME##Ref Create(TArgs&&... Args) \
 	{ \
-		return MakeShared<SUBCLASSNAME>(Forward<TArgs>(Args)...); \
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS \
+		return MakeShareable(new SUBCLASSNAME(Forward<TArgs>(Args)...)); \
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS \
 	} \
-	friend class SharedPointerInternals::TIntrusiveReferenceController<SUBCLASSNAME>; \
 	static SUBCLASSNAME##Ref Cast(const FUniqueNetIdRef& InNetId) \
 	{ \
 		check(InNetId->GetType() == TYPE); \
@@ -983,19 +988,23 @@ public: \
 		return EmptyId; \
 	} \
 public: \
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef") \
 	SUBCLASSNAME() \
 		: FUniqueNetIdString() \
 	{ \
 		Type = TYPE; \
 	} \
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef") \
 	explicit SUBCLASSNAME(const FString& InUniqueNetId) \
 		: FUniqueNetIdString(InUniqueNetId, TYPE) \
 	{ \
 	} \
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef") \
 	explicit SUBCLASSNAME(FString&& InUniqueNetId) \
 		: FUniqueNetIdString(MoveTemp(InUniqueNetId), TYPE) \
 	{ \
 	} \
+	UE_DEPRECATED(5.0, "Public constructors of FUniqueNetId types are deprecated. Please use the ::Create(Args) method instead to create a FUniqueNetIdRef") \
 	explicit SUBCLASSNAME(const FUniqueNetId& Src) \
 		: FUniqueNetIdString(Src) \
 	{ \

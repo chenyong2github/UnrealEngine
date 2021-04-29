@@ -73,7 +73,7 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdSteamRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdSteam>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdSteam(Forward<TArgs>(Args)...));
 	}
 
 	static const FUniqueNetIdSteam& Cast(const FUniqueNetId& NetId)
@@ -85,9 +85,6 @@ public:
 	{
 		return StaticCastSharedRef<const FUniqueNetIdSteam>(FUniqueNetId::AsShared());
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdSteam>;
 
 	virtual FName GetType() const override
 	{

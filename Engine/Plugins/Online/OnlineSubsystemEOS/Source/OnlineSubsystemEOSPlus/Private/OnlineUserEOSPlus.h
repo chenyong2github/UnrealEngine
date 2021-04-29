@@ -31,11 +31,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdEOSPlusRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdEOSPlus>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdEOSPlus(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdEOSPlus>;
 
 // FUniqueNetId interface
 	virtual const uint8* GetBytes() const override;
@@ -73,11 +70,8 @@ public:
 	template<typename... TArgs>
 	static FUniqueNetIdBinaryRef Create(TArgs&&... Args)
 	{
-		return MakeShared<FUniqueNetIdBinary>(Forward<TArgs>(Args)...);
+		return MakeShareable(new FUniqueNetIdBinary(Forward<TArgs>(Args)...));
 	}
-
-	/** Allow MakeShared to see private constructors */
-	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdBinary>;
 
 	virtual FName GetType() const override
 	{
