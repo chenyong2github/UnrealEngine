@@ -130,10 +130,11 @@ namespace ExposedFieldUtils
 	}
 }
 
-void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField)
+void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData)
 {
 	WeakField = MoveTemp(InField);
-	
+
+	ColumnSizeData = MoveTemp(InColumnSizeData);
 	bEditMode = InArgs._EditMode;
 	Preset = InArgs._Preset;
 	bDisplayValues = InArgs._DisplayValues;
@@ -217,7 +218,12 @@ void SRCPanelExposedField::Refresh()
 	{
 		CachedLabel = Field->GetLabel();
 		RowGenerator->SetObjects(Field->GetBoundObjects());
-		ChildSlot.AttachWidget(ConstructWidget());
+
+		// Don't update the function row needlessly.
+		if (Field->FieldType == EExposedFieldType::Property)
+		{
+			ChildSlot.AttachWidget(ConstructWidget());
+		}
 	}
 }
 
@@ -245,7 +251,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 
 					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
 					{
-						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode));
+						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode, ColumnSizeData));
 					}
 
 					return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
@@ -261,7 +267,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 
 TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget)
 {
-	PanelTreeNode::FMakeNodeWidgetArgs Args;
+	FMakeNodeWidgetArgs Args;
 
 	FText WarningMessage;
 
@@ -304,7 +310,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 	}
 	
 	Args.DragHandle = SNew(SBox)
-		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 		[
 			SNew(SRCPanelDragHandle<FExposedEntityDragDrop>, FieldId)
 			.Widget(AsShared())
@@ -363,7 +369,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		.Padding(0.0f)
 		.BorderImage(this, &SRCPanelExposedField::GetBorderImage)
 		[
-			PanelTreeNode::MakeNodeWidget(Args)
+			MakeNodeWidget(Args)
 		];
 }
 
@@ -473,7 +479,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 
 					if (TSharedPtr<IDetailTreeNode> PropertyNode = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString(), false))
 					{
-						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef()));
+						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef(), ColumnSizeData));
 					}
 				}
 
@@ -537,22 +543,24 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 	return FReply::Handled();
 }
 
-void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode)
+void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode, FRCColumnSizeData InColumnSizeData)
 {
 	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 	InNode->GetChildren(ChildNodes);
 
-	Algo::Transform(ChildNodes, ChildrenNodes, [](const TSharedRef<IDetailTreeNode>& ChildNode) { return SNew(SRCPanelFieldChildNode, ChildNode); });
+	Algo::Transform(ChildNodes, ChildrenNodes, [InColumnSizeData](const TSharedRef<IDetailTreeNode>& ChildNode) { return SNew(SRCPanelFieldChildNode, ChildNode, InColumnSizeData); });
+
+	ColumnSizeData = InColumnSizeData;
 
 	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
-	PanelTreeNode::FMakeNodeWidgetArgs Args;
+	FMakeNodeWidgetArgs Args;
 	Args.NameWidget = Widgets.NameWidget;
 	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode);
 
 	ChildSlot
-		[
-			PanelTreeNode::MakeNodeWidget(Args)
-		];
+	[
+		MakeNodeWidget(Args)
+	];
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/
