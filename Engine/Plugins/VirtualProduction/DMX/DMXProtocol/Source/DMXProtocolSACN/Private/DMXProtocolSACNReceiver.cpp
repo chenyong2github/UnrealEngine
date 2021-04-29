@@ -56,16 +56,16 @@ FDMXProtocolSACNReceiver::FDMXProtocolSACNReceiver(const TSharedPtr<FDMXProtocol
 
 FDMXProtocolSACNReceiver::~FDMXProtocolSACNReceiver()
 {
-	if (Socket)
-	{
-		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-		SocketSubsystem->DestroySocket(Socket);
-	}
-
 	if (Thread != nullptr)
 	{
 		Thread->Kill(true);
 		delete Thread;
+	}
+
+	if (Socket)
+	{
+		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+		SocketSubsystem->DestroySocket(Socket);
 	}
 
 	UE_LOG(LogDMXProtocol, VeryVerbose, TEXT("Destroyed sACN Receiver at %s"), *EndpointInternetAddr->ToString(false));
