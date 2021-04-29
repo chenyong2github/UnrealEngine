@@ -33,7 +33,7 @@ private:
 	  * Loads all referencing packages to redirectors in RedirectorsToFix, finds redirectors whose references can
 	  * not be fixed up, and returns a list of referencing packages to save.
 	  */
-	void LoadReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& OutReferencingPackagesToSave) const;
+	void LoadReferencingPackages(TArray<FRedirectorRefs>& RedirectorsToFix, TArray<UPackage*>& OutReferencingPackagesToSave, TArray<UPackage*>& OutLoadedPackages)const;
 
 	/** 
 	  * Check out referencing packages and marks assets whose referencing packages were not checked out to not fix the redirector.
