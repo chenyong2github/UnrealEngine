@@ -64,6 +64,12 @@ public:
 	/** Called from the scene instance when the actor owner of this component leave an scene */
 	void OnLeftScene(const FContextualAnimSceneActorData* SceneActorData);
 
+	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Actor Component")
+	const TArray<FContextualAnimIKTarget>& GetIKTargets() const { return IKTargets; }
+
+	UFUNCTION(BlueprintPure, Category = "Contextual Anim|Scene Actor Component")
+	const FContextualAnimIKTarget& GetIKTargetByGoalName(FName GoalName) const;
+
 protected:
 
 	/** Ptr back to the scene actor data that represent us in the scene instance we are part of */

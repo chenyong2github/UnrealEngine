@@ -12,13 +12,6 @@ class AActor;
 class UAnimMontage;
 class UContextualAnimMetadata;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-struct FContextualAnimCVars
-{
-	static TAutoConsoleVariable<int32> CVarDrawDebugIKTargets;
-};
-#endif
-
 /** Container for alignment tracks */
 USTRUCT()
 struct CONTEXTUALANIMATION_API FContextualAnimAlignmentTrackContainer
@@ -203,6 +196,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimIKTarget
 	FContextualAnimIKTarget(){}
 	FContextualAnimIKTarget(const FName& InGoalName, float InAlpha, const FTransform& InTransform)
 		: GoalName(InGoalName), Alpha(InAlpha), Transform(InTransform){}
+
+	static const FContextualAnimIKTarget InvalidIKTarget;
 };
 
 USTRUCT(BlueprintType)

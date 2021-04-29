@@ -123,8 +123,16 @@ bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FVie
 			else
 			{
 				if (UContextualAnimSceneActorComponent* Comp = Manager->FindClosestSceneActorCompToActor(PreviewManager->TestCharacter.Get()))
-				{	
-					Manager->TryStartScene(Comp->SceneAsset, Comp->GetOwner(), Manager->GetSceneActorCompContainer());
+				{
+					TSet<UContextualAnimSceneActorComponent*> Comps = Manager->GetSceneActorCompContainer();
+
+					Comps.Sort([Comp](const UContextualAnimSceneActorComponent& A, const UContextualAnimSceneActorComponent& B){
+						const float DistSqA = FVector::DistSquared2D(Comp->GetComponentLocation(), A.GetComponentLocation());
+						const float DistSqB = FVector::DistSquared2D(Comp->GetComponentLocation(), B.GetComponentLocation());
+						return DistSqA < DistSqB;
+					});
+
+					Manager->TryStartScene(Comp->SceneAsset, Comp->GetOwner(), Comps);
 				}
 				else
 				{

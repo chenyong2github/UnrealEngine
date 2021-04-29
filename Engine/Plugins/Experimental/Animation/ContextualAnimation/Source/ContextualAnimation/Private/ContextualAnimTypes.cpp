@@ -10,11 +10,8 @@
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-TAutoConsoleVariable<int32> FContextualAnimCVars::CVarDrawDebugIKTargets(TEXT("a.ContextualAnim.DrawDebugIKTargets"), 0, TEXT("Draw Debug IK Targets"), ECVF_Cheat);
-#endif
-
-const FContextualAnimData FContextualAnimData::EmptyAnimData = FContextualAnimData();
+const FContextualAnimData FContextualAnimData::EmptyAnimData;
+const FContextualAnimIKTarget FContextualAnimIKTarget::InvalidIKTarget;
 
 // FContextualAnimAlignmentTrackContainer
 ///////////////////////////////////////////////////////////////////////
