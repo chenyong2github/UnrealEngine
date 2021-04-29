@@ -1579,7 +1579,16 @@ void UEdGraphPin::DestroyImpl(bool bClearLinks)
 	}
 	SubPins.Reset();
 	ParentPin = nullptr;
-	ReferencePassThroughConnection = nullptr;
+
+	// ReferencePassThroughConnection should be symmetrical: the source and target pins should refer to each other.
+	// If one pin is destroyed, then we must disconnect the other so that it doesn't inadvertently reference a trashed pin.
+	if (ReferencePassThroughConnection != nullptr)
+	{
+		ensure(ReferencePassThroughConnection->ReferencePassThroughConnection == this);
+		ReferencePassThroughConnection->ReferencePassThroughConnection = nullptr;
+		ReferencePassThroughConnection = nullptr;
+	}
+
 	bWasTrashed = true;
 }
 
