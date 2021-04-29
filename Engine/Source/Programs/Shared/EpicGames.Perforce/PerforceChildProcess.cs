@@ -169,7 +169,7 @@ namespace EpicGames.Perforce
 		public async Task<Tuple<bool, string>> TryReadToEndAsync(CancellationToken CancellationToken)
 		{
 			MemoryStream Stream = new MemoryStream();
-			await ChildProcess!.CopyTo(Stream, CancellationToken);
+			await ChildProcess!.CopyToAsync(Stream, CancellationToken);
 			ChildProcess.WaitForExit();
 			string Data = Encoding.Default.GetString(Stream.ToArray());
 			return Tuple.Create(ChildProcess.ExitCode == 0, Data);
