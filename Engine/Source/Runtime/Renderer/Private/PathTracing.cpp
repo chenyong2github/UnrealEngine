@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "PathTracing.h"
 #include "RHI.h"
 
 #if RHI_RAYTRACING
@@ -449,7 +450,6 @@ class FPathTracingRG : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
-		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_RECT_LIGHT_TEXTURES"), 1);
 	}
 
@@ -468,11 +468,8 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingLightGrid, LightGridParameters)
 
 		// Skylight
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
-		SHADER_PARAMETER_SAMPLER(SamplerState, SkylightTextureSampler)
-		SHADER_PARAMETER(float, SkylightInvResolution)
-		SHADER_PARAMETER(int32, SkylightMipCount)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingSkylight, SkylightParameters)
+
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler) // Shared sampler for all IES profiles
@@ -583,24 +580,22 @@ RENDERER_API void PrepareSkyTexture_Internal(
 	}
 }
 
-bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool UseMISCompensation, FPathTracingRG::FParameters* PathTracingParameters)
+bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, bool IsSkylightCachingEnabled, FPathTracingSkylight* SkylightParameters)
 {
-	PathTracingParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SkylightParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	FReflectionUniformParameters Parameters;
 	SetupReflectionUniformParameters(View, Parameters);
-	if (!(Parameters.SkyLightParameters.Y > 0))
+	if (!SkylightEnabled || !(Parameters.SkyLightParameters.Y > 0))
 	{
 		// textures not ready, or skylight not active
 		// just put in a placeholder
-		PathTracingParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		PathTracingParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		PathTracingParameters->SkylightInvResolution = 0;
-		PathTracingParameters->SkylightMipCount = 0;
+		SkylightParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		SkylightParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		SkylightParameters->SkylightInvResolution = 0;
+		SkylightParameters->SkylightMipCount = 0;
 		return false;
 	}
-
-	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
 
 	if (!IsSkylightCachingEnabled)
 	{
@@ -614,10 +609,10 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	{
 		// we already have a valid texture and pdf, just re-use them!
 		// it is the responsability of code that may invalidate the contents to reset these pointers
-		PathTracingParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightTexture, TEXT("PathTracer.Skylight"));
-		PathTracingParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightPdf, TEXT("PathTracer.SkylightPdf"));
-		PathTracingParameters->SkylightInvResolution = 1.0f / PathTracingParameters->SkylightTexture->Desc.GetSize().X;
-		PathTracingParameters->SkylightMipCount = PathTracingParameters->SkylightPdf->Desc.NumMips;
+		SkylightParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightTexture, TEXT("PathTracer.Skylight"));
+		SkylightParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightPdf, TEXT("PathTracer.SkylightPdf"));
+		SkylightParameters->SkylightInvResolution = 1.0f / SkylightParameters->SkylightTexture->Desc.GetSize().X;
+		SkylightParameters->SkylightMipCount = SkylightParameters->SkylightPdf->Desc.NumMips;
 		return true;
 	}
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing SkylightPrepare");
@@ -633,17 +628,17 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		SkyColor,
 		UseMISCompensation,
 		// Out
-		PathTracingParameters->SkylightTexture,
-		PathTracingParameters->SkylightPdf,
-		PathTracingParameters->SkylightInvResolution,
-		PathTracingParameters->SkylightMipCount
+		SkylightParameters->SkylightTexture,
+		SkylightParameters->SkylightPdf,
+		SkylightParameters->SkylightInvResolution,
+		SkylightParameters->SkylightMipCount
 	);
 
 	// hang onto these for next time (if caching is enabled)
 	if (IsSkylightCachingEnabled)
 	{
-		GraphBuilder.QueueTextureExtraction(PathTracingParameters->SkylightTexture, &Scene->PathTracingSkylightTexture);
-		GraphBuilder.QueueTextureExtraction(PathTracingParameters->SkylightPdf, &Scene->PathTracingSkylightPdf);
+		GraphBuilder.QueueTextureExtraction(SkylightParameters->SkylightTexture, &Scene->PathTracingSkylightTexture);
+		GraphBuilder.QueueTextureExtraction(SkylightParameters->SkylightPdf, &Scene->PathTracingSkylightPdf);
 	}
 	return true;
 }
@@ -763,7 +758,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
 	const float Inf = std::numeric_limits<float>::infinity();
-	if (PrepareSkyTexture(GraphBuilder, Scene, View, UseMISCompensation, PassParameters))
+	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, true, UseMISCompensation, IsSkylightCachingEnabled, &PassParameters->SkylightParameters))
 	{
 		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[NumLights++];
