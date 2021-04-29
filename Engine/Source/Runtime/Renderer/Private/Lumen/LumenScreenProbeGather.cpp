@@ -14,6 +14,7 @@
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "ScreenSpaceDenoise.h"
+#include "HairStrands/HairStrandsEnvironment.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
 
@@ -1374,6 +1375,12 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 			DenoiserOutputs.Textures[0] = DiffuseIndirect;
 			DenoiserOutputs.Textures[1] = RoughSpecularIndirect;
 		}
+	}
+
+	// Sample radiance caches for hair strands lighting. Only used wht radiance cache is enabled
+	if (LumenScreenProbeGather::UseRadianceCache(View) && HairStrands::HasViewHairStrandsData(View))
+	{
+		RenderHairStrandsLumenLighting(GraphBuilder, Scene, View);
 	}
 
 	return DenoiserOutputs;
