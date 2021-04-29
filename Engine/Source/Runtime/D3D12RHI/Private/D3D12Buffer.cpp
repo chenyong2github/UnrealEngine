@@ -211,10 +211,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
 	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
-
-	// Transient flag set?
-	bool bIsTransient = (InUsage & BUF_Transient);
-	
+		
 	// Does this resource support tracking?
 	const bool bSupportResourceStateTracking = !bIsDynamic && FD3D12DefaultBufferAllocator::IsPlacedResource(InDesc.Flags, InResourceStateMode);
 
@@ -226,10 +223,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 	FD3D12Buffer* BufferOut = nullptr;
 	if (bIsDynamic)
-	{
-		// Assume not transient and dynamic
-		check(!bIsTransient);
-		
+	{		
 		FD3D12Buffer* NewBuffer0 = nullptr;
 		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
@@ -260,8 +254,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
 			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator);
-			NewBuffer->ResourceLocation.SetTransient(bIsTransient);
-
+			
 			// Unlock immediately if no initial data
 			if (CreateInfo.ResourceArray == nullptr)
 			{
@@ -274,7 +267,6 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 	if (CreateInfo.ResourceArray)
 	{
-		check(!bIsTransient);
 		if (bIsDynamic == false && BufferOut->ResourceLocation.IsValid())
 		{
 			check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
@@ -339,12 +331,6 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
-	}
-
-	// Don't update stats for transient resources
-	if (!bIsTransient)
-	{
-		UpdateBufferStats(GetBufferStats(InUsage), BufferOut->ResourceLocation.GetSize());
 	}
 
 	return BufferOut;

@@ -7,20 +7,6 @@
 #define NEEDS_D3D12_INDIRECT_ARGUMENT_HEAP_WORKAROUND 0
 #endif
 
-#if TRACK_RESOURCE_ALLOCATIONS
-
-// Limited size because tracking currently still takes some overhead when creating the callstack for each allocation
-// Arbitrary size right now for which we are interested to know where these allocations are coming from and if they are needed
-// and can be optimized.
-static int32 GD3D12MinPoolAllocationSizeToTrack = 16 * 1024 * 1024;
-static FAutoConsoleVariableRef CVarD3D12MinPoolAllocationSizeToTrack(
-	TEXT("d3d12.MinPoolAllocationSizeToTrack"),
-	GD3D12MinPoolAllocationSizeToTrack,
-	TEXT("Minimum allocation size to track for pool allocations (default 16MB)"),
-	ECVF_ReadOnly);
-
-#endif // TRACK_RESOURCE_ALLOCATIONS
-
 //-----------------------------------------------------------------------------
 //	FD3D12MemoryPool
 //-----------------------------------------------------------------------------
@@ -63,6 +49,14 @@ void FD3D12MemoryPool::Init()
 		Desc.Properties = HeapProps;
 		Desc.Alignment = 0;
 		Desc.Flags = InitConfig.HeapFlags;
+
+		// All all resources types on heap when tracking allocations (need to be able to create a buffer on it to extract the base gpu address)
+		// (Tier 2 support already checked when this flag is enabled)
+		if (Adapter->IsTrackingAllAllocations())
+		{
+			Desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+		}
+
 		if (Adapter->IsHeapNotZeroedSupported())
 		{
 			Desc.Flags |= FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
@@ -328,18 +322,43 @@ void FD3D12PoolAllocator::AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHe
 
 			FD3D12Resource* NewResource = CreatePlacedResource(AllocationData, InDesc, InCreateState, InResourceStateMode, InClearValue, InName);
 			ResourceLocation.SetResource(NewResource);
+			ResourceLocation.SetGPUVirtualAddress(NewResource->GetGPUVirtualAddress());
 		}
 
 		UpdateAllocationTracking(ResourceLocation, EAllocationType::Allocate);
 	}
 	else
 	{
-		// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
 		FD3D12Resource* NewResource = nullptr;
 		const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(InHeapType, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 		D3D12_RESOURCE_DESC Desc = InDesc;
 		Desc.Alignment = 0;
-		VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
+
+		// If we are tracking all allocation data and allocating a standalone texture, then first create a heap so we can retrieve the GPU virtual address as well
+		if (Adapter->IsTrackingAllAllocations() && InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+		{
+			D3D12_HEAP_DESC HeapDesc = {};
+			HeapDesc.SizeInBytes = InSize;
+			HeapDesc.Properties = HeapProps;
+			HeapDesc.Alignment = InDesc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : 0;
+			HeapDesc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+			if (Adapter->IsHeapNotZeroedSupported())
+			{
+				HeapDesc.Flags |= FD3D12_HEAP_FLAG_CREATE_NOT_ZEROED;
+			}
+
+			ID3D12Heap* Heap = nullptr;
+			VERIFYD3D12RESULT(Adapter->GetD3DDevice()->CreateHeap(&HeapDesc, IID_PPV_ARGS(&Heap)));
+			TRefCountPtr<FD3D12Heap> BackingHeap = new FD3D12Heap(GetParentDevice(), GetVisibilityMask());
+			BackingHeap->SetHeap(Heap);		
+			
+			VERIFYD3D12RESULT(Adapter->CreatePlacedResource(Desc, BackingHeap, 0, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName));
+		}
+		else
+		{
+			// Allocate Standalone - move to owner of resource because this allocator should only manage pooled allocations (needed for now to do the same as FD3D12DefaultBufferPool)
+			VERIFYD3D12RESULT(Adapter->CreateCommittedResource(Desc, GetGPUMask(), HeapProps, InCreateState, InResourceStateMode, InCreateState, InClearValue, &NewResource, InName, false));
+		}
 
 		ResourceLocation.AsStandAlone(NewResource, InSize);
 	}
@@ -363,11 +382,11 @@ FD3D12Resource* FD3D12PoolAllocator::CreatePlacedResource(
 }
 
 
-void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLocation)
+void FD3D12PoolAllocator::DeallocateResource(FD3D12ResourceLocation& ResourceLocation, bool bDefragFree)
 {
 	check(IsOwner(ResourceLocation));
 
-	UpdateAllocationTracking(ResourceLocation, EAllocationType::Free);
+	UpdateAllocationTracking(ResourceLocation, bDefragFree ? EAllocationType::DefragFree : EAllocationType::Free);
 	
 	FScopeLock Lock(&CS);
 
@@ -465,7 +484,8 @@ bool FD3D12PoolAllocator::HandleDefragRequest(FRHIPoolAllocationData* InSourceBl
 	FD3D12Resource* CurrentResource = Owner->GetResource();
 
 	// Release the current allocation (will only be freed on the next frame fence)
-	DeallocateResource(*Owner);
+	bool bDefragFree = true;
+	DeallocateResource(*Owner, bDefragFree);
 
 	// Move temp allocation data to allocation data of the owner (part of different allocator now)		
 	bool bLocked = true;
@@ -650,21 +670,24 @@ FD3D12HeapAndOffset FD3D12PoolAllocator::GetBackingHeapAndAllocationOffsetInByte
 void FD3D12PoolAllocator::UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType)
 {
 #if TRACK_RESOURCE_ALLOCATIONS
-	// Only track for default heap and of allocation is of certain minimum size
 	check(IsOwner(InAllocation));
 	FRHIPoolAllocationData& AllocationData = InAllocation.GetPoolAllocatorPrivateData().PoolData;
 	check(AllocationData.IsAllocated());
 	uint64 AllocationSize = AllocationData.GetSize();
-	if (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT && GD3D12MinPoolAllocationSizeToTrack > 0 && AllocationSize >= (uint32)GD3D12MinPoolAllocationSizeToTrack)
+
+	// Track only when tracking all resources is set
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+	if (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT && AllocationStrategy == EResourceAllocationStrategy::kPlacedResource && Adapter->IsTrackingAllAllocations())
 	{
-		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();		
 		if (InAllocationType == EAllocationType::Allocate)
 		{
-			Adapter->TrackAllocationData(&InAllocation, AllocationSize);
+			bool bCollectCallstack = false;
+			Adapter->TrackAllocationData(&InAllocation, AllocationSize, bCollectCallstack);
 		}
 		else
 		{
-			Adapter->ReleaseTrackedAllocationData(&InAllocation);
+			bool bDefragFree = InAllocationType == EAllocationType::DefragFree;
+			Adapter->ReleaseTrackedAllocationData(&InAllocation, bDefragFree);
 		}
 	}
 #endif // TRACK_RESOURCE_ALLOCATIONS

@@ -316,7 +316,7 @@ struct FDred_1_2
 
 /** Log the DRED data to Error log if available */
 template <typename FDred_T>
-static bool LogDREDData(ID3D12Device* Device)
+static bool LogDREDData(ID3D12Device* Device, bool bTrackingAllAllocations, D3D12_GPU_VIRTUAL_ADDRESS& OutPageFaultGPUAddress)
 {
 	// Should match all values from D3D12_AUTO_BREADCRUMB_OP
 	static const TCHAR* OpNames[] =
@@ -464,18 +464,23 @@ static bool LogDREDData(ID3D12Device* Device)
 		D3D12_DRED_PAGE_FAULT_OUTPUT DredPageFaultOutput;
 		if (SUCCEEDED(Dred.Data->GetPageFaultAllocationOutput(&DredPageFaultOutput)) && DredPageFaultOutput.PageFaultVA != 0)
 		{
+			OutPageFaultGPUAddress = DredPageFaultOutput.PageFaultVA;
 			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: PageFault at VA GPUAddress \"0x%llX\""), (long long)DredPageFaultOutput.PageFaultVA);
-
+			
 			const D3D12_DRED_ALLOCATION_NODE* Node = DredPageFaultOutput.pHeadExistingAllocationNode;
 			if (Node)
 			{
 				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Active objects with VA ranges that match the faulting VA:"));
 				while (Node)
 				{
-					int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
-					const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
-					UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
-
+					// When tracking all allocations then empty named dummy resources (heap & buffer)
+					// are created for each texture to extract the GPUBaseAddress so don't write these out
+					if (!bTrackingAllAllocations || Node->ObjectNameW)
+					{
+						int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
+						const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
+					}
 					Node = Node->pNext;
 				}
 			}
@@ -486,9 +491,13 @@ static bool LogDREDData(ID3D12Device* Device)
 				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Recent freed objects with VA ranges that match the faulting VA:"));
 				while (Node)
 				{
-					int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
-					const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
-					UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
+					// See comments above
+					if (!bTrackingAllAllocations || Node->ObjectNameW)
+					{
+						int32 alloc_type_index = Node->AllocationType - D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE;
+						const TCHAR* AllocTypeName = (alloc_type_index < UE_ARRAY_COUNT(AllocTypesNames)) ? AllocTypesNames[alloc_type_index] : TEXT("Unknown Alloc");
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tName: %s (Type: %s)"), Node->ObjectNameW, AllocTypeName);
+					}
 
 					Node = Node->pNext;
 				}
@@ -504,6 +513,49 @@ static bool LogDREDData(ID3D12Device* Device)
 	else
 	{
 		return false;
+	}
+}
+
+void LogPageFaultData(FD3D12Adapter* InAdapter, D3D12_GPU_VIRTUAL_ADDRESS InPageFaultAddress)
+{
+	if (InPageFaultAddress == 0)
+	{
+		return;
+	}
+
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: PageFault at VA GPUAddress \"0x%llX\""), (long long)InPageFaultAddress);
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Logging all resource enabled: %s"), InAdapter->IsTrackingAllAllocations() ? TEXT("Yes") : TEXT("No"));
+
+	// Try and find all current allocations near that range
+	static const int64 CheckRangeRadius = 16 * 1024 * 1024;
+	TArray<FD3D12Adapter::FAllocatedResourceResult> OverlappingResources;
+	InAdapter->FindResourcesNearGPUAddress(InPageFaultAddress, CheckRangeRadius, OverlappingResources);
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Found %d active tracked resources in %3.2f MB range of page fault address"), OverlappingResources.Num(), CheckRangeRadius / (1024.0f * 1024));
+	if (OverlappingResources.Num() > 0)
+	{
+		uint32 PrintCount = FMath::Min(OverlappingResources.Num(), 100);
+		for (uint32 Index = 0; Index < PrintCount; ++Index)
+		{
+			FD3D12Adapter::FAllocatedResourceResult OverlappingResource = OverlappingResources[Index];
+			D3D12_GPU_VIRTUAL_ADDRESS ResourceAddress = OverlappingResource.Allocation->GetGPUVirtualAddress();
+			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: \"0x%llX\" - Size: %3.2f MB - Distance to page fault: %3.2f MB - Transient: %d - Name: %s"),
+				(long long)ResourceAddress, OverlappingResource.Allocation->GetSize() / (1024.0f * 1024), OverlappingResource.Distance / (1024.0f * 1024), OverlappingResource.Allocation->IsTransient(), *OverlappingResource.Allocation->GetResource()->GetName().ToString());
+		}
+	}
+
+	// Try and find all released allocations within the faulting address
+	TArray<FD3D12Adapter::FReleasedAllocationData> ReleasedResources;
+	InAdapter->FindReleasedAllocationData(InPageFaultAddress, ReleasedResources);
+	UE_LOG(LogD3D12RHI, Error, TEXT("PageFault: Found %d released resources containing the page fault address during last 100 frames (current frame ID: %d)"), ReleasedResources.Num(), InAdapter->GetFrameFence().GetCurrentFence());
+	if (ReleasedResources.Num() > 0)
+	{
+		uint32 PrintCount = FMath::Min(ReleasedResources.Num(), 100);
+		for (uint32 Index = 0; Index < PrintCount; ++Index)
+		{
+			FD3D12Adapter::FReleasedAllocationData& AllocationData = ReleasedResources[Index];
+			UE_LOG(LogD3D12RHI, Error, TEXT("\tGPU Address: \"0x%llX\" - Size: %3.2f MB - FrameID: %4d - DefragFree: %d - Transient: %d - Name: %s"),
+				(long long)AllocationData.GPUVirtualAddress, AllocationData.AllocationSize / (1024.0f * 1024), AllocationData.ReleasedFrameID, AllocationData.bDefragFree, AllocationData.bTransient, *AllocationData.ResourceName.ToString());
+		}
 	}
 }
 
@@ -560,10 +612,14 @@ namespace D3D12RHI
 			{
 				if (InDevice == nullptr || InDevice == IterationDevice->GetDevice())
 				{
-					if (!LogDREDData<FDred_1_2>(IterationDevice->GetDevice()))
+					D3D12_GPU_VIRTUAL_ADDRESS PageFaultAddress = 0;
+					bool bIsTrackingAllAllocations = IterationDevice->GetParentAdapter()->IsTrackingAllAllocations();
+					if (!LogDREDData<FDred_1_2>(IterationDevice->GetDevice(), bIsTrackingAllAllocations, PageFaultAddress))
 					{
-						LogDREDData<FDred_1_1>(IterationDevice->GetDevice());
+						LogDREDData<FDred_1_1>(IterationDevice->GetDevice(), bIsTrackingAllAllocations, PageFaultAddress);
 					}
+
+					LogPageFaultData(IterationDevice->GetParentAdapter(), PageFaultAddress);
 				}
 			});
 #endif  // PLATFORM_WINDOWS

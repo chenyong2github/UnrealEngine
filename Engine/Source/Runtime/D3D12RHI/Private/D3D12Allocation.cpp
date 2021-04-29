@@ -1598,7 +1598,7 @@ HRESULT FD3D12TextureAllocatorPool::AllocateTexture(
 {
 	// The top mip level must be less than 64 KB to use 4 KB alignment
 	bool b4KAligment = TextureCanBe4KAligned(Desc, (EPixelFormat)UEFormat);
-	Desc.Alignment = b4KAligment ?	D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+	Desc.Alignment = b4KAligment ?	D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : (Desc.SampleDesc.Count > 1 ? D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 	const D3D12_RESOURCE_ALLOCATION_INFO Info = GetParentDevice()->GetDevice()->GetResourceAllocationInfo(0, 1, &Desc);
 
 	bool bIsReadOnly = !(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||

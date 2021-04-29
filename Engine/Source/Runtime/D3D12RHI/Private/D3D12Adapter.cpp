@@ -81,6 +81,14 @@ static FAutoConsoleVariableRef CVarD3D12EnableDRED(
 	TEXT("Has GPU overhead but gives the most information on the current GPU state when it crashes or hangs.\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+bool GD3D12TrackAllAlocations = false;
+static TAutoConsoleVariable<int32> CVarD3D12TrackAllAllocations(
+	TEXT("D3D12.TrackAllAllocations"),
+	GD3D12TrackAllAlocations,
+	TEXT("Controls whether D3D12 RHI should track all allocation information (default = off)."),
+	ECVF_ReadOnly
+);
+
 static bool CheckD3DStoredMessages()
 {
 	bool bResult = false;
@@ -184,7 +192,7 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 	, bHeapNotZeroedSupported(false)
 	, VRSTileSize(0)
 	, bDebugDevice(false)
-	, GPUCrashDebuggingModes(ED3D12GPUCrashDebuggingModes::None)
+	, GPUCrashDebuggingModes(ED3D12GPUCrashDebuggingModes::None)	
 	, bDeviceRemoved(false)
 	, Desc(DescIn)
 	, RootSignatureManager(this)
@@ -928,6 +936,12 @@ void FD3D12Adapter::InitializeDevices()
 		StagingFence = new FD3D12Fence(this, FRHIGPUMask::All(), L"Staging Fence");
 		StagingFence->CreateFence();
 
+#if TRACK_RESOURCE_ALLOCATIONS
+		// Set flag if we want to track all allocations - comes with some overhead and only possible when Tier 2 is available
+		// (because we will create placed buffers for texture allocation to retrieve the GPU virtual addresses)
+		bTrackAllAllocation = (GD3D12TrackAllAlocations || GPUCrashDebuggingModes == ED3D12GPUCrashDebuggingModes::All) && (ResourceHeapTier == D3D12_RESOURCE_HEAP_TIER_2);
+#endif 
+
 		CreateCommandSignatures();
 
 		// Context redirectors allow RHI commands to be executed on multiple GPUs at the
@@ -1237,6 +1251,24 @@ void FD3D12Adapter::EndFrame()
 #if D3D12_SUBMISSION_GAP_RECORDER
 	SubmitGapRecorderTimestamps();
 #endif
+
+#if TRACK_RESOURCE_ALLOCATIONS
+	// remove tracked released resources older than n amount of frames
+	static const uint64 FrameRetention = 100;
+	int32 ReleaseCount = 0;
+	uint64 CurrentFrameID = GetFrameFence().GetCurrentFence();
+	for (; ReleaseCount < ReleasedAllocationData.Num(); ++ReleaseCount)
+	{
+		if (ReleasedAllocationData[ReleaseCount].ReleasedFrameID + FrameRetention > CurrentFrameID)
+		{
+			break;
+		}
+	}
+	if (ReleaseCount > 0)
+	{
+		ReleasedAllocationData.RemoveAt(0, ReleaseCount, false);
+	}
+#endif
 }
 
 #if WITH_MGPU
@@ -1334,13 +1366,20 @@ void FD3D12Adapter::BlockUntilIdle()
 }
 
 
-void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize)
+void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize, bool bCollectCallstack)
 {
 #if TRACK_RESOURCE_ALLOCATIONS
 	FTrackedAllocationData AllocationData;
 	AllocationData.ResourceAllocation = InAllocation;
 	AllocationData.AllocationSize = InAllocationSize;
-	AllocationData.StackDepth = FPlatformStackWalk::CaptureStackBackTrace(&AllocationData.Stack[0], FTrackedAllocationData::MaxStackDepth);
+	if (bCollectCallstack)
+	{
+		AllocationData.StackDepth = FPlatformStackWalk::CaptureStackBackTrace(&AllocationData.Stack[0], FTrackedAllocationData::MaxStackDepth);
+	}
+	else 
+	{
+		AllocationData.StackDepth = 0;
+	}
 
 	FScopeLock Lock(&TrackedAllocationDataCS);
 	check(!TrackedAllocationData.Contains(InAllocation));
@@ -1348,11 +1387,77 @@ void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, ui
 #endif
 }
 
-void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation)
+void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation, bool bDefragFree)
 {
 #if TRACK_RESOURCE_ALLOCATIONS
 	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = InAllocation->GetGPUVirtualAddress();
+	if (GPUAddress != 0 || IsTrackingAllAllocations())
+	{
+		FReleasedAllocationData ReleasedData;
+		ReleasedData.GPUVirtualAddress = GPUAddress;
+		ReleasedData.AllocationSize = InAllocation->GetSize();
+		ReleasedData.ResourceName = InAllocation->GetResource()->GetName();
+		ReleasedData.ReleasedFrameID = GetFrameFence().GetCurrentFence();
+		ReleasedData.bDefragFree = bDefragFree;
+		ReleasedData.bBackBuffer = InAllocation->GetResource()->IsBackBuffer();
+		ReleasedData.bTransient = InAllocation->IsTransient();
+		// Only the backbuffer doesn't have a valid gpu virtual address
+		check(ReleasedData.GPUVirtualAddress != 0 || ReleasedData.bBackBuffer);
+		ReleasedAllocationData.Add(ReleasedData);
+	}
+
 	verify(TrackedAllocationData.Remove(InAllocation) == 1);
+#endif
+}
+
+void FD3D12Adapter::FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, uint64 InRange, TArray<FAllocatedResourceResult>& OutResources)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	TArray<FTrackedAllocationData> Allocations;
+	TrackedAllocationData.GenerateValueArray(Allocations);
+	FInt64Range TrackRange((int64)(InGPUVirtualAddress - InRange), (int64)(InGPUVirtualAddress + InRange));
+	for (FTrackedAllocationData& AllocationData : Allocations)
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS GPUAddress = AllocationData.ResourceAllocation->GetResource()->GetGPUVirtualAddress();
+		FInt64Range AllocationRange((int64)GPUAddress, (int64)(GPUAddress + AllocationData.AllocationSize));
+		if (TrackRange.Overlaps(AllocationRange))
+		{
+			bool bContainsAllocation = AllocationRange.Contains(InGPUVirtualAddress);
+			int64 Distance = bContainsAllocation ? 0 : ((InGPUVirtualAddress < GPUAddress) ? GPUAddress - InGPUVirtualAddress : InGPUVirtualAddress - AllocationRange.GetUpperBoundValue());
+			check(Distance > 0);
+
+			FAllocatedResourceResult Result;
+			Result.Allocation = AllocationData.ResourceAllocation;
+			Result.Distance = Distance;
+			OutResources.Add(Result);
+		}
+	}
+
+	// Sort the resources on distance from the requested address
+	Algo::Sort(OutResources, [InGPUVirtualAddress](const FAllocatedResourceResult& InLHS, const FAllocatedResourceResult& InRHS)
+		{
+			return InLHS.Distance < InRHS.Distance;
+		});
+#endif
+}
+
+void FD3D12Adapter::FindReleasedAllocationData(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FReleasedAllocationData>& OutAllocationData)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	for (FReleasedAllocationData& AllocationData : ReleasedAllocationData)
+	{
+		if (InGPUVirtualAddress >= AllocationData.GPUVirtualAddress && InGPUVirtualAddress < (AllocationData.GPUVirtualAddress + AllocationData.AllocationSize))
+		{
+			// Add in reverse order, so last released resources at first in the array
+			OutAllocationData.EmplaceAt(0, AllocationData);
+		}
+	}
 #endif
 }
 

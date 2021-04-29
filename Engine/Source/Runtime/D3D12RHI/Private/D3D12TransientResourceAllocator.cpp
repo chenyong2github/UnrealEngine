@@ -167,11 +167,21 @@ void FD3D12TransientResourceAllocator::FResourceAllocatorAdapter::AllocateResour
 #endif
 
 	FD3D12Resource* NewResource = nullptr;
-	VERIFYD3D12RESULT(GetParentAdapter()->CreatePlacedResource(InDesc, Heap.GetLinkedObject(GPUIndex)->Get(), Allocation.Offset, InCreateState, InResourceStateMode, D3D12_RESOURCE_STATE_TBD, InClearValue, &NewResource, InName));
+	FD3D12Adapter* Adapter = GetParentAdapter();
+	VERIFYD3D12RESULT(Adapter->CreatePlacedResource(InDesc, Heap.GetLinkedObject(GPUIndex)->Get(), Allocation.Offset, InCreateState, InResourceStateMode, D3D12_RESOURCE_STATE_TBD, InClearValue, &NewResource, InName));
 
 	check(!ResourceLocation.IsValid());
 	ResourceLocation.AsHeapAliased(NewResource);
 	ResourceLocation.SetSize(InSize);
+	ResourceLocation.SetTransient(true);
+
+#if TRACK_RESOURCE_ALLOCATIONS
+	if (Adapter->IsTrackingAllAllocations())
+	{
+		bool bCollectCallstack = false;
+		Adapter->TrackAllocationData(&ResourceLocation, Allocation.Size, bCollectCallstack);
+	}
+#endif
 }
 
 FRHITransientBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)

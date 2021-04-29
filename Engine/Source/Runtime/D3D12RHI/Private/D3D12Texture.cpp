@@ -900,9 +900,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		ClearValuePtr = &ClearValue;
 	}
 
-	// Check if transient
-	bool bIsTransient = EnumHasAnyFlags(Flags, TexCreate_Transient);
-
 	// The state this resource will be in when it leaves this function
 	const FD3D12Resource::FD3D12ResourceTypeHelper Type(TextureDesc, D3D12_HEAP_TYPE_DEFAULT);
 	const D3D12_RESOURCE_STATES InitialState = Type.GetOptimalInitialState(InResourceState, false);
@@ -954,9 +951,6 @@ TD3D12Texture2D<BaseResourceType>* FD3D12DynamicRHI::CreateD3D12Texture2D(FRHICo
 		{
 			Location.UnlockPoolData();
 		}
-
-		// Mark transient
-		Location.SetTransient(bIsTransient);
 
 		check(Location.IsValid());
 
@@ -1201,9 +1195,6 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 	check(!(Flags & TexCreate_ResolveTargetable));
 	check(Flags & TexCreate_ShaderResource);
 
-	// Is transient
-	bool bIsTransient = EnumHasAnyFlags(Flags, TexCreate_Transient);
-
 	D3D12_CLEAR_VALUE *ClearValuePtr = nullptr;
 	D3D12_CLEAR_VALUE ClearValue;
 	if (bCreateRTV && CreateInfo.ClearValueBinding.ColorBinding == EClearBinding::EColorBound)
@@ -1235,9 +1226,6 @@ FD3D12Texture3D* FD3D12DynamicRHI::CreateD3D12Texture3D(FRHICommandListImmediate
 			VERIFYD3D12CREATETEXTURERESULT(Device->GetTextureAllocator().AllocateTexture(TextureDesc, ClearValuePtr, Format, Texture3D->ResourceLocation, (CreateInfo.BulkData != nullptr) ? D3D12_RESOURCE_STATE_COPY_DEST : InitialState, CreateInfo.DebugName), TextureDesc, Device->GetDevice());
 		}
 		Texture3D->ResourceLocation.SetOwner(Texture3D);
-
-		// Mark transient
-		Texture3D->ResourceLocation.SetTransient(bIsTransient);
 
 		// Unlock immediately if no initial data
 		if (CreateInfo.BulkData == nullptr)

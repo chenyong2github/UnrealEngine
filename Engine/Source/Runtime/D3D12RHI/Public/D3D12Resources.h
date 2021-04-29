@@ -94,18 +94,20 @@ public:
 	~FD3D12Heap();
 
 	inline ID3D12Heap* GetHeap() { return Heap.GetReference(); }
-	inline void SetHeap(ID3D12Heap* HeapIn) { *Heap.GetInitReference() = HeapIn; }
+	void SetHeap(ID3D12Heap* HeapIn);
 
 	void UpdateResidency(FD3D12CommandListHandle& CommandList);
-
 	void BeginTrackingResidency(uint64 Size);
-
 	void Destroy();
 
+	inline D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	inline FD3D12ResidencyHandle* GetResidencyHandle() { return &ResidencyHandle; }
+	inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 
 private:
 	TRefCountPtr<ID3D12Heap> Heap;
+	D3D12_HEAP_TYPE HeapType = D3D12_HEAP_TYPE_DEFAULT;
+	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = 0;
 	FD3D12ResidencyHandle ResidencyHandle;
 };
 
@@ -197,6 +199,7 @@ public:
 	D3D12_CLEAR_VALUE const& GetClearValue() const { return ClearValue; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
+	inline void SetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS Value) { GPUVirtualAddress = Value; }
 	void* GetResourceBaseAddress() const { check(ResourceBaseAddress); return ResourceBaseAddress; }
 	uint16 GetMipLevels() const { return Desc.MipLevels; }
 	uint16 GetArraySize() const { return (Desc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D) ? 1 : Desc.DepthOrArraySize; }

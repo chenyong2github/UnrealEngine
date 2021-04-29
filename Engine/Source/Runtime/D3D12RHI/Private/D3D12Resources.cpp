@@ -295,6 +295,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 		FPlatformMemory::Memzero(&ClearValue, sizeof(D3D12_CLEAR_VALUE));
 	}
 
+	// On Windows it's sadly enough not possible to get the GPU virtual address from the resource directly
 	if (Resource
 #if PLATFORM_WINDOWS
 		&& Desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER
@@ -407,6 +408,26 @@ FD3D12Heap::FD3D12Heap(FD3D12Device* Parent, FRHIGPUMask VisibleNodes) :
 FD3D12Heap::~FD3D12Heap()
 {
 	Destroy();
+}
+
+void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn)
+{
+	*Heap.GetInitReference() = HeapIn; 
+	
+	D3D12_HEAP_DESC HeapDesc = Heap->GetDesc();
+	HeapType = HeapDesc.Properties.Type;
+
+	// Create a buffer placed resource on the heap to extract the gpu virtual address
+	// if we are tracking all allocations
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();	
+	if (Adapter->IsTrackingAllAllocations() && HeapType == D3D12_HEAP_TYPE_DEFAULT)
+	{
+		uint64 HeapSize = HeapDesc.SizeInBytes;
+		TRefCountPtr<ID3D12Resource> TempResource;
+		const D3D12_RESOURCE_DESC BufDesc = CD3DX12_RESOURCE_DESC::Buffer(HeapSize, D3D12_RESOURCE_FLAG_NONE);
+		const HRESULT hr = Adapter->GetD3DDevice()->CreatePlacedResource(Heap, 0, &BufDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(TempResource.GetInitReference()));
+		GPUVirtualAddress = TempResource->GetGPUVirtualAddress();
+	}
 }
 
 void FD3D12Heap::UpdateResidency(FD3D12CommandListHandle& CommandList)
@@ -529,6 +550,23 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 			ClearValue,
 			BackingHeap,
 			HeapDesc.Properties.Type);
+
+#if PLATFORM_WINDOWS
+		if (IsTrackingAllAllocations() && BackingHeap->GetHeapType() == D3D12_HEAP_TYPE_DEFAULT)
+		{
+			// Manually set the GPU virtual address from the heap gpu virtual address & offset
+			if (InDesc.Dimension != D3D12_RESOURCE_DIMENSION_BUFFER)
+			{
+				check(BackingHeap->GetGPUVirtualAddress() != 0);
+				(*ppOutResource)->SetGPUVirtualAddress(BackingHeap->GetGPUVirtualAddress() + HeapOffset);
+			}
+			else
+			{
+				check((*ppOutResource)->GetGPUVirtualAddress() != 0);
+				check((*ppOutResource)->GetGPUVirtualAddress() == BackingHeap->GetGPUVirtualAddress() + HeapOffset);
+			}
+		}
+#endif		
 
 		// Set a default name (can override later).
 		SetName(*ppOutResource, Name);
@@ -736,6 +774,18 @@ void FD3D12ResourceLocation::ReferenceNode(FD3D12Device* DestinationDevice, FD3D
 
 void FD3D12ResourceLocation::ReleaseResource()
 {
+#if TRACK_RESOURCE_ALLOCATIONS
+	if (IsTransient())
+	{
+		FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+		if (Adapter->IsTrackingAllAllocations())
+		{
+			bool bDefragFree = false;
+			Adapter->ReleaseTrackedAllocationData(this, bDefragFree);
+		}
+	}
+#endif
+
 	switch (Type)
 	{
 	case ResourceLocationType::eStandAlone:
@@ -860,11 +910,13 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 		// Track all committed resource allocations
 		if (bIncrement)
 		{
-			UnderlyingResource->GetParentDevice()->GetParentAdapter()->TrackAllocationData(this, Info.SizeInBytes);
+			bool bCollectCallstack = true;
+			UnderlyingResource->GetParentDevice()->GetParentAdapter()->TrackAllocationData(this, Info.SizeInBytes, bCollectCallstack);
 		}
 		else
 		{
-			UnderlyingResource->GetParentDevice()->GetParentAdapter()->ReleaseTrackedAllocationData(this);
+			bool bDefragFree = false;
+			UnderlyingResource->GetParentDevice()->GetParentAdapter()->ReleaseTrackedAllocationData(this, bDefragFree);
 		}
 	}
 }

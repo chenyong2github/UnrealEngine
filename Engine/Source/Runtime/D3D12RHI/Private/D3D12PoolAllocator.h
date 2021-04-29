@@ -134,7 +134,7 @@ public:
 	bool SupportsAllocation(D3D12_HEAP_TYPE InHeapType, D3D12_RESOURCE_FLAGS InResourceFlags, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode) const;
 	void AllocDefaultResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EBufferUsageFlags InBufferUsage, ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InCreateState, uint32 InAlignment, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
-	virtual void DeallocateResource(FD3D12ResourceLocation& ResourceLocation);
+	virtual void DeallocateResource(FD3D12ResourceLocation& ResourceLocation, bool bDefragFree = false);
 
 	// Implementation of ID3D12ResourceAllocator
 	virtual void AllocateResource(uint32 GPUIndex, D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
@@ -166,8 +166,9 @@ protected:
 	// Track the allocation
 	enum class EAllocationType
 	{
-		Allocate,
-		Free
+		Allocate,		// Update tracking data on allocation
+		DefragFree,		// Update tracking data on free during defrag op
+		Free			// Update tracking data when resource is actually freed
 	};
 	virtual void UpdateAllocationTracking(FD3D12ResourceLocation& InAllocation, EAllocationType InAllocationType);
 

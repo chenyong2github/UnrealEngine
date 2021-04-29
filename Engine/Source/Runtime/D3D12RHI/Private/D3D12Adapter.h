@@ -351,9 +351,29 @@ public:
 
 	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
 
-	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize);
-	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation);
+	bool IsTrackingAllAllocations() const { return bTrackAllAllocation; }
+	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, uint64 InAllocationSize, bool bCollectCallstack);
+	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation, bool bDefragFree);
 	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bResidentOnly, bool bWithCallstack);
+
+	struct FAllocatedResourceResult
+	{
+		FD3D12ResourceLocation* Allocation = nullptr;
+		uint64 Distance = 0;
+	};
+	void FindResourcesNearGPUAddress(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, uint64 InRange, TArray<FAllocatedResourceResult>& OutResources);
+	
+	struct FReleasedAllocationData
+	{
+		D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress = 0;
+		uint64 AllocationSize = 0;
+		FName ResourceName;
+		uint64 ReleasedFrameID = 0;
+		bool bDefragFree = false;
+		bool bBackBuffer = false;
+		bool bTransient = false;
+	};
+	void FindReleasedAllocationData(D3D12_GPU_VIRTUAL_ADDRESS InGPUVirtualAddress, TArray<FReleasedAllocationData>& OutAllocationData);
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
@@ -453,6 +473,8 @@ protected:
 
 	uint32 FrameCounter;
 
+	bool bTrackAllAllocation = false;
+
 	/** Information about an allocated resource. */
 	struct FTrackedAllocationData
 	{
@@ -463,8 +485,10 @@ protected:
 		uint32 StackDepth;
 		uint64 Stack[MaxStackDepth];
 	};
+
 	/** Tracked resource information. */
 	TMap<FD3D12ResourceLocation*, FTrackedAllocationData> TrackedAllocationData;
+	TArray<FReleasedAllocationData> ReleasedAllocationData;
 	FCriticalSection TrackedAllocationDataCS;
 
 	FD3D12MemoryInfo MemoryInfo;
