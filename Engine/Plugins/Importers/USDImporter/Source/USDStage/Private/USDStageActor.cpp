@@ -1524,6 +1524,8 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		{
 			OpenUsdStage();
 		}
+
+		OnStageChanged.Broadcast();
 	}
 
 	// If we're in a sublevel that is hidden, we'll respond to the generated PostUnregisterAllComponent call
@@ -1540,6 +1542,8 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 		{
 			OpenUsdStage();
 		}
+
+		OnStageChanged.Broadcast();
 	}
 
 	if (TransactionEvent.GetEventType() == ETransactionObjectEventType::UndoRedo)
