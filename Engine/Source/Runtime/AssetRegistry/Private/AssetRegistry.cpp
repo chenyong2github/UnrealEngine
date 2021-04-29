@@ -4274,7 +4274,7 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 		if (DirectoryWatcher)
 		{
 			// If the path doesn't exist on disk, make it so the watcher will work.
-			IFileManager::Get().MakeDirectory(*FileSystemPath);
+			IFileManager::Get().MakeDirectory(*FileSystemPath, /*Tree=*/true);
 		}
 	}
 		
