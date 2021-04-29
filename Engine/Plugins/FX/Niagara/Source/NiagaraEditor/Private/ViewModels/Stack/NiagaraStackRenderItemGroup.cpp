@@ -26,7 +26,7 @@ public:
 
 	virtual TArray<FString> GetCategories() const override
 	{
-		return {LOCTEXT("AddRendererCategory", "Add Renderer").ToString()};
+		return {};
 	}
 
 	virtual FText GetDisplayName() const override
