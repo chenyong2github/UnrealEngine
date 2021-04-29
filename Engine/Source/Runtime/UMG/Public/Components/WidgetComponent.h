@@ -194,8 +194,7 @@ public:
 	TSharedPtr<SWindow> GetSlateWindow() const;
 
 	/**  
-	 *  Sets the widget to use directly. This function will keep track of the widget till the next time it's called
-	 *	with either a newer widget or a nullptr
+	 *  Gets the widget that is used by this Widget Component. It will be null if a Slate Widget was set using SetSlateWidget function.
 	 */ 
 	UFUNCTION(BlueprintCallable, Category=UserInterface)
 	virtual UUserWidget* GetWidget() const;
