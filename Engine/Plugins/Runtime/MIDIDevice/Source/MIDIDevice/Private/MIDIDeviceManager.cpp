@@ -2,9 +2,11 @@
 
 #include "MIDIDeviceManager.h"
 #include "MIDIDeviceController.h"
+#include "MIDIDeviceControllerBase.h"
 #include "MIDIDeviceLog.h"
-#include "UObject/UObjectIterator.h"
 #include "portmidi.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/ScriptInterface.h"
 
 #define LOCTEXT_NAMESPACE "MIDIDeviceManager"
 
@@ -13,18 +15,20 @@ bool UMIDIDeviceManager::bIsInitialized = false;
 TArray<FMIDIDeviceInfo> UMIDIDeviceManager::MIDIInputDevicesInfo;
 TArray<FMIDIDeviceInfo> UMIDIDeviceManager::MIDIOutputDevicesInfo;
 
+
 void UMIDIDeviceManager::StartupMIDIDeviceManager()
 {
-	if( ensure( !bIsInitialized ) )
+	if (ensure(!bIsInitialized))
 	{
-		PmError PMError = Pm_Initialize();
-		if( PMError == pmNoError )
+		const PmError PMError = Pm_Initialize();
+		if (PMError == pmNoError)
 		{
 			bIsInitialized = true;
 		}
 		else
 		{
-			UE_LOG(LogMIDIDevice, Error, TEXT( "Unable to open initialize the MIDI device manager (PortMidi error: %s).  You won't be use MIDI features in this session." ), ANSI_TO_TCHAR(Pm_GetErrorText(PMError)));
+			const FString ErrorText = MIDIDeviceInternal::ParsePmError(PMError);
+			UE_LOG(LogMIDIDevice, Error, TEXT( "Unable to open initialize the MIDI device manager (PortMidi error: %s).  You won't be use MIDI features in this session." ), *ErrorText);
 		}
 	}
 }
@@ -37,10 +41,10 @@ void UMIDIDeviceManager::ShutdownMIDIDeviceManager()
 		bIsInitialized = false;
 
 		// Kill any open connections
-		for(TObjectIterator<UMIDIDeviceController> ControllerIter; ControllerIter; ++ControllerIter)
+		for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
 		{
-			UMIDIDeviceController* MIDIDeviceController = *ControllerIter;
-			if(MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
+			UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
+			if(MIDIDeviceController != nullptr && MIDIDeviceController->IsPendingKill())
 			{
 				MIDIDeviceController->ShutdownDevice();
 			}
@@ -56,19 +60,10 @@ void UMIDIDeviceManager::ProcessMIDIEvents()
 	if(bIsInitialized)
 	{
 		// @todo midi perf: Should we cache weak pointers instead of using TObjectIterator every frame?
-		for(TObjectIterator<UMIDIDeviceController> ControllerIter; ControllerIter; ++ControllerIter)
+		for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
 		{
-			UMIDIDeviceController* MIDIDeviceController = *ControllerIter;
+			UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
 			if(MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
-			{
-				MIDIDeviceController->ProcessIncomingMIDIEvents();
-			}
-		}
-
-		for (TObjectIterator<UMIDIDeviceInputController> ControllerIter; ControllerIter; ++ControllerIter)
-		{
-			UMIDIDeviceInputController* MIDIDeviceController = *ControllerIter;
-			if (MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
 			{
 				MIDIDeviceController->ProcessIncomingMIDIEvents();
 			}
@@ -77,10 +72,52 @@ void UMIDIDeviceManager::ProcessMIDIEvents()
 }
 
 
-void UMIDIDeviceManager::FindMIDIDevices(TArray<FFoundMIDIDevice>& OutMIDIDevices)
+void UMIDIDeviceManager::ReinitializeDeviceManager()
 {
-	OutMIDIDevices.Reset();
+	ShutdownMIDIDeviceManager();
+	StartupMIDIDeviceManager();
 
+	// Re-fetch devices in case names or id's have changed
+	TArray<FFoundMIDIDevice> FoundDevices;
+	FindMIDIDevicesInternal(FoundDevices); // use FindMIDIDevicesInternal to avoid calling ReinitializeDeviceManager/recursion
+
+	// Re-initialize any existing controllers
+	for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
+	{
+		UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
+		if(MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
+		{
+			FString ExistingDeviceName = MIDIDeviceController->GetDeviceName();
+
+			// Attempt to find from NEW devices by PREVIOUS name
+			FFoundMIDIDevice* FoundDevice = FoundDevices.FindByPredicate([&](const FFoundMIDIDevice& InFoundDevice)
+			{
+				return InFoundDevice.DeviceName.Equals(ExistingDeviceName);
+			});
+
+			bool bStartedSuccessfully = false;
+			// If found, re-initialize with new id (might be same as old)
+			if(FoundDevice)
+			{
+				MIDIDeviceController->StartupDevice(FoundDevice->DeviceID, MIDIDeviceController->GetMIDIBufferSize(), bStartedSuccessfully);
+			}
+
+			// If device not found in NEW list, or startup failed
+			if (!bStartedSuccessfully)
+			{
+				// Kill it
+				MIDIDeviceController->MarkPendingKill();
+				MIDIDeviceController = nullptr;
+
+				UE_LOG(LogMIDIDevice, Warning, TEXT("MIDI Device Controller re-initialization failed."));
+			}
+		}
+	}
+}
+
+
+void UMIDIDeviceManager::FindMIDIDevicesInternal(TArray<FFoundMIDIDevice>& OutMIDIDevices)
+{
 	if(bIsInitialized)
 	{
 		// Figure out what the system default input and output devices are, so we can relay that information
@@ -116,7 +153,21 @@ void UMIDIDeviceManager::FindMIDIDevices(TArray<FFoundMIDIDevice>& OutMIDIDevice
 }
 
 
-void UMIDIDeviceManager::FindAllMIDIDeviceInfo(TArray<FMIDIDeviceInfo>& OutMIDIInputDevicesInfo, TArray<FMIDIDeviceInfo>& OutMIDIOutputDevicesInfo)
+void UMIDIDeviceManager::FindMIDIDevices(TArray<FFoundMIDIDevice>& OutMIDIDevices)
+{
+	OutMIDIDevices.Reset();
+
+	// re-initialize to get updated device list
+	if(bIsInitialized)
+	{
+		ReinitializeDeviceManager();
+	}
+	
+	FindMIDIDevicesInternal(OutMIDIDevices);
+}
+
+
+void UMIDIDeviceManager::FindAllMIDIDeviceInfoInternal(TArray<FMIDIDeviceInfo>& OutMIDIInputDevicesInfo, TArray<FMIDIDeviceInfo>& OutMIDIOutputDevicesInfo)
 {
 	OutMIDIInputDevicesInfo.Reset();
 	OutMIDIOutputDevicesInfo.Reset();
@@ -162,6 +213,16 @@ void UMIDIDeviceManager::FindAllMIDIDeviceInfo(TArray<FMIDIDeviceInfo>& OutMIDII
 	else
 	{
 		UE_LOG(LogMIDIDevice, Warning, TEXT("Find MIDI Devices cannot be used because the MIDI device manager failed to initialize.  Check earlier in the log to see why."));
+	}
+}
+
+
+void UMIDIDeviceManager::FindAllMIDIDeviceInfo(TArray<FMIDIDeviceInfo>& OutMIDIInputDevicesInfo, TArray<FMIDIDeviceInfo>& OutMIDIOutputDevicesInfo)
+{
+	// re-initialize to get updated device list
+	if(bIsInitialized)
+	{
+		ReinitializeDeviceManager();
 	}
 }
 
@@ -288,7 +349,9 @@ UMIDIDeviceOutputController* UMIDIDeviceManager::CreateMIDIDeviceOutputControlle
 	NewMIDIDeviceController = NewObject<UMIDIDeviceOutputController>();
 
 	bool bStartedSuccessfully = false;
-	NewMIDIDeviceController->StartupDevice(DeviceID, /* Out */ bStartedSuccessfully);
+	
+	// BufferSize not used, but specify because of IMIDIDeviceControllerInterface
+	NewMIDIDeviceController->StartupDevice(DeviceID, 1024, /* Out */ bStartedSuccessfully);
 
 	if (!bStartedSuccessfully)
 	{
