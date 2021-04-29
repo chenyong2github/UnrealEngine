@@ -1,15 +1,17 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+import time
+import traceback
+from collections import OrderedDict
+from itertools import count
+
+from PySide2 import QtCore
+from PySide2.QtCore import Signal, Qt, QTimer, QAbstractTableModel, QModelIndex
+from PySide2.QtGui import QColor
+
 from switchboard import message_protocol
 from switchboard.switchboard_logging import LOGGER
 
-from PySide2 import QtCore, QtGui
-from PySide2.QtCore import Signal, Qt, QTimer, QObject, QAbstractTableModel, QModelIndex
-from PySide2.QtGui import QColor
-
-from collections import OrderedDict
-from itertools import count
-import json, time, traceback
 
 class nDisplayMonitor(QAbstractTableModel):
     ''' This will monitor the status of the nDisplay nodes, in particular regarding sync.
@@ -33,14 +35,14 @@ class nDisplayMonitor(QAbstractTableModel):
         self.timer.timeout.connect(self.poll_sync_status)
 
         headerdata = [
-            ('Node'           , 'The cluster name of this device'), 
-            ('Host'           , 'The URL of the remote PC'), 
+            ('Node'           , 'The cluster name of this device'),
+            ('Host'           , 'The URL of the remote PC'),
             ('Connected'      , 'If we are connected to the listener of this device'),
             ('Driver'         , 'GPU driver version'),
-            ('PresentMode'    , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'), 
-            ('Gpus'           , 'Informs if GPUs are synced.'), 
-            ('Displays'       , 'Detected displays and whether they are in sync or not'), 
-            ('Fps'            , 'Sync Frame Rate'), 
+            ('PresentMode'    , 'Current presentation mode. Only available once the render node process is running. Expects "Hardware Composed: Independent Flip"'),
+            ('Gpus'           , 'Informs if GPUs are synced.'),
+            ('Displays'       , 'Detected displays and whether they are in sync or not'),
+            ('SyncRate'       , 'Sync Frame Rate'),
             ('HouseSync'      , 'Presence of an external sync signal connected to the remote Quadro Sync card'),
             ('SyncSource'     , 'The source of the GPU sync signal'),
             ('Mosaics'        , 'Display grids and their resolutions'),
@@ -480,6 +482,12 @@ class nDisplayMonitor(QAbstractTableModel):
             return Qt.AlignRight
 
         return None
+
+    @QtCore.Slot()
+    def btnRefreshMosaics_clicked(self):
+        for devicedata in self.devicedatas.values():
+            device = devicedata['device']
+            device.refresh_mosaics()
 
     @QtCore.Slot()
     def btnFixExeFlags_clicked(self):

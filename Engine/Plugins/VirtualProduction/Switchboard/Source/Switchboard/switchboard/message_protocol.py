@@ -87,6 +87,12 @@ def create_get_sync_status_message(program_id):
     message = json.dumps(cmd).encode() + b'\x00'
     return (cmd_id, message)
 
+def create_refresh_mosaics_message():
+    cmd_id = uuid.uuid4()
+    cmd = {'command': 'refresh mosaics', 'id': str(cmd_id)}
+    message = json.dumps(cmd).encode() + b'\x00'
+    return (cmd_id, message)
+
 def create_redeploy_listener_message(base64listener: str, sha1digest: str):
     ''' Sends a command to replace the remote server's listener executable. '''
     cmd_id = uuid.uuid4()

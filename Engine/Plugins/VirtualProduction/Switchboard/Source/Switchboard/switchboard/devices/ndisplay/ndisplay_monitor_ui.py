@@ -27,6 +27,10 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
 
         monitor.console_exec_issued.connect(lambda: self.cmbConsoleExec.lineEdit().clear())
 
+        self.btnRefreshMosaics = QPushButton("Refresh Mosaics")
+        self.btnRefreshMosaics.setToolTip("Updates the cached mosaic topologies.")
+        self.btnRefreshMosaics.clicked.connect(monitor.btnRefreshMosaics_clicked)
+
         self.btnFixExeFlags = QPushButton("Fix ExeFlags")
         self.btnFixExeFlags.setToolTip("Disables fullscreen optimizations on the executable.")
         self.btnFixExeFlags.clicked.connect(monitor.btnFixExeFlags_clicked)
@@ -43,6 +47,7 @@ class nDisplayMonitorUI(QtWidgets.QWidget):
         layout_buttons.addWidget(self.cmbConsoleExec)
         layout_buttons.addWidget(self.btnConsoleExec)
         layout_buttons.addStretch(1)
+        layout_buttons.addWidget(self.btnRefreshMosaics)
         layout_buttons.addWidget(self.btnFixExeFlags)
         layout_buttons.addWidget(self.btnSoftKill)
 
