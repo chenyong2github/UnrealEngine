@@ -47,6 +47,12 @@
 			"Type": "Editor",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [ "Win64" ]
+		},
+		{
+			"Name": "GeometryProcessingAdapters",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Win64" ]
 		}
 	],
 	"Plugins": [
