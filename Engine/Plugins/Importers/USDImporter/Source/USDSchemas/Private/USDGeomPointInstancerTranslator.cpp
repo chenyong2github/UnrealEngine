@@ -2,7 +2,9 @@
 
 #include "USDGeomPointInstancerTranslator.h"
 
+#include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
+#include "USDAssetImportData.h"
 #include "USDConversionUtils.h"
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
@@ -65,7 +67,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 		return true;
 	}
 
-	bool SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const UUsdAssetCache& AssetCache )
+	UStaticMesh* SetStaticMesh( const pxr::UsdGeomMesh& UsdMesh, UStaticMeshComponent& MeshComponent, const UUsdAssetCache& AssetCache )
 	{
 		FScopedUnrealAllocs UnrealAllocs;
 
@@ -86,7 +88,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 			MeshComponent.RegisterComponent();
 		}
 
-		return ( StaticMesh != nullptr );
+		return StaticMesh;
 	}
 
 	TUsdStore< pxr::SdfPath > UnwindToNonCollapsedPrim( FUsdSchemaTranslator::ECollapsingType CollapsingType, TUsdStore< pxr::UsdPrim > UsdPrim, const TSharedRef< FUsdSchemaTranslationContext >& TranslationContext )
@@ -190,8 +192,39 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 						if ( UHierarchicalInstancedStaticMeshComponent* HismComponent = Cast< UHierarchicalInstancedStaticMeshComponent >( UsdGeomPrimComponent ) )
 						{
-							UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, *Context->AssetCache.Get() );
+							UUsdAssetCache& AssetCache = *Context->AssetCache.Get();
+							UStaticMesh* StaticMesh = UsdGeomPointInstancerTranslatorImpl::SetStaticMesh( PrototypeGeomMesh, *HismComponent, AssetCache );
 							UsdGeomPointInstancerTranslatorImpl::ConvertGeomPointInstancer( Prim.GetStage(), PointInstancer, PrototypeIndex, *HismComponent, pxr::UsdTimeCode( Context->Time ) );
+
+							// Handle material overrides
+							if ( StaticMesh )
+							{
+#if WITH_EDITOR
+								// If the prim paths match, it means that it was this prim that created (and so "owns") the static mesh,
+								// so its material assignments will already be directly on the mesh. If they differ, we're using some other prim's mesh,
+								// so we may need material overrides on our component
+								UUsdAssetImportData* UsdImportData = Cast<UUsdAssetImportData>( StaticMesh->AssetImportData );
+								if ( UsdImportData && UsdImportData->PrimPath != PrimPath.GetString() )
+#endif // WITH_EDITOR
+								{
+									TArray<UMaterialInterface*> ExistingAssignments;
+									for ( FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials() )
+									{
+										ExistingAssignments.Add( StaticMaterial.MaterialInterface );
+									}
+
+									MeshTranslationImpl::SetMaterialOverrides(
+										PrototypeTargetPrim,
+										ExistingAssignments,
+										*HismComponent,
+										AssetCache,
+										Context->Time,
+										Context->ObjectFlags,
+										Context->bAllowInterpretingLODs,
+										Context->RenderContext
+									);
+								}
+							}
 						}
 					}
 				}
