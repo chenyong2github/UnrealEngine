@@ -649,6 +649,13 @@ void USkinnedMeshComponent::DestroyRenderState_Concurrent()
 
 bool USkinnedMeshComponent::RequiresGameThreadEndOfFrameRecreate() const
 {
+#if STATICMESH_ENABLE_DEBUG_RENDERING
+	if (GIsEditor && GEngine->IsPropertyColorationColorFeatureActivated())
+	{
+		return true;
+	}
+#endif
+
 	// When we are a master/slave, we cannot recreate render state in parallel as this could 
 	// happen concurrently with our dependent component(s)
 	return MasterPoseComponent.Get() != nullptr || SlavePoseComponents.Num() > 0;

@@ -5602,8 +5602,10 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Get a color for property coloration
 	FColor NewPropertyColor;
-	GEngine->GetPropertyColorationColor( (UObject*)Component, NewPropertyColor );
-	SetPropertyColor(NewPropertyColor);
+	if (GEngine->GetPropertyColorationColor((UObject*)Component, NewPropertyColor))
+	{
+		SetPropertyColor(NewPropertyColor);
+	}
 
 	// Copy out shadow physics asset data
 	if(SkinnedMeshComponent)

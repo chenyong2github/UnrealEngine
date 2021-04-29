@@ -739,6 +739,7 @@ public:
 	virtual bool ShouldDrawBrushWireframe(AActor* InActor) override;
 	virtual void NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
 	virtual bool ShouldThrottleCPUUsage() const override;
+	virtual bool IsPropertyColorationColorFeatureActivated() const override;
 	virtual bool GetPropertyColorationColor(class UObject* Object, FColor& OutColor) override;
 	virtual bool WorldIsPIEInNewViewport(UWorld* InWorld) override;
 	virtual void FocusNextPIEWorld(UWorld* CurrentPieWorld, bool previous = false) override;
