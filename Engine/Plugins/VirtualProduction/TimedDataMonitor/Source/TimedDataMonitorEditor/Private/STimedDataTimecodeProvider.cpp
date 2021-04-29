@@ -205,29 +205,29 @@ void STimedDataTimecodeProvider::UpdateCachedValue()
 	FTimespan PlatformSecond = TimedDataTimecodeProvider::FromPlatformSeconds(CachedPlatformSeconds);
 	CachedSystemTime = FText::FromString(PlatformSecond.ToString());
 
+	//Cache info about the current timecode provider
+	if (const UTimecodeProvider* TimecodeProviderPtr = GEngine->GetTimecodeProvider())
+	{
+		CachedState = TimecodeProviderPtr->GetSynchronizationState();
+		CachedTimecodeProvider = FText::FromName(TimecodeProviderPtr->GetFName());
+	}
+	else
+	{
+		CachedState = ETimecodeProviderSynchronizationState::Closed;
+		CachedTimecodeProvider = LOCTEXT("Undefined", "<Undefined>");
+	}
+
+	//Cache info about current timecode
 	CachedFrameTimeOptional = FApp::GetCurrentFrameTime();
 	if (CachedFrameTimeOptional.IsSet())
 	{
 		CachedTimecode = FText::Format(LOCTEXT("TimecodeFormat", "{0}@{1}")
 			, FText::FromString(FTimecode::FromFrameNumber(CachedFrameTimeOptional->Time.GetFrame(), CachedFrameTimeOptional->Rate).ToString())
 			, CachedFrameTimeOptional->Rate.ToPrettyText());
-
-		if (const UTimecodeProvider* TimecodeProviderPtr = GEngine->GetTimecodeProvider())
-		{
-			CachedState = TimecodeProviderPtr->GetSynchronizationState();
-			CachedTimecodeProvider = FText::FromName(TimecodeProviderPtr->GetFName());
-		}
-		else
-		{
-			CachedState = ETimecodeProviderSynchronizationState::Closed;
-			CachedTimecodeProvider = LOCTEXT("Undefined", "<Undefined>");
-		}
 	}
 	else
 	{
 		CachedTimecode = LOCTEXT("None", "<None>");
-		CachedState = ETimecodeProviderSynchronizationState::Error;
-		CachedTimecodeProvider = LOCTEXT("Undefined", "<Undefined>");
 	}
 }
 
