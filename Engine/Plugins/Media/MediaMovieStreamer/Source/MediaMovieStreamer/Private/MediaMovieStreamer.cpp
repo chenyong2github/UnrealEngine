@@ -2,6 +2,7 @@
 
 #include "MediaMovieStreamer.h"
 
+#include "IMediaModule.h"
 #include "MediaMovieAssets.h"
 #include "MediaMovieStreamerModule.h"
 #include "MediaPlayer.h"
@@ -118,5 +119,39 @@ FTexture2DRHIRef FMediaMovieStreamer::GetTexture()
 FMediaMovieStreamer::FOnCurrentMovieClipFinished& FMediaMovieStreamer::OnCurrentMovieClipFinished()
 {
 	return OnCurrentMovieClipFinishedDelegate;
+}
+
+void FMediaMovieStreamer::TickPreEngine()
+{
+	IMediaModule* MediaModule = GetMediaModule();
+	if (MediaModule != nullptr)
+	{
+		MediaModule->TickPreEngine();
+	}
+}
+
+void FMediaMovieStreamer::TickPostEngine()
+{
+	IMediaModule* MediaModule = GetMediaModule();
+	if (MediaModule != nullptr)
+	{
+		MediaModule->TickPostEngine();
+	}
+}
+
+void FMediaMovieStreamer::TickPostRender()
+{
+	IMediaModule* MediaModule = GetMediaModule();
+	if (MediaModule != nullptr)
+	{
+		MediaModule->TickPostRender();
+	}
+}
+
+IMediaModule* FMediaMovieStreamer::GetMediaModule()
+{
+	static const FName MediaModuleName(TEXT("Media"));
+	IMediaModule* MediaModule = FModuleManager::LoadModulePtr<IMediaModule>(MediaModuleName);
+	return MediaModule;
 }
 

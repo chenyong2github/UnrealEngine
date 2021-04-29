@@ -492,9 +492,19 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 
 				float DeltaTime = SlateApp.GetDeltaTime();				
 
+				if (ActiveMovieStreamer.IsValid())
+				{
+					ActiveMovieStreamer->TickPreEngine();
+				}
+
 				if (GEngine && bAllowEngineTick && LoadingScreenAttributes.bAllowEngineTick)
 				{
 					GEngine->Tick(DeltaTime, false);
+				}
+
+				if (ActiveMovieStreamer.IsValid())
+				{
+					ActiveMovieStreamer->TickPostEngine();
 				}
 
 				FDefaultGameMoviePlayer* InMoviePlayer = this;
@@ -526,6 +536,11 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 					}
 				);
 				FlushRenderingCommands();
+
+				if (ActiveMovieStreamer.IsValid())
+				{
+					ActiveMovieStreamer->TickPostRender();
+				}
 			}
 		}
 
