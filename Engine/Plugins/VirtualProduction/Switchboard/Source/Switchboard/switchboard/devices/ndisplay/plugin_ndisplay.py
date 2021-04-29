@@ -354,6 +354,7 @@ class DevicenDisplay(DeviceUnreal):
 
         self.unreal_client.send_file_completed_delegate = self.on_ndisplay_config_transfer_complete
         self.unreal_client.delegates['get sync status'] = self.on_get_sync_status
+        self.unreal_client.delegates['refresh mosaics'] = self.on_refresh_mosaics
 
         # create monitor if it doesn't exist
         self.__class__.create_monitor_if_necessary()
@@ -553,6 +554,24 @@ class DevicenDisplay(DeviceUnreal):
     def on_get_sync_status(self, message):
         ''' Called when 'get sync status' is received. '''
         self.__class__.ndisplay_monitor.on_get_sync_status(device=self, message=message)
+
+    def refresh_mosaics(self):
+        ''' Request that the listener update its cached mosaic topologies. '''
+        if self.unreal_client.is_connected:
+            _, msg = message_protocol.create_refresh_mosaics_message()
+            self.unreal_client.send_message(msg)
+
+    def on_refresh_mosaics(self, message):
+        try:
+            if message['bAck'] is True:
+                return
+            elif message['error'] == 'Duplicate':
+                LOGGER.warning('Duplicate "refresh mosaics" command ignored')
+            else:
+                LOGGER.error(f'"refresh mosaics" command rejected ({message})')
+        except KeyError:
+            LOGGER.error(f'Error parsing "refresh mosaics" response ({message})')
+            return
 
     @classmethod
     def extract_configexport_from_uasset(cls, cfg_file):

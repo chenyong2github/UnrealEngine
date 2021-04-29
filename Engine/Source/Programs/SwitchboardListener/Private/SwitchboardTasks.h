@@ -19,7 +19,9 @@ enum class ESwitchboardTaskType : uint8
 	GetFlipMode,
 	FixExeFlags,
 	RedeployListener,
+	RefreshMosaics,
 };
+
 
 struct FSwitchboardTask
 {
@@ -59,6 +61,20 @@ struct FSwitchboardGetSyncStatusTask : public FSwitchboardTask
 	virtual uint32 GetEquivalenceHash() const override
 	{
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ProgramID));
+	}
+	//~ End FSwitchboardTask interface
+};
+
+struct FSwitchboardRefreshMosaicsTask : public FSwitchboardTask
+{
+	FSwitchboardRefreshMosaicsTask(const FGuid& InTaskId, const FIPv4Endpoint& InEndpoint)
+		: FSwitchboardTask{ ESwitchboardTaskType::RefreshMosaics, TEXT("refresh mosaics"), InTaskId, InEndpoint }
+	{}
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		return HashCombine(GetTypeHash(Type), GetTypeHash(Name));
 	}
 	//~ End FSwitchboardTask interface
 };
