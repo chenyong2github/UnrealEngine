@@ -22,6 +22,8 @@
 
 #define CONFIG_TRANSLUCENCY_REJECTION 1
 
+#define CONFIG_VFX_SURVIVAL 1
+
 
 //------------------------------------------------------- CONSTANTS
 
@@ -268,6 +270,13 @@ void MainCS(
 			taa_half SampleSpatialWeight = ComputeSampleWeigth(FinalInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
 
 			taa_half ToneWeight = HdrWeight4(InputColor);
+
+			#if CONFIG_VFX_SURVIVAL
+			if (SampleId == 0)
+			{
+				ToneWeight = max(ToneWeight, ComputeSampleWeigth(1.0, dPP, /* MinimalContribution = */ 0.0));
+			}
+			#endif
 
 			FilteredInputColor       += (SampleSpatialWeight * ToneWeight) * InputColor;
 			FilteredInputColorWeight += (SampleSpatialWeight * ToneWeight);
