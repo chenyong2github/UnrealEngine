@@ -1,0 +1,95 @@
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Castle.Core.Internal;
+using HordeServer;
+using HordeServer.Models;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using HordeServer.Services;
+using HordeServer.Services.Impl;
+using HordeServer.Utilities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using MongoDB.Bson;
+
+using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using Microsoft.Extensions.Options;
+
+namespace HordeServerTests
+{
+    /// <summary>
+    /// Tests aimed to be run from an IDE while debugging against real databases
+    /// Uncomment the [Ignore] tag to run
+    /// </summary>
+	[TestClass]
+    public class DebugTest : DatabaseIntegrationTest
+    {
+        private async Task<TestSetup> GetTestSetupExternal()
+        {
+	        TestSetup TestSetup = new TestSetup(GetDatabaseServiceExternal());
+	        await TestSetup.CreateFixture(true);
+	        return TestSetup;
+        }
+
+        private DatabaseService GetDatabaseServiceExternal()
+        {
+	        Startup.ConfigureMongoDbClient();
+
+	        if (DebugSettings.DbHostname.IsNullOrEmpty())
+	        {
+		        throw new Exception("Please set credentials in DebugSettings.cs");
+	        }
+	        
+	        ServerSettings Ss = new ServerSettings();
+	        Ss.DatabaseName = "Horde";
+	        Ss.DatabaseConnectionString = $"mongodb://{DebugSettings.DbUsername}:{DebugSettings.DbPassword}@{DebugSettings.DbHostname}:27017/?ssl=true&replicaSet=rs0";
+	        Ss.DatabaseReadOnlyMode = true;
+	        TestOptionsMonitor<ServerSettings> SsMonitor = new TestOptionsMonitor<ServerSettings>(Ss);
+            
+	        ILoggerFactory LoggerFactory = new LoggerFactory();
+	        ConsoleLoggerOptions LoggerOptions = new ConsoleLoggerOptions();
+	        TestOptionsMonitor<ConsoleLoggerOptions> LoggerOptionsMon = new TestOptionsMonitor<ConsoleLoggerOptions>(LoggerOptions);
+	        LoggerFactory.AddProvider(new ConsoleLoggerProvider(LoggerOptionsMon));
+	        ILogger<DatabaseService> Logger = LoggerFactory.CreateLogger<DatabaseService>();
+
+	        DatabaseService DatabaseService = new DatabaseService(SsMonitor, Logger);
+	        return DatabaseService;
+        }
+        
+//        [TestMethod]
+        [Ignore]
+        public async Task Debug1()
+        {
+	        TestSetup TestSetup = await GetTestSetupExternal();
+	        
+	        HordeServer.Models.IJob? Job = await TestSetup.JobService.GetJobAsync(new ObjectId("5f98da1d98cf40000141344c"));
+	        Console.WriteLine("Job is " + Job);
+        }
+        
+//        [TestMethod]
+        [Ignore]
+        public async Task DebugFleetManager()
+        {
+	        TestSetup TestSetup = await GetTestSetup();
+
+	        IPool Pool = await TestSetup.PoolCollection.AddAsync(new PoolId("ue4-dev-win"), "ue4-dev-win", null, null);
+	        AwsFleetManager Manager = new AwsFleetManager(TestSetup.AgentCollection, TestSetup.ServiceProvider.GetRequiredService<ILogger<AwsFleetManager>>());
+
+	        await Manager.ExpandPool(Pool, new List<IAgent>(), 1);
+        }
+       
+//        [TestMethod]
+        [Ignore]
+        public async Task DebugAutoScaleService()
+        {
+	        TestSetup TestSetup = await GetTestSetupExternal();
+
+	        AutoscaleService AutoscaleService = new AutoscaleService(GetDatabaseServiceExternal(), TestSetup.AgentCollection, TestSetup.PoolCollection,
+		        TestSetup.LeaseCollection, new DefaultFleetManager(TestSetup.ServiceProvider.GetRequiredService<ILogger<DefaultFleetManager>>()),
+				new NoOpDogStatsd(), TestSetup.ServiceProvider.GetRequiredService<ILogger<AutoscaleService>>());
+
+	        await AutoscaleService.TickSharedOnlyForTestingAsync();
+        }
+    }
+}
