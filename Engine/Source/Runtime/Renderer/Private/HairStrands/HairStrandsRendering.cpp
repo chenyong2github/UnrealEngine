@@ -83,6 +83,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, "HairStrands");
 
 void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
+bool GetHairStrandsSkyLightingDebugEnable();
 
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
@@ -136,7 +137,12 @@ void RenderHairBasePass(
 				SceneTextures.Depth.Resolve,
 				SceneTextures.Velocity,
 				InstanceCullingManager);
-			
+
+			const bool bDebugSamplingEnable = GetHairStrandsSkyLightingDebugEnable();
+			if (bDebugSamplingEnable)
+			{
+				View.HairStrandsViewData.DebugData.Resources = FHairStrandsDebugData::CreateData(GraphBuilder);
+			}
 		}
 		
 		if (View.HairStrandsViewData.VisibilityData.CategorizationTexture)

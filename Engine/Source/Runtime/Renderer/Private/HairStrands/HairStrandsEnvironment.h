@@ -21,12 +21,12 @@ void RenderHairStrandsAmbientOcclusion(
 void RenderHairStrandsLumenLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	FViewInfo& View);
+	const FViewInfo& View);
 
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	FViewInfo& View);
+	const FViewInfo& View);
 
 void RenderHairStrandsSceneColorScattering(
 	FRDGBuilder& GraphBuilder,
