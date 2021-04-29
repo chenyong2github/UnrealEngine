@@ -1160,7 +1160,7 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
 {
-	return IsMobilePlatform(Platform) && (IsSwitchPlatform(Platform) || IsD3DPlatform(Platform)) && IsUsingDistanceFields(Platform);
+	return IsMobilePlatform(Platform) && (IsSwitchPlatform(Platform)/* || IsD3DPlatform(Platform)*/) && IsUsingDistanceFields(Platform);
 }
 
 RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform)
