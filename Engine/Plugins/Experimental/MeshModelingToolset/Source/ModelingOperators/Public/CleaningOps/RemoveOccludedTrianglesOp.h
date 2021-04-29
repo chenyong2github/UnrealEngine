@@ -44,6 +44,7 @@ public:
 	// add triangle samples per triangle (in addition to TriangleSamplingMethod)
 	int AddTriangleSamples = 0;
 
+	// once triangles to remove are identified, do iterations of boundary erosion, ie contract selection by boundary vertex one-rings
 	int ShrinkRemoval = 0;
 
 	double MinAreaConnectedComponent = 0;
