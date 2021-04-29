@@ -22,6 +22,7 @@ public:
 	bool TryBind(
 		UNiagaraScript* InScript,
 		TArray<UNiagaraScript*> InDependentScripts, 
+		FCompileConstantResolver InConstantResolver,
 		FString InOwningEmitterUniqueName, 
 		UNiagaraNodeFunctionCall* InFunctionCallNode, 
 		FName InMetaDataKey, 
@@ -33,6 +34,7 @@ public:
 	bool TryBind(
 		UNiagaraScript* InScript,
 		TArray<UNiagaraScript*> InDependentScripts,
+		FCompileConstantResolver InConstantResolver,
 		FString InOwningEmitterUniqueName,
 		UNiagaraNodeFunctionCall* InFunctionCallNode,
 		FName InInputName,
@@ -76,6 +78,7 @@ private:
 	bool TryBindInternal(
 		UNiagaraScript* InScript,
 		TArray<UNiagaraScript*> InDependentScripts,
+		FCompileConstantResolver InConstantResolver,
 		FString InOwningEmitterUniqueName,
 		UNiagaraNodeFunctionCall* InFunctionCallNode,
 		FInputMatchesPredicate InputMatchesCallback,
