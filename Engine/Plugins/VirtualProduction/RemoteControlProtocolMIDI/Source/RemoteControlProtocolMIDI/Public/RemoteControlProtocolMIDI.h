@@ -158,7 +158,7 @@ private:
 	void OnReceiveEvent(UMIDIDeviceInputController* MIDIDeviceController, int32 Timestamp, int32 Type, int32 Channel, int32 MessageData1, int32 MessageData2);
 
 	/** Binding for the MIDI protocol */
-	TMap< UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr> > > MIDIDeviceBindings;
+	TMap<UMIDIDeviceInputController*, TMap<int32, TArray<FRemoteControlProtocolEntityWeakPtr>>> MIDIDeviceBindings;
 
 	/** MIDI devices */
 	TMap<int32, TStrongObjectPtr<UMIDIDeviceInputController>> MIDIDevices;

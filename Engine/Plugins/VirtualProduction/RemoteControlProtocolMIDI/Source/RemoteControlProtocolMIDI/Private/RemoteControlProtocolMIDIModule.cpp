@@ -4,10 +4,12 @@
 
 #include "IRemoteControlProtocolModule.h"
 #include "MIDIDeviceManager.h"
+#include "RemoteControlPreset.h"
 #include "RemoteControlProtocolMIDI.h"
 #include "RemoteControlProtocolMIDISettings.h"
 #include "Async/Async.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
@@ -36,10 +38,13 @@ void FRemoteControlProtocolMIDIModule::StartupModule()
 #endif // WITH_EDITOR
 
 	IRemoteControlProtocolModule::Get().AddProtocol("MIDI", MakeShared<FRemoteControlProtocolMIDI>());
+	GetOnMIDIDevicesUpdated().AddRaw(this, &FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated);
 }
 
 void FRemoteControlProtocolMIDIModule::ShutdownModule()
 {
+	GetOnMIDIDevicesUpdated().RemoveAll(this);
+
 #if WITH_EDITOR
 	// Unregister MIDI Remote Control global settings
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
@@ -48,6 +53,39 @@ void FRemoteControlProtocolMIDIModule::ShutdownModule()
 		SettingsModule->UnregisterSettings("Project", "Plugins", "Remote Control MIDI Protocol");
 	}
 #endif // WITH_EDITOR
+}
+
+void FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated(FMIDIDeviceCollection& InDevices)
+{
+	static FName ProtocolName = "MIDI";
+	const TSharedPtr<IRemoteControlProtocol> RegisteredProtocol = IRemoteControlProtocolModule::Get().GetProtocolByName(ProtocolName);
+	check(ProtocolName.IsValid());
+	
+	// Re-initialize any existing presets
+	for(TObjectIterator<URemoteControlPreset> PresetIter; PresetIter; ++PresetIter)
+	{
+		URemoteControlPreset* Preset = *PresetIter;
+		if(Preset != nullptr && !Preset->IsPendingKill())
+		{
+			if(!ensure(IsValid(Preset)))
+			{
+				UE_LOG(LogRemoteControlProtocolMIDI, Error, TEXT("Attempted to load an invalid Preset: %s"), *Preset->GetFName().ToString());
+				return;
+			}
+		
+			// Iterate over each contained property
+			for(TWeakPtr<FRemoteControlProperty> ExposedProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
+			{
+				for(FRemoteControlProtocolBinding& Binding : ExposedProperty.Pin()->ProtocolBinding)
+				{
+					if(Binding.GetProtocolName() == ProtocolName)
+					{
+						RegisteredProtocol->Bind(Binding.GetRemoteControlProtocolEntityPtr());
+					}
+				}
+			}
+		}
+	}
 }
 
 TFuture<TSharedPtr<TArray<FFoundMIDIDevice>, ESPMode::ThreadSafe>> FRemoteControlProtocolMIDIModule::GetMIDIDevices(bool bRefresh)
@@ -79,7 +117,7 @@ TFuture<TSharedPtr<TArray<FFoundMIDIDevice>, ESPMode::ThreadSafe>> FRemoteContro
             	// Only input devices
             	if(FoundDevice.bCanReceiveFrom)
             	{
-            		MIDIDeviceCache->Add(MoveTemp(FoundDevice));	
+            		MIDIDeviceCache->Add(MoveTemp(FoundDevice));	 
             	}
             }
 
@@ -87,7 +125,10 @@ TFuture<TSharedPtr<TArray<FFoundMIDIDevice>, ESPMode::ThreadSafe>> FRemoteContro
 
 			if(OnMIDIDevicesUpdated.IsBound())
 			{
-				OnMIDIDevicesUpdated.Broadcast(MIDIDeviceCache);
+				AsyncTask(ENamedThreads::GameThread, [&]()
+				{
+					OnMIDIDevicesUpdated.Broadcast(MIDIDeviceCache);	
+				});
 			}
 
         	Promise->EmplaceValue(MIDIDeviceCache);
