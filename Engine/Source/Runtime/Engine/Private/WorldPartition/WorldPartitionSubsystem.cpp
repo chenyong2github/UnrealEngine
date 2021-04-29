@@ -3,6 +3,8 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Console.h"
@@ -28,6 +30,18 @@ static FAutoConsoleCommand CVarDrawStreamingSources(
 	TEXT("wp.Runtime.ToggleDrawStreamingSources"),
 	TEXT("Toggles debug display of world partition streaming sources."),
 	FConsoleCommandDelegate::CreateLambda([] { GDrawStreamingSources = !GDrawStreamingSources; }));
+
+static int32 GDrawLegends = 0;
+static FAutoConsoleCommand CVarGDrawLegends(
+	TEXT("wp.Runtime.ToggleDrawLegends"),
+	TEXT("Toggles debug display of world partition legends."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawLegends = !GDrawLegends; }));
+
+static int32 GDrawRuntimeCellsDetails = 0;
+static FAutoConsoleCommand CVarDrawRuntimeCellsDetails(
+	TEXT("wp.Runtime.ToggleDrawRuntimeCellsDetails"),
+	TEXT("Toggles debug display of world partition runtime streaming cells."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeCellsDetails = !GDrawRuntimeCellsDetails; }));
 
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
@@ -209,23 +223,15 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 	}
 
 	const FVector2D CanvasTopLeftPadding(10.f, 10.f);
-	FVector2D Pos = CanvasTopLeftPadding;
 
-	auto DrawText = [](UCanvas* Canvas, const FString& Text, UFont* Font, const FColor& Color, FVector2D& Pos)
-	{
-		float TextWidth, TextHeight;
-		Canvas->StrLen(Font, Text, TextWidth, TextHeight);
-		Canvas->SetDrawColor(Color);
-		Canvas->DrawText(Font, Text, Pos.X, Pos.Y);
-		Pos.Y += TextHeight + 1;
-	};
+	FVector2D CurrentOffset(CanvasTopLeftPadding);
 
 	if (GDrawRuntimeHash2D)
 	{
 		const float MaxScreenRatio = 0.75f;
 		const FVector2D CanvasBottomRightPadding(10.f, 10.f);
 		const FVector2D CanvasMinimumSize(100.f, 100.f);
-		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CanvasTopLeftPadding, CanvasMinimumSize);
+		const FVector2D CanvasMaxScreenSize = FVector2D::Max(MaxScreenRatio*FVector2D(Canvas->ClipX, Canvas->ClipY) - CanvasBottomRightPadding - CurrentOffset, CanvasMinimumSize);
 
 		FVector2D TotalFootprint(ForceInitToZero);
 		for (UWorldPartition* Partition : RegisteredWorldPartitions)
@@ -236,32 +242,69 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 
 		if (TotalFootprint.X > 0.f)
 		{
-			FVector2D PartitionCanvasOffset(CanvasTopLeftPadding);
 			for (UWorldPartition* Partition : RegisteredWorldPartitions)
 			{
 				FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
 				float FootprintRatio = Footprint.X / TotalFootprint.X;
 				FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X * FootprintRatio, CanvasMaxScreenSize.Y);
-				Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
-				PartitionCanvasOffset.X += PartitionCanvasSize.X;
+				Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, CurrentOffset);
 			}
+			CurrentOffset.X = CanvasBottomRightPadding.X;
 		}
 	}
 
 	if (GDrawStreamingSources)
 	{
-		if (const UWorldPartition* WorldPartition = GetMainWorldPartition())
+		const UWorldPartition* WorldPartition = GetMainWorldPartition();
+		const TArray<FWorldPartitionStreamingSource>* StreamingSources = WorldPartition ? &WorldPartition->GetStreamingSources() : nullptr;
+		if (StreamingSources && (StreamingSources->Num() > 0))
 		{
-			const TArray<FWorldPartitionStreamingSource>& StreamingSources = WorldPartition->GetStreamingSources();
-
 			FString Title(TEXT("Streaming Sources"));
-			DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, Pos);
-			UFont* Font = GEngine->GetTinyFont();
-			for (const FWorldPartitionStreamingSource& StreamingSource : StreamingSources)
+			FWorldPartitionDebugHelper::DrawText(Canvas, Title, GEngine->GetSmallFont(), FColor::Yellow, CurrentOffset);
+
+			FVector2D Pos = CurrentOffset;
+			float MaxTextWidth = 0;
+			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
 			{
-				const FString Text = FString::Printf(TEXT("%s %s %s"), *StreamingSource.Name.ToString(), *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
-				DrawText(Canvas, Text, Font, FColor::White, Pos);
+				FWorldPartitionDebugHelper::DrawText(Canvas, StreamingSource.Name.ToString(), GEngine->GetTinyFont(), FColor::White, Pos, &MaxTextWidth);
 			}
+			Pos = CurrentOffset + FVector2D(MaxTextWidth + 10, 0.f);
+			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
+			{
+				const FString Text = FString::Printf(TEXT("Pos: %s | Rot: %s"), *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString());
+				FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetTinyFont(), FColor::White, Pos);
+			}
+			CurrentOffset.Y = Pos.Y;
+		}
+	}
+
+	if (UWorldPartition* WorldPartition = GetMainWorldPartition())
+	{
+		UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+
+		if (GDrawLegends)
+		{
+			// Streaming Status Legend
+			WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
+
+			// DataLayers Legend
+			if (DataLayerSubsystem)
+			{
+				DataLayerSubsystem->DrawDataLayersLegend(Canvas, CurrentOffset);
+			}
+		}
+
+		if (DataLayerSubsystem)
+		{
+			DataLayerSubsystem->DrawDataLayersStatus(Canvas, CurrentOffset);
+		}
+	}
+
+	if (GDrawRuntimeCellsDetails)
+	{
+		if (UWorldPartition* Partition = GetMainWorldPartition())
+		{
+			Partition->DrawRuntimeCellsDetails(Canvas, CurrentOffset);
 		}
 	}
 }

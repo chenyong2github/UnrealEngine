@@ -24,6 +24,7 @@ class UWorldPartitionRuntimeCell;
 class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class FHLODActorDesc;
+class UCanvas;
 
 struct IWorldPartitionStreamingSourceProvider;
 
@@ -175,14 +176,16 @@ public:
 	class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
-	bool CanDrawRuntimeHash() const;
-	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
-	void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
-	void DrawRuntimeHash3D();
-
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 
+	// Debugging Methods
+	bool CanDrawRuntimeHash() const;
+	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
+	void DrawRuntimeHash2D(UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset);
+	void DrawRuntimeHash3D();
+	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
+	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)

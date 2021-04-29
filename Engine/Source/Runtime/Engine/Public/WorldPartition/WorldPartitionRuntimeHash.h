@@ -54,8 +54,9 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	 */
 	virtual FVector2D GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const { return FVector2D::ZeroVector; }
 
-	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize) const {}
+	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasSize, FVector2D& Offset) const {}
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
+	virtual bool ContainsRuntimeHash(const FString& Name) const { return false; }
 
 protected:
 #if WITH_EDITOR

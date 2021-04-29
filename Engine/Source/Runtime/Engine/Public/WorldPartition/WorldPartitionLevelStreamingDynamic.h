@@ -14,8 +14,8 @@
 #include "Engine/LevelStreaming.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartition.h"
-#if WITH_EDITOR
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
+#if WITH_EDITOR
 #include "WorldPartition/WorldPartitionPackageCache.h"
 #endif
 #include "WorldPartitionLevelStreamingDynamic.generated.h"
@@ -29,10 +29,12 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	void Unload();
 	void Activate();
 	void Deactivate();
-	virtual bool ShouldBeAlwaysLoaded() const { return bShouldBeAlwaysLoaded; }
-	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
-	void SetShouldBeAlwaysLoaded(bool bInShouldBeAlwaysLoaded) { bShouldBeAlwaysLoaded = bInShouldBeAlwaysLoaded; }
 	UWorld* GetOuterWorld() const;
+	void SetShouldBeAlwaysLoaded(bool bInShouldBeAlwaysLoaded) { bShouldBeAlwaysLoaded = bInShouldBeAlwaysLoaded; }
+	const UWorldPartitionRuntimeCell* GetWorldPartitionRuntimeCell() const { return StreamingCell.Get(); }
+
+	virtual bool ShouldBeAlwaysLoaded() const override { return bShouldBeAlwaysLoaded; }
+	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
 
 #if WITH_EDITOR
 	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
@@ -68,6 +70,9 @@ private:
 	UPROPERTY()
 	UActorContainer* ActorContainer;
 #endif
+
+	UPROPERTY()
+	TWeakObjectPtr<const UWorldPartitionRuntimeLevelStreamingCell> StreamingCell;
 
 	UPROPERTY()
 	TWeakObjectPtr<UWorldPartition> OuterWorldPartition;

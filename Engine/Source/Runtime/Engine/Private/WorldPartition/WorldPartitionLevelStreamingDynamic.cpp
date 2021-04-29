@@ -45,6 +45,7 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
  */
 void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell)
 {
+	StreamingCell = &InCell;
 	UWorld* World = GetWorld();
 	check(!ShouldBeLoaded());
 	check((World->IsGameWorld() && !ShouldBeVisible()) || (!World->IsGameWorld() && !GetShouldBeVisibleFlag()));

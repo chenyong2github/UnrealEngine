@@ -8,6 +8,7 @@
 #include "UObject/Object.h"
 #include "WorldDataLayers.h"
 #include "ActorDataLayer.h"
+#include "Math/Color.h"
 
 #include "DataLayer.generated.h"
 
@@ -66,6 +67,8 @@ public:
 	UFUNCTION(Category = "Data Layer - Runtime", BlueprintCallable)
 	EDataLayerState GetInitialState() const { return IsDynamicallyLoaded() ? InitialState : EDataLayerState::Unloaded; }
 
+	FColor GetDebugColor() const { return DebugColor; }
+
 	/** Returns a sanitized version of the provided Data Layer Label */
 	static FName GetSanitizedDataLayerLabel(FName InDataLayerLabel);
 
@@ -109,4 +112,7 @@ private:
 	/** Whether the Data Layer affects actor runtime loading */
 	UPROPERTY(Category = "Data Layer - Runtime", EditAnywhere)
 	uint32 bIsDynamicallyLoaded : 1;
+
+	UPROPERTY(Category = "Data Layer - Runtime", EditAnywhere)
+	FColor DebugColor;
 };

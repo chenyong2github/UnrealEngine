@@ -45,15 +45,28 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	return LevelStreaming;
 }
 
-EStreamingStatus UWorldPartitionRuntimeLevelStreamingCell::GetLevelStreamingStatus() const
+EStreamingStatus UWorldPartitionRuntimeLevelStreamingCell::GetStreamingStatus() const
 {
-	check(LevelStreaming)
-	return LevelStreaming->GetLevelStreamingStatus();
+	if (LevelStreaming)
+	{
+		return LevelStreaming->GetLevelStreamingStatus();
+	}
+	return Super::GetStreamingStatus();
+}
+
+bool UWorldPartitionRuntimeLevelStreamingCell::IsLoading() const
+{
+	if (LevelStreaming)
+	{
+		ULevelStreaming::ECurrentState CurrentState = LevelStreaming->GetCurrentState();
+		return (CurrentState == ULevelStreaming::ECurrentState::Removed || CurrentState == ULevelStreaming::ECurrentState::Unloaded || CurrentState == ULevelStreaming::ECurrentState::Loading);
+	}
+	return Super::IsLoading();
 }
 
 FLinearColor UWorldPartitionRuntimeLevelStreamingCell::GetDebugColor() const
 {
-	FLinearColor Color = LevelStreaming ? ULevelStreaming::GetLevelStreamingStatusColor(GetLevelStreamingStatus()) : FLinearColor::Black;
+	FLinearColor Color = LevelStreaming ? ULevelStreaming::GetLevelStreamingStatusColor(GetStreamingStatus()) : FLinearColor::Black;
 	Color.A = 0.25f / (Level + 1);
 	return Color;
 }

@@ -259,11 +259,11 @@ FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(c
 	return WorldPartition->RuntimeHash->GetDraw2DDesiredFootprint(CanvasSize);
 }
 
-void UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
+void UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset)
 {
 	if (StreamingSources.Num() > 0)
 	{
-		WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasOffset, PartitionCanvasSize);
+		WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasSize, Offset);
 	}
 }
 

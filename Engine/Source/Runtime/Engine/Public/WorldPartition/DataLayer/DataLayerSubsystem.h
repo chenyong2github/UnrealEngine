@@ -12,6 +12,8 @@
  * UDataLayerSubsystem
  */
 
+class UCanvas;
+
 // Deprecate
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerActivationStateChanged, const UDataLayer*, DataLayer, bool, bIsActive);
 
@@ -28,7 +30,6 @@ public:
 	//~ Begin USubsystem Interface.
 	virtual bool ShouldCreateSubsystem(UObject* Outer) const override;
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
-	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
 	//~ Begin UWorldSubsystem Interface.
@@ -83,7 +84,10 @@ public:
 	
 	bool IsAnyDataLayerInState(const TArray<FName>& InDataLayerNames, EDataLayerState InState) const;
 	
-	void Draw(class UCanvas* Canvas, class APlayerController* PC);
+	void GetDataLayerDebugColors(TMap<FName, FColor>& OutMapping) const;
+	void DrawDataLayersLegend(UCanvas* Canvas, FVector2D& Offset) const;
+	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
+	static TArray<UDataLayer*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
 
 #if WITH_EDITOR
 public:
@@ -96,13 +100,10 @@ private:
 #endif
 
 private:
-	static TArray<UDataLayer*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
 
 	/** Console command used to toggle activation of a DataLayer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
 	TSet<FName> ActiveDataLayerNames;
 	TSet<FName> LoadedDataLayerNames;
-
-	FDelegateHandle	DrawHandle;
 };

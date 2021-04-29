@@ -22,6 +22,7 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 , DataLayerLabel(GetFName())
 , InitialState(EDataLayerState::Unloaded)
 , bIsDynamicallyLoaded(false)
+, DebugColor(FColor::Black)
 {
 }
 
@@ -40,6 +41,15 @@ void UDataLayer::PostLoad()
 
 	// Sanitize Label
 	DataLayerLabel = UDataLayer::GetSanitizedDataLayerLabel(DataLayerLabel);
+
+	if (DebugColor == FColor::Black)
+	{
+		FRandomStream RandomStream(GetFName());
+		const uint8 R = (uint8)(RandomStream.GetFraction() * 255.f);
+		const uint8 G = (uint8)(RandomStream.GetFraction() * 255.f);
+		const uint8 B = (uint8)(RandomStream.GetFraction() * 255.f);
+		DebugColor = FColor(R, G, B);
+	}
 #endif
 }
 

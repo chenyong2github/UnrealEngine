@@ -5,6 +5,7 @@
 #include "Templates/SubclassOf.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
+#include "ProfilingDebugging/ProfilingHelpers.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
 USTRUCT()
@@ -105,19 +106,24 @@ static_assert(EWorldPartitionRuntimeCellState::Unloaded < EWorldPartitionRuntime
 /**
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
  */
-UCLASS(Abstract)
+UCLASS(Abstract, Within = WorldPartition)
 class UWorldPartitionRuntimeCell : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	virtual FLinearColor GetDebugColor() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetDebugColor, return FLinearColor::Black;);
+	virtual FLinearColor GetDebugColor() const { return FLinearColor::Black; }
 	virtual bool IsAlwaysLoaded() const { return bIsAlwaysLoaded; }
 	virtual void SetIsAlwaysLoaded(bool bInIsAlwaysLoaded) { bIsAlwaysLoaded = bInIsAlwaysLoaded; }
 	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 	const TArray<FName>& GetDataLayers() const { return DataLayers; }
+	virtual EStreamingStatus GetStreamingStatus() const { return LEVEL_Unloaded; }
+	virtual bool IsLoading() const { return false; }
+	virtual const FString& GetDebugName() const { return DebugName; }
+	virtual bool IsDebugShown() const;
 
 #if WITH_EDITOR
-	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
+	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
+	void SetDebugInfo(FIntVector InCoords, FName InGridName);
 	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint64 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
@@ -132,8 +138,12 @@ class UWorldPartitionRuntimeCell : public UObject
 	const UWorldPartitionRuntimeCellData* GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const;
 	template <class T> inline const T* GetCellData() const { return Cast<const T>(GetCellData(T::StaticClass())); }
 	template <class T> inline bool HasCellData() const { return GetCellData<T>() != nullptr; }
-
+	
 protected:
+#if WITH_EDITOR
+	void UpdateDebugName();
+#endif
+
 	UPROPERTY()
 	bool bIsAlwaysLoaded;
 
@@ -143,4 +153,14 @@ private:
 
 	UPROPERTY()
 	TArray<FName> DataLayers;
+
+	// Debug Info
+	UPROPERTY()
+	FIntVector Coords;
+
+	UPROPERTY()
+	FName GridName;
+
+	UPROPERTY()
+	FString DebugName;
 };

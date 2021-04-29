@@ -25,6 +25,8 @@ public:
 	virtual void SetTargetStateForCells(EWorldPartitionRuntimeCellState TargetState, const TSet<const UWorldPartitionRuntimeCell*>& Cells) override;
 	virtual EWorldPartitionRuntimeCellState GetCurrentStateForCell(const UWorldPartitionRuntimeCell* Cell) const override;
 	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const override;
+	virtual void DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset) override;
+	virtual void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset) override;
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;
@@ -35,6 +37,9 @@ public:
 #endif
 
 	virtual UObject* GetSubObject(const TCHAR* SubObjectPath) override;
+
+protected:
+	void ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const;
 
 private:
 	void SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells);

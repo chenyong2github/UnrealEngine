@@ -11,8 +11,10 @@
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "Engine/Canvas.h"
 
 #if WITH_EDITOR
 #include "Misc/PackageName.h"
@@ -27,22 +29,30 @@ static FAutoConsoleVariableRef CMaxLoadingLevelStreamingCells(
 int32 UWorldPartitionLevelStreamingPolicy::GetCellLoadingCount() const
 {
 	int32 CellLoadingCount = 0;
-	for (const UWorldPartitionRuntimeCell* ActivatedCell : ActivatedCells)
+
+	ForEachActiveRuntimeCell([&CellLoadingCount](const UWorldPartitionRuntimeCell* Cell)
 	{
-		const UWorldPartitionRuntimeLevelStreamingCell* Cell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(ActivatedCell);
-		if (!Cell->IsAlwaysLoaded())
+		if (Cell->IsLoading())
 		{
-			if (UWorldPartitionLevelStreamingDynamic* LevelStreaming = Cell->GetLevelStreaming())
+			++CellLoadingCount;
+		}
+	});
+	return CellLoadingCount;
+}
+
+void UWorldPartitionLevelStreamingPolicy::ForEachActiveRuntimeCell(TFunctionRef<void(const UWorldPartitionRuntimeCell*)> Func) const
+{
+	UWorld* World = WorldPartition->GetWorld();
+	for (ULevelStreaming* LevelStreaming : World->GetStreamingLevels())
+	{
+		if (UWorldPartitionLevelStreamingDynamic* WorldPartitionLevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming))
+		{
+			if (const UWorldPartitionRuntimeCell* Cell = WorldPartitionLevelStreaming->GetWorldPartitionRuntimeCell())
 			{
-				ULevelStreaming::ECurrentState CurrentState = LevelStreaming->GetCurrentState();
-				if (CurrentState == ULevelStreaming::ECurrentState::Removed || CurrentState == ULevelStreaming::ECurrentState::Unloaded || CurrentState == ULevelStreaming::ECurrentState::Loading)
-				{
-					++CellLoadingCount;
-				}
+				Func(Cell);
 			}
 		}
 	}
-	return CellLoadingCount;
 }
 
 int32 UWorldPartitionLevelStreamingPolicy::GetMaxCellsToLoad() const
@@ -308,4 +318,87 @@ UObject* UWorldPartitionLevelStreamingPolicy::GetSubObject(const TCHAR* SubObjec
 	}
 
 	return nullptr;
+}
+
+void UWorldPartitionLevelStreamingPolicy::DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset)
+{
+	UWorld* World = WorldPartition->GetWorld();
+	struct FCellsPerStreamingStatus
+	{
+		TArray<const UWorldPartitionRuntimeCell*> Cells;
+	};
+	FCellsPerStreamingStatus CellsPerStreamingStatus[(int32)LEVEL_StreamingStatusCount];
+	ForEachActiveRuntimeCell([&CellsPerStreamingStatus](const UWorldPartitionRuntimeCell* Cell)
+	{
+		if (Cell->IsDebugShown())
+		{
+			CellsPerStreamingStatus[(int32)Cell->GetStreamingStatus()].Cells.Add(Cell);
+		}
+	});
+
+	FVector2D Pos = Offset;
+	const float BaseY = Offset.Y;
+
+	float CurrentColumnWidth = 0.f;
+	float MaxPosY = Pos.Y;
+
+	auto DrawCellDetails = [&](const FString& Text, const UFont* Font, const FColor& Color)
+	{
+		FWorldPartitionDebugHelper::DrawText(Canvas, Text, Font, Color, Pos, &CurrentColumnWidth);
+		MaxPosY = FMath::Max(MaxPosY, Pos.Y);
+		if ((Pos.Y + 30) > Canvas->ClipY)
+		{
+			Pos.Y = BaseY;
+			Pos.X += CurrentColumnWidth + 5;
+			CurrentColumnWidth = 0.f;
+		}
+	};
+
+	for (int32 i = 0; i < (int32)LEVEL_StreamingStatusCount; ++i)
+	{
+		const EStreamingStatus StreamingStatus = (EStreamingStatus)i;
+		const TArray<const UWorldPartitionRuntimeCell*>& Cells = CellsPerStreamingStatus[i].Cells;
+		if (Cells.Num() > 0)
+		{
+			const FString StatusDisplayName = *FString::Printf(TEXT("%s (%d)"), ULevelStreaming::GetLevelStreamingStatusDisplayName(StreamingStatus), Cells.Num());
+			DrawCellDetails(StatusDisplayName, GEngine->GetSmallFont(), FColor::Yellow);
+
+			const FColor Color = ULevelStreaming::GetLevelStreamingStatusColor(StreamingStatus);
+			for (const UWorldPartitionRuntimeCell* Cell : Cells)
+			{
+				DrawCellDetails(Cell->GetDebugName(), GEngine->GetTinyFont(), Color);
+			}
+		}
+	}
+
+	Offset.Y = MaxPosY;
+}
+
+/**
+ * Debug Draw Streaming Status Legend
+ */
+void UWorldPartitionLevelStreamingPolicy::DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset)
+{
+	check(Canvas);
+
+	// Cumulate counter stats
+	int32 StatusCount[(int32)LEVEL_StreamingStatusCount] = { 0 };
+	ForEachActiveRuntimeCell([&StatusCount](const UWorldPartitionRuntimeCell* Cell)
+	{
+		StatusCount[(int32)Cell->GetStreamingStatus()]++;
+	});
+
+	// Draw legend
+	FVector2D Pos = Offset;
+	float MaxTextWidth = 0.f;
+	FWorldPartitionDebugHelper::DrawText(Canvas, TEXT("Streaming Status Legend"), GEngine->GetSmallFont(), FColor::Yellow, Pos, &MaxTextWidth);
+	
+	for (int32 i = 0; i < (int32)LEVEL_StreamingStatusCount; ++i)
+	{
+		EStreamingStatus Status = (EStreamingStatus)i;
+		const FColor& StatusColor = ULevelStreaming::GetLevelStreamingStatusColor(Status);
+		FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *FString::Printf(TEXT("%d) %s (%d)"), i, ULevelStreaming::GetLevelStreamingStatusDisplayName(Status), StatusCount[(int32)Status]), GEngine->GetTinyFont(), StatusColor, Pos, &MaxTextWidth);
+	}
+
+	Offset.X += MaxTextWidth + 10;
 }

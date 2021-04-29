@@ -17,6 +17,8 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	int32 GetStreamingPriority() const { return Level; }
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 	virtual FLinearColor GetDebugColor() const override;
+	virtual EStreamingStatus GetStreamingStatus() const override;
+	virtual bool IsLoading() const override;
 	EWorldPartitionRuntimeCellState GetCurrentState() const;
 
 #if WITH_EDITOR
@@ -37,8 +39,6 @@ private:
 	
 	UFUNCTION()
 	void OnLevelHidden();
-
-	EStreamingStatus GetLevelStreamingStatus() const;
 
 	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 

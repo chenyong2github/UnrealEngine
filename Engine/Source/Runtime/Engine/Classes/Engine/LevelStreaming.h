@@ -458,6 +458,9 @@ public:
 	/** Utility that returns a string for a streaming level status */
 	static const TCHAR* GetLevelStreamingStatusDisplayName(EStreamingStatus Status);
 
+	/** Utility that draws a legend of level streaming status */
+	static void DebugDrawLegend(const UWorld* World, class UCanvas* Canvas, const FVector2D& Offset);
+
 #if WITH_EDITOR
 	/** Get the folder path for this level for use in the world browser. Only available in editor builds */
 	const FName& GetFolderPath() const;

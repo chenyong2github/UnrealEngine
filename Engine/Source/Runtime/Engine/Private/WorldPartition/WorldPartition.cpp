@@ -1114,16 +1114,26 @@ FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D&
 	return StreamingPolicy->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
 }
 
-void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
+void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset)
 {
 	check(CanDrawRuntimeHash());
-	StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+	StreamingPolicy->DrawRuntimeHash2D(Canvas, PartitionCanvasSize, Offset);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()
 {
 	check(CanDrawRuntimeHash());
 	StreamingPolicy->DrawRuntimeHash3D();
+}
+
+void UWorldPartition::DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset)
+{
+	StreamingPolicy->DrawRuntimeCellsDetails(Canvas, Offset);
+}
+
+void UWorldPartition::DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset)
+{
+	StreamingPolicy->DrawStreamingStatusLegend(Canvas, Offset);
 }
 
 #if WITH_EDITOR

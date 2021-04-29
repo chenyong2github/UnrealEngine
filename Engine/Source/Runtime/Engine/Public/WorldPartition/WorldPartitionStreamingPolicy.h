@@ -27,8 +27,10 @@ public:
 	virtual EWorldPartitionRuntimeCellState GetCurrentStateForCell(const UWorldPartitionRuntimeCell* Cell) const PURE_VIRTUAL(UWorldPartitionStreamingPolicy::GetCurrentStateForCell, return EWorldPartitionRuntimeCellState::Unloaded; );
 	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const { return nullptr; }
 	virtual FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
-	virtual void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
+	virtual void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasSize, FVector2D& Offset);
 	virtual void DrawRuntimeHash3D();
+	virtual void DrawRuntimeCellsDetails(class UCanvas* Canvas, FVector2D& Offset) {}
+	virtual void DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D& Offset) {}
 
 	virtual bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState = true) const;
 
