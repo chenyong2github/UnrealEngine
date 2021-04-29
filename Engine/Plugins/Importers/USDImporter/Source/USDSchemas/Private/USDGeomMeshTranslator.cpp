@@ -603,8 +603,10 @@ namespace UsdGeomMeshTranslatorImpl
 			// Create and configure a new USDTrack to be added to the GeometryCache
 			UGeometryCacheTrackUsd* UsdTrack = NewObject< UGeometryCacheTrackUsd >( GeometryCache );
 
-			// #ueent_todo: Remove the context from the read function if possible
-			TSharedPtr< FUsdSchemaTranslationContext > ContextPtr( Context );
+			UE::FUsdStage Stage = Context->Stage;
+			TMap< FString, TMap< FString, int32 > > MaterialToPrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex ? *Context->MaterialToPrimvarToUVIndex : TMap< FString, TMap< FString, int32 > >();
+			const bool bAllowInterpretingLODs = Context->bAllowInterpretingLODs;
+			FName RenderContext = Context->RenderContext;
 			UsdTrack->Initialize( [ = ]( FGeometryCacheMeshData& OutMeshData, const FString& InPrimPath, float Time )
 				{
 					// Get MeshDescription associated with the prim
@@ -613,19 +615,16 @@ namespace UsdGeomMeshTranslatorImpl
 					TArray< UsdUtils::FUsdPrimMaterialAssignmentInfo > LODIndexToMaterialInfo;
 
 					UE::FSdfPath PrimPath( *InPrimPath );
-					UE::FUsdPrim Prim = ContextPtr->Stage.GetPrimAtPath( PrimPath );
-
-					TMap< FString, TMap< FString, int32 > > Unused;
-					TMap< FString, TMap< FString, int32 > >* MaterialToPrimvarToUVIndex = ContextPtr->MaterialToPrimvarToUVIndex ? ContextPtr->MaterialToPrimvarToUVIndex : &Unused;
+					UE::FUsdPrim Prim = Stage.GetPrimAtPath( PrimPath );
 
 					UsdGeomMeshTranslatorImpl::LoadMeshDescriptions(
 						pxr::UsdTyped( Prim ),
 						LODIndexToMeshDescription,
 						LODIndexToMaterialInfo,
-						*MaterialToPrimvarToUVIndex,
+						MaterialToPrimvarToUVIndex,
 						pxr::UsdTimeCode( Time ),
-						ContextPtr->bAllowInterpretingLODs,
-						ContextPtr->RenderContext
+						bAllowInterpretingLODs,
+						RenderContext
 					);
 
 					// Convert the MeshDescription to MeshData
@@ -655,8 +654,8 @@ namespace UsdGeomMeshTranslatorImpl
 					return false;
 				},
 				InPrimPath,
-				Context->Stage.GetStartTimeCode(),
-				Context->Stage.GetEndTimeCode()
+				Stage.GetStartTimeCode(),
+				Stage.GetEndTimeCode()
 			);
 
 			GeometryCache->AddTrack( UsdTrack );
