@@ -20,7 +20,7 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheVisualize(
 
 int32 GLumenVisualizeRadiosityIrradianceCache = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeRadiosity(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.Visualize"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.Visualize"),
 	GLumenVisualizeRadiosityIrradianceCache,
 	TEXT(""),
 	ECVF_RenderThreadSafe

@@ -118,7 +118,7 @@ FAutoConsoleVariableRef CVarLumenGIMaxConeSteps(
 
 int32 GLumenParallelBeginUpdate = 1;
 FAutoConsoleVariableRef CVarLumenParallelBeginUpdate(
-	TEXT("r.LumenParallelBeginUpdate"),
+	TEXT("r.LumenScene.ParallelBeginUpdate"),
 	GLumenParallelBeginUpdate,
 	TEXT("Whether to run the Lumen begin update in parallel or not."),
 	ECVF_RenderThreadSafe
@@ -134,7 +134,7 @@ FAutoConsoleVariableRef CVarLumenFastCameraMode(
 
 int32 GLumenSceneGlobalDFResolution = 224;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
-	TEXT("r.LumenScene.GlobalDFResolution"),
+	TEXT("r.LumenScene.GlobalSDF.Resolution"),
 	GLumenSceneGlobalDFResolution,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -142,7 +142,7 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
 
 float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
 FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
-	TEXT("r.LumenScene.GlobalDFClipmapExtent"),
+	TEXT("r.LumenScene.GlobalSDF.ClipmapExtent"),
 	GLumenSceneGlobalDFClipmapExtent,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -274,7 +274,7 @@ int32 GetMaxLumenSceneCardCapturesPerFrame()
 	return GLumenSceneCardCapturesPerFrame * (GLumenFastCameraMode ? 2 : 1);
 }
 
-DECLARE_GPU_STAT(UpdateLumenScene);
+DECLARE_GPU_STAT(LumenSceneUpdate);
 DECLARE_GPU_STAT(UpdateLumenSceneBuffers);
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FLumenCardPassUniformParameters, "LumenCardPass", SceneTextures);
@@ -2069,8 +2069,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 		QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenScene);
 		SCOPED_GPU_STAT(GraphBuilder.RHICmdList, UpdateLumenSceneBuffers);
-		RDG_GPU_STAT_SCOPE(GraphBuilder, UpdateLumenScene);
-		RDG_EVENT_SCOPE(GraphBuilder, "UpdateLumenScene %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
+		RDG_GPU_STAT_SCOPE(GraphBuilder, LumenSceneUpdate);
+		RDG_EVENT_SCOPE(GraphBuilder, "LumenSceneUpdate: %u card captures %.3fM texels", CardPagesToRender.Num(), LumenCardRenderer.NumCardTexelsToCapture / (1024.0f * 1024.0f));
 
 		Lumen::UpdateCardSceneBuffer(GraphBuilder.RHICmdList, ViewFamily, Scene);
 

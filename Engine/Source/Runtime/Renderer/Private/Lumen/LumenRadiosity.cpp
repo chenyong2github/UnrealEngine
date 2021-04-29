@@ -17,7 +17,7 @@
 
 int32 GLumenRadiosity = 1;
 FAutoConsoleVariableRef CVarLumenRadiosity(
-	TEXT("r.Lumen.Radiosity"),
+	TEXT("r.LumenScene.Radiosity"),
 	GLumenRadiosity,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -25,7 +25,7 @@ FAutoConsoleVariableRef CVarLumenRadiosity(
 
 int32 GLumenRadiosityDownsampleFactor = 2;
 FAutoConsoleVariableRef CVarLumenRadiosityDownsampleFactor(
-	TEXT("r.Lumen.Radiosity.DownsampleFactor"),
+	TEXT("r.LumenScene.Radiosity.DownsampleFactor"),
 	GLumenRadiosityDownsampleFactor,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -33,7 +33,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityDownsampleFactor(
 
 float GRadiosityTraceStepFactor = 2;
 FAutoConsoleVariableRef CVarRadiosityTraceStepFactor(
-	TEXT("r.Lumen.Radiosity.TraceStepFactor"),
+	TEXT("r.LumenScene.Radiosity.TraceStepFactor"),
 	GRadiosityTraceStepFactor,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -41,7 +41,7 @@ FAutoConsoleVariableRef CVarRadiosityTraceStepFactor(
 
 int32 GLumenRadiosityNumTargetCones = 8;
 FAutoConsoleVariableRef CVarLumenRadiosityNumTargetCones(
-	TEXT("r.Lumen.Radiosity.NumCones"),
+	TEXT("r.LumenScene.Radiosity.NumCones"),
 	GLumenRadiosityNumTargetCones,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -49,7 +49,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityNumTargetCones(
 
 float GLumenRadiosityMinSampleRadius = 10;
 FAutoConsoleVariableRef CVarLumenRadiosityMinSampleRadius(
-	TEXT("r.Lumen.Radiosity.MinSampleRadius"),
+	TEXT("r.LumenScene.Radiosity.MinSampleRadius"),
 	GLumenRadiosityMinSampleRadius,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -57,7 +57,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityMinSampleRadius(
 
 float GLumenRadiosityMinTraceDistance = 10;
 FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistance(
-	TEXT("r.Lumen.Radiosity.MinTraceDistance"),
+	TEXT("r.LumenScene.Radiosity.MinTraceDistance"),
 	GLumenRadiosityMinTraceDistance,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -65,7 +65,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityMinTraceDistance(
 
 float GLumenRadiositySurfaceBias = 5;
 FAutoConsoleVariableRef CVarLumenRadiositySurfaceBias(
-	TEXT("r.Lumen.Radiosity.SurfaceBias"),
+	TEXT("r.LumenScene.Radiosity.SurfaceBias"),
 	GLumenRadiositySurfaceBias,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -73,7 +73,7 @@ FAutoConsoleVariableRef CVarLumenRadiositySurfaceBias(
 
 float GLumenRadiosityConeAngleScale = 1.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityConeAngleScale(
-	TEXT("r.Lumen.Radiosity.ConeAngleScale"),
+	TEXT("r.LumenScene.Radiosity.ConeAngleScale"),
 	GLumenRadiosityConeAngleScale,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -81,7 +81,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityConeAngleScale(
 
 float GLumenRadiosityIntensity = 1.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityIntensity(
-	TEXT("r.Lumen.Radiosity.Intensity"),
+	TEXT("r.LumenScene.Radiosity.Intensity"),
 	GLumenRadiosityIntensity,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -89,7 +89,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIntensity(
 
 float GLumenRadiosityVoxelStepFactor = 1.0f;
 FAutoConsoleVariableRef CVarRadiosityVoxelStepFactor(
-	TEXT("r.Lumen.Radiosity.VoxelStepFactor"),
+	TEXT("r.LumenScene.Radiosity.VoxelStepFactor"),
 	GLumenRadiosityVoxelStepFactor,
 	TEXT("."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -97,7 +97,7 @@ FAutoConsoleVariableRef CVarRadiosityVoxelStepFactor(
 
 float GLumenSceneCardRadiosityUpdateFrequencyScale = 1.0f;
 FAutoConsoleVariableRef CVarLumenSceneCardRadiosityUpdateFrequencyScale(
-	TEXT("r.Lumen.Radiosity.CardUpdateFrequencyScale"),
+	TEXT("r.LumenScene.Radiosity.CardUpdateFrequencyScale"),
 	GLumenSceneCardRadiosityUpdateFrequencyScale,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -105,7 +105,7 @@ FAutoConsoleVariableRef CVarLumenSceneCardRadiosityUpdateFrequencyScale(
 
 float GLumenRadiosityProbeRadiusScale = 1.5f;
 FAutoConsoleVariableRef CVarLumenRadiosityProbeRadiusScale(
-	TEXT("r.Lumen.Radiosity.ProbeRadiusScale"),
+	TEXT("r.LumenScene.Radiosity.ProbeRadiusScale"),
 	GLumenRadiosityProbeRadiusScale,
 	TEXT("Larger probes decrease parallax error, but are more costly to update"),
 	ECVF_RenderThreadSafe
@@ -113,7 +113,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityProbeRadiusScale(
 
 int32 GLumenRadiosityComputeTraceBlocksScatter = 1;
 FAutoConsoleVariableRef CVarLumenRadiosityComputeTraceBlocksScatter(
-	TEXT("r.Lumen.Radiosity.ComputeScatter"),
+	TEXT("r.LumenScene.Radiosity.ComputeScatter"),
 	GLumenRadiosityComputeTraceBlocksScatter,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -121,7 +121,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityComputeTraceBlocksScatter(
 
 int32 GLumenRadiosityTraceBlocksAllocationDivisor = 2;
 FAutoConsoleVariableRef CVarLumenRadiosityTraceBlocksAllocationDivisor(
-	TEXT("r.Lumen.Radiosity.TraceBlocksAllocationDivisor"),
+	TEXT("r.LumenScene.Radiosity.TraceBlocksAllocationDivisor"),
 	GLumenRadiosityTraceBlocksAllocationDivisor,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -129,7 +129,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityTraceBlocksAllocationDivisor(
 
 int32 GLumenRadiosityUseIrradianceCache = 0;
 FAutoConsoleVariableRef CVarLumenRadiosityUseIrradianceCache(
-	TEXT("r.Lumen.Radiosity.IrradianceCache"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache"),
 	GLumenRadiosityUseIrradianceCache,
 	TEXT("Whether to use the Irradiance Cache for Radiosity"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -137,7 +137,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityUseIrradianceCache(
 
 int32 GLumenRadiosityIrradianceCacheNumClipmaps = 3;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumClipmaps(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.NumClipmaps"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.NumClipmaps"),
 	GLumenRadiosityIrradianceCacheNumClipmaps,
 	TEXT("Number of radiance cache clipmaps."),
 	ECVF_RenderThreadSafe
@@ -145,7 +145,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumClipmaps(
 
 float GLumenRadiosityIrradianceCacheClipmapWorldExtent = 2500.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapWorldExtent(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.ClipmapWorldExtent"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.ClipmapWorldExtent"),
 	GLumenRadiosityIrradianceCacheClipmapWorldExtent,
 	TEXT("World space extent of the first clipmap"),
 	ECVF_RenderThreadSafe
@@ -153,7 +153,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapWorldExtent(
 
 float GLumenRadiosityIrradianceCacheClipmapDistributionBase = 2.0f;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapDistributionBase(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.ClipmapDistributionBase"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.ClipmapDistributionBase"),
 	GLumenRadiosityIrradianceCacheClipmapDistributionBase,
 	TEXT("Base of the Pow() that controls the size of each successive clipmap relative to the first."),
 	ECVF_RenderThreadSafe
@@ -161,7 +161,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheClipmapDistributionBase
 
 int32 GLumenRadiosityIrradianceCacheNumProbeTracesBudget = 200;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumProbeTracesBudget(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.NumProbeTracesBudget"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.NumProbeTracesBudget"),
 	GLumenRadiosityIrradianceCacheNumProbeTracesBudget,
 	TEXT(""),
 	ECVF_RenderThreadSafe
@@ -169,7 +169,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheNumProbeTracesBudget(
 
 int32 GLumenRadiosityIrradianceCacheGridResolution = 32;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheResolution(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.GridResolution"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.GridResolution"),
 	GLumenRadiosityIrradianceCacheGridResolution,
 	TEXT("Resolution of the probe placement grid within each clipmap"),
 	ECVF_RenderThreadSafe
@@ -177,7 +177,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheResolution(
 
 int32 GLumenRadiosityIrradianceCacheProbeResolution = 16;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeResolution(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeResolution"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.ProbeResolution"),
 	GLumenRadiosityIrradianceCacheProbeResolution,
 	TEXT("Resolution of the probe's 2d radiance layout.  The number of rays traced for the probe will be ProbeResolution ^ 2"),
 	ECVF_RenderThreadSafe
@@ -185,7 +185,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeResolution(
 
 int32 GLumenRadiosityIrradianceCacheProbeIrradianceResolution = 6;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeIrradianceResolution(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.IrradianceProbeResolution"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.IrradianceProbeResolution"),
 	GLumenRadiosityIrradianceCacheProbeIrradianceResolution,
 	TEXT("Resolution of the probe's 2d irradiance layout."),
 	ECVF_RenderThreadSafe
@@ -193,7 +193,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeIrradianceResoluti
 
 int32 GLumenRadiosityIrradianceCacheProbeOcclusionResolution = 16;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionResolution(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.OcclusionProbeResolution"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.OcclusionProbeResolution"),
 	GLumenRadiosityIrradianceCacheProbeOcclusionResolution,
 	TEXT("Resolution of the probe's 2d occlusion layout."),
 	ECVF_RenderThreadSafe
@@ -201,7 +201,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionResolutio
 
 int32 GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes = 128;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeAtlasResolutionInProbes"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.ProbeAtlasResolutionInProbes"),
 	GLumenRadiosityIrradianceCacheProbeAtlasResolutionInProbes,
 	TEXT("Number of probes along one dimension of the probe atlas cache texture.  This controls the memory usage of the cache.  Overflow currently results in incorrect rendering."),
 	ECVF_RenderThreadSafe
@@ -209,7 +209,7 @@ FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeAtlasResolutionInP
 
 float GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias = 20;
 FAutoConsoleVariableRef CVarLumenRadiosityIrradianceCacheProbeOcclusionNormalBias(
-	TEXT("r.Lumen.Radiosity.IrradianceCache.ProbeOcclusionNormalBias"),
+	TEXT("r.LumenScene.Radiosity.IrradianceCache.ProbeOcclusionNormalBias"),
 	GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias,
 	TEXT("Bias along the normal to reduce self-occlusion artifacts from Probe Occlusion"),
 	ECVF_RenderThreadSafe

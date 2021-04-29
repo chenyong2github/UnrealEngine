@@ -17,7 +17,7 @@
 
 int32 GLumenSceneClipmapResolution = 64;
 FAutoConsoleVariableRef CVarLumenSceneClipmapResolution(
-	TEXT("r.LumenScene.ClipmapResolution"),
+	TEXT("r.LumenScene.VoxelLighting.ClipmapResolution"),
 	GLumenSceneClipmapResolution,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -25,7 +25,7 @@ FAutoConsoleVariableRef CVarLumenSceneClipmapResolution(
 
 int32 GLumenSceneClipmapZResolutionDivisor = 1;
 FAutoConsoleVariableRef CVarLumenSceneClipmapZResolutionDivisor(
-	TEXT("r.LumenScene.ClipmapZResolutionDivisor"),
+	TEXT("r.LumenScene.VoxelLighting.ClipmapZResolutionDivisor"),
 	GLumenSceneClipmapZResolutionDivisor,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -33,7 +33,7 @@ FAutoConsoleVariableRef CVarLumenSceneClipmapZResolutionDivisor(
 
 int32 GLumenSceneNumClipmapLevels = 4;
 FAutoConsoleVariableRef CVarLumenSceneNumClipmapLevels(
-	TEXT("r.LumenScene.NumClipmapLevels"),
+	TEXT("r.LumenScene.VoxelLighting.NumClipmapLevels"),
 	GLumenSceneNumClipmapLevels,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -41,7 +41,7 @@ FAutoConsoleVariableRef CVarLumenSceneNumClipmapLevels(
 
 float GLumenSceneFirstClipmapWorldExtent = 2500.0f;
 FAutoConsoleVariableRef CVarLumenSceneClipmapWorldExtent(
-	TEXT("r.LumenScene.ClipmapWorldExtent"),
+	TEXT("r.LumenScene.VoxelLighting.ClipmapWorldExtent"),
 	GLumenSceneFirstClipmapWorldExtent,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -49,7 +49,7 @@ FAutoConsoleVariableRef CVarLumenSceneClipmapWorldExtent(
 
 int32 GLumenSceneVoxelLightingAverageObjectsPerVisBufferTile = 128;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingAverageObjectsPerVisBufferTile(
-	TEXT("r.LumenScene.VoxelLightingAverageObjectsPerVisBufferTile"),
+	TEXT("r.LumenScene.VoxelLighting.AverageObjectsPerVisBufferTile"),
 	GLumenSceneVoxelLightingAverageObjectsPerVisBufferTile,
 	TEXT("Average expected number of objects per vis buffer tile, used to preallocate memory for the cull grid."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -57,7 +57,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingAverageObjectsPerVisBufferTil
 
 int32 GLumenSceneVoxelLightingDistantScene = 1;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingDistantScene(
-	TEXT("r.LumenScene.VoxelLightingDistantScene"),
+	TEXT("r.LumenScene.VoxelLighting.DistantScene"),
 	GLumenSceneVoxelLightingDistantScene,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -65,7 +65,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingDistantScene(
 
 float GLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor = 0.5f;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor(
-	TEXT("r.LumenScene.VoxelLightingMeshSDFRadiusThresholdFactor"),
+	TEXT("r.LumenScene.VoxelLighting.MeshSDFRadiusThresholdFactor"),
 	GLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -73,7 +73,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingMeshSDFRadiusThresholdFactor(
 
 int32 GLumenSceneVoxelLightingMaskDownsampleShift = 2;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingMaskDownsampleShift(
-	TEXT("r.LumenScene.VoxelLightingMaskDownsampleShift"),
+	TEXT("r.LumenScene.VoxelLighting.MaskDownsampleShift"),
 	GLumenSceneVoxelLightingMaskDownsampleShift,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -81,7 +81,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingMaskDownsampleShift(
 
 int32 GLumenSceneVoxelLightingForceFullUpdate = 0;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceFullUpdate(
-	TEXT("r.LumenScene.VoxelLightingForceFullUpdate"),
+	TEXT("r.LumenScene.VoxelLighting.ForceFullUpdate"),
 	GLumenSceneVoxelLightingForceFullUpdate,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -89,7 +89,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceFullUpdate(
 
 int32 GLumenSceneVoxelLightingForceUpdateClipmapIndex = -1;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceClipmapIndex(
-	TEXT("r.LumenScene.VoxelLightingForceUpdateClipmapIndex"),
+	TEXT("r.LumenScene.VoxelLighting.ForceUpdateClipmapIndex"),
 	GLumenSceneVoxelLightingForceUpdateClipmapIndex,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
@@ -97,7 +97,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceClipmapIndex(
 
 int32 GLumenSceneVoxelLightingForceMovementUpdate = 0;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
-	TEXT("r.LumenScene.VoxelLightingForceMovementUpdate"),
+	TEXT("r.LumenScene.VoxelLighting.ForceMovementUpdate"),
 	GLumenSceneVoxelLightingForceMovementUpdate,
 	TEXT("Whether to force N texel border on X, Y and Z update each frame."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
