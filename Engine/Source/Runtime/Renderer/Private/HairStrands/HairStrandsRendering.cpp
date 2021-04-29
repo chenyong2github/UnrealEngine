@@ -15,6 +15,8 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 	{
 		Parameters->HairCategorizationTexture = In->CategorizationTexture;
 		Parameters->HairOnlyDepthTexture = In->HairOnlyDepthTexture;
+		Parameters->HairOnlyDepthClosestHZBTexture = In->HairOnlyDepthClosestHZBTexture;
+		Parameters->HairOnlyDepthFurthestHZBTexture = In->HairOnlyDepthFurthestHZBTexture;
 		Parameters->HairSampleOffset = In->NodeIndex;
 		Parameters->HairSampleData = GraphBuilder.CreateSRV(In->NodeData);
 		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(In->NodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
@@ -36,6 +38,13 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 			Parameters->HairTileCount = DummyBufferRG16SRV;
 			Parameters->HairTileCountXY = FIntPoint(0,0);
 		}
+
+		if (!Parameters->HairOnlyDepthFurthestHZBTexture)
+		{
+			FRDGTextureRef BlackTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+			Parameters->HairOnlyDepthFurthestHZBTexture = BlackTexture;
+			Parameters->HairOnlyDepthClosestHZBTexture = BlackTexture;
+		}
 	}
 	else
 	{
@@ -54,6 +63,8 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		FRDGBufferSRVRef DummyBufferRG16SRV = GraphBuilder.CreateSRV(DummyBuffer, PF_R16G16_UINT);
 
 		Parameters->HairOnlyDepthTexture = FarDepth;
+		Parameters->HairOnlyDepthFurthestHZBTexture = BlackTexture;
+		Parameters->HairOnlyDepthClosestHZBTexture = Parameters->HairOnlyDepthFurthestHZBTexture;
 		Parameters->HairCategorizationTexture = ZeroRGBA16_UINT;
 		Parameters->HairSampleCount = ZeroR32_UINT;
 		Parameters->HairSampleOffset = ZeroR32_UINT;

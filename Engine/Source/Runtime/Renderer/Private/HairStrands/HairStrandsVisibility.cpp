@@ -15,6 +15,7 @@
 #include "PostProcessing.h"
 #include "MeshPassProcessor.inl"
 #include "ScenePrivate.h"
+#include "SceneTextureReductions.h"
 
 DECLARE_GPU_STAT(HairStrandsVisibility);
 
@@ -2929,6 +2930,26 @@ static void AddHairOnlyDepthPass(
 		OutDepthTexture);
 }
 
+static void AddHairOnlyHZBPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef HairDepthTexture,
+	FRDGTextureRef& OutClosestHZBTexture,
+	FRDGTextureRef& OutFurthestHZBTexture)
+{
+	BuildHZB(
+		GraphBuilder,
+		HairDepthTexture,
+		/* VisBufferTexture = */ nullptr,
+		View.ViewRect,
+		View.GetFeatureLevel(),
+		View.GetShaderPlatform(),
+		TEXT("HZBHairClosest"),
+		&OutClosestHZBTexture,
+		TEXT("HZBHairFurthest"),
+		&OutFurthestHZBTexture);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FHairCountToCoverageCS : public FGlobalShader
@@ -3461,6 +3482,13 @@ void RenderHairStrandsVisibilityBuffer(
 						VisibilityData.TileData,
 						CategorizationTexture,
 						HairOnlyDepthTexture);
+
+					AddHairOnlyHZBPass(
+						GraphBuilder,
+						View,
+						HairOnlyDepthTexture,
+						VisibilityData.HairOnlyDepthClosestHZBTexture,
+						VisibilityData.HairOnlyDepthFurthestHZBTexture);
 				}
 				else
 				{
@@ -3674,6 +3702,13 @@ void RenderHairStrandsVisibilityBuffer(
 						VisibilityData.TileData,
 						CategorizationTexture,
 						HairOnlyDepthTexture);
+
+					AddHairOnlyHZBPass(
+						GraphBuilder,
+						View,
+						HairOnlyDepthTexture,
+						VisibilityData.HairOnlyDepthClosestHZBTexture,
+						VisibilityData.HairOnlyDepthFurthestHZBTexture);
 				}
 				else
 				{
