@@ -22,6 +22,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "EditorStyleSet.h"
+#include "AssetRegistryModule.h"
 #endif
 
 TMap<URigVMController::FControlRigStructPinRedirectorKey, FString> URigVMController::PinPathCoreRedirectors;
@@ -410,6 +411,40 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 		return nullptr;
 	}
 
+	// check if the operation will cause to dirty assets
+	if(bSetupUndoRedo)
+	{
+		if(URigVMFunctionLibrary* OuterLibrary = Graph->GetTypedOuter<URigVMFunctionLibrary>())
+		{
+			if(URigVMLibraryNode* OuterFunction = OuterLibrary->FindFunctionForNode(Graph->GetTypedOuter<URigVMCollapseNode>()))
+			{
+				TArray<FRigVMExternalVariable> ExternalVariables = OuterFunction->GetContainedGraph()->GetExternalVariables();
+
+				bool bFoundExternalVariable = false;
+				for(const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
+				{
+					if(ExternalVariable.Name == InVariableName)
+					{
+						bFoundExternalVariable = true;
+						break;
+					}
+				}
+
+				if(!bFoundExternalVariable)
+				{
+					if(RequestBulkEditDialogDelegate.IsBound())
+					{
+						if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::AddVariable))
+						{
+							return nullptr;
+						}
+						bSetupUndoRedo = false;
+					}
+				}
+			}
+		}
+	}
+
 	if (InCPPTypeObject == nullptr)
 	{
 		InCPPTypeObject = URigVMCompiler::GetScriptStructForCPPType(InCPPType);
@@ -424,7 +459,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 	{
 		CPPType = ScriptStruct->GetStructCPPName();
 	}
-
+	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("VariableNode")) : InNodeName);
 	URigVMVariableNode* Node = NewObject<URigVMVariableNode>(Graph, *Name);
 	Node->Position = InPosition;
@@ -3554,6 +3589,47 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		{
 			return false;
 		}
+
+		// check if the operation will cause to dirty assets
+		if(URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
+		{
+			if(URigVMFunctionLibrary* OuterLibrary = Graph->GetTypedOuter<URigVMFunctionLibrary>())
+			{
+				if(URigVMLibraryNode* OuterFunction = OuterLibrary->FindFunctionForNode(Graph->GetTypedOuter<URigVMCollapseNode>()))
+				{
+					TArray<FRigVMExternalVariable> ExternalVariablesWithoutVariableNode;
+					{
+						URigVMGraph* EditedGraph = InNode->GetGraph();
+						TGuardValue<TArray<URigVMNode*>> TemporaryRemoveNodes(EditedGraph->Nodes, TArray<URigVMNode*>());
+						ExternalVariablesWithoutVariableNode = EditedGraph->GetExternalVariables();
+					}
+
+					const FName VariableToRemove = VariableNode->GetVariableName();
+					bool bFoundExternalVariable = false;
+					for(const FRigVMExternalVariable& ExternalVariable : ExternalVariablesWithoutVariableNode)
+					{
+						if(ExternalVariable.Name == VariableToRemove)
+						{
+							bFoundExternalVariable = true;
+							break;
+						}
+					}
+
+					if(!bFoundExternalVariable)
+					{
+						FRigVMControllerGraphGuard Guard(this, OuterFunction->GetContainedGraph(), false);
+						if(RequestBulkEditDialogDelegate.IsBound())
+						{
+							if(!RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::RemoveVariable))
+							{
+								return nullptr;
+							}
+							bSetupUndoRedo = false;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	TGuardValue<bool> GuardCompactness(bIgnoreRerouteCompactnessChanges, true);
@@ -5945,6 +6021,18 @@ bool URigVMController::RemoveExposedPin(const FName& InPinName, bool bSetupUndoR
 		return false;
 	}
 
+	if(bSetupUndoRedo)
+	{
+		if(RequestBulkEditDialogDelegate.IsBound())
+		{
+			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RemoveExposedPin))
+			{
+				return nullptr;
+			}
+			bSetupUndoRedo = false;
+		}
+	}
+
 	FRigVMRemoveExposedPinAction Action(Pin);
 	if (bSetupUndoRedo)
 	{
@@ -6010,6 +6098,18 @@ bool URigVMController::RenameExposedPin(const FName& InOldPinName, const FName& 
 	if (Pin->GetFName() == InNewPinName)
 	{
 		return false;
+	}
+
+	if(bSetupUndoRedo)
+	{
+		if(RequestBulkEditDialogDelegate.IsBound())
+		{
+			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::RenameExposedPin))
+			{
+				return nullptr;
+			}
+			bSetupUndoRedo = false;
+		}
 	}
 
 	FName PinName = GetUniqueName(InNewPinName, [LibraryNode](const FName& InName) {
@@ -6133,6 +6233,18 @@ bool URigVMController::ChangeExposedPinType(const FName& InPinName, const FStrin
 	if (Pin == nullptr)
 	{
 		return false;
+	}
+
+	if(bSetupUndoRedo)
+	{
+		if(RequestBulkEditDialogDelegate.IsBound())
+		{
+			if(!RequestBulkEditDialogDelegate.Execute(LibraryNode, ERigVMControllerBulkEditType::ChangeExposedPinType))
+			{
+				return nullptr;
+			}
+			bSetupUndoRedo = false;
+		}
 	}
 
 	FRigVMBaseAction Action;
@@ -6500,6 +6612,135 @@ bool URigVMController::RemoveFunctionFromLibrary(const FName& InFunctionName, bo
 	}
 
 	return RemoveNodeByName(InFunctionName, bSetupUndoRedo);
+}
+
+TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)
+{
+	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> FunctionReferencePtrs;
+	
+#if WITH_EDITOR
+
+	check(IsValidGraph());
+	URigVMGraph* Graph = GetGraph();
+	URigVMFunctionLibrary* FunctionLibrary = Graph->GetTypedOuter<URigVMFunctionLibrary>();
+	if(FunctionLibrary == nullptr)
+	{
+		return FunctionReferencePtrs;
+	}
+
+	URigVMLibraryNode* Function = FunctionLibrary->FindFunctionForNode(Graph->GetTypedOuter<URigVMCollapseNode>());
+	if(Function == nullptr)
+	{
+		return FunctionReferencePtrs;
+	}
+
+	// get the immediate references
+	FunctionReferencePtrs = FunctionLibrary->GetReferencesForFunction(Function->GetFName());
+	TMap<FString, int32> VisitedPaths;
+	
+	for(int32 FunctionReferenceIndex = 0; FunctionReferenceIndex < FunctionReferencePtrs.Num(); FunctionReferenceIndex++)
+	{
+		TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr = FunctionReferencePtrs[FunctionReferenceIndex];
+		VisitedPaths.Add(FunctionReferencePtr.ToSoftObjectPath().ToString(), FunctionReferenceIndex);
+	}
+
+	for(int32 FunctionReferenceIndex = 0; FunctionReferenceIndex < FunctionReferencePtrs.Num(); FunctionReferenceIndex++)
+	{
+		TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr = FunctionReferencePtrs[FunctionReferenceIndex];
+
+		if(bForceLoad)
+		{
+			if(OnBulkEditProgressDelegate.IsBound() && bNotify)
+			{
+				OnBulkEditProgressDelegate.Execute(FunctionReferencePtr, InEditType, ERigVMControllerBulkEditProgress::BeginLoad, FunctionReferenceIndex, FunctionReferencePtrs.Num());
+			}
+
+			if(!FunctionReferencePtr.IsValid())
+			{
+				FunctionReferencePtr.LoadSynchronous();
+			}
+
+			if(OnBulkEditProgressDelegate.IsBound() && bNotify)
+			{
+				OnBulkEditProgressDelegate.Execute(FunctionReferencePtr, InEditType, ERigVMControllerBulkEditProgress::FinishedLoad, FunctionReferenceIndex, FunctionReferencePtrs.Num());
+			}
+		}
+
+		// adding pins / renaming doesn't cause any recursion, so we can stop here
+		if((InEditType == ERigVMControllerBulkEditType::AddExposedPin) ||
+			(InEditType == ERigVMControllerBulkEditType::RemoveExposedPin) ||
+			(InEditType == ERigVMControllerBulkEditType::RenameExposedPin) ||
+			(InEditType == ERigVMControllerBulkEditType::ChangeExposedPinType) ||
+            (InEditType == ERigVMControllerBulkEditType::RenameVariable))
+		{
+			continue;
+		}
+
+		// for loaded assets we'll recurse now
+		if(FunctionReferencePtr.IsValid())
+		{
+			if(URigVMFunctionReferenceNode* AffectedFunctionReferenceNode = FunctionReferencePtr.Get())
+			{
+				if(URigVMFunctionLibrary* AffectedFunctionLibrary = AffectedFunctionReferenceNode->GetTypedOuter<URigVMFunctionLibrary>())
+				{
+					if(URigVMLibraryNode* AffectedFunction = AffectedFunctionLibrary->FindFunctionForNode(AffectedFunctionReferenceNode))
+					{
+						FRigVMControllerGraphGuard GraphGuard(this, AffectedFunction->GetContainedGraph(), false);
+						TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> AffectedFunctionReferencePtrs = GetAffectedReferences(InEditType, bForceLoad, false);
+						for(TSoftObjectPtr<URigVMFunctionReferenceNode> AffectedFunctionReferencePtr : AffectedFunctionReferencePtrs)
+						{
+							const FString Key = AffectedFunctionReferencePtr.ToSoftObjectPath().ToString();
+							if(VisitedPaths.Contains(Key))
+							{
+								continue;
+							}
+							VisitedPaths.Add(Key, FunctionReferencePtrs.Add(AffectedFunctionReferencePtr));
+						}
+					}
+				}
+			}
+		}
+	}
+	
+#endif
+
+	return FunctionReferencePtrs;
+}
+
+TArray<FAssetData> URigVMController::GetAffectedAssets(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)
+{
+	TArray<FAssetData> Assets;
+
+#if WITH_EDITOR
+
+	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> FunctionReferencePtrs = GetAffectedReferences(InEditType, bForceLoad, bNotify);
+	TMap<FString, int32> VisitedAssets;
+
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	for(int32 FunctionReferenceIndex = 0; FunctionReferenceIndex < FunctionReferencePtrs.Num(); FunctionReferenceIndex++)
+	{
+		TSoftObjectPtr<URigVMFunctionReferenceNode> FunctionReferencePtr = FunctionReferencePtrs[FunctionReferenceIndex];
+		const FString AssetPath = FunctionReferencePtr.ToSoftObjectPath().GetAssetPathName().ToString();
+		if(AssetPath.StartsWith(TEXT("/Engine/Transient")))
+		{
+			continue;
+		}
+		if(VisitedAssets.Contains(AssetPath))
+		{
+			continue;
+		}
+					
+		const FAssetData AssetData = AssetRegistryModule.Get().GetAssetByObjectPath(*AssetPath);
+		if(AssetData.IsValid())
+		{
+			VisitedAssets.Add(AssetPath, Assets.Add(AssetData));
+		}
+	}
+	
+#endif
+
+	return Assets;
 }
 
 void URigVMController::ExpandPinRecursively(URigVMPin* InPin, bool bSetupUndoRedo)

@@ -20,12 +20,38 @@
 
 class URigVMActionStack;
 
+UENUM()
+enum class ERigVMControllerBulkEditType : uint8
+{
+	AddExposedPin,
+    RemoveExposedPin,
+    RenameExposedPin,
+    ChangeExposedPinType,
+    AddVariable,
+    RemoveVariable,
+	RenameVariable,
+    ChangeVariableType,
+    Max UMETA(Hidden),
+};
+
+UENUM()
+enum class ERigVMControllerBulkEditProgress : uint8
+{
+	BeginLoad,
+    FinishedLoad,
+	BeginEdit,
+    FinishedEdit,
+    Max UMETA(Hidden),
+};
+
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_ShouldStructUnfoldDelegate, const UStruct*)
 DECLARE_DELEGATE_RetVal_OneParam(TArray<FRigVMExternalVariable>, FRigVMController_GetExternalVariablesDelegate, URigVMGraph*)
 DECLARE_DELEGATE_RetVal(const FRigVMByteCode*, FRigVMController_GetByteCodeDelegate)
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_IsFunctionAvailableDelegate, URigVMLibraryNode*)
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_RequestLocalizeFunctionDelegate, URigVMLibraryNode*)
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_IsDependencyCyclicDelegate, UObject*, UObject*)
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_RequestBulkEditDialogDelegate, URigVMLibraryNode*, ERigVMControllerBulkEditType)
+DECLARE_DELEGATE_FiveParams(FRigVMController_OnBulkEditProgressDelegate, TSoftObjectPtr<URigVMFunctionReferenceNode>, ERigVMControllerBulkEditType, ERigVMControllerBulkEditProgress, int32, int32)
 
 /**
  * The Controller is the sole authority to perform changes
@@ -556,6 +582,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool RemoveFunctionFromLibrary(const FName& InFunctionName, bool bSetupUndoRedo = true);
 
+	// Determine affected function references for a potential bulk edit on a library node
+	TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
+
+	// Determine affected assets for a potential bulk edit on a library node
+	TArray<FAssetData> GetAffectedAssets(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
+
 	// Sets the execute context struct type to use
 	void SetExecuteContextStruct(UStruct* InExecuteContextStruct);
 
@@ -575,7 +607,13 @@ public:
 	FRigVMController_RequestLocalizeFunctionDelegate RequestLocalizeFunctionDelegate;
 	
 	// A delegate to validate if we are allowed to introduce a dependency between two objects
-	FRigVMController_IsDependencyCyclicDelegate IsDependencyCyclicDelegate; 
+	FRigVMController_IsDependencyCyclicDelegate IsDependencyCyclicDelegate;
+
+	// A delegate to ask the host / client for a dialog to confirm a bulk edit
+	FRigVMController_RequestBulkEditDialogDelegate RequestBulkEditDialogDelegate;
+
+	// A delegate to inform the host / client about the progress during a bulk edit
+	FRigVMController_OnBulkEditProgressDelegate OnBulkEditProgressDelegate;
 
 	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false, bool bSetupOrphanedPins = false);

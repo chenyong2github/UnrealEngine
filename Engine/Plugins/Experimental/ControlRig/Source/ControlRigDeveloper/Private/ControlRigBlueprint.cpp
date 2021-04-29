@@ -1308,6 +1308,22 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 			return NAME_None;
 		}
 	));
+
+	TWeakObjectPtr<URigVMController> WeakController = Controller;
+	Controller->RequestBulkEditDialogDelegate.BindLambda([WeakThis, WeakController](URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
+	{
+		if(WeakThis.IsValid() && WeakController.IsValid())
+		{
+			UControlRigBlueprint* StrongThis = WeakThis.Get();
+            URigVMController* StrongController = WeakController.Get();
+            if(StrongThis->OnRequestBulkEditDialog().IsBound())
+			{
+				return StrongThis->OnRequestBulkEditDialog().Execute(StrongThis, StrongController, InFunction, InEditType);
+			}
+		}
+		return true;
+	});
+	
 #endif
 
 	Controller->RemoveStaleNodes();

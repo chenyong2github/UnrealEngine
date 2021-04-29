@@ -19,6 +19,7 @@
 #include "AnimPreviewInstance.h"
 #include "ScopedTransaction.h"
 #include "Graph/ControlRigGraphNode.h"
+#include "RigVMModel/RigVMController.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -366,6 +367,7 @@ protected:
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent& PropertyChangedChainEvent);
 	void OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce);
+	bool OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
 
 	URigVMGraph* GetFocusedModel() const;
 	URigVMController* GetFocusedController() const;

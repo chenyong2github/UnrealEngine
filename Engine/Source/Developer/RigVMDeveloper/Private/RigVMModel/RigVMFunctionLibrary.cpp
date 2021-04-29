@@ -48,16 +48,20 @@ URigVMLibraryNode* URigVMFunctionLibrary::FindFunction(const FName& InFunctionNa
 
 URigVMLibraryNode* URigVMFunctionLibrary::FindFunctionForNode(URigVMNode* InNode) const
 {
-	UObject* Subject = InNode;
-	do
+	if(InNode == nullptr)
 	{
+		return nullptr;
+	}
+	
+	UObject* Subject = InNode;
+	while (Subject->GetOuter() != this)
+	{
+		Subject = Subject->GetOuter();
 		if(Subject == nullptr)
 		{
 			return nullptr;
 		}
-		Subject = Subject->GetOuter();
 	}
-	while (Subject->GetOuter() != this);
 
 	return Cast<URigVMLibraryNode>(Subject);
 }

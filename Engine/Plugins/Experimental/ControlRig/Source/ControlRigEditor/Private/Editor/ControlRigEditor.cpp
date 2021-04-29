@@ -80,6 +80,7 @@
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "IMessageLogListing.h"
 #include "SControlRigFunctionLocalizationWidget.h"
+#include "SControlRigFunctionBulkEditWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -130,6 +131,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnPostEditChangeChainProperty().RemoveAll(this);
 		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
+		RigBlueprint->OnRequestBulkEditDialog().Unbind();
 		RigBlueprint->OnReportCompilerMessage().RemoveAll(this);
 	}
 
@@ -358,6 +360,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
 		InControlRigBlueprint->OnPostEditChangeChainProperty().AddSP(this, &FControlRigEditor::OnBlueprintPropertyChainEvent);
 		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
+		InControlRigBlueprint->OnRequestBulkEditDialog().BindSP(this, &FControlRigEditor::OnRequestBulkEditDialog);
 	}
 
 	UpdateStaleWatchedPins();
@@ -3418,6 +3421,18 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 			}
 		}
 	}
+}
+
+bool FControlRigEditor::OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController,
+	URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType)
+{
+	TSharedRef<SControlRigFunctionBulkEditDialog> BulkEditDialog = SNew(SControlRigFunctionBulkEditDialog)
+	.Blueprint(InBlueprint)
+	.Controller(InController)
+	.Function(InFunction)
+	.EditType(InEditType);
+	
+	return BulkEditDialog->ShowModal() != EAppReturnType::Cancel;
 }
 
 void FControlRigEditor::OnCreateComment()
