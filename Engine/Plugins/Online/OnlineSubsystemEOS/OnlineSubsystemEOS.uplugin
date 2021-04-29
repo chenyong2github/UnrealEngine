@@ -19,8 +19,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Mac",
-				"IOS"
+				"Mac"
 			]
 		},
 		{
