@@ -152,6 +152,11 @@ public:
 	virtual void StartupModule() override
 	{
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
+		
+		AssetRegistry.OnAssetAdded().AddRaw(this, &FRemoteControlModule::OnAssetAdded);
+		AssetRegistry.OnAssetRemoved().AddRaw(this, &FRemoteControlModule::OnAssetRemoved);
+		AssetRegistry.OnAssetRenamed().AddRaw(this, &FRemoteControlModule::OnAssetRenamed);
+		
 		if (AssetRegistry.IsLoadingAssets())
 		{
 			AssetRegistry.OnFilesLoaded().AddRaw(this, &FRemoteControlModule::CachePresets);
@@ -173,12 +178,16 @@ public:
 		{
 			IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(AssetRegistryConstants::ModuleName).Get();
 			AssetRegistry.OnFilesLoaded().RemoveAll(this);
+			AssetRegistry.OnAssetRenamed().RemoveAll(this);
+			AssetRegistry.OnAssetAdded().RemoveAll(this);
+			AssetRegistry.OnAssetRemoved().RemoveAll(this);
 		}
 
 		// Unregister the interceptor feature on module shutdown
 		IModularFeatures::Get().UnregisterModularFeature(IRemoteControlInterceptionFeatureProcessor::GetName(), RCIProcessor.Get());
 	}
-	
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual FOnPresetRegistered& OnPresetRegistered() override
 	{
 		return OnPresetRegisteredDelegate;
@@ -190,35 +199,16 @@ public:
 	}
 
 	/** Register the preset with the module, enabling using the preset remotely using its name. */
-	bool RegisterPreset(FName Name, URemoteControlPreset* Preset)
+	virtual bool RegisterPreset(FName Name, URemoteControlPreset* Preset) override
 	{
-		check(Preset);
-		if (CachedPresetsByName.Contains(Name))
-		{
-			return false;
-		}
-
-		CachedPresetsByName.Add(Name, Preset);
-		CachedPresetNamesById.Add(Preset->GetPresetId(), Name);
-		OnPresetRegistered().Broadcast(Name);
-		return true;
+		return false;
 	}
 
 	/** Unregister the preset */
-	void UnregisterPreset(FName Name)
+	virtual void UnregisterPreset(FName Name) override
 	{
-		OnPresetUnregistered().Broadcast(Name);
-		if (FAssetData* PresetAsset = CachedPresetsByName.Find(Name))
-		{
-			FGuid PresetId = RemoteControlUtil::GetPresetId(*PresetAsset);
-			if (PresetId.IsValid())
-			{
-				CachedPresetNamesById.Remove(PresetId);
-			}
-		}
-		
-		CachedPresetsByName.Remove(Name);
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	virtual bool ResolveCall(const FString& ObjectPath, const FString& FunctionName, FRCCallReference& OutCallRef, FString* OutErrorText) override
 	{
@@ -636,14 +626,20 @@ public:
 
 	virtual URemoteControlPreset* ResolvePreset(FName PresetName) const override
 	{
-		if (const FAssetData* Asset = CachedPresetsByName.Find(PresetName))
+		if (const TArray<FAssetData>* Assets = CachedPresetsByName.Find(PresetName))
 		{
-			return Cast<URemoteControlPreset>(Asset->GetAsset());
+			for (const FAssetData& Asset : *Assets)
+			{
+				if (Asset.AssetName == PresetName)
+				{
+					return Cast<URemoteControlPreset>(Asset.GetAsset());
+				}
+			}
 		}
 
 		if (URemoteControlPreset* FoundPreset = RemoteControlUtil::GetPresetByName(PresetName))
 		{
-			CachedPresetsByName.Emplace(PresetName, FoundPreset);
+			CachedPresetsByName.FindOrAdd(PresetName).AddUnique(FoundPreset);
 			return FoundPreset;
 		}
 		
@@ -654,9 +650,15 @@ public:
 	{
 		if (const FName* AssetName = CachedPresetNamesById.Find(PresetId))
 		{
-			if (FAssetData* Asset = CachedPresetsByName.Find(*AssetName))
+			if (const TArray<FAssetData>* Assets = CachedPresetsByName.Find(*AssetName))
 			{
-				return Cast<URemoteControlPreset>(Asset->GetAsset());
+				for (const FAssetData& Asset : *Assets)
+				{
+					if (RemoteControlUtil::GetPresetId(Asset) == PresetId)
+					{
+						return Cast<URemoteControlPreset>(Asset.GetAsset());
+					}
+				}
 			}
 			else
 			{
@@ -677,12 +679,19 @@ public:
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const override
 	{
 		OutPresets.Reserve(CachedPresetsByName.Num());
-		Algo::Transform(CachedPresetsByName, OutPresets,[this](const TPair<FName, FAssetData>& Entry){ return Cast<URemoteControlPreset>(Entry.Value.GetAsset()); });
+		for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
+		{
+			Algo::Transform(Entry.Value, OutPresets, [this](const FAssetData& AssetData){ return Cast<URemoteControlPreset>( AssetData.GetAsset()); });
+		}
 	}
 
 	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets) const override
 	{
-		CachedPresetsByName.GenerateValueArray(OutPresetAssets);
+		OutPresetAssets.Reserve(CachedPresetsByName.Num());
+		for (const TPair<FName, TArray<FAssetData>>& Entry : CachedPresetsByName)
+		{
+			OutPresetAssets.Append(Entry.Value);
+		}
 	}
 
 	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const override
@@ -713,20 +722,90 @@ private:
 			
 		for (const FAssetData& AssetData : Assets)
 		{
-			CachedPresetsByName.Add(AssetData.AssetName, AssetData);
+			CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 			
-			FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+			const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
 			if (PresetId.IsValid())
 			{
-				CachedPresetNamesById.Add(MoveTemp(PresetId), AssetData.AssetName);
+				CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
 			}
 		}
+	}
+	
+	void OnAssetAdded(const FAssetData& AssetData)
+	{
+		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+		{
+			return;
+		}
+	
+		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+		CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+	}
+	
+	void OnAssetRemoved(const FAssetData& AssetData)
+	{
+		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+		{
+			return;
+		}
+	
+		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+		if (FName* PresetName = CachedPresetNamesById.Find(PresetId))
+		{
+			if (TArray<FAssetData>* Assets = CachedPresetsByName.Find(*PresetName))
+			{
+				for (auto It = Assets->CreateIterator(); It; ++It)
+				{
+					if (RemoteControlUtil::GetPresetId(*It) == PresetId)
+					{
+						It.RemoveCurrent();
+						break;
+					}
+				}
+			}
+		}
+	}
+	
+	void OnAssetRenamed(const FAssetData& AssetData, const FString&)
+	{
+		if (AssetData.AssetClass != URemoteControlPreset::StaticClass()->GetFName())
+		{
+			return;
+		}
+
+		const FGuid PresetId = RemoteControlUtil::GetPresetId(AssetData);
+		if (FName* OldPresetName = CachedPresetNamesById.Find(PresetId))
+		{
+			if (TArray<FAssetData>* Assets = CachedPresetsByName.Find(*OldPresetName))
+			{
+				for (auto It = Assets->CreateIterator(); It; ++It)
+				{
+					if (RemoteControlUtil::GetPresetId(*It) == PresetId)
+					{
+						It.RemoveCurrent();
+						break;
+					}
+				}
+
+				if (Assets->Num() == 0)
+				{
+					CachedPresetsByName.Remove(*OldPresetName);
+				}
+			}
+		}
+		
+		CachedPresetNamesById.Remove(PresetId);
+		CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
+		
+		CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
 	}
 
 private:
 	
 	/** Cache of preset names to preset assets */
-	mutable TMap<FName, FAssetData> CachedPresetsByName;
+	mutable TMap<FName, TArray<FAssetData>> CachedPresetsByName;
 
 	/** Cache of ids to preset names. */
 	mutable TMap<FGuid, FName> CachedPresetNamesById;

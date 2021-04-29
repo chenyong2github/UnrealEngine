@@ -8,6 +8,7 @@
 #include "Algo/Sort.h"
 #include "Backends/CborStructDeserializerBackend.h"
 #include "CborWriter.h"
+#include "Engine/Engine.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "UObject/StructOnScope.h"
