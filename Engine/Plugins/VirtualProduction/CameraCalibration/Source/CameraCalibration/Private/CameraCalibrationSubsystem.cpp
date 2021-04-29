@@ -8,6 +8,9 @@
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/UObjectIterator.h"
 
+#if WITH_EDITOR
+#include "Editor.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "CameraCalibrationSubsystem"
 
