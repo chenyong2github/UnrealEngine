@@ -661,6 +661,8 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 	TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
 	Actor->GetComponents(SkeletalMeshComponents);
 
+	const float TickRate = 1.0f/FrameRate;
+
 	for (int32 FrameCount = 0; FrameCount <= AnimationLength; ++FrameCount)
 	{
 		if (FrameCount == 0)
@@ -682,14 +684,28 @@ void FFbxExporter::ExportAnimTrack(IAnimTrackAdapter& AnimTrackAdapter, AActor* 
 		// @todo - hack - this will be removed at some point
 		for (USkeletalMeshComponent* SkeletalMeshComponent : SkeletalMeshComponents)
 		{
-			SkeletalMeshComponent->TickAnimation(0.03f, false);
+			USceneComponent* Child = SkeletalMeshComponent;
+			while (Child)
+			{
+				if (USkeletalMeshComponent* ChildSkeletalMeshComponent = Cast<USkeletalMeshComponent>(Child))
+				{
+					SkeletalMeshComponent->TickAnimation(TickRate, false);
 
-			SkeletalMeshComponent->RefreshBoneTransforms();
-			SkeletalMeshComponent->RefreshSlaveComponents();
-			SkeletalMeshComponent->UpdateComponentToWorld();
-			SkeletalMeshComponent->FinalizeBoneTransform();
-			SkeletalMeshComponent->MarkRenderTransformDirty();
-			SkeletalMeshComponent->MarkRenderDynamicDataDirty();
+					SkeletalMeshComponent->RefreshBoneTransforms();
+					SkeletalMeshComponent->RefreshSlaveComponents();
+					SkeletalMeshComponent->UpdateComponentToWorld();
+					SkeletalMeshComponent->FinalizeBoneTransform();
+					SkeletalMeshComponent->MarkRenderTransformDirty();
+					SkeletalMeshComponent->MarkRenderDynamicDataDirty();
+				}
+
+				if (Child->GetOwner())
+				{
+					Child->GetOwner()->Tick(TickRate);
+				}
+
+				Child = Child->GetAttachParent();
+			}
 		}
 
 		FbxTime ExportTime; 
