@@ -312,6 +312,7 @@ void FUsdLevelSequenceHelperImpl::Clear()
 	SequencesID.Empty();
 	SceneComponentsBindings.Empty();
 	SequenceHierarchyCache = FMovieSceneSequenceHierarchy();
+	UsdStage = UE::FUsdStage();
 }
 
 void FUsdLevelSequenceHelperImpl::AddReferencedObjects( FReferenceCollector& Collector )
