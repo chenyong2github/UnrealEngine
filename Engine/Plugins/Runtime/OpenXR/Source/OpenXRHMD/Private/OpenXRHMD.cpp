@@ -108,7 +108,6 @@ public:
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
 	virtual TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() override;
 	virtual uint64 GetGraphicsAdapterLuid() override;
-	virtual bool PreInit() override;
 
 	FString GetModuleKeyName() const override
 	{
@@ -156,6 +155,7 @@ private:
 	bool EnumerateExtensions();
 	bool EnumerateLayers();
 	bool InitRenderBridge();
+	bool InitInstance();
 	PFN_xrGetInstanceProcAddr GetDefaultLoader();
 	bool EnableExtensions(const TArray<const ANSICHAR*>& RequiredExtensions, const TArray<const ANSICHAR*>& OptionalExtensions, TArray<const ANSICHAR*>& OutExtensions);
 	bool GetRequiredExtensions(TArray<const ANSICHAR*>& OutExtensions);
@@ -202,7 +202,7 @@ uint64 FOpenXRHMDPlugin::GetGraphicsAdapterLuid()
 TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHMDPlugin::GetVulkanExtensions()
 {
 #ifdef XR_USE_GRAPHICS_API_VULKAN
-	if (PreInit() && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+	if (InitInstance() && IsExtensionEnabled(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
 	{
 		if (!VulkanExtensions.IsValid())
 		{
@@ -216,7 +216,7 @@ TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHM
 
 bool FOpenXRHMDPlugin::IsStandaloneStereoOnlyDevice()
 {
-	if (PreInit())
+	if (InitInstance())
 	{
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
@@ -294,6 +294,11 @@ bool FOpenXRHMDPlugin::InitRenderBridge()
 {
 	FString RHIString = FApp::GetGraphicsRHI();
 	if (RHIString.IsEmpty())
+	{
+		return false;
+	}
+
+	if (!InitInstance())
 	{
 		return false;
 	}
@@ -483,10 +488,12 @@ bool FOpenXRHMDPlugin::GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensi
 	return true;
 }
 
-bool FOpenXRHMDPlugin::PreInit()
+bool FOpenXRHMDPlugin::InitInstance()
 {
 	if (Instance)
+	{
 		return true;
+	}
 
 	// Get all extension plugins
 	TSet<const ANSICHAR*, AnsiKeyFunc> ExtensionSet;
