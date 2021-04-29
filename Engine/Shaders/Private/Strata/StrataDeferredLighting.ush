@@ -209,7 +209,7 @@ float4 StrataDeferredLighting(
 			const float3 SpecularPathValue			= BSDFEvaluate.SpecularPathValue     * BSDFEvaluate.SpecularPathProbability;
 			const float3 SpecularHazePathValue		= BSDFEvaluate.SpecularHazePathValue * BSDFEvaluate.SpecularHazePathProbability;
 			const float3 TransmissionPathValue		= BSDFEvaluate.TransmissionPathValue;
-			const float3 ThinTransmissionPathValue	= BSDFEvaluate.ThinTransmissionPathValueWithProjectedSolidAngle; // Separated because it is back face shading with -N, while StrataBSDFProjectedSolidAngleFactor account for front face.
+			const float3 ThinTransmissionPathValue	= BSDFEvaluate.ThinTransmissionPathValue * StrataBSDFBackFaceProjectedSolidAngleFactor(BSDFContext); // Separated because it is back face shading with -N, while StrataBSDFProjectedSolidAngleFactor account for front face.
 
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
 
