@@ -40,7 +40,7 @@ class FXGEControllerModule : public IDistributedBuildController
 	TFuture<void> ReadBackThreadFuture;
 
 	/** event for the thread that communicates with the XGE controller */
-	FEvent* WriteOutThreadEvent;
+	FEventRef WriteOutThreadEvent;
 
 	// We need two pipes, as the named pipe API does not support simultaneous read/write on two threads.
 	FPlatformNamedPipe InputNamedPipe, OutputNamedPipe;

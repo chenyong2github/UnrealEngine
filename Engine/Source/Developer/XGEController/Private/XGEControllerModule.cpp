@@ -113,7 +113,7 @@ class FXGEControllerModule : public IXGEController
 	TFuture<void> WriteOutThreadFuture;
 	TFuture<void> ReadBackThreadFuture;
 
-	FEvent* WriteOutThreadEvent;
+	FEventRef WriteOutThreadEvent;
 
 	// We need two pipes, as the named pipe API does not support simultaneous read/write on two threads.
 	FPlatformNamedPipe InputNamedPipe, OutputNamedPipe;
@@ -160,18 +160,11 @@ FXGEControllerModule::FXGEControllerModule()
 	, TasksCS(new FCriticalSection)
 	, bShutdown(false)
 	, bRestartWorker(false)
-	, WriteOutThreadEvent(FPlatformProcess::CreateSynchEvent(false))
 	, LastEventTime(0)
 {}
 
 FXGEControllerModule::~FXGEControllerModule()
 {
-	if (WriteOutThreadEvent)
-	{
-		delete WriteOutThreadEvent;
-		WriteOutThreadEvent = nullptr;
-	}
-
 	if (TasksCS)
 	{
 		delete TasksCS;

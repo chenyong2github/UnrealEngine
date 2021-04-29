@@ -29,6 +29,7 @@ public:
 	 * @param bIsManualReset Whether the event requires manual reseting or not.
 	 * @return true if the event was created, false otherwise.
 	 */
+	UE_DEPRECATED(5.0, "Direct creation of FEvent is discouraged for performance reasons. Please use FPlatformProcess::GetSynchEventFromPool/ReturnSynchEventToPool.")
 	virtual bool Create( bool bIsManualReset = false ) = 0;
 
 	/**

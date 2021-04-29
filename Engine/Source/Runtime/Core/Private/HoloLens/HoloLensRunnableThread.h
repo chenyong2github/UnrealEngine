@@ -23,7 +23,7 @@ class FRunnableThreadHoloLens
 	HANDLE Thread;
 
 	/** Sync event to make sure that Init() has been completed before allowing the main thread to continue. */
-	FEvent* ThreadInitSyncEvent;
+	FEventRef ThreadInitSyncEvent;
 
 	/** The priority to run the thread at. */
 	EThreadPriority ThreadPriority;
@@ -187,9 +187,6 @@ protected:
 		ThreadName = InThreadName ? InThreadName : TEXT("Unnamed UE4");
 		ThreadPriority = InThreadPri;
 
-		// Create a sync event to guarantee the Init() function is called first
-		ThreadInitSyncEvent = FPlatformProcess::CreateSynchEvent(true);
-
 		// Create the new thread
 		Thread = CreateThread(NULL, InStackSize, _ThreadProc, this, STACK_SIZE_PARAM_IS_A_RESERVATION, (DWORD *)&ThreadID);
 
@@ -208,9 +205,6 @@ protected:
 			SetThreadPriority(InThreadPri);
 		}
 
-		// Cleanup the sync event
-		delete ThreadInitSyncEvent;
-		ThreadInitSyncEvent = NULL;
 		return Thread != NULL;
 	}
 };

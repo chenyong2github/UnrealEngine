@@ -41,7 +41,9 @@ public:
 
 	virtual bool Create(bool bIsManualReset = false)
 	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		return InnerEvent->Create(bIsManualReset);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	virtual bool IsManualReset()
@@ -103,7 +105,9 @@ public:
 		if (!Result)
 #endif
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Result = FPlatformProcess::CreateSynchEvent((PoolType == EEventPoolTypes::ManualReset));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		check(Result);
 		Result->AdvanceStats();

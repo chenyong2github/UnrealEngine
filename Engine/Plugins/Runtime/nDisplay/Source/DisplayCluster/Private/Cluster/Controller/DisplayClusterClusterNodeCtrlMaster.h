@@ -64,11 +64,11 @@ private:
 
 private:
 	// GetDeltaTime internals
-	FEvent* CachedDeltaTimeEvent = nullptr;
+	FEventRef CachedDeltaTimeEvent{ EEventMode::ManualReset };
 	float   CachedDeltaTime = 0.f;
 
 	// GetTimecode internals
-	FEvent* CachedFrameTimeEvent = nullptr;
+	FEventRef CachedFrameTimeEvent{ EEventMode::ManualReset };
 	TOptional<FQualifiedFrameTime>  CachedFrameTime;
 
 	// GetSyncData internals
@@ -76,11 +76,11 @@ private:
 	TMap<EDisplayClusterSyncGroup, TMap<FString, FString>> CachedSyncData;
 
 	// GetInputData internals
-	FEvent* CachedInputDataEvent = nullptr;
+	FEventRef CachedInputDataEvent{ EEventMode::ManualReset };
 	TMap<FString, FString> CachedInputData;
 
 	// GetEventsData internals
-	FEvent* CachedEventsDataEvent = nullptr;
+	FEventRef CachedEventsDataEvent{ EEventMode::ManualReset };
 	TArray<TSharedPtr<FDisplayClusterClusterEventJson,   ESPMode::ThreadSafe>>   CachedJsonEvents;
 	TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> CachedBinaryEvents;
 

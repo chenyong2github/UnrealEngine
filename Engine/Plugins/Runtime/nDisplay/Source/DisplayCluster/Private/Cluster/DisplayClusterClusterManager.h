@@ -5,11 +5,10 @@
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Misc/App.h"
+#include "HAL/Event.h"
 
 class ADisplayClusterSettings;
 class FJsonObject;
-class FEvent;
-
 
 /**
  * Cluster manager. Responsible for network communication and data replication.
@@ -19,7 +18,6 @@ class FDisplayClusterClusterManager
 {
 public:
 	FDisplayClusterClusterManager();
-	virtual ~FDisplayClusterClusterManager();
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,7 +130,7 @@ private:
 	TArray<TScriptInterface<IDisplayClusterClusterEventListener>> ClusterEventListeners;
 
 	// Sync native input
-	FEvent* NativeInputDataAvailableEvent = nullptr;
+	FEventRef NativeInputDataAvailableEvent{ EEventMode::ManualReset };
 	TMap<FString, FString> NativeInputDataCache;
 
 	mutable FCriticalSection InternalsSyncScope;

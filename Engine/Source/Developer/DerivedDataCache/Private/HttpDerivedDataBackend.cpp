@@ -1015,7 +1015,6 @@ struct FDataRequestHelper
 		{
 			Batches[i].Reserved = 0;
 			Batches[i].Ready = 0;
-			Batches[i].Complete = FPlatformProcess::CreateSynchEvent(true); //todo: leaks
 		}
 		Initialized = true;
 	}
@@ -1054,7 +1053,7 @@ private:
 		std::atomic<uint32> Ready;
 		std::atomic<uint32> WeightHint;
 		FHttpRequest* Request;
-		FEvent* Complete;
+		FEventRef Complete{ EEventMode::ManualReset };
 	};
 
 	FHttpRequest* Request;

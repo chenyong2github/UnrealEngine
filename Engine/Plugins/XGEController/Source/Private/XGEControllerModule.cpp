@@ -102,18 +102,11 @@ FXGEControllerModule::FXGEControllerModule()
 	, TasksCS(new FCriticalSection)
 	, bShutdown(false)
 	, bRestartWorker(false)
-	, WriteOutThreadEvent(FPlatformProcess::CreateSynchEvent(false))
 	, LastEventTime(0)
 {}
 
 FXGEControllerModule::~FXGEControllerModule()
 {
-	if (WriteOutThreadEvent)
-	{
-		delete WriteOutThreadEvent;
-		WriteOutThreadEvent = nullptr;
-	}
-
 	if (TasksCS)
 	{
 		delete TasksCS;

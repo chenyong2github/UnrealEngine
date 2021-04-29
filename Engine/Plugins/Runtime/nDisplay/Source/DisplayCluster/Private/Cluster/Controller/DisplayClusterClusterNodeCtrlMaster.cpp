@@ -32,26 +32,16 @@ FDisplayClusterClusterNodeCtrlMaster::FDisplayClusterClusterNodeCtrlMaster(const
 	CachedSyncData.Emplace(EDisplayClusterSyncGroup::Tick);
 	CachedSyncData.Emplace(EDisplayClusterSyncGroup::PostTick);
 
-	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PreTick, FPlatformProcess::CreateSynchEvent(true));
-	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::Tick, FPlatformProcess::CreateSynchEvent(true));
-	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PostTick, FPlatformProcess::CreateSynchEvent(true));
-
-	CachedInputDataEvent  = FPlatformProcess::CreateSynchEvent(true);
-	CachedDeltaTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
-	CachedEventsDataEvent = FPlatformProcess::CreateSynchEvent(true);
-	CachedFrameTimeEvent  = FPlatformProcess::CreateSynchEvent(true);
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PreTick, FPlatformProcess::GetSynchEventFromPool(true));
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::Tick, FPlatformProcess::GetSynchEventFromPool(true));
+	CachedSyncDataEvents.Emplace(EDisplayClusterSyncGroup::PostTick, FPlatformProcess::GetSynchEventFromPool(true));
 }
 
 FDisplayClusterClusterNodeCtrlMaster::~FDisplayClusterClusterNodeCtrlMaster()
 {
-	delete CachedInputDataEvent;
-	delete CachedDeltaTimeEvent;
-	delete CachedEventsDataEvent;
-	delete CachedFrameTimeEvent;
-
 	for (auto& it : CachedSyncDataEvents)
 	{
-		delete it.Value;
+		FPlatformProcess::ReturnSynchEventToPool(it.Value);
 	}
 }
 
