@@ -17,7 +17,6 @@
 #include "Textures/SlateIcon.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/RemoteControlPanelStyle.h"
-#include "UI/SRCPanelInputBindings.h"
 #include "UI/SRCPanelExposedEntitiesList.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -102,13 +101,7 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 					WeakActivePanel = MoveTemp(Panel);
 				}
 			});
-
 	return PanelRef;
-}
-
-TSharedRef<SRCPanelInputBindings> FRemoteControlUIModule::CreateInputBindingsWidget(URemoteControlPreset* Preset)
-{
-	return SAssignNew(WeakActiveInputBindingsWidget, SRCPanelInputBindings, Preset);
 }
 
 void FRemoteControlUIModule::RegisterContextMenuExtender()
@@ -380,14 +373,6 @@ void FRemoteControlUIModule::OnSettingsModified(UObject*, FPropertyChangedEvent&
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
 		if (TSharedPtr<SRCPanelExposedEntitiesList> EntityList = Panel->GetEntityList())
-		{
-			EntityList->Refresh();
-		}	
-	}
-
-	if (TSharedPtr<SRCPanelInputBindings> InputBindings = WeakActiveInputBindingsWidget.Pin())
-	{
-		if (TSharedPtr<SRCPanelExposedEntitiesList> EntityList = InputBindings->GetEntityList())
 		{
 			EntityList->Refresh();
 		}	

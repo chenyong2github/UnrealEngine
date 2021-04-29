@@ -10,10 +10,11 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class AActor;
-class FExposedEntityDragDrop;
 struct EVisibility;
-struct FListEntry;
 struct FAssetData;
+class FExposedEntityDragDrop;
+struct FListEntry;
+struct FRemoteControlEntity;
 class FReply;
 class IPropertyRowGenerator;
 class IPropertyHandle;
@@ -145,6 +146,12 @@ private:
 
 	/** Handles refreshing the class picker when the map is changed. */
 	void OnMapChange(uint32);
+
+	/** Create the details view for the entity currently selected. */
+	TSharedRef<SWidget> CreateEntityDetailsView();
+	
+	/** Update the details view following entity selection change.  */
+	void UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode);
 private:
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
@@ -168,4 +175,13 @@ private:
 	TSet<TWeakObjectPtr<const UClass>> CachedClassesInLevel;
 	/** Holds the class picker used to expose all actors of class. */
 	TSharedPtr<SClassViewer> ClassPicker;
+	/** Holds the field's details. */
+	TSharedPtr<class IStructureDetailsView> EntityDetailsView;
+	/** Holds the field's protocol details. */
+	TSharedPtr<SBox> EntityProtocolDetails;
+	/**
+	 * Pointer to the currently selected node.
+	 * Used in order to ensure that the generated details view keeps a valid pointer to the selected entity.
+	 */
+	TSharedPtr<FRemoteControlEntity> SelectedEntity;
 };

@@ -41,7 +41,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelExposedEnti
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
-	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field, FRCColumnSizeData ColumnSizeData);
 
 	void Tick(const FGeometry&, const double, const float);
 
@@ -138,7 +138,7 @@ struct SRCPanelFieldChildNode : public SCompoundWidget, public SRCPanelTreeNode
 	{}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode);
+	void Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode, FRCColumnSizeData InColumnSizeData);
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const { return OutChildren.Append(ChildrenNodes); }
 	virtual FGuid GetId() const { return FGuid(); }
 	virtual ENodeType GetType() const { return SRCPanelTreeNode::FieldChild; }
