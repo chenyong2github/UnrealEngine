@@ -3,10 +3,12 @@
 #include "MediaMovieAssets.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
+#include "MediaTexture.h"
 
 UMediaMovieAssets::UMediaMovieAssets()
 	: MediaPlayer(nullptr)
 	, MediaSource(nullptr)
+	, MediaTexture(nullptr)
 {
 }
 
@@ -23,3 +25,9 @@ void UMediaMovieAssets::SetMediaSource(UMediaSource* InMediaSource)
 {
 	MediaSource = InMediaSource;
 }
+
+void UMediaMovieAssets::SetMediaTexture(UMediaTexture* InMediaTexture)
+{
+	MediaTexture = InMediaTexture;
+}
+

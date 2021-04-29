@@ -7,6 +7,7 @@
 #include "MediaMovieStreamerModule.h"
 #include "MediaPlayer.h"
 #include "MediaSource.h"
+#include "MediaTexture.h"
 
 DEFINE_LOG_CATEGORY(LogMediaMovieStreamer);
 
@@ -42,6 +43,18 @@ void FMediaMovieStreamer::SetMediaSource(UMediaSource* InMediaSource)
 	}
 
 	MediaSource = InMediaSource;
+}
+
+void FMediaMovieStreamer::SetMediaTexture(UMediaTexture* InMediaTexture)
+{
+	// Tell MovieAssets about this so it does not get garbage collected.
+	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+	if (MovieAssets != nullptr)
+	{
+		MovieAssets->SetMediaTexture(InMediaTexture);
+	}
+
+	MediaTexture = InMediaTexture;
 }
 
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)

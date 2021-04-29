@@ -10,6 +10,7 @@
 
 class UMediaPlayer;
 class UMediaSource;
+class UMediaTexture;
 
 /**
  * Keeps assets alive during level loading so they don't get garbage collected while we are using them.
@@ -37,6 +38,13 @@ public:
 	 * @param InMediaSource Media source to play.
 	 */
 	void SetMediaSource(UMediaSource* InMediaSource);
+
+	/**
+	 * Sets what media texture we are using.
+	 *
+	 * @param InMediaTexture Media texture to use.
+	 */
+	void SetMediaTexture(UMediaTexture* InMediaTexture);
 	
 private:
 	/** Holds the player we are using. */
@@ -46,4 +54,8 @@ private:
 	/** Holds the media source we are using. */
 	UPROPERTY()
 	UMediaSource* MediaSource;
+
+	/** Holds the media texture we are using. */
+	UPROPERTY()
+	UMediaTexture* MediaTexture;
 };
