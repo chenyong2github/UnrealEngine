@@ -510,6 +510,7 @@
 			}
 			else
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if PLATFORM_WINDOWS
 				p_event = new FEventWin();
 				p_event->Create(!auto_reset);
@@ -520,6 +521,7 @@
 				checkf(false, TEXT("unsupported platform for -nothreading"));
 				return;
 #endif
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 //@EPIC END
 			GetOSEvent(p_os_event_mem) = p_event;
